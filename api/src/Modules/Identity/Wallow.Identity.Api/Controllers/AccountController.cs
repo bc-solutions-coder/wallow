@@ -11,6 +11,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using Wallow.Identity.Api.Contracts.Requests;
+using Wallow.Identity.Api.Contracts.Responses;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Helpers;
 using Wallow.Identity.Application.Interfaces;
@@ -63,6 +64,7 @@ public sealed partial class AccountController(
 
     [HttpGet("external-providers")]
     [AllowAnonymous]
+    [ProducesResponseType(typeof(IReadOnlyList<string>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetExternalProviders()
     {
         IEnumerable<AuthenticationScheme> schemes = await signInManager.GetExternalAuthenticationSchemesAsync();
@@ -78,6 +80,7 @@ public sealed partial class AccountController(
 
     [HttpPost("login")]
     [AllowAnonymous]
+    [ProducesResponseType(typeof(AccountLoginResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> Login([FromBody] AccountLoginRequest request, CancellationToken ct)
     {
         LogLoginAttempt(request.Email);
@@ -180,6 +183,7 @@ public sealed partial class AccountController(
 
     [HttpPost("mfa/verify")]
     [AllowAnonymous]
+    [ProducesResponseType(typeof(MfaChallengeResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> VerifyMfaChallenge([FromBody] Contracts.Requests.MfaVerifyRequest request, CancellationToken ct)
     {
         string? mfaIpAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
@@ -253,6 +257,7 @@ public sealed partial class AccountController(
 
     [HttpGet("external-login")]
     [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status302Found)]
     public async Task<IActionResult> ExternalLogin(
         [FromQuery] string provider,
         [FromQuery] string returnUrl,
@@ -296,6 +301,7 @@ public sealed partial class AccountController(
 
     [HttpGet("external-login-callback")]
     [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status302Found)]
     public async Task<IActionResult> ExternalLoginCallback(
         [FromQuery] string returnUrl,
         [FromQuery] string? clientId = null)
@@ -434,6 +440,7 @@ public sealed partial class AccountController(
 
     [HttpGet("complete-external-registration")]
     [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status302Found)]
     public async Task<IActionResult> CompleteExternalRegistration(
         [FromQuery] bool acceptedTerms,
         [FromQuery] string returnUrl,
@@ -597,6 +604,7 @@ public sealed partial class AccountController(
 
     [HttpGet("exchange-ticket")]
     [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status302Found)]
     public async Task<IActionResult> ExchangeTicket(
         [FromQuery] string ticket,
         [FromQuery] string? returnUrl,
@@ -650,6 +658,7 @@ public sealed partial class AccountController(
 
     [HttpGet("redirect-uri/validate")]
     [AllowAnonymous]
+    [ProducesResponseType(typeof(RedirectUriValidationResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> ValidateRedirectUri(
         [FromQuery] string? uri,
         [FromQuery] string? clientId,
@@ -666,6 +675,7 @@ public sealed partial class AccountController(
 
     [HttpPost("sign-out")]
     [Authorize]
+    [ProducesResponseType(StatusCodes.Status302Found)]
     public async Task<IActionResult> SignOut(
         [FromForm] string? postLogoutRedirectUri,
         [FromForm] string? clientId = null)
@@ -694,6 +704,7 @@ public sealed partial class AccountController(
 
     [HttpPost("register")]
     [AllowAnonymous]
+    [ProducesResponseType(typeof(AccountOperationResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> Register([FromBody] AccountRegisterRequest request)
     {
         bool isPasswordless = string.Equals(request.LoginMethod, "passwordless", StringComparison.OrdinalIgnoreCase);
@@ -784,6 +795,7 @@ public sealed partial class AccountController(
 
     [HttpGet("client-tenant/{clientId}")]
     [AllowAnonymous]
+    [ProducesResponseType(typeof(ClientTenantResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetClientTenant(string clientId)
     {
         ClientTenantInfo? tenantInfo = await clientTenantResolver.ResolveAsync(clientId);
@@ -797,6 +809,7 @@ public sealed partial class AccountController(
 
     [HttpPost("forgot-password")]
     [AllowAnonymous]
+    [ProducesResponseType(typeof(AccountOperationResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> ForgotPassword([FromBody] AccountForgotPasswordRequest request)
     {
         // Always return success to prevent email enumeration
@@ -824,6 +837,7 @@ public sealed partial class AccountController(
 
     [HttpPost("reset-password")]
     [AllowAnonymous]
+    [ProducesResponseType(typeof(AccountOperationResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> ResetPassword([FromBody] AccountResetPasswordRequest request)
     {
         WallowUser? user = await signInManager.UserManager.FindByEmailAsync(request.Email);
@@ -851,6 +865,7 @@ public sealed partial class AccountController(
 
     [HttpGet("verify-email")]
     [AllowAnonymous]
+    [ProducesResponseType(typeof(AccountOperationResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> VerifyEmail([FromQuery] string email, [FromQuery] string token)
     {
         WallowUser? user = await signInManager.UserManager.FindByEmailAsync(email);
@@ -879,6 +894,7 @@ public sealed partial class AccountController(
 
     [HttpPost("passwordless/magic-link")]
     [AllowAnonymous]
+    [ProducesResponseType(typeof(AccountOperationResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> SendMagicLink([FromBody] SendMagicLinkRequest request, CancellationToken ct)
     {
         PasswordlessResult result = await passwordlessService.SendMagicLinkAsync(request.Email, ct, request.ReturnUrl, request.ClientId);
@@ -893,6 +909,7 @@ public sealed partial class AccountController(
 
     [HttpGet("passwordless/magic-link/verify")]
     [AllowAnonymous]
+    [ProducesResponseType(typeof(PasswordlessVerificationResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> VerifyMagicLink([FromQuery] string token, [FromQuery] bool rememberMe = false, CancellationToken ct = default)
     {
         PasswordlessResult result = await passwordlessService.ValidateMagicLinkAsync(token, ct);
@@ -907,6 +924,7 @@ public sealed partial class AccountController(
 
     [HttpPost("passwordless/otp")]
     [AllowAnonymous]
+    [ProducesResponseType(typeof(AccountOperationResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> SendOtp([FromBody] SendOtpRequest request, CancellationToken ct)
     {
         PasswordlessResult result = await passwordlessService.SendOtpAsync(request.Email, ct);
@@ -921,6 +939,7 @@ public sealed partial class AccountController(
 
     [HttpPost("passwordless/otp/verify")]
     [AllowAnonymous]
+    [ProducesResponseType(typeof(PasswordlessVerificationResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> VerifyOtp([FromBody] VerifyOtpRequest request, CancellationToken ct)
     {
         PasswordlessResult result = await passwordlessService.ValidateOtpAsync(request.Email, request.Code, ct);
@@ -935,6 +954,7 @@ public sealed partial class AccountController(
 
     [HttpPost("change-email")]
     [Authorize]
+    [ProducesResponseType(typeof(AccountOperationResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> ChangeEmail([FromBody] ChangeEmailRequest request)
     {
         string? userId = User.GetUserId();
@@ -990,6 +1010,7 @@ public sealed partial class AccountController(
 
     [HttpGet("confirm-email-change")]
     [AllowAnonymous]
+    [ProducesResponseType(typeof(AccountOperationResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> ConfirmEmailChange(
         [FromQuery] string token,
         [FromQuery] string userId,

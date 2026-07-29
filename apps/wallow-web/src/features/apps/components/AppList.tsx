@@ -1,17 +1,18 @@
 /**
  * Apps list component (Wallow-8w1h.5.2) — copies the CANONICAL Organizations
  * `OrganizationList` template (Wallow-8w1h.4.2). Drives
- * `useQuery(appsQueries.list())` and renders three states: loading, empty, and a
- * list of `app-item` rows.
+ * `useQuery(appsGetUserAppsOptions({ client }))` and renders three states:
+ * loading, empty, and a list of `app-item` rows.
  */
+import type { DeveloperAppResponse } from "@bc-solutions-coder/sdk";
 import { MutedText } from "@bc-solutions-coder/ui";
 import { useQuery } from "@tanstack/react-query";
+import { useRouteContext } from "@tanstack/react-router";
 
-import { appsQueries } from "../api";
-import type { App } from "../types";
+import { appsGetUserAppsOptions } from "../api";
 
 /** A single app row (extracted to keep the list's JSX nesting shallow). */
-function AppRow({ app }: { app: App }) {
+function AppRow({ app }: { app: DeveloperAppResponse }) {
   return (
     <li
       data-testid="app-item"
@@ -51,7 +52,8 @@ function AppsEmptyState() {
 }
 
 export function AppList() {
-  const { data, isPending } = useQuery(appsQueries.list());
+  const { sdk } = useRouteContext({ from: "__root__" });
+  const { data, isPending } = useQuery(appsGetUserAppsOptions({ client: sdk.client }));
 
   if (isPending) {
     return (
@@ -61,9 +63,9 @@ export function AppList() {
     );
   }
 
-  // The facade returns the list as `unknown`; narrow to the feature view-model
-  // at the render boundary (the sanctioned pattern copied from OrganizationList).
-  const apps = (data ?? []) as App[];
+  // No narrowing cast: under `responseStyle: "data"` the generated operation
+  // resolves the body, so `data` is already `DeveloperAppResponse[]`.
+  const apps: readonly DeveloperAppResponse[] = data ?? [];
 
   if (apps.length === 0) {
     return <AppsEmptyState />;

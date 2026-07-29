@@ -14,9 +14,8 @@ import { describe, expect, it } from "vitest";
 // and — critically — the one @import line added to BOTH apps' CSS entries so
 // Tailwind v4 scans ui's component sources.
 //
-// These specs read files off disk (mirroring packages/testing/src/
-// package-scaffold.test.ts) and assert the target shape described on the bead.
-// They intentionally FAIL until the green phase completes the scaffold.
+// These specs read files off disk and assert the target shape described on the
+// bead. They intentionally FAIL until the green phase completes the scaffold.
 
 // This guard lives at src/core/ (moved there by Wallow-m5aq.1.3 so the whole
 // package follows the core/ + components/ layering it asserts), hence TWO levels

@@ -1,0 +1,204 @@
+name: OpenAPI Auto-Regen
+
+# Regenerates the SDK when a backend change that moves the API contract lands on main,
+# and opens a pull request with the result, so nobody has to remember to run the
+# generator by hand.
+#
+# openapi-drift.yml is the same fact in its failure mode: it blocks a pull request whose
+# snapshot is stale. This workflow is the automation mode for main. Both derive "the
+# contract moved" from the shared .github/actions/openapi-document composite action, so
+# the PR this opens is exactly the change that would have made the drift check pass.
+#
+# The snapshot is rebuilt from the BUILD-TIME document, not from a live API, with the
+# request-derived "servers" block spliced back in as text. That reproduces a developer's
+# `WALLOW_OPENAPI_URL=... tsx scripts/generate.ts` refresh byte for byte, so the
+# automated commit never lands a reformat that a later manual refresh would undo.
+#
+# The regenerated client is emitted from the new snapshot by the same script a developer
+# runs, and the PR carries both halves, because packages/sdk/src/openapi-regen.test.ts
+# asserts snapshot/client parity in both directions.
+#
+# Every workflow expression is bound to an env var before it reaches a run: block --
+# this job holds write permissions, so no interpolation happens inside a shell string.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "api/**"
+      - "packages/sdk/openapi-ts.config.ts"
+      - "packages/sdk/scripts/generate.ts"
+      - ".github/actions/openapi-document/**"
+      - ".github/workflows/openapi-autoregen.yml"
+  workflow_dispatch:
+
+# Never cancel a run in flight: it may be between the force-push and the PR call.
+concurrency:
+  group: openapi-autoregen
+  cancel-in-progress: false
+
+env:
+  COMMITTED_SNAPSHOT: packages/sdk/openapi/v1.json
+  EXPECTED_SERVER_URL: http://localhost:5001/
+  REGEN_BRANCH: automation/openapi-regen
+  COMMIT_SUBJECT: "feat(sdk): regenerate OpenAPI snapshot and typed client"
+  TRIGGER_SHA: ${{ github.sha }}
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: wallow
+          POSTGRES_PASSWORD: wallow
+          POSTGRES_DB: wallow_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      # A PR opened with the default GITHUB_TOKEN does not start any workflow, which
+      # would leave this one unchecked by openapi-drift.yml and js.yml. Reuse the
+      # release-please PAT so the PR arrives with its own CI running; fall back to
+      # GITHUB_TOKEN in forks that have no PAT, where the checks have to be started
+      # by hand.
+      - uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Emit OpenAPI document and detect drift
+        id: openapi
+        uses: ./.github/actions/openapi-document
+        with:
+          connection-string: "Host=localhost;Port=5432;Database=wallow_test;Username=wallow;Password=wallow"
+
+      - name: Report an already-current snapshot
+        if: steps.openapi.outputs.drift != 'true'
+        run: echo "The committed snapshot already matches the API contract. Nothing to regenerate."
+
+      # ASP.NET Core fills "servers" in from the incoming request, so a document emitted
+      # at build time cannot carry it -- but the generated client bakes it into its
+      # default baseUrl, so the snapshot must. Splicing the block in as text (rather than
+      # reserialising the document with jq) is what keeps the result byte-identical to a
+      # live refresh: jq does not round-trip this document exactly.
+      - name: Refresh the snapshot from the emitted document
+        if: steps.openapi.outputs.drift == 'true'
+        env:
+          EMITTED_DOCUMENT: ${{ steps.openapi.outputs.document }}
+        run: |
+          set -euo pipefail
+
+          if jq -e 'has("servers")' "$EMITTED_DOCUMENT" > /dev/null; then
+            echo "::error::$EMITTED_DOCUMENT unexpectedly carries a servers block; splicing one in would duplicate the key."
+            exit 1
+          fi
+
+          # Byte offset of the "paths" line, which directly follows "info" and is where a
+          # live document carries "servers".
+          offset="$(grep -abm1 '^  "paths": {$' "$EMITTED_DOCUMENT" | cut -d: -f1 || true)"
+          if [ -z "$offset" ]; then
+            echo "::error::Could not locate the top-level \"paths\" key in $EMITTED_DOCUMENT."
+            exit 1
+          fi
+
+          {
+            head -c "$offset" "$EMITTED_DOCUMENT"
+            printf '  "servers": [\n    {\n      "url": "%s"\n    }\n  ],\n' "$EXPECTED_SERVER_URL"
+            tail -c "+$((offset + 1))" "$EMITTED_DOCUMENT"
+          } > "$COMMITTED_SNAPSHOT"
+
+          # Prove the spliced file is the emitted contract plus exactly that one block.
+          jq empty "$COMMITTED_SNAPSHOT"
+          jq -e --arg url "$EXPECTED_SERVER_URL" '.servers[0].url == $url' "$COMMITTED_SNAPSHOT" > /dev/null
+          if ! diff -u \
+            <(jq -S 'del(.servers)' "$COMMITTED_SNAPSHOT") \
+            <(jq -S . "$EMITTED_DOCUMENT"); then
+            echo "::error::The refreshed snapshot does not match the emitted document."
+            exit 1
+          fi
+
+      - name: Enable corepack
+        if: steps.openapi.outputs.drift == 'true'
+        run: corepack enable
+
+      - name: Set up Node.js
+        if: steps.openapi.outputs.drift == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+
+      - name: Install JS dependencies
+        if: steps.openapi.outputs.drift == 'true'
+        run: pnpm install --frozen-lockfile
+
+      # No WALLOW_OPENAPI_URL: the script generates from the snapshot just written,
+      # which is the whole point of rebuilding it first.
+      - name: Regenerate the typed client
+        if: steps.openapi.outputs.drift == 'true'
+        run: pnpm --filter @bc-solutions-coder/sdk exec tsx scripts/generate.ts
+
+      - name: Push the regenerated SDK
+        if: steps.openapi.outputs.drift == 'true'
+        id: push
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add packages/sdk/openapi/v1.json packages/sdk/src/generated
+          if git diff --cached --quiet; then
+            echo "::error::Drift was detected but regeneration produced no change. The snapshot and the emitted document disagree in a way this workflow cannot express."
+            exit 1
+          fi
+
+          git commit --message "$COMMIT_SUBJECT" \
+            --message "Regenerated from ${TRIGGER_SHA} by openapi-autoregen.yml."
+
+          # The regen branch is owned by this workflow and rebuilt from main on every
+          # run, so it is force-pushed by design. The refspec is explicit so no other
+          # ref can be touched.
+          git push --force origin "HEAD:refs/heads/${REGEN_BRANCH}"
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Open or update the pull request
+        if: steps.push.outputs.pushed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/pr-body.md" <<'BODY'
+          Automated by `.github/workflows/openapi-autoregen.yml`.
+
+          A backend change on `main` moved the API contract, so
+          `packages/sdk/openapi/v1.json` and `packages/sdk/src/generated/**` were
+          regenerated the same way `scripts/generate.ts` regenerates them locally.
+
+          **Before merging, check the commit type.** It is `feat(sdk):` by default,
+          which release-please turns into a minor bump of `@bc-solutions-coder/sdk`.
+          If the contract change removed or renamed an operation, amend the squash
+          title to `feat(sdk)!:` so the SDK gets a major bump instead.
+          BODY
+          printf '\nRegenerated from %s.\n' "$TRIGGER_SHA" >> "$RUNNER_TEMP/pr-body.md"
+
+          existing="$(gh pr list --head "$REGEN_BRANCH" --state open --json number --jq '.[0].number // ""')"
+          if [ -n "$existing" ]; then
+            gh pr edit "$existing" --title "$COMMIT_SUBJECT" --body-file "$RUNNER_TEMP/pr-body.md"
+            echo "Updated existing PR #$existing."
+          else
+            gh pr create \
+              --base main \
+              --head "$REGEN_BRANCH" \
+              --title "$COMMIT_SUBJECT" \
+              --body-file "$RUNNER_TEMP/pr-body.md"
+          fi

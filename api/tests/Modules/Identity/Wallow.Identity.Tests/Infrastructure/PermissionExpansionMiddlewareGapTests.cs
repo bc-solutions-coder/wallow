@@ -58,7 +58,7 @@ public class PermissionExpansionMiddlewareGapTests
     {
         Claim[] claims =
         [
-            new("client_id", "wallow-dev-client"),
+            new("client_id", "wallow-web-client"),
             new("sub", Guid.NewGuid().ToString()),
             new("scope", "notifications.read inquiries.write")
         ];

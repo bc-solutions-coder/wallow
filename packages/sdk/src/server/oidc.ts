@@ -73,6 +73,26 @@ export interface ExchangeCodeParams {
 /** Module-level cache of discovery documents keyed on issuer URL. */
 const discoveryCache = new Map<string, DiscoveryDoc>();
 
+/**
+ * Decide whether openid-client may perform plain-HTTP (insecure) requests for
+ * the given discovery URL.
+ *
+ * The decision must be reachable at RUNTIME in a bundled server: the SDK's
+ * server entry is bundled into each app's nitro production build, where
+ * vite/rollup statically folds build-time environment reads to literals and
+ * then constant-folds the branch away entirely. The signal this reads is
+ * therefore a value only known at runtime, never a bundler-substitutable one.
+ *
+ * The signal is the configured discovery URL itself: plain HTTP is permitted
+ * exactly when the OP is reached over plain HTTP, which is the actual intent.
+ * An HTTPS issuer keeps openid-client's transport check on.
+ *
+ * @param metadataUrl Absolute URL the discovery document is fetched from.
+ */
+export function shouldAllowInsecureRequests(metadataUrl: string): boolean {
+  return new URL(metadataUrl).protocol === "http:";
+}
+
 /** Lifetime assumed when the token response omits `expires_in` (seconds). */
 const NO_EXPIRY_SECONDS = 0;
 
@@ -105,9 +125,9 @@ function rewriteOrigin(endpoint: string, targetOrigin: string): string {
  * at that internal host, so the interactive endpoints must be re-pinned to the
  * public origin.
  *
- * Outside production (`NODE_ENV !== "production"`) insecure (plain HTTP)
- * requests are permitted for both the discovery request and the resolved
- * {@link Configuration} to support local/dev issuers.
+ * Insecure (plain HTTP) requests are permitted for both the discovery request
+ * and the resolved {@link Configuration} exactly when the URL discovery is
+ * fetched from is itself plain HTTP — see {@link shouldAllowInsecureRequests}.
  *
  * @param config BFF configuration providing the issuer and optional metadata URL.
  */
@@ -120,7 +140,7 @@ export async function discover(config: BffConfig): Promise<DiscoveryDoc> {
     return cached;
   }
 
-  const allowInsecure: boolean = process.env.NODE_ENV !== "production";
+  const allowInsecure: boolean = shouldAllowInsecureRequests(metadataUrl);
   const configuration: Configuration = await discovery(
     new URL(metadataUrl),
     config.clientId,

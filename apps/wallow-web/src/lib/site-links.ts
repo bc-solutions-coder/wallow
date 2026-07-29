@@ -8,7 +8,7 @@
  *
  */
 
-import { forkBranding } from "./branding";
+import { forkBranding } from "@bc-solutions-coder/styles";
 
 /** The fork's repository, from `forkBranding.repositoryUrl`. */
 export const repositoryUrl: string =

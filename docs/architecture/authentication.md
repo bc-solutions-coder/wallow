@@ -132,11 +132,10 @@ Tickets are **not** issued for:
 After receiving a successful login response containing a ticket, the login screen builds the exchange URL through the SDK and assigns `globalThis.location.href` to it, forcing a full-page navigation:
 
 ```ts
+import { buildExchangeTicketUrl } from "@bc-solutions-coder/sdk";
+
 if (result.signInTicket) {
-  globalThis.location.href = getWallowAuthSdk().oidc.buildExchangeTicketUrl(
-    result.signInTicket,
-    returnUrl,
-  );
+  globalThis.location.href = buildExchangeTicketUrl(SAME_ORIGIN, result.signInTicket, returnUrl);
   return;
 }
 ```

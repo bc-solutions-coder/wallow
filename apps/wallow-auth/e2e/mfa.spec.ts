@@ -5,7 +5,7 @@ import { generateTotp } from "./totp";
 
 /**
  * MFA TOTP lifecycle, end to end — enrollment then challenge. BACKEND-DEPENDENT
- * and MAILPIT-DEPENDENT: the flow crosses the h3 proxy into Wallow.Api
+ * and MAILPIT-DEPENDENT: the flow crosses the passthrough proxy into Wallow.Api
  * (`v1/identity/mfa/enroll/totp`, `.../enroll/confirm`, `.../auth/mfa/verify`) and
  * reads the account-verification email out of Mailpit. Needs the live seeded stack
  * + Mailpit (scripts/e2e.sh boots both). A failure here is a bug to file.

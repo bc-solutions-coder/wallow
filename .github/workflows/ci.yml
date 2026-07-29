@@ -185,6 +185,82 @@ jobs:
           if-no-files-found: error
           retention-days: 5
 
+  # Tenant isolation is the control a fork most needs to inherit intact (OWASP API1:2023), so it
+  # runs as its own blocking job: a broken tenant filter reads as "cross-tenant tests failed"
+  # rather than as one red line inside the general sweep. The filter selects by trait, not by
+  # project, because the change that most needs the gate is a module adding its first
+  # tenant-scoped resource. Half the suite is Category=Integration, so the job supplies the same
+  # Postgres and Valkey the integration-tests job does and does NOT exclude that category.
+  cross-tenant-tests:
+    needs: build
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: wallow
+          POSTGRES_PASSWORD: wallow
+          POSTGRES_DB: wallow_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Start Valkey with password
+        run: |
+          docker run -d --name valkey -p 6379:6379 valkey/valkey:8-alpine \
+            valkey-server --requirepass WallowTestValkey123! --appendonly yes
+          for i in $(seq 1 10); do
+            if docker exec valkey valkey-cli -a WallowTestValkey123! ping 2>/dev/null | grep -q PONG; then
+              echo "Valkey is ready"
+              break
+            fi
+            if [ "$i" -eq 10 ]; then
+              echo "::error::Valkey did not become healthy in time"
+              docker logs valkey
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: Restore build output
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            **/bin/Release
+            **/obj
+          key: build-v3-${{ runner.os }}-${{ github.sha }}
+          fail-on-cache-miss: true
+
+      - name: Restore dependencies
+        run: dotnet restore api/Wallow.slnx
+
+      - name: Run cross-tenant isolation tests
+        run: dotnet test api/Wallow.slnx --no-build --configuration Release --filter "Category=CrossTenant" --verbosity normal --blame-hang-timeout 5m --settings api/tests/coverage.runsettings --results-directory ./TestResults
+        env:
+          ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=wallow_test;Username=wallow;Password=wallow"
+          Redis__ConnectionString: "localhost:6379,password=WallowTestValkey123!,abortConnect=false"
+
   docker-images-app:
     needs: build
     runs-on: ubuntu-latest
@@ -320,8 +396,6 @@ jobs:
           key: images-infra-${{ github.sha }}
 
   e2e-tests:
-    # Temporarily disabled while the React cutover branch stabilises.
-    if: false
     needs: [docker-images-app, docker-images-infra]
     runs-on: ubuntu-latest
     permissions:
@@ -387,6 +461,47 @@ jobs:
           path: apps/wallow-auth/playwright-report
           if-no-files-found: ignore
           retention-days: 5
+
+  # A fork consumes @bc-solutions-coder/* as published tarballs, not as workspace
+  # symlinks — so nothing in the workspace build can catch a file missing from
+  # `files`, an `exports` subpath that points at a path `pnpm pack` never ships,
+  # a runtime dependency parked under devDependencies, or a .d.ts that references
+  # a type left behind. This job installs the packed tarballs into a scratch
+  # TanStack Start app outside the workspace, which is exactly that install.
+  #
+  # No `needs:` — it touches no .NET output and can run alongside the build.
+  fork-smoke:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+
+      # Installs the workspace so the script can BUILD packages/sdk and
+      # packages/styles; the scratch app itself installs nothing from here.
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The work directory is pinned outside the checkout (the script refuses to
+      # run inside the repo — there pnpm would find the workspace root walking
+      # up and the app would stop being an outside consumer). Spelled out rather
+      # than left to the script's mktemp default because runners do not set
+      # TMPDIR, so the default would land in /tmp instead of the runner's own
+      # scratch space.
+      - name: Build a scratch app from the packed SDK
+        env:
+          FORK_SMOKE_DIR: ${{ runner.temp }}/fork-smoke
+        run: ./scripts/fork-smoke.sh
 
   merge-coverage:
     needs: [unit-tests, integration-tests]

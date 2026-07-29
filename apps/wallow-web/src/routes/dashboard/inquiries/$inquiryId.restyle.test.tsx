@@ -1,9 +1,9 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactElement } from "react";
-import { render } from "vitest-browser-react";
+import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+
+import { routeHarness } from "../../../test/harness-routes";
 import { beforeEach, describe, it, vi } from "vitest";
 
-import { installSdkClientMock } from "../../../test/sdk-client-mock";
 import { expectClasses, expectTokenColorsOnly, waitForTestId } from "../../../test/style-contract";
 import { Route } from "./$inquiryId";
 
@@ -30,29 +30,23 @@ const INQUIRY = {
   createdAt: "2026-07-15T00:00:00Z",
 };
 
-function newClient(): QueryClient {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false, staleTime: Number.POSITIVE_INFINITY } },
-  });
-  client.setQueryData(["inquiries", "i1"], INQUIRY);
-  client.setQueryData(["inquiries", "i1", "comments"], []);
-  return client;
-}
-
-function renderWithClient(ui: ReactElement) {
-  return render(<QueryClientProvider client={newClient()}>{ui}</QueryClientProvider>);
-}
+/** The transport backing each render, rebuilt per test. */
+let harness: SdkHarness;
 
 /** Render the route page and resolve its settled root element. */
 async function renderPage(): Promise<HTMLElement> {
   const Page = Route.options.component!;
-  renderWithClient(<Page />);
+  renderWithWallow(<Page />, { harness });
   return waitForTestId("dashboard-inquiry-detail");
 }
 
 describe("routes/dashboard/inquiries/$inquiryId (restyle)", () => {
   beforeEach(() => {
-    installSdkClientMock();
+    harness = createSdkHarness();
+    routeHarness(harness, {
+      "GET /v1/inquiries/i1": INQUIRY,
+      "GET /v1/inquiries/i1/comments": [],
+    });
     vi.spyOn(Route, "useParams").mockReturnValue({ inquiryId: "i1" });
   });
 

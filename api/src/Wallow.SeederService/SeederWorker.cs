@@ -139,6 +139,13 @@ public sealed partial class SeederWorker(
             admin.LastName,
             ct);
         await bootstrapAdminService.AssignRoleAsync(userId, AdminRoleName, ct);
+
+        if (admin.IsGlobalAdmin)
+        {
+            await bootstrapAdminService.GrantGlobalAdminAsync(userId, ct);
+            LogGlobalAdminGranted(admin.Email);
+        }
+
         LogAdminBootstrapped(admin.Email);
 
         LogStepCompleted("Bootstrap Admin");
@@ -180,6 +187,9 @@ public sealed partial class SeederWorker(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Bootstrapped admin user: {Email}")]
     private partial void LogAdminBootstrapped(string email);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Granted the global administrator claim to seeded admin user: {Email}")]
+    private partial void LogGlobalAdminGranted(string email);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Seeder worker completed successfully")]
     private partial void LogSeederCompleted();

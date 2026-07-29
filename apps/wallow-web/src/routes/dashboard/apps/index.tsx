@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { appsQueries } from "../../../features/apps/api";
+import { appsGetUserAppsOptions } from "../../../features/apps/api";
 import { AppList } from "../../../features/apps/components/AppList";
 
 /**
@@ -9,7 +9,8 @@ import { AppList } from "../../../features/apps/components/AppList";
  *
  * The page root carries `data-testid="dashboard-apps"` and renders the `AppList`
  * component; the route `loader` prefetches the list via
- * `context.queryClient.ensureQueryData(appsQueries.list())`.
+ * `context.queryClient.ensureQueryData(appsGetUserAppsOptions({ client }))`,
+ * binding the request-scoped client off the router context.
  *
  * Authored file-route style (`createFileRoute('/dashboard/apps/')`), so its
  * `id`/`path`/parent are left unset — `src/router.tsx` binds it under the root
@@ -47,6 +48,7 @@ function AppsIndexPage() {
 }
 
 export const Route = createFileRoute("/dashboard/apps/")({
-  loader: ({ context }) => context.queryClient.ensureQueryData(appsQueries.list()),
+  loader: ({ context }) =>
+    context.queryClient.ensureQueryData(appsGetUserAppsOptions({ client: context.sdk.client })),
   component: AppsIndexPage,
 });

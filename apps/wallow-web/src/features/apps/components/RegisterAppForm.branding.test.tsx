@@ -1,11 +1,12 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactElement } from "react";
+import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import { page } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { installSdkClientMock } from "../../../test/sdk-client-mock";
 import { RegisterAppForm } from "./RegisterAppForm";
+
+/** The transport backing each render, rebuilt per test. */
+let harness: SdkHarness;
 
 /**
  * App branding/logo-upsert reachability spec (Wallow-ffpq.3.6) — the optional
@@ -23,33 +24,23 @@ import { RegisterAppForm } from "./RegisterAppForm";
  * path).
  */
 
-function newClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-}
-
-function renderWithClient(client: QueryClient, ui: ReactElement) {
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-}
-
 describe("RegisterAppForm branding/logo upsert", () => {
   beforeEach(() => {
-    installSdkClientMock();
+    harness = createSdkHarness();
   });
 
   it("renders an optional branding display-name input in the form view", async () => {
-    renderWithClient(newClient(), <RegisterAppForm />);
+    renderWithWallow(<RegisterAppForm />, { harness });
     await expect.element(page.getByTestId("app-branding-display-name")).toBeInTheDocument();
   });
 
   it("renders an optional branding tagline input", async () => {
-    renderWithClient(newClient(), <RegisterAppForm />);
+    renderWithWallow(<RegisterAppForm />, { harness });
     await expect.element(page.getByTestId("app-branding-tagline")).toBeInTheDocument();
   });
 
   it("renders a logo file input for the branding upsert", async () => {
-    renderWithClient(newClient(), <RegisterAppForm />);
+    renderWithWallow(<RegisterAppForm />, { harness });
     await expect.element(page.getByTestId("app-logo-input")).toBeInTheDocument();
   });
 });

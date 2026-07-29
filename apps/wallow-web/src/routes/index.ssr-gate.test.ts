@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
+import { createSdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { type AnyRedirect, isRedirect } from "@tanstack/react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -21,7 +22,7 @@ import { Route } from "./index";
  * spy in `index.gate.test.tsx` masks exactly that defect. It is a `.test.ts`, so
  * it runs in the vitest NODE project (`src/**\/*.test.ts`, see the shared
  * `createVitestProjects` preset): no global `location`, i.e. the same conditions
- * as a full-page SSR render. Only `../lib/branding` is mocked, so each test can
+ * as a full-page SSR render. Only branding is mocked, so each test can
  * flip `landingPage.enabled` — the flag that decides whether the gate runs at
  * all (it defaults to `true`, which is why this defect is dormant in the
  * default fork configuration).
@@ -44,7 +45,15 @@ const branding = vi.hoisted(() => ({
   appIconUrl: "/piggy-icon.svg",
 }));
 
-vi.mock("../lib/branding", () => branding);
+// Partial override: every other branding export stays real, only the two values
+// the gate reads are stood in.
+vi.mock("@bc-solutions-coder/styles", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@bc-solutions-coder/styles")>()),
+  ...branding,
+}));
+
+/** A real SDK over a fake transport, standing in for the request's instance. */
+const sdk = createSdkHarness().sdk;
 
 /**
  * Drive the route's `beforeLoad` with a minimal TanStack-shaped context whose
@@ -55,7 +64,7 @@ async function runGate(user: unknown): Promise<unknown> {
   const beforeLoad = Route.options.beforeLoad as (opts: unknown) => Promise<unknown>;
   return beforeLoad({
     location: { pathname: "/", href: "/" },
-    context: { queryClient: { ensureQueryData } },
+    context: { queryClient: { ensureQueryData }, sdk },
   });
 }
 

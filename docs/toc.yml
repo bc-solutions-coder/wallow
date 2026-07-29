@@ -56,6 +56,8 @@
       href: operations/versioning.md
     - name: Observability
       href: operations/observability.md
+    - name: Request Correlation
+      href: operations/request-correlation.md
     - name: Audit Events
       href: operations/audit-events.md
     - name: Reverse Proxy
@@ -72,6 +74,8 @@
       href: integrations/bff-pattern.md
     - name: TypeScript SDK
       href: integrations/typescript-sdk.md
+    - name: Integration Cookbook
+      href: integrations/integration-cookbook.md
 - name: API Reference
   items:
     - name: Service Accounts

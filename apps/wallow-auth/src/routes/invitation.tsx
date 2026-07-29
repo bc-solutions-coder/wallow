@@ -1,7 +1,7 @@
+import { type CurrentUserResponse, getCurrentUser } from "@bc-solutions-coder/sdk";
+import { usersGetCurrentUserQueryKey } from "@bc-solutions-coder/sdk/query";
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-
-import { userQueries } from "@bc-solutions-coder/sdk/query";
+import { createFileRoute, useRouteContext } from "@tanstack/react-router";
 
 import { AuthLayout } from "../components/auth-layout";
 import {
@@ -25,7 +25,7 @@ import {
  * This app has no server session and
  * the auth cookie is HttpOnly, so the answer comes from the SDK's `getCurrentUser`
  * seam (Wallow-vec7.2.4): a same-origin `GET /v1/identity/users/me` through the
- * h3 passthrough proxy, whose 200-vs-401 IS the answer. JS never reads the
+ * SDK passthrough proxy, whose 200-vs-401 IS the answer. JS never reads the
  * cookie; it observes only the status of its own request.
  *
  * CLIENT-SIDE, not in an SSR loader: the browser attaches the cookie to a
@@ -71,9 +71,15 @@ function validateSearch(search: Record<string, unknown>): InvitationSearch {
 
 function InvitationRoute() {
   const { token } = Route.useSearch();
+  const { sdk } = useRouteContext({ from: "__root__" });
 
   const authQuery = useQuery({
-    ...userQueries.currentUser(),
+    // The GENERATED key for `users/me`, with a hand-written `queryFn`: the
+    // generated one rejects on 401, and here that status IS the answer. The
+    // SDK's `getCurrentUser` owns that softening (it resolves `null`).
+    queryKey: usersGetCurrentUserQueryKey({ client: sdk.client }),
+    queryFn: async (): Promise<CurrentUserResponse | null> =>
+      await getCurrentUser({ client: sdk.client }),
     // A failed probe is an answer here (anonymous), not something to grind on:
     // retrying would hold the invitation behind a spinner.
     retry: false,

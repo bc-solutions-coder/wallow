@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 /**
  * Signup (register) flow, end to end. BACKEND-DEPENDENT: register posts
- * `v1/identity/auth/register` through the h3 proxy into Wallow.Api, which creates
+ * `v1/identity/auth/register` through the passthrough proxy into Wallow.Api, which creates
  * the account and emails a verification link. Needs the live seeded stack
  * (scripts/e2e.sh boots it). A failure here is a bug to file, not necessarily a
  * regression in this app — the flow crosses the proxy into Wallow.Api.

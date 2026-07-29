@@ -8,7 +8,7 @@ namespace Wallow.AppHost.Tests;
 /// Verifies the Aspire AppHost wires the required OIDC/BFF/API configuration onto the
 /// wallow-web and wallow-auth Node resources (Wallow-xzha.1.1). Without these, the first
 /// BFF request under 'pnpm backend' 500s because loadBffConfigFromEnv() throws on the
-/// missing variables, and wallow-auth's h3 proxy cannot resolve its upstream API.
+/// missing variables, and wallow-auth's passthrough proxy cannot resolve its upstream API.
 ///
 /// Known-correct target values come from the bead (Aspire-local ports) and mirror the
 /// containerised values proven in docker/docker-compose.test.yml.

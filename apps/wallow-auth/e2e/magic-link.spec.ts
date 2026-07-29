@@ -4,7 +4,7 @@ import { waitForEmailBody } from "./mailpit";
 
 /**
  * Magic-link login, end to end. BACKEND-DEPENDENT and MAILPIT-DEPENDENT: the send
- * half posts `v1/identity/auth/passwordless/magic-link` through the h3 proxy into
+ * half posts `v1/identity/auth/passwordless/magic-link` through the passthrough proxy into
  * Wallow.Api, which emails the link via SMTP to Mailpit; the verify half redeems
  * the emailed token on load at `/login?magicLinkToken=…`. Needs the live seeded
  * stack + Mailpit (scripts/e2e.sh boots both). A failure is a bug to file.

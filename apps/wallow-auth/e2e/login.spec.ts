@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
  * Password-login smoke test. Unlike routes.spec.ts this REQUIRES the backend
  * (`pnpm backend` + seeded admin from api/seed.json). A failure here is a bug
  * to file, not necessarily a regression in this app — the login flow crosses
- * the h3 proxy into Wallow.Api.
+ * the passthrough proxy into Wallow.Api.
  *
  * A direct /login visit carries no OIDC returnUrl, so the screen deliberately
  * stays on /login and renders the signed-in state rather than navigating —

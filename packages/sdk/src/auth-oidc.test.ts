@@ -27,6 +27,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  allowListedReturnUrl,
   buildConnectAuthorizeUrl,
   buildConnectLogoutUrl,
   buildConsentSubmitUrl,
@@ -36,6 +37,12 @@ import {
 
 /** Same origin the wallow-auth proxy fronts; mirrors Blazor's ApiBaseUrl config value. */
 const ORIGIN: string = "http://localhost:5001";
+
+/**
+ * The shape the external-login MFA hand-off really sends: the `AuthUrl` origin,
+ * absolute by construction (Wallow-vec7.3.17's investigation).
+ */
+const EXTERNAL_RETURN_URL: string = "http://localhost:5002/login";
 
 /**
  * Every shape ReturnUrlValidator.IsSafe rejects. Reused by the guard tests AND
@@ -358,6 +365,118 @@ describe("buildExchangeTicketUrl — the flow's client id", () => {
       );
     },
   );
+});
+
+/**
+ * THE EXTERNAL-LOGIN HAND-OFF (Wallow-a6jr).
+ *
+ * `AccountController.ExternalLoginCallback` redirects an MFA-required external
+ * login to `{authUrl}/mfa/challenge?returnUrl=...`, and that returnUrl is ALWAYS
+ * ABSOLUTE: it either passed `IsAllowedAsync` -- which requires
+ * `Uri.TryCreate(uri, UriKind.Absolute)` -- or it is the `AuthUrl` fallback. So
+ * `isSafeReturnUrl` is false for 100% of them, and the MFA screen's own mount
+ * guard (Wallow-vec7.3.17) admits them anyway by asking the SERVER's allow-list
+ * (`/redirect-uri/validate`, scoped to the flow's client). That left the builder
+ * refusing the value its own caller had just been told was legitimate.
+ *
+ * THE RULE IS NOT RELAXED. A bare `string` returnUrl still means "prove it is
+ * relative" and every open-redirect case above still throws. What changed is
+ * that a caller who HAS the allow-list verdict can carry it, by minting an
+ * `AllowListedReturnUrl` -- which demands that verdict as an argument, so a
+ * caller that never probed cannot produce one by omission.
+ */
+describe("allowListedReturnUrl", () => {
+  it("mints a hand-off token when the allow-list said yes", () => {
+    expect(allowListedReturnUrl(EXTERNAL_RETURN_URL, true)).toEqual({
+      url: EXTERNAL_RETURN_URL,
+      allowListed: true,
+    });
+  });
+
+  it("refuses to mint one when the allow-list said no", () => {
+    // The verdict is a PARAMETER precisely so this case exists: authorization is
+    // handed over explicitly, and `allowed: false` is the server refusing.
+    expect(() => allowListedReturnUrl("https://evil.com/steal", false)).toThrow(
+      /not allow-listed/iu,
+    );
+  });
+
+  it.each([
+    ["a relative path", "/dashboard"],
+    ["a protocol-relative URL", "//evil.com/steal"],
+    // oxlint no-script-url flags `javascript:` literals; here it is the attack
+    // string under test, exactly as in UNSAFE_RETURN_URLS above.
+    // eslint-disable-next-line no-script-url
+    ["a javascript: URI", "javascript:alert(1)"],
+    ["a data: URI", "data:text/html,<script>alert(1)</script>"],
+  ])("refuses %s even when told it is allowed", (_label: string, url: string) => {
+    // The SDK cannot re-run the allow-list, but it knows the SHAPE the allow-list
+    // can only ever have admitted: `IsAllowedAsync` origin-matches an
+    // `UriKind.Absolute` value, so a value that does not parse absolute or is not
+    // http(s) was never on the list however it reached this call.
+    expect(() => allowListedReturnUrl(url, true)).toThrow(/allow-listed return url is not/iu);
+  });
+});
+
+describe("buildExchangeTicketUrl — an allow-listed absolute returnUrl", () => {
+  it("builds the hand-off from a minted token", () => {
+    expect(
+      buildExchangeTicketUrl(ORIGIN, "tkt", allowListedReturnUrl(EXTERNAL_RETURN_URL, true)),
+    ).toBe(
+      `${ORIGIN}/v1/identity/auth/exchange-ticket` +
+        `?ticket=tkt&returnUrl=${encodeURIComponent(EXTERNAL_RETURN_URL)}`,
+    );
+  });
+
+  it("still carries the flow's client id", () => {
+    // `ExchangeTicket` re-validates the returnUrl before setting the cookie and
+    // falls back to the union origin set without an id, so the scoping has to
+    // survive this hop too.
+    expect(
+      buildExchangeTicketUrl(
+        ORIGIN,
+        "tkt",
+        allowListedReturnUrl(EXTERNAL_RETURN_URL, true),
+        "client-a",
+      ),
+    ).toBe(
+      `${ORIGIN}/v1/identity/auth/exchange-ticket` +
+        `?ticket=tkt&returnUrl=${encodeURIComponent(EXTERNAL_RETURN_URL)}&clientId=client-a`,
+    );
+  });
+
+  it.each(UNSAFE_RETURN_URLS)(
+    "still refuses %s handed over as a bare string",
+    (_l: string, url: string) => {
+      // THE RULE IS UNCHANGED for everyone who did not probe. The opt-in is the
+      // token, not the builder.
+      expect(() => buildExchangeTicketUrl(ORIGIN, "tkt", url)).toThrow(/unsafe return url/iu);
+    },
+  );
+
+  it("re-checks a hand-built token rather than trusting the shape", () => {
+    // `AllowListedReturnUrl` is a STRUCTURAL type, so an object literal can wear
+    // it without ever touching the factory. The builder is what writes
+    // `location.href`, so it applies the shape guard itself -- the difference
+    // between a refused URL and a `javascript:` XSS.
+    const forged = {
+      // eslint-disable-next-line no-script-url
+      url: "javascript:alert(1)",
+      allowListed: true,
+    } as const;
+
+    expect(() => buildExchangeTicketUrl(ORIGIN, "tkt", forged)).toThrow(
+      /allow-listed return url is not http/iu,
+    );
+  });
+
+  it("checks the ticket before the returnUrl either way", () => {
+    // A ticketless exchange URL is not a navigation target no matter how the
+    // destination was authorized.
+    expect(() =>
+      buildExchangeTicketUrl(ORIGIN, "", allowListedReturnUrl(EXTERNAL_RETURN_URL, true)),
+    ).toThrow(/ticket is required/iu);
+  });
 });
 
 describe("buildConnectLogoutUrl", () => {

@@ -4,8 +4,8 @@
   //
   // Vite 8 (Rolldown) bundles the JS but does not emit type declarations, so the
   // native `tsc --emitDeclarationOnly` CLI generates them here. `include` is
-  // narrowed to the two public entry points (browser-safe `.` and Node `./server`);
-  // tsc transitively pulls in every real src file they import, while *.test.ts and
+  // narrowed to the single public entry point (the browser-safe `.` barrel); tsc
+  // transitively pulls in every real src file it imports, while *.test.ts and
   // root *.config.ts stay out of the program so no stray declaration files leak
   // into dist/. `rootDir` is set explicitly to keep dist/ mirroring src/ (TS7
   // requires it when outDir is set).
@@ -20,6 +20,6 @@
     "rootDir": "src",
     "outDir": "dist"
   },
-  "include": ["src/index.ts", "src/server/index.ts"],
+  "include": ["src/index.ts"],
   "exclude": ["**/*.test.ts", "**/*.config.ts"]
 }

@@ -24,10 +24,12 @@ namespace Wallow.Architecture.Tests;
 /// <c>Identity:FirstPartyClients</c> in <c>api/src/Wallow.Api/appsettings.json</c> lists
 /// <c>bcordes-dev-client</c>, which is a <i>production</i> client — <c>api/seed.json</c> never
 /// seeds it. First-party matching is by client id, so the dev list matches no client and consent
-/// is never skipped locally. The entry must be replaced with a client <c>api/seed.json</c>
-/// actually seeds, not deleted: <c>docker/docker-compose.test.yml</c> appends to this array
-/// positionally (<c>Identity__FirstPartyClients__1</c> and <c>__2</c>), so removing index 0
-/// leaves a hole those overrides cannot fill.</para>
+/// is never skipped locally. Every entry must therefore name a client <c>api/seed.json</c>
+/// actually seeds. Whether an entry may be dropped outright is a separate question, settled by
+/// the positional-override invariant in <see cref="PublicSeedClientRemovalTests"/>: entries may
+/// be removed as long as <c>docker/docker-compose.test.yml</c>'s
+/// <c>Identity__FirstPartyClients__&lt;index&gt;</c> overrides are renumbered to continue where
+/// the shortened appsettings array ends.</para>
 ///
 /// These are static source assertions, in the same style as
 /// <see cref="TraceSamplerConfigurationTests" /> and <see cref="CiAuthImageBuildTests" />, because
@@ -130,16 +132,13 @@ public class SeedClientIdConsistencyTests
 
     // ---- dev first-party client list ----------------------------------------------------
 
-    [Fact]
-    public void DevFirstPartyClients_ShouldNotBeEmpty()
-    {
-        IReadOnlyList<string> firstPartyClients = ReadDevFirstPartyClients();
-
-        firstPartyClients.Should().NotBeEmpty(
-            "docker-compose.test.yml appends to this array positionally via " +
-            "Identity__FirstPartyClients__1 and __2, so index 0 must keep a value. The stale entry " +
-            "has to be replaced with a seeded client id, not deleted");
-    }
+    // A "must not be empty" invariant used to live here, on the reasoning that
+    // docker-compose.test.yml's positional overrides start at index 1 and so index 0 had to keep
+    // a value. That is the wrong half of the constraint: what actually matters is that the
+    // override indexes track the appsettings array's length, which
+    // PublicSeedClientRemovalTests.TestCompose_FirstPartyClientOverrides_ShouldContinueWhereAppSettingsEnds
+    // pins directly. Keeping the old test here would forbid deleting a client outright — exactly
+    // what the public-client removal PublicSeedClientRemovalTests guards required.
 
     [Fact]
     public void DevFirstPartyClients_ShouldOnlyNameClientsThatSeedJsonSeeds()
@@ -164,10 +163,10 @@ public class SeedClientIdConsistencyTests
 
         source.Should().NotContain(
             CanonicalForkClientId,
-            "docker-compose.test.yml explains its Identity__FirstPartyClients__1/__2 overrides by " +
-            "stating what appsettings already lists at index 0. That comment names '{0}', a " +
-            "production-only client; it must track whichever seeded id replaces it, or the next " +
-            "reader re-introduces the drift",
+            "docker-compose.test.yml explains its Identity__FirstPartyClients__<index> overrides " +
+            "by stating what appsettings already lists ahead of them. That comment names '{0}', a " +
+            "production-only client; it must track whatever appsettings really declares, or the " +
+            "next reader re-introduces the drift",
             CanonicalForkClientId);
     }
 

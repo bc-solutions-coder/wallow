@@ -1,46 +1,54 @@
-import { QueryClientProvider } from "@tanstack/react-query";
-import { createRouter as createTanStackRouter, type AnyRouter } from "@tanstack/react-router";
-
+import { createWallowSdk, type WallowSdk } from "@bc-solutions-coder/sdk";
 import { createQueryClient } from "@bc-solutions-coder/web-shell";
+import type { QueryClient } from "@tanstack/react-query";
+import { createRouter as createTanStackRouter } from "@tanstack/react-router";
+import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
+import { getGlobalStartContext } from "@tanstack/react-start";
+
 import { routeTree } from "./routeTree.gen";
 
-// Side-effect import: registers the app's client configurator with the SDK query
-// bootstrap. Loaded here so BOTH the client and SSR module graphs are armed
-// before any route fires a query.
-import "./lib/wallow-auth-sdk";
-
 /**
- * Constructs the TanStack router that boots the wallow-auth Start app.
+ * Build the router that boots the wallow-auth app. Start calls this ONCE PER
+ * REQUEST on the server (and once on the client), so everything it constructs is
+ * request-scoped: a fresh `QueryClient` — never a module-global one, which would
+ * hand one user's cached data to the next — and the request's own SDK instance.
  *
- * The route tree is produced by TanStack Router's file-based codegen
- * (`src/routeTree.gen.ts`, regenerated via `pnpm routes:generate`); every route
- * under `src/routes/` is wired into it automatically, so no route is bound by
- * hand here. The paths themselves are the app's external contract — the stable
- * auth URLs any client links to.
+ * On the server that SDK comes from the global request middleware in `start.ts`,
+ * the only place the inbound cookie is in scope; in the browser there is no
+ * request, so it mints its own same-origin instance.
  *
- * One `QueryClient` is minted per router (per SSR request) and used two ways: as
- * the router `context` client that loaders/`beforeLoad` reach via
- * `context.queryClient`, and — through the `Wrap` render-prop's
- * `QueryClientProvider` — as the client every routed component reads with React
- * Query hooks. Both are the SAME instance (Wallow-evd5.3.4); the root route used
- * to mint a second one for its own provider, which split the two sides onto
- * separate caches so loader-prefetched data never reached the components that
- * consume it.
+ * `setupRouterSsrQueryIntegration` owns the dehydrate/hydrate handoff of the
+ * React Query cache across the SSR boundary and installs the single
+ * `QueryClientProvider` this app used to wire by hand through a `Wrap`
+ * render-prop. Loaders (router context) and components (React Query hooks)
+ * therefore still share ONE cache per request (Wallow-evd5.3.4).
+ *
+ * The route paths remain the app's external contract — the stable auth URLs any
+ * client links to — but the tree binding them is codegen'd into
+ * `src/routeTree.gen.ts` by the Start plugin as a side effect of `vite dev` /
+ * `vite build`, so there is no `routes:generate` step to remember.
+ *
+ * The return type is inferred deliberately: annotating it `AnyRouter` erases the
+ * route-tree types that make `Link`/`useParams` typed.
  */
-export function createRouter(): AnyRouter {
-  const queryClient = createQueryClient();
+export function getRouter() {
+  const queryClient: QueryClient = createQueryClient();
+  const sdk: WallowSdk =
+    getGlobalStartContext()?.sdk ?? createWallowSdk({ baseUrl: globalThis.location.origin });
 
-  return createTanStackRouter({
+  const router = createTanStackRouter({
     routeTree,
-    context: { queryClient },
-    Wrap: ({ children }) => (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    ),
+    context: { queryClient, sdk },
+    scrollRestoration: true,
   });
+
+  setupRouterSsrQueryIntegration({ router, queryClient });
+
+  return router;
 }
 
 declare module "@tanstack/react-router" {
   interface Register {
-    router: ReturnType<typeof createRouter>;
+    router: ReturnType<typeof getRouter>;
   }
 }

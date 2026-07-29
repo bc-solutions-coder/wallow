@@ -2,20 +2,19 @@ import { statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { forkBranding } from "@bc-solutions-coder/styles";
 import { wallowStyles } from "@bc-solutions-coder/styles/vite";
 import type { Plugin, UserConfig } from "vite";
 import { describe, expect, it } from "vitest";
 
 import viteConfig from "../../vite.config";
-import { forkBranding } from "./branding";
 
 /**
  * A root-relative `<img src="/piggy-icon.svg">` is only half the fix: something
- * has to answer that URL. `server.ts` already serves `dist/client` at the root
- * with the right content type (`static-assets.ts`), so all this app owes is
- * getting the icon INTO `dist/client` — and getting it from the shared package,
- * not from a copy of its own, which is what makes api/branding.json the one
- * place a fork swaps the icon.
+ * has to answer that URL. Start's nitro output serves `.output/public` at the
+ * root, so all this app owes is getting the icon INTO that directory — and
+ * getting it from the shared package, not from a copy of its own, which is what
+ * makes api/branding.json the one place a fork swaps the icon.
  *
  * Vite's `publicDir` is that mechanism: its contents are copied to the build
  * root verbatim and unhashed (Wallow-do5e), and the dev server serves the same
@@ -75,11 +74,13 @@ describe("the wallow-auth client build", () => {
     );
   });
 
-  it("copies the assets into the directory the host serves at the root", () => {
-    // server.ts reads dist/client; publicDir lands at the root of build.outDir,
-    // so the two have to be the same directory or the icon builds into somewhere
-    // nothing serves.
-    expect(viteConfig.build?.outDir).toBe("dist/client");
-    expect(viteConfig.build?.copyPublicDir).not.toBe(false);
+  it("re-enables copyPublicDir on the client environment", () => {
+    // Start builds through nitro/vite's two named environments, and nitro does
+    // `config.build.copyPublicDir ??= false` on the CLIENT one. That silently
+    // drops the publicDir the brand-assets plugin contributes, so `/piggy-icon.svg`
+    // 404s in the BUILT app only — the dev server serves publicDir itself and
+    // looks fine. Setting it back is the whole reason this key exists; deleting
+    // it reintroduces a bug no dev-server check can catch.
+    expect(viteConfig.environments?.client?.build?.copyPublicDir).toBe(true);
   });
 });

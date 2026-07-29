@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
-import { appIconUrl, forkBranding } from "../lib/branding";
+import { appIconUrl, forkBranding } from "@bc-solutions-coder/styles";
+
 import { docsUrl, getStartedHref, repositoryUrl } from "../lib/site-links";
 
 /**

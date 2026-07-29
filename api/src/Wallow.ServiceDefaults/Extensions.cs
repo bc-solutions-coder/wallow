@@ -55,7 +55,10 @@ public static class Extensions
     {
         // Health checks are mapped by each app's Program.cs with custom response writers
         // and tag-based filtering. Only map the /alive liveness probe here.
-        app.MapGet("/alive", () => Results.Ok("Alive"));
+        // Kept out of the API description: an infrastructure liveness probe has no place in the
+        // public v1 document, where its untyped 200 would generate an SDK client method returning
+        // unknown.
+        app.MapGet("/alive", () => Results.Ok("Alive")).ExcludeFromDescription();
 
         return app;
     }

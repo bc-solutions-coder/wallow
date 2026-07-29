@@ -1,8 +1,8 @@
 import { timingSafeEqual } from "node:crypto";
 
-import { createApp, toWebHandler, type App } from "h3";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { isValidRequestId, MAX_REQUEST_ID_LENGTH, REQUEST_ID_HEADER } from "../request-id";
 import type { BffConfig } from "./config";
 import { WallowError } from "./errors";
 import { discover, refreshTokens, type DiscoveryDoc, type TokenResponse } from "./oidc";
@@ -331,14 +331,17 @@ describe("ensureFreshSession", () => {
   });
 });
 
-/** Register the proxy as a catch-all so it receives the full `/api/...` path. */
+/**
+ * The proxy IS the handler now: `(Request) => Promise<Response>`, called
+ * directly with the full `/api/...` URL. Nothing sits between the test's
+ * `new Request(...)` and the code under test — no h3 app, no router, and so no
+ * framework-supplied 404/405 that could mask the proxy's own behaviour.
+ */
 function makeHandle(
   config: BffConfig,
   store?: SessionStore,
 ): (request: Request) => Promise<Response> {
-  const app: App = createApp();
-  app.use(store === undefined ? createApiProxy(config) : createApiProxy(config, store));
-  return toWebHandler(app);
+  return store === undefined ? createApiProxy(config) : createApiProxy(config, store);
 }
 
 describe("createApiProxy", () => {
@@ -1211,8 +1214,13 @@ async function problemBodyOf(res: Response): Promise<Record<string, unknown>> {
 
 const UNSAFE_METHODS: readonly string[] = ["POST", "PUT", "PATCH", "DELETE"];
 const SAFE_METHODS: readonly string[] = ["GET", "HEAD", "OPTIONS"];
-/** h3 answers OPTIONS with 405 before the proxy runs, so it is unobservable here. */
-const PROXIED_SAFE_METHODS: readonly string[] = ["GET", "HEAD"];
+/**
+ * Every safe method now reaches the proxy. A deliberate behaviour delta from the
+ * h3 handler this replaces: h3 answered OPTIONS with a 405 of its own before the
+ * proxy ever ran, so the CSRF bypass for OPTIONS was untestable. Calling the
+ * handler directly makes it observable — and asserted.
+ */
+const PROXIED_SAFE_METHODS: readonly string[] = SAFE_METHODS;
 
 describe("createApiProxy CSRF", () => {
   it.each(UNSAFE_METHODS)(
@@ -1442,5 +1450,762 @@ describe("csrfTokenMatches", () => {
     expect(csrfTokenMatches(CSRF_FIXTURE_TOKEN, undefined)).toBe(false);
     expect(csrfTokenMatches(undefined, undefined)).toBe(false);
     expect(csrfTokenMatches("", "")).toBe(false);
+  });
+});
+
+/**
+ * Upstream URL construction must not be relative-resolvable
+ * (Wallow-pu6a.3.3, finding F11).
+ *
+ * The h3 proxy this replaces built its target with
+ * `new URL(strippedPath, config.apiBaseUrl)`. That is a *relative* resolution,
+ * and the browser-supplied path is the relative part: a path beginning `//`
+ * makes the URL parser read the next segment as an AUTHORITY, so
+ * `/api//evil.test/x` resolves to `https://evil.test/x` — and the proxy then
+ * attaches the session's bearer token to a request aimed at the attacker's
+ * host. The same resolution silently discards any path prefix on `apiBaseUrl`.
+ *
+ * The port must join the stripped path onto the base as a path, and never
+ * forward a request whose resolved origin is not the configured API origin.
+ */
+describe("createApiProxy upstream URL construction", () => {
+  /** Drive one request through the proxy with a session already in the store. */
+  async function forward(
+    issuer: string,
+    path: string,
+    overrides: Partial<BffConfig> = {},
+  ): Promise<{ res: Response; fetchMock: ReturnType<typeof vi.fn> }> {
+    const config: BffConfig = makeConfig(issuer, overrides);
+    const { store }: FakeStore = makeFakeStore(makeSession());
+    const fetchMock: ReturnType<typeof vi.fn> = stubUpstreamOk();
+    const handle = makeHandle(config, store);
+    const res: Response = await handle(
+      new Request(`http://localhost${path}`, {
+        headers: { cookie: `${config.cookieName}=fake-ref` },
+      }),
+    );
+    return { res, fetchMock };
+  }
+
+  it("never resolves a protocol-relative path to a foreign origin", async () => {
+    const { res, fetchMock } = await forward(
+      "https://proxy-url-authority.example.com",
+      "//evil.test/steal",
+    );
+
+    // Whatever the proxy decides to answer, the one unacceptable outcome is a
+    // bearer token leaving for evil.test.
+    for (const call of fetchMock.mock.calls) {
+      expect(new URL(String(call[0])).origin).toBe("https://api.example.com");
+    }
+    expect(res.status).not.toBe(200);
+  });
+
+  it("never resolves a backslash-escaped authority to a foreign origin", async () => {
+    const { fetchMock } = await forward(
+      "https://proxy-url-backslash.example.com",
+      String.raw`/api/\/evil.test/steal`,
+    );
+
+    for (const call of fetchMock.mock.calls) {
+      expect(new URL(String(call[0])).origin).toBe("https://api.example.com");
+    }
+  });
+
+  it("never lets dot-segments climb above the API base path", async () => {
+    const { fetchMock } = await forward(
+      "https://proxy-url-traversal.example.com",
+      "/api/../../admin/secrets",
+      { apiBaseUrl: "https://api.example.com/v1" },
+    );
+
+    for (const call of fetchMock.mock.calls) {
+      const target: URL = new URL(String(call[0]));
+      expect(target.origin).toBe("https://api.example.com");
+      expect(target.pathname.startsWith("/v1")).toBe(true);
+    }
+  });
+
+  it("preserves a path prefix on apiBaseUrl instead of resolving it away", async () => {
+    const { res, fetchMock } = await forward("https://proxy-url-prefix.example.com", "/api/users", {
+      apiBaseUrl: "https://api.example.com/v1",
+    });
+
+    expect(res.status).toBe(200);
+    const target: URL = new URL(String(fetchMock.mock.calls[0][0]));
+    // `new URL("/users", "https://api.example.com/v1")` would drop `/v1` and
+    // send every call to the wrong path.
+    expect(target.pathname).toBe("/v1/users");
+  });
+
+  it("tolerates a trailing slash on apiBaseUrl without doubling it", async () => {
+    const { fetchMock } = await forward("https://proxy-url-slash.example.com", "/api/users", {
+      apiBaseUrl: "https://api.example.com/",
+    });
+
+    expect(new URL(String(fetchMock.mock.calls[0][0])).pathname).toBe("/users");
+  });
+
+  it("forwards the query string verbatim", async () => {
+    const { fetchMock } = await forward(
+      "https://proxy-url-query.example.com",
+      "/api/users?page=2&q=a%20b",
+    );
+
+    const target: URL = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(target.pathname).toBe("/users");
+    expect(target.searchParams.get("page")).toBe("2");
+    expect(target.searchParams.get("q")).toBe("a b");
+  });
+});
+
+/**
+ * The proxy only serves `/api/**` (Wallow-pu6a.3.3, finding F12b).
+ *
+ * Under h3 the mount point was the router's business, so the handler itself
+ * never checked the path — it stripped a leading `/api` if it happened to be
+ * there and forwarded whatever was left. Called directly (and mounted by a host
+ * that may pass through anything), that turns the proxy into an open, bearer-
+ * attaching relay for any path a caller invents. A prefix check must be an
+ * explicit segment boundary test: `startsWith("/api")` alone also accepts
+ * `/apiary`.
+ */
+describe("createApiProxy path allowlist", () => {
+  async function attempt(
+    issuer: string,
+    path: string,
+  ): Promise<{ res: Response; fetchMock: ReturnType<typeof vi.fn> }> {
+    const config: BffConfig = makeConfig(issuer);
+    const { store }: FakeStore = makeFakeStore(makeSession());
+    const fetchMock: ReturnType<typeof vi.fn> = stubUpstreamOk();
+    const handle = makeHandle(config, store);
+    const res: Response = await handle(
+      new Request(`http://localhost${path}`, {
+        headers: { cookie: `${config.cookieName}=fake-ref` },
+      }),
+    );
+    return { res, fetchMock };
+  }
+
+  it.each([
+    ["an unrelated path", "/internal/metrics"],
+    ["the site root", "/"],
+    ["a sibling that merely starts with the prefix", "/apiary/bees"],
+    ["a BFF route", "/bff/user"],
+  ])("rejects %s with 404 and no upstream call", async (_label: string, path: string) => {
+    const { res, fetchMock } = await attempt(
+      `https://proxy-allow-${path.replaceAll(/[^a-z]/g, "") || "root"}.example.com`,
+      path,
+    );
+
+    expect(res.status).toBe(404);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts the bare /api root", async () => {
+    const { res, fetchMock } = await attempt("https://proxy-allow-root-api.example.com", "/api");
+
+    expect(res.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("accepts a nested /api path", async () => {
+    const { res, fetchMock } = await attempt(
+      "https://proxy-allow-nested.example.com",
+      "/api/tenants/42/users",
+    );
+
+    expect(res.status).toBe(200);
+    expect(new URL(String(fetchMock.mock.calls[0][0])).pathname).toBe("/tenants/42/users");
+  });
+
+  it("rejects a non-/api path before it even looks at the session", async () => {
+    const config: BffConfig = makeConfig("https://proxy-allow-nosession.example.com");
+    const { store, calls }: FakeStore = makeFakeStore(makeSession());
+    const fetchMock: ReturnType<typeof vi.fn> = stubUpstreamOk();
+    const handle = makeHandle(config, store);
+
+    const res: Response = await handle(
+      new Request("http://localhost/internal/metrics", {
+        headers: { cookie: `${config.cookieName}=fake-ref` },
+      }),
+    );
+
+    expect(res.status).toBe(404);
+    expect(calls.read).toBe(0);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+/** The body an upstream `fetch` call was given. */
+function bodyOf(fetchMock: ReturnType<typeof vi.fn>, index: number): BodyInit | null | undefined {
+  return (fetchMock.mock.calls[index]?.[1] as RequestInit | undefined)?.body;
+}
+
+/** The forwarded body decoded as text, whatever `BodyInit` shape it took. */
+function bodyTextOf(fetchMock: ReturnType<typeof vi.fn>, index: number): string {
+  const body: BodyInit | null | undefined = bodyOf(fetchMock, index);
+  if (body === undefined || body === null) {
+    return "";
+  }
+  if (typeof body === "string") {
+    return body;
+  }
+  if (body instanceof ArrayBuffer) {
+    return new TextDecoder().decode(body);
+  }
+  if (ArrayBuffer.isView(body)) {
+    return new TextDecoder().decode(body as Uint8Array);
+  }
+  throw new TypeError(`forwarded body is not replayable: ${Object.prototype.toString.call(body)}`);
+}
+
+/**
+ * Request bodies must be buffered, never streamed
+ * (Wallow-pu6a.3.1, NEW RISK 2).
+ *
+ * `forwardWithResilience` replays the request after a reactive 401. A
+ * `ReadableStream` body cannot be replayed: the first `fetch` consumes it, and
+ * the retry throws "Response body object should not be disturbed or locked".
+ * Passing `request.body` straight through would therefore work in every test
+ * where the token happens to be fresh and fail exactly when a user's token
+ * expires mid-POST — the hardest failure to reproduce and the worst to lose.
+ * Streaming stays a response-direction optimisation only.
+ */
+describe("createApiProxy request-body buffering", () => {
+  it("hands forwardWithResilience a replayable body, not a stream", async () => {
+    const config: BffConfig = makeConfig("https://proxy-body-buffered.example.com");
+    const { store }: FakeStore = makeFakeStore(makeSession());
+    const fetchMock: ReturnType<typeof vi.fn> = stubUpstreamOk();
+    const handle = makeHandle(config, store);
+
+    await handle(
+      new Request("http://localhost/api/tenants", {
+        method: "POST",
+        headers: {
+          cookie: `${config.cookieName}=fake-ref`,
+          "content-type": "application/json",
+          [CSRF_HEADER]: CSRF_FIXTURE_TOKEN,
+        },
+        body: '{"slug":"acme"}',
+      }),
+    );
+
+    const body: BodyInit | null | undefined = bodyOf(fetchMock, 0);
+    expect(body).not.toBeInstanceOf(ReadableStream);
+    expect(bodyTextOf(fetchMock, 0)).toBe('{"slug":"acme"}');
+  });
+
+  it("replays the identical body on the retry after a reactive 401", async () => {
+    const config: BffConfig = makeConfig("https://proxy-body-replay.example.com");
+    const session: BffSession = makeSession({
+      accessToken: "rejected-access",
+      refreshToken: "the-refresh-token",
+      expiresAt: Date.now() + 3_600_000,
+    });
+    const { store }: FakeStore = makeFakeStore(session);
+    stubRefreshGrant(config);
+    const fetchMock: ReturnType<typeof vi.fn> = stubFetchScript([
+      respond((): Response => problem(401, { title: "Unauthorized" })),
+      respond((): Response => new Response(JSON.stringify({ ok: true }), { status: 200 })),
+    ]);
+    const handle = makeHandle(config, store);
+
+    const res: Response = await handle(
+      new Request("http://localhost/api/tenants", {
+        method: "POST",
+        headers: {
+          cookie: `${config.cookieName}=fake-ref`,
+          "content-type": "application/json",
+          [CSRF_HEADER]: CSRF_FIXTURE_TOKEN,
+        },
+        body: '{"slug":"acme"}',
+      }),
+    );
+
+    // The whole point: the second attempt succeeds AND carries the same payload.
+    expect(res.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(bodyTextOf(fetchMock, 0)).toBe('{"slug":"acme"}');
+    expect(bodyTextOf(fetchMock, 1)).toBe('{"slug":"acme"}');
+    expect(bearerOf(fetchMock, 1)).toBe("Bearer reactive-access");
+  });
+
+  it("replays a binary body byte-for-byte", async () => {
+    const config: BffConfig = makeConfig("https://proxy-body-binary.example.com");
+    const session: BffSession = makeSession({
+      refreshToken: "the-refresh-token",
+      expiresAt: Date.now() + 3_600_000,
+    });
+    const { store }: FakeStore = makeFakeStore(session);
+    stubRefreshGrant(config);
+    const fetchMock: ReturnType<typeof vi.fn> = stubFetchScript([
+      respond((): Response => problem(401, { title: "Unauthorized" })),
+      respond((): Response => new Response(null, { status: 204 })),
+    ]);
+    const handle = makeHandle(config, store);
+    // Bytes that are not valid UTF-8: a text round-trip would corrupt them.
+    // oxfmt lowercases hex literals while oxlint's number-literal-case rule
+    // wants them uppercase, so these stay decimal.
+    const payload: Uint8Array<ArrayBuffer> = new Uint8Array([0, 255, 254, 16, 128]);
+
+    await handle(
+      new Request("http://localhost/api/files", {
+        method: "PUT",
+        headers: {
+          cookie: `${config.cookieName}=fake-ref`,
+          "content-type": "application/octet-stream",
+          [CSRF_HEADER]: CSRF_FIXTURE_TOKEN,
+        },
+        body: payload,
+      }),
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    for (const index of [0, 1]) {
+      const body: BodyInit | null | undefined = bodyOf(fetchMock, index);
+      const bytes: Uint8Array =
+        body instanceof ArrayBuffer
+          ? new Uint8Array(body)
+          : new Uint8Array((body as ArrayBufferView).buffer as ArrayBuffer);
+      expect([...bytes]).toEqual([...payload]);
+    }
+  });
+
+  it("sends no body at all for a GET", async () => {
+    const config: BffConfig = makeConfig("https://proxy-body-get.example.com");
+    const { store }: FakeStore = makeFakeStore(makeSession());
+    const fetchMock: ReturnType<typeof vi.fn> = stubUpstreamOk();
+    const handle = makeHandle(config, store);
+
+    await handle(
+      new Request("http://localhost/api/users", {
+        headers: { cookie: `${config.cookieName}=fake-ref` },
+      }),
+    );
+
+    // `fetch` rejects a GET carrying a body, even an empty one.
+    expect(bodyOf(fetchMock, 0) ?? undefined).toBeUndefined();
+  });
+});
+
+/**
+ * Header handling across the web-standard boundary.
+ *
+ * The h3 handler read a plain object from `getRequestHeaders()` and wrote the
+ * response with `setResponseHeaders()`. Both sides are `Headers` now, where the
+ * hop-by-hop headers must be dropped explicitly and `Set-Cookie` is the one
+ * header that must be appended rather than set.
+ */
+describe("createApiProxy header handling", () => {
+  it("drops the client's cookie, host, and content-length from the upstream request", async () => {
+    const config: BffConfig = makeConfig("https://proxy-headers-drop.example.com");
+    const { store }: FakeStore = makeFakeStore(makeSession());
+    const fetchMock: ReturnType<typeof vi.fn> = stubUpstreamOk();
+    const handle = makeHandle(config, store);
+
+    await handle(
+      new Request("http://localhost/api/tenants", {
+        method: "POST",
+        headers: {
+          cookie: `${config.cookieName}=fake-ref`,
+          host: "localhost",
+          "content-length": "15",
+          "content-type": "application/json",
+          accept: "application/json",
+          [CSRF_HEADER]: CSRF_FIXTURE_TOKEN,
+        },
+        body: '{"slug":"acme"}',
+      }),
+    );
+
+    const sent: Headers = new Headers((fetchMock.mock.calls[0][1] as RequestInit).headers);
+    // The session cookie must never reach the API: the bearer is the only
+    // credential it should see.
+    expect(sent.get("cookie")).toBeNull();
+    expect(sent.get("host")).toBeNull();
+    // A stale content-length against a re-encoded body is a request-smuggling
+    // primitive; let the fetch layer compute it.
+    expect(sent.get("content-length")).toBeNull();
+    // Everything the API legitimately needs still goes through.
+    expect(sent.get("content-type")).toBe("application/json");
+    expect(sent.get("accept")).toBe("application/json");
+    expect(sent.get("authorization")).toBe(`Bearer ${makeSession().accessToken}`);
+  });
+
+  it("passes through every upstream Set-Cookie as its own header", async () => {
+    const config: BffConfig = makeConfig("https://proxy-headers-setcookie.example.com");
+    const { store }: FakeStore = makeFakeStore(makeSession());
+    stubFetchScript([
+      respond((): Response => {
+        const headers: Headers = new Headers({ "content-type": "application/json" });
+        headers.append("set-cookie", "upstream_a=1; Path=/");
+        headers.append("set-cookie", "upstream_b=2; Path=/");
+        return new Response(JSON.stringify({ ok: true }), { status: 200, headers });
+      }),
+    ]);
+    const handle = makeHandle(config, store);
+
+    const res: Response = await handle(
+      new Request("http://localhost/api/users", {
+        headers: { cookie: `${config.cookieName}=fake-ref` },
+      }),
+    );
+
+    const cookies: string[] = res.headers.getSetCookie();
+    // Building the response from an object literal would collapse these two
+    // into one, and `set` would drop the first outright.
+    expect(cookies).toEqual(
+      expect.arrayContaining(["upstream_a=1; Path=/", "upstream_b=2; Path=/"]),
+    );
+  });
+
+  it("keeps the re-sealed session cookie alongside upstream Set-Cookie headers", async () => {
+    const config: BffConfig = makeConfig("https://proxy-headers-both.example.com");
+    const session: BffSession = makeSession({
+      accessToken: "rejected-access",
+      refreshToken: "the-refresh-token",
+      expiresAt: Date.now() + 3_600_000,
+    });
+    const { store }: FakeStore = makeFakeStore(session);
+    stubRefreshGrant(config);
+    stubFetchScript([
+      respond((): Response => problem(401, { title: "Unauthorized" })),
+      respond((): Response => {
+        const headers: Headers = new Headers();
+        headers.append("set-cookie", "upstream_a=1; Path=/");
+        return new Response(JSON.stringify({ ok: true }), { status: 200, headers });
+      }),
+    ]);
+    const handle = makeHandle(config, store);
+
+    const res: Response = await handle(
+      new Request("http://localhost/api/users", {
+        headers: { cookie: `${config.cookieName}=fake-ref` },
+      }),
+    );
+
+    const cookies: string[] = res.headers.getSetCookie();
+    // The rotated session and the upstream cookie must coexist: whichever one
+    // is written second must not overwrite the first.
+    expect(cookies).toContain("upstream_a=1; Path=/");
+    expect(
+      cookies.some((cookie: string): boolean => cookie.startsWith(`${config.cookieName}=`)),
+    ).toBe(true);
+  });
+
+  it("streams the upstream body through without buffering it", async () => {
+    const config: BffConfig = makeConfig("https://proxy-headers-stream.example.com");
+    const { store }: FakeStore = makeFakeStore(makeSession());
+    const chunks: string[] = ['{"items":[1,2,3],', '"total":3}'];
+    stubFetchScript([
+      respond((): Response => {
+        const stream: ReadableStream<Uint8Array> = new ReadableStream<Uint8Array>({
+          start(controller: ReadableStreamDefaultController<Uint8Array>): void {
+            for (const chunk of chunks) {
+              controller.enqueue(new TextEncoder().encode(chunk));
+            }
+            controller.close();
+          },
+        });
+        return new Response(stream, {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }),
+    ]);
+    const handle = makeHandle(config, store);
+
+    const res: Response = await handle(
+      new Request("http://localhost/api/users", {
+        headers: { cookie: `${config.cookieName}=fake-ref` },
+      }),
+    );
+
+    // Response-direction streaming is the one direction that stays lazy: a
+    // large download must not be materialised in the BFF's heap.
+    expect(res.body).toBeInstanceOf(ReadableStream);
+    expect(await res.json()).toEqual({ items: [1, 2, 3], total: 3 });
+  });
+
+  it("preserves the upstream status and content-type on a passthrough", async () => {
+    const config: BffConfig = makeConfig("https://proxy-headers-status.example.com");
+    const { store }: FakeStore = makeFakeStore(makeSession());
+    stubFetchScript([
+      respond(
+        (): Response =>
+          new Response(JSON.stringify({ id: 7 }), {
+            status: 201,
+            headers: { "content-type": "application/json", location: "/tenants/7" },
+          }),
+      ),
+    ]);
+    const handle = makeHandle(config, store);
+
+    const res: Response = await handle(
+      new Request("http://localhost/api/tenants", {
+        method: "POST",
+        headers: {
+          cookie: `${config.cookieName}=fake-ref`,
+          "content-type": "application/json",
+          [CSRF_HEADER]: CSRF_FIXTURE_TOKEN,
+        },
+        body: '{"slug":"acme"}',
+      }),
+    );
+
+    expect(res.status).toBe(201);
+    expect(res.headers.get("content-type")).toContain("application/json");
+    expect(res.headers.get("location")).toBe("/tenants/7");
+  });
+});
+
+/**
+ * Request-id correlation (Wallow-pu6a.6.7).
+ *
+ * The proxy is the only place in the tunnel that sees both the browser's request
+ * and the API's, so it is where the correlation key is minted. Every request it
+ * forwards carries an `x-request-id` — the caller's when it sent a usable one, a
+ * generated one otherwise — and every response it returns echoes the same id, so
+ * an error the user reports names the request the backend logged.
+ *
+ * "Every response" means every exit: the proxy answers a rejected path, an
+ * unauthenticated session and a failed CSRF check itself, and those are precisely
+ * the failures a user cannot otherwise describe.
+ */
+describe("createApiProxy request-id correlation", () => {
+  /** The header a scripted upstream attempt was called with. */
+  function sentHeader(
+    fetchMock: ReturnType<typeof vi.fn>,
+    attempt: number,
+    name: string,
+  ): string | null {
+    const init = fetchMock.mock.calls[attempt]?.[1] as RequestInit | undefined;
+    return new Headers(init?.headers).get(name);
+  }
+
+  it("forwards the caller's request id upstream unchanged", async () => {
+    const config: BffConfig = makeConfig("https://reqid-forward.example.com");
+    const { store }: FakeStore = makeFakeStore(makeSession());
+    const fetchMock: ReturnType<typeof vi.fn> = stubUpstreamOk();
+    const handle = makeHandle(config, store);
+
+    await handle(
+      new Request("http://localhost/api/users", {
+        headers: {
+          cookie: `${config.cookieName}=fake-ref`,
+          [REQUEST_ID_HEADER]: "3f2504e0-4f89-11d3-9a0c-0305e82c3301",
+        },
+      }),
+    );
+
+    expect(sentHeader(fetchMock, 0, REQUEST_ID_HEADER)).toBe(
+      "3f2504e0-4f89-11d3-9a0c-0305e82c3301",
+    );
+  });
+
+  it("generates a request id when the caller sent none, and forwards it", async () => {
+    const config: BffConfig = makeConfig("https://reqid-generate.example.com");
+    const { store }: FakeStore = makeFakeStore(makeSession());
+    const fetchMock: ReturnType<typeof vi.fn> = stubUpstreamOk();
+    const handle = makeHandle(config, store);
+
+    await handle(
+      new Request("http://localhost/api/users", {
+        headers: { cookie: `${config.cookieName}=fake-ref` },
+      }),
+    );
+
+    const forwarded: string | null = sentHeader(fetchMock, 0, REQUEST_ID_HEADER);
+    expect(forwarded).not.toBeNull();
+    expect(isValidRequestId(forwarded ?? "")).toBe(true);
+  });
+
+  it("replaces a forged inbound request id rather than forwarding it", async () => {
+    const config: BffConfig = makeConfig("https://reqid-forged.example.com");
+    const { store }: FakeStore = makeFakeStore(makeSession());
+    const fetchMock: ReturnType<typeof vi.fn> = stubUpstreamOk();
+    const handle = makeHandle(config, store);
+    const forged: string = "a".repeat(MAX_REQUEST_ID_LENGTH + 1);
+
+    await handle(
+      new Request("http://localhost/api/users", {
+        headers: {
+          cookie: `${config.cookieName}=fake-ref`,
+          [REQUEST_ID_HEADER]: forged,
+        },
+      }),
+    );
+
+    const forwarded: string | null = sentHeader(fetchMock, 0, REQUEST_ID_HEADER);
+    expect(forwarded).not.toBe(forged);
+    expect(isValidRequestId(forwarded ?? "")).toBe(true);
+  });
+
+  it("echoes the same id it forwarded on a successful response", async () => {
+    const config: BffConfig = makeConfig("https://reqid-echo-ok.example.com");
+    const { store }: FakeStore = makeFakeStore(makeSession());
+    const fetchMock: ReturnType<typeof vi.fn> = stubUpstreamOk();
+    const handle = makeHandle(config, store);
+
+    const res: Response = await handle(
+      new Request("http://localhost/api/users", {
+        headers: { cookie: `${config.cookieName}=fake-ref` },
+      }),
+    );
+
+    // One id for the whole request: what went upstream is what the browser sees.
+    const forwarded: string | null = sentHeader(fetchMock, 0, REQUEST_ID_HEADER);
+    expect(forwarded).not.toBeNull();
+    expect(isValidRequestId(forwarded ?? "")).toBe(true);
+    expect(res.headers.get(REQUEST_ID_HEADER)).toBe(forwarded);
+  });
+
+  it("keeps the same id across the replay after a reactive 401", async () => {
+    const config: BffConfig = makeConfig("https://reqid-retry.example.com");
+    const session: BffSession = makeSession({
+      accessToken: "rejected-access",
+      refreshToken: "the-refresh-token",
+      expiresAt: Date.now() + 3_600_000,
+    });
+    const { store }: FakeStore = makeFakeStore(session);
+    stubRefreshGrant(config);
+    const fetchMock: ReturnType<typeof vi.fn> = stubFetchScript([
+      respond((): Response => problem(401, { title: "Unauthorized" })),
+      respond(
+        (): Response =>
+          new Response(JSON.stringify({ ok: true }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+      ),
+    ]);
+    const handle = makeHandle(config, store);
+
+    const res: Response = await handle(
+      new Request("http://localhost/api/users", {
+        headers: {
+          cookie: `${config.cookieName}=fake-ref`,
+          [REQUEST_ID_HEADER]: "retry-correlated-id",
+        },
+      }),
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    // A retry is the same logical request; minting a second id would split one
+    // user-visible failure across two backend traces.
+    expect(sentHeader(fetchMock, 0, REQUEST_ID_HEADER)).toBe("retry-correlated-id");
+    expect(sentHeader(fetchMock, 1, REQUEST_ID_HEADER)).toBe("retry-correlated-id");
+    expect(res.headers.get(REQUEST_ID_HEADER)).toBe("retry-correlated-id");
+  });
+
+  it("echoes the request id when relaying an upstream failure verbatim", async () => {
+    const config: BffConfig = makeConfig("https://reqid-upstream-fail.example.com");
+    const { store }: FakeStore = makeFakeStore(makeSession());
+    stubFetchScript([
+      respond(
+        (): Response =>
+          problem(409, {
+            title: "Conflict",
+            status: 409,
+            extensions: { code: "TENANT_SLUG_TAKEN" },
+          }),
+      ),
+    ]);
+    const handle = makeHandle(config, store);
+
+    const res: Response = await handle(
+      new Request("http://localhost/api/tenants", {
+        method: "POST",
+        headers: {
+          cookie: `${config.cookieName}=fake-ref`,
+          "content-type": "application/json",
+          [CSRF_HEADER]: CSRF_FIXTURE_TOKEN,
+          [REQUEST_ID_HEADER]: "conflict-req-1",
+        },
+        body: '{"slug":"acme"}',
+      }),
+    );
+
+    expect(res.status).toBe(409);
+    expect(res.headers.get(REQUEST_ID_HEADER)).toBe("conflict-req-1");
+  });
+
+  it("names the request id in the problem body of a BFF fault", async () => {
+    const config: BffConfig = makeConfig("https://reqid-bff-fault.example.com");
+    const { store }: FakeStore = makeFakeStore(makeSession());
+    stubFetchScript([
+      (): Promise<Response> => Promise.reject(new TypeError("fetch failed: ECONNREFUSED")),
+    ]);
+    const handle = makeHandle(config, store);
+
+    const res: Response = await handle(
+      new Request("http://localhost/api/users", {
+        headers: {
+          cookie: `${config.cookieName}=fake-ref`,
+          [REQUEST_ID_HEADER]: "unreachable-req-1",
+        },
+      }),
+    );
+
+    // The BFF synthesizes this body itself — there is no upstream response to
+    // relay — so the id has to be written into it as well as onto the header,
+    // or a 503 is the one failure a user cannot quote a request id for.
+    expect(res.status).toBe(503);
+    expect(res.headers.get(REQUEST_ID_HEADER)).toBe("unreachable-req-1");
+    const body: Record<string, unknown> = await problemBodyOf(res);
+    expect(body["requestId"]).toBe("unreachable-req-1");
+  });
+
+  it("names the request id in the problem body of a CSRF rejection", async () => {
+    const config: BffConfig = makeConfig("https://reqid-csrf.example.com");
+    const { store }: FakeStore = makeFakeStore(makeSession());
+    stubUpstreamOk();
+    const handle = makeHandle(config, store);
+
+    const res: Response = await handle(
+      new Request("http://localhost/api/tenants", {
+        method: "POST",
+        headers: {
+          cookie: `${config.cookieName}=fake-ref`,
+          "content-type": "application/json",
+          [REQUEST_ID_HEADER]: "csrf-req-1",
+        },
+        body: '{"slug":"acme"}',
+      }),
+    );
+
+    expect(res.status).toBe(403);
+    expect(res.headers.get(REQUEST_ID_HEADER)).toBe("csrf-req-1");
+    const body: Record<string, unknown> = await problemBodyOf(res);
+    expect(body["requestId"]).toBe("csrf-req-1");
+  });
+
+  it("echoes a request id on the unauthenticated 401", async () => {
+    const config: BffConfig = makeConfig("https://reqid-401.example.com");
+    const handle = makeHandle(config);
+
+    const res: Response = await handle(
+      new Request("http://localhost/api/users", {
+        headers: { [REQUEST_ID_HEADER]: "anonymous-req-1" },
+      }),
+    );
+
+    expect(res.status).toBe(401);
+    expect(res.headers.get(REQUEST_ID_HEADER)).toBe("anonymous-req-1");
+  });
+
+  it("echoes a request id on a path this proxy does not serve", async () => {
+    const config: BffConfig = makeConfig("https://reqid-404.example.com");
+    const handle = makeHandle(config);
+
+    const res: Response = await handle(
+      new Request("http://localhost/apiary/users", {
+        headers: { [REQUEST_ID_HEADER]: "rejected-path-req-1" },
+      }),
+    );
+
+    expect(res.status).toBe(404);
+    expect(res.headers.get(REQUEST_ID_HEADER)).toBe("rejected-path-req-1");
   });
 });

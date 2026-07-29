@@ -1,24 +1,35 @@
 /**
  * Organization member list + management (Wallow-8w1h.4.4). Drives
- * `useQuery(organizationsQueries.members(orgId))` and renders the members table
+ * `useQuery(organizationsGetMembersOptions(...))` and renders the members table
  * (rendering `organization-detail-members-table` /
  * `organization-detail-member-row`), a per-row remove button, and an add-member
- * form backed by `addMemberMutation` / `removeMemberMutation`.
+ * form backed by the generated add/remove member mutations.
+ *
+ * Both writes sweep the members OPERATION rather than a key prefix — generated
+ * keys are flat, so `queriesForOperation(organizationsGetMembersQueryKey(...))`
+ * is what re-reads the list this component just changed.
  *
  * Testids follow `{page}-{element}` kebab-case: `organization-members-loading`
  * and `organization-members-empty` (query states), `organization-member-userid`
  * + `organization-member-add-submit` (add form), `organization-member-remove`
  * (per-row remove).
  */
+import type { UserDto, WallowSdk } from "@bc-solutions-coder/sdk";
 import { Button, Field, Input, MutedText } from "@bc-solutions-coder/ui";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
 
-import { addMemberMutation, organizationsQueries, removeMemberMutation } from "../api";
-import type { OrganizationMember } from "../types";
+import {
+  organizationsAddMemberMutation,
+  organizationsGetMembersOptions,
+  organizationsGetMembersQueryKey,
+  organizationsRemoveMemberMutation,
+  queriesForOperation,
+} from "../api";
 
 /** A single member row with a remove action. */
-function MemberRow(props: { member: OrganizationMember; onRemove: (userId: string) => void }) {
+function MemberRow(props: { member: UserDto; onRemove: (userId: string) => void }) {
   const { member, onRemove } = props;
   return (
     <li
@@ -46,11 +57,27 @@ function MemberRow(props: { member: OrganizationMember; onRemove: (userId: strin
   );
 }
 
+/**
+ * The filter both writes invalidate through: every cached read of the members
+ * operation, whichever organization it was called for.
+ */
+function membersOfOperation(client: WallowSdk["client"], orgId: string) {
+  return queriesForOperation(organizationsGetMembersQueryKey({ client, path: { id: orgId } }));
+}
+
 export function MemberList(props: { orgId: string }) {
   const { orgId } = props;
+  const { sdk } = useRouteContext({ from: "__root__" });
   const queryClient = useQueryClient();
-  const { data, isPending } = useQuery(organizationsQueries.members(orgId));
-  const removeMember = useMutation(removeMemberMutation(queryClient, orgId));
+  const { data, isPending } = useQuery(
+    organizationsGetMembersOptions({ client: sdk.client, path: { id: orgId } }),
+  );
+  const removeMember = useMutation({
+    ...organizationsRemoveMemberMutation({ client: sdk.client }),
+    onSuccess: (): void => {
+      void queryClient.invalidateQueries(membersOfOperation(sdk.client, orgId));
+    },
+  });
 
   // No ui `Card` around the section: the table's `px-6 py-4` cells must bleed to
   // their own card's edge, which Card's fixed `p-6 space-y-6` prevents.
@@ -63,7 +90,7 @@ export function MemberList(props: { orgId: string }) {
         Members
       </h2>
 
-      <AddMemberForm queryClient={queryClient} orgId={orgId} />
+      <AddMemberForm client={sdk.client} queryClient={queryClient} orgId={orgId} />
 
       {isPending ? (
         <MutedText data-testid="organization-members-loading" className="text-center py-8">
@@ -71,9 +98,9 @@ export function MemberList(props: { orgId: string }) {
         </MutedText>
       ) : (
         <MemberTable
-          members={(data ?? []) as OrganizationMember[]}
-          onRemove={(id) => {
-            removeMember.mutate(id);
+          members={data ?? []}
+          onRemove={(userId) => {
+            removeMember.mutate({ path: { id: orgId, userId } });
           }}
         />
       )}
@@ -81,10 +108,19 @@ export function MemberList(props: { orgId: string }) {
   );
 }
 
-/** Add-member form, backed by `addMemberMutation`. */
-function AddMemberForm(props: { queryClient: QueryClient; orgId: string }) {
-  const { queryClient, orgId } = props;
-  const addMember = useMutation(addMemberMutation(queryClient, orgId));
+/** Add-member form, backed by the generated add-member mutation. */
+function AddMemberForm(props: {
+  client: WallowSdk["client"];
+  queryClient: QueryClient;
+  orgId: string;
+}) {
+  const { client, queryClient, orgId } = props;
+  const addMember = useMutation({
+    ...organizationsAddMemberMutation({ client }),
+    onSuccess: (): void => {
+      void queryClient.invalidateQueries(membersOfOperation(client, orgId));
+    },
+  });
   const [userId, setUserId] = useState("");
 
   return (
@@ -98,7 +134,7 @@ function AddMemberForm(props: { queryClient: QueryClient; orgId: string }) {
           return;
         }
         addMember.mutate(
-          { userId },
+          { path: { id: orgId }, body: { userId } },
           {
             onSuccess: () => {
               setUserId("");
@@ -124,7 +160,7 @@ function AddMemberForm(props: { queryClient: QueryClient; orgId: string }) {
 }
 
 /** The loaded members table: empty state or the row list. */
-function MemberTable(props: { members: OrganizationMember[]; onRemove: (userId: string) => void }) {
+function MemberTable(props: { members: readonly UserDto[]; onRemove: (userId: string) => void }) {
   const { members, onRemove } = props;
 
   if (members.length === 0) {

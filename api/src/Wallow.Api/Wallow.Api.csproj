@@ -10,6 +10,20 @@
     <UserSecretsId>efd43489-cc17-4e04-9ea3-ac2326aa825a</UserSecretsId>
   </PropertyGroup>
 
+  <!-- Build-time OpenAPI document emission (Microsoft.Extensions.ApiDescription.Server).
+       Off by default: dotnet-getdocument starts the real host, so emission needs a
+       reachable Postgres (Hangfire registers its recurring jobs during startup) and
+       adds several seconds to every build. CI turns it on explicitly:
+         dotnet build api/src/Wallow.Api/Wallow.Api.csproj -p:OpenApiGenerateDocumentsOnBuild=true
+       The document lands at obj/openapi/Wallow.Api.json (the file name is the project
+       name; dotnet-getdocument exposes no naming switch). The path must be absolute:
+       the target resolves it against the MSBuild process working directory, not the
+       project directory. -->
+  <PropertyGroup>
+    <OpenApiGenerateDocumentsOnBuild>false</OpenApiGenerateDocumentsOnBuild>
+    <OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)/$(BaseIntermediateOutputPath)openapi/</OpenApiDocumentsDirectory>
+  </PropertyGroup>
+
   <!-- Container image publishing (dotnet publish /t:PublishContainer) -->
   <PropertyGroup>
     <ContainerRepository>wallow-api</ContainerRepository>
@@ -28,6 +42,10 @@
   <ItemGroup>
     <!-- API Documentation -->
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Microsoft.Extensions.ApiDescription.Server">
+      <IncludeAssets>build; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>

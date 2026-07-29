@@ -1,10 +1,10 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactElement } from "react";
+import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import { page } from "vitest/browser";
-import { render } from "vitest-browser-react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
-import { createRouter } from "../../router";
+import { getRouter } from "../../router";
+import { routeHarness } from "../../test/harness-routes";
 import { Route } from "./settings";
 
 /**
@@ -18,62 +18,40 @@ import { Route } from "./settings";
  *      `/dashboard/settings` (bound manually, no dashboard layout route yet).
  */
 
-// The rendered page mounts ProfileSection (settings.getProfile) and
-// MfaSettingsSection (mfa.status + disable/regenerate mutations); mock the
-// facade so both queries are inert during the route render.
-const mocks = vi.hoisted(() => ({
-  getProfile: vi.fn(),
-  status: vi.fn(),
-  enrollTotp: vi.fn(),
-  confirmEnroll: vi.fn(),
-  disable: vi.fn(),
-  regenerateBackupCodes: vi.fn(),
-}));
+// The rendered page mounts ProfileSection (the current-user read) and
+// MfaSettingsSection (the MFA status read plus its disable/regenerate mutations).
+// Both now run for real against the harness transport (Wallow-pu6a.5.5) — the
+// facade this spec used to mock is deleted — so the sections are driven by
+// ANSWERING their two requests rather than by seeding their caches.
 
-vi.mock("../../lib/wallow-sdk", () => ({
-  getWallowSdk: () => ({
-    settings: { getProfile: mocks.getProfile },
-    mfa: {
-      status: mocks.status,
-      enrollTotp: mocks.enrollTotp,
-      confirmEnroll: mocks.confirmEnroll,
-      disable: mocks.disable,
-      regenerateBackupCodes: mocks.regenerateBackupCodes,
+/** The transport backing each render, rebuilt per test. */
+let harness: SdkHarness;
+
+/** Answer both sections' reads so they render content, not their loading states. */
+function renderSettings() {
+  routeHarness(harness, {
+    "GET /v1/identity/users/me": {
+      id: "user-1",
+      email: "ada@lovelace.io",
+      firstName: "Ada",
+      lastName: "Lovelace",
+      roles: ["Owner"],
+      permissions: [],
     },
-  }),
-}));
-
-function newClient(): QueryClient {
-  return new QueryClient({ defaultOptions: { queries: { retry: false } } });
-}
-
-function seededClient(): QueryClient {
-  const client = newClient();
-  // Seed both section caches so the composed sections render content (not
-  // their loading states) during the route render.
-  client.setQueryData(["settings", "profile"], {
-    id: "user-1",
-    email: "ada@lovelace.io",
-    firstName: "Ada",
-    lastName: "Lovelace",
-    roles: ["Owner"],
-    permissions: [],
+    "GET /v1/identity/mfa/status": {
+      enabled: false,
+      method: null,
+      backupCodeCount: 0,
+    },
   });
-  client.setQueryData(["mfa", "status"], {
-    enabled: false,
-    method: null,
-    backupCodeCount: 0,
-  });
-  return client;
-}
 
-function renderWithClient(client: QueryClient, ui: ReactElement) {
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+  const Page = Route.options.component!;
+  return renderWithWallow(<Page />, { harness });
 }
 
 describe("routes/dashboard/settings (route page)", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    harness = createSdkHarness();
   });
 
   it("exposes a route component", () => {
@@ -85,15 +63,13 @@ describe("routes/dashboard/settings (route page)", () => {
   });
 
   it("renders a page root carrying data-testid=dashboard-settings", async () => {
-    const Page = Route.options.component!;
-    renderWithClient(seededClient(), <Page />);
+    renderSettings();
 
     await expect.element(page.getByTestId("dashboard-settings")).toBeInTheDocument();
   });
 
   it("composes the profile section inside the dashboard-settings root", async () => {
-    const Page = Route.options.component!;
-    renderWithClient(seededClient(), <Page />);
+    renderSettings();
 
     const root = page.getByTestId("dashboard-settings");
     await expect
@@ -105,8 +81,7 @@ describe("routes/dashboard/settings (route page)", () => {
   });
 
   it("composes the mfa status card inside the dashboard-settings root", async () => {
-    const Page = Route.options.component!;
-    renderWithClient(seededClient(), <Page />);
+    renderSettings();
 
     const root = page.getByTestId("dashboard-settings");
     await expect.element(root.getByTestId("settings-mfa-status")).toHaveTextContent("Disabled");
@@ -115,8 +90,8 @@ describe("routes/dashboard/settings (route page)", () => {
 
 describe("routes/dashboard/settings (router registration)", () => {
   it("registers /dashboard/settings in the router tree", () => {
-    const router = createRouter();
-    const paths = Object.keys((router as { routesByPath: Record<string, unknown> }).routesByPath);
+    const router = getRouter();
+    const paths = Object.keys(router.routesByPath);
     expect(paths).toContain("/dashboard/settings");
   });
 });

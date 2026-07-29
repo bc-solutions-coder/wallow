@@ -24,35 +24,37 @@ Build the SDK first — the app typechecks against its `dist/`.
 ```bash
 pnpm --filter @bc-solutions-coder/sdk build   # build the SDK the app depends on
 
-pnpm --filter @bc-solutions-coder/wallow-web dev        # SSR dev server + BFF (tsx dev-server.ts)
-pnpm --filter @bc-solutions-coder/wallow-web build      # vite build -> public/ bundle
-pnpm --filter @bc-solutions-coder/wallow-web start      # standalone h3 BFF host (tsx server.ts)
+pnpm --filter @bc-solutions-coder/wallow-web dev        # vite dev -- TanStack Start SSR + BFF
+pnpm --filter @bc-solutions-coder/wallow-web build      # vite build -> .output/server + .output/public
+pnpm --filter @bc-solutions-coder/wallow-web start      # node .output/server/index.mjs
 pnpm --filter @bc-solutions-coder/wallow-web typecheck  # tsc --noEmit
 pnpm --filter @bc-solutions-coder/wallow-web test       # vitest run  (test:watch for watch mode)
 ```
 
-- **`dev`** boots a Vite (`middlewareMode`) + Node HTTP server (`dev-server.ts`)
-  that server-renders the matched route and answers `/health`, `/bff/*`, and
-  `/api/**` from the BFF bridge in one process. Plain `pnpm dev` serves SSR even
-  without BFF env — only the BFF/api/health prefixes need the OIDC env below.
-- **`start`** runs the standalone h3 BFF host (`server.ts`) that serves the
-  built `public/` bundle. This is the entry the `Dockerfile` and the E2E stack
-  use.
+- **`dev`** runs the TanStack Start dev server (Vite). It server-renders the
+  matched route and answers `/health`, `/bff/**`, and `/api/**` through the
+  file-based server routes under `src/routes/` (see BFF wiring below). Plain
+  `pnpm dev` serves SSR even without BFF env — only the BFF/api/health prefixes
+  need the OIDC env below.
+- **`build`** runs a Nitro-backed `vite build` that emits both environments
+  into `.output/`: `.output/server/index.mjs` is the server entry and
+  `.output/public` holds the client bundle and static assets.
+- **`start`** runs the built server (`node .output/server/index.mjs`). This is
+  the entry the `Dockerfile` and the E2E stack use.
 
 ## Layout
 
-| Path                   | Role                                                                                                                                                                                                                                                                       |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dev-server.ts`        | Dev entry (`pnpm dev`): TanStack Start SSR via Vite middleware, with `/health` + `/bff/*` + `/api/**` dispatched to the BFF bridge. See BFF wiring below.                                                                                                                  |
-| `server.ts`            | Prod/E2E entry (`pnpm start`): standalone h3 host mounting the same BFF handlers and serving the static `public/` bundle. Containerized by the `Dockerfile`.                                                                                                               |
-| `src/ssr.tsx`          | SSR render entry — turns a request into the server-rendered HTML shell for the matched route.                                                                                                                                                                              |
-| `src/router.tsx`       | Manual TanStack route tree (routes are wired explicitly here, not file-based codegen).                                                                                                                                                                                     |
-| `src/routes/`          | Route components: public `index`, the `dashboard` layout + feature routes, and the `bff-demo` BFF smoke route.                                                                                                                                                             |
-| `src/features/<name>/` | Feature verticals (`organizations`, `apps`, `settings`, `mfa`, `inquiries`): each has `api.ts` (query/mutation layer), `types.ts`, and `components/`.                                                                                                                      |
-| `src/lib/`             | Shared plumbing: `wallow-sdk.ts` (client configurator, registered with the SDK query bootstrap), `bff-server.ts` (BFF bridge), `csrf.ts` (request interceptor). The `QueryClient` factory itself lives in `@bc-solutions-coder/web-shell` (`createQueryClient`), not here. |
-| `src/components/`      | Cross-feature UI (`DashboardLayout`, `DashboardNav`).                                                                                                                                                                                                                      |
-| `public/`              | Built browser bundle and static assets served by `server.ts`.                                                                                                                                                                                                              |
-| `Dockerfile`           | Containerizes the app for the E2E stack; its build context is the **repo root** (needs the whole workspace to resolve `workspace:*`).                                                                                                                                      |
+| Path                                                                 | Role                                                                                                                                                                                                                                                                                                                                     |
+| -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/start.ts`                                                       | The `createStart()` instance: a global request middleware mints a per-request SDK and installs the D13b `setSsrRequestContextResolver` bridge (temporary, until routes read their SDK off the router context).                                                                                                                           |
+| `src/router.tsx`                                                     | `createRouter` + `setupRouterSsrQueryIntegration`, wiring the request's SDK (or a fresh browser one) and a per-request `QueryClient` into the router context.                                                                                                                                                                            |
+| `src/routes/`                                                        | File-based routes: public `index`, the `dashboard` layout + feature routes, the `bff-demo` BFF smoke route, and the server routes below. New routes are added here — there is no manual route tree to register them in.                                                                                                                  |
+| `src/routes/bff/$.ts`, `src/routes/api/$.ts`, `src/routes/health.ts` | File-based server routes (single `ANY`/`GET` handler each) delegating to `src/lib/bff.ts`. See BFF wiring below.                                                                                                                                                                                                                         |
+| `src/routeTree.gen.ts`                                               | Generated by the Start Vite plugin as a side effect of `vite dev`/`vite build` — never hand-edited, no separate `routes:generate` step.                                                                                                                                                                                                  |
+| `src/features/<name>/`                                               | Feature verticals (`organizations`, `apps`, `settings`, `mfa`, `inquiries`): each has `api.ts` (query/mutation layer), `types.ts`, and `components/`.                                                                                                                                                                                    |
+| `src/lib/`                                                           | Shared plumbing: `wallow-sdk.ts` (client configurator, registered with the SDK query bootstrap), `bff.ts` (lazily-built `createWallowBffServer()` host exposing `handleBffRequest`/`handleApiRequest`/`handleHealthRequest`). The `QueryClient` factory itself lives in `@bc-solutions-coder/web-shell` (`createQueryClient`), not here. |
+| `src/components/`                                                    | Cross-feature UI (`DashboardLayout`, `DashboardNav`, `PublicLayout`).                                                                                                                                                                                                                                                                    |
+| `Dockerfile`                                                         | Containerizes the app for the E2E stack; its build context is the **repo root** (needs the whole workspace to resolve `workspace:*`). Runs `node .output/server/index.mjs` (Nitro's build output — there is no checked-in `public/` dir).                                                                                                |
 
 ### Feature folder shape
 
@@ -74,31 +76,35 @@ the SDK, not the app) so routes and components keep importing data access from `
 [Frontend State: TanStack Query vs. Zustand](../../docs/development/frontend-state.md) for
 the query/Zustand boundary and how to add a new query.
 
-Routes in `src/routes/dashboard/<name>/` render these components; new routes must
-be registered in `src/router.tsx` (the route tree is manual, not generated).
+Routes in `src/routes/dashboard/<name>/` render these components; new routes are
+file-based under `src/routes/**` — the Start Vite plugin regenerates
+`src/routeTree.gen.ts` as a side effect of `vite dev`/`vite build`.
 
 ## BFF wiring
 
-The installed TanStack Start release exposes no file-based server-route creator,
-so the SDK's h3 BFF/proxy handlers are mounted at the **server layer** instead of
-in a `src/routes/**` server route. `src/lib/bff-server.ts` builds the handlers
-once and exposes `handleBffRequest(request)`, a web `Request` → `Response` bridge
-that mounts:
+TanStack Start's file-based routing supports server routes: a route module can
+export `server.handlers` alongside (or instead of) a UI component. `src/lib/bff.ts`
+lazily builds the SDK's `createWallowBffServer()` host once (memoised, connecting
+Redis first when `REDIS_URL` is set) and exposes three async functions —
+`handleBffRequest`, `handleApiRequest`, `handleHealthRequest` — each a web
+`Request` → `Response` bridge. Three server routes delegate to them with a single
+`ANY` (or `GET`) handler apiece, reaching `src/lib/bff.ts` through a dynamic
+`import()` rather than a top-level one, because it pulls in
+`@bc-solutions-coder/sdk/server` (`node:crypto`, `openid-client`) and every route
+module is a member of the tree the **client** graph also imports:
 
-| Route           | Handler                                                                                                                                                  |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /health`   | Liveness for the E2E `DockerComposeFixture`.                                                                                                             |
-| `/bff/login`    | Start OIDC login (PKCE), redirect to Wallow.Auth.                                                                                                        |
-| `/bff/callback` | OIDC redirect URI; exchanges the code and seals the session.                                                                                             |
-| `GET /bff/user` | Current user (`200` + claims, or `401` when anonymous).                                                                                                  |
-| `/bff/logout`   | Clear the session and redirect through end-session.                                                                                                      |
-| `/api/**`       | Reverse proxy to the Wallow API with a `Bearer` token + silent refresh. State-changing methods must carry the `x-csrf-token` header (see [CSRF](#csrf)). |
+| Route           | File                   | Handler                                                                                                                                                               |
+| --------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /health`   | `src/routes/health.ts` | Liveness for the E2E stack — building the BFF server here is what validates OIDC config, so a misconfigured host fails its healthcheck instead of crashing at import. |
+| `/bff/login`    | `src/routes/bff/$.ts`  | Start OIDC login (PKCE), redirect to Wallow.Auth.                                                                                                                     |
+| `/bff/callback` | `src/routes/bff/$.ts`  | OIDC redirect URI; exchanges the code and seals the session.                                                                                                          |
+| `GET /bff/user` | `src/routes/bff/$.ts`  | Current user (`200` + claims, or `401` when anonymous).                                                                                                               |
+| `/bff/logout`   | `src/routes/bff/$.ts`  | Clear the session and redirect through end-session.                                                                                                                   |
+| `/api/**`       | `src/routes/api/$.ts`  | Reverse proxy to the Wallow API with a `Bearer` token + silent refresh. State-changing methods must carry the `x-csrf-token` header (see [CSRF](#csrf)).              |
 
-`dev-server.ts` dispatches those prefixes to the bridge and lets everything else
-fall through to the router SSR. `server.ts` mounts the same handlers on a plain
-h3 app for the container/E2E path. If a future TanStack release adds a real
-server-route creator, a `$.ts` server route can delegate to `handleBffRequest`
-unchanged.
+`/bff/$` and `/api/$` use a single `ANY` handler rather than a method map: method
+policy belongs to the SDK's handlers (a bare `GET /bff/logout` answers `405` +
+`Allow: POST`), and a method-filtered route would swallow that as a local 404.
 
 ### Session storage
 

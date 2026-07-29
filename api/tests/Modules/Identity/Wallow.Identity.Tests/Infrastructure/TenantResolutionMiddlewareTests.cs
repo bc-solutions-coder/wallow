@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Wallow.Identity.Infrastructure.MultiTenancy;
+using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Identity.Tests.Infrastructure;
@@ -53,16 +54,20 @@ public class TenantResolutionMiddlewareTests
     }
 
     [Fact]
-    public async Task InvokeAsync_AdminUser_WithTenantIdHeader_OverridesTenant()
+    public async Task InvokeAsync_GlobalAdmin_WithTenantIdHeader_OverridesTenant()
     {
         TenantContext tenantContext = new TenantContext();
         TenantResolutionMiddleware middleware = CreateMiddleware();
         Guid orgId = Guid.NewGuid();
         Guid overrideId = Guid.NewGuid();
 
+        // The gate is the non-assignable global-admin claim, not the "admin" role: the role is
+        // handed out inside a tenant, so trusting it would let a tenant admin reach other
+        // tenants (Wallow-pu6a.1.7). TenantResolutionMiddlewareGlobalAdminTests covers the
+        // rejection side.
         DefaultHttpContext context = CreateAuthenticatedContext(
             new Claim("org_id", orgId.ToString()),
-            new Claim(ClaimTypes.Role, "admin"));
+            new Claim(ClaimsPrincipalExtensions.GlobalAdminClaimType, "true"));
         context.Request.Headers["X-Tenant-Id"] = overrideId.ToString();
 
         await middleware.InvokeAsync(context, tenantContext);
@@ -150,7 +155,7 @@ public class TenantResolutionMiddlewareTests
     }
 
     [Fact]
-    public async Task InvokeAsync_ServiceAccount_WithTenantIdHeader_OverridesTenant()
+    public async Task InvokeAsync_OperatorServiceAccount_WithTenantIdHeader_OverridesTenant()
     {
         TenantContext tenantContext = new TenantContext();
         TenantResolutionMiddleware middleware = CreateMiddleware();
@@ -159,7 +164,8 @@ public class TenantResolutionMiddlewareTests
 
         DefaultHttpContext context = CreateAuthenticatedContext(
             new Claim("org_id", orgId.ToString()),
-            new Claim("azp", "sa-test-service"));
+            new Claim("azp", "sa-test-service"),
+            new Claim("is_operator", "true"));
         context.Request.Headers["X-Tenant-Id"] = overrideId.ToString();
 
         await middleware.InvokeAsync(context, tenantContext);

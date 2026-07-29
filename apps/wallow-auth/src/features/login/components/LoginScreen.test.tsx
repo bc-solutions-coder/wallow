@@ -1,16 +1,10 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  createMemoryHistory,
-  createRootRoute,
-  createRouter,
-  Outlet,
-  RouterProvider,
-} from "@tanstack/react-router";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+import type { SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createAuthHarness } from "../../../test/harness";
 import { Route as loginRoute } from "../../../routes/login";
 import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
 
@@ -37,11 +31,34 @@ import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
  *   `login-signed-in`               the oracle's `_signedIn` success alert
  *   `login-mfa-enrollment-banner`   `<MfaEnrollmentBanner Visible=... />`
  *
- * MOCKING SEAM: `../../../lib/wallow-auth-sdk` — the app's own facade, never
- * `@bc-solutions-coder/sdk` directly (that module is this app's only permitted
- * importer of the SDK). Per bd memories `vitest-resetmodules-breaks-instanceof-
- * across-graphs`, this file uses a plain `vi.mock` factory + `vi.hoisted` spies
- * and NEVER `vi.resetModules()`.
+ * ── TEST SEAM: THE REAL SDK OVER A FAKE TRANSPORT (Wallow-pu6a.5.1) ───────────
+ *
+ * `@bc-solutions-coder/testing/sdk-harness` fakes `fetch` and NOTHING else, so
+ * the screen's whole pipeline — the request-scoped SDK off the router context ->
+ * the generated operation -> the CSRF interceptor -> request serialization ->
+ * response parsing -> React Query — runs inside these tests. That replaces the
+ * hand-written module mock of an app-level SDK facade this file used to carry,
+ * now forbidden by `src/sdk-test-seam.test.ts`. Two consequences:
+ *
+ *   • "Was the endpoint called, and with what" is read off the RECORDED REQUEST
+ *     (`harness.calls`), not off a spy — so it also pins the URL, method and
+ *     serialized body the screen really puts on the wire.
+ *   • The `oidc` slice is no longer stubbed. `isSafeReturnUrl` and
+ *     `buildExchangeTicketUrl` are PURE functions (packages/sdk/src/auth-oidc.ts),
+ *     so the real ones run and the guard's two poles below state the GENUINE
+ *     verdict instead of a local re-write of the rule that could drift from it.
+ *
+ * `renderWithWallow` supplies the router context the screen reads its SDK off,
+ * and `createAuthHarness()` pins the harness origin to this app's root-mounted
+ * API surface (Wallow-pu6a.5.5). Because that surface is rooted at the origin, the
+ * recorded `call.path` is the bare endpoint path, with no `/api` prefix.
+ *
+ * The screen mounts `<ExternalProviders>` unconditionally, so the transport sees
+ * that endpoint's GET too — every "the API was/was not called" assertion here
+ * therefore filters `harness.calls` by path rather than counting them all.
+ *
+ * The ONE module mock left is `@tanstack/react-router`'s `useNavigate`: an in-app
+ * router hand-off, not an SDK seam.
  *
  * ── THE FOUR BRANCHES ARE 200s, NOT REJECTIONS (verified in the controller) ───
  *
@@ -58,18 +75,22 @@ import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
  *   423 { succeeded: false, error: "locked_out" }                     :149
  *   403 { succeeded: false, error: "email_not_confirmed" }            :154
  *
- * So `unwrap()` does NOT throw for the MFA branches — they arrive as a resolved
- * `Promise<unknown>` (the facade types `login` as `Promise<unknown>` because the
- * C# endpoint returns an anonymous `Ok(new { ... })` with no OpenAPI schema).
+ * So the facade does NOT reject for the MFA branches. Under the unified error
+ * contract (Wallow-pu6a.5.3) the generated op is `responseStyle: "data"` +
+ * `throwOnError: true`, so a 200 RESOLVES its parsed body and only a non-2xx
+ * rejects — and the facade types `login` as `Promise<unknown>` because the C#
+ * endpoint returns an anonymous `Ok(new { … })` with no OpenAPI schema.
  * The SCREEN owns the narrowing at its own boundary, per bd memory
  * `untyped-sdk-response-fail-closed-pattern-wallow-auth`: narrow with the `in`
  * operator (no cast — the repo forbids `as any`), and reproduce C#'s STRICT
  * comparisons rather than JS truthiness. The `resultShapedLikeGarbage` test
  * below pins the fail-closed tail.
  *
- * Only the 401/423/403 arms reject. As of Wallow-vec7.7 `readCode` probes
- * `extensions.code > code > error`, so their token reaches the screen as
- * `WallowError.code` — hence the WallowError-SHAPED rejection fixtures.
+ * Only the 401/423/403 arms reject. The fixtures for those arms are RFC 7807
+ * problem details answered AT THE MATCHING HTTP STATUS, which is the strongest
+ * shape available: the machine token sits in `extensions.code` (where
+ * Wallow-vec7.7's `readCode` probes for it) AND the status is on the wire, so the
+ * copy assertions bind whether the screen keys off the token or off the status.
  *
  * ── DISCLOSED: CODE-KEYING IS NOT BINDABLE ON THIS ENDPOINT ───────────────────
  *
@@ -93,8 +114,8 @@ import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
  * ── THE ORIGIN DIVERGENCE (inherited from Wallow-vec7.3.4/.3.6) ───────────────
  *
  * The oracle's `ApiBaseUrl` prepend (`BuildApiReturnUrl`, and the hand-rolled
- * exchange-ticket URL at L544-550) is deliberately NOT ported. This app's h3
- * server (`src/lib/auth-server.ts`) is a passthrough reverse proxy mounting
+ * exchange-ticket URL at L544-550) is deliberately NOT ported. This app's API
+ * surface (`src/lib/api-passthrough.ts`) is a passthrough reverse proxy mounting
  * `/v1/**` and `/connect/**` at the ROOT, so this origin hosts them and the
  * origin argument is `""` (bd memory `wallow-auth-screens-must-pass-origin-same-
  * origin`). Prepending an absolute origin would send the browser cross-origin
@@ -134,34 +155,28 @@ import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
  * Migrated off jsdom onto vitest-browser-react. `window.location` is
  * `[Unforgeable]` in real Chromium, so the old `vi.stubGlobal("location", …)`
  * helper cannot shadow it and a live `location.href = <url>` would navigate the
- * runner iframe and tear it down (see vitest.config.ts NAVIGATION SEAM). The
- * ticket hand-off is therefore observed at the URL-BUILDER seam: every test that
- * used to assert `location.href` now asserts `buildExchangeTicketUrl` was called
- * with the exact `(origin, ticket, returnUrl)` — an equivalent, since the builder
- * is deterministic — and the builder mock returns a non-navigating hash sentinel
- * so the screen's assignment stays put. "No hand-off happened" (formerly
- * `location.href === ""`) is asserted as `buildExchangeTicketUrl` NOT called,
- * since that seam is the only writer of `location.href`.
+ * runner iframe and tear it down (see vitest.config.ts NAVIGATION SEAM).
+ *
+ * Now that the REAL `buildExchangeTicketUrl` runs (see the test seam above),
+ * there is no builder spy left to assert on and the hand-off is observed where it
+ * actually happens: a `navigate` listener on the Navigation API records
+ * `destination.url` and `preventDefault()`s, so the URL the screen built is
+ * captured while the runner stays put (bd memory `full-navigation-seam-for-
+ * wallow-auth-screens-that`). The recorded array stands in for the old settable
+ * `location.href`: a hand-off appends exactly ONE absolute URL, and "no hand-off
+ * happened" (formerly `location.href === ""`) is the array staying EMPTY — that
+ * assignment being the screen's only writer of `location.href`. Assertions read
+ * the parsed URL, which is strictly stronger than the old builder-args check: it
+ * pins the origin, path and encoding the browser would really be sent to.
+ *
+ * The listener is armed in `beforeEach` for EVERY test, not per test: the default
+ * fixture is a successful sign-in with a ticket, so any submit could navigate, and
+ * an unarmed test would tear the runner down instead of failing.
  */
 
-// Hoisted so the vi.mock factories and the test bodies share the same spies.
+// Hoisted so the vi.mock factory and the test bodies share the same spy.
 const mocks = vi.hoisted(() => ({
-  login: vi.fn(),
-  isSafeReturnUrl: vi.fn(),
-  buildExchangeTicketUrl: vi.fn(),
   navigate: vi.fn(),
-}));
-
-vi.mock("../../../lib/wallow-auth-sdk", () => ({
-  getWallowAuthSdk: () => ({
-    auth: {
-      login: mocks.login,
-    },
-    oidc: {
-      isSafeReturnUrl: mocks.isSafeReturnUrl,
-      buildExchangeTicketUrl: mocks.buildExchangeTicketUrl,
-    },
-  }),
 }));
 
 // `importOriginal` MUST be spread: the route-level harness below needs the real
@@ -175,14 +190,27 @@ const EMAIL = "user@example.com";
 const PASSWORD = "Sup3rSecret!";
 const TICKET = "sign-in-ticket-xyz";
 
+/** `AccountController.Login` — the only endpoint the password tab drives. */
+const LOGIN_ENDPOINT = "/v1/identity/auth/login";
+
 /**
- * A non-navigating hash sentinel the `buildExchangeTicketUrl` mock returns. The
- * screen assigns it to `location.href`; a hash-only assignment updates the
- * runner iframe's fragment WITHOUT reloading, so the browser test survives while
- * the real (navigable) URL is never emitted. The hand-off is asserted at the
- * builder's ARGS, not at this string.
+ * `AccountController.GetExternalProviders`. The shell mounts `<ExternalProviders>`
+ * next to the tab panels, so this GET lands on the transport in EVERY test that
+ * renders the screen. Owned by `.3.14`; answered here only to host it.
  */
-const EXCHANGE_SENTINEL = "#exchange-ticket-sentinel";
+const PROVIDERS_ENDPOINT = "/v1/identity/auth/external-providers";
+
+/** The path `buildExchangeTicketUrl` targets (packages/sdk/src/auth-oidc.ts:163). */
+const EXCHANGE_PATH = "/v1/identity/auth/exchange-ticket";
+
+const OK_STATUS = 200;
+const NOT_FOUND_STATUS = 404;
+
+/** The three statuses `AccountController.Login` rejects with, plus its generic tail. */
+const UNAUTHORIZED_STATUS = 401;
+const FORBIDDEN_STATUS = 403;
+const LOCKED_STATUS = 423;
+const SERVER_ERROR_STATUS = 500;
 
 /**
  * The returnUrl `/connect/authorize` really sends (AuthorizationController.cs:53,
@@ -197,6 +225,9 @@ const EVIL_RETURN_URL = "https://evil.example.com/steal";
 
 /** The bail target for an unsafe returnUrl, matching the ConsentScreen port. */
 const ERROR_HREF = "/error?reason=invalid_redirect_uri";
+
+/** The API origin the oracle prepends to the exchange URL and this port does not. */
+const API_ORIGIN = "localhost:5001";
 
 /** The oracle's blank-input guard (Login.razor L327). */
 const BLANK_MESSAGE = "Please enter your email and password.";
@@ -224,42 +255,117 @@ const SESSION_EXPIRED_MESSAGE = "Your session has expired. Please try again.";
  */
 const PASSWORD_RESET_NOTICE = /your password has been reset/iu;
 
-/**
- * The real `isSafeReturnUrl` rule (packages/sdk/src/auth-oidc.ts), mirrored
- * rather than imported: screens may not import the SDK, so the seam is mocked,
- * and a mock that returned a constant would let the guard tests pass for the
- * wrong reason. Under 67 tests of its own in Wallow-vec7.2.2.
- */
-function isSafeReturnUrlRule(url: string | null | undefined): boolean {
-  if (url === null || url === undefined || url.trim() === "") {
-    return false;
-  }
+let harness: SdkHarness;
 
-  return url.startsWith("/") && !url.startsWith("//");
+/**
+ * How the fake transport answers the login POST. Reprogrammed per test — the
+ * dispatcher installed in `beforeEach` reads it on every call, so a test can
+ * change this endpoint's behaviour without re-stating the other endpoints the
+ * screen touches.
+ */
+let loginReply: () => Response | Promise<Response>;
+
+/** Answer the login POST with `body` at 200 — the three MFA branches and success. */
+function respondWithLogin(body: unknown): void {
+  loginReply = () => Response.json(body, { status: OK_STATUS });
 }
 
 /**
- * What the facade really throws for this endpoint's failures. `title` stays
- * "Unknown error" — these endpoints emit no problem details, so no
- * human-readable title ever arrives and the screen must supply its own copy.
+ * Answer the login POST with RFC 7807 problem details at `status`.
+ *
+ * The token goes in `extensions.code` — where ASP.NET Core puts it and where
+ * `readCode` (Wallow-vec7.7) probes for it — AND the status is the real transport
+ * status, so these fixtures bind the copy assertions whether the screen keys off
+ * the machine token or falls back to the status. `title` stays "Unknown error":
+ * these endpoints ship no human-readable title, so the screen must supply its own
+ * copy rather than echoing the server's.
  */
-function rejection(status: number, code: string): Error & { status: number; code: string } {
-  return Object.assign(new Error("Unknown error"), {
-    name: "WallowError",
-    status,
-    code,
-    title: "Unknown error",
+function problemResponse(status: number, code: string): Response {
+  return Response.json(
+    {
+      type: "about:blank",
+      title: "Unknown error",
+      status,
+      extensions: { code },
+    },
+    { status },
+  );
+}
+
+function rejectLogin(status: number, code: string): void {
+  loginReply = () => problemResponse(status, code);
+}
+
+/**
+ * A `fetch` failure: the request never lands, so the rejection carries neither a
+ * status nor a code. This is the TS shape of the oracle's
+ * `catch (HttpRequestException)` arm, and it must NOT collapse into the same copy
+ * as a 4xx — "the server said no" and "the server never answered" are different
+ * instructions to the user, and the oracle keeps them apart.
+ */
+function failLoginTransport(): void {
+  loginReply = () => {
+    throw new TypeError("Failed to fetch");
+  };
+}
+
+/** Every recorded request to the login endpoint, in order. */
+function loginCalls() {
+  return harness.calls.filter((call) => call.path === LOGIN_ENDPOINT);
+}
+
+/**
+ * NAVIGATION SEAM (Wallow-xzha.3.1). See the header. The ticket hand-off is
+ * `globalThis.location.href = …`, which in real Chromium would navigate the
+ * runner iframe; listening for the Navigation API's `navigate` event lets us
+ * record the destination and cancel it.
+ */
+interface NavigateEvent extends Event {
+  readonly destination: { readonly url: string };
+}
+interface NavigationLike {
+  addEventListener: (type: "navigate", handler: (event: NavigateEvent) => void) => void;
+  removeEventListener: (type: "navigate", handler: (event: NavigateEvent) => void) => void;
+}
+const navigationApi: NavigationLike = (globalThis as unknown as { navigation: NavigationLike })
+  .navigation;
+
+/** Listeners registered by `captureHandoff`, torn down in `afterEach`. */
+const navDisposers: Array<() => void> = [];
+
+/** Arm the navigation seam and return the array the hand-off URL lands in. */
+function captureHandoff(): string[] {
+  const urls: string[] = [];
+  const handler = (event: NavigateEvent): void => {
+    urls.push(event.destination.url);
+    // Cancel the navigation so assigning `location.href` does not tear the
+    // Chromium runner down; the recorded URL is what we assert on.
+    event.preventDefault();
+  };
+  navigationApi.addEventListener("navigate", handler);
+  navDisposers.push(() => {
+    navigationApi.removeEventListener("navigate", handler);
   });
+  return urls;
 }
 
+/** Every hand-off URL this test recorded, newest last. Armed in `beforeEach`. */
+let handoffs: string[];
+
 /**
- * A `fetch` failure: no `status`, no `code`. This is the TS shape of the
- * oracle's `catch (HttpRequestException)` arm, and it must NOT collapse into the
- * same copy as a 4xx — "the server said no" and "the server never answered" are
- * different instructions to the user, and the oracle keeps them apart.
+ * Wait for the ticket hand-off and return its target, parsed.
+ *
+ * The exchange URL is built by the REAL `buildExchangeTicketUrl` against the
+ * `""` origin, so a correct screen produces a SAME-ORIGIN absolute URL whose
+ * pathname is {@link EXCHANGE_PATH} and whose `ticket`/`returnUrl` are single,
+ * properly-encoded query values.
  */
-function networkRejection(): Error {
-  return new TypeError("Failed to fetch");
+async function awaitHandoff(): Promise<URL> {
+  await vi.waitFor(() => {
+    expect(handoffs).toHaveLength(1);
+  });
+
+  return new URL(handoffs[0]);
 }
 
 /** An ISO-8601 `DateTimeOffset` (WallowUser.MfaGraceDeadline) N days from now. */
@@ -267,14 +373,9 @@ function deadlineInDays(days: number): string {
   return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
 }
 
-function newClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-}
-
+/** Render `ui` on the shared harness: real SDK, fake transport, real router context. */
 function renderWithClient(ui: ReactElement) {
-  return render(<QueryClientProvider client={newClient()}>{ui}</QueryClientProvider>);
+  return renderWithWallow(ui, { harness });
 }
 
 /**
@@ -335,12 +436,33 @@ async function toggleCheckbox(
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.isSafeReturnUrl.mockImplementation(isSafeReturnUrlRule);
-  // Non-navigating sentinel: the screen assigns the builder's return value to
-  // `location.href`, which would navigate the runner iframe in real Chromium.
-  // Hand-off tests assert the builder's ARGS instead (see BROWSER NAVIGATION SEAM).
-  mocks.buildExchangeTicketUrl.mockReturnValue(EXCHANGE_SENTINEL);
-  mocks.login.mockResolvedValue({ succeeded: true, signInTicket: TICKET });
+  handoffs = captureHandoff();
+  harness = createAuthHarness();
+  respondWithLogin({ succeeded: true, signInTicket: TICKET });
+  harness.respond((call) => {
+    if (call.path === LOGIN_ENDPOINT) {
+      return loginReply();
+    }
+
+    // `<ExternalProviders>` mounts with the shell. An empty list is the
+    // "no providers configured" answer and renders nothing — this file says
+    // nothing about that section (it is `.3.14`'s).
+    if (call.path === PROVIDERS_ENDPOINT) {
+      return Response.json([], { status: OK_STATUS });
+    }
+
+    // The route-level tests carry `client_id=web`, so `/login` also asks for that
+    // client's branding overlay. A bare 404 is the API's "no branding configured"
+    // and leaves the fork's chrome in place — nothing this file looks at.
+    return new Response(null, { status: NOT_FOUND_STATUS });
+  });
+});
+
+afterEach(() => {
+  navDisposers.forEach((dispose) => {
+    dispose();
+  });
+  navDisposers.length = 0;
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -615,7 +737,7 @@ describe("LoginScreen password tab", () => {
     await submitCredentials(user, "", "");
 
     await expect.element(page.getByTestId("login-error")).toHaveTextContent(BLANK_MESSAGE);
-    expect(mocks.login).not.toHaveBeenCalled();
+    expect(loginCalls()).toHaveLength(0);
   });
 
   it("refuses a whitespace-only password without calling the API", async () => {
@@ -626,7 +748,7 @@ describe("LoginScreen password tab", () => {
     await submitCredentials(user, EMAIL, "   ");
 
     await expect.element(page.getByTestId("login-error")).toHaveTextContent(BLANK_MESSAGE);
-    expect(mocks.login).not.toHaveBeenCalled();
+    expect(loginCalls()).toHaveLength(0);
   });
 
   it("submits the typed credentials with rememberMe false by default", async () => {
@@ -636,11 +758,13 @@ describe("LoginScreen password tab", () => {
     await submitCredentials(user);
 
     await vi.waitFor(() => {
-      expect(mocks.login).toHaveBeenCalledWith({
-        email: EMAIL,
-        password: PASSWORD,
-        rememberMe: false,
-      });
+      expect(loginCalls()).toHaveLength(1);
+    });
+    expect(loginCalls()[0].method).toBe("POST");
+    expect(loginCalls()[0].body).toEqual({
+      email: EMAIL,
+      password: PASSWORD,
+      rememberMe: false,
     });
   });
 
@@ -652,44 +776,58 @@ describe("LoginScreen password tab", () => {
     await submitCredentials(user);
 
     await vi.waitFor(() => {
-      expect(mocks.login).toHaveBeenCalledWith({
-        email: EMAIL,
-        password: PASSWORD,
-        rememberMe: true,
-      });
+      expect(loginCalls()).toHaveLength(1);
+    });
+    expect(loginCalls()[0].body).toEqual({
+      email: EMAIL,
+      password: PASSWORD,
+      rememberMe: true,
     });
   });
 
   it("disables the submit button while the login is in flight", async () => {
     let release: () => void = () => undefined;
-    mocks.login.mockReturnValue(
-      new Promise((resolve) => {
-        release = () => resolve({ succeeded: true, signInTicket: TICKET });
-      }),
-    );
+    loginReply = async () =>
+      await new Promise<Response>((resolve) => {
+        release = () => {
+          resolve(Response.json({ succeeded: true, signInTicket: TICKET }, { status: OK_STATUS }));
+        };
+      });
     const user = userEvent.setup();
     await renderScreen();
 
     await submitCredentials(user);
 
+    // Wait for the request to REACH the transport before asserting: the submit
+    // button goes disabled the moment the form starts submitting, which is a tick
+    // or two before `fetch` is called, and releasing into that gap would leave the
+    // never-settling responder installed forever.
+    await vi.waitFor(() => {
+      expect(loginCalls()).toHaveLength(1);
+    });
     await expect.element(page.getByTestId("login-submit")).toBeDisabled();
 
     release();
-    await vi.waitFor(() => {
-      expect(mocks.buildExchangeTicketUrl).toHaveBeenCalled();
-    });
+    await awaitHandoff();
   });
 
   it("clears the previous error before retrying", async () => {
     // The oracle sets `_errorMessage = null` at the top of `HandleLogin`, so a
     // stale banner never overlaps an in-flight retry.
-    mocks.login.mockRejectedValueOnce(rejection(401, "invalid_credentials"));
     let release: () => void = () => undefined;
-    mocks.login.mockReturnValueOnce(
-      new Promise((resolve) => {
-        release = () => resolve({ succeeded: true, signInTicket: TICKET });
-      }),
-    );
+    let attempt = 0;
+    loginReply = () => {
+      attempt += 1;
+      if (attempt === 1) {
+        return problemResponse(UNAUTHORIZED_STATUS, "invalid_credentials");
+      }
+
+      return new Promise<Response>((resolve) => {
+        release = () => {
+          resolve(Response.json({ succeeded: true, signInTicket: TICKET }, { status: OK_STATUS }));
+        };
+      });
+    };
     const user = userEvent.setup();
     await renderScreen();
 
@@ -713,7 +851,7 @@ describe("LoginScreen password tab", () => {
 
 describe("LoginScreen password failures", () => {
   it("maps 401 invalid_credentials to the oracle's credentials message", async () => {
-    mocks.login.mockRejectedValue(rejection(401, "invalid_credentials"));
+    rejectLogin(UNAUTHORIZED_STATUS, "invalid_credentials");
     const user = userEvent.setup();
     await renderScreen();
 
@@ -725,7 +863,7 @@ describe("LoginScreen password failures", () => {
   });
 
   it("maps 423 locked_out to the oracle's lockout message", async () => {
-    mocks.login.mockRejectedValue(rejection(423, "locked_out"));
+    rejectLogin(LOCKED_STATUS, "locked_out");
     const user = userEvent.setup();
     await renderScreen();
 
@@ -735,7 +873,7 @@ describe("LoginScreen password failures", () => {
   });
 
   it("maps 403 email_not_confirmed to the oracle's verify-email message", async () => {
-    mocks.login.mockRejectedValue(rejection(403, "email_not_confirmed"));
+    rejectLogin(FORBIDDEN_STATUS, "email_not_confirmed");
     const user = userEvent.setup();
     await renderScreen();
 
@@ -750,7 +888,7 @@ describe("LoginScreen password failures", () => {
     // The Wallow-vec7.7 rule: known tokens first, HTTP status as a FALLBACK.
     // A code-only map would drop this to generic and stop telling a locked-out
     // user why retyping cannot help.
-    mocks.login.mockRejectedValue(rejection(423, "some_new_token"));
+    rejectLogin(LOCKED_STATUS, "some_new_token");
     const user = userEvent.setup();
     await renderScreen();
 
@@ -760,7 +898,7 @@ describe("LoginScreen password failures", () => {
   });
 
   it("falls back to the generic tail for a status this endpoint never documents", async () => {
-    mocks.login.mockRejectedValue(rejection(500, "boom"));
+    rejectLogin(SERVER_ERROR_STATUS, "boom");
     const user = userEvent.setup();
     await renderScreen();
 
@@ -771,7 +909,7 @@ describe("LoginScreen password failures", () => {
 
   it("never renders the raw machine token", async () => {
     // The oracle's `_ => result.Error` tail leaks it; that leak is not ported.
-    mocks.login.mockRejectedValue(rejection(500, "some_new_token"));
+    rejectLogin(SERVER_ERROR_STATUS, "some_new_token");
     const user = userEvent.setup();
     await renderScreen();
 
@@ -784,7 +922,7 @@ describe("LoginScreen password failures", () => {
     // The oracle keeps `catch (HttpRequestException)` apart from its `_` tail:
     // "the server said no" and "the server never answered" are different
     // instructions. A network rejection carries neither code nor status.
-    mocks.login.mockRejectedValue(networkRejection());
+    failLoginTransport();
     const user = userEvent.setup();
     await renderScreen();
 
@@ -797,7 +935,7 @@ describe("LoginScreen password failures", () => {
     // `login` is typed `Promise<unknown>`; the screen narrows structurally. A
     // body with no `succeeded`/`mfaRequired`/`mfaEnrollmentRequired` must not be
     // mistaken for success, and must not navigate anywhere.
-    mocks.login.mockResolvedValue("not an object at all");
+    respondWithLogin("not an object at all");
     const user = userEvent.setup();
     await renderScreen();
 
@@ -805,20 +943,20 @@ describe("LoginScreen password failures", () => {
 
     await expect.element(page.getByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
     expect(mocks.navigate).not.toHaveBeenCalled();
-    expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
+    expect(handoffs).toHaveLength(0);
   });
 
   it("does not accept a stringly-typed succeeded flag", async () => {
     // C# compares `result.Succeeded` as a bool; JS truthiness would let the
     // non-empty string "false" through. Reproduce the strict comparison.
-    mocks.login.mockResolvedValue({ succeeded: "false", signInTicket: TICKET });
+    respondWithLogin({ succeeded: "false", signInTicket: TICKET });
     const user = userEvent.setup();
     await renderScreen();
 
     await submitCredentials(user);
 
     await expect.element(page.getByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
-    expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
+    expect(handoffs).toHaveLength(0);
   });
 });
 
@@ -828,7 +966,7 @@ describe("LoginScreen password failures", () => {
 
 describe("LoginScreen mfaRequired branch", () => {
   beforeEach(() => {
-    mocks.login.mockResolvedValue({ succeeded: false, mfaRequired: true });
+    respondWithLogin({ succeeded: false, mfaRequired: true });
   });
 
   it("hands off to /mfa/challenge with the returnUrl as query cargo", async () => {
@@ -843,11 +981,11 @@ describe("LoginScreen mfaRequired branch", () => {
       });
     });
     // An in-app route reached through the client router, NOT a full page load:
-    // the partial-auth cookie is already in the jar (the h3 proxy forwards
+    // the partial-auth cookie is already in the jar (the passthrough proxy forwards
     // Set-Cookie verbatim), so there is nothing a reload would buy. The
     // ticket-exchange seam is the only writer of `location.href`, so its absence
     // is the browser-true equivalent of the old `location.href === ""`.
-    expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
+    expect(handoffs).toHaveLength(0);
   });
 
   it("hands off to a bare /mfa/challenge when there is no returnUrl", async () => {
@@ -877,7 +1015,7 @@ describe("LoginScreen mfaRequired branch", () => {
       });
     });
     expect(mocks.navigate).not.toHaveBeenCalledWith({ href: ERROR_HREF });
-    expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
+    expect(handoffs).toHaveLength(0);
   });
 
   it("encodes the returnUrl so it cannot smuggle a second query key", async () => {
@@ -907,7 +1045,7 @@ describe("LoginScreen mfaEnrollmentRequired branch", () => {
   it("hands off to /mfa/enroll when enrollment is required with no grace deadline", async () => {
     // The wire shape of AccountController.cs:125 — grace expired server-side, so
     // no deadline is sent at all.
-    mocks.login.mockResolvedValue({ succeeded: false, mfaEnrollmentRequired: true });
+    respondWithLogin({ succeeded: false, mfaEnrollmentRequired: true });
     const user = userEvent.setup();
     await renderScreen();
 
@@ -925,7 +1063,7 @@ describe("LoginScreen mfaEnrollmentRequired branch", () => {
     // trusting the flag alone. This pins the COMPARISON: an implementation that
     // read the deadline as merely "present" would keep this user on the login
     // page with a banner instead of enrolling them.
-    mocks.login.mockResolvedValue({
+    respondWithLogin({
       succeeded: true,
       mfaEnrollmentRequired: true,
       mfaGraceDeadline: deadlineInDays(-1),
@@ -944,7 +1082,7 @@ describe("LoginScreen mfaEnrollmentRequired branch", () => {
   });
 
   it("does not exchange the ticket when it sends the user to enroll", async () => {
-    mocks.login.mockResolvedValue({
+    respondWithLogin({
       succeeded: true,
       mfaEnrollmentRequired: true,
       mfaGraceDeadline: deadlineInDays(-1),
@@ -958,7 +1096,7 @@ describe("LoginScreen mfaEnrollmentRequired branch", () => {
     await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalled();
     });
-    expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
+    expect(handoffs).toHaveLength(0);
   });
 });
 
@@ -981,7 +1119,7 @@ describe("LoginScreen MFA grace period", () => {
   it("shows the enrollment banner and signs the user in when there is no returnUrl", async () => {
     // The only configuration in which the oracle's banner is ever SEEN: with a
     // returnUrl the screen navigates away before it can be read (next test).
-    mocks.login.mockResolvedValue(graceResult());
+    respondWithLogin(graceResult());
     const user = userEvent.setup();
     await renderScreen({ returnUrl: undefined });
 
@@ -990,11 +1128,11 @@ describe("LoginScreen MFA grace period", () => {
     await expect.element(page.getByTestId("login-mfa-enrollment-banner")).toBeInTheDocument();
     await expect.element(page.getByTestId("login-signed-in")).toBeInTheDocument();
     expect(mocks.navigate).not.toHaveBeenCalled();
-    expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
+    expect(handoffs).toHaveLength(0);
   });
 
   it("names the grace deadline in the banner", async () => {
-    mocks.login.mockResolvedValue(graceResult());
+    respondWithLogin(graceResult());
     const user = userEvent.setup();
     await renderScreen({ returnUrl: undefined });
 
@@ -1012,7 +1150,7 @@ describe("LoginScreen MFA grace period", () => {
   });
 
   it("offers a route to enrollment from the banner", async () => {
-    mocks.login.mockResolvedValue(graceResult());
+    respondWithLogin(graceResult());
     const user = userEvent.setup();
     await renderScreen({ returnUrl: undefined });
 
@@ -1025,7 +1163,7 @@ describe("LoginScreen MFA grace period", () => {
 
   it("retires the tabs once the user is signed in", async () => {
     // The oracle renders the whole tab block inside `else` of `if (_signedIn)`.
-    mocks.login.mockResolvedValue(graceResult());
+    respondWithLogin(graceResult());
     const user = userEvent.setup();
     await renderScreen({ returnUrl: undefined });
 
@@ -1040,15 +1178,16 @@ describe("LoginScreen MFA grace period", () => {
   it("still exchanges the ticket during the grace period when a returnUrl is present", async () => {
     // Grace does NOT short-circuit the hand-off: the oracle sets the banner and
     // falls THROUGH to the returnUrl block, so the user keeps signing in.
-    mocks.login.mockResolvedValue(graceResult());
+    respondWithLogin(graceResult());
     const user = userEvent.setup();
     await renderScreen();
 
     await submitCredentials(user);
 
-    await vi.waitFor(() => {
-      expect(mocks.buildExchangeTicketUrl).toHaveBeenCalledWith("", TICKET, RETURN_URL);
-    });
+    const target: URL = await awaitHandoff();
+    expect(target.pathname).toBe(EXCHANGE_PATH);
+    expect(target.searchParams.get("ticket")).toBe(TICKET);
+    expect(target.searchParams.get("returnUrl")).toBe(RETURN_URL);
     expect(mocks.navigate).not.toHaveBeenCalledWith({
       href: `/mfa/enroll?returnUrl=${encodeURIComponent(RETURN_URL)}`,
     });
@@ -1064,32 +1203,37 @@ describe("LoginScreen sign-in ticket exchange", () => {
     // POLE 1 — REAL TRAFFIC MUST PASS. AuthorizationController.cs:53 builds this
     // shape and :62 has already rejected it unless `Url.IsLocalUrl`. A guard
     // that refused this would dead-end every direct sign-in. Observed at the
-    // builder seam: the assigned `location.href` is [Unforgeable] in a browser,
-    // and the builder's args are the deterministic pre-image of that string.
+    // NAVIGATION seam: `location.href` is [Unforgeable] in a browser, so the
+    // cancelled `navigate` event carries the URL the screen really built. The
+    // returnUrl is read back through a real URL parser, so this also pins that it
+    // survives as ONE properly-encoded query value.
     const user = userEvent.setup();
     await renderScreen();
 
     await submitCredentials(user);
 
-    await vi.waitFor(() => {
-      expect(mocks.buildExchangeTicketUrl).toHaveBeenCalledWith("", TICKET, RETURN_URL);
-    });
+    const target: URL = await awaitHandoff();
+    expect(target.pathname).toBe(EXCHANGE_PATH);
+    expect(target.searchParams.get("ticket")).toBe(TICKET);
+    expect(target.searchParams.get("returnUrl")).toBe(RETURN_URL);
     expect(mocks.navigate).not.toHaveBeenCalledWith({ href: ERROR_HREF });
   });
 
   it("exchanges the ticket at THIS origin, not at an absolute API origin", async () => {
-    // SAME ORIGIN, NOT ApiBaseUrl. The h3 proxy mounts /v1/** at the root, so a
+    // SAME ORIGIN, NOT ApiBaseUrl. The passthrough proxy mounts /v1/** at the root, so a
     // cross-origin exchange would drop the SameSite cookie the endpoint sets —
-    // which is the entire purpose of the ticket. The `""` origin arg IS the
-    // same-origin assertion: a relative exchange, never `localhost:5001`.
+    // which is the entire purpose of the ticket. The screen passes `""` as the
+    // origin, so the URL the browser is handed must resolve against THIS document's
+    // origin and never name the API's.
     const user = userEvent.setup();
     await renderScreen();
 
     await submitCredentials(user);
 
-    await vi.waitFor(() => {
-      expect(mocks.buildExchangeTicketUrl).toHaveBeenCalledWith("", TICKET, RETURN_URL);
-    });
+    const target: URL = await awaitHandoff();
+    expect(target.origin).toBe(globalThis.location.origin);
+    expect(target.pathname).toBe(EXCHANGE_PATH);
+    expect(handoffs[0]).not.toContain(API_ORIGIN);
   });
 
   it("refuses an absolute returnUrl before exchanging the ticket", async () => {
@@ -1103,7 +1247,7 @@ describe("LoginScreen sign-in ticket exchange", () => {
     await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({ href: ERROR_HREF });
     });
-    expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
+    expect(handoffs).toHaveLength(0);
   });
 
   it("refuses a protocol-relative returnUrl", async () => {
@@ -1116,7 +1260,7 @@ describe("LoginScreen sign-in ticket exchange", () => {
     await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({ href: ERROR_HREF });
     });
-    expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
+    expect(handoffs).toHaveLength(0);
   });
 
   it("shows the signed-in state when there is no returnUrl", async () => {
@@ -1129,7 +1273,7 @@ describe("LoginScreen sign-in ticket exchange", () => {
 
     await expect.element(page.getByTestId("login-signed-in")).toBeInTheDocument();
     expect(mocks.navigate).not.toHaveBeenCalled();
-    expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
+    expect(handoffs).toHaveLength(0);
   });
 
   it("treats an empty returnUrl as no returnUrl, not as an attack", async () => {
@@ -1144,7 +1288,7 @@ describe("LoginScreen sign-in ticket exchange", () => {
 
     await expect.element(page.getByTestId("login-signed-in")).toBeInTheDocument();
     expect(mocks.navigate).not.toHaveBeenCalledWith({ href: ERROR_HREF });
-    expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
+    expect(handoffs).toHaveLength(0);
   });
 
   it("does not leave the sign-in button spinning after it refuses", async () => {
@@ -1176,20 +1320,11 @@ describe("LoginScreen sign-in ticket exchange", () => {
  * off-limits to this task (Wallow-vec7.3.16).
  */
 function renderRouteAt(url: string) {
-  const rootRoute = createRootRoute({ component: Outlet });
-  const routeTree = rootRoute.addChildren([
-    loginRoute.update({
-      id: "/login",
-      path: "/login",
-      getParentRoute: () => rootRoute,
-    } as any),
-  ]);
-  const router = createRouter({
-    routeTree,
-    history: createMemoryHistory({ initialEntries: [url] }),
+  return renderWithWallow(null, {
+    harness,
+    path: url,
+    routes: [{ path: "/login", route: loginRoute }],
   });
-
-  return renderWithClient(<RouterProvider router={router} />);
 }
 
 describe("/login route", () => {
@@ -1216,9 +1351,9 @@ describe("/login route", () => {
     await expect.element(page.getByTestId("login-email")).toBeInTheDocument();
     await submitCredentials(user);
 
-    await vi.waitFor(() => {
-      expect(mocks.buildExchangeTicketUrl).toHaveBeenCalledWith("", TICKET, RETURN_URL);
-    });
+    const target: URL = await awaitHandoff();
+    expect(target.pathname).toBe(EXCHANGE_PATH);
+    expect(target.searchParams.get("returnUrl")).toBe(RETURN_URL);
   });
 
   it("threads client_id out of the query string into the register link", async () => {

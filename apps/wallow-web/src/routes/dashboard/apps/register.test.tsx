@@ -1,10 +1,9 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactElement } from "react";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { page } from "vitest/browser";
-import { render } from "vitest-browser-react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
-import { createRouter } from "../../../router";
+import { getRouter } from "../../../router";
 import { Route } from "./register";
 
 /**
@@ -23,32 +22,12 @@ import { Route } from "./register";
  * fail until GREEN.
  */
 
-// RegisterAppForm builds its mutation from `registerAppMutation(queryClient)`,
-// which reaches the `apps.register` facade slice; mock it so the form is inert
-// during the route render (mirrors apps/index.test.tsx's facade mock).
-const mocks = vi.hoisted(() => ({
-  list: vi.fn(),
-  get: vi.fn(),
-  register: vi.fn(),
-}));
-
-vi.mock("../../../lib/wallow-sdk", () => ({
-  getWallowSdk: () => ({
-    apps: { list: mocks.list, get: mocks.get, register: mocks.register },
-  }),
-}));
-
-function newClient(): QueryClient {
-  return new QueryClient({ defaultOptions: { queries: { retry: false } } });
-}
-
-function renderWithClient(client: QueryClient, ui: ReactElement) {
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-}
+/** The transport backing each render, rebuilt per test. */
+let harness: SdkHarness;
 
 describe("routes/dashboard/apps/register (route page)", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    harness = createSdkHarness();
   });
 
   it("exposes a route component", () => {
@@ -56,19 +35,15 @@ describe("routes/dashboard/apps/register (route page)", () => {
   });
 
   it("renders a page root carrying data-testid=dashboard-apps-register", async () => {
-    const client = newClient();
-
     const Page = Route.options.component!;
-    renderWithClient(client, <Page />);
+    renderWithWallow(<Page />, { harness });
 
     await expect.element(page.getByTestId("dashboard-apps-register")).toBeInTheDocument();
   });
 
   it("mounts the RegisterAppForm (app-register-form)", async () => {
-    const client = newClient();
-
     const Page = Route.options.component!;
-    renderWithClient(client, <Page />);
+    renderWithWallow(<Page />, { harness });
 
     await expect.element(page.getByTestId("app-register-form")).toBeInTheDocument();
   });
@@ -76,8 +51,8 @@ describe("routes/dashboard/apps/register (route page)", () => {
 
 describe("routes/dashboard/apps/register (router registration)", () => {
   it("registers /dashboard/apps/register in the router tree", () => {
-    const router = createRouter();
-    const paths = Object.keys((router as { routesByPath: Record<string, unknown> }).routesByPath);
+    const router = getRouter();
+    const paths = Object.keys(router.routesByPath);
     expect(paths).toContain("/dashboard/apps/register");
   });
 });

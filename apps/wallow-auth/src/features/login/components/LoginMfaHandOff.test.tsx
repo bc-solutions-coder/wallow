@@ -1,16 +1,10 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  createMemoryHistory,
-  createRootRoute,
-  createRouter,
-  Outlet,
-  RouterProvider,
-} from "@tanstack/react-router";
-import type { ReactElement } from "react";
+import { isSafeReturnUrl } from "@bc-solutions-coder/sdk";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+import type { SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createAuthHarness } from "../../../test/harness";
 import { Route as loginRoute } from "../../../routes/login";
 
 /**
@@ -93,30 +87,49 @@ import { Route as loginRoute } from "../../../routes/login";
  * "cookieRelay" — an assertion that only says `not.toContain("cookieRelay")`
  * would pass for a hand-off that grew any OTHER stray param.
  *
- * MOCKING SEAM: `../../../lib/wallow-auth-sdk`, the app's own facade — never
- * `@bc-solutions-coder/sdk` directly. Plain `vi.mock` factory + `vi.hoisted`
- * spies, never `vi.resetModules()` (bd memory `vitest-resetmodules-breaks-
- * instanceof-across-graphs`).
+ * ── TEST SEAM: THE REAL SDK OVER A FAKE TRANSPORT (Wallow-pu6a.5.1) ──────────
+ *
+ * The SDK is no longer replaced by a hand-written object (forbidden by
+ * `src/sdk-test-seam.test.ts`). `@bc-solutions-coder/testing/sdk-harness` fakes
+ * `fetch` and nothing else, so the login POST is serialized, sent, parsed and
+ * fed to `authDispositionOf` by the code that ships. What used to be
+ * `mocks.login.mockResolvedValue(body)` is now `respondWithLogin(body)`: the
+ * SAME body, delivered as a real 200 response on the wire.
+ *
+ * Two of the old spies are gone entirely, because the harness leaves the REAL
+ * `auth-oidc` builders running (they are pure functions):
+ *
+ *   • `isSafeReturnUrl` is IMPORTED and called directly where a test needs to
+ *     state the guard's verdict on a value — no local mirror of its rule that
+ *     could drift from the implementation it stands in for.
+ *   • `buildExchangeTicketUrl` really builds a URL, so the exchange-ticket
+ *     hand-off is observed at the NAVIGATION it performs (see below) rather than
+ *     at a spy's arguments. That is strictly stronger: it pins the URL the
+ *     browser is actually sent to, not the arguments of a builder that a
+ *     regression could stop honouring.
+ *
+ * `renderWithWallow` supplies the router context the screen reads its SDK off,
+ * and `createAuthHarness()` pins the harness origin to this app's root-mounted
+ * API surface (Wallow-pu6a.5.5).
+ * The `@tanstack/react-router` `useNavigate` mock STAYS — the client-router
+ * hand-off is the subject of this file, and the router is not the SDK.
+ *
+ * ── NAVIGATION SEAM (Wallow-xzha.3.1) ────────────────────────────────────────
+ *
+ * The exchange-ticket hand-off assigns `globalThis.location.href = …`. In real
+ * Chromium `location` is `[Unforgeable]`, so `vi.stubGlobal("location", …)`
+ * cannot shadow it and the assignment would navigate the runner iframe and tear
+ * the test down. Instead we listen on the Navigation API `navigate` event the
+ * assignment fires, record `destination.url`, and `preventDefault()` so the
+ * navigation is cancelled. The recorded array stands in for the old settable
+ * `location.href`: a full-page hand-off appends exactly one absolute URL, and a
+ * client-router hand-off appends nothing at all. bd memory
+ * `full-navigation-seam-for-wallow-auth-screens-that`.
  */
 
-// Hoisted so the vi.mock factories and the test bodies share the same spies.
+// Hoisted so the vi.mock factory and the test bodies share the same spy.
 const mocks = vi.hoisted(() => ({
-  login: vi.fn(),
-  isSafeReturnUrl: vi.fn(),
-  buildExchangeTicketUrl: vi.fn(),
   navigate: vi.fn(),
-}));
-
-vi.mock("../../../lib/wallow-auth-sdk", () => ({
-  getWallowAuthSdk: () => ({
-    auth: {
-      login: mocks.login,
-    },
-    oidc: {
-      isSafeReturnUrl: mocks.isSafeReturnUrl,
-      buildExchangeTicketUrl: mocks.buildExchangeTicketUrl,
-    },
-  }),
 }));
 
 // `importOriginal` MUST be spread: the route harness needs the real
@@ -143,39 +156,54 @@ const RETURN_URL = "/connect/authorize?client_id=web&scope=openid";
  */
 const ALLOW_LISTED_ABSOLUTE_RETURN_URL = "http://localhost:5003/dashboard";
 
-/**
- * The real `isSafeReturnUrl` rule (packages/sdk/src/auth-oidc.ts), mirrored
- * rather than imported: screens may not import the SDK, so the seam is mocked,
- * and a mock returning a constant would let these tests pass for the wrong
- * reason. Note it says FALSE for the allow-listed absolute value above.
- */
-function isSafeReturnUrlRule(url: string | null | undefined): boolean {
-  if (url === null || url === undefined || url.trim() === "") {
-    return false;
-  }
+/** `AccountController.Login` — the one endpoint every test here drives. */
+const LOGIN_ENDPOINT = "/v1/identity/auth/login";
 
-  return url.startsWith("/") && !url.startsWith("//");
+/** The provider list the login screen also renders; answered empty throughout. */
+const PROVIDERS_ENDPOINT = "/v1/identity/auth/external-providers";
+
+/** `AccountController.ExchangeTicket` — the full-page continue-to-sign-in hand-off. */
+const EXCHANGE_TICKET_PATH = "/v1/identity/auth/exchange-ticket";
+
+const NOT_FOUND_STATUS = 404;
+
+let harness: SdkHarness;
+
+/** The body the login endpoint answers with; set per describe/test. */
+let loginBody: unknown;
+
+/** Program the 200 body the login POST resolves with — the old `mockResolvedValue`. */
+function respondWithLogin(body: unknown): void {
+  loginBody = body;
 }
 
-/**
- * The exchange-ticket hand-off assigns `globalThis.location.href =
- * buildExchangeTicketUrl(…)`. In real Chromium `location` is `[Unforgeable]`, so
- * the jsdom `vi.stubGlobal("location", …)` seam is gone (vitest.config NAVIGATION
- * SEAM note): assigning a real URL would navigate the runner iframe and tear the
- * test down. The builder mock therefore returns this non-navigating FRAGMENT
- * sentinel — assigning it only sets the hash — and the exchange-ticket path is
- * pinned by asserting the builder's args instead of a captured `location.href`.
- */
-const EXCHANGE_TICKET_SENTINEL = "#exchange-ticket-sentinel";
+interface NavigateEvent extends Event {
+  readonly destination: { readonly url: string };
+}
+interface NavigationLike {
+  addEventListener: (type: "navigate", handler: (event: NavigateEvent) => void) => void;
+  removeEventListener: (type: "navigate", handler: (event: NavigateEvent) => void) => void;
+}
+const navigationApi: NavigationLike = (globalThis as unknown as { navigation: NavigationLike })
+  .navigation;
 
-function newClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+/** Listeners registered by `captureHandoff`, torn down in `afterEach`. */
+const navDisposers: Array<() => void> = [];
+
+/** Arm the navigation seam and return the array a full-page hand-off lands in. */
+function captureHandoff(): { urls: string[] } {
+  const urls: string[] = [];
+  const handler = (event: NavigateEvent): void => {
+    urls.push(event.destination.url);
+    // Cancel the navigation so assigning `location.href` does not tear the
+    // Chromium runner down; the recorded URL is what we assert on.
+    event.preventDefault();
+  };
+  navigationApi.addEventListener("navigate", handler);
+  navDisposers.push(() => {
+    navigationApi.removeEventListener("navigate", handler);
   });
-}
-
-function renderWithClient(ui: ReactElement) {
-  return render(<QueryClientProvider client={newClient()}>{ui}</QueryClientProvider>);
+  return { urls };
 }
 
 /**
@@ -186,20 +214,11 @@ function renderWithClient(ui: ReactElement) {
  * the same harness `LoginScreen.test.tsx` uses.
  */
 function renderRouteAt(url: string) {
-  const rootRoute = createRootRoute({ component: Outlet });
-  const routeTree = rootRoute.addChildren([
-    loginRoute.update({
-      id: "/login",
-      path: "/login",
-      getParentRoute: () => rootRoute,
-    } as any),
-  ]);
-  const router = createRouter({
-    routeTree,
-    history: createMemoryHistory({ initialEntries: [url] }),
+  return renderWithWallow(null, {
+    harness,
+    path: url,
+    routes: [{ path: "/login", route: loginRoute }],
   });
-
-  return renderWithClient(<RouterProvider router={router} />);
 }
 
 /** The /login link the OIDC authorize endpoint really builds. */
@@ -235,10 +254,28 @@ function partsOf(href: string): { path: string; params: URLSearchParams } {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.isSafeReturnUrl.mockImplementation(isSafeReturnUrlRule);
-  // Non-navigating sentinel: assigning it to `location.href` only sets the hash,
-  // so the exchange-ticket path stays put in real Chromium. See the note above.
-  mocks.buildExchangeTicketUrl.mockReturnValue(EXCHANGE_TICKET_SENTINEL);
+  harness = createAuthHarness();
+  respondWithLogin({ succeeded: true });
+  harness.respond((call) => {
+    if (call.path === LOGIN_ENDPOINT) {
+      return Response.json(loginBody);
+    }
+
+    if (call.path === PROVIDERS_ENDPOINT) {
+      return Response.json([]);
+    }
+
+    // `client_id=web` on the login link makes the route ask for that client's
+    // branding overlay. A bare 404 is the API's "no branding configured", which
+    // leaves the fork's chrome in place — nothing this file looks at.
+    return new Response(null, { status: NOT_FOUND_STATUS });
+  });
+});
+
+afterEach(() => {
+  for (const dispose of navDisposers.splice(0)) {
+    dispose();
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -247,7 +284,7 @@ beforeEach(() => {
 
 describe("/login MFA hand-off — mfaRequired", () => {
   beforeEach(() => {
-    mocks.login.mockResolvedValue({ succeeded: false, mfaRequired: true });
+    respondWithLogin({ succeeded: false, mfaRequired: true });
   });
 
   it("threads returnUrl out of the query string into the /mfa/challenge hand-off", async () => {
@@ -283,8 +320,11 @@ describe("/login MFA hand-off — mfaRequired", () => {
     // user is redirected to /error and MFA-over-external-login is 100% dead.
     // A guard here would be an OUTAGE wearing a security feature's clothes, so
     // this test must fail — loudly — the moment one appears.
+    //
+    // The verdict comes from the REAL guard (imported, not mirrored), so the
+    // premise cannot drift from the function this test is defending against.
     const user = userEvent.setup();
-    expect(isSafeReturnUrlRule(ALLOW_LISTED_ABSOLUTE_RETURN_URL)).toBe(false);
+    expect(isSafeReturnUrl(ALLOW_LISTED_ABSOLUTE_RETURN_URL)).toBe(false);
     renderRouteAt(loginUrlWithReturnUrl(ALLOW_LISTED_ABSOLUTE_RETURN_URL));
 
     await submitCredentials(user);
@@ -332,15 +372,17 @@ describe("/login MFA hand-off — mfaRequired", () => {
     // nothing to relay across an origin and no reason to drop the SPA. A
     // regression to `location.href = …` would still "work" in a browser, which
     // is exactly why it needs pinning here. The ONLY seam this component uses to
-    // drop the SPA is the exchange-ticket builder feeding `location.href`; an MFA
-    // hand-off that stayed a client-router `navigate()` never touches it.
+    // drop the SPA is the exchange-ticket URL feeding `location.href`; an MFA
+    // hand-off that stayed a client-router `navigate()` never triggers one, so
+    // the armed navigation seam must record NOTHING.
+    const handoff = captureHandoff();
     const user = userEvent.setup();
     renderRouteAt(loginUrlWithReturnUrl(RETURN_URL));
 
     await submitCredentials(user);
 
     await handOffHref();
-    expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
+    expect(handoff.urls).toEqual([]);
   });
 });
 
@@ -350,7 +392,7 @@ describe("/login MFA hand-off — mfaRequired", () => {
 
 describe("/login MFA hand-off — mfaEnrollmentRequired", () => {
   it("threads returnUrl out of the query string into the /mfa/enroll hand-off", async () => {
-    mocks.login.mockResolvedValue({ succeeded: false, mfaEnrollmentRequired: true });
+    respondWithLogin({ succeeded: false, mfaEnrollmentRequired: true });
     const user = userEvent.setup();
     renderRouteAt(loginUrlWithReturnUrl(RETURN_URL));
 
@@ -365,7 +407,7 @@ describe("/login MFA hand-off — mfaEnrollmentRequired", () => {
   it("does NOT refuse a legitimate absolute returnUrl on the enrollment hand-off", async () => {
     // The enroll arm defers for the same reason the challenge arm does; the
     // .3.17 outage would be identical, just one screen over.
-    mocks.login.mockResolvedValue({ succeeded: false, mfaEnrollmentRequired: true });
+    respondWithLogin({ succeeded: false, mfaEnrollmentRequired: true });
     const user = userEvent.setup();
     renderRouteAt(loginUrlWithReturnUrl(ALLOW_LISTED_ABSOLUTE_RETURN_URL));
 
@@ -382,27 +424,31 @@ describe("/login MFA hand-off — mfaEnrollmentRequired", () => {
     // because an over-eager enrollment hand-off would strand grace-period users
     // on a screen they were explicitly excused from.
     const deadline = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    mocks.login.mockResolvedValue({
+    respondWithLogin({
       succeeded: true,
       mfaEnrollmentRequired: true,
       mfaGraceDeadline: deadline,
       signInTicket: "sign-in-ticket-xyz",
     });
+    const handoff = captureHandoff();
     const user = userEvent.setup();
     renderRouteAt(loginUrlWithReturnUrl(RETURN_URL));
 
     await submitCredentials(user);
 
-    // The exchange-ticket seam is the builder feeding `location.href`; asserting
-    // its exact (origin, ticket, returnUrl) args pins the continue-to-sign-in
-    // path deterministically without capturing the [Unforgeable] `location`.
+    // The exchange-ticket seam is the URL fed to `location.href`. With the REAL
+    // builder in the graph it is asserted at the navigation itself — the exact
+    // same-origin endpoint, ticket and returnUrl the browser is sent to — which
+    // pins the continue-to-sign-in path more tightly than the builder's
+    // arguments ever did, and still never captures `[Unforgeable]` `location`.
     await vi.waitFor(() => {
-      expect(mocks.buildExchangeTicketUrl).toHaveBeenCalledWith(
-        "",
-        "sign-in-ticket-xyz",
-        RETURN_URL,
-      );
+      expect(handoff.urls).toHaveLength(1);
     });
+    const target = new URL(handoff.urls[0] ?? "");
+    expect(target.origin).toBe(globalThis.location.origin);
+    expect(target.pathname).toBe(EXCHANGE_TICKET_PATH);
+    expect(target.searchParams.get("ticket")).toBe("sign-in-ticket-xyz");
+    expect(target.searchParams.get("returnUrl")).toBe(RETURN_URL);
     expect(mocks.navigate).not.toHaveBeenCalled();
   });
 });

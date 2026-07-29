@@ -122,10 +122,15 @@ public static class IdentityInfrastructureExtensions
                     .EnableEndSessionEndpointPassthrough()
                     .EnableUserInfoEndpointPassthrough();
 
-                // Kestrel is never exposed directly — TLS terminates at the reverse proxy
-                // (Cloudflare / Pangolin). Container-to-container calls (e.g. OIDC discovery
-                // from wallow-web) use plain HTTP, so the transport check must be off.
-                aspNetCoreBuilder.DisableTransportSecurityRequirement();
+                // OpenIddict requires HTTPS on its endpoints unless this is switched off.
+                // Development and the test host have no certificate to serve; a deployment
+                // that terminates TLS in front of Kestrel and reaches the API over plain
+                // HTTP (container-to-container OIDC discovery) must opt in explicitly via
+                // OpenIddict:AllowPlainHttpEndpoints.
+                if (OpenIddictTransportSecurityPolicy.ShouldDisableTransportSecurityRequirement(environment, configuration))
+                {
+                    aspNetCoreBuilder.DisableTransportSecurityRequirement();
+                }
 
                 options.RegisterScopes(
                     "openid", "profile", "email", "roles", "offline_access",
@@ -149,6 +154,14 @@ public static class IdentityInfrastructureExtensions
             .AddValidation(options =>
             {
                 options.UseLocalServer();
+
+                // Without a registered audience the handler accepts any token this issuer minted,
+                // so a token leaked from one resource is a valid credential at every other. The
+                // literal is repeated from TokenController's ApiAudience on purpose: the two sides
+                // are a contract, and sharing a symbol would let them agree without the value ever
+                // reaching a token.
+                options.AddAudiences("wallow-api");
+
                 options.UseAspNetCore();
             });
 
@@ -324,6 +337,13 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<IAuthorizationHandler, MfaPartialAuthorizationHandler>();
         services.AddAuthorization(options =>
         {
+            // Deny by default: an endpoint carrying no authorization metadata is denied rather
+            // than served anonymously. Declared here, where authorization is configured, so a fork
+            // replacing PermissionAuthorizationPolicyProvider cannot silently drop the rule.
+            options.FallbackPolicy = new AuthorizationPolicyBuilder()
+                .RequireAuthenticatedUser()
+                .Build();
+
             options.AddPolicy("MfaPartial", policy =>
                 policy.AddRequirements(new MfaPartialRequirement()));
         });
@@ -352,6 +372,7 @@ public static class IdentityInfrastructureExtensions
 
         services.AddScoped<IServiceAccountService, OpenIddictServiceAccountService>();
         services.AddScoped<IOrganizationService, OrganizationService>();
+        services.AddScoped<IOrganizationAccessPolicy, OrganizationAccessPolicy>();
         services.AddScoped<ITestSupportService, TestSupportService>();
         services.AddScoped<IDeveloperAppService, OpenIddictDeveloperAppService>();
         services.AddScoped<IClientTenantResolver, ClientTenantResolver>();

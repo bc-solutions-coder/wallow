@@ -3,9 +3,11 @@ using System.Text.Json;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Wallow.Identity.Api.Contracts.Responses;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Shared.Contracts.Identity.Events;
@@ -30,6 +32,7 @@ public sealed partial class MfaController(
     ILogger<MfaController> logger) : ControllerBase
 {
     [HttpGet("status")]
+    [ProducesResponseType(typeof(MfaStatusResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetStatus()
     {
         string userId = GetUserIdClaim();
@@ -56,6 +59,7 @@ public sealed partial class MfaController(
 
     [HttpPost("enroll/totp")]
     [AllowAnonymous]
+    [ProducesResponseType(typeof(MfaEnrollmentSecretResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> EnrollTotp(CancellationToken ct)
     {
         string? userId = await ResolveEnrollmentUserIdAsync(ct);
@@ -71,6 +75,7 @@ public sealed partial class MfaController(
 
     [HttpPost("enroll/confirm")]
     [AllowAnonymous]
+    [ProducesResponseType(typeof(MfaEnrollmentConfirmedResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> ConfirmEnrollment([FromBody] MfaConfirmRequest request, CancellationToken ct)
     {
         string? userId = await ResolveEnrollmentUserIdAsync(ct);
@@ -120,6 +125,7 @@ public sealed partial class MfaController(
     }
 
     [HttpPost("disable")]
+    [ProducesResponseType(typeof(MfaOperationResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> Disable([FromBody] MfaDisableRequest request, CancellationToken _)
     {
         string currentUserId = GetUserIdClaim();
@@ -154,6 +160,7 @@ public sealed partial class MfaController(
     }
 
     [HttpPost("backup-codes/regenerate")]
+    [ProducesResponseType(typeof(MfaBackupCodesResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> RegenerateBackupCodes([FromBody] MfaRegenerateBackupCodesRequest request, CancellationToken ct)
     {
         string currentUserId = GetUserIdClaim();
@@ -185,6 +192,7 @@ public sealed partial class MfaController(
     }
 
     [HttpPost("admin/{userId}/disable")]
+    [ProducesResponseType(typeof(MfaOperationResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> AdminDisableMfa(string userId, CancellationToken _)
     {
         WallowUser? user = await userManager.FindByIdAsync(userId);
@@ -200,6 +208,7 @@ public sealed partial class MfaController(
     }
 
     [HttpPost("admin/{userId}/clear-lockout")]
+    [ProducesResponseType(typeof(MfaOperationResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> AdminClearLockout(string userId, CancellationToken ct)
     {
         WallowUser? user = await userManager.FindByIdAsync(userId);
@@ -230,6 +239,7 @@ public sealed partial class MfaController(
     /// so the enrollment API calls can authenticate the user.
     /// </summary>
     [HttpPost("enroll/issue-token")]
+    [ProducesResponseType(typeof(MfaEnrollmentTokenResponse), StatusCodes.Status200OK)]
     public IActionResult IssueEnrollmentToken()
     {
         string userId = GetUserIdClaim();
@@ -252,6 +262,7 @@ public sealed partial class MfaController(
     /// </summary>
     [HttpPost("enroll/exchange-token")]
     [AllowAnonymous]
+    [ProducesResponseType(typeof(MfaOperationResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> ExchangeEnrollmentToken([FromQuery] string token, CancellationToken ct)
     {
         EnrollmentTokenPayload? payload = ValidateEnrollmentToken(token);

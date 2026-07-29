@@ -1,9 +1,9 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactElement } from "react";
-import { render } from "vitest-browser-react";
+import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+
+import { routeHarness } from "../../../test/harness-routes";
 import { beforeEach, describe, it, vi } from "vitest";
 
-import { installSdkClientMock } from "../../../test/sdk-client-mock";
 import { expectClasses, expectTokenColorsOnly, waitForTestId } from "../../../test/style-contract";
 
 /**
@@ -48,37 +48,31 @@ const MEMBERS = [
 
 const CLIENTS = [{ id: "c1", clientId: "acme-web", name: "Acme Web" }];
 
-function newClient(): QueryClient {
-  const client = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false, staleTime: Number.POSITIVE_INFINITY },
-      mutations: { retry: false },
-    },
-  });
-  client.setQueryData(["orgs", "o1"], ORG);
-  client.setQueryData(["orgs", "o1", "members"], MEMBERS);
-  client.setQueryData(["orgs", "o1", "clients"], CLIENTS);
-  return client;
-}
-
-function renderWithClient(ui: ReactElement) {
-  return render(<QueryClientProvider client={newClient()}>{ui}</QueryClientProvider>);
-}
+/** The transport backing each render, rebuilt per test. */
+let harness: SdkHarness;
 
 /** Render the route page and resolve its settled root element. */
 async function renderPage(): Promise<HTMLElement> {
   const { Route } = await import("./$orgId");
   const Page = Route.options.component!;
-  renderWithClient(<Page />);
+  renderWithWallow(<Page />, { harness });
   return waitForTestId("dashboard-organization-detail");
 }
 
 describe("routes/dashboard/organizations/$orgId (restyle)", () => {
   beforeEach(() => {
-    const sdk = installSdkClientMock();
-    // Any unseeded query (a refetch after a lifecycle mutation) resolves empty
+    harness = createSdkHarness();
+    // Any unrouted request (a refetch after a lifecycle mutation) resolves empty
     // so no list render ever sees a non-array body.
-    sdk.resolveJson([]);
+    routeHarness(
+      harness,
+      {
+        "GET /v1/identity/organizations/o1": ORG,
+        "GET /v1/identity/organizations/o1/members": MEMBERS,
+        "GET /v1/identity/clients/by-tenant/o1": CLIENTS,
+      },
+      { fallback: [] },
+    );
   });
 
   it("centers the detail page in the wide dashboard shell", async () => {

@@ -36,7 +36,12 @@
  * below is the screen's own.
  */
 
-import { GENERIC_MESSAGE, readMember, UNREACHABLE_MESSAGE } from "./auth-result";
+import {
+  GENERIC_MESSAGE,
+  isServerUnreachable,
+  readMember,
+  UNREACHABLE_MESSAGE,
+} from "./auth-result";
 
 /**
  * The oracle's blank-input guard (Login.razor:436) — note WHITEspace.
@@ -109,10 +114,10 @@ export function sendOtpFailureMessage(cause: unknown): string {
     return OTP_RATE_LIMITED_MESSAGE;
   }
 
-  // A network-level rejection carries NEITHER `code` NOR `status`, and that absence
-  // is exactly what identifies it: the TS shape of the oracle's
-  // `catch (HttpRequestException)`, which it keeps DISTINCT from its generic tail.
-  if (readMember(cause, "status") === undefined) {
+  // A network-level rejection is identified by its CODE (see `isServerUnreachable`):
+  // the TS shape of the oracle's `catch (HttpRequestException)`, which it keeps
+  // DISTINCT from its generic tail.
+  if (isServerUnreachable(cause)) {
     return UNREACHABLE_MESSAGE;
   }
 
@@ -142,13 +147,14 @@ export function sendOtpFailureMessage(cause: unknown): string {
  * is NOT 401 — a 500 is not a bad code and must not be reported as one.
  */
 export function verifyOtpFailureMessage(cause: unknown): string {
-  const status: unknown = readMember(cause, "status");
-
-  // Checked FIRST: a network rejection has no status at all, and must not fall
-  // through to a status comparison that would read `undefined !== 401` as "generic".
-  if (status === undefined) {
+  // Checked FIRST, and by CODE: the SDK synthesizes a status for a rejection that
+  // never landed (503), so a status comparison alone would read it as "some other
+  // failure" and hand a user with no network the generic tail.
+  if (isServerUnreachable(cause)) {
     return UNREACHABLE_MESSAGE;
   }
+
+  const status: unknown = readMember(cause, "status");
 
   if (status === UNAUTHORIZED_STATUS) {
     return OTP_INVALID_CODE_MESSAGE;

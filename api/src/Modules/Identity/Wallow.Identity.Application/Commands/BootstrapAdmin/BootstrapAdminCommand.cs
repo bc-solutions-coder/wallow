@@ -15,5 +15,11 @@ public interface IBootstrapAdminService
     Task EnsureRoleExistsAsync(string roleName, CancellationToken ct = default);
     Task<Guid> CreateUserAsync(string email, string password, string firstName, string lastName, CancellationToken ct = default);
     Task AssignRoleAsync(Guid userId, string roleName, CancellationToken ct = default);
+
+    /// <summary>
+    /// Stamps the non-assignable global-administrator claim onto a seeded user. There is no
+    /// counterpart on any tenant-facing surface: the claim is provisioned here or not at all.
+    /// </summary>
+    Task GrantGlobalAdminAsync(Guid userId, CancellationToken ct = default);
     Task<bool> UserExistsAsync(string email, CancellationToken ct = default);
 }

@@ -48,6 +48,17 @@ export function setCsrfToken(token: string | null): void {
 }
 
 /**
+ * The CSRF token currently held in module scope, or `null` when none is set.
+ *
+ * Read by other browser helpers that must stamp `x-csrf-token` on a
+ * state-changing request they issue outside the generated client's interceptor
+ * chain — `logout()` in particular, which POSTs to `/bff/logout` directly.
+ */
+export function getCsrfToken(): string | null {
+  return csrfToken;
+}
+
+/**
  * Register the CSRF request interceptor on the given client. The interceptor
  * stamps the current token into `x-csrf-token` on state-changing requests,
  * leaves safe methods (and the anonymous, token-less state) untouched, and

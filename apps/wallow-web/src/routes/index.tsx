@@ -1,9 +1,9 @@
-import { userQueries } from "@bc-solutions-coder/sdk/query";
+import { forkBranding } from "@bc-solutions-coder/styles";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { PublicLayout } from "../components/PublicLayout";
 import { LandingPage } from "../features/landing/components/LandingPage";
-import { forkBranding } from "../lib/branding";
+import { currentUserQuery } from "../lib/current-user";
 
 /**
  * The public home page (Wallow-8w1h.2.2 / Wallow-ffpq.3.6) — the anonymous
@@ -42,7 +42,7 @@ function HomeComponent() {
 
 export const Route = createFileRoute("/")({
   beforeLoad: async ({ context }) => {
-    const user = await context.queryClient.ensureQueryData(userQueries.currentUser());
+    const user = await context.queryClient.ensureQueryData(currentUserQuery(context.sdk.client));
     if (user !== null) {
       // TanStack stores the target under `.options.to`; also surface `to` at the
       // top level so it reads directly off the thrown redirect.

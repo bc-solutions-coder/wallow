@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 /**
  * Logout flow. The `signed_out=true` landing's "Return to application" link is
  * BACKEND-DEPENDENT: it renders only after `GET /v1/identity/auth/redirect-uri/
- * validate` (through the h3 proxy into Wallow.Api) confirms the
+ * validate` (through the passthrough proxy into Wallow.Api) confirms the
  * `post_logout_redirect_uri` is on a registered client's allow-list. Like
  * login.spec.ts this needs the live seeded stack (scripts/e2e.sh); a failure is
  * a bug to file, not necessarily a regression in this app.
@@ -30,7 +30,7 @@ test("confirm phase offers the sign-out handoff to /connect/logout", async ({ pa
   const confirmButton = page.getByTestId("logout-confirm-button");
   await expect(confirmButton).toBeVisible();
   // The end-session handoff is a real same-origin navigation to the OpenIddict
-  // endpoint the h3 proxy serves, not an in-app route.
+  // endpoint the passthrough proxy serves, not an in-app route.
   await expect(confirmButton).toHaveAttribute("href", /\/connect\/logout/u);
 });
 

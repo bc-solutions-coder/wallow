@@ -19,6 +19,7 @@
         "tags": [
           "Admin - Announcements"
         ],
+        "operationId": "AdminAnnouncementsGetAllAnnouncements",
         "responses": {
           "200": {
             "description": "OK",
@@ -39,6 +40,7 @@
         "tags": [
           "Admin - Announcements"
         ],
+        "operationId": "AdminAnnouncementsCreateAnnouncement",
         "requestBody": {
           "content": {
             "application/json": {
@@ -88,6 +90,7 @@
         "tags": [
           "Admin - Announcements"
         ],
+        "operationId": "AdminAnnouncementsUpdateAnnouncement",
         "parameters": [
           {
             "name": "id",
@@ -146,6 +149,7 @@
         "tags": [
           "Admin - Announcements"
         ],
+        "operationId": "AdminAnnouncementsArchiveAnnouncement",
         "parameters": [
           {
             "name": "id",
@@ -182,6 +186,7 @@
         "tags": [
           "Admin - Announcements"
         ],
+        "operationId": "AdminAnnouncementsPublishAnnouncement",
         "parameters": [
           {
             "name": "id",
@@ -218,6 +223,7 @@
         "tags": [
           "Admin - Changelog"
         ],
+        "operationId": "AdminChangelogCreateChangelogEntry",
         "requestBody": {
           "content": {
             "application/json": {
@@ -267,6 +273,7 @@
         "tags": [
           "Admin - Changelog"
         ],
+        "operationId": "AdminChangelogPublishChangelogEntry",
         "parameters": [
           {
             "name": "id",
@@ -303,6 +310,7 @@
         "tags": [
           "Announcements"
         ],
+        "operationId": "AnnouncementsGetAnnouncements",
         "responses": {
           "200": {
             "description": "OK",
@@ -335,6 +343,7 @@
         "tags": [
           "Announcements"
         ],
+        "operationId": "AnnouncementsDismissAnnouncement",
         "parameters": [
           {
             "name": "id",
@@ -391,6 +400,7 @@
         "tags": [
           "Changelog"
         ],
+        "operationId": "ChangelogGetChangelog",
         "parameters": [
           {
             "name": "limit",
@@ -428,6 +438,7 @@
         "tags": [
           "Changelog"
         ],
+        "operationId": "ChangelogGetChangelogByVersion",
         "parameters": [
           {
             "name": "changelogVersion",
@@ -467,6 +478,7 @@
         "tags": [
           "Changelog"
         ],
+        "operationId": "ChangelogGetLatestChangelog",
         "responses": {
           "200": {
             "description": "OK",
@@ -498,6 +510,7 @@
         ],
         "summary": "Create a new API key for the current user.",
         "description": "Creates an API key that can be used for service-to-service authentication.\nThe full API key is only returned once in this response - store it securely!\n\nThe key will be scoped to the current user's tenant.\n\nExample request:\n```json\n{\n  \"name\": \"Production Backend\",\n  \"scopes\": [\"billing:read\", \"billing:write\"],\n  \"expiresAt\": \"2027-01-01T00:00:00Z\"\n}\n```",
+        "operationId": "ApiKeysCreateApiKey",
         "requestBody": {
           "content": {
             "application/json": {
@@ -567,6 +580,7 @@
         ],
         "summary": "List all API keys for the current user.",
         "description": "Returns metadata for all API keys belonging to the authenticated user.\nThe actual key values are not returned - only the prefix for identification.",
+        "operationId": "ApiKeysListApiKeys",
         "responses": {
           "200": {
             "description": "OK",
@@ -607,6 +621,7 @@
         ],
         "summary": "Revoke an API key.",
         "description": "Permanently revokes an API key. This action cannot be undone.\nAny requests using this key will be rejected immediately.",
+        "operationId": "ApiKeysRevokeApiKey",
         "parameters": [
           {
             "name": "keyId",
@@ -649,6 +664,7 @@
         "tags": [
           "Client Branding"
         ],
+        "operationId": "ClientBrandingGetBranding",
         "parameters": [
           {
             "name": "clientId",
@@ -686,6 +702,7 @@
         "tags": [
           "Client Branding"
         ],
+        "operationId": "ClientBrandingUpsertBranding",
         "parameters": [
           {
             "name": "clientId",
@@ -767,6 +784,7 @@
         "tags": [
           "Client Branding"
         ],
+        "operationId": "ClientBrandingDeleteBranding",
         "parameters": [
           {
             "name": "clientId",
@@ -812,9 +830,36 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "AccountGetExternalProviders",
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -824,6 +869,7 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "AccountLogin",
         "requestBody": {
           "content": {
             "application/json": {
@@ -846,7 +892,24 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountLoginResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountLoginResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountLoginResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -856,6 +919,7 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "AccountVerifyMfaChallenge",
         "requestBody": {
           "content": {
             "application/json": {
@@ -878,7 +942,24 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaChallengeResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaChallengeResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaChallengeResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -888,6 +969,7 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "AccountExternalLogin",
         "parameters": [
           {
             "name": "provider",
@@ -912,8 +994,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK"
+          "302": {
+            "description": "Found"
           }
         }
       }
@@ -923,6 +1005,7 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "AccountExternalLoginCallback",
         "parameters": [
           {
             "name": "returnUrl",
@@ -940,8 +1023,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK"
+          "302": {
+            "description": "Found"
           }
         }
       }
@@ -951,6 +1034,7 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "AccountCompleteExternalRegistration",
         "parameters": [
           {
             "name": "acceptedTerms",
@@ -975,8 +1059,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK"
+          "302": {
+            "description": "Found"
           }
         }
       }
@@ -986,6 +1070,7 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "AccountExchangeTicket",
         "parameters": [
           {
             "name": "ticket",
@@ -1010,8 +1095,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK"
+          "302": {
+            "description": "Found"
           }
         }
       }
@@ -1021,6 +1106,7 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "AccountValidateRedirectUri",
         "parameters": [
           {
             "name": "uri",
@@ -1039,7 +1125,24 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/RedirectUriValidationResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RedirectUriValidationResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RedirectUriValidationResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -1049,6 +1152,7 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "AccountSignOut",
         "requestBody": {
           "content": {
             "application/x-www-form-urlencoded": {
@@ -1078,8 +1182,8 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "description": "OK"
+          "302": {
+            "description": "Found"
           }
         }
       }
@@ -1089,6 +1193,7 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "AccountRegister",
         "requestBody": {
           "content": {
             "application/json": {
@@ -1111,7 +1216,24 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOperationResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOperationResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOperationResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -1121,6 +1243,7 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "AccountGetClientTenant",
         "parameters": [
           {
             "name": "clientId",
@@ -1133,7 +1256,24 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientTenantResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientTenantResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientTenantResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -1143,6 +1283,7 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "AccountForgotPassword",
         "requestBody": {
           "content": {
             "application/json": {
@@ -1165,7 +1306,24 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOperationResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOperationResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOperationResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -1175,6 +1333,7 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "AccountResetPassword",
         "requestBody": {
           "content": {
             "application/json": {
@@ -1197,7 +1356,24 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOperationResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOperationResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOperationResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -1207,6 +1383,7 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "AccountVerifyEmail",
         "parameters": [
           {
             "name": "email",
@@ -1225,7 +1402,24 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOperationResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOperationResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOperationResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -1235,6 +1429,7 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "AccountSendMagicLink",
         "requestBody": {
           "content": {
             "application/json": {
@@ -1257,7 +1452,24 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOperationResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOperationResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOperationResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -1267,6 +1479,7 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "AccountVerifyMagicLink",
         "parameters": [
           {
             "name": "token",
@@ -1286,7 +1499,24 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordlessVerificationResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordlessVerificationResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordlessVerificationResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -1296,6 +1526,7 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "AccountSendOtp",
         "requestBody": {
           "content": {
             "application/json": {
@@ -1318,7 +1549,24 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOperationResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOperationResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOperationResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -1328,6 +1576,7 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "AccountVerifyOtp",
         "requestBody": {
           "content": {
             "application/json": {
@@ -1350,7 +1599,24 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordlessVerificationResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordlessVerificationResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordlessVerificationResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -1360,6 +1626,7 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "AccountChangeEmail",
         "requestBody": {
           "content": {
             "application/json": {
@@ -1382,7 +1649,24 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOperationResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOperationResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOperationResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -1392,6 +1676,7 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "AccountConfirmEmailChange",
         "parameters": [
           {
             "name": "token",
@@ -1417,7 +1702,24 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOperationResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOperationResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOperationResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -1427,6 +1729,7 @@
         "tags": [
           "Apps"
         ],
+        "operationId": "AppsRegister",
         "requestBody": {
           "content": {
             "application/json": {
@@ -1471,6 +1774,7 @@
         "tags": [
           "Apps"
         ],
+        "operationId": "AppsGetUserApps",
         "responses": {
           "200": {
             "description": "OK",
@@ -1493,6 +1797,7 @@
         "tags": [
           "Apps"
         ],
+        "operationId": "AppsGetUserApp",
         "parameters": [
           {
             "name": "clientId",
@@ -1532,6 +1837,7 @@
         "tags": [
           "Apps"
         ],
+        "operationId": "AppsGetConsentInfo",
         "parameters": [
           {
             "name": "clientId",
@@ -1578,6 +1884,7 @@
         "tags": [
           "Clients"
         ],
+        "operationId": "ClientsGetAll",
         "responses": {
           "200": {
             "description": "OK",
@@ -1598,6 +1905,7 @@
         "tags": [
           "Clients"
         ],
+        "operationId": "ClientsCreate",
         "requestBody": {
           "content": {
             "application/json": {
@@ -1652,6 +1960,7 @@
         "tags": [
           "Clients"
         ],
+        "operationId": "ClientsGetById",
         "parameters": [
           {
             "name": "id",
@@ -1689,6 +1998,7 @@
         "tags": [
           "Clients"
         ],
+        "operationId": "ClientsUpdate",
         "parameters": [
           {
             "name": "id",
@@ -1741,6 +2051,7 @@
         "tags": [
           "Clients"
         ],
+        "operationId": "ClientsDelete",
         "parameters": [
           {
             "name": "id",
@@ -1776,6 +2087,7 @@
         "tags": [
           "Clients"
         ],
+        "operationId": "ClientsGetByTenant",
         "parameters": [
           {
             "name": "tenantId",
@@ -1819,6 +2131,7 @@
         "tags": [
           "Clients"
         ],
+        "operationId": "ClientsRotateSecret",
         "parameters": [
           {
             "name": "id",
@@ -1859,6 +2172,7 @@
           "Clients"
         ],
         "summary": "List all service accounts (client-credentials clients) for the current tenant.",
+        "operationId": "ClientsListServiceAccounts",
         "responses": {
           "200": {
             "description": "OK",
@@ -1880,6 +2194,7 @@
           "Clients"
         ],
         "summary": "Create a new service account. Returns the client secret which will NOT be shown again.",
+        "operationId": "ClientsCreateServiceAccount",
         "requestBody": {
           "content": {
             "application/json": {
@@ -1925,6 +2240,7 @@
           "Clients"
         ],
         "summary": "Get a specific service account by ID.",
+        "operationId": "ClientsGetServiceAccount",
         "parameters": [
           {
             "name": "id",
@@ -1964,6 +2280,7 @@
           "Clients"
         ],
         "summary": "Revoke and delete a service account.",
+        "operationId": "ClientsRevokeServiceAccount",
         "parameters": [
           {
             "name": "id",
@@ -2001,6 +2318,7 @@
           "Clients"
         ],
         "summary": "Update the scopes assigned to a service account.",
+        "operationId": "ClientsUpdateServiceAccountScopes",
         "parameters": [
           {
             "name": "id",
@@ -2053,6 +2371,7 @@
           "Clients"
         ],
         "summary": "Rotate the client secret for a service account. Returns the new secret which will NOT be shown again.",
+        "operationId": "ClientsRotateServiceAccountSecret",
         "parameters": [
           {
             "name": "id",
@@ -2093,6 +2412,7 @@
         "tags": [
           "Identity Settings"
         ],
+        "operationId": "IdentitySettingsGetConfig",
         "responses": {
           "200": {
             "description": "OK",
@@ -2112,6 +2432,7 @@
         "tags": [
           "Identity Settings"
         ],
+        "operationId": "IdentitySettingsGetTenantSettings",
         "responses": {
           "200": {
             "description": "OK",
@@ -2132,6 +2453,7 @@
         "tags": [
           "Identity Settings"
         ],
+        "operationId": "IdentitySettingsUpsertTenantSetting",
         "requestBody": {
           "content": {
             "application/json": {
@@ -2175,6 +2497,7 @@
         "tags": [
           "Identity Settings"
         ],
+        "operationId": "IdentitySettingsDeleteTenantSetting",
         "parameters": [
           {
             "name": "key",
@@ -2209,6 +2532,7 @@
         "tags": [
           "Identity Settings"
         ],
+        "operationId": "IdentitySettingsGetUserSettings",
         "responses": {
           "200": {
             "description": "OK",
@@ -2229,6 +2553,7 @@
         "tags": [
           "Identity Settings"
         ],
+        "operationId": "IdentitySettingsUpsertUserSetting",
         "requestBody": {
           "content": {
             "application/json": {
@@ -2272,6 +2597,7 @@
         "tags": [
           "Identity Settings"
         ],
+        "operationId": "IdentitySettingsDeleteUserSetting",
         "parameters": [
           {
             "name": "key",
@@ -2306,6 +2632,7 @@
         "tags": [
           "Invitations"
         ],
+        "operationId": "InvitationsCreate",
         "requestBody": {
           "content": {
             "application/json": {
@@ -2338,6 +2665,7 @@
         "tags": [
           "Invitations"
         ],
+        "operationId": "InvitationsGetByTenant",
         "parameters": [
           {
             "name": "skip",
@@ -2388,6 +2716,7 @@
         "tags": [
           "Invitations"
         ],
+        "operationId": "InvitationsRevoke",
         "parameters": [
           {
             "name": "id",
@@ -2424,6 +2753,7 @@
         "tags": [
           "Invitations"
         ],
+        "operationId": "InvitationsVerify",
         "parameters": [
           {
             "name": "token",
@@ -2463,6 +2793,7 @@
         "tags": [
           "Invitations"
         ],
+        "operationId": "InvitationsAccept",
         "parameters": [
           {
             "name": "token",
@@ -2498,9 +2829,27 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "MfaGetStatus",
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaStatusResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaStatusResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaStatusResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -2510,9 +2859,27 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "MfaEnrollTotp",
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaEnrollmentSecretResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaEnrollmentSecretResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaEnrollmentSecretResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -2522,6 +2889,7 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "MfaConfirmEnrollment",
         "requestBody": {
           "content": {
             "application/json": {
@@ -2544,7 +2912,24 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaEnrollmentConfirmedResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaEnrollmentConfirmedResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaEnrollmentConfirmedResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -2554,6 +2939,7 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "MfaDisable",
         "requestBody": {
           "content": {
             "application/json": {
@@ -2576,7 +2962,24 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaOperationResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaOperationResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaOperationResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -2586,6 +2989,7 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "MfaRegenerateBackupCodes",
         "requestBody": {
           "content": {
             "application/json": {
@@ -2608,7 +3012,24 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaBackupCodesResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaBackupCodesResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaBackupCodesResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -2618,6 +3039,7 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "MfaAdminDisableMfa",
         "parameters": [
           {
             "name": "userId",
@@ -2630,7 +3052,24 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaOperationResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaOperationResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaOperationResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -2640,6 +3079,7 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "MfaAdminClearLockout",
         "parameters": [
           {
             "name": "userId",
@@ -2652,7 +3092,24 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaOperationResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaOperationResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaOperationResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -2663,9 +3120,27 @@
           "Identity"
         ],
         "summary": "Issues a short-lived enrollment token for a fully-authenticated user.\nThe Web app calls this (with a bearer token) to get a token it can pass to the\nAuth app's /mfa/enroll page, which exchanges it for an Identity.MfaPartial cookie\nso the enrollment API calls can authenticate the user.",
+        "operationId": "MfaIssueEnrollmentToken",
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaEnrollmentTokenResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaEnrollmentTokenResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaEnrollmentTokenResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -2676,6 +3151,7 @@
           "Identity"
         ],
         "summary": "Exchanges a short-lived enrollment token for an Identity.MfaPartial cookie.\nCalled during Auth app prerender so the CookieForwardingHandler relays the\npartial cookie to the browser, enabling subsequent enrollment API calls.",
+        "operationId": "MfaExchangeEnrollmentToken",
         "parameters": [
           {
             "name": "token",
@@ -2687,7 +3163,24 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaOperationResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaOperationResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaOperationResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -2698,6 +3191,7 @@
           "Organizations"
         ],
         "summary": "Create a new organization.",
+        "operationId": "OrganizationsCreate",
         "requestBody": {
           "content": {
             "application/json": {
@@ -2731,6 +3225,7 @@
           "Organizations"
         ],
         "summary": "Get all organizations with optional search filtering and pagination.",
+        "operationId": "OrganizationsGetAll",
         "parameters": [
           {
             "name": "search",
@@ -2789,6 +3284,7 @@
           "Organizations"
         ],
         "summary": "Get a specific organization by ID.",
+        "operationId": "OrganizationsGetById",
         "parameters": [
           {
             "name": "id",
@@ -2818,6 +3314,7 @@
           "Organizations"
         ],
         "summary": "Permanently delete an organization. Requires name confirmation.",
+        "operationId": "OrganizationsDelete",
         "parameters": [
           {
             "name": "id",
@@ -2845,10 +3342,20 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "description": "OK",
+          "204": {
+            "description": "No Content",
             "content": {
               "application/json": { }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
             }
           }
         }
@@ -2860,6 +3367,7 @@
           "Organizations"
         ],
         "summary": "Get all members of a specific organization.",
+        "operationId": "OrganizationsGetMembers",
         "parameters": [
           {
             "name": "id",
@@ -2892,6 +3400,7 @@
           "Organizations"
         ],
         "summary": "Add a user to an organization.",
+        "operationId": "OrganizationsAddMember",
         "parameters": [
           {
             "name": "id",
@@ -2919,10 +3428,20 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "description": "OK",
+          "204": {
+            "description": "No Content",
             "content": {
               "application/json": { }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
             }
           }
         }
@@ -2934,6 +3453,7 @@
           "Organizations"
         ],
         "summary": "Remove a user from an organization.",
+        "operationId": "OrganizationsRemoveMember",
         "parameters": [
           {
             "name": "id",
@@ -2955,10 +3475,20 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK",
+          "204": {
+            "description": "No Content",
             "content": {
               "application/json": { }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
             }
           }
         }
@@ -2970,6 +3500,7 @@
           "Organizations"
         ],
         "summary": "Get all organizations that the current user belongs to.",
+        "operationId": "OrganizationsGetMyOrganizations",
         "responses": {
           "200": {
             "description": "OK",
@@ -2993,6 +3524,7 @@
           "Organizations"
         ],
         "summary": "Archive an organization.",
+        "operationId": "OrganizationsArchive",
         "parameters": [
           {
             "name": "id",
@@ -3005,10 +3537,20 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK",
+          "204": {
+            "description": "No Content",
             "content": {
               "application/json": { }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
             }
           }
         }
@@ -3020,6 +3562,7 @@
           "Organizations"
         ],
         "summary": "Reactivate an archived organization.",
+        "operationId": "OrganizationsReactivate",
         "parameters": [
           {
             "name": "id",
@@ -3032,10 +3575,20 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK",
+          "204": {
+            "description": "No Content",
             "content": {
               "application/json": { }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
             }
           }
         }
@@ -3047,6 +3600,7 @@
           "Organizations"
         ],
         "summary": "Get organization branding.",
+        "operationId": "OrganizationsGetBranding",
         "parameters": [
           {
             "name": "id",
@@ -3076,6 +3630,7 @@
           "Organizations"
         ],
         "summary": "Update organization branding.",
+        "operationId": "OrganizationsUpdateBranding",
         "parameters": [
           {
             "name": "id",
@@ -3122,6 +3677,7 @@
           "Organizations"
         ],
         "summary": "Upload organization branding logo.",
+        "operationId": "OrganizationsUploadBrandingLogo",
         "parameters": [
           {
             "name": "id",
@@ -3152,7 +3708,21 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": { }
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationLogoResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
             }
           }
         }
@@ -3164,6 +3734,7 @@
           "Organizations"
         ],
         "summary": "Get organization settings.",
+        "operationId": "OrganizationsGetSettings",
         "parameters": [
           {
             "name": "id",
@@ -3193,6 +3764,7 @@
           "Organizations"
         ],
         "summary": "Update organization settings.",
+        "operationId": "OrganizationsUpdateSettings",
         "parameters": [
           {
             "name": "id",
@@ -3220,10 +3792,20 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "description": "OK",
+          "204": {
+            "description": "No Content",
             "content": {
               "application/json": { }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
             }
           }
         }
@@ -3235,11 +3817,19 @@
           "Roles"
         ],
         "summary": "Get all available roles in the system.",
+        "operationId": "RolesGetRoles",
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "application/json": { }
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RoleResponse"
+                  }
+                }
+              }
             }
           }
         }
@@ -3251,6 +3841,7 @@
           "Roles"
         ],
         "summary": "Get the permissions associated with a specific role.",
+        "operationId": "RolesGetRolePermissions",
         "parameters": [
           {
             "name": "roleName",
@@ -3265,7 +3856,14 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": { }
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
             }
           }
         }
@@ -3277,6 +3875,7 @@
           "API Scopes"
         ],
         "summary": "List available API scopes with optional category filter.",
+        "operationId": "ScopesList",
         "parameters": [
           {
             "name": "category",
@@ -3308,9 +3907,36 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "SessionListSessions",
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SessionDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SessionDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SessionDto"
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -3320,6 +3946,7 @@
         "tags": [
           "Identity"
         ],
+        "operationId": "SessionRevokeSession",
         "parameters": [
           {
             "name": "sessionId",
@@ -3332,8 +3959,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK"
+          "204": {
+            "description": "No Content"
           }
         }
       }
@@ -3343,6 +3970,7 @@
         "tags": [
           "Setup"
         ],
+        "operationId": "SetupGetStatus",
         "responses": {
           "200": {
             "description": "OK",
@@ -3362,6 +3990,7 @@
         "tags": [
           "Setup"
         ],
+        "operationId": "SetupCreateAdmin",
         "requestBody": {
           "content": {
             "application/json": {
@@ -3402,6 +4031,7 @@
         "tags": [
           "Setup"
         ],
+        "operationId": "SetupCompleteSetup",
         "responses": {
           "204": {
             "description": "No Content",
@@ -3422,52 +4052,13 @@
         }
       }
     },
-    "/v1/identity/test/isolated-org": {
-      "post": {
-        "tags": [
-          "Test Support"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateIsolatedOrgRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateIsolatedOrgRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": { }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/identity/users": {
       "get": {
         "tags": [
           "Users"
         ],
         "summary": "Get a paginated list of users with optional search filtering.",
+        "operationId": "UsersGetUsers",
         "parameters": [
           {
             "name": "search",
@@ -3521,6 +4112,7 @@
           "Users"
         ],
         "summary": "Create a new user account.",
+        "operationId": "UsersCreateUser",
         "requestBody": {
           "content": {
             "application/json": {
@@ -3537,10 +4129,14 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "description": "OK",
+          "201": {
+            "description": "Created",
             "content": {
-              "application/json": { }
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDto"
+                }
+              }
             }
           }
         }
@@ -3552,6 +4148,7 @@
           "Users"
         ],
         "summary": "Get a specific user by their ID.",
+        "operationId": "UsersGetUserById",
         "parameters": [
           {
             "name": "id",
@@ -3583,6 +4180,7 @@
           "Users"
         ],
         "summary": "Get the currently authenticated user's profile, roles, and permissions.",
+        "operationId": "UsersGetCurrentUser",
         "responses": {
           "200": {
             "description": "OK",
@@ -3603,6 +4201,7 @@
           "Users"
         ],
         "summary": "Deactivate a user account.",
+        "operationId": "UsersDeactivateUser",
         "parameters": [
           {
             "name": "id",
@@ -3615,10 +4214,20 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK",
+          "204": {
+            "description": "No Content",
             "content": {
               "application/json": { }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
             }
           }
         }
@@ -3630,6 +4239,7 @@
           "Users"
         ],
         "summary": "Activate a previously deactivated user account.",
+        "operationId": "UsersActivateUser",
         "parameters": [
           {
             "name": "id",
@@ -3642,10 +4252,20 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK",
+          "204": {
+            "description": "No Content",
             "content": {
               "application/json": { }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
             }
           }
         }
@@ -3656,7 +4276,8 @@
         "tags": [
           "Users"
         ],
-        "summary": "Assign a role to a user.",
+        "summary": "Assign a role to a user. The reserved global-administrator name is rejected: global\nadmin is a seeded claim, never a role, so it cannot be granted from inside a tenant.",
+        "operationId": "UsersAssignRole",
         "parameters": [
           {
             "name": "userId",
@@ -3684,10 +4305,14 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "description": "OK",
+          "400": {
+            "description": "Bad Request",
             "content": {
-              "application/json": { }
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
             }
           }
         }
@@ -3699,6 +4324,7 @@
           "Users"
         ],
         "summary": "Remove a role from a user.",
+        "operationId": "UsersRemoveRole",
         "parameters": [
           {
             "name": "userId",
@@ -3719,10 +4345,20 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK",
+          "204": {
+            "description": "No Content",
             "content": {
               "application/json": { }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
             }
           }
         }
@@ -3733,6 +4369,7 @@
         "tags": [
           "Inquiries"
         ],
+        "operationId": "InquiriesSubmit",
         "requestBody": {
           "content": {
             "application/json": {
@@ -3775,6 +4412,7 @@
         "tags": [
           "Inquiries"
         ],
+        "operationId": "InquiriesGetAll",
         "parameters": [
           {
             "name": "status",
@@ -3806,6 +4444,7 @@
         "tags": [
           "Inquiries"
         ],
+        "operationId": "InquiriesGetSubmitted",
         "responses": {
           "200": {
             "description": "OK",
@@ -3828,6 +4467,7 @@
         "tags": [
           "Inquiries"
         ],
+        "operationId": "InquiriesGetById",
         "parameters": [
           {
             "name": "id",
@@ -3868,6 +4508,7 @@
         "tags": [
           "Inquiries"
         ],
+        "operationId": "InquiriesUpdateStatus",
         "parameters": [
           {
             "name": "id",
@@ -3933,6 +4574,7 @@
         "tags": [
           "Inquiries"
         ],
+        "operationId": "InquiriesAddComment",
         "parameters": [
           {
             "name": "id",
@@ -3982,6 +4624,7 @@
         "tags": [
           "Inquiries"
         ],
+        "operationId": "InquiriesGetComments",
         "parameters": [
           {
             "name": "id",
@@ -4026,6 +4669,7 @@
           "Notifications"
         ],
         "summary": "Get the current user's notification history.",
+        "operationId": "NotificationsGetNotifications",
         "parameters": [
           {
             "name": "pageNumber",
@@ -4084,6 +4728,7 @@
           "Notifications"
         ],
         "summary": "Get the current user's unread notification count.",
+        "operationId": "NotificationsGetUnreadCount",
         "responses": {
           "200": {
             "description": "OK",
@@ -4114,6 +4759,7 @@
           "Notifications"
         ],
         "summary": "Mark a single notification as read.",
+        "operationId": "NotificationsMarkAsRead",
         "parameters": [
           {
             "name": "id",
@@ -4161,6 +4807,7 @@
           "Notifications"
         ],
         "summary": "Mark all notifications as read for the current user.",
+        "operationId": "NotificationsMarkAllAsRead",
         "responses": {
           "204": {
             "description": "No Content",
@@ -4186,6 +4833,7 @@
         "tags": [
           "Admin - Push Configuration"
         ],
+        "operationId": "PushConfigurationGetTenantPushConfig",
         "responses": {
           "200": {
             "description": "OK",
@@ -4209,6 +4857,7 @@
         "tags": [
           "Admin - Push Configuration"
         ],
+        "operationId": "PushConfigurationUpsertTenantPushConfig",
         "requestBody": {
           "content": {
             "application/json": {
@@ -4254,6 +4903,7 @@
         "tags": [
           "Admin - Push Configuration"
         ],
+        "operationId": "PushConfigurationSetTenantPushEnabled",
         "requestBody": {
           "content": {
             "application/json": {
@@ -4299,6 +4949,7 @@
         "tags": [
           "Admin - Push Configuration"
         ],
+        "operationId": "PushConfigurationRemoveTenantPushConfig",
         "parameters": [
           {
             "name": "platform",
@@ -4324,6 +4975,7 @@
         "tags": [
           "Push Devices"
         ],
+        "operationId": "PushDevicesRegisterDevice",
         "requestBody": {
           "content": {
             "application/json": {
@@ -4362,6 +5014,7 @@
         "tags": [
           "Push Devices"
         ],
+        "operationId": "PushDevicesGetUserDevices",
         "responses": {
           "200": {
             "description": "OK",
@@ -4394,6 +5047,7 @@
         "tags": [
           "Push Devices"
         ],
+        "operationId": "PushDevicesDeregisterDevice",
         "parameters": [
           {
             "name": "id",
@@ -4440,6 +5094,7 @@
         "tags": [
           "Push Devices"
         ],
+        "operationId": "PushDevicesSendPush",
         "requestBody": {
           "content": {
             "application/json": {
@@ -4480,6 +5135,7 @@
         "tags": [
           "Notification Settings"
         ],
+        "operationId": "UserNotificationSettingsGetUserNotificationSettings",
         "responses": {
           "200": {
             "description": "OK",
@@ -4509,6 +5165,7 @@
         "tags": [
           "Notification Settings"
         ],
+        "operationId": "UserNotificationSettingsSetChannelEnabled",
         "requestBody": {
           "content": {
             "application/json": {
@@ -4559,6 +5216,7 @@
         "tags": [
           "Notification Settings"
         ],
+        "operationId": "UserNotificationSettingsSetNotificationTypeEnabled",
         "requestBody": {
           "content": {
             "application/json": {
@@ -4610,6 +5268,7 @@
           "Storage"
         ],
         "summary": "Create a new storage bucket.",
+        "operationId": "StorageCreateBucket",
         "requestBody": {
           "content": {
             "application/json": {
@@ -4670,6 +5329,7 @@
           "Storage"
         ],
         "summary": "Get bucket by name.",
+        "operationId": "StorageGetBucket",
         "parameters": [
           {
             "name": "name",
@@ -4708,6 +5368,7 @@
           "Storage"
         ],
         "summary": "Delete a bucket.",
+        "operationId": "StorageDeleteBucket",
         "parameters": [
           {
             "name": "name",
@@ -4762,6 +5423,7 @@
           "Storage"
         ],
         "summary": "Upload a file.",
+        "operationId": "StorageUpload",
         "requestBody": {
           "content": {
             "multipart/form-data": {
@@ -4847,6 +5509,7 @@
           "Storage"
         ],
         "summary": "Get file metadata by ID.",
+        "operationId": "StorageGetFile",
         "parameters": [
           {
             "name": "id",
@@ -4886,6 +5549,7 @@
           "Storage"
         ],
         "summary": "Delete a file.",
+        "operationId": "StorageDelete",
         "parameters": [
           {
             "name": "id",
@@ -4923,6 +5587,7 @@
           "Storage"
         ],
         "summary": "Download a file (redirects to presigned URL).",
+        "operationId": "StorageDownload",
         "parameters": [
           {
             "name": "id",
@@ -4960,6 +5625,7 @@
           "Storage"
         ],
         "summary": "List files in a bucket.",
+        "operationId": "StorageListFiles",
         "parameters": [
           {
             "name": "bucket",
@@ -5032,6 +5698,7 @@
           "Storage"
         ],
         "summary": "Get a presigned URL for direct upload to storage.",
+        "operationId": "StorageGetPresignedUploadUrl",
         "requestBody": {
           "content": {
             "application/json": {
@@ -5092,6 +5759,7 @@
           "Storage"
         ],
         "summary": "Get a presigned URL for downloading a file.",
+        "operationId": "StorageGetPresignedDownloadUrl",
         "parameters": [
           {
             "name": "id",
@@ -5144,6 +5812,7 @@
         "tags": [
           "Storage Settings"
         ],
+        "operationId": "StorageSettingsGetConfig",
         "responses": {
           "200": {
             "description": "OK",
@@ -5163,6 +5832,7 @@
         "tags": [
           "Storage Settings"
         ],
+        "operationId": "StorageSettingsGetTenantSettings",
         "responses": {
           "200": {
             "description": "OK",
@@ -5183,6 +5853,7 @@
         "tags": [
           "Storage Settings"
         ],
+        "operationId": "StorageSettingsUpsertTenantSetting",
         "requestBody": {
           "content": {
             "application/json": {
@@ -5226,6 +5897,7 @@
         "tags": [
           "Storage Settings"
         ],
+        "operationId": "StorageSettingsDeleteTenantSetting",
         "parameters": [
           {
             "name": "key",
@@ -5260,6 +5932,7 @@
         "tags": [
           "Storage Settings"
         ],
+        "operationId": "StorageSettingsGetUserSettings",
         "responses": {
           "200": {
             "description": "OK",
@@ -5280,6 +5953,7 @@
         "tags": [
           "Storage Settings"
         ],
+        "operationId": "StorageSettingsUpsertUserSetting",
         "requestBody": {
           "content": {
             "application/json": {
@@ -5323,6 +5997,7 @@
         "tags": [
           "Storage Settings"
         ],
+        "operationId": "StorageSettingsDeleteUserSetting",
         "parameters": [
           {
             "name": "key",
@@ -5348,39 +6023,6 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "/alive": {
-      "get": {
-        "tags": [
-          "Wallow.Api"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/events": {
-      "get": {
-        "tags": [
-          "SseEndpoint"
-        ],
-        "parameters": [
-          {
-            "name": "subscribe",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
           }
         }
       }
@@ -5417,6 +6059,55 @@
             "type": "boolean"
           }
         }
+      },
+      "AccountLoginResponse": {
+        "required": [
+          "succeeded"
+        ],
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "mfaRequired": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "mfaEnrollmentRequired": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "mfaGraceDeadline": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "signInTicket": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "Result of a cookie-based sign-in attempt. A 200 covers four outcomes — signed in, MFA\nchallenge required, MFA enrollment required, and MFA enrollment required within a grace\nperiod — so every member beyond bool AccountLoginResponse.Succeeded is present only for the outcome it\ndescribes."
+      },
+      "AccountOperationResponse": {
+        "required": [
+          "succeeded"
+        ],
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          }
+        },
+        "description": "Success envelope returned by the cookie-auth account endpoints that report only whether the\noperation was carried out (registration, password reset, e-mail verification, magic link and\nOTP dispatch)."
       },
       "AccountRegisterRequest": {
         "required": [
@@ -5996,6 +6687,26 @@
           }
         }
       },
+      "ClientTenantResponse": {
+        "required": [
+          "tenantId",
+          "orgName"
+        ],
+        "type": "object",
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "orgName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "The tenant an OIDC client belongs to, used by the auth frontend to brand the login screen\nbefore any user is authenticated."
+      },
       "ConsentInfoResponse": {
         "required": [
           "clientId",
@@ -6276,24 +6987,6 @@
               "string"
             ],
             "format": "date-time"
-          }
-        }
-      },
-      "CreateIsolatedOrgRequest": {
-        "type": "object",
-        "properties": {
-          "requireMfa": {
-            "type": "boolean",
-            "default": false
-          },
-          "gracePeriodDays": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32",
-            "default": 0
           }
         }
       },
@@ -6693,6 +7386,37 @@
       "LoginMethod": {
         "type": "integer"
       },
+      "MfaBackupCodesResponse": {
+        "required": [
+          "codes"
+        ],
+        "type": "object",
+        "properties": {
+          "codes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "Regenerated one-time backup codes. The plaintext codes are returned here and nowhere else —\nonly their hashes are persisted."
+      },
+      "MfaChallengeResponse": {
+        "required": [
+          "succeeded",
+          "signInTicket"
+        ],
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "signInTicket": {
+            "type": "string"
+          }
+        },
+        "description": "Result of answering an MFA challenge, carrying the single-use ticket the auth frontend\nexchanges for a sign-in cookie."
+      },
       "MfaConfirmRequest": {
         "required": [
           "secret",
@@ -6719,6 +7443,65 @@
           }
         }
       },
+      "MfaEnrollmentConfirmedResponse": {
+        "required": [
+          "succeeded",
+          "backupCodes"
+        ],
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "backupCodes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "Confirmation that TOTP enrollment completed, carrying the one-time backup codes. The plaintext\ncodes are returned here and nowhere else — only their hashes are persisted."
+      },
+      "MfaEnrollmentSecretResponse": {
+        "required": [
+          "secret",
+          "qrUri"
+        ],
+        "type": "object",
+        "properties": {
+          "secret": {
+            "type": "string"
+          },
+          "qrUri": {
+            "type": "string"
+          }
+        },
+        "description": "A freshly generated TOTP secret plus the otpauth URI an authenticator app scans."
+      },
+      "MfaEnrollmentTokenResponse": {
+        "required": [
+          "token"
+        ],
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          }
+        },
+        "description": "A short-lived token the web app hands to the auth app's enrollment screen, which exchanges it\nfor the partial-auth cookie the enrollment endpoints authenticate against."
+      },
+      "MfaOperationResponse": {
+        "required": [
+          "succeeded"
+        ],
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          }
+        },
+        "description": "Success envelope for the MFA endpoints that report only whether the operation was carried out."
+      },
       "MfaRegenerateBackupCodesRequest": {
         "required": [
           "password"
@@ -6729,6 +7512,34 @@
             "type": "string"
           }
         }
+      },
+      "MfaStatusResponse": {
+        "required": [
+          "enabled",
+          "method",
+          "backupCodeCount"
+        ],
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "method": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "backupCodeCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "The signed-in user's current multi-factor enrollment state."
       },
       "MfaVerifyRequest": {
         "required": [
@@ -6872,6 +7683,18 @@
             "format": "int32"
           }
         }
+      },
+      "OrganizationLogoResponse": {
+        "required": [
+          "logoUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "logoUrl": {
+            "type": "string"
+          }
+        },
+        "description": "Location of an organization branding logo after upload."
       },
       "OrganizationSettingsDto": {
         "required": [
@@ -7070,6 +7893,32 @@
           }
         }
       },
+      "PasswordlessVerificationResponse": {
+        "required": [
+          "succeeded",
+          "email",
+          "signInTicket"
+        ],
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "email": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "signInTicket": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "Result of verifying a magic link or one-time code, carrying the single-use ticket the auth\nfrontend exchanges for a sign-in cookie."
+      },
       "PresignedUploadRequest": {
         "required": [
           "bucketName",
@@ -7190,6 +8039,18 @@
       },
       "PushPlatform": {
         "type": "integer"
+      },
+      "RedirectUriValidationResponse": {
+        "required": [
+          "allowed"
+        ],
+        "type": "object",
+        "properties": {
+          "allowed": {
+            "type": "boolean"
+          }
+        },
+        "description": "Whether a candidate post-login redirect URI is registered for the requesting client."
       },
       "RegisterAppRequest": {
         "required": [
@@ -7321,6 +8182,21 @@
             "type": "string"
           }
         }
+      },
+      "RoleResponse": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "A role available for assignment within the tenant."
       },
       "ScopeInfo": {
         "required": [
@@ -7517,6 +8393,33 @@
       },
       "ServiceAccountStatus": {
         "type": "integer"
+      },
+      "SessionDto": {
+        "required": [
+          "id",
+          "createdAt",
+          "lastActivityAt",
+          "expiresAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastActivityAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
       },
       "SetChannelEnabledRequest": {
         "required": [
@@ -8065,9 +8968,6 @@
       "name": "Setup"
     },
     {
-      "name": "Test Support"
-    },
-    {
       "name": "Users"
     },
     {
@@ -8090,12 +8990,6 @@
     },
     {
       "name": "Storage Settings"
-    },
-    {
-      "name": "Wallow.Api"
-    },
-    {
-      "name": "SseEndpoint"
     }
   ]
 }

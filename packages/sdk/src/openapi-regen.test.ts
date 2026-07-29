@@ -5,15 +5,51 @@ import { describe, expect, it } from "vitest";
 
 import * as generated from "./generated";
 
-// Guards T7.1: the committed OpenAPI snapshot and the regenerated TS client must
-// reflect F6's reworked Identity surface. F6 deleted OrganizationDomainsController
-// and the membership-request endpoints, and reworked AppsController's register
-// request (RegisterAppRequest gained PostLogoutRedirectUris). Until the snapshot +
-// client are regenerated against the live F6 API, these assertions fail.
+// Guards the codegen contract as a set of RULES, not as a dated snapshot diff. Legitimate
+// backend additions must keep passing without touching this file; a regression in any of the
+// invariants below must fail it. Each detector is exercised against a synthetic violating
+// document in the last describe block, so the invariants are proven to have teeth even while
+// the real snapshot is clean.
+
+const SCHEMA_REF_PREFIX: string = "#/components/schemas/";
+
+const TEST_SUPPORT_TAG: string = "Test Support";
+
+const HTTP_METHODS: ReadonlySet<string> = new Set([
+  "get",
+  "put",
+  "post",
+  "delete",
+  "options",
+  "head",
+  "patch",
+  "trace",
+]);
+
+interface MediaTypeObject {
+  schema?: unknown;
+}
+
+interface ResponseObject {
+  content?: Record<string, MediaTypeObject>;
+}
+
+interface OperationObject {
+  operationId?: string;
+  tags?: string[];
+  responses?: Record<string, ResponseObject>;
+}
 
 interface OpenApiSpec {
-  paths: Record<string, unknown>;
-  components: { schemas: Record<string, { properties?: Record<string, unknown> }> };
+  paths: Record<string, Record<string, OperationObject>>;
+  components?: Record<string, unknown> & { schemas?: Record<string, unknown> };
+  tags?: { name?: string }[];
+}
+
+interface OperationEntry {
+  path: string;
+  method: string;
+  operation: OperationObject;
 }
 
 function loadSnapshot(): OpenApiSpec {
@@ -21,53 +57,260 @@ function loadSnapshot(): OpenApiSpec {
   return JSON.parse(readFileSync(fileURLToPath(snapshotUrl), "utf8")) as OpenApiSpec;
 }
 
-const DELETED_SURFACE_PREFIXES: readonly string[] = [
-  "/v1/identity/organization-domains",
-  "/v1/identity/membership-requests",
-];
+function collectOperations(spec: OpenApiSpec): OperationEntry[] {
+  const entries: OperationEntry[] = [];
 
-const DELETED_GENERATED_OPERATIONS: readonly string[] = [
-  "getV1IdentityOrganizationDomainsMatch",
-  "postV1IdentityMembershipRequests",
-];
+  for (const [path, pathItem] of Object.entries(spec.paths)) {
+    for (const [method, operation] of Object.entries(pathItem)) {
+      if (HTTP_METHODS.has(method)) {
+        entries.push({ path, method, operation });
+      }
+    }
+  }
 
-describe("OpenAPI snapshot reflects the F6-reworked surface", () => {
-  it("no longer serves the deleted organization-domains / membership-request paths", () => {
-    const spec: OpenApiSpec = loadSnapshot();
-    const survivingDeletedPaths: string[] = Object.keys(spec.paths).filter((path: string) =>
-      DELETED_SURFACE_PREFIXES.some((prefix: string) => path.startsWith(prefix)),
-    );
+  return entries;
+}
 
-    expect(survivingDeletedPaths).toEqual([]);
+function describeOperation(entry: OperationEntry): string {
+  return `${entry.method.toUpperCase()} ${entry.path}`;
+}
+
+function findOperationsMissingAnOperationId(spec: OpenApiSpec): string[] {
+  return collectOperations(spec)
+    .filter((entry: OperationEntry) => !entry.operation.operationId)
+    .map((entry: OperationEntry) => describeOperation(entry));
+}
+
+function findDuplicateOperationIds(spec: OpenApiSpec): string[] {
+  const seen: Set<string> = new Set();
+  const duplicates: Set<string> = new Set();
+
+  for (const entry of collectOperations(spec)) {
+    const operationId: string | undefined = entry.operation.operationId;
+    if (operationId) {
+      if (seen.has(operationId)) {
+        duplicates.add(operationId);
+      }
+
+      seen.add(operationId);
+    }
+  }
+
+  return [...duplicates];
+}
+
+// An operation violates the typed-200 rule when it declares a 200 but no body schema for it.
+// BOTH shapes count: a bare 200 with no `content` at all, and — the case a naive check misses —
+// a 200 whose `content` key exists (every [Produces("application/json")] action emits one) but
+// carries no `schema` for any media type. hey-api generates `unknown` for both alike.
+function findOperationsWithUntypedSuccess(spec: OpenApiSpec): string[] {
+  return collectOperations(spec)
+    .filter((entry: OperationEntry) => {
+      const success: ResponseObject | undefined = entry.operation.responses?.["200"];
+      if (success === undefined) {
+        return false;
+      }
+
+      const declaresBare200: boolean = success.content === undefined;
+      const schemas: unknown[] = Object.values(success.content ?? {})
+        .map((mediaType: MediaTypeObject) => mediaType?.schema)
+        .filter((schema: unknown) => schema !== undefined);
+
+      return declaresBare200 || schemas.length === 0;
+    })
+    .map((entry: OperationEntry) => describeOperation(entry));
+}
+
+function collectSchemaRefs(node: unknown, into: Set<string>): void {
+  if (Array.isArray(node)) {
+    for (const item of node) {
+      collectSchemaRefs(item, into);
+    }
+    return;
+  }
+
+  if (node === null || typeof node !== "object") {
+    return;
+  }
+
+  for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+    if (key === "$ref" && typeof value === "string" && value.startsWith(SCHEMA_REF_PREFIX)) {
+      into.add(value.slice(SCHEMA_REF_PREFIX.length));
+    } else {
+      collectSchemaRefs(value, into);
+    }
+  }
+}
+
+// Schemas ASP.NET Core harvested for an action whose path a document transformer later removed
+// stay behind in components and generate dead TS types — a silent leak of internal surface into
+// the published SDK. Reachability from the paths (plus the non-schema component sections) is the
+// only way to see them.
+function findOrphanedSchemas(spec: OpenApiSpec): string[] {
+  const schemas: Record<string, unknown> = spec.components?.schemas ?? {};
+
+  const roots: Set<string> = new Set();
+  collectSchemaRefs(spec.paths, roots);
+  for (const [section, value] of Object.entries(spec.components ?? {})) {
+    if (section !== "schemas") {
+      collectSchemaRefs(value, roots);
+    }
+  }
+
+  const reachable: Set<string> = new Set();
+  const pending: string[] = [...roots];
+
+  while (pending.length > 0) {
+    const name: string = pending.pop()!;
+    if (!reachable.has(name) && name in schemas) {
+      reachable.add(name);
+
+      const nested: Set<string> = new Set();
+      collectSchemaRefs(schemas[name], nested);
+      pending.push(...nested);
+    }
+  }
+
+  return Object.keys(schemas).filter((name: string) => !reachable.has(name));
+}
+
+function findTestSupportSurface(spec: OpenApiSpec): string[] {
+  const taggedOperations: string[] = collectOperations(spec)
+    .filter((entry: OperationEntry) => entry.operation.tags?.includes(TEST_SUPPORT_TAG) === true)
+    .map((entry: OperationEntry) => describeOperation(entry));
+
+  const documentTags: string[] = (spec.tags ?? [])
+    .filter((tag: { name?: string }) => tag.name === TEST_SUPPORT_TAG)
+    .map(() => `document tag "${TEST_SUPPORT_TAG}"`);
+
+  return [...taggedOperations, ...documentTags];
+}
+
+// hey-api derives each exported operation function from the operationId, lower-camelised.
+function expectedExportName(operationId: string): string {
+  return operationId.charAt(0).toLowerCase() + operationId.slice(1);
+}
+
+describe("committed OpenAPI snapshot holds the codegen invariants", () => {
+  it("gives every operation an operationId", () => {
+    expect(findOperationsMissingAnOperationId(loadSnapshot())).toEqual([]);
   });
 
-  it("exposes the reworked AppsController register contract with postLogoutRedirectUris", () => {
-    const spec: OpenApiSpec = loadSnapshot();
-    const registerRequest = spec.components.schemas.RegisterAppRequest;
-
-    expect(registerRequest).toBeDefined();
-    expect(Object.keys(registerRequest.properties ?? {})).toContain("postLogoutRedirectUris");
+  it("keeps every operationId unique across the document", () => {
+    expect(findDuplicateOperationIds(loadSnapshot())).toEqual([]);
   });
 
-  it("still serves the AppsController register endpoint (surface preserved)", () => {
-    const spec: OpenApiSpec = loadSnapshot();
+  it("declares a body schema for every 200 response", () => {
+    expect(findOperationsWithUntypedSuccess(loadSnapshot())).toEqual([]);
+  });
 
-    expect(spec.paths).toHaveProperty("/v1/identity/apps/register");
+  it("ships no component schema that is unreachable from the paths", () => {
+    expect(findOrphanedSchemas(loadSnapshot())).toEqual([]);
+  });
+
+  it("leaks no test-support surface into the public document", () => {
+    expect(findTestSupportSurface(loadSnapshot())).toEqual([]);
   });
 });
 
-describe("generated SDK client reflects the F6-reworked surface", () => {
-  it("no longer exports the deleted-surface operations", () => {
-    const exportedNames: string[] = Object.keys(generated);
+describe("generated client stays in step with the committed snapshot", () => {
+  it("exports exactly one operation per snapshot operationId", () => {
+    const spec: OpenApiSpec = loadSnapshot();
+    const expectedExports: Set<string> = new Set(
+      collectOperations(spec).map((entry: OperationEntry) =>
+        expectedExportName(entry.operation.operationId!),
+      ),
+    );
 
-    for (const operation of DELETED_GENERATED_OPERATIONS) {
-      expect(exportedNames).not.toContain(operation);
-    }
+    expect(new Set(Object.keys(generated))).toEqual(expectedExports);
+  });
+});
+
+describe("the invariants reject a violating document", () => {
+  function specWith(operation: OperationObject): OpenApiSpec {
+    return { paths: { "/v1/things": { get: operation } } };
+  }
+
+  const typedSuccess: OperationObject = {
+    operationId: "ThingsGetAll",
+    responses: { "200": { content: { "application/json": { schema: { type: "object" } } } } },
+  };
+
+  it("catches a missing operationId", () => {
+    const spec: OpenApiSpec = specWith({ ...typedSuccess, operationId: undefined });
+
+    expect(findOperationsMissingAnOperationId(spec)).toEqual(["GET /v1/things"]);
+    expect(findOperationsMissingAnOperationId(specWith(typedSuccess))).toEqual([]);
   });
 
-  it("still exports the AppsController register operation", () => {
-    const exportedNames: string[] = Object.keys(generated);
+  it("catches two operations sharing one operationId", () => {
+    const spec: OpenApiSpec = {
+      paths: {
+        "/v1/things": { get: typedSuccess },
+        "/v1/other-things": { get: { ...typedSuccess } },
+      },
+    };
 
-    expect(exportedNames).toContain("postV1IdentityAppsRegister");
+    expect(findDuplicateOperationIds(spec)).toEqual(["ThingsGetAll"]);
+  });
+
+  it("catches a bare 200 that declares no content at all", () => {
+    const spec: OpenApiSpec = specWith({ ...typedSuccess, responses: { "200": {} } });
+
+    expect(findOperationsWithUntypedSuccess(spec)).toEqual(["GET /v1/things"]);
+  });
+
+  it("catches a 200 whose content declares no schema", () => {
+    const spec: OpenApiSpec = specWith({
+      ...typedSuccess,
+      responses: { "200": { content: { "application/json": {} } } },
+    });
+
+    expect(findOperationsWithUntypedSuccess(spec)).toEqual(["GET /v1/things"]);
+    expect(findOperationsWithUntypedSuccess(specWith(typedSuccess))).toEqual([]);
+  });
+
+  it("passes an operation that answers only 204, which carries no body by definition", () => {
+    const spec: OpenApiSpec = specWith({ ...typedSuccess, responses: { "204": {} } });
+
+    expect(findOperationsWithUntypedSuccess(spec)).toEqual([]);
+  });
+
+  it("catches a schema no path can reach, and follows nested refs to spare a reachable one", () => {
+    const spec: OpenApiSpec = {
+      paths: {
+        "/v1/things": {
+          get: {
+            operationId: "ThingsGetAll",
+            responses: {
+              "200": {
+                content: { "application/json": { schema: { $ref: `${SCHEMA_REF_PREFIX}Thing` } } },
+              },
+            },
+          },
+        },
+      },
+      components: {
+        schemas: {
+          Thing: { properties: { part: { $ref: `${SCHEMA_REF_PREFIX}ThingPart` } } },
+          ThingPart: { type: "string" },
+          CreateIsolatedOrgRequest: { type: "object" },
+        },
+      },
+    };
+
+    expect(findOrphanedSchemas(spec)).toEqual(["CreateIsolatedOrgRequest"]);
+  });
+
+  it("catches a test-support tagged operation and a leftover document tag", () => {
+    const spec: OpenApiSpec = {
+      ...specWith({ ...typedSuccess, tags: [TEST_SUPPORT_TAG] }),
+      tags: [{ name: TEST_SUPPORT_TAG }],
+    };
+
+    expect(findTestSupportSurface(spec)).toEqual([
+      "GET /v1/things",
+      `document tag "${TEST_SUPPORT_TAG}"`,
+    ]);
   });
 });

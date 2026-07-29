@@ -1,23 +1,28 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactElement } from "react";
+import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { chooseOption } from "../../../test/catalog-select";
-import { installSdkClientMock, type SdkClientMock } from "../../../test/sdk-client-mock";
+import { expectSwept } from "../../../test/invalidation";
+import { inquiriesGetAllQueryKey } from "../api";
 import { CreateInquiryForm } from "./CreateInquiryForm";
+
+/** The transport backing each render, rebuilt per test. */
+let harness: SdkHarness;
 
 /**
  * Component spec for the create-inquiry form (Wallow-8w1h.7.3). Copies the
  * CANONICAL CreateOrganizationForm.test.tsx shape (Wallow-8w1h.4.3): the form
- * builds its mutation from `createInquiryMutation(queryClient)` (the SDK query
- * factory re-exported by api.ts), so the network seam is the shared SDK client's
- * `fetch`, overridden per test via `installSdkClientMock` (Wallow-evd5.2.6 — the
- * retired `getWallowSdk()` facade is no longer in the path). The submitted body
- * is asserted via the recorded outgoing request (`sdk.last`); invalidation of
- * `['inquiries']` on success is observed by spying on the live client's
- * `invalidateQueries`; a server ProblemDetails is driven with `sdk.rejectJson`.
+ * builds its mutation from the generated `inquiriesSubmitMutation({ client })`
+ * (re-exported by api.ts), so the network seam is the `fetch` of the
+ * request-scoped client this spec's own `createSdkHarness()` builds
+ * (Wallow-pu6a.5.5 — there is no shared module-global client left to install a
+ * mock onto). The submitted body is asserted via the recorded outgoing request
+ * (`harness.last`); invalidation on success is observed by spying on the live
+ * client's `invalidateQueries` and matching it against the generated
+ * `inquiriesGetAllQueryKey()` rather than a literal; a server ProblemDetails is
+ * driven with `harness.rejectJson`.
  *
  * Testids mirror the C# E2E `InquiryPage` page object verbatim: `inquiry-name`,
  * `inquiry-email`, `inquiry-phone`, `inquiry-company`, `inquiry-project-type`,
@@ -25,8 +30,6 @@ import { CreateInquiryForm } from "./CreateInquiryForm";
  * `inquiry-submit`, `inquiry-success` / `inquiry-error`. Field-validation
  * messages use `{field}-error` (`inquiry-name-error`, etc.).
  */
-
-let sdk: SdkClientMock;
 
 // The full SubmitInquiryBody the form must POST when every field is filled.
 const FULL_BODY = {
@@ -39,16 +42,6 @@ const FULL_BODY = {
   timeline: "1-3-months",
   message: "We need a project dashboard.",
 };
-
-function newClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-}
-
-function renderWithClient(client: QueryClient, ui: ReactElement) {
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-}
 
 /**
  * Per-field fill actions keyed by testid, so a test can fill the whole valid
@@ -101,11 +94,11 @@ const SERVER_REQUIRED_SELECT_FIELDS = [
 
 describe("CreateInquiryForm", () => {
   beforeEach(() => {
-    sdk = installSdkClientMock();
+    harness = createSdkHarness();
   });
 
   it("renders every inquiry field, select, and the submit button", async () => {
-    renderWithClient(newClient(), <CreateInquiryForm />);
+    renderWithWallow(<CreateInquiryForm />, { harness });
 
     await expect.element(page.getByTestId("inquiry-name")).toBeInTheDocument();
     await expect.element(page.getByTestId("inquiry-email")).toBeInTheDocument();
@@ -124,34 +117,30 @@ describe("CreateInquiryForm", () => {
   // catalog-Select mechanics, which live in that spec. The wire VALUES stay
   // pinned here, by the FULL_BODY assertion in the submit case below.
   it("submits, POSTing the full SubmitInquiryBody to the inquiries endpoint", async () => {
-    renderWithClient(newClient(), <CreateInquiryForm />);
+    renderWithWallow(<CreateInquiryForm />, { harness });
 
     await fillFullForm();
     await userEvent.click(page.getByTestId("inquiry-submit"));
 
     await vi.waitFor(() => {
-      expect(sdk.last?.method).toBe("POST");
+      expect(harness.last?.method).toBe("POST");
     });
-    expect(sdk.last?.path).toBe("/api/v1/inquiries");
-    expect(sdk.last?.body).toEqual(FULL_BODY);
+    expect(harness.last?.path).toBe("/api/v1/inquiries");
+    expect(harness.last?.body).toEqual(FULL_BODY);
   });
 
-  it("invalidates the ['inquiries'] list query after a successful submit", async () => {
-    const client = newClient();
-    const invalidateSpy = vi.spyOn(client, "invalidateQueries");
-
-    renderWithClient(client, <CreateInquiryForm />);
+  it("sweeps the inquiry list query after a successful submit", async () => {
+    const { queryClient } = renderWithWallow(<CreateInquiryForm />, { harness });
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
 
     await fillFullForm();
     await userEvent.click(page.getByTestId("inquiry-submit"));
 
-    await vi.waitFor(() => {
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["inquiries"] });
-    });
+    await expectSwept(invalidateSpy, inquiriesGetAllQueryKey());
   });
 
   it("shows the success state after a successful submit", async () => {
-    renderWithClient(newClient(), <CreateInquiryForm />);
+    renderWithWallow(<CreateInquiryForm />, { harness });
 
     await fillFullForm();
     await userEvent.click(page.getByTestId("inquiry-submit"));
@@ -164,7 +153,7 @@ describe("CreateInquiryForm", () => {
     // budgetRange, timeline, and message (all `.NotEmpty()`). Company is the only
     // nullable field. The client must mirror that contract so a user is never
     // told their submission is valid when the server will reject it.
-    renderWithClient(newClient(), <CreateInquiryForm />);
+    renderWithWallow(<CreateInquiryForm />, { harness });
 
     await userEvent.click(page.getByTestId("inquiry-submit"));
 
@@ -175,11 +164,11 @@ describe("CreateInquiryForm", () => {
     await expect.element(page.getByTestId("inquiry-budget-range-error")).toBeInTheDocument();
     await expect.element(page.getByTestId("inquiry-timeline-error")).toBeInTheDocument();
     await expect.element(page.getByTestId("inquiry-message-error")).toBeInTheDocument();
-    expect(sdk.fetchMock).not.toHaveBeenCalled();
+    expect(harness.calls).toHaveLength(0);
   });
 
   it("surfaces the RFC 7807 ProblemDetails detail when the submit fails", async () => {
-    sdk.rejectJson(
+    harness.rejectJson(
       {
         type: "https://httpstatuses.io/400",
         title: "Bad Request",
@@ -189,7 +178,7 @@ describe("CreateInquiryForm", () => {
       400,
     );
 
-    renderWithClient(newClient(), <CreateInquiryForm />);
+    renderWithWallow(<CreateInquiryForm />, { harness });
 
     await fillFullForm();
     await userEvent.click(page.getByTestId("inquiry-submit"));
@@ -202,31 +191,31 @@ describe("CreateInquiryForm", () => {
 
 describe("CreateInquiryForm — server-required field parity", () => {
   beforeEach(() => {
-    sdk = installSdkClientMock();
+    harness = createSdkHarness();
   });
 
   it.each(SERVER_REQUIRED_SELECT_FIELDS)(
     "blocks submit and flags $errorTestId when only that server-required field is blank",
     async ({ skipTestId, errorTestId }) => {
-      renderWithClient(newClient(), <CreateInquiryForm />);
+      renderWithWallow(<CreateInquiryForm />, { harness });
 
       await fillAllExcept(skipTestId);
       await userEvent.click(page.getByTestId("inquiry-submit"));
 
       await expect.element(page.getByTestId(errorTestId)).toBeInTheDocument();
-      expect(sdk.fetchMock).not.toHaveBeenCalled();
+      expect(harness.calls).toHaveLength(0);
     },
   );
 
   it("still submits when only company (the sole server-optional field) is blank", async () => {
-    renderWithClient(newClient(), <CreateInquiryForm />);
+    renderWithWallow(<CreateInquiryForm />, { harness });
 
     await fillAllExcept("inquiry-company");
     await userEvent.click(page.getByTestId("inquiry-submit"));
 
     await vi.waitFor(() => {
-      expect(sdk.last?.method).toBe("POST");
+      expect(harness.last?.method).toBe("POST");
     });
-    expect(sdk.last?.body).toEqual({ ...FULL_BODY, company: "" });
+    expect(harness.last?.body).toEqual({ ...FULL_BODY, company: "" });
   });
 });

@@ -201,6 +201,58 @@ grep -r '"Wallow"' --include='*.cs' --include='*.json' \
 
 ---
 
+## Frontend Authentication Policy: BFF-only
+
+Every frontend in this repository authenticates through a **Backend-For-Frontend**: the browser
+never holds an access token, a confidential server-side client runs the authorization-code flow,
+and the token set lives in a sealed `httpOnly` session cookie. Your fork inherits that default,
+so it is worth stating plainly what kind of rule it is.
+
+**It is a policy choice, not a standards mandate.** The IETF's *OAuth 2.0 for Browser-Based
+Applications* is still an Internet-Draft (`draft-ietf-oauth-browser-based-apps`) in the RFC
+Editor queue, with no RFC number assigned — treat any doc or commit message claiming otherwise
+as wrong. That draft *ranks* three architectures in decreasing order of security rather than
+mandating one:
+
+1. **Backend-For-Frontend** — "strongly recommended for business applications, sensitive
+   applications, and applications that handle personal data"
+2. **Token-mediating backend** — the server holds the tokens but the browser drives the calls
+3. **Browser-based public client** — tokens in the browser, PKCE only
+
+Wallow adopts tier 1 for everything and does not ship the other two. That is a layer of policy
+on top of the ranking, and it is the right default for a fork-first platform: every downstream
+deployment inherits whatever this repository chooses, so the choice should be the one that is
+safe when nobody revisits it.
+
+**The argument that decides it is §5.1.3 of the draft.** Even with browser tokens protected
+perfectly, an attacker with XSS on your origin can run a *silent* authorization-code flow in a
+hidden iframe and mint entirely fresh tokens of their own. The draft is blunt that there are no
+practical countermeasures for a frontend in that position — short token lifetimes and refresh
+rotation do not help, because the attacker is not stealing your token, they are getting their
+own. Only a confidential-client BFF defeats it: the attacker obtains an authorization code they
+cannot exchange without the server-side secret.
+
+**If your fork needs a different tier**, the escape hatch is a token-mediating backend (the
+Curity "token handler" pattern) — the server still owns the tokens and the confidential client,
+but hands the browser short-lived, narrowly-scoped credentials. Taking it means owning that
+decision explicitly:
+
+- Keep the confidential client and the server-side token store. Do not move a refresh token into
+  the browser under any circumstances.
+- Audience-restrict and scope-narrow whatever the browser does receive, so an XSS compromise
+  yields the smallest possible authority.
+- Document the deviation in your fork's own docs. Upstream's guides, defaults, and E2E fixtures
+  all assume the BFF, and a silent divergence is how a deployment ends up with neither model
+  implemented completely.
+
+The mechanics of the supported path — mounting the tunnel, the CSRF gate, session stores, and
+per-request SDK instances — are in the
+[BFF Pattern](../integrations/bff-pattern.md) and
+[TypeScript SDK](../integrations/typescript-sdk.md) guides, with a start-to-finish walkthrough in
+the [Integration Cookbook](../integrations/integration-cookbook.md).
+
+---
+
 ## Data Protection (GDPR)
 
 If you operate a fork that processes personal data of EU residents, you are the **data controller**. Key responsibilities:

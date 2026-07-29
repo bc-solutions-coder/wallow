@@ -1,6 +1,8 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Wallow.Identity.Application.Commands.BootstrapAdmin;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Shared.Kernel.Extensions;
 
 namespace Wallow.Identity.Infrastructure.Services;
 
@@ -52,6 +54,25 @@ public sealed class BootstrapAdminService(
         {
             throw new InvalidOperationException(
                 $"Failed to assign role '{roleName}' to user '{userId}': {string.Join(", ", result.Errors.Select(e => e.Description))}");
+        }
+    }
+
+    public async Task GrantGlobalAdminAsync(Guid userId, CancellationToken ct = default)
+    {
+        WallowUser? user = await userManager.FindByIdAsync(userId.ToString());
+        if (user is null)
+        {
+            throw new InvalidOperationException($"User with ID '{userId}' not found.");
+        }
+
+        IdentityResult result = await userManager.AddClaimAsync(
+            user,
+            new Claim(ClaimsPrincipalExtensions.GlobalAdminClaimType, "true"));
+
+        if (!result.Succeeded)
+        {
+            throw new InvalidOperationException(
+                $"Failed to grant global admin to user '{userId}': {string.Join(", ", result.Errors.Select(e => e.Description))}");
         }
     }
 

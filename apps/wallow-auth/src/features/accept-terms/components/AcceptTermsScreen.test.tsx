@@ -1,14 +1,9 @@
-import {
-  createMemoryHistory,
-  createRootRoute,
-  createRouter,
-  Outlet,
-  RouterProvider,
-} from "@tanstack/react-router";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+import type { SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createAuthHarness } from "../../../test/harness";
 import { Route as acceptTermsRoute } from "../../../routes/accept-terms";
 import { AcceptTermsScreen } from "./AcceptTermsScreen";
 
@@ -44,7 +39,7 @@ import { AcceptTermsScreen } from "./AcceptTermsScreen";
  * ── ACCEPTANCE: THE ExternalLoginState COOKIE IS PURE PROXY PASSTHROUGH ───────
  *
  * The cookie is `HttpOnly`, so this screen *cannot* read it even if it tried,
- * and it must not try: `apps/wallow-auth/src/lib/auth-server.ts` is a passthrough
+ * and it must not try: `apps/wallow-auth/src/lib/api-passthrough.ts` is a passthrough
  * reverse proxy mounting `/v1/**` at the ROOT and forwarding `Cookie` inbound and
  * `Set-Cookie` outbound verbatim. The browser attaches the cookie itself on a
  * top-level same-origin navigation (SameSite=Lax permits exactly this: a
@@ -113,52 +108,30 @@ import { AcceptTermsScreen } from "./AcceptTermsScreen";
  * E2E `.check()` must actually reach. A testid on a div wrapping a checkbox
  * cannot be clicked to toggle it.
  *
- * MOCKING SEAM: `../../../lib/wallow-auth-sdk` — the app's own facade, never
- * `@bc-solutions-coder/sdk` directly. Per bd memory `vitest-resetmodules-breaks-
- * instanceof-across-graphs`, this file uses a plain `vi.mock` factory +
- * `vi.hoisted` spies and NEVER `vi.resetModules()`.
+ * TEST SEAM: `@bc-solutions-coder/testing/sdk-harness` (Wallow-pu6a.5.1). The SDK
+ * is the REAL one and only its `fetch` is faked, so nothing here stubs the SDK
+ * barrel, and there is no app-level facade left to stub (Wallow-pu6a.5.5).
+ * `renderWithWallow` supplies the router context the screen reads its SDK off,
+ * and `createAuthHarness()` pins the harness origin to this app's root-mounted
+ * API surface.
+ *
+ * That is strictly stronger than what this file used to do for its no-relay
+ * claim. It previously mocked an `auth` facade slice as a PROXY TRAP that
+ * recorded every property access and threw, so a test could assert "the screen
+ * never even reached for the auth client". The harness answers the same question
+ * one layer lower and without a stand-in: `harness.calls` is every request that
+ * reached the network, so `expect(harness.calls).toEqual([])` pins that this
+ * screen makes NO request at all — however it might have tried to make one.
+ *
+ * `isSafeReturnUrl` needs no stand-in either. It is a pure function in
+ * `packages/sdk/src/auth-oidc.ts`, so an implementation that wires the guard in —
+ * as the bead's DESIGN literally instructs — meets the REAL rule and fails the
+ * "threads the flow's real absolute returnUrl" test behaviourally, which is
+ * exactly what the old hand-restated copy of it existed to arrange. See
+ * divergence 1.
  */
 
-const mocks = vi.hoisted(() => ({
-  /** Every property read off the `auth` facade slice, for the no-relay test. */
-  authAccess: [] as string[],
-  /**
-   * The REAL `isSafeReturnUrl` implementation (auth-oidc.ts), not a stub. It is
-   * offered so that an implementation which wires the guard in — as the bead's
-   * DESIGN literally instructs — fails the "threads the flow's real absolute
-   * returnUrl" test BEHAVIOURALLY, showing the screen breaking, rather than
-   * crashing on a missing mock. See divergence 1.
-   */
-  isSafeReturnUrl: vi.fn(
-    (url: string | null | undefined): boolean =>
-      url !== null &&
-      url !== undefined &&
-      url.trim() !== "" &&
-      url.startsWith("/") &&
-      !url.startsWith("//"),
-  ),
-}));
-
-vi.mock("../../../lib/wallow-auth-sdk", () => ({
-  getWallowAuthSdk: () => ({
-    // A trap, not a stub: this screen makes no request, so ANY reach for the
-    // auth client is a relay this port must not have.
-    auth: new Proxy(
-      {},
-      {
-        get: (_target: object, property: string | symbol) => {
-          mocks.authAccess.push(String(property));
-          return () => {
-            throw new Error(`AcceptTerms must not call auth.${String(property)}`);
-          };
-        },
-      },
-    ),
-    oidc: { isSafeReturnUrl: mocks.isSafeReturnUrl },
-  }),
-}));
-
-/** The endpoint the gate hands the browser to — same-origin, via the h3 proxy. */
+/** The endpoint the gate hands the browser to — same-origin, via the passthrough proxy. */
 const ENDPOINT = "/v1/identity/auth/complete-external-registration";
 
 /**
@@ -224,7 +197,7 @@ function handoffTarget(urls: string[]): URL {
 }
 
 function renderScreen(props: Partial<Parameters<typeof AcceptTermsScreen>[0]> = {}) {
-  return render(<AcceptTermsScreen returnUrl={RETURN_URL} {...props} />);
+  return renderWithWallow(<AcceptTermsScreen returnUrl={RETURN_URL} {...props} />, { harness });
 }
 
 /**
@@ -257,9 +230,14 @@ async function acceptBoth(user: ReturnType<typeof userEvent.setup>) {
   await toggleCheckbox(user, "accept-terms-privacy-checkbox");
 }
 
+let harness: SdkHarness;
+
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.authAccess.length = 0;
+  // The real SDK over a recording transport. This screen must never reach it —
+  // `harness.calls` staying empty is the no-relay assertion below.
+  harness = createAuthHarness();
+  harness.resolveJson({});
 });
 
 afterEach(() => {
@@ -429,7 +407,7 @@ describe("AcceptTermsScreen consent gating", () => {
     expect(handoff.urls).toEqual([]);
     // Walking away leaves the ExternalLoginState cookie to expire on its own
     // (10 min): no user was created, so there is nothing to clean up client-side.
-    expect(mocks.authAccess).toEqual([]);
+    expect(harness.calls).toEqual([]);
   });
 });
 
@@ -483,7 +461,7 @@ describe("AcceptTermsScreen consent boxes: accessible state", () => {
 describe("AcceptTermsScreen accept branch", () => {
   it("hands the browser to complete-external-registration once both are accepted", async () => {
     // Oracle: `Navigation.NavigateTo(completeUrl, forceLoad: true)`. A FULL
-    // navigation, never `router.navigate`: `/v1/**` is served by the h3 reverse
+    // navigation, never `router.navigate`: `/v1/**` is served by the passthrough reverse
     // proxy, not the client route tree, which would 404 in-app. It must also be a
     // real top-level navigation for the browser to attach the SameSite=Lax
     // ExternalLoginState cookie step 4 needs.
@@ -507,7 +485,7 @@ describe("AcceptTermsScreen accept branch", () => {
     // THE ORIGIN DECISION. The oracle builds `{ApiBaseUrl}/v1/…` from config,
     // defaulting to http://localhost:5001. That prepend is deliberately not
     // ported, for the reason ConsentScreen documents at length: this origin DOES
-    // host /v1/** (auth-server.ts mounts the proxy at the root), so prepending an
+    // host /v1/** (api-passthrough.ts mounts the proxy at the root), so prepending an
     // API origin would send the browser CROSS-ORIGIN and drop the SameSite=Lax
     // ExternalLoginState cookie — which is the user's whole identity here, so the
     // endpoint would bounce them to /login?error=session_expired. It would also
@@ -635,9 +613,11 @@ describe("AcceptTermsScreen accept branch", () => {
     // Not relayed: no cookie material in the URL the screen built.
     expect(href).not.toContain("ExternalLoginState");
     expect(href).not.toContain("CfDJ8");
-    // Not relayed: no request of any kind, and the auth client never touched.
+    // Not relayed: no request of any kind. The global `fetch` stub catches an
+    // ad-hoc request; `harness.calls` catches one made through the real SDK,
+    // whose transport is the harness's and not the stubbed global.
     expect(fetchSpy).not.toHaveBeenCalled();
-    expect(mocks.authAccess).toEqual([]);
+    expect(harness.calls).toEqual([]);
 
     document.cookie = `${decoy}; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
   });
@@ -821,20 +801,11 @@ describe("AcceptTermsScreen client_id relay", () => {
  * this task (Wallow-vec7.3.16 pre-registered every screen route).
  */
 function renderRouteAt(url: string) {
-  const rootRoute = createRootRoute({ component: Outlet });
-  const routeTree = rootRoute.addChildren([
-    acceptTermsRoute.update({
-      id: "/accept-terms",
-      path: "/accept-terms",
-      getParentRoute: () => rootRoute,
-    } as any),
-  ]);
-  const router = createRouter({
-    routeTree,
-    history: createMemoryHistory({ initialEntries: [url] }),
+  return renderWithWallow(null, {
+    harness,
+    path: url,
+    routes: [{ path: "/accept-terms", route: acceptTermsRoute }],
   });
-
-  return render(<RouterProvider router={router} />);
 }
 
 /** The redirect `external-login-callback` L392 actually issues, verbatim. */

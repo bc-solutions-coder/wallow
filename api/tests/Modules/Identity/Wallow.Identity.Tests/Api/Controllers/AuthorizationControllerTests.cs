@@ -12,6 +12,7 @@ using OpenIddict.Server.AspNetCore;
 using Wallow.Identity.Api.Controllers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Shared.Contracts.Identity;
 
 #pragma warning disable CA2012 // Use ValueTasks correctly - NSubstitute requires ValueTask in Returns()
 
@@ -28,6 +29,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     private readonly IConfiguration _configuration;
     private readonly IOpenIddictApplicationManager _applicationManager;
     private readonly IOpenIddictAuthorizationManager _authorizationManager;
+    private readonly IScopeSubsetValidator _scopeSubsetValidator;
     private readonly IClientTenantResolver _clientTenantResolver;
     private readonly IOrganizationService _organizationService;
     private readonly AuthorizationController _controller;
@@ -46,11 +48,18 @@ public sealed class AuthorizationControllerTests : IDisposable
         _clientTenantResolver = Substitute.For<IClientTenantResolver>();
         _organizationService = Substitute.For<IOrganizationService>();
 
+        // These tests are about consent, not scope gating: let every requested scope through.
+        _scopeSubsetValidator = Substitute.For<IScopeSubsetValidator>();
+        _scopeSubsetValidator
+            .ValidateAsync(Arg.Any<string>(), Arg.Any<IEnumerable<string>>(), Arg.Any<CancellationToken>())
+            .Returns(ScopeValidationResult.Success());
+
         _controller = new AuthorizationController(
             _userManager,
             _configuration,
             _applicationManager,
             _authorizationManager,
+            _scopeSubsetValidator,
             _clientTenantResolver,
             _organizationService,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<AuthorizationController>.Instance);

@@ -1,14 +1,13 @@
 /**
  * Inquiry detail (Wallow-8w1h.7.4). Drives
- * `useQuery(inquiriesQueries.detail(inquiryId))` +
- * `useQuery(inquiriesQueries.comments(inquiryId))` and renders the inquiry
- * heading + fields, current status, a status-change control
- * (`setStatusMutation`), and the comment thread + add-comment form
- * (`addCommentMutation`). Mirrors the canonical Organizations
- * `OrganizationDetail` + `MemberList` shape.
+ * `useQuery(inquiriesGetByIdOptions(...))` +
+ * `useQuery(inquiriesGetCommentsOptions(...))` and renders the inquiry heading +
+ * fields, current status, a status-change control, and the comment thread +
+ * add-comment form. Mirrors the canonical Organizations `OrganizationDetail` +
+ * `MemberList` shape.
  *
- * The back link is a plain anchor (not a router `Link`) so the component renders
- * standalone under a `QueryClientProvider` without a router context.
+ * The back link is a plain anchor (not a router `Link`) so it needs no matched
+ * route of its own; the SDK still comes off the router context.
  *
  * Testids ({page}-{element} kebab-case, invented per the scout's 7.4
  * reconciliation — the C# `InquiryPage` page object only covers the public
@@ -20,14 +19,24 @@
  * `inquiry-comments-loading` / `inquiry-comments-empty`, `inquiry-comment-content` +
  * `inquiry-comment-internal` + `inquiry-comment-submit`, `inquiry-comment-error`.
  */
+import type { InquiryCommentResponse, WallowSdk } from "@bc-solutions-coder/sdk";
 import { Button, Card, Checkbox, ErrorBanner, MutedText } from "@bc-solutions-coder/ui";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
-import type { ProblemDetails } from "@bc-solutions-coder/sdk";
 
 import { SelectControl, type SelectControlOption } from "../../../components/SelectControl";
-import { addCommentMutation, inquiriesQueries, setStatusMutation } from "../api";
-import { INQUIRY_STATUSES, type Inquiry, type InquiryComment } from "../types";
+import { errorText } from "../../../lib/error-text";
+import {
+  inquiriesAddCommentMutation,
+  inquiriesGetByIdOptions,
+  inquiriesGetByIdQueryKey,
+  inquiriesGetCommentsOptions,
+  inquiriesGetCommentsQueryKey,
+  inquiriesUpdateStatusMutation,
+  queriesForOperation,
+} from "../api";
+import { INQUIRY_STATUSES } from "../statuses";
 
 /** The status/marker pill shared with the inquiries list rows. */
 const CHIP =
@@ -48,25 +57,26 @@ const STATUS_OPTIONS: readonly SelectControlOption[] = INQUIRY_STATUSES.map((sta
 
 export function InquiryDetail(props: { inquiryId: string }) {
   const { inquiryId } = props;
+  const { sdk } = useRouteContext({ from: "__root__" });
   const queryClient = useQueryClient();
-  const detailQuery = useQuery(inquiriesQueries.detail(inquiryId));
+  const detailQuery = useQuery(
+    inquiriesGetByIdOptions({ client: sdk.client, path: { id: inquiryId } }),
+  );
 
   if (detailQuery.isPending) {
     return <MutedText data-testid="inquiry-detail-loading">Loading inquiry…</MutedText>;
   }
 
-  // The facade returns the detail as `unknown`; narrow to the feature view-model
-  // at the render boundary. A missing inquiry surfaces as `null`/`undefined`.
   // React Query retains the last resolved data across a failed background
-  // refetch, so a genuine error (RFC 7807 ProblemDetails) is only meaningful when
-  // there is NO data to fall back to — distinguishing errored from resolved-null.
-  const inquiry = (detailQuery.data ?? null) as Inquiry | null;
+  // refetch, so a genuine error is only meaningful when there is NO data to fall
+  // back to — which is what distinguishes errored from resolved-null.
+  const inquiry = detailQuery.data ?? null;
 
   if (inquiry === null) {
     if (detailQuery.isError) {
       return (
         <ErrorBanner data-testid="inquiry-detail-error">
-          {(detailQuery.error as ProblemDetails).detail}
+          {errorText(detailQuery.error, "Could not load the inquiry.")}
         </ErrorBanner>
       );
     }
@@ -105,24 +115,33 @@ export function InquiryDetail(props: { inquiryId: string }) {
       </div>
 
       <StatusControl
+        client={sdk.client}
         queryClient={queryClient}
         inquiryId={inquiryId}
         currentStatus={inquiry.status}
       />
       <CommentThread inquiryId={inquiryId} />
-      <AddCommentForm queryClient={queryClient} inquiryId={inquiryId} />
+      <AddCommentForm client={sdk.client} queryClient={queryClient} inquiryId={inquiryId} />
     </Card>
   );
 }
 
-/** Status-change control: pick a status and delegate to `setStatusMutation`. */
+/** Status-change control: pick a status and PUT it on the inquiry. */
 function StatusControl(props: {
+  client: WallowSdk["client"];
   queryClient: QueryClient;
   inquiryId: string;
   currentStatus: string;
 }) {
-  const { queryClient, inquiryId, currentStatus } = props;
-  const mutation = useMutation(setStatusMutation(queryClient, inquiryId));
+  const { client, queryClient, inquiryId, currentStatus } = props;
+  const mutation = useMutation({
+    ...inquiriesUpdateStatusMutation({ client }),
+    onSuccess: (): void => {
+      void queryClient.invalidateQueries(
+        queriesForOperation(inquiriesGetByIdQueryKey({ client, path: { id: inquiryId } })),
+      );
+    },
+  });
   const [status, setStatus] = useState<string>(currentStatus);
 
   return (
@@ -137,14 +156,14 @@ function StatusControl(props: {
         type="button"
         data-testid="inquiry-status-submit"
         onClick={() => {
-          mutation.mutate(status);
+          mutation.mutate({ path: { id: inquiryId }, body: { newStatus: status } });
         }}
       >
         Update status
       </Button>
       {mutation.isError ? (
         <ErrorBanner data-testid="inquiry-status-error">
-          {(mutation.error as ProblemDetails).detail}
+          {errorText(mutation.error, "Could not update the status.")}
         </ErrorBanner>
       ) : null}
     </>
@@ -152,7 +171,7 @@ function StatusControl(props: {
 }
 
 /** A single comment row (author + content, flagged when internal). */
-function CommentRow(props: { comment: InquiryComment }) {
+function CommentRow(props: { comment: InquiryCommentResponse }) {
   const { comment } = props;
   return (
     <li
@@ -177,13 +196,16 @@ function CommentRow(props: { comment: InquiryComment }) {
 /** The comment thread: loading / empty / row-list states. */
 function CommentThread(props: { inquiryId: string }) {
   const { inquiryId } = props;
-  const { data, isPending } = useQuery(inquiriesQueries.comments(inquiryId));
+  const { sdk } = useRouteContext({ from: "__root__" });
+  const { data, isPending } = useQuery(
+    inquiriesGetCommentsOptions({ client: sdk.client, path: { id: inquiryId } }),
+  );
 
   if (isPending) {
     return <MutedText data-testid="inquiry-comments-loading">Loading comments…</MutedText>;
   }
 
-  const comments = (data ?? []) as InquiryComment[];
+  const comments: readonly InquiryCommentResponse[] = data ?? [];
 
   if (comments.length === 0) {
     return (
@@ -229,10 +251,21 @@ function InternalFlag(props: { checked: boolean; onChange: (checked: boolean) =>
   );
 }
 
-/** Add-comment form with a public/internal toggle, backed by `addCommentMutation`. */
-function AddCommentForm(props: { queryClient: QueryClient; inquiryId: string }) {
-  const { queryClient, inquiryId } = props;
-  const mutation = useMutation(addCommentMutation(queryClient, inquiryId));
+/** Add-comment form with a public/internal toggle. */
+function AddCommentForm(props: {
+  client: WallowSdk["client"];
+  queryClient: QueryClient;
+  inquiryId: string;
+}) {
+  const { client, queryClient, inquiryId } = props;
+  const mutation = useMutation({
+    ...inquiriesAddCommentMutation({ client }),
+    onSuccess: (): void => {
+      void queryClient.invalidateQueries(
+        queriesForOperation(inquiriesGetCommentsQueryKey({ client, path: { id: inquiryId } })),
+      );
+    },
+  });
   const [content, setContent] = useState("");
   const [isInternal, setIsInternal] = useState(false);
 
@@ -244,7 +277,7 @@ function AddCommentForm(props: { queryClient: QueryClient; inquiryId: string }) 
         e.preventDefault();
         e.stopPropagation();
         mutation.mutate(
-          { content, isInternal },
+          { path: { id: inquiryId }, body: { content, isInternal } },
           {
             onSuccess: () => {
               setContent("");
@@ -270,7 +303,7 @@ function AddCommentForm(props: { queryClient: QueryClient; inquiryId: string }) 
       />
       {mutation.isError ? (
         <ErrorBanner data-testid="inquiry-comment-error">
-          {(mutation.error as ProblemDetails).detail}
+          {errorText(mutation.error, "Could not add the comment.")}
         </ErrorBanner>
       ) : null}
       <Button type="submit" data-testid="inquiry-comment-submit">

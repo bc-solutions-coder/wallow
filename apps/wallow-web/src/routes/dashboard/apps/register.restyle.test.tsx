@@ -1,9 +1,7 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactElement } from "react";
-import { render } from "vitest-browser-react";
+import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { installSdkClientMock } from "../../../test/sdk-client-mock";
 import {
   byTestId,
   expectClasses,
@@ -23,21 +21,19 @@ import { Route } from "./register";
  * `RegisterAppForm.test.tsx`, which the restyle must not edit.
  */
 
-function renderWithClient(ui: ReactElement) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-}
+/** The transport backing each render, rebuilt per test. */
+let harness: SdkHarness;
 
 /** Render the route page and resolve its settled root element. */
 async function renderPage(): Promise<HTMLElement> {
   const Page = Route.options.component!;
-  renderWithClient(<Page />);
+  renderWithWallow(<Page />, { harness });
   return waitForTestId("dashboard-apps-register");
 }
 
 describe("routes/dashboard/apps/register (restyle)", () => {
   beforeEach(() => {
-    installSdkClientMock();
+    harness = createSdkHarness();
   });
 
   it("constrains the form page to the narrow shell", async () => {

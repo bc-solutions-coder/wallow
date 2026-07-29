@@ -1,9 +1,14 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+import {
+  type SdkCall,
+  type SdkHarness,
+  type SdkResponder,
+} from "@bc-solutions-coder/testing/sdk-harness";
 import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createAuthHarness } from "../../../test/harness";
 import { MfaEnrollForm } from "./MfaEnrollForm";
 
 /**
@@ -25,29 +30,24 @@ import { MfaEnrollForm } from "./MfaEnrollForm";
  * loudly if the mutation's pending/error state is not wired back into the same
  * three render decisions the useState pair drove.
  *
- * MOCKING SEAM: `../../../lib/wallow-auth-sdk`, the app's own facade — screens
- * never import `@bc-solutions-coder/sdk` directly. Plain `vi.mock` factory plus
- * `vi.hoisted` spies, never `vi.resetModules()` (bd memory
- * `vitest-resetmodules-breaks-instanceof-across-graphs`).
+ * TEST SEAM: `@bc-solutions-coder/testing/sdk-harness` (Wallow-pu6a.5.1). The
+ * SDK is the REAL one and only its `fetch` is faked, so the screen's whole
+ * pipeline — request-scoped SDK -> generated operation -> CSRF interceptor ->
+ * serialization -> error shaping -> React Query — runs here. Nothing mocks the
+ * SDK package, and there is no app-level facade left to mock (Wallow-pu6a.5.5).
+ * `renderWithWallow` supplies the router context the screen reads its SDK off,
+ * and `createAuthHarness()` pins the harness origin to this app's root-mounted
+ * API surface, so the recorded `call.path` is the endpoint path verbatim.
+ *
+ * That matters more here than in a settled-state spec: "in flight" is a property
+ * of the TRANSPORT, and holding the real fetch open is a truer statement of it
+ * than resolving a stubbed promise late. `isSafeReturnUrl` is now the
+ * real pure builder rather than a spy forced to `true` — these tests pass no
+ * returnUrl, so it is never consulted.
  */
 
 const mocks = vi.hoisted(() => ({
-  enrollTotp: vi.fn(),
-  confirmEnrollment: vi.fn(),
-  exchangeEnrollmentToken: vi.fn(),
-  isSafeReturnUrl: vi.fn(),
   navigate: vi.fn(),
-}));
-
-vi.mock("../../../lib/wallow-auth-sdk", () => ({
-  getWallowAuthSdk: () => ({
-    auth: {
-      enrollTotp: mocks.enrollTotp,
-      confirmEnrollment: mocks.confirmEnrollment,
-      exchangeEnrollmentToken: mocks.exchangeEnrollmentToken,
-    },
-    oidc: { isSafeReturnUrl: mocks.isSafeReturnUrl },
-  }),
 }));
 
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
@@ -58,48 +58,75 @@ vi.mock("@tanstack/react-router", async (importOriginal) => ({
 const SECRET = "JBSWY3DPEHPK3PXP";
 const QR_URI = "otpauth://totp/Wallow:user@test.local?secret=JBSWY3DPEHPK3PXP&issuer=Wallow";
 
-/**
- * What the facade really throws — the reason token rides as `code`, the HTTP
- * status as `status`. 500 is the unrecognised case, which lands on the generic
- * "could not start" copy rather than the session or expired-link branches.
- */
-function serverRejection(): Error & { status: number; code: string } {
-  return Object.assign(new Error("Unknown error"), {
-    name: "WallowError",
-    status: 500,
-    code: "UNKNOWN",
-  });
+/** `POST /v1/identity/mfa/enroll/totp` — the call whose in-flight window this spec is about. */
+const ENROLL_PATH = "/v1/identity/mfa/enroll/totp";
+
+/** `POST /v1/identity/mfa/enroll/exchange-token` — the enrollToken path's first hop. */
+const EXCHANGE_PATH = "/v1/identity/mfa/enroll/exchange-token";
+
+/** `POST /v1/identity/mfa/enroll/confirm` — settled-state surface, defaulted for completeness. */
+const CONFIRM_PATH = "/v1/identity/mfa/enroll/confirm";
+
+/** The enrollment payload: a one-time secret plus the QR the user scans. */
+function enrolledResponse(): Response {
+  return Response.json({ secret: SECRET, qrUri: QR_URI });
 }
 
 /**
- * An `enrollTotp` that hangs until the returned `release` is called, so the
+ * What the endpoint really puts on the wire for the unrecognised failure: a 500
+ * whose body names no machine code, which the client's error interceptor shapes
+ * into a `WallowError` with `status: 500` and `code: "UNKNOWN"`. That lands on
+ * the generic "could not start" copy rather than the session or expired-link
+ * branches — the same case the old hand-built rejection object stood in for,
+ * now produced by the real pipeline.
+ */
+function serverRejectionResponse(): Response {
+  return Response.json({ succeeded: false }, { status: 500 });
+}
+
+let harness: SdkHarness;
+
+/**
+ * One-shot enroll responders, consumed in order — the transport-level equivalent
+ * of the `mockReturnValueOnce` / `mockRejectedValueOnce` the facade spies used.
+ * Anything left over falls through to {@link enrollDefault}.
+ */
+let enrollQueue: SdkResponder[] = [];
+
+/** The standing enroll behaviour once the queue is drained (`mockResolvedValue`). */
+let enrollDefault: SdkResponder;
+
+/** Every recorded call to the enroll endpoint — the "how many starts" question. */
+function enrollCalls(): readonly SdkCall[] {
+  return harness.calls.filter((call: SdkCall) => call.path === ENROLL_PATH);
+}
+
+/**
+ * An enroll response that hangs until the returned `release` is called, so the
  * in-flight window can be asserted rather than raced. Every test releases before
  * it ends: a promise left pending outlives the test and its resolution would
  * land on an unmounted tree.
+ *
+ * Queued as a ONE-SHOT so a later start falls back to the standing behaviour,
+ * matching the `mockReturnValueOnce` this replaces.
  */
 function hangingEnroll(): () => void {
   let release!: () => void;
-  mocks.enrollTotp.mockReturnValueOnce(
-    new Promise((resolve) => {
-      release = () => {
-        resolve({ secret: SECRET, qrUri: QR_URI });
-      };
-    }),
-  );
+  const hanging: Promise<Response> = new Promise<Response>((resolve) => {
+    release = () => {
+      resolve(enrolledResponse());
+    };
+  });
+  enrollQueue.push(async () => await hanging);
 
   return () => {
     release();
   };
 }
 
-function newClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-}
-
+/** Render `ui` on the shared harness: real SDK, fake transport, real router context. */
 function renderWithClient(ui: ReactElement) {
-  return render(<QueryClientProvider client={newClient()}>{ui}</QueryClientProvider>);
+  return renderWithWallow(ui, { harness });
 }
 
 function renderForm(props: { returnUrl?: string; enrollToken?: string } = {}) {
@@ -108,10 +135,22 @@ function renderForm(props: { returnUrl?: string; enrollToken?: string } = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.isSafeReturnUrl.mockReturnValue(true);
-  mocks.enrollTotp.mockResolvedValue({ secret: SECRET, qrUri: QR_URI });
-  mocks.exchangeEnrollmentToken.mockResolvedValue({ succeeded: true });
-  mocks.confirmEnrollment.mockResolvedValue({ succeeded: true, backupCodes: [] });
+  harness = createAuthHarness();
+  enrollQueue = [];
+  enrollDefault = enrolledResponse;
+
+  harness.respond((call: SdkCall) => {
+    if (call.path === ENROLL_PATH) {
+      return (enrollQueue.shift() ?? enrollDefault)(call);
+    }
+    if (call.path === EXCHANGE_PATH) {
+      return Response.json({ succeeded: true });
+    }
+    if (call.path === CONFIRM_PATH) {
+      return Response.json({ succeeded: true, backupCodes: [] });
+    }
+    return Response.json({});
+  });
 });
 
 describe("MfaEnrollForm — while enrollment is starting", () => {
@@ -124,8 +163,11 @@ describe("MfaEnrollForm — while enrollment is starting", () => {
     const release: () => void = hangingEnroll();
     renderForm();
 
+    // Wait for the request to REACH the transport before asserting or releasing:
+    // the screen enters its pending state a tick before `fetch` is called, and
+    // releasing into that gap would leave the never-settling response installed.
     await vi.waitFor(() => {
-      expect(mocks.enrollTotp).toHaveBeenCalledTimes(1);
+      expect(enrollCalls()).toHaveLength(1);
     });
     expect(page.getByTestId("mfa-enroll-begin-setup").query()).toBeNull();
 
@@ -141,7 +183,7 @@ describe("MfaEnrollForm — while enrollment is starting", () => {
     renderForm();
 
     await vi.waitFor(() => {
-      expect(mocks.enrollTotp).toHaveBeenCalledTimes(1);
+      expect(enrollCalls()).toHaveLength(1);
     });
     expect(page.getByTestId("mfa-enroll-secret").query()).toBeNull();
     expect(page.getByTestId("mfa-enroll-error").query()).toBeNull();
@@ -153,13 +195,15 @@ describe("MfaEnrollForm — while enrollment is starting", () => {
   it("stays pending across the token exchange and the start call", async () => {
     // The enrollToken path makes TWO round trips before anything renders. The
     // retry must stay withheld across BOTH — a gap between them is a live
-    // begin-setup button in the middle of a flow the user did not finish.
+    // begin-setup button in the middle of a flow the user did not finish. With
+    // the real transport under the spec, both hops are now really on the wire.
     const release: () => void = hangingEnroll();
     renderForm({ enrollToken: "enroll-token-abc123" });
 
     await vi.waitFor(() => {
-      expect(mocks.enrollTotp).toHaveBeenCalledTimes(1);
+      expect(enrollCalls()).toHaveLength(1);
     });
+    expect(harness.calls.filter((call: SdkCall) => call.path === EXCHANGE_PATH)).toHaveLength(1);
     expect(page.getByTestId("mfa-enroll-begin-setup").query()).toBeNull();
 
     release();
@@ -175,7 +219,7 @@ describe("MfaEnrollForm — while a retry is in flight", () => {
     // an eager reset (a `mutate`-time clear, or reading `isPending` ahead of
     // `error`) — deriving the banner from `mutation.error` alone would keep the
     // dead error on screen for the whole retry.
-    mocks.enrollTotp.mockRejectedValueOnce(serverRejection());
+    enrollQueue.push(serverRejectionResponse);
     const user = userEvent.setup();
     renderForm();
 
@@ -185,7 +229,7 @@ describe("MfaEnrollForm — while a retry is in flight", () => {
     await user.click(page.getByTestId("mfa-enroll-begin-setup"));
 
     await vi.waitFor(() => {
-      expect(mocks.enrollTotp).toHaveBeenCalledTimes(2);
+      expect(enrollCalls()).toHaveLength(2);
     });
     expect(page.getByTestId("mfa-enroll-error").query()).toBeNull();
 
@@ -195,7 +239,7 @@ describe("MfaEnrollForm — while a retry is in flight", () => {
 
   it("withdraws the retry button so the retry cannot be doubled", async () => {
     // Same second-secret hazard as the mount call, reached by the other route.
-    mocks.enrollTotp.mockRejectedValueOnce(serverRejection());
+    enrollQueue.push(serverRejectionResponse);
     const user = userEvent.setup();
     renderForm();
 
@@ -205,7 +249,7 @@ describe("MfaEnrollForm — while a retry is in flight", () => {
     await user.click(page.getByTestId("mfa-enroll-begin-setup"));
 
     await vi.waitFor(() => {
-      expect(mocks.enrollTotp).toHaveBeenCalledTimes(2);
+      expect(enrollCalls()).toHaveLength(2);
     });
     expect(page.getByTestId("mfa-enroll-begin-setup").query()).toBeNull();
 
@@ -217,7 +261,7 @@ describe("MfaEnrollForm — while a retry is in flight", () => {
     // The pending flag has to come back DOWN on the error path too. A mutation
     // left reading as pending after a rejection strands the user on a dead
     // screen with no way to try again.
-    mocks.enrollTotp.mockRejectedValue(serverRejection());
+    enrollDefault = serverRejectionResponse;
     const user = userEvent.setup();
     renderForm();
 
@@ -225,7 +269,7 @@ describe("MfaEnrollForm — while a retry is in flight", () => {
     await user.click(page.getByTestId("mfa-enroll-begin-setup"));
 
     await vi.waitFor(() => {
-      expect(mocks.enrollTotp).toHaveBeenCalledTimes(2);
+      expect(enrollCalls()).toHaveLength(2);
     });
     await expect.element(page.getByTestId("mfa-enroll-begin-setup")).toBeInTheDocument();
     await expect.element(page.getByTestId("mfa-enroll-error")).toBeInTheDocument();

@@ -1,6 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { organizationsQueries } from "../../../features/organizations/api";
+import {
+  organizationsGetByIdOptions,
+  organizationsGetMembersOptions,
+} from "../../../features/organizations/api";
 import { OrganizationDetail } from "../../../features/organizations/components/OrganizationDetail";
 
 /**
@@ -25,8 +28,12 @@ function OrganizationDetailPage() {
 export const Route = createFileRoute("/dashboard/organizations/$orgId")({
   loader: ({ context, params }) =>
     Promise.all([
-      context.queryClient.ensureQueryData(organizationsQueries.detail(params.orgId)),
-      context.queryClient.ensureQueryData(organizationsQueries.members(params.orgId)),
+      context.queryClient.ensureQueryData(
+        organizationsGetByIdOptions({ client: context.sdk.client, path: { id: params.orgId } }),
+      ),
+      context.queryClient.ensureQueryData(
+        organizationsGetMembersOptions({ client: context.sdk.client, path: { id: params.orgId } }),
+      ),
     ]),
   component: OrganizationDetailPage,
 });

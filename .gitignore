@@ -6,6 +6,11 @@ out/
 **/bin\\Release/
 **/obj\\Debug/
 **/obj\\Release/
+# TanStack Start / Nitro build artifacts (`vite build` emits .output, and both
+# tools keep scratch state beside it).
+.output/
+.nitro/
+.tanstack/
 
 # IDE
 .idea/

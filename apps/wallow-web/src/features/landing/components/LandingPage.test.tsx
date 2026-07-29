@@ -1,9 +1,9 @@
+import { forkBranding } from "@bc-solutions-coder/styles";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { describe, expect, it } from "vitest";
 
 import { LandingPage } from "./LandingPage";
-import { forkBranding } from "../../../lib/branding";
 import { getStartedHref, repositoryUrl } from "../../../lib/site-links";
 
 /**

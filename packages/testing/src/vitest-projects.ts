@@ -14,11 +14,12 @@
  *
  * App-local knobs that must NOT live in the shared package (wallow-web's
  * `resolve.alias['openid-client']` + `test.server.deps.inline`) are passed
- * through `nodeProjectOverrides` and deep-merged into the node project.
+ * through `nodeProjectOverrides` and merged into the node project with Vite's
+ * own `mergeConfig` (re-exported by `vitest/config`).
  */
 
 import { playwright } from "@vitest/browser-playwright";
-import { configDefaults } from "vitest/config";
+import { configDefaults, mergeConfig } from "vitest/config";
 
 import { mergeOptimizeDeps } from "./browser-optimize-deps";
 
@@ -78,29 +79,6 @@ export interface VitestProjectsPair {
   browser: VitestBrowserProject;
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/**
- * Recursively merge `override` into `base`: nested plain objects are merged;
- * everything else (arrays, primitives, regexes, functions) replaces. Used to
- * fold `nodeProjectOverrides` into the node project WITHOUT clobbering the
- * preset's `name`/`environment`/`include`/`exclude` fields.
- */
-function deepMerge<T extends Record<string, unknown>>(
-  base: T,
-  override: Record<string, unknown>,
-): T {
-  const result: Record<string, unknown> = { ...base };
-  for (const [key, value] of Object.entries(override)) {
-    const existing = result[key];
-    result[key] =
-      isPlainObject(existing) && isPlainObject(value) ? deepMerge(existing, value) : value;
-  }
-  return result as T;
-}
-
 /**
  * Build the shared `{ node, browser }` Vitest project pair. See the module
  * header for the node/browser split; app-local knobs arrive via `options`.
@@ -138,5 +116,10 @@ export function createVitestProjects(options: VitestProjectsOptions = {}): Vites
     },
   };
 
-  return { node: deepMerge(node, nodeProjectOverrides), browser };
+  // Vite's own config merge, so the preset folds overrides in exactly the way
+  // vitest folds a workspace config into a project one: nested plain objects
+  // merge (the preset's name/environment/include/exclude survive an override
+  // that only sets `test.server`) and arrays concatenate rather than replace.
+  // `mergeConfig` is typed as `Record<string, any>`, hence the cast back.
+  return { node: mergeConfig(node, nodeProjectOverrides) as VitestNodeProject, browser };
 }

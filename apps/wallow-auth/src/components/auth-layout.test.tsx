@@ -1,8 +1,12 @@
+import {
+  forkBranding,
+  mergeClientBranding,
+  type ResolvedBranding,
+} from "@bc-solutions-coder/styles";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { describe, expect, it } from "vitest";
 
-import { forkBranding, mergeClientBranding, type ResolvedBranding } from "../lib/branding";
 import { AuthLayout } from "./auth-layout";
 
 /**

@@ -8,7 +8,7 @@
 # Two serving modes, selected by whether E2E_BASE_URL is set:
 #
 #   LOCAL (default): the app is served by Playwright's own `pnpm dev` webServer on
-#     :3002; its h3 proxy targets the containerised API (WALLOW_API_INTERNAL_URL).
+#     :3002; its passthrough proxy targets the containerised API (WALLOW_API_INTERNAL_URL).
 #     The compose stack provides infra + API + seeder only (service: wallow-api).
 #
 #   CONTAINER (E2E_BASE_URL set, e.g. CI): the app is served by the prebuilt

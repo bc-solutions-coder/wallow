@@ -15,6 +15,7 @@ interface SubpathExport {
 
 interface PackageManifest {
   exports: Record<string, SubpathExport>;
+  sideEffects?: boolean;
 }
 
 function readManifest(): PackageManifest {
@@ -58,5 +59,32 @@ describe("package.json exports match tsup output", () => {
       types: "./dist/server/index.d.ts",
       import: "./dist/server/index.js",
     });
+  });
+});
+
+/**
+ * The passthrough preset ships as its OWN subpath (Wallow-pu6a.3.7) so an app
+ * that only reverse-proxies never pulls `openid-client` and the BFF handler
+ * graph into its server bundle — which it would if the preset were re-exported
+ * from `./server`. `sideEffects: false` is what lets a bundler drop the parts of
+ * this package an app does not import at all.
+ */
+describe("passthrough subpath packaging", () => {
+  it("declares the ./server/passthrough subpath export", () => {
+    const manifest: PackageManifest = readManifest();
+    expect(manifest.exports["./server/passthrough"]).toEqual({
+      types: "./dist/server/passthrough.d.ts",
+      import: "./dist/server/passthrough.js",
+    });
+  });
+
+  it("declares sideEffects: false so unused entries are tree-shakeable", () => {
+    const manifest: PackageManifest = readManifest();
+    expect(manifest.sideEffects).toBe(false);
+  });
+
+  it("emits the passthrough entry js + declaration", () => {
+    expect(existsSync(resolve(distDir, "server", "passthrough.js"))).toBe(true);
+    expect(existsSync(resolve(distDir, "server", "passthrough.d.ts"))).toBe(true);
   });
 });

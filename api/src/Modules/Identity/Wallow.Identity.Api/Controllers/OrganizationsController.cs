@@ -19,16 +19,32 @@ namespace Wallow.Identity.Api.Controllers;
 [Tags("Organizations")]
 [Produces("application/json")]
 [Consumes("application/json")]
-public class OrganizationsController(IOrganizationService orgService, ITenantContext tenantContext) : ControllerBase
+public class OrganizationsController(
+    IOrganizationService orgService,
+    ITenantContext tenantContext,
+    IOrganizationAccessPolicy accessPolicy) : ControllerBase
 {
 
-    // Organization IS the tenant, so a realm admin who creates an org gets back an id that
-    // never equals their own tenant_id claim. Mirror TenantResolutionMiddleware.HasRealmAdminRole:
-    // the "admin" role addresses any org by id, while ordinary tenant roles stay scoped to their
-    // own tenant so they cannot reach other tenants' orgs by guessing GUIDs.
-    private bool IsCurrentTenantOrg(Guid orgId) =>
-        orgId == tenantContext.TenantId.Value
-        || User.GetRoles().Contains("admin", StringComparer.OrdinalIgnoreCase);
+    // Organization IS the tenant, so every caller is scoped to the org matching their own
+    // tenant id. The is_global_admin claim is the only BLANKET cross-tenant escape hatch, matching
+    // TenantResolutionMiddleware and PermissionExpansionMiddleware; no role string grants it,
+    // otherwise any tenant-assignable "admin" could reach other tenants' orgs by guessing GUIDs.
+    //
+    // Creating an org mints a new tenant id that never equals the creator's own, so ownership is
+    // the second, NARROW path: the caller is an admin member of this one organization. Admin
+    // membership is minted only by creating the org, is per-organization, and is not assignable
+    // through any endpoint (AddMember always adds OrgMemberRole.Member), so it grants no reach
+    // beyond the orgs the caller created.
+    private async Task<bool> CanAddressOrganizationAsync(Guid orgId, CancellationToken ct)
+    {
+        if (orgId == tenantContext.TenantId.Value || User.IsGlobalAdmin())
+        {
+            return true;
+        }
+
+        return Guid.TryParse(User.GetUserId(), out Guid callerId)
+            && await accessPolicy.IsOrganizationAdminAsync(orgId, callerId, ct);
+    }
 
     /// <summary>
     /// Create a new organization.
@@ -67,7 +83,7 @@ public class OrganizationsController(IOrganizationService orgService, ITenantCon
     [HasPermission(PermissionType.OrganizationsRead)]
     public async Task<ActionResult<OrganizationDto>> GetById(Guid id, CancellationToken ct)
     {
-        if (!IsCurrentTenantOrg(id))
+        if (!await CanAddressOrganizationAsync(id, ct))
         {
             return NotFound();
         }
@@ -83,7 +99,7 @@ public class OrganizationsController(IOrganizationService orgService, ITenantCon
     [HasPermission(PermissionType.OrganizationsRead)]
     public async Task<ActionResult<IReadOnlyList<UserDto>>> GetMembers(Guid id, CancellationToken ct)
     {
-        if (!IsCurrentTenantOrg(id))
+        if (!await CanAddressOrganizationAsync(id, ct))
         {
             return NotFound();
         }
@@ -96,9 +112,11 @@ public class OrganizationsController(IOrganizationService orgService, ITenantCon
     /// </summary>
     [HttpPost("{id:guid}/members")]
     [HasPermission(PermissionType.OrganizationsManageMembers)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> AddMember(Guid id, AddMemberRequest request, CancellationToken ct)
     {
-        if (!IsCurrentTenantOrg(id))
+        if (!await CanAddressOrganizationAsync(id, ct))
         {
             return NotFound();
         }
@@ -112,9 +130,11 @@ public class OrganizationsController(IOrganizationService orgService, ITenantCon
     /// </summary>
     [HttpDelete("{id:guid}/members/{userId:guid}")]
     [HasPermission(PermissionType.OrganizationsManageMembers)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> RemoveMember(Guid id, Guid userId, CancellationToken ct)
     {
-        if (!IsCurrentTenantOrg(id))
+        if (!await CanAddressOrganizationAsync(id, ct))
         {
             return NotFound();
         }
@@ -138,9 +158,11 @@ public class OrganizationsController(IOrganizationService orgService, ITenantCon
     /// </summary>
     [HttpPost("{id:guid}/archive")]
     [HasPermission(PermissionType.OrganizationsUpdate)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> Archive(Guid id, CancellationToken ct)
     {
-        if (!IsCurrentTenantOrg(id))
+        if (!await CanAddressOrganizationAsync(id, ct))
         {
             return NotFound();
         }
@@ -155,9 +177,11 @@ public class OrganizationsController(IOrganizationService orgService, ITenantCon
     /// </summary>
     [HttpPost("{id:guid}/reactivate")]
     [HasPermission(PermissionType.OrganizationsUpdate)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> Reactivate(Guid id, CancellationToken ct)
     {
-        if (!IsCurrentTenantOrg(id))
+        if (!await CanAddressOrganizationAsync(id, ct))
         {
             return NotFound();
         }
@@ -172,9 +196,11 @@ public class OrganizationsController(IOrganizationService orgService, ITenantCon
     /// </summary>
     [HttpDelete("{id:guid}")]
     [HasPermission(PermissionType.OrganizationsUpdate)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> Delete(Guid id, DeleteOrganizationRequest request, CancellationToken ct)
     {
-        if (!IsCurrentTenantOrg(id))
+        if (!await CanAddressOrganizationAsync(id, ct))
         {
             return NotFound();
         }
@@ -190,7 +216,7 @@ public class OrganizationsController(IOrganizationService orgService, ITenantCon
     [HasPermission(PermissionType.OrganizationsRead)]
     public async Task<ActionResult<OrganizationBrandingResponse>> GetBranding(Guid id, CancellationToken ct)
     {
-        if (!IsCurrentTenantOrg(id))
+        if (!await CanAddressOrganizationAsync(id, ct))
         {
             return NotFound();
         }
@@ -216,7 +242,7 @@ public class OrganizationsController(IOrganizationService orgService, ITenantCon
     public async Task<ActionResult<OrganizationBrandingResponse>> UpdateBranding(
         Guid id, UpdateOrganizationBrandingRequest request, CancellationToken ct)
     {
-        if (!IsCurrentTenantOrg(id))
+        if (!await CanAddressOrganizationAsync(id, ct))
         {
             return NotFound();
         }
@@ -238,10 +264,12 @@ public class OrganizationsController(IOrganizationService orgService, ITenantCon
     [HttpPost("{id:guid}/branding/logo")]
     [HasPermission(PermissionType.OrganizationsUpdate)]
     [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(OrganizationLogoResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<object>> UploadBrandingLogo(
         Guid id, IFormFile file, CancellationToken ct)
     {
-        if (!IsCurrentTenantOrg(id))
+        if (!await CanAddressOrganizationAsync(id, ct))
         {
             return NotFound();
         }
@@ -261,7 +289,7 @@ public class OrganizationsController(IOrganizationService orgService, ITenantCon
     [HasPermission(PermissionType.OrganizationsRead)]
     public async Task<ActionResult<OrganizationSettingsDto>> GetSettings(Guid id, CancellationToken ct)
     {
-        if (!IsCurrentTenantOrg(id))
+        if (!await CanAddressOrganizationAsync(id, ct))
         {
             return NotFound();
         }
@@ -275,9 +303,11 @@ public class OrganizationsController(IOrganizationService orgService, ITenantCon
     /// </summary>
     [HttpPut("{id:guid}/settings")]
     [HasPermission(PermissionType.OrganizationsUpdate)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> UpdateSettings(Guid id, UpdateOrganizationSettingsRequest request, CancellationToken ct)
     {
-        if (!IsCurrentTenantOrg(id))
+        if (!await CanAddressOrganizationAsync(id, ct))
         {
             return NotFound();
         }

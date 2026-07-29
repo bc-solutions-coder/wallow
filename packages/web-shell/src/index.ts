@@ -1,8 +1,9 @@
 /**
- * Browser-safe barrel for @bc-solutions-coder/web-shell.
+ * Browser-safe barrel for @bc-solutions-coder/web-shell — the package's only
+ * entry point.
  *
- * This entry is importable from client-side bundles (no Node APIs). It exposes
- * the shared React Query client factory (moved here in Wallow-0q2s.8.2); the
- * standalone-host runtime and other Node-only pieces live behind `./server`.
+ * Everything exported here is importable from client-side bundles, so it must
+ * stay free of Node APIs. The Node-only `./server` subpath that once held the
+ * hand-rolled SSR host runtime is gone: TanStack Start owns hosting now.
  */
 export { createQueryClient } from "./query-client";

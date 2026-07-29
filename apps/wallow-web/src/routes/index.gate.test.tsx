@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
-import { userQueries } from "@bc-solutions-coder/sdk/query";
+import { createSdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { type AnyRedirect, isRedirect } from "@tanstack/react-router";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { currentUserQuery } from "../lib/current-user";
 import { Route } from "./index";
 
 /**
@@ -18,10 +19,11 @@ import { Route } from "./index";
  *
  * The gate runs in the route's `beforeLoad`, reading the user through the
  * router-context QueryClient via
- * `context.queryClient.ensureQueryData(userQueries.currentUser())` (the SDK query
- * layer), NOT the retired `getWallowSdk().user.me()` facade. The landing-page flag
- * is read through the mocked `../lib/branding` shim; the component itself renders
- * inside `PublicLayout`.
+ * `context.queryClient.ensureQueryData(currentUserQuery(context.sdk.client))` — the
+ * GENERATED current-user read bound to the request's own SDK instance
+ * (Wallow-pu6a.5.5), NOT the retired `getWallowSdk().user.me()` facade. The landing-page flag
+ * is read through a partially mocked `@bc-solutions-coder/styles`; the component
+ * itself renders inside `PublicLayout`.
  */
 
 const loginMock = vi.hoisted(() => vi.fn());
@@ -38,7 +40,12 @@ const branding = vi.hoisted(() => ({
   appIconUrl: "/piggy-icon.svg",
 }));
 
-vi.mock("../lib/branding", () => branding);
+// Partial override: every other branding export (theme rendering, asset URLs)
+// stays real, only the two values the gate and PublicLayout read are stood in.
+vi.mock("@bc-solutions-coder/styles", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@bc-solutions-coder/styles")>()),
+  ...branding,
+}));
 
 // Spy on the SDK's `login` (a real browser nav in prod) while keeping every
 // other export intact so `createFileRoute`/router wiring still resolves.
@@ -79,10 +86,13 @@ function makeContext(user: unknown): {
   const invoke = (): Promise<unknown> =>
     beforeLoad({
       location: { pathname: "/", href: "/" },
-      context: { queryClient: { ensureQueryData } },
+      context: { queryClient: { ensureQueryData }, sdk },
     });
   return { ensureQueryData, invoke };
 }
+
+/** A real SDK over a fake transport, standing in for the request's instance. */
+const sdk = createSdkHarness().sdk;
 
 /** Run `beforeLoad` and return whatever it threw (a redirect), or `undefined`. */
 async function captureThrow(user: unknown): Promise<{ to?: unknown } | undefined> {
@@ -113,14 +123,14 @@ describe("routes/index (public-home gate)", () => {
     expect(Route.options.beforeLoad).toBeDefined();
   });
 
-  it("reads the current user via context.queryClient.ensureQueryData(userQueries.currentUser())", async () => {
+  it("reads the current user via ensureQueryData(currentUserQuery(context.sdk.client))", async () => {
     const { ensureQueryData, invoke } = makeContext(null);
 
     await invoke();
 
     expect(ensureQueryData).toHaveBeenCalledTimes(1);
     const options = ensureQueryData.mock.calls[0]?.[0] as { queryKey?: unknown };
-    expect(options.queryKey).toEqual(userQueries.currentUser().queryKey);
+    expect(options.queryKey).toEqual(currentUserQuery(sdk.client).queryKey);
   });
 
   it("redirects an authenticated visitor to the dashboard", async () => {

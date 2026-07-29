@@ -1,9 +1,7 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactElement } from "react";
-import { render } from "vitest-browser-react";
+import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { installSdkClientMock, type SdkClientMock } from "../../../test/sdk-client-mock";
 import {
   allByTestId,
   byTestId,
@@ -49,27 +47,21 @@ const PROFILE = {
   permissions: [],
 };
 
-function newClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: { queries: { retry: false, staleTime: Number.POSITIVE_INFINITY } },
-  });
-}
-
-function renderWithClient(client: QueryClient, ui: ReactElement) {
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-}
+/** The transport backing each render, rebuilt per test. */
+let harness: SdkHarness;
 
 /**
- * Render the section seeded with `profile` (omit for the loading state) and
- * resolve the settled element named by `anchor` — the testid of the state under
- * test.
+ * Render the section answering the current-user read with `profile` (omit for
+ * the loading state, which a never-settling request drives) and resolve the
+ * settled element named by `anchor` — the testid of the state under test.
  */
 async function renderSection(profile: unknown | undefined, anchor: string): Promise<HTMLElement> {
-  const client = newClient();
-  if (profile !== undefined) {
-    client.setQueryData(["settings", "profile"], profile);
+  if (profile === undefined) {
+    harness.pending();
+  } else {
+    harness.resolveJson(profile);
   }
-  renderWithClient(client, <ProfileSection />);
+  renderWithWallow(<ProfileSection />, { harness });
   return waitForTestId(anchor);
 }
 
@@ -90,10 +82,8 @@ function fieldOf(value: HTMLElement): { row: HTMLElement; label: HTMLElement } {
 }
 
 describe("ProfileSection (restyle)", () => {
-  let sdk: SdkClientMock;
-
   beforeEach(() => {
-    sdk = installSdkClientMock();
+    harness = createSdkHarness();
   });
 
   it("keeps the profile on the ui card surface under its title", async () => {
@@ -169,7 +159,6 @@ describe("ProfileSection (restyle)", () => {
   });
 
   it("centers the loading state without changing its wording", async () => {
-    sdk.pending();
     const loading = await renderSection(undefined, "settings-profile-loading");
 
     expect(loading.textContent).toBe("Loading profile…");

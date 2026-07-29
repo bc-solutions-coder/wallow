@@ -22,7 +22,11 @@ public sealed record PreRegisteredClientDefinition
 
     public Collection<string> SeedMembers { get; init; } = [];
 
-    public bool IsPublic => string.IsNullOrEmpty(Secret);
+    // Explicit public-client declaration, bound from the "public" key. A client registered
+    // without a secret MUST declare this true; the absence of a secret never implies public.
+    public bool? Public { get; init; }
+
+    public bool IsPublic => Public == true;
 }
 
 public sealed class PreRegisteredClientOptions
@@ -30,4 +34,23 @@ public sealed class PreRegisteredClientOptions
     public const string SectionName = "PreRegisteredClients";
 
     public Collection<PreRegisteredClientDefinition> Clients { get; set; } = [];
+
+    // Fails fast when a client is registered with no secret and no explicit public declaration.
+    public void Validate()
+    {
+        List<string> offenders = Clients
+            .Where(c => string.IsNullOrWhiteSpace(c.Secret) && c.Public != true)
+            .Select(c => c.ClientId)
+            .ToList();
+
+        if (offenders.Count == 0)
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(
+            "Pre-registered client(s) " + string.Join(", ", offenders) + " have no secret and do not declare "
+            + "\"public\": true. A missing secret never implies a public client: declare \"public\": true for "
+            + "browser/native clients, or supply the secret for confidential ones.");
+    }
 }

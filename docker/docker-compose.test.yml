@@ -96,9 +96,10 @@ services:
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=wallow_test;Username=wallow_test;Password=wallow_test"
       # Override wallow-web-client redirect URIs for the test port. The client is
       # now a Node BFF (apps/wallow-web), so the callback is /bff/callback, not the
-      # Blazor /signin-oidc middleware path.
-      Clients__1__RedirectUris__0: "http://localhost:5053/bff/callback"
-      Clients__1__PostLogoutRedirectUris__0: "http://localhost:5053/"
+      # Blazor /signin-oidc middleware path. Clients__<index>__ addresses api/seed.json's
+      # clients array by POSITION; wallow-web-client is index 0 there.
+      Clients__0__RedirectUris__0: "http://localhost:5053/bff/callback"
+      Clients__0__PostLogoutRedirectUris__0: "http://localhost:5053/"
     depends_on:
       wallow-migrations:
         condition: service_completed_successfully
@@ -139,12 +140,13 @@ services:
       # Fix OIDC issuer so browser-facing tokens match the authority clients expect (localhost)
       OpenIddict__Issuer: "http://localhost:5050"
       # Treat the seeded BFF client as first-party so the OIDC flow skips the
-      # interactive consent screen (appsettings already lists wallow-dev-client
-      # at index 0; this appends the wallow-web example's client at index 1).
-      Identity__FirstPartyClients__1: "bcordes-bff"
+      # interactive consent screen. These overrides are POSITIONAL: appsettings
+      # declares an empty FirstPartyClients array, so they start at index 0 and
+      # must be renumbered whenever that array gains or loses an entry.
+      Identity__FirstPartyClients__0: "bcordes-bff"
       # wallow-web is now a BFF too; treat its client as first-party so the OIDC
       # flow skips the interactive consent screen during the dashboard login.
-      Identity__FirstPartyClients__2: "wallow-web-client"
+      Identity__FirstPartyClients__1: "wallow-web-client"
     tmpfs:
       - /tmp
       - /app/App_Data
@@ -177,8 +179,9 @@ services:
   #
   # This app is a PURE reverse proxy, not a BFF: it holds no session and no cookie
   # jar, so it needs none of the Blazor app's ASPNETCORE_*/ServiceUrls__*/Redis
-  # configuration. It reads exactly three env vars (server.ts, auth-server.ts):
-  # PORT, HOST, and WALLOW_API_INTERNAL_URL.
+  # configuration. It reads exactly three env vars — PORT and HOST (the Nitro
+  # server bundle) and WALLOW_API_INTERNAL_URL (the SDK passthrough the
+  # src/routes/{v1,connect,[.]well-known}/$.ts server routes call).
   wallow-auth:
     image: wallow-auth-react:test
     build:

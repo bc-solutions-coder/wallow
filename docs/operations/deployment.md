@@ -252,7 +252,7 @@ openssl rand -hex 32      # Garage secret key / RPC secret (must be exactly 64 h
 | **Cache** | `VALKEY_PASSWORD` |
 | **Storage** | `GARAGE_RPC_SECRET`, `GARAGE_ADMIN_TOKEN`, `GARAGE_ACCESS_KEY`, `GARAGE_SECRET_KEY`, `GARAGE_KEY_NAME`, `GARAGE_BUCKET`, `GARAGE_REGION`, `GARAGE_S3_PORT`, `GARAGE_ADMIN_PORT` |
 | **SMTP** | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USE_SSL`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, `SMTP_FROM_NAME` |
-| **Security** | `IDENTITY_SIGNING_KEY`, `OPENIDDICT_SIGNING_CERT_PASSWORD`, `OPENIDDICT_ENCRYPTION_CERT_PASSWORD` |
+| **Security** | `IDENTITY_SIGNING_KEY`, `OPENIDDICT_SIGNING_CERT_PASSWORD`, `OPENIDDICT_ENCRYPTION_CERT_PASSWORD`, `OPENIDDICT_ALLOW_PLAIN_HTTP_ENDPOINTS` |
 | **Seeding** | `SEED_FILE_HOST_PATH`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_FIRST_NAME`, `ADMIN_LAST_NAME` |
 | **OIDC** | `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, plus optional per-fork client secrets |
 | **BFF session** | `BFF_COOKIE_PASSWORD` |
@@ -260,7 +260,7 @@ openssl rand -hex 32      # Garage secret key / RPC secret (must be exactly 64 h
 | **Ports** | `API_PORT`, `AUTH_PORT`, `WEB_PORT` |
 | **Observability** | `GF_ADMIN_PASSWORD` |
 
-### Two variables worth calling out
+### Three variables worth calling out
 
 **`VERSION`** selects the image tag for every Wallow image in the stack
 (`ghcr.io/bc-solutions-coder/wallow:${VERSION:-latest}` and friends). Use `latest` to roll with
@@ -279,6 +279,15 @@ COOKIE_PASSWORD: ${BFF_COOKIE_PASSWORD:?BFF_COOKIE_PASSWORD is required (32+ cha
 
 so `docker compose up` fails immediately with that message rather than starting a web container
 with an insecure or absent session key. Generate it with `openssl rand -base64 32`.
+
+**`OPENIDDICT_ALLOW_PLAIN_HTTP_ENDPOINTS`** controls whether the OIDC endpoints
+(`/connect/**` and discovery) will answer plain-HTTP requests. Outside Development the answer is
+**no** by default, so a deployment that accidentally exposes Kestrel directly cannot serve
+authorization codes and tokens in the clear. This stack ships it as `true` because TLS terminates
+at the reverse proxy and the BFF resolves discovery over the private Docker network
+(`http://wallow-api:8080/.well-known/openid-configuration`), which never traverses the proxy and
+so carries no `X-Forwarded-Proto`. Set it to `false` if Kestrel serves HTTPS itself. The value must
+parse as a boolean — a typo such as `yes` fails startup rather than silently picking a side.
 
 ---
 

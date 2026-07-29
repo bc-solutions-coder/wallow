@@ -1,16 +1,10 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  createMemoryHistory,
-  createRootRoute,
-  createRouter,
-  Outlet,
-  RouterProvider,
-} from "@tanstack/react-router";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+import type { SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createAuthHarness } from "../../../test/harness";
 import { Route as resetPasswordRoute } from "../../../routes/reset-password";
 import { ResetPasswordForm } from "./ResetPasswordForm";
 
@@ -21,11 +15,18 @@ import { ResetPasswordForm } from "./ResetPasswordForm";
  * `reset-password-error`, `reset-password-new-password`, `reset-password-confirm`,
  * `reset-password-submit`.
  *
- * MOCKING SEAM: `../../../lib/wallow-auth-sdk` — the app's own facade, never
- * `@bc-solutions-coder/sdk` directly (that module is the only permitted importer
- * of the SDK). Per bd memories `vitest-resetmodules-breaks-instanceof-across-
- * graphs`, this file uses a plain `vi.mock` factory + `vi.hoisted` spies and
- * NEVER `vi.resetModules()`.
+ * TEST SEAM: `@bc-solutions-coder/testing/sdk-harness` (Wallow-pu6a.5.1). The SDK
+ * is the REAL one and only its `fetch` is faked, so the screen's whole pipeline —
+ * request-scoped SDK -> generated operation -> CSRF interceptor -> serialization
+ * -> error shaping -> React Query — runs here, and the assertions below read the
+ * outgoing REQUEST (`harness.last`) rather than a spy on a stand-in double.
+ * `renderWithWallow` supplies the router context the screen reads its SDK off,
+ * and `createAuthHarness()` pins the harness origin to this app's root-mounted
+ * API surface — which is why every recorded `path` below is the bare endpoint
+ * path, with no `/api` prefix (Wallow-pu6a.5.5).
+ *
+ * The `useNavigate` mock stays: navigation is a ROUTER seam, not an SDK one, and
+ * the screen's success criterion is the location it asks the router for.
  *
  * ── THE ERROR-BRANCH FINDING (verified against the source, not assumed) ───────
  *
@@ -37,13 +38,12 @@ import { ResetPasswordForm } from "./ResetPasswordForm";
  * That switch CANNOT be ported as written. `AccountController.ResetPassword`
  * (api/.../Controllers/AccountController.cs:771-794) returns its failures as
  * **`BadRequest(new { succeeded = false, error = "invalid_token" })`** — a 400
- * whose body is a bare anon object, NOT RFC 7807 problem details. The error
- * string does not survive the TS seam: `unwrap()` THROWS on any non-2xx, and
- * `toWallowError()` (packages/sdk/src/auth-client.ts:257-280) builds its `code`
- * from `extensions.code` ?? `code` only — it never reads a top-level `error`
- * field. So `{ succeeded: false, error: "invalid_token" }` arrives as
- * `WallowError{ code: "UNKNOWN", title: "Unknown error", detail: undefined }`.
- * The reason string is LOST at the seam (bd memory `wallow-auth-auth-client-ts-
+ * whose body is a bare anon object, NOT RFC 7807 problem details — and the
+ * reason string does not survive the SDK seam as anything the screen reads:
+ * `toWallowError()` (packages/sdk/src/auth-client.ts) builds `title`/`detail`
+ * from problem-details members this body does not carry, so the screen receives
+ * `WallowError{ code: "invalid_token", title: "Unknown error" }` and has no
+ * human-readable reason to render (bd memory `wallow-auth-auth-client-ts-
  * wallowerror-code-loss`).
  *
  * What survives is the HTTP status — and that is enough here, because this
@@ -56,26 +56,40 @@ import { ResetPasswordForm } from "./ResetPasswordForm";
  *     anything else -> "Failed to reset password. Please try again."
  *
  * The screen must narrow on `status` STRUCTURALLY (`error.status === 400`)
- * rather than with `instanceof WallowError`: `WallowError` is exported from the
- * SDK's `./server` entry, and screens may not import from the SDK at all.
+ * rather than with `instanceof WallowError`: screens may not import the SDK.
  *
- * Consequently the rejection fixtures below are WallowError-SHAPED objects
- * (`status`/`code`/`title`), matching what the real facade throws — including
- * the `code: "UNKNOWN"` that proves the port is not secretly relying on a code
- * the seam never delivers.
+ * Consequently the rejection FIXTURES below are wire bodies, not error objects:
+ * the spec programs exactly what the controller writes and lets the real SDK
+ * decide what the screen ends up holding. `{}` at a status is the deliberately
+ * least-informative failure — it proves the port is not secretly relying on a
+ * reason the seam never delivers.
  */
 
-// Hoisted so the vi.mock factories and the test bodies share the same spies.
-const mocks = vi.hoisted(() => ({
-  resetPassword: vi.fn(),
-  navigate: vi.fn(),
-}));
+const EMAIL = "ada@example.com";
+const TOKEN = "reset-token-abc";
+const PASSWORD = "N3w-Passw0rd!";
 
-vi.mock("../../../lib/wallow-auth-sdk", () => ({
-  getWallowAuthSdk: () => ({
-    auth: { resetPassword: mocks.resetPassword },
-    oidc: {},
-  }),
+/** The endpoint the screen must reach (packages/sdk/src/generated/sdk.gen.ts). */
+const ENDPOINT = "/v1/identity/auth/reset-password";
+
+/** The 200 body: `AccountOperationResponse` — `{ succeeded: true }`, nothing more. */
+const SUCCESS_BODY = { succeeded: true };
+
+/**
+ * The real 400 body: a bare anon object, NOT problem details. Both of this
+ * endpoint's failure returns write exactly this.
+ */
+const INVALID_TOKEN_BODY = { succeeded: false, error: "invalid_token" };
+
+const BAD_REQUEST = 400;
+const SERVER_ERROR = 500;
+const OK = 200;
+
+let harness: SdkHarness;
+
+// Hoisted so the vi.mock factory and the test bodies share the same spy.
+const mocks = vi.hoisted(() => ({
+  navigate: vi.fn(),
 }));
 
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
@@ -83,38 +97,9 @@ vi.mock("@tanstack/react-router", async (importOriginal) => ({
   useNavigate: () => mocks.navigate,
 }));
 
-const EMAIL = "ada@example.com";
-const TOKEN = "reset-token-abc";
-const PASSWORD = "N3w-Passw0rd!";
-
-/** What the facade really throws for this endpoint's 400 — reason string already lost. */
-function invalidTokenRejection(): Error & { status: number; code: string } {
-  return Object.assign(new Error("Unknown error"), {
-    name: "WallowError",
-    status: 400,
-    code: "UNKNOWN",
-    title: "Unknown error",
-  });
-}
-
-/** A non-400 failure (a 500, say) — the oracle's generic branch. */
-function serverErrorRejection(): Error & { status: number; code: string } {
-  return Object.assign(new Error("Unknown error"), {
-    name: "WallowError",
-    status: 500,
-    code: "UNKNOWN",
-    title: "Unknown error",
-  });
-}
-
-function newClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-}
-
+/** Render `ui` on the shared harness: real SDK, fake transport, real router context. */
 function renderWithClient(ui: ReactElement) {
-  return render(<QueryClientProvider client={newClient()}>{ui}</QueryClientProvider>);
+  return renderWithWallow(ui, { harness });
 }
 
 /** Render the screen as a valid reset link would: both query params present. */
@@ -139,7 +124,8 @@ async function submitPasswords(
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.resetPassword.mockResolvedValue({ succeeded: true });
+  harness = createAuthHarness();
+  harness.resolveJson(SUCCESS_BODY);
 });
 
 describe("ResetPasswordForm", () => {
@@ -179,17 +165,21 @@ describe("ResetPasswordForm", () => {
   it("sends the query's email and token with the typed password", async () => {
     // The threading criterion: the reset link's identity comes from the URL, the
     // secret from the form. Oracle: `new ResetPasswordRequest(Email, Token, _newPassword)`.
+    // Read off the RECORDED REQUEST, so the assertion covers the serialization
+    // the old facade spy skipped.
     const user = userEvent.setup();
     renderForm();
 
     await submitPasswords(user);
 
     await vi.waitFor(() => {
-      expect(mocks.resetPassword).toHaveBeenCalledWith({
-        email: EMAIL,
-        token: TOKEN,
-        newPassword: PASSWORD,
-      });
+      expect(harness.last?.path).toBe(ENDPOINT);
+    });
+    expect(harness.last?.method).toBe("POST");
+    expect(harness.last?.body).toEqual({
+      email: EMAIL,
+      token: TOKEN,
+      newPassword: PASSWORD,
     });
   });
 
@@ -219,7 +209,7 @@ describe("ResetPasswordForm", () => {
     await expect
       .element(page.getByTestId("reset-password-error"))
       .toHaveTextContent(/passwords do not match/iu);
-    expect(mocks.resetPassword).not.toHaveBeenCalled();
+    expect(harness.calls).toHaveLength(0);
     expect(mocks.navigate).not.toHaveBeenCalled();
   });
 
@@ -233,7 +223,7 @@ describe("ResetPasswordForm", () => {
     await expect
       .element(page.getByTestId("reset-password-error"))
       .toHaveTextContent(/invalid reset link/iu);
-    expect(mocks.resetPassword).not.toHaveBeenCalled();
+    expect(harness.calls).toHaveLength(0);
   });
 
   it("refuses to submit a link with no email", async () => {
@@ -245,7 +235,7 @@ describe("ResetPasswordForm", () => {
     await expect
       .element(page.getByTestId("reset-password-error"))
       .toHaveTextContent(/invalid reset link/iu);
-    expect(mocks.resetPassword).not.toHaveBeenCalled();
+    expect(harness.calls).toHaveLength(0);
   });
 
   it("treats an empty-string token as a missing one", async () => {
@@ -258,7 +248,7 @@ describe("ResetPasswordForm", () => {
     await expect
       .element(page.getByTestId("reset-password-error"))
       .toHaveTextContent(/invalid reset link/iu);
-    expect(mocks.resetPassword).not.toHaveBeenCalled();
+    expect(harness.calls).toHaveLength(0);
   });
 
   it("requires a new password before calling the endpoint", async () => {
@@ -273,15 +263,16 @@ describe("ResetPasswordForm", () => {
 
     await user.click(page.getByTestId("reset-password-submit"));
 
-    expect(mocks.resetPassword).not.toHaveBeenCalled();
+    expect(harness.calls).toHaveLength(0);
     await expect.element(page.getByTestId("reset-password-new-password-error")).toBeInTheDocument();
   });
 
   it("explains an expired or invalid reset link when the endpoint rejects it", async () => {
     // The oracle's `"invalid_token" =>` branch, reached via HTTP status because
-    // the reason string does not survive the WallowError seam — see the file
-    // header. This endpoint's only 400 IS invalid_token.
-    mocks.resetPassword.mockRejectedValue(invalidTokenRejection());
+    // the reason string does not survive as renderable copy — see the file
+    // header. This endpoint's only 400 IS invalid_token, and the body below is
+    // byte-for-byte what the controller writes.
+    harness.rejectJson(INVALID_TOKEN_BODY, BAD_REQUEST);
     const user = userEvent.setup();
     renderForm();
 
@@ -295,8 +286,9 @@ describe("ResetPasswordForm", () => {
 
   it("falls back to the generic message for a non-400 failure", async () => {
     // The oracle's `_ =>` branch. A 500 is not a bad link and must not be
-    // reported as one.
-    mocks.resetPassword.mockRejectedValue(serverErrorRejection());
+    // reported as one. An empty body is deliberate: a server fault carries no
+    // problem details of its own.
+    harness.rejectJson({}, SERVER_ERROR);
     const user = userEvent.setup();
     renderForm();
 
@@ -308,9 +300,12 @@ describe("ResetPasswordForm", () => {
   });
 
   it("shows the generic message when the request fails without a status", async () => {
-    // A network-level rejection has no `status` at all; structural narrowing
-    // must not throw on it, and must not claim the link is bad.
-    mocks.resetPassword.mockRejectedValue(new Error("network down"));
+    // A network-level rejection has no status anywhere — the transport itself
+    // throws before a response exists. Structural narrowing must not throw on
+    // it, and must not claim the link is bad.
+    harness.respond(() => {
+      throw new TypeError("Failed to fetch");
+    });
     const user = userEvent.setup();
     renderForm();
 
@@ -322,9 +317,10 @@ describe("ResetPasswordForm", () => {
   });
 
   it("never leaks the raw rejection into the page", async () => {
-    // The seam hands the screen `title: "Unknown error"`. Rendering that verbatim
-    // would be the lazy port and tells the user nothing actionable.
-    mocks.resetPassword.mockRejectedValue(invalidTokenRejection());
+    // The seam hands the screen `title: "Unknown error"` for a body that carries
+    // no problem details. Rendering that verbatim would be the lazy port and
+    // tells the user nothing actionable — nor may the machine token leak.
+    harness.rejectJson(INVALID_TOKEN_BODY, BAD_REQUEST);
     const user = userEvent.setup();
     renderForm();
 
@@ -332,12 +328,19 @@ describe("ResetPasswordForm", () => {
 
     await expect.element(page.getByTestId("reset-password-error")).toBeInTheDocument();
     expect(page.getByText(/unknown error/iu).query()).toBeNull();
+    expect(page.getByText(/invalid_token/u).query()).toBeNull();
   });
 
   it("clears a previous error when the next attempt succeeds", async () => {
     // Oracle: `_error = null;` immediately before the call. A stale "link
     // expired" banner sitting above a successful reset would be a lie.
-    mocks.resetPassword.mockRejectedValueOnce(invalidTokenRejection());
+    let attempts = 0;
+    harness.respond(() => {
+      attempts += 1;
+      return attempts === 1
+        ? Response.json(INVALID_TOKEN_BODY, { status: BAD_REQUEST })
+        : Response.json(SUCCESS_BODY, { status: OK });
+    });
     const user = userEvent.setup();
     renderForm();
 
@@ -355,16 +358,26 @@ describe("ResetPasswordForm", () => {
   it("disables submit while the request is in flight", async () => {
     // Oracle: `Disabled="_loading"` — one click, one reset attempt.
     let release: () => void = () => {};
-    mocks.resetPassword.mockReturnValue(
-      new Promise<void>((resolve) => {
-        release = resolve;
-      }),
+    harness.respond(
+      async () =>
+        await new Promise<Response>((resolve) => {
+          release = () => {
+            resolve(Response.json(SUCCESS_BODY, { status: OK }));
+          };
+        }),
     );
     const user = userEvent.setup();
     renderForm();
 
     await submitPasswords(user);
 
+    // Wait for the request to REACH the transport before releasing it: the
+    // submit button goes disabled the moment the form starts submitting, which
+    // is a tick or two before `fetch` is called, and releasing into that gap
+    // would leave the never-settling responder installed forever.
+    await vi.waitFor(() => {
+      expect(harness.calls).toHaveLength(1);
+    });
     await expect.element(page.getByTestId("reset-password-submit")).toBeDisabled();
     await expect
       .element(page.getByTestId("reset-password-submit"))
@@ -385,20 +398,11 @@ describe("ResetPasswordForm", () => {
  * and `src/router.tsx` is off-limits to this task (Wallow-vec7.3.16).
  */
 function renderRouteAt(url: string) {
-  const rootRoute = createRootRoute({ component: Outlet });
-  const routeTree = rootRoute.addChildren([
-    resetPasswordRoute.update({
-      id: "/reset-password",
-      path: "/reset-password",
-      getParentRoute: () => rootRoute,
-    } as any),
-  ]);
-  const router = createRouter({
-    routeTree,
-    history: createMemoryHistory({ initialEntries: [url] }),
+  return renderWithWallow(null, {
+    harness,
+    path: url,
+    routes: [{ path: "/reset-password", route: resetPasswordRoute }],
   });
-
-  return renderWithClient(<RouterProvider router={router} />);
 }
 
 describe("/reset-password route", () => {
@@ -420,11 +424,12 @@ describe("/reset-password route", () => {
     await submitPasswords(user);
 
     await vi.waitFor(() => {
-      expect(mocks.resetPassword).toHaveBeenCalledWith({
-        email: EMAIL,
-        token: TOKEN,
-        newPassword: PASSWORD,
-      });
+      expect(harness.last?.path).toBe(ENDPOINT);
+    });
+    expect(harness.last?.body).toEqual({
+      email: EMAIL,
+      token: TOKEN,
+      newPassword: PASSWORD,
     });
   });
 
@@ -440,6 +445,6 @@ describe("/reset-password route", () => {
     await expect
       .element(page.getByTestId("reset-password-error"))
       .toHaveTextContent(/invalid reset link/iu);
-    expect(mocks.resetPassword).not.toHaveBeenCalled();
+    expect(harness.calls).toHaveLength(0);
   });
 });

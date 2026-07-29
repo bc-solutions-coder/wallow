@@ -7,6 +7,18 @@ namespace Wallow.Identity.Infrastructure.Authorization;
 
 public class PermissionExpansionMiddleware(RequestDelegate next)
 {
+    /// <summary>
+    /// Key under which <c>TenantResolutionMiddleware</c> stamps the tenant the request was
+    /// resolved onto. It differs from the caller's own org_id only on a cross-tenant override.
+    /// </summary>
+    private const string ResolvedTenantItemKey = "TenantId";
+
+    /// <summary>
+    /// The role whose permission set the global-admin claim confers in every tenant. Global
+    /// admin is not backed by an assignable role, so its permissions are read from the map
+    /// directly rather than from a role claim.
+    /// </summary>
+    private const string AdminRole = "admin";
 
     public async Task InvokeAsync(HttpContext context)
     {
@@ -38,6 +50,8 @@ public class PermissionExpansionMiddleware(RequestDelegate next)
                 ExpandUserRoles(context, identity);
                 ExpandUserScopes(context, identity);
             }
+
+            ExpandGlobalAdmin(context, identity);
         }
 
         await next(context);
@@ -45,6 +59,14 @@ public class PermissionExpansionMiddleware(RequestDelegate next)
 
     private static void ExpandUserRoles(HttpContext context, ClaimsIdentity? identity)
     {
+        // A role is granted by one tenant and carries no authority in another, so a request
+        // resolved onto a different tenant gets nothing from it — including AdminAccess and
+        // SystemSettings. The global-admin claim is the only cross-tenant grant.
+        if (IsCrossTenantRequest(context))
+        {
+            return;
+        }
+
         // Read role claims from both standard and OIDC claim types
         List<string> roles = context.User.GetRoles().ToList();
 
@@ -81,6 +103,45 @@ public class PermissionExpansionMiddleware(RequestDelegate next)
                 existingPermissions.Add(permission);
             }
         }
+    }
+
+    /// <summary>
+    /// Grants the administrative permission set in whichever tenant the request resolved onto.
+    /// The flag is seeded, never assignable through a tenant-facing endpoint, so it is the one
+    /// way a human governs tenants other than their own.
+    /// </summary>
+    private static void ExpandGlobalAdmin(HttpContext context, ClaimsIdentity? identity)
+    {
+        if (!context.User.IsGlobalAdmin())
+        {
+            return;
+        }
+
+        HashSet<string> existingPermissions = new(context.User.GetPermissions(), StringComparer.Ordinal);
+
+        foreach (string permission in RolePermissionMapping.GetPermissions([AdminRole]))
+        {
+            if (existingPermissions.Add(permission))
+            {
+                identity?.AddClaim(new Claim("permission", permission));
+            }
+        }
+    }
+
+    private static bool IsCrossTenantRequest(HttpContext context)
+    {
+        string? ownTenantId = context.User.GetTenantId();
+        if (string.IsNullOrEmpty(ownTenantId))
+        {
+            return false;
+        }
+
+        string? resolvedTenantId = context.Items.TryGetValue(ResolvedTenantItemKey, out object? resolved)
+            ? resolved as string
+            : null;
+
+        return !string.IsNullOrEmpty(resolvedTenantId)
+            && !string.Equals(ownTenantId, resolvedTenantId, StringComparison.OrdinalIgnoreCase);
     }
 
     private static void ExpandServiceAccountScopes(HttpContext context, ClaimsIdentity? identity)

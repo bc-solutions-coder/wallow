@@ -40,7 +40,12 @@
  * below is the screen's own.
  */
 
-import { GENERIC_MESSAGE, readMember, UNREACHABLE_MESSAGE } from "./auth-result";
+import {
+  GENERIC_MESSAGE,
+  isServerUnreachable,
+  readMember,
+  UNREACHABLE_MESSAGE,
+} from "./auth-result";
 
 /** The oracle's blank-input guard (Login.razor:376) — note WHITEspace. */
 export const BLANK_EMAIL_MESSAGE = "Please enter your email.";
@@ -116,10 +121,10 @@ export function sendMagicLinkFailureMessage(cause: unknown): string {
     return MAGIC_LINK_RATE_LIMITED_MESSAGE;
   }
 
-  // A network-level rejection carries NEITHER `code` NOR `status`, and that absence
-  // is exactly what identifies it: the TS shape of the oracle's
-  // `catch (HttpRequestException)`, which it keeps DISTINCT from its generic tail.
-  if (readMember(cause, "status") === undefined) {
+  // A network-level rejection is identified by its CODE (see `isServerUnreachable`):
+  // the TS shape of the oracle's `catch (HttpRequestException)`, which it keeps
+  // DISTINCT from its generic tail.
+  if (isServerUnreachable(cause)) {
     return UNREACHABLE_MESSAGE;
   }
 
@@ -142,7 +147,7 @@ export function verifyMagicLinkFailureMessage(cause: unknown): string {
     return MAGIC_LINK_EXPIRED_MESSAGE;
   }
 
-  if (readMember(cause, "status") === undefined) {
+  if (isServerUnreachable(cause)) {
     return UNREACHABLE_MESSAGE;
   }
 

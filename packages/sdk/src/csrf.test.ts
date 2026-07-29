@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   type CsrfInterceptorClient,
+  getCsrfToken,
   isSafeMethod,
   setCsrfToken,
   wireCsrfInterceptor,
@@ -157,6 +158,25 @@ describe("wireCsrfInterceptor", () => {
       method: "POST",
     });
     expect(client.run(request)).toBe(request);
+  });
+});
+
+/**
+ * The token is also read outside the interceptor chain: `logout()` POSTs to
+ * `/bff/logout` itself and must stamp the same `x-csrf-token` header
+ * (Wallow-pu6a.3.9), so the module token needs a reader as well as a writer.
+ */
+describe("getCsrfToken", () => {
+  it("returns null before any token is set", () => {
+    expect(getCsrfToken()).toBeNull();
+  });
+
+  it("returns the token most recently set, and null again once cleared", () => {
+    setCsrfToken("tok-123");
+    expect(getCsrfToken()).toBe("tok-123");
+
+    setCsrfToken(null);
+    expect(getCsrfToken()).toBeNull();
   });
 });
 

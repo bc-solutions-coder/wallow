@@ -6,7 +6,7 @@
  * This module is the port of the oracle's `HandleSuccessfulAuth`
  * (`api/src/Wallow.Auth/Components/Pages/Login.razor`:502-560) plus its
  * `result.Error` and `Error`-query-param switches. It is deliberately PURE —
- * no `getWallowAuthSdk`, no `useNavigate`, no `globalThis.location` — so that
+ * no SDK client, no `useNavigate`, no `globalThis.location` — so that
  * `.3.12` (magic-link), `.3.13` (OTP) and `.3.15` (MFA hand-off) can IMPORT the
  * navigation decision rather than re-derive it. All three of those endpoints
  * hand back the same `AuthResponse` shape, and three copies of this branch table
@@ -68,6 +68,19 @@ const LOCKED_OUT = "locked_out";
 const EMAIL_NOT_CONFIRMED = "email_not_confirmed";
 
 /**
+ * The SDK's token for a request that never produced a response — the TS shape of
+ * the oracle's `catch (HttpRequestException)` arm.
+ *
+ * NOT a token the API sends: the SDK's error interceptor synthesizes it
+ * (`503 NETWORK_ERROR`, the same pair the BFF proxy raises when its own forward
+ * drops), which is what makes a dead network tellable apart from a server that
+ * answered. `WallowError.status` is a REQUIRED number, so an absent status is
+ * unreachable by construction and cannot be the signal — see
+ * {@link isServerUnreachable}.
+ */
+const NETWORK_ERROR = "NETWORK_ERROR";
+
+/**
  * The statuses those tokens ride on, retained as a FALLBACK beneath them per the
  * Wallow-vec7.7 rule (match known tokens FIRST, keep HTTP status underneath).
  *
@@ -104,6 +117,20 @@ export function readMember(value: unknown, name: string): unknown {
   }
 
   return (value as Record<string, unknown>)[name];
+}
+
+/**
+ * Did this rejection never reach the server at all?
+ *
+ * Exported for `./magic-link-result` and `./otp-result`, which owe their users
+ * the SAME distinction on their own endpoints: "the server said no" and "the
+ * server never answered" are different instructions, and collapsing them tells a
+ * user with no network to go re-read a password or an emailed code that is
+ * perfectly fine. One predicate rather than three copies, so the three screens
+ * cannot drift apart on what a dead network looks like.
+ */
+export function isServerUnreachable(cause: unknown): boolean {
+  return readMember(cause, "code") === NETWORK_ERROR;
 }
 
 /** A member that is only meaningful as a string; anything else reads as absent. */
@@ -181,7 +208,7 @@ function handOffHref(path: string, returnUrl: string | undefined): string {
  *
  * `navigate` is the client router (`useNavigate`); `exchange-ticket` is a FULL
  * navigation (`globalThis.location.href`), because the exchange endpoint is served
- * by the h3 reverse proxy and not by the client-side route tree, which would 404
+ * by the passthrough reverse proxy and not by the client-side route tree, which would 404
  * in-app.
  */
 export type AuthOutcome =
@@ -314,11 +341,16 @@ export function authDispositionOf(
  * `instanceof WallowError`: that class is exported from the SDK's `./server`
  * entry, and screens may not import the SDK at all.
  *
- * A network-level rejection carries NEITHER `code` NOR `status` — that absence is
- * exactly what identifies it, and it is the TS shape of the oracle's
- * `catch (HttpRequestException)`.
+ * A network-level rejection is identified by its `code` (`isServerUnreachable`),
+ * NOT by an absent `status`: `WallowError.status` is a required number, so the
+ * SDK synthesizes one for a fault that never landed and there is no absence left
+ * to test for (Wallow-sx3r).
  */
 export function loginFailureMessage(cause: unknown): string {
+  if (isServerUnreachable(cause)) {
+    return UNREACHABLE_MESSAGE;
+  }
+
   const code: unknown = readMember(cause, "code");
 
   if (code === INVALID_CREDENTIALS) {
@@ -334,10 +366,6 @@ export function loginFailureMessage(cause: unknown): string {
   }
 
   const status: unknown = readMember(cause, "status");
-
-  if (status === undefined) {
-    return UNREACHABLE_MESSAGE;
-  }
 
   if (status === LOCKED_STATUS) {
     return LOCKED_OUT_MESSAGE;

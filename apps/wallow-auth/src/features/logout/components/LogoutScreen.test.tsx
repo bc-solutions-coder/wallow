@@ -1,16 +1,10 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  createMemoryHistory,
-  createRootRoute,
-  createRouter,
-  Outlet,
-  RouterProvider,
-} from "@tanstack/react-router";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+import { type SdkCall, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import type { ReactElement } from "react";
 import { page } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createAuthHarness } from "../../../test/harness";
 import { Route as logoutRoute } from "../../../routes/logout";
 import { LogoutScreen } from "./LogoutScreen";
 
@@ -26,11 +20,32 @@ import { LogoutScreen } from "./LogoutScreen";
  * which is the oracle's choice (scout inventory on Wallow-vec7.3) and is
  * preserved verbatim rather than "fixed" into two testids.
  *
- * MOCKING SEAM: `../../../lib/wallow-auth-sdk` — the app's own facade, never
- * `@bc-solutions-coder/sdk` directly (that module is the only permitted importer
- * of the SDK). Per bd memories `vitest-resetmodules-breaks-instanceof-across-
- * graphs`, this file uses a plain `vi.mock` factory + `vi.hoisted` spies and
- * NEVER `vi.resetModules()`.
+ * ── TEST SEAM: the shared SDK harness (Wallow-pu6a.5.1) ──────────────────────
+ *
+ * `@bc-solutions-coder/testing/sdk-harness`. Nothing on this screen's path is
+ * stubbed any more: the SDK is the REAL one and only its `fetch` is faked, so
+ * the whole pipeline — generated `{op}Options()` -> request-scoped SDK ->
+ * generated operation -> CSRF interceptor -> error shaping -> React Query — runs
+ * in the spec. `renderWithWallow` supplies the router context the screen reads
+ * its SDK off, and `createAuthHarness()` pins the harness origin to this app's
+ * root-mounted API surface (Wallow-pu6a.5.5).
+ *
+ * TWO CONSEQUENCES for how the assertions below are written:
+ *
+ *   1. THE VALIDATION PROBE IS READ OFF THE WIRE. Where this file used to assert
+ *      on a `validateRedirectUri` spy, it now asserts on the recorded GET to
+ *      {@link VALIDATE_ENDPOINT} and the `uri` it carries in its query string.
+ *      That is strictly stronger: the old spy could not have caught a screen that
+ *      probed the right value against the wrong endpoint, or that leaked a
+ *      `clientId` the oracle never scopes this question with.
+ *   2. THE REAL URL BUILDERS RUN. `buildConnectLogoutUrl` and `isSafeReturnUrl`
+ *      are pure functions in `packages/sdk/src/auth-oidc.ts`, so the
+ *      hand-restated `buildConnectLogoutUrlRule` this file used to carry is gone
+ *      — a mirrored rule can drift from the shipped one, and the screen now meets
+ *      the builder it will meet in production.
+ *
+ * Per bd memory `vitest-resetmodules-breaks-instanceof-across-graphs`, this file
+ * still NEVER calls `vi.resetModules()`.
  *
  * ── THE ORIGIN TRAP (the load-bearing port decision on this screen) ───────────
  *
@@ -41,10 +56,11 @@ import { LogoutScreen } from "./LogoutScreen";
  *     string url = $"{ApiBaseUrl}/connect/logout";
  *
  * **That prepend must NOT be ported**, for exactly the reasons established on
- * `/consent` (Wallow-vec7.3.4). apps/wallow-auth's h3 server
- * (`src/lib/auth-server.ts`) is a PASSTHROUGH REVERSE PROXY mounting
- * `/connect/**` and `/v1/**` at the ROOT — the same fact behind the facade's
- * `baseUrl: '/'` (bd memory `wallow-auth-same-origin-baseurl-apps-wallow-auth`).
+ * `/consent` (Wallow-vec7.3.4). apps/wallow-auth's API surface
+ * (`src/lib/api-passthrough.ts`) is a PASSTHROUGH REVERSE PROXY mounting
+ * `/connect/**` and `/v1/**` at the ROOT — the same fact behind this app's
+ * origin-rooted SDK `baseUrl` (bd memory
+ * `wallow-auth-same-origin-baseurl-apps-wallow-auth`).
  * This origin DOES host `/connect/logout`, so the origin argument is `""`.
  *
  * This one is worse than cosmetic HERE specifically, because `/connect/logout`
@@ -57,11 +73,18 @@ import { LogoutScreen } from "./LogoutScreen";
  * (`http://wallow-api` under Aspire) the browser cannot resolve at all — and the
  * oracle's getter THROWS when unset, so there is no silent-default escape.
  *
- * `buildConnectLogoutUrl` (Wallow-vec7.2.2) already ports the rest of the
- * `LogoutUrl` getter (the `IsNullOrEmpty` omission of the parameter and the
- * `Uri.EscapeDataString` encoding) under its own tests. These tests pin what the
- * SCREEN owes the builder — the `""` origin above all — rather than re-deriving
- * the builder's string algebra.
+ * With the real builder in play, the origin argument is no longer observable as
+ * a spy argument, so it is pinned where it actually bites: the anchor's RESOLVED
+ * `href` must land on THIS document's origin (see
+ * {@link resolvedLogoutUrl}). That is the same claim stated against the artefact
+ * the browser will follow rather than against a call the screen happened to make.
+ *
+ * `buildConnectLogoutUrl` (Wallow-vec7.2.2) owns the rest of the `LogoutUrl`
+ * getter (the `IsNullOrEmpty` omission of the parameter and the
+ * `Uri.EscapeDataString` encoding) under its own tests in
+ * `packages/sdk/src/auth-oidc.test.ts`. These tests pin what the SCREEN owes the
+ * builder — the same-origin result above all — rather than re-deriving the
+ * builder's string algebra.
  *
  * ── WHY NO isSafeReturnUrl GUARD ON THIS SCREEN ──────────────────────────────
  *
@@ -73,13 +96,13 @@ import { LogoutScreen } from "./LogoutScreen";
  * `buildConnectLogoutUrl` documents itself as deliberately unguarded.
  *
  * The open-redirect defence here is the SERVER's instead, and it is stronger: it
- * is `auth.validateRedirectUri`, an allow-list check against the client's
+ * is the `redirect-uri/validate` probe, an allow-list check against the client's
  * REGISTERED post-logout URIs. The tests below pin that the screen never renders
  * an unvalidated URI as a link — that call is the only thing standing between an
  * attacker-crafted `?signed_out=true&post_logout_redirect_uri=https://evil.test`
  * and a "Return to application" button pointing at it.
  *
- * ── `validateRedirectUri` RETURNS `Promise<unknown>`, NOT `Promise<boolean>` ──
+ * ── THE VALIDATION RESPONSE IS UNTYPED AND MUST FAIL CLOSED ──────────────────
  *
  * The C# client collapses the call to a bool (AuthApiClient.cs:93-108):
  *
@@ -87,128 +110,105 @@ import { LogoutScreen } from "./LogoutScreen";
  *     RedirectUriValidationResponse? body = await …ReadFromJsonAsync…;
  *     return body?.Allowed == true;
  *
- * The TS facade does NOT: `validateRedirectUri: (uri: string) => Promise<unknown>`
- * (auth-client.ts:149), because the OpenAPI spec declares the 200 with no schema
+ * The TS side does NOT: the OpenAPI spec declares the 200 with no schema
  * (openapi/v1.json:1005-1009) — the endpoint returns an anonymous
  * `Ok(new { allowed = … })` (AccountController.cs:601-607), so there is nothing
  * to generate a type from. Two consequences the screen owns, both pinned below:
  *
  *   1. The `{ allowed: boolean }` narrowing happens at THIS boundary. The scout's
- *      instruction for the untyped facade methods is exactly this: screens define
+ *      instruction for the untyped responses is exactly this: screens define
  *      their own local interface and narrow at their own edge. `body?.Allowed ==
  *      true` is a STRICT test — anything that is not literally `allowed: true`
  *      (missing key, `"true"` the string, a non-object body) is NOT allowed.
  *   2. The C# `!IsSuccessStatusCode → false` arm arrives here as a REJECTION,
- *      because the facade's `unwrap()` throws on non-2xx rather than returning
- *      null. A rejected validation is a DENIED validation, not an error to
- *      surface: the oracle has no error state on this screen at all (no
- *      `logout-error` testid exists), and it must not fail OPEN. The
- *      `WallowError` code-loss gotcha (bd memory `wallow-auth-auth-client-ts-
- *      wallowerror-code-loss`) costs this screen nothing — it never reads `.code`.
+ *      because the SDK throws on non-2xx rather than returning null. A rejected
+ *      validation is a DENIED validation, not an error to surface: the oracle has
+ *      no error state on this screen at all (no `logout-error` testid exists),
+ *      and it must not fail OPEN. This screen never reads the rejection's `.code`,
+ *      so the shape it arrives in costs it nothing.
  */
-
-// Hoisted so the vi.mock factories and the test bodies share the same spies.
-const mocks = vi.hoisted(() => ({
-  validateRedirectUri: vi.fn(),
-  buildConnectLogoutUrl: vi.fn(),
-  isSafeReturnUrl: vi.fn(),
-}));
-
-vi.mock("../../../lib/wallow-auth-sdk", () => ({
-  getWallowAuthSdk: () => ({
-    auth: {},
-    oidc: {
-      buildConnectLogoutUrl: mocks.buildConnectLogoutUrl,
-      isSafeReturnUrl: mocks.isSafeReturnUrl,
-    },
-  }),
-}));
-
-/**
- * THE READ SEAM MOVED (Wallow-evd5.3.1). The post-logout-URI probe is now
- * `useQuery(authQueries.redirectValidation(postLogoutRedirectUri))` from the SDK
- * query layer rather than a facade call inside inline `useQuery` options, so the
- * facade mock above no longer carries `validateRedirectUri` and the spy hangs off
- * the FACTORY. Building the end-session URL is pure string work and stays on the
- * facade's `oidc` slice.
- *
- * The factory is SHARED with the MFA challenge screen — same endpoint, same
- * question — so `importOriginal` keeping the real `queryKey` is what lets the two
- * screens share one cache entry per URL. The spy returns the RAW endpoint payload;
- * the screen owns the fail-closed narrowing these tests pin.
- */
-vi.mock("@bc-solutions-coder/sdk/query", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@bc-solutions-coder/sdk/query")>();
-  return {
-    ...actual,
-    authQueries: {
-      ...actual.authQueries,
-      redirectValidation: (url: string) => ({
-        ...actual.authQueries.redirectValidation(url),
-        queryFn: async (): Promise<unknown> => await mocks.validateRedirectUri(url),
-      }),
-    },
-  };
-});
 
 /** A registered post-logout URI: absolute, and another origin than this one. */
 const REDIRECT_URI = "https://app.wallow.test/signed-out";
 
 /**
- * The real `buildConnectLogoutUrl` behaviour (packages/sdk/src/auth-oidc.ts),
- * restated here because the screen reaches it through the mocked facade.
- * Restating the rule rather than stubbing a fixed string keeps these tests
- * pinning the screen's USE of the builder against the builder's actual
- * semantics — in particular that it is the ORIGIN ARGUMENT, not the builder,
- * that decides whether the sign-out handoff stays same-origin.
- *
- * The builder's own string algebra is pinned by its tests in
- * `packages/sdk/src/auth-oidc.test.ts`; it is reproduced only so this screen
- * meets a builder that behaves like the real one.
+ * The generated operation's URL for the allow-list probe
+ * (`accountValidateRedirectUri`, `packages/sdk/src/generated/sdk.gen.ts`). This
+ * is the only endpoint this screen touches, which is why the responses below can
+ * be programmed with a blanket `harness.respond`.
  */
-function buildConnectLogoutUrlRule(origin: string, postLogoutRedirectUri?: string | null): string {
-  const url: string = `${origin.replace(/\/+$/u, "")}/connect/logout`;
+const VALIDATE_ENDPOINT = "/v1/identity/auth/redirect-uri/validate";
 
-  if (
-    postLogoutRedirectUri === null ||
-    postLogoutRedirectUri === undefined ||
-    postLogoutRedirectUri === ""
-  ) {
-    return url;
-  }
+const OK_STATUS = 200;
 
-  return `${url}?post_logout_redirect_uri=${encodeURIComponent(postLogoutRedirectUri)}`;
-}
+let harness: SdkHarness;
 
 /** The `{ allowed }` body the API's anonymous `Ok(new { allowed = … })` sends. */
 function allowedBody(allowed: boolean): unknown {
   return { allowed };
 }
 
-/** A WallowError-shaped rejection, as the real facade's `unwrap()` throws. */
-function wallowErrorShaped(status: number): Error {
-  return Object.assign(new Error("Unknown error"), {
-    name: "WallowError",
-    status,
-    code: "UNKNOWN",
-    title: "Unknown error",
-  });
+/**
+ * Answer the validation probe with `body`.
+ *
+ * `undefined` is sent as a BODYLESS 200 rather than as the four characters
+ * `null`, because that is the closest thing the wire has to "the operation
+ * resolved undefined": a 200 with nothing in it. (The generated client turns an empty JSON
+ * body into `{}`, so on this transport `undefined` and "a body missing the key"
+ * are the same observation — see the note on that `it.each` case.)
+ */
+function answerValidation(body: unknown): void {
+  harness.respond(() =>
+    body === undefined
+      ? new Response(null, { status: OK_STATUS })
+      : Response.json(body, { status: OK_STATUS }),
+  );
 }
 
-function newClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
+/**
+ * Refuse the validation probe with `status`, in the problem-details shape the
+ * API emits for a non-2xx. The screen never reads the code — only that the call
+ * rejected — so the body is deliberately uninformative.
+ */
+function refuseValidation(status: number): void {
+  harness.rejectJson({ title: "Validation failed", status }, status);
 }
 
+/** Every recorded probe of the allow-list endpoint, in order. */
+function validationCalls(): readonly SdkCall[] {
+  return harness.calls.filter((call: SdkCall) => call.path === VALIDATE_ENDPOINT);
+}
+
+/**
+ * The `uri` each recorded probe asked about — the wire-level replacement for the
+ * old `expect(validateRedirectUri).toHaveBeenCalledWith(uri)`.
+ */
+function probedUris(): readonly (string | null)[] {
+  return validationCalls().map((call: SdkCall) => new URL(call.url).searchParams.get("uri"));
+}
+
+/**
+ * The sign-out anchor's RESOLVED destination — what the browser would actually
+ * navigate to, origin included.
+ *
+ * The `href` ATTRIBUTE is the relative string the builder produced; the `href`
+ * PROPERTY is that string resolved against this document. Reading the property
+ * is how the origin trap is observed now that the real builder runs: a ported
+ * `$"{ApiBaseUrl}/connect/logout"` would show up here as a foreign origin, which
+ * the attribute alone cannot distinguish from a base that happens to be `""`.
+ */
+function resolvedLogoutUrl(): URL {
+  return new URL((page.getByTestId("logout-confirm-button").element() as HTMLAnchorElement).href);
+}
+
+/** Render `ui` on the shared harness: real SDK, fake transport, real router context. */
 function renderWithClient(ui: ReactElement) {
-  return render(<QueryClientProvider client={newClient()}>{ui}</QueryClientProvider>);
+  return renderWithWallow(ui, { harness });
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
-  mocks.buildConnectLogoutUrl.mockImplementation(buildConnectLogoutUrlRule);
-  mocks.validateRedirectUri.mockResolvedValue(allowedBody(true));
+  harness = createAuthHarness();
+  answerValidation(allowedBody(true));
 });
 
 describe("LogoutScreen — the confirm step", () => {
@@ -232,7 +232,7 @@ describe("LogoutScreen — the confirm step", () => {
   it("points the sign-out button at this origin's /connect/logout", async () => {
     await renderWithClient(<LogoutScreen />);
 
-    // THE ORIGIN TRAP. See the header note: the h3 proxy serves /connect/** at
+    // THE ORIGIN TRAP. See the header note: the passthrough proxy serves /connect/** at
     // the root, so the handoff must stay same-origin or the SameSite auth cookie
     // never reaches the endpoint that needs it to know whose session to end.
     await expect
@@ -243,11 +243,15 @@ describe("LogoutScreen — the confirm step", () => {
   it("builds that URL against the empty origin, not a configured API base URL", async () => {
     await renderWithClient(<LogoutScreen />);
 
-    // Asserted on the ARGUMENT as well as the result, so that porting the
-    // oracle's `$"{ApiBaseUrl}/connect/logout"` fails loudly here rather than
-    // silently in production — the two are indistinguishable from the rendered
-    // href alone if someone hardcodes a base that happens to be "".
-    expect(mocks.buildConnectLogoutUrl.mock.calls[0]?.[0]).toBe("");
+    // Asserted on the RESOLVED destination, so that porting the oracle's
+    // `$"{ApiBaseUrl}/connect/logout"` fails loudly here rather than silently in
+    // production. The two are indistinguishable from the href ATTRIBUTE alone if
+    // someone hardcodes a base that happens to be "" — the origin is the part
+    // that decides whether the SameSite auth cookie travels with the request.
+    const target: URL = resolvedLogoutUrl();
+
+    expect(target.origin).toBe(globalThis.location.origin);
+    expect(target.pathname).toBe("/connect/logout");
   });
 
   it("carries post_logout_redirect_uri through to the logout URL", async () => {
@@ -255,8 +259,10 @@ describe("LogoutScreen — the confirm step", () => {
 
     // The oracle's `if (!IsNullOrEmpty(PostLogoutRedirectUri))` arm. OpenIddict
     // needs this on the END-SESSION request to know where to send the browser
-    // back to; dropping it here strands the user on the landing page.
-    expect(mocks.buildConnectLogoutUrl.mock.calls[0]?.[1]).toBe(REDIRECT_URI);
+    // back to; dropping it here strands the user on the landing page. Read back
+    // out of the built URL rather than off a builder argument, so a screen that
+    // passed it and then dropped it cannot pass.
+    expect(resolvedLogoutUrl().searchParams.get("post_logout_redirect_uri")).toBe(REDIRECT_URI);
     await expect
       .element(page.getByTestId("logout-confirm-button"))
       .toHaveAttribute(
@@ -290,9 +296,10 @@ describe("LogoutScreen — the confirm step", () => {
     // would be wasted — the API re-validates the parameter on the end-session
     // request itself — and would leak a probe on every render of the prompt.
     // Anchored on the prompt actually rendering, so this cannot pass by the
-    // screen simply not being the confirm step.
+    // screen simply not being the confirm step. Now read off the transport: the
+    // claim is that NOTHING went out, which no facade spy could have said.
     await expect.element(page.getByTestId("logout-confirm-button")).toBeInTheDocument();
-    expect(mocks.validateRedirectUri).not.toHaveBeenCalled();
+    expect(harness.calls).toHaveLength(0);
   });
 
   it("does not apply the relative-path returnUrl guard to an absolute URI", async () => {
@@ -301,7 +308,14 @@ describe("LogoutScreen — the confirm step", () => {
     // See the header note: `isSafeReturnUrl` demands a single leading '/', so
     // applying it to a post-logout URI would reject every legitimate relying
     // party. The server-side allow-list is the defence on this screen.
-    expect(mocks.isSafeReturnUrl).not.toHaveBeenCalled();
+    //
+    // The REAL guard now runs (it is a pure function imported straight from the
+    // SDK, so it cannot be observed as a call any more), which means the
+    // claim is stated as the OUTCOME a guarded screen could not produce: the
+    // absolute URI survives, unrefused and unsanitized, into the logout URL.
+    // `isSafeReturnUrl(REDIRECT_URI)` is FALSE, so a screen that consulted it
+    // would have dropped the parameter or bailed to the error page here.
+    expect(resolvedLogoutUrl().searchParams.get("post_logout_redirect_uri")).toBe(REDIRECT_URI);
     await expect.element(page.getByTestId("logout-confirm-button")).toBeInTheDocument();
   });
 
@@ -320,7 +334,7 @@ describe("LogoutScreen — the confirm step", () => {
     await renderWithClient(<LogoutScreen />);
 
     // The oracle's `<a href="@LogoutUrl">`. This has to be a real navigation:
-    // /connect/logout is served by the h3 proxy and is not in the client-side
+    // /connect/logout is served by the passthrough proxy and is not in the client-side
     // route tree, so a router-driven control would 404 in-app.
     expect(page.getByTestId("logout-confirm-button").element().tagName).toBe("A");
   });
@@ -395,10 +409,15 @@ describe("LogoutScreen — the signed-out landing", () => {
     await renderWithClient(<LogoutScreen signedOut="true" postLogoutRedirectUri={REDIRECT_URI} />);
 
     // The oracle's `await AuthApiClient.ValidateRedirectUriAsync(PostLogoutRedirectUri)`.
-    // This is the acceptance criterion's "redirect-uri validation branch".
+    // This is the acceptance criterion's "redirect-uri validation branch", now
+    // pinned on the WIRE: the right endpoint, as a read, asking about the right
+    // URI — and asking it UNSCOPED, because the oracle passes no client id and
+    // sending one would narrow the allow-list the answer is drawn from.
     await vi.waitFor(() => {
-      expect(mocks.validateRedirectUri).toHaveBeenCalledWith(REDIRECT_URI);
+      expect(probedUris()).toEqual([REDIRECT_URI]);
     });
+    expect(validationCalls()[0]?.method).toBe("GET");
+    expect(new URL(validationCalls()[0]?.url ?? "").searchParams.has("clientId")).toBe(false);
   });
 
   it("offers a link back to the application once the URI is allowed", async () => {
@@ -415,7 +434,7 @@ describe("LogoutScreen — the signed-out landing", () => {
   });
 
   it("does not link to a URI the server refused", async () => {
-    mocks.validateRedirectUri.mockResolvedValue(allowedBody(false));
+    answerValidation(allowedBody(false));
 
     await renderWithClient(
       <LogoutScreen signedOut="true" postLogoutRedirectUri="https://evil.test/collect" />,
@@ -427,13 +446,13 @@ describe("LogoutScreen — the signed-out landing", () => {
     // FALSE and only the server being able to flip it is what keeps this page
     // from laundering a Wallow-branded link to an arbitrary origin.
     await vi.waitFor(() => {
-      expect(mocks.validateRedirectUri).toHaveBeenCalled();
+      expect(validationCalls()).not.toHaveLength(0);
     });
     expect(page.getByTestId("logout-return-link").query()).toBeNull();
   });
 
   it("never puts an unvalidated URI in the DOM, even briefly", async () => {
-    mocks.validateRedirectUri.mockReturnValue(new Promise(() => {}));
+    harness.pending();
 
     const { container } = await renderWithClient(
       <LogoutScreen signedOut="true" postLogoutRedirectUri="https://evil.test/collect" />,
@@ -451,7 +470,7 @@ describe("LogoutScreen — the signed-out landing", () => {
   });
 
   it("still confirms the sign-out while the validation is in flight", async () => {
-    mocks.validateRedirectUri.mockReturnValue(new Promise(() => {}));
+    harness.pending();
 
     await renderWithClient(<LogoutScreen signedOut="true" postLogoutRedirectUri={REDIRECT_URI} />);
 
@@ -473,7 +492,7 @@ describe("LogoutScreen — the signed-out landing", () => {
     await expect
       .element(page.getByTestId("logout-confirm-heading"))
       .toHaveTextContent("Signed out");
-    expect(mocks.validateRedirectUri).not.toHaveBeenCalled();
+    expect(harness.calls).toHaveLength(0);
     expect(page.getByTestId("logout-return-link").query()).toBeNull();
   });
 
@@ -485,13 +504,13 @@ describe("LogoutScreen — the signed-out landing", () => {
     await expect
       .element(page.getByTestId("logout-confirm-heading"))
       .toHaveTextContent("Signed out");
-    expect(mocks.validateRedirectUri).not.toHaveBeenCalled();
+    expect(harness.calls).toHaveLength(0);
   });
 });
 
 describe("LogoutScreen — the validation response is untyped and must fail closed", () => {
   it("links when the body is exactly { allowed: true }", async () => {
-    mocks.validateRedirectUri.mockResolvedValue(allowedBody(true));
+    answerValidation(allowedBody(true));
 
     await renderWithClient(<LogoutScreen signedOut="true" postLogoutRedirectUri={REDIRECT_URI} />);
 
@@ -504,22 +523,27 @@ describe("LogoutScreen — the validation response is untyped and must fail clos
     [{ allowed: null }, "an explicit null"],
     [{}, "a body missing the key"],
     [null, "a null body"],
+    // NOTE: over a real transport `undefined` is not a body — it is sent as a
+    // 200 with NOTHING in it, which the generated client parses to `{}`. So this
+    // case and "a body missing the key" are now the same observation. It is kept
+    // because the claim (an answerless 200 is not permission) is worth stating
+    // where a reader looks for it, and it costs one request.
     [undefined, "an undefined body"],
     ["allowed", "a bare string body"],
     [true, "a bare boolean body"],
     [{ Allowed: true }, "the C# PascalCase key the wire does not use"],
   ])("refuses to link when the body is %j (%s)", async (body: unknown) => {
-    mocks.validateRedirectUri.mockResolvedValue(body);
+    answerValidation(body);
 
     await renderWithClient(<LogoutScreen signedOut="true" postLogoutRedirectUri={REDIRECT_URI} />);
 
-    // `body?.Allowed == true` is a STRICT comparison in the oracle, and the
-    // facade hands this screen an `unknown` (the spec declares the 200 with no
-    // schema), so the narrowing is the screen's own. Every shape that is not
-    // literally `allowed: true` is NOT allowed — a screen that leaned on JS
-    // truthiness would link on `allowed: "false"`, which is a string and truthy.
+    // `body?.Allowed == true` is a STRICT comparison in the oracle, and the SDK
+    // hands this screen an `unknown` (the spec declares the 200 with no schema),
+    // so the narrowing is the screen's own. Every shape that is not literally
+    // `allowed: true` is NOT allowed — a screen that leaned on JS truthiness
+    // would link on `allowed: "false"`, which is a string and truthy.
     await vi.waitFor(() => {
-      expect(mocks.validateRedirectUri).toHaveBeenCalled();
+      expect(validationCalls()).not.toHaveLength(0);
     });
     expect(page.getByTestId("logout-return-link").query()).toBeNull();
   });
@@ -530,22 +554,22 @@ describe("LogoutScreen — the validation response is untyped and must fail clos
     [404, "an unregistered client"],
     [500, "a server fault"],
   ])("refuses to link when validation rejects with %i (%s)", async (status: number) => {
-    mocks.validateRedirectUri.mockRejectedValue(wallowErrorShaped(status));
+    refuseValidation(status);
 
     await renderWithClient(<LogoutScreen signedOut="true" postLogoutRedirectUri={REDIRECT_URI} />);
 
     // The C# `!IsSuccessStatusCode → false` arm, which arrives through this seam
-    // as a REJECTION because `unwrap()` throws on non-2xx. FAILING CLOSED is the
+    // as a REJECTION because the SDK throws on non-2xx. FAILING CLOSED is the
     // whole point: an unreachable validator must not become a reason to trust the
     // attacker's URI.
     await vi.waitFor(() => {
-      expect(mocks.validateRedirectUri).toHaveBeenCalled();
+      expect(validationCalls()).not.toHaveLength(0);
     });
     expect(page.getByTestId("logout-return-link").query()).toBeNull();
   });
 
   it("surfaces no error state when validation fails", async () => {
-    mocks.validateRedirectUri.mockRejectedValue(wallowErrorShaped(500));
+    refuseValidation(500);
 
     await renderWithClient(<LogoutScreen signedOut="true" postLogoutRedirectUri={REDIRECT_URI} />);
 
@@ -554,7 +578,7 @@ describe("LogoutScreen — the validation response is untyped and must fail clos
     // validation is not the user's problem: they ARE signed out, which is what
     // they came for. Only the convenience link is lost.
     await vi.waitFor(() => {
-      expect(mocks.validateRedirectUri).toHaveBeenCalled();
+      expect(validationCalls()).not.toHaveLength(0);
     });
     expect(page.getByTestId("logout-error").query()).toBeNull();
     await expect
@@ -619,16 +643,11 @@ describe("LogoutScreen — testids", () => {
  * `ConsentScreen.test.tsx` followed.
  */
 function renderRouteAt(url: string) {
-  const rootRoute = createRootRoute({ component: Outlet });
-  const routeTree = rootRoute.addChildren([
-    logoutRoute.update({ id: "/logout", path: "/logout", getParentRoute: () => rootRoute } as any),
-  ]);
-  const router = createRouter({
-    routeTree,
-    history: createMemoryHistory({ initialEntries: [url] }),
+  return renderWithWallow(null, {
+    harness,
+    path: url,
+    routes: [{ path: "/logout", route: logoutRoute }],
   });
-
-  return renderWithClient(<RouterProvider router={router} />);
 }
 
 describe("/logout route", () => {
@@ -664,7 +683,7 @@ describe("/logout route", () => {
       .element(page.getByTestId("logout-confirm-heading"))
       .toHaveTextContent("Signed out");
     await vi.waitFor(() => {
-      expect(mocks.validateRedirectUri).toHaveBeenCalledWith(REDIRECT_URI);
+      expect(probedUris()).toEqual([REDIRECT_URI]);
     });
   });
 

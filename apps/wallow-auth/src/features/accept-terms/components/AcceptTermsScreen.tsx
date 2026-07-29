@@ -65,7 +65,7 @@ const COMPLETE_REGISTRATION_PATH = "/v1/identity/auth/complete-external-registra
  * The origin the handoff is built against: this one. The oracle prepends
  * `Configuration["ApiBaseUrl"] ?? "http://localhost:5001"`; that prepend is NOT
  * ported, for the reason `ConsentScreen` documents at length. This origin DOES
- * host `/v1/**` — `src/lib/auth-server.ts` mounts the passthrough reverse proxy
+ * host `/v1/**` — `src/lib/api-passthrough.ts` mounts the passthrough reverse proxy
  * at the ROOT — so going cross-origin would drop the `SameSite=Lax`
  * ExternalLoginState cookie, which is the user's whole identity here, and the
  * endpoint would bounce them to `/login?error=session_expired`. It would also
@@ -281,7 +281,7 @@ export function AcceptTermsScreen({
       clientId === undefined || clientId === "" ? "" : `&clientId=${encodeURIComponent(clientId)}`;
 
     // A FULL navigation — the oracle's `NavigateTo(completeUrl, forceLoad: true)`,
-    // never `router.navigate`: `/v1/**` is served by the h3 reverse proxy, not by
+    // never `router.navigate`: `/v1/**` is served by the passthrough reverse proxy, not by
     // the client-side route tree, which would 404 in-app. It must also be a real
     // top-level navigation for the browser to attach the SameSite=Lax
     // ExternalLoginState cookie the endpoint needs (bd memory

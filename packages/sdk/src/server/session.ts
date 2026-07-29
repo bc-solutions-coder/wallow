@@ -9,7 +9,17 @@
 
 import { defaults, seal, unseal } from "iron-webcrypto";
 
+import { DEFAULT_SESSION_TTL_SECONDS } from "./config";
 import { webCrypto } from "./webcrypto";
+
+const MS_PER_SECOND: number = 1000;
+
+/**
+ * Lifetime baked into a sealed session blob when the caller does not pass an
+ * explicit one, in milliseconds. Mirrors {@link DEFAULT_SESSION_TTL_SECONDS} so
+ * a blob sealed by a caller that never threads config through still expires.
+ */
+export const DEFAULT_SESSION_TTL_MS: number = DEFAULT_SESSION_TTL_SECONDS * MS_PER_SECOND;
 
 /**
  * The server-side session persisted (sealed) in the BFF session cookie.
@@ -49,10 +59,16 @@ export interface BffSession {
  *
  * @param session The session to seal.
  * @param password The cookie password (>= 32 characters).
+ * @param ttlMs Lifetime baked into the blob, in milliseconds. Defaults to
+ *        {@link DEFAULT_SESSION_TTL_MS}.
  * @returns The sealed, URL-safe token string.
  */
-export function sealSession(session: BffSession, password: string): Promise<string> {
-  return seal(webCrypto, session, password, defaults);
+export function sealSession(
+  session: BffSession,
+  password: string,
+  ttlMs: number = DEFAULT_SESSION_TTL_MS,
+): Promise<string> {
+  return seal(webCrypto, session, password, { ...defaults, ttl: ttlMs });
 }
 
 /**
@@ -60,12 +76,19 @@ export function sealSession(session: BffSession, password: string): Promise<stri
  *
  * @param sealed The sealed token produced by {@link sealSession}.
  * @param password The cookie password used to seal it.
+ * @param ttlMs Session lifetime in milliseconds. Defaults to
+ *        {@link DEFAULT_SESSION_TTL_MS}. The blob's own baked-in expiry always
+ *        wins; this value can never extend it.
  * @returns The decoded session, or `null` when the token is invalid, tampered,
- *          or sealed with a different password.
+ *          expired, or sealed with a different password.
  */
-export async function unsealSession(sealed: string, password: string): Promise<BffSession | null> {
+export async function unsealSession(
+  sealed: string,
+  password: string,
+  ttlMs: number = DEFAULT_SESSION_TTL_MS,
+): Promise<BffSession | null> {
   try {
-    const result: unknown = await unseal(webCrypto, sealed, password, defaults);
+    const result: unknown = await unseal(webCrypto, sealed, password, { ...defaults, ttl: ttlMs });
     return result as BffSession;
   } catch {
     return null;

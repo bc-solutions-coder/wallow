@@ -77,8 +77,9 @@ describe("PublicLayout", () => {
  * Link-target spec (Wallow-urec.2.1). The chrome's GitHub/Docs targets must come
  * from `../lib/site-links` — the single source that reads the fork's configured
  * `repositoryUrl`/`docsUrl` — so nav and footer can never drift apart or point at
- * the upstream repository. This file deliberately does NOT mock `../lib/branding`,
- * so these assertions run against the fork's real branding values.
+ * the upstream repository. This file deliberately does NOT mock
+ * `@bc-solutions-coder/styles`, so these assertions run against the fork's real
+ * branding values.
  */
 describe("PublicLayout link targets", () => {
   it("points the Features nav link at the landing page's features section", async () => {

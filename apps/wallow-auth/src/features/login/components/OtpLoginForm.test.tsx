@@ -1,16 +1,10 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  createMemoryHistory,
-  createRootRoute,
-  createRouter,
-  Outlet,
-  RouterProvider,
-} from "@tanstack/react-router";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+import { type SdkCall, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createAuthHarness } from "../../../test/harness";
 import { Route as loginRoute } from "../../../routes/login";
 import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
 
@@ -50,12 +44,15 @@ import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
  *     401 { succeeded: false, error: "Code expired or not found." }       PasswordlessService.cs:166
  *     401 { succeeded: false, error: "Invalid code." }                    PasswordlessService.cs:174
  *
+ * Those bodies are now sent VERBATIM over the harness transport (see TEST SEAM
+ * below) rather than restated as hand-built rejection objects, so the SDK's own
+ * error shaping is part of what these tests cover.
+ *
  * As on magic-link, THE FAILURES ARE REJECTIONS, NOT 200 BODIES: both endpoints
  * answer non-2xx, so `unwrap()` THROWS and the oracle's `if (result.Succeeded) …
  * else` arms are reached through `onError`, not `onSuccess`. As of Wallow-vec7.7
  * `readCode` probes `extensions.code > code > error`, so the `error` member of the
- * bare `{ succeeded, error }` body arrives as `WallowError.code` — hence the
- * WallowError-SHAPED rejection fixtures below.
+ * bare `{ succeeded, error }` body arrives as `WallowError.code`.
  *
  * The oracle's `"invalid_code"` literal is DEAD: `ValidateOtpAsync` never returns
  * it. Its live spellings are `"Code expired or not found."` and `"Invalid code."`.
@@ -80,45 +77,54 @@ import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
  * copy is a rate-limit-specific divergence, so it must not be handed to some future
  * unrelated 400.
  *
+ * ── TEST SEAM: the shared SDK harness (Wallow-pu6a.5.1) ──────────────────────
+ *
+ * `@bc-solutions-coder/testing/sdk-harness`. The SDK is the REAL one and only its
+ * `fetch` is faked, so nothing here stubs the SDK barrel and there is no
+ * app-level facade left to stub: the screen's whole pipeline — request-scoped SDK
+ * -> generated operation -> CSRF interceptor -> request serialization -> error
+ * shaping -> React Query — executes in the spec.
+ * `renderWithWallow` supplies the router context the screen reads its SDK off,
+ * and `createAuthHarness()` pins the harness origin to this app's root-mounted
+ * API surface (Wallow-pu6a.5.5).
+ *
+ * Consequently the assertions below read the outgoing REQUEST (`callsTo(...)`,
+ * `.body`, `.method`) instead of a spy on a stand-in double, and the
+ * endpoint constants are the real generated URLs, not names. This screen talks to
+ * FOUR endpoints (three tabs plus the external-provider list `ExternalProviders`
+ * queries on mount), so every response is programmed per PATH — `defaultWire`
+ * answers the rest — and every assertion filters by path rather than reading
+ * `harness.calls` whole.
+ *
+ * The OIDC slice needs no stand-in either: `isSafeReturnUrl` and
+ * `buildExchangeTicketUrl` are pure functions in `packages/sdk/src/auth-oidc.ts`,
+ * so the REAL rule runs here. That is strictly stronger than the hand-restated
+ * copy of the guard this file used to carry — a mirrored rule can drift from the
+ * shipped one, and a mock returning a constant would let the guard tests pass for
+ * the wrong reason.
+ *
  * ── NAVIGATION SEAM (browser migration, Wallow-xzha.3.x) ─────────────────────
  *
- * These specs run in real Chromium via `vitest-browser-react`, where
- * `window.location` is `[Unforgeable]`: the old jsdom `vi.stubGlobal("location", …)`
- * hack cannot shadow it, and assigning `location.href` would navigate the runner's
- * iframe and tear the run down (see vitest.config.ts NAVIGATION SEAM). The screen's
- * `location.href = buildExchangeTicketUrl(origin, ticket, returnUrl)` hand-off is
- * therefore pinned by asserting the URL-builder seam was called with the exact
- * origin + ticket + returnUrl — the builder is deterministic, so that is equivalent
- * to pinning the assigned string — and the builder mock returns a bare-fragment
- * sentinel so the assignment stays put and never navigates.
+ * These specs run in real Chromium, where `window.location` is `[Unforgeable]`:
+ * the old jsdom `vi.stubGlobal("location", …)` hack cannot shadow it, and the
+ * shell's `location.href = buildExchangeTicketUrl(origin, ticket, returnUrl)`
+ * hand-off would navigate the runner's iframe and tear the run down.
+ *
+ * With the real builder in play there is no mock return value to make inert, so
+ * the hand-off is observed the way the other wallow-auth screens observe theirs
+ * (bd memory `full-navigation-seam-for-wallow-auth-screens-that`): listen for the
+ * Navigation API `navigate` event the assignment fires, record `destination.url`,
+ * and `preventDefault()` so the navigation is cancelled. The recorded array stands
+ * in for the old settable `location.href` — a hand-off appends exactly one
+ * absolute URL, a refusal appends nothing — and asserting the URL's ORIGIN,
+ * pathname and query is a stronger claim than the old "the builder was called with
+ * these three arguments": it pins the string the browser was actually handed.
  */
 
-// Hoisted so the vi.mock factories and the test bodies share the same spies.
+// Hoisted so the `vi.mock` factory and the test bodies share the same spy. Only
+// `useNavigate` is mocked now — the SDK reaches the harness transport instead.
 const mocks = vi.hoisted(() => ({
-  login: vi.fn(),
-  sendMagicLink: vi.fn(),
-  verifyMagicLink: vi.fn(),
-  sendOtp: vi.fn(),
-  verifyOtp: vi.fn(),
-  isSafeReturnUrl: vi.fn(),
-  buildExchangeTicketUrl: vi.fn(),
   navigate: vi.fn(),
-}));
-
-vi.mock("../../../lib/wallow-auth-sdk", () => ({
-  getWallowAuthSdk: () => ({
-    auth: {
-      login: mocks.login,
-      sendMagicLink: mocks.sendMagicLink,
-      verifyMagicLink: mocks.verifyMagicLink,
-      sendOtp: mocks.sendOtp,
-      verifyOtp: mocks.verifyOtp,
-    },
-    oidc: {
-      isSafeReturnUrl: mocks.isSafeReturnUrl,
-      buildExchangeTicketUrl: mocks.buildExchangeTicketUrl,
-    },
-  }),
 }));
 
 // `importOriginal` MUST be spread: the route harness needs the real
@@ -139,6 +145,28 @@ const TICKET = "sign-in-ticket-xyz";
  * string and never a number.
  */
 const CODE = "042317";
+
+/**
+ * The generated operations' URLs (`packages/sdk/src/generated/sdk.gen.ts`), which
+ * are what the recorded requests carry. Note the send path is a PREFIX of the
+ * verify path, so every match here is on equality, never `startsWith`.
+ */
+const OTP_SEND_ENDPOINT = "/v1/identity/auth/passwordless/otp";
+const OTP_VERIFY_ENDPOINT = "/v1/identity/auth/passwordless/otp/verify";
+const LOGIN_ENDPOINT = "/v1/identity/auth/login";
+const MAGIC_LINK_ENDPOINT = "/v1/identity/auth/passwordless/magic-link";
+
+/** The path the shell's ticket hand-off navigates to, built by the real builder. */
+const EXCHANGE_TICKET_PATH = "/v1/identity/auth/exchange-ticket";
+
+/** Wire statuses, named so the failure tests read as the API's contract. */
+const OK_STATUS = 200;
+const BAD_REQUEST_STATUS = 400;
+const UNAUTHORIZED_STATUS = 401;
+const SERVER_ERROR_STATUS = 500;
+
+/** `Array.prototype.at` index of the most recent element. */
+const LAST_INDEX = -1;
 
 /**
  * The returnUrl `/connect/authorize` really sends (AuthorizationController.cs:53,
@@ -178,70 +206,137 @@ const RATE_LIMITED_MESSAGE = "Too many code requests. Please wait a few minutes 
 const GENERIC_MESSAGE = "An error occurred. Please try again.";
 const UNREACHABLE_MESSAGE = "Unable to reach the server. Please try again later.";
 
-/**
- * A non-navigating sentinel for the ticket-exchange URL. `window.location` is
- * `[Unforgeable]` in real Chromium, so the screen's `location.href = builder(...)`
- * hand-off is pinned by asserting the builder's ARGS (see header); the builder is
- * mocked to a bare fragment so the assignment updates only the hash and never tears
- * down the runner.
- */
-const EXCHANGE_TICKET_SENTINEL = "#otp-exchange-ticket-sentinel";
+let harness: SdkHarness;
 
 /**
- * The real `isSafeReturnUrl` rule (packages/sdk/src/auth-oidc.ts:49-56), mirrored
- * rather than imported: screens may not import the SDK, so the seam is mocked —
- * and a mock returning a CONSTANT would let the guard tests pass for the wrong
- * reason, which is exactly how an outage gets pinned as a security feature.
+ * The wire this screen sees unless a test says otherwise. Programmed per PATH
+ * because the shell drives four endpoints at once: whichever tab is open, the
+ * shared `ExternalProviders` child issues its own query on mount, so a single
+ * blanket response would answer the wrong question somewhere.
  */
-function isSafeReturnUrlRule(url: string | null | undefined): boolean {
-  if (url === null || url === undefined || url.trim() === "") {
-    return false;
+function defaultWire(call: SdkCall): Response {
+  switch (call.path) {
+    case OTP_VERIFY_ENDPOINT:
+    case LOGIN_ENDPOINT: {
+      return Response.json(
+        { succeeded: true, email: EMAIL, signInTicket: TICKET },
+        { status: OK_STATUS },
+      );
+    }
+    case OTP_SEND_ENDPOINT:
+    case MAGIC_LINK_ENDPOINT: {
+      return Response.json({ succeeded: true }, { status: OK_STATUS });
+    }
+    default: {
+      // `ExternalProviders`: an empty list renders nothing, which is this
+      // screen's state in every test in this file.
+      return Response.json([], { status: OK_STATUS });
+    }
   }
+}
 
-  return url.startsWith("/") && !url.startsWith("//");
+/** Answer ONE endpoint differently, leaving every other one on {@link defaultWire}. */
+function wireEndpoint(
+  path: string,
+  respond: (call: SdkCall) => Response | Promise<Response>,
+): void {
+  harness.respond((call: SdkCall) => (call.path === path ? respond(call) : defaultWire(call)));
+}
+
+/** A non-2xx from `path`, in this API's bare `{ succeeded, error }` shape. */
+function rejectAt(path: string, status: number, token: string): void {
+  wireEndpoint(path, () => Response.json({ succeeded: false, error: token }, { status }));
+}
+
+/** A 200 from `path` carrying exactly `body`. */
+function resolveAt(path: string, body: unknown): void {
+  wireEndpoint(path, () => Response.json(body, { status: OK_STATUS }));
 }
 
 /**
- * What the facade really throws for this endpoint's failures. `title` stays
- * "Unknown error": these endpoints emit no problem details, so no human-readable
- * title ever arrives and the screen must supply its own copy.
+ * A TRANSPORT failure at `path` — the request never reaches a server, so the
+ * rejection carries neither `status` nor `code`. That absence is what identifies
+ * the oracle's `catch (HttpRequestException)` arm.
  */
-function rejection(status: number, code: string): Error & { status: number; code: string } {
-  return Object.assign(new Error("Unknown error"), {
-    name: "WallowError",
-    status,
-    code,
-    title: "Unknown error",
+function failNetworkAt(path: string): void {
+  wireEndpoint(path, () => {
+    throw new TypeError("Failed to fetch");
   });
 }
 
 /**
- * A `fetch` failure: no `status`, no `code`. The TS shape of the oracle's
- * `catch (HttpRequestException)` arm, which it keeps DISTINCT from its generic
- * tail on both handlers.
+ * Hold `path` in flight. The returned function settles the request with `body`,
+ * which is how the in-flight (double-submit) assertions get to observe the
+ * pending state without the responder never settling.
  */
-function networkRejection(): Error {
-  return new TypeError("Failed to fetch");
+function holdAt(path: string): (body: unknown) => void {
+  let settle: (body: unknown) => void = () => {};
+
+  wireEndpoint(
+    path,
+    async () =>
+      await new Promise<Response>((resolve) => {
+        settle = (body: unknown) => {
+          resolve(Response.json(body, { status: OK_STATUS }));
+        };
+      }),
+  );
+
+  return (body: unknown) => {
+    settle(body);
+  };
 }
 
-/** A promise this test resolves by hand, for asserting in-flight state. */
-function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((r) => {
-    resolve = r;
+/** Every recorded request to one endpoint, in order. */
+function callsTo(path: string): readonly SdkCall[] {
+  return harness.calls.filter((call: SdkCall) => call.path === path);
+}
+
+/** The most recent recorded request to one endpoint. */
+function lastCallTo(path: string): SdkCall | undefined {
+  return callsTo(path).at(LAST_INDEX);
+}
+
+/**
+ * NAVIGATION SEAM — see the module header. The `navigate` event the shell's
+ * `location.href = …` assignment fires is recorded and CANCELLED, so the
+ * hand-off URL is observable without navigating the Chromium runner away.
+ */
+interface NavigateEvent extends Event {
+  readonly destination: { readonly url: string };
+}
+interface NavigationLike {
+  addEventListener: (type: "navigate", handler: (event: NavigateEvent) => void) => void;
+  removeEventListener: (type: "navigate", handler: (event: NavigateEvent) => void) => void;
+}
+const navigationApi: NavigationLike = (globalThis as unknown as { navigation: NavigationLike })
+  .navigation;
+
+/** Every full-navigation hand-off this test's render attempted, in order. */
+let handoffs: string[] = [];
+
+function recordHandoff(event: NavigateEvent): void {
+  handoffs.push(event.destination.url);
+  // Cancel it: assigning `location.href` would otherwise tear the runner down.
+  event.preventDefault();
+}
+
+/**
+ * The ticket-exchange URL the shell handed the browser, recovered from the
+ * cancelled navigation. Waits for the hand-off first, so callers assert on the
+ * parts rather than on the timing.
+ */
+async function handoffTarget(): Promise<URL> {
+  await vi.waitFor(() => {
+    expect(handoffs).toHaveLength(1);
   });
 
-  return { promise, resolve };
+  return new URL(handoffs[0] ?? "");
 }
 
-function newClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-}
-
+/** Render `ui` on the shared harness: real SDK, fake transport, real router context. */
 function renderWithClient(ui: ReactElement) {
-  return render(<QueryClientProvider client={newClient()}>{ui}</QueryClientProvider>);
+  return renderWithWallow(ui, { harness });
 }
 
 /**
@@ -313,14 +408,14 @@ async function toggleCheckbox(
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.isSafeReturnUrl.mockImplementation(isSafeReturnUrlRule);
-  mocks.buildExchangeTicketUrl.mockReturnValue(EXCHANGE_TICKET_SENTINEL);
-  mocks.sendOtp.mockResolvedValue({ succeeded: true });
-  mocks.verifyOtp.mockResolvedValue({
-    succeeded: true,
-    email: EMAIL,
-    signInTicket: TICKET,
-  });
+  harness = createAuthHarness();
+  harness.respond(defaultWire);
+  handoffs = [];
+  navigationApi.addEventListener("navigate", recordHandoff);
+});
+
+afterEach(() => {
+  navigationApi.removeEventListener("navigate", recordHandoff);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -362,7 +457,7 @@ describe("LoginScreen OTP tab: sending", () => {
     await openOtpTab(user);
 
     await expect.element(page.getByTestId("login-otp-send-submit")).toBeInTheDocument();
-    expect(mocks.sendOtp).not.toHaveBeenCalled();
+    expect(callsTo(OTP_SEND_ENDPOINT)).toHaveLength(0);
   });
 
   it("refuses a blank email without calling the API", async () => {
@@ -375,7 +470,7 @@ describe("LoginScreen OTP tab: sending", () => {
     await submitEmail(user, "");
 
     await expect.element(page.getByTestId("login-error")).toHaveTextContent(BLANK_EMAIL_MESSAGE);
-    expect(mocks.sendOtp).not.toHaveBeenCalled();
+    expect(callsTo(OTP_SEND_ENDPOINT)).toHaveLength(0);
   });
 
   it("refuses a whitespace-only email without calling the API", async () => {
@@ -387,13 +482,15 @@ describe("LoginScreen OTP tab: sending", () => {
     await submitEmail(user, "   ");
 
     await expect.element(page.getByTestId("login-error")).toHaveTextContent(BLANK_EMAIL_MESSAGE);
-    expect(mocks.sendOtp).not.toHaveBeenCalled();
+    expect(callsTo(OTP_SEND_ENDPOINT)).toHaveLength(0);
   });
 
   it("sends exactly the typed email, and no returnUrl or client_id", async () => {
     // `SendOtpRequest` is `{ email }` ALONE (types.gen.ts:834) — unlike
     // `SendMagicLinkRequest`, it carries no OIDC cargo, because nothing is emailed
-    // that needs to resume the flow: the user comes back to THIS live form.
+    // that needs to resume the flow: the user comes back to THIS live form. Read
+    // off the REQUEST, so "and no cargo" is a claim about the wire, not about a
+    // SDK argument.
     const user = userEvent.setup();
     renderScreen({ clientId: CLIENT_ID });
 
@@ -401,8 +498,10 @@ describe("LoginScreen OTP tab: sending", () => {
     await submitEmail(user);
 
     await vi.waitFor(() => {
-      expect(mocks.sendOtp).toHaveBeenCalledWith({ email: EMAIL });
+      expect(callsTo(OTP_SEND_ENDPOINT)).toHaveLength(1);
     });
+    expect(lastCallTo(OTP_SEND_ENDPOINT)?.method).toBe("POST");
+    expect(lastCallTo(OTP_SEND_ENDPOINT)?.body).toEqual({ email: EMAIL });
   });
 
   it("swaps the email form for the code form once the code is sent", async () => {
@@ -428,7 +527,7 @@ describe("LoginScreen OTP tab: sending", () => {
     // so the screen must be too (bd memory
     // `anti-enumeration-pattern-for-endpoints-that-must-not`).
     const user = userEvent.setup();
-    mocks.sendOtp.mockResolvedValue({ succeeded: true });
+    resolveAt(OTP_SEND_ENDPOINT, { succeeded: true });
     renderScreen();
 
     await openOtpTab(user);
@@ -444,8 +543,7 @@ describe("LoginScreen OTP tab: sending", () => {
     // the code already sitting in the user's inbox — so the impatient user is the one
     // who gets locked out. Bound by the OUTCOME (sends), not by the attribute.
     const user = userEvent.setup();
-    const pending = deferred<unknown>();
-    mocks.sendOtp.mockReturnValue(pending.promise);
+    const releaseSend = holdAt(OTP_SEND_ENDPOINT);
     renderScreen();
 
     await openOtpTab(user);
@@ -458,9 +556,16 @@ describe("LoginScreen OTP tab: sending", () => {
     await user.click(page.getByTestId("login-otp-send-submit"));
     await user.click(page.getByTestId("login-otp-send-submit"), { force: true });
 
-    pending.resolve({ succeeded: true });
+    // Let the request REACH the transport before settling it: the button goes
+    // disabled a tick before `fetch` is called, and releasing into that gap would
+    // leave the held responder installed forever.
+    await vi.waitFor(() => {
+      expect(callsTo(OTP_SEND_ENDPOINT)).toHaveLength(1);
+    });
+
+    releaseSend({ succeeded: true });
     await expect.element(page.getByTestId("login-otp-sent")).toBeInTheDocument();
-    expect(mocks.sendOtp).toHaveBeenCalledTimes(1);
+    expect(callsTo(OTP_SEND_ENDPOINT)).toHaveLength(1);
   });
 
   it("clears a stale error banner when the send is retried", async () => {
@@ -486,7 +591,7 @@ describe("LoginScreen OTP tab: send failures", () => {
     // DIVERGENCE (see RATE_LIMITED_MESSAGE above): the oracle's generic "try again"
     // is the one instruction guaranteed not to work here.
     const user = userEvent.setup();
-    mocks.sendOtp.mockRejectedValue(rejection(400, RATE_LIMITED_TOKEN));
+    rejectAt(OTP_SEND_ENDPOINT, BAD_REQUEST_STATUS, RATE_LIMITED_TOKEN);
     renderScreen();
 
     await openOtpTab(user);
@@ -497,7 +602,7 @@ describe("LoginScreen OTP tab: send failures", () => {
 
   it("keeps the email form up after a send failure so the address can be fixed", async () => {
     const user = userEvent.setup();
-    mocks.sendOtp.mockRejectedValue(rejection(400, RATE_LIMITED_TOKEN));
+    rejectAt(OTP_SEND_ENDPOINT, BAD_REQUEST_STATUS, RATE_LIMITED_TOKEN);
     renderScreen();
 
     await openOtpTab(user);
@@ -513,7 +618,7 @@ describe("LoginScreen OTP tab: send failures", () => {
     // generic tail: telling a user with no network that "an error occurred" sends
     // them to re-read an email that arrived fine.
     const user = userEvent.setup();
-    mocks.sendOtp.mockRejectedValue(networkRejection());
+    failNetworkAt(OTP_SEND_ENDPOINT);
     renderScreen();
 
     await openOtpTab(user);
@@ -524,7 +629,7 @@ describe("LoginScreen OTP tab: send failures", () => {
 
   it("falls back to the generic tail for a failure it has never heard of", async () => {
     const user = userEvent.setup();
-    mocks.sendOtp.mockRejectedValue(rejection(500, "something_new"));
+    rejectAt(OTP_SEND_ENDPOINT, SERVER_ERROR_STATUS, "something_new");
     renderScreen();
 
     await openOtpTab(user);
@@ -537,7 +642,7 @@ describe("LoginScreen OTP tab: send failures", () => {
     // The oracle's `_ => result.Error` leak is NOT ported. A server-authored English
     // sentence is still a machine token: matched against, never shown.
     const user = userEvent.setup();
-    mocks.sendOtp.mockRejectedValue(rejection(400, RATE_LIMITED_TOKEN));
+    rejectAt(OTP_SEND_ENDPOINT, BAD_REQUEST_STATUS, RATE_LIMITED_TOKEN);
     const { container } = await renderScreen();
 
     await openOtpTab(user);
@@ -550,7 +655,7 @@ describe("LoginScreen OTP tab: send failures", () => {
   it("fails closed on a 200 body it cannot read, rather than promising a code", async () => {
     // Sending the user to watch an inbox that will stay empty is worse than an error.
     const user = userEvent.setup();
-    mocks.sendOtp.mockResolvedValue({ unexpected: "shape" });
+    resolveAt(OTP_SEND_ENDPOINT, { unexpected: "shape" });
     renderScreen();
 
     await openOtpTab(user);
@@ -565,7 +670,7 @@ describe("LoginScreen OTP tab: send failures", () => {
     // happily accept `"false"` and march the user to a code form for a code that
     // was never sent.
     const user = userEvent.setup();
-    mocks.sendOtp.mockResolvedValue({ succeeded: "false" });
+    resolveAt(OTP_SEND_ENDPOINT, { succeeded: "false" });
     renderScreen();
 
     await openOtpTab(user);
@@ -590,7 +695,7 @@ describe("LoginScreen OTP tab: verifying", () => {
     await submitCode(user, "");
 
     await expect.element(page.getByTestId("login-error")).toHaveTextContent(BLANK_CODE_MESSAGE);
-    expect(mocks.verifyOtp).not.toHaveBeenCalled();
+    expect(callsTo(OTP_VERIFY_ENDPOINT)).toHaveLength(0);
   });
 
   it("refuses a whitespace-only code without calling the API", async () => {
@@ -601,7 +706,7 @@ describe("LoginScreen OTP tab: verifying", () => {
     await submitCode(user, "   ");
 
     await expect.element(page.getByTestId("login-error")).toHaveTextContent(BLANK_CODE_MESSAGE);
-    expect(mocks.verifyOtp).not.toHaveBeenCalled();
+    expect(callsTo(OTP_VERIFY_ENDPOINT)).toHaveLength(0);
   });
 
   it("verifies the code against the address the code was sent to", async () => {
@@ -617,16 +722,18 @@ describe("LoginScreen OTP tab: verifying", () => {
     await submitCode(user);
 
     await vi.waitFor(() => {
-      // `rememberMe: false` joins the payload as of Wallow-98st, which gives this tab
-      // its OWN checkbox. It is sent EXPLICITLY rather than omitted: the endpoint's
-      // `rememberMe` is optional (types.gen.ts:1044) and defaults false
-      // (AccountController.cs:895), so omission and `false` are the same session — but
-      // only one of them says on the wire which session the user asked for.
-      expect(mocks.verifyOtp).toHaveBeenCalledWith({
-        email: EMAIL,
-        code: CODE,
-        rememberMe: false,
-      });
+      expect(callsTo(OTP_VERIFY_ENDPOINT)).toHaveLength(1);
+    });
+    // `rememberMe: false` joins the payload as of Wallow-98st, which gives this tab
+    // its OWN checkbox. It is sent EXPLICITLY rather than omitted: the endpoint's
+    // `rememberMe` is optional (types.gen.ts:1044) and defaults false
+    // (AccountController.cs:895), so omission and `false` are the same session — but
+    // only one of them says on the wire which session the user asked for. Read off
+    // the recorded BODY, which is where that distinction actually lives.
+    expect(lastCallTo(OTP_VERIFY_ENDPOINT)?.body).toEqual({
+      email: EMAIL,
+      code: CODE,
+      rememberMe: false,
     });
   });
 
@@ -635,14 +742,14 @@ describe("LoginScreen OTP tab: verifying", () => {
     renderScreen();
 
     await reachCodeForm(user);
-    expect(mocks.sendOtp).toHaveBeenCalledTimes(1);
+    expect(callsTo(OTP_SEND_ENDPOINT)).toHaveLength(1);
 
     await submitCode(user);
 
     await vi.waitFor(() => {
-      expect(mocks.verifyOtp).toHaveBeenCalledTimes(1);
+      expect(callsTo(OTP_VERIFY_ENDPOINT)).toHaveLength(1);
     });
-    expect(mocks.sendOtp).toHaveBeenCalledTimes(1);
+    expect(callsTo(OTP_SEND_ENDPOINT)).toHaveLength(1);
   });
 
   it("redeems a ONE-TIME code exactly once even when the button is double-clicked", async () => {
@@ -657,11 +764,10 @@ describe("LoginScreen OTP tab: verifying", () => {
     // only asserted `toBeDisabled()` would pass for any implementation that merely
     // greys the button out.
     const user = userEvent.setup();
-    const pending = deferred<unknown>();
-    mocks.verifyOtp.mockReturnValue(pending.promise);
     renderScreen();
 
     await reachCodeForm(user);
+    const releaseVerify = holdAt(OTP_VERIFY_ENDPOINT);
     await user.type(page.getByTestId("login-otp-code"), CODE);
 
     // `force` on the second click: the button is disabled in-flight after the first
@@ -670,12 +776,14 @@ describe("LoginScreen OTP tab: verifying", () => {
     await user.click(page.getByTestId("login-otp-verify-submit"));
     await user.click(page.getByTestId("login-otp-verify-submit"), { force: true });
 
-    pending.resolve({ succeeded: true, email: EMAIL, signInTicket: TICKET });
     await vi.waitFor(() => {
-      expect(mocks.buildExchangeTicketUrl).toHaveBeenCalled();
+      expect(callsTo(OTP_VERIFY_ENDPOINT)).toHaveLength(1);
     });
+
+    releaseVerify({ succeeded: true, email: EMAIL, signInTicket: TICKET });
+    await handoffTarget();
     // ONE redemption, for two clicks.
-    expect(mocks.verifyOtp).toHaveBeenCalledTimes(1);
+    expect(callsTo(OTP_VERIFY_ENDPOINT)).toHaveLength(1);
   });
 
   it("clears a stale error banner when the code is resubmitted", async () => {
@@ -706,15 +814,17 @@ describe("LoginScreen OTP tab: verify success hands off to the shell", () => {
     await reachCodeForm(user);
     await submitCode(user);
 
-    await vi.waitFor(() => {
-      // Origin "" — SAME-ORIGIN. The h3 proxy mounts `/v1/**` at this origin's root,
-      // and the oracle's `ApiBaseUrl` prepend would send the browser cross-origin and
-      // DROP the SameSite cookie the exchange just set (bd memory
-      // `wallow-auth-screens-must-pass-origin-same-origin`). Asserting the builder's
-      // exact args pins the assigned URL: the builder is deterministic, and origin ""
-      // proves same-origin (no `localhost:5001`) with the OIDC returnUrl carried through.
-      expect(mocks.buildExchangeTicketUrl).toHaveBeenCalledWith("", TICKET, RETURN_URL);
-    });
+    const target: URL = await handoffTarget();
+
+    // SAME-ORIGIN. The shell passes origin "" to the real `buildExchangeTicketUrl`,
+    // so the URL the browser is handed resolves against THIS document's origin: the
+    // passthrough proxy mounts `/v1/**` at the root, and the oracle's `ApiBaseUrl`
+    // prepend would send the browser cross-origin and DROP the SameSite cookie the
+    // exchange just set (bd memory `wallow-auth-screens-must-pass-origin-same-origin`).
+    expect(target.origin).toBe(globalThis.location.origin);
+    expect(target.pathname).toBe(EXCHANGE_TICKET_PATH);
+    expect(target.searchParams.get("ticket")).toBe(TICKET);
+    expect(target.searchParams.get("returnUrl")).toBe(RETURN_URL);
   });
 
   it("reports being signed in when there is no returnUrl to go back to", async () => {
@@ -727,7 +837,7 @@ describe("LoginScreen OTP tab: verify success hands off to the shell", () => {
     await submitCode(user);
 
     await expect.element(page.getByTestId("login-signed-in")).toBeInTheDocument();
-    expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
+    expect(handoffs).toEqual([]);
   });
 
   it("refuses an unsafe returnUrl instead of exchanging the ticket to it", async () => {
@@ -744,7 +854,7 @@ describe("LoginScreen OTP tab: verify success hands off to the shell", () => {
     await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({ href: ERROR_HREF });
     });
-    expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
+    expect(handoffs).toEqual([]);
   });
 
   it("defers an mfaRequired response to the shell's one branch table", async () => {
@@ -753,10 +863,10 @@ describe("LoginScreen OTP tab: verify success hands off to the shell", () => {
     // the panel hands the RAW body up rather than narrowing it here. A panel that
     // grew its own `succeeded` check would swallow this body; the shell must see it.
     const user = userEvent.setup();
-    mocks.verifyOtp.mockResolvedValue({ succeeded: false, mfaRequired: true });
     renderScreen();
 
     await reachCodeForm(user);
+    resolveAt(OTP_VERIFY_ENDPOINT, { succeeded: false, mfaRequired: true });
     await submitCode(user);
 
     await vi.waitFor(() => {
@@ -770,10 +880,10 @@ describe("LoginScreen OTP tab: verify success hands off to the shell", () => {
 describe("LoginScreen OTP tab: verify failures", () => {
   it("maps a mistyped code onto the oracle's invalid-or-expired copy", async () => {
     const user = userEvent.setup();
-    mocks.verifyOtp.mockRejectedValue(rejection(401, INVALID_CODE_TOKEN));
     renderScreen();
 
     await reachCodeForm(user);
+    rejectAt(OTP_VERIFY_ENDPOINT, UNAUTHORIZED_STATUS, INVALID_CODE_TOKEN);
     await submitCode(user);
 
     await expect.element(page.getByTestId("login-error")).toHaveTextContent(INVALID_CODE_MESSAGE);
@@ -783,10 +893,10 @@ describe("LoginScreen OTP tab: verify failures", () => {
     // The oracle's copy already reads "Invalid OR EXPIRED code", covering both live
     // tokens — which is exactly why no code map earns its place here.
     const user = userEvent.setup();
-    mocks.verifyOtp.mockRejectedValue(rejection(401, CODE_EXPIRED_TOKEN));
     renderScreen();
 
     await reachCodeForm(user);
+    rejectAt(OTP_VERIFY_ENDPOINT, UNAUTHORIZED_STATUS, CODE_EXPIRED_TOKEN);
     await submitCode(user);
 
     await expect.element(page.getByTestId("login-error")).toHaveTextContent(INVALID_CODE_MESSAGE);
@@ -798,10 +908,10 @@ describe("LoginScreen OTP tab: verify failures", () => {
     // never heard of still means the code did not work, and dropping the user to
     // "an error occurred" would hide the retry they actually need.
     const user = userEvent.setup();
-    mocks.verifyOtp.mockRejectedValue(rejection(401, "some_future_token"));
     renderScreen();
 
     await reachCodeForm(user);
+    rejectAt(OTP_VERIFY_ENDPOINT, UNAUTHORIZED_STATUS, "some_future_token");
     await submitCode(user);
 
     await expect.element(page.getByTestId("login-error")).toHaveTextContent(INVALID_CODE_MESSAGE);
@@ -809,10 +919,10 @@ describe("LoginScreen OTP tab: verify failures", () => {
 
   it("keeps the code form up after a bad code so it can be retyped", async () => {
     const user = userEvent.setup();
-    mocks.verifyOtp.mockRejectedValue(rejection(401, INVALID_CODE_TOKEN));
     renderScreen();
 
     await reachCodeForm(user);
+    rejectAt(OTP_VERIFY_ENDPOINT, UNAUTHORIZED_STATUS, INVALID_CODE_TOKEN);
     await submitCode(user);
 
     await expect.element(page.getByTestId("login-error")).toBeInTheDocument();
@@ -821,10 +931,10 @@ describe("LoginScreen OTP tab: verify failures", () => {
 
   it("distinguishes a dead network from a rejected code", async () => {
     const user = userEvent.setup();
-    mocks.verifyOtp.mockRejectedValue(networkRejection());
     renderScreen();
 
     await reachCodeForm(user);
+    failNetworkAt(OTP_VERIFY_ENDPOINT);
     await submitCode(user);
 
     await expect.element(page.getByTestId("login-error")).toHaveTextContent(UNREACHABLE_MESSAGE);
@@ -834,10 +944,10 @@ describe("LoginScreen OTP tab: verify failures", () => {
     // The oracle's `_ =>` tail. A 500 is not a bad code and must not be reported as
     // one — that would have the user retyping a perfectly good code at a dead server.
     const user = userEvent.setup();
-    mocks.verifyOtp.mockRejectedValue(rejection(500, "server_exploded"));
     renderScreen();
 
     await reachCodeForm(user);
+    rejectAt(OTP_VERIFY_ENDPOINT, SERVER_ERROR_STATUS, "server_exploded");
     await submitCode(user);
 
     await expect.element(page.getByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
@@ -845,10 +955,10 @@ describe("LoginScreen OTP tab: verify failures", () => {
 
   it("never renders the raw server sentence, nor the code itself", async () => {
     const user = userEvent.setup();
-    mocks.verifyOtp.mockRejectedValue(rejection(401, INVALID_CODE_TOKEN));
     const { container } = await renderScreen();
 
     await reachCodeForm(user);
+    rejectAt(OTP_VERIFY_ENDPOINT, UNAUTHORIZED_STATUS, INVALID_CODE_TOKEN);
     await submitCode(user);
 
     await expect.element(page.getByTestId("login-error")).toBeInTheDocument();
@@ -869,7 +979,7 @@ describe("LoginScreen OTP tab: tab switching", () => {
     // three tabs, so a magic-link failure must not follow the user into the OTP tab
     // and blame it for something it did not do.
     const user = userEvent.setup();
-    mocks.sendMagicLink.mockRejectedValue(rejection(400, RATE_LIMITED_TOKEN));
+    rejectAt(MAGIC_LINK_ENDPOINT, BAD_REQUEST_STATUS, RATE_LIMITED_TOKEN);
     renderScreen();
 
     await user.click(page.getByTestId("login-tab-magic-link"));
@@ -1022,11 +1132,12 @@ describe("LoginScreen OTP tab: remember me", () => {
     await submitCode(user);
 
     await vi.waitFor(() => {
-      expect(mocks.verifyOtp).toHaveBeenCalledWith({
-        email: EMAIL,
-        code: CODE,
-        rememberMe: true,
-      });
+      expect(callsTo(OTP_VERIFY_ENDPOINT)).toHaveLength(1);
+    });
+    expect(lastCallTo(OTP_VERIFY_ENDPOINT)?.body).toEqual({
+      email: EMAIL,
+      code: CODE,
+      rememberMe: true,
     });
   });
 
@@ -1045,11 +1156,12 @@ describe("LoginScreen OTP tab: remember me", () => {
     await submitCode(user);
 
     await vi.waitFor(() => {
-      expect(mocks.verifyOtp).toHaveBeenCalledWith({
-        email: EMAIL,
-        code: CODE,
-        rememberMe: false,
-      });
+      expect(callsTo(OTP_VERIFY_ENDPOINT)).toHaveLength(1);
+    });
+    expect(lastCallTo(OTP_VERIFY_ENDPOINT)?.body).toEqual({
+      email: EMAIL,
+      code: CODE,
+      rememberMe: false,
     });
   });
 
@@ -1060,12 +1172,12 @@ describe("LoginScreen OTP tab: remember me", () => {
     renderScreen();
 
     await reachCodeForm(user);
-    expect(mocks.sendOtp).toHaveBeenCalledTimes(1);
+    expect(callsTo(OTP_SEND_ENDPOINT)).toHaveLength(1);
 
     await toggleCheckbox(user, "login-otp-remember-me");
 
-    expect(mocks.verifyOtp).not.toHaveBeenCalled();
-    expect(mocks.sendOtp).toHaveBeenCalledTimes(1);
+    expect(callsTo(OTP_VERIFY_ENDPOINT)).toHaveLength(0);
+    expect(callsTo(OTP_SEND_ENDPOINT)).toHaveLength(1);
   });
 
   // ── THE ORACLE'S DEFECT, PINNED IN BOTH DIRECTIONS ─────────────────────────
@@ -1088,11 +1200,12 @@ describe("LoginScreen OTP tab: remember me", () => {
     await submitCode(user);
 
     await vi.waitFor(() => {
-      expect(mocks.verifyOtp).toHaveBeenCalledWith({
-        email: EMAIL,
-        code: CODE,
-        rememberMe: false,
-      });
+      expect(callsTo(OTP_VERIFY_ENDPOINT)).toHaveLength(1);
+    });
+    expect(lastCallTo(OTP_VERIFY_ENDPOINT)?.body).toEqual({
+      email: EMAIL,
+      code: CODE,
+      rememberMe: false,
     });
   });
 
@@ -1101,7 +1214,6 @@ describe("LoginScreen OTP tab: remember me", () => {
     // were merely reading one variable in the shell — which is precisely the shape
     // this bead is refusing.
     const user = userEvent.setup();
-    mocks.login.mockResolvedValue({ succeeded: true, email: EMAIL, signInTicket: TICKET });
     renderScreen();
 
     await reachCodeForm(user);
@@ -1116,11 +1228,12 @@ describe("LoginScreen OTP tab: remember me", () => {
     await user.click(page.getByTestId("login-submit"));
 
     await vi.waitFor(() => {
-      expect(mocks.login).toHaveBeenCalledWith({
-        email: EMAIL,
-        password: "correct-horse",
-        rememberMe: false,
-      });
+      expect(callsTo(LOGIN_ENDPOINT)).toHaveLength(1);
+    });
+    expect(lastCallTo(LOGIN_ENDPOINT)?.body).toEqual({
+      email: EMAIL,
+      password: "correct-horse",
+      rememberMe: false,
     });
   });
 
@@ -1144,11 +1257,12 @@ describe("LoginScreen OTP tab: remember me", () => {
     await submitCode(user);
 
     await vi.waitFor(() => {
-      expect(mocks.verifyOtp).toHaveBeenLastCalledWith({
-        email: EMAIL,
-        code: CODE,
-        rememberMe: false,
-      });
+      expect(callsTo(OTP_VERIFY_ENDPOINT)).toHaveLength(1);
+    });
+    expect(lastCallTo(OTP_VERIFY_ENDPOINT)?.body).toEqual({
+      email: EMAIL,
+      code: CODE,
+      rememberMe: false,
     });
   });
 });
@@ -1164,20 +1278,11 @@ describe("LoginScreen OTP tab: remember me", () => {
  * real route object is grafted onto a memory router at the URL under test.
  */
 function renderRouteAt(url: string) {
-  const rootRoute = createRootRoute({ component: Outlet });
-  const routeTree = rootRoute.addChildren([
-    loginRoute.update({
-      id: "/login",
-      path: "/login",
-      getParentRoute: () => rootRoute,
-    } as any),
-  ]);
-  const router = createRouter({
-    routeTree,
-    history: createMemoryHistory({ initialEntries: [url] }),
+  return renderWithWallow(null, {
+    harness,
+    path: url,
+    routes: [{ path: "/login", route: loginRoute }],
   });
-
-  return renderWithClient(<RouterProvider router={router} />);
 }
 
 describe("/login route: OTP", () => {
@@ -1192,18 +1297,20 @@ describe("/login route: OTP", () => {
     await reachCodeForm(user);
     await submitCode(user);
 
-    await vi.waitFor(() => {
-      // The builder's exact args pin the assigned ticket-exchange URL: origin ""
-      // (same-origin) with the OIDC returnUrl carried all the way through the route.
-      expect(mocks.buildExchangeTicketUrl).toHaveBeenCalledWith("", TICKET, RETURN_URL);
-    });
+    const target: URL = await handoffTarget();
+
+    // Same-origin, with the OIDC returnUrl carried all the way through the route.
+    expect(target.origin).toBe(globalThis.location.origin);
+    expect(target.pathname).toBe(EXCHANGE_TICKET_PATH);
+    expect(target.searchParams.get("ticket")).toBe(TICKET);
+    expect(target.searchParams.get("returnUrl")).toBe(RETURN_URL);
   });
 
   it("sends nothing on load for a bare /login", async () => {
     renderRouteAt("/login");
 
     await expect.element(page.getByTestId("login-password")).toBeInTheDocument();
-    expect(mocks.sendOtp).not.toHaveBeenCalled();
-    expect(mocks.verifyOtp).not.toHaveBeenCalled();
+    expect(callsTo(OTP_SEND_ENDPOINT)).toHaveLength(0);
+    expect(callsTo(OTP_VERIFY_ENDPOINT)).toHaveLength(0);
   });
 });

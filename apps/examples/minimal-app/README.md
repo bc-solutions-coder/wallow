@@ -1,10 +1,10 @@
 # example-minimal-app
 
-The smallest reference app on Wallow's frontend golden path: a TanStack Start app
-whose entire job is to wire the five shared `@bc-solutions-coder` packages
-together through the web-shell host factory. It owns one route (`/`) that renders
-a hello card; everything cross-cutting — styling, components, the auth client, the
-test harness, and the SSR/dev/standalone host runtime — comes from the shared
+The smallest reference app on Wallow's frontend golden path: a **TanStack Start**
+app whose entire job is to wire the five shared `@bc-solutions-coder` packages
+together. It owns one page route (`/`) that renders a hello card, plus the server
+routes that passthrough-proxy the API; everything cross-cutting — styling,
+components, the auth client, and the test harness — comes from the shared
 packages, not from this app.
 
 Use it as the copy-from skeleton when bootstrapping a new app. The step-by-step
@@ -16,11 +16,11 @@ this README is the boot recipe.
 
 | Package                         | Published          | What this app pulls from it                                                                                                                                           |
 | ------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@bc-solutions-coder/styles`    | yes                | Tailwind v4 pipeline (`wallowStyles()`, via the web-shell Vite preset), brand theme tokens + assets (`src/styles.css`, `__root.tsx`)                                  |
+| `@bc-solutions-coder/styles`    | yes                | Tailwind v4 pipeline (`wallowStyles()` in `vite.config.ts`), brand theme tokens + assets (`src/styles.css`, `__root.tsx`)                                             |
 | `@bc-solutions-coder/ui`        | **no (`private`)** | Shared components (`Card`, `MutedText`, `CenteredCardLayout`, `ForkAttribution`, `DocumentStyles`, `FocusOnNavigate`, `ReadyIndicator`) + its Tailwind `@source` scan |
-| `@bc-solutions-coder/sdk`       | yes                | Same-origin BFF client + typed API operations, and its `./query` TanStack Query layer (`src/lib/sdk.ts`)                                                              |
+| `@bc-solutions-coder/sdk`       | yes                | `createWallowSdk` (`src/start.ts`), the `createApiPassthrough` server preset (`src/lib/api-passthrough.ts`), and the generated `./query` TanStack Query layer         |
 | `@bc-solutions-coder/testing`   | **no (`private`)** | The `createVitestProjects` node+browser preset (`vitest.config.ts`) and the browser-mode `render` helper (`*.test.tsx`)                                               |
-| `@bc-solutions-coder/web-shell` | **no (`private`)** | `createQueryClient`, and (`./server`) the host/dev-server/Vite-preset factories (`server.ts`, `dev-server.ts`, `vite.config.ts`, `vite.ssr.config.ts`)                |
+| `@bc-solutions-coder/web-shell` | **no (`private`)** | `createQueryClient` — the router's `QueryClient` factory. Start owns the host runtime now, so none of web-shell's `./server` factories are used                       |
 
 > **Copy-outside-the-monorepo caveat:** only `@bc-solutions-coder/sdk` and
 > `@bc-solutions-coder/styles` are published to GitHub Packages. `ui`, `testing`,
@@ -35,8 +35,10 @@ All commands run from the repo root. Node 24 (`.nvmrc`), pnpm 10.20.0.
 ```bash
 pnpm install                                                   # resolves the workspace:* deps
 pnpm --filter @bc-solutions-coder/sdk build                    # apps typecheck/build against the SDK's dist/
-pnpm --filter @bc-solutions-coder/example-minimal-app routes:generate   # writes src/routeTree.gen.ts (also emitted by the build)
 ```
+
+There is no `routes:generate` step: the `tanstackStart()` Vite plugin regenerates
+`src/routeTree.gen.ts` as a side effect of both `vite dev` and `vite build`.
 
 ### Dev (`pnpm dev`)
 
@@ -44,20 +46,20 @@ pnpm --filter @bc-solutions-coder/example-minimal-app routes:generate   # writes
 pnpm --filter @bc-solutions-coder/example-minimal-app dev      # http://localhost:3010
 ```
 
-Boots a Vite SSR dev server. It needs no backend — the reverse proxy is loaded
-lazily and only actual `/v1`/`/connect` requests reach the API. Override the port
-with `PORT`; point the API surface elsewhere with `WALLOW_API_INTERNAL_URL`
-(default `http://localhost:5001`).
+Boots the Start dev server. It needs no backend — the API passthrough is
+constructed lazily, so only actual `/v1`, `/connect`, and `/.well-known` requests
+reach the API. Override the port with `PORT`; point the API surface elsewhere
+with `WALLOW_API_INTERNAL_URL` (default `http://localhost:5001`).
 
 ### Production (`pnpm build` + `pnpm start`)
 
 ```bash
-pnpm --filter @bc-solutions-coder/example-minimal-app build    # dist/client + dist/server
-pnpm --filter @bc-solutions-coder/example-minimal-app start    # standalone SSR host on :3010
+pnpm --filter @bc-solutions-coder/example-minimal-app build    # .output/server + .output/public (Nitro)
+pnpm --filter @bc-solutions-coder/example-minimal-app start    # node .output/server/index.mjs on :3010
 ```
 
 `GET /health` returns `ready`; `/` server-renders the hello card and hydrates
-(the `data-testid="app-ready"` element flips to `true` once hydrated).
+(`document.body` gains `data-app-ready="true"` once hydrated).
 
 ## Verify it
 
@@ -68,14 +70,30 @@ pnpm --filter @bc-solutions-coder/example-minimal-app test      # node + headles
 
 ## What this app owns vs. inherits
 
-- **Owns:** the router and routes (`src/routes/`), the proxy topology
-  (`src/lib/proxy-paths.ts` + `src/lib/proxy-server.ts` — a same-origin reverse
-  proxy, the simpler of the two golden-path topologies), and the SDK facade
-  (`src/lib/sdk.ts`).
+- **Owns:** the route tree (`src/routes/`) — the page route, the `/health` probe,
+  and the three passthrough server routes (`v1/$.ts`, `connect/$.ts`,
+  `[.]well-known/$.ts`, all delegating to `src/lib/api-passthrough.ts`); the
+  per-request SDK middleware (`src/start.ts`); and the router factory
+  (`src/router.tsx`).
 - **Inherits (no source of its own):** branding/theme tokens, the component
-  library, the test harness, and the host/dev/Vite runtime — all from the shared
-  packages. Rebranding needs no source change here; it flows from
-  `api/branding.json` through `@bc-solutions-coder/styles`.
+  library, the test harness, and the whole host runtime — the SSR server, the dev
+  server, and the production Node server are Start + Nitro output, not app code.
+  Rebranding needs no source change here; it flows from `api/branding.json`
+  through `@bc-solutions-coder/styles`.
+
+### Two config lines worth copying verbatim
+
+`vite.config.ts` carries two non-obvious settings that every Start app in this
+repo needs, both explained in comments there:
+
+- an explicit `server.port` — `vite dev` binds 3000 when `PORT` is unset;
+- `environments.client.build.copyPublicDir: true` — `nitro/vite` forces that flag
+  off, which silently drops the shared brand assets and 404s `/piggy-icon.svg` in
+  the built output.
+
+Also note `src/routes/__root.tsx` imports `../styles.css` for its **side effect**
+rather than as a `?url` + `head()` link: Start builds two Vite environments, and a
+`?url` import resolved in the SSR graph names a hash the client build never emits.
 
 ## Adding your first query
 
@@ -83,28 +101,35 @@ This app renders **no live data on purpose** — `HelloCard` is static, so there
 no demo fetch to read past. What it does ship is the wiring your first query
 needs, already in place:
 
-- `src/lib/sdk.ts` exports `configureClient()` (same-origin base URL + CSRF
-  interceptor) and hands it to the SDK's `registerQueryBootstrap` at module
-  scope. Registration is side-effect free: the shared `@hey-api` client stays
-  untouched until a query actually runs.
-- `src/router.tsx` side-effect-imports `./lib/sdk`, arming that registration in
-  both the client and SSR module graphs.
+- `src/start.ts` mints ONE SDK instance per request with `createWallowSdk`,
+  giving it the request's own origin, cookie header, and CSRF interceptor. There
+  is no module-global client to configure and nothing to bootstrap before first
+  use.
+- `src/router.tsx` lifts that instance into the router context (falling back to a
+  browser-side instance when there is no request), so every route and component
+  reads it from context rather than importing a facade.
 - `createQueryClient` (from `@bc-solutions-coder/web-shell`) already supplies the
   router's `QueryClient`.
 
-So a fork adds a read by calling an SDK query factory and nothing else:
+So a fork adds a read by calling the generated options factory for the operation
+and binding it to the context SDK:
 
 ```tsx
+import { usersGetCurrentUserOptions } from "@bc-solutions-coder/sdk/query";
 import { useQuery } from "@tanstack/react-query";
-import { userQueries } from "@bc-solutions-coder/sdk/query";
+import { useRouteContext } from "@tanstack/react-router";
 
-const { data } = useQuery(userQueries.currentUser());
+const { sdk } = useRouteContext({ from: "__root__" });
+const { data } = useQuery(usersGetCurrentUserOptions({ client: sdk.client }));
 ```
 
-Reads come from `@bc-solutions-coder/sdk`'s **`./query`** entry — per-feature
-`queryOptions`/`mutationOptions` factories over one shared key registry. Never
-hand-write a `queryKey` literal in an app, and keep UI-only state (open/closed,
-active tab, wizard step) in a Zustand store rather than the query cache. The full
-boundary — what belongs in TanStack Query, what belongs in Zustand, and what
-belongs in neither — is
+Reads come from `@bc-solutions-coder/sdk`'s **`./query`** entry, and every
+artifact on it is **generated** from the OpenAPI document — an `{op}Options()`,
+`{op}QueryKey()` and `{op}Mutation()` per operation. Never hand-write a `queryKey`
+literal or a query factory in an app; if an operation lacks one, regenerate. Keys
+are flat (`[{ _id, baseUrl, tags, ...args }]`) with no prefix to sweep by, so
+invalidate through the curated `queriesWithTag` / `queriesForOperation`
+predicates. Keep UI-only state (open/closed, active tab, wizard step) in a Zustand
+store rather than the query cache. The full boundary — what belongs in TanStack
+Query, what belongs in Zustand, and what belongs in neither — is
 [`docs/development/frontend-state.md`](../../../docs/development/frontend-state.md).

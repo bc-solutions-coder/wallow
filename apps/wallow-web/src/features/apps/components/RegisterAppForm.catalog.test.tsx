@@ -1,13 +1,14 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactElement } from "react";
+import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { chooseOption, expectCatalogSelect } from "../../../test/catalog-select";
-import { installSdkClientMock } from "../../../test/sdk-client-mock";
 import { byTestId, waitForTestId } from "../../../test/style-contract";
 import { RegisterAppForm } from "./RegisterAppForm";
+
+/** The transport backing each render, rebuilt per test. */
+let harness: SdkHarness;
 
 /**
  * Catalog-migration spec for the register-app form (Wallow-m5aq.5.3) — the two
@@ -45,15 +46,7 @@ const SCOPE_TESTIDS: readonly string[] = [
 ];
 
 function renderForm(): Promise<HTMLElement> {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-  const ui: ReactElement = (
-    <QueryClientProvider client={client}>
-      <RegisterAppForm />
-    </QueryClientProvider>
-  );
-  render(ui);
+  renderWithWallow(<RegisterAppForm />, { harness });
   return waitForTestId("app-register-form");
 }
 
@@ -63,8 +56,8 @@ function groupContaining(testId: string): HTMLElement | null {
 }
 
 beforeEach(() => {
-  const sdk = installSdkClientMock();
-  sdk.resolveJson(OK_RESPONSE);
+  harness = createSdkHarness();
+  harness.resolveJson(OK_RESPONSE);
 });
 
 describe("RegisterAppForm client type (catalog Select)", () => {

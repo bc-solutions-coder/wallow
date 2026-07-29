@@ -6,8 +6,11 @@
  * there is no server-side state to persist, destroy, or lock.
  */
 
+import { DEFAULT_SESSION_TTL_SECONDS } from "../config";
 import { type BffSession, sealSession, unsealSession } from "../session";
 import { type SessionStore } from "./types";
+
+const MS_PER_SECOND: number = 1000;
 
 /**
  * Options for {@link CookieSessionStore}.
@@ -15,6 +18,11 @@ import { type SessionStore } from "./types";
 export interface CookieSessionStoreOptions {
   /** The cookie password used to seal and unseal sessions (>= 32 characters). */
   password: string;
+  /**
+   * Lifetime baked into the sealed blob, in seconds, so a sealed session cannot
+   * outlive its session TTL. Defaults to `DEFAULT_SESSION_TTL_SECONDS`.
+   */
+  ttlSeconds?: number;
 }
 
 /**
@@ -28,17 +36,19 @@ export interface CookieSessionStoreOptions {
  */
 export class CookieSessionStore implements SessionStore {
   private readonly password: string;
+  private readonly ttlMs: number;
 
   constructor(options: CookieSessionStoreOptions) {
     this.password = options.password;
+    this.ttlMs = (options.ttlSeconds ?? DEFAULT_SESSION_TTL_SECONDS) * MS_PER_SECOND;
   }
 
   read(ref: string): Promise<BffSession | null> {
-    return unsealSession(ref, this.password);
+    return unsealSession(ref, this.password, this.ttlMs);
   }
 
   write(session: BffSession): Promise<string> {
-    return sealSession(session, this.password);
+    return sealSession(session, this.password, this.ttlMs);
   }
 
   destroy(_ref: string): Promise<void> {

@@ -1,10 +1,9 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactElement } from "react";
+import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import { page } from "vitest/browser";
-import { render } from "vitest-browser-react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
-import { createRouter } from "../../../router";
+import { getRouter } from "../../../router";
 import { Route } from "./index";
 
 /**
@@ -17,31 +16,16 @@ import { Route } from "./index";
  *      route is bound manually — see router.tsx's `indexRouteWithParent`).
  */
 
-// The rendered page mounts OrganizationList (useQuery); mock the facade so the
-// list query is inert during the route render.
-const mocks = vi.hoisted(() => ({
-  list: vi.fn(),
-  get: vi.fn(),
-  create: vi.fn(),
-}));
+// The rendered page mounts OrganizationList, whose `useQuery` now runs for real
+// against the harness transport (Wallow-pu6a.5.5) — the facade this spec used to
+// mock is deleted, and there is nothing left in the path to stub.
 
-vi.mock("../../../lib/wallow-sdk", () => ({
-  getWallowSdk: () => ({
-    organizations: { list: mocks.list, get: mocks.get, create: mocks.create },
-  }),
-}));
-
-function newClient(): QueryClient {
-  return new QueryClient({ defaultOptions: { queries: { retry: false } } });
-}
-
-function renderWithClient(client: QueryClient, ui: ReactElement) {
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-}
+/** The transport backing each render, rebuilt per test. */
+let harness: SdkHarness;
 
 describe("routes/dashboard/organizations (route page)", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    harness = createSdkHarness();
   });
 
   it("exposes a route component", () => {
@@ -53,11 +37,10 @@ describe("routes/dashboard/organizations (route page)", () => {
   });
 
   it("renders a page root carrying data-testid=dashboard-organizations", async () => {
-    const client = newClient();
-    client.setQueryData(["orgs"], []);
+    harness.resolveJson([]);
 
     const Page = Route.options.component!;
-    renderWithClient(client, <Page />);
+    renderWithWallow(<Page />, { harness });
 
     await expect.element(page.getByTestId("dashboard-organizations")).toBeInTheDocument();
   });
@@ -66,11 +49,10 @@ describe("routes/dashboard/organizations (route page)", () => {
   // index page (NOT a separate /dashboard/organizations/create route — no such
   // route exists and the bead's AC forbids recreating it).
   it("mounts the CreateOrganizationForm inline (organization-create-form)", async () => {
-    const client = newClient();
-    client.setQueryData(["orgs"], []);
+    harness.resolveJson([]);
 
     const Page = Route.options.component!;
-    renderWithClient(client, <Page />);
+    renderWithWallow(<Page />, { harness });
 
     await expect.element(page.getByTestId("organization-create-form")).toBeInTheDocument();
   });
@@ -78,8 +60,8 @@ describe("routes/dashboard/organizations (route page)", () => {
 
 describe("routes/dashboard/organizations (router registration)", () => {
   it("registers /dashboard/organizations in the router tree", () => {
-    const router = createRouter();
-    const paths = Object.keys((router as { routesByPath: Record<string, unknown> }).routesByPath);
+    const router = getRouter();
+    const paths = Object.keys(router.routesByPath);
     expect(paths).toContain("/dashboard/organizations");
   });
 });

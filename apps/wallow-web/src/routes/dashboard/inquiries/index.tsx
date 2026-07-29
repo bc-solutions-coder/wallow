@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { inquiriesQueries } from "../../../features/inquiries/api";
+import { inquiriesGetAllOptions } from "../../../features/inquiries/api";
 import { CreateInquiryForm } from "../../../features/inquiries/components/CreateInquiryForm";
 import { InquiryList } from "../../../features/inquiries/components/InquiryList";
 
@@ -10,7 +10,8 @@ import { InquiryList } from "../../../features/inquiries/components/InquiryList"
  *
  * The page root carries `data-testid="dashboard-inquiries"` and renders the
  * `InquiryList` component; the route `loader` prefetches the list via
- * `context.queryClient.ensureQueryData(inquiriesQueries.list())`.
+ * `context.queryClient.ensureQueryData(inquiriesGetAllOptions({ client }))`,
+ * binding the request-scoped client off the router context.
  *
  * Authored file-route style (`createFileRoute('/dashboard/inquiries/')`), so its
  * `id`/`path`/parent are left unset — `src/router.tsx` binds it under the root
@@ -30,6 +31,7 @@ function InquiriesIndexPage() {
 }
 
 export const Route = createFileRoute("/dashboard/inquiries/")({
-  loader: ({ context }) => context.queryClient.ensureQueryData(inquiriesQueries.list()),
+  loader: ({ context }) =>
+    context.queryClient.ensureQueryData(inquiriesGetAllOptions({ client: context.sdk.client })),
   component: InquiriesIndexPage,
 });

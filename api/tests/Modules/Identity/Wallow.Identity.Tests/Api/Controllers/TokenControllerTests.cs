@@ -44,7 +44,10 @@ public sealed class TokenControllerTests : IDisposable
         _userManager.FindByIdAsync(Arg.Any<string>()).Returns(_user);
         _userManager.GetRolesAsync(_user).Returns(new List<string> { "Admin" });
 
-        _controller = new TokenController(_userManager, NullLogger<TokenController>.Instance);
+        _controller = new TokenController(
+            _userManager,
+            Substitute.For<IOpenIddictApplicationManager>(),
+            NullLogger<TokenController>.Instance);
     }
 
     public void Dispose()

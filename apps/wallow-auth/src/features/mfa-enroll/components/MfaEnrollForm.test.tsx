@@ -1,16 +1,10 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  createMemoryHistory,
-  createRootRoute,
-  createRouter,
-  Outlet,
-  RouterProvider,
-} from "@tanstack/react-router";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+import { type SdkCall, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { AUTH_HARNESS_ORIGIN, createAuthHarness } from "../../../test/harness";
 import { Route as mfaEnrollRoute } from "../../../routes/mfa/enroll";
 import { MfaEnrollForm } from "./MfaEnrollForm";
 
@@ -22,11 +16,30 @@ import { MfaEnrollForm } from "./MfaEnrollForm";
  * `mfa-enroll-secret`, `mfa-enroll-code`, `mfa-enroll-submit`,
  * `mfa-enroll-begin-setup`, `mfa-enroll-cancel`.
  *
- * MOCKING SEAM: `../../../lib/wallow-auth-sdk` — the app's own facade, never
- * `@bc-solutions-coder/sdk` directly (that module is the only permitted importer
- * of the SDK). Per bd memories `vitest-resetmodules-breaks-instanceof-across-
- * graphs`, this file uses a plain `vi.mock` factory + `vi.hoisted` spies and
- * NEVER `vi.resetModules()`.
+ * TEST SEAM: `@bc-solutions-coder/testing/sdk-harness` (Wallow-pu6a.5.1). The
+ * SDK is the REAL one and only its `fetch` is faked, so the screen's whole
+ * pipeline — request-scoped SDK -> generated operation -> CSRF interceptor ->
+ * serialization -> error shaping -> React Query — runs here. There is no
+ * app-level facade left to stand in for (Wallow-pu6a.5.5), which changes what
+ * these tests can SEE in two ways worth stating up front:
+ *
+ *   - The old spy assertions ("`confirmEnrollment` was called with
+ *     `{ secret, code }`") are now assertions on the RECORDED HTTP REQUEST —
+ *     `harness.last.path` / `.method` / `.body` / `.url`. That covers the
+ *     endpoint URL and the serialization a spy skipped entirely, so it is
+ *     strictly stronger. This app's SDK is rooted at the origin, so a recorded
+ *     `path` is the bare endpoint path.
+ *   - The `oidc.isSafeReturnUrl` stub is GONE, and with it the mirrored copy of
+ *     its rule this file used to carry. The real function
+ *     (`packages/sdk/src/auth-oidc.ts`, pure, 67 tests of its own from
+ *     Wallow-vec7.2.2) now runs, so the open-redirect tests below exercise the
+ *     guard the app actually ships rather than a re-implementation of it.
+ *
+ * `renderWithWallow` supplies the router context the screen reads its SDK off,
+ * and `createAuthHarness()` pins the harness origin to this app's root-mounted
+ * API surface.
+ *
+ * The `useNavigate` mock STAYS: navigation is a ROUTER seam, not an SDK one.
  *
  * ── THE RELAY IS GONE (this screen's whole reason to exist) ───────────────────
  *
@@ -38,12 +51,14 @@ import { MfaEnrollForm } from "./MfaEnrollForm";
  * (`PersistedEnrollment(Secret, QrUri, CookieHeader)`, `ApiCookieJar`,
  * `SeedFromBrowserCookies`).
  *
- * None of that is ported. wallow-auth's h3 server is a passthrough reverse proxy
+ * None of that is ported. wallow-auth's API surface is a passthrough reverse proxy
  * and the client sends `credentials: "include"`, so the `Identity.MfaPartial`
  * cookie rides ordinary same-origin requests. The absence of the relay is pinned
- * as a behaviour, not left to inspection: `enrollTotp` is called with NO
- * arguments and `confirmEnrollment` receives ONLY `{ secret, code }` — no cookie
- * header threads through either seam, because there is nothing to thread.
+ * as a behaviour, not left to inspection: the recorded `enroll/totp` request has
+ * NO body at all and the recorded `enroll/confirm` request's body is exactly
+ * `{ secret, code }` — no cookie header threads through either, because there is
+ * nothing to thread. Over the real transport that is now literally observable on
+ * the wire rather than inferred from a spy's argument list.
  *
  * ── THE ERROR-BRANCH FINDING (read off the controller, not assumed) ───────────
  *
@@ -66,17 +81,16 @@ import { MfaEnrollForm } from "./MfaEnrollForm";
  *     400 { succeeded: false, error: "update_failed" }     persistence failed
  *     200 { succeeded: true, backupCodes }                 the ONLY success
  *
- * EVERY failure is non-2xx, so `unwrap()` THROWS and a `succeeded: false` body
- * NEVER ARRIVES AS DATA. The oracle's `if (result.Succeeded) … else` is therefore
- * unreachable through this seam — a resolved `confirmEnrollment` always means
- * success — and `toWallowError()` (packages/sdk/src/auth-client.ts:257-280)
- * builds `code` from `extensions.code` ?? `code` only, never a top-level `error`.
- * A bare anon body carries neither, so the screen receives
- * `WallowError{ code: "UNKNOWN", title: "Unknown error" }` and the reason string
- * is LOST (bd memory `wallow-auth-auth-client-ts-wallowerror-code-loss`).
+ * Those bodies are what the fixtures below put ON THE WIRE, verbatim — the whole
+ * point of the harness is that the spec no longer gets to invent the error object
+ * the screen receives, so what the screen receives is now decided by the SDK's
+ * own error pipeline (`wireWallowErrorInterceptor` -> `toWallowError` ->
+ * `readCode`, which probes `extensions.code > code > error`; the bare `error`
+ * member of these bodies is that third probe).
  *
- * What survives is the status — and here, unlike MfaChallenge (whose 401 is
- * ambiguous between `invalid_code` and `no_mfa_session`), it is CLEAN:
+ * EVERY failure is non-2xx, so a resolved `confirmEnrollment` ALWAYS means
+ * success — the oracle's `if (result.Succeeded) … else` is unreachable through
+ * this seam. What the screen narrows on is the pair the pipeline preserves:
  *
  *     confirm 400 -> invalid_code (or the two should-never-happen writes)
  *     confirm 401 -> unambiguously no_auth_session: the ONLY 401 either
@@ -95,6 +109,11 @@ import { MfaEnrollForm } from "./MfaEnrollForm";
  *                      them forever — no number of retries mints a cookie. 401
  *                      is unambiguous here, so the port says so.
  *     otherwise     -> the oracle's generic `_` tail.
+ *
+ * A body of `{}` is the deliberately least-informative failure and is what binds
+ * the STATUS fallback, which must survive because `.code` is not a
+ * guaranteed-stable token (bd memory `code-keyed-error-mapping-needs-an-
+ * unrecognised-code-test-to-bind`).
  *
  * ── THE ORIGIN DIVERGENCE (inherited from Wallow-vec7.3.4) ────────────────────
  *
@@ -116,26 +135,9 @@ import { MfaEnrollForm } from "./MfaEnrollForm";
  * testid's existence in the oracle is not evidence of a happy-path step.
  */
 
-// Hoisted so the vi.mock factories and the test bodies share the same spies.
+// Hoisted so the vi.mock factory and the test bodies share the same spy.
 const mocks = vi.hoisted(() => ({
-  enrollTotp: vi.fn(),
-  confirmEnrollment: vi.fn(),
-  exchangeEnrollmentToken: vi.fn(),
-  isSafeReturnUrl: vi.fn(),
   navigate: vi.fn(),
-  /** Records cross-spy ordering, which per-spy call counts cannot express. */
-  calls: [] as string[],
-}));
-
-vi.mock("../../../lib/wallow-auth-sdk", () => ({
-  getWallowAuthSdk: () => ({
-    auth: {
-      enrollTotp: mocks.enrollTotp,
-      confirmEnrollment: mocks.confirmEnrollment,
-      exchangeEnrollmentToken: mocks.exchangeEnrollmentToken,
-    },
-    oidc: { isSafeReturnUrl: mocks.isSafeReturnUrl },
-  }),
 }));
 
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
@@ -153,57 +155,97 @@ const RETURN_URL = "/connect/authorize?client_id=web";
 /** The bail target for an unsafe returnUrl, matching the ConsentScreen port. */
 const ERROR_HREF = "/error?reason=invalid_redirect_uri";
 
-/**
- * The real `isSafeReturnUrl` rule (packages/sdk/src/auth-oidc.ts), mirrored
- * rather than imported: screens may not import the SDK, so the seam is mocked,
- * and a mock that returned a constant would let an unsafe-returnUrl test pass
- * for the wrong reason. Under 67 tests of its own in Wallow-vec7.2.2.
- */
-function isSafeReturnUrlRule(url: string | null | undefined): boolean {
-  if (url === null || url === undefined || url.trim() === "") {
-    return false;
-  }
+/** The three endpoints this screen touches (packages/sdk/src/generated/sdk.gen.ts). */
+const TOTP_ENDPOINT = "/v1/identity/mfa/enroll/totp";
+const CONFIRM_ENDPOINT = "/v1/identity/mfa/enroll/confirm";
+const EXCHANGE_ENDPOINT = "/v1/identity/mfa/enroll/exchange-token";
 
-  return url.startsWith("/") && !url.startsWith("//");
+const OK = 200;
+const BAD_REQUEST = 400;
+const UNAUTHORIZED = 401;
+const SERVER_ERROR = 500;
+
+/** How one endpoint answers a single call. */
+type EndpointResponder = () => Response | Promise<Response>;
+
+/** `200 { secret, qrUri }` — `enroll/totp`'s only success. */
+const okTotp: EndpointResponder = () =>
+  Response.json({ secret: SECRET, qrUri: QR_URI }, { status: OK });
+
+/** `200 { succeeded: true, backupCodes }` — `enroll/confirm`'s only success. */
+const okConfirm: EndpointResponder = () =>
+  Response.json({ succeeded: true, backupCodes: BACKUP_CODES }, { status: OK });
+
+/** `200 { succeeded: true }` — the token exchange's only success. */
+const okExchange: EndpointResponder = () => Response.json({ succeeded: true }, { status: OK });
+
+/**
+ * A failure carrying NO reason at all, only the status. Binds the status
+ * fallback: the port must not be secretly relying on a code that a future API
+ * revision might stop sending.
+ */
+function failWithStatus(status: number): EndpointResponder {
+  return () => Response.json({}, { status });
 }
 
 /**
- * What the facade really throws for these endpoints' failures — reason string
- * already lost at the seam (see the file header). `code: "UNKNOWN"` is not
- * incidental: it proves the port is not secretly relying on a code the seam
- * never delivers.
+ * A failure in the shape `MfaController` really writes: a bare anon body whose
+ * `error` member is the machine token. `readCode`'s third probe lifts it onto
+ * `WallowError.code`.
  */
-function rejectionWithStatus(status: number): Error & { status: number; code: string } {
-  return Object.assign(new Error("Unknown error"), {
-    name: "WallowError",
-    status,
-    code: "UNKNOWN",
-    title: "Unknown error",
+function failWithCode(status: number, code: string): EndpointResponder {
+  return () => Response.json({ succeeded: false, error: code }, { status });
+}
+
+/** Answer `first` once, then `rest` forever — the old `mockRejectedValueOnce`. */
+function once(first: EndpointResponder, rest: EndpointResponder): EndpointResponder {
+  let used = false;
+  return () => {
+    if (!used) {
+      used = true;
+      return first();
+    }
+    return rest();
+  };
+}
+
+/**
+ * Program the wire per ENDPOINT rather than per facade method: one transport
+ * serves all three calls, so responses are dispatched on the recorded path.
+ * Anything unlisted answers the happy body.
+ */
+function program(
+  overrides: {
+    totp?: EndpointResponder;
+    confirm?: EndpointResponder;
+    exchange?: EndpointResponder;
+  } = {},
+): void {
+  const totp: EndpointResponder = overrides.totp ?? okTotp;
+  const confirm: EndpointResponder = overrides.confirm ?? okConfirm;
+  const exchange: EndpointResponder = overrides.exchange ?? okExchange;
+
+  harness.respond((call: SdkCall) => {
+    switch (call.path) {
+      case TOTP_ENDPOINT: {
+        return totp();
+      }
+      case CONFIRM_ENDPOINT: {
+        return confirm();
+      }
+      case EXCHANGE_ENDPOINT: {
+        return exchange();
+      }
+      default: {
+        return Response.json({}, { status: OK });
+      }
+    }
   });
 }
 
-/**
- * A rejection carrying the API's machine token, which is what the seam really
- * delivers as of Wallow-vec7.7: `toWallowError()`'s `readCode` now probes
- * `extensions.code > code > error`, so the `error` member of these endpoints'
- * bare `{ succeeded: false, error }` bodies reaches the screen as
- * `WallowError.code`. The `code: "UNKNOWN"` fixtures above are NOT obsolete —
- * they are what binds the HTTP-status fallback, which must survive because
- * `.code` is not a guaranteed-stable token (bd memory
- * `code-keyed-error-mapping-needs-an-unrecognised-code-test-to-bind`).
- */
-function rejectionWithCode(status: number, code: string): Error & { status: number; code: string } {
-  return Object.assign(rejectionWithStatus(status), { code });
-}
-
-/** 400: invalid_code — the confirm failure a user can actually fix. */
-function invalidCodeRejection(): Error & { status: number; code: string } {
-  return rejectionWithStatus(400);
-}
-
-/** 401: no_auth_session — the only 401 either enrollment endpoint emits. */
-function noSessionRejection(): Error & { status: number; code: string } {
-  return rejectionWithStatus(401);
+/** Every recorded request to one endpoint, in order. */
+function callsTo(path: string): readonly SdkCall[] {
+  return harness.calls.filter((call: SdkCall) => call.path === path);
 }
 
 /**
@@ -266,14 +308,11 @@ function interceptNavigation(): NavCapture {
   };
 }
 
-function newClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-}
+let harness: SdkHarness;
 
+/** Render `ui` on the shared harness: real SDK, fake transport, real router context. */
 function renderWithClient(ui: ReactElement) {
-  return render(<QueryClientProvider client={newClient()}>{ui}</QueryClientProvider>);
+  return renderWithWallow(ui, { harness });
 }
 
 function renderForm(props: { returnUrl?: string; enrollToken?: string } = {}) {
@@ -302,31 +341,25 @@ afterEach(() => {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.calls.length = 0;
-  mocks.isSafeReturnUrl.mockImplementation(isSafeReturnUrlRule);
-  mocks.enrollTotp.mockImplementation(() => {
-    mocks.calls.push("enrollTotp");
-    return Promise.resolve({ secret: SECRET, qrUri: QR_URI });
-  });
-  mocks.exchangeEnrollmentToken.mockImplementation(() => {
-    mocks.calls.push("exchangeEnrollmentToken");
-    return Promise.resolve({ succeeded: true });
-  });
-  mocks.confirmEnrollment.mockResolvedValue({ succeeded: true, backupCodes: BACKUP_CODES });
+  harness = createAuthHarness();
+  program();
 });
 
 describe("MfaEnrollForm — starting enrollment", () => {
   it("asks the API for a secret on mount, passing nothing with it", async () => {
     // The oracle fires `HandleStartEnroll()` from `OnInitializedAsync` — there is
-    // no "click to begin" gate on the happy path. The empty argument list is the
-    // point: `enrollTotp()` takes no cookie header because the partial-auth
-    // cookie rides the request itself now. The relay is gone.
+    // no "click to begin" gate on the happy path. The empty request is the point:
+    // `enroll/totp` carries no cookie header because the partial-auth cookie
+    // rides the request itself now. The relay is gone.
     renderForm();
 
     await vi.waitFor(() => {
-      expect(mocks.enrollTotp).toHaveBeenCalledTimes(1);
+      expect(callsTo(TOTP_ENDPOINT)).toHaveLength(1);
     });
-    expect(mocks.enrollTotp).toHaveBeenCalledWith();
+    const enroll: SdkCall | undefined = callsTo(TOTP_ENDPOINT)[0];
+    expect(enroll?.method).toBe("POST");
+    expect(enroll?.body).toBeUndefined();
+    expect(enroll?.url).toBe(`${AUTH_HARNESS_ORIGIN}${TOTP_ENDPOINT}`);
   });
 
   it("shows the QR code keyed to the otpauth uri the API returned", async () => {
@@ -365,7 +398,7 @@ describe("MfaEnrollForm — starting enrollment", () => {
     //
     // The positive half is load-bearing: "no QR element" is trivially true of a
     // page that rendered nothing.
-    mocks.enrollTotp.mockResolvedValue({ secret: SECRET, qrUri: null });
+    program({ totp: () => Response.json({ secret: SECRET, qrUri: null }, { status: OK }) });
     renderForm();
     await waitForSecret();
 
@@ -379,13 +412,22 @@ describe("MfaEnrollForm — starting enrollment", () => {
     // would be null. The trailing positive assertion is what keeps this honest:
     // an empty stub also has no code field.
     let release!: () => void;
-    mocks.enrollTotp.mockReturnValue(
-      new Promise((resolve) => {
-        release = () => resolve({ secret: SECRET, qrUri: QR_URI });
-      }),
-    );
+    program({
+      totp: async () =>
+        await new Promise<Response>((resolve) => {
+          release = () => {
+            resolve(okTotp() as Response);
+          };
+        }),
+    });
     renderForm();
 
+    // Wait for the request to REACH the transport before releasing it: the
+    // responder is what hands `release` back, so releasing earlier would call an
+    // unassigned binding.
+    await vi.waitFor(() => {
+      expect(callsTo(TOTP_ENDPOINT)).toHaveLength(1);
+    });
     expect(page.getByTestId("mfa-enroll-code").query()).toBeNull();
     expect(page.getByTestId("mfa-enroll-secret").query()).toBeNull();
 
@@ -420,24 +462,31 @@ describe("MfaEnrollForm — the enrollment-token path", () => {
     //
     // Order is the entire contract. The exchange is what mints the
     // `Identity.MfaPartial` cookie; `enroll/totp` fired first has no session to
-    // resolve and 401s. Per-spy call counts cannot catch a reversed order, hence
-    // the shared `calls` log.
+    // resolve and 401s. Per-endpoint call counts cannot catch a reversed order —
+    // the recorded request LOG can, and it is the wire order rather than the
+    // facade-call order, which is the thing that actually matters.
     renderForm({ enrollToken: ENROLL_TOKEN });
 
     await vi.waitFor(() => {
-      expect(mocks.enrollTotp).toHaveBeenCalled();
+      expect(callsTo(TOTP_ENDPOINT)).toHaveLength(1);
     });
-    expect(mocks.calls).toEqual(["exchangeEnrollmentToken", "enrollTotp"]);
+    expect(harness.calls.map((call: SdkCall) => call.path)).toEqual([
+      EXCHANGE_ENDPOINT,
+      TOTP_ENDPOINT,
+    ]);
   });
 
   it("hands the token over verbatim", async () => {
     // The token is a data-protected blob with a 60-second lifetime
-    // (`_enrollmentTokenLifetime`); any mangling fails `Unprotect`.
+    // (`_enrollmentTokenLifetime`); any mangling fails `Unprotect`. The token
+    // rides the QUERY STRING, so it is read off `url`, not `path`.
     renderForm({ enrollToken: ENROLL_TOKEN });
 
     await vi.waitFor(() => {
-      expect(mocks.exchangeEnrollmentToken).toHaveBeenCalledWith(ENROLL_TOKEN);
+      expect(callsTo(EXCHANGE_ENDPOINT)).toHaveLength(1);
     });
+    const exchange: SdkCall | undefined = callsTo(EXCHANGE_ENDPOINT)[0];
+    expect(new URL(exchange?.url ?? "").searchParams.get("token")).toBe(ENROLL_TOKEN);
   });
 
   it("skips the exchange entirely on the ordinary sign-in flow", async () => {
@@ -446,26 +495,26 @@ describe("MfaEnrollForm — the enrollment-token path", () => {
     renderForm();
 
     await vi.waitFor(() => {
-      expect(mocks.enrollTotp).toHaveBeenCalledTimes(1);
+      expect(callsTo(TOTP_ENDPOINT)).toHaveLength(1);
     });
-    expect(mocks.exchangeEnrollmentToken).not.toHaveBeenCalled();
+    expect(callsTo(EXCHANGE_ENDPOINT)).toHaveLength(0);
   });
 
   it("surfaces an error and does not enroll when the token is expired", async () => {
     // 400 { error: "invalid_or_expired_token" } — 60 seconds is easy to miss.
     // Calling `enroll/totp` anyway would just 401 and blame the wrong thing.
-    mocks.exchangeEnrollmentToken.mockRejectedValue(rejectionWithStatus(400));
+    program({ exchange: failWithStatus(BAD_REQUEST) });
     renderForm({ enrollToken: ENROLL_TOKEN });
 
     await expect.element(page.getByTestId("mfa-enroll-error")).toBeInTheDocument();
-    expect(mocks.enrollTotp).not.toHaveBeenCalled();
+    expect(callsTo(TOTP_ENDPOINT)).toHaveLength(0);
   });
 });
 
 describe("MfaEnrollForm — when enrollment cannot start", () => {
   it("explains that setup could not begin", async () => {
     // Oracle: "Failed to start MFA enrollment. Please try again."
-    mocks.enrollTotp.mockRejectedValue(rejectionWithStatus(500));
+    program({ totp: failWithStatus(SERVER_ERROR) });
     renderForm();
 
     await expect.element(page.getByTestId("mfa-enroll-error")).toHaveTextContent(/try again/iu);
@@ -475,7 +524,7 @@ describe("MfaEnrollForm — when enrollment cannot start", () => {
     // `enroll/totp` has exactly one 401: `no_auth_session`. Retrying cannot mint
     // a cookie, so "try again" would loop the user forever — the divergence the
     // unambiguous status earns (see file header).
-    mocks.enrollTotp.mockRejectedValue(noSessionRejection());
+    program({ totp: failWithCode(UNAUTHORIZED, "no_auth_session") });
     renderForm();
 
     await expect.element(page.getByTestId("mfa-enroll-error")).toHaveTextContent(/sign in/iu);
@@ -485,7 +534,7 @@ describe("MfaEnrollForm — when enrollment cannot start", () => {
     // The oracle's intro branch is reachable only once `_secret` is still null
     // after `HandleStartEnroll` — i.e. only after a failure. The button is a
     // retry (see file header).
-    mocks.enrollTotp.mockRejectedValue(rejectionWithStatus(500));
+    program({ totp: failWithStatus(SERVER_ERROR) });
     renderForm();
 
     await expect.element(page.getByTestId("mfa-enroll-begin-setup")).toBeInTheDocument();
@@ -494,7 +543,7 @@ describe("MfaEnrollForm — when enrollment cannot start", () => {
   it("retries enrollment on begin-setup, clearing the standing error", async () => {
     // Oracle: `HandleStartEnroll` opens with `_errorMessage = null`. A stale error
     // sitting above a freshly-minted QR code is a lie.
-    mocks.enrollTotp.mockRejectedValueOnce(rejectionWithStatus(500));
+    program({ totp: once(failWithStatus(SERVER_ERROR), okTotp) });
     const user = userEvent.setup();
     renderForm();
 
@@ -502,7 +551,7 @@ describe("MfaEnrollForm — when enrollment cannot start", () => {
     await user.click(page.getByTestId("mfa-enroll-begin-setup"));
 
     await waitForSecret();
-    expect(mocks.enrollTotp).toHaveBeenCalledTimes(2);
+    expect(callsTo(TOTP_ENDPOINT)).toHaveLength(2);
     expect(page.getByTestId("mfa-enroll-error").query()).toBeNull();
   });
 });
@@ -519,7 +568,7 @@ describe("MfaEnrollForm — confirming the code", () => {
     await expect
       .element(page.getByTestId("mfa-enroll-error"))
       .toHaveTextContent(/enter the verification code/iu);
-    expect(mocks.confirmEnrollment).not.toHaveBeenCalled();
+    expect(callsTo(CONFIRM_ENDPOINT)).toHaveLength(0);
   });
 
   it("treats a whitespace-only code as blank", async () => {
@@ -533,7 +582,7 @@ describe("MfaEnrollForm — confirming the code", () => {
     await expect
       .element(page.getByTestId("mfa-enroll-error"))
       .toHaveTextContent(/enter the verification code/iu);
-    expect(mocks.confirmEnrollment).not.toHaveBeenCalled();
+    expect(callsTo(CONFIRM_ENDPOINT)).toHaveLength(0);
   });
 
   it("sends the enrolled secret with the typed code, and nothing else", async () => {
@@ -542,7 +591,8 @@ describe("MfaEnrollForm — confirming the code", () => {
     // the secret in the body before storing it.
     //
     // The exact-object assertion is the relay's tombstone: the oracle had to
-    // smuggle a cookie header alongside these two fields, and nothing here does.
+    // smuggle a cookie header alongside these two fields, and the request that
+    // really goes out carries those two fields and nothing else.
     const user = userEvent.setup();
     renderForm();
     await waitForSecret();
@@ -550,25 +600,36 @@ describe("MfaEnrollForm — confirming the code", () => {
     await submitCode(user);
 
     await vi.waitFor(() => {
-      expect(mocks.confirmEnrollment).toHaveBeenCalledWith({ secret: SECRET, code: CODE });
+      expect(callsTo(CONFIRM_ENDPOINT)).toHaveLength(1);
     });
+    const confirm: SdkCall | undefined = callsTo(CONFIRM_ENDPOINT)[0];
+    expect(confirm?.method).toBe("POST");
+    expect(confirm?.body).toEqual({ secret: SECRET, code: CODE });
   });
 
   it("disables submit while the confirm call is in flight", async () => {
     // Oracle: `Loading="_isSubmitting" Disabled="_isSubmitting"`. A double-submit
     // burns the TOTP window and mints backup codes twice.
     let release!: () => void;
-    mocks.confirmEnrollment.mockReturnValue(
-      new Promise((resolve) => {
-        release = () => resolve({ succeeded: true, backupCodes: BACKUP_CODES });
-      }),
-    );
+    program({
+      confirm: async () =>
+        await new Promise<Response>((resolve) => {
+          release = () => {
+            resolve(okConfirm() as Response);
+          };
+        }),
+    });
     const user = userEvent.setup();
     renderForm();
     await waitForSecret();
 
     await submitCode(user);
 
+    // The button goes disabled a tick BEFORE `fetch` is reached, so wait for the
+    // request to land before asserting and releasing.
+    await vi.waitFor(() => {
+      expect(callsTo(CONFIRM_ENDPOINT)).toHaveLength(1);
+    });
     await expect.element(page.getByTestId("mfa-enroll-submit")).toBeDisabled();
 
     release();
@@ -623,7 +684,7 @@ describe("MfaEnrollForm — a confirmed code", () => {
     // Oracle: `result.BackupCodes ?? Array.Empty<string>()` — an empty list is
     // still a successful enrollment, and MFA really is on. Falling back to the
     // error state here would tell the user a lie about their account.
-    mocks.confirmEnrollment.mockResolvedValue({ succeeded: true });
+    program({ confirm: () => Response.json({ succeeded: true }, { status: OK }) });
     const user = userEvent.setup();
     renderForm();
     await waitForSecret();
@@ -681,9 +742,9 @@ describe("MfaEnrollForm — a confirmed code", () => {
 
 describe("MfaEnrollForm — a rejected code", () => {
   it("tells the user the verification code was wrong on a 400", async () => {
-    // The oracle's `"invalid_code"` message, reached by status since the reason
-    // string dies at the seam (see file header).
-    mocks.confirmEnrollment.mockRejectedValue(invalidCodeRejection());
+    // The oracle's `"invalid_code"` message, reached by STATUS: this failure
+    // carries no reason token at all, which is what binds the fallback.
+    program({ confirm: failWithStatus(BAD_REQUEST) });
     const user = userEvent.setup();
     renderForm();
     await waitForSecret();
@@ -698,7 +759,7 @@ describe("MfaEnrollForm — a rejected code", () => {
   it("says the session is gone on a 401 rather than blaming the code", async () => {
     // `no_auth_session` is the ONLY 401 `enroll/confirm` emits. Telling this user
     // their code was invalid sends them to retype a code that can never work.
-    mocks.confirmEnrollment.mockRejectedValue(noSessionRejection());
+    program({ confirm: failWithStatus(UNAUTHORIZED) });
     const user = userEvent.setup();
     renderForm();
     await waitForSecret();
@@ -710,7 +771,7 @@ describe("MfaEnrollForm — a rejected code", () => {
 
   it("falls back to the generic message on an unrecognised status", async () => {
     // The oracle's `_` tail: "Failed to confirm MFA enrollment. Please try again."
-    mocks.confirmEnrollment.mockRejectedValue(rejectionWithStatus(500));
+    program({ confirm: failWithStatus(SERVER_ERROR) });
     const user = userEvent.setup();
     renderForm();
     await waitForSecret();
@@ -724,9 +785,14 @@ describe("MfaEnrollForm — a rejected code", () => {
   });
 
   it("falls back to the generic message when the failure names no status", async () => {
-    // A network rejection carries no `.status`. Narrow STRUCTURALLY — a screen may
-    // not `instanceof WallowError`, since it may not import the SDK.
-    mocks.confirmEnrollment.mockRejectedValue(new Error("Failed to fetch"));
+    // A network-level fault: the transport throws before a response exists, so
+    // there is no status anywhere. Narrow STRUCTURALLY — a screen may not
+    // `instanceof WallowError`, since it may not import the SDK.
+    program({
+      confirm: () => {
+        throw new TypeError("Failed to fetch");
+      },
+    });
     const user = userEvent.setup();
     renderForm();
     await waitForSecret();
@@ -739,7 +805,7 @@ describe("MfaEnrollForm — a rejected code", () => {
   it("never leaks a raw rejection or a machine reason token into the page", async () => {
     // The API's error tail can print `result.Error` raw, exposing the literal
     // "update_failed". That wart is not ported.
-    mocks.confirmEnrollment.mockRejectedValue(rejectionWithStatus(400));
+    program({ confirm: failWithCode(BAD_REQUEST, "invalid_code") });
     const user = userEvent.setup();
     renderForm();
     await waitForSecret();
@@ -757,7 +823,7 @@ describe("MfaEnrollForm — a rejected code", () => {
   it("leaves the form up so the user can retype the code", async () => {
     // The TOTP window rolls every 30 seconds — the overwhelmingly common cause of
     // a rejected code is a stale one, and the next attempt succeeds.
-    mocks.confirmEnrollment.mockRejectedValue(invalidCodeRejection());
+    program({ confirm: failWithCode(BAD_REQUEST, "invalid_code") });
     const user = userEvent.setup();
     renderForm();
     await waitForSecret();
@@ -773,7 +839,7 @@ describe("MfaEnrollForm — a rejected code", () => {
   it("keeps the same secret across a retry", async () => {
     // The QR the user already scanned is bound to THIS secret. Re-enrolling behind
     // their back would silently invalidate the authenticator entry they just made.
-    mocks.confirmEnrollment.mockRejectedValueOnce(invalidCodeRejection());
+    program({ confirm: once(failWithCode(BAD_REQUEST, "invalid_code"), okConfirm) });
     const user = userEvent.setup();
     renderForm();
     await waitForSecret();
@@ -783,15 +849,17 @@ describe("MfaEnrollForm — a rejected code", () => {
     await submitCode(user);
 
     await vi.waitFor(() => {
-      expect(mocks.confirmEnrollment).toHaveBeenCalledTimes(2);
+      expect(callsTo(CONFIRM_ENDPOINT)).toHaveLength(2);
     });
-    expect(mocks.confirmEnrollment).toHaveBeenLastCalledWith({ secret: SECRET, code: CODE });
-    expect(mocks.enrollTotp).toHaveBeenCalledTimes(1);
+    // The SECOND attempt still carries the FIRST secret — no re-enrollment
+    // happened behind the user's back, and `enroll/totp` was hit exactly once.
+    expect(callsTo(CONFIRM_ENDPOINT)[1]?.body).toEqual({ secret: SECRET, code: CODE });
+    expect(callsTo(TOTP_ENDPOINT)).toHaveLength(1);
   });
 
   it("clears the error once a later attempt succeeds", async () => {
     // Oracle: `HandleConfirm` opens with `_errorMessage = null`.
-    mocks.confirmEnrollment.mockRejectedValueOnce(invalidCodeRejection());
+    program({ confirm: once(failWithCode(BAD_REQUEST, "invalid_code"), okConfirm) });
     const user = userEvent.setup();
     renderForm();
     await waitForSecret();
@@ -818,10 +886,14 @@ describe("MfaEnrollForm — a rejected code", () => {
  * only guess "invalid_code" at them, telling a user whose account write failed to
  * retype a code that was already correct — the same infinite loop the port refuses
  * to send a `no_auth_session` user round.
+ *
+ * Over the harness these are no longer hand-built error objects: each test puts
+ * the controller's real `{ succeeded: false, error }` body on the wire and lets
+ * the SDK's `readCode` lift the token, so the probe order itself is under test.
  */
 describe("MfaEnrollForm — the reason token the API sends", () => {
   it("blames the code when the API says invalid_code", async () => {
-    mocks.confirmEnrollment.mockRejectedValue(rejectionWithCode(400, "invalid_code"));
+    program({ confirm: failWithCode(BAD_REQUEST, "invalid_code") });
     const user = userEvent.setup();
     renderForm();
     await waitForSecret();
@@ -837,7 +909,7 @@ describe("MfaEnrollForm — the reason token the API sends", () => {
     // `update_failed` is a 400, so status alone cannot tell it from `invalid_code`.
     // The user's code was fine; telling them to retype it is a loop they cannot
     // escape. THIS is what the token recovers.
-    mocks.confirmEnrollment.mockRejectedValue(rejectionWithCode(400, "update_failed"));
+    program({ confirm: failWithCode(BAD_REQUEST, "update_failed") });
     const user = userEvent.setup();
     renderForm();
     await waitForSecret();
@@ -851,7 +923,7 @@ describe("MfaEnrollForm — the reason token the API sends", () => {
 
   it("does NOT blame the code when the user vanished mid-flow", async () => {
     // `user_not_found`, the other should-never-happen 400.
-    mocks.confirmEnrollment.mockRejectedValue(rejectionWithCode(400, "user_not_found"));
+    program({ confirm: failWithCode(BAD_REQUEST, "user_not_found") });
     const user = userEvent.setup();
     renderForm();
     await waitForSecret();
@@ -864,11 +936,13 @@ describe("MfaEnrollForm — the reason token the API sends", () => {
   });
 
   it("names the session on no_auth_session even when no status rides along", async () => {
-    // Keying on the TOKEN, not the status: this rejection carries no `.status` at
-    // all, so a status-only port would fall to its generic tail.
-    mocks.confirmEnrollment.mockRejectedValue(
-      Object.assign(new Error("Unknown error"), { code: "no_auth_session" }),
-    );
+    // Keying on the TOKEN, not the status. Over a real transport EVERY response
+    // has a status, so "no status rides along" is not expressible verbatim; the
+    // equivalent — and strictly stronger — statement is a `no_auth_session` token
+    // arriving under a status whose fallback says something ELSE. A 400 would map
+    // to "invalid verification code" on status alone, so only the token can
+    // produce the session message here.
+    program({ confirm: failWithCode(BAD_REQUEST, "no_auth_session") });
     const user = userEvent.setup();
     renderForm();
     await waitForSecret();
@@ -881,19 +955,17 @@ describe("MfaEnrollForm — the reason token the API sends", () => {
   it("names the expired LINK, not the session, when the token exchange is refused", async () => {
     // `invalid_or_expired_token` — the user's fix is to start setup again from the
     // app that linked them here, which a generic "try again" would not tell them.
-    mocks.exchangeEnrollmentToken.mockRejectedValue(
-      rejectionWithCode(400, "invalid_or_expired_token"),
-    );
+    program({ exchange: failWithCode(BAD_REQUEST, "invalid_or_expired_token") });
     renderForm({ enrollToken: ENROLL_TOKEN });
 
     await expect.element(page.getByTestId("mfa-enroll-error")).toHaveTextContent(/expired/iu);
-    expect(mocks.enrollTotp).not.toHaveBeenCalled();
+    expect(callsTo(TOTP_ENDPOINT)).toHaveLength(0);
   });
 
   it("still never renders the raw token, whatever the API sends", async () => {
     // The oracle's `_` tail prints `result.Error` raw. Now that the token actually
     // ARRIVES, this guard matters more than it did when everything was UNKNOWN.
-    mocks.confirmEnrollment.mockRejectedValue(rejectionWithCode(400, "update_failed"));
+    program({ confirm: failWithCode(BAD_REQUEST, "update_failed") });
     const user = userEvent.setup();
     renderForm();
     await waitForSecret();
@@ -917,12 +989,15 @@ describe("MfaEnrollForm — the open-redirect guard", () => {
     // to "/" and enrolls anyway, swallowing the attempt. Refusing on mount is the
     // ConsentScreen/MfaChallenge precedent: do not make a user set up a second
     // factor for a destination already decided against.
+    //
+    // The guard is the SDK's REAL `isSafeReturnUrl` now, not a mirror of its
+    // rule — these cases exercise the shipped function.
     renderForm({ returnUrl: "//evil.example.com/steal" });
 
     await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({ href: ERROR_HREF });
     });
-    expect(mocks.enrollTotp).not.toHaveBeenCalled();
+    expect(harness.calls).toHaveLength(0);
   });
 
   it("refuses an absolute return url", async () => {
@@ -931,7 +1006,7 @@ describe("MfaEnrollForm — the open-redirect guard", () => {
     await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({ href: ERROR_HREF });
     });
-    expect(mocks.enrollTotp).not.toHaveBeenCalled();
+    expect(harness.calls).toHaveLength(0);
   });
 
   it("refuses an empty-string return url", async () => {
@@ -942,7 +1017,7 @@ describe("MfaEnrollForm — the open-redirect guard", () => {
     await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({ href: ERROR_HREF });
     });
-    expect(mocks.enrollTotp).not.toHaveBeenCalled();
+    expect(harness.calls).toHaveLength(0);
   });
 
   it("does not refuse a missing return url", async () => {
@@ -950,7 +1025,7 @@ describe("MfaEnrollForm — the open-redirect guard", () => {
     renderForm();
 
     await vi.waitFor(() => {
-      expect(mocks.enrollTotp).toHaveBeenCalled();
+      expect(callsTo(TOTP_ENDPOINT)).toHaveLength(1);
     });
     expect(mocks.navigate).not.toHaveBeenCalledWith({ href: ERROR_HREF });
   });
@@ -975,7 +1050,7 @@ describe("MfaEnrollForm — the relay is gone", () => {
     renderForm();
 
     await waitForSecret();
-    expect(mocks.enrollTotp).toHaveBeenCalledTimes(1);
+    expect(callsTo(TOTP_ENDPOINT)).toHaveLength(1);
   });
 
   it("exchanges the enrollment token exactly once per mount", async () => {
@@ -984,7 +1059,7 @@ describe("MfaEnrollForm — the relay is gone", () => {
     renderForm({ enrollToken: ENROLL_TOKEN });
 
     await waitForSecret();
-    expect(mocks.exchangeEnrollmentToken).toHaveBeenCalledTimes(1);
+    expect(callsTo(EXCHANGE_ENDPOINT)).toHaveLength(1);
   });
 });
 
@@ -996,20 +1071,11 @@ describe("MfaEnrollForm — the relay is gone", () => {
  * `<html>`, and `src/router.tsx` is off-limits to this task (Wallow-vec7.3.16).
  */
 function renderRouteAt(url: string) {
-  const rootRoute = createRootRoute({ component: Outlet });
-  const routeTree = rootRoute.addChildren([
-    mfaEnrollRoute.update({
-      id: "/mfa/enroll",
-      path: "/mfa/enroll",
-      getParentRoute: () => rootRoute,
-    } as any),
-  ]);
-  const router = createRouter({
-    routeTree,
-    history: createMemoryHistory({ initialEntries: [url] }),
+  return renderWithWallow(null, {
+    harness,
+    path: url,
+    routes: [{ path: "/mfa/enroll", route: mfaEnrollRoute }],
   });
-
-  return renderWithClient(<RouterProvider router={router} />);
 }
 
 describe("/mfa/enroll route", () => {
@@ -1044,8 +1110,11 @@ describe("/mfa/enroll route", () => {
     renderRouteAt(`/mfa/enroll?enrollToken=${ENROLL_TOKEN}`);
 
     await vi.waitFor(() => {
-      expect(mocks.exchangeEnrollmentToken).toHaveBeenCalledWith(ENROLL_TOKEN);
+      expect(callsTo(EXCHANGE_ENDPOINT)).toHaveLength(1);
     });
+    expect(new URL(callsTo(EXCHANGE_ENDPOINT)[0]?.url ?? "").searchParams.get("token")).toBe(
+      ENROLL_TOKEN,
+    );
   });
 
   it("renders a bare /mfa/enroll with no query string at all", async () => {
@@ -1054,6 +1123,6 @@ describe("/mfa/enroll route", () => {
     renderRouteAt("/mfa/enroll");
 
     await expect.element(page.getByTestId("mfa-enroll-code")).toBeInTheDocument();
-    expect(mocks.exchangeEnrollmentToken).not.toHaveBeenCalled();
+    expect(callsTo(EXCHANGE_ENDPOINT)).toHaveLength(0);
   });
 });

@@ -1,11 +1,23 @@
 import { describe, expect, it } from "vitest";
 
+import { REQUEST_ID_HEADER } from "../request-id";
 import { parseProblemDetails, redact, REDACTED, UNKNOWN_ERROR_CODE, WallowError } from "./errors";
 
 function problemResponse(status: number): Response {
   return new Response(null, {
     status,
     headers: { "content-type": "application/problem+json" },
+  });
+}
+
+/** A problem response that also carries the correlation header, as the API's does. */
+function correlatedResponse(status: number, requestId: string): Response {
+  return new Response(null, {
+    status,
+    headers: {
+      "content-type": "application/problem+json",
+      [REQUEST_ID_HEADER]: requestId,
+    },
   });
 }
 
@@ -180,6 +192,123 @@ describe("parseProblemDetails", () => {
     expect(error.code).toBe(UNKNOWN_ERROR_CODE);
     expect(error.title).toBe("Unknown error");
     expect(error.status).toBe(500);
+  });
+});
+
+/**
+ * Request-id correlation (Wallow-pu6a.6.7).
+ *
+ * A `WallowError` is what a user's bug report is really about, so it has to name
+ * the request that produced it. Two members do that: `requestId` is the
+ * `x-request-id` the BFF stamped on the request and the API echoed back, and
+ * `traceId` is the W3C trace id ASP.NET Core already puts in every problem
+ * details body — the same id OTel exports the trace under.
+ */
+describe("WallowError correlation members", () => {
+  it("exposes the request id and trace id it was constructed with", () => {
+    const error: WallowError = new WallowError({
+      status: 500,
+      code: "INTERNAL",
+      title: "Internal Server Error",
+      requestId: "3f2504e0-4f89-11d3-9a0c-0305e82c3301",
+      traceId: "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+    });
+
+    expect(error.requestId).toBe("3f2504e0-4f89-11d3-9a0c-0305e82c3301");
+    expect(error.traceId).toBe("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01");
+  });
+
+  it("leaves both undefined when neither was given", () => {
+    const error: WallowError = new WallowError({
+      status: 403,
+      code: "FORBIDDEN",
+      title: "Forbidden",
+    });
+
+    expect(error.requestId).toBeUndefined();
+    expect(error.traceId).toBeUndefined();
+  });
+});
+
+describe("parseProblemDetails correlation", () => {
+  it("carries the response's x-request-id onto the error", () => {
+    const body: string = JSON.stringify({ title: "Conflict", status: 409 });
+
+    const error: WallowError = parseProblemDetails(
+      correlatedResponse(409, "3f2504e0-4f89-11d3-9a0c-0305e82c3301"),
+      body,
+    );
+
+    expect(error.requestId).toBe("3f2504e0-4f89-11d3-9a0c-0305e82c3301");
+  });
+
+  it("leaves requestId undefined when the response carries no correlation header", () => {
+    const error: WallowError = parseProblemDetails(
+      problemResponse(409),
+      JSON.stringify({ title: "Conflict" }),
+    );
+
+    expect(error.requestId).toBeUndefined();
+  });
+
+  it("reads the trace id from extensions.traceId", () => {
+    const body: string = JSON.stringify({
+      title: "Not Found",
+      status: 404,
+      extensions: { code: "INQUIRY_NOT_FOUND", traceId: "00-abc-def-01" },
+    });
+
+    const error: WallowError = parseProblemDetails(problemResponse(404), body);
+
+    expect(error.traceId).toBe("00-abc-def-01");
+  });
+
+  it("reads a flattened top-level traceId", () => {
+    // The default ASP.NET Core problem details serializer hoists it to the root.
+    const body: string = JSON.stringify({
+      title: "Bad Request",
+      status: 400,
+      traceId: "00-flattened-trace-01",
+    });
+
+    const error: WallowError = parseProblemDetails(problemResponse(400), body);
+
+    expect(error.traceId).toBe("00-flattened-trace-01");
+  });
+
+  it("prefers extensions.traceId over a flattened one, as it does for code", () => {
+    const body: string = JSON.stringify({
+      title: "Bad Request",
+      status: 400,
+      traceId: "00-from-root-01",
+      extensions: { traceId: "00-from-extensions-01" },
+    });
+
+    const error: WallowError = parseProblemDetails(problemResponse(400), body);
+
+    expect(error.traceId).toBe("00-from-extensions-01");
+  });
+
+  it("ignores a non-string traceId rather than coercing it", () => {
+    const body: string = JSON.stringify({ title: "Bad Request", status: 400, traceId: 42 });
+
+    const error: WallowError = parseProblemDetails(problemResponse(400), body);
+
+    expect(error.traceId).toBeUndefined();
+  });
+
+  it("still carries the request id when the body is not problem details at all", () => {
+    // The synthetic UNKNOWN path is exactly where correlation matters most: an
+    // HTML error page from a gateway names nothing else the request can be
+    // traced by.
+    const error: WallowError = parseProblemDetails(
+      correlatedResponse(502, "gateway-req-9"),
+      "<html><body>Bad Gateway</body></html>",
+    );
+
+    expect(error.code).toBe(UNKNOWN_ERROR_CODE);
+    expect(error.requestId).toBe("gateway-req-9");
+    expect(error.traceId).toBeUndefined();
   });
 });
 

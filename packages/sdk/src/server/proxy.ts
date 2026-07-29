@@ -3,29 +3,24 @@
  *
  * `ensureFreshSession` is a pure helper that transparently refreshes the OIDC
  * access token when it is within {@link EXPIRY_SKEW_MS} of expiry.
- * `createApiProxy` is the h3 handler that reads the session, ensures it is
- * fresh, strips the `/api` prefix, and forwards the request to the downstream
- * API with a `Bearer` token.
+ * `createApiProxy` is the web-standard handler that reads the session, ensures
+ * it is fresh, strips the `/api` prefix, and forwards the request to the
+ * downstream API with a `Bearer` token.
+ *
+ * Only the transport shell changed shape in the h3 port (Wallow-pu6a.3.3): the
+ * refresh lock, 401 retry, login-redirect classification, `Retry-After`
+ * honouring, and RFC 7807 passthrough are unchanged from the h3 revision. The
+ * shell gained a path allowlist and a non-relative upstream URL construction,
+ * neither of which h3's router made the handler's business.
  */
 import { timingSafeEqual } from "node:crypto";
 
-import {
-  defineEventHandler,
-  getMethod,
-  getRequestHeaders,
-  getRequestPath,
-  readRawBody,
-  setResponseHeaders,
-  setResponseStatus,
-  type EventHandler,
-  type H3Event,
-} from "h3";
-
+import { REQUEST_ID_HEADER, resolveRequestId } from "../request-id";
 import type { BffConfig } from "./config";
 import { parseProblemDetails, redact, WallowError } from "./errors";
+import { readSession, readSessionRef, writeSession, writeSessionRef } from "./handlers";
 import { discover, refreshTokens, type DiscoveryDoc, type TokenResponse } from "./oidc";
 import type { BffSession } from "./session";
-import { readSession, readSessionRef, writeSession, writeSessionRef } from "./handlers";
 import { CookieSessionStore } from "./store/cookie";
 import type { SessionStore } from "./store/types";
 
@@ -95,9 +90,6 @@ const VERSION_STEP = 1;
 
 /** HTTP status the BFF answers with when the session cannot authenticate. */
 const UNAUTHORIZED_STATUS = 401;
-
-/** HTTP status the BFF answers with when the CSRF check rejects a request. */
-const FORBIDDEN_STATUS = 403;
 
 /** HTTP status raised for a transport failure or timeout forwarding upstream. */
 const NETWORK_FAILURE_STATUS = 503;
@@ -536,118 +528,129 @@ function logFault(request: ForwardRequest, error: WallowError): void {
   );
 }
 
+/** The `/api` reverse proxy: a web-standard request in, a response out. */
+export type ApiProxyHandler = (request: Request) => Promise<Response>;
+
+/** HTTP status the BFF answers with when the CSRF check rejects a request. */
+const FORBIDDEN_STATUS = 403;
+
+/** HTTP status for a path this proxy does not serve. */
+const NOT_FOUND_STATUS = 404;
+
+/** The only path prefix this proxy forwards. */
+const API_PREFIX: string = "/api";
+
+/** The path a request for the bare `/api` root forwards to. */
+const ROOT_PATH: string = "/";
+
+/** The dot-segment that would climb out of the API base path. */
+const PARENT_SEGMENT: string = "..";
+
+/** Byte length at which a buffered request body is no body at all. */
+const EMPTY_BODY_LENGTH = 0;
+
+/** Request headers forwarded upstream; `authorization` is added per attempt. */
+const FORWARDED_REQUEST_HEADERS: readonly string[] = ["content-type", "accept"];
+
 /**
- * Build the `/api` reverse-proxy h3 handler bound to a configuration.
+ * Response headers never re-emitted on the re-framed response.
  *
- * @param config Server-side BFF configuration.
- * @param store Session store used to resolve and persist sessions. Defaults to
- *   a cookie-only {@link CookieSessionStore}, so single-argument callers keep
- *   working.
- * @returns An h3 event handler that proxies to `config.apiBaseUrl`.
+ * `transfer-encoding` and `content-encoding` describe a framing this proxy does
+ * not reproduce, and `content-length` describes a body whose encoding has
+ * already been undone by the time it reaches here — a length that no longer
+ * matches the bytes on the wire is a request-smuggling primitive, so the length
+ * is recomputed by the host rather than relayed.
  */
-export function createApiProxy(
-  config: BffConfig,
-  store: SessionStore = new CookieSessionStore({
-    password: config.cookiePassword,
-  }),
-): EventHandler {
-  return defineEventHandler(async (event: H3Event): Promise<unknown> => {
-    const ref: string | null = readSessionRef(event, config);
-    if (ref === null) {
-      setResponseStatus(event, UNAUTHORIZED_STATUS);
-      return null;
-    }
+const HOP_BY_HOP_HEADERS: ReadonlySet<string> = new Set<string>([
+  "transfer-encoding",
+  "content-encoding",
+  "content-length",
+]);
 
-    const session: BffSession | null = await readSession(event, config, store);
-    if (session === null) {
-      setResponseStatus(event, UNAUTHORIZED_STATUS);
-      return null;
-    }
+/**
+ * The upstream path for an incoming request path, or `null` when this proxy
+ * does not serve it.
+ *
+ * The prefix test is a segment-boundary test: a bare `startsWith("/api")` also
+ * accepts `/apiary`. Mounting is the host's business under a router, but the
+ * handler is also called directly, and an unchecked path turns it into an open
+ * bearer-attaching relay for anything a caller invents.
+ */
+function strippedApiPath(pathname: string): string | null {
+  if (pathname !== API_PREFIX && !pathname.startsWith(`${API_PREFIX}/`)) {
+    return null;
+  }
 
-    // Gate state-changing requests on the session-bound CSRF token before the
-    // session is refreshed or anything is forwarded: a rejected request must
-    // die here, never reaching the downstream API. `csrfToken` survives a
-    // refresh untouched, so the pre-refresh session is the right thing to
-    // compare against.
-    if (isStateChangingMethod(getMethod(event))) {
-      const presented: string | undefined = getRequestHeaders(event)[CSRF_HEADER];
-      if (!csrfTokenMatches(session.csrfToken, presented)) {
-        return respondToFailure(
-          event,
-          new WallowError({
-            status: FORBIDDEN_STATUS,
-            code: CSRF_INVALID_CODE,
-            title: "CSRF token mismatch or missing",
-          }),
-        );
-      }
-    }
+  // Empty path segments are collapsed: a leading `//` makes a URL parser read
+  // the next segment as an AUTHORITY, and `\` is normalised to `/` before this
+  // ever runs, so `/api/\/evil.test/x` arrives here as `//evil.test/x`.
+  const stripped: string = pathname.slice(API_PREFIX.length).replaceAll(/\/{2,}/gu, ROOT_PATH);
+  if (stripped === "") {
+    return ROOT_PATH;
+  }
+  return stripped.split(ROOT_PATH).includes(PARENT_SEGMENT) ? null : stripped;
+}
 
-    let fresh: BffSession;
-    let currentRef: string = ref;
-    try {
-      fresh = await ensureFreshSession(session, config, store, ref);
-    } catch {
-      setResponseStatus(event, UNAUTHORIZED_STATUS);
-      return null;
-    }
+/**
+ * The absolute upstream URL for a stripped path, or `null` when it does not
+ * resolve inside the configured API.
+ *
+ * The path is JOINED onto the base as a path and the result parsed as an
+ * ABSOLUTE URL. `new URL(strippedPath, config.apiBaseUrl)` — the obvious
+ * spelling, and the one this replaces — is a *relative* resolution in which the
+ * browser-supplied path is the relative part: it silently discards any path
+ * prefix on `apiBaseUrl`, and a path beginning `//` re-roots the whole URL at
+ * an authority of the caller's choosing, with the session's bearer attached.
+ * The origin and base-path checks below are the backstop for anything the
+ * joining misses.
+ */
+function upstreamTarget(config: BffConfig, path: string, search: string): string | null {
+  const base: URL = new URL(config.apiBaseUrl);
+  const basePath: string = base.pathname.replace(/\/$/u, "");
+  const target: URL = new URL(`${base.origin}${basePath}${path}${search}`);
 
-    // Re-seal the cookie only when the session actually changed.
-    if (changed(session, fresh)) {
-      currentRef = await writeSession(event, config, store, fresh);
-    }
-
-    // Strip the `/api` prefix and re-root at the downstream API base URL.
-    const requestPath: string = getRequestPath(event);
-    const stripped: string = requestPath.replace(/^\/api/u, "") || "/";
-    const target: string = new URL(stripped, config.apiBaseUrl).toString();
-
-    const incoming: Record<string, string | undefined> = getRequestHeaders(event);
-    const method: string = getMethod(event);
-
-    const forwardHeaders: Headers = new Headers();
-    if (incoming["content-type"] !== undefined) {
-      forwardHeaders.set("content-type", incoming["content-type"]);
-    }
-    if (incoming["accept"] !== undefined) {
-      forwardHeaders.set("accept", incoming["accept"]);
-    }
-
-    const hasBody: boolean = method !== "GET" && method !== "HEAD";
-    const body: BodyInit | undefined = hasBody
-      ? ((await readRawBody(event, false)) as BodyInit | undefined)
-      : undefined;
-
-    let result: ForwardResult;
-    try {
-      result = await forwardWithResilience(
-        { target, method, headers: forwardHeaders, body },
-        config,
-        store,
-        fresh,
-        currentRef,
-      );
-    } catch (error: unknown) {
-      return respondToFailure(event, error);
-    }
-
-    // A reactive refresh rotated the session mid-request: the browser needs the
-    // new reference, or its next request arrives with a spent refresh token.
-    if (changed(fresh, result.session)) {
-      writeSessionRef(event, config, result.ref);
-    }
-
-    const upstream: Response = result.response;
-    setResponseStatus(event, upstream.status);
-    setResponseHeaders(event, forwardableHeaders(upstream.headers));
-
-    return new Uint8Array(await upstream.arrayBuffer());
-  });
+  if (target.origin !== base.origin || !target.pathname.startsWith(basePath)) {
+    return null;
+  }
+  return target.toString();
 }
 
 /** Whether a refresh rotated the session out from under `before`. */
 function changed(before: BffSession, after: BffSession): boolean {
   return after.version !== before.version || after.accessToken !== before.accessToken;
+}
+
+/** Copy every `Set-Cookie` from `source` onto `target` without overwriting. */
+function mergeCookies(target: Headers, source: Headers): void {
+  for (const cookie of source.getSetCookie()) {
+    target.append("set-cookie", cookie);
+  }
+}
+
+/** Upstream response headers safe to re-emit on a re-framed response. */
+function forwardableHeaders(headers: Headers): Headers {
+  const forwardable: Headers = new Headers();
+  headers.forEach((value: string, key: string): void => {
+    const lower: string = key.toLowerCase();
+    // `Set-Cookie` is re-emitted below: it is the one header that may legally
+    // repeat, and copying it here would either collapse the duplicates into one
+    // comma-joined line or drop all but the last.
+    if (HOP_BY_HOP_HEADERS.has(lower) || lower === "set-cookie") {
+      return;
+    }
+    forwardable.append(key, value);
+  });
+  for (const cookie of headers.getSetCookie()) {
+    forwardable.append("set-cookie", cookie);
+  }
+  return forwardable;
+}
+
+/** A bodiless response carrying whatever session cookies were written so far. */
+function bare(status: number, cookies: Headers): Response {
+  const headers: Headers = new Headers();
+  mergeCookies(headers, cookies);
+  return new Response(null, { status, headers });
 }
 
 /**
@@ -657,43 +660,194 @@ function changed(before: BffSession, after: BffSession): boolean {
  * browser sees the API's own problem details, `errors[]` and `traceId` included.
  * The BFF's own faults (an unreachable API, a forward that timed out) have no
  * upstream response to relay, so they are rendered as problem details of their
- * own.
+ * own. Either way the session cookies written earlier in the request ride along:
+ * dropping a re-sealed cookie on the error path would leave the browser holding
+ * a refresh token that has already been spent.
+ *
+ * A body the BFF synthesizes also NAMES `requestId` as a member, not just on the
+ * header: a relayed upstream body carries the API's own `traceId` to correlate
+ * by, and a synthesized one has no upstream to have gotten a trace id from.
  */
-function respondToFailure(event: H3Event, error: unknown): Uint8Array {
+function respondToFailure(error: unknown, cookies: Headers, requestId: string): Response {
   if (error instanceof UpstreamError) {
-    setResponseStatus(event, error.response.status);
-    setResponseHeaders(event, forwardableHeaders(error.response.headers));
-    return new TextEncoder().encode(error.bodyText);
+    const headers: Headers = forwardableHeaders(error.response.headers);
+    mergeCookies(headers, cookies);
+    return new Response(error.bodyText, { status: error.response.status, headers });
   }
 
   if (error instanceof WallowError) {
-    setResponseStatus(event, error.status);
-    setResponseHeaders(event, {
-      "content-type": "application/problem+json",
-    });
-    return new TextEncoder().encode(
-      JSON.stringify({
+    const headers: Headers = new Headers({ "content-type": "application/problem+json" });
+    mergeCookies(headers, cookies);
+    return Response.json(
+      {
         type: `https://httpstatuses.io/${error.status}`,
         title: error.title,
         status: error.status,
         detail: error.detail,
         code: error.code,
-      }),
+        requestId,
+      },
+      { status: error.status, headers },
     );
   }
 
   throw error;
 }
 
-/** Upstream response headers safe to re-emit on a re-framed response. */
-function forwardableHeaders(headers: Headers): Record<string, string> {
-  const forwardable: Record<string, string> = {};
-  headers.forEach((value: string, key: string): void => {
-    const lower: string = key.toLowerCase();
-    if (lower === "transfer-encoding" || lower === "content-encoding") {
-      return;
+/**
+ * Build the `/api` reverse-proxy handler bound to a configuration.
+ *
+ * @param config Server-side BFF configuration.
+ * @param store Session store used to resolve and persist sessions. Defaults to
+ *   a cookie-only {@link CookieSessionStore}, so single-argument callers keep
+ *   working.
+ * @returns A web-standard handler that proxies to `config.apiBaseUrl`.
+ */
+export function createApiProxy(
+  config: BffConfig,
+  store: SessionStore = new CookieSessionStore({
+    password: config.cookiePassword,
+    ttlSeconds: config.sessionTtlSeconds,
+  }),
+): ApiProxyHandler {
+  return async (request: Request): Promise<Response> => {
+    // Minted before anything else and stamped onto whatever comes back, so the
+    // failures the proxy answers ITSELF — a rejected path, an unauthenticated
+    // session, a failed CSRF check — are correlatable too. Those are exactly the
+    // ones a user cannot otherwise describe, since they never reach the API and
+    // so appear in no backend trace at all.
+    const requestId: string = resolveRequestId(request.headers);
+    const response: Response = await proxyRequest(request, requestId, config, store);
+    response.headers.set(REQUEST_ID_HEADER, requestId);
+    return response;
+  };
+}
+
+/**
+ * The proxy's actual work, for one already-correlated request.
+ *
+ * Separated from {@link createApiProxy} so the request id is stamped at a single
+ * exit rather than at each of the seven responses below — a response that
+ * escaped without it would be a request the browser cannot name.
+ */
+async function proxyRequest(
+  request: Request,
+  requestId: string,
+  config: BffConfig,
+  store: SessionStore,
+): Promise<Response> {
+  const url: URL = new URL(request.url);
+
+  // The allowlist runs before anything else: a path this proxy does not serve
+  // must not even cost a session read.
+  const path: string | null = strippedApiPath(url.pathname);
+  if (path === null) {
+    return new Response(null, { status: NOT_FOUND_STATUS });
+  }
+
+  const ref: string | null = readSessionRef(request, config);
+  if (ref === null) {
+    return new Response(null, { status: UNAUTHORIZED_STATUS });
+  }
+
+  const session: BffSession | null = await readSession(request, config, store);
+  if (session === null) {
+    return new Response(null, { status: UNAUTHORIZED_STATUS });
+  }
+
+  // Cookies the BFF writes for itself during this request. They are collected
+  // apart from the upstream response's own headers so that both survive onto
+  // whichever response is finally returned.
+  const cookies: Headers = new Headers();
+
+  // Gate state-changing requests on the session-bound CSRF token before the
+  // session is refreshed or anything is forwarded: a rejected request must
+  // die here, never reaching the downstream API. `csrfToken` survives a
+  // refresh untouched, so the pre-refresh session is the right thing to
+  // compare against. `Headers.get` answers `null` where h3 answered
+  // `undefined`; coerce, or the comparison is handed a value its types deny.
+  if (isStateChangingMethod(request.method)) {
+    const presented: string | undefined = request.headers.get(CSRF_HEADER) ?? undefined;
+    if (!csrfTokenMatches(session.csrfToken, presented)) {
+      return respondToFailure(
+        new WallowError({
+          status: FORBIDDEN_STATUS,
+          code: CSRF_INVALID_CODE,
+          title: "CSRF token mismatch or missing",
+          requestId,
+        }),
+        cookies,
+        requestId,
+      );
     }
-    forwardable[key] = value;
+  }
+
+  let fresh: BffSession;
+  let currentRef: string = ref;
+  try {
+    fresh = await ensureFreshSession(session, config, store, ref);
+  } catch {
+    return new Response(null, { status: UNAUTHORIZED_STATUS });
+  }
+
+  // Re-seal the cookie only when the session actually changed.
+  if (changed(session, fresh)) {
+    currentRef = await writeSession(cookies, config, store, fresh);
+  }
+
+  const target: string | null = upstreamTarget(config, path, url.search);
+  if (target === null) {
+    return bare(NOT_FOUND_STATUS, cookies);
+  }
+
+  const method: string = request.method.toUpperCase();
+  const forwardHeaders: Headers = new Headers();
+  for (const name of FORWARDED_REQUEST_HEADERS) {
+    const value: string | null = request.headers.get(name);
+    if (value !== null) {
+      forwardHeaders.set(name, value);
+    }
+  }
+
+  // Set on the headers `forwardWithResilience` replays from, not per attempt, so
+  // a reactive-401 replay reaches the API under the id the first attempt used:
+  // one logical request is one trace, not two.
+  forwardHeaders.set(REQUEST_ID_HEADER, requestId);
+
+  // BUFFERED, not streamed: `forwardWithResilience` replays the request after
+  // a reactive 401, and a `ReadableStream` body is consumed by the first
+  // attempt. Streaming stays a response-direction optimisation only.
+  let body: BodyInit | undefined;
+  if (method !== "GET" && method !== "HEAD") {
+    const buffered: Uint8Array<ArrayBuffer> = new Uint8Array(await request.arrayBuffer());
+    body = buffered.byteLength > EMPTY_BODY_LENGTH ? buffered : undefined;
+  }
+
+  let result: ForwardResult;
+  try {
+    result = await forwardWithResilience(
+      { target, method, headers: forwardHeaders, body },
+      config,
+      store,
+      fresh,
+      currentRef,
+    );
+  } catch (error: unknown) {
+    return respondToFailure(error, cookies, requestId);
+  }
+
+  // A reactive refresh rotated the session mid-request: the browser needs the
+  // new reference, or its next request arrives with a spent refresh token.
+  if (changed(fresh, result.session)) {
+    writeSessionRef(cookies, config, result.ref);
+  }
+
+  const upstream: Response = result.response;
+  const headers: Headers = forwardableHeaders(upstream.headers);
+  mergeCookies(headers, cookies);
+  return new Response(upstream.body, {
+    status: upstream.status,
+    statusText: upstream.statusText,
+    headers,
   });
-  return forwardable;
 }

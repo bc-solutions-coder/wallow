@@ -19,6 +19,12 @@ namespace Wallow.Api.Extensions;
 
 internal static partial class ServiceCollectionExtensions
 {
+    /// <summary>
+    /// Tag applied by <c>TestSupportController</c>; its operations are internal-only scaffolding
+    /// and must never reach the public v1 document or the generated SDK client.
+    /// </summary>
+    private const string TestSupportTagName = "Test Support";
+
     public static IServiceCollection AddApiServices(
         this IServiceCollection services,
         IConfiguration configuration)
@@ -42,10 +48,13 @@ internal static partial class ServiceCollectionExtensions
         {
             options.AddDocumentTransformer((document, _, _) => TransformDocumentInfo(document, appName));
             options.AddDocumentTransformer((document, _, _) => TransformDocumentSecurity(document));
+            options.AddDocumentTransformer((document, _, _) => TransformDocumentExcludeTestSupport(document));
             options.AddOperationTransformer((operation, context, _) =>
                 TransformOperationSecurity(operation, context));
             options.AddOperationTransformer((operation, context, _) =>
                 TransformOperationModuleTag(operation, context));
+            options.AddOperationTransformer((operation, context, _) =>
+                TransformOperationId(operation, context));
         });
 
         // Health checks - connection strings resolved lazily via factories
@@ -214,6 +223,62 @@ internal static partial class ServiceCollectionExtensions
         return Task.CompletedTask;
     }
 
+    internal static Task TransformDocumentExcludeTestSupport(OpenApiDocument document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+
+        if (document.Paths is not null)
+        {
+            List<string> emptiedPaths = [];
+
+            foreach (KeyValuePair<string, IOpenApiPathItem> path in document.Paths)
+            {
+                Dictionary<HttpMethod, OpenApiOperation>? operations = path.Value.Operations;
+                if (operations is null)
+                {
+                    continue;
+                }
+
+                List<HttpMethod> testSupportMethods = operations
+                    .Where(operation => IsTestSupportOperation(operation.Value))
+                    .Select(operation => operation.Key)
+                    .ToList();
+
+                foreach (HttpMethod method in testSupportMethods)
+                {
+                    operations.Remove(method);
+                }
+
+                if (operations.Count == 0)
+                {
+                    emptiedPaths.Add(path.Key);
+                }
+            }
+
+            foreach (string emptiedPath in emptiedPaths)
+            {
+                document.Paths.Remove(emptiedPath);
+            }
+        }
+
+        if (document.Tags is not null)
+        {
+            List<OpenApiTag> testSupportTags = document.Tags
+                .Where(tag => string.Equals(tag.Name, TestSupportTagName, StringComparison.Ordinal))
+                .ToList();
+
+            foreach (OpenApiTag testSupportTag in testSupportTags)
+            {
+                document.Tags.Remove(testSupportTag);
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private static bool IsTestSupportOperation(OpenApiOperation operation) =>
+        operation.Tags?.Any(tag => string.Equals(tag.Name, TestSupportTagName, StringComparison.Ordinal)) == true;
+
     internal static Task TransformOperationSecurity(
         OpenApiOperation operation,
         OpenApiOperationTransformerContext context)
@@ -253,6 +318,23 @@ internal static partial class ServiceCollectionExtensions
                 operation.Tags = new HashSet<OpenApiTagReference>();
                 operation.Tags.Add(new OpenApiTagReference(moduleName));
             }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    internal static Task TransformOperationId(
+        OpenApiOperation operation,
+        OpenApiOperationTransformerContext context)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+        ArgumentNullException.ThrowIfNull(context);
+
+        // MethodInfo.Name, not ActionName: an [ActionName] override renames the route, not the
+        // C# method, and the generated SDK reads better keyed to the method the API actually has.
+        if (context.Description.ActionDescriptor is ControllerActionDescriptor descriptor)
+        {
+            operation.OperationId = $"{descriptor.ControllerName}{descriptor.MethodInfo.Name}";
         }
 
         return Task.CompletedTask;

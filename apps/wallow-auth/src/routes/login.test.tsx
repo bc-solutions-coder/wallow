@@ -1,17 +1,10 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  createMemoryHistory,
-  createRootRoute,
-  createRouter,
-  Outlet,
-  RouterProvider,
-} from "@tanstack/react-router";
-import type { ReactElement } from "react";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+import type { SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { forkBranding } from "@bc-solutions-coder/styles";
 import { page } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { forkBranding } from "../lib/branding";
+import { createAuthHarness } from "../test/harness";
 import { Route as loginRoute } from "./login";
 
 /**
@@ -34,17 +27,21 @@ import { Route as loginRoute } from "./login";
  * `wallow-auth-route-tests-never-bare-render-a`). Hence the real memory router
  * below, with a throwaway root — the app's real `__root.tsx` renders `<html>`.
  *
- * ── THE TWO SEAMS ARE BOTH MOCKED, ON PURPOSE ────────────────────────────────
+ * ── THE SEAM IS THE WIRE, NOT A STAND-IN (Wallow-pu6a.5.1) ───────────────────
  *
- * `AuthClient.getClientBranding(clientId)` already exists and is reachable two
- * ways: through the SDK query layer (`authQueries.clientBranding`, the seam
- * `ExternalProviders` uses) or through the app's facade
- * (`getWallowAuthSdk().auth`). Both are routed to ONE hoisted spy so these tests
- * pin the RENDERED RESULT rather than dictating which path the fetch takes —
- * only `queryFn` is swapped, so the real `queryKey` (and therefore the real
- * `queryKeys.auth.clientBranding` factory) still governs the cache. Per bd memory
- * `vitest-resetmodules-breaks-instanceof-across-graphs`, plain `vi.mock`
- * factories + `vi.hoisted` spies, never `vi.resetModules()`.
+ * The branding read is the generated `clientBrandingGetBrandingOptions()` bound
+ * to the request-scoped SDK, but these tests deliberately dictate no particular
+ * call shape: whatever the screen reaches for ends at the same request, so the
+ * seam is `@bc-solutions-coder/testing/sdk-harness` — the REAL SDK with only its
+ * `fetch` faked. The branding fixture is delivered as a genuine 200 on
+ * `GET /v1/identity/apps/{clientId}/branding`, and "did it ask, and for whom" is
+ * read off the RECORDED REQUEST — which pins the clientId in the URL rather than
+ * in a spy's argument list. This also retires the two module mocks the file used
+ * to carry, both now forbidden by `src/sdk-test-seam.test.ts`.
+ *
+ * `renderWithWallow` supplies the router context the screen reads its SDK off,
+ * and `createAuthHarness()` pins the harness origin to this app's root-mounted
+ * API surface (Wallow-pu6a.5.5).
  *
  * ── THEME COLOURS ARE OUT OF SCOPE (recorded so the gap is not read as a bug) ─
  *
@@ -55,44 +52,28 @@ import { Route as loginRoute } from "./login";
  * what is asserted here. `themeJson` is therefore `null` in every fixture.
  */
 
-// Hoisted so the vi.mock factories and the test bodies share the same spies.
-const mocks = vi.hoisted(() => ({
-  getClientBranding: vi.fn(),
-  getExternalProviders: vi.fn(),
-}));
-
-vi.mock("../lib/wallow-auth-sdk", () => ({
-  getWallowAuthSdk: () => ({
-    auth: { getClientBranding: mocks.getClientBranding },
-    oidc: {},
-  }),
-}));
-
-vi.mock("@bc-solutions-coder/sdk/query", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@bc-solutions-coder/sdk/query")>();
-  return {
-    ...actual,
-    authQueries: {
-      ...actual.authQueries,
-      clientBranding: (clientId: string) => ({
-        ...actual.authQueries.clientBranding(clientId),
-        queryFn: async (): Promise<unknown> => await mocks.getClientBranding(clientId),
-      }),
-      // Not under test — stubbed so the provider list cannot reach the network
-      // and leave an unrelated rejection racing these assertions.
-      externalProviders: () => ({
-        ...actual.authQueries.externalProviders(),
-        queryFn: async (): Promise<unknown> => await mocks.getExternalProviders(),
-      }),
-    },
-  };
-});
-
 const CLIENT_ID = "acme-web";
 const CLIENT_NAME = "Acme";
 const CLIENT_TAGLINE = "Acme things";
 /** Already an absolute presigned S3 URL when the API hands it over. */
 const CLIENT_LOGO = "https://cdn.test/acme.svg";
+
+/** `ClientBrandingController.GetBranding` — the request under test. */
+const BRANDING_ENDPOINT = `/v1/identity/apps/${CLIENT_ID}/branding`;
+
+/**
+ * The provider list the login screen also renders. Not under test — answered
+ * with an empty list so it cannot leave an unrelated rejection racing these
+ * assertions.
+ */
+const PROVIDERS_ENDPOINT = "/v1/identity/auth/external-providers";
+
+const NOT_FOUND_STATUS = 404;
+
+let harness: SdkHarness;
+
+/** How the fake transport answers the branding GET; reprogrammed per test. */
+let brandingReply: () => Response | Promise<Response>;
 
 /** A `ClientBrandingDto` as `GET /v1/identity/apps/{clientId}/branding` returns it. */
 function clientBranding(overrides: Record<string, unknown> = {}) {
@@ -107,45 +88,28 @@ function clientBranding(overrides: Record<string, unknown> = {}) {
 }
 
 /**
- * What the facade really throws when a client has no branding row: the
- * controller answers a BARE `NotFound()` (no body), and `unwrap()` turns every
- * non-2xx into a `WallowError` — so "this client has no branding" arrives as a
- * REJECTION, not as `null`, and the screen has to absorb it.
+ * What the API really answers when a client has no branding row: the controller
+ * returns a BARE `NotFound()` with no body at all. The SDK turns every non-2xx
+ * into a rejection, so "this client has no branding" arrives at the screen as a
+ * FAILED query rather than as `null`, and the screen has to absorb it. Sent as
+ * the real thing now instead of a hand-fabricated error object — a fixture that
+ * cannot drift from what the SDK does with a 404.
  */
-function notFound(): Error & { status: number; code: string } {
-  return Object.assign(new Error("Unknown error"), {
-    name: "WallowError",
-    status: 404,
-    code: "UNKNOWN",
-    title: "Unknown error",
-  });
+function noBrandingRow(): Response {
+  return new Response(null, { status: NOT_FOUND_STATUS });
 }
 
-function newClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-}
-
-function renderWithClient(ui: ReactElement) {
-  return render(<QueryClientProvider client={newClient()}>{ui}</QueryClientProvider>);
+/** Every recorded request that asked any client for its branding. */
+function brandingCalls() {
+  return harness.calls.filter((call) => call.path.endsWith("/branding"));
 }
 
 function renderRouteAt(url: string) {
-  const rootRoute = createRootRoute({ component: Outlet });
-  const routeTree = rootRoute.addChildren([
-    loginRoute.update({
-      id: "/login",
-      path: "/login",
-      getParentRoute: () => rootRoute,
-    } as any),
-  ]);
-  const router = createRouter({
-    routeTree,
-    history: createMemoryHistory({ initialEntries: [url] }),
+  return renderWithWallow(null, {
+    harness,
+    path: url,
+    routes: [{ path: "/login", route: loginRoute }],
   });
-
-  return renderWithClient(<RouterProvider router={router} />);
 }
 
 /** The layout's `<h1>` — the branded heading, which carries no testid today. */
@@ -162,9 +126,19 @@ async function formRendered(): Promise<void> {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
-  mocks.getExternalProviders.mockResolvedValue([]);
-  mocks.getClientBranding.mockResolvedValue(clientBranding());
+  harness = createAuthHarness();
+  brandingReply = () => Response.json(clientBranding());
+  harness.respond((call) => {
+    if (call.path === BRANDING_ENDPOINT) {
+      return brandingReply();
+    }
+
+    if (call.path === PROVIDERS_ENDPOINT) {
+      return Response.json([]);
+    }
+
+    return new Response(null, { status: NOT_FOUND_STATUS });
+  });
 });
 
 describe("/login per-client branding", () => {
@@ -172,8 +146,12 @@ describe("/login per-client branding", () => {
     renderRouteAt(`/login?client_id=${CLIENT_ID}`);
 
     await vi.waitFor(() => {
-      expect(mocks.getClientBranding).toHaveBeenCalledWith(CLIENT_ID);
+      expect(brandingCalls()).toHaveLength(1);
     });
+    // The clientId is a PATH segment, so asserting the recorded path is the same
+    // claim the old `toHaveBeenCalledWith(CLIENT_ID)` made — against the wire.
+    expect(brandingCalls()[0]?.path).toBe(BRANDING_ENDPOINT);
+    expect(brandingCalls()[0]?.method).toBe("GET");
   });
 
   it("headlines the client's name in place of the fork's", async () => {
@@ -220,18 +198,18 @@ describe("/login per-client branding", () => {
     await formRendered();
 
     expect(headingText()).toBe(forkBranding.appName);
-    expect(mocks.getClientBranding).not.toHaveBeenCalled();
+    expect(brandingCalls()).toHaveLength(0);
   });
 
   it("falls back to the fork's branding when the client has no branding row", async () => {
     // A bare 404 is the API's "no branding configured", not an error the person
     // signing in can act on: the form must stay usable and unmarked.
-    mocks.getClientBranding.mockRejectedValue(notFound());
+    brandingReply = noBrandingRow;
 
     renderRouteAt(`/login?client_id=${CLIENT_ID}`);
 
     await vi.waitFor(() => {
-      expect(mocks.getClientBranding).toHaveBeenCalledWith(CLIENT_ID);
+      expect(brandingCalls()).toHaveLength(1);
     });
     await formRendered();
 
@@ -242,12 +220,12 @@ describe("/login per-client branding", () => {
   it("shows the fork's branding, and a usable form, while the client's is in flight", async () => {
     // Branding is chrome. It must never gate the form behind a spinner, so the
     // pending state renders exactly what "no client" renders.
-    mocks.getClientBranding.mockReturnValue(new Promise(() => {}));
+    brandingReply = () => new Promise<Response>(() => {});
 
     renderRouteAt(`/login?client_id=${CLIENT_ID}`);
 
     await vi.waitFor(() => {
-      expect(mocks.getClientBranding).toHaveBeenCalledWith(CLIENT_ID);
+      expect(brandingCalls()).toHaveLength(1);
     });
     await formRendered();
 

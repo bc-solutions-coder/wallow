@@ -1,21 +1,22 @@
 /**
  * Inquiries list component (Wallow-8w1h.7.2) — copies the CANONICAL
- * OrganizationList shape. It drives `useQuery(inquiriesQueries.list())` and
- * renders three states: loading, empty, and a list of `inquiry-item` rows, each
- * showing the inquiry's status via `inquiry-item-status`.
+ * OrganizationList shape. It drives `useQuery(inquiriesGetAllOptions({ client }))`
+ * and renders three states: loading, empty, and a list of `inquiry-item` rows,
+ * each showing the inquiry's status via `inquiry-item-status`.
  */
+import type { InquiryResponse } from "@bc-solutions-coder/sdk";
 import { MutedText } from "@bc-solutions-coder/ui";
 import { useQuery } from "@tanstack/react-query";
+import { useRouteContext } from "@tanstack/react-router";
 
-import { inquiriesQueries } from "../api";
-import type { Inquiry } from "../types";
+import { inquiriesGetAllOptions } from "../api";
 
 /**
  * The row's stacked identity block — name over an optional company line. Its own
  * component because `li > div > span` would otherwise exceed the repo's JSX
  * nesting budget.
  */
-function InquiryIdentity({ inquiry }: { inquiry: Inquiry }) {
+function InquiryIdentity({ inquiry }: { inquiry: InquiryResponse }) {
   return (
     <div className="flex flex-col">
       <span data-testid="inquiry-item-name" className="text-sm font-medium text-card-foreground">
@@ -31,7 +32,7 @@ function InquiryIdentity({ inquiry }: { inquiry: Inquiry }) {
 }
 
 /** A single inquiry row (extracted to keep the list's JSX nesting shallow). */
-function InquiryRow({ inquiry }: { inquiry: Inquiry }) {
+function InquiryRow({ inquiry }: { inquiry: InquiryResponse }) {
   return (
     <li
       data-testid="inquiry-item"
@@ -69,7 +70,8 @@ function InquiriesEmptyState() {
 }
 
 export function InquiryList() {
-  const { data, isPending } = useQuery(inquiriesQueries.list());
+  const { sdk } = useRouteContext({ from: "__root__" });
+  const { data, isPending } = useQuery(inquiriesGetAllOptions({ client: sdk.client }));
 
   if (isPending) {
     return (
@@ -79,9 +81,9 @@ export function InquiryList() {
     );
   }
 
-  // The facade returns the list as `unknown`; narrow to the feature view-model
-  // at the render boundary (the sanctioned pattern OrganizationList established).
-  const inquiries = (data ?? []) as Inquiry[];
+  // No narrowing cast: under `responseStyle: "data"` the generated operation
+  // resolves the body, so `data` is already `InquiryResponse[]`.
+  const inquiries: readonly InquiryResponse[] = data ?? [];
 
   if (inquiries.length === 0) {
     return <InquiriesEmptyState />;

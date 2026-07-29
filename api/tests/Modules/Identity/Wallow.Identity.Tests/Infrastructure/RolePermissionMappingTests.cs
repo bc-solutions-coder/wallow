@@ -1,4 +1,3 @@
-using Wallow.Identity.Infrastructure.Authorization;
 using Wallow.Shared.Kernel.Identity.Authorization;
 
 namespace Wallow.Identity.Tests.Infrastructure;

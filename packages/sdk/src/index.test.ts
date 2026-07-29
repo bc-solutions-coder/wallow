@@ -23,11 +23,10 @@ import * as serverEntry from "./server/index";
 // `tsc --noEmit` test at the bottom of this file, which is the assertion that
 // actually pins the type surface.
 import type {
-  BffClientOptions,
+  CreateWallowSdkOptions,
   CsrfInterceptorClient,
-  SdkEnvelope,
-  SsrRequestContext,
-  WallowClientOptions,
+  WallowRouterContext,
+  WallowSdk,
   WallowUser,
 } from "./index";
 import type {
@@ -52,22 +51,41 @@ const BROWSER_VALUE_EXPORTS: readonly string[] = [
   "buildConnectLogoutUrl",
   "buildConsentSubmitUrl",
   "buildExchangeTicketUrl",
+  "consentInfoArgs",
+  "createWallowSdk",
+  "getCurrentUser",
+  "getRoles",
+  "getUser",
+  "hasRole",
+  "isAdmin",
+  "isSafeMethod",
+  "isSafeReturnUrl",
+  "isWallowError",
+  "login",
+  "loginRedirect",
+  "logout",
+  "requireAuth",
+  "setCsrfToken",
+  "validateRedirectUriArgs",
+  "WallowError",
+  "wireCsrfInterceptor",
+];
+
+/**
+ * Symbols the hand-written query layer / client singleton used to export
+ * (Wallow-pu6a.5.5). They are deleted, not deprecated: a consumer reaching for
+ * one must get a build error rather than a silently unconfigured module-global
+ * client, so the browser entry has to keep NOT exporting them.
+ */
+const DELETED_LEGACY_SYMBOLS: readonly string[] = [
   "client",
   "configureBffClient",
   "configureWallowClient",
-  "createAuthClient",
-  "createConfiguredOnce",
-  "getUser",
   "configureSsrClient",
+  "createConfiguredOnce",
+  "createMfaClient",
   "getSsrRequestContext",
-  "isSafeMethod",
-  "isSafeReturnUrl",
-  "login",
-  "logout",
-  "setCsrfToken",
   "setSsrRequestContextResolver",
-  "unwrap",
-  "wireCsrfInterceptor",
   "wireSsrCookieInterceptor",
 ];
 
@@ -92,6 +110,7 @@ const SERVER_VALUE_EXPORTS: readonly string[] = [
   "ValkeySessionStore",
   // errors
   "WallowError",
+  "isWallowError",
   "parseProblemDetails",
   "redact",
   "REDACTED",
@@ -125,8 +144,8 @@ describe("browser entry (package root export)", () => {
     expect((browserEntry as unknown as Record<string, unknown>)[name]).toBeDefined();
   });
 
-  it("keeps configureWallowClient as a back-compat alias of configureBffClient", () => {
-    expect(browserEntry.configureWallowClient).toBe(browserEntry.configureBffClient);
+  it.each(DELETED_LEGACY_SYMBOLS)("no longer exports the retired %s", (name: string) => {
+    expect(Object.keys(browserEntry)).not.toContain(name);
   });
 
   it.each(SERVER_ONLY_SYMBOLS)("does not leak server-only %s", (name: string) => {
@@ -179,11 +198,10 @@ describe("public type surface", () => {
   // below validates; they have no runtime effect.
   it("references every publicly required type", () => {
     type _Types = [
-      BffClientOptions,
+      CreateWallowSdkOptions,
       CsrfInterceptorClient,
-      SdkEnvelope<unknown>,
-      SsrRequestContext,
-      WallowClientOptions,
+      WallowRouterContext,
+      WallowSdk,
       WallowUser,
       BffConfig,
       BffHandlers,

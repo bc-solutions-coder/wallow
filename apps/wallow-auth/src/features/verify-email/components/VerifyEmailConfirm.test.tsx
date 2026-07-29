@@ -1,16 +1,10 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  createMemoryHistory,
-  createRootRoute,
-  createRouter,
-  Outlet,
-  RouterProvider,
-} from "@tanstack/react-router";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+import type { SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import type { ReactElement } from "react";
 import { page } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createAuthHarness } from "../../../test/harness";
 import { Route as verifyEmailConfirmRoute } from "../../../routes/verify-email/confirm";
 import { VerifyEmailConfirm } from "./VerifyEmailConfirm";
 
@@ -22,11 +16,21 @@ import { VerifyEmailConfirm } from "./VerifyEmailConfirm";
  * `verify-email-confirm-continue`, `verify-email-confirm-error`,
  * `verify-email-confirm-signin-link`.
  *
- * MOCKING SEAM: `../../../lib/wallow-auth-sdk` — the app's own facade, never
- * `@bc-solutions-coder/sdk` directly (that module is the only permitted importer
- * of the SDK). Per bd memories `vitest-resetmodules-breaks-instanceof-across-
- * graphs`, this file uses a plain `vi.mock` factory + `vi.hoisted` spies and
- * NEVER `vi.resetModules()`.
+ * TEST SEAM: `@bc-solutions-coder/testing/sdk-harness` (Wallow-pu6a.5.1). The
+ * SDK is the REAL one and only its `fetch` is faked, so the screen's whole
+ * pipeline — generated `{op}Options()` -> request-scoped SDK -> generated
+ * operation -> CSRF interceptor -> serialization -> error shaping -> React Query
+ * — runs here. The assertions that used to read a `verifyEmail` spy now read the
+ * outgoing REQUEST, which is strictly more: `?email=&token=` really are put on
+ * the wire by the generated op rather than merely handed to a stand-in.
+ * `renderWithWallow` supplies the router context the screen reads its SDK off,
+ * and `createAuthHarness()` pins the harness origin to this app's root-mounted
+ * API surface (Wallow-pu6a.5.5).
+ *
+ * The `isSafeReturnUrl` stub is gone too. It used to restate the real rule
+ * (a stub answering a flat `true`/`false` would have proved nothing), and a
+ * second copy of a security rule is a second copy to get wrong — the screen now
+ * reaches the shipped guard in `packages/sdk/src/auth-oidc.ts`.
  *
  * ── THE THREE STATES ─────────────────────────────────────────────────────────
  *
@@ -73,9 +77,11 @@ import { VerifyEmailConfirm } from "./VerifyEmailConfirm";
  * The screen must narrow on `status` STRUCTURALLY (`error.status === 400`)
  * rather than with `instanceof WallowError`: `WallowError` is exported from the
  * SDK's `./server` entry, and screens may not import from the SDK at all.
- * Consequently the rejection fixtures below are WallowError-SHAPED objects,
- * including the `code: "UNKNOWN"` that proves the port is not secretly relying
- * on a code the seam never delivers.
+ * Consequently the rejection BODIES below ({@link wallowErrorBody}) carry the
+ * exact members the seam hands the screen — `status`, plus the `code: "UNKNOWN"`
+ * / `title: "Unknown error"` artefacts that prove the port is not secretly
+ * relying on a reason string the seam never delivers, and that the no-leak test
+ * further down has something real to catch.
  *
  * ── SUCCESS IS "RESOLVED", NOT "succeeded === true" ──────────────────────────
  *
@@ -86,76 +92,42 @@ import { VerifyEmailConfirm } from "./VerifyEmailConfirm";
  * resolved promise IS success.
  */
 
-// Hoisted so the vi.mock factory and the test bodies share the same spies.
-const mocks = vi.hoisted(() => ({
-  verifyEmail: vi.fn(),
-  isSafeReturnUrl: vi.fn(),
-}));
-
-vi.mock("../../../lib/wallow-auth-sdk", () => ({
-  getWallowAuthSdk: () => ({
-    auth: {},
-    oidc: { isSafeReturnUrl: mocks.isSafeReturnUrl },
-  }),
-}));
-
-/**
- * THE READ SEAM MOVED (Wallow-evd5.3.1). Confirming the address is now
- * `useQuery(authQueries.verifyEmail(email, token))` from the SDK query layer
- * rather than a facade call inside inline `useQuery` options, so the facade mock
- * above no longer carries `verifyEmail` and the spy hangs off the FACTORY.
- *
- * The factory takes TWO POSITIONAL arguments while the underlying client call
- * takes one object; the spy is invoked with the object shape the existing
- * assertions expect, so what those tests pin — that the screen sends the email
- * and token it was given, and sends nothing when the link is incomplete — is
- * unchanged. `importOriginal` keeps the real `queryKey`.
- */
-vi.mock("@bc-solutions-coder/sdk/query", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@bc-solutions-coder/sdk/query")>();
-  return {
-    ...actual,
-    authQueries: {
-      ...actual.authQueries,
-      verifyEmail: (email: string, token: string) => ({
-        ...actual.authQueries.verifyEmail(email, token),
-        queryFn: async (): Promise<unknown> => await mocks.verifyEmail({ email, token }),
-      }),
-    },
-  };
-});
-
 const EMAIL = "ada@example.com";
 const TOKEN = "verification-token";
 
 /**
- * The real `isSafeReturnUrl` rule (packages/sdk/src/auth-oidc.ts), restated here
- * because the screen reaches it through the mocked facade. Restating it rather
- * than stubbing `true`/`false` per test keeps these tests pinning the SCREEN's
- * use of the guard against the guard's actual semantics — a screen that passed
- * only because the stub said "safe" would be proving nothing.
+ * The endpoint behind `accountVerifyEmailOptions()` — `accountVerifyEmail` in the
+ * generated client. `email` and `token` ride the QUERY STRING, so they are read
+ * off `call.url` rather than `call.body`.
  */
-function isSafeReturnUrlRule(url: string | null | undefined): boolean {
-  if (url === null || url === undefined || url.trim() === "") {
-    return false;
-  }
+const VERIFY_ENDPOINT = "/v1/identity/auth/verify-email";
 
-  return url.startsWith("/") && !url.startsWith("//");
-}
+const INVALID_TOKEN_STATUS = 400;
+const SERVER_ERROR_STATUS = 500;
 
-function newClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-}
+let harness: SdkHarness;
 
+/** Render `ui` on the shared harness: real SDK, fake transport, real router context. */
 function renderWithClient(ui: ReactElement) {
-  return render(<QueryClientProvider client={newClient()}>{ui}</QueryClientProvider>);
+  return renderWithWallow(ui, { harness });
 }
 
-/** A WallowError-shaped rejection, as the real facade's `unwrap()` throws. */
-function wallowErrorShaped(status: number) {
-  return { status, code: "UNKNOWN", title: "Unknown error", detail: undefined };
+/**
+ * The failure body the endpoint's non-2xx returns hand the screen.
+ *
+ * `status` is what the screen narrows on; `code: "UNKNOWN"` / `title: "Unknown
+ * error"` are the seam artefacts described in the header — carried on the wire
+ * so the "never leaks the raw rejection" test has something real to catch.
+ */
+function wallowErrorBody(status: number) {
+  return { status, code: "UNKNOWN", title: "Unknown error" };
+}
+
+/** The `email`/`token` a recorded call carried on its query string. */
+function verifyParamsOf(call: SdkHarness["last"]) {
+  const params: URLSearchParams = new URL(call?.url ?? "http://wallow.test/").searchParams;
+
+  return { email: params.get("email"), token: params.get("token") };
 }
 
 /** Assert exactly one of the three mutually-exclusive states is on screen. */
@@ -174,16 +146,15 @@ async function expectOnlyState(state: "loading" | "success" | "error") {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
-  mocks.isSafeReturnUrl.mockImplementation(isSafeReturnUrlRule);
-  mocks.verifyEmail.mockResolvedValue({ succeeded: true });
+  harness = createAuthHarness();
+  harness.resolveJson({ succeeded: true });
 });
 
 describe("VerifyEmailConfirm — loading state", () => {
   it("shows only the spinner while the request is in flight", async () => {
     // Oracle: `_loading = true` is the field initialiser, so the very first
-    // paint is the spinner — a never-resolving request pins it there.
-    mocks.verifyEmail.mockReturnValue(new Promise(() => {}));
+    // paint is the spinner — a never-settling request pins it there.
+    harness.pending();
 
     await renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
 
@@ -191,13 +162,18 @@ describe("VerifyEmailConfirm — loading state", () => {
   });
 
   it("verifies the email with the token from the link", async () => {
-    mocks.verifyEmail.mockReturnValue(new Promise(() => {}));
+    harness.pending();
 
     await renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
 
+    // Read off the RECORDED REQUEST rather than a spy: this proves the email and
+    // token were serialised onto the wire by the real generated operation, which
+    // a spy on a stand-in facade could never show.
     await vi.waitFor(() => {
-      expect(mocks.verifyEmail).toHaveBeenCalledWith({ email: EMAIL, token: TOKEN });
+      expect(harness.last?.path).toBe(VERIFY_ENDPOINT);
     });
+    expect(harness.last?.method).toBe("GET");
+    expect(verifyParamsOf(harness.last)).toEqual({ email: EMAIL, token: TOKEN });
   });
 
   it("fires the verification exactly once", async () => {
@@ -207,7 +183,7 @@ describe("VerifyEmailConfirm — loading state", () => {
 
     await expect.element(page.getByTestId("verify-email-confirm-success")).toBeInTheDocument();
 
-    expect(mocks.verifyEmail).toHaveBeenCalledTimes(1);
+    expect(harness.calls.filter((call) => call.path === VERIFY_ENDPOINT)).toHaveLength(1);
   });
 });
 
@@ -285,7 +261,7 @@ describe("VerifyEmailConfirm — error state", () => {
   it("shows the invalid-or-expired message when the endpoint rejects the token", async () => {
     // A 400 from this endpoint means invalid_token — it has no other 400. See
     // the error-branch finding in this file's header.
-    mocks.verifyEmail.mockRejectedValue(wallowErrorShaped(400));
+    harness.rejectJson(wallowErrorBody(INVALID_TOKEN_STATUS), INVALID_TOKEN_STATUS);
 
     await renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
 
@@ -296,7 +272,7 @@ describe("VerifyEmailConfirm — error state", () => {
   });
 
   it("shows only the error surface once verification fails", async () => {
-    mocks.verifyEmail.mockRejectedValue(wallowErrorShaped(400));
+    harness.rejectJson(wallowErrorBody(INVALID_TOKEN_STATUS), INVALID_TOKEN_STATUS);
 
     await renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
 
@@ -308,7 +284,7 @@ describe("VerifyEmailConfirm — error state", () => {
   it("shows the generic message when the request fails for any other reason", async () => {
     // Oracle's `catch` arm: a 500 is not a bad link, and must not tell the user
     // their link expired when it did not.
-    mocks.verifyEmail.mockRejectedValue(wallowErrorShaped(500));
+    harness.rejectJson(wallowErrorBody(SERVER_ERROR_STATUS), SERVER_ERROR_STATUS);
 
     await renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
 
@@ -321,8 +297,11 @@ describe("VerifyEmailConfirm — error state", () => {
   it("survives a rejection that is not WallowError-shaped at all", async () => {
     // The screen narrows structurally on `status`; a bare Error (a network
     // failure, say) has none, and must land on the generic arm rather than
-    // throwing inside the error branch.
-    mocks.verifyEmail.mockRejectedValue(new Error("network down"));
+    // throwing inside the error branch. A transport that THROWS is the honest
+    // way to produce one — `fetch` rejecting is exactly a network failure.
+    harness.respond(() => {
+      throw new Error("network down");
+    });
 
     await renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
 
@@ -334,7 +313,7 @@ describe("VerifyEmailConfirm — error state", () => {
   it("never leaks the raw rejection into the page", async () => {
     // `code: "UNKNOWN"` / `title: "Unknown error"` are seam artefacts, not
     // user-facing copy. The oracle shows curated messages only.
-    mocks.verifyEmail.mockRejectedValue(wallowErrorShaped(400));
+    harness.rejectJson(wallowErrorBody(INVALID_TOKEN_STATUS), INVALID_TOKEN_STATUS);
 
     await renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
 
@@ -347,15 +326,15 @@ describe("VerifyEmailConfirm — error state", () => {
 describe("VerifyEmailConfirm — missing parameters", () => {
   it("refuses a link with no token without calling the endpoint", async () => {
     // Oracle: the guard runs before the try block — `_loading = false` and an
-    // error message, no request. Pinning `not.toHaveBeenCalled` is the point:
-    // a screen that "helpfully" sent `token: undefined` would 400 and blame the
-    // user's link for the screen's own bug.
+    // error message, no request. Pinning "nothing reached the transport" is the
+    // point: a screen that "helpfully" sent `token: undefined` would 400 and
+    // blame the user's link for the screen's own bug.
     await renderWithClient(<VerifyEmailConfirm email={EMAIL} />);
 
     const error = page.getByTestId("verify-email-confirm-error");
 
     await expect.element(error).toHaveTextContent(/missing required parameters/iu);
-    expect(mocks.verifyEmail).not.toHaveBeenCalled();
+    expect(harness.calls).toHaveLength(0);
   });
 
   it("refuses a link with no email without calling the endpoint", async () => {
@@ -364,7 +343,7 @@ describe("VerifyEmailConfirm — missing parameters", () => {
     const error = page.getByTestId("verify-email-confirm-error");
 
     await expect.element(error).toHaveTextContent(/missing required parameters/iu);
-    expect(mocks.verifyEmail).not.toHaveBeenCalled();
+    expect(harness.calls).toHaveLength(0);
   });
 
   it("treats an empty-string parameter as missing", async () => {
@@ -374,7 +353,7 @@ describe("VerifyEmailConfirm — missing parameters", () => {
 
     await expect.element(page.getByTestId("verify-email-confirm-error")).toBeInTheDocument();
 
-    expect(mocks.verifyEmail).not.toHaveBeenCalled();
+    expect(harness.calls).toHaveLength(0);
   });
 
   it("never shows the spinner when the link is malformed", async () => {
@@ -402,7 +381,7 @@ describe("VerifyEmailConfirm — sign-in link", () => {
   it("links to sign in from the error state too", async () => {
     // The oracle's card FOOTER, outside the if/else — it is the one way out of
     // the error state, so it must survive the failure branch.
-    mocks.verifyEmail.mockRejectedValue(wallowErrorShaped(400));
+    harness.rejectJson(wallowErrorBody(INVALID_TOKEN_STATUS), INVALID_TOKEN_STATUS);
 
     await renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
 
@@ -458,20 +437,11 @@ describe("VerifyEmailConfirm — sign-in link", () => {
  * and `src/router.tsx` is off-limits to this task (Wallow-vec7.3.16).
  */
 function renderRouteAt(url: string) {
-  const rootRoute = createRootRoute({ component: Outlet });
-  const routeTree = rootRoute.addChildren([
-    verifyEmailConfirmRoute.update({
-      id: "/verify-email/confirm",
-      path: "/verify-email/confirm",
-      getParentRoute: () => rootRoute,
-    } as any),
-  ]);
-  const router = createRouter({
-    routeTree,
-    history: createMemoryHistory({ initialEntries: [url] }),
+  return renderWithWallow(null, {
+    harness,
+    path: url,
+    routes: [{ path: "/verify-email/confirm", route: verifyEmailConfirmRoute }],
   });
-
-  return renderWithClient(<RouterProvider router={router} />);
 }
 
 describe("/verify-email/confirm route", () => {
@@ -479,8 +449,6 @@ describe("/verify-email/confirm route", () => {
     // Wallow-vec7.3.16 registered this path against a placeholder component;
     // this task's job is to replace it. The path itself is the contract and is
     // not this task's to change (router.tsx is off-limits).
-    mocks.verifyEmail.mockResolvedValue(null);
-
     await renderRouteAt(
       `/verify-email/confirm?email=${encodeURIComponent(EMAIL)}&token=${TOKEN}` +
         `&returnUrl=${encodeURIComponent("/apps")}`,
@@ -492,7 +460,8 @@ describe("/verify-email/confirm route", () => {
     // email+token thread as far as the request, and returnUrl as far as the
     // Continue link. A route that dropped any of them fails here rather than
     // rendering a green screen off an empty search.
-    expect(mocks.verifyEmail).toHaveBeenCalledWith({ email: EMAIL, token: TOKEN });
+    expect(harness.last?.path).toBe(VERIFY_ENDPOINT);
+    expect(verifyParamsOf(harness.last)).toEqual({ email: EMAIL, token: TOKEN });
     await expect
       .element(page.getByTestId("verify-email-confirm-continue"))
       .toHaveAttribute("href", "/apps");

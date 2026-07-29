@@ -1,16 +1,11 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  createMemoryHistory,
-  createRootRoute,
-  createRouter,
-  Outlet,
-  RouterProvider,
-} from "@tanstack/react-router";
+import { isSafeReturnUrl } from "@bc-solutions-coder/sdk";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+import { type SdkCall, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createAuthHarness } from "../../../test/harness";
 import { Route as invitationRoute } from "../../../routes/invitation";
 import { InvitationScreen } from "./InvitationScreen";
 
@@ -22,24 +17,32 @@ import { InvitationScreen } from "./InvitationScreen";
  * `invitation-expired`, `invitation-accept-error`, `invitation-accept`,
  * `invitation-decline`, `invitation-create-account`, `invitation-sign-in`.
  *
- * MOCKING SEAM: `../../../lib/wallow-auth-sdk` — the app's own facade, never
- * `@bc-solutions-coder/sdk` directly (that module is the only permitted importer
- * of the SDK). Per bd memories `vitest-resetmodules-breaks-instanceof-across-
- * graphs`, this file uses a plain `vi.mock` factory + `vi.hoisted` spies and
- * NEVER `vi.resetModules()`.
+ * TEST SEAM: `@bc-solutions-coder/testing/sdk-harness` (Wallow-pu6a.5.1). Nothing
+ * here mocks the SDK — not `@bc-solutions-coder/sdk`, not its `./query` entry,
+ * and there is no app-level facade left to mock (Wallow-pu6a.5.5). The harness
+ * builds the REAL SDK over a recording fake `fetch`, so the whole pipeline the
+ * app ships — request-scoped SDK -> generated operation -> CSRF interceptor ->
+ * serialization -> `WallowError` shaping -> React Query — executes here, and the
+ * assertions below read the outgoing REQUEST instead of a spy on a stand-in.
+ * `renderWithWallow` supplies the router context both the screen and the route
+ * read their SDK off, and `createAuthHarness()` pins the harness origin to this
+ * app's root-mounted API surface — which is why every recorded `path` below is
+ * the bare endpoint path, with no `/api` prefix.
  *
  * ── THE AUTH-STATE SEAM (the gap this file's red phase left open) ────────────
  *
  * This screen depends on auth state that a server session would hold for free.
  * apps/wallow-auth
- * has no equivalent: its h3 server is a PASSTHROUGH REVERSE PROXY with no
- * session store (`src/lib/auth-server.ts`) and the auth cookie is HttpOnly.
+ * has no equivalent: its API surface is a PASSTHROUGH REVERSE PROXY with no
+ * session store (`src/lib/api-passthrough.ts`) and the auth cookie is HttpOnly.
  *
  * `isAuthenticated` is therefore a PROP, and the tests below pin both branches
- * against it. The ROUTE answers it with `auth.getCurrentUser()`
- * (Wallow-vec7.2.4): a same-origin `GET /v1/identity/users/me` whose 200-vs-401
- * IS the answer — `null` for anonymous, and it never throws on a 401. The route
- * tests at the bottom pin all three of its outcomes.
+ * against it. The ROUTE answers it with the generated
+ * `usersGetCurrentUserQueryKey()` paired with the SDK's `getCurrentUser`
+ * (Wallow-vec7.2.4, re-pointed at the generated surface in Wallow-pu6a.5.5): a
+ * same-origin `GET /v1/identity/users/me` whose 200-vs-401 IS the answer —
+ * `null` for anonymous, and it never throws on a 401. The route tests at the
+ * bottom pin all three of its outcomes, stated as the wire statuses themselves.
  *
  * And the authenticated branch is a BUG FIX, not a port: `Wallow.Auth` registers
  * no authentication at all, so the oracle's `_isAuthenticated` is always false
@@ -63,12 +66,12 @@ import { InvitationScreen } from "./InvitationScreen";
  *            catch -> "An error occurred while accepting the invitation. Please
  *                      try again."
  *
- * The TS facade's `unwrap()` THROWS on every non-2xx, so both of each pair
- * arrive as one rejected promise and the sentinel-vs-catch fork is gone. What
- * survives is the STATUS: `toWallowError` always populates `.status`, falling
- * back to the raw `Response.status` and then to 500
- * (auth-client.ts:238-270). That is enough to keep all four messages, because
- * the fork maps cleanly onto 4xx-vs-not:
+ * The TS client THROWS on every non-2xx, so both of each pair arrive as one
+ * rejected promise and the sentinel-vs-catch fork is gone. What survives is the
+ * STATUS: `toWallowError` always populates `.status`, falling back to the raw
+ * `Response.status` and then to 500 (packages/sdk/src/runtime-config.ts). That is
+ * enough to keep all four messages, because the fork maps cleanly onto
+ * 4xx-vs-not:
  *
  *   - `GET /v1/identity/invitations/verify/{token}` returns exactly ONE failure,
  *     `NotFound()` (InvitationsController.cs:71-80) — i.e. the oracle's `null`
@@ -108,58 +111,26 @@ import { InvitationScreen } from "./InvitationScreen";
  * the token, and the test below pins that it is percent-encoded INTO the
  * returnUrl (so a token like `x&returnUrl=//evil.example` cannot smuggle a
  * second parameter out) and that the result still satisfies the real
- * `isSafeReturnUrl` rule.
+ * `isSafeReturnUrl` — imported from the SDK, not restated here.
  */
-
-// Hoisted so the vi.mock factories and the test bodies share the same spies.
-const mocks = vi.hoisted(() => ({
-  verifyInvitation: vi.fn(),
-  acceptInvitation: vi.fn(),
-  getCurrentUser: vi.fn(),
-  isSafeReturnUrl: vi.fn(),
-}));
-
-vi.mock("../../../lib/wallow-auth-sdk", () => ({
-  getWallowAuthSdk: () => ({
-    auth: {
-      acceptInvitation: mocks.acceptInvitation,
-    },
-    oidc: { isSafeReturnUrl: mocks.isSafeReturnUrl },
-  }),
-}));
 
 /**
- * THE READ SEAM MOVED (Wallow-evd5.3.1). Both reads exercised here now come from
- * the SDK query layer: the screen's invitation lookup is
- * `useQuery(authQueries.invitation(token))` and the ROUTE's signed-in probe is
- * `useQuery(userQueries.currentUser())` — the SHARED current-user query wallow-web
- * already uses, which is the point of moving it (one key, one cache entry, both
- * apps). Accepting the invitation is still a facade mutation and stays above.
+ * THE READ SEAM (Wallow-evd5.3.1, re-expressed at the transport in
+ * Wallow-pu6a.5.1, unified in Wallow-pu6a.5.5). The screen's invitation lookup is
+ * `useQuery(invitationsVerifyOptions(...))` — the GENERATED factory — and the
+ * ROUTE's signed-in probe is the generated `usersGetCurrentUserQueryKey()` paired
+ * with the SDK's `getCurrentUser`, which softens the 401 to `null`. Accepting the
+ * invitation calls the generated `invitationsAccept` operation. All three run for
+ * real here; only the wire is faked.
  *
- * Only `queryFn` is swapped; `importOriginal` keeps the real `queryKey`s. The
- * token is forwarded to the spy so the existing call-argument assertions — the
- * ones pinning that a whitespace token never reaches the endpoint — still hold.
+ * All three now share ONE transport, which is the change worth noting. The probe
+ * used to be `getUser()` reaching for the GLOBAL `fetch` against `/bff/user`, so
+ * this file carried a second stub to answer it. wallow-auth mounts no `/bff/**`
+ * route at all (its server routes are the `/v1/**` and `/connect/**` passthrough
+ * proxies), so that request had nowhere to land in the real app; the probe now
+ * goes to `/v1/identity/users/me` through the same request-scoped SDK as
+ * everything else, and the harness answers it alongside the rest.
  */
-vi.mock("@bc-solutions-coder/sdk/query", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@bc-solutions-coder/sdk/query")>();
-  return {
-    ...actual,
-    authQueries: {
-      ...actual.authQueries,
-      invitation: (token: string) => ({
-        ...actual.authQueries.invitation(token),
-        queryFn: async (): Promise<unknown> => await mocks.verifyInvitation(token),
-      }),
-    },
-    userQueries: {
-      ...actual.userQueries,
-      currentUser: () => ({
-        ...actual.userQueries.currentUser(),
-        queryFn: async (): Promise<unknown> => await mocks.getCurrentUser(),
-      }),
-    },
-  };
-});
 
 const TOKEN = "inv-tok-123";
 const EMAIL = "invitee@example.com";
@@ -169,17 +140,21 @@ const HOME_HREF = "/";
 const SELF_RETURN_URL = `/invitation?token=${TOKEN}`;
 
 /**
- * The real `isSafeReturnUrl` rule (packages/sdk/src/auth-oidc.ts), restated so
- * the returnUrl this screen BUILDS can be checked against the guard's actual
- * semantics rather than against a stub that says "safe".
+ * Wire paths, read off `packages/sdk/src/generated/sdk.gen.ts` rather than
+ * guessed, and bare (no `/api` prefix) because wallow-auth's passthrough proxy
+ * puts the client's baseUrl at `/` — see the TEST SEAM note above.
  */
-function isSafeReturnUrlRule(url: string | null | undefined): boolean {
-  if (url === null || url === undefined || url.trim() === "") {
-    return false;
-  }
+const INVITATIONS_ROOT = "/v1/identity/invitations";
+const VERIFY_PREFIX = `${INVITATIONS_ROOT}/verify/`;
+const ACCEPT_SUFFIX = "/accept";
+const ACCEPT_PATH = `${INVITATIONS_ROOT}/${TOKEN}${ACCEPT_SUFFIX}`;
+/** The route's signed-in probe — `usersGetCurrentUser`, softened by `getCurrentUser`. */
+const CURRENT_USER_PATH = "/v1/identity/users/me";
 
-  return url.startsWith("/") && !url.startsWith("//");
-}
+const UNAUTHORIZED = 401;
+const NOT_FOUND = 404;
+const SERVER_ERROR = 500;
+const NO_CONTENT = 204;
 
 /** An `InvitationResponse`, as `InvitationsController.MapToResponse` shapes it. */
 function invitation(overrides: Record<string, unknown> = {}) {
@@ -194,17 +169,16 @@ function invitation(overrides: Record<string, unknown> = {}) {
   };
 }
 
-/** A `WallowError`-shaped rejection, as the real facade's `unwrap()` throws. */
-function wallowErrorShaped(status: number): Error & { status: number; code: string } {
-  return Object.assign(new Error("Unknown error"), {
-    name: "WallowError",
-    status,
-    // `UNKNOWN` is not a convenience here — it is what these two endpoints
-    // actually produce (see "FOUR ORACLE BRANCHES" above), and pinning it stops
-    // an implementer from keying the copy on a code that never arrives.
-    code: "UNKNOWN",
-    title: "Unknown error",
-  });
+/**
+ * The wire form of the only failure either endpoint sends: a BARE status with no
+ * body (see "FOUR ORACLE BRANCHES" above). Driven through the real client this
+ * becomes a `WallowError` carrying that status and `code: "UNKNOWN"` — the
+ * code-less shape is not a convenience, it is what these two endpoints actually
+ * produce, and answering with it stops an implementer from keying the copy on a
+ * machine code that never arrives.
+ */
+function failure(status: number): Response {
+  return new Response(null, { status });
 }
 
 /** A promise this test resolves/rejects by hand, to observe an in-flight state. */
@@ -216,14 +190,9 @@ function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
   return { promise, resolve };
 }
 
-function newClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-}
-
+/** Render `ui` on the shared harness: real SDK, fake transport, real router context. */
 function renderWithClient(ui: ReactElement) {
-  return render(<QueryClientProvider client={newClient()}>{ui}</QueryClientProvider>);
+  return renderWithWallow(ui, { harness });
 }
 
 /**
@@ -294,15 +263,68 @@ async function linkUrl(testId: string): Promise<URL> {
   return new URL(link.element().getAttribute("href") ?? "", "https://auth.example");
 }
 
+let harness: SdkHarness;
+
+/**
+ * Per-test wire answers, dispatched by the ONE responder installed below. Held as
+ * FUNCTIONS rather than values so a test can hand back a promise it settles by
+ * hand (the in-flight cases) or vary its answer per call (the retry case).
+ */
+let verifyAnswer: () => Response | Promise<Response>;
+let acceptAnswer: () => Response | Promise<Response>;
+let currentUserAnswer: () => Response;
+
+/** Every SDK request recorded so far whose path is a verify. */
+function verifyCalls(): readonly SdkCall[] {
+  return harness.calls.filter((call: SdkCall) => call.path.startsWith(VERIFY_PREFIX));
+}
+
+/** Every SDK request recorded so far whose path is an accept. */
+function acceptCalls(): readonly SdkCall[] {
+  return harness.calls.filter((call: SdkCall) => call.path.endsWith(ACCEPT_SUFFIX));
+}
+
+/**
+ * The token the screen actually put on the wire, decoded.
+ *
+ * Read back off the request PATH rather than from a spy's call arguments, and
+ * percent-decoded because the token is a path segment the client escapes on the
+ * way out. Throws rather than returning a sentinel so `vi.waitFor` retries while
+ * no request has been made yet, and so a missing call fails loudly.
+ */
+function verifiedToken(): string {
+  const [call] = verifyCalls();
+  if (call === undefined) {
+    throw new Error("expected a verify request, saw none");
+  }
+
+  return decodeURIComponent(call.path.slice(VERIFY_PREFIX.length));
+}
+
 beforeEach(() => {
-  vi.clearAllMocks();
   recordedNavigations = [];
-  mocks.isSafeReturnUrl.mockImplementation(isSafeReturnUrlRule);
-  mocks.verifyInvitation.mockResolvedValue(invitation());
-  mocks.acceptInvitation.mockResolvedValue(null);
-  // The seam's anonymous answer: `null`, NOT a rejection (Wallow-vec7.2.4). Only
-  // the route calls it; the component takes `isAuthenticated` as a prop.
-  mocks.getCurrentUser.mockResolvedValue(null);
+
+  verifyAnswer = () => Response.json(invitation());
+  acceptAnswer = () => new Response(null, { status: NO_CONTENT });
+  // The probe's anonymous answer: a 401, which `getUser()` maps to `null` WITHOUT
+  // throwing (Wallow-vec7.2.4). Only the route probes; the component takes
+  // `isAuthenticated` as a prop.
+  currentUserAnswer = () => failure(UNAUTHORIZED);
+
+  harness = createAuthHarness();
+  harness.respond((call: SdkCall) => {
+    if (call.path.startsWith(VERIFY_PREFIX)) {
+      return verifyAnswer();
+    }
+    if (call.path.endsWith(ACCEPT_SUFFIX)) {
+      return acceptAnswer();
+    }
+    if (call.path === CURRENT_USER_PATH) {
+      return currentUserAnswer();
+    }
+
+    throw new Error(`unexpected SDK request: ${call.method} ${call.path}`);
+  });
 });
 
 describe("InvitationScreen — missing token", () => {
@@ -314,7 +336,7 @@ describe("InvitationScreen — missing token", () => {
     await expect
       .element(page.getByTestId("invitation-error"))
       .toHaveTextContent(/no invitation token provided/iu);
-    expect(mocks.verifyInvitation).not.toHaveBeenCalled();
+    expect(verifyCalls()).toEqual([]);
   });
 
   it("treats a whitespace-only token as no token", async () => {
@@ -323,7 +345,7 @@ describe("InvitationScreen — missing token", () => {
     await expect
       .element(page.getByTestId("invitation-error"))
       .toHaveTextContent(/no invitation token provided/iu);
-    expect(mocks.verifyInvitation).not.toHaveBeenCalled();
+    expect(verifyCalls()).toEqual([]);
   });
 
   it("offers a way back to sign-in from the error state", async () => {
@@ -342,13 +364,14 @@ describe("InvitationScreen — verifying", () => {
     renderScreen({ token: TOKEN });
 
     await vi.waitFor(() => {
-      expect(mocks.verifyInvitation).toHaveBeenCalledWith(TOKEN);
+      expect(verifiedToken()).toBe(TOKEN);
     });
+    expect(verifyCalls()[0]?.method).toBe("GET");
   });
 
   it("shows the loading state while the verify is in flight, then the invitation", async () => {
-    const pending = deferred<unknown>();
-    mocks.verifyInvitation.mockReturnValue(pending.promise);
+    const pending = deferred<Response>();
+    verifyAnswer = () => pending.promise;
 
     renderScreen();
 
@@ -357,7 +380,7 @@ describe("InvitationScreen — verifying", () => {
     await expect.element(page.getByTestId("invitation-loading")).toBeInTheDocument();
     expect(page.getByTestId("invitation-info").query()).toBeNull();
 
-    pending.resolve(invitation());
+    pending.resolve(Response.json(invitation()));
 
     await expect.element(page.getByTestId("invitation-info")).toBeInTheDocument();
     expect(page.getByTestId("invitation-loading").query()).toBeNull();
@@ -372,7 +395,7 @@ describe("InvitationScreen — verifying", () => {
   });
 
   it("reports a 404 as an invalid or already-used invitation", async () => {
-    mocks.verifyInvitation.mockRejectedValue(wallowErrorShaped(404));
+    verifyAnswer = () => failure(NOT_FOUND);
 
     renderScreen();
 
@@ -383,7 +406,7 @@ describe("InvitationScreen — verifying", () => {
   });
 
   it("reports a server failure as a transient problem, not a bad invitation", async () => {
-    mocks.verifyInvitation.mockRejectedValue(wallowErrorShaped(500));
+    verifyAnswer = () => failure(SERVER_ERROR);
 
     renderScreen();
 
@@ -398,7 +421,7 @@ describe("InvitationScreen — verifying", () => {
 
 describe("InvitationScreen — expired invitation", () => {
   it("shows the expired notice when the server says the status is Expired", async () => {
-    mocks.verifyInvitation.mockResolvedValue(invitation({ status: "Expired" }));
+    verifyAnswer = () => Response.json(invitation({ status: "Expired" }));
 
     renderScreen({ isAuthenticated: true });
 
@@ -412,9 +435,7 @@ describe("InvitationScreen — expired invitation", () => {
     // `CleanupExpiredAsync` sweep gets to it (InvitationService.cs:71-89), so
     // between expiry and the sweep this is the ONLY branch that catches it.
     const oneSecondAgo: string = new Date(Date.now() - 1_000).toISOString();
-    mocks.verifyInvitation.mockResolvedValue(
-      invitation({ status: "Pending", expiresAt: oneSecondAgo }),
-    );
+    verifyAnswer = () => Response.json(invitation({ status: "Pending", expiresAt: oneSecondAgo }));
 
     renderScreen({ isAuthenticated: true });
 
@@ -422,7 +443,7 @@ describe("InvitationScreen — expired invitation", () => {
   });
 
   it("offers no way to accept an expired invitation, even when signed in", async () => {
-    mocks.verifyInvitation.mockResolvedValue(invitation({ status: "Expired" }));
+    verifyAnswer = () => Response.json(invitation({ status: "Expired" }));
 
     renderScreen({ isAuthenticated: true });
 
@@ -434,7 +455,7 @@ describe("InvitationScreen — expired invitation", () => {
   });
 
   it("offers no sign-in path for an expired invitation either", async () => {
-    mocks.verifyInvitation.mockResolvedValue(invitation({ status: "Expired" }));
+    verifyAnswer = () => Response.json(invitation({ status: "Expired" }));
 
     renderScreen({ isAuthenticated: false });
 
@@ -464,7 +485,7 @@ describe("InvitationScreen — authenticated branch", () => {
     // InvitationLanding.razor:75-81 — `Href="/"`, no call. "No thanks" does NOT
     // revoke the invitation; it stays open for a later visit.
     await expect.element(page.getByTestId("invitation-decline")).toHaveAttribute("href", HOME_HREF);
-    expect(mocks.acceptInvitation).not.toHaveBeenCalled();
+    expect(acceptCalls()).toEqual([]);
   });
 
   it("accepts the invitation with the link's token and lands the user home", async () => {
@@ -473,9 +494,14 @@ describe("InvitationScreen — authenticated branch", () => {
     renderScreen({ isAuthenticated: true });
     await user.click(page.getByTestId("invitation-accept"));
 
+    // The token is in the PATH — `POST /v1/identity/invitations/{token}/accept`
+    // (sdk.gen.ts) — so the request itself carries the whole claim the old
+    // `toHaveBeenCalledWith(TOKEN)` made, and one layer closer to the API.
     await vi.waitFor(() => {
-      expect(mocks.acceptInvitation).toHaveBeenCalledWith(TOKEN);
+      expect(acceptCalls()).toHaveLength(1);
     });
+    expect(acceptCalls()[0]?.path).toBe(ACCEPT_PATH);
+    expect(acceptCalls()[0]?.method).toBe("POST");
 
     // A FULL navigation, not `navigate()` — the oracle's
     // `NavigateTo("/", forceLoad: true)` (InvitationLanding.razor:179). The
@@ -497,11 +523,19 @@ describe("InvitationScreen — authenticated branch", () => {
 
   it("disables accept and makes decline inert while an accept is in flight", async () => {
     const user = userEvent.setup();
-    const pending = deferred<unknown>();
-    mocks.acceptInvitation.mockReturnValue(pending.promise);
+    const pending = deferred<Response>();
+    acceptAnswer = () => pending.promise;
 
     renderScreen({ isAuthenticated: true });
     await user.click(page.getByTestId("invitation-accept"));
+
+    // Wait for the POST to REACH the transport before asserting on the in-flight
+    // state: the button goes disabled the moment the mutation starts, a tick or
+    // two before `fetch` is called, and releasing into that gap would leave the
+    // never-settling answer installed forever.
+    await vi.waitFor(() => {
+      expect(acceptCalls()).toHaveLength(1);
+    });
 
     // The oracle's `_isSubmitting` guard (InvitationLanding.razor:164,169-171):
     // a second accept is a second POST against a one-shot token.
@@ -516,7 +550,7 @@ describe("InvitationScreen — authenticated branch", () => {
     await expect.element(decline).not.toHaveAttribute("href");
     await expect.element(decline).toHaveAttribute("aria-disabled", "true");
 
-    pending.resolve(null);
+    pending.resolve(new Response(null, { status: NO_CONTENT }));
     // Let the success hand-off fire and be captured (and cancelled) by the
     // Navigation guard before the test unwinds, so the iframe never navigates.
     await vi.waitFor(() => {
@@ -526,7 +560,7 @@ describe("InvitationScreen — authenticated branch", () => {
 
   it("reports a rejected accept as expired or already used, keeping the buttons alive", async () => {
     const user = userEvent.setup();
-    mocks.acceptInvitation.mockRejectedValue(wallowErrorShaped(404));
+    acceptAnswer = () => failure(NOT_FOUND);
 
     renderScreen({ isAuthenticated: true });
     await user.click(page.getByTestId("invitation-accept"));
@@ -543,7 +577,7 @@ describe("InvitationScreen — authenticated branch", () => {
 
   it("reports a server failure on accept as a retryable error", async () => {
     const user = userEvent.setup();
-    mocks.acceptInvitation.mockRejectedValue(wallowErrorShaped(500));
+    acceptAnswer = () => failure(SERVER_ERROR);
 
     renderScreen({ isAuthenticated: true });
     await user.click(page.getByTestId("invitation-accept"));
@@ -555,7 +589,14 @@ describe("InvitationScreen — authenticated branch", () => {
 
   it("clears a previous accept error when the user tries again", async () => {
     const user = userEvent.setup();
-    mocks.acceptInvitation.mockRejectedValueOnce(wallowErrorShaped(500));
+    // The FIRST accept fails, the retry succeeds. Keyed off the recorded calls
+    // rather than a `mockRejectedValueOnce`, which the transport has no analogue
+    // for — the harness records before it answers, so during the first POST
+    // exactly one accept is on the log.
+    acceptAnswer = () =>
+      acceptCalls().length === 1
+        ? failure(SERVER_ERROR)
+        : new Response(null, { status: NO_CONTENT });
 
     renderScreen({ isAuthenticated: true });
     await user.click(page.getByTestId("invitation-accept"));
@@ -563,14 +604,13 @@ describe("InvitationScreen — authenticated branch", () => {
 
     // The oracle's `_acceptError = null` on re-entry (InvitationLanding.razor:
     // 170): a stale failure banner above a succeeded accept is a lie. The retry
-    // succeeds (default mock), so its home hand-off is absorbed by the Navigation
-    // guard above.
+    // succeeds, so its home hand-off is absorbed by the Navigation guard above.
     await user.click(page.getByTestId("invitation-accept"));
 
     await vi.waitFor(() => {
       expect(page.getByTestId("invitation-accept-error").query()).toBeNull();
     });
-    expect(mocks.acceptInvitation).toHaveBeenCalledTimes(2);
+    expect(acceptCalls()).toHaveLength(2);
   });
 });
 
@@ -610,7 +650,6 @@ describe("InvitationScreen — unauthenticated branch", () => {
 
   it("encodes a hostile token into the returnUrl instead of letting it smuggle parameters", async () => {
     const hostileToken = "x&returnUrl=//evil.example";
-    mocks.verifyInvitation.mockResolvedValue(invitation());
 
     renderScreen({ isAuthenticated: false, token: hostileToken });
 
@@ -620,9 +659,10 @@ describe("InvitationScreen — unauthenticated branch", () => {
     // second parameter appended to the query string.
     expect(url.searchParams.getAll("returnUrl")).toHaveLength(1);
     expect(url.searchParams.get("returnUrl")).toBe(`/invitation?token=${hostileToken}`);
-    // And what we built still satisfies the real guard — this screen accepts no
+    // And what we built still satisfies the real guard — the SDK's own
+    // `isSafeReturnUrl`, not a local restatement of it. This screen accepts no
     // returnUrl of its own, so safety is by construction, not by check.
-    expect(isSafeReturnUrlRule(url.searchParams.get("returnUrl"))).toBe(true);
+    expect(isSafeReturnUrl(url.searchParams.get("returnUrl"))).toBe(true);
   });
 });
 
@@ -634,20 +674,11 @@ describe("InvitationScreen — unauthenticated branch", () => {
  * and `src/router.tsx` is off-limits to this task (Wallow-vec7.3.16).
  */
 function renderRouteAt(url: string) {
-  const rootRoute = createRootRoute({ component: Outlet });
-  const routeTree = rootRoute.addChildren([
-    invitationRoute.update({
-      id: "/invitation",
-      path: "/invitation",
-      getParentRoute: () => rootRoute,
-    } as any),
-  ]);
-  const router = createRouter({
-    routeTree,
-    history: createMemoryHistory({ initialEntries: [url] }),
+  return renderWithWallow(null, {
+    harness,
+    path: url,
+    routes: [{ path: "/invitation", route: invitationRoute }],
   });
-
-  return renderWithClient(<RouterProvider router={router} />);
 }
 
 describe("/invitation route", () => {
@@ -665,7 +696,7 @@ describe("/invitation route", () => {
     renderRouteAt(`/invitation?token=${TOKEN}`);
 
     await vi.waitFor(() => {
-      expect(mocks.verifyInvitation).toHaveBeenCalledWith(TOKEN);
+      expect(verifiedToken()).toBe(TOKEN);
     });
   });
 
@@ -673,8 +704,11 @@ describe("/invitation route", () => {
     const rawToken = "a b+c/d";
     renderRouteAt(`/invitation?token=${encodeURIComponent(rawToken)}`);
 
+    // Decoded off the request path, so this pins the round trip end to end: the
+    // router decodes the search parameter once, and the client re-encodes it as
+    // a path segment — a token that survived neither would show up here.
     await vi.waitFor(() => {
-      expect(mocks.verifyInvitation).toHaveBeenCalledWith(rawToken);
+      expect(verifiedToken()).toBe(rawToken);
     });
   });
 
@@ -684,14 +718,14 @@ describe("/invitation route", () => {
     await expect
       .element(page.getByTestId("invitation-error"))
       .toHaveTextContent(/no invitation token provided/iu);
-    expect(mocks.verifyInvitation).not.toHaveBeenCalled();
+    expect(verifyCalls()).toEqual([]);
   });
 
   it("asks the API who the visitor is, and shows the accept button to a signed-in one", async () => {
     // The route's answer to the oracle's `AuthStateProvider` (see the header):
     // a resolved user IS the session. The auth cookie is HttpOnly, so the 200 is
     // the only thing the browser can observe about it.
-    mocks.getCurrentUser.mockResolvedValue({ id: "u-1", email: EMAIL });
+    currentUserAnswer = () => Response.json({ id: "u-1", email: EMAIL });
 
     renderRouteAt(`/invitation?token=${TOKEN}`);
 
@@ -700,9 +734,10 @@ describe("/invitation route", () => {
   });
 
   it("treats the seam's anonymous answer as anonymous", async () => {
-    // `getCurrentUser` maps 401 to `null` WITHOUT throwing (Wallow-vec7.2.4) —
-    // anonymous is an expected answer, not a failure.
-    mocks.getCurrentUser.mockResolvedValue(null);
+    // `getUser()` maps 401 to `null` WITHOUT throwing (Wallow-vec7.2.4) —
+    // anonymous is an expected answer, not a failure. Stated as the WIRE answer
+    // now, so the mapping itself is under test rather than assumed.
+    currentUserAnswer = () => failure(UNAUTHORIZED);
 
     renderRouteAt(`/invitation?token=${TOKEN}`);
 
@@ -715,7 +750,7 @@ describe("/invitation route", () => {
     // 133-136). A 500 from `/users/me` is not evidence of a session, and the
     // less-privileged branch is the safe read: it offers a sign-in link, where the
     // other offers an accept button whose `[Authorize]`d POST would 401.
-    mocks.getCurrentUser.mockRejectedValue(wallowErrorShaped(500));
+    currentUserAnswer = () => failure(SERVER_ERROR);
 
     renderRouteAt(`/invitation?token=${TOKEN}`);
 
@@ -736,6 +771,6 @@ describe("/invitation route", () => {
     await expect
       .element(page.getByTestId("invitation-error"))
       .toHaveTextContent(/no invitation token provided/iu);
-    expect(mocks.verifyInvitation).not.toHaveBeenCalled();
+    expect(verifyCalls()).toEqual([]);
   });
 });

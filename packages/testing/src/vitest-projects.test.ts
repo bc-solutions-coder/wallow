@@ -123,6 +123,15 @@ describe("createVitestProjects — nodeProjectOverrides pass-through", () => {
     expect(node.test.include).toEqual(["src/**/*.test.ts"]);
   });
 
+  it("concatenates array fields onto the preset's, matching vitest's mergeConfig", () => {
+    const extraExclude = "src/legacy/**";
+    const { node } = createVitestProjects({
+      nodeProjectOverrides: { test: { exclude: [extraExclude] } },
+    });
+
+    expect(node.test.exclude).toEqual([...configDefaults.exclude, extraExclude]);
+  });
+
   it("does not leak node overrides into the browser project", () => {
     const { browser } = createVitestProjects({ nodeProjectOverrides: overrides });
 

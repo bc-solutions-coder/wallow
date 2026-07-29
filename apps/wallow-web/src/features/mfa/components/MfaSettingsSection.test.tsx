@@ -1,10 +1,10 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactElement } from "react";
+import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { installSdkClientMock, type SdkClientMock } from "../../../test/sdk-client-mock";
+import { expectSwept } from "../../../test/invalidation";
+import { mfaGetStatusQueryKey } from "../api";
 import { MfaSettingsSection } from "./MfaSettingsSection";
 
 /**
@@ -20,26 +20,32 @@ import { MfaSettingsSection } from "./MfaSettingsSection";
  *     the disable / regenerate mutations, which invalidate `['mfa', 'status']`.
  *   - `settings-mfa-error` — shared RFC 7807 error surface.
  *
- * Data flows through the SDK query layer (`mfaQueries.status()` +
- * `disableMfaMutation`/`regenerateBackupCodesMutation`), so the network seam is
- * the shared SDK client's `fetch`, overridden per test via `installSdkClientMock`
- * (Wallow-evd5.2.6 — the retired `getWallowSdk()` facade is no longer in the
- * path). Status is seeded via `setQueryData(['mfa', 'status'], ...)` (the key
- * `mfaQueries.status()` uses; `staleTime: Infinity` keeps the seed from
- * refetching), and the loading state by a never-settling request (`sdk.pending()`).
- * The disable/regenerate wire requests (`POST /api/v1/identity/mfa/disable`,
+ * Data flows through the GENERATED query surface (`mfaGetStatusOptions` +
+ * `mfaDisableMutation`/`mfaRegenerateBackupCodesMutation`), so the network seam is
+ * the SDK instance the render puts on the router context, backed by
+ * `createSdkHarness()` (Wallow-pu6a.5.5). Status is no longer seeded into a cache
+ * key — the status request is ANSWERED (`programStatus`), so the generated
+ * operation and its parsing run as they do in the app — and the loading state
+ * comes from a never-settling request (`harness.pending()`). The
+ * disable/regenerate wire requests (`POST /api/v1/identity/mfa/disable`,
  * `.../backup-codes/regenerate`) are asserted via the recorded outgoing request
- * (`sdk.calls`) and invalidation on the live client's `invalidateQueries`. The
- * error surface exercises the REAL wire shape: MFA controllers return failures as
- * a raw `{ succeeded: false, error }` body (NOT ProblemDetails), so `rejectJson`
- * plays that body back and `unwrap()` throws it raw into `onError`.
+ * (`harness.calls`), and the post-success sweep by running the filter handed to
+ * `invalidateQueries` against the real `mfaGetStatusQueryKey()` (`expectSwept`) —
+ * the status operation specifically, not its `Identity` tag, which spans the whole
+ * module. The error surface exercises the REAL wire shape: MFA controllers return
+ * failures as a raw `{ succeeded: false, error }` body (NOT ProblemDetails), which
+ * the SDK's error interceptor passes through to `onError`.
  */
 
 const DISABLED_STATUS = { enabled: false, method: null, backupCodeCount: 0 };
 const ENABLED_STATUS = { enabled: true, method: "totp", backupCodeCount: 7 };
 
+const STATUS_PATH = "/api/v1/identity/mfa/status";
 const DISABLE_PATH = "/api/v1/identity/mfa/disable";
 const REGENERATE_PATH = "/api/v1/identity/mfa/backup-codes/regenerate";
+
+/** The transport backing each render, rebuilt per test. */
+let harness: SdkHarness;
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body ?? null), {
@@ -48,44 +54,38 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-function newClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: {
-      queries: { retry: false, staleTime: Number.POSITIVE_INFINITY },
-      mutations: { retry: false },
-    },
-  });
+/**
+ * Answer the status query with `status` and every other request (the
+ * disable/regenerate POST, plus the refetch a successful sweep triggers) with
+ * `body` at `bodyStatus`. Path-aware because a single blanket responder cannot
+ * both keep the card Enabled and reject the mutation the spec is driving.
+ */
+function programStatus(status: unknown, body: unknown = {}, bodyStatus = 200): void {
+  harness.respond((call) => (call.path === STATUS_PATH ? json(status) : json(body, bodyStatus)));
 }
 
-function renderWithClient(client: QueryClient, ui: ReactElement) {
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-}
-
-function clientWithStatus(status: unknown): QueryClient {
-  const client = newClient();
-  client.setQueryData(["mfa", "status"], status);
-  return client;
+/** Program the status seam, then render the card. */
+function renderStatus(status: unknown, body: unknown = {}, bodyStatus = 200) {
+  programStatus(status, body, bodyStatus);
+  return renderWithWallow(<MfaSettingsSection />, { harness });
 }
 
 describe("MfaSettingsSection", () => {
-  let sdk: SdkClientMock;
-
   beforeEach(() => {
-    sdk = installSdkClientMock();
+    harness = createSdkHarness();
   });
 
   it("renders the loading state while the status query is pending", async () => {
-    const client = newClient();
     // Never-settling request keeps the query pending.
-    sdk.pending();
+    harness.pending();
 
-    renderWithClient(client, <MfaSettingsSection />);
+    renderWithWallow(<MfaSettingsSection />, { harness });
 
     await expect.element(page.getByTestId("settings-mfa-loading")).toBeInTheDocument();
   });
 
   it("shows Disabled with the enable affordance and no enabled-only controls when MFA is off", async () => {
-    renderWithClient(clientWithStatus(DISABLED_STATUS), <MfaSettingsSection />);
+    renderStatus(DISABLED_STATUS);
 
     await expect.element(page.getByTestId("settings-mfa-status")).toHaveTextContent("Disabled");
     await expect.element(page.getByTestId("settings-mfa-enable")).toBeInTheDocument();
@@ -95,7 +95,7 @@ describe("MfaSettingsSection", () => {
   });
 
   it("shows Enabled with the backup-code count, disable, and regenerate affordances when MFA is on", async () => {
-    renderWithClient(clientWithStatus(ENABLED_STATUS), <MfaSettingsSection />);
+    renderStatus(ENABLED_STATUS);
 
     await expect.element(page.getByTestId("settings-mfa-status")).toHaveTextContent("Enabled");
     await expect.element(page.getByTestId("settings-mfa-backup-count")).toHaveTextContent("7");
@@ -105,7 +105,7 @@ describe("MfaSettingsSection", () => {
   });
 
   it("enters the inline enroll flow when enable is clicked", async () => {
-    renderWithClient(clientWithStatus(DISABLED_STATUS), <MfaSettingsSection />);
+    renderStatus(DISABLED_STATUS);
 
     await expect.element(page.getByTestId("settings-mfa-enable")).toBeInTheDocument();
     await userEvent.click(page.getByTestId("settings-mfa-enable"));
@@ -114,7 +114,7 @@ describe("MfaSettingsSection", () => {
   });
 
   it("reveals the shared confirm panel when disable is clicked", async () => {
-    renderWithClient(clientWithStatus(ENABLED_STATUS), <MfaSettingsSection />);
+    renderStatus(ENABLED_STATUS);
 
     await expect.element(page.getByTestId("settings-mfa-disable")).toBeInTheDocument();
     await userEvent.click(page.getByTestId("settings-mfa-disable"));
@@ -124,9 +124,7 @@ describe("MfaSettingsSection", () => {
   });
 
   it("submitting the disable confirm POSTs the entered password to the disable endpoint", async () => {
-    // Disable resolves, then the success-invalidation refetches status; keep it Enabled.
-    sdk.resolveJson(ENABLED_STATUS);
-    renderWithClient(clientWithStatus(ENABLED_STATUS), <MfaSettingsSection />);
+    renderStatus(ENABLED_STATUS);
 
     await expect.element(page.getByTestId("settings-mfa-disable")).toBeInTheDocument();
     await userEvent.click(page.getByTestId("settings-mfa-disable"));
@@ -134,14 +132,14 @@ describe("MfaSettingsSection", () => {
     await userEvent.click(page.getByTestId("settings-mfa-confirm-submit"));
 
     await vi.waitFor(() => {
-      const disableCall = sdk.calls.find((c) => c.method === "POST" && c.path === DISABLE_PATH);
+      const disableCall = harness.calls.find((c) => c.method === "POST" && c.path === DISABLE_PATH);
       expect(disableCall).toBeDefined();
       expect(disableCall?.body).toEqual({ password: "hunter2" });
     });
   });
 
   it("reveals the shared confirm panel when regenerate is clicked", async () => {
-    renderWithClient(clientWithStatus(ENABLED_STATUS), <MfaSettingsSection />);
+    renderStatus(ENABLED_STATUS);
 
     await expect.element(page.getByTestId("settings-mfa-regenerate")).toBeInTheDocument();
     await userEvent.click(page.getByTestId("settings-mfa-regenerate"));
@@ -151,11 +149,7 @@ describe("MfaSettingsSection", () => {
   });
 
   it("submitting the regenerate confirm POSTs the entered password to the regenerate endpoint", async () => {
-    // Regenerate resolves codes; the success-invalidation refetch keeps status Enabled.
-    sdk.respond((call) =>
-      call.path === REGENERATE_PATH ? json({ codes: ["z1", "z2"] }) : json(ENABLED_STATUS),
-    );
-    renderWithClient(clientWithStatus(ENABLED_STATUS), <MfaSettingsSection />);
+    renderStatus(ENABLED_STATUS, { codes: ["z1", "z2"] });
 
     await expect.element(page.getByTestId("settings-mfa-regenerate")).toBeInTheDocument();
     await userEvent.click(page.getByTestId("settings-mfa-regenerate"));
@@ -163,26 +157,24 @@ describe("MfaSettingsSection", () => {
     await userEvent.click(page.getByTestId("settings-mfa-confirm-submit"));
 
     await vi.waitFor(() => {
-      const regenCall = sdk.calls.find((c) => c.method === "POST" && c.path === REGENERATE_PATH);
+      const regenCall = harness.calls.find(
+        (c) => c.method === "POST" && c.path === REGENERATE_PATH,
+      );
       expect(regenCall).toBeDefined();
       expect(regenCall?.body).toEqual({ password: "hunter2" });
     });
   });
 
-  it("invalidates ['mfa', 'status'] after a successful disable", async () => {
-    const client = clientWithStatus(ENABLED_STATUS);
-    const invalidateSpy = vi.spyOn(client, "invalidateQueries");
-    sdk.resolveJson(ENABLED_STATUS);
-    renderWithClient(client, <MfaSettingsSection />);
+  it("sweeps the MFA status query after a successful disable", async () => {
+    const { queryClient } = renderStatus(ENABLED_STATUS);
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
 
     await expect.element(page.getByTestId("settings-mfa-disable")).toBeInTheDocument();
     await userEvent.click(page.getByTestId("settings-mfa-disable"));
     await userEvent.type(page.getByTestId("settings-mfa-confirm-password"), "hunter2");
     await userEvent.click(page.getByTestId("settings-mfa-confirm-submit"));
 
-    await vi.waitFor(() => {
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["mfa", "status"] });
-    });
+    await expectSwept(invalidateSpy, mfaGetStatusQueryKey());
   });
 
   // REAL WIRE SHAPE (Wallow-8w1h.6.6): MfaController.Disable /
@@ -193,10 +185,9 @@ describe("MfaSettingsSection", () => {
   // surface must map that `error` code to a meaningful message instead of
   // always showing the generic "Unable to complete that action." fallback.
   it("surfaces the mapped error message in settings-mfa-error when disable rejects with the real { succeeded:false, error } body", async () => {
-    // The status query is seeded (staleTime Infinity) so only the disable POST
-    // hits the seam; onError does not invalidate, so there is no status refetch.
-    sdk.rejectJson({ succeeded: false, error: "invalid_password" }, 400);
-    renderWithClient(clientWithStatus(ENABLED_STATUS), <MfaSettingsSection />);
+    // Only the disable POST fails; the status request keeps answering Enabled so
+    // the card stays on the branch that owns the confirm panel.
+    renderStatus(ENABLED_STATUS, { succeeded: false, error: "invalid_password" }, 400);
 
     await expect.element(page.getByTestId("settings-mfa-disable")).toBeInTheDocument();
     await userEvent.click(page.getByTestId("settings-mfa-disable"));
@@ -210,8 +201,7 @@ describe("MfaSettingsSection", () => {
   });
 
   it("surfaces the mapped error message in settings-mfa-error when regenerate rejects with the real { succeeded:false, error } body", async () => {
-    sdk.rejectJson({ succeeded: false, error: "invalid_password" }, 400);
-    renderWithClient(clientWithStatus(ENABLED_STATUS), <MfaSettingsSection />);
+    renderStatus(ENABLED_STATUS, { succeeded: false, error: "invalid_password" }, 400);
 
     await expect.element(page.getByTestId("settings-mfa-regenerate")).toBeInTheDocument();
     await userEvent.click(page.getByTestId("settings-mfa-regenerate"));
@@ -230,14 +220,7 @@ describe("MfaSettingsSection", () => {
   // `{ codes: string[] }` payload must be surfaced once under
   // `settings-mfa-regenerated-codes`, not silently discarded.
   it("reveals the regenerated backup codes under settings-mfa-regenerated-codes after a successful regenerate", async () => {
-    // Regenerate resolves the new codes; the post-success invalidation refetch of
-    // status must stay Enabled so the card does not flip mid-reveal.
-    sdk.respond((call) =>
-      call.path === REGENERATE_PATH
-        ? json({ codes: ["new-code-1", "new-code-2", "new-code-3"] })
-        : json(ENABLED_STATUS),
-    );
-    renderWithClient(clientWithStatus(ENABLED_STATUS), <MfaSettingsSection />);
+    renderStatus(ENABLED_STATUS, { codes: ["new-code-1", "new-code-2", "new-code-3"] });
 
     await expect.element(page.getByTestId("settings-mfa-regenerate")).toBeInTheDocument();
     await userEvent.click(page.getByTestId("settings-mfa-regenerate"));

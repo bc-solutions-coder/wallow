@@ -1,10 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { authQueries } from "@bc-solutions-coder/sdk/query";
+import { buildConsentSubmitUrl, consentInfoArgs, isSafeReturnUrl } from "@bc-solutions-coder/sdk";
+import { appsGetConsentInfoOptions } from "@bc-solutions-coder/sdk/query";
 import { Card, ErrorBanner } from "@bc-solutions-coder/ui";
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { useEffect, useMemo, type ReactNode } from "react";
-
-import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
 
 /**
  * The Consent screen (Wallow-vec7.3.4).
@@ -21,9 +20,10 @@ import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
  * `consent-error`, `consent-heading`, `consent-scopes`, `consent-approve`,
  * `consent-deny`.
  *
- * Mutations and the OIDC builders are reached through `getWallowAuthSdk()`, and
- * reads through the SDK's `./query` factories (Wallow-evd5.3.1) — never the
- * `@bc-solutions-coder/sdk` barrel, which only the facade may import.
+ * Mutations call the GENERATED operations and reads use the generated
+ * `{op}Options()` factories, both bound to the request-scoped SDK off the router
+ * context (`useRouteContext({ from: "__root__" })`). The OIDC URL builders are
+ * pure and imported directly. There is no app-level facade (Wallow-pu6a.5.5).
  *
  * ── THE ORIGIN DIVERGENCE (the load-bearing port decision on this screen) ─────
  *
@@ -33,7 +33,7 @@ import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
  * /connect/authorize".
  *
  * That premise is FALSE in this app, so the prepend is deliberately NOT ported.
- * apps/wallow-auth's h3 server (`src/lib/auth-server.ts`) is a passthrough
+ * apps/wallow-auth's API surface (`src/lib/api-passthrough.ts`) is a passthrough
  * reverse proxy mounting `/connect/**` and `/v1/**` at the ROOT — the same fact
  * behind the facade's `baseUrl: '/'` (bd memory
  * `wallow-auth-same-origin-baseurl-apps-wallow-auth`). This origin DOES host
@@ -296,6 +296,7 @@ export interface ConsentScreenProps {
 }
 
 export function ConsentScreen({ clientId, returnUrl, scope }: ConsentScreenProps): ReactNode {
+  const { sdk } = useRouteContext({ from: "__root__" });
   const navigate = useNavigate();
 
   // Split on whitespace, dropping empty segments: repeated or trailing spaces in
@@ -310,8 +311,7 @@ export function ConsentScreen({ clientId, returnUrl, scope }: ConsentScreenProps
   // hostile — the builder's `ReturnUrl ?? "/"` covers it — so only a PRESENT value
   // is checked. An empty string IS present: `IsNullOrWhiteSpace` fails it, so it
   // is the unsafe case and not the nullish-fallback one.
-  const returnUrlIsUnsafe: boolean =
-    returnUrl !== undefined && !getWallowAuthSdk().oidc.isSafeReturnUrl(returnUrl);
+  const returnUrlIsUnsafe: boolean = returnUrl !== undefined && !isSafeReturnUrl(returnUrl);
 
   // The oracle's `if (ClientId is not null)`. An empty string is a malformed
   // link, not a client to look up: a screen that "helpfully" sent `client_id=`
@@ -329,7 +329,10 @@ export function ConsentScreen({ clientId, returnUrl, scope }: ConsentScreenProps
   // present only to narrow the prop to the `string` the factory takes, without a
   // cast.
   const query = useQuery({
-    ...authQueries.consentInfo(clientId ?? "", requestedScopes),
+    ...appsGetConsentInfoOptions({
+      client: sdk.client,
+      ...consentInfoArgs(clientId ?? "", requestedScopes),
+    }),
     // Both refusals carried to React Query, so neither path reaches the network.
     enabled: clientIsKnown && !returnUrlIsUnsafe,
     // A malformed consent request will not become a well-formed one on a second
@@ -339,12 +342,8 @@ export function ConsentScreen({ clientId, returnUrl, scope }: ConsentScreenProps
 
   const submitConsent = (granted: boolean): void => {
     // A FULL navigation, not `navigate()`: `/connect/authorize` is served by the
-    // h3 reverse proxy, not by the client-side route tree, which would 404 in-app.
-    globalThis.location.href = getWallowAuthSdk().oidc.buildConsentSubmitUrl(
-      SAME_ORIGIN,
-      returnUrl,
-      granted,
-    );
+    // passthrough reverse proxy, not by the client-side route tree, which would 404 in-app.
+    globalThis.location.href = buildConsentSubmitUrl(SAME_ORIGIN, returnUrl, granted);
   };
 
   return (

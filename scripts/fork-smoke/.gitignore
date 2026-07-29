@@ -1,0 +1,10 @@
+# This directory is a TEMPLATE, never built in place — scripts/fork-smoke.sh
+# copies it outside the repo first. These entries only catch a stray in-place
+# run so its output can never be committed.
+node_modules
+vendor
+pnpm-lock.yaml
+.output
+.nitro
+.tanstack
+src/routeTree.gen.ts

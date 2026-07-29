@@ -18,8 +18,8 @@ Both drive a real Chromium, but they are separate suites with separate configs a
 ### Layout (wallow-auth is the reference pattern)
 
 - `apps/wallow-auth/playwright.config.ts` — `testDir: "./e2e"`, `testIdAttribute:
-  "data-testid"`. Its `webServer` boots `pnpm dev` (reusing an already-running server) and
-  defaults `WALLOW_API_INTERNAL_URL` to `http://localhost:5001` so the h3 proxy resolves
+"data-testid"`. Its `webServer` boots `pnpm dev` (reusing an already-running server) and
+  defaults `WALLOW_API_INTERNAL_URL` to `http://localhost:5001` so the passthrough proxy resolves
   outside Aspire.
 - `apps/wallow-auth/e2e/routes.spec.ts` — route-reachability gate: every route renders (<400) and reaches
   hydration. Needs no backend.

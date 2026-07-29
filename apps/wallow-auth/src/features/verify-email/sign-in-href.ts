@@ -1,4 +1,4 @@
-import { getWallowAuthSdk } from "../../lib/wallow-auth-sdk";
+import { isSafeReturnUrl } from "@bc-solutions-coder/sdk";
 
 /**
  * Build the "go to sign in" link both verify-email screens end on, forwarding
@@ -30,9 +30,9 @@ import { getWallowAuthSdk } from "../../lib/wallow-auth-sdk";
  * verified; refusing them the sign-in link over a query parameter they may not
  * have chosen would punish them for the attacker's input.
  *
- * The guard is reached through `getWallowAuthSdk()`, never by re-implementing
- * the rule here: it mirrors the server's `ReturnUrlValidator.IsSafe`, and a
- * second copy of a security rule is a second copy to get wrong.
+ * The guard is the SDK's `isSafeReturnUrl`, never a re-implementation of the
+ * rule here: it mirrors the server's `ReturnUrlValidator.IsSafe`, and a second
+ * copy of a security rule is a second copy to get wrong.
  *
  * @param returnUrl The `returnUrl` query parameter, if the link carried one.
  * @returns `/login`, or `/login?returnUrl=...` when `returnUrl` is safe.
@@ -41,7 +41,7 @@ export function signInHref(returnUrl: string | undefined): string {
   // The `undefined` arm is redundant against the guard (which rejects nullish
   // itself) and is kept only to narrow `returnUrl` to `string` for the template
   // below without a cast — the guard returns a boolean, not a type predicate.
-  if (returnUrl === undefined || !getWallowAuthSdk().oidc.isSafeReturnUrl(returnUrl)) {
+  if (returnUrl === undefined || !isSafeReturnUrl(returnUrl)) {
     return "/login";
   }
 

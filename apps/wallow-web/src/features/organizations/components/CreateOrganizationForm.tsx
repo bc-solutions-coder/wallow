@@ -1,11 +1,11 @@
 /**
  * Create-organization form (Wallow-8w1h.4.3) — the CANONICAL create-form
  * template every later vertical (Apps/Settings/MFA/Inquiries, Phases 4-6)
- * copies: `useForm` (TanStack Form) + `useMutation(createOrganizationMutation(
- * queryClient))`. It submits `{ name, domain: null }`, relies on the mutation
- * factory's `onSuccess` to invalidate `['orgs']`, resets the field on success,
- * enforces a required-name validator, and surfaces the server's RFC 7807
- * ProblemDetails `detail` when the create fails.
+ * copies: `useForm` (TanStack Form) + `useMutation(organizationsCreateMutation({
+ * client }))`. It submits `{ name, domain: null }`, sweeps the Organizations tag
+ * on success (generated keys are flat, so there is no `['orgs']` prefix to
+ * invalidate by), resets the field, enforces a required-name validator, and
+ * surfaces the server's RFC 7807 `detail` when the create fails.
  *
  * Testids follow `{page}-{element}` kebab-case: `organization-name` (input),
  * `organization-create-submit` (submit button), `organization-name-error`
@@ -15,9 +15,10 @@
 import { Button, Card, CardTitle, ErrorBanner, Field, Input } from "@bc-solutions-coder/ui";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { ProblemDetails } from "@bc-solutions-coder/sdk";
+import { useRouteContext } from "@tanstack/react-router";
 
-import { createOrganizationMutation } from "../api";
+import { errorText } from "../../../lib/error-text";
+import { organizationsCreateMutation, queriesWithTag } from "../api";
 
 /**
  * Presentational name field, extracted so the form's render-prop tree stays
@@ -65,8 +66,14 @@ export function CreateOrganizationForm() {
  * `form > form.Field > NameField` chain keeps within the repo's JSX nesting budget.
  */
 function CreateOrganizationFormFields() {
+  const { sdk } = useRouteContext({ from: "__root__" });
   const queryClient = useQueryClient();
-  const mutation = useMutation(createOrganizationMutation(queryClient));
+  const mutation = useMutation({
+    ...organizationsCreateMutation({ client: sdk.client }),
+    onSuccess: (): void => {
+      void queryClient.invalidateQueries(queriesWithTag("Organizations"));
+    },
+  });
 
   const form = useForm({
     defaultValues: { name: "" },
@@ -74,10 +81,10 @@ function CreateOrganizationFormFields() {
       // Fire-and-observe: the mutation captures success/error in its own state
       // (surfaced below), so we drive it with `mutate` + a per-call `onSuccess`
       // rather than awaiting `mutateAsync` — a rejected create must NOT escape
-      // the submit handler as an unhandled rejection. The factory's own
-      // `onSuccess` still invalidates `['orgs']`; this per-call one resets.
+      // the submit handler as an unhandled rejection. The mutation's own
+      // `onSuccess` still sweeps the tag; this per-call one resets.
       mutation.mutate(
-        { name: value.name, domain: null },
+        { body: { name: value.name, domain: null } },
         {
           onSuccess: () => {
             form.reset();
@@ -114,7 +121,7 @@ function CreateOrganizationFormFields() {
 
       {mutation.isError ? (
         <ErrorBanner data-testid="organization-create-error">
-          {(mutation.error as ProblemDetails).detail}
+          {errorText(mutation.error, "Could not create the organization.")}
         </ErrorBanner>
       ) : null}
 

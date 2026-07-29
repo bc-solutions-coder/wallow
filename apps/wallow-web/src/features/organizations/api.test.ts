@@ -1,99 +1,67 @@
-import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 
 /**
- * Organizations feature `api.ts` (Wallow-evd5.2.2) — after the SDK-query-layer
- * adoption, `api.ts` is a THIN RE-EXPORT SEAM over `@bc-solutions-coder/sdk/query`,
- * not a hand-rolled query layer. Route/component files still import from
- * `./api`, so this spec pins the seam:
- *  - every symbol `./api` exposes IS the SDK export (re-export identity), and
- *  - the query keys + mutation invalidations still resolve to the central
- *    `queryKeys` factory (behavior preserved across the swap).
- * The old `vi.mock("../../lib/wallow-sdk")` delegation spec is gone: the
- * re-exported factories no longer call the facade, so mocking it asserts nothing.
+ * Organizations feature `api.ts` — a THIN RE-EXPORT SEAM over
+ * `@bc-solutions-coder/sdk/query`. Everything behind it is GENERATED as of
+ * Wallow-pu6a.5.5, so the per-mutation `onSuccess` sweeps this spec used to pin
+ * moved to the call sites, where the component specs assert them against the
+ * rendered screen.
+ *
+ * Two seam-level decisions survive here, both invisible from a call site:
+ *  - the `Organizations` tag covers the org list, detail and members together,
+ *    which is what makes it the right sweep after create/archive/reactivate;
+ *  - an org's CLIENTS are NOT in it. `clientsGetByTenant` is tagged `Clients`,
+ *    so registering a client sweeps by that tag (or by operation) — reaching for
+ *    `Organizations` there would refetch everything except the list that changed.
  */
 
-import * as api from "./api";
-import { organizationsQueries } from "./api";
-import { queryKeys } from "@bc-solutions-coder/sdk/query";
 import * as query from "@bc-solutions-coder/sdk/query";
 
-/** A QueryClient whose invalidateQueries records the keys it was asked to sweep. */
-function captureInvalidations(): { client: QueryClient; keys: unknown[] } {
-  const client = new QueryClient();
-  const keys: unknown[] = [];
-  client.invalidateQueries = (filters?: { queryKey?: unknown }) => {
-    keys.push(filters?.queryKey);
-    return Promise.resolve();
-  };
-  return { client, keys };
-}
+import { sweeps } from "../../test/invalidation";
+import * as api from "./api";
 
-describe("api.ts re-exports the SDK organizations query layer", () => {
+const membersKey: readonly unknown[] = api.organizationsGetMembersQueryKey({ path: { id: "o1" } });
+const clientsKey: readonly unknown[] = api.clientsGetByTenantQueryKey({
+  path: { tenantId: "o1" },
+});
+
+describe("api.ts re-exports the SDK organizations query surface", () => {
   it("re-exports each symbol by identity from @bc-solutions-coder/sdk/query", () => {
-    expect(api.organizationsQueries).toBe(query.organizationsQueries);
-    expect(api.createOrganizationMutation).toBe(query.createOrganizationMutation);
-    expect(api.addMemberMutation).toBe(query.addMemberMutation);
-    expect(api.removeMemberMutation).toBe(query.removeMemberMutation);
-    expect(api.archiveOrganizationMutation).toBe(query.archiveOrganizationMutation);
-    expect(api.reactivateOrganizationMutation).toBe(query.reactivateOrganizationMutation);
-    expect(api.registerClientMutation).toBe(query.registerClientMutation);
+    expect(api.organizationsGetAllOptions).toBe(query.organizationsGetAllOptions);
+    expect(api.organizationsGetAllQueryKey).toBe(query.organizationsGetAllQueryKey);
+    expect(api.organizationsGetByIdOptions).toBe(query.organizationsGetByIdOptions);
+    expect(api.organizationsGetMembersOptions).toBe(query.organizationsGetMembersOptions);
+    expect(api.organizationsGetMembersQueryKey).toBe(query.organizationsGetMembersQueryKey);
+    expect(api.organizationsCreateMutation).toBe(query.organizationsCreateMutation);
+    expect(api.organizationsAddMemberMutation).toBe(query.organizationsAddMemberMutation);
+    expect(api.organizationsRemoveMemberMutation).toBe(query.organizationsRemoveMemberMutation);
+    expect(api.organizationsArchiveMutation).toBe(query.organizationsArchiveMutation);
+    expect(api.organizationsReactivateMutation).toBe(query.organizationsReactivateMutation);
+    expect(api.clientsCreateMutation).toBe(query.clientsCreateMutation);
+    expect(api.clientsGetByTenantOptions).toBe(query.clientsGetByTenantOptions);
+    expect(api.clientsGetByTenantQueryKey).toBe(query.clientsGetByTenantQueryKey);
+    expect(api.queriesForOperation).toBe(query.queriesForOperation);
+    expect(api.queriesWithTag).toBe(query.queriesWithTag);
   });
 });
 
-describe("organizationsQueries", () => {
-  it("keys every option from the central queryKeys factory", () => {
-    expect(organizationsQueries.list().queryKey).toEqual(queryKeys.organizations.all);
-    expect(organizationsQueries.detail("o1").queryKey).toEqual(
-      queryKeys.organizations.detail("o1"),
+describe("organizations invalidation", () => {
+  it("sweeps the org list and an org's members under one tag", () => {
+    expect(sweeps(api.queriesWithTag("Organizations"), api.organizationsGetAllQueryKey())).toBe(
+      true,
     );
-    expect(organizationsQueries.members("o1").queryKey).toEqual(
-      queryKeys.organizations.members("o1"),
+    expect(sweeps(api.queriesWithTag("Organizations"), membersKey)).toBe(true);
+  });
+
+  it("does NOT reach an org's clients, which are tagged separately", () => {
+    expect(sweeps(api.queriesWithTag("Organizations"), clientsKey)).toBe(false);
+    expect(sweeps(api.queriesWithTag("Clients"), clientsKey)).toBe(true);
+  });
+
+  it("narrows to a single operation when only the members changed", () => {
+    expect(sweeps(api.queriesForOperation(membersKey), membersKey)).toBe(true);
+    expect(sweeps(api.queriesForOperation(membersKey), api.organizationsGetAllQueryKey())).toBe(
+      false,
     );
-    expect(organizationsQueries.clients("o1").queryKey).toEqual(
-      queryKeys.organizations.clients("o1"),
-    );
-  });
-
-  it("keeps the list queryKey stable across calls", () => {
-    expect(organizationsQueries.list().queryKey).toEqual(organizationsQueries.list().queryKey);
-  });
-});
-
-describe("organizations mutation invalidation", () => {
-  it("createOrganizationMutation sweeps the organizations list", () => {
-    const { client, keys } = captureInvalidations();
-    api.createOrganizationMutation(client).onSuccess();
-    expect(keys).toEqual([queryKeys.organizations.all]);
-  });
-
-  it("addMemberMutation sweeps that org's members", () => {
-    const { client, keys } = captureInvalidations();
-    api.addMemberMutation(client, "o1").onSuccess();
-    expect(keys).toEqual([queryKeys.organizations.members("o1")]);
-  });
-
-  it("removeMemberMutation sweeps that org's members", () => {
-    const { client, keys } = captureInvalidations();
-    api.removeMemberMutation(client, "o1").onSuccess();
-    expect(keys).toEqual([queryKeys.organizations.members("o1")]);
-  });
-
-  it("archiveOrganizationMutation sweeps the organizations list", () => {
-    const { client, keys } = captureInvalidations();
-    api.archiveOrganizationMutation(client, "o1").onSuccess();
-    expect(keys).toEqual([queryKeys.organizations.all]);
-  });
-
-  it("reactivateOrganizationMutation sweeps the organizations list", () => {
-    const { client, keys } = captureInvalidations();
-    api.reactivateOrganizationMutation(client, "o1").onSuccess();
-    expect(keys).toEqual([queryKeys.organizations.all]);
-  });
-
-  it("registerClientMutation sweeps that org's clients", () => {
-    const { client, keys } = captureInvalidations();
-    api.registerClientMutation(client, "o1").onSuccess();
-    expect(keys).toEqual([queryKeys.organizations.clients("o1")]);
   });
 });

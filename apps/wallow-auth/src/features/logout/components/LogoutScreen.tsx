@@ -1,9 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
-import { authQueries } from "@bc-solutions-coder/sdk/query";
+import { buildConnectLogoutUrl, validateRedirectUriArgs } from "@bc-solutions-coder/sdk";
+import { accountValidateRedirectUriOptions } from "@bc-solutions-coder/sdk/query";
 import { Card } from "@bc-solutions-coder/ui";
+import { useQuery } from "@tanstack/react-query";
+import { useRouteContext } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-
-import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
 
 /**
  * The Logout screen (Wallow-vec7.3.5).
@@ -22,9 +22,10 @@ import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
  * component a pure function of its inputs. This is the seam `ResetPasswordForm`
  * established and `ConsentScreen` followed.
  *
- * Mutations and the OIDC builders are reached through `getWallowAuthSdk()`, and
- * reads through the SDK's `./query` factories (Wallow-evd5.3.1) — never the
- * `@bc-solutions-coder/sdk` barrel, which only the facade may import.
+ * Mutations call the GENERATED operations and reads use the generated
+ * `{op}Options()` factories, both bound to the request-scoped SDK off the router
+ * context (`useRouteContext({ from: "__root__" })`). The OIDC URL builders are
+ * pure and imported directly. There is no app-level facade (Wallow-pu6a.5.5).
  *
  * ── THE ORIGIN TRAP (the load-bearing port decision on this screen) ───────────
  *
@@ -35,8 +36,8 @@ import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
  *     string url = $"{ApiBaseUrl}/connect/logout";
  *
  * That prepend is deliberately NOT ported, for the reasons established on
- * `/consent` (Wallow-vec7.3.4). apps/wallow-auth's h3 server
- * (`src/lib/auth-server.ts`) is a PASSTHROUGH REVERSE PROXY mounting `/connect/**`
+ * `/consent` (Wallow-vec7.3.4). apps/wallow-auth's API surface
+ * (`src/lib/api-passthrough.ts`) is a PASSTHROUGH REVERSE PROXY mounting `/connect/**`
  * and `/v1/**` at the ROOT — the same fact behind the facade's `baseUrl: '/'` (bd
  * memory `wallow-auth-same-origin-baseurl-apps-wallow-auth`). This origin DOES
  * host `/connect/logout`, so the origin argument is `""`.
@@ -125,16 +126,13 @@ function CardHeading({ signedOut }: { readonly signedOut: boolean }) {
  * The oracle's `else` arm: the prompt and the handoff.
  *
  * The control is an ANCHOR, as in the oracle (`<a href="@LogoutUrl">`). It has to
- * be a real navigation — `/connect/logout` is served by the h3 proxy and is not in
+ * be a real navigation — `/connect/logout` is served by the passthrough proxy and is not in
  * the client-side route tree, so a router-driven control would 404 in-app. Keeping
  * the sign-out behind a CLICK rather than firing it on mount also keeps it off the
  * CSRF sink `<img src="/logout">` would otherwise be.
  */
 function ConfirmStep({ postLogoutRedirectUri }: { readonly postLogoutRedirectUri?: string }) {
-  const logoutUrl: string = getWallowAuthSdk().oidc.buildConnectLogoutUrl(
-    SAME_ORIGIN,
-    postLogoutRedirectUri,
-  );
+  const logoutUrl: string = buildConnectLogoutUrl(SAME_ORIGIN, postLogoutRedirectUri);
 
   return (
     <div className="space-y-4">
@@ -214,6 +212,7 @@ export interface LogoutScreenProps {
 }
 
 export function LogoutScreen({ postLogoutRedirectUri, signedOut }: LogoutScreenProps): ReactNode {
+  const { sdk } = useRouteContext({ from: "__root__" });
   const isSignedOut: boolean = signedOut === SIGNED_OUT;
 
   // `IsNullOrEmpty` parity: an empty URI is a malformed link, not a destination to
@@ -225,7 +224,10 @@ export function LogoutScreen({ postLogoutRedirectUri, signedOut }: LogoutScreenP
   // and is present only to narrow the prop to the `string` the factory takes,
   // without a cast.
   const validation = useQuery({
-    ...authQueries.redirectValidation(postLogoutRedirectUri ?? ""),
+    ...accountValidateRedirectUriOptions({
+      client: sdk.client,
+      ...validateRedirectUriArgs(postLogoutRedirectUri ?? ""),
+    }),
     // The factory hands back the raw body; the verdict is this screen's reading
     // of it.
     select: isRedirectUriAllowed,

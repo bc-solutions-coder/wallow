@@ -1,8 +1,8 @@
 import { Button, Field, Input, Label } from "@bc-solutions-coder/ui";
+import { accountSendMagicLink, accountVerifyMagicLink } from "@bc-solutions-coder/sdk";
 import { useMutation } from "@tanstack/react-query";
+import { useRouteContext } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-
-import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
 import { GENERIC_MESSAGE } from "../auth-result";
 import {
   BLANK_EMAIL_MESSAGE,
@@ -127,6 +127,7 @@ export function MagicLinkLoginForm({
   onAuthResult,
   onError,
 }: MagicLinkLoginFormProps): ReactNode {
+  const { sdk } = useRouteContext({ from: "__root__" });
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   /**
@@ -148,7 +149,10 @@ export function MagicLinkLoginForm({
     // `Promise<unknown>`: the C# endpoint returns an anonymous `Ok(new { … })` with
     // no OpenAPI schema, so there is no generated type to lean on.
     mutationFn: async (address: string): Promise<unknown> =>
-      await getWallowAuthSdk().auth.sendMagicLink({ email: address, returnUrl, clientId }),
+      await accountSendMagicLink({
+        client: sdk.client,
+        body: { email: address, returnUrl, clientId },
+      }),
   });
 
   const verifyMutation = useMutation({
@@ -156,7 +160,7 @@ export function MagicLinkLoginForm({
       // No `rememberMe`: the oracle passes none, and the endpoint defaults it false
       // (AccountController.cs:840). A link mailed to an inbox is not a "trust this
       // device" signal.
-      await getWallowAuthSdk().auth.verifyMagicLink({ token: value }),
+      await accountVerifyMagicLink({ client: sdk.client, query: { token: value } }),
   });
 
   useEffect(() => {

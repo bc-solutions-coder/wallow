@@ -1,5 +1,6 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
@@ -15,6 +16,7 @@ namespace Wallow.Identity.Api.Controllers;
 public sealed class SessionController(ISessionService sessionService) : ControllerBase
 {
     [HttpGet]
+    [ProducesResponseType(typeof(IReadOnlyList<SessionDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListSessions(CancellationToken ct)
     {
         Guid userId = Guid.Parse(User.GetUserId()!);
@@ -26,6 +28,7 @@ public sealed class SessionController(ISessionService sessionService) : Controll
     }
 
     [HttpDelete("{sessionId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> RevokeSession(Guid sessionId, CancellationToken ct)
     {
         Guid userId = Guid.Parse(User.GetUserId()!);

@@ -1,9 +1,9 @@
 import { Button, Card, CardTitle, Field, Input, Label } from "@bc-solutions-coder/ui";
 import { useForm } from "@tanstack/react-form";
+import { accountForgotPassword } from "@bc-solutions-coder/sdk";
 import { useMutation } from "@tanstack/react-query";
+import { useRouteContext } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
-
-import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
 
 /**
  * ForgotPassword screen (Wallow-vec7.3.1).
@@ -31,8 +31,9 @@ import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
  * backend and so leaks nothing. The "Back to sign in" footer link ships without
  * a testid in the oracle and keeps it that way.
  *
- * The API is reached through `getWallowAuthSdk()`, never `@bc-solutions-coder/sdk`
- * directly — that facade is this app's only permitted importer of the SDK.
+ * The API is reached through the GENERATED operation, bound to the request's own
+ * SDK instance off the router context — there is no app-level facade or client
+ * singleton to route through (Wallow-pu6a.5.5).
  */
 
 /**
@@ -172,12 +173,13 @@ function BackToSignIn() {
 }
 
 export function ForgotPasswordForm(): ReactNode {
+  const { sdk } = useRouteContext({ from: "__root__" });
   const [submitted, setSubmitted] = useState(false);
 
   const mutation = useMutation({
     mutationFn: async (email: string): Promise<void> => {
       try {
-        await getWallowAuthSdk().auth.forgotPassword({ email });
+        await accountForgotPassword({ client: sdk.client, body: { email } });
       } catch {
         // Swallowed deliberately — see the anti-enumeration note above. The
         // reason never escapes this function, so the mutation cannot enter an

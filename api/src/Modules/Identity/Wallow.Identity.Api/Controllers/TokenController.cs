@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Claims;
+using System.Text.Json;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -13,6 +14,9 @@ using OpenIddict.Server.AspNetCore;
 using Wallow.Identity.Domain.Entities;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
+// Aliased rather than imported: the namespace's GetScopes extension collides with OpenIddict's.
+using WallowClaims = Wallow.Shared.Kernel.Extensions.ClaimsPrincipalExtensions;
+
 namespace Wallow.Identity.Api.Controllers;
 
 [ExcludeFromCodeCoverage]
@@ -22,8 +26,32 @@ namespace Wallow.Identity.Api.Controllers;
 [EnableRateLimiting("auth")]
 public sealed partial class TokenController(
     UserManager<WallowUser> userManager,
+    IOpenIddictApplicationManager applicationManager,
     ILogger<TokenController> logger) : Controller
 {
+    /// <summary>
+    /// OpenIddict application property marking a client as a platform operator. It is set on the
+    /// application record itself, never derived from the client_id, so a tenant cannot grant itself
+    /// cross-tenant access by choosing a service account name.
+    /// </summary>
+    private const string OperatorPropertyName = "wallow:is_operator";
+
+    /// <summary>
+    /// OpenIddict application property naming the tenant a service-account client belongs to.
+    /// Read for the same reason as <see cref="OperatorPropertyName"/>: the client_id is chosen by
+    /// whoever registered the account, so it cannot be an authorization input.
+    /// </summary>
+    private const string TenantPropertyName = "wallow:tenant_id";
+
+    /// <summary>
+    /// The resource every issued access token is restricted to; OpenIddict turns the principal's
+    /// resources into the token's aud claim. Deliberately spelled out here and again in the
+    /// validation handler's AddAudiences call rather than shared as a constant — the two sides are
+    /// a contract, and a shared symbol would let them agree without the value reaching a token.
+    /// </summary>
+    private const string ApiAudience = "wallow-api";
+
+
 #pragma warning disable CA5391
     [HttpPost, Produces("application/json")]
     public async Task<IActionResult> Exchange()
@@ -95,6 +123,14 @@ public sealed partial class TokenController(
             identity.AddClaim(Claims.Role, role);
         }
 
+        // Read from the user's own claim store rather than carrying the flag forward from the
+        // incoming principal: a refresh token must never be able to keep a revoked global admin
+        // alive, and nothing a tenant controls may introduce it.
+        if (await IsGlobalAdminUserAsync(user))
+        {
+            identity.SetClaim(WallowClaims.GlobalAdminClaimType, "true");
+        }
+
         // Carry forward tenant claims from the original principal
         string? orgId = principal.GetClaim("org_id");
         if (orgId is not null)
@@ -110,6 +146,7 @@ public sealed partial class TokenController(
 
         ClaimsPrincipal claimsPrincipal = new(identity);
         claimsPrincipal.SetScopes(principal.GetScopes());
+        claimsPrincipal.SetResources(ApiAudience);
 
         foreach (Claim claim in identity.Claims)
         {
@@ -136,18 +173,27 @@ public sealed partial class TokenController(
         identity.SetClaim(Claims.Subject, clientId);
         identity.SetClaim(Claims.AuthorizedParty, clientId);
 
-        // Extract tenant_id from service account client_id pattern: sa-{tenantId}-{name}
         if (clientId is not null)
         {
-            string[] parts = clientId.Split('-');
-            if (parts.Length >= 3 && parts[0] == "sa")
+            ImmutableDictionary<string, JsonElement> properties = await GetApplicationPropertiesAsync(clientId);
+
+            if (properties.TryGetValue(TenantPropertyName, out JsonElement tenant)
+                && tenant.ValueKind == JsonValueKind.String
+                && tenant.GetString() is { Length: > 0 } tenantId)
             {
-                identity.SetClaim("tenant_id", parts[1]);
+                identity.SetClaim("tenant_id", tenantId);
+            }
+
+            if (properties.TryGetValue(OperatorPropertyName, out JsonElement isOperator)
+                && isOperator.ValueKind == JsonValueKind.True)
+            {
+                identity.SetClaim(WallowClaims.OperatorClaimType, "true");
             }
         }
 
         ClaimsPrincipal claimsPrincipal = new(identity);
         claimsPrincipal.SetScopes(request.GetScopes());
+        claimsPrincipal.SetResources(ApiAudience);
 
         foreach (Claim claim in identity.Claims)
         {
@@ -156,6 +202,34 @@ public sealed partial class TokenController(
 
         return SignIn(claimsPrincipal,
             OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+    }
+
+    private async Task<bool> IsGlobalAdminUserAsync(WallowUser user)
+    {
+        IList<Claim> claims = await userManager.GetClaimsAsync(user);
+
+        foreach (Claim claim in claims)
+        {
+            if (string.Equals(claim.Type, WallowClaims.GlobalAdminClaimType, StringComparison.Ordinal)
+                && bool.TryParse(claim.Value, out bool isGlobalAdmin)
+                && isGlobalAdmin)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private async Task<ImmutableDictionary<string, JsonElement>> GetApplicationPropertiesAsync(string clientId)
+    {
+        object? application = await applicationManager.FindByClientIdAsync(clientId, HttpContext.RequestAborted);
+        if (application is null)
+        {
+            return ImmutableDictionary<string, JsonElement>.Empty;
+        }
+
+        return await applicationManager.GetPropertiesAsync(application, HttpContext.RequestAborted);
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "OIDC token request: grant_type={GrantType}, client_id={ClientId}")]

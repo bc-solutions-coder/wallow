@@ -1,13 +1,16 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactElement } from "react";
+import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+
+import { routeHarness } from "../../../test/harness-routes";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { chooseOption, expectCatalogSelect } from "../../../test/catalog-select";
-import { installSdkClientMock } from "../../../test/sdk-client-mock";
 import { byTestId, waitForTestId } from "../../../test/style-contract";
 import { OrganizationDetail } from "./OrganizationDetail";
+
+/** The transport backing each render, rebuilt per test. */
+let harness: SdkHarness;
 
 /**
  * Catalog-migration spec for the org-detail register-client form
@@ -22,33 +25,24 @@ import { OrganizationDetail } from "./OrganizationDetail";
 
 const org = { id: "o1", name: "Acme", domain: "acme.io", memberCount: "2" };
 
-function newClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: {
-      queries: { retry: false, staleTime: Number.POSITIVE_INFINITY },
-      mutations: { retry: false },
-    },
-  });
-}
-
-function renderWithClient(client: QueryClient, ui: ReactElement) {
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-}
-
 /** Render the detail page with its org, members, and clients already in cache. */
 async function renderDetail(): Promise<void> {
-  const client = newClient();
-  client.setQueryData(["orgs", "o1"], org);
-  client.setQueryData(["orgs", "o1", "members"], []);
-  client.setQueryData(["orgs", "o1", "clients"], []);
+  routeHarness(
+    harness,
+    {
+      "GET /v1/identity/organizations/o1": org,
+      "GET /v1/identity/organizations/o1/members": [],
+      "GET /v1/identity/clients/by-tenant/o1": [],
+    },
+    { fallback: [] },
+  );
 
-  renderWithClient(client, <OrganizationDetail orgId="o1" />);
+  renderWithWallow(<OrganizationDetail orgId="o1" />, { harness });
   await waitForTestId("organization-detail-register-form");
 }
 
 beforeEach(() => {
-  const sdk = installSdkClientMock();
-  sdk.resolveJson([]);
+  harness = createSdkHarness();
 });
 
 describe("OrganizationDetail client type (catalog Select)", () => {

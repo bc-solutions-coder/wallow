@@ -19,6 +19,6 @@
     "rootDir": "src",
     "outDir": "dist"
   },
-  "include": ["src/index.ts", "src/render.tsx"],
-  "exclude": ["**/*.test.ts", "**/*.config.ts"]
+  "include": ["src/index.ts", "src/render.tsx", "src/sdk-harness.ts", "src/render-with-wallow.tsx"],
+  "exclude": ["**/*.test.ts", "**/*.test.tsx", "**/*.config.ts"]
 }

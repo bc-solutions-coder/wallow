@@ -1,7 +1,7 @@
+import { accountGetExternalProvidersOptions } from "@bc-solutions-coder/sdk/query";
 import { useQuery } from "@tanstack/react-query";
+import { useRouteContext } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-
-import { authQueries } from "@bc-solutions-coder/sdk/query";
 
 /**
  * The Login screen's external-provider list (Wallow-vec7.3.14 / 2.8d).
@@ -20,8 +20,8 @@ import { authQueries } from "@bc-solutions-coder/sdk/query";
  * The oracle's `{ApiBaseUrl}` prepend is NOT ported, and this is the seam where
  * it matters most in the chain. This link starts the OIDC challenge; the
  * handshake it kicks off rides SameSite cookies, and a cross-origin top-level GET
- * drops them. This app's h3 server mounts `/v1/**` at the ROOT
- * (`src/lib/auth-server.ts`), so the same-origin path IS the endpoint. The
+ * drops them. This app's API surface mounts `/v1/**` at the ROOT
+ * (`src/lib/api-passthrough.ts`), so the same-origin path IS the endpoint. The
  * `ApiBaseUrl` knob this app deliberately lacks would also be unresolvable from a
  * browser: `WALLOW_API_INTERNAL_URL` is a SERVER-side address.
  *
@@ -155,8 +155,9 @@ export interface ExternalProvidersProps {
 }
 
 export function ExternalProviders({ returnUrl }: ExternalProvidersProps): ReactNode {
+  const { sdk } = useRouteContext({ from: "__root__" });
   const query = useQuery({
-    ...authQueries.externalProviders(),
+    ...accountGetExternalProvidersOptions({ client: sdk.client }),
     // A provider list that failed to load will not load on a second try fast
     // enough to matter to someone staring at a sign-in form.
     retry: false,

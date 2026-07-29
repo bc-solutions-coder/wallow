@@ -1,9 +1,10 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+import type { SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createAuthHarness } from "../../../test/harness";
 import { Route as forgotPasswordRoute } from "../../../routes/forgot-password";
 import { ForgotPasswordForm } from "./ForgotPasswordForm";
 
@@ -23,44 +24,30 @@ import { ForgotPasswordForm } from "./ForgotPasswordForm";
  * `forgot-password-email`, `forgot-password-submit`, `forgot-password-success`.
  * The oracle has NO error testid for this screen, by design — see above.
  *
- * MOCKING SEAM: `../../../lib/wallow-auth-sdk` — the app's own facade, never
- * `@bc-solutions-coder/sdk` directly (that module is the only permitted
- * importer of the SDK). Per bd memories `vitest-resetmodules-breaks-instanceof-
- * across-graphs`, this file uses a plain `vi.mock` factory + `vi.hoisted` spies
- * and NEVER `vi.resetModules()`: resetting the graph to dodge the facade's
- * guarded singleton would mint duplicate classes and break `instanceof` for
- * bogus reasons. Mock the seam; don't reset the module graph.
+ * TEST SEAM: `@bc-solutions-coder/testing/sdk-harness` (Wallow-pu6a.5.1). The
+ * SDK is the REAL one and only its `fetch` is faked, so the screen's whole
+ * pipeline — request-scoped SDK -> generated operation -> CSRF interceptor ->
+ * serialization -> error shaping -> React Query — runs here, and the assertions
+ * below read the outgoing REQUEST rather than a spy on a stand-in double.
+ * `renderWithWallow` supplies the router context the screen reads its SDK off,
+ * and `createAuthHarness()` pins the harness origin to this app's root-mounted
+ * API surface (Wallow-pu6a.5.5).
  *
- * REJECTION SHAPE: the failure tests reject with a plain `Error`, not a
- * `WallowError`. That is deliberate and costs nothing here — per bd memory
- * `wallow-auth-auth-client-ts-wallowerror-code-loss`, `toWallowError()` drops
- * the reason string for non-RFC7807 failures anyway, and this screen must
- * behave identically for EVERY rejection regardless of shape. Testing with the
- * least-informative error is the strongest form of that claim.
+ * REJECTION SHAPE: the failure tests answer with a bare 500 carrying no problem
+ * details. That is deliberate and costs nothing here — this screen must behave
+ * identically for EVERY failure regardless of shape, and testing with the
+ * least-informative one is the strongest form of that claim.
  */
 
-// Hoisted so the vi.mock factory and the test bodies share the same spy.
-const mocks = vi.hoisted(() => ({
-  forgotPassword: vi.fn(),
-}));
-
-vi.mock("../../../lib/wallow-auth-sdk", () => ({
-  getWallowAuthSdk: () => ({
-    auth: { forgotPassword: mocks.forgotPassword },
-    oidc: {},
-  }),
-}));
-
 const EMAIL = "ada@example.com";
+const ENDPOINT = "/v1/identity/auth/forgot-password";
+const SERVER_ERROR = 500;
 
-function newClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-}
+let harness: SdkHarness;
 
+/** Render `ui` on the shared harness: real SDK, fake transport, real router context. */
 function renderWithClient(ui: ReactElement) {
-  return render(<QueryClientProvider client={newClient()}>{ui}</QueryClientProvider>);
+  return renderWithWallow(ui, { harness });
 }
 
 /** Fill the email field and press submit — the whole happy interaction. */
@@ -80,8 +67,8 @@ function expectNoErrorSurface() {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
-  mocks.forgotPassword.mockResolvedValue(undefined);
+  harness = createAuthHarness();
+  harness.resolveJson({});
 });
 
 describe("ForgotPasswordForm", () => {
@@ -111,8 +98,10 @@ describe("ForgotPasswordForm", () => {
     await submitEmail(user);
 
     await vi.waitFor(() => {
-      expect(mocks.forgotPassword).toHaveBeenCalledWith({ email: EMAIL });
+      expect(harness.last?.path).toBe(ENDPOINT);
     });
+    expect(harness.last?.method).toBe("POST");
+    expect(harness.last?.body).toEqual({ email: EMAIL });
   });
 
   it("replaces the form with the confirmation once the request is sent", async () => {
@@ -144,7 +133,7 @@ describe("ForgotPasswordForm", () => {
   it("shows the same confirmation when the backend rejects the request", async () => {
     // THE anti-enumeration criterion. An unknown address, a rate limit, a 500 —
     // the user sees the identical screen either way.
-    mocks.forgotPassword.mockRejectedValue(new Error("user_not_found"));
+    harness.rejectJson({ detail: "user_not_found" }, SERVER_ERROR);
     const user = userEvent.setup();
     await renderWithClient(<ForgotPasswordForm />);
 
@@ -157,7 +146,7 @@ describe("ForgotPasswordForm", () => {
   it("never leaks the rejection reason into the page", async () => {
     // A generic error surface is a leak too if it appears only for some inputs;
     // this pins that the reason string itself never reaches the DOM.
-    mocks.forgotPassword.mockRejectedValue(new Error("user_not_found"));
+    harness.rejectJson({ detail: "user_not_found" }, SERVER_ERROR);
     const user = userEvent.setup();
     await renderWithClient(<ForgotPasswordForm />);
 
@@ -179,7 +168,7 @@ describe("ForgotPasswordForm", () => {
     const acceptedHtml: string = accepted.container.innerHTML;
     await accepted.unmount();
 
-    mocks.forgotPassword.mockRejectedValue(new Error("user_not_found"));
+    harness.rejectJson({ detail: "user_not_found" }, SERVER_ERROR);
     const rejected = await renderWithClient(<ForgotPasswordForm />);
     await submitEmail(user, "nobody@example.com");
     await expect.element(page.getByTestId("forgot-password-success")).toBeInTheDocument();
@@ -195,7 +184,7 @@ describe("ForgotPasswordForm", () => {
 
     await user.click(page.getByTestId("forgot-password-submit"));
 
-    expect(mocks.forgotPassword).not.toHaveBeenCalled();
+    expect(harness.calls).toHaveLength(0);
     expect(page.getByTestId("forgot-password-success").query()).toBeNull();
     await expect.element(page.getByTestId("forgot-password-email-error")).toBeInTheDocument();
   });
@@ -208,23 +197,33 @@ describe("ForgotPasswordForm", () => {
     await user.type(page.getByTestId("forgot-password-email"), "   ");
     await user.click(page.getByTestId("forgot-password-submit"));
 
-    expect(mocks.forgotPassword).not.toHaveBeenCalled();
+    expect(harness.calls).toHaveLength(0);
     await expect.element(page.getByTestId("forgot-password-email-error")).toBeInTheDocument();
   });
 
   it("disables submit while the request is in flight", async () => {
     // Oracle: `Disabled="_loading"` — one click, one email.
     let release: () => void = () => {};
-    mocks.forgotPassword.mockReturnValue(
-      new Promise<void>((resolve) => {
-        release = resolve;
-      }),
+    harness.respond(
+      async () =>
+        await new Promise<Response>((resolve) => {
+          release = () => {
+            resolve(Response.json({}, { status: 200 }));
+          };
+        }),
     );
     const user = userEvent.setup();
     await renderWithClient(<ForgotPasswordForm />);
 
     await submitEmail(user);
 
+    // Wait for the request to REACH the transport before releasing it: the
+    // submit button goes disabled the moment the form starts submitting, which
+    // is a tick or two before `fetch` is called, and releasing into that gap
+    // would leave the never-settling responder installed forever.
+    await vi.waitFor(() => {
+      expect(harness.calls).toHaveLength(1);
+    });
     await expect.element(page.getByTestId("forgot-password-submit")).toBeDisabled();
 
     release();

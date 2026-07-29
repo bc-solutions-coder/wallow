@@ -1,30 +1,32 @@
 import { describe, expect, it } from "vitest";
 
 /**
- * Settings (Profile) feature `api.ts` (Wallow-evd5.2.2) — a THIN RE-EXPORT SEAM
- * over `@bc-solutions-coder/sdk/query`. Profile is READ-ONLY (no mutation
- * endpoint), so the seam exposes only `settingsQueries`. This spec pins the
- * re-export identity and the preserved profile key. The old
- * `vi.mock("../../lib/wallow-sdk")` delegation spec is gone.
+ * Settings (Profile) feature `api.ts` — a THIN RE-EXPORT SEAM over
+ * `@bc-solutions-coder/sdk/query`. Profile is READ-ONLY (no mutation endpoint),
+ * so the seam exposes only the current-user read.
+ *
+ * The behavioural point Wallow-pu6a.5.5 introduced, and what this spec pins, is
+ * that the profile screen and the dashboard's auth guard now read the SAME
+ * generated operation. Under the hand-written layer they had separate keys
+ * (`['settings','profile']` vs `['user','current']`) and therefore two cache
+ * entries and two requests for one resource; the generated key makes them one,
+ * and that must not silently regress into a bespoke wrapper key again.
  */
 
-import * as api from "./api";
-import { settingsQueries } from "./api";
-import { queryKeys } from "@bc-solutions-coder/sdk/query";
 import * as query from "@bc-solutions-coder/sdk/query";
 
-describe("api.ts re-exports the SDK settings query layer", () => {
-  it("re-exports settingsQueries by identity from @bc-solutions-coder/sdk/query", () => {
-    expect(api.settingsQueries).toBe(query.settingsQueries);
+import * as api from "./api";
+
+describe("api.ts re-exports the SDK settings query surface", () => {
+  it("re-exports each symbol by identity from @bc-solutions-coder/sdk/query", () => {
+    expect(api.usersGetCurrentUserOptions).toBe(query.usersGetCurrentUserOptions);
+    expect(api.usersGetCurrentUserQueryKey).toBe(query.usersGetCurrentUserQueryKey);
+    expect(api.queriesForOperation).toBe(query.queriesForOperation);
   });
 });
 
-describe("settingsQueries", () => {
-  it("keys the profile query from the central queryKeys factory", () => {
-    expect(settingsQueries.profile().queryKey).toEqual(queryKeys.settings.profile());
-  });
-
-  it("keeps the profile queryKey stable across calls", () => {
-    expect(settingsQueries.profile().queryKey).toEqual(settingsQueries.profile().queryKey);
+describe("the profile read", () => {
+  it("shares one cache entry with every other current-user read", () => {
+    expect(api.usersGetCurrentUserQueryKey()).toEqual(query.usersGetCurrentUserQueryKey());
   });
 });

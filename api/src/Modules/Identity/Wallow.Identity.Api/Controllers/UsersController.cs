@@ -88,6 +88,7 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
     /// </summary>
     [HttpPost]
     [HasPermission(PermissionType.UsersCreate)]
+    [ProducesResponseType(typeof(UserDto), StatusCodes.Status201Created)]
     public async Task<ActionResult> CreateUser(CreateUserRequest request, CancellationToken ct)
     {
         Guid userId = await userManagement.CreateUserAsync(
@@ -109,6 +110,8 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
     /// </summary>
     [HttpPost("{id:guid}/deactivate")]
     [HasPermission(PermissionType.UsersUpdate)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> DeactivateUser(Guid id, CancellationToken ct)
     {
         if (!await UserBelongsToTenantAsync(id, ct))
@@ -125,6 +128,8 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
     /// </summary>
     [HttpPost("{id:guid}/activate")]
     [HasPermission(PermissionType.UsersUpdate)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> ActivateUser(Guid id, CancellationToken ct)
     {
         if (!await UserBelongsToTenantAsync(id, ct))
@@ -137,15 +142,32 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
     }
 
     /// <summary>
-    /// Assign a role to a user.
+    /// Assign a role to a user. The reserved global-administrator name is rejected: global
+    /// admin is a seeded claim, never a role, so it cannot be granted from inside a tenant.
     /// </summary>
     [HttpPost("{userId:guid}/roles")]
     [HasPermission(PermissionType.RolesUpdate)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult> AssignRole(
         Guid userId,
         [FromBody] AssignRoleRequest request,
         CancellationToken ct)
     {
+        if (IsReservedRoleName(request.RoleName))
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Bad Request",
+                Detail = "The global administrator name is reserved and cannot be assigned as a role.",
+                Type = "https://tools.ietf.org/html/rfc7231#section-6.5.1",
+                Extensions =
+                {
+                    ["code"] = "Validation.ReservedRoleName"
+                }
+            });
+        }
+
         if (!await UserBelongsToTenantAsync(userId, ct))
         {
             return NotFound();
@@ -160,6 +182,8 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
     /// </summary>
     [HttpDelete("{userId:guid}/roles/{roleName}")]
     [HasPermission(PermissionType.RolesUpdate)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> RemoveRole(Guid userId, string roleName, CancellationToken ct)
     {
         if (!await UserBelongsToTenantAsync(userId, ct))
@@ -169,6 +193,20 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
 
         await userManagement.RemoveRoleAsync(userId, roleName, ct);
         return NoContent();
+    }
+
+    /// <summary>
+    /// Matches every spelling of the reserved global-administrator name. Comparison is on the
+    /// letters and digits alone, so casing, spacing, hyphens, and underscores cannot slip a
+    /// variant past it. This is a deny list, not an allow list: custom roles minted through
+    /// RolesController must stay assignable.
+    /// </summary>
+    private static bool IsReservedRoleName(string? roleName)
+    {
+        string normalized = new string((roleName ?? string.Empty).Where(char.IsLetterOrDigit).ToArray())
+            .ToLowerInvariant();
+
+        return normalized is "globaladmin" or "isglobaladmin";
     }
 
     private async Task<bool> UserBelongsToTenantAsync(Guid userId, CancellationToken ct)

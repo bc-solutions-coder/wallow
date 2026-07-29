@@ -282,6 +282,10 @@ services:
       #   1 = bcordes-dev-client  (bcordes.dev SPA login)
       #   2 = sa-bcordes-bff      (bcordes.dev BFF service account)
       #   3 = bcordes-bff         (bcordes.dev BFF auth-code client)
+      # Every client in seed.production.json must declare "public": true or false explicitly.
+      # A secret-less client that does not declare "public": true is now a startup HARD FAIL,
+      # so an unset secret variable below aborts the seeder instead of silently registering a
+      # public client that issues tokens without authenticating the caller.
       Clients__0__Secret: ${OIDC_CLIENT_SECRET}
       Clients__1__Secret: ${BCORDES_CLIENT_SECRET}
       Clients__2__Secret: ${BCORDES_BFF_SECRET}
@@ -339,6 +343,11 @@ services:
       OpenIddict__SigningCertPassword: ${OPENIDDICT_SIGNING_CERT_PASSWORD}
       OpenIddict__EncryptionCertPath: /app/certs/encryption.pfx
       OpenIddict__EncryptionCertPassword: ${OPENIDDICT_ENCRYPTION_CERT_PASSWORD}
+      # TLS terminates at the reverse proxy in front of this stack, and the BFF reaches
+      # OIDC discovery over the private network (http://wallow-api:8080), so the OIDC
+      # endpoints must be allowed to answer plain HTTP. Outside development this is
+      # off by default; set it to "false" if Kestrel ever serves HTTPS directly.
+      OpenIddict__AllowPlainHttpEndpoints: "${OPENIDDICT_ALLOW_PLAIN_HTTP_ENDPOINTS:-true}"
       # Migrations
       CONNECTION_STRING: "Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
       # Database
@@ -429,7 +438,7 @@ services:
       PORT: "8080"
       # Upstream for the /v1/**, /connect/**, /.well-known/** reverse proxy
       # (container-to-container). The app is a pure reverse proxy — no session,
-      # no Redis; server.ts reads only PORT, HOST, and WALLOW_API_INTERNAL_URL.
+      # no Redis; it reads only PORT and HOST (the Nitro server bundle) plus this.
       WALLOW_API_INTERNAL_URL: http://wallow-api:8080
     depends_on:
       wallow-api:

@@ -13,6 +13,7 @@ namespace Wallow.Identity.Tests.Integration;
 
 [Collection("PostgresDatabase")]
 [Trait("Category", "Integration")]
+[Trait("Category", "CrossTenant")]
 public sealed class ServiceAccountRepositoryTests(PostgresContainerFixture fixture) : DbContextIntegrationTestBase<IdentityDbContext>(fixture)
 {
     private ServiceAccountRepository _repository = null!;

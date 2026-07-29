@@ -19,13 +19,14 @@ const webServer: PlaywrightTestConfig["webServer"] = externalBaseURL
         // Outside Aspire the proxy's default target (http://wallow-api) does not
         // resolve; point it at the locally-run API unless the caller overrides.
         WALLOW_API_INTERNAL_URL: process.env.WALLOW_API_INTERNAL_URL ?? "http://localhost:5001",
-        // src/lib/bff-server.ts calls loadBffConfigFromEnv() at module load and
-        // throws on ANY missing key, so without these the whole /bff/* bridge
-        // 500s and every route whose `beforeLoad` resolves `getUser()` (notably
-        // `/`) fails the gate. Aspire injects them (api/src/Wallow.AppHost/
-        // Program.cs); mirror the same dev values here so a bare `pnpm dev` is
-        // self-sufficient. An anonymous request never reaches the issuer — it
-        // 401s off the absent session cookie — so this stays backend-free.
+        // src/lib/bff.ts builds the SDK's BFF server on the first /bff|/api|
+        // /health request, and that build reads the OIDC config from env and
+        // throws on ANY missing key. Without these the bridge 500s and every
+        // route whose `beforeLoad` resolves `getUser()` (notably `/`) fails the
+        // gate. Aspire injects them (api/src/Wallow.AppHost/Program.cs); mirror
+        // the same dev values here so a bare `pnpm dev` is self-sufficient. An
+        // anonymous request never reaches the issuer — it 401s off the absent
+        // session cookie — so this stays backend-free.
         OIDC_ISSUER: process.env.OIDC_ISSUER ?? "http://localhost:5001",
         OIDC_CLIENT_ID: process.env.OIDC_CLIENT_ID ?? "wallow-web-client",
         OIDC_CLIENT_SECRET: process.env.OIDC_CLIENT_SECRET ?? "wallow-web-secret",
@@ -40,6 +41,10 @@ const webServer: PlaywrightTestConfig["webServer"] = externalBaseURL
 
 export default defineConfig({
   testDir: "./e2e",
+  // Runs after `webServer` is listening and before the first spec: drives one
+  // page load to hydration so no test pays the dev server's lazy first-request
+  // cost. See e2e/global-setup.ts for why that cost breaks a cold run.
+  globalSetup: "./e2e/global-setup.ts",
   fullyParallel: true,
   reporter: "list",
   use: {

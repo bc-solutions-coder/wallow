@@ -1,7 +1,7 @@
 /**
  * Register-app form (Wallow-8w1h.5.3) — copies the CANONICAL create-form
  * template (`CreateOrganizationForm`): `useForm` (TanStack Form) + `useMutation(
- * registerAppMutation(queryClient))`. On top of the template it adds the
+ * appsRegisterMutation({ client }))`. On top of the template it adds the
  * behaviors unique to app registration:
  *
  *   - Field remap (API request contract):
@@ -35,10 +35,28 @@ import {
 } from "@bc-solutions-coder/ui";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
-import type { AppRegistrationResponse, ProblemDetails } from "@bc-solutions-coder/sdk";
+import { useRouteContext } from "@tanstack/react-router";
+import type {
+  AppRegistrationResponse,
+  AppsRegisterData,
+  AppsRegisterError,
+  Options,
+} from "@bc-solutions-coder/sdk";
 
 import { SelectControl, type SelectControlOption } from "../../../components/SelectControl";
-import { registerAppMutation, type RegisterAppBody } from "../api";
+import { errorText } from "../../../lib/error-text";
+import { appsRegisterMutation, queriesWithTag } from "../api";
+
+/**
+ * What `useMutation(appsRegisterMutation(...))` hands the form body: the
+ * generated mutation is typed on the operation, so its variables are the
+ * operation's own call options rather than a hand-declared request DTO.
+ */
+type RegisterAppMutation = UseMutationResult<
+  AppRegistrationResponse,
+  AppsRegisterError,
+  Options<AppsRegisterData>
+>;
 
 /**
  * Scopes a caller may request: the developer-app scopes plus the OIDC login
@@ -158,8 +176,8 @@ function ScopeToggles(props: { value: string[]; onChange: (value: string[]) => v
  * It lives on the same register-app page, so the branding display-name / tagline
  * / logo inputs are reachable in the form view. Testids follow the apps feature's
  * `app-*` convention. Presentational (uncontrolled) per the epic's reachability
- * bar; the live upsert (`getWallowSdk().apps.upsertBranding`) needs the client id
- * the register call returns and is left as a structural seam here.
+ * bar; the live upsert (`clientBrandingUpsertBrandingMutation`) needs the client
+ * id the register call returns and is left as a structural seam here.
  */
 function BrandingSection() {
   return (
@@ -198,13 +216,19 @@ function SuccessView(props: { result: AppRegistrationResponse }) {
 }
 
 export function RegisterAppForm() {
+  const { sdk } = useRouteContext({ from: "__root__" });
   const queryClient = useQueryClient();
-  const mutation = useMutation(registerAppMutation(queryClient));
+  const mutation: RegisterAppMutation = useMutation({
+    ...appsRegisterMutation({ client: sdk.client }),
+    onSuccess: (): void => {
+      void queryClient.invalidateQueries(queriesWithTag("Apps"));
+    },
+  });
 
   // One-time secret: the returned secret lives only in `mutation.data` and the
   // success view below — never copied into long-lived component state.
   if (mutation.isSuccess) {
-    return <SuccessView result={mutation.data as AppRegistrationResponse} />;
+    return <SuccessView result={mutation.data} />;
   }
 
   return (
@@ -218,9 +242,7 @@ export function RegisterAppForm() {
  * The form body, split out so the `Card` surface stays a shallow wrapper and the
  * `form > form.Field > *Field` chains keep within the repo's JSX nesting budget.
  */
-function RegisterAppFormFields(props: {
-  mutation: UseMutationResult<unknown, Error, RegisterAppBody>;
-}) {
+function RegisterAppFormFields(props: { mutation: RegisterAppMutation }) {
   const { mutation } = props;
 
   const form = useForm({
@@ -235,20 +257,22 @@ function RegisterAppFormFields(props: {
       // Fire-and-observe: the mutation captures success/error in its own state
       // (surfaced below), so we drive it with `mutate` rather than awaiting
       // `mutateAsync` — a rejected register must NOT escape the submit handler
-      // as an unhandled rejection. The factory's own `onSuccess` invalidates
-      // `['apps']`.
+      // as an unhandled rejection. The mutation's own `onSuccess` sweeps the
+      // Apps tag.
       mutation.mutate({
-        clientName: value.displayName,
-        requestedScopes: value.scopes,
-        clientType: value.clientType,
-        redirectUris: value.redirectUris
-          .split("\n")
-          .map((uri) => uri.trim())
-          .filter(Boolean),
-        postLogoutRedirectUris: value.postLogoutRedirectUris
-          .split("\n")
-          .map((uri) => uri.trim())
-          .filter(Boolean),
+        body: {
+          clientName: value.displayName,
+          requestedScopes: value.scopes,
+          clientType: value.clientType,
+          redirectUris: value.redirectUris
+            .split("\n")
+            .map((uri) => uri.trim())
+            .filter(Boolean),
+          postLogoutRedirectUris: value.postLogoutRedirectUris
+            .split("\n")
+            .map((uri) => uri.trim())
+            .filter(Boolean),
+        },
       });
     },
   });
@@ -299,7 +323,7 @@ function RegisterAppFormFields(props: {
 
       {mutation.isError ? (
         <ErrorBanner data-testid="app-register-error">
-          {(mutation.error as ProblemDetails).detail}
+          {errorText(mutation.error, "Could not register the app.")}
         </ErrorBanner>
       ) : null}
 

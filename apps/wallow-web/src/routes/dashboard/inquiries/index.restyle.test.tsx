@@ -1,9 +1,9 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactElement } from "react";
-import { render } from "vitest-browser-react";
+import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+
+import { routeHarness } from "../../../test/harness-routes";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { installSdkClientMock } from "../../../test/sdk-client-mock";
 import {
   byTestId,
   expectClasses,
@@ -28,41 +28,32 @@ import { Route } from "./index";
  * heading, the list, and the create card comes from `space-y-8` on the shell.
  */
 
-function newClient(): QueryClient {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false, staleTime: Number.POSITIVE_INFINITY } },
-  });
-  client.setQueryData(
-    ["inquiries"],
-    [
-      {
-        id: "i1",
-        name: "Ada Lovelace",
-        email: "ada@example.com",
-        company: null,
-        projectType: "web-app",
-        status: "New",
-        createdAt: "2026-07-15T00:00:00Z",
-      },
-    ],
-  );
-  return client;
-}
-
-function renderWithClient(ui: ReactElement) {
-  return render(<QueryClientProvider client={newClient()}>{ui}</QueryClientProvider>);
-}
+/** The transport backing each render, rebuilt per test. */
+let harness: SdkHarness;
 
 /** Render the route page and resolve its settled root element. */
 async function renderPage(): Promise<HTMLElement> {
   const Page = Route.options.component!;
-  renderWithClient(<Page />);
+  renderWithWallow(<Page />, { harness });
   return waitForTestId("dashboard-inquiries");
 }
 
 describe("routes/dashboard/inquiries (restyle)", () => {
   beforeEach(() => {
-    installSdkClientMock();
+    harness = createSdkHarness();
+    routeHarness(harness, {
+      "GET /v1/inquiries": [
+        {
+          id: "i1",
+          name: "Ada Lovelace",
+          email: "ada@example.com",
+          company: null,
+          projectType: "web-app",
+          status: "New",
+          createdAt: "2026-07-15T00:00:00Z",
+        },
+      ],
+    });
   });
 
   it("centers the page body in the dashboard shell", async () => {

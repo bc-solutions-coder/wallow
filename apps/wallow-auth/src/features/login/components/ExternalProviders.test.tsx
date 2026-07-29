@@ -1,16 +1,16 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { isSafeReturnUrl } from "@bc-solutions-coder/sdk";
+import { accountGetExternalProvidersQueryKey } from "@bc-solutions-coder/sdk/query";
 import {
-  createMemoryHistory,
-  createRootRoute,
-  createRouter,
-  Outlet,
-  RouterProvider,
-} from "@tanstack/react-router";
+  createTestQueryClient,
+  renderWithWallow,
+} from "@bc-solutions-coder/testing/render-with-wallow";
+import type { SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { QueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createAuthHarness } from "../../../test/harness";
 import { Route as loginRoute } from "../../../routes/login";
 import { ExternalProviders } from "./ExternalProviders";
 
@@ -31,13 +31,37 @@ import { ExternalProviders } from "./ExternalProviders";
  *     login-external-providers      the container (oracle: the whole `@if` block)
  *     login-external-{provider}     one per challenge link (kebab-cased name)
  *
+ * ── TEST SEAM: THE REAL SDK OVER A FAKE TRANSPORT (Wallow-pu6a.5.1) ───────────
+ *
+ * `@bc-solutions-coder/testing/sdk-harness` fakes `fetch` and NOTHING else, so
+ * the screen's whole pipeline — the generated `accountGetExternalProvidersOptions()`
+ * -> the request-scoped SDK -> the generated operation -> the CSRF interceptor ->
+ * response parsing -> the React Query cache — runs inside these tests. That
+ * replaces the two module mocks this file used to carry (a hand-written app-level
+ * facade and a `queryFn`-swapped query factory), both now forbidden by
+ * `src/sdk-test-seam.test.ts`. Two consequences worth stating:
+ *
+ *   • The query KEY is no longer something a mock could get wrong. This screen
+ *     and `RegisterForm` once keyed the SAME endpoint two different ways
+ *     (`['external-providers']` vs `['auth','external-providers']`); they share
+ *     one cache entry now because they share one factory, and the factory here
+ *     is the real one.
+ *   • "Was the endpoint called" is read off the RECORDED REQUEST
+ *     (`harness.calls`), not off a spy — so it also pins the URL and method the
+ *     screen really puts on the wire.
+ *
+ * `renderWithWallow` supplies the router context the screen reads its SDK off,
+ * and `createAuthHarness()` pins the harness origin to this app's root-mounted
+ * API surface (Wallow-pu6a.5.5). Because that surface is rooted at the origin, the
+ * recorded `call.path` is the bare endpoint path, with no `/api` prefix.
+ *
  * ── THE ORIGIN DIVERGENCE (inherited from Wallow-vec7.3.4/.3.6/.3.11) ─────────
  *
  * The oracle builds `{ApiBaseUrl}/v1/identity/auth/external-login?…`. That prepend
  * is NOT ported. It matters MORE here than anywhere else in the chain: this link
  * starts the OIDC challenge, and the whole external-login handshake rides
- * SameSite cookies that a cross-origin top-level GET would drop. This app's h3
- * server mounts `/v1/**` and `/connect/**` at the ROOT (`src/lib/auth-server.ts`),
+ * SameSite cookies that a cross-origin top-level GET would drop. This app's API
+ * surface mounts `/v1/**` and `/connect/**` at the ROOT (`src/lib/api-passthrough.ts`),
  * so the same-origin path IS the endpoint. `pointsAtThisOrigin` pins it in both
  * directions — the path must be right AND the API origin must not appear.
  *
@@ -59,7 +83,7 @@ import { ExternalProviders } from "./ExternalProviders";
  * Wiring `isSafeReturnUrl` in here would not harden anything — it would BREAK
  * everything. `IsAllowedAsync` (OpenIddictRedirectUriValidator.cs:24) accepts ONLY
  * `Uri.TryCreate(…, UriKind.Absolute, …)` values; `isSafeReturnUrl`
- * (packages/sdk/src/auth-oidc.ts:55) accepts ONLY `startsWith('/') &&
+ * (packages/sdk/src/auth-oidc.ts:60) accepts ONLY `startsWith('/') &&
  * !startsWith('//')`. The accept-sets are provably DISJOINT, so the guard would
  * refuse every value the server can actually honour. That is not a hypothetical:
  * `.3.6` shipped exactly that mistake on the MFA hand-off and dead-ended 100% of
@@ -73,6 +97,11 @@ import { ExternalProviders } from "./ExternalProviders";
  *   DEFERRAL POLE      `neverConsultsTheRelativeOnlyGuard` — the guard must not be
  *     consulted at all; if a later edit wires it in, this fails before it ships.
  *
+ * The real `isSafeReturnUrl` is IMPORTED here rather than mirrored: it is a pure
+ * function, so the harness leaves it running as the app runs it, and the deferral
+ * pole is now stated against the genuine verdict instead of a local re-write of
+ * the rule that could drift from it.
+ *
  * What a deferred guard DOES owe is INJECTION, and that is pinned too
  * (`encodesTheReturnUrlAsASingleQueryValue`): ASP.NET binds a duplicated
  * `[FromQuery]` value as `"a,b"`, so unencoded cargo carrying `&provider=` could
@@ -83,58 +112,10 @@ import { ExternalProviders } from "./ExternalProviders";
  * Under real Chromium, `globalThis.location` is `[Unforgeable]`, so the old
  * jsdom `vi.stubGlobal("location", …)` hack cannot shadow it. The component's
  * `ReturnUrl ?? currentUrl` fallback reads `globalThis.location.href`
- * (ExternalProviders.tsx:191); the two fallback tests therefore assert against
+ * (ExternalProviders.tsx:187); the two fallback tests therefore assert against
  * the LIVE `globalThis.location.href` the runner already sits at — the same value
  * the component reads — which pins identical intent without touching location.
  */
-
-const mocks = vi.hoisted(() => ({
-  getExternalProviders: vi.fn(),
-  isSafeReturnUrl: vi.fn(),
-  // The shell + password panel reach for these when the route-level tests below
-  // render the whole screen. Owned by `.3.11`; mocked here only to host it.
-  login: vi.fn(),
-  buildExchangeTicketUrl: vi.fn(),
-}));
-
-vi.mock("../../../lib/wallow-auth-sdk", () => ({
-  getWallowAuthSdk: () => ({
-    auth: {
-      login: mocks.login,
-    },
-    oidc: {
-      isSafeReturnUrl: mocks.isSafeReturnUrl,
-      buildExchangeTicketUrl: mocks.buildExchangeTicketUrl,
-    },
-  }),
-}));
-
-/**
- * THE DATA SEAM MOVED (Wallow-evd5.3.1). The provider list is no longer a facade
- * call inside an inline `useQuery` — it is `useQuery(authQueries.externalProviders())`
- * from the SDK query layer, so the facade mock above no longer carries
- * `getExternalProviders` and the spy hangs off the FACTORY instead.
- *
- * Only `queryFn` is swapped: `importOriginal` keeps the real `queryKey`
- * (`queryKeys.auth.externalProviders()`) and every other export intact. Faking the
- * key would hide the thing this task exists to fix — this screen and
- * `RegisterForm` used to key the SAME endpoint two different ways
- * (`['external-providers']` vs `['auth','external-providers']`), and they now
- * share one cache entry because they share this factory.
- */
-vi.mock("@bc-solutions-coder/sdk/query", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@bc-solutions-coder/sdk/query")>();
-  return {
-    ...actual,
-    authQueries: {
-      ...actual.authQueries,
-      externalProviders: () => ({
-        ...actual.authQueries.externalProviders(),
-        queryFn: async (): Promise<unknown> => await mocks.getExternalProviders(),
-      }),
-    },
-  };
-});
 
 /**
  * The returnUrl `/connect/authorize` sends a DIRECT sign-in (relative by
@@ -158,48 +139,68 @@ const API_ORIGIN = "localhost:5001";
 /** The oracle's `GetExternalProvidersAsync` body: `Ok(List<string>)` of display names. */
 const PROVIDERS = ["Google", "Microsoft"];
 
-/** The real `isSafeReturnUrl` rule, mirrored (screens may not import the SDK). */
-function isSafeReturnUrlRule(url: string | null | undefined): boolean {
-  if (url === null || url === undefined || url.trim() === "") {
-    return false;
-  }
+/** `AccountController.GetExternalProviders` — where the provider list comes from. */
+const PROVIDERS_ENDPOINT = "/v1/identity/auth/external-providers";
 
-  return url.startsWith("/") && !url.startsWith("//");
+/** `AccountController.Login` — reached only by the route-level tests below. */
+const LOGIN_ENDPOINT = "/v1/identity/auth/login";
+
+const NOT_FOUND_STATUS = 404;
+
+let harness: SdkHarness;
+
+/**
+ * How the fake transport answers the provider-list GET. Reprogrammed per test —
+ * the dispatcher installed in `beforeEach` reads it on every call, so a test can
+ * change the endpoint's behaviour without re-stating the other endpoints.
+ */
+let providersReply: () => Response | Promise<Response>;
+
+/** The provider-list body every subsequent request answers with, at 200. */
+function respondWithProviders(body: unknown): void {
+  providersReply = () => Response.json(body);
 }
 
-function newClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-}
-
-function renderWithClient(ui: ReactElement, client: QueryClient = newClient()) {
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+/** Render `ui` on the shared harness: real SDK, fake transport, real router context. */
+function renderWithClient(ui: ReactElement, queryClient: QueryClient = createTestQueryClient()) {
+  return renderWithWallow(ui, { harness, queryClient });
 }
 
 /**
- * The query key `ExternalProviders` fetches under — the canonical SDK factory key
- * (`queryKeys.auth.externalProviders()`), NOT the pre-migration `['external-providers']`
- * literal this screen used to spell inline.
+ * The query key `ExternalProviders` fetches under, asked of the very factory the
+ * screen's `accountGetExternalProvidersOptions()` builds its key from.
+ *
+ * Spelling it as a literal is what this file used to do, and it is a trap worth
+ * naming: the generated key carries the client's `baseUrl`, so it is not
+ * knowable without the harness — and a literal that has drifted makes
+ * `getQueryState` return `undefined` rather than fail, which quietly turns
+ * {@link settleProviders} into a no-op wait.
  */
-const PROVIDERS_QUERY_KEY = ["auth", "external-providers"];
+function providersQueryKey() {
+  return accountGetExternalProvidersQueryKey({ client: harness.client });
+}
+
+/** Every recorded request to the provider-list endpoint, in order. */
+function providerCalls() {
+  return harness.calls.filter((call) => call.path === PROVIDERS_ENDPOINT);
+}
 
 /**
  * Wait until the provider query has actually SETTLED.
  *
  * Every "renders nothing" test below needs this, and the obvious alternative is a
- * trap that this spec fell into once already: `await vi.waitFor(() =>
- * expect(getExternalProviders).toHaveBeenCalled())` resolves the instant the query
- * function is INVOKED — synchronously, on mount — which is BEFORE the promise
- * resolves and the component re-renders. The DOM assertion then runs against a
- * still-pending render, so "nothing is on screen" is true of every possible
- * implementation and the test pins nothing. A mutant that half-trusted a malformed
- * provider list survived precisely that hole. Waiting on the query's own state is
- * the only honest signal that the narrowing has had its chance to run.
+ * trap that this spec fell into once already: waiting for the REQUEST to reach
+ * the transport resolves the instant the query function is invoked — on mount —
+ * which is BEFORE the response is parsed and the component re-renders. The DOM
+ * assertion then runs against a still-pending render, so "nothing is on screen"
+ * is true of every possible implementation and the test pins nothing. A mutant
+ * that half-trusted a malformed provider list survived precisely that hole.
+ * Waiting on the query's own state is the only honest signal that the narrowing
+ * has had its chance to run.
  */
 async function settleProviders(client: QueryClient): Promise<void> {
   await vi.waitFor(() => {
-    expect(client.getQueryState(PROVIDERS_QUERY_KEY)?.status).not.toBe("pending");
+    expect(client.getQueryState(providersQueryKey())?.status).not.toBe("pending");
   });
 }
 
@@ -211,7 +212,7 @@ async function settleProviders(client: QueryClient): Promise<void> {
  */
 function renderProviders(props: { returnUrl?: string } = {}): QueryClient {
   const returnUrl: string | undefined = "returnUrl" in props ? props.returnUrl : RETURN_URL;
-  const client: QueryClient = newClient();
+  const client: QueryClient = createTestQueryClient();
 
   renderWithClient(<ExternalProviders returnUrl={returnUrl} />, client);
 
@@ -242,12 +243,26 @@ function providerParamOf(link: HTMLElement): string | null {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
-  mocks.isSafeReturnUrl.mockImplementation(isSafeReturnUrlRule);
-  mocks.getExternalProviders.mockResolvedValue(PROVIDERS);
-  // No signInTicket and no returnUrl is the shell's `signed-in` disposition
-  // (`auth-result.ts:285`) — the one state that retires the provider list.
-  mocks.login.mockResolvedValue({ succeeded: true });
+  harness = createAuthHarness();
+  respondWithProviders(PROVIDERS);
+  harness.respond((call) => {
+    if (call.path === PROVIDERS_ENDPOINT) {
+      return providersReply();
+    }
+
+    // The shell's password panel reaches this when the route-level tests below
+    // render the whole screen. Owned by `.3.11`; answered here only to host it.
+    // No signInTicket and no returnUrl is the shell's `signed-in` disposition
+    // (`auth-result.ts:285`) — the one state that retires the provider list.
+    if (call.path === LOGIN_ENDPOINT) {
+      return Response.json({ succeeded: true });
+    }
+
+    // The route-level tests carry `client_id=web`, so `/login` also asks for that
+    // client's branding overlay. A bare 404 is the API's "no branding configured"
+    // and leaves the fork's chrome in place — nothing this file looks at.
+    return new Response(null, { status: NOT_FOUND_STATUS });
+  });
 });
 
 describe("ExternalProviders — the list", () => {
@@ -279,7 +294,7 @@ describe("ExternalProviders — the list", () => {
   it("kebab-cases a multi-word provider name into its testid", async () => {
     // `GetExternalProviders` returns `s.DisplayName ?? s.Name` — display names are
     // prose ("Microsoft Entra ID"), so the testid cannot be the raw name.
-    mocks.getExternalProviders.mockResolvedValue(["Microsoft Entra ID"]);
+    respondWithProviders(["Microsoft Entra ID"]);
     renderProviders();
 
     await expect
@@ -291,13 +306,16 @@ describe("ExternalProviders — the list", () => {
     renderProviders();
 
     await expect.element(page.getByTestId("login-external-google")).toBeInTheDocument();
-    expect(mocks.getExternalProviders).toHaveBeenCalledTimes(1);
+    // Read off the wire, so this also pins WHICH request the screen makes: one
+    // GET of the external-providers endpoint, not a re-fetch storm.
+    expect(providerCalls()).toHaveLength(1);
+    expect(providerCalls()[0]?.method).toBe("GET");
   });
 
   it("renders nothing at all when no providers are configured", async () => {
     // The oracle's `@if (_externalProviders.Count > 0)` — a bare "Or continue
     // with" separator over an empty grid is worse than no section.
-    mocks.getExternalProviders.mockResolvedValue([]);
+    respondWithProviders([]);
     const client: QueryClient = renderProviders();
 
     await settleProviders(client);
@@ -305,18 +323,18 @@ describe("ExternalProviders — the list", () => {
   });
 
   it("renders nothing while the provider list is still in flight", async () => {
-    // This one must NOT use `settleProviders` — the promise never resolves, which
+    // This one must NOT use `settleProviders` — the response never arrives, which
     // is the whole point. It pins that the section waits for real data rather than
     // flashing an empty "Or continue with" separator on first paint. Its assertion
     // is deliberately paired with the query being genuinely PENDING, so it cannot
     // silently become a second copy of the "no providers" test.
-    mocks.getExternalProviders.mockReturnValue(new Promise(() => {}));
+    providersReply = () => new Promise<Response>(() => {});
     const client: QueryClient = renderProviders();
 
     await vi.waitFor(() => {
-      expect(mocks.getExternalProviders).toHaveBeenCalled();
+      expect(providerCalls()).toHaveLength(1);
     });
-    expect(client.getQueryState(PROVIDERS_QUERY_KEY)?.status).toBe("pending");
+    expect(client.getQueryState(providersQueryKey())?.status).toBe("pending");
     expect(page.getByTestId("login-external-providers").query()).toBeNull();
   });
 
@@ -324,8 +342,10 @@ describe("ExternalProviders — the list", () => {
     // The oracle awaits this in `OnInitializedAsync` with no try/catch, so a
     // failure takes the whole page down. Not ported: password sign-in is still
     // perfectly usable without the social buttons, so this degrades to the
-    // Count == 0 rendering rather than destroying the screen around it.
-    mocks.getExternalProviders.mockRejectedValue(new TypeError("Failed to fetch"));
+    // Count == 0 rendering rather than destroying the screen around it. The
+    // failure is a genuine TRANSPORT fault now — the harness rejects `fetch`
+    // exactly as an offline browser does.
+    providersReply = async () => await Promise.reject(new TypeError("Failed to fetch"));
     const client: QueryClient = renderProviders();
 
     await settleProviders(client);
@@ -336,7 +356,7 @@ describe("ExternalProviders — the list", () => {
     // `getExternalProviders` is typed `Promise<unknown>` — the screen owns the
     // narrowing at its boundary (bd memory `untyped-sdk-response-fail-closed-
     // pattern-wallow-auth`). No cast, structural check, fail closed.
-    mocks.getExternalProviders.mockResolvedValue({ providers: PROVIDERS });
+    respondWithProviders({ providers: PROVIDERS });
     const client: QueryClient = renderProviders();
 
     await settleProviders(client);
@@ -347,7 +367,7 @@ describe("ExternalProviders — the list", () => {
     // Fail-closed on the WHOLE body rather than filtering the good entries out of
     // a bad one: a list this shape means the endpoint is not what we think it is,
     // and half-trusting it would put a link built from `String(null)` on screen.
-    mocks.getExternalProviders.mockResolvedValue(["Google", null, ""]);
+    respondWithProviders(["Google", null, ""]);
     const client: QueryClient = renderProviders();
 
     await settleProviders(client);
@@ -398,10 +418,19 @@ describe("ExternalProviders — the challenge URL", () => {
     // The DEFERRAL POLE. The destination is a same-origin constant path and the
     // server re-validates fail-closed (AccountController.cs:257), so the guard has
     // no business here — and its accept-set is disjoint from what arrives.
+    //
+    // The guard is the REAL pure function now, not a spy, so "never consulted" is
+    // observed at its EFFECT rather than at a call count: the genuine verdict on
+    // this value is FALSE (asserted first, so the test cannot pass on a value the
+    // guard would have waved through), and the link is still built with the value
+    // intact. No implementation that consulted the guard can produce that href.
+    expect(isSafeReturnUrl(ABSOLUTE_RETURN_URL)).toBe(false);
     renderProviders({ returnUrl: ABSOLUTE_RETURN_URL });
 
-    await providerLink("login-external-google");
-    expect(mocks.isSafeReturnUrl).not.toHaveBeenCalled();
+    const link: HTMLElement = await providerLink("login-external-google");
+
+    expect((link.getAttribute("href") ?? "").startsWith(`${EXTERNAL_LOGIN_PATH}?`)).toBe(true);
+    expect(returnUrlParamOf(link)).toBe(ABSOLUTE_RETURN_URL);
   });
 
   it("encodes the returnUrl as a single query value", async () => {
@@ -420,7 +449,7 @@ describe("ExternalProviders — the challenge URL", () => {
   it("encodes the provider name as a single query value", async () => {
     // The oracle escapes only the returnUrl (`GetExternalLoginUrl` L315-316). The
     // provider name is escaped too: it is API-supplied prose, not a URL token.
-    mocks.getExternalProviders.mockResolvedValue(["Ac&me returnUrl=https://evil.example.com"]);
+    respondWithProviders(["Ac&me returnUrl=https://evil.example.com"]);
     renderProviders();
 
     const link: HTMLElement = await providerLink(
@@ -479,20 +508,11 @@ describe("ExternalProviders — the challenge URL", () => {
  * next to `TabPanel`, gated on `signedIn` — not a tab panel.
  */
 function renderRouteAt(url: string) {
-  const rootRoute = createRootRoute({ component: Outlet });
-  const routeTree = rootRoute.addChildren([
-    loginRoute.update({
-      id: "/login",
-      path: "/login",
-      getParentRoute: () => rootRoute,
-    } as any),
-  ]);
-  const router = createRouter({
-    routeTree,
-    history: createMemoryHistory({ initialEntries: [url] }),
+  return renderWithWallow(null, {
+    harness,
+    path: url,
+    routes: [{ path: "/login", route: loginRoute }],
   });
-
-  return renderWithClient(<RouterProvider router={router} />);
 }
 
 describe("/login route — external providers", () => {

@@ -1,9 +1,9 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactElement } from "react";
-import { render } from "vitest-browser-react";
+import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+
+import { routeHarness } from "../../test/harness-routes";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { installSdkClientMock } from "../../test/sdk-client-mock";
 import {
   byTestId,
   expectClasses,
@@ -38,29 +38,23 @@ const PROFILE = {
 
 const MFA_STATUS = { enabled: false, method: null, backupCodeCount: 0 };
 
-function newClient(): QueryClient {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false, staleTime: Number.POSITIVE_INFINITY } },
-  });
-  client.setQueryData(["settings", "profile"], PROFILE);
-  client.setQueryData(["mfa", "status"], MFA_STATUS);
-  return client;
-}
-
-function renderWithClient(ui: ReactElement) {
-  return render(<QueryClientProvider client={newClient()}>{ui}</QueryClientProvider>);
-}
+/** The transport backing each render, rebuilt per test. */
+let harness: SdkHarness;
 
 /** Render the route page and resolve its settled root element. */
 async function renderPage(): Promise<HTMLElement> {
   const Page = Route.options.component!;
-  renderWithClient(<Page />);
+  renderWithWallow(<Page />, { harness });
   return waitForTestId("dashboard-settings");
 }
 
 describe("routes/dashboard/settings (restyle)", () => {
   beforeEach(() => {
-    installSdkClientMock();
+    harness = createSdkHarness();
+    routeHarness(harness, {
+      "GET /v1/identity/users/me": PROFILE,
+      "GET /v1/identity/mfa/status": MFA_STATUS,
+    });
   });
 
   it("constrains the settings page to the narrow shell", async () => {

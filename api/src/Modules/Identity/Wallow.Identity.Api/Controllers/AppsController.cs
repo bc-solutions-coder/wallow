@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using OpenIddict.Abstractions;
 using Wallow.Identity.Api.Contracts.Requests;
 using Wallow.Identity.Api.Contracts.Responses;
 using Wallow.Identity.Application.DTOs;
@@ -34,6 +35,17 @@ public class AppsController(IDeveloperAppService developerAppService) : Controll
         if (!request.ClientName.StartsWith("app-", StringComparison.OrdinalIgnoreCase))
         {
             ModelState.AddModelError(nameof(request.ClientName), "Client name must start with 'app-' prefix.");
+            return ValidationProblem(ModelState);
+        }
+
+        // A public client authenticates on its client id alone, so anyone who learns the id can
+        // impersonate it. The platform does not issue them; rejecting rather than silently
+        // downgrading tells the caller that.
+        if (string.Equals(request.ClientType, OpenIddictConstants.ClientTypes.Public, StringComparison.OrdinalIgnoreCase))
+        {
+            ModelState.AddModelError(
+                nameof(request.ClientType),
+                "Public clients are not supported. Register a confidential client and keep its secret server-side.");
             return ValidationProblem(ModelState);
         }
 

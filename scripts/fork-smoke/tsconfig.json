@@ -1,0 +1,22 @@
+{
+  // Standalone on purpose: this app is copied OUT of the repo before it is
+  // built, so it cannot `extends` the workspace's tsconfig.base.json. The
+  // compiler options below are that base config inlined, plus the app-local
+  // knobs the workspace members layer on (noEmit, node types, include).
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts"]
+}

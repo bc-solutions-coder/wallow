@@ -1,14 +1,17 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactElement } from "react";
+import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+
+import { routeHarness } from "../../../test/harness-routes";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { chooseOption, expectCatalogSelect } from "../../../test/catalog-select";
-import { installSdkClientMock } from "../../../test/sdk-client-mock";
 import { byTestId, waitForTestId } from "../../../test/style-contract";
 import { InquiryDetail } from "./InquiryDetail";
-import { INQUIRY_STATUSES } from "../types";
+import { INQUIRY_STATUSES } from "../statuses";
+
+/** The transport backing each render, rebuilt per test. */
+let harness: SdkHarness;
 
 /**
  * Catalog-migration spec for the inquiry-detail page (Wallow-m5aq.5.3) — the two
@@ -39,31 +42,19 @@ const inquiry = {
   createdAt: "2026-07-15T00:00:00Z",
 };
 
-function newClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: {
-      queries: { retry: false, staleTime: Number.POSITIVE_INFINITY },
-      mutations: { retry: false },
-    },
-  });
-}
-
-function renderWithClient(client: QueryClient, ui: ReactElement) {
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-}
-
 /** Render the detail with its inquiry and (empty) thread already in cache. */
 async function renderDetail(): Promise<void> {
-  const client = newClient();
-  client.setQueryData(["inquiries", "i1"], inquiry);
-  client.setQueryData(["inquiries", "i1", "comments"], []);
+  routeHarness(harness, {
+    "GET /v1/inquiries/i1": inquiry,
+    "GET /v1/inquiries/i1/comments": [],
+  });
 
-  renderWithClient(client, <InquiryDetail inquiryId="i1" />);
+  renderWithWallow(<InquiryDetail inquiryId="i1" />, { harness });
   await waitForTestId("inquiry-detail-heading");
 }
 
 beforeEach(() => {
-  installSdkClientMock();
+  harness = createSdkHarness();
 });
 
 describe("InquiryDetail status control (catalog Select)", () => {

@@ -1,16 +1,10 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  createMemoryHistory,
-  createRootRoute,
-  createRouter,
-  Outlet,
-  RouterProvider,
-} from "@tanstack/react-router";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+import type { SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createAuthHarness } from "../../../test/harness";
 import { Route as registerRoute } from "../../../routes/register";
 import { RegisterForm } from "./RegisterForm";
 
@@ -25,10 +19,25 @@ import { RegisterForm } from "./RegisterForm";
  * scout authorised: `register-password-strength`, `register-passwordless-toggle`,
  * `register-loading`, `register-org-name`, `register-external-providers`.
  *
- * MOCKING SEAM: `../../../lib/wallow-auth-sdk` — the app's own facade, never
- * `@bc-solutions-coder/sdk` directly. Plain `vi.mock` factory + `vi.hoisted`
- * spies and NEVER `vi.resetModules()` (bd memory
- * `vitest-resetmodules-breaks-instanceof-across-graphs`).
+ * TEST SEAM: `@bc-solutions-coder/testing/sdk-harness` (Wallow-pu6a.5.1). The
+ * SDK is the REAL one and only its `fetch` is faked, so this screen's whole
+ * pipeline — generated `{op}Options()` -> request-scoped SDK -> generated
+ * operations -> CSRF interceptor -> serialization -> WallowError shaping ->
+ * React Query — runs here, and the assertions below read the outgoing REQUESTS
+ * rather than spies on a stand-in double. `renderWithWallow` supplies the router
+ * context the screen reads its SDK off, and `createAuthHarness()` pins the
+ * harness origin to this app's root-mounted API surface (Wallow-pu6a.5.5).
+ *
+ * This screen issues THREE distinct requests — the provider list and the
+ * client-tenant lookup on mount, then register on submit — so the transport is
+ * driven by a per-path router ({@link routes}) rather than one blanket response.
+ * Each test reprograms only the leg it is about.
+ *
+ * The `isSafeReturnUrl` stub is gone too. It used to restate the real rule, and a
+ * second copy of a security rule is a second copy to get wrong — the screen now
+ * reaches the shipped guard in `packages/sdk/src/auth-oidc.ts`. The
+ * `@tanstack/react-router` `useNavigate` mock STAYS: navigation is a router
+ * concern, not an SDK one, and there is no request to observe it through.
  *
  * ── FINDING 1 (REVISED — was "the error switch is UNPORTABLE") ───────────────
  *
@@ -95,68 +104,18 @@ import { RegisterForm } from "./RegisterForm";
  * ── FINDING 2: NO ApiBaseUrl PREPEND ────────────────────────────────────────
  *
  * The oracle builds external-login links as `{ApiBaseUrl}/v1/...` against a
- * cross-origin API. wallow-auth is same-origin behind an h3 passthrough proxy,
+ * cross-origin API. wallow-auth is same-origin behind an SDK passthrough proxy,
  * so the origin stays "" (per Wallow-vec7.3.4). Pinned below.
  */
 
+/**
+ * `navigate` is the ONE spy left. Navigation is a router concern with no request
+ * behind it, so `@tanstack/react-router` is still mocked — the acceptance guard
+ * (`src/sdk-test-seam.test.ts`) forbids mocking the SDK, not the router.
+ */
 const mocks = vi.hoisted(() => ({
-  register: vi.fn(),
-  getExternalProviders: vi.fn(),
-  getClientTenant: vi.fn(),
   navigate: vi.fn(),
 }));
-
-vi.mock("../../../lib/wallow-auth-sdk", () => ({
-  getWallowAuthSdk: () => ({
-    auth: {
-      register: mocks.register,
-    },
-    oidc: {
-      // Faithful restatement of the real `isSafeReturnUrl`
-      // (packages/sdk/src/auth-oidc.ts:49-56): nullish/blank unsafe, else a
-      // single leading '/'. Restated rather than imported because screens may
-      // not import the SDK and this file mocks the whole facade.
-      isSafeReturnUrl: (url: string | null | undefined): boolean =>
-        url !== null &&
-        url !== undefined &&
-        url.trim() !== "" &&
-        url.startsWith("/") &&
-        !url.startsWith("//"),
-    },
-  }),
-}));
-
-/**
- * THE READ SEAM MOVED (Wallow-evd5.3.1). Both of this screen's reads — the
- * provider list and the client-tenant lookup — are now
- * `useQuery(authQueries.externalProviders())` / `useQuery(authQueries.clientTenant(id))`
- * from the SDK query layer rather than facade calls inside inline `useQuery`
- * options, so the facade mock above no longer carries them and the spies hang off
- * the FACTORIES. Registration itself is still a facade mutation and stays there.
- *
- * Only `queryFn` is swapped: `importOriginal` keeps the real `queryKey`s intact.
- * That matters most for the provider list — this screen used to key it
- * `['auth','external-providers']` while the login screen keyed the SAME endpoint
- * `['external-providers']`, and sharing this factory is what collapses the two
- * onto one cache entry. A faked key would hide exactly that.
- */
-vi.mock("@bc-solutions-coder/sdk/query", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@bc-solutions-coder/sdk/query")>();
-  return {
-    ...actual,
-    authQueries: {
-      ...actual.authQueries,
-      externalProviders: () => ({
-        ...actual.authQueries.externalProviders(),
-        queryFn: async (): Promise<unknown> => await mocks.getExternalProviders(),
-      }),
-      clientTenant: (clientId: string) => ({
-        ...actual.authQueries.clientTenant(clientId),
-        queryFn: async (): Promise<unknown> => await mocks.getClientTenant(clientId),
-      }),
-    },
-  };
-});
 
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),
@@ -169,28 +128,51 @@ const CLIENT_ID = "wallow-web";
 const RETURN_URL = "/dashboard";
 
 /**
- * What the facade really throws for these endpoints. `title` stays "Unknown
- * error": none of them emit problem details, so no human-readable title ever
- * arrives and the screen must supply its own copy. `code` carries whatever
- * `readCode` recovered — as of Wallow-vec7.7 that includes the `error` member of
- * the bare `{ succeeded, error }` body (Finding 1). `"UNKNOWN"` is the honest
- * value where the endpoint sends no body at all (the two 404s below).
+ * The three endpoints this screen touches, as the generated operations spell
+ * them. Named rather than inlined because every request assertion below
+ * discriminates on `call.path`.
  */
-function rejection(status: number, code: string): Error & { status: number; code: string } {
-  return Object.assign(new Error("Unknown error"), {
-    name: "WallowError",
-    status,
-    code,
-    title: "Unknown error",
-  });
+const PROVIDERS_ENDPOINT = "/v1/identity/auth/external-providers";
+const TENANT_ENDPOINT = "/v1/identity/auth/client-tenant";
+const REGISTER_ENDPOINT = "/v1/identity/auth/register";
+
+const BAD_REQUEST = 400;
+const NOT_FOUND = 404;
+const SERVER_ERROR = 500;
+
+let harness: SdkHarness;
+
+/** One leg of the transport router — reprogrammed per test. */
+type Leg = () => Response | Promise<Response>;
+
+/**
+ * The per-path responses in force for the current test. Defaults are the happy
+ * path; a test reassigns only the leg it is about.
+ */
+let routes: { providers: Leg; tenant: Leg; register: Leg };
+
+/** A 2xx JSON body. */
+function ok(data: unknown): Leg {
+  return () => Response.json(data, { status: 200 });
+}
+
+/**
+ * A failure exactly as these endpoints really send it: a bare
+ * `{ succeeded: false, error }` anonymous object, NOT problem details. The SDK's
+ * `readCode` probes `extensions.code > code > error`, so the API's own token
+ * arrives on the screen as `code` (Finding 1) — which is what makes the
+ * per-token tests below real rather than a restatement of a fixture.
+ */
+function failure(status: number, code: string): Leg {
+  return () => Response.json({ succeeded: false, error: code }, { status });
 }
 
 /**
  * The client-tenant lookup answers a miss with a bare `NotFound()` — no body, so
- * nothing for `readCode` to find.
+ * nothing for `readCode` to find and the screen gets `code: "UNKNOWN"`.
  */
-function notFoundRejection(): Error & { status: number; code: string } {
-  return rejection(404, "UNKNOWN");
+function notFound(): Leg {
+  return () => Response.json(null, { status: NOT_FOUND });
 }
 
 /**
@@ -201,14 +183,19 @@ function notFoundRejection(): Error & { status: number; code: string } {
  */
 const RAW_IDENTITY_SENTENCE = "Passwords must have at least one digit ('0'-'9').";
 
-function newClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
+/** Every recorded request to one endpoint, in order. */
+function callsTo(endpoint: string) {
+  return harness.calls.filter((call) => call.path.startsWith(endpoint));
 }
 
+/** The body the screen posted to register, or `undefined` if it never did. */
+function registerBody(): Record<string, unknown> | undefined {
+  return callsTo(REGISTER_ENDPOINT).at(-1)?.body as Record<string, unknown> | undefined;
+}
+
+/** Render `ui` on the shared harness: real SDK, fake transport, real router context. */
 function renderWithClient(ui: ReactElement) {
-  return render(<QueryClientProvider client={newClient()}>{ui}</QueryClientProvider>);
+  return renderWithWallow(ui, { harness });
 }
 
 function renderForm(props: Partial<{ clientId?: string; returnUrl?: string }> = {}) {
@@ -285,9 +272,30 @@ async function fillAndSubmit(
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.getExternalProviders.mockResolvedValue([]);
-  mocks.getClientTenant.mockResolvedValue({ tenantId: "t-1", orgName: "Acme Inc" });
-  mocks.register.mockResolvedValue({ succeeded: true });
+  harness = createAuthHarness();
+  routes = {
+    providers: ok([]),
+    tenant: ok({ tenantId: "t-1", orgName: "Acme Inc" }),
+    register: ok({ succeeded: true }),
+  };
+  // One responder, routed by path: the two init reads and the register write are
+  // in flight against the same transport, so a blanket response could not tell
+  // them apart.
+  harness.respond((call) => {
+    if (call.path.startsWith(REGISTER_ENDPOINT)) {
+      return routes.register();
+    }
+    if (call.path.startsWith(TENANT_ENDPOINT)) {
+      return routes.tenant();
+    }
+    if (call.path.startsWith(PROVIDERS_ENDPOINT)) {
+      return routes.providers();
+    }
+
+    // An unrouted path is a bug in the spec, not a scenario: fail loudly rather
+    // than hand the screen a plausible-looking empty success.
+    throw new Error(`Unexpected request: ${call.method} ${call.path}`);
+  });
 });
 
 describe("RegisterForm — concurrent init", () => {
@@ -295,19 +303,24 @@ describe("RegisterForm — concurrent init", () => {
     // The oracle awaits both calls in OnInitializedAsync with prerender:false,
     // so nothing renders until they finish. React needs an explicit loading state.
     let release!: () => void;
-    mocks.getExternalProviders.mockReturnValue(
-      new Promise((resolve) => {
+    routes.providers = async () =>
+      await new Promise<Response>((resolve) => {
         release = () => {
-          resolve([]);
+          resolve(Response.json([], { status: 200 }));
         };
-      }),
-    );
+      });
 
     renderForm({ clientId: CLIENT_ID });
 
     await expect.element(page.getByTestId("register-loading")).toBeInTheDocument();
     expect(page.getByTestId("register-email").query()).toBeNull();
 
+    // Wait for the request to REACH the transport before releasing it: the
+    // responder is only installed once, so releasing into the gap before `fetch`
+    // is called would leave the never-settling promise in place forever.
+    await vi.waitFor(() => {
+      expect(callsTo(PROVIDERS_ENDPOINT)).toHaveLength(1);
+    });
     release();
 
     // Anchors the negative above: the field really does appear once init lands.
@@ -322,20 +335,22 @@ describe("RegisterForm — concurrent init", () => {
     // both-were-called assertion, so this pins that the SECOND call is issued
     // before the FIRST has resolved.
     let releaseProviders!: () => void;
-    mocks.getExternalProviders.mockReturnValue(
-      new Promise((resolve) => {
+    routes.providers = async () =>
+      await new Promise<Response>((resolve) => {
         releaseProviders = () => {
-          resolve([]);
+          resolve(Response.json([], { status: 200 }));
         };
-      }),
-    );
+      });
 
     renderForm({ clientId: CLIENT_ID });
 
+    // The tenant request reaches the wire while the provider request is still
+    // un-answered. Read off the transport, this is now a statement about two
+    // real in-flight requests rather than about two spies.
     await vi.waitFor(() => {
-      expect(mocks.getClientTenant).toHaveBeenCalledWith(CLIENT_ID);
+      expect(callsTo(`${TENANT_ENDPOINT}/${CLIENT_ID}`)).toHaveLength(1);
     });
-    expect(mocks.getExternalProviders).toHaveBeenCalled();
+    expect(callsTo(PROVIDERS_ENDPOINT)).toHaveLength(1);
 
     releaseProviders();
     await expect.element(page.getByTestId("register-email")).toBeInTheDocument();
@@ -345,9 +360,9 @@ describe("RegisterForm — concurrent init", () => {
     // Oracle: `if (!string.IsNullOrEmpty(ClientId))` gates ResolveOrgNameAsync.
     await renderReadyForm();
 
-    expect(mocks.getClientTenant).not.toHaveBeenCalled();
+    expect(callsTo(TENANT_ENDPOINT)).toHaveLength(0);
     // Anchor: init genuinely ran, so the negative above is about the gate.
-    expect(mocks.getExternalProviders).toHaveBeenCalled();
+    expect(callsTo(PROVIDERS_ENDPOINT)).toHaveLength(1);
     expect(page.getByTestId("register-org-name").query()).toBeNull();
   });
 
@@ -361,7 +376,7 @@ describe("RegisterForm — concurrent init", () => {
   it("ignores a failed client-tenant lookup — the org name is informational only", async () => {
     // Oracle swallows HttpRequestException; the endpoint 404s for an unknown
     // client. A registration form must not be blocked by a cosmetic lookup.
-    mocks.getClientTenant.mockRejectedValue(notFoundRejection());
+    routes.tenant = notFound();
 
     await renderReadyForm({ clientId: CLIENT_ID });
 
@@ -373,8 +388,8 @@ describe("RegisterForm — concurrent init", () => {
 
   it("links external providers same-origin, WITHOUT the oracle's ApiBaseUrl prepend", async () => {
     // Finding 4. The oracle builds `{ApiBaseUrl}/v1/...` for a cross-origin API;
-    // wallow-auth is same-origin behind the h3 passthrough, so the origin stays "".
-    mocks.getExternalProviders.mockResolvedValue(["Google"]);
+    // wallow-auth is same-origin behind the SDK passthrough, so the origin stays "".
+    routes.providers = ok(["Google"]);
 
     await renderReadyForm();
 
@@ -427,7 +442,7 @@ describe("RegisterForm — fields and validation", () => {
     await fillAndSubmit(user, { email: "" });
 
     await expect.element(page.getByTestId("register-error")).toHaveTextContent(/email/iu);
-    expect(mocks.register).not.toHaveBeenCalled();
+    expect(callsTo(REGISTER_ENDPOINT)).toHaveLength(0);
   });
 
   it("refuses a blank password when not passwordless", async () => {
@@ -438,7 +453,7 @@ describe("RegisterForm — fields and validation", () => {
     await fillAndSubmit(user, { password: "", confirmPassword: "" });
 
     await expect.element(page.getByTestId("register-error")).toHaveTextContent(/password/iu);
-    expect(mocks.register).not.toHaveBeenCalled();
+    expect(callsTo(REGISTER_ENDPOINT)).toHaveLength(0);
   });
 
   it("refuses mismatched passwords before calling the API", async () => {
@@ -452,7 +467,7 @@ describe("RegisterForm — fields and validation", () => {
     await fillAndSubmit(user, { password: PASSWORD, confirmPassword: "Different-1!" });
 
     await expect.element(page.getByTestId("register-error")).toHaveTextContent(/do not match/iu);
-    expect(mocks.register).not.toHaveBeenCalled();
+    expect(callsTo(REGISTER_ENDPOINT)).toHaveLength(0);
   });
 
   it("refuses to submit without agreeing to the Terms of Service", async () => {
@@ -465,7 +480,7 @@ describe("RegisterForm — fields and validation", () => {
     await expect
       .element(page.getByTestId("register-error"))
       .toHaveTextContent(/terms of service/iu);
-    expect(mocks.register).not.toHaveBeenCalled();
+    expect(callsTo(REGISTER_ENDPOINT)).toHaveLength(0);
   });
 
   it("refuses to submit without agreeing to the Privacy Policy", async () => {
@@ -476,7 +491,7 @@ describe("RegisterForm — fields and validation", () => {
     await fillAndSubmit(user, { privacy: false });
 
     await expect.element(page.getByTestId("register-error")).toHaveTextContent(/privacy policy/iu);
-    expect(mocks.register).not.toHaveBeenCalled();
+    expect(callsTo(REGISTER_ENDPOINT)).toHaveLength(0);
   });
 
   it("links out to the Terms and the Privacy Policy", async () => {
@@ -583,9 +598,7 @@ describe("RegisterForm — passwordless toggle", () => {
     await user.click(page.getByTestId("register-submit"));
 
     await vi.waitFor(() => {
-      expect(mocks.register).toHaveBeenCalledWith(
-        expect.objectContaining({ email: EMAIL, loginMethod: "passwordless" }),
-      );
+      expect(registerBody()).toMatchObject({ email: EMAIL, loginMethod: "passwordless" });
     });
   });
 
@@ -597,10 +610,11 @@ describe("RegisterForm — passwordless toggle", () => {
     await fillAndSubmit(user);
 
     await vi.waitFor(() => {
-      expect(mocks.register).toHaveBeenCalled();
+      expect(callsTo(REGISTER_ENDPOINT)).toHaveLength(1);
     });
-    const body: { loginMethod?: string | null } = mocks.register.mock.calls[0][0];
-    expect(body.loginMethod ?? null).toBeNull();
+    // Read off the SERIALISED body, so this covers the wire too: a `null` that
+    // the serializer dropped and an omitted key are the same answer here.
+    expect(registerBody()?.["loginMethod"] ?? null).toBeNull();
   });
 });
 
@@ -682,33 +696,38 @@ describe("RegisterForm — submission", () => {
     await fillAndSubmit(user);
 
     await vi.waitFor(() => {
-      expect(mocks.register).toHaveBeenCalledWith(
-        expect.objectContaining({
-          email: EMAIL,
-          password: PASSWORD,
-          confirmPassword: PASSWORD,
-          clientId: CLIENT_ID,
-          returnUrl: RETURN_URL,
-        }),
-      );
+      expect(registerBody()).toMatchObject({
+        email: EMAIL,
+        password: PASSWORD,
+        confirmPassword: PASSWORD,
+        clientId: CLIENT_ID,
+        returnUrl: RETURN_URL,
+      });
     });
+    expect(callsTo(REGISTER_ENDPOINT).at(-1)?.method).toBe("POST");
   });
 
   it("disables the submit while the registration is in flight", async () => {
     // Oracle: `Loading="_isSubmitting" Disabled="_isSubmitting"`.
     const user = userEvent.setup();
     let release!: () => void;
-    mocks.register.mockReturnValue(
-      new Promise((resolve) => {
+    routes.register = async () =>
+      await new Promise<Response>((resolve) => {
         release = () => {
-          resolve({ succeeded: true });
+          resolve(Response.json({ succeeded: true }, { status: 200 }));
         };
-      }),
-    );
+      });
 
     await renderReadyForm();
     await fillAndSubmit(user);
 
+    // Wait for the POST to REACH the transport before releasing it: the button
+    // goes disabled the moment the mutation starts, a tick or two before `fetch`
+    // is called, and releasing into that gap would leave the never-settling
+    // promise installed forever.
+    await vi.waitFor(() => {
+      expect(callsTo(REGISTER_ENDPOINT)).toHaveLength(1);
+    });
     await expect.element(page.getByTestId("register-submit")).toBeDisabled();
 
     release();
@@ -725,7 +744,7 @@ describe("RegisterForm — submission", () => {
     // deliberate downgrade. This is the single most actionable failure this form
     // has: the user has an account and should sign in, not retry.
     const user = userEvent.setup();
-    mocks.register.mockRejectedValue(rejection(400, "email_taken"));
+    routes.register = failure(BAD_REQUEST, "email_taken");
 
     await renderReadyForm();
     await fillAndSubmit(user);
@@ -740,7 +759,7 @@ describe("RegisterForm — submission", () => {
     // the one that notices — and the message must name the real reason rather
     // than fall to the generic tail.
     const user = userEvent.setup();
-    mocks.register.mockRejectedValue(rejection(400, "passwords_do_not_match"));
+    routes.register = failure(BAD_REQUEST, "passwords_do_not_match");
 
     await renderReadyForm();
     await fillAndSubmit(user);
@@ -755,7 +774,7 @@ describe("RegisterForm — submission", () => {
     // this failure is not mislabelled as a duplicate email — the mistake a
     // blanket `400 -> email_taken` rule would make.
     const user = userEvent.setup();
-    mocks.register.mockRejectedValue(rejection(400, "invalid_client_id"));
+    routes.register = failure(BAD_REQUEST, "invalid_client_id");
 
     await renderReadyForm({ clientId: "not-a-real-client" });
 
@@ -772,7 +791,7 @@ describe("RegisterForm — submission", () => {
     // a token, so there is nothing to key on and the generic branch stands. This
     // is the honest floor, not a downgrade.
     const user = userEvent.setup();
-    mocks.register.mockRejectedValue(rejection(400, RAW_IDENTITY_SENTENCE));
+    routes.register = failure(BAD_REQUEST, RAW_IDENTITY_SENTENCE);
 
     await renderReadyForm();
     await fillAndSubmit(user, { password: "weak", confirmPassword: "weak" });
@@ -793,7 +812,7 @@ describe("RegisterForm — submission", () => {
     // a user really can be shown Identity's own prose. `code` is a machine
     // member: matched against known tokens, never rendered. Not ported.
     const user = userEvent.setup();
-    mocks.register.mockRejectedValue(rejection(400, RAW_IDENTITY_SENTENCE));
+    routes.register = failure(BAD_REQUEST, RAW_IDENTITY_SENTENCE);
 
     await renderReadyForm();
     await fillAndSubmit(user, { password: "weak", confirmPassword: "weak" });
@@ -812,7 +831,7 @@ describe("RegisterForm — submission", () => {
     // the CODE and guesses at nothing. A token the API adds tomorrow must read as
     // the generic tail rather than as a confident lie.
     const user = userEvent.setup();
-    mocks.register.mockRejectedValue(rejection(400, "some_future_token"));
+    routes.register = failure(BAD_REQUEST, "some_future_token");
 
     await renderReadyForm();
     await fillAndSubmit(user);
@@ -826,7 +845,7 @@ describe("RegisterForm — submission", () => {
 
   it("surfaces a generic message when the server errors outright", async () => {
     const user = userEvent.setup();
-    mocks.register.mockRejectedValue(rejection(500, "UNKNOWN"));
+    routes.register = () => Response.json({}, { status: SERVER_ERROR });
 
     await renderReadyForm();
     await fillAndSubmit(user);
@@ -839,7 +858,12 @@ describe("RegisterForm — submission", () => {
     // Error with neither `code` nor `status`. Structural narrowing must tolerate
     // that rather than throw inside the error handler.
     const user = userEvent.setup();
-    mocks.register.mockRejectedValue(new Error("Failed to fetch"));
+    // A transport that THROWS is the honest way to produce one: `fetch`
+    // rejecting IS the network failure, and the SDK's error interceptor has no
+    // response to read a status off.
+    routes.register = () => {
+      throw new Error("Failed to fetch");
+    };
 
     await renderReadyForm();
     await fillAndSubmit(user);
@@ -851,7 +875,12 @@ describe("RegisterForm — submission", () => {
     // Oracle: `_errorMessage = null;` at the top of HandleRegister. A stale
     // failure sitting above a successful registration would be a lie.
     const user = userEvent.setup();
-    mocks.register.mockRejectedValueOnce(rejection(400, "email_taken"));
+    // ONCE: the first attempt fails, the retry succeeds. The leg reprograms
+    // itself so the second POST lands on the default happy response.
+    routes.register = () => {
+      routes.register = ok({ succeeded: true });
+      return Response.json({ succeeded: false, error: "email_taken" }, { status: BAD_REQUEST });
+    };
 
     await renderReadyForm();
     await fillAndSubmit(user);
@@ -875,7 +904,7 @@ describe("RegisterForm — post-submit navigation", () => {
     await fillAndSubmit(user);
 
     await vi.waitFor(() => {
-      expect(mocks.register).toHaveBeenCalledWith(expect.objectContaining({ email: EMAIL }));
+      expect(registerBody()).toMatchObject({ email: EMAIL });
     });
     expect(page.getByTestId("register-org-match").query()).toBeNull();
   });
@@ -944,20 +973,11 @@ describe("RegisterForm — open-redirect guard", () => {
  * `src/router.tsx` is off-limits to this task (Wallow-vec7.3.16).
  */
 function renderRouteAt(url: string) {
-  const rootRoute = createRootRoute({ component: Outlet });
-  const routeTree = rootRoute.addChildren([
-    registerRoute.update({
-      id: "/register",
-      path: "/register",
-      getParentRoute: () => rootRoute,
-    } as any),
-  ]);
-  const router = createRouter({
-    routeTree,
-    history: createMemoryHistory({ initialEntries: [url] }),
+  return renderWithWallow(null, {
+    harness,
+    path: url,
+    routes: [{ path: "/register", route: registerRoute }],
   });
-
-  return renderWithClient(<RouterProvider router={router} />);
 }
 
 describe("/register route", () => {
@@ -980,9 +1000,7 @@ describe("/register route", () => {
     await fillAndSubmit(user);
 
     await vi.waitFor(() => {
-      expect(mocks.register).toHaveBeenCalledWith(
-        expect.objectContaining({ clientId: CLIENT_ID, returnUrl: RETURN_URL }),
-      );
+      expect(registerBody()).toMatchObject({ clientId: CLIENT_ID, returnUrl: RETURN_URL });
     });
   });
 
@@ -992,6 +1010,6 @@ describe("/register route", () => {
     renderRouteAt("/register");
 
     await expect.element(page.getByTestId("register-submit")).toBeInTheDocument();
-    expect(mocks.getClientTenant).not.toHaveBeenCalled();
+    expect(callsTo(TENANT_ENDPOINT)).toHaveLength(0);
   });
 });

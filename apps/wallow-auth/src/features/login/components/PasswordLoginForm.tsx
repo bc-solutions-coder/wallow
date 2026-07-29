@@ -1,8 +1,8 @@
 import { Button, Checkbox, Field, Input, Label } from "@bc-solutions-coder/ui";
+import { accountLogin } from "@bc-solutions-coder/sdk";
 import { useMutation } from "@tanstack/react-query";
+import { useRouteContext } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
-
-import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
 import { BLANK_CREDENTIALS_MESSAGE, loginFailureMessage } from "../auth-result";
 import type { LoginPanelProps } from "../panel";
 
@@ -19,8 +19,9 @@ import type { LoginPanelProps } from "../panel";
  * `login-email`, `login-forgot-password`, `login-password`, `login-remember-me`,
  * `login-submit`.
  *
- * The API is reached through `getWallowAuthSdk()`, never `@bc-solutions-coder/sdk`
- * directly — that facade is this app's only permitted importer of the SDK.
+ * The API is reached through the request-scoped SDK on the router context
+ * (`useRouteContext({ from: "__root__" })`), calling the generated operations
+ * directly — there is no app-level facade (Wallow-pu6a.5.5).
  */
 
 /** The oracle's `LoginRequest(_email, _password, _rememberMe)`. */
@@ -141,6 +142,7 @@ function SubmitButton({ pending }: { readonly pending: boolean }) {
 }
 
 export function PasswordLoginForm({ onAuthResult, onError }: LoginPanelProps): ReactNode {
+  const { sdk } = useRouteContext({ from: "__root__" });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
@@ -150,7 +152,7 @@ export function PasswordLoginForm({ onAuthResult, onError }: LoginPanelProps): R
     // with no OpenAPI schema, so there is no generated type to lean on. The
     // narrowing belongs to the shell — see `../panel`.
     mutationFn: async (credentials: Credentials): Promise<unknown> =>
-      await getWallowAuthSdk().auth.login(credentials),
+      await accountLogin({ client: sdk.client, body: credentials }),
   });
 
   const handleSubmit = (): void => {

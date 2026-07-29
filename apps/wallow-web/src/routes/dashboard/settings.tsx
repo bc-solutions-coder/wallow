@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { mfaQueries } from "../../features/mfa/api";
+import { mfaGetStatusOptions } from "../../features/mfa/api";
 import { MfaSettingsSection } from "../../features/mfa/components/MfaSettingsSection";
-import { settingsQueries } from "../../features/settings/api";
+import { usersGetCurrentUserOptions } from "../../features/settings/api";
 import { ProfileSection } from "../../features/settings/components/ProfileSection";
 
 /**
@@ -32,8 +32,10 @@ function SettingsPage() {
 export const Route = createFileRoute("/dashboard/settings")({
   loader: ({ context }) =>
     Promise.all([
-      context.queryClient.ensureQueryData(settingsQueries.profile()),
-      context.queryClient.ensureQueryData(mfaQueries.status()),
+      context.queryClient.ensureQueryData(
+        usersGetCurrentUserOptions({ client: context.sdk.client }),
+      ),
+      context.queryClient.ensureQueryData(mfaGetStatusOptions({ client: context.sdk.client })),
     ]),
   component: SettingsPage,
 });

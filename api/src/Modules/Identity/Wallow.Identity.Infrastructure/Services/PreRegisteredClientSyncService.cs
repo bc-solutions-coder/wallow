@@ -25,6 +25,11 @@ public sealed partial class PreRegisteredClientSyncService(
     public async Task SyncAsync(CancellationToken ct)
     {
         PreRegisteredClientOptions config = options.Value;
+
+        // Hard-fail before touching OpenIddict at all: a misconfigured deployment must not create
+        // an accidentally-public client, nor delete existing registrations on its way to throwing.
+        config.Validate();
+
         HashSet<string> configuredClientIds = new(config.Clients.Select(c => c.ClientId), StringComparer.OrdinalIgnoreCase);
 
         foreach (PreRegisteredClientDefinition client in config.Clients)

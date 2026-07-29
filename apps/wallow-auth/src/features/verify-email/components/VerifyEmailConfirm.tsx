@@ -1,9 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
-import { authQueries } from "@bc-solutions-coder/sdk/query";
+import { isSafeReturnUrl } from "@bc-solutions-coder/sdk";
+import { accountVerifyEmailOptions } from "@bc-solutions-coder/sdk/query";
 import { Card } from "@bc-solutions-coder/ui";
+import { useQuery } from "@tanstack/react-query";
+import { useRouteContext } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
-import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
 import { signInHref } from "../sign-in-href";
 
 /**
@@ -20,9 +21,10 @@ import { signInHref } from "../sign-in-href";
  * `verify-email-confirm-continue`, `verify-email-confirm-error`,
  * `verify-email-confirm-signin-link`.
  *
- * Mutations and the OIDC builders are reached through `getWallowAuthSdk()`, and
- * reads through the SDK's `./query` factories (Wallow-evd5.3.1) — never the
- * `@bc-solutions-coder/sdk` barrel, which only the facade may import.
+ * Mutations call the GENERATED operations and reads use the generated
+ * `{op}Options()` factories, both bound to the request-scoped SDK off the router
+ * context (`useRouteContext({ from: "__root__" })`). The OIDC URL builders are
+ * pure and imported directly. There is no app-level facade (Wallow-pu6a.5.5).
  *
  * ── WHY THE ORACLE'S ERROR SWITCH IS NOT PORTED LITERALLY ─────────────────────
  *
@@ -152,8 +154,7 @@ function ContinueButton({ returnUrl }: { readonly returnUrl: string }) {
 
 /** The oracle's success branch: the alert, plus a Continue when there is one. */
 function SuccessState({ returnUrl }: { readonly returnUrl?: string }) {
-  const canContinue: boolean =
-    returnUrl !== undefined && getWallowAuthSdk().oidc.isSafeReturnUrl(returnUrl);
+  const canContinue: boolean = returnUrl !== undefined && isSafeReturnUrl(returnUrl);
 
   return (
     <div className="space-y-4">
@@ -204,6 +205,7 @@ function VerificationState(props: {
   readonly returnUrl?: string;
 }) {
   const { email, token, returnUrl } = props;
+  const { sdk } = useRouteContext({ from: "__root__" });
 
   // The oracle's `IsNullOrEmpty(Token) || IsNullOrEmpty(Email)`, which runs
   // BEFORE its try block: an empty string is a missing one, so `?token=` never
@@ -211,11 +213,11 @@ function VerificationState(props: {
   const linkIsComplete: boolean =
     email !== undefined && email !== "" && token !== undefined && token !== "";
 
-  // The `?? ""` pair is unreachable — `enabled` gates the read on
-  // `linkIsComplete` — and is present only to narrow the props to the `string`s
-  // the factory takes, without a cast.
+  // The generated query type takes both parameters as optional, so the props
+  // pass straight through: `enabled` below is what keeps an incomplete link off
+  // the wire, not a `?? ""` placeholder.
   const query = useQuery({
-    ...authQueries.verifyEmail(email ?? "", token ?? ""),
+    ...accountVerifyEmailOptions({ client: sdk.client, query: { email, token } }),
     // The untyped body is deliberately discarded — see the note on success
     // above. "Resolved" is the whole success signal.
     select: (): null => null,

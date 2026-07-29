@@ -63,11 +63,17 @@ jobs:
 
       # Workspace members resolve @bc-solutions-coder/* packages through their
       # package.json `exports` maps, which point at dist/. Build every package
-      # first — in topological order (styles before web-shell, which depends on
-      # it) — so dependent members (the apps) can typecheck against the emitted
-      # .d.ts files.
+      # first — in topological order, so a package is always built before any
+      # package that depends on it — so dependent members (the apps) can
+      # typecheck against the emitted .d.ts files.
       - name: Build packages
         run: pnpm --filter './packages/*' build
+
+      # publint + @arethetypeswrong/cli over the built packages: the manifest's
+      # exports map and every entrypoint's type resolution, checked against the
+      # packed tarball rather than against the working tree.
+      - name: Check package export surface
+        run: pnpm check:exports
 
       - name: Typecheck
         run: pnpm typecheck

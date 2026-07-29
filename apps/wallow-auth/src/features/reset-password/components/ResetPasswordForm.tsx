@@ -1,10 +1,9 @@
 import { Button, Card, CardTitle, ErrorBanner, Field, Input, Label } from "@bc-solutions-coder/ui";
 import { useForm } from "@tanstack/react-form";
+import { accountResetPassword } from "@bc-solutions-coder/sdk";
 import { useMutation } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
-
-import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
 
 /**
  * The ResetPassword screen (Wallow-vec7.3.2).
@@ -19,8 +18,9 @@ import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
  * `reset-password-submit`. The "Back to sign in" footer link ships without a
  * testid in the oracle and keeps it that way.
  *
- * The API is reached through `getWallowAuthSdk()`, never `@bc-solutions-coder/sdk`
- * directly — that facade is this app's only permitted importer of the SDK.
+ * The API is reached through the request-scoped SDK on the router context
+ * (`useRouteContext({ from: "__root__" })`), calling the generated operations
+ * directly — there is no app-level facade (Wallow-pu6a.5.5).
  *
  * ── WHY THE ORACLE'S ERROR SWITCH IS NOT PORTED LITERALLY ─────────────────────
  *
@@ -236,12 +236,13 @@ export interface ResetPasswordFormProps {
 }
 
 export function ResetPasswordForm({ email, token }: ResetPasswordFormProps): ReactNode {
+  const { sdk } = useRouteContext({ from: "__root__" });
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
 
   const mutation = useMutation({
     mutationFn: async (request: ResetPasswordRequest): Promise<void> => {
-      await getWallowAuthSdk().auth.resetPassword(request);
+      await accountResetPassword({ client: sdk.client, body: request });
     },
   });
 

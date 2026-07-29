@@ -15,11 +15,7 @@ import { defineConfig } from "vitest/config";
  * wallow-auth needs no extra browser `optimizeDeps` beyond the preset baseline
  * and no node-project overrides.
  */
-const nodeTsxSpecs = [
-  "src/router.query-client.test.tsx",
-  "src/routes/index.test.tsx",
-  "src/routes/__root.provider.test.tsx",
-];
+const nodeTsxSpecs = ["src/routes/index.test.tsx"];
 
 const { node, browser } = createVitestProjects({ nodeTsxSpecs });
 

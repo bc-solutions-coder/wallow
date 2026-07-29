@@ -9,12 +9,12 @@ import { expect, test } from "@playwright/test";
  *
  * Both routes here render for an anonymous visitor with the API absent:
  *   - `/` — the marketing landing. Its `beforeLoad` resolves `getUser()` during
- *     SSR against the app's OWN h3 `/bff/user` bridge, which 401s off the absent
- *     session cookie without ever reaching the issuer, so the gate reads "not
- *     signed in" and falls through to `LandingPage`. That bridge only loads when
- *     the BFF env is present, which is why playwright.config.ts supplies the
- *     Aspire dev values to its `webServer` — without them the module throws at
- *     import and every `/bff/*` request 500s.
+ *     SSR against the app's OWN `/bff/user` server route, which 401s off the
+ *     absent session cookie without ever reaching the issuer, so the gate reads
+ *     "not signed in" and falls through to `LandingPage`. That route builds the
+ *     BFF host on first use and the build needs the OIDC env, which is why
+ *     playwright.config.ts supplies the Aspire dev values to its `webServer` —
+ *     without them every `/bff/*` request 500s.
  *   - `/bff-demo` — no `beforeLoad` gate at all; its `getUser()` call runs
  *     client-side and merely logs when the API is down, which does not block the
  *     readiness marker.

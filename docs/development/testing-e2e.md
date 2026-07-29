@@ -22,17 +22,17 @@ running app. They live with the React apps in the pnpm workspace, not in the .NE
 
 Nine specs plus two helper modules:
 
-| Spec | Backend dependency |
-|------|--------------------|
-| `routes.spec.ts` | None — the route-reachability gate |
-| `login.spec.ts` | API + seeded admin |
-| `signup.spec.ts` | API |
-| `logout.spec.ts` | API (validates the post-logout redirect URI against the client allow-list) |
-| `forgot-password.spec.ts` | API |
-| `reset-password.spec.ts` | API + Mailpit |
-| `magic-link.spec.ts` | API + Mailpit |
-| `otp-login.spec.ts` | API + Mailpit |
-| `mfa.spec.ts` | API + Mailpit |
+| Spec                      | Backend dependency                                                         |
+| ------------------------- | -------------------------------------------------------------------------- |
+| `routes.spec.ts`          | None — the route-reachability gate                                         |
+| `login.spec.ts`           | API + seeded admin                                                         |
+| `signup.spec.ts`          | API                                                                        |
+| `logout.spec.ts`          | API (validates the post-logout redirect URI against the client allow-list) |
+| `forgot-password.spec.ts` | API                                                                        |
+| `reset-password.spec.ts`  | API + Mailpit                                                              |
+| `magic-link.spec.ts`      | API + Mailpit                                                              |
+| `otp-login.spec.ts`       | API + Mailpit                                                              |
+| `mfa.spec.ts`             | API + Mailpit                                                              |
 
 Helpers: `mailpit.ts` (reads emails back over Mailpit's HTTP API) and `totp.ts` (generates TOTP
 codes for the MFA lifecycle).
@@ -101,19 +101,19 @@ E2E_SKIP_IMAGE_BUILD=1 ./scripts/e2e.sh     # reuse already-built :test images
 ```
 
 It always starts by running `docker compose down -v` so the volumes are fresh. That matters:
-the seeder skips admin bootstrap when *any* user already exists, so a reused database would
+the seeder skips admin bootstrap when _any_ user already exists, so a reused database would
 silently lack the `admin@wallow.dev` account the login spec signs in as.
 
-| Env knob | Effect |
-|----------|--------|
+| Env knob                 | Effect                                                                                                                                 |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `E2E_SKIP_IMAGE_BUILD=1` | Skip the `dotnet publish` of the API, migration, and seeder `:test` images. CI sets this because a prior job preloads them from cache. |
-| `E2E_UP_SERVICE=<svc>` | Which compose service to `up --wait` (default `wallow-api`). CI sets `wallow-auth` so the app is served from a container. |
-| `E2E_BASE_URL=<url>` | Drive an already-running app at that URL; Playwright then boots no local dev server. |
-| `E2E_KEEP_STACK=1` | Leave the stack up after the run, for debugging. |
+| `E2E_UP_SERVICE=<svc>`   | Which compose service to `up --wait` (default `wallow-api`). CI sets `wallow-auth` so the app is served from a container.              |
+| `E2E_BASE_URL=<url>`     | Drive an already-running app at that URL; Playwright then boots no local dev server.                                                   |
+| `E2E_KEEP_STACK=1`       | Leave the stack up after the run, for debugging.                                                                                       |
 
 The two serving modes follow from `E2E_BASE_URL`. Left unset (the local default), Playwright's
-own `pnpm dev` webServer serves the app on `:3002` and its h3 proxy targets the containerised
-API via `WALLOW_API_INTERNAL_URL`. Set (as in CI), the prebuilt `wallow-auth-react:test`
+own `pnpm dev` webServer serves the app on `:3002` and its passthrough server routes target the
+containerised API via `WALLOW_API_INTERNAL_URL`. Set (as in CI), the prebuilt `wallow-auth-react:test`
 container serves the app on `:5051` and Playwright drives it directly.
 
 ### Driving the backend manually
@@ -183,10 +183,10 @@ pnpm --filter ./apps/wallow-auth exec playwright show-report
 
 ### Common Failure Patterns
 
-| Symptom | Likely cause | Fix |
-|---------|-------------|-----|
-| Timeout waiting for `data-app-ready` | The app failed to hydrate | Check the dev server output and the browser console |
-| Timeout waiting for a `data-testid` | Element not rendered, or the testid is wrong | Verify the attribute in the component |
-| `login.spec.ts` cannot sign in | Backend not running, or the admin was never seeded | Run `./scripts/e2e.sh`, which recreates volumes so the seeder bootstraps `admin@wallow.dev` |
-| Mail-dependent specs get `ECONNREFUSED` on `:8035` | Mailpit is not up | Use `./scripts/e2e.sh`; the compose file gates `wallow-api` on Mailpit starting |
-| Proxy or API errors | `WALLOW_API_INTERNAL_URL` points nowhere | Point it at your running API (default `http://localhost:5001`) |
+| Symptom                                            | Likely cause                                       | Fix                                                                                         |
+| -------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Timeout waiting for `data-app-ready`               | The app failed to hydrate                          | Check the dev server output and the browser console                                         |
+| Timeout waiting for a `data-testid`                | Element not rendered, or the testid is wrong       | Verify the attribute in the component                                                       |
+| `login.spec.ts` cannot sign in                     | Backend not running, or the admin was never seeded | Run `./scripts/e2e.sh`, which recreates volumes so the seeder bootstraps `admin@wallow.dev` |
+| Mail-dependent specs get `ECONNREFUSED` on `:8035` | Mailpit is not up                                  | Use `./scripts/e2e.sh`; the compose file gates `wallow-api` on Mailpit starting             |
+| Proxy or API errors                                | `WALLOW_API_INTERNAL_URL` points nowhere           | Point it at your running API (default `http://localhost:5001`)                              |

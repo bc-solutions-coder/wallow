@@ -25,9 +25,8 @@ function readPackageJson(): PackageJson {
 }
 
 // These assertions lock the acceptance surface of the tsup -> Vite 8 library
-// mode migration (bead Wallow-ve7q.1.1). They are static config-surface checks
-// that mirror the existing sdk-publish-workflow.test.ts pattern; the runtime
-// build-output and subpath-import verification (build step 5-7) is exercised
+// mode migration (bead Wallow-ve7q.1.1). They are static config-surface checks;
+// the runtime build-output and subpath-import verification (build step 5-7) is exercised
 // separately in the green/verify phase.
 describe("SDK bundler migration (tsup -> Vite 8 library mode)", () => {
   it("has a vite.config.ts at the package root", () => {

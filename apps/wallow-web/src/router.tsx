@@ -1,76 +1,80 @@
-import {
-  dehydrate,
-  type DehydratedState,
-  hydrate,
-  QueryClientProvider,
-} from "@tanstack/react-query";
-import { createRouter as createTanStackRouter, type AnyRouter } from "@tanstack/react-router";
-
+import { createWallowSdk, type WallowSdk } from "@bc-solutions-coder/sdk";
 import { createQueryClient } from "@bc-solutions-coder/web-shell";
+import type { QueryClient } from "@tanstack/react-query";
+import { createRouter as createTanStackRouter } from "@tanstack/react-router";
+import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
+import { getGlobalStartContext } from "@tanstack/react-start";
+
 import { routeTree } from "./routeTree.gen";
-// Side-effect import: runs wallow-sdk.ts's module-scope `registerQueryBootstrap`
-// in both the client and SSR graphs before any route fires an SDK query.
-import "./lib/wallow-sdk";
 
 /**
- * Per-request router state carried from the SSR document into the browser pass.
- *
- * The cache travels as a JSON string rather than as `DehydratedState` itself.
- * Router's serializer type-checks every field of what `dehydrate()` returns, and
- * React Query types cached entries as `unknown` (query data, query/mutation
- * keys), which cannot be proven serializable — so a structured payload is
- * rejected at compile time even though it round-trips fine. React Query's
- * dehydrated state is JSON by contract, so pre-serializing it is lossless here
- * and keeps the hooks free of casts.
+ * Where this app's API surface is mounted, as the BROWSER addresses it: the BFF
+ * `/api` proxy on this same origin. Spelled out rather than imported from the
+ * SDK's `WALLOW_API_MOUNT`, which ships on the Node-only `./server` entry.
  */
-interface WallowDehydrated {
-  queryClientState: string;
+const BROWSER_API_BASE_URL = "/api";
+
+/**
+ * The request's SDK off Start's global context, or `undefined` when there is no
+ * request in scope. On the server `getGlobalStartContext()` THROWS rather than
+ * answering `undefined` — once because no Start context is in the surrounding
+ * `AsyncLocalStorage` at all (a spec calling `getRouter()` directly), and once
+ * because the global middlewares have not run yet — and neither is an error
+ * here: both mean "no request SDK to inherit", which is the browser's answer too.
+ */
+function readRequestSdk(): WallowSdk | undefined {
+  try {
+    return getGlobalStartContext()?.sdk;
+  } catch {
+    return undefined;
+  }
 }
 
 /**
- * Constructs the TanStack router that boots the wallow-web Start app.
+ * Build the router that boots the wallow-web app. Start calls this ONCE PER
+ * REQUEST on the server (and once on the client), so everything it constructs is
+ * request-scoped: a fresh `QueryClient` — never a module-global one, which would
+ * hand one user's cached data to the next — and the request's own SDK instance.
  *
- * The route tree is produced by TanStack Router's file-based codegen
- * (`src/routeTree.gen.ts`, regenerated via `pnpm routes:generate`); every route
- * under `src/routes/` — including the `/dashboard` layout shell and the verticals
- * nested beneath it — is wired into it automatically, so no route is reparented
- * by hand here.
+ * On the server that SDK comes from the global request middleware in `start.ts`,
+ * the only place the inbound cookie is in scope; off a request (the browser, and
+ * the specs that drive this factory directly) there is nothing to forward, so it
+ * mints a same-origin instance against the BFF proxy. `globalThis.location` is
+ * deliberately not consulted for that fallback: a relative base is what the
+ * browser wants anyway, and Node — where the node-project route specs run — has
+ * no `location` to read.
  *
- * One `QueryClient` is minted per router (per SSR request) and used two ways: as
- * the router `context` client that loaders/`beforeLoad` reach via
- * `context.queryClient`, and — through the `Wrap` render-prop's
- * `QueryClientProvider` — as the client every routed component reads with React
- * Query hooks. Both are the SAME instance, so SSR-prefetched loader data reaches
- * the components that consume it.
+ * `setupRouterSsrQueryIntegration` owns the dehydrate/hydrate handoff of the
+ * React Query cache across the SSR boundary and installs the single
+ * `QueryClientProvider` this app used to wire by hand through a `Wrap`
+ * render-prop over a JSON-stringified `dehydrate()` payload. Loaders (router
+ * context) and components (React Query hooks) therefore still share ONE cache
+ * per request.
  *
- * The SSR pass and the browser pass each call this function, so the browser's
- * client would otherwise start empty and refetch everything the loaders already
- * prefetched. The `dehydrate`/`hydrate` router options close over that one
- * client and carry its cache across the boundary: TanStack Router serializes
- * `dehydrate()`'s return value into the SSR document and replays it through
- * `hydrate()` before `RouterClient` hands off, so `ssr.tsx` and `client.tsx`
- * need no wiring of their own.
+ * The route tree is codegen'd into `src/routeTree.gen.ts` by the Start plugin as
+ * a side effect of `vite dev` / `vite build`, so there is no `routes:generate`
+ * step to remember.
+ *
+ * The return type is inferred deliberately: annotating it `AnyRouter` erases the
+ * route-tree types that make `Link`/`useParams` typed.
  */
-export function createRouter(): AnyRouter {
-  const queryClient = createQueryClient();
+export function getRouter() {
+  const queryClient: QueryClient = createQueryClient();
+  const sdk: WallowSdk = readRequestSdk() ?? createWallowSdk({ baseUrl: BROWSER_API_BASE_URL });
 
-  return createTanStackRouter({
+  const router = createTanStackRouter({
     routeTree,
-    context: { queryClient },
-    dehydrate: (): WallowDehydrated => ({
-      queryClientState: JSON.stringify(dehydrate(queryClient)),
-    }),
-    hydrate: (dehydrated: WallowDehydrated) => {
-      hydrate(queryClient, JSON.parse(dehydrated.queryClientState) as DehydratedState);
-    },
-    Wrap: ({ children }) => (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    ),
+    context: { queryClient, sdk },
+    scrollRestoration: true,
   });
+
+  setupRouterSsrQueryIntegration({ router, queryClient });
+
+  return router;
 }
 
 declare module "@tanstack/react-router" {
   interface Register {
-    router: ReturnType<typeof createRouter>;
+    router: ReturnType<typeof getRouter>;
   }
 }

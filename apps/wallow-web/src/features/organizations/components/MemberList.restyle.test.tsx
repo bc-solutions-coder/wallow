@@ -1,9 +1,7 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactElement } from "react";
-import { render } from "vitest-browser-react";
+import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { installSdkClientMock, type SdkClientMock } from "../../../test/sdk-client-mock";
 import {
   allByTestId,
   byTestId,
@@ -15,6 +13,9 @@ import {
   within,
 } from "../../../test/style-contract";
 import { MemberList } from "./MemberList";
+
+/** The transport backing each render, rebuilt per test. */
+let harness: SdkHarness;
 
 /**
  * Restyle spec for the org-detail member list (Wallow-urec.4.3). It asserts only
@@ -52,38 +53,22 @@ const MEMBERS = [
   },
 ];
 
-function newClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: {
-      queries: { retry: false, staleTime: Number.POSITIVE_INFINITY },
-      mutations: { retry: false },
-    },
-  });
-}
-
-function renderWithClient(client: QueryClient, ui: ReactElement) {
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-}
-
 /**
  * Render the member list seeded with `members` (omit for the loading state) and
  * resolve the settled element named by `anchor` — the state under test.
  */
 async function renderMembers(members: unknown[] | undefined, anchor: string): Promise<HTMLElement> {
-  const client = newClient();
   if (members !== undefined) {
-    client.setQueryData(["orgs", "o1", "members"], members);
+    harness.resolveJson(members);
   }
-  renderWithClient(client, <MemberList orgId="o1" />);
+  renderWithWallow(<MemberList orgId="o1" />, { harness });
   return waitForTestId(anchor);
 }
 
 describe("MemberList (restyle)", () => {
-  let sdk: SdkClientMock;
-
   beforeEach(() => {
-    sdk = installSdkClientMock();
-    sdk.resolveJson([]);
+    harness = createSdkHarness();
+    harness.resolveJson([]);
   });
 
   it("titles the members section", async () => {
@@ -150,7 +135,7 @@ describe("MemberList (restyle)", () => {
   });
 
   it("centers the loading state without changing its wording", async () => {
-    sdk.pending();
+    harness.pending();
     const loading = await renderMembers(undefined, "organization-members-loading");
 
     expect(loading.textContent).toBe("Loading members…");

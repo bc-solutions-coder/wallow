@@ -5,7 +5,7 @@ import { waitForEmailBody } from "./mailpit";
 /**
  * OTP login tab, end to end — the passwordless SIGN-IN tab on /login, NOT MFA.
  * BACKEND-DEPENDENT and MAILPIT-DEPENDENT: send posts `v1/identity/auth/
- * passwordless/otp` through the h3 proxy into Wallow.Api, which emails a 6-digit
+ * passwordless/otp` through the passthrough proxy into Wallow.Api, which emails a 6-digit
  * code via SMTP to Mailpit; verify posts `.../passwordless/otp/verify`. Needs the
  * live seeded stack + Mailpit (scripts/e2e.sh boots both). A failure is a bug to
  * file.

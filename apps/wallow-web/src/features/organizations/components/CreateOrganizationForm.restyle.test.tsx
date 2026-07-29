@@ -1,9 +1,7 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactElement } from "react";
-import { render } from "vitest-browser-react";
+import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { installSdkClientMock } from "../../../test/sdk-client-mock";
 import {
   byTestId,
   expectClasses,
@@ -14,6 +12,9 @@ import {
   waitForTestId,
 } from "../../../test/style-contract";
 import { CreateOrganizationForm } from "./CreateOrganizationForm";
+
+/** The transport backing each render, rebuilt per test. */
+let harness: SdkHarness;
 
 /**
  * Restyle spec for the inline create-organization form (Wallow-urec.4.3). It
@@ -34,21 +35,13 @@ import { CreateOrganizationForm } from "./CreateOrganizationForm";
  */
 
 function renderForm(): Promise<HTMLElement> {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-  const ui: ReactElement = (
-    <QueryClientProvider client={client}>
-      <CreateOrganizationForm />
-    </QueryClientProvider>
-  );
-  render(ui);
+  renderWithWallow(<CreateOrganizationForm />, { harness });
   return waitForTestId("organization-create-form");
 }
 
 describe("CreateOrganizationForm (restyle)", () => {
   beforeEach(() => {
-    installSdkClientMock();
+    harness = createSdkHarness();
   });
 
   it("separates the form card from the list above it", async () => {

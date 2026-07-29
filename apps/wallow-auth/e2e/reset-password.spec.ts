@@ -8,7 +8,7 @@ import { waitForEmailBody } from "./mailpit";
  * link via SMTP to Mailpit), and the reset half posts
  * `v1/identity/auth/reset-password` with the real token pulled from that email.
  * Needs the live seeded stack + Mailpit (scripts/e2e.sh boots both). A failure
- * here is a bug to file — the flow crosses the h3 proxy into Wallow.Api.
+ * here is a bug to file — the flow crosses the passthrough proxy into Wallow.Api.
  *
  * The reset targets the seeded admin (api/seed.json) because forgot-password only
  * emails a link for an account that actually exists (anti-enumeration returns 200

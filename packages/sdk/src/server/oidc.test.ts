@@ -1,3 +1,7 @@
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { BffConfig } from "./config";
@@ -8,6 +12,7 @@ import {
   exchangeCode,
   fetchUserInfo,
   refreshTokens,
+  shouldAllowInsecureRequests,
   type DiscoveryDoc,
   type TokenResponse,
 } from "./oidc";
@@ -70,6 +75,7 @@ vi.mock("openid-client", () => ({
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   vi.restoreAllMocks();
   vi.clearAllMocks();
 });
@@ -201,6 +207,177 @@ describe("discover", () => {
       "https://discover-nopin.example.com/connect/authorize",
     );
     expect(result.end_session_endpoint).toBe("https://discover-nopin.example.com/connect/logout");
+  });
+});
+
+/**
+ * The plain-HTTP discovery gate (Wallow-pu6a.4.7).
+ *
+ * The apps are TanStack Start, so the SDK's server entry is bundled INTO each
+ * app's nitro production build. Vite/rollup substitutes build-time environment
+ * reads with literals there and then constant-folds the branch away, which is
+ * how `process.env.NODE_ENV !== "production"` silently became `void 0` in
+ * `.output/server/_ssr/bff-*.mjs` and made every containerised login return
+ * `OAUTH_HTTP_REQUEST_FORBIDDEN`. The gate must therefore be decided from a
+ * signal only knowable at runtime — the protocol of the URL being discovered —
+ * so no bundler can pre-compute it.
+ */
+describe("shouldAllowInsecureRequests", () => {
+  it("allows insecure requests when the discovery URL is plain http", () => {
+    expect(
+      shouldAllowInsecureRequests("http://localhost:5050/.well-known/openid-configuration"),
+    ).toBe(true);
+  });
+
+  it("refuses insecure requests when the discovery URL is https", () => {
+    expect(
+      shouldAllowInsecureRequests("https://auth.example.com/.well-known/openid-configuration"),
+    ).toBe(false);
+  });
+
+  it("still allows a plain-http discovery URL when NODE_ENV is production", () => {
+    // The exact configuration of the containerised stack: a production build
+    // pointed at a plain-http issuer. A gate keyed on NODE_ENV answers false
+    // here (and a bundled one cannot answer at all).
+    vi.stubEnv("NODE_ENV", "production");
+
+    expect(
+      shouldAllowInsecureRequests("http://localhost:5050/.well-known/openid-configuration"),
+    ).toBe(true);
+  });
+
+  it("refuses an https discovery URL even when NODE_ENV is development", () => {
+    // The gate is not a dev backdoor: an https issuer wants the gate closed
+    // regardless of how the process was started.
+    vi.stubEnv("NODE_ENV", "development");
+
+    expect(
+      shouldAllowInsecureRequests("https://auth.example.com/.well-known/openid-configuration"),
+    ).toBe(false);
+  });
+});
+
+describe("discover applies the plain-http gate", () => {
+  /** The `options` (5th) argument openid-client's `discovery()` was called with. */
+  function discoveryOptions(): { execute?: unknown[] } | undefined {
+    const call = discoveryMock.mock.calls[0] as [URL, string, string, unknown, unknown];
+    return call[4] as { execute?: unknown[] } | undefined;
+  }
+
+  it("passes allowInsecureRequests when the issuer is plain http", async () => {
+    const config: BffConfig = makeConfig({ issuer: "http://gate-http.example.com" });
+    discoveryMock.mockResolvedValue(
+      makeConfiguration({
+        issuer: "http://gate-http.example.com",
+        authorization_endpoint: "http://gate-http.example.com/connect/authorize",
+        token_endpoint: "http://gate-http.example.com/connect/token",
+      }),
+    );
+
+    await discover(config);
+
+    expect(discoveryOptions()?.execute).toEqual([allowInsecureRequestsMock]);
+  });
+
+  it("passes allowInsecureRequests for a plain-http issuer even under NODE_ENV=production", async () => {
+    // The regression this bead fixes: in the built nitro server this branch had
+    // been folded to `void 0`, so discovery refused the plain-http issuer.
+    vi.stubEnv("NODE_ENV", "production");
+    const config: BffConfig = makeConfig({ issuer: "http://gate-http-prod.example.com" });
+    discoveryMock.mockResolvedValue(
+      makeConfiguration({
+        issuer: "http://gate-http-prod.example.com",
+        authorization_endpoint: "http://gate-http-prod.example.com/connect/authorize",
+        token_endpoint: "http://gate-http-prod.example.com/connect/token",
+      }),
+    );
+
+    await discover(config);
+
+    expect(discoveryOptions()?.execute).toEqual([allowInsecureRequestsMock]);
+  });
+
+  it("omits the option entirely for an https issuer", async () => {
+    const config: BffConfig = makeConfig({ issuer: "https://gate-https.example.com" });
+    discoveryMock.mockResolvedValue(
+      makeConfiguration({
+        issuer: "https://gate-https.example.com",
+        authorization_endpoint: "https://gate-https.example.com/connect/authorize",
+        token_endpoint: "https://gate-https.example.com/connect/token",
+      }),
+    );
+
+    await discover(config);
+
+    // openid-client must not be handed an execute chain it does not need — the
+    // https deployment keeps the transport check on.
+    expect(discoveryOptions()).toBeUndefined();
+  });
+
+  it("keys the gate on the URL discovery is actually fetched from, not the public issuer", async () => {
+    // Split-horizon: the browser-facing issuer is https while the server reaches
+    // the OP over a plain-http internal host. The discovery request is the http
+    // one, so the gate must be open.
+    const config: BffConfig = makeConfig({
+      issuer: "https://gate-split.example.com",
+      metadataUrl: "http://internal.gate-split.local/.well-known/openid-configuration",
+    });
+    discoveryMock.mockResolvedValue(
+      makeConfiguration({
+        issuer: "http://internal.gate-split.local",
+        authorization_endpoint: "http://internal.gate-split.local/connect/authorize",
+        token_endpoint: "http://internal.gate-split.local/connect/token",
+      }),
+    );
+
+    await discover(config);
+
+    expect(discoveryOptions()?.execute).toEqual([allowInsecureRequestsMock]);
+  });
+});
+
+describe("the bundled server surface reads no bundler-foldable environment signal", () => {
+  const serverDir: string = dirname(fileURLToPath(import.meta.url));
+
+  /**
+   * This spec necessarily names the very tokens it forbids (both in the pattern
+   * literals and in the `vi.stubEnv` calls above), so it is the one file the
+   * sweep skips.
+   */
+  const SELF: string = fileURLToPath(import.meta.url);
+
+  /**
+   * Signals vite/rollup substitute at BUILD time and then constant-fold. Any of
+   * these in the server entry is a decision the built nitro bundle has already
+   * made before the process starts, and no runtime environment can change it.
+   */
+  const FOLDABLE_SIGNALS: ReadonlyArray<readonly [string, RegExp]> = [
+    ["NODE_ENV", /NODE_ENV/u],
+    ["import.meta.env", /import\.meta\.env/u],
+  ];
+
+  /** Every `.ts` module under the server entry, excluding specs. */
+  function serverModules(dir: string): string[] {
+    const found: string[] = [];
+    for (const entry of readdirSync(dir)) {
+      const full: string = join(dir, entry);
+      if (statSync(full).isDirectory()) {
+        found.push(...serverModules(full));
+      } else if (full.endsWith(".ts") && !full.endsWith(".test.ts") && full !== SELF) {
+        found.push(full);
+      }
+    }
+    return found;
+  }
+
+  it.each(FOLDABLE_SIGNALS)("no module under src/server reads %s", (_name, pattern: RegExp) => {
+    const offenders: string[] = serverModules(serverDir)
+      .filter((file: string): boolean => pattern.test(readFileSync(file, "utf8")))
+      .map((file: string): string => resolve(file));
+
+    // Doc comments count: a comment that still describes the gate as
+    // NODE_ENV-driven documents the bug rather than the fix.
+    expect(offenders).toEqual([]);
   });
 });
 

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { organizationsQueries } from "../../../features/organizations/api";
+import { organizationsGetAllOptions } from "../../../features/organizations/api";
 import { CreateOrganizationForm } from "../../../features/organizations/components/CreateOrganizationForm";
 import { OrganizationList } from "../../../features/organizations/components/OrganizationList";
 
@@ -10,7 +10,8 @@ import { OrganizationList } from "../../../features/organizations/components/Org
  *
  * The page root carries `data-testid="dashboard-organizations"` and renders the
  * `OrganizationList` component; the route `loader` prefetches the list via
- * `context.queryClient.ensureQueryData(organizationsQueries.list())`.
+ * `context.queryClient.ensureQueryData(organizationsGetAllOptions({ client }))`,
+ * binding the request-scoped client off the router context.
  *
  * Authored file-route style (`createFileRoute('/dashboard/organizations/')`),
  * so its `id`/`path`/parent are left unset — `src/router.tsx` binds it under the
@@ -43,6 +44,7 @@ function OrganizationsIndexPage() {
 }
 
 export const Route = createFileRoute("/dashboard/organizations/")({
-  loader: ({ context }) => context.queryClient.ensureQueryData(organizationsQueries.list()),
+  loader: ({ context }) =>
+    context.queryClient.ensureQueryData(organizationsGetAllOptions({ client: context.sdk.client })),
   component: OrganizationsIndexPage,
 });

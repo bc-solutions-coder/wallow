@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Serilog.Context;
@@ -27,7 +26,9 @@ public partial class TenantResolutionMiddleware(RequestDelegate next, ILogger<Te
                 LogTenantResolved(orgId, resolvedTenantName);
             }
 
-            // Allow X-Tenant-Id header for realm admins and service accounts
+            // Allow X-Tenant-Id header only for the non-assignable global-admin claim and for
+            // explicitly flagged platform operators. The "admin" role is granted tenant-side
+            // through UsersController.AssignRole, so it must never reach another tenant.
             string? headerTenantId = context.Request.Headers["X-Tenant-Id"].FirstOrDefault();
             if (!string.IsNullOrEmpty(headerTenantId))
             {
@@ -35,7 +36,7 @@ public partial class TenantResolutionMiddleware(RequestDelegate next, ILogger<Te
                 {
                     LogInvalidTenantIdHeader(headerTenantId);
                 }
-                else if (HasRealmAdminRole(context.User) || IsOperatorServiceAccount(context.User))
+                else if (context.User.IsGlobalAdmin() || context.User.IsOperator())
                 {
                     string callerId = context.User.GetUserId() ?? "unknown";
                     string requestPath = context.Request.Path.Value ?? "/";
@@ -89,25 +90,6 @@ public partial class TenantResolutionMiddleware(RequestDelegate next, ILogger<Te
         {
             await next(context);
         }
-    }
-
-    /// <summary>
-    /// Checks whether the caller is an operator service account (prefixed with "sa-").
-    /// Developer application clients (prefixed with "app-") are intentionally excluded
-    /// and must not be granted the X-Tenant-Id override path.
-    /// </summary>
-    private static bool IsOperatorServiceAccount(ClaimsPrincipal user)
-    {
-        string? clientId = user.GetClientId();
-        return clientId?.StartsWith("sa-", StringComparison.Ordinal) == true;
-    }
-
-    private const string AdminRole = "admin";
-
-    private static bool HasRealmAdminRole(ClaimsPrincipal user)
-    {
-        return user.GetRoles().Any(c =>
-            string.Equals(c, AdminRole, StringComparison.OrdinalIgnoreCase));
     }
 }
 

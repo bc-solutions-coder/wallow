@@ -1,10 +1,10 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { authQueries } from "@bc-solutions-coder/sdk/query";
+import { type InvitationResponse, invitationsAccept } from "@bc-solutions-coder/sdk";
+import { invitationsVerifyOptions } from "@bc-solutions-coder/sdk/query";
+import { forkBranding } from "@bc-solutions-coder/styles";
 import { Card, ErrorBanner } from "@bc-solutions-coder/ui";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useRouteContext } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-
-import { forkBranding } from "../../../lib/branding";
-import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
 
 /**
  * The InvitationLanding screen (Wallow-vec7.3.9).
@@ -21,9 +21,10 @@ import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
  * `invitation-expired`, `invitation-accept-error`, `invitation-accept`,
  * `invitation-decline`, `invitation-create-account`, `invitation-sign-in`.
  *
- * Mutations and the OIDC builders are reached through `getWallowAuthSdk()`, and
- * reads through the SDK's `./query` factories (Wallow-evd5.3.1) — never the
- * `@bc-solutions-coder/sdk` barrel, which only the facade may import.
+ * Mutations call the GENERATED operations and reads use the generated
+ * `{op}Options()` factories, both bound to the request-scoped SDK off the router
+ * context (`useRouteContext({ from: "__root__" })`). The OIDC URL builders are
+ * pure and imported directly. There is no app-level facade (Wallow-pu6a.5.5).
  *
  * ── THE AUTHENTICATED BRANCH IS A BUG FIX, NOT A PORT ────────────────────────
  *
@@ -115,18 +116,6 @@ const CLIENT_ERROR_MIN = 400;
 const CLIENT_ERROR_MAX = 500;
 
 /**
- * The `InvitationResponse` fields this screen reads (`MapToResponse`,
- * InvitationsController.cs:93-101). Declared locally, not imported: the facade
- * types this call as `Promise<unknown>`, and screens narrow at their own
- * boundary rather than adding response types to the SDK.
- */
-interface InvitationDetails {
-  readonly email: string;
-  readonly status: string;
-  readonly expiresAt: string;
-}
-
-/**
  * The HTTP status of a rejection, if it carries one.
  *
  * Narrowed structurally rather than with `instanceof WallowError`: that class is
@@ -180,7 +169,7 @@ function acceptFailureMessage(cause: unknown): string {
  * the accept, rather than this screen declaring a live invitation dead over a
  * date it could not read.
  */
-function isExpired(invitation: InvitationDetails): boolean {
+function isExpired(invitation: InvitationResponse): boolean {
   return invitation.status === "Expired" || Date.parse(invitation.expiresAt) < Date.now();
 }
 
@@ -355,7 +344,7 @@ function AnonymousActions(props: { readonly email: string; readonly token: strin
  * wasted round trip, and accepting one is a request the server will refuse.
  */
 function InvitationActions(props: {
-  readonly invitation: InvitationDetails;
+  readonly invitation: InvitationResponse;
   readonly token: string;
   readonly isAuthenticated: boolean;
   readonly acceptError: string | null;
@@ -399,6 +388,8 @@ export interface InvitationScreenProps {
 }
 
 export function InvitationScreen({ token, isAuthenticated }: InvitationScreenProps): ReactNode {
+  const { sdk } = useRouteContext({ from: "__root__" });
+
   // The oracle's `IsNullOrWhiteSpace(Token)`: whitespace is not a token, and this
   // guard runs BEFORE the call, so `?token=%20` never reaches the endpoint.
   const tokenIsPresent: boolean = token !== undefined && token.trim() !== "";
@@ -407,10 +398,7 @@ export function InvitationScreen({ token, isAuthenticated }: InvitationScreenPro
   // and is present only to narrow the prop to the `string` the factory takes,
   // without a cast.
   const query = useQuery({
-    ...authQueries.invitation(token ?? ""),
-    // The factory types the payload `unknown` — screens narrow at their own
-    // boundary (bd memory `packages-sdk-auth-client-facade-shape`).
-    select: (data: unknown): InvitationDetails => data as InvitationDetails,
+    ...invitationsVerifyOptions({ client: sdk.client, path: { token: token ?? "" } }),
     // Carries the oracle's guard to React Query: a tokenless link short-circuits
     // to the error state without ever going to the network.
     enabled: tokenIsPresent,
@@ -423,7 +411,7 @@ export function InvitationScreen({ token, isAuthenticated }: InvitationScreenPro
     mutationFn: async (accepted: string): Promise<void> => {
       // Resolution IS success: the endpoint answers 204, and every failure is a
       // non-2xx that `unwrap()` has already turned into a throw.
-      await getWallowAuthSdk().auth.acceptInvitation(accepted);
+      await invitationsAccept({ client: sdk.client, path: { token: accepted } });
     },
     onSuccess: () => {
       // A FULL navigation, not `navigate()` — the oracle's
@@ -474,7 +462,7 @@ export function InvitationScreen({ token, isAuthenticated }: InvitationScreenPro
 function InvitationBody(props: {
   readonly token: string;
   readonly isAuthenticated: boolean;
-  readonly invitation: InvitationDetails | null;
+  readonly invitation: InvitationResponse | null;
   readonly isPending: boolean;
   readonly error: unknown;
   readonly acceptError: string | null;

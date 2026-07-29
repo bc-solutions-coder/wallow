@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Wallow.Identity.Api.Contracts.Responses;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Shared.Kernel.Identity.Authorization;
@@ -25,6 +26,7 @@ public class RolesController(RoleManager<WallowRole> roleManager, IRolePermissio
     /// </summary>
     [HttpGet]
     [HasPermission(PermissionType.RolesRead)]
+    [ProducesResponseType(typeof(IReadOnlyList<RoleResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult> GetRoles(CancellationToken ct)
     {
         List<WallowRole> roles = await roleManager.Roles.ToListAsync(ct);
@@ -37,6 +39,7 @@ public class RolesController(RoleManager<WallowRole> roleManager, IRolePermissio
     /// </summary>
     [HttpGet("{roleName}/permissions")]
     [HasPermission(PermissionType.RolesRead)]
+    [ProducesResponseType(typeof(IReadOnlyList<string>), StatusCodes.Status200OK)]
     public ActionResult GetRolePermissions(string roleName)
     {
         IReadOnlyCollection<string> permissions = rolePermissionLookup.GetPermissions(new[] { roleName });

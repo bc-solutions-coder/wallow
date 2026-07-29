@@ -1,27 +1,33 @@
 /**
  * Organization detail (Wallow-8w1h.4.4). Drives
- * `useQuery(organizationsQueries.detail(orgId))` and renders the org heading +
+ * `useQuery(organizationsGetByIdOptions(...))` and renders the org heading +
  * info (rendering `organization-detail-heading` /
  * `organization-detail-back-link` / `organization-detail-not-found`),
  * archive/reactivate actions, and the `MemberList` for `orgId`.
  *
- * The back link is a plain anchor (not a router `Link`) so the component renders
- * standalone under a `QueryClientProvider` without a router context. The new
- * lifecycle actions carry `organization-detail-archive` /
- * `organization-detail-reactivate` (`{page}-{element}` kebab-case).
+ * The back link is a plain anchor (not a router `Link`) so it needs no matched
+ * route of its own; the SDK still comes off the router context, which every
+ * mount site (app and spec alike) supplies. The lifecycle actions carry
+ * `organization-detail-archive` / `organization-detail-reactivate`
+ * (`{page}-{element}` kebab-case).
  */
+import type { ClientResponse } from "@bc-solutions-coder/sdk";
 import { Button, ErrorBanner, Field, Input, MutedText } from "@bc-solutions-coder/ui";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouteContext } from "@tanstack/react-router";
 
 import { SelectControl, type SelectControlOption } from "../../../components/SelectControl";
 import {
-  archiveOrganizationMutation,
-  organizationsQueries,
-  reactivateOrganizationMutation,
-  registerClientMutation,
+  clientsCreateMutation,
+  clientsGetByTenantOptions,
+  clientsGetByTenantQueryKey,
+  organizationsArchiveMutation,
+  organizationsGetByIdOptions,
+  organizationsReactivateMutation,
+  queriesForOperation,
+  queriesWithTag,
 } from "../api";
-import type { Organization } from "../types";
 import { MemberList } from "./MemberList";
 
 /** The shared list/table card surface — rows bleed to its edge, so no padding. */
@@ -30,14 +36,11 @@ const TABLE_CARD = "bg-card rounded-lg shadow-sm border border-border overflow-h
 /** A list row inside `TABLE_CARD`. */
 const TABLE_ROW = "flex items-center justify-between px-6 py-4 hover:bg-background/50";
 
-/** A bound OAuth client (narrowed at the render boundary). */
-interface BoundClient {
-  id?: string;
-  clientId?: string;
-  name?: string;
-}
-
-/** The register-client form body. */
+/**
+ * What the register-client form collects. `clientType` is the form's own
+ * public/confidential switch: the clients endpoint infers it from whether a
+ * secret is issued, so this value never reaches the wire.
+ */
 interface RegisterClientInput {
   displayName: string;
   clientType: string;
@@ -45,7 +48,7 @@ interface RegisterClientInput {
 }
 
 /** A single bound-client row. */
-function ClientRow(props: { client: BoundClient }) {
+function ClientRow(props: { client: ClientResponse }) {
   const { client } = props;
   return (
     <li data-testid="organization-detail-client-row" className={TABLE_ROW}>
@@ -56,12 +59,12 @@ function ClientRow(props: { client: BoundClient }) {
 }
 
 /** The bound-clients list (empty until the org's clients load). */
-function ClientsTable(props: { clients: BoundClient[] }) {
+function ClientsTable(props: { clients: readonly ClientResponse[] }) {
   return (
     <div className={TABLE_CARD}>
       <ul data-testid="organization-detail-clients-table" className="divide-y divide-border">
         {props.clients.map((client) => (
-          <ClientRow key={client.id ?? client.clientId} client={client} />
+          <ClientRow key={client.id} client={client} />
         ))}
       </ul>
     </div>
@@ -160,12 +163,24 @@ function RegisterClientForm(props: { onRegister: (body: RegisterClientInput) => 
  */
 function ClientsSection(props: { orgId: string }) {
   const { orgId } = props;
+  const { sdk } = useRouteContext({ from: "__root__" });
   const queryClient = useQueryClient();
-  const { data } = useQuery(organizationsQueries.clients(orgId));
-  const register = useMutation(registerClientMutation(queryClient, orgId));
+  const { data } = useQuery(
+    clientsGetByTenantOptions({ client: sdk.client, path: { tenantId: orgId } }),
+  );
+  const register = useMutation({
+    ...clientsCreateMutation({ client: sdk.client }),
+    onSuccess: (): void => {
+      void queryClient.invalidateQueries(
+        queriesForOperation(
+          clientsGetByTenantQueryKey({ client: sdk.client, path: { tenantId: orgId } }),
+        ),
+      );
+    },
+  });
 
-  const clients = (data ?? []) as BoundClient[];
-  const result = register.data as { clientId?: string; clientSecret?: string | null } | undefined;
+  const clients: readonly ClientResponse[] = data ?? [];
+  const result: ClientResponse | undefined = register.data;
 
   return (
     <section className="space-y-4">
@@ -186,8 +201,18 @@ function ClientsSection(props: { orgId: string }) {
       ) : null}
       <div className="bg-card rounded-lg shadow-sm border border-border p-8">
         <RegisterClientForm
-          onRegister={(body) => {
-            register.mutate(body);
+          onRegister={(input) => {
+            // `clientType` stays in the form: the endpoint derives public vs
+            // confidential from the secret it issues, so there is no wire field
+            // for it (the deleted hand-written mutation dropped it the same way).
+            register.mutate({
+              body: {
+                name: input.displayName,
+                redirectUris: input.redirectUris,
+                postLogoutRedirectUris: [],
+                tenantId: orgId,
+              },
+            });
           }}
         />
       </div>
@@ -231,18 +256,30 @@ function NotFoundCard() {
 
 export function OrganizationDetail(props: { orgId: string }) {
   const { orgId } = props;
+  const { sdk } = useRouteContext({ from: "__root__" });
   const queryClient = useQueryClient();
-  const { data, isPending } = useQuery(organizationsQueries.detail(orgId));
-  const archive = useMutation(archiveOrganizationMutation(queryClient, orgId));
-  const reactivate = useMutation(reactivateOrganizationMutation(queryClient, orgId));
+  const { data, isPending } = useQuery(
+    organizationsGetByIdOptions({ client: sdk.client, path: { id: orgId } }),
+  );
+  // Archive and reactivate each flip a field the LIST also renders, so both
+  // sweep the whole Organizations tag rather than just this org's detail.
+  const invalidateOrganizations = (): void => {
+    void queryClient.invalidateQueries(queriesWithTag("Organizations"));
+  };
+  const archive = useMutation({
+    ...organizationsArchiveMutation({ client: sdk.client }),
+    onSuccess: invalidateOrganizations,
+  });
+  const reactivate = useMutation({
+    ...organizationsReactivateMutation({ client: sdk.client }),
+    onSuccess: invalidateOrganizations,
+  });
 
   if (isPending) {
     return <MutedText data-testid="organization-detail-loading">Loading organization…</MutedText>;
   }
 
-  // The facade returns the detail as `unknown`; narrow to the feature view-model
-  // at the render boundary. A missing org surfaces as `null`/`undefined`.
-  const org = (data ?? null) as Organization | null;
+  const org = data ?? null;
 
   if (org === null) {
     return (
@@ -269,7 +306,7 @@ export function OrganizationDetail(props: { orgId: string }) {
           className="w-auto"
           data-testid="organization-detail-archive"
           onClick={() => {
-            archive.mutate();
+            archive.mutate({ path: { id: orgId } });
           }}
         >
           Archive
@@ -280,7 +317,7 @@ export function OrganizationDetail(props: { orgId: string }) {
           className="w-auto"
           data-testid="organization-detail-reactivate"
           onClick={() => {
-            reactivate.mutate();
+            reactivate.mutate({ path: { id: orgId } });
           }}
         >
           Reactivate

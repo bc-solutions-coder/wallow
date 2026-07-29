@@ -1,30 +1,23 @@
 {
-  // Declaration-only build config. The package `build` script runs tsup for the
-  // JS bundle and then `tsc -p tsconfig.build.json` for the .d.ts files.
+  // Declaration-only build config. The package `build` script runs Vite library
+  // mode for the JS bundle and then `tsc -p tsconfig.build.json` for the .d.ts
+  // files; `tsc --emitDeclarationOnly` owns declarations because Vite's lib mode
+  // emits none.
   //
-  // Why a dedicated config (declaration emit): tsup's `dts: true` path
-  // (rollup-plugin-dts) drives the TypeScript compiler API programmatically,
-  // which is unreliable on the TS7.0 GA native compiler (the stable programmatic
-  // API lands in 7.1) — and the rest of the workspace targets TS7. The native
-  // `tsc --emitDeclarationOnly` CLI emits declarations correctly, so
-  // declarations are generated here instead of via tsup.
-  //
-  // `include` is narrowed to just the two public entry points; tsc transitively
+  // `include` is narrowed to just the public entry points; tsc transitively
   // pulls in every real src file they import, but *.test.ts / scripts / root
   // *.config.ts stay out of the program, so no stray declaration files leak
-  // into dist/. `rootDir` is set explicitly to keep dist/ mirroring src/ (and
-  // TS7 requires it when outDir is set — error TS5011).
+  // into dist/. `server/passthrough.ts` is listed explicitly because nothing
+  // imports it — deliberately, so a passthrough-only app never reaches the BFF
+  // handler graph — and an unlisted entry emits no .d.ts at all. `rootDir` is
+  // set explicitly to keep dist/ mirroring src/ (error TS5011 otherwise).
   //
-  // Why this package pins typescript to "6.0.3" (TS6) while the workspace is on
-  // TS7 (see package.json devDependencies): the SDK's OpenAPI codegen,
-  // @hey-api/openapi-ts@0.64, is not TS7-compatible (peer dep typescript
-  // ^5.5.3; it consumes the TS programmatic API and crashes on TS7 with
-  // "Cannot read properties of undefined (reading 'LineFeed')"). That breaks the
-  // `generate` script and src/runtime-config.test.ts (which imports
-  // openapi-ts.config.ts) under TS7. pnpm scopes this pin to packages/sdk only —
-  // apps/tanstack-min and future members stay on TS7 via tsconfig.base.json.
-  // When @hey-api/openapi-ts ships TS7 support, bump this devDep to "^7" and the
-  // native-tsc declaration path above already works unchanged.
+  // This package's typescript devDependency tracks the rest of the workspace
+  // (^5.6.0) rather than carrying its own pin: the SDK's OpenAPI codegen,
+  // @hey-api/openapi-ts, declares peer `typescript: ^5.5.3` and drives the TS
+  // programmatic API, so `generate` and src/runtime-config.test.ts (which
+  // imports openapi-ts.config.ts) need a 5.x compiler. An SDK-local major-version
+  // pin here would put the codegen outside its own supported range.
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "declaration": true,
@@ -32,6 +25,11 @@
     "rootDir": "src",
     "outDir": "dist"
   },
-  "include": ["src/index.ts", "src/server/index.ts", "src/query/index.ts"],
+  "include": [
+    "src/index.ts",
+    "src/server/index.ts",
+    "src/server/passthrough.ts",
+    "src/query/index.ts"
+  ],
   "exclude": ["**/*.test.ts", "scripts", "**/*.config.ts"]
 }

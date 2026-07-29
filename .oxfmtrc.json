@@ -11,6 +11,9 @@
     "**/routeTree.gen.ts",
     "packages/sdk/src/generated/**",
     "packages/sdk/openapi/**",
-    "**/CHANGELOG.md"
+    "**/CHANGELOG.md",
+    "**/.output/**",
+    "**/.nitro/**",
+    "**/.tanstack/**"
   ]
 }

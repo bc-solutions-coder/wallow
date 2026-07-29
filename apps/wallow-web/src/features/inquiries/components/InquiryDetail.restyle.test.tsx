@@ -1,10 +1,10 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactElement } from "react";
-import { render } from "vitest-browser-react";
+import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+
+import { routeHarness } from "../../../test/harness-routes";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { expectCatalogSelect } from "../../../test/catalog-select";
-import { installSdkClientMock } from "../../../test/sdk-client-mock";
 import {
   allByTestId,
   byTestId,
@@ -15,6 +15,9 @@ import {
   within,
 } from "../../../test/style-contract";
 import { InquiryDetail } from "./InquiryDetail";
+
+/** The transport backing each render, rebuilt per test. */
+let harness: SdkHarness;
 
 /**
  * Restyle spec for the inquiry-detail body (Wallow-urec.4.2). Every behavioural
@@ -73,35 +76,23 @@ const TWO_COMMENTS = [
   },
 ];
 
-function newClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: {
-      queries: { retry: false, staleTime: Number.POSITIVE_INFINITY },
-      mutations: { retry: false },
-    },
-  });
-}
-
-function renderWithClient(client: QueryClient, ui: ReactElement) {
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-}
-
 /**
  * Render a loaded inquiry with `comments` in cache and resolve the settled
  * element named by `anchor` — always a PRE-EXISTING testid, so a red-phase run
  * fails on the missing recipe class rather than timing out on the mount gate.
  */
 async function renderDetail(comments: unknown[], anchor: string): Promise<HTMLElement> {
-  const client = newClient();
-  client.setQueryData(["inquiries", "i1"], INQUIRY);
-  client.setQueryData(["inquiries", "i1", "comments"], comments);
-  renderWithClient(client, <InquiryDetail inquiryId="i1" />);
+  routeHarness(harness, {
+    "GET /v1/inquiries/i1": INQUIRY,
+    "GET /v1/inquiries/i1/comments": comments,
+  });
+  renderWithWallow(<InquiryDetail inquiryId="i1" />, { harness });
   return waitForTestId(anchor);
 }
 
 describe("InquiryDetail (restyle)", () => {
   beforeEach(() => {
-    installSdkClientMock();
+    harness = createSdkHarness();
   });
 
   it("seats the detail on the padded card surface", async () => {

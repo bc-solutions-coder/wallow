@@ -1,11 +1,10 @@
 /**
  * Create-inquiry form (Wallow-8w1h.7.3) — copies the CANONICAL create-form
  * template (`CreateOrganizationForm`, Wallow-8w1h.4.3): `useForm` (TanStack
- * Form) + `useMutation(createInquiryMutation(queryClient))`. It submits the
- * full `SubmitInquiryBody`, relies on the mutation factory's `onSuccess` to
- * invalidate `['inquiries']`, swaps the form for a success state on success,
- * and surfaces the server's RFC 7807 ProblemDetails `detail` when the submit
- * fails.
+ * Form) + `useMutation(inquiriesSubmitMutation({ client }))`. It submits the
+ * full `SubmitInquiryRequest`, sweeps the Inquiries tag on success, swaps the
+ * form for a success state, and surfaces the server's RFC 7807 `detail` when the
+ * submit fails.
  *
  * Testids mirror the C# E2E `InquiryPage` page object verbatim:
  * `inquiry-name`, `inquiry-email`, `inquiry-phone`, `inquiry-company`,
@@ -24,10 +23,11 @@
 import { Button, Card, ErrorBanner, Field, Input } from "@bc-solutions-coder/ui";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { ProblemDetails } from "@bc-solutions-coder/sdk";
+import { useRouteContext } from "@tanstack/react-router";
 
 import { SelectControl, type SelectControlOption } from "../../../components/SelectControl";
-import { createInquiryMutation } from "../api";
+import { errorText } from "../../../lib/error-text";
+import { inquiriesSubmitMutation, queriesWithTag } from "../api";
 
 /**
  * The bare `textarea` has no browser default that matches the token-styled `ui`
@@ -177,8 +177,14 @@ interface InquiryFormValues {
  * the heading and form remain siblings directly under it.
  */
 function CreateInquiryFormFields() {
+  const { sdk } = useRouteContext({ from: "__root__" });
   const queryClient = useQueryClient();
-  const mutation = useMutation(createInquiryMutation(queryClient));
+  const mutation = useMutation({
+    ...inquiriesSubmitMutation({ client: sdk.client }),
+    onSuccess: (): void => {
+      void queryClient.invalidateQueries(queriesWithTag("Inquiries"));
+    },
+  });
 
   if (mutation.isSuccess) {
     return (
@@ -197,15 +203,15 @@ function CreateInquiryFormFields() {
         Submit an Inquiry
       </h2>
       <InquiryFormBody
-        error={mutation.isError ? (mutation.error as ProblemDetails) : null}
+        error={mutation.isError ? errorText(mutation.error, "Could not submit the inquiry.") : null}
         onSubmit={(value) => {
           // Fire-and-observe: drive the mutation with `mutate` (not awaited
           // `mutateAsync`) so a rejected submit is captured in mutation state and
           // surfaced below rather than escaping as an unhandled rejection. The
-          // factory's own `onSuccess` invalidates `['inquiries']`; success swaps
+          // mutation's own `onSuccess` sweeps the Inquiries tag; success swaps
           // heading and form for the success state above, so no field reset is
           // needed.
-          mutation.mutate(value);
+          mutation.mutate({ body: value });
         }}
       />
     </>
@@ -219,7 +225,7 @@ function CreateInquiryFormFields() {
  */
 function InquiryFormBody(props: {
   onSubmit: (value: InquiryFormValues) => void;
-  error: ProblemDetails | null;
+  error: string | null;
 }) {
   const { onSubmit, error } = props;
 
@@ -344,9 +350,7 @@ function InquiryFormBody(props: {
         )}
       </form.Field>
 
-      {error === null ? null : (
-        <ErrorBanner data-testid="inquiry-error">{error.detail}</ErrorBanner>
-      )}
+      {error === null ? null : <ErrorBanner data-testid="inquiry-error">{error}</ErrorBanner>}
 
       <Button type="submit" data-testid="inquiry-submit">
         Submit Inquiry

@@ -1,11 +1,9 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactElement } from "react";
+import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { chooseOption, expectCatalogSelect } from "../../../test/catalog-select";
-import { installSdkClientMock } from "../../../test/sdk-client-mock";
 import {
   byTestId,
   expectClasses,
@@ -58,19 +56,12 @@ const FILLERS: readonly (() => Promise<void>)[] = [
   () => userEvent.type(page.getByTestId("inquiry-message"), "We need a project dashboard."),
 ];
 
-function newClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-}
-
-function renderWithClient(ui: ReactElement) {
-  return render(<QueryClientProvider client={newClient()}>{ui}</QueryClientProvider>);
-}
+/** The transport backing each render, rebuilt per test. */
+let harness: SdkHarness;
 
 /** Render the form and resolve its settled `form` element. */
 async function renderForm(): Promise<HTMLElement> {
-  renderWithClient(<CreateInquiryForm />);
+  renderWithWallow(<CreateInquiryForm />, { harness });
   return waitForTestId("inquiry-create-form");
 }
 
@@ -86,7 +77,7 @@ async function renderSubmitted(): Promise<HTMLElement> {
 
 describe("CreateInquiryForm (restyle)", () => {
   beforeEach(() => {
-    installSdkClientMock();
+    harness = createSdkHarness();
   });
 
   it("seats the form on the padded card surface", async () => {

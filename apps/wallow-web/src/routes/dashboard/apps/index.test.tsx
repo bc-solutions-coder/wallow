@@ -1,10 +1,9 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactElement } from "react";
+import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import { page } from "vitest/browser";
-import { render } from "vitest-browser-react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
-import { createRouter } from "../../../router";
+import { getRouter } from "../../../router";
 import { Route } from "./index";
 
 /**
@@ -16,31 +15,16 @@ import { Route } from "./index";
  *      (bound manually alongside the organizations routes, no layout route yet).
  */
 
-// The rendered page mounts AppList (useQuery); mock the facade so the list query
-// is inert during the route render.
-const mocks = vi.hoisted(() => ({
-  list: vi.fn(),
-  get: vi.fn(),
-  register: vi.fn(),
-}));
+// The rendered page mounts AppList, whose `useQuery` now runs for real against
+// the harness transport (Wallow-pu6a.5.5) — the facade this spec used to mock is
+// deleted, and there is nothing left in the path to stub.
 
-vi.mock("../../../lib/wallow-sdk", () => ({
-  getWallowSdk: () => ({
-    apps: { list: mocks.list, get: mocks.get, register: mocks.register },
-  }),
-}));
-
-function newClient(): QueryClient {
-  return new QueryClient({ defaultOptions: { queries: { retry: false } } });
-}
-
-function renderWithClient(client: QueryClient, ui: ReactElement) {
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-}
+/** The transport backing each render, rebuilt per test. */
+let harness: SdkHarness;
 
 describe("routes/dashboard/apps (route page)", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    harness = createSdkHarness();
   });
 
   it("exposes a route component", () => {
@@ -52,11 +36,10 @@ describe("routes/dashboard/apps (route page)", () => {
   });
 
   it("renders a page root carrying data-testid=dashboard-apps", async () => {
-    const client = newClient();
-    client.setQueryData(["apps"], []);
+    harness.resolveJson([]);
 
     const Page = Route.options.component!;
-    renderWithClient(client, <Page />);
+    renderWithWallow(<Page />, { harness });
 
     await expect.element(page.getByTestId("dashboard-apps")).toBeInTheDocument();
   });
@@ -65,11 +48,10 @@ describe("routes/dashboard/apps (route page)", () => {
   // RegisterAppForm is reachable via normal UI navigation (the
   // `apps-register-link`), not just a directly-typed URL.
   it("links to the register route (apps-register-link)", async () => {
-    const client = newClient();
-    client.setQueryData(["apps"], []);
+    harness.resolveJson([]);
 
     const Page = Route.options.component!;
-    renderWithClient(client, <Page />);
+    renderWithWallow(<Page />, { harness });
 
     const link = page.getByTestId("apps-register-link");
     await expect.element(link).toBeInTheDocument();
@@ -79,8 +61,8 @@ describe("routes/dashboard/apps (route page)", () => {
 
 describe("routes/dashboard/apps (router registration)", () => {
   it("registers /dashboard/apps in the router tree", () => {
-    const router = createRouter();
-    const paths = Object.keys((router as { routesByPath: Record<string, unknown> }).routesByPath);
+    const router = getRouter();
+    const paths = Object.keys(router.routesByPath);
     expect(paths).toContain("/dashboard/apps");
   });
 });

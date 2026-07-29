@@ -548,7 +548,10 @@ try
     app.MapControllers();
 
     app.MapHub<RealtimeHub>("/hubs/realtime");
-    app.MapGet("/events", SseEndpoint.HandleSseConnection).RequireAuthorization();
+    // Kept out of the API description: the stream is text/event-stream, so there is no response
+    // body schema to publish and its untyped 200 would generate an SDK client method returning
+    // unknown. Browsers consume it through EventSource, not the generated client.
+    app.MapGet("/events", SseEndpoint.HandleSseConnection).RequireAuthorization().ExcludeFromDescription();
     app.MapAsyncApiEndpoints();
 
     // API-level recurring jobs (use DI-based IRecurringJobManager, not static RecurringJob)

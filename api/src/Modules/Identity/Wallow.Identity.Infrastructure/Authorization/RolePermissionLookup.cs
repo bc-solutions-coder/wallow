@@ -1,4 +1,5 @@
 using Wallow.Identity.Application.Interfaces;
+using Wallow.Shared.Kernel.Identity.Authorization;
 
 namespace Wallow.Identity.Infrastructure.Authorization;
 

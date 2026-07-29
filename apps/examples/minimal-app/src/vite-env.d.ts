@@ -1,17 +1,11 @@
 /**
- * Ambient Vite env typing. The app's tsconfig sets `types: ["node"]` and does
- * not pull in `vite/client`, so `import.meta.env` is otherwise untyped.
- * `__root.tsx` branches on `import.meta.env.DEV` (the boolean Vite statically
- * replaces per build target) to pick the client entry and stylesheet paths, so
- * we declare just that flag here. Interface merging augments Node's `ImportMeta`
- * (which supplies `url`/`dirname`) rather than replacing it.
+ * Ambient typing for the non-TS modules Vite resolves. The app's tsconfig sets
+ * `types: ["node"]` and does not pull in `vite/client`, so `__root.tsx`'s
+ * side-effect stylesheet import would otherwise be an unresolved module.
+ *
+ * Declared with no exported shape on purpose: the import exists for its side
+ * effect (it pulls the Tailwind pipeline into the graph), and nothing reads a
+ * value from it — the `?url` form is what ships a 404ing stylesheet under
+ * Start's two-environment build.
  */
-
-interface ImportMetaEnv {
-  /** True on Vite's dev server, false in a production build. */
-  readonly DEV: boolean;
-}
-
-interface ImportMeta {
-  readonly env: ImportMetaEnv;
-}
+declare module "*.css";

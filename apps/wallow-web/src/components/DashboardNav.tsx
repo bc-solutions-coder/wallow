@@ -4,9 +4,10 @@ import { logout } from "@bc-solutions-coder/sdk";
 // directory stubs `@tanstack/react-router` down to `Link` alone. Bundlers
 // tree-shake that away; a dev/test module graph does not, so the barrel would
 // fail to link here.
+import { ErrorBanner } from "@bc-solutions-coder/ui/error-banner";
 import { NavigationMenu } from "@bc-solutions-coder/ui/navigation-menu";
 import { Link, type LinkProps } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { navIconLabels, navIcons, type NavIconName } from "./nav-icons";
 import { useIsDesktop } from "../lib/use-is-desktop";
@@ -143,6 +144,21 @@ function NavDestinationList(props: {
 function NavLogout(props: { showLabel: boolean }) {
   const Icon = navIcons.signOut;
   const label: string = navIconLabels.signOut;
+  const [error, setError] = useState<string | null>(null);
+
+  // `logout()` POSTs to the CSRF-gated `/bff/logout` and navigates on the
+  // redirect it answers with, so it can reject (403 CSRF, 405) and leave the
+  // session live. Saying so beats a silent no-op button and an unhandled
+  // rejection.
+  async function signOut(): Promise<void> {
+    setError(null);
+    try {
+      await logout();
+    } catch {
+      setError("Sign out failed. You are still signed in — please try again.");
+    }
+  }
+
   return (
     <div className="px-4 py-4 border-t border-background/10">
       <button
@@ -151,12 +167,15 @@ function NavLogout(props: { showLabel: boolean }) {
         aria-label={label}
         className={`${props.showLabel ? itemClass : iconOnlyItemClass} w-full text-left`}
         onClick={() => {
-          logout();
+          void signOut();
         }}
       >
         <Icon aria-hidden="true" className={iconClass} />
         {props.showLabel ? label : null}
       </button>
+      {error === null ? null : (
+        <ErrorBanner data-testid="dashboard-logout-error">{error}</ErrorBanner>
+      )}
     </div>
   );
 }

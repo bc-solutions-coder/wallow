@@ -1,14 +1,20 @@
-import { createApp, defineEventHandler, toWebHandler, type App, type H3Event } from "h3";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { discovery, type Configuration } from "openid-client";
 
 import type { BffConfig } from "./config";
-import { createBffHandlers, readSession, writeSession, type BffHandlers } from "./handlers";
+import {
+  createBffHandlers,
+  readSession,
+  writeSession,
+  type BffHandlers,
+  type BffHandler,
+} from "./handlers";
 import type { DiscoveryDoc } from "./oidc";
+import { CSRF_HEADER, CSRF_INVALID_CODE } from "./proxy";
 import { sealSession, type BffSession } from "./session";
 import { CookieSessionStore } from "./store/cookie";
 import type { SessionStore } from "./store/types";
-import { sealTx, type LoginTx } from "./txstate";
+import { sealTx, unsealTx, type LoginTx } from "./txstate";
 
 /**
  * Hermetic mock of openid-client: `discover()` now resolves endpoints through
@@ -84,6 +90,9 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+/** The CSRF token bound to every session {@link makeSession} builds. */
+const CSRF_FIXTURE_TOKEN: string = "csrf-fixture-token-aaaaaaaaaaaaaaaa";
+
 /**
  * Build a config. Each test passes a unique issuer so the module-level
  * discovery cache in oidc.ts never leaks a stubbed doc across tests.
@@ -114,14 +123,27 @@ function makeDoc(issuer: string): DiscoveryDoc {
   };
 }
 
-/** Register all four handlers on a fresh app and return a web fetch handler. */
+/**
+ * Dispatch a request to one of the four handlers by path.
+ *
+ * The handlers are plain `(Request) => Promise<Response>` functions, so this is
+ * a four-line `switch` rather than an h3 app: no `createApp`, no `toWebHandler`,
+ * and nothing between the test's `new Request(...)` and the handler under test.
+ */
 function makeHandle(handlers: BffHandlers): (request: Request) => Promise<Response> {
-  const app: App = createApp();
-  app.use("/bff/login", handlers.login);
-  app.use("/bff/callback", handlers.callback);
-  app.use("/bff/user", handlers.user);
-  app.use("/bff/logout", handlers.logout);
-  return toWebHandler(app);
+  const routes: Record<string, BffHandler | undefined> = {
+    "/bff/login": handlers.login,
+    "/bff/callback": handlers.callback,
+    "/bff/user": handlers.user,
+    "/bff/logout": handlers.logout,
+  };
+  return async (request: Request): Promise<Response> => {
+    const handler: BffHandler | undefined = routes[new URL(request.url).pathname];
+    if (handler === undefined) {
+      return new Response(null, { status: 404 });
+    }
+    return await handler(request);
+  };
 }
 
 /** A minimal, unsigned JWT with the given payload (BFF trusts the TLS channel). */
@@ -139,8 +161,17 @@ function makeSession(overrides: Partial<BffSession> = {}): BffSession {
     expiresAt: Date.now() + 3_600_000,
     user: { sub: "user-123", email: "user@example.com", name: "Test User" },
     version: 1,
+    csrfToken: CSRF_FIXTURE_TOKEN,
     ...overrides,
   };
+}
+
+/** A logout request carrying the method and CSRF token the handler requires. */
+function logoutRequest(cookie: string, csrfToken: string = CSRF_FIXTURE_TOKEN): Request {
+  return new Request("http://localhost/bff/logout", {
+    method: "POST",
+    headers: { cookie, [CSRF_HEADER]: csrfToken },
+  });
 }
 
 describe("login handler", () => {
@@ -169,7 +200,7 @@ describe("login handler", () => {
     expect(url.searchParams.get("code_challenge")).toBeTruthy();
     expect(url.searchParams.get("state")).toBeTruthy();
     expect(url.searchParams.get("nonce")).toBeTruthy();
-    expect(res.headers.get("set-cookie") ?? "").toContain("wallow_bff_tx");
+    expect(setCookieFor(res, "wallow_bff_tx")).toBeDefined();
   });
 });
 
@@ -235,7 +266,7 @@ describe("callback handler", () => {
 
     expect(res.status).toBe(302);
     expect(res.headers.get("location")).toBe("/welcome");
-    expect(res.headers.get("set-cookie") ?? "").toContain("wallow_bff=");
+    expect(setCookieFor(res, "wallow_bff")).toBeDefined();
 
     // The callback delegates to openid-client, passing the full callback URL
     // (for code/state extraction) and the tx-bound state/nonce/PKCE checks.
@@ -311,6 +342,192 @@ describe("callback handler", () => {
   });
 });
 
+/**
+ * The token-exchange `currentUrl` must be rooted at `config.redirectUri`
+ * (Wallow-pu6a.3.1, NEW RISK 1).
+ *
+ * openid-client derives the token request's `redirect_uri` from the `currentUrl`
+ * it is handed, while the authorize step sends `config.redirectUri`. Deriving
+ * `currentUrl` from the incoming request instead would make the two disagree
+ * behind TLS termination — the hosts build the `Request` as
+ * `http://${req.headers.host}${req.url}` and ignore `x-forwarded-proto`, so a
+ * request that reached the edge as `https://app.example.com/bff/callback`
+ * arrives here as `http://localhost:3000/bff/callback`. The IdP would then
+ * answer `invalid_grant` in every TLS-terminated deployment while every local
+ * test still passed.
+ */
+describe("callback token-exchange currentUrl", () => {
+  it("roots currentUrl at config.redirectUri, not at the incoming request URL", async () => {
+    const config: BffConfig = makeConfig("https://cb-currenturl.example.com", {
+      redirectUri: "https://app.example.com/bff/callback",
+    });
+    const sealed: string = await sealTx(
+      { state: "st-u", nonce: "no-u", verifier: "ver-u", returnTo: "/" },
+      config.cookiePassword,
+    );
+    authorizationCodeGrantMock.mockResolvedValue({
+      access_token: "at",
+      refresh_token: "rt",
+      id_token: makeIdToken({ sub: "user-u" }),
+      expires_in: 3600,
+      token_type: "Bearer",
+    });
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("unexpected token-endpoint fetch")));
+    const handle = makeHandle(createBffHandlers(config));
+
+    // Exactly what a TLS-terminating proxy hands the Node host.
+    await handle(
+      new Request("http://localhost:3000/bff/callback?code=code-u&state=st-u", {
+        headers: { cookie: `wallow_bff_tx=${sealed}` },
+      }),
+    );
+
+    const [, currentUrl] = authorizationCodeGrantMock.mock.calls[0] as [unknown, URL];
+    const passed: URL = new URL(String(currentUrl));
+    // The redirect_uri openid-client derives from this must equal the one the
+    // authorize request already sent.
+    expect(passed.origin).toBe(new URL(config.redirectUri).origin);
+    expect(passed.pathname).toBe(new URL(config.redirectUri).pathname);
+    // The code/state openid-client validates still come from the real request.
+    expect(passed.searchParams.get("code")).toBe("code-u");
+    expect(passed.searchParams.get("state")).toBe("st-u");
+  });
+});
+
+/**
+ * Open-redirect guard on `returnTo` (Wallow-pu6a.1.5, finding F6/R5).
+ *
+ * `/bff/login?returnTo=` is attacker-reachable: anyone can hand a victim a link
+ * to the app's own login endpoint carrying a foreign `returnTo`, and the value
+ * survives the whole OIDC round trip inside the tx cookie before the callback
+ * issues its redirect. Both ends must run the value through the existing
+ * `isSafeReturnUrl` guard from `../auth-oidc`.
+ *
+ * SANITIZE, DO NOT REFUSE. An unsafe `returnTo` falls back to "/" and login
+ * still proceeds — matching the backend's `ReturnUrlValidator.Sanitize`
+ * behaviour. (The pure builders in `auth-oidc.ts` deliberately throw instead,
+ * but those are called by app code with a value it chose; this handler is a
+ * browser navigation entry point where a hard 400 would turn a merely-malformed
+ * link into a broken login.) The guard covers the callback too, so a tx cookie
+ * sealed by an older build — or by any path that bypasses the login handler —
+ * cannot still land the browser on a foreign origin.
+ */
+describe("returnTo open-redirect guard", () => {
+  /** Round-trip the login response's tx cookie back into its `LoginTx`. */
+  async function txFromLogin(res: Response, password: string): Promise<LoginTx | null> {
+    const setCookie: string | undefined = setCookieFor(res, "wallow_bff_tx");
+    expect(setCookie).toBeDefined();
+    return unsealTx(cookieValueOf(setCookie as string), password);
+  }
+
+  /** Drive the login handler once with the given raw query string. */
+  async function loginWithQuery(issuer: string, query: string): Promise<[Response, BffConfig]> {
+    const config: BffConfig = makeConfig(issuer);
+    const doc: DiscoveryDoc = makeDoc(config.issuer);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async (): Promise<DiscoveryDoc> => doc,
+      }),
+    );
+    const handle = makeHandle(createBffHandlers(config));
+    const res: Response = await handle(new Request(`http://localhost/bff/login?${query}`));
+    return [res, config];
+  }
+
+  /** Drive the login handler once with the given raw `returnTo` query value. */
+  async function login(issuer: string, returnTo: string): Promise<[Response, BffConfig]> {
+    return loginWithQuery(issuer, `returnTo=${encodeURIComponent(returnTo)}`);
+  }
+
+  it.each([
+    ["absolute foreign origin", "https://evil.example/pwn"],
+    ["protocol-relative", "//evil.example/pwn"],
+    ["backslash-escaped protocol-relative", String.raw`/\evil.example/pwn`],
+    // oxlint-disable-next-line no-script-url -- the payload under test IS a script url
+    ["javascript scheme", "javascript:alert(1)"],
+  ])("login sanitizes a %s returnTo to '/'", async (label: string, returnTo: string) => {
+    const [res, config] = await login(
+      `https://login-guard-${label.replaceAll(" ", "-")}.example.com`,
+      returnTo,
+    );
+
+    expect(res.status).toBe(302);
+    const tx: LoginTx | null = await txFromLogin(res, config.cookiePassword);
+    expect(tx?.returnTo).toBe("/");
+  });
+
+  it("login preserves a safe relative returnTo", async () => {
+    const [res, config] = await login(
+      "https://login-guard-safe.example.com",
+      "/dashboard?tab=apps",
+    );
+
+    const tx: LoginTx | null = await txFromLogin(res, config.cookiePassword);
+    expect(tx?.returnTo).toBe("/dashboard?tab=apps");
+  });
+
+  it("takes the first value of a repeated returnTo parameter and still sanitizes it", async () => {
+    // A deliberate behaviour delta from the h3 handler this replaces: h3's
+    // getQuery returned an ARRAY for a repeated parameter, which failed the
+    // `typeof === "string"` test and fell back to "/". `searchParams.get`
+    // returns the FIRST value instead, so the guard — not the parameter
+    // parser — is what has to reject a smuggled second value.
+    const [res, config] = await loginWithQuery(
+      "https://login-guard-repeated.example.com",
+      `returnTo=${encodeURIComponent("/safe")}&returnTo=${encodeURIComponent("//evil.test/pwn")}`,
+    );
+
+    const tx: LoginTx | null = await txFromLogin(res, config.cookiePassword);
+    expect(tx?.returnTo).toBe("/safe");
+  });
+
+  it("sanitizes a repeated returnTo whose first value is the unsafe one", async () => {
+    const [res, config] = await loginWithQuery(
+      "https://login-guard-repeated-unsafe.example.com",
+      `returnTo=${encodeURIComponent("//evil.test/pwn")}&returnTo=${encodeURIComponent("/safe")}`,
+    );
+
+    const tx: LoginTx | null = await txFromLogin(res, config.cookiePassword);
+    expect(tx?.returnTo).toBe("/");
+  });
+
+  it("callback re-checks returnTo and redirects to '/' when the tx carries a foreign origin", async () => {
+    const config: BffConfig = makeConfig("https://cb-guard.example.com");
+    // A tx cookie sealed with an unsafe returnTo — what a build predating the
+    // login-side guard would have issued. The callback must not trust it.
+    const sealed: string = await sealTx(
+      {
+        state: "st-g",
+        nonce: "no-g",
+        verifier: "ver-g",
+        returnTo: "https://evil.example/pwn",
+      },
+      config.cookiePassword,
+    );
+    authorizationCodeGrantMock.mockResolvedValue({
+      access_token: "at",
+      refresh_token: "rt",
+      id_token: makeIdToken({ sub: "user-g" }),
+      expires_in: 3600,
+      token_type: "Bearer",
+    });
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("unexpected token-endpoint fetch")));
+    const handle = makeHandle(createBffHandlers(config));
+
+    const res: Response = await handle(
+      new Request("http://localhost/bff/callback?code=code-g&state=st-g", {
+        headers: { cookie: `wallow_bff_tx=${sealed}` },
+      }),
+    );
+
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/");
+  });
+});
+
 describe("user handler", () => {
   it("returns 401 when there is no session cookie", async () => {
     const config: BffConfig = makeConfig("https://user-401.example.com");
@@ -336,6 +553,25 @@ describe("user handler", () => {
     expect(res.status).toBe(200);
     const body: string = await res.text();
     expect(body).toContain(session.user.sub);
+  });
+
+  it("answers with JSON, which the h3 layer used to add implicitly", async () => {
+    const config: BffConfig = makeConfig("https://user-json.example.com");
+    const session: BffSession = makeSession();
+    const sealed: string = await sealSession(session, config.cookiePassword);
+    const handle = makeHandle(createBffHandlers(config));
+
+    const res: Response = await handle(
+      new Request("http://localhost/bff/user", {
+        headers: { cookie: `wallow_bff=${sealed}` },
+      }),
+    );
+
+    // h3 serialized the handler's returned object and stamped the content type;
+    // nothing does that for us now, so the handler must do it itself.
+    expect(res.headers.get("content-type") ?? "").toContain("application/json");
+    const body: BffUserResponse = (await res.json()) as BffUserResponse;
+    expect(body.sub).toBe(session.user.sub);
   });
 });
 
@@ -420,11 +656,7 @@ describe("logout handler", () => {
     );
     const handle = makeHandle(createBffHandlers(config, store));
 
-    const res: Response = await handle(
-      new Request("http://localhost/bff/logout", {
-        headers: { cookie: `wallow_bff=${sealed}` },
-      }),
-    );
+    const res: Response = await handle(logoutRequest(`wallow_bff=${sealed}`));
 
     expect(res.status).toBe(302);
     expect(destroyed).toEqual([sealed]);
@@ -445,11 +677,7 @@ describe("logout handler", () => {
     );
     const handle = makeHandle(createBffHandlers(config));
 
-    const res: Response = await handle(
-      new Request("http://localhost/bff/logout", {
-        headers: { cookie: `wallow_bff=${sealed}` },
-      }),
-    );
+    const res: Response = await handle(logoutRequest(`wallow_bff=${sealed}`));
 
     expect(res.status).toBe(302);
     const location: string = res.headers.get("location") ?? "";
@@ -457,7 +685,9 @@ describe("logout handler", () => {
     const url: URL = new URL(location);
     expect(url.searchParams.get("post_logout_redirect_uri")).toBe(config.postLogoutRedirectUri);
     expect(url.searchParams.get("id_token_hint")).toBe(session.idToken);
-    expect(res.headers.get("set-cookie") ?? "").toContain("wallow_bff=");
+    const cleared: string | undefined = setCookieFor(res, "wallow_bff");
+    expect(cleared).toBeDefined();
+    expect(cookieValueOf(cleared ?? "")).toBe("");
   });
 
   it("falls back to <issuerOrigin>/connect/logout when no end_session_endpoint is advertised", async () => {
@@ -482,11 +712,7 @@ describe("logout handler", () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("unexpected discovery fetch")));
     const handle = makeHandle(createBffHandlers(config));
 
-    const res: Response = await handle(
-      new Request("http://localhost/bff/logout", {
-        headers: { cookie: `wallow_bff=${sealed}` },
-      }),
-    );
+    const res: Response = await handle(logoutRequest(`wallow_bff=${sealed}`));
 
     expect(res.status).toBe(302);
     const location: string = res.headers.get("location") ?? "";
@@ -495,7 +721,122 @@ describe("logout handler", () => {
     expect(url.pathname).toBe("/connect/logout");
     expect(url.searchParams.get("post_logout_redirect_uri")).toBe(config.postLogoutRedirectUri);
     expect(url.searchParams.get("id_token_hint")).toBe(session.idToken);
-    expect(res.headers.get("set-cookie") ?? "").toContain("wallow_bff=");
+    expect(setCookieFor(res, "wallow_bff")).toBeDefined();
+  });
+});
+
+/**
+ * Logout is a state-changing operation and must be gated like one
+ * (Wallow-pu6a.3.2, finding F12a).
+ *
+ * The h3 handler this replaces accepted a bare `GET /bff/logout` from anyone:
+ * an `<img src="/bff/logout">` on any page the victim visited was enough to
+ * revoke their session server-side and clear their cookies. The port takes the
+ * opportunity to require `POST` plus the session-bound CSRF token the `/api`
+ * proxy already demands — and, critically, to destroy NOTHING when the check
+ * fails. A rejected logout that still cleared the cookies would be the same
+ * denial of service wearing a 403.
+ */
+describe("logout CSRF gate", () => {
+  /** A logout handler over a recording store, with discovery stubbed. */
+  function makeLogout(issuer: string): {
+    handle: (request: Request) => Promise<Response>;
+    destroyed: string[];
+    config: BffConfig;
+  } {
+    const config: BffConfig = makeConfig(issuer);
+    const doc: DiscoveryDoc = makeDoc(config.issuer);
+    const { store, destroyed } = makeRecordingStore(config.cookiePassword);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async (): Promise<DiscoveryDoc> => doc,
+      }),
+    );
+    return { handle: makeHandle(createBffHandlers(config, store)), destroyed, config };
+  }
+
+  it.each(["GET", "HEAD", "PUT", "DELETE"])(
+    "rejects a %s logout with 405 and destroys nothing",
+    async (method: string) => {
+      const { handle, destroyed, config } = makeLogout(
+        `https://logout-method-${method.toLowerCase()}.example.com`,
+      );
+      const sealed: string = await sealSession(makeSession(), config.cookiePassword);
+
+      const res: Response = await handle(
+        new Request("http://localhost/bff/logout", {
+          method,
+          headers: { cookie: `wallow_bff=${sealed}` },
+        }),
+      );
+
+      expect(res.status).toBe(405);
+      expect(res.headers.get("allow") ?? "").toContain("POST");
+      // The session survives: nothing revoked, nothing cleared.
+      expect(destroyed).toEqual([]);
+      expect(res.headers.getSetCookie()).toEqual([]);
+    },
+  );
+
+  it("rejects a POST with no CSRF token and destroys nothing", async () => {
+    const { handle, destroyed, config } = makeLogout("https://logout-csrf-missing.example.com");
+    const sealed: string = await sealSession(makeSession(), config.cookiePassword);
+
+    const res: Response = await handle(
+      new Request("http://localhost/bff/logout", {
+        method: "POST",
+        headers: { cookie: `wallow_bff=${sealed}` },
+      }),
+    );
+
+    expect(res.status).toBe(403);
+    expect(res.headers.get("content-type") ?? "").toContain("problem+json");
+    const body: Record<string, unknown> = (await res.json()) as Record<string, unknown>;
+    expect(body["code"]).toBe(CSRF_INVALID_CODE);
+    expect(destroyed).toEqual([]);
+    expect(res.headers.getSetCookie()).toEqual([]);
+  });
+
+  it("rejects a POST whose CSRF token does not match the session token", async () => {
+    const { handle, destroyed, config } = makeLogout("https://logout-csrf-mismatch.example.com");
+    const sealed: string = await sealSession(makeSession(), config.cookiePassword);
+
+    const res: Response = await handle(
+      logoutRequest(`wallow_bff=${sealed}`, "not-the-session-token-bbbbbbbbbbbbbb"),
+    );
+
+    expect(res.status).toBe(403);
+    expect(destroyed).toEqual([]);
+    expect(res.headers.getSetCookie()).toEqual([]);
+  });
+
+  it("rejects a token minted for a different session", async () => {
+    // The double-submit token is bound to the session, so an attacker who owns
+    // a perfectly valid token of their own still cannot log the victim out.
+    const { handle, destroyed, config } = makeLogout("https://logout-csrf-crosstalk.example.com");
+    const victim: BffSession = makeSession({ csrfToken: "victim-csrf-token-cccccccccccccccc" });
+    const sealed: string = await sealSession(victim, config.cookiePassword);
+
+    const res: Response = await handle(
+      logoutRequest(`wallow_bff=${sealed}`, "attacker-csrf-token-dddddddddddddd"),
+    );
+
+    expect(res.status).toBe(403);
+    expect(destroyed).toEqual([]);
+  });
+
+  it("accepts a POST carrying the session-bound token", async () => {
+    const { handle, destroyed, config } = makeLogout("https://logout-csrf-valid.example.com");
+    const session: BffSession = makeSession();
+    const sealed: string = await sealSession(session, config.cookiePassword);
+
+    const res: Response = await handle(logoutRequest(`wallow_bff=${sealed}`));
+
+    expect(res.status).toBe(302);
+    expect(destroyed).toEqual([sealed]);
   });
 });
 
@@ -505,7 +846,12 @@ describe("logout handler", () => {
  * cookies that `writeSession` emits to clear a previously larger session).
  */
 function cookieHeaderFrom(res: Response): string {
-  return res.headers
+  return cookieHeaderFromHeaders(res.headers);
+}
+
+/** {@link cookieHeaderFrom} against a bare `Headers` accumulator. */
+function cookieHeaderFromHeaders(headers: Headers): string {
+  return headers
     .getSetCookie()
     .map((cookie: string): string => cookie.split(";", 1)[0] ?? "")
     .filter((pair: string): boolean => {
@@ -526,6 +872,12 @@ function setCookieFor(res: Response, name: string): string | undefined {
 function cookieValueOf(setCookie: string): string {
   const pair: string = setCookie.split(";", 1)[0] ?? "";
   return pair.slice(pair.indexOf("=") + 1);
+}
+
+/** The name a `Set-Cookie` line writes. */
+function cookieNameOf(setCookie: string): string {
+  const pair: string = setCookie.split(";", 1)[0] ?? "";
+  return pair.slice(0, pair.indexOf("="));
 }
 
 /** True when the `Set-Cookie` line carries the given attribute (case-insensitive). */
@@ -567,6 +919,7 @@ type BffUserResponse = BffSession["user"] & { csrfToken?: string };
  */
 async function completeCallback(
   config: BffConfig,
+  tokenOverrides: Record<string, unknown> = {},
 ): Promise<{ res: Response; handle: (request: Request) => Promise<Response> }> {
   const tx: LoginTx = {
     state: "st-csrf",
@@ -581,12 +934,13 @@ async function completeCallback(
     id_token: makeIdToken({ sub: "user-csrf", email: "u@e.com" }),
     expires_in: 3600,
     token_type: "Bearer",
+    ...tokenOverrides,
   });
   vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("unexpected token-endpoint fetch")));
   const handle: (request: Request) => Promise<Response> = makeHandle(createBffHandlers(config));
   const res: Response = await handle(
     new Request("http://localhost/bff/callback?code=code-csrf&state=st-csrf", {
-      headers: { cookie: `wallow_bff_tx=${sealed}` },
+      headers: { cookie: `${config.cookieName}_tx=${sealed}` },
     }),
   );
   return { res, handle };
@@ -728,18 +1082,10 @@ describe("session cookie hardening", () => {
     // A sealed session this large spans more than one cookie chunk.
     const session: BffSession = makeSession({ accessToken: "a".repeat(6000) });
 
-    const app: App = createApp();
-    app.use(
-      "/write",
-      defineEventHandler(async (event: H3Event): Promise<void> => {
-        await writeSession(event, config, store, session);
-      }),
-    );
-    const handle: (request: Request) => Promise<Response> = toWebHandler(app);
+    const headers: Headers = new Headers();
+    await writeSession(headers, config, store, session);
 
-    const res: Response = await handle(new Request("http://localhost/write"));
-
-    const written: string[] = res.headers
+    const written: string[] = headers
       .getSetCookie()
       .filter((cookie: string): boolean => cookieValueOf(cookie) !== "");
     // Guards the chunking path itself: a single-chunk write would pass the
@@ -839,6 +1185,151 @@ describe("session cookie hardening", () => {
   });
 });
 
+/**
+ * A `__Host-`-prefixed cookie name must survive every name the BFF composes
+ * (Wallow-pu6a.3.2, finding F10).
+ *
+ * RFC 6265bis only honours the prefix when the cookie is `Secure`, `Path=/`,
+ * and carries no `Domain` — which `baseCookieOpts` already satisfies — and the
+ * prefix is part of the NAME, so the chunk (`.1`), CSRF (`-csrf`), and
+ * transaction (`_tx`) names all have to compose around it without colliding.
+ * The default itself is `loadBffConfigFromEnv`'s business and is pinned in
+ * config.test.ts; these tests pin the handler side.
+ */
+describe("__Host- prefixed cookie names", () => {
+  const HOST_PREFIXED: string = "__Host-wallow_bff";
+
+  it("writes the session, chunk, and CSRF cookies under distinct __Host- names", async () => {
+    const config: BffConfig = makeConfig("https://host-prefix-names.example.com", {
+      cookieName: HOST_PREFIXED,
+    });
+
+    // A token set this large forces the session across more than one chunk.
+    const { res } = await completeCallback(config, { access_token: "a".repeat(6000) });
+
+    const names: string[] = res.headers
+      .getSetCookie()
+      .filter((cookie: string): boolean => cookieValueOf(cookie) !== "")
+      .map((cookie: string): string => cookieNameOf(cookie));
+
+    expect(names).toContain(HOST_PREFIXED);
+    expect(names).toContain(`${HOST_PREFIXED}.1`);
+    expect(names).toContain(`${HOST_PREFIXED}-csrf`);
+    // Every emitted cookie is a distinct name: a collapsed name would silently
+    // overwrite a chunk and corrupt the session on reassembly.
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  it("satisfies the __Host- attribute requirements on every cookie it writes", async () => {
+    const config: BffConfig = makeConfig("https://host-prefix-attrs.example.com", {
+      cookieName: HOST_PREFIXED,
+    });
+
+    const { res } = await completeCallback(config, { access_token: "a".repeat(6000) });
+
+    for (const cookie of res.headers.getSetCookie()) {
+      expect(hasAttribute(cookie, "Secure")).toBe(true);
+      expect(attributeValue(cookie, "Path")).toBe("/");
+      expect(hasAttribute(cookie, "Domain")).toBe(false);
+    }
+  });
+
+  it("round-trips a __Host- session back through the read path", async () => {
+    const config: BffConfig = makeConfig("https://host-prefix-roundtrip.example.com", {
+      cookieName: HOST_PREFIXED,
+    });
+    const store: SessionStore = new CookieSessionStore({ password: config.cookiePassword });
+    const session: BffSession = makeSession({ accessToken: "a".repeat(6000) });
+
+    const headers: Headers = new Headers();
+    await writeSession(headers, config, store, session);
+    const restored: BffSession | null = await readSession(
+      new Request("http://localhost/bff/user", {
+        headers: { cookie: cookieHeaderFromHeaders(headers) },
+      }),
+      config,
+      store,
+    );
+
+    expect(restored).toEqual(session);
+  });
+});
+
+/**
+ * Multiple `Set-Cookie` headers must survive the web-standard response
+ * (Wallow-pu6a.3.1, risk (a)).
+ *
+ * `Headers` is the one place where the port can silently lose data: building a
+ * response from an object literal collapses duplicate keys before `Headers`
+ * ever sees them, and `Headers.set` after an `append` destroys every cookie
+ * already written. Either mistake leaves a chunked session half-written and a
+ * logout half-cleared, and neither shows up as an error — only as a session
+ * that mysteriously fails to unseal.
+ */
+describe("multiple Set-Cookie headers", () => {
+  it("emits one Set-Cookie per chunk plus the CSRF companion on a callback", async () => {
+    const config: BffConfig = makeConfig("https://multi-setcookie-callback.example.com");
+
+    const { res } = await completeCallback(config, { access_token: "a".repeat(6000) });
+
+    const live: string[] = res.headers
+      .getSetCookie()
+      .filter((cookie: string): boolean => cookieValueOf(cookie) !== "");
+    // Base chunk + at least one `.N` chunk + the CSRF companion.
+    expect(live.length).toBeGreaterThanOrEqual(3);
+    expect(new Set(live.map((cookie: string): string => cookieNameOf(cookie))).size).toBe(
+      live.length,
+    );
+    // The redirect still carries its Location: the cookie appends must not have
+    // been built in a way that clobbers the rest of the response headers.
+    expect(res.headers.get("location")).toBe("/dashboard");
+  });
+
+  it("clears the base cookie, the CSRF companion, and every chunk on logout", async () => {
+    const config: BffConfig = makeConfig("https://multi-setcookie-logout.example.com");
+    const doc: DiscoveryDoc = makeDoc(config.issuer);
+    const store: SessionStore = new CookieSessionStore({ password: config.cookiePassword });
+    const session: BffSession = makeSession({ accessToken: "a".repeat(6000) });
+
+    // Write a multi-chunk session, then hand its cookies back on a logout.
+    const written: Headers = new Headers();
+    const ref: string = await writeSession(written, config, store, session);
+    const chunkNames: string[] = written
+      .getSetCookie()
+      .filter((cookie: string): boolean => cookieValueOf(cookie) !== "")
+      .map((cookie: string): string => cookieNameOf(cookie));
+    expect(chunkNames.length).toBeGreaterThan(1);
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async (): Promise<DiscoveryDoc> => doc,
+      }),
+    );
+    const handle = makeHandle(createBffHandlers(config, store));
+
+    const cookie: string = `${cookieHeaderFromHeaders(written)}; wallow_bff-csrf=${CSRF_FIXTURE_TOKEN}`;
+    const res: Response = await handle(logoutRequest(cookie));
+
+    expect(res.status).toBe(302);
+    const cleared: string[] = res.headers.getSetCookie();
+    // Every live cookie is cleared with its own Set-Cookie line — the base, each
+    // chunk, and the readable CSRF companion.
+    for (const name of [...chunkNames, "wallow_bff-csrf"]) {
+      const line: string | undefined = cleared.find(
+        (candidate: string): boolean => cookieNameOf(candidate) === name,
+      );
+      expect(line, `expected a clearing Set-Cookie for ${name}`).toBeDefined();
+      expect(cookieValueOf(line ?? "")).toBe("");
+    }
+    // The whole multi-chunk reference is what gets revoked server-side, not
+    // just the base cookie's slice of it.
+    expect(ref.length).toBeGreaterThan(3800);
+  });
+});
+
 describe("readSession/writeSession store threading", () => {
   it("round-trips a session through an injected CookieSessionStore", async () => {
     const config: BffConfig = makeConfig("https://store-roundtrip.example.com");
@@ -847,29 +1338,73 @@ describe("readSession/writeSession store threading", () => {
     });
     const session: BffSession = makeSession();
 
-    const app: App = createApp();
-    app.use(
-      "/write",
-      defineEventHandler(async (event: H3Event): Promise<void> => {
-        await writeSession(event, config, store, session);
-      }),
-    );
-    app.use(
-      "/read",
-      defineEventHandler(
-        async (event: H3Event): Promise<BffSession | null> => readSession(event, config, store),
-      ),
-    );
-    const handle: (request: Request) => Promise<Response> = toWebHandler(app);
-
-    const writeRes: Response = await handle(new Request("http://localhost/write"));
-    const readRes: Response = await handle(
+    const headers: Headers = new Headers();
+    await writeSession(headers, config, store, session);
+    const restored: BffSession | null = await readSession(
       new Request("http://localhost/read", {
-        headers: { cookie: cookieHeaderFrom(writeRes) },
+        headers: { cookie: cookieHeaderFromHeaders(headers) },
       }),
+      config,
+      store,
     );
 
-    const restored: BffSession = (await readRes.json()) as BffSession;
     expect(restored).toEqual(session);
+  });
+
+  it("round-trips a chunked session, so the iron seal survives reassembly", async () => {
+    // Bead 1.6/F7 lives in session.ts and is untouched by this port, but the
+    // whole read/write transport around it was rewritten: a reference that
+    // reassembles even one byte wrong unseals as `null` and reads as "logged
+    // out", so the round trip is re-pinned here through the new shape.
+    const config: BffConfig = makeConfig("https://store-roundtrip-chunked.example.com");
+    const store: SessionStore = new CookieSessionStore({
+      password: config.cookiePassword,
+    });
+    const session: BffSession = makeSession({
+      accessToken: "a".repeat(2600),
+      idToken: makeIdToken({ sub: "user-123", padding: "b".repeat(2600) }),
+    });
+
+    const headers: Headers = new Headers();
+    const ref: string = await writeSession(headers, config, store, session);
+    const restored: BffSession | null = await readSession(
+      new Request("http://localhost/read", {
+        headers: { cookie: cookieHeaderFromHeaders(headers) },
+      }),
+      config,
+      store,
+    );
+
+    expect(
+      headers.getSetCookie().filter((c: string): boolean => cookieValueOf(c) !== "").length,
+    ).toBeGreaterThan(1);
+    expect(ref.length).toBeGreaterThan(3800);
+    expect(restored).toEqual(session);
+  });
+
+  it("clears stale higher-index chunks when a shorter session replaces a longer one", async () => {
+    const config: BffConfig = makeConfig("https://store-stale-chunks.example.com");
+    const store: SessionStore = new CookieSessionStore({
+      password: config.cookiePassword,
+    });
+
+    const long: Headers = new Headers();
+    await writeSession(long, config, store, makeSession({ accessToken: "a".repeat(6000) }));
+    const short: Headers = new Headers();
+    await writeSession(short, config, store, makeSession());
+
+    // The short write must leave the browser holding the base cookie only: a
+    // surviving `.1` chunk would be concatenated onto the next read and corrupt
+    // the reference beyond unsealing.
+    const live: string[] = short
+      .getSetCookie()
+      .filter((cookie: string): boolean => cookieValueOf(cookie) !== "")
+      .map((cookie: string): string => cookieNameOf(cookie));
+    expect(live).toEqual(["wallow_bff"]);
+    const clearedStale: string[] = short
+      .getSetCookie()
+      .filter((cookie: string): boolean => cookieValueOf(cookie) === "")
+      .map((cookie: string): string => cookieNameOf(cookie));
+    expect(clearedStale).toContain("wallow_bff.1");
   });
 });

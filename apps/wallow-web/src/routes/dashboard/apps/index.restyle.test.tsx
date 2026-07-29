@@ -1,9 +1,9 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactElement } from "react";
-import { render } from "vitest-browser-react";
+import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+
+import { routeHarness } from "../../../test/harness-routes";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { installSdkClientMock } from "../../../test/sdk-client-mock";
 import {
   byTestId,
   expectClasses,
@@ -25,39 +25,30 @@ import { Route } from "./index";
  * header row plus populated list — is on screen for the token-color scan.
  */
 
-function newClient(): QueryClient {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false, staleTime: Number.POSITIVE_INFINITY } },
-  });
-  client.setQueryData(
-    ["apps"],
-    [
-      {
-        clientId: "c1",
-        displayName: "Acme App",
-        clientType: "public",
-        redirectUris: [],
-        createdAt: null,
-      },
-    ],
-  );
-  return client;
-}
-
-function renderWithClient(ui: ReactElement) {
-  return render(<QueryClientProvider client={newClient()}>{ui}</QueryClientProvider>);
-}
+/** The transport backing each render, rebuilt per test. */
+let harness: SdkHarness;
 
 /** Render the route page and resolve its settled root element. */
 async function renderPage(): Promise<HTMLElement> {
   const Page = Route.options.component!;
-  renderWithClient(<Page />);
+  renderWithWallow(<Page />, { harness });
   return waitForTestId("dashboard-apps");
 }
 
 describe("routes/dashboard/apps (restyle)", () => {
   beforeEach(() => {
-    installSdkClientMock();
+    harness = createSdkHarness();
+    routeHarness(harness, {
+      "GET /v1/identity/apps": [
+        {
+          clientId: "c1",
+          displayName: "Acme App",
+          clientType: "public",
+          redirectUris: [],
+          createdAt: null,
+        },
+      ],
+    });
   });
 
   it("centers the page body in the dashboard shell", async () => {

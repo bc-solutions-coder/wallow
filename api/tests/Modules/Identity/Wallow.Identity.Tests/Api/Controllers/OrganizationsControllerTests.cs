@@ -16,6 +16,7 @@ public class OrganizationsControllerTests
     private static readonly string[] _userRole = ["user"];
     private readonly IOrganizationService _orgService;
     private readonly ITenantContext _tenantContext;
+    private readonly IOrganizationAccessPolicy _accessPolicy;
     private readonly OrganizationsController _controller;
     private readonly Guid _userId = Guid.NewGuid();
     private readonly Guid _tenantOrgId = Guid.NewGuid();
@@ -25,7 +26,8 @@ public class OrganizationsControllerTests
         _orgService = Substitute.For<IOrganizationService>();
         _tenantContext = Substitute.For<ITenantContext>();
         _tenantContext.TenantId.Returns(TenantId.Create(_tenantOrgId));
-        _controller = new OrganizationsController(_orgService, _tenantContext);
+        _accessPolicy = Substitute.For<IOrganizationAccessPolicy>();
+        _controller = new OrganizationsController(_orgService, _tenantContext, _accessPolicy);
 
         ClaimsPrincipal user = new(new ClaimsIdentity(new[]
         {

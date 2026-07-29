@@ -12,6 +12,8 @@ using OpenIddict.Server.AspNetCore;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Shared.Contracts.Identity;
+using Wallow.Shared.Kernel.Identity.Authorization;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace Wallow.Identity.Api.Controllers;
@@ -25,6 +27,7 @@ public sealed partial class AuthorizationController(
     IConfiguration configuration,
     IOpenIddictApplicationManager applicationManager,
     IOpenIddictAuthorizationManager authorizationManager,
+    IScopeSubsetValidator scopeSubsetValidator,
     IClientTenantResolver clientTenantResolver,
     IOrganizationService organizationService,
     ILogger<AuthorizationController> logger) : Controller
@@ -89,6 +92,15 @@ public sealed partial class AuthorizationController(
         bool hasValidAuthorization = false;
 
         LogApplicationResolved(clientId, isFirstParty);
+
+        // Two independent scope gates, both before any ticket is issued or authorization
+        // persisted. Without them a signed-in user can append privileged scopes to their own
+        // authorize request and PermissionExpansionMiddleware expands them into permissions.
+        IActionResult? scopeRejection = await ValidateRequestedScopesAsync(request, user, userId, clientId);
+        if (scopeRejection is not null)
+        {
+            return scopeRejection;
+        }
 
         if (!isFirstParty)
         {
@@ -279,6 +291,62 @@ public sealed partial class AuthorizationController(
         return identity;
     }
 
+    /// <summary>
+    /// Returns a rejection result when the requested scopes are not permitted, or null when
+    /// the request may proceed. Gate one: the scopes must be registered for the OIDC client.
+    /// Gate two: every scope that carries a permission must be covered by the caller's own
+    /// role. Scopes that map to no permission (openid, profile, email, offline_access, roles)
+    /// are never role-gated.
+    /// </summary>
+    private async Task<IActionResult?> ValidateRequestedScopesAsync(
+        OpenIddictRequest request, WallowUser user, string userId, string? clientId)
+    {
+        ImmutableArray<string> requestedScopes = request.GetScopes();
+
+        ScopeValidationResult clientScopes = await scopeSubsetValidator.ValidateAsync(
+            clientId ?? string.Empty, requestedScopes, HttpContext.RequestAborted);
+
+        if (!clientScopes.IsSuccess)
+        {
+            LogScopesNotRegisteredForClient(clientId, clientScopes.ErrorMessage);
+            return InvalidScope(clientScopes.ErrorMessage ?? "The requested scopes are not permitted for this client.");
+        }
+
+        IList<string> roles = await userManager.GetRolesAsync(user);
+        HashSet<string> grantedPermissions =
+            new(RolePermissionMapping.GetPermissions(roles), StringComparer.OrdinalIgnoreCase);
+
+        List<string> refusedScopes = [];
+        foreach (string scope in requestedScopes)
+        {
+            string? requiredPermission = ScopePermissionMapper.MapScopeToPermission(scope);
+            if (requiredPermission is not null && !grantedPermissions.Contains(requiredPermission))
+            {
+                refusedScopes.Add(scope);
+            }
+        }
+
+        if (refusedScopes.Count > 0)
+        {
+            string refused = string.Join(", ", refusedScopes);
+            LogScopesBeyondCallerRole(userId, clientId, refused);
+            return InvalidScope(
+                $"The following scopes exceed the permissions granted by the caller's roles: {refused}");
+        }
+
+        return null;
+    }
+
+    private ForbidResult InvalidScope(string description) =>
+        Forbid(
+            authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme,
+            properties: new Microsoft.AspNetCore.Authentication.AuthenticationProperties(
+                new Dictionary<string, string?>
+                {
+                    [OpenIddictServerAspNetCoreConstants.Properties.Error] = Errors.InvalidScope,
+                    [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] = description
+                }));
+
     private string GetRequiredAuthUrl() =>
         configuration["AuthUrl"] ?? throw new InvalidOperationException(
             "AuthUrl must be configured in appsettings.json. " +
@@ -315,6 +383,12 @@ public sealed partial class AuthorizationController(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "OIDC issuing authorization code: userId={UserId}, clientId={ClientId}, scopes={Scopes}")]
     private partial void LogIssuingAuthorizationCode(string userId, string? clientId, string scopes);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "OIDC rejected scopes not registered for client {ClientId}: {Reason}")]
+    private partial void LogScopesNotRegisteredForClient(string? clientId, string? reason);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "OIDC rejected scopes beyond caller role: userId={UserId}, clientId={ClientId}, scopes={Scopes}")]
+    private partial void LogScopesBeyondCallerRole(string userId, string? clientId, string scopes);
 
     private static ImmutableArray<string> GetDestinations(Claim claim)
     {

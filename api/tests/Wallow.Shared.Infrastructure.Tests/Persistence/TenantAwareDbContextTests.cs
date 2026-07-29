@@ -7,6 +7,7 @@ using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Shared.Infrastructure.Tests.Persistence;
 
+[Trait("Category", "CrossTenant")]
 public sealed class TenantAwareDbContextTests : IDisposable
 {
     private readonly SqliteConnection _connection;

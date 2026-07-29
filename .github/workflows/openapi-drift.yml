@@ -1,9 +1,18 @@
 name: OpenAPI Drift
 
-# Keeps packages/sdk/openapi/v1.json in sync with the live API contract.
-# Boots the API, refreshes the committed snapshot exactly the way a developer
-# would (the SDK's scripts/generate.ts with WALLOW_OPENAPI_URL set), and fails
-# if the committed snapshot has drifted from what the running API now serves.
+# Fails a pull request whose packages/sdk/openapi/v1.json no longer matches the API
+# contract. The emission recipe and the definition of "drift" live in the shared
+# .github/actions/openapi-document composite action, which openapi-autoregen.yml also
+# uses, so the check and the automated fix can never disagree about what drifted.
+#
+# This workflow deliberately runs on pull_request ONLY. A stale snapshot that reaches
+# main is not a failure to report but a job to do: openapi-autoregen.yml picks it up
+# there and opens a PR carrying the regenerated snapshot and client. Adding a push
+# trigger here would paint main red for a condition that already has an owner, and
+# would boot a second Postgres to learn what that workflow is learning anyway.
+#
+# The token this workflow runs with stays read-only. It is the one of the two that
+# checks out pull-request code, so it must never hold contents or pull-requests write.
 
 on:
   pull_request:
@@ -13,14 +22,7 @@ on:
       - "packages/sdk/openapi/**"
       - "packages/sdk/openapi-ts.config.ts"
       - "packages/sdk/scripts/generate.ts"
-      - ".github/workflows/openapi-drift.yml"
-  push:
-    branches: [main]
-    paths:
-      - "api/**"
-      - "packages/sdk/openapi/**"
-      - "packages/sdk/openapi-ts.config.ts"
-      - "packages/sdk/scripts/generate.ts"
+      - ".github/actions/openapi-document/**"
       - ".github/workflows/openapi-drift.yml"
 
 concurrency:
@@ -51,119 +53,28 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Start Valkey with password
-        run: |
-          docker run -d --name valkey -p 6379:6379 valkey/valkey:8-alpine \
-            valkey-server --requirepass WallowTestValkey123! --appendonly yes
-          for i in $(seq 1 10); do
-            if docker exec valkey valkey-cli -a WallowTestValkey123! ping 2>/dev/null | grep -q PONG; then
-              echo "Valkey is ready"
-              break
-            fi
-            if [ "$i" -eq 10 ]; then
-              echo "::error::Valkey did not become healthy in time"
-              docker logs valkey
-              exit 1
-            fi
-            sleep 1
-          done
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v6
+      - name: Emit OpenAPI document and detect drift
+        id: openapi
+        uses: ./.github/actions/openapi-document
         with:
-          dotnet-version: "10.0.x"
-
-      - name: Cache NuGet packages
-        uses: actions/cache@v6
-        with:
-          path: ~/.nuget/packages
-          key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props', '**/*.csproj') }}
-          restore-keys: |
-            nuget-${{ runner.os }}-
-
-      - name: Enable corepack
-        run: corepack enable
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version-file: ".nvmrc"
-          cache: "pnpm"
-
-      - name: Install JS dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build API
-        run: dotnet build api/src/Wallow.Api/Wallow.Api.csproj --configuration Release
-
-      # The API only applies EF Core migrations inline in the Testing environment
-      # (see WallowModules.cs); in Development it expects the schema to already
-      # exist. Run the dedicated MigrationService against the fresh Postgres so
-      # the Identity schema (and every other module schema) is present before the
-      # API boots and starts serving requests.
-      - name: Apply database migrations
-        env:
-          ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=wallow_test;Username=wallow;Password=wallow"
-        run: dotnet run --project api/src/Wallow.MigrationService/Wallow.MigrationService.csproj --configuration Release
-
-      # /openapi/v1.json is only mapped when the app runs in the Development
-      # environment (see api/src/Wallow.Api/Program.cs). Boot the API against the
-      # Postgres + Valkey services so the OpenAPI document is servable.
-      #
-      # Redis is read from ConnectionStrings:Redis (config.GetConnectionString("Redis")
-      # in Program.cs), so the override MUST use the ConnectionStrings__ prefix —
-      # a Redis__ConnectionString key is never read and the API would fall back to
-      # the appsettings default password, failing to authenticate against Valkey.
-      - name: Start API
-        env:
-          ASPNETCORE_ENVIRONMENT: Development
-          ASPNETCORE_URLS: http://localhost:5001
-          ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=wallow_test;Username=wallow;Password=wallow"
-          ConnectionStrings__Redis: "localhost:6379,password=WallowTestValkey123!,abortConnect=false"
-        run: |
-          dotnet run --project api/src/Wallow.Api/Wallow.Api.csproj \
-            --configuration Release --no-build --no-launch-profile > /tmp/api.log 2>&1 &
-          echo "API_PID=$!" >> "$GITHUB_ENV"
-
-      - name: Wait for OpenAPI endpoint
-        run: |
-          for i in $(seq 1 40); do
-            if curl -sf http://localhost:5001/openapi/v1.json -o /dev/null; then
-              echo "OpenAPI endpoint is ready"
-              break
-            fi
-            if [ "$i" -eq 40 ]; then
-              echo "::error::API did not expose /openapi/v1.json in time"
-              cat /tmp/api.log
-              exit 1
-            fi
-            sleep 5
-          done
-
-      # Refresh the committed snapshot the same way a developer does: point the
-      # SDK generate script at the live API. scripts/generate.ts writes the raw
-      # spec to packages/sdk/openapi/v1.json and regenerates the typed client.
-      - name: Refresh OpenAPI snapshot from live API
-        env:
-          WALLOW_OPENAPI_URL: http://localhost:5001/openapi/v1.json
-        run: pnpm --filter @bc-solutions-coder/sdk exec tsx scripts/generate.ts
+          connection-string: "Host=localhost;Port=5432;Database=wallow_test;Username=wallow;Password=wallow"
 
       - name: Fail on OpenAPI snapshot drift
+        if: steps.openapi.outputs.drift == 'true'
+        env:
+          REASON: ${{ steps.openapi.outputs.reason }}
+          DIFF_FILE: ${{ steps.openapi.outputs.diff-file }}
         run: |
-          if ! git diff --exit-code -- packages/sdk/openapi/v1.json; then
-            echo "::error::packages/sdk/openapi/v1.json is out of date with the live API contract."
-            echo "::error::Refresh it locally and commit the result:"
-            echo "::error::  cd docker && docker compose up -d"
-            echo "::error::  dotnet run --project api/src/Wallow.Api"
-            echo "::error::  WALLOW_OPENAPI_URL=http://localhost:5001/openapi/v1.json pnpm --filter @bc-solutions-coder/sdk exec tsx scripts/generate.ts"
-            echo "::error::  git add packages/sdk/openapi/v1.json && git commit"
-            exit 1
+          cat "$DIFF_FILE"
+          if [ "$REASON" = "servers" ]; then
+            echo "::error::packages/sdk/openapi/v1.json declares the wrong servers[0].url."
+            echo "::error::Refresh the snapshot against an API served from http://localhost:5001/."
+          else
+            echo "::error::packages/sdk/openapi/v1.json is out of date with the API contract."
           fi
-          echo "OpenAPI snapshot is in sync with the live API contract."
-
-      - name: Stop API
-        if: always()
-        run: |
-          if [ -n "${API_PID:-}" ]; then
-            kill "$API_PID" 2>/dev/null || true
-          fi
+          echo "::error::Refresh it locally and commit the result:"
+          echo "::error::  cd docker && docker compose up -d"
+          echo "::error::  dotnet run --project api/src/Wallow.Api"
+          echo "::error::  WALLOW_OPENAPI_URL=http://localhost:5001/openapi/v1.json pnpm --filter @bc-solutions-coder/sdk exec tsx scripts/generate.ts"
+          echo "::error::  git add packages/sdk/openapi packages/sdk/src/generated && git commit"
+          exit 1

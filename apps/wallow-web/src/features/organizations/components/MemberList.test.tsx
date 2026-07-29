@@ -1,23 +1,22 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactElement } from "react";
+import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { installSdkClientMock, type SdkClientMock } from "../../../test/sdk-client-mock";
+import { expectSwept } from "../../../test/invalidation";
+import { organizationsGetMembersQueryKey } from "../api";
 import { MemberList } from "./MemberList";
 
 /**
  * Component spec for the org-detail member list + management (Wallow-8w1h.4.4).
- * Data flows through the SDK query layer (`organizationsQueries.members()` +
- * `addMemberMutation`/`removeMemberMutation`), so the network seam is the shared
- * SDK client's `fetch`, overridden per test via `installSdkClientMock`
- * (Wallow-evd5.2.6 — the retired `getWallowSdk()` facade is no longer in the
- * path). Seeded/empty states are driven by the `['orgs', id, 'members']` cache
- * (`staleTime: Infinity` keeps the seed from refetching), loading by a
- * never-settling request (`sdk.pending()`), and add/remove are asserted via the
- * recorded outgoing request (`sdk.calls`) and the live client's
- * `invalidateQueries`.
+ * Data flows through the GENERATED query surface
+ * (`organizationsGetMembersOptions` + `organizationsAddMemberMutation` /
+ * `organizationsRemoveMemberMutation`), so the network seam is the SDK instance
+ * the render puts on the router context, backed by `createSdkHarness()`
+ * (Wallow-pu6a.5.5). Seeded/empty states come off the wire rather than a
+ * pre-primed cache, loading from a never-settling request (`harness.pending()`),
+ * and add/remove are asserted via the recorded outgoing request
+ * (`harness.calls`) and the render's own `invalidateQueries`.
  *
  * Testids: `organization-detail-members-table` + `organization-detail-member-row`
  * (table), `organization-members-empty`/`organization-members-loading`
@@ -25,19 +24,6 @@ import { MemberList } from "./MemberList";
  * (add form), `organization-member-remove` (per-row remove) — all
  * `{page}-{element}` kebab-case.
  */
-
-function newClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: {
-      queries: { retry: false, staleTime: Number.POSITIVE_INFINITY },
-      mutations: { retry: false },
-    },
-  });
-}
-
-function renderWithClient(client: QueryClient, ui: ReactElement) {
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-}
 
 const twoMembers = [
   {
@@ -58,18 +44,18 @@ const twoMembers = [
   },
 ];
 
-describe("MemberList", () => {
-  let sdk: SdkClientMock;
+/** The transport backing each render, rebuilt per test. */
+let harness: SdkHarness;
 
+describe("MemberList", () => {
   beforeEach(() => {
-    sdk = installSdkClientMock();
+    harness = createSdkHarness();
   });
 
   it("renders each seeded member as an organization-detail-member-row", async () => {
-    const client = newClient();
-    client.setQueryData(["orgs", "o1", "members"], twoMembers);
+    harness.resolveJson(twoMembers);
 
-    renderWithClient(client, <MemberList orgId="o1" />);
+    renderWithWallow(<MemberList orgId="o1" />, { harness });
 
     await expect.element(page.getByTestId("organization-detail-members-table")).toBeInTheDocument();
     expect(page.getByTestId("organization-detail-member-row").elements()).toHaveLength(2);
@@ -78,37 +64,41 @@ describe("MemberList", () => {
   });
 
   it("renders the empty state and no rows when there are no members", async () => {
-    const client = newClient();
-    client.setQueryData(["orgs", "o1", "members"], []);
+    harness.resolveJson([]);
 
-    renderWithClient(client, <MemberList orgId="o1" />);
+    renderWithWallow(<MemberList orgId="o1" />, { harness });
 
     await expect.element(page.getByTestId("organization-members-empty")).toBeInTheDocument();
     expect(page.getByTestId("organization-detail-member-row").elements()).toHaveLength(0);
   });
 
   it("shows a loading indicator while the members query is pending", async () => {
-    const client = newClient();
-    sdk.pending();
+    harness.pending();
 
-    renderWithClient(client, <MemberList orgId="o1" />);
+    renderWithWallow(<MemberList orgId="o1" />, { harness });
 
     await expect.element(page.getByTestId("organization-members-loading")).toBeInTheDocument();
   });
 
   it("adds a member: POSTs the userId to the org's members endpoint", async () => {
-    const client = newClient();
-    client.setQueryData(["orgs", "o1", "members"], twoMembers);
-    // The post-success invalidation refetches the members list; keep it an array.
-    sdk.resolveJson([]);
+    // The POST and the post-success members refetch share one responder; answer
+    // by method so the refetch still yields an array.
+    harness.respond((call) =>
+      call.method === "GET"
+        ? new Response(JSON.stringify(twoMembers), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          })
+        : new Response(null, { status: 204 }),
+    );
 
-    renderWithClient(client, <MemberList orgId="o1" />);
+    renderWithWallow(<MemberList orgId="o1" />, { harness });
 
     await userEvent.type(page.getByTestId("organization-member-userid"), "u9");
     await userEvent.click(page.getByTestId("organization-member-add-submit"));
 
     await vi.waitFor(() => {
-      const addCall = sdk.calls.find(
+      const addCall = harness.calls.find(
         (c) => c.method === "POST" && c.path === "/api/v1/identity/organizations/o1/members",
       );
       expect(addCall).toBeDefined();
@@ -116,35 +106,39 @@ describe("MemberList", () => {
     });
   });
 
-  it("invalidates the members query after a successful add", async () => {
-    const client = newClient();
-    client.setQueryData(["orgs", "o1", "members"], twoMembers);
-    sdk.resolveJson([]);
-    const invalidateSpy = vi.spyOn(client, "invalidateQueries");
+  it("sweeps the members query after a successful add", async () => {
+    harness.resolveJson(twoMembers);
 
-    renderWithClient(client, <MemberList orgId="o1" />);
+    const { queryClient } = renderWithWallow(<MemberList orgId="o1" />, { harness });
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
 
     await userEvent.type(page.getByTestId("organization-member-userid"), "u9");
     await userEvent.click(page.getByTestId("organization-member-add-submit"));
 
-    await vi.waitFor(() => {
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["orgs", "o1", "members"] });
-    });
+    await expectSwept(invalidateSpy, organizationsGetMembersQueryKey({ path: { id: "o1" } }));
   });
 
   it("removes a member: DELETEs the org member by user id", async () => {
-    const client = newClient();
-    client.setQueryData(["orgs", "o1", "members"], twoMembers);
-    sdk.resolveJson([]);
+    // The DELETE and the post-success members refetch share one responder, so it
+    // answers by method: the list read keeps returning members (the row has to
+    // still be there to click), the delete returns an empty 204-ish body.
+    harness.respond((call) =>
+      call.method === "GET"
+        ? new Response(JSON.stringify(twoMembers), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          })
+        : new Response(null, { status: 204 }),
+    );
 
-    renderWithClient(client, <MemberList orgId="o1" />);
+    renderWithWallow(<MemberList orgId="o1" />, { harness });
 
     const removeButtons = page.getByTestId("organization-member-remove");
     await expect.element(removeButtons.first()).toBeInTheDocument();
     await userEvent.click(removeButtons.first());
 
     await vi.waitFor(() => {
-      const removeCall = sdk.calls.find(
+      const removeCall = harness.calls.find(
         (c) => c.method === "DELETE" && c.path === "/api/v1/identity/organizations/o1/members/u1",
       );
       expect(removeCall).toBeDefined();

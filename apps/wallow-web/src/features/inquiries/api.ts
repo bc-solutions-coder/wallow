@@ -1,15 +1,23 @@
 /**
- * Inquiries feature `api.ts` (Wallow-evd5.2.2) — a THIN RE-EXPORT SEAM over the
- * SDK query layer (`@bc-solutions-coder/sdk/query`). Routes/components keep
- * importing from `./api`; the query keys and invalidation behavior (create
- * sweeps the list, add comment sweeps that inquiry's comments, set status sweeps
- * its detail) live in the SDK.
+ * Inquiries feature `api.ts` — a THIN RE-EXPORT SEAM over the SDK query entry
+ * (`@bc-solutions-coder/sdk/query`). Routes/components keep importing from
+ * `./api`; as of Wallow-pu6a.5.5 everything behind it is GENERATED from the
+ * OpenAPI document. The invalidation model the hand-written slice encoded
+ * (create sweeps the list, add-comment sweeps that inquiry's comments, set-status
+ * sweeps its detail) now lives at the call sites, expressed through the curated
+ * predicates re-exported here — generated keys are flat and have no prefix a
+ * mutation could sweep by.
  */
 export {
-  inquiriesQueries,
-  createInquiryMutation,
-  addCommentMutation,
-  setStatusMutation,
-  type SubmitInquiryBody,
-  type AddCommentBody,
+  inquiriesAddCommentMutation,
+  inquiriesGetAllOptions,
+  inquiriesGetAllQueryKey,
+  inquiriesGetByIdOptions,
+  inquiriesGetByIdQueryKey,
+  inquiriesGetCommentsOptions,
+  inquiriesGetCommentsQueryKey,
+  inquiriesSubmitMutation,
+  inquiriesUpdateStatusMutation,
+  queriesForOperation,
+  queriesWithTag,
 } from "@bc-solutions-coder/sdk/query";

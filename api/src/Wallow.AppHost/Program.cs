@@ -54,9 +54,10 @@ IResourceBuilder<ProjectResource> api = builder.AddProject<Projects.Wallow_Api>(
     .WaitFor(garage);
 
 // Auth and Web wait for API to be fully ready.
-// Auth is the TanStack Start app (apps/wallow-auth), run via its pnpm dev script (tsx dev-server.ts) on port 3002.
+// Auth is the TanStack Start app (apps/wallow-auth), run via its pnpm dev script (vite dev) on port 3002.
 // WithReference(api) injects Aspire service-discovery vars; WALLOW_API_INTERNAL_URL is the
-// explicit upstream for the h3 reverse proxy (the Aspire/Docker DNS default does not resolve locally).
+// explicit upstream for the app's server-side API proxy (the Aspire/Docker DNS default does not
+// resolve locally).
 builder.AddJavaScriptApp("wallow-auth", wallowAuthDir, "dev")
     .WithPnpm()
     .WithHttpEndpoint(port: 3002, env: "PORT", isProxied: false)
@@ -79,7 +80,7 @@ builder.AddJavaScriptApp("wallow-web", wallowWebDir, "dev")
     // Issuer/metadata split (mirrors docker-compose.test.yml): the API's dev issuer is the
     // wallow-auth origin (appsettings.Development.json AuthUrl -> OpenIddictIssuerResolver),
     // so the client must expect that issuer, while discovery is fetched from the API directly
-    // (the auth app's h3 proxy does not mount /.well-known/**).
+    // (the auth app's passthrough would serve it too, but going direct saves a proxy hop).
     .WithEnvironment("OIDC_ISSUER", "http://localhost:3002")
     .WithEnvironment("OIDC_METADATA_URL", "http://localhost:5001/.well-known/openid-configuration")
     .WithEnvironment("OIDC_CLIENT_ID", "wallow-web-client")

@@ -117,7 +117,8 @@ public class TenantResolutionMiddlewareGapTests
 
         DefaultHttpContext context = CreateAuthenticatedContext(
             new Claim("org_id", orgId.ToString()),
-            new Claim("azp", "sa-operator-svc"));
+            new Claim("azp", "sa-operator-svc"),
+            new Claim("is_operator", "true"));
         context.Request.Headers["X-Tenant-Id"] = overrideId.ToString();
 
         await middleware.InvokeAsync(context, tenantContext);

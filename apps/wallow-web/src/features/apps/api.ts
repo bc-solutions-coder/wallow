@@ -1,14 +1,16 @@
 /**
- * Apps feature `api.ts` (Wallow-evd5.2.2) — a THIN RE-EXPORT SEAM over the SDK
- * query layer (`@bc-solutions-coder/sdk/query`). Routes/components keep importing
- * from `./api`; the query keys and invalidation behavior live in the SDK. The
- * adoption also surfaces `upsertBrandingMutation`, which the hand-rolled layer
- * lacked.
+ * Apps feature `api.ts` — a THIN RE-EXPORT SEAM over the SDK query entry
+ * (`@bc-solutions-coder/sdk/query`). Routes/components keep importing from
+ * `./api`; as of Wallow-pu6a.5.5 everything behind it is GENERATED from the
+ * OpenAPI document, so each factory takes an explicit `{ client }` (the
+ * request-scoped instance off the router context) and there is no hand-written
+ * `appsQueries` namespace left to configure.
  */
 export {
-  appsQueries,
-  registerAppMutation,
-  upsertBrandingMutation,
-  type RegisterAppBody,
-  type UpsertBrandingBody,
+  appsGetUserAppsOptions,
+  appsGetUserAppsQueryKey,
+  appsRegisterMutation,
+  clientBrandingUpsertBrandingMutation,
+  queriesForOperation,
+  queriesWithTag,
 } from "@bc-solutions-coder/sdk/query";

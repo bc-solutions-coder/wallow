@@ -1,10 +1,16 @@
+import {
+  isSafeReturnUrl,
+  mfaConfirmEnrollment,
+  type MfaEnrollmentConfirmedResponse,
+  type MfaEnrollmentSecretResponse,
+  mfaEnrollTotp,
+  mfaExchangeEnrollmentToken,
+} from "@bc-solutions-coder/sdk";
 import { Button, Card, CardTitle, ErrorBanner, Field, Input, Label } from "@bc-solutions-coder/ui";
 import { useMutation } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { QRCodeSVG } from "qrcode.react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-
-import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
 
 /**
  * The MfaEnroll screen (Wallow-vec7.3.7).
@@ -22,8 +28,9 @@ import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
  * untestable without one, so it is invented under the `{page}-{element}`
  * kebab-case rule (`.claude/rules/E2E.md`).
  *
- * The API is reached through `getWallowAuthSdk()`, never `@bc-solutions-coder/sdk`
- * directly — that facade is this app's only permitted importer of the SDK.
+ * The API is reached through the request-scoped SDK on the router context
+ * (`useRouteContext({ from: "__root__" })`), calling the generated operations
+ * directly — there is no app-level facade (Wallow-pu6a.5.5).
  *
  * ── THE RELAY IS GONE (this screen's whole reason to exist) ───────────────────
  *
@@ -33,7 +40,7 @@ import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
  * `HttpContext` is null — can restore them and re-inject the cookie on the
  * confirm call (`PersistedEnrollment`, `ApiCookieJar`, `SeedFromBrowserCookies`).
  *
- * None of that is ported. This app's h3 server (`src/lib/auth-server.ts`) is a
+ * None of that is ported. This app's API surface (`src/lib/api-passthrough.ts`) is a
  * passthrough reverse proxy and the client sends `credentials: "include"`, so the
  * `Identity.MfaPartial` cookie rides ordinary same-origin requests: `enrollTotp()`
  * takes no arguments and `confirmEnrollment` receives only `{ secret, code }`,
@@ -221,17 +228,6 @@ function confirmFailureMessage(cause: unknown): string {
   }
 
   return CONFIRM_FAILED_MESSAGE;
-}
-
-/** What `enroll/totp` resolves to. */
-interface EnrollResult {
-  readonly secret?: string;
-  readonly qrUri?: string | null;
-}
-
-/** What `enroll/confirm` resolves to. `backupCodes` is absent on the oracle's `?? Array.Empty` path. */
-interface ConfirmResult {
-  readonly backupCodes?: readonly string[];
 }
 
 /** The oracle's `BbCardHeader`. */
@@ -431,6 +427,7 @@ export interface MfaEnrollFormProps {
 }
 
 export function MfaEnrollForm({ returnUrl, enrollToken }: MfaEnrollFormProps): ReactNode {
+  const { sdk } = useRouteContext({ from: "__root__" });
   const navigate = useNavigate();
   const [code, setCode] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -450,8 +447,7 @@ export function MfaEnrollForm({ returnUrl, enrollToken }: MfaEnrollFormProps): R
   // hostile — it is the oracle's ordinary direct-enrollment path — so only a
   // PRESENT value is checked. An empty string IS present, and `isSafeReturnUrl("")`
   // is false, so it is the unsafe case rather than the nullish no-redirect one.
-  const returnUrlIsUnsafe: boolean =
-    returnUrl !== undefined && !getWallowAuthSdk().oidc.isSafeReturnUrl(returnUrl);
+  const returnUrlIsUnsafe: boolean = returnUrl !== undefined && !isSafeReturnUrl(returnUrl);
 
   /**
    * The oracle's `TryTakeFromJson` suppression, kept as a ref: enrollment must
@@ -472,8 +468,8 @@ export function MfaEnrollForm({ returnUrl, enrollToken }: MfaEnrollFormProps): R
    * silently invalidate the QR the user has already scanned.
    */
   const startEnrollment = useMutation({
-    mutationFn: async (): Promise<EnrollResult> =>
-      (await getWallowAuthSdk().auth.enrollTotp()) as EnrollResult,
+    mutationFn: async (): Promise<MfaEnrollmentSecretResponse> =>
+      await mfaEnrollTotp({ client: sdk.client }),
     // The oracle's `_errorMessage = null;`. Cleared EAGERLY at mutate time rather
     // than derived from `error`, which would leave the dead message standing
     // above an in-flight retry for the whole request.
@@ -512,7 +508,7 @@ export function MfaEnrollForm({ returnUrl, enrollToken }: MfaEnrollFormProps): R
       // session to resolve and 401s — blaming the wrong thing.
       if (enrollToken !== undefined && enrollToken !== "") {
         try {
-          await getWallowAuthSdk().auth.exchangeEnrollmentToken(enrollToken);
+          await mfaExchangeEnrollmentToken({ client: sdk.client, query: { token: enrollToken } });
         } catch (error: unknown) {
           // Enrolling anyway would just 401 and report a session problem when the
           // real fault is the expired link.
@@ -528,19 +524,22 @@ export function MfaEnrollForm({ returnUrl, enrollToken }: MfaEnrollFormProps): R
       startEnroll();
       setExchanging(false);
     })();
-  }, [returnUrlIsUnsafe, navigate, enrollToken, startEnroll]);
+  }, [returnUrlIsUnsafe, navigate, enrollToken, startEnroll, sdk]);
 
   const confirmMutation = useMutation({
-    mutationFn: async (attempt: { readonly secret: string; readonly code: string }) =>
-      (await getWallowAuthSdk().auth.confirmEnrollment({
-        secret: attempt.secret,
-        code: attempt.code,
-      })) as ConfirmResult,
+    mutationFn: async (attempt: {
+      readonly secret: string;
+      readonly code: string;
+    }): Promise<MfaEnrollmentConfirmedResponse> =>
+      await mfaConfirmEnrollment({
+        client: sdk.client,
+        body: { secret: attempt.secret, code: attempt.code },
+      }),
   });
 
   const handleDone = (): void => {
     // Unsafe values were refused at mount, so a present returnUrl here is safe.
-    // A FULL navigation, not `navigate()`: `/connect/**` is served by the h3
+    // A FULL navigation, not `navigate()`: `/connect/**` is served by the passthrough
     // reverse proxy, not by the client-side route tree, which would 404 in-app.
     // No origin prepend — see the origin-divergence note above.
     globalThis.location.href = returnUrl ?? HOME_HREF;
@@ -569,10 +568,17 @@ export function MfaEnrollForm({ returnUrl, enrollToken }: MfaEnrollFormProps): R
       {
         // Resolution IS success: every failure this endpoint has is non-2xx, so
         // `unwrap()` has already thrown by the time this runs.
-        onSuccess: (result: ConfirmResult) => {
+        onSuccess: (result: MfaEnrollmentConfirmedResponse) => {
           // The oracle's `result.BackupCodes ?? Array.Empty<string>()`. An empty
           // list is still a successful enrollment and MFA really is on; falling
           // back to the error state would tell the user a lie about their account.
+          //
+          // The `??` survives the move to the generated type even though that
+          // type declares `backupCodes` REQUIRED: the declaration is the schema's
+          // claim, not the wire's. `MfaController` returns `Ok(new { succeeded =
+          // true, backupCodes })` and a null list serializes to an absent member,
+          // which reaches `BackupCodesPanel` as `undefined.map` — the success
+          // screen replaced by an error boundary on an enrollment that WORKED.
           setBackupCodes(result.backupCodes ?? []);
         },
         onError: (cause: unknown) => {

@@ -32,10 +32,10 @@ describe("routes/index (public home SSR)", () => {
 });
 
 /**
- * Cached current-user gate (Wallow-evd5.2.3): the `beforeLoad` must read the user
- * through the SDK query layer via `context.queryClient.ensureQueryData(
- * userQueries.currentUser())` and no longer import the retired
- * `getWallowSdk().user.me()` facade.
+ * Cached current-user gate (Wallow-evd5.2.3, regenerated in Wallow-pu6a.5.5):
+ * the `beforeLoad` must read the user through the router-context QueryClient via
+ * `ensureQueryData(currentUserQuery(context.sdk.client))` and no longer import
+ * the retired `getWallowSdk().user.me()` facade.
  */
 describe("routes/index (cached current-user gate wiring)", () => {
   it("no longer imports the retired getWallowSdk facade", () => {
@@ -45,7 +45,7 @@ describe("routes/index (cached current-user gate wiring)", () => {
     );
 
     expect(source).not.toMatch(/getWallowSdk|lib\/wallow-sdk/u);
-    expect(source).toMatch(/userQueries/u);
+    expect(source).toMatch(/currentUserQuery/u);
     expect(source).toMatch(/ensureQueryData/u);
   });
 });

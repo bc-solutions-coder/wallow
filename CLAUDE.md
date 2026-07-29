@@ -18,7 +18,7 @@ This repo is a **polyglot monorepo** with two toolchains:
 | `packages/sdk/`       | `@bc-solutions-coder/sdk` — TypeScript BFF auth SDK + generated OpenAPI client                                                |
 | `packages/styles/`    | `@bc-solutions-coder/styles` — shared Tailwind v4 CSS entry + theme tokens emitted from `api/branding.json`                   |
 | `packages/ui/`        | `@bc-solutions-coder/ui` — shared browser-only React component catalog (Base UI + CVA); see `packages/ui/CLAUDE.md`           |
-| `packages/web-shell/` | `@bc-solutions-coder/web-shell` — standalone host runtime + shared Vite/dev-server config presets                             |
+| `packages/web-shell/` | `@bc-solutions-coder/web-shell` — shared browser-safe frontend runtime (the TanStack Query client factory)                    |
 | `packages/testing/`   | `@bc-solutions-coder/testing` — shared vitest preset + browser-mode test utilities                                            |
 | `apps/wallow-web/`    | TanStack Start + BFF OIDC reference frontend (dashboard) that consumes the SDK                                                |
 | `apps/wallow-auth/`   | TanStack Start auth frontend (login/signup/MFA screens) on port 3002                                                          |
@@ -51,25 +51,35 @@ pnpm test                    # pnpm -r test    (vitest per package)
 pnpm typecheck               # pnpm -r typecheck
 pnpm lint                    # oxlint apps packages --deny-warnings
 pnpm format                  # oxfmt --write ...   (format:check verifies)
-pnpm check                   # format:check + lint + typecheck + test + build — the one-command quality gate
+pnpm check:exports           # publint + @arethetypeswrong/cli over the built packages (needs dist/)
+pnpm check                   # format:check + lint + typecheck + test + build + check:exports — the one-command quality gate
 ```
 
 - **`packages/sdk`** — server-side **BFF** tunnel so the browser never holds a token, with
-  three entries: browser (`.`), Node BFF (`./server`), TanStack Query layer (`./query`). The
+  four entries: browser (`.`), Node BFF (`./server`), pure reverse proxy
+  (`./server/passthrough`), TanStack Query layer (`./query`). Its server handlers are
+  web-standard `Request` → `Response` functions with no host-framework dependency. The
   OpenAPI client is **generated** from the committed snapshot `packages/sdk/openapi/v1.json`
   (CI fails on drift), and the SDK ships independently via `sdk-v*` tags. Full detail —
   entries, session/CSRF model, regen command, build/publish, test layout — lives in
   **`packages/sdk/CLAUDE.md`**; read it before touching the SDK.
 - **`apps/wallow-web`** — runnable TanStack Start reference frontend demonstrating the
   full same-origin BFF flow. `pnpm --filter @bc-solutions-coder/wallow-web dev` (SSR + BFF)
-  or `... start` (standalone h3 host used by the E2E container). Has a Dockerfile whose
-  build context is the **repo root** (needs the whole workspace to resolve `workspace:*`).
+  or `... start` (`node .output/server/index.mjs`, the Nitro bundle the E2E container runs).
+  Has a Dockerfile whose build context is the **repo root** (needs the whole workspace to
+  resolve `workspace:*`). Every app hosts itself through TanStack Start server routes —
+  there is no shared host runtime.
 
 ### Frontend state boundary
 
-TanStack Query is the only store for backend data — all query keys come from the SDK's
-`queryKeys` factory (`@bc-solutions-coder/sdk/query`); no inline key literals. Zustand holds
-UI-only global state; it never stores API data. See `docs/development/frontend-state.md`.
+TanStack Query is the only store for backend data. Every key comes from the **generated**
+per-operation artifacts in `@bc-solutions-coder/sdk/query` — `{operation}Options()` for a read,
+`{operation}Mutation()` for a write, `{operation}QueryKey()` when you need the key alone; no
+inline key literals, and never a hand-rolled factory. Those keys are flat
+(`[{ _id, baseUrl, tags, ...args }]`) with no prefix to sweep by, so invalidation goes through
+the curated `invalidations` predicates (`queriesWithTag`, `queriesForOperation`) from the same
+entry. Zustand holds UI-only global state; it never stores API data.
+See `docs/development/frontend-state.md`.
 
 ## Backend (summary — full detail in `api/CLAUDE.md`)
 

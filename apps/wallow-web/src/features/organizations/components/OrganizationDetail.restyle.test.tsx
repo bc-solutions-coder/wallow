@@ -1,9 +1,9 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactElement } from "react";
-import { render } from "vitest-browser-react";
+import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+
+import { routeHarness } from "../../../test/harness-routes";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { installSdkClientMock } from "../../../test/sdk-client-mock";
 import {
   allByTestId,
   byTestId,
@@ -15,6 +15,9 @@ import {
   within,
 } from "../../../test/style-contract";
 import { OrganizationDetail } from "./OrganizationDetail";
+
+/** The transport backing each render, rebuilt per test. */
+let harness: SdkHarness;
 
 /**
  * Restyle spec for the org-detail body (Wallow-urec.4.3). It asserts only the
@@ -51,41 +54,31 @@ const MEMBERS = [
 
 const CLIENTS = [{ id: "c1", clientId: "acme-web", name: "Acme Web" }];
 
-function newClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: {
-      queries: { retry: false, staleTime: Number.POSITIVE_INFINITY },
-      mutations: { retry: false },
-    },
-  });
-}
-
-function renderWithClient(client: QueryClient, ui: ReactElement) {
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-}
-
 /** Render the loaded detail (org + members + bound clients seeded). */
 async function renderLoaded(): Promise<HTMLElement> {
-  const client = newClient();
-  client.setQueryData(["orgs", "o1"], ORG);
-  client.setQueryData(["orgs", "o1", "members"], MEMBERS);
-  client.setQueryData(["orgs", "o1", "clients"], CLIENTS);
-  renderWithClient(client, <OrganizationDetail orgId="o1" />);
+  routeHarness(
+    harness,
+    {
+      "GET /v1/identity/organizations/o1": ORG,
+      "GET /v1/identity/organizations/o1/members": MEMBERS,
+      "GET /v1/identity/clients/by-tenant/o1": CLIENTS,
+    },
+    { fallback: [] },
+  );
+  renderWithWallow(<OrganizationDetail orgId="o1" />, { harness });
   return waitForTestId("organization-detail-heading");
 }
 
 /** Render the missing-org branch. */
 async function renderNotFound(): Promise<HTMLElement> {
-  const client = newClient();
-  client.setQueryData(["orgs", "o1"], null);
-  renderWithClient(client, <OrganizationDetail orgId="o1" />);
+  harness.resolveJson(null);
+  renderWithWallow(<OrganizationDetail orgId="o1" />, { harness });
   return waitForTestId("organization-detail-not-found");
 }
 
 describe("OrganizationDetail (restyle)", () => {
   beforeEach(() => {
-    const sdk = installSdkClientMock();
-    sdk.resolveJson([]);
+    harness = createSdkHarness();
   });
 
   it("lays the page out as a column rather than one giant card", async () => {

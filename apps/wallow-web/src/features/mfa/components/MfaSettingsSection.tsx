@@ -2,7 +2,7 @@
  * MFA settings status card (Wallow-8w1h.6.4) — the status + actions card that
  * lives alongside the profile section on the settings route.
  *
- * Drives `useQuery(mfaQueries.status())` and renders:
+ * Drives `useQuery(mfaGetStatusOptions(...))` and renders:
  *   - `settings-mfa-status` — "Enabled"/"Disabled" text.
  *   - When DISABLED: `settings-mfa-enable`; clicking it enters the inline
  *     `MfaEnrollFlow` (no cross-app redirect — the SPA is same-origin).
@@ -25,11 +25,17 @@ import {
   MutedText,
 } from "@bc-solutions-coder/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouteContext } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 
-import { disableMfaMutation, mfaQueries, regenerateBackupCodesMutation } from "../api";
+import {
+  mfaDisableMutation,
+  mfaGetStatusOptions,
+  mfaGetStatusQueryKey,
+  mfaRegenerateBackupCodesMutation,
+  queriesForOperation,
+} from "../api";
 import { problemDetail } from "../errors";
-import type { MfaRegenerateBackupCodesResponse, MfaStatusResponse } from "../types";
 import { MfaEnrollFlow } from "./MfaEnrollFlow";
 
 /** Which enabled-only action opened the shared password-confirm panel. */
@@ -82,7 +88,9 @@ function DisabledCard(props: { onEnable: () => void }) {
 
 /** ENABLED-state affordances: status + backup count + disable/regenerate. */
 function EnabledCard(props: {
-  backupCodeCount: number;
+  // The OpenAPI document types the count as `number | string`, so the card
+  // renders whichever the API sent rather than casting one into the other.
+  backupCodeCount: number | string;
   onDisable: () => void;
   onRegenerate: () => void;
 }) {
@@ -175,10 +183,26 @@ function RegeneratedCodes(props: { codes: string[] }) {
 }
 
 export function MfaSettingsSection() {
+  const { sdk } = useRouteContext({ from: "__root__" });
   const queryClient = useQueryClient();
-  const { data, isPending } = useQuery(mfaQueries.status());
-  const disable = useMutation(disableMfaMutation(queryClient));
-  const regenerate = useMutation(regenerateBackupCodesMutation(queryClient));
+  const { data, isPending } = useQuery(mfaGetStatusOptions({ client: sdk.client }));
+  // Both writes change the status the card renders (enrollment state and the
+  // remaining-code count), so each re-reads the status OPERATION. Generated keys
+  // are flat, so there is no `['mfa']` prefix to sweep by; the status query is
+  // tagged `Identity`, which is far broader than these two writes touch.
+  const invalidateStatus = (): void => {
+    void queryClient.invalidateQueries(
+      queriesForOperation(mfaGetStatusQueryKey({ client: sdk.client })),
+    );
+  };
+  const disable = useMutation({
+    ...mfaDisableMutation({ client: sdk.client }),
+    onSuccess: invalidateStatus,
+  });
+  const regenerate = useMutation({
+    ...mfaRegenerateBackupCodesMutation({ client: sdk.client }),
+    onSuccess: invalidateStatus,
+  });
 
   const [enrolling, setEnrolling] = useState(false);
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
@@ -194,8 +218,9 @@ export function MfaSettingsSection() {
     );
   }
 
-  // The facade returns status as `unknown`; narrow at the render boundary.
-  const status = (data ?? null) as MfaStatusResponse | null;
+  // The generated read already resolves `MfaStatusResponse`, so there is nothing
+  // left to narrow at the render boundary — only the not-yet-loaded case.
+  const status = data ?? null;
   const enabled = status?.enabled ?? false;
 
   if (enrolling) {
@@ -231,19 +256,22 @@ export function MfaSettingsSection() {
       setPassword("");
     };
     if (confirmAction === "disable") {
-      disable.mutate(password, { onSuccess: closePanel, onError });
+      disable.mutate({ body: { password } }, { onSuccess: closePanel, onError });
     } else {
-      regenerate.mutate(password, {
-        onSuccess: (payload) => {
-          // Reveal the freshly minted codes once: the old codes are now invalid,
-          // so the user must save these. The factory's onSuccess invalidates
-          // `['mfa', 'status']` so the card stays Enabled with the new count.
-          const result = payload as MfaRegenerateBackupCodesResponse;
-          setRegeneratedCodes(result.codes ?? []);
-          closePanel();
+      regenerate.mutate(
+        { body: { password } },
+        {
+          onSuccess: (payload) => {
+            // Reveal the freshly minted codes once: the old codes are now
+            // invalid, so the user must save these. The mutation's own
+            // onSuccess re-reads the status so the card stays Enabled with the
+            // new count.
+            setRegeneratedCodes(payload.codes);
+            closePanel();
+          },
+          onError,
         },
-        onError,
-      });
+      );
     }
   };
 

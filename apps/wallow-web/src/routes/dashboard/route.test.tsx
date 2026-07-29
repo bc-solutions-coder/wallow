@@ -1,11 +1,12 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-import { userQueries } from "@bc-solutions-coder/sdk/query";
+import { createSdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { type AnyRedirect, isRedirect } from "@tanstack/react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createRouter } from "../../router";
+import { currentUserQuery } from "../../lib/current-user";
+import { getRouter } from "../../router";
 import { Route } from "./route";
 
 /**
@@ -14,8 +15,10 @@ import { Route } from "./route";
  * Wallow-zyxe.
  *
  * The gate must read the current user through the router-context QueryClient via
- * `context.queryClient.ensureQueryData(userQueries.currentUser())` (SDK query
- * layer), NOT the retired `getWallowSdk().user.me()` facade. When the cached user
+ * `context.queryClient.ensureQueryData(currentUserQuery(context.sdk.client))` — the
+ * GENERATED current-user read bound to the request's own SDK instance
+ * (Wallow-pu6a.5.5), NOT a module-global client and not the retired
+ * `getWallowSdk().user.me()` facade. When the cached user
  * resolves `null` it must **throw** a TanStack `redirect({ href, reloadDocument })`
  * to the BFF login rather than calling the SDK's browser-only `login()` — that
  * helper assigns to the bare global `location`, which does not exist under Node,
@@ -33,6 +36,9 @@ import { Route } from "./route";
 /** The BFF login target the gate must send an unauthenticated visitor to. */
 const EXPECTED_LOGIN_HREF: string = "/bff/login?returnTo=%2Fdashboard%2Forganizations";
 
+/** A real SDK over a fake transport, standing in for the request's instance. */
+const sdk = createSdkHarness().sdk;
+
 /**
  * Drive the route's `beforeLoad` with a minimal TanStack-shaped context whose
  * `queryClient.ensureQueryData` is a spy resolving the seeded user. Returns the
@@ -45,7 +51,7 @@ async function runGate(
   const beforeLoad = Route.options.beforeLoad as (opts: unknown) => Promise<unknown>;
   const result = await beforeLoad({
     location: { pathname: "/dashboard/organizations", href: "/dashboard/organizations" },
-    context: { queryClient: { ensureQueryData } },
+    context: { queryClient: { ensureQueryData }, sdk },
   });
   return { ensureQueryData, result };
 }
@@ -84,12 +90,12 @@ describe("routes/dashboard/route (auth gate)", () => {
     expect(Route.options.beforeLoad).toBeDefined();
   });
 
-  it("reads the current user via context.queryClient.ensureQueryData(userQueries.currentUser())", async () => {
+  it("reads the current user via ensureQueryData(currentUserQuery(context.sdk.client))", async () => {
     const { ensureQueryData } = await runGate({ sub: "u1", roles: ["admin"] });
 
     expect(ensureQueryData).toHaveBeenCalledTimes(1);
     const options = ensureQueryData.mock.calls[0]?.[0] as { queryKey?: unknown };
-    expect(options.queryKey).toEqual(userQueries.currentUser().queryKey);
+    expect(options.queryKey).toEqual(currentUserQuery(sdk.client).queryKey);
   });
 
   it("throws a TanStack redirect to the BFF login when the cached user is null", async () => {
@@ -143,7 +149,7 @@ describe("routes/dashboard/route (auth gate)", () => {
     );
 
     expect(source).not.toMatch(/getWallowSdk|lib\/wallow-sdk/u);
-    expect(source).toMatch(/userQueries/u);
+    expect(source).toMatch(/currentUserQuery/u);
     expect(source).toMatch(/ensureQueryData/u);
   });
 
@@ -169,18 +175,16 @@ describe("routes/dashboard/route (auth gate)", () => {
  */
 describe("routes/dashboard/route (router registration)", () => {
   it("registers the /dashboard layout route in the router tree", () => {
-    const router = createRouter();
+    const router = getRouter();
     expect(Object.keys(router.routesById)).toContain("/dashboard");
   });
 
   it("reparents the dashboard children under the /dashboard layout route", () => {
-    const router = createRouter();
-    const child = (router.routesById as Record<string, { parentRoute?: { id?: string } }>)[
-      // The file-based codegen registers the index route with a trailing slash
-      // (`/dashboard/organizations/`); the old manual reparenting used the bare
-      // `/dashboard/organizations`. The parent is still the `/dashboard` shell.
-      "/dashboard/organizations/"
-    ];
+    const router = getRouter();
+    // The file-based codegen registers the index route with a trailing slash
+    // (`/dashboard/organizations/`); the old manual reparenting used the bare
+    // `/dashboard/organizations`. The parent is still the `/dashboard` shell.
+    const child = router.routesById["/dashboard/organizations/"];
     expect(child?.parentRoute?.id).toBe("/dashboard");
   });
 });

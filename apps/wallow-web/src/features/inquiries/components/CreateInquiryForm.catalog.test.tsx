@@ -1,13 +1,14 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactElement } from "react";
+import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { chooseOption, expectCatalogSelect } from "../../../test/catalog-select";
-import { installSdkClientMock } from "../../../test/sdk-client-mock";
 import { byTestId, waitForTestId } from "../../../test/style-contract";
 import { CreateInquiryForm } from "./CreateInquiryForm";
+
+/** The transport backing each render, rebuilt per test. */
+let harness: SdkHarness;
 
 /**
  * Catalog-migration spec for the create-inquiry form (Wallow-m5aq.5.3). The form
@@ -30,20 +31,12 @@ const SELECTS: ReadonlyArray<readonly [testId: string, optionLabel: string]> = [
 ];
 
 function renderForm(): Promise<HTMLElement> {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-  const ui: ReactElement = (
-    <QueryClientProvider client={client}>
-      <CreateInquiryForm />
-    </QueryClientProvider>
-  );
-  render(ui);
+  renderWithWallow(<CreateInquiryForm />, { harness });
   return waitForTestId("inquiry-create-form");
 }
 
 beforeEach(() => {
-  installSdkClientMock();
+  harness = createSdkHarness();
 });
 
 describe("CreateInquiryForm selects (catalog Select)", () => {

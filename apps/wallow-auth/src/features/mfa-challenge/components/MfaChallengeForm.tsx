@@ -1,10 +1,16 @@
-import { authQueries } from "@bc-solutions-coder/sdk/query";
+import {
+  accountVerifyMfaChallenge,
+  type AllowListedReturnUrl,
+  allowListedReturnUrl,
+  buildExchangeTicketUrl,
+  isSafeReturnUrl,
+  validateRedirectUriArgs,
+} from "@bc-solutions-coder/sdk";
+import { accountValidateRedirectUriOptions } from "@bc-solutions-coder/sdk/query";
 import { Button, Card, CardTitle, ErrorBanner, Field, Input, Label } from "@bc-solutions-coder/ui";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useState } from "react";
-
-import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
 
 /**
  * The MfaChallenge screen (Wallow-vec7.3.6).
@@ -19,9 +25,10 @@ import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
  * "Back to sign in" footer link ships without a testid in the oracle and keeps
  * it that way.
  *
- * Mutations and the OIDC builders are reached through `getWallowAuthSdk()`, and
- * reads through the SDK's `./query` factories (Wallow-evd5.3.1) — never the
- * `@bc-solutions-coder/sdk` barrel, which only the facade may import.
+ * Mutations call the GENERATED operations and reads use the generated
+ * `{op}Options()` factories, both bound to the request-scoped SDK off the router
+ * context (`useRouteContext({ from: "__root__" })`). The OIDC URL builders are
+ * pure and imported directly. There is no app-level facade (Wallow-pu6a.5.5).
  *
  * ── THE ERROR BRANCHES ────────────────────────────────────────────────────────
  *
@@ -59,8 +66,8 @@ import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
  * ── THE ORIGIN DIVERGENCE (inherited from Wallow-vec7.3.4) ────────────────────
  *
  * The oracle prepends an absolute API origin (`Configuration["ApiBaseUrl"]`) to
- * BOTH navigation targets. That prepend is deliberately NOT ported: this app's h3
- * server (`src/lib/auth-server.ts`) is a passthrough reverse proxy mounting
+ * BOTH navigation targets. That prepend is deliberately NOT ported: this app's API
+ * surface (`src/lib/api-passthrough.ts`) is a passthrough reverse proxy mounting
  * `/v1/**` and `/connect/**` at the ROOT, so this origin hosts them and the
  * origin argument is `""`. Going cross-origin would drop the `SameSite`
  * partial-auth cookie that `mfa/verify` reads and the exchange-ticket endpoint
@@ -364,6 +371,7 @@ export interface MfaChallengeFormProps {
 }
 
 export function MfaChallengeForm({ returnUrl, clientId }: MfaChallengeFormProps): ReactNode {
+  const { sdk } = useRouteContext({ from: "__root__" });
   const navigate = useNavigate();
   const [code, setCode] = useState("");
   const [useBackupCode, setUseBackupCode] = useState(false);
@@ -380,7 +388,7 @@ export function MfaChallengeForm({ returnUrl, clientId }: MfaChallengeFormProps)
   // The guard, evaluated before anything else happens — see `localDecisionOf`.
   const local: LocalDecision = localDecisionOf(
     returnUrl,
-    returnUrl !== undefined && getWallowAuthSdk().oidc.isSafeReturnUrl(returnUrl),
+    returnUrl !== undefined && isSafeReturnUrl(returnUrl),
   );
 
   // The `?? ""` is unreachable — `enabled` gates the read on `local === "ask"`,
@@ -390,7 +398,10 @@ export function MfaChallengeForm({ returnUrl, clientId }: MfaChallengeFormProps)
     // Scoped to the flow's own client: unscoped, the endpoint answers against
     // the UNION of every registered client's origins, so a URI any client at all
     // registered would pass for this one.
-    ...authQueries.redirectValidation(returnUrl ?? "", scopedClientId),
+    ...accountValidateRedirectUriOptions({
+      client: sdk.client,
+      ...validateRedirectUriArgs(returnUrl ?? "", scopedClientId),
+    }),
     // The factory hands back the raw body; the verdict is this screen's reading
     // of it.
     select: isRedirectUriAllowed,
@@ -422,15 +433,13 @@ export function MfaChallengeForm({ returnUrl, clientId }: MfaChallengeFormProps)
   }, [returnUrlVerdict, navigate]);
 
   const mutation = useMutation({
-    mutationFn: async (attempt: { readonly code: string; readonly useBackupCode: boolean }) => {
-      const auth = getWallowAuthSdk().auth;
-
-      // The same API op with `useBackupCode: true/false` — crossing them would
-      // send a recovery code to the TOTP validator.
-      return attempt.useBackupCode
-        ? ((await auth.useBackupCode(attempt.code)) as VerifyResult)
-        : ((await auth.verifyMfa(attempt.code)) as VerifyResult);
-    },
+    // The same API op with `useBackupCode: true/false` — crossing them would
+    // send a recovery code to the TOTP validator.
+    mutationFn: async (attempt: { readonly code: string; readonly useBackupCode: boolean }) =>
+      (await accountVerifyMfaChallenge({
+        client: sdk.client,
+        body: { code: attempt.code, useBackupCode: attempt.useBackupCode },
+      })) as VerifyResult,
   });
 
   const redirect = (ticket: string | undefined): void => {
@@ -442,7 +451,7 @@ export function MfaChallengeForm({ returnUrl, clientId }: MfaChallengeFormProps)
       return;
     }
 
-    // FULL navigations, not `navigate()`: both targets are served by the h3
+    // FULL navigations, not `navigate()`: both targets are served by the passthrough
     // reverse proxy, not by the client-side route tree, which would 404 in-app.
     //
     // `IsNullOrEmpty(result.SignInTicket)`: `buildExchangeTicketUrl` THROWS on a
@@ -455,16 +464,25 @@ export function MfaChallengeForm({ returnUrl, clientId }: MfaChallengeFormProps)
       return;
     }
 
+    // The builder applies the guard that matches what it is handed, and only this
+    // screen knows which one is owed (Wallow-a6jr). A returnUrl decided locally is
+    // relative, and `isSafeReturnUrl` is the whole proof. The "ask" one is
+    // ABSOLUTE — the external-login hand-off — and no string inspection can tell
+    // it from an attack, so the allow-list verdict that admitted it at mount
+    // travels WITH it rather than being re-derived here. `validation.data` is the
+    // strict `{ allowed: true }` narrowing, and the mint refuses anything else, so
+    // this cannot widen the accept-set the mount guard already settled.
+    const handOff: string | AllowListedReturnUrl =
+      local === "ask" ? allowListedReturnUrl(returnUrl, validation.data === true) : returnUrl;
+
     // The id has to survive this last hop too: `ExchangeTicket` re-validates the
     // returnUrl before setting the cookie, and falls back to the union origin set
     // without one. Passed only when there IS one, so a flow that carries no client
     // asks the exact request it asks today.
-    const oidc = getWallowAuthSdk().oidc;
-
     globalThis.location.href =
       scopedClientId === undefined
-        ? oidc.buildExchangeTicketUrl(SAME_ORIGIN, ticket, returnUrl)
-        : oidc.buildExchangeTicketUrl(SAME_ORIGIN, ticket, returnUrl, scopedClientId);
+        ? buildExchangeTicketUrl(SAME_ORIGIN, ticket, handOff)
+        : buildExchangeTicketUrl(SAME_ORIGIN, ticket, handOff, scopedClientId);
   };
 
   const handleToggle = (): void => {

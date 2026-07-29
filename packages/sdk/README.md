@@ -1,12 +1,17 @@
 # @bc-solutions-coder/sdk
 
-TypeScript SDK for Wallow. It ships three entry points:
+TypeScript SDK for Wallow. It ships four entry points:
 
-| Import                           | Runs in                                             | Contains                                                                                                                                                                                                                                                                                                                                                                        |
-| -------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@bc-solutions-coder/sdk`        | Browser (also safe to import from a Node SSR entry) | `configureBffClient()`, `login()`, `logout()`, `getUser()`, the generated typed API operations, the CSRF module (`isSafeMethod`, `setCsrfToken`, `wireCsrfInterceptor`), the SSR request-context seam (`configureSsrClient`, `getSsrRequestContext`, `setSsrRequestContextResolver`, `wireSsrCookieInterceptor`), and the facade helpers (`unwrap()`, `createConfiguredOnce()`) |
-| `@bc-solutions-coder/sdk/server` | Node                                                | `createBffHandlers()`, `createApiProxy()`, `loadBffConfigFromEnv()`, the session stores, and `WallowError`                                                                                                                                                                                                                                                                      |
-| `@bc-solutions-coder/sdk/query`  | Browser                                             | The TanStack Query layer (peer dep `@tanstack/react-query`): the `queryKeys` registry, per-domain `queryOptions`/mutation factories (`user`, `auth`, `mfa`, `organizations`, `apps`, `inquiries`, `settings`), and `registerQueryBootstrap`/`ensureQueryBootstrapped` for lazily configuring the shared client on first use                                                     |
+| Import                                       | Runs in                                             | Contains                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| -------------------------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@bc-solutions-coder/sdk`                    | Browser (also safe to import from a Node SSR entry) | `createWallowSdk()` (the per-request factory), `login()`, `logout()`, `getUser()`, the generated typed API operations, the CSRF module (`isSafeMethod`, `setCsrfToken`, `wireCsrfInterceptor`), the OIDC URL builders (`buildConnectAuthorizeUrl`, `buildConnectLogoutUrl`, `buildConsentSubmitUrl`, `buildExchangeTicketUrl`, `isSafeReturnUrl`), the role helpers (`getRoles`, `hasRole`, `isAdmin`, `requireAuth`), and `WallowError` / `isWallowError` |
+| `@bc-solutions-coder/sdk/server`             | Node                                                | `createWallowBffServer()` (the host preset), `createBffHandlers()`, `createApiProxy()`, `loadBffConfigFromEnv()`, the session stores, and `WallowError`                                                                                                                                                                                                                                                                                                    |
+| `@bc-solutions-coder/sdk/server/passthrough` | Node                                                | `createApiPassthrough()` — a pure reverse proxy owning no session, forwarding the upstream response (`Set-Cookie` included) verbatim. Kept on its own subpath so a passthrough-only app never pulls `openid-client` into its server bundle                                                                                                                                                                                                                 |
+| `@bc-solutions-coder/sdk/query`              | Browser                                             | The TanStack Query layer (peer dep `@tanstack/react-query`): a generated `{op}Options()` / `{op}QueryKey()` / `{op}Mutation()` trio per OpenAPI operation, plus the curated invalidation predicates `queriesForOperation()` and `queriesWithTag()` — the only hand-written module left on this entry                                                                                                                                                       |
+
+Every server handler is a web-standard `(request: Request) => Promise<Response>`.
+The SDK declares no host framework, so the handlers mount on TanStack Start server
+routes, Nitro, Hono, or a bare Fetch handler alike.
 
 The browser never holds a token. Your server runs the OIDC Authorization Code
 flow with PKCE, keeps the token set in a session (sealed cookie or Valkey), and
@@ -32,11 +37,10 @@ that has `read:packages`:
 ```
 
 ```bash
-pnpm add @bc-solutions-coder/sdk h3
+pnpm add @bc-solutions-coder/sdk
 ```
 
-`h3` is the server-side handler runtime; install it alongside the SDK unless
-your host framework already provides it.
+That is the whole install — there is no companion host-runtime package to add.
 
 ---
 
@@ -143,44 +147,72 @@ refreshes race.
 
 ### 3. Mount the handlers
 
-`createBffHandlers(config, store)` returns four h3 `defineEventHandler` objects;
-`createApiProxy(config, store)` returns the reverse proxy. Pass the **same store
-instance** to both. Both default the store to a `CookieSessionStore` built from
-`config.cookiePassword` when you omit it.
+`createWallowBffServer()` is the golden path: it does steps 1 and 2 for you —
+loads the config, selects a store, builds the tunnel handlers and the `/api`
+proxy over that one shared instance — and returns three functions to mount:
 
 ```ts
-import { createApp, createRouter, toNodeListener, type App, type Router } from "h3";
-import { createServer } from "node:http";
 import {
-  createApiProxy,
-  createBffHandlers,
-  type BffHandlers,
+  createWallowBffServer,
+  WALLOW_API_MOUNT, // "/api"
+  WALLOW_BFF_MOUNT, // "/bff"
+  type WallowBffServer,
 } from "@bc-solutions-coder/sdk/server";
 
-const bff: BffHandlers = createBffHandlers(config, store);
-const apiProxy = createApiProxy(config, store);
+const server: WallowBffServer = createWallowBffServer();
 
-const router: Router = createRouter();
-router.use("/bff/login", bff.login);
-router.use("/bff/callback", bff.callback);
-router.get("/bff/user", bff.user);
-router.use("/bff/logout", bff.logout);
-router.use("/api/**", apiProxy); // proxy strips the /api prefix itself
-
-const app: App = createApp();
-app.use(router);
-createServer(toNodeListener(app)).listen(3000);
+// server.handleBff(request)    -> /bff/login | /bff/callback | /bff/user | /bff/logout
+// server.handleApi(request)    -> /api/**  (the proxy strips the prefix itself)
+// server.handleHealth()        -> 200 liveness JSON
 ```
 
-In TanStack Start (or any h3-compatible framework) these same handler objects
-drop directly into a catch-all server route per prefix.
+Build it on **first use and memoise**, not at module load — a config throw at
+import time takes the whole server bundle down with it, and a failed build that
+gets cached turns a transient store outage into a permanently dead BFF. When
+`REDIS_URL` is set, pass a connected client as `redisClient`: the SDK never
+imports `redis`, and the preset throws rather than silently serving stateless
+cookie sessions to a deployment that asked for server-side ones.
 
-### 4. Configure the browser client
+In TanStack Start, mount each prefix as a splat server route with a single `ANY`
+handler — method policy belongs to the handlers (a bare `GET /bff/logout` answers
+`405` + `Allow: POST`), and a method-filtered route would swallow that as a local 404. Elsewhere, any router that dispatches a `Request` works: these are plain
+`(request: Request) => Promise<Response>` functions.
+
+To assemble the pieces yourself instead, `createBffHandlers(config, store)` returns
+the four tunnel handlers and `createApiProxy(config, store)` the reverse proxy.
+Pass the **same store instance** to both — the proxy has to resolve the sessions
+the callback wrote. Both default the store to a `CookieSessionStore` built from
+`config.cookiePassword` when you omit it.
+
+### 3b. Or: the pure passthrough
+
+An app that only needs Wallow's API and OIDC endpoints on its own origin — no
+session, no bearer — uses the sibling preset instead:
 
 ```ts
-import { configureBffClient, getUser, login, logout } from "@bc-solutions-coder/sdk";
+import { createApiPassthrough } from "@bc-solutions-coder/sdk/server/passthrough";
 
-configureBffClient(); // baseUrl "/api", credentials: "include"
+// defaults: /v1/**, /connect/**, /.well-known/**  ->  WALLOW_API_INTERNAL_URL
+const passthrough = createApiPassthrough();
+
+const response: Response = await passthrough.handle(request);
+```
+
+It forwards the inbound method, path, query, body, and `Cookie` header upstream and
+returns the response unchanged, so every `Set-Cookie` reaches the browser verbatim.
+Keep `/.well-known/**` in the prefix list: an OIDC client pointed at this origin
+resolves discovery there and fetches signing keys from the `jwks_uri` that document
+advertises, so dropping it 404s discovery and breaks login with no useful error.
+Stamp the peer address onto the `x-wallow-client-ip` header before calling
+`handle()` and the passthrough appends it to any inbound `X-Forwarded-For` chain,
+then strips the seam header before the upstream hop.
+
+### 4. Build an SDK instance per request
+
+```ts
+import { createWallowSdk, getUser, login } from "@bc-solutions-coder/sdk";
+
+const sdk = createWallowSdk({ baseUrl: "/api" });
 
 const user = await getUser(); // WallowUser | null (null when unauthenticated)
 if (user === null) {
@@ -188,13 +220,33 @@ if (user === null) {
 }
 ```
 
-Call it once at startup, before any generated operation. Pass
-`configureBffClient({ baseUrl: "https://app.example.com/api" })` when the app is
-not served from the BFF's origin.
+`baseUrl` is REQUIRED and has no default, because the right value differs by
+caller: the browser wants the same-origin relative BFF path (`/api`), while an
+SSR render wants an absolute origin Node's `fetch` can parse. Pass the full
+origin (`https://app.example.com/api`) when the app is not served from the BFF's
+origin.
 
-`configureWallowClient` is a deprecated alias for the same function (as is the
-`WallowClientOptions` type for `BffClientOptions`); it will be removed in a
-future major release.
+Bind a generated operation to the instance through the standard `{ client }`
+call option — `usersGetCurrentUser({ client: sdk.client })` — and lift the
+instance into your router context so components read it rather than importing
+one.
+
+**There is no module-global client and no configure step.** A singleton is safe
+in a browser (one document, one session) and wrong on a server, where concurrent
+renders share the module graph: the last request to configure wins, its cookie
+leaks into another user's render, and interceptors pile up on every
+re-configure. `createWallowSdk()` builds a fresh generated client per call with
+its own `baseUrl`, cookie, and interceptor list. The old
+`configureBffClient()` / `configureWallowClient()` / `client` exports are gone,
+not deprecated — reaching for one is a build error rather than a silently
+unconfigured shared client.
+
+Two options exist for the server case: `cookieHeader` forwards the inbound
+session cookie (Node's `fetch` has no cookie jar, so an SSR render must carry it
+explicitly), and `internalOrigin` rewrites the outgoing request's origin when
+the host reaches itself on a different address than the browser does. The latter
+applies inside the instance's `fetch` only, leaving the configured `baseUrl`
+alone so a server instance and a browser instance stay hydration-compatible.
 
 ---
 
@@ -214,19 +266,14 @@ How the token is delivered:
 - `GET /bff/user` also returns the token as `csrfToken` in its JSON body.
 
 The SDK's `csrf` module owns the client side of this exchange, so you never
-hand-roll a request interceptor or read the companion cookie yourself:
+hand-roll a request interceptor or read the companion cookie yourself.
+`createWallowSdk()` already wires the interceptor onto every instance it builds,
+which leaves you one job — telling it the token:
 
 ```ts
-import {
-  client,
-  configureBffClient,
-  getUser,
-  setCsrfToken,
-  wireCsrfInterceptor,
-} from "@bc-solutions-coder/sdk";
+import { createWallowSdk, getUser, setCsrfToken } from "@bc-solutions-coder/sdk";
 
-configureBffClient();
-wireCsrfInterceptor(client); // stamps x-csrf-token on every state-changing request, live
+const sdk = createWallowSdk({ baseUrl: "/api" }); // CSRF interceptor already wired
 
 const user = await getUser();
 setCsrfToken(user === null ? null : typeof user.csrfToken === "string" ? user.csrfToken : null);
@@ -236,8 +283,8 @@ setCsrfToken(user === null ? null : typeof user.csrfToken === "string" ? user.cs
   it stamps the in-memory token into `x-csrf-token` on every request whose
   method is not CSRF-exempt, and leaves safe methods and the token-less state
   untouched. It accepts anything shaping up like the generated client
-  (`CsrfInterceptorClient`), so it also wires onto a client instance you build
-  yourself.
+  (`CsrfInterceptorClient`), so it also wires onto a client you build yourself —
+  but you only need to call it directly for a client the factory did not build.
 - `setCsrfToken(token)` updates the in-memory token the interceptor reads
   live — call it once you have read `csrfToken` off the `/bff/user` response
   (or `null` it out on logout).
@@ -253,117 +300,110 @@ as `CSRF_INVALID_CODE`. `GET`, `HEAD`, `OPTIONS`, and `TRACE` are not gated.
 ## Server-rendered loaders (SSR)
 
 A same-origin BFF app that server-renders authenticated routes (e.g. a TanStack
-Start `loader`) needs two things a browser tab gets for free: an ABSOLUTE
-origin (Node's `fetch` cannot resolve a relative `/api` URL) and the incoming
-request's session cookie (Node has no cookie jar, so `credentials: "include"`
-sends an anonymous request). Both are per-request, so the browser-entry `ssr`
-seam resolves them per render instead of once at startup:
+Start `loader`) needs two things a browser tab gets for free: an ABSOLUTE origin
+(Node's `fetch` cannot resolve a relative `/api` URL) and the incoming request's
+session cookie (Node has no cookie jar, so `credentials: "include"` sends an
+anonymous request). Both are per-request, and both are constructor arguments:
 
 ```ts
-// node-only SSR entry (e.g. ssr.tsx) — owns the AsyncLocalStorage
-import { AsyncLocalStorage } from "node:async_hooks";
-import { setSsrRequestContextResolver, type SsrRequestContext } from "@bc-solutions-coder/sdk";
+// global request middleware — runs once per request
+import { createWallowSdk, type WallowSdk } from "@bc-solutions-coder/sdk";
+import { createMiddleware } from "@tanstack/react-start";
 
-const requestContextStore = new AsyncLocalStorage<SsrRequestContext>();
-setSsrRequestContextResolver(() => requestContextStore.getStore());
+const sdkMiddleware = createMiddleware().server(({ next, request }) => {
+  const origin: string = new URL(request.url).origin;
 
-export function render(request: Request): Promise<Response> {
-  const context: SsrRequestContext = {
-    origin: new URL(request.url).origin,
-    cookie: request.headers.get("cookie") ?? undefined,
-  };
-  return requestContextStore.run(context, () => /* render the app */ renderApp());
-}
+  const sdk: WallowSdk = createWallowSdk({
+    baseUrl: `${origin}/api`,
+    cookieHeader: request.headers.get("cookie") ?? undefined,
+    internalOrigin: process.env.WALLOW_WEB_INTERNAL_URL,
+  });
+
+  return next({ context: { sdk } });
+});
 ```
 
-```ts
-// isomorphic facade — branches on import.meta.env.SSR (or your bundler's equivalent)
-import {
-  configureBffClient,
-  configureSsrClient,
-  getSsrRequestContext,
-} from "@bc-solutions-coder/sdk";
+Lift that instance into the router context and every loader and component reads
+it back out (`useRouteContext({ from: "__root__" }).sdk`) instead of importing a
+client. In the browser the same router builds one with the relative `baseUrl`
+`/api` and no cookie header, so the two halves of a hydrating render agree.
 
-function configureClient(): void {
-  if (import.meta.env.SSR) {
-    configureSsrClient(getSsrRequestContext());
-  } else {
-    configureBffClient();
-  }
-}
-```
+`internalOrigin` covers the case where the host reaches ITSELF on a different
+address than the browser uses — a container published as `127.0.0.1:5053:3000`
+cannot self-fetch the browser's origin, and every SSR'd page would fall back to
+an error boundary. It rewrites the outgoing request's origin inside the
+instance's `fetch` only, leaving the configured `baseUrl` (and therefore the
+request identity an SSR-primed cache shares with the browser) untouched.
 
-- `setSsrRequestContextResolver(next)` — call once, in the node-only SSR entry
-  that owns the `AsyncLocalStorage`. Never call it from browser code.
-- `getSsrRequestContext()` — reads the in-flight request's `{ origin, cookie }`,
-  or `undefined` outside a render scope (including every browser call, since
-  the resolver is never registered there).
-- `configureSsrClient(context?)` — points the shared client at
-  `${context.origin}/api` (falling back to the same-origin relative `/api` with
-  no context) and wires `wireSsrCookieInterceptor`, which reads the cookie
-  LIVE per request rather than capturing it at configure time — the client is
-  configured once per host, but every request still carries its own session.
-- `wireSsrCookieInterceptor(target)` — the interceptor itself, exported
-  separately in case you need to wire it onto a client `configureSsrClient`
-  does not manage. It intentionally does not stamp CSRF: only safe `GET`
-  loaders run during SSR.
-
-This module carries no `node:` import — the `AsyncLocalStorage` stays in your
-app's SSR entry — so it is safe to import unconditionally from an isomorphic
-facade without leaking Node-only code into the browser bundle. See
-[`apps/wallow-web/src/ssr.tsx`](../../apps/wallow-web/src/ssr.tsx) for the
-reference SSR entry and
-[`apps/wallow-web/src/lib/wallow-sdk.ts`](../../apps/wallow-web/src/lib/wallow-sdk.ts)
-for the reference isomorphic facade.
+Nothing here reads module scope, so there is no `AsyncLocalStorage` to own and
+no resolver to register. The old request-context seam — `configureSsrClient`,
+`getSsrRequestContext`, `setSsrRequestContextResolver`,
+`wireSsrCookieInterceptor` — existed only to feed per-request values to a
+module-global client, and is deleted along with it.
+[`apps/wallow-web/src/start.ts`](../../apps/wallow-web/src/start.ts) is the
+reference host.
 
 ---
 
-## Facade helpers: `unwrap()` and `createConfiguredOnce()`
+## The query layer
 
-Every `getWallow*Sdk()`-style facade needs the same two pieces of boilerplate
-around the generated ops — the SDK exports them so you do not reimplement
-either:
+`@bc-solutions-coder/sdk/query` is generated from the same OpenAPI document as
+the operations, giving every operation a `{op}Options()` for reads, a
+`{op}Mutation()` for writes, and a `{op}QueryKey()` for both. Each takes the
+request-scoped client as a call option:
 
-```ts
+```tsx
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouteContext } from "@tanstack/react-router";
 import {
-  createConfiguredOnce,
-  unwrap,
-  wireCsrfInterceptor,
-  client,
-  configureBffClient,
-} from "@bc-solutions-coder/sdk";
-// import { getV1Inquiries } from "@bc-solutions-coder/sdk"; // generated op
+  inquiriesGetAllOptions,
+  inquiriesGetAllQueryKey,
+  inquiriesSubmitMutation,
+  queriesForOperation,
+} from "@bc-solutions-coder/sdk/query";
 
-function configureClient(): void {
-  configureBffClient();
-  wireCsrfInterceptor(client);
-}
+function Inquiries() {
+  const { sdk } = useRouteContext({ from: "__root__" });
+  const queryClient = useQueryClient();
 
-function buildFacade() {
-  return {
-    inquiries: {
-      list: () => unwrap(getV1Inquiries()),
+  const list = useQuery(inquiriesGetAllOptions({ client: sdk.client }));
+
+  const submit = useMutation({
+    ...inquiriesSubmitMutation({ client: sdk.client }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries(
+        queriesForOperation(inquiriesGetAllQueryKey({ client: sdk.client })),
+      );
     },
-  };
-}
+  });
 
-export const getMySdk = createConfiguredOnce(configureClient, buildFacade);
+  return list.data === undefined ? null : (
+    <InquiryTable rows={list.data} onSubmit={submit.mutate} />
+  );
+}
 ```
 
-- `unwrap(pending)` — awaits a generated op's `{ data, error }` envelope;
-  returns `data` on success and THROWS the raw `error` (an RFC 7807
-  `ProblemDetails` object, by identity — not wrapped in a typed error) when
-  `error` is defined. Feature code reads the thrown value directly, e.g.
-  `(mutation.error as ProblemDetails).detail`.
-- `createConfiguredOnce(configure, build)` — a guarded-singleton getter: the
-  first call runs `configure()` then `build()` and memoizes the result; every
-  later call returns the same instance without re-running either. Nothing runs
-  until the getter is first invoked.
+Operations are generated with `responseStyle: "data"` and `throwOnError: true`,
+so a hook's `data` is the response BODY (no `{ data, error }` envelope to
+unwrap) and every failure arrives as a thrown `WallowError` on `error`.
 
-Both reference facades — [`apps/wallow-web/src/lib/wallow-sdk.ts`](../../apps/wallow-web/src/lib/wallow-sdk.ts)
-and [`apps/wallow-auth/src/lib/wallow-auth-sdk.ts`](../../apps/wallow-auth/src/lib/wallow-auth-sdk.ts)
-— are built this way: they keep only their app-specific slice definitions and
-call these two helpers for the shared boilerplate.
+**Generated keys are FLAT, not hierarchical.** A key is a single-element array
+holding one object — `[{ _id, baseUrl, tags, ...args }]` — so there is no
+prefix to invalidate a subtree with, and a key is not knowable without the
+client, because it embeds that client's `baseUrl`. Never write a key literal;
+always call the factory. The two curated predicates bridge the gap:
+
+- `queriesForOperation(key)` — matches every cached query for the operation
+  that key belongs to, whatever arguments it was called with.
+- `queriesWithTag(tag)` — matches every query carrying an OpenAPI tag, for the
+  broader sweep after a write that touches a whole domain.
+
+The hand-written layer this replaced — the `queryKeys` registry, the per-domain
+`userQueries` / `authQueries` / `mfaQueries` / `organizationsQueries` /
+`appsQueries` / `inquiriesQueries` / `settingsQueries` namespaces, and
+`registerQueryBootstrap` / `ensureQueryBootstrapped` — is deleted rather than
+deprecated: every one of them closed over the module-global client that no
+longer exists.
 
 ---
 
@@ -412,4 +452,5 @@ that declaration-only tsconfig.
 The generated client is wired to the BFF at construction time through
 `runtimeConfigPath` in `openapi-ts.config.ts`, which points at
 `src/runtime-config.ts` — that is why generated operations already target `/api`
-with `credentials: "include"` even before `configureBffClient()` runs.
+with `credentials: "include"`, and why they reject with a `WallowError` rather
+than resolving an `{ data, error }` envelope.

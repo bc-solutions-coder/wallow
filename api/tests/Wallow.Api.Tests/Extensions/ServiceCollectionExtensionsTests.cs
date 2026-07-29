@@ -333,6 +333,392 @@ public class ServiceCollectionExtensionsTests
         document.Info.Contact!.Name.Should().Be("MyBrand");
     }
 
+    private static OpenApiOperation OperationWithTags(params string[] tagNames)
+    {
+        OpenApiOperation operation = new()
+        {
+            Tags = new HashSet<OpenApiTagReference>()
+        };
+
+        foreach (string tagName in tagNames)
+        {
+            operation.Tags.Add(new OpenApiTagReference(tagName));
+        }
+
+        return operation;
+    }
+
+    [Fact]
+    public async Task TransformDocumentExcludeTestSupport_RemovesPathWhoseOperationsAreAllTestSupport()
+    {
+        OpenApiDocument document = new()
+        {
+            Paths = new OpenApiPaths
+            {
+                ["/v1/identity/test/isolated-org"] = new OpenApiPathItem
+                {
+                    Operations = new Dictionary<HttpMethod, OpenApiOperation>
+                    {
+                        [HttpMethod.Post] = OperationWithTags("Test Support")
+                    }
+                }
+            }
+        };
+
+        await Wallow.Api.Extensions.ServiceCollectionExtensions.TransformDocumentExcludeTestSupport(document);
+
+        document.Paths.Should().NotContainKey("/v1/identity/test/isolated-org");
+    }
+
+    [Fact]
+    public async Task TransformDocumentExcludeTestSupport_PreservesPathsWithoutTestSupportTag()
+    {
+        OpenApiDocument document = new()
+        {
+            Paths = new OpenApiPaths
+            {
+                ["/v1/identity/organizations"] = new OpenApiPathItem
+                {
+                    Operations = new Dictionary<HttpMethod, OpenApiOperation>
+                    {
+                        [HttpMethod.Get] = OperationWithTags("Identity"),
+                        [HttpMethod.Post] = OperationWithTags("Identity")
+                    }
+                },
+                ["/v1/identity/test/isolated-org"] = new OpenApiPathItem
+                {
+                    Operations = new Dictionary<HttpMethod, OpenApiOperation>
+                    {
+                        [HttpMethod.Post] = OperationWithTags("Test Support")
+                    }
+                }
+            }
+        };
+
+        await Wallow.Api.Extensions.ServiceCollectionExtensions.TransformDocumentExcludeTestSupport(document);
+
+        document.Paths.Should().ContainKey("/v1/identity/organizations");
+        document.Paths["/v1/identity/organizations"].Operations.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task TransformDocumentExcludeTestSupport_RemovesOnlyTestSupportOperationsFromMixedPath()
+    {
+        OpenApiDocument document = new()
+        {
+            Paths = new OpenApiPaths
+            {
+                ["/v1/identity/mixed"] = new OpenApiPathItem
+                {
+                    Operations = new Dictionary<HttpMethod, OpenApiOperation>
+                    {
+                        [HttpMethod.Get] = OperationWithTags("Identity"),
+                        [HttpMethod.Post] = OperationWithTags("Test Support")
+                    }
+                }
+            }
+        };
+
+        await Wallow.Api.Extensions.ServiceCollectionExtensions.TransformDocumentExcludeTestSupport(document);
+
+        document.Paths.Should().ContainKey("/v1/identity/mixed");
+        document.Paths["/v1/identity/mixed"].Operations.Should().ContainKey(HttpMethod.Get);
+        document.Paths["/v1/identity/mixed"].Operations.Should().NotContainKey(HttpMethod.Post);
+    }
+
+    [Fact]
+    public async Task TransformDocumentExcludeTestSupport_RemovesTestSupportEntryFromDocumentTags()
+    {
+        OpenApiDocument document = new()
+        {
+            Paths = new OpenApiPaths
+            {
+                ["/v1/identity/test/isolated-org"] = new OpenApiPathItem
+                {
+                    Operations = new Dictionary<HttpMethod, OpenApiOperation>
+                    {
+                        [HttpMethod.Post] = OperationWithTags("Test Support")
+                    }
+                }
+            },
+            Tags = new HashSet<OpenApiTag>
+            {
+                new OpenApiTag { Name = "Identity" },
+                new OpenApiTag { Name = "Test Support" }
+            }
+        };
+
+        await Wallow.Api.Extensions.ServiceCollectionExtensions.TransformDocumentExcludeTestSupport(document);
+
+        document.Tags.Should().NotBeNull();
+        document.Tags.Should().NotContain(tag => tag.Name == "Test Support");
+        document.Tags.Should().Contain(tag => tag.Name == "Identity");
+    }
+
+    [Fact]
+    public async Task TransformDocumentExcludeTestSupport_WithNoPaths_DoesNotThrow()
+    {
+        OpenApiDocument document = new();
+
+        Func<Task> act = async () =>
+            await Wallow.Api.Extensions.ServiceCollectionExtensions.TransformDocumentExcludeTestSupport(document);
+
+        await act.Should().NotThrowAsync();
+    }
+
+    // OpenApiOptions.DocumentTransformers is internal to Microsoft.AspNetCore.OpenApi, so the
+    // registration assertion has to reach it reflectively.
+    private static List<IOpenApiDocumentTransformer> GetRegisteredDocumentTransformers(
+        OpenApiOptions options)
+    {
+        FieldInfo field = typeof(OpenApiOptions)
+            .GetField("DocumentTransformers", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        field.Should().NotBeNull("Microsoft.AspNetCore.OpenApi still stores transformers in an internal field");
+
+        return ((IEnumerable<IOpenApiDocumentTransformer>)field.GetValue(options)!).ToList();
+    }
+
+    [Fact]
+    public void AddApiServices_RegistersTestSupportExclusionDocumentTransformer()
+    {
+        ServiceCollection services = CreateServicesWithApiDefaults();
+        ServiceProvider provider = services.BuildServiceProvider();
+
+        OpenApiOptions options = provider
+            .GetRequiredService<IOptionsMonitor<OpenApiOptions>>()
+            .Get("v1");
+
+        GetRegisteredDocumentTransformers(options).Should().HaveCount(3);
+    }
+
+    // Same reflective reach as GetRegisteredDocumentTransformers: OpenApiOptions stores the
+    // operation transformers in an internal field too.
+    private static List<IOpenApiOperationTransformer> GetRegisteredOperationTransformers(
+        OpenApiOptions options)
+    {
+        FieldInfo field = typeof(OpenApiOptions)
+            .GetField("OperationTransformers", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        field.Should().NotBeNull("Microsoft.AspNetCore.OpenApi still stores transformers in an internal field");
+
+        return ((IEnumerable<IOpenApiOperationTransformer>)field.GetValue(options)!).ToList();
+    }
+
+    private static OpenApiOperationTransformerContext ContextFor(ActionDescriptor actionDescriptor)
+    {
+        return new OpenApiOperationTransformerContext
+        {
+            Description = new ApiDescription { ActionDescriptor = actionDescriptor },
+            DocumentName = "v1",
+            ApplicationServices = new ServiceCollection().BuildServiceProvider()
+        };
+    }
+
+    private static ControllerActionDescriptor ControllerAction(string controllerName, string methodName)
+    {
+        return new ControllerActionDescriptor
+        {
+            ControllerName = controllerName,
+            MethodInfo = typeof(FakeOperationIdActions).GetMethod(
+                methodName,
+                BindingFlags.Static | BindingFlags.NonPublic)!,
+            EndpointMetadata = []
+        };
+    }
+
+    [Fact]
+    public async Task TransformOperationId_SetsControllerNameAndMethodNameDerivedId()
+    {
+        OpenApiOperation operation = new();
+        ControllerActionDescriptor actionDescriptor = ControllerAction("Organizations", "GetById");
+
+        await Wallow.Api.Extensions.ServiceCollectionExtensions.TransformOperationId(
+            operation, ContextFor(actionDescriptor));
+
+        operation.OperationId.Should().Be("OrganizationsGetById");
+    }
+
+    [Fact]
+    public async Task TransformOperationId_WithSameMethodNameOnDifferentControllers_ProducesDistinctIds()
+    {
+        OpenApiOperation organizationsOperation = new();
+        OpenApiOperation usersOperation = new();
+
+        await Wallow.Api.Extensions.ServiceCollectionExtensions.TransformOperationId(
+            organizationsOperation, ContextFor(ControllerAction("Organizations", "GetById")));
+        await Wallow.Api.Extensions.ServiceCollectionExtensions.TransformOperationId(
+            usersOperation, ContextFor(ControllerAction("Users", "GetById")));
+
+        organizationsOperation.OperationId.Should().Be("OrganizationsGetById");
+        usersOperation.OperationId.Should().Be("UsersGetById");
+        organizationsOperation.OperationId.Should().NotBe(usersOperation.OperationId);
+    }
+
+    [Fact]
+    public async Task TransformOperationId_IgnoresActionNameOverride_AndUsesMethodInfoName()
+    {
+        OpenApiOperation operation = new();
+        ControllerActionDescriptor actionDescriptor = ControllerAction("Organizations", "GetById");
+        actionDescriptor.ActionName = "look-up-by-identifier";
+
+        await Wallow.Api.Extensions.ServiceCollectionExtensions.TransformOperationId(
+            operation, ContextFor(actionDescriptor));
+
+        operation.OperationId.Should().Be("OrganizationsGetById");
+    }
+
+    [Fact]
+    public async Task TransformOperationId_WithNonControllerActionDescriptor_LeavesOperationIdUnset()
+    {
+        OpenApiOperation operation = new();
+        ActionDescriptor actionDescriptor = new() { EndpointMetadata = [] };
+
+        Func<Task> act = async () =>
+            await Wallow.Api.Extensions.ServiceCollectionExtensions.TransformOperationId(
+                operation, ContextFor(actionDescriptor));
+
+        await act.Should().NotThrowAsync();
+        operation.OperationId.Should().BeNull();
+    }
+
+    [Fact]
+    public void AddApiServices_RegistersOperationIdOperationTransformer()
+    {
+        ServiceCollection services = CreateServicesWithApiDefaults();
+        ServiceProvider provider = services.BuildServiceProvider();
+
+        OpenApiOptions options = provider
+            .GetRequiredService<IOptionsMonitor<OpenApiOptions>>()
+            .Get("v1");
+
+        List<IOpenApiOperationTransformer> transformers = GetRegisteredOperationTransformers(options);
+
+        // Three registered by AddApiServices (security, module tag, operationId) plus one the
+        // framework contributes on its own.
+        transformers.Should().HaveCount(4,
+            "registered operation transformers are: {0}",
+            string.Join(", ", transformers.Select(transformer => transformer.GetType().Name)));
+    }
+
+    // Every controller in the API lives in a Wallow.{Module}.Api assembly, all of which are copied
+    // next to this test assembly via the Wallow.Api project reference.
+    private static List<(string ControllerName, MethodInfo Method)> DiscoverControllerActions()
+    {
+        List<(string ControllerName, MethodInfo Method)> actions = [];
+
+        foreach (string assemblyPath in Directory.GetFiles(
+            AppDomain.CurrentDomain.BaseDirectory, "Wallow.*.Api.dll"))
+        {
+            Assembly assembly = Assembly.LoadFrom(assemblyPath);
+
+            foreach (Type controllerType in assembly.GetTypes()
+                .Where(type => typeof(ControllerBase).IsAssignableFrom(type) && !type.IsAbstract))
+            {
+                string controllerName = controllerType.Name.EndsWith("Controller", StringComparison.Ordinal)
+                    ? controllerType.Name[..^"Controller".Length]
+                    : controllerType.Name;
+
+                foreach (MethodInfo method in controllerType.GetMethods(
+                    BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+                {
+                    if (method.IsSpecialName || method.GetCustomAttribute<NonActionAttribute>() is not null)
+                    {
+                        continue;
+                    }
+
+                    actions.Add((controllerName, method));
+                }
+            }
+        }
+
+        return actions;
+    }
+
+    [Fact]
+    public void DiscoverControllerActions_FindsTheApiSurface()
+    {
+        DiscoverControllerActions().Should().HaveCountGreaterThan(100,
+            "the API exposes well over a hundred controller actions; an empty or tiny result means "
+            + "assembly discovery broke, which would make the operationId invariants vacuous");
+    }
+
+    // Regression guard for the naming scheme itself: {ControllerName}{MethodName} is only a valid
+    // operationId source while no controller declares two actions with the same method name.
+    [Fact]
+    public void ControllerActionSurface_HasNoDuplicateControllerAndMethodNamePairs()
+    {
+        List<string> duplicates = DiscoverControllerActions()
+            .GroupBy(action => $"{action.ControllerName}{action.Method.Name}", StringComparer.Ordinal)
+            .Where(group => group.Count() > 1)
+            .Select(group => $"{group.Key} (x{group.Count()})")
+            .ToList();
+
+        duplicates.Should().BeEmpty(
+            "controller name plus method name must uniquely identify every action; overloads sharing "
+            + "a method name inside one controller would collide: {0}",
+            string.Join(", ", duplicates));
+    }
+
+    [Fact]
+    public async Task EveryControllerAction_ReceivesANonEmptyOperationId()
+    {
+        List<string> missing = [];
+
+        foreach ((string controllerName, MethodInfo method) in DiscoverControllerActions())
+        {
+            OpenApiOperation operation = new();
+            ControllerActionDescriptor actionDescriptor = new()
+            {
+                ControllerName = controllerName,
+                MethodInfo = method,
+                EndpointMetadata = []
+            };
+
+            await Wallow.Api.Extensions.ServiceCollectionExtensions.TransformOperationId(
+                operation, ContextFor(actionDescriptor));
+
+            if (string.IsNullOrWhiteSpace(operation.OperationId))
+            {
+                missing.Add($"{controllerName}.{method.Name}");
+            }
+        }
+
+        missing.Should().BeEmpty(
+            "every operation in the v1 document must carry an operationId: {0}",
+            string.Join(", ", missing));
+    }
+
+    [Fact]
+    public async Task EveryControllerAction_ReceivesAUniqueOperationId()
+    {
+        List<string> operationIds = [];
+
+        foreach ((string controllerName, MethodInfo method) in DiscoverControllerActions())
+        {
+            OpenApiOperation operation = new();
+            ControllerActionDescriptor actionDescriptor = new()
+            {
+                ControllerName = controllerName,
+                MethodInfo = method,
+                EndpointMetadata = []
+            };
+
+            await Wallow.Api.Extensions.ServiceCollectionExtensions.TransformOperationId(
+                operation, ContextFor(actionDescriptor));
+
+            operationIds.Add(operation.OperationId ?? string.Empty);
+        }
+
+        List<string> duplicates = operationIds
+            .GroupBy(id => id, StringComparer.Ordinal)
+            .Where(group => group.Count() > 1)
+            .Select(group => $"'{group.Key}' (x{group.Count()})")
+            .ToList();
+
+        duplicates.Should().BeEmpty(
+            "the v1 document must contain zero duplicate operationIds: {0}",
+            string.Join(", ", duplicates));
+    }
+
     [Fact]
     public void FilterTelemetryRequest_WithNullPath_ReturnsTrue()
     {

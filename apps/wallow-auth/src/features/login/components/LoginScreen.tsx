@@ -1,8 +1,8 @@
+import { buildExchangeTicketUrl, isSafeReturnUrl } from "@bc-solutions-coder/sdk";
 import { Card, CardTitle, ErrorBanner, Tabs } from "@bc-solutions-coder/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 
-import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
 import {
   type AuthDisposition,
   authDispositionOf,
@@ -50,8 +50,8 @@ import { PasswordLoginForm } from "./PasswordLoginForm";
  * ── THE ORIGIN DIVERGENCE (inherited from Wallow-vec7.3.4/.3.6) ──────────────
  *
  * The oracle's `ApiBaseUrl` prepend — `BuildApiReturnUrl`, and the hand-rolled
- * exchange-ticket URL at L544-550 — is deliberately NOT ported. This app's h3
- * server (`src/lib/auth-server.ts`) is a passthrough reverse proxy mounting
+ * exchange-ticket URL at L544-550 — is deliberately NOT ported. This app's API
+ * surface (`src/lib/api-passthrough.ts`) is a passthrough reverse proxy mounting
  * `/v1/**` and `/connect/**` at the ROOT, so this origin hosts them (bd memory
  * `wallow-auth-screens-must-pass-origin-same-origin`). Prepending an absolute
  * origin would send the browser cross-origin and DROP the SameSite auth cookie
@@ -61,7 +61,7 @@ import { PasswordLoginForm } from "./PasswordLoginForm";
  *
  * The oracle's `BuildMfaRedirectUrl` threads
  * `AuthClient.GetPendingCookieRelayKey()`. That subsystem was deliberately deleted
- * in Wallow-vec7.1.3 and the facade has no such method. The h3 proxy forwards
+ * in Wallow-vec7.1.3 and the facade has no such method. The passthrough proxy forwards
  * `Set-Cookie` verbatim, so the partial-auth cookie is already in the jar by the
  * time the MFA branch is taken — which is why the hand-off is `navigate()` (the
  * client router) and not a full page load. Do not re-add `cookieRelay`.
@@ -342,9 +342,7 @@ export function LoginScreen({
   // ordinary direct sign-in to /error. `authDispositionOf` re-checks emptiness on
   // its own path; this keeps the two in agreement. See the guard note there.
   const returnUrlIsSafe: boolean =
-    returnUrl !== undefined &&
-    returnUrl !== "" &&
-    getWallowAuthSdk().oidc.isSafeReturnUrl(returnUrl);
+    returnUrl !== undefined && returnUrl !== "" && isSafeReturnUrl(returnUrl);
 
   /**
    * The oracle's `HandleSuccessfulAuth`, and the shell's whole reason to exist:
@@ -368,9 +366,9 @@ export function LoginScreen({
         return;
       }
       case "exchange-ticket": {
-        // A FULL navigation: the exchange endpoint is served by the h3 reverse
+        // A FULL navigation: the exchange endpoint is served by the passthrough reverse
         // proxy, not by the client-side route tree, which would 404 in-app.
-        globalThis.location.href = getWallowAuthSdk().oidc.buildExchangeTicketUrl(
+        globalThis.location.href = buildExchangeTicketUrl(
           SAME_ORIGIN,
           outcome.ticket,
           outcome.returnUrl,

@@ -1,0 +1,140 @@
+name: OpenAPI document
+description: >-
+  Emits the API's OpenAPI document at build time and reports whether the committed
+  packages/sdk snapshot has drifted from it.
+
+# Two workflows react to the same fact and must therefore derive it the same way:
+# openapi-drift.yml fails a pull request whose snapshot is stale, and
+# openapi-autoregen.yml opens a fix-up PR when a stale snapshot reaches main. The
+# emission recipe and the definition of "drift" live here so the check and the fix
+# can never disagree.
+#
+# The document is emitted by Microsoft.Extensions.ApiDescription.Server
+# (dotnet-getdocument) rather than scraped from a live API over HTTP, so this needs
+# neither Valkey, nor EF Core migrations, nor a running API process, nor Node/pnpm.
+#
+# Postgres IS required. dotnet-getdocument does not halt at builder.Build() -- it
+# starts the real host and stops it once the application has started, so everything in
+# Program.cs after the build runs too, including the Hangfire recurring-job registration
+# that opens a Postgres connection. An EMPTY database is enough (Hangfire installs its
+# own schema); the module migrations do not need to have been applied.
+
+inputs:
+  connection-string:
+    description: Postgres connection string the emission host starts against.
+    required: true
+  committed-snapshot:
+    description: Path to the committed OpenAPI snapshot, relative to the workspace.
+    required: false
+    default: packages/sdk/openapi/v1.json
+  expected-server-url:
+    description: >-
+      servers[0].url the committed snapshot must declare. The generated client bakes it
+      into its default baseUrl (packages/sdk/src/generated/client.gen.ts), so it is part
+      of the contract even though the build-time document cannot carry it.
+    required: false
+    default: http://localhost:5001/
+
+outputs:
+  document:
+    description: Path to the emitted OpenAPI document.
+    value: ${{ steps.emit.outputs.document }}
+  drift:
+    description: '"true" when the committed snapshot no longer matches the emitted document.'
+    value: ${{ steps.compare.outputs.drift }}
+  reason:
+    description: >-
+      Why the snapshot drifted: "servers" (wrong or missing servers[0].url) or "document"
+      (the contract itself changed). Empty when there is no drift.
+    value: ${{ steps.compare.outputs.reason }}
+  diff-file:
+    description: Path to a unified diff of committed vs emitted, written only on drift.
+    value: ${{ steps.compare.outputs.diff-file }}
+
+runs:
+  using: composite
+  steps:
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: "10.0.x"
+
+    - name: Cache NuGet packages
+      uses: actions/cache@v6
+      with:
+        path: ~/.nuget/packages
+        key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props', '**/*.csproj') }}
+        restore-keys: |
+          nuget-${{ runner.os }}-
+
+    # Emission is opt-in (Wallow.Api.csproj defaults OpenApiGenerateDocumentsOnBuild to
+    # false) so that ordinary builds neither pay the host-startup cost nor require a
+    # database. Development is the environment the OpenAPI document is defined for:
+    # OpenIddict refuses to start elsewhere without a signing certificate.
+    #
+    # No Valkey is provisioned. appsettings.Development.json already sets
+    # abortConnect=false on the Redis connection string, so the Redis-backed pieces
+    # (data protection key ring, SignalR backplane, rate limiting) degrade without
+    # failing the host. The "IServerAddressesFeature is not present" fatal log the tool
+    # emits while stopping its stub server is expected and does not fail the build.
+    - name: Emit OpenAPI document at build time
+      id: emit
+      shell: bash
+      env:
+        ASPNETCORE_ENVIRONMENT: Development
+        ConnectionStrings__DefaultConnection: ${{ inputs.connection-string }}
+      run: |
+        set -euo pipefail
+        dotnet build api/src/Wallow.Api/Wallow.Api.csproj \
+          --configuration Release \
+          -p:OpenApiGenerateDocumentsOnBuild=true
+
+        # The file name is the project name; dotnet-getdocument exposes no naming switch.
+        document="api/src/Wallow.Api/obj/openapi/Wallow.Api.json"
+        if [ ! -f "$document" ]; then
+          echo "::error::$document was not produced. Build-time OpenAPI emission did not run."
+          exit 1
+        fi
+        echo "document=$document" >> "$GITHUB_OUTPUT"
+
+    - name: Compare committed snapshot against the emitted document
+      id: compare
+      shell: bash
+      env:
+        EMITTED_DOCUMENT: ${{ steps.emit.outputs.document }}
+        COMMITTED_SNAPSHOT: ${{ inputs.committed-snapshot }}
+        EXPECTED_SERVER_URL: ${{ inputs.expected-server-url }}
+      run: |
+        set -euo pipefail
+        diff_file="$RUNNER_TEMP/openapi-drift.diff"
+        echo "diff-file=$diff_file" >> "$GITHUB_OUTPUT"
+
+        committed_server="$(jq -r '.servers[0].url // ""' "$COMMITTED_SNAPSHOT")"
+        if [ "$committed_server" != "$EXPECTED_SERVER_URL" ]; then
+          echo "$COMMITTED_SNAPSHOT declares servers[0].url '$committed_server'; expected '$EXPECTED_SERVER_URL'." > "$diff_file"
+          {
+            echo "drift=true"
+            echo "reason=servers"
+          } >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        # "servers" is request-derived and absent from the build-time document; -S sorts
+        # keys so the diff reports real contract changes rather than ordering noise.
+        jq -S 'del(.servers)' "$COMMITTED_SNAPSHOT" > "$RUNNER_TEMP/openapi-committed.json"
+        jq -S 'del(.servers)' "$EMITTED_DOCUMENT" > "$RUNNER_TEMP/openapi-emitted.json"
+
+        if diff -u "$RUNNER_TEMP/openapi-committed.json" "$RUNNER_TEMP/openapi-emitted.json" > "$diff_file"; then
+          rm -f "$diff_file"
+          {
+            echo "drift=false"
+            echo "reason="
+          } >> "$GITHUB_OUTPUT"
+          echo "OpenAPI snapshot is in sync with the API contract."
+        else
+          {
+            echo "drift=true"
+            echo "reason=document"
+          } >> "$GITHUB_OUTPUT"
+          echo "OpenAPI snapshot has drifted from the API contract."
+        fi

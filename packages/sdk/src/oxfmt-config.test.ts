@@ -59,8 +59,7 @@ function readSchemaKeys(): string[] {
 // REAL Prettier-style oxfmt schema key names (tabWidth / printWidth /
 // singleQuote / semi / trailingComma), not the invalid names from the original
 // design doc (indentWidth / lineWidth / quoteStyle / semicolons). The pattern
-// mirrors the existing build-config.test.ts / sdk-publish-workflow.test.ts
-// static config-surface checks.
+// mirrors the existing build-config.test.ts static config-surface checks.
 describe("oxfmt config (explicit style standardization)", () => {
   it("has an .oxfmtrc.json at the repo root", () => {
     expect(existsSync(oxfmtConfigPath)).toBe(true);

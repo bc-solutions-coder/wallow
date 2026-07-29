@@ -8,13 +8,14 @@ import {
   Input,
   Label,
 } from "@bc-solutions-coder/ui";
+import { accountRegister, isSafeReturnUrl } from "@bc-solutions-coder/sdk";
+import {
+  accountGetClientTenantOptions,
+  accountGetExternalProvidersOptions,
+} from "@bc-solutions-coder/sdk/query";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-
-import { authQueries } from "@bc-solutions-coder/sdk/query";
+import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
-
-import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
 
 /**
  * The Register screen (Wallow-vec7.3.8).
@@ -31,9 +32,10 @@ import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
  * passwordless toggle ship without testids in the oracle, so those are minted
  * under the `{page}-{element}` rule.
  *
- * Mutations and the OIDC builders are reached through `getWallowAuthSdk()`, and
- * reads through the SDK's `./query` factories (Wallow-evd5.3.1) — never the
- * `@bc-solutions-coder/sdk` barrel, which only the facade may import.
+ * Mutations call the GENERATED operations and reads use the generated
+ * `{op}Options()` factories, both bound to the request-scoped SDK off the router
+ * context (`useRouteContext({ from: "__root__" })`). The OIDC URL builders are
+ * pure and imported directly. There is no app-level facade (Wallow-pu6a.5.5).
  *
  * ── THE ERROR BRANCHES (REVISED — see Wallow-vec7.7) ─────────────────────────
  *
@@ -79,8 +81,8 @@ import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
  * ── NO ApiBaseUrl PREPEND (inherited from Wallow-vec7.3.4) ───────────────────
  *
  * The oracle builds external-login links as `{ApiBaseUrl}/v1/...` against a
- * cross-origin API. That prepend is NOT ported: this app's h3 server
- * (`src/lib/auth-server.ts`) is a passthrough reverse proxy mounting `/v1/**` at
+ * cross-origin API. That prepend is NOT ported: this app's API surface
+ * (`src/lib/api-passthrough.ts`) is a passthrough reverse proxy mounting `/v1/**` at
  * the ROOT, so this origin hosts them and the origin is `""`.
  */
 
@@ -225,7 +227,7 @@ function verifyEmailTarget(returnUrl: string | undefined): string {
     return "/verify-email";
   }
 
-  if (!getWallowAuthSdk().oidc.isSafeReturnUrl(returnUrl)) {
+  if (!isSafeReturnUrl(returnUrl)) {
     return ERROR_HREF;
   }
 
@@ -249,11 +251,6 @@ function externalLoginUrl(provider: string): string {
     `?provider=${encodeURIComponent(provider)}` +
     `&returnUrl=${encodeURIComponent(returnUrl)}`
   );
-}
-
-/** What the informational client-tenant lookup resolves to. */
-interface ClientTenant {
-  readonly orgName?: string;
 }
 
 /** The registration request body, matching `AccountRegisterRequest`. */
@@ -591,6 +588,7 @@ export interface RegisterFormProps {
 }
 
 export function RegisterForm({ clientId, returnUrl }: RegisterFormProps): ReactNode {
+  const { sdk } = useRouteContext({ from: "__root__" });
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -608,12 +606,7 @@ export function RegisterForm({ clientId, returnUrl }: RegisterFormProps): ReactN
   // Both this screen and the login screen read the provider list through the SAME
   // factory, so they share one cache entry — they used to spell the key two
   // different ways and fetch it twice.
-  const providersQuery = useQuery({
-    ...authQueries.externalProviders(),
-    // The factory types the payload `unknown` — screens narrow at their own
-    // boundary (bd memory `packages-sdk-auth-client-facade-shape`).
-    select: (data: unknown): readonly string[] => data as readonly string[],
-  });
+  const providersQuery = useQuery(accountGetExternalProvidersOptions({ client: sdk.client }));
 
   // Collapsed to a plain string so the `enabled` gate and the query fn agree
   // WITHOUT a cast: the oracle's `IsNullOrEmpty` treats absent and blank alike,
@@ -621,15 +614,14 @@ export function RegisterForm({ clientId, returnUrl }: RegisterFormProps): ReactN
   const tenantClientId: string = clientId ?? "";
 
   const tenantQuery = useQuery({
-    ...authQueries.clientTenant(tenantClientId),
+    ...accountGetClientTenantOptions({ client: sdk.client, path: { clientId: tenantClientId } }),
     // The oracle's `if (!string.IsNullOrEmpty(ClientId))` gate.
     enabled: tenantClientId !== "",
-    select: (data: unknown): ClientTenant => data as ClientTenant,
   });
 
   const registerMutation = useMutation({
     mutationFn: async (request: RegisterRequest): Promise<void> => {
-      await getWallowAuthSdk().auth.register(request);
+      await accountRegister({ client: sdk.client, body: request });
     },
   });
 
@@ -711,7 +703,7 @@ export function RegisterForm({ clientId, returnUrl }: RegisterFormProps): ReactN
   // an unknown client) leaves it undefined and the form stays usable, per the
   // oracle's swallowed `HttpRequestException`. A cosmetic banner must never block
   // a registration.
-  const orgName: string | undefined = tenantQuery.data?.orgName;
+  const orgName: string | undefined = tenantQuery.data?.orgName ?? undefined;
 
   return (
     <Card>

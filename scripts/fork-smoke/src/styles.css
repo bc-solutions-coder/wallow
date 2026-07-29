@@ -1,0 +1,10 @@
+/*
+ * The app's Tailwind entry, imported for its side effect by `__root.tsx`.
+ *
+ * A fork writes exactly these two lines: import the shared entry from the styles
+ * package, then declare its OWN source scan (the package cannot scan an app's
+ * files on its behalf). Resolving `@bc-solutions-coder/styles/styles.css` out of
+ * the packed tarball is the point — it proves the CSS export survives packing.
+ */
+@import "@bc-solutions-coder/styles/styles.css";
+@source "./";

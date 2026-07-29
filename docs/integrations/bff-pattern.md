@@ -55,14 +55,14 @@ sequenceDiagram
 
 Sign in to the Wallow dashboard and navigate to **Settings > Applications > Register Application** (`/dashboard/apps/register`). Fill in:
 
-| Field | Value |
-|-------|-------|
-| Application name | Must start with the `app-` prefix (e.g., `app-my-fork-site`). Also shown on the consent screen. |
-| Client type | **Select `Confidential`.** The form defaults to `Public`, but a BFF integration requires a confidential client so it can authenticate to the token endpoint with a `client_secret`. A public client is issued no secret and cannot complete the token exchange below. |
-| Grant type | `authorization_code` |
-| Redirect URIs | The full callback URL on your BFF (e.g., `https://myapp.example.com/callback`). Each URI must be absolute HTTPS; `localhost` may use plain HTTP for local development. |
-| Post-logout redirect URIs | Where to send the user after logout (e.g., `https://myapp.example.com/`). Same absolute-HTTPS (localhost-HTTP) rule. |
-| Scopes | The scopes your application needs. `openid`, `profile`, `email`, and `offline_access` are always available for login; you may additionally request any developer-app scope your integration uses. |
+| Field                     | Value                                                                                                                                                                                                                                                                 |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Application name          | Must start with the `app-` prefix (e.g., `app-my-fork-site`). Also shown on the consent screen.                                                                                                                                                                       |
+| Client type               | **Select `Confidential`.** The form defaults to `Public`, but a BFF integration requires a confidential client so it can authenticate to the token endpoint with a `client_secret`. A public client is issued no secret and cannot complete the token exchange below. |
+| Grant type                | `authorization_code`                                                                                                                                                                                                                                                  |
+| Redirect URIs             | The full callback URL on your BFF (e.g., `https://myapp.example.com/callback`). Each URI must be absolute HTTPS; `localhost` may use plain HTTP for local development.                                                                                                |
+| Post-logout redirect URIs | Where to send the user after logout (e.g., `https://myapp.example.com/`). Same absolute-HTTPS (localhost-HTTP) rule.                                                                                                                                                  |
+| Scopes                    | The scopes your application needs. `openid`, `profile`, `email`, and `offline_access` are always available for login; you may additionally request any developer-app scope your integration uses.                                                                     |
 
 With `Confidential` selected, Wallow registers a **confidential client** and returns a `client_id` together with a `client_secret`. **The secret is shown exactly once, at creation time** — copy it straight into your BFF's server-side configuration (`OIDC_CLIENT_SECRET`). If you lose it, rotate the secret from the application's settings to mint a new one; the previous secret stops working immediately.
 
@@ -268,12 +268,12 @@ Applications registered through the dashboard are **confidential** clients: the 
 
 Always issue session cookies with:
 
-| Flag | Value | Reason |
-|------|-------|--------|
-| `HttpOnly` | true | Prevents JavaScript from reading the cookie |
-| `Secure` | true | Only transmitted over HTTPS |
+| Flag       | Value    | Reason                                                                    |
+| ---------- | -------- | ------------------------------------------------------------------------- |
+| `HttpOnly` | true     | Prevents JavaScript from reading the cookie                               |
+| `Secure`   | true     | Only transmitted over HTTPS                                               |
 | `SameSite` | `Strict` | Blocks the cookie from being sent in cross-site requests, mitigating CSRF |
-| `Path` | `/` | Scoped to the entire BFF origin |
+| `Path`     | `/`      | Scoped to the entire BFF origin                                           |
 
 ### State Parameter
 
@@ -289,8 +289,19 @@ Use a dedicated Valkey database or key namespace for BFF sessions. Set appropria
 
 Everything above is the wire protocol, useful for any language or framework.
 If your BFF is TypeScript, [`@bc-solutions-coder/sdk`](typescript-sdk.md)
-already implements two pieces of it that are easy to get subtly wrong by hand:
+already implements the pieces of it that are easy to get subtly wrong by hand:
 
+- **The whole host.** `createWallowBffServer()` (from
+  `@bc-solutions-coder/sdk/server`) loads the config, picks a session store,
+  builds the tunnel handlers and the `/api` proxy over that one shared store, and
+  dispatches by path. It hands back three web-standard `Request` → `Response`
+  functions — `handleBff`, `handleApi`, `handleHealth` — so mounting it is one
+  splat server route per prefix. There is no framework dependency: the SDK does
+  not use h3 or any other host runtime, and the handlers drop into TanStack Start
+  server routes, Nitro, Hono, or a bare Fetch handler alike. An app that needs the
+  API on its own origin without a session uses the sibling preset,
+  `createApiPassthrough()` from `@bc-solutions-coder/sdk/server/passthrough`.
+  See [Server setup: mounting the BFF](typescript-sdk.md#server-setup-mounting-the-bff).
 - **CSRF token wiring.** The SDK's `csrf` module (`setCsrfToken`,
   `wireCsrfInterceptor`, `isSafeMethod`) is the client-side half of the
   synchronizer-token gate — it stamps the current token onto every
@@ -299,18 +310,74 @@ already implements two pieces of it that are easy to get subtly wrong by hand:
 - **SSR cookie forwarding.** If your BFF also server-renders authenticated
   routes, an SSR-time request runs on Node, which has no cookie jar and
   cannot resolve a relative URL — it needs the incoming request's absolute
-  origin and session cookie forwarded explicitly, per request. The SDK's
-  `ssr` seam (`setSsrRequestContextResolver`, `configureSsrClient`,
-  `wireSsrCookieInterceptor`) resolves both without leaking a `node:` import
-  into the browser bundle. `apps/wallow-web/src/ssr.tsx` is the reference
-  consumer: it owns the `AsyncLocalStorage` that scopes each incoming
-  request and registers it with the SDK once, at module scope. See
-  [SSR request context for server-rendered loaders](typescript-sdk.md#ssr-request-context-for-server-rendered-loaders).
+  origin and session cookie forwarded explicitly, per request. Both are
+  arguments to `createWallowSdk({ baseUrl, cookieHeader, internalOrigin })`,
+  which builds an instance owning its own client, cookie, and interceptor list —
+  so nothing is shared between concurrent renders and no `node:` import leaks
+  into the browser bundle. `apps/wallow-web/src/start.ts` is the reference
+  consumer: its global request middleware mints one instance per request and the
+  router lifts it into the route context. See
+  [Per-request instances for server-rendered loaders](typescript-sdk.md#per-request-instances-for-server-rendered-loaders).
 
 Reach for these instead of reimplementing the interceptor and cookie-jar
 plumbing shown in the [Example Implementations](#example-implementations)
 below — they exist specifically so a TypeScript BFF does not have to
 reinvent this glue.
+
+---
+
+## Choosing a Session Store
+
+The SDK ships two `SessionStore` implementations, and the choice between them is
+an operational decision, not a stylistic one.
+
+| Store                | Where the session lives                                              | Use it in        |
+| -------------------- | -------------------------------------------------------------------- | ---------------- |
+| `CookieSessionStore` | Entirely in the browser's session cookie, sealed with iron-webcrypto | Development only |
+| `ValkeySessionStore` | In Valkey/Redis; the cookie holds only an opaque sealed session id   | Production       |
+
+`CookieSessionStore` is the **default** when you call `createBffHandlers(config)`
+or `createApiProxy(config)` with a single argument. That default exists so a
+fork runs with zero infrastructure, and it is a **development default only**.
+Production deployments must construct a `ValkeySessionStore` explicitly and pass
+it as the second argument:
+
+```typescript
+import {
+  createBffHandlers,
+  createRedisAdapter,
+  ValkeySessionStore,
+} from "@bc-solutions-coder/sdk/server";
+
+const store = new ValkeySessionStore({
+  client: createRedisAdapter(redisClient),
+  password: config.cookiePassword,
+  ttlSeconds: config.sessionTtlSeconds,
+});
+
+const handlers = createBffHandlers(config, store);
+```
+
+### Why the cookie store cannot revoke a session
+
+With `CookieSessionStore` the cookie **is** the state — there is no server-side
+record to delete. Its `destroy()` is therefore a deliberate no-op, and clearing
+the cookie only ends the session for a browser that cooperates. Anyone holding a
+copy of the sealed cookie value (an exfiltrated cookie, a logged proxy request)
+can keep using it, and the server has no way to **revoke** it. Logging out, an
+admin disabling an account, or a password reset cannot invalidate outstanding
+sessions.
+
+The only bound on such a blob is its baked-in expiry: `sealSession` stamps a TTL
+into the sealed value at write time, defaulting to `SESSION_TTL_SECONDS`
+(24 hours), after which unsealing fails. That expiry is fixed when the blob is
+sealed and cannot be extended by unsealing it with a longer TTL — but it is a
+timeout, not revocation.
+
+`ValkeySessionStore` has real server-side state, so its `destroy()` deletes the
+record and the session stops working immediately for every holder of the cookie.
+That is the property production needs, alongside the cross-process refresh
+locking (`withRefreshLock`) that the cookie store also cannot provide.
 
 ---
 
@@ -367,10 +434,7 @@ async function requireAuth(req, res, next) {
 // --- Login: generate PKCE and redirect to Wallow ---
 app.get("/login", (req, res) => {
   const codeVerifier = crypto.randomBytes(64).toString("base64url");
-  const codeChallenge = crypto
-    .createHash("sha256")
-    .update(codeVerifier)
-    .digest("base64url");
+  const codeChallenge = crypto.createHash("sha256").update(codeVerifier).digest("base64url");
   const state = crypto.randomBytes(32).toString("hex");
 
   // Store verifier + state in a short-lived pre-auth cookie
@@ -604,12 +668,12 @@ Add the corresponding `appsettings.json` configuration:
 
 ## Endpoint Reference
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/connect/authorize` | GET | Start the Authorization Code flow (served by Wallow.Api; fronted same-origin by the `apps/wallow-auth` proxy) |
-| `/connect/token` | POST | Exchange code for tokens; refresh tokens (served by Wallow.Api) |
-| `/connect/userinfo` | GET | Retrieve claims for the authenticated user (served by Wallow.Api) |
-| `/connect/logout` | GET | End the Wallow session and redirect (served by Wallow.Api) |
+| Endpoint             | Method | Description                                                                                                   |
+| -------------------- | ------ | ------------------------------------------------------------------------------------------------------------- |
+| `/connect/authorize` | GET    | Start the Authorization Code flow (served by Wallow.Api; fronted same-origin by the `apps/wallow-auth` proxy) |
+| `/connect/token`     | POST   | Exchange code for tokens; refresh tokens (served by Wallow.Api)                                               |
+| `/connect/userinfo`  | GET    | Retrieve claims for the authenticated user (served by Wallow.Api)                                             |
+| `/connect/logout`    | GET    | End the Wallow session and redirect (served by Wallow.Api)                                                    |
 
 All `/connect/*` endpoints are served by the OpenIddict middleware. When Wallow is deployed behind a reverse proxy with path-based routing, the Auth app (`/connect/authorize`) and the API (`/connect/token`, `/connect/userinfo`, `/connect/logout`) are on separate origins — use the correct base URL for each.
 
@@ -617,11 +681,11 @@ All `/connect/*` endpoints are served by the OpenIddict middleware. When Wallow 
 
 ## Troubleshooting
 
-| Symptom | Likely Cause | Fix |
-|---------|--------------|-----|
-| `invalid_client` on token exchange | `client_id` mismatch or missing `app-` prefix | Confirm the client ID matches exactly what was registered |
-| `invalid_grant` on token exchange | `code_verifier` mismatch or code already used | Generate a fresh `code_verifier` per login attempt; codes are single-use |
-| `invalid_grant` on token refresh | Refresh token revoked or expired | Clear the session and redirect the user to login |
-| Consent screen appears on every login | Application not granted `offline_access` or user previously denied | Ensure `offline_access` is in the requested scopes and the user approves |
-| Session cookie not sent to BFF | `SameSite=Strict` blocking cross-site redirect | The BFF and the callback URL must be on the same origin as your frontend |
-| Redirect URI mismatch | Registered URI does not exactly match `redirect_uri` in the request | Update the registered redirect URI in the Wallow dashboard to match |
+| Symptom                               | Likely Cause                                                        | Fix                                                                      |
+| ------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `invalid_client` on token exchange    | `client_id` mismatch or missing `app-` prefix                       | Confirm the client ID matches exactly what was registered                |
+| `invalid_grant` on token exchange     | `code_verifier` mismatch or code already used                       | Generate a fresh `code_verifier` per login attempt; codes are single-use |
+| `invalid_grant` on token refresh      | Refresh token revoked or expired                                    | Clear the session and redirect the user to login                         |
+| Consent screen appears on every login | Application not granted `offline_access` or user previously denied  | Ensure `offline_access` is in the requested scopes and the user approves |
+| Session cookie not sent to BFF        | `SameSite=Strict` blocking cross-site redirect                      | The BFF and the callback URL must be on the same origin as your frontend |
+| Redirect URI mismatch                 | Registered URI does not exactly match `redirect_uri` in the request | Update the registered redirect URI in the Wallow dashboard to match      |

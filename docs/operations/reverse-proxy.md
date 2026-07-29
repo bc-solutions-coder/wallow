@@ -26,11 +26,11 @@ subdomain routing.
 Route incoming requests to each service based on path prefix. All services expose HTTP on port
 `8080` inside the container network:
 
-| Public path | Internal target | Prefix handling |
-|-------------|-----------------|-----------------|
-| `/api/*` | `wallow-api:8080` | Forward the full path; the API strips `/api` itself via `PathBase=/api`. **Do not** strip in the proxy. |
-| `/auth/*` | `wallow-auth:8080` | The Node auth app has no path-base support and serves at root, so the proxy **must strip** the `/auth` prefix. |
-| `/*` | `wallow-web:8080` | The Node web app serves at root (catch-all). |
+| Public path | Internal target    | Prefix handling                                                                                                |
+| ----------- | ------------------ | -------------------------------------------------------------------------------------------------------------- |
+| `/api/*`    | `wallow-api:8080`  | Forward the full path; the API strips `/api` itself via `PathBase=/api`. **Do not** strip in the proxy.        |
+| `/auth/*`   | `wallow-auth:8080` | The Node auth app has no path-base support and serves at root, so the proxy **must strip** the `/auth` prefix. |
+| `/*`        | `wallow-web:8080`  | The Node web app serves at root (catch-all).                                                                   |
 
 **Routing precedence:** the `/api` and `/auth` prefixes must be evaluated before the catch-all
 `/*` rule.
@@ -39,11 +39,11 @@ Route incoming requests to each service based on path prefix. All services expos
 
 Set `API_PATH_BASE=` (empty) in `.env.production` and route by host instead:
 
-| Public host | Internal target | Notes |
-|-------------|-----------------|-------|
-| `api.example.com/*` | `wallow-api:8080` | API serves at subdomain root (`PathBase` empty). |
-| `auth.example.com/*` | `wallow-auth:8080` | Node auth app serves at root. |
-| `example.com/*` | `wallow-web:8080` | Node web app serves at root. |
+| Public host          | Internal target    | Notes                                            |
+| -------------------- | ------------------ | ------------------------------------------------ |
+| `api.example.com/*`  | `wallow-api:8080`  | API serves at subdomain root (`PathBase` empty). |
+| `auth.example.com/*` | `wallow-auth:8080` | Node auth app serves at root.                    |
+| `example.com/*`      | `wallow-web:8080`  | Node web app serves at root.                     |
 
 With subdomains, align `API_PUBLIC_URL` / `AUTH_PUBLIC_URL` (and `COOKIE_DOMAIN`) to the
 subdomains.
@@ -149,18 +149,19 @@ ASPNETCORE_FORWARDEDHEADERS_ENABLED=true
 ```
 
 Without it, the API generates OIDC discovery documents and redirect URIs with `http://` instead
-of `https://`, causing authentication failures. The auth app's h3 proxy forwards the real client
-IP to the API on the requests it tunnels.
+of `https://`, causing authentication failures. The auth app's passthrough server routes append
+the real client IP to `X-Forwarded-For` on the requests they tunnel, so an outer ingress's
+leftmost entry survives the hop.
 
 ---
 
 ## 5. Health Check Endpoints
 
-| Service | Internal URL |
-|---------|-------------|
-| Wallow.Api | `http://wallow-api:8080/health/ready` |
-| wallow-auth | `http://wallow-auth:8080/health` |
-| wallow-web | `http://wallow-web:8080/health` |
+| Service     | Internal URL                          |
+| ----------- | ------------------------------------- |
+| Wallow.Api  | `http://wallow-api:8080/health/ready` |
+| wallow-auth | `http://wallow-auth:8080/health`      |
+| wallow-web  | `http://wallow-web:8080/health`       |
 
 Configure your proxy or container orchestrator to poll these. A `200 OK` means the service is
 ready to serve traffic.
@@ -312,10 +313,10 @@ seed schema.
 
 ## Common Mistakes
 
-| Mistake | Symptom | Fix |
-|---------|---------|-----|
-| Proxy strips `/api` | API routes return 404 | Forward `/api` unstripped; the app removes it via `PathBase=/api` |
-| Proxy does **not** strip `/auth` | Auth app assets/routes 404 | Strip the `/auth` prefix (nginx trailing slash, Caddy `handle_path`) |
-| `ASPNETCORE_FORWARDEDHEADERS_ENABLED` missing on the API | OIDC redirects use `http://`; login fails | Set it on the API service |
-| `OpenIddict__Issuer` / `OIDC_ISSUER` mismatch | `redirect_uri` or issuer errors during login | Point both at the public API URL |
-| Redirect URIs not updated | OIDC login returns `redirect_uri mismatch` | Update the seeded client redirect URIs to the public `https://example.com/...` URLs |
+| Mistake                                                  | Symptom                                      | Fix                                                                                 |
+| -------------------------------------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Proxy strips `/api`                                      | API routes return 404                        | Forward `/api` unstripped; the app removes it via `PathBase=/api`                   |
+| Proxy does **not** strip `/auth`                         | Auth app assets/routes 404                   | Strip the `/auth` prefix (nginx trailing slash, Caddy `handle_path`)                |
+| `ASPNETCORE_FORWARDEDHEADERS_ENABLED` missing on the API | OIDC redirects use `http://`; login fails    | Set it on the API service                                                           |
+| `OpenIddict__Issuer` / `OIDC_ISSUER` mismatch            | `redirect_uri` or issuer errors during login | Point both at the public API URL                                                    |
+| Redirect URIs not updated                                | OIDC login returns `redirect_uri mismatch`   | Update the seeded client redirect URIs to the public `https://example.com/...` URLs |

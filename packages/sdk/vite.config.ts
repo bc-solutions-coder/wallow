@@ -18,9 +18,12 @@ import { defineConfig } from "vite";
 //
 // Output contract (preserved from the previous tsup pipeline, matching the
 // package.json exports map): dist/index.js, dist/index.js.map,
-// dist/server/index.js, dist/server/index.js.map. Two named lib entries keep
-// the `.` and `./server` subpaths pointing at stable, unhashed filenames, and
-// every non-relative import is externalized so runtime deps are not bundled.
+// dist/server/index.js, dist/server/index.js.map. Named lib entries keep the
+// `.`, `./server`, `./query`, and `./server/passthrough` subpaths pointing at
+// stable, unhashed filenames, and every non-relative import is externalized so
+// runtime deps are not bundled. `./server/passthrough` is its own entry rather
+// than a re-export so a passthrough-only app never pulls `openid-client` and
+// the BFF handler graph into its server bundle.
 export default defineConfig({
   build: {
     target: "es2023",
@@ -32,6 +35,7 @@ export default defineConfig({
       entry: {
         index: fileURLToPath(new URL("src/index.ts", import.meta.url)),
         "server/index": fileURLToPath(new URL("src/server/index.ts", import.meta.url)),
+        "server/passthrough": fileURLToPath(new URL("src/server/passthrough.ts", import.meta.url)),
         "query/index": fileURLToPath(new URL("src/query/index.ts", import.meta.url)),
       },
       formats: ["es"],

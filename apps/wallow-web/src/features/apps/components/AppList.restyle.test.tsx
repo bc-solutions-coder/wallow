@@ -1,9 +1,7 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactElement } from "react";
-import { render } from "vitest-browser-react";
+import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { installSdkClientMock, type SdkClientMock } from "../../../test/sdk-client-mock";
 import {
   allByTestId,
   expectClasses,
@@ -14,6 +12,9 @@ import {
   within,
 } from "../../../test/style-contract";
 import { AppList } from "./AppList";
+
+/** The transport backing each render, rebuilt per test. */
+let harness: SdkHarness;
 
 /**
  * Restyle spec for the apps list (Wallow-urec.4.1) — the WORKED EXAMPLE for
@@ -48,34 +49,21 @@ const APPS = [
   },
 ];
 
-function newClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: { queries: { retry: false, staleTime: Number.POSITIVE_INFINITY } },
-  });
-}
-
-function renderWithClient(client: QueryClient, ui: ReactElement) {
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-}
-
 /**
  * Render the list seeded with `apps` (omit for the loading state) and resolve
  * the settled element named by `anchor` — the testid of the state under test.
  */
 async function renderList(apps: unknown[] | undefined, anchor: string): Promise<HTMLElement> {
-  const client = newClient();
   if (apps !== undefined) {
-    client.setQueryData(["apps"], apps);
+    harness.resolveJson(apps);
   }
-  renderWithClient(client, <AppList />);
+  renderWithWallow(<AppList />, { harness });
   return waitForTestId(anchor);
 }
 
 describe("AppList (restyle)", () => {
-  let sdk: SdkClientMock;
-
   beforeEach(() => {
-    sdk = installSdkClientMock();
+    harness = createSdkHarness();
   });
 
   it("wraps the list in the card surface", async () => {
@@ -133,7 +121,7 @@ describe("AppList (restyle)", () => {
   });
 
   it("centers the loading state without changing its wording", async () => {
-    sdk.pending();
+    harness.pending();
     const loading = await renderList(undefined, "apps-loading");
 
     expect(loading.textContent).toBe("Loading apps…");

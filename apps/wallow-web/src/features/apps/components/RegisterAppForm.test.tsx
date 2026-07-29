@@ -1,10 +1,10 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactElement } from "react";
+import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { installSdkClientMock, type SdkClientMock } from "../../../test/sdk-client-mock";
+import { expectSwept } from "../../../test/invalidation";
+import { appsGetUserAppsQueryKey } from "../api";
 import { RegisterAppForm } from "./RegisterAppForm";
 
 /**
@@ -28,15 +28,15 @@ import { RegisterAppForm } from "./RegisterAppForm";
  *     RegisterApp.razor:37-49 ("Save your client secret now. It will not be
  *     shown again.").
  *
- * The form builds its mutation from `registerAppMutation(queryClient)` (the SDK
- * query factory re-exported by api.ts), so the network seam is the shared SDK
- * client's `fetch`, overridden via `installSdkClientMock` (Wallow-evd5.2.6 — the
- * retired `getWallowSdk()` facade is no longer in the path). The register call
- * resolves the one-time-secret response (`sdk.resolveJson(OK_RESPONSE)` in
- * `beforeEach`); the submitted body is asserted via the recorded outgoing
- * request (`sdk.last`); invalidation of `['apps']` on success is observed by
- * spying on the live client's `invalidateQueries`; a server ProblemDetails is
- * driven with `sdk.rejectJson`.
+ * The form builds its mutation from the GENERATED `appsRegisterMutation({ client })`
+ * re-exported by api.ts (Wallow-pu6a.5.5), so the network seam is the SDK
+ * instance the render puts on the router context, backed by `createSdkHarness()`.
+ * The register call resolves the one-time-secret response
+ * (`harness.resolveJson(OK_RESPONSE)` in `beforeEach`); the submitted body is
+ * asserted via the recorded outgoing request (`harness.last`); the success sweep
+ * is checked by running the filter the mutation passed `invalidateQueries`
+ * against the real `appsGetUserAppsQueryKey()` (`expectSwept`); a server
+ * ProblemDetails is driven with `harness.rejectJson`.
  *
  * Testids follow the apps feature's `app-*` convention (like `app-item`, and
  * the bead-mandated `app-client-secret`/`app-client-id`): `app-display-name`
@@ -62,26 +62,17 @@ const OK_RESPONSE = {
   registrationAccessToken: "rat-123",
 };
 
-function newClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-}
-
-function renderWithClient(client: QueryClient, ui: ReactElement) {
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-}
+/** The transport backing each render, rebuilt per test. */
+let harness: SdkHarness;
 
 describe("RegisterAppForm", () => {
-  let sdk: SdkClientMock;
-
   beforeEach(() => {
-    sdk = installSdkClientMock();
-    sdk.resolveJson(OK_RESPONSE);
+    harness = createSdkHarness();
+    harness.resolveJson(OK_RESPONSE);
   });
 
   it("renders the display-name, client-type, redirect-uris, scope, and submit controls", async () => {
-    renderWithClient(newClient(), <RegisterAppForm />);
+    renderWithWallow(<RegisterAppForm />, { harness });
 
     await expect.element(page.getByTestId("app-display-name")).toBeInTheDocument();
     await expect.element(page.getByTestId("app-client-type")).toBeInTheDocument();
@@ -92,13 +83,13 @@ describe("RegisterAppForm", () => {
   });
 
   it("renders the post-logout redirect URIs field (reworked AppsController contract)", async () => {
-    renderWithClient(newClient(), <RegisterAppForm />);
+    renderWithWallow(<RegisterAppForm />, { harness });
 
     await expect.element(page.getByTestId("app-post-logout-redirect-uris")).toBeInTheDocument();
   });
 
   it("offers the BFF login scopes (openid, profile, email, offline_access) as selectable", async () => {
-    renderWithClient(newClient(), <RegisterAppForm />);
+    renderWithWallow(<RegisterAppForm />, { harness });
 
     await expect.element(page.getByTestId("app-scope-openid")).toBeInTheDocument();
     await expect.element(page.getByTestId("app-scope-profile")).toBeInTheDocument();
@@ -107,14 +98,14 @@ describe("RegisterAppForm", () => {
   });
 
   it("does NOT reveal the client secret or client id before a successful registration", async () => {
-    renderWithClient(newClient(), <RegisterAppForm />);
+    renderWithWallow(<RegisterAppForm />, { harness });
 
     await expect.element(page.getByTestId("app-client-secret")).not.toBeInTheDocument();
     await expect.element(page.getByTestId("app-client-id")).not.toBeInTheDocument();
   });
 
   it("submits, POSTing the remapped body (clientName, default scope, public, parsed redirect + post-logout URIs)", async () => {
-    renderWithClient(newClient(), <RegisterAppForm />);
+    renderWithWallow(<RegisterAppForm />, { harness });
 
     await userEvent.type(page.getByTestId("app-display-name"), "My App");
     await userEvent.type(
@@ -128,10 +119,10 @@ describe("RegisterAppForm", () => {
     await userEvent.click(page.getByTestId("app-register-submit"));
 
     await vi.waitFor(() => {
-      expect(sdk.last?.method).toBe("POST");
+      expect(harness.last?.method).toBe("POST");
     });
-    expect(sdk.last?.path).toBe("/api/v1/identity/apps/register");
-    expect(sdk.last?.body).toEqual({
+    expect(harness.last?.path).toBe("/api/v1/identity/apps/register");
+    expect(harness.last?.body).toEqual({
       clientName: "My App",
       requestedScopes: ["inquiries.read"],
       clientType: "public",
@@ -141,30 +132,30 @@ describe("RegisterAppForm", () => {
   });
 
   it("includes a toggled-on login scope (offline_access) in the submitted requestedScopes", async () => {
-    renderWithClient(newClient(), <RegisterAppForm />);
+    renderWithWallow(<RegisterAppForm />, { harness });
 
     await userEvent.type(page.getByTestId("app-display-name"), "My App");
     await userEvent.click(page.getByTestId("app-scope-offline_access"));
     await userEvent.click(page.getByTestId("app-register-submit"));
 
     await vi.waitFor(() => {
-      expect(sdk.last?.method).toBe("POST");
+      expect(harness.last?.method).toBe("POST");
     });
-    const body = sdk.last?.body as { requestedScopes: string[] };
+    const body = harness.last?.body as { requestedScopes: string[] };
     expect(body.requestedScopes).toContain("offline_access");
   });
 
   it("adds a toggled-on scope to the submitted requestedScopes", async () => {
-    renderWithClient(newClient(), <RegisterAppForm />);
+    renderWithWallow(<RegisterAppForm />, { harness });
 
     await userEvent.type(page.getByTestId("app-display-name"), "My App");
     await userEvent.click(page.getByTestId("app-scope-announcements-read"));
     await userEvent.click(page.getByTestId("app-register-submit"));
 
     await vi.waitFor(() => {
-      expect(sdk.last?.method).toBe("POST");
+      expect(harness.last?.method).toBe("POST");
     });
-    const body = sdk.last?.body as { requestedScopes: string[] };
+    const body = harness.last?.body as { requestedScopes: string[] };
     expect(body.requestedScopes).toEqual(
       expect.arrayContaining(["inquiries.read", "announcements.read"]),
     );
@@ -172,21 +163,21 @@ describe("RegisterAppForm", () => {
   });
 
   it("removes a default scope when its toggle is clicked off", async () => {
-    renderWithClient(newClient(), <RegisterAppForm />);
+    renderWithWallow(<RegisterAppForm />, { harness });
 
     await userEvent.type(page.getByTestId("app-display-name"), "My App");
     await userEvent.click(page.getByTestId("app-scope-inquiries-read"));
     await userEvent.click(page.getByTestId("app-register-submit"));
 
     await vi.waitFor(() => {
-      expect(sdk.last?.method).toBe("POST");
+      expect(harness.last?.method).toBe("POST");
     });
-    const body = sdk.last?.body as { requestedScopes: string[] };
+    const body = harness.last?.body as { requestedScopes: string[] };
     expect(body.requestedScopes).not.toContain("inquiries.read");
   });
 
   it("reveals the one-time client secret and client id after a successful registration", async () => {
-    renderWithClient(newClient(), <RegisterAppForm />);
+    renderWithWallow(<RegisterAppForm />, { harness });
 
     await userEvent.type(page.getByTestId("app-display-name"), "My App");
     await userEvent.click(page.getByTestId("app-register-submit"));
@@ -202,7 +193,7 @@ describe("RegisterAppForm", () => {
       configurable: true,
     });
 
-    renderWithClient(newClient(), <RegisterAppForm />);
+    renderWithWallow(<RegisterAppForm />, { harness });
 
     await userEvent.type(page.getByTestId("app-display-name"), "My App");
     await userEvent.click(page.getByTestId("app-register-submit"));
@@ -213,31 +204,27 @@ describe("RegisterAppForm", () => {
     expect(writeText).toHaveBeenCalledWith("secret-xyz");
   });
 
-  it("invalidates the ['apps'] list query after a successful registration", async () => {
-    const client = newClient();
-    const invalidateSpy = vi.spyOn(client, "invalidateQueries");
-
-    renderWithClient(client, <RegisterAppForm />);
+  it("sweeps the app list query after a successful registration", async () => {
+    const { queryClient } = renderWithWallow(<RegisterAppForm />, { harness });
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
 
     await userEvent.type(page.getByTestId("app-display-name"), "My App");
     await userEvent.click(page.getByTestId("app-register-submit"));
 
-    await vi.waitFor(() => {
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["apps"] });
-    });
+    await expectSwept(invalidateSpy, appsGetUserAppsQueryKey());
   });
 
   it("blocks submit and shows a required error when the display name is empty", async () => {
-    renderWithClient(newClient(), <RegisterAppForm />);
+    renderWithWallow(<RegisterAppForm />, { harness });
 
     await userEvent.click(page.getByTestId("app-register-submit"));
 
     await expect.element(page.getByTestId("app-display-name-error")).toBeInTheDocument();
-    expect(sdk.fetchMock).not.toHaveBeenCalled();
+    expect(harness.calls).toHaveLength(0);
   });
 
   it("surfaces the ProblemDetails detail when registration fails", async () => {
-    sdk.rejectJson(
+    harness.rejectJson(
       {
         type: "https://httpstatuses.io/400",
         title: "Bad Request",
@@ -247,7 +234,7 @@ describe("RegisterAppForm", () => {
       400,
     );
 
-    renderWithClient(newClient(), <RegisterAppForm />);
+    renderWithWallow(<RegisterAppForm />, { harness });
 
     await userEvent.type(page.getByTestId("app-display-name"), "My App");
     await userEvent.click(page.getByTestId("app-register-submit"));

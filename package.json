@@ -14,14 +14,17 @@
     "lint:fix": "oxlint apps packages --fix",
     "format": "oxfmt --write apps packages package.json pnpm-workspace.yaml tsconfig.base.json .oxlintrc.json .oxfmtrc.json",
     "format:check": "oxfmt --check apps packages package.json pnpm-workspace.yaml tsconfig.base.json .oxlintrc.json .oxfmtrc.json",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "check:exports": "./scripts/check-exports.sh",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm check:exports",
     "prepare": "husky"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
     "husky": "^9.1.7",
     "lint-staged": "^17.0.8",
     "oxfmt": "^0.59.0",
-    "oxlint": "^1.74.0"
+    "oxlint": "^1.74.0",
+    "publint": "^0.3.22"
   },
   "packageManager": "pnpm@10.20.0"
 }

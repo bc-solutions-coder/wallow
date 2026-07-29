@@ -1,6 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { inquiriesQueries } from "../../../features/inquiries/api";
+import {
+  inquiriesGetByIdOptions,
+  inquiriesGetCommentsOptions,
+} from "../../../features/inquiries/api";
 import { InquiryDetail } from "../../../features/inquiries/components/InquiryDetail";
 
 /**
@@ -24,8 +27,12 @@ function InquiryDetailPage() {
 export const Route = createFileRoute("/dashboard/inquiries/$inquiryId")({
   loader: ({ context, params }) =>
     Promise.all([
-      context.queryClient.ensureQueryData(inquiriesQueries.detail(params.inquiryId)),
-      context.queryClient.ensureQueryData(inquiriesQueries.comments(params.inquiryId)),
+      context.queryClient.ensureQueryData(
+        inquiriesGetByIdOptions({ client: context.sdk.client, path: { id: params.inquiryId } }),
+      ),
+      context.queryClient.ensureQueryData(
+        inquiriesGetCommentsOptions({ client: context.sdk.client, path: { id: params.inquiryId } }),
+      ),
     ]),
   component: InquiryDetailPage,
 });

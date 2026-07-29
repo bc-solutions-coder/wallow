@@ -1,9 +1,7 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactElement } from "react";
-import { render } from "vitest-browser-react";
+import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { installSdkClientMock, type SdkClientMock } from "../../../test/sdk-client-mock";
 import {
   allByTestId,
   expectClasses,
@@ -14,6 +12,9 @@ import {
   within,
 } from "../../../test/style-contract";
 import { InquiryList } from "./InquiryList";
+
+/** The transport backing each render, rebuilt per test. */
+let harness: SdkHarness;
 
 /**
  * Restyle spec for the inquiries list (Wallow-urec.4.2), copying the `.4.1`
@@ -51,35 +52,22 @@ const INQUIRIES = [
   },
 ];
 
-function newClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: { queries: { retry: false, staleTime: Number.POSITIVE_INFINITY } },
-  });
-}
-
-function renderWithClient(client: QueryClient, ui: ReactElement) {
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-}
-
 /**
  * Render the list seeded with `inquiries` (omit for the loading state) and
  * resolve the settled element named by `anchor` — the testid of the state under
  * test. `render()` returns before React commits, so every test must await this.
  */
 async function renderList(inquiries: unknown[] | undefined, anchor: string): Promise<HTMLElement> {
-  const client = newClient();
   if (inquiries !== undefined) {
-    client.setQueryData(["inquiries"], inquiries);
+    harness.resolveJson(inquiries);
   }
-  renderWithClient(client, <InquiryList />);
+  renderWithWallow(<InquiryList />, { harness });
   return waitForTestId(anchor);
 }
 
 describe("InquiryList (restyle)", () => {
-  let sdk: SdkClientMock;
-
   beforeEach(() => {
-    sdk = installSdkClientMock();
+    harness = createSdkHarness();
   });
 
   it("wraps the list in the card surface", async () => {
@@ -151,7 +139,7 @@ describe("InquiryList (restyle)", () => {
   });
 
   it("centers the loading state without changing its wording", async () => {
-    sdk.pending();
+    harness.pending();
     const loading = await renderList(undefined, "inquiries-loading");
 
     expect(loading.textContent).toBe("Loading inquiries…");

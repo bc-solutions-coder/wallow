@@ -1,11 +1,15 @@
-import { authQueries } from "@bc-solutions-coder/sdk/query";
+import { clientBrandingGetBrandingOptions } from "@bc-solutions-coder/sdk/query";
+import {
+  forkBranding,
+  mergeClientBranding,
+  type ResolvedBranding,
+} from "@bc-solutions-coder/styles";
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouteContext } from "@tanstack/react-router";
 
 import { AuthLayout } from "../components/auth-layout";
 import { isPasswordResetMessage, PASSWORD_RESET_MESSAGE } from "../features/login/auth-result";
 import { LoginScreen } from "../features/login/components/LoginScreen";
-import { forkBranding, mergeClientBranding, type ResolvedBranding } from "../lib/branding";
 
 /**
  * The `/login` route (Wallow-vec7.3.11 / 2.8a).
@@ -136,8 +140,10 @@ function useClientBranding(
   // read established, where "" is the one value the gate refuses.
   clientId: string = "",
 ): ResolvedBranding | undefined {
+  const { sdk } = useRouteContext({ from: "__root__" });
+
   const { data } = useQuery({
-    ...authQueries.clientBranding(clientId),
+    ...clientBrandingGetBrandingOptions({ client: sdk.client, path: { clientId } }),
     enabled: clientId !== "",
     retry: false,
   });

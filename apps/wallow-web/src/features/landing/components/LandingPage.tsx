@@ -15,7 +15,8 @@
  * the repo's `jsx-max-depth` budget.
  */
 
-import { appIconUrl, forkBranding } from "../../../lib/branding";
+import { appIconUrl, forkBranding } from "@bc-solutions-coder/styles";
+
 import { getStartedHref, repositoryUrl } from "../../../lib/site-links";
 
 interface Feature {

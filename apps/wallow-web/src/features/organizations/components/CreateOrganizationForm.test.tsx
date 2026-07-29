@@ -1,10 +1,10 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactElement } from "react";
+import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { installSdkClientMock, type SdkClientMock } from "../../../test/sdk-client-mock";
+import { expectSwept } from "../../../test/invalidation";
+import { organizationsGetAllQueryKey } from "../api";
 import { CreateOrganizationForm } from "./CreateOrganizationForm";
 
 /**
@@ -12,14 +12,14 @@ import { CreateOrganizationForm } from "./CreateOrganizationForm";
  * TanStack Form + mutation template Phases 4-6 copy, so it is the spec of
  * record for that shape.
  *
- * The form builds its mutation from `createOrganizationMutation(queryClient)`
- * (the SDK query factory re-exported by api.ts), so the network seam is the
- * shared SDK client's `fetch`, overridden per test via `installSdkClientMock`
- * (Wallow-evd5.2.6 — the retired `getWallowSdk()` facade is no longer in the
- * path). The create request is asserted via the recorded outgoing request
- * (`sdk.last`); invalidation of `['orgs']` on success is observed by spying on
- * the live client's `invalidateQueries`; a server ProblemDetails is driven with
- * `sdk.rejectJson`.
+ * The form builds its mutation from the GENERATED `organizationsCreateMutation({
+ * client })` re-exported by api.ts (Wallow-pu6a.5.5), so the network seam is the
+ * SDK instance the render puts on the router context, backed by
+ * `createSdkHarness()`. The create request is asserted via the recorded outgoing
+ * request (`harness.last`); the success sweep is checked by running the filter
+ * the mutation passed `invalidateQueries` against the real
+ * `organizationsGetAllQueryKey()` (`expectSwept`); a server ProblemDetails is
+ * driven with `harness.rejectJson`.
  *
  * Testids follow `{page}-{element}` kebab-case: `organization-name` (input,
  * bead-mandated), `organization-create-submit` (submit button),
@@ -27,81 +27,68 @@ import { CreateOrganizationForm } from "./CreateOrganizationForm";
  * `organization-create-error` (server RFC 7807 ProblemDetails surface).
  */
 
-function newClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-}
-
-function renderWithClient(client: QueryClient, ui: ReactElement) {
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-}
+/** The transport backing each render, rebuilt per test. */
+let harness: SdkHarness;
 
 describe("CreateOrganizationForm", () => {
-  let sdk: SdkClientMock;
-
   beforeEach(() => {
-    sdk = installSdkClientMock();
+    harness = createSdkHarness();
   });
 
   it("renders the name input and submit button", async () => {
-    renderWithClient(newClient(), <CreateOrganizationForm />);
+    renderWithWallow(<CreateOrganizationForm />, { harness });
 
     await expect.element(page.getByTestId("organization-name")).toBeInTheDocument();
     await expect.element(page.getByTestId("organization-create-submit")).toBeInTheDocument();
   });
 
   it("submits, POSTing { name, domain: null } to the organizations endpoint", async () => {
-    renderWithClient(newClient(), <CreateOrganizationForm />);
+    renderWithWallow(<CreateOrganizationForm />, { harness });
 
     await userEvent.type(page.getByTestId("organization-name"), "Acme");
     await userEvent.click(page.getByTestId("organization-create-submit"));
 
     await vi.waitFor(() => {
-      expect(sdk.last?.method).toBe("POST");
-      expect(sdk.last?.path).toBe("/api/v1/identity/organizations");
-      expect(sdk.last?.body).toEqual({ name: "Acme", domain: null });
+      expect(harness.last?.method).toBe("POST");
+      expect(harness.last?.path).toBe("/api/v1/identity/organizations");
+      expect(harness.last?.body).toEqual({ name: "Acme", domain: null });
     });
   });
 
-  it("invalidates the ['orgs'] list query after a successful create", async () => {
-    const client = newClient();
-    const invalidateSpy = vi.spyOn(client, "invalidateQueries");
-
-    renderWithClient(client, <CreateOrganizationForm />);
+  it("sweeps the organization list query after a successful create", async () => {
+    const { queryClient } = renderWithWallow(<CreateOrganizationForm />, { harness });
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
 
     await userEvent.type(page.getByTestId("organization-name"), "Acme");
     await userEvent.click(page.getByTestId("organization-create-submit"));
 
-    await vi.waitFor(() => {
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["orgs"] });
-    });
+    await expectSwept(invalidateSpy, organizationsGetAllQueryKey());
   });
 
   it("resets the name field after a successful create", async () => {
-    renderWithClient(newClient(), <CreateOrganizationForm />);
+    renderWithWallow(<CreateOrganizationForm />, { harness });
 
     const input = page.getByTestId("organization-name");
     await userEvent.type(input, "Acme");
     await userEvent.click(page.getByTestId("organization-create-submit"));
 
     await vi.waitFor(() => {
-      expect(sdk.last?.method).toBe("POST");
+      expect(harness.last?.method).toBe("POST");
     });
     await expect.element(input).toHaveValue("");
   });
 
   it("blocks submit and shows a required error when the name is empty", async () => {
-    renderWithClient(newClient(), <CreateOrganizationForm />);
+    renderWithWallow(<CreateOrganizationForm />, { harness });
 
     await userEvent.click(page.getByTestId("organization-create-submit"));
 
     await expect.element(page.getByTestId("organization-name-error")).toBeInTheDocument();
-    expect(sdk.fetchMock).not.toHaveBeenCalled();
+    expect(harness.calls).toHaveLength(0);
   });
 
   it("renders the ProblemDetails message when the create fails", async () => {
-    sdk.rejectJson(
+    harness.rejectJson(
       {
         type: "https://httpstatuses.io/409",
         title: "Conflict",
@@ -111,7 +98,7 @@ describe("CreateOrganizationForm", () => {
       409,
     );
 
-    renderWithClient(newClient(), <CreateOrganizationForm />);
+    renderWithWallow(<CreateOrganizationForm />, { harness });
 
     await userEvent.type(page.getByTestId("organization-name"), "Acme");
     await userEvent.click(page.getByTestId("organization-create-submit"));

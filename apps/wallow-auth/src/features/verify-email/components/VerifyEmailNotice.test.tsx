@@ -7,7 +7,7 @@ import {
 } from "@tanstack/react-router";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { Route as verifyEmailRoute } from "../../../routes/verify-email/index";
 import { VerifyEmailNotice } from "./VerifyEmailNotice";
@@ -42,32 +42,22 @@ import { VerifyEmailNotice } from "./VerifyEmailNotice";
  * from bd memory `returnurl-guard-refuse-dont-sanitize`: nothing navigates here,
  * the screen merely declines to hand a hostile value to the next screen. Flagged
  * on the bead for the verifier.
+ *
+ * ── TEST SEAM: NONE, AND THAT IS THE POINT (Wallow-pu6a.5.1) ─────────────────
+ *
+ * This file used to `vi.mock` the app's SDK facade purely to hand the screen an
+ * `isSafeReturnUrl` stub — and then restate the real rule inside that stub,
+ * because a stub answering a flat `true`/`false` would have proved nothing about
+ * the guard. A restatement of a security rule is a second copy to get wrong, so
+ * the mock is gone and `signInHref` reaches the REAL
+ * `isSafeReturnUrl` (`packages/sdk/src/auth-oidc.ts`) — a pure string-in/
+ * boolean-out function with no transport underneath it.
+ *
+ * No `sdk-harness` here either: the screen is inert, issues no request, and has
+ * nothing to fake. The cases below (`/apps?a=1&b=2` safe, `https://evil.example`
+ * and `//evil.example` unsafe) are now answered by the shipped guard rather than
+ * by this file's own opinion of it.
  */
-
-const mocks = vi.hoisted(() => ({
-  isSafeReturnUrl: vi.fn(),
-}));
-
-vi.mock("../../../lib/wallow-auth-sdk", () => ({
-  getWallowAuthSdk: () => ({
-    auth: {},
-    oidc: { isSafeReturnUrl: mocks.isSafeReturnUrl },
-  }),
-}));
-
-/** The real `isSafeReturnUrl` rule — see the note in VerifyEmailConfirm.test.tsx. */
-function isSafeReturnUrlRule(url: string | null | undefined): boolean {
-  if (url === null || url === undefined || url.trim() === "") {
-    return false;
-  }
-
-  return url.startsWith("/") && !url.startsWith("//");
-}
-
-beforeEach(() => {
-  vi.clearAllMocks();
-  mocks.isSafeReturnUrl.mockImplementation(isSafeReturnUrlRule);
-});
 
 describe("VerifyEmailNotice", () => {
   it("tells the user to check their email", async () => {

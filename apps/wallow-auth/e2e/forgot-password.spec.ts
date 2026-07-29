@@ -2,7 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 
 /**
  * Forgot-password flow, end to end. BACKEND-DEPENDENT: submit posts
- * `v1/identity/auth/forgot-password` through the h3 proxy into Wallow.Api. Needs
+ * `v1/identity/auth/forgot-password` through the passthrough proxy into Wallow.Api. Needs
  * the live seeded stack (scripts/e2e.sh boots it). A failure here is a bug to
  * file — the flow crosses the proxy into Wallow.Api.
  *

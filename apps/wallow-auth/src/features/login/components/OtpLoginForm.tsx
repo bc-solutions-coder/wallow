@@ -1,8 +1,8 @@
 import { Button, Checkbox, Field, Input, Label } from "@bc-solutions-coder/ui";
+import { accountSendOtp, accountVerifyOtp } from "@bc-solutions-coder/sdk";
 import { useMutation } from "@tanstack/react-query";
+import { useRouteContext } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
-
-import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
 import { GENERIC_MESSAGE } from "../auth-result";
 import {
   OTP_BLANK_CODE_MESSAGE,
@@ -180,6 +180,7 @@ function VerifyButton({ pending }: { readonly pending: boolean }) {
 export type OtpLoginFormProps = LoginPanelProps;
 
 export function OtpLoginForm({ onAuthResult, onError }: OtpLoginFormProps): ReactNode {
+  const { sdk } = useRouteContext({ from: "__root__" });
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   /** The oracle's `_otpSent`, which flips the email form to the code form. */
@@ -196,7 +197,7 @@ export function OtpLoginForm({ onAuthResult, onError }: OtpLoginFormProps): Reac
     // `Promise<unknown>`: the C# endpoint returns an anonymous `Ok(new { … })` with
     // no OpenAPI schema, so there is no generated type to lean on.
     mutationFn: async (address: string): Promise<unknown> =>
-      await getWallowAuthSdk().auth.sendOtp({ email: address }),
+      await accountSendOtp({ client: sdk.client, body: { email: address } }),
   });
 
   const verifyMutation = useMutation({
@@ -207,7 +208,7 @@ export function OtpLoginForm({ onAuthResult, onError }: OtpLoginFormProps): Reac
       // the user asked for. This also matches `PasswordLoginForm`, which always sends
       // the flag. The value read here is this panel's own box, never the password
       // tab's (see `RememberMeField` above).
-      await getWallowAuthSdk().auth.verifyOtp({ email, code: value, rememberMe }),
+      await accountVerifyOtp({ client: sdk.client, body: { email, code: value, rememberMe } }),
   });
 
   const handleSend = (): void => {

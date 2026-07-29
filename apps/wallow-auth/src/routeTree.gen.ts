@@ -14,6 +14,7 @@ import { Route as AcceptTermsRouteImport } from './routes/accept-terms'
 import { Route as ConsentRouteImport } from './routes/consent'
 import { Route as ErrorRouteImport } from './routes/error'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as HealthRouteImport } from './routes/health'
 import { Route as InvitationRouteImport } from './routes/invitation'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LogoutRouteImport } from './routes/logout'
@@ -21,8 +22,11 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as DotwellKnownSplatRouteImport } from './routes/[.]well-known/$'
+import { Route as ConnectSplatRouteImport } from './routes/connect/$'
 import { Route as MfaChallengeRouteImport } from './routes/mfa/challenge'
 import { Route as MfaEnrollRouteImport } from './routes/mfa/enroll'
+import { Route as V1SplatRouteImport } from './routes/v1/$'
 import { Route as VerifyEmailIndexRouteImport } from './routes/verify-email/index'
 import { Route as VerifyEmailConfirmRouteImport } from './routes/verify-email/confirm'
 
@@ -49,6 +53,11 @@ const ErrorRoute = ErrorRouteImport.update({
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   id: '/forgot-password',
   path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HealthRoute = HealthRouteImport.update({
+  id: '/health',
+  path: '/health',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InvitationRoute = InvitationRouteImport.update({
@@ -86,6 +95,16 @@ const TermsRoute = TermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DotwellKnownSplatRoute = DotwellKnownSplatRouteImport.update({
+  id: '/.well-known/$',
+  path: '/.well-known/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConnectSplatRoute = ConnectSplatRouteImport.update({
+  id: '/connect/$',
+  path: '/connect/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MfaChallengeRoute = MfaChallengeRouteImport.update({
   id: '/mfa/challenge',
   path: '/mfa/challenge',
@@ -94,6 +113,11 @@ const MfaChallengeRoute = MfaChallengeRouteImport.update({
 const MfaEnrollRoute = MfaEnrollRouteImport.update({
   id: '/mfa/enroll',
   path: '/mfa/enroll',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const V1SplatRoute = V1SplatRouteImport.update({
+  id: '/v1/$',
+  path: '/v1/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const VerifyEmailIndexRoute = VerifyEmailIndexRouteImport.update({
@@ -113,6 +137,7 @@ export interface FileRoutesByFullPath {
   '/consent': typeof ConsentRoute
   '/error': typeof ErrorRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/health': typeof HealthRoute
   '/invitation': typeof InvitationRoute
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
@@ -120,8 +145,11 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
+  '/.well-known/$': typeof DotwellKnownSplatRoute
+  '/connect/$': typeof ConnectSplatRoute
   '/mfa/challenge': typeof MfaChallengeRoute
   '/mfa/enroll': typeof MfaEnrollRoute
+  '/v1/$': typeof V1SplatRoute
   '/verify-email/confirm': typeof VerifyEmailConfirmRoute
   '/verify-email/': typeof VerifyEmailIndexRoute
 }
@@ -131,6 +159,7 @@ export interface FileRoutesByTo {
   '/consent': typeof ConsentRoute
   '/error': typeof ErrorRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/health': typeof HealthRoute
   '/invitation': typeof InvitationRoute
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
@@ -138,8 +167,11 @@ export interface FileRoutesByTo {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
+  '/.well-known/$': typeof DotwellKnownSplatRoute
+  '/connect/$': typeof ConnectSplatRoute
   '/mfa/challenge': typeof MfaChallengeRoute
   '/mfa/enroll': typeof MfaEnrollRoute
+  '/v1/$': typeof V1SplatRoute
   '/verify-email/confirm': typeof VerifyEmailConfirmRoute
   '/verify-email': typeof VerifyEmailIndexRoute
 }
@@ -150,6 +182,7 @@ export interface FileRoutesById {
   '/consent': typeof ConsentRoute
   '/error': typeof ErrorRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/health': typeof HealthRoute
   '/invitation': typeof InvitationRoute
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
@@ -157,8 +190,11 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
+  '/.well-known/$': typeof DotwellKnownSplatRoute
+  '/connect/$': typeof ConnectSplatRoute
   '/mfa/challenge': typeof MfaChallengeRoute
   '/mfa/enroll': typeof MfaEnrollRoute
+  '/v1/$': typeof V1SplatRoute
   '/verify-email/confirm': typeof VerifyEmailConfirmRoute
   '/verify-email/': typeof VerifyEmailIndexRoute
 }
@@ -170,6 +206,7 @@ export interface FileRouteTypes {
     | '/consent'
     | '/error'
     | '/forgot-password'
+    | '/health'
     | '/invitation'
     | '/login'
     | '/logout'
@@ -177,8 +214,11 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/terms'
+    | '/.well-known/$'
+    | '/connect/$'
     | '/mfa/challenge'
     | '/mfa/enroll'
+    | '/v1/$'
     | '/verify-email/confirm'
     | '/verify-email/'
   fileRoutesByTo: FileRoutesByTo
@@ -188,6 +228,7 @@ export interface FileRouteTypes {
     | '/consent'
     | '/error'
     | '/forgot-password'
+    | '/health'
     | '/invitation'
     | '/login'
     | '/logout'
@@ -195,8 +236,11 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/terms'
+    | '/.well-known/$'
+    | '/connect/$'
     | '/mfa/challenge'
     | '/mfa/enroll'
+    | '/v1/$'
     | '/verify-email/confirm'
     | '/verify-email'
   id:
@@ -206,6 +250,7 @@ export interface FileRouteTypes {
     | '/consent'
     | '/error'
     | '/forgot-password'
+    | '/health'
     | '/invitation'
     | '/login'
     | '/logout'
@@ -213,8 +258,11 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/terms'
+    | '/.well-known/$'
+    | '/connect/$'
     | '/mfa/challenge'
     | '/mfa/enroll'
+    | '/v1/$'
     | '/verify-email/confirm'
     | '/verify-email/'
   fileRoutesById: FileRoutesById
@@ -225,6 +273,7 @@ export interface RootRouteChildren {
   ConsentRoute: typeof ConsentRoute
   ErrorRoute: typeof ErrorRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  HealthRoute: typeof HealthRoute
   InvitationRoute: typeof InvitationRoute
   LoginRoute: typeof LoginRoute
   LogoutRoute: typeof LogoutRoute
@@ -232,8 +281,11 @@ export interface RootRouteChildren {
   RegisterRoute: typeof RegisterRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   TermsRoute: typeof TermsRoute
+  DotwellKnownSplatRoute: typeof DotwellKnownSplatRoute
+  ConnectSplatRoute: typeof ConnectSplatRoute
   MfaChallengeRoute: typeof MfaChallengeRoute
   MfaEnrollRoute: typeof MfaEnrollRoute
+  V1SplatRoute: typeof V1SplatRoute
   VerifyEmailConfirmRoute: typeof VerifyEmailConfirmRoute
   VerifyEmailIndexRoute: typeof VerifyEmailIndexRoute
 }
@@ -273,6 +325,13 @@ declare module '@tanstack/react-router' {
       path: '/forgot-password'
       fullPath: '/forgot-password'
       preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/health': {
+      id: '/health'
+      path: '/health'
+      fullPath: '/health'
+      preLoaderRoute: typeof HealthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/invitation': {
@@ -324,6 +383,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/.well-known/$': {
+      id: '/.well-known/$'
+      path: '/.well-known/$'
+      fullPath: '/.well-known/$'
+      preLoaderRoute: typeof DotwellKnownSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/connect/$': {
+      id: '/connect/$'
+      path: '/connect/$'
+      fullPath: '/connect/$'
+      preLoaderRoute: typeof ConnectSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/mfa/challenge': {
       id: '/mfa/challenge'
       path: '/mfa/challenge'
@@ -336,6 +409,13 @@ declare module '@tanstack/react-router' {
       path: '/mfa/enroll'
       fullPath: '/mfa/enroll'
       preLoaderRoute: typeof MfaEnrollRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v1/$': {
+      id: '/v1/$'
+      path: '/v1/$'
+      fullPath: '/v1/$'
+      preLoaderRoute: typeof V1SplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/verify-email/': {
@@ -361,6 +441,7 @@ const rootRouteChildren: RootRouteChildren = {
   ConsentRoute: ConsentRoute,
   ErrorRoute: ErrorRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  HealthRoute: HealthRoute,
   InvitationRoute: InvitationRoute,
   LoginRoute: LoginRoute,
   LogoutRoute: LogoutRoute,
@@ -368,11 +449,24 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   TermsRoute: TermsRoute,
+  DotwellKnownSplatRoute: DotwellKnownSplatRoute,
+  ConnectSplatRoute: ConnectSplatRoute,
   MfaChallengeRoute: MfaChallengeRoute,
   MfaEnrollRoute: MfaEnrollRoute,
+  V1SplatRoute: V1SplatRoute,
   VerifyEmailConfirmRoute: VerifyEmailConfirmRoute,
   VerifyEmailIndexRoute: VerifyEmailIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

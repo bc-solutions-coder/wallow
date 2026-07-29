@@ -14,6 +14,29 @@ export type AccountLoginRequest = {
     rememberMe: boolean;
 };
 
+/**
+ * Result of a cookie-based sign-in attempt. A 200 covers four outcomes — signed in, MFA
+ * challenge required, MFA enrollment required, and MFA enrollment required within a grace
+ * period — so every member beyond bool AccountLoginResponse.Succeeded is present only for the outcome it
+ * describes.
+ */
+export type AccountLoginResponse = {
+    succeeded: boolean;
+    mfaRequired?: null | boolean;
+    mfaEnrollmentRequired?: null | boolean;
+    mfaGraceDeadline?: null | string;
+    signInTicket?: null | string;
+};
+
+/**
+ * Success envelope returned by the cookie-auth account endpoints that report only whether the
+ * operation was carried out (registration, password reset, e-mail verification, magic link and
+ * OTP dispatch).
+ */
+export type AccountOperationResponse = {
+    succeeded: boolean;
+};
+
 export type AccountRegisterRequest = {
     email: string;
     password: string;
@@ -168,6 +191,15 @@ export type ClientResponse = {
     postLogoutRedirectUris: Array<string>;
 };
 
+/**
+ * The tenant an OIDC client belongs to, used by the auth frontend to brand the login screen
+ * before any user is authenticated.
+ */
+export type ClientTenantResponse = {
+    tenantId: string;
+    orgName: null | string;
+};
+
 export type ConsentInfoResponse = {
     clientId: string;
     displayName: null | string;
@@ -234,11 +266,6 @@ export type CreateClientRequest = {
 export type CreateInvitationRequest = {
     email: string;
     expiresAt?: null | string;
-};
-
-export type CreateIsolatedOrgRequest = {
-    requireMfa?: boolean;
-    gracePeriodDays?: number | string;
 };
 
 export type CreateOrganizationRequest = {
@@ -344,6 +371,23 @@ export type InvitationResponse = {
 
 export type LoginMethod = number;
 
+/**
+ * Regenerated one-time backup codes. The plaintext codes are returned here and nowhere else —
+ * only their hashes are persisted.
+ */
+export type MfaBackupCodesResponse = {
+    codes: Array<string>;
+};
+
+/**
+ * Result of answering an MFA challenge, carrying the single-use ticket the auth frontend
+ * exchanges for a sign-in cookie.
+ */
+export type MfaChallengeResponse = {
+    succeeded: boolean;
+    signInTicket: string;
+};
+
 export type MfaConfirmRequest = {
     secret: string;
     code: string;
@@ -353,8 +397,49 @@ export type MfaDisableRequest = {
     password: string;
 };
 
+/**
+ * Confirmation that TOTP enrollment completed, carrying the one-time backup codes. The plaintext
+ * codes are returned here and nowhere else — only their hashes are persisted.
+ */
+export type MfaEnrollmentConfirmedResponse = {
+    succeeded: boolean;
+    backupCodes: Array<string>;
+};
+
+/**
+ * A freshly generated TOTP secret plus the otpauth URI an authenticator app scans.
+ */
+export type MfaEnrollmentSecretResponse = {
+    secret: string;
+    qrUri: string;
+};
+
+/**
+ * A short-lived token the web app hands to the auth app's enrollment screen, which exchanges it
+ * for the partial-auth cookie the enrollment endpoints authenticate against.
+ */
+export type MfaEnrollmentTokenResponse = {
+    token: string;
+};
+
+/**
+ * Success envelope for the MFA endpoints that report only whether the operation was carried out.
+ */
+export type MfaOperationResponse = {
+    succeeded: boolean;
+};
+
 export type MfaRegenerateBackupCodesRequest = {
     password: string;
+};
+
+/**
+ * The signed-in user's current multi-factor enrollment state.
+ */
+export type MfaStatusResponse = {
+    enabled: boolean;
+    method: null | string;
+    backupCodeCount: number | string;
 };
 
 export type MfaVerifyRequest = {
@@ -387,6 +472,13 @@ export type OrganizationDto = {
     name: string;
     domain: null | string;
     memberCount: number | string;
+};
+
+/**
+ * Location of an organization branding logo after upload.
+ */
+export type OrganizationLogoResponse = {
+    logoUrl: string;
 };
 
 export type OrganizationSettingsDto = {
@@ -426,6 +518,16 @@ export type PagedResultOfUserDto = {
     hasPreviousPage?: boolean;
 };
 
+/**
+ * Result of verifying a magic link or one-time code, carrying the single-use ticket the auth
+ * frontend exchanges for a sign-in cookie.
+ */
+export type PasswordlessVerificationResponse = {
+    succeeded: boolean;
+    email: null | string;
+    signInTicket: null | string;
+};
+
 export type PresignedUploadRequest = {
     bucketName: string;
     fileName: string;
@@ -455,6 +557,13 @@ export type ProblemDetails = {
 };
 
 export type PushPlatform = number;
+
+/**
+ * Whether a candidate post-login redirect URI is registered for the requesting client.
+ */
+export type RedirectUriValidationResponse = {
+    allowed: boolean;
+};
 
 export type RegisterAppRequest = {
     clientName: string;
@@ -487,6 +596,13 @@ export type ResolvedSettingsConfig = {
 export type RetentionPolicyResponse = {
     days: number | string;
     action: string;
+};
+
+/**
+ * A role available for assignment within the tenant.
+ */
+export type RoleResponse = {
+    name: null | string;
 };
 
 export type ScopeInfo = {
@@ -542,6 +658,13 @@ export type ServiceAccountMetadataId = {
 };
 
 export type ServiceAccountStatus = number;
+
+export type SessionDto = {
+    id: string;
+    createdAt: string;
+    lastActivityAt: string;
+    expiresAt: string;
+};
 
 export type SetChannelEnabledRequest = {
     channelType: ChannelType;
@@ -666,48 +789,48 @@ export type VerifyOtpRequest = {
     rememberMe?: boolean;
 };
 
-export type GetV1AdminAnnouncementsData = {
+export type AdminAnnouncementsGetAllAnnouncementsData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/v1/admin/announcements';
 };
 
-export type GetV1AdminAnnouncementsResponses = {
+export type AdminAnnouncementsGetAllAnnouncementsResponses = {
     /**
      * OK
      */
     200: Array<AnnouncementResponse>;
 };
 
-export type GetV1AdminAnnouncementsResponse = GetV1AdminAnnouncementsResponses[keyof GetV1AdminAnnouncementsResponses];
+export type AdminAnnouncementsGetAllAnnouncementsResponse = AdminAnnouncementsGetAllAnnouncementsResponses[keyof AdminAnnouncementsGetAllAnnouncementsResponses];
 
-export type PostV1AdminAnnouncementsData = {
+export type AdminAnnouncementsCreateAnnouncementData = {
     body: CreateAnnouncementRequest;
     path?: never;
     query?: never;
     url: '/v1/admin/announcements';
 };
 
-export type PostV1AdminAnnouncementsErrors = {
+export type AdminAnnouncementsCreateAnnouncementErrors = {
     /**
      * Bad Request
      */
     400: ProblemDetails;
 };
 
-export type PostV1AdminAnnouncementsError = PostV1AdminAnnouncementsErrors[keyof PostV1AdminAnnouncementsErrors];
+export type AdminAnnouncementsCreateAnnouncementError = AdminAnnouncementsCreateAnnouncementErrors[keyof AdminAnnouncementsCreateAnnouncementErrors];
 
-export type PostV1AdminAnnouncementsResponses = {
+export type AdminAnnouncementsCreateAnnouncementResponses = {
     /**
      * Created
      */
     201: AnnouncementResponse;
 };
 
-export type PostV1AdminAnnouncementsResponse = PostV1AdminAnnouncementsResponses[keyof PostV1AdminAnnouncementsResponses];
+export type AdminAnnouncementsCreateAnnouncementResponse = AdminAnnouncementsCreateAnnouncementResponses[keyof AdminAnnouncementsCreateAnnouncementResponses];
 
-export type DeleteV1AdminAnnouncementsByIdData = {
+export type AdminAnnouncementsArchiveAnnouncementData = {
     body?: never;
     path: {
         id: string;
@@ -716,23 +839,23 @@ export type DeleteV1AdminAnnouncementsByIdData = {
     url: '/v1/admin/announcements/{id}';
 };
 
-export type DeleteV1AdminAnnouncementsByIdErrors = {
+export type AdminAnnouncementsArchiveAnnouncementErrors = {
     /**
      * Not Found
      */
     404: ProblemDetails;
 };
 
-export type DeleteV1AdminAnnouncementsByIdError = DeleteV1AdminAnnouncementsByIdErrors[keyof DeleteV1AdminAnnouncementsByIdErrors];
+export type AdminAnnouncementsArchiveAnnouncementError = AdminAnnouncementsArchiveAnnouncementErrors[keyof AdminAnnouncementsArchiveAnnouncementErrors];
 
-export type DeleteV1AdminAnnouncementsByIdResponses = {
+export type AdminAnnouncementsArchiveAnnouncementResponses = {
     /**
      * No Content
      */
     204: unknown;
 };
 
-export type PutV1AdminAnnouncementsByIdData = {
+export type AdminAnnouncementsUpdateAnnouncementData = {
     body: UpdateAnnouncementRequest;
     path: {
         id: string;
@@ -741,25 +864,25 @@ export type PutV1AdminAnnouncementsByIdData = {
     url: '/v1/admin/announcements/{id}';
 };
 
-export type PutV1AdminAnnouncementsByIdErrors = {
+export type AdminAnnouncementsUpdateAnnouncementErrors = {
     /**
      * Not Found
      */
     404: ProblemDetails;
 };
 
-export type PutV1AdminAnnouncementsByIdError = PutV1AdminAnnouncementsByIdErrors[keyof PutV1AdminAnnouncementsByIdErrors];
+export type AdminAnnouncementsUpdateAnnouncementError = AdminAnnouncementsUpdateAnnouncementErrors[keyof AdminAnnouncementsUpdateAnnouncementErrors];
 
-export type PutV1AdminAnnouncementsByIdResponses = {
+export type AdminAnnouncementsUpdateAnnouncementResponses = {
     /**
      * OK
      */
     200: AnnouncementResponse;
 };
 
-export type PutV1AdminAnnouncementsByIdResponse = PutV1AdminAnnouncementsByIdResponses[keyof PutV1AdminAnnouncementsByIdResponses];
+export type AdminAnnouncementsUpdateAnnouncementResponse = AdminAnnouncementsUpdateAnnouncementResponses[keyof AdminAnnouncementsUpdateAnnouncementResponses];
 
-export type PostV1AdminAnnouncementsByIdPublishData = {
+export type AdminAnnouncementsPublishAnnouncementData = {
     body?: never;
     path: {
         id: string;
@@ -768,48 +891,48 @@ export type PostV1AdminAnnouncementsByIdPublishData = {
     url: '/v1/admin/announcements/{id}/publish';
 };
 
-export type PostV1AdminAnnouncementsByIdPublishErrors = {
+export type AdminAnnouncementsPublishAnnouncementErrors = {
     /**
      * Not Found
      */
     404: ProblemDetails;
 };
 
-export type PostV1AdminAnnouncementsByIdPublishError = PostV1AdminAnnouncementsByIdPublishErrors[keyof PostV1AdminAnnouncementsByIdPublishErrors];
+export type AdminAnnouncementsPublishAnnouncementError = AdminAnnouncementsPublishAnnouncementErrors[keyof AdminAnnouncementsPublishAnnouncementErrors];
 
-export type PostV1AdminAnnouncementsByIdPublishResponses = {
+export type AdminAnnouncementsPublishAnnouncementResponses = {
     /**
      * No Content
      */
     204: unknown;
 };
 
-export type PostV1AdminChangelogData = {
+export type AdminChangelogCreateChangelogEntryData = {
     body: CreateChangelogEntryRequest;
     path?: never;
     query?: never;
     url: '/v1/admin/changelog';
 };
 
-export type PostV1AdminChangelogErrors = {
+export type AdminChangelogCreateChangelogEntryErrors = {
     /**
      * Bad Request
      */
     400: ProblemDetails;
 };
 
-export type PostV1AdminChangelogError = PostV1AdminChangelogErrors[keyof PostV1AdminChangelogErrors];
+export type AdminChangelogCreateChangelogEntryError = AdminChangelogCreateChangelogEntryErrors[keyof AdminChangelogCreateChangelogEntryErrors];
 
-export type PostV1AdminChangelogResponses = {
+export type AdminChangelogCreateChangelogEntryResponses = {
     /**
      * Created
      */
     201: ChangelogEntryResponse;
 };
 
-export type PostV1AdminChangelogResponse = PostV1AdminChangelogResponses[keyof PostV1AdminChangelogResponses];
+export type AdminChangelogCreateChangelogEntryResponse = AdminChangelogCreateChangelogEntryResponses[keyof AdminChangelogCreateChangelogEntryResponses];
 
-export type PostV1AdminChangelogByIdPublishData = {
+export type AdminChangelogPublishChangelogEntryData = {
     body?: never;
     path: {
         id: string;
@@ -818,48 +941,48 @@ export type PostV1AdminChangelogByIdPublishData = {
     url: '/v1/admin/changelog/{id}/publish';
 };
 
-export type PostV1AdminChangelogByIdPublishErrors = {
+export type AdminChangelogPublishChangelogEntryErrors = {
     /**
      * Not Found
      */
     404: ProblemDetails;
 };
 
-export type PostV1AdminChangelogByIdPublishError = PostV1AdminChangelogByIdPublishErrors[keyof PostV1AdminChangelogByIdPublishErrors];
+export type AdminChangelogPublishChangelogEntryError = AdminChangelogPublishChangelogEntryErrors[keyof AdminChangelogPublishChangelogEntryErrors];
 
-export type PostV1AdminChangelogByIdPublishResponses = {
+export type AdminChangelogPublishChangelogEntryResponses = {
     /**
      * No Content
      */
     204: unknown;
 };
 
-export type GetV1AnnouncementsData = {
+export type AnnouncementsGetAnnouncementsData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/v1/announcements';
 };
 
-export type GetV1AnnouncementsErrors = {
+export type AnnouncementsGetAnnouncementsErrors = {
     /**
      * Unauthorized
      */
     401: ProblemDetails;
 };
 
-export type GetV1AnnouncementsError = GetV1AnnouncementsErrors[keyof GetV1AnnouncementsErrors];
+export type AnnouncementsGetAnnouncementsError = AnnouncementsGetAnnouncementsErrors[keyof AnnouncementsGetAnnouncementsErrors];
 
-export type GetV1AnnouncementsResponses = {
+export type AnnouncementsGetAnnouncementsResponses = {
     /**
      * OK
      */
     200: Array<AnnouncementResponse>;
 };
 
-export type GetV1AnnouncementsResponse = GetV1AnnouncementsResponses[keyof GetV1AnnouncementsResponses];
+export type AnnouncementsGetAnnouncementsResponse = AnnouncementsGetAnnouncementsResponses[keyof AnnouncementsGetAnnouncementsResponses];
 
-export type PostV1AnnouncementsByIdDismissData = {
+export type AnnouncementsDismissAnnouncementData = {
     body?: never;
     path: {
         id: string;
@@ -868,7 +991,7 @@ export type PostV1AnnouncementsByIdDismissData = {
     url: '/v1/announcements/{id}/dismiss';
 };
 
-export type PostV1AnnouncementsByIdDismissErrors = {
+export type AnnouncementsDismissAnnouncementErrors = {
     /**
      * Bad Request
      */
@@ -883,16 +1006,16 @@ export type PostV1AnnouncementsByIdDismissErrors = {
     404: ProblemDetails;
 };
 
-export type PostV1AnnouncementsByIdDismissError = PostV1AnnouncementsByIdDismissErrors[keyof PostV1AnnouncementsByIdDismissErrors];
+export type AnnouncementsDismissAnnouncementError = AnnouncementsDismissAnnouncementErrors[keyof AnnouncementsDismissAnnouncementErrors];
 
-export type PostV1AnnouncementsByIdDismissResponses = {
+export type AnnouncementsDismissAnnouncementResponses = {
     /**
      * No Content
      */
     204: unknown;
 };
 
-export type GetV1ChangelogData = {
+export type ChangelogGetChangelogData = {
     body?: never;
     path?: never;
     query?: {
@@ -901,16 +1024,16 @@ export type GetV1ChangelogData = {
     url: '/v1/changelog';
 };
 
-export type GetV1ChangelogResponses = {
+export type ChangelogGetChangelogResponses = {
     /**
      * OK
      */
     200: Array<ChangelogEntryResponse>;
 };
 
-export type GetV1ChangelogResponse = GetV1ChangelogResponses[keyof GetV1ChangelogResponses];
+export type ChangelogGetChangelogResponse = ChangelogGetChangelogResponses[keyof ChangelogGetChangelogResponses];
 
-export type GetV1ChangelogByChangelogVersionData = {
+export type ChangelogGetChangelogByVersionData = {
     body?: never;
     path: {
         changelogVersion: string;
@@ -919,91 +1042,91 @@ export type GetV1ChangelogByChangelogVersionData = {
     url: '/v1/changelog/{changelogVersion}';
 };
 
-export type GetV1ChangelogByChangelogVersionErrors = {
+export type ChangelogGetChangelogByVersionErrors = {
     /**
      * Not Found
      */
     404: ProblemDetails;
 };
 
-export type GetV1ChangelogByChangelogVersionError = GetV1ChangelogByChangelogVersionErrors[keyof GetV1ChangelogByChangelogVersionErrors];
+export type ChangelogGetChangelogByVersionError = ChangelogGetChangelogByVersionErrors[keyof ChangelogGetChangelogByVersionErrors];
 
-export type GetV1ChangelogByChangelogVersionResponses = {
+export type ChangelogGetChangelogByVersionResponses = {
     /**
      * OK
      */
     200: ChangelogEntryResponse;
 };
 
-export type GetV1ChangelogByChangelogVersionResponse = GetV1ChangelogByChangelogVersionResponses[keyof GetV1ChangelogByChangelogVersionResponses];
+export type ChangelogGetChangelogByVersionResponse = ChangelogGetChangelogByVersionResponses[keyof ChangelogGetChangelogByVersionResponses];
 
-export type GetV1ChangelogLatestData = {
+export type ChangelogGetLatestChangelogData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/v1/changelog/latest';
 };
 
-export type GetV1ChangelogLatestErrors = {
+export type ChangelogGetLatestChangelogErrors = {
     /**
      * Not Found
      */
     404: ProblemDetails;
 };
 
-export type GetV1ChangelogLatestError = GetV1ChangelogLatestErrors[keyof GetV1ChangelogLatestErrors];
+export type ChangelogGetLatestChangelogError = ChangelogGetLatestChangelogErrors[keyof ChangelogGetLatestChangelogErrors];
 
-export type GetV1ChangelogLatestResponses = {
+export type ChangelogGetLatestChangelogResponses = {
     /**
      * OK
      */
     200: ChangelogEntryResponse;
 };
 
-export type GetV1ChangelogLatestResponse = GetV1ChangelogLatestResponses[keyof GetV1ChangelogLatestResponses];
+export type ChangelogGetLatestChangelogResponse = ChangelogGetLatestChangelogResponses[keyof ChangelogGetLatestChangelogResponses];
 
-export type GetV1IdentityAuthKeysData = {
+export type ApiKeysListApiKeysData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/v1/identity/auth/keys';
 };
 
-export type GetV1IdentityAuthKeysResponses = {
+export type ApiKeysListApiKeysResponses = {
     /**
      * OK
      */
     200: Array<ApiKeyResponse>;
 };
 
-export type GetV1IdentityAuthKeysResponse = GetV1IdentityAuthKeysResponses[keyof GetV1IdentityAuthKeysResponses];
+export type ApiKeysListApiKeysResponse = ApiKeysListApiKeysResponses[keyof ApiKeysListApiKeysResponses];
 
-export type PostV1IdentityAuthKeysData = {
+export type ApiKeysCreateApiKeyData = {
     body: CreateApiKeyRequest;
     path?: never;
     query?: never;
     url: '/v1/identity/auth/keys';
 };
 
-export type PostV1IdentityAuthKeysErrors = {
+export type ApiKeysCreateApiKeyErrors = {
     /**
      * Bad Request
      */
     400: ProblemDetails;
 };
 
-export type PostV1IdentityAuthKeysError = PostV1IdentityAuthKeysErrors[keyof PostV1IdentityAuthKeysErrors];
+export type ApiKeysCreateApiKeyError = ApiKeysCreateApiKeyErrors[keyof ApiKeysCreateApiKeyErrors];
 
-export type PostV1IdentityAuthKeysResponses = {
+export type ApiKeysCreateApiKeyResponses = {
     /**
      * Created
      */
     201: ApiKeyCreatedResponse;
 };
 
-export type PostV1IdentityAuthKeysResponse = PostV1IdentityAuthKeysResponses[keyof PostV1IdentityAuthKeysResponses];
+export type ApiKeysCreateApiKeyResponse = ApiKeysCreateApiKeyResponses[keyof ApiKeysCreateApiKeyResponses];
 
-export type DeleteV1IdentityAuthKeysByKeyIdData = {
+export type ApiKeysRevokeApiKeyData = {
     body?: never;
     path: {
         keyId: string;
@@ -1012,25 +1135,25 @@ export type DeleteV1IdentityAuthKeysByKeyIdData = {
     url: '/v1/identity/auth/keys/{keyId}';
 };
 
-export type DeleteV1IdentityAuthKeysByKeyIdErrors = {
+export type ApiKeysRevokeApiKeyErrors = {
     /**
      * Not Found
      */
     404: ProblemDetails;
 };
 
-export type DeleteV1IdentityAuthKeysByKeyIdError = DeleteV1IdentityAuthKeysByKeyIdErrors[keyof DeleteV1IdentityAuthKeysByKeyIdErrors];
+export type ApiKeysRevokeApiKeyError = ApiKeysRevokeApiKeyErrors[keyof ApiKeysRevokeApiKeyErrors];
 
-export type DeleteV1IdentityAuthKeysByKeyIdResponses = {
+export type ApiKeysRevokeApiKeyResponses = {
     /**
      * No Content
      */
     204: void;
 };
 
-export type DeleteV1IdentityAuthKeysByKeyIdResponse = DeleteV1IdentityAuthKeysByKeyIdResponses[keyof DeleteV1IdentityAuthKeysByKeyIdResponses];
+export type ApiKeysRevokeApiKeyResponse = ApiKeysRevokeApiKeyResponses[keyof ApiKeysRevokeApiKeyResponses];
 
-export type DeleteV1IdentityAppsByClientIdBrandingData = {
+export type ClientBrandingDeleteBrandingData = {
     body?: never;
     path: {
         clientId: string;
@@ -1039,7 +1162,7 @@ export type DeleteV1IdentityAppsByClientIdBrandingData = {
     url: '/v1/identity/apps/{clientId}/branding';
 };
 
-export type DeleteV1IdentityAppsByClientIdBrandingErrors = {
+export type ClientBrandingDeleteBrandingErrors = {
     /**
      * Forbidden
      */
@@ -1050,16 +1173,16 @@ export type DeleteV1IdentityAppsByClientIdBrandingErrors = {
     404: ProblemDetails;
 };
 
-export type DeleteV1IdentityAppsByClientIdBrandingError = DeleteV1IdentityAppsByClientIdBrandingErrors[keyof DeleteV1IdentityAppsByClientIdBrandingErrors];
+export type ClientBrandingDeleteBrandingError = ClientBrandingDeleteBrandingErrors[keyof ClientBrandingDeleteBrandingErrors];
 
-export type DeleteV1IdentityAppsByClientIdBrandingResponses = {
+export type ClientBrandingDeleteBrandingResponses = {
     /**
      * No Content
      */
     204: unknown;
 };
 
-export type GetV1IdentityAppsByClientIdBrandingData = {
+export type ClientBrandingGetBrandingData = {
     body?: never;
     path: {
         clientId: string;
@@ -1068,25 +1191,25 @@ export type GetV1IdentityAppsByClientIdBrandingData = {
     url: '/v1/identity/apps/{clientId}/branding';
 };
 
-export type GetV1IdentityAppsByClientIdBrandingErrors = {
+export type ClientBrandingGetBrandingErrors = {
     /**
      * Not Found
      */
     404: ProblemDetails;
 };
 
-export type GetV1IdentityAppsByClientIdBrandingError = GetV1IdentityAppsByClientIdBrandingErrors[keyof GetV1IdentityAppsByClientIdBrandingErrors];
+export type ClientBrandingGetBrandingError = ClientBrandingGetBrandingErrors[keyof ClientBrandingGetBrandingErrors];
 
-export type GetV1IdentityAppsByClientIdBrandingResponses = {
+export type ClientBrandingGetBrandingResponses = {
     /**
      * OK
      */
     200: ClientBrandingDto;
 };
 
-export type GetV1IdentityAppsByClientIdBrandingResponse = GetV1IdentityAppsByClientIdBrandingResponses[keyof GetV1IdentityAppsByClientIdBrandingResponses];
+export type ClientBrandingGetBrandingResponse = ClientBrandingGetBrandingResponses[keyof ClientBrandingGetBrandingResponses];
 
-export type PostV1IdentityAppsByClientIdBrandingData = {
+export type ClientBrandingUpsertBrandingData = {
     body: {
         DisplayName?: string;
         Tagline?: string;
@@ -1101,7 +1224,7 @@ export type PostV1IdentityAppsByClientIdBrandingData = {
     url: '/v1/identity/apps/{clientId}/branding';
 };
 
-export type PostV1IdentityAppsByClientIdBrandingErrors = {
+export type ClientBrandingUpsertBrandingErrors = {
     /**
      * Bad Request
      */
@@ -1112,60 +1235,66 @@ export type PostV1IdentityAppsByClientIdBrandingErrors = {
     403: ProblemDetails;
 };
 
-export type PostV1IdentityAppsByClientIdBrandingError = PostV1IdentityAppsByClientIdBrandingErrors[keyof PostV1IdentityAppsByClientIdBrandingErrors];
+export type ClientBrandingUpsertBrandingError = ClientBrandingUpsertBrandingErrors[keyof ClientBrandingUpsertBrandingErrors];
 
-export type PostV1IdentityAppsByClientIdBrandingResponses = {
+export type ClientBrandingUpsertBrandingResponses = {
     /**
      * OK
      */
     200: ClientBrandingDto;
 };
 
-export type PostV1IdentityAppsByClientIdBrandingResponse = PostV1IdentityAppsByClientIdBrandingResponses[keyof PostV1IdentityAppsByClientIdBrandingResponses];
+export type ClientBrandingUpsertBrandingResponse = ClientBrandingUpsertBrandingResponses[keyof ClientBrandingUpsertBrandingResponses];
 
-export type GetV1IdentityAuthExternalProvidersData = {
+export type AccountGetExternalProvidersData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/v1/identity/auth/external-providers';
 };
 
-export type GetV1IdentityAuthExternalProvidersResponses = {
+export type AccountGetExternalProvidersResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: Array<string>;
 };
 
-export type PostV1IdentityAuthLoginData = {
+export type AccountGetExternalProvidersResponse = AccountGetExternalProvidersResponses[keyof AccountGetExternalProvidersResponses];
+
+export type AccountLoginData = {
     body: AccountLoginRequest;
     path?: never;
     query?: never;
     url: '/v1/identity/auth/login';
 };
 
-export type PostV1IdentityAuthLoginResponses = {
+export type AccountLoginResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: AccountLoginResponse;
 };
 
-export type PostV1IdentityAuthMfaVerifyData = {
+export type AccountLoginResponse2 = AccountLoginResponses[keyof AccountLoginResponses];
+
+export type AccountVerifyMfaChallengeData = {
     body: MfaVerifyRequest;
     path?: never;
     query?: never;
     url: '/v1/identity/auth/mfa/verify';
 };
 
-export type PostV1IdentityAuthMfaVerifyResponses = {
+export type AccountVerifyMfaChallengeResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: MfaChallengeResponse;
 };
 
-export type GetV1IdentityAuthExternalLoginData = {
+export type AccountVerifyMfaChallengeResponse = AccountVerifyMfaChallengeResponses[keyof AccountVerifyMfaChallengeResponses];
+
+export type AccountExternalLoginData = {
     body?: never;
     path?: never;
     query?: {
@@ -1176,14 +1305,7 @@ export type GetV1IdentityAuthExternalLoginData = {
     url: '/v1/identity/auth/external-login';
 };
 
-export type GetV1IdentityAuthExternalLoginResponses = {
-    /**
-     * OK
-     */
-    200: unknown;
-};
-
-export type GetV1IdentityAuthExternalLoginCallbackData = {
+export type AccountExternalLoginCallbackData = {
     body?: never;
     path?: never;
     query?: {
@@ -1193,14 +1315,7 @@ export type GetV1IdentityAuthExternalLoginCallbackData = {
     url: '/v1/identity/auth/external-login-callback';
 };
 
-export type GetV1IdentityAuthExternalLoginCallbackResponses = {
-    /**
-     * OK
-     */
-    200: unknown;
-};
-
-export type GetV1IdentityAuthCompleteExternalRegistrationData = {
+export type AccountCompleteExternalRegistrationData = {
     body?: never;
     path?: never;
     query?: {
@@ -1211,14 +1326,7 @@ export type GetV1IdentityAuthCompleteExternalRegistrationData = {
     url: '/v1/identity/auth/complete-external-registration';
 };
 
-export type GetV1IdentityAuthCompleteExternalRegistrationResponses = {
-    /**
-     * OK
-     */
-    200: unknown;
-};
-
-export type GetV1IdentityAuthExchangeTicketData = {
+export type AccountExchangeTicketData = {
     body?: never;
     path?: never;
     query?: {
@@ -1229,14 +1337,7 @@ export type GetV1IdentityAuthExchangeTicketData = {
     url: '/v1/identity/auth/exchange-ticket';
 };
 
-export type GetV1IdentityAuthExchangeTicketResponses = {
-    /**
-     * OK
-     */
-    200: unknown;
-};
-
-export type GetV1IdentityAuthRedirectUriValidateData = {
+export type AccountValidateRedirectUriData = {
     body?: never;
     path?: never;
     query?: {
@@ -1246,14 +1347,16 @@ export type GetV1IdentityAuthRedirectUriValidateData = {
     url: '/v1/identity/auth/redirect-uri/validate';
 };
 
-export type GetV1IdentityAuthRedirectUriValidateResponses = {
+export type AccountValidateRedirectUriResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: RedirectUriValidationResponse;
 };
 
-export type PostV1IdentityAuthSignOutData = {
+export type AccountValidateRedirectUriResponse = AccountValidateRedirectUriResponses[keyof AccountValidateRedirectUriResponses];
+
+export type AccountSignOutData = {
     body: {
         postLogoutRedirectUri?: string;
     } & {
@@ -1264,28 +1367,23 @@ export type PostV1IdentityAuthSignOutData = {
     url: '/v1/identity/auth/sign-out';
 };
 
-export type PostV1IdentityAuthSignOutResponses = {
-    /**
-     * OK
-     */
-    200: unknown;
-};
-
-export type PostV1IdentityAuthRegisterData = {
+export type AccountRegisterData = {
     body: AccountRegisterRequest;
     path?: never;
     query?: never;
     url: '/v1/identity/auth/register';
 };
 
-export type PostV1IdentityAuthRegisterResponses = {
+export type AccountRegisterResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: AccountOperationResponse;
 };
 
-export type GetV1IdentityAuthClientTenantByClientIdData = {
+export type AccountRegisterResponse = AccountRegisterResponses[keyof AccountRegisterResponses];
+
+export type AccountGetClientTenantData = {
     body?: never;
     path: {
         clientId: string;
@@ -1294,42 +1392,48 @@ export type GetV1IdentityAuthClientTenantByClientIdData = {
     url: '/v1/identity/auth/client-tenant/{clientId}';
 };
 
-export type GetV1IdentityAuthClientTenantByClientIdResponses = {
+export type AccountGetClientTenantResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: ClientTenantResponse;
 };
 
-export type PostV1IdentityAuthForgotPasswordData = {
+export type AccountGetClientTenantResponse = AccountGetClientTenantResponses[keyof AccountGetClientTenantResponses];
+
+export type AccountForgotPasswordData = {
     body: AccountForgotPasswordRequest;
     path?: never;
     query?: never;
     url: '/v1/identity/auth/forgot-password';
 };
 
-export type PostV1IdentityAuthForgotPasswordResponses = {
+export type AccountForgotPasswordResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: AccountOperationResponse;
 };
 
-export type PostV1IdentityAuthResetPasswordData = {
+export type AccountForgotPasswordResponse = AccountForgotPasswordResponses[keyof AccountForgotPasswordResponses];
+
+export type AccountResetPasswordData = {
     body: AccountResetPasswordRequest;
     path?: never;
     query?: never;
     url: '/v1/identity/auth/reset-password';
 };
 
-export type PostV1IdentityAuthResetPasswordResponses = {
+export type AccountResetPasswordResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: AccountOperationResponse;
 };
 
-export type GetV1IdentityAuthVerifyEmailData = {
+export type AccountResetPasswordResponse = AccountResetPasswordResponses[keyof AccountResetPasswordResponses];
+
+export type AccountVerifyEmailData = {
     body?: never;
     path?: never;
     query?: {
@@ -1339,28 +1443,32 @@ export type GetV1IdentityAuthVerifyEmailData = {
     url: '/v1/identity/auth/verify-email';
 };
 
-export type GetV1IdentityAuthVerifyEmailResponses = {
+export type AccountVerifyEmailResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: AccountOperationResponse;
 };
 
-export type PostV1IdentityAuthPasswordlessMagicLinkData = {
+export type AccountVerifyEmailResponse = AccountVerifyEmailResponses[keyof AccountVerifyEmailResponses];
+
+export type AccountSendMagicLinkData = {
     body: SendMagicLinkRequest;
     path?: never;
     query?: never;
     url: '/v1/identity/auth/passwordless/magic-link';
 };
 
-export type PostV1IdentityAuthPasswordlessMagicLinkResponses = {
+export type AccountSendMagicLinkResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: AccountOperationResponse;
 };
 
-export type GetV1IdentityAuthPasswordlessMagicLinkVerifyData = {
+export type AccountSendMagicLinkResponse = AccountSendMagicLinkResponses[keyof AccountSendMagicLinkResponses];
+
+export type AccountVerifyMagicLinkData = {
     body?: never;
     path?: never;
     query?: {
@@ -1370,56 +1478,64 @@ export type GetV1IdentityAuthPasswordlessMagicLinkVerifyData = {
     url: '/v1/identity/auth/passwordless/magic-link/verify';
 };
 
-export type GetV1IdentityAuthPasswordlessMagicLinkVerifyResponses = {
+export type AccountVerifyMagicLinkResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: PasswordlessVerificationResponse;
 };
 
-export type PostV1IdentityAuthPasswordlessOtpData = {
+export type AccountVerifyMagicLinkResponse = AccountVerifyMagicLinkResponses[keyof AccountVerifyMagicLinkResponses];
+
+export type AccountSendOtpData = {
     body: SendOtpRequest;
     path?: never;
     query?: never;
     url: '/v1/identity/auth/passwordless/otp';
 };
 
-export type PostV1IdentityAuthPasswordlessOtpResponses = {
+export type AccountSendOtpResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: AccountOperationResponse;
 };
 
-export type PostV1IdentityAuthPasswordlessOtpVerifyData = {
+export type AccountSendOtpResponse = AccountSendOtpResponses[keyof AccountSendOtpResponses];
+
+export type AccountVerifyOtpData = {
     body: VerifyOtpRequest;
     path?: never;
     query?: never;
     url: '/v1/identity/auth/passwordless/otp/verify';
 };
 
-export type PostV1IdentityAuthPasswordlessOtpVerifyResponses = {
+export type AccountVerifyOtpResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: PasswordlessVerificationResponse;
 };
 
-export type PostV1IdentityAuthChangeEmailData = {
+export type AccountVerifyOtpResponse = AccountVerifyOtpResponses[keyof AccountVerifyOtpResponses];
+
+export type AccountChangeEmailData = {
     body: ChangeEmailRequest;
     path?: never;
     query?: never;
     url: '/v1/identity/auth/change-email';
 };
 
-export type PostV1IdentityAuthChangeEmailResponses = {
+export type AccountChangeEmailResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: AccountOperationResponse;
 };
 
-export type GetV1IdentityAuthConfirmEmailChangeData = {
+export type AccountChangeEmailResponse = AccountChangeEmailResponses[keyof AccountChangeEmailResponses];
+
+export type AccountConfirmEmailChangeData = {
     body?: never;
     path?: never;
     query?: {
@@ -1430,55 +1546,57 @@ export type GetV1IdentityAuthConfirmEmailChangeData = {
     url: '/v1/identity/auth/confirm-email-change';
 };
 
-export type GetV1IdentityAuthConfirmEmailChangeResponses = {
+export type AccountConfirmEmailChangeResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: AccountOperationResponse;
 };
 
-export type PostV1IdentityAppsRegisterData = {
+export type AccountConfirmEmailChangeResponse = AccountConfirmEmailChangeResponses[keyof AccountConfirmEmailChangeResponses];
+
+export type AppsRegisterData = {
     body: RegisterAppRequest;
     path?: never;
     query?: never;
     url: '/v1/identity/apps/register';
 };
 
-export type PostV1IdentityAppsRegisterErrors = {
+export type AppsRegisterErrors = {
     /**
      * Bad Request
      */
     400: ProblemDetails;
 };
 
-export type PostV1IdentityAppsRegisterError = PostV1IdentityAppsRegisterErrors[keyof PostV1IdentityAppsRegisterErrors];
+export type AppsRegisterError = AppsRegisterErrors[keyof AppsRegisterErrors];
 
-export type PostV1IdentityAppsRegisterResponses = {
+export type AppsRegisterResponses = {
     /**
      * Created
      */
     201: AppRegistrationResponse;
 };
 
-export type PostV1IdentityAppsRegisterResponse = PostV1IdentityAppsRegisterResponses[keyof PostV1IdentityAppsRegisterResponses];
+export type AppsRegisterResponse = AppsRegisterResponses[keyof AppsRegisterResponses];
 
-export type GetV1IdentityAppsData = {
+export type AppsGetUserAppsData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/v1/identity/apps';
 };
 
-export type GetV1IdentityAppsResponses = {
+export type AppsGetUserAppsResponses = {
     /**
      * OK
      */
     200: Array<DeveloperAppResponse>;
 };
 
-export type GetV1IdentityAppsResponse = GetV1IdentityAppsResponses[keyof GetV1IdentityAppsResponses];
+export type AppsGetUserAppsResponse = AppsGetUserAppsResponses[keyof AppsGetUserAppsResponses];
 
-export type GetV1IdentityAppsByClientIdData = {
+export type AppsGetUserAppData = {
     body?: never;
     path: {
         clientId: string;
@@ -1487,25 +1605,25 @@ export type GetV1IdentityAppsByClientIdData = {
     url: '/v1/identity/apps/{clientId}';
 };
 
-export type GetV1IdentityAppsByClientIdErrors = {
+export type AppsGetUserAppErrors = {
     /**
      * Not Found
      */
     404: ProblemDetails;
 };
 
-export type GetV1IdentityAppsByClientIdError = GetV1IdentityAppsByClientIdErrors[keyof GetV1IdentityAppsByClientIdErrors];
+export type AppsGetUserAppError = AppsGetUserAppErrors[keyof AppsGetUserAppErrors];
 
-export type GetV1IdentityAppsByClientIdResponses = {
+export type AppsGetUserAppResponses = {
     /**
      * OK
      */
     200: DeveloperAppResponse;
 };
 
-export type GetV1IdentityAppsByClientIdResponse = GetV1IdentityAppsByClientIdResponses[keyof GetV1IdentityAppsByClientIdResponses];
+export type AppsGetUserAppResponse = AppsGetUserAppResponses[keyof AppsGetUserAppResponses];
 
-export type GetV1IdentityAppsConsentInfoByClientIdData = {
+export type AppsGetConsentInfoData = {
     body?: never;
     path: {
         clientId: string;
@@ -1516,48 +1634,48 @@ export type GetV1IdentityAppsConsentInfoByClientIdData = {
     url: '/v1/identity/apps/consent-info/{clientId}';
 };
 
-export type GetV1IdentityAppsConsentInfoByClientIdErrors = {
+export type AppsGetConsentInfoErrors = {
     /**
      * Not Found
      */
     404: ProblemDetails;
 };
 
-export type GetV1IdentityAppsConsentInfoByClientIdError = GetV1IdentityAppsConsentInfoByClientIdErrors[keyof GetV1IdentityAppsConsentInfoByClientIdErrors];
+export type AppsGetConsentInfoError = AppsGetConsentInfoErrors[keyof AppsGetConsentInfoErrors];
 
-export type GetV1IdentityAppsConsentInfoByClientIdResponses = {
+export type AppsGetConsentInfoResponses = {
     /**
      * OK
      */
     200: ConsentInfoResponse;
 };
 
-export type GetV1IdentityAppsConsentInfoByClientIdResponse = GetV1IdentityAppsConsentInfoByClientIdResponses[keyof GetV1IdentityAppsConsentInfoByClientIdResponses];
+export type AppsGetConsentInfoResponse = AppsGetConsentInfoResponses[keyof AppsGetConsentInfoResponses];
 
-export type GetV1IdentityClientsData = {
+export type ClientsGetAllData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/v1/identity/clients';
 };
 
-export type GetV1IdentityClientsResponses = {
+export type ClientsGetAllResponses = {
     /**
      * OK
      */
     200: Array<ClientResponse>;
 };
 
-export type GetV1IdentityClientsResponse = GetV1IdentityClientsResponses[keyof GetV1IdentityClientsResponses];
+export type ClientsGetAllResponse = ClientsGetAllResponses[keyof ClientsGetAllResponses];
 
-export type PostV1IdentityClientsData = {
+export type ClientsCreateData = {
     body: CreateClientRequest;
     path?: never;
     query?: never;
     url: '/v1/identity/clients';
 };
 
-export type PostV1IdentityClientsErrors = {
+export type ClientsCreateErrors = {
     /**
      * Bad Request
      */
@@ -1568,18 +1686,18 @@ export type PostV1IdentityClientsErrors = {
     403: ProblemDetails;
 };
 
-export type PostV1IdentityClientsError = PostV1IdentityClientsErrors[keyof PostV1IdentityClientsErrors];
+export type ClientsCreateError = ClientsCreateErrors[keyof ClientsCreateErrors];
 
-export type PostV1IdentityClientsResponses = {
+export type ClientsCreateResponses = {
     /**
      * Created
      */
     201: ClientResponse;
 };
 
-export type PostV1IdentityClientsResponse = PostV1IdentityClientsResponses[keyof PostV1IdentityClientsResponses];
+export type ClientsCreateResponse = ClientsCreateResponses[keyof ClientsCreateResponses];
 
-export type DeleteV1IdentityClientsByIdData = {
+export type ClientsDeleteData = {
     body?: never;
     path: {
         id: string;
@@ -1588,23 +1706,23 @@ export type DeleteV1IdentityClientsByIdData = {
     url: '/v1/identity/clients/{id}';
 };
 
-export type DeleteV1IdentityClientsByIdErrors = {
+export type ClientsDeleteErrors = {
     /**
      * Not Found
      */
     404: ProblemDetails;
 };
 
-export type DeleteV1IdentityClientsByIdError = DeleteV1IdentityClientsByIdErrors[keyof DeleteV1IdentityClientsByIdErrors];
+export type ClientsDeleteError = ClientsDeleteErrors[keyof ClientsDeleteErrors];
 
-export type DeleteV1IdentityClientsByIdResponses = {
+export type ClientsDeleteResponses = {
     /**
      * No Content
      */
     204: unknown;
 };
 
-export type GetV1IdentityClientsByIdData = {
+export type ClientsGetByIdData = {
     body?: never;
     path: {
         id: string;
@@ -1613,25 +1731,25 @@ export type GetV1IdentityClientsByIdData = {
     url: '/v1/identity/clients/{id}';
 };
 
-export type GetV1IdentityClientsByIdErrors = {
+export type ClientsGetByIdErrors = {
     /**
      * Not Found
      */
     404: ProblemDetails;
 };
 
-export type GetV1IdentityClientsByIdError = GetV1IdentityClientsByIdErrors[keyof GetV1IdentityClientsByIdErrors];
+export type ClientsGetByIdError = ClientsGetByIdErrors[keyof ClientsGetByIdErrors];
 
-export type GetV1IdentityClientsByIdResponses = {
+export type ClientsGetByIdResponses = {
     /**
      * OK
      */
     200: ClientResponse;
 };
 
-export type GetV1IdentityClientsByIdResponse = GetV1IdentityClientsByIdResponses[keyof GetV1IdentityClientsByIdResponses];
+export type ClientsGetByIdResponse = ClientsGetByIdResponses[keyof ClientsGetByIdResponses];
 
-export type PutV1IdentityClientsByIdData = {
+export type ClientsUpdateData = {
     body: UpdateClientRequest;
     path: {
         id: string;
@@ -1640,25 +1758,25 @@ export type PutV1IdentityClientsByIdData = {
     url: '/v1/identity/clients/{id}';
 };
 
-export type PutV1IdentityClientsByIdErrors = {
+export type ClientsUpdateErrors = {
     /**
      * Not Found
      */
     404: ProblemDetails;
 };
 
-export type PutV1IdentityClientsByIdError = PutV1IdentityClientsByIdErrors[keyof PutV1IdentityClientsByIdErrors];
+export type ClientsUpdateError = ClientsUpdateErrors[keyof ClientsUpdateErrors];
 
-export type PutV1IdentityClientsByIdResponses = {
+export type ClientsUpdateResponses = {
     /**
      * OK
      */
     200: ClientResponse;
 };
 
-export type PutV1IdentityClientsByIdResponse = PutV1IdentityClientsByIdResponses[keyof PutV1IdentityClientsByIdResponses];
+export type ClientsUpdateResponse = ClientsUpdateResponses[keyof ClientsUpdateResponses];
 
-export type GetV1IdentityClientsByTenantByTenantIdData = {
+export type ClientsGetByTenantData = {
     body?: never;
     path: {
         tenantId: string;
@@ -1667,25 +1785,25 @@ export type GetV1IdentityClientsByTenantByTenantIdData = {
     url: '/v1/identity/clients/by-tenant/{tenantId}';
 };
 
-export type GetV1IdentityClientsByTenantByTenantIdErrors = {
+export type ClientsGetByTenantErrors = {
     /**
      * Forbidden
      */
     403: ProblemDetails;
 };
 
-export type GetV1IdentityClientsByTenantByTenantIdError = GetV1IdentityClientsByTenantByTenantIdErrors[keyof GetV1IdentityClientsByTenantByTenantIdErrors];
+export type ClientsGetByTenantError = ClientsGetByTenantErrors[keyof ClientsGetByTenantErrors];
 
-export type GetV1IdentityClientsByTenantByTenantIdResponses = {
+export type ClientsGetByTenantResponses = {
     /**
      * OK
      */
     200: Array<ClientResponse>;
 };
 
-export type GetV1IdentityClientsByTenantByTenantIdResponse = GetV1IdentityClientsByTenantByTenantIdResponses[keyof GetV1IdentityClientsByTenantByTenantIdResponses];
+export type ClientsGetByTenantResponse = ClientsGetByTenantResponses[keyof ClientsGetByTenantResponses];
 
-export type PostV1IdentityClientsByIdRotateSecretData = {
+export type ClientsRotateSecretData = {
     body?: never;
     path: {
         id: string;
@@ -1694,66 +1812,66 @@ export type PostV1IdentityClientsByIdRotateSecretData = {
     url: '/v1/identity/clients/{id}/rotate-secret';
 };
 
-export type PostV1IdentityClientsByIdRotateSecretErrors = {
+export type ClientsRotateSecretErrors = {
     /**
      * Not Found
      */
     404: ProblemDetails;
 };
 
-export type PostV1IdentityClientsByIdRotateSecretError = PostV1IdentityClientsByIdRotateSecretErrors[keyof PostV1IdentityClientsByIdRotateSecretErrors];
+export type ClientsRotateSecretError = ClientsRotateSecretErrors[keyof ClientsRotateSecretErrors];
 
-export type PostV1IdentityClientsByIdRotateSecretResponses = {
+export type ClientsRotateSecretResponses = {
     /**
      * OK
      */
     200: ClientResponse;
 };
 
-export type PostV1IdentityClientsByIdRotateSecretResponse = PostV1IdentityClientsByIdRotateSecretResponses[keyof PostV1IdentityClientsByIdRotateSecretResponses];
+export type ClientsRotateSecretResponse = ClientsRotateSecretResponses[keyof ClientsRotateSecretResponses];
 
-export type GetV1IdentityClientsServiceAccountsData = {
+export type ClientsListServiceAccountsData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/v1/identity/clients/service-accounts';
 };
 
-export type GetV1IdentityClientsServiceAccountsResponses = {
+export type ClientsListServiceAccountsResponses = {
     /**
      * OK
      */
     200: Array<ServiceAccountDto>;
 };
 
-export type GetV1IdentityClientsServiceAccountsResponse = GetV1IdentityClientsServiceAccountsResponses[keyof GetV1IdentityClientsServiceAccountsResponses];
+export type ClientsListServiceAccountsResponse = ClientsListServiceAccountsResponses[keyof ClientsListServiceAccountsResponses];
 
-export type PostV1IdentityClientsServiceAccountsData = {
+export type ClientsCreateServiceAccountData = {
     body: CreateServiceAccountRequest;
     path?: never;
     query?: never;
     url: '/v1/identity/clients/service-accounts';
 };
 
-export type PostV1IdentityClientsServiceAccountsErrors = {
+export type ClientsCreateServiceAccountErrors = {
     /**
      * Bad Request
      */
     400: ProblemDetails;
 };
 
-export type PostV1IdentityClientsServiceAccountsError = PostV1IdentityClientsServiceAccountsErrors[keyof PostV1IdentityClientsServiceAccountsErrors];
+export type ClientsCreateServiceAccountError = ClientsCreateServiceAccountErrors[keyof ClientsCreateServiceAccountErrors];
 
-export type PostV1IdentityClientsServiceAccountsResponses = {
+export type ClientsCreateServiceAccountResponses = {
     /**
      * Created
      */
     201: ServiceAccountCreatedResponse;
 };
 
-export type PostV1IdentityClientsServiceAccountsResponse = PostV1IdentityClientsServiceAccountsResponses[keyof PostV1IdentityClientsServiceAccountsResponses];
+export type ClientsCreateServiceAccountResponse = ClientsCreateServiceAccountResponses[keyof ClientsCreateServiceAccountResponses];
 
-export type DeleteV1IdentityClientsServiceAccountsByIdData = {
+export type ClientsRevokeServiceAccountData = {
     body?: never;
     path: {
         id: string;
@@ -1762,23 +1880,23 @@ export type DeleteV1IdentityClientsServiceAccountsByIdData = {
     url: '/v1/identity/clients/service-accounts/{id}';
 };
 
-export type DeleteV1IdentityClientsServiceAccountsByIdErrors = {
+export type ClientsRevokeServiceAccountErrors = {
     /**
      * Not Found
      */
     404: ProblemDetails;
 };
 
-export type DeleteV1IdentityClientsServiceAccountsByIdError = DeleteV1IdentityClientsServiceAccountsByIdErrors[keyof DeleteV1IdentityClientsServiceAccountsByIdErrors];
+export type ClientsRevokeServiceAccountError = ClientsRevokeServiceAccountErrors[keyof ClientsRevokeServiceAccountErrors];
 
-export type DeleteV1IdentityClientsServiceAccountsByIdResponses = {
+export type ClientsRevokeServiceAccountResponses = {
     /**
      * No Content
      */
     204: unknown;
 };
 
-export type GetV1IdentityClientsServiceAccountsByIdData = {
+export type ClientsGetServiceAccountData = {
     body?: never;
     path: {
         id: string;
@@ -1787,25 +1905,25 @@ export type GetV1IdentityClientsServiceAccountsByIdData = {
     url: '/v1/identity/clients/service-accounts/{id}';
 };
 
-export type GetV1IdentityClientsServiceAccountsByIdErrors = {
+export type ClientsGetServiceAccountErrors = {
     /**
      * Not Found
      */
     404: ProblemDetails;
 };
 
-export type GetV1IdentityClientsServiceAccountsByIdError = GetV1IdentityClientsServiceAccountsByIdErrors[keyof GetV1IdentityClientsServiceAccountsByIdErrors];
+export type ClientsGetServiceAccountError = ClientsGetServiceAccountErrors[keyof ClientsGetServiceAccountErrors];
 
-export type GetV1IdentityClientsServiceAccountsByIdResponses = {
+export type ClientsGetServiceAccountResponses = {
     /**
      * OK
      */
     200: ServiceAccountDto;
 };
 
-export type GetV1IdentityClientsServiceAccountsByIdResponse = GetV1IdentityClientsServiceAccountsByIdResponses[keyof GetV1IdentityClientsServiceAccountsByIdResponses];
+export type ClientsGetServiceAccountResponse = ClientsGetServiceAccountResponses[keyof ClientsGetServiceAccountResponses];
 
-export type PutV1IdentityClientsServiceAccountsByIdScopesData = {
+export type ClientsUpdateServiceAccountScopesData = {
     body: UpdateScopesRequest;
     path: {
         id: string;
@@ -1814,23 +1932,23 @@ export type PutV1IdentityClientsServiceAccountsByIdScopesData = {
     url: '/v1/identity/clients/service-accounts/{id}/scopes';
 };
 
-export type PutV1IdentityClientsServiceAccountsByIdScopesErrors = {
+export type ClientsUpdateServiceAccountScopesErrors = {
     /**
      * Not Found
      */
     404: ProblemDetails;
 };
 
-export type PutV1IdentityClientsServiceAccountsByIdScopesError = PutV1IdentityClientsServiceAccountsByIdScopesErrors[keyof PutV1IdentityClientsServiceAccountsByIdScopesErrors];
+export type ClientsUpdateServiceAccountScopesError = ClientsUpdateServiceAccountScopesErrors[keyof ClientsUpdateServiceAccountScopesErrors];
 
-export type PutV1IdentityClientsServiceAccountsByIdScopesResponses = {
+export type ClientsUpdateServiceAccountScopesResponses = {
     /**
      * No Content
      */
     204: unknown;
 };
 
-export type PostV1IdentityClientsServiceAccountsByIdRotateSecretData = {
+export type ClientsRotateServiceAccountSecretData = {
     body?: never;
     path: {
         id: string;
@@ -1839,41 +1957,41 @@ export type PostV1IdentityClientsServiceAccountsByIdRotateSecretData = {
     url: '/v1/identity/clients/service-accounts/{id}/rotate-secret';
 };
 
-export type PostV1IdentityClientsServiceAccountsByIdRotateSecretErrors = {
+export type ClientsRotateServiceAccountSecretErrors = {
     /**
      * Not Found
      */
     404: ProblemDetails;
 };
 
-export type PostV1IdentityClientsServiceAccountsByIdRotateSecretError = PostV1IdentityClientsServiceAccountsByIdRotateSecretErrors[keyof PostV1IdentityClientsServiceAccountsByIdRotateSecretErrors];
+export type ClientsRotateServiceAccountSecretError = ClientsRotateServiceAccountSecretErrors[keyof ClientsRotateServiceAccountSecretErrors];
 
-export type PostV1IdentityClientsServiceAccountsByIdRotateSecretResponses = {
+export type ClientsRotateServiceAccountSecretResponses = {
     /**
      * OK
      */
     200: SecretRotatedResponse;
 };
 
-export type PostV1IdentityClientsServiceAccountsByIdRotateSecretResponse = PostV1IdentityClientsServiceAccountsByIdRotateSecretResponses[keyof PostV1IdentityClientsServiceAccountsByIdRotateSecretResponses];
+export type ClientsRotateServiceAccountSecretResponse = ClientsRotateServiceAccountSecretResponses[keyof ClientsRotateServiceAccountSecretResponses];
 
-export type GetV1IdentityConfigData = {
+export type IdentitySettingsGetConfigData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/v1/identity/config';
 };
 
-export type GetV1IdentityConfigResponses = {
+export type IdentitySettingsGetConfigResponses = {
     /**
      * OK
      */
     200: ResolvedSettingsConfig;
 };
 
-export type GetV1IdentityConfigResponse = GetV1IdentityConfigResponses[keyof GetV1IdentityConfigResponses];
+export type IdentitySettingsGetConfigResponse = IdentitySettingsGetConfigResponses[keyof IdentitySettingsGetConfigResponses];
 
-export type DeleteV1IdentitySettingsTenantData = {
+export type IdentitySettingsDeleteTenantSettingData = {
     body?: never;
     path?: never;
     query?: {
@@ -1882,62 +2000,62 @@ export type DeleteV1IdentitySettingsTenantData = {
     url: '/v1/identity/settings/tenant';
 };
 
-export type DeleteV1IdentitySettingsTenantErrors = {
+export type IdentitySettingsDeleteTenantSettingErrors = {
     /**
      * Bad Request
      */
     400: ProblemDetails;
 };
 
-export type DeleteV1IdentitySettingsTenantError = DeleteV1IdentitySettingsTenantErrors[keyof DeleteV1IdentitySettingsTenantErrors];
+export type IdentitySettingsDeleteTenantSettingError = IdentitySettingsDeleteTenantSettingErrors[keyof IdentitySettingsDeleteTenantSettingErrors];
 
-export type DeleteV1IdentitySettingsTenantResponses = {
+export type IdentitySettingsDeleteTenantSettingResponses = {
     /**
      * No Content
      */
     204: unknown;
 };
 
-export type GetV1IdentitySettingsTenantData = {
+export type IdentitySettingsGetTenantSettingsData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/v1/identity/settings/tenant';
 };
 
-export type GetV1IdentitySettingsTenantResponses = {
+export type IdentitySettingsGetTenantSettingsResponses = {
     /**
      * OK
      */
     200: Array<ResolvedSetting>;
 };
 
-export type GetV1IdentitySettingsTenantResponse = GetV1IdentitySettingsTenantResponses[keyof GetV1IdentitySettingsTenantResponses];
+export type IdentitySettingsGetTenantSettingsResponse = IdentitySettingsGetTenantSettingsResponses[keyof IdentitySettingsGetTenantSettingsResponses];
 
-export type PutV1IdentitySettingsTenantData = {
+export type IdentitySettingsUpsertTenantSettingData = {
     body: SettingUpdateRequest;
     path?: never;
     query?: never;
     url: '/v1/identity/settings/tenant';
 };
 
-export type PutV1IdentitySettingsTenantErrors = {
+export type IdentitySettingsUpsertTenantSettingErrors = {
     /**
      * Bad Request
      */
     400: ProblemDetails;
 };
 
-export type PutV1IdentitySettingsTenantError = PutV1IdentitySettingsTenantErrors[keyof PutV1IdentitySettingsTenantErrors];
+export type IdentitySettingsUpsertTenantSettingError = IdentitySettingsUpsertTenantSettingErrors[keyof IdentitySettingsUpsertTenantSettingErrors];
 
-export type PutV1IdentitySettingsTenantResponses = {
+export type IdentitySettingsUpsertTenantSettingResponses = {
     /**
      * No Content
      */
     204: unknown;
 };
 
-export type DeleteV1IdentitySettingsUserData = {
+export type IdentitySettingsDeleteUserSettingData = {
     body?: never;
     path?: never;
     query?: {
@@ -1946,62 +2064,62 @@ export type DeleteV1IdentitySettingsUserData = {
     url: '/v1/identity/settings/user';
 };
 
-export type DeleteV1IdentitySettingsUserErrors = {
+export type IdentitySettingsDeleteUserSettingErrors = {
     /**
      * Bad Request
      */
     400: ProblemDetails;
 };
 
-export type DeleteV1IdentitySettingsUserError = DeleteV1IdentitySettingsUserErrors[keyof DeleteV1IdentitySettingsUserErrors];
+export type IdentitySettingsDeleteUserSettingError = IdentitySettingsDeleteUserSettingErrors[keyof IdentitySettingsDeleteUserSettingErrors];
 
-export type DeleteV1IdentitySettingsUserResponses = {
+export type IdentitySettingsDeleteUserSettingResponses = {
     /**
      * No Content
      */
     204: unknown;
 };
 
-export type GetV1IdentitySettingsUserData = {
+export type IdentitySettingsGetUserSettingsData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/v1/identity/settings/user';
 };
 
-export type GetV1IdentitySettingsUserResponses = {
+export type IdentitySettingsGetUserSettingsResponses = {
     /**
      * OK
      */
     200: Array<ResolvedSetting>;
 };
 
-export type GetV1IdentitySettingsUserResponse = GetV1IdentitySettingsUserResponses[keyof GetV1IdentitySettingsUserResponses];
+export type IdentitySettingsGetUserSettingsResponse = IdentitySettingsGetUserSettingsResponses[keyof IdentitySettingsGetUserSettingsResponses];
 
-export type PutV1IdentitySettingsUserData = {
+export type IdentitySettingsUpsertUserSettingData = {
     body: SettingUpdateRequest;
     path?: never;
     query?: never;
     url: '/v1/identity/settings/user';
 };
 
-export type PutV1IdentitySettingsUserErrors = {
+export type IdentitySettingsUpsertUserSettingErrors = {
     /**
      * Bad Request
      */
     400: ProblemDetails;
 };
 
-export type PutV1IdentitySettingsUserError = PutV1IdentitySettingsUserErrors[keyof PutV1IdentitySettingsUserErrors];
+export type IdentitySettingsUpsertUserSettingError = IdentitySettingsUpsertUserSettingErrors[keyof IdentitySettingsUpsertUserSettingErrors];
 
-export type PutV1IdentitySettingsUserResponses = {
+export type IdentitySettingsUpsertUserSettingResponses = {
     /**
      * No Content
      */
     204: unknown;
 };
 
-export type GetV1IdentityInvitationsData = {
+export type InvitationsGetByTenantData = {
     body?: never;
     path?: never;
     query?: {
@@ -2011,32 +2129,32 @@ export type GetV1IdentityInvitationsData = {
     url: '/v1/identity/invitations';
 };
 
-export type GetV1IdentityInvitationsResponses = {
+export type InvitationsGetByTenantResponses = {
     /**
      * OK
      */
     200: Array<InvitationResponse>;
 };
 
-export type GetV1IdentityInvitationsResponse = GetV1IdentityInvitationsResponses[keyof GetV1IdentityInvitationsResponses];
+export type InvitationsGetByTenantResponse = InvitationsGetByTenantResponses[keyof InvitationsGetByTenantResponses];
 
-export type PostV1IdentityInvitationsData = {
+export type InvitationsCreateData = {
     body: CreateInvitationRequest;
     path?: never;
     query?: never;
     url: '/v1/identity/invitations';
 };
 
-export type PostV1IdentityInvitationsResponses = {
+export type InvitationsCreateResponses = {
     /**
      * Created
      */
     201: InvitationResponse;
 };
 
-export type PostV1IdentityInvitationsResponse = PostV1IdentityInvitationsResponses[keyof PostV1IdentityInvitationsResponses];
+export type InvitationsCreateResponse = InvitationsCreateResponses[keyof InvitationsCreateResponses];
 
-export type DeleteV1IdentityInvitationsByIdData = {
+export type InvitationsRevokeData = {
     body?: never;
     path: {
         id: string;
@@ -2045,23 +2163,23 @@ export type DeleteV1IdentityInvitationsByIdData = {
     url: '/v1/identity/invitations/{id}';
 };
 
-export type DeleteV1IdentityInvitationsByIdErrors = {
+export type InvitationsRevokeErrors = {
     /**
      * Not Found
      */
     404: ProblemDetails;
 };
 
-export type DeleteV1IdentityInvitationsByIdError = DeleteV1IdentityInvitationsByIdErrors[keyof DeleteV1IdentityInvitationsByIdErrors];
+export type InvitationsRevokeError = InvitationsRevokeErrors[keyof InvitationsRevokeErrors];
 
-export type DeleteV1IdentityInvitationsByIdResponses = {
+export type InvitationsRevokeResponses = {
     /**
      * No Content
      */
     204: unknown;
 };
 
-export type GetV1IdentityInvitationsVerifyByTokenData = {
+export type InvitationsVerifyData = {
     body?: never;
     path: {
         token: string;
@@ -2070,25 +2188,25 @@ export type GetV1IdentityInvitationsVerifyByTokenData = {
     url: '/v1/identity/invitations/verify/{token}';
 };
 
-export type GetV1IdentityInvitationsVerifyByTokenErrors = {
+export type InvitationsVerifyErrors = {
     /**
      * Not Found
      */
     404: ProblemDetails;
 };
 
-export type GetV1IdentityInvitationsVerifyByTokenError = GetV1IdentityInvitationsVerifyByTokenErrors[keyof GetV1IdentityInvitationsVerifyByTokenErrors];
+export type InvitationsVerifyError = InvitationsVerifyErrors[keyof InvitationsVerifyErrors];
 
-export type GetV1IdentityInvitationsVerifyByTokenResponses = {
+export type InvitationsVerifyResponses = {
     /**
      * OK
      */
     200: InvitationResponse;
 };
 
-export type GetV1IdentityInvitationsVerifyByTokenResponse = GetV1IdentityInvitationsVerifyByTokenResponses[keyof GetV1IdentityInvitationsVerifyByTokenResponses];
+export type InvitationsVerifyResponse = InvitationsVerifyResponses[keyof InvitationsVerifyResponses];
 
-export type PostV1IdentityInvitationsByTokenAcceptData = {
+export type InvitationsAcceptData = {
     body?: never;
     path: {
         token: string;
@@ -2097,93 +2215,103 @@ export type PostV1IdentityInvitationsByTokenAcceptData = {
     url: '/v1/identity/invitations/{token}/accept';
 };
 
-export type PostV1IdentityInvitationsByTokenAcceptErrors = {
+export type InvitationsAcceptErrors = {
     /**
      * Not Found
      */
     404: ProblemDetails;
 };
 
-export type PostV1IdentityInvitationsByTokenAcceptError = PostV1IdentityInvitationsByTokenAcceptErrors[keyof PostV1IdentityInvitationsByTokenAcceptErrors];
+export type InvitationsAcceptError = InvitationsAcceptErrors[keyof InvitationsAcceptErrors];
 
-export type PostV1IdentityInvitationsByTokenAcceptResponses = {
+export type InvitationsAcceptResponses = {
     /**
      * No Content
      */
     204: unknown;
 };
 
-export type GetV1IdentityMfaStatusData = {
+export type MfaGetStatusData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/v1/identity/mfa/status';
 };
 
-export type GetV1IdentityMfaStatusResponses = {
+export type MfaGetStatusResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: MfaStatusResponse;
 };
 
-export type PostV1IdentityMfaEnrollTotpData = {
+export type MfaGetStatusResponse = MfaGetStatusResponses[keyof MfaGetStatusResponses];
+
+export type MfaEnrollTotpData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/v1/identity/mfa/enroll/totp';
 };
 
-export type PostV1IdentityMfaEnrollTotpResponses = {
+export type MfaEnrollTotpResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: MfaEnrollmentSecretResponse;
 };
 
-export type PostV1IdentityMfaEnrollConfirmData = {
+export type MfaEnrollTotpResponse = MfaEnrollTotpResponses[keyof MfaEnrollTotpResponses];
+
+export type MfaConfirmEnrollmentData = {
     body: MfaConfirmRequest;
     path?: never;
     query?: never;
     url: '/v1/identity/mfa/enroll/confirm';
 };
 
-export type PostV1IdentityMfaEnrollConfirmResponses = {
+export type MfaConfirmEnrollmentResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: MfaEnrollmentConfirmedResponse;
 };
 
-export type PostV1IdentityMfaDisableData = {
+export type MfaConfirmEnrollmentResponse = MfaConfirmEnrollmentResponses[keyof MfaConfirmEnrollmentResponses];
+
+export type MfaDisableData = {
     body: MfaDisableRequest;
     path?: never;
     query?: never;
     url: '/v1/identity/mfa/disable';
 };
 
-export type PostV1IdentityMfaDisableResponses = {
+export type MfaDisableResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: MfaOperationResponse;
 };
 
-export type PostV1IdentityMfaBackupCodesRegenerateData = {
+export type MfaDisableResponse = MfaDisableResponses[keyof MfaDisableResponses];
+
+export type MfaRegenerateBackupCodesData = {
     body: MfaRegenerateBackupCodesRequest;
     path?: never;
     query?: never;
     url: '/v1/identity/mfa/backup-codes/regenerate';
 };
 
-export type PostV1IdentityMfaBackupCodesRegenerateResponses = {
+export type MfaRegenerateBackupCodesResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: MfaBackupCodesResponse;
 };
 
-export type PostV1IdentityMfaAdminByUserIdDisableData = {
+export type MfaRegenerateBackupCodesResponse = MfaRegenerateBackupCodesResponses[keyof MfaRegenerateBackupCodesResponses];
+
+export type MfaAdminDisableMfaData = {
     body?: never;
     path: {
         userId: string;
@@ -2192,14 +2320,16 @@ export type PostV1IdentityMfaAdminByUserIdDisableData = {
     url: '/v1/identity/mfa/admin/{userId}/disable';
 };
 
-export type PostV1IdentityMfaAdminByUserIdDisableResponses = {
+export type MfaAdminDisableMfaResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: MfaOperationResponse;
 };
 
-export type PostV1IdentityMfaAdminByUserIdClearLockoutData = {
+export type MfaAdminDisableMfaResponse = MfaAdminDisableMfaResponses[keyof MfaAdminDisableMfaResponses];
+
+export type MfaAdminClearLockoutData = {
     body?: never;
     path: {
         userId: string;
@@ -2208,28 +2338,32 @@ export type PostV1IdentityMfaAdminByUserIdClearLockoutData = {
     url: '/v1/identity/mfa/admin/{userId}/clear-lockout';
 };
 
-export type PostV1IdentityMfaAdminByUserIdClearLockoutResponses = {
+export type MfaAdminClearLockoutResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: MfaOperationResponse;
 };
 
-export type PostV1IdentityMfaEnrollIssueTokenData = {
+export type MfaAdminClearLockoutResponse = MfaAdminClearLockoutResponses[keyof MfaAdminClearLockoutResponses];
+
+export type MfaIssueEnrollmentTokenData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/v1/identity/mfa/enroll/issue-token';
 };
 
-export type PostV1IdentityMfaEnrollIssueTokenResponses = {
+export type MfaIssueEnrollmentTokenResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: MfaEnrollmentTokenResponse;
 };
 
-export type PostV1IdentityMfaEnrollExchangeTokenData = {
+export type MfaIssueEnrollmentTokenResponse = MfaIssueEnrollmentTokenResponses[keyof MfaIssueEnrollmentTokenResponses];
+
+export type MfaExchangeEnrollmentTokenData = {
     body?: never;
     path?: never;
     query?: {
@@ -2238,14 +2372,16 @@ export type PostV1IdentityMfaEnrollExchangeTokenData = {
     url: '/v1/identity/mfa/enroll/exchange-token';
 };
 
-export type PostV1IdentityMfaEnrollExchangeTokenResponses = {
+export type MfaExchangeEnrollmentTokenResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: MfaOperationResponse;
 };
 
-export type GetV1IdentityOrganizationsData = {
+export type MfaExchangeEnrollmentTokenResponse = MfaExchangeEnrollmentTokenResponses[keyof MfaExchangeEnrollmentTokenResponses];
+
+export type OrganizationsGetAllData = {
     body?: never;
     path?: never;
     query?: {
@@ -2256,32 +2392,32 @@ export type GetV1IdentityOrganizationsData = {
     url: '/v1/identity/organizations';
 };
 
-export type GetV1IdentityOrganizationsResponses = {
+export type OrganizationsGetAllResponses = {
     /**
      * OK
      */
     200: Array<OrganizationDto>;
 };
 
-export type GetV1IdentityOrganizationsResponse = GetV1IdentityOrganizationsResponses[keyof GetV1IdentityOrganizationsResponses];
+export type OrganizationsGetAllResponse = OrganizationsGetAllResponses[keyof OrganizationsGetAllResponses];
 
-export type PostV1IdentityOrganizationsData = {
+export type OrganizationsCreateData = {
     body: CreateOrganizationRequest;
     path?: never;
     query?: never;
     url: '/v1/identity/organizations';
 };
 
-export type PostV1IdentityOrganizationsResponses = {
+export type OrganizationsCreateResponses = {
     /**
      * OK
      */
     200: CreateOrganizationResponse;
 };
 
-export type PostV1IdentityOrganizationsResponse = PostV1IdentityOrganizationsResponses[keyof PostV1IdentityOrganizationsResponses];
+export type OrganizationsCreateResponse = OrganizationsCreateResponses[keyof OrganizationsCreateResponses];
 
-export type DeleteV1IdentityOrganizationsByIdData = {
+export type OrganizationsDeleteData = {
     body: DeleteOrganizationRequest;
     path: {
         id: string;
@@ -2290,14 +2426,23 @@ export type DeleteV1IdentityOrganizationsByIdData = {
     url: '/v1/identity/organizations/{id}';
 };
 
-export type DeleteV1IdentityOrganizationsByIdResponses = {
+export type OrganizationsDeleteErrors = {
     /**
-     * OK
+     * Not Found
      */
-    200: unknown;
+    404: ProblemDetails;
 };
 
-export type GetV1IdentityOrganizationsByIdData = {
+export type OrganizationsDeleteError = OrganizationsDeleteErrors[keyof OrganizationsDeleteErrors];
+
+export type OrganizationsDeleteResponses = {
+    /**
+     * No Content
+     */
+    204: unknown;
+};
+
+export type OrganizationsGetByIdData = {
     body?: never;
     path: {
         id: string;
@@ -2306,16 +2451,16 @@ export type GetV1IdentityOrganizationsByIdData = {
     url: '/v1/identity/organizations/{id}';
 };
 
-export type GetV1IdentityOrganizationsByIdResponses = {
+export type OrganizationsGetByIdResponses = {
     /**
      * OK
      */
     200: OrganizationDto;
 };
 
-export type GetV1IdentityOrganizationsByIdResponse = GetV1IdentityOrganizationsByIdResponses[keyof GetV1IdentityOrganizationsByIdResponses];
+export type OrganizationsGetByIdResponse = OrganizationsGetByIdResponses[keyof OrganizationsGetByIdResponses];
 
-export type GetV1IdentityOrganizationsByIdMembersData = {
+export type OrganizationsGetMembersData = {
     body?: never;
     path: {
         id: string;
@@ -2324,16 +2469,16 @@ export type GetV1IdentityOrganizationsByIdMembersData = {
     url: '/v1/identity/organizations/{id}/members';
 };
 
-export type GetV1IdentityOrganizationsByIdMembersResponses = {
+export type OrganizationsGetMembersResponses = {
     /**
      * OK
      */
     200: Array<UserDto>;
 };
 
-export type GetV1IdentityOrganizationsByIdMembersResponse = GetV1IdentityOrganizationsByIdMembersResponses[keyof GetV1IdentityOrganizationsByIdMembersResponses];
+export type OrganizationsGetMembersResponse = OrganizationsGetMembersResponses[keyof OrganizationsGetMembersResponses];
 
-export type PostV1IdentityOrganizationsByIdMembersData = {
+export type OrganizationsAddMemberData = {
     body: AddMemberRequest;
     path: {
         id: string;
@@ -2342,14 +2487,23 @@ export type PostV1IdentityOrganizationsByIdMembersData = {
     url: '/v1/identity/organizations/{id}/members';
 };
 
-export type PostV1IdentityOrganizationsByIdMembersResponses = {
+export type OrganizationsAddMemberErrors = {
     /**
-     * OK
+     * Not Found
      */
-    200: unknown;
+    404: ProblemDetails;
 };
 
-export type DeleteV1IdentityOrganizationsByIdMembersByUserIdData = {
+export type OrganizationsAddMemberError = OrganizationsAddMemberErrors[keyof OrganizationsAddMemberErrors];
+
+export type OrganizationsAddMemberResponses = {
+    /**
+     * No Content
+     */
+    204: unknown;
+};
+
+export type OrganizationsRemoveMemberData = {
     body?: never;
     path: {
         id: string;
@@ -2359,30 +2513,39 @@ export type DeleteV1IdentityOrganizationsByIdMembersByUserIdData = {
     url: '/v1/identity/organizations/{id}/members/{userId}';
 };
 
-export type DeleteV1IdentityOrganizationsByIdMembersByUserIdResponses = {
+export type OrganizationsRemoveMemberErrors = {
     /**
-     * OK
+     * Not Found
      */
-    200: unknown;
+    404: ProblemDetails;
 };
 
-export type GetV1IdentityOrganizationsMineData = {
+export type OrganizationsRemoveMemberError = OrganizationsRemoveMemberErrors[keyof OrganizationsRemoveMemberErrors];
+
+export type OrganizationsRemoveMemberResponses = {
+    /**
+     * No Content
+     */
+    204: unknown;
+};
+
+export type OrganizationsGetMyOrganizationsData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/v1/identity/organizations/mine';
 };
 
-export type GetV1IdentityOrganizationsMineResponses = {
+export type OrganizationsGetMyOrganizationsResponses = {
     /**
      * OK
      */
     200: Array<OrganizationDto>;
 };
 
-export type GetV1IdentityOrganizationsMineResponse = GetV1IdentityOrganizationsMineResponses[keyof GetV1IdentityOrganizationsMineResponses];
+export type OrganizationsGetMyOrganizationsResponse = OrganizationsGetMyOrganizationsResponses[keyof OrganizationsGetMyOrganizationsResponses];
 
-export type PostV1IdentityOrganizationsByIdArchiveData = {
+export type OrganizationsArchiveData = {
     body?: never;
     path: {
         id: string;
@@ -2391,14 +2554,23 @@ export type PostV1IdentityOrganizationsByIdArchiveData = {
     url: '/v1/identity/organizations/{id}/archive';
 };
 
-export type PostV1IdentityOrganizationsByIdArchiveResponses = {
+export type OrganizationsArchiveErrors = {
     /**
-     * OK
+     * Not Found
      */
-    200: unknown;
+    404: ProblemDetails;
 };
 
-export type PostV1IdentityOrganizationsByIdReactivateData = {
+export type OrganizationsArchiveError = OrganizationsArchiveErrors[keyof OrganizationsArchiveErrors];
+
+export type OrganizationsArchiveResponses = {
+    /**
+     * No Content
+     */
+    204: unknown;
+};
+
+export type OrganizationsReactivateData = {
     body?: never;
     path: {
         id: string;
@@ -2407,14 +2579,23 @@ export type PostV1IdentityOrganizationsByIdReactivateData = {
     url: '/v1/identity/organizations/{id}/reactivate';
 };
 
-export type PostV1IdentityOrganizationsByIdReactivateResponses = {
+export type OrganizationsReactivateErrors = {
     /**
-     * OK
+     * Not Found
      */
-    200: unknown;
+    404: ProblemDetails;
 };
 
-export type GetV1IdentityOrganizationsByIdBrandingData = {
+export type OrganizationsReactivateError = OrganizationsReactivateErrors[keyof OrganizationsReactivateErrors];
+
+export type OrganizationsReactivateResponses = {
+    /**
+     * No Content
+     */
+    204: unknown;
+};
+
+export type OrganizationsGetBrandingData = {
     body?: never;
     path: {
         id: string;
@@ -2423,16 +2604,16 @@ export type GetV1IdentityOrganizationsByIdBrandingData = {
     url: '/v1/identity/organizations/{id}/branding';
 };
 
-export type GetV1IdentityOrganizationsByIdBrandingResponses = {
+export type OrganizationsGetBrandingResponses = {
     /**
      * OK
      */
     200: OrganizationBrandingResponse;
 };
 
-export type GetV1IdentityOrganizationsByIdBrandingResponse = GetV1IdentityOrganizationsByIdBrandingResponses[keyof GetV1IdentityOrganizationsByIdBrandingResponses];
+export type OrganizationsGetBrandingResponse = OrganizationsGetBrandingResponses[keyof OrganizationsGetBrandingResponses];
 
-export type PutV1IdentityOrganizationsByIdBrandingData = {
+export type OrganizationsUpdateBrandingData = {
     body: UpdateOrganizationBrandingRequest;
     path: {
         id: string;
@@ -2441,16 +2622,16 @@ export type PutV1IdentityOrganizationsByIdBrandingData = {
     url: '/v1/identity/organizations/{id}/branding';
 };
 
-export type PutV1IdentityOrganizationsByIdBrandingResponses = {
+export type OrganizationsUpdateBrandingResponses = {
     /**
      * OK
      */
     200: OrganizationBrandingResponse;
 };
 
-export type PutV1IdentityOrganizationsByIdBrandingResponse = PutV1IdentityOrganizationsByIdBrandingResponses[keyof PutV1IdentityOrganizationsByIdBrandingResponses];
+export type OrganizationsUpdateBrandingResponse = OrganizationsUpdateBrandingResponses[keyof OrganizationsUpdateBrandingResponses];
 
-export type PostV1IdentityOrganizationsByIdBrandingLogoData = {
+export type OrganizationsUploadBrandingLogoData = {
     body: {
         file?: IFormFile;
     };
@@ -2461,14 +2642,25 @@ export type PostV1IdentityOrganizationsByIdBrandingLogoData = {
     url: '/v1/identity/organizations/{id}/branding/logo';
 };
 
-export type PostV1IdentityOrganizationsByIdBrandingLogoResponses = {
+export type OrganizationsUploadBrandingLogoErrors = {
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+};
+
+export type OrganizationsUploadBrandingLogoError = OrganizationsUploadBrandingLogoErrors[keyof OrganizationsUploadBrandingLogoErrors];
+
+export type OrganizationsUploadBrandingLogoResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: OrganizationLogoResponse;
 };
 
-export type GetV1IdentityOrganizationsByIdSettingsData = {
+export type OrganizationsUploadBrandingLogoResponse = OrganizationsUploadBrandingLogoResponses[keyof OrganizationsUploadBrandingLogoResponses];
+
+export type OrganizationsGetSettingsData = {
     body?: never;
     path: {
         id: string;
@@ -2477,16 +2669,16 @@ export type GetV1IdentityOrganizationsByIdSettingsData = {
     url: '/v1/identity/organizations/{id}/settings';
 };
 
-export type GetV1IdentityOrganizationsByIdSettingsResponses = {
+export type OrganizationsGetSettingsResponses = {
     /**
      * OK
      */
     200: OrganizationSettingsDto;
 };
 
-export type GetV1IdentityOrganizationsByIdSettingsResponse = GetV1IdentityOrganizationsByIdSettingsResponses[keyof GetV1IdentityOrganizationsByIdSettingsResponses];
+export type OrganizationsGetSettingsResponse = OrganizationsGetSettingsResponses[keyof OrganizationsGetSettingsResponses];
 
-export type PutV1IdentityOrganizationsByIdSettingsData = {
+export type OrganizationsUpdateSettingsData = {
     body: UpdateOrganizationSettingsRequest;
     path: {
         id: string;
@@ -2495,28 +2687,39 @@ export type PutV1IdentityOrganizationsByIdSettingsData = {
     url: '/v1/identity/organizations/{id}/settings';
 };
 
-export type PutV1IdentityOrganizationsByIdSettingsResponses = {
+export type OrganizationsUpdateSettingsErrors = {
     /**
-     * OK
+     * Not Found
      */
-    200: unknown;
+    404: ProblemDetails;
 };
 
-export type GetV1IdentityRolesData = {
+export type OrganizationsUpdateSettingsError = OrganizationsUpdateSettingsErrors[keyof OrganizationsUpdateSettingsErrors];
+
+export type OrganizationsUpdateSettingsResponses = {
+    /**
+     * No Content
+     */
+    204: unknown;
+};
+
+export type RolesGetRolesData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/v1/identity/roles';
 };
 
-export type GetV1IdentityRolesResponses = {
+export type RolesGetRolesResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: Array<RoleResponse>;
 };
 
-export type GetV1IdentityRolesByRoleNamePermissionsData = {
+export type RolesGetRolesResponse = RolesGetRolesResponses[keyof RolesGetRolesResponses];
+
+export type RolesGetRolePermissionsData = {
     body?: never;
     path: {
         roleName: string;
@@ -2525,14 +2728,16 @@ export type GetV1IdentityRolesByRoleNamePermissionsData = {
     url: '/v1/identity/roles/{roleName}/permissions';
 };
 
-export type GetV1IdentityRolesByRoleNamePermissionsResponses = {
+export type RolesGetRolePermissionsResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: Array<string>;
 };
 
-export type GetV1IdentityScopesData = {
+export type RolesGetRolePermissionsResponse = RolesGetRolePermissionsResponses[keyof RolesGetRolePermissionsResponses];
+
+export type ScopesListData = {
     body?: never;
     path?: never;
     query?: {
@@ -2541,30 +2746,32 @@ export type GetV1IdentityScopesData = {
     url: '/v1/identity/scopes';
 };
 
-export type GetV1IdentityScopesResponses = {
+export type ScopesListResponses = {
     /**
      * OK
      */
     200: Array<ApiScopeDto>;
 };
 
-export type GetV1IdentityScopesResponse = GetV1IdentityScopesResponses[keyof GetV1IdentityScopesResponses];
+export type ScopesListResponse = ScopesListResponses[keyof ScopesListResponses];
 
-export type GetV1IdentitySessionsData = {
+export type SessionListSessionsData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/v1/identity/sessions';
 };
 
-export type GetV1IdentitySessionsResponses = {
+export type SessionListSessionsResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: Array<SessionDto>;
 };
 
-export type DeleteV1IdentitySessionsBySessionIdData = {
+export type SessionListSessionsResponse = SessionListSessionsResponses[keyof SessionListSessionsResponses];
+
+export type SessionRevokeSessionData = {
     body?: never;
     path: {
         sessionId: string;
@@ -2573,99 +2780,78 @@ export type DeleteV1IdentitySessionsBySessionIdData = {
     url: '/v1/identity/sessions/{sessionId}';
 };
 
-export type DeleteV1IdentitySessionsBySessionIdResponses = {
+export type SessionRevokeSessionResponses = {
     /**
-     * OK
+     * No Content
      */
-    200: unknown;
+    204: void;
 };
 
-export type GetV1IdentitySetupStatusData = {
+export type SessionRevokeSessionResponse = SessionRevokeSessionResponses[keyof SessionRevokeSessionResponses];
+
+export type SetupGetStatusData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/v1/identity/setup/status';
 };
 
-export type GetV1IdentitySetupStatusResponses = {
+export type SetupGetStatusResponses = {
     /**
      * OK
      */
     200: SetupStatusResponse;
 };
 
-export type GetV1IdentitySetupStatusResponse = GetV1IdentitySetupStatusResponses[keyof GetV1IdentitySetupStatusResponses];
+export type SetupGetStatusResponse = SetupGetStatusResponses[keyof SetupGetStatusResponses];
 
-export type PostV1IdentitySetupAdminData = {
+export type SetupCreateAdminData = {
     body: CreateAdminRequest;
     path?: never;
     query?: never;
     url: '/v1/identity/setup/admin';
 };
 
-export type PostV1IdentitySetupAdminErrors = {
+export type SetupCreateAdminErrors = {
     /**
      * Conflict
      */
     409: ProblemDetails;
 };
 
-export type PostV1IdentitySetupAdminError = PostV1IdentitySetupAdminErrors[keyof PostV1IdentitySetupAdminErrors];
+export type SetupCreateAdminError = SetupCreateAdminErrors[keyof SetupCreateAdminErrors];
 
-export type PostV1IdentitySetupAdminResponses = {
+export type SetupCreateAdminResponses = {
     /**
      * No Content
      */
     204: unknown;
 };
 
-export type PostV1IdentitySetupCompleteData = {
+export type SetupCompleteSetupData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/v1/identity/setup/complete';
 };
 
-export type PostV1IdentitySetupCompleteErrors = {
+export type SetupCompleteSetupErrors = {
     /**
      * Conflict
      */
     409: ProblemDetails;
 };
 
-export type PostV1IdentitySetupCompleteError = PostV1IdentitySetupCompleteErrors[keyof PostV1IdentitySetupCompleteErrors];
+export type SetupCompleteSetupError = SetupCompleteSetupErrors[keyof SetupCompleteSetupErrors];
 
-export type PostV1IdentitySetupCompleteResponses = {
+export type SetupCompleteSetupResponses = {
     /**
      * No Content
      */
     204: unknown;
 };
 
-export type PostV1IdentityTestIsolatedOrgData = {
-    body: CreateIsolatedOrgRequest;
-    path?: never;
-    query?: never;
-    url: '/v1/identity/test/isolated-org';
-};
-
-export type PostV1IdentityTestIsolatedOrgErrors = {
-    /**
-     * Not Found
-     */
-    404: ProblemDetails;
-};
-
-export type PostV1IdentityTestIsolatedOrgError = PostV1IdentityTestIsolatedOrgErrors[keyof PostV1IdentityTestIsolatedOrgErrors];
-
-export type PostV1IdentityTestIsolatedOrgResponses = {
-    /**
-     * OK
-     */
-    200: unknown;
-};
-
-export type GetV1IdentityUsersData = {
+export type UsersGetUsersData = {
     body?: never;
     path?: never;
     query?: {
@@ -2676,30 +2862,32 @@ export type GetV1IdentityUsersData = {
     url: '/v1/identity/users';
 };
 
-export type GetV1IdentityUsersResponses = {
+export type UsersGetUsersResponses = {
     /**
      * OK
      */
     200: PagedResultOfUserDto;
 };
 
-export type GetV1IdentityUsersResponse = GetV1IdentityUsersResponses[keyof GetV1IdentityUsersResponses];
+export type UsersGetUsersResponse = UsersGetUsersResponses[keyof UsersGetUsersResponses];
 
-export type PostV1IdentityUsersData = {
+export type UsersCreateUserData = {
     body: CreateUserRequest;
     path?: never;
     query?: never;
     url: '/v1/identity/users';
 };
 
-export type PostV1IdentityUsersResponses = {
+export type UsersCreateUserResponses = {
     /**
-     * OK
+     * Created
      */
-    200: unknown;
+    201: UserDto;
 };
 
-export type GetV1IdentityUsersByIdData = {
+export type UsersCreateUserResponse = UsersCreateUserResponses[keyof UsersCreateUserResponses];
+
+export type UsersGetUserByIdData = {
     body?: never;
     path: {
         id: string;
@@ -2708,32 +2896,32 @@ export type GetV1IdentityUsersByIdData = {
     url: '/v1/identity/users/{id}';
 };
 
-export type GetV1IdentityUsersByIdResponses = {
+export type UsersGetUserByIdResponses = {
     /**
      * OK
      */
     200: UserDto;
 };
 
-export type GetV1IdentityUsersByIdResponse = GetV1IdentityUsersByIdResponses[keyof GetV1IdentityUsersByIdResponses];
+export type UsersGetUserByIdResponse = UsersGetUserByIdResponses[keyof UsersGetUserByIdResponses];
 
-export type GetV1IdentityUsersMeData = {
+export type UsersGetCurrentUserData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/v1/identity/users/me';
 };
 
-export type GetV1IdentityUsersMeResponses = {
+export type UsersGetCurrentUserResponses = {
     /**
      * OK
      */
     200: CurrentUserResponse;
 };
 
-export type GetV1IdentityUsersMeResponse = GetV1IdentityUsersMeResponses[keyof GetV1IdentityUsersMeResponses];
+export type UsersGetCurrentUserResponse = UsersGetCurrentUserResponses[keyof UsersGetCurrentUserResponses];
 
-export type PostV1IdentityUsersByIdDeactivateData = {
+export type UsersDeactivateUserData = {
     body?: never;
     path: {
         id: string;
@@ -2742,14 +2930,23 @@ export type PostV1IdentityUsersByIdDeactivateData = {
     url: '/v1/identity/users/{id}/deactivate';
 };
 
-export type PostV1IdentityUsersByIdDeactivateResponses = {
+export type UsersDeactivateUserErrors = {
     /**
-     * OK
+     * Not Found
      */
-    200: unknown;
+    404: ProblemDetails;
 };
 
-export type PostV1IdentityUsersByIdActivateData = {
+export type UsersDeactivateUserError = UsersDeactivateUserErrors[keyof UsersDeactivateUserErrors];
+
+export type UsersDeactivateUserResponses = {
+    /**
+     * No Content
+     */
+    204: unknown;
+};
+
+export type UsersActivateUserData = {
     body?: never;
     path: {
         id: string;
@@ -2758,14 +2955,23 @@ export type PostV1IdentityUsersByIdActivateData = {
     url: '/v1/identity/users/{id}/activate';
 };
 
-export type PostV1IdentityUsersByIdActivateResponses = {
+export type UsersActivateUserErrors = {
     /**
-     * OK
+     * Not Found
      */
-    200: unknown;
+    404: ProblemDetails;
 };
 
-export type PostV1IdentityUsersByUserIdRolesData = {
+export type UsersActivateUserError = UsersActivateUserErrors[keyof UsersActivateUserErrors];
+
+export type UsersActivateUserResponses = {
+    /**
+     * No Content
+     */
+    204: unknown;
+};
+
+export type UsersAssignRoleData = {
     body: AssignRoleRequest;
     path: {
         userId: string;
@@ -2774,14 +2980,16 @@ export type PostV1IdentityUsersByUserIdRolesData = {
     url: '/v1/identity/users/{userId}/roles';
 };
 
-export type PostV1IdentityUsersByUserIdRolesResponses = {
+export type UsersAssignRoleErrors = {
     /**
-     * OK
+     * Bad Request
      */
-    200: unknown;
+    400: ProblemDetails;
 };
 
-export type DeleteV1IdentityUsersByUserIdRolesByRoleNameData = {
+export type UsersAssignRoleError = UsersAssignRoleErrors[keyof UsersAssignRoleErrors];
+
+export type UsersRemoveRoleData = {
     body?: never;
     path: {
         userId: string;
@@ -2791,14 +2999,23 @@ export type DeleteV1IdentityUsersByUserIdRolesByRoleNameData = {
     url: '/v1/identity/users/{userId}/roles/{roleName}';
 };
 
-export type DeleteV1IdentityUsersByUserIdRolesByRoleNameResponses = {
+export type UsersRemoveRoleErrors = {
     /**
-     * OK
+     * Not Found
      */
-    200: unknown;
+    404: ProblemDetails;
 };
 
-export type GetV1InquiriesData = {
+export type UsersRemoveRoleError = UsersRemoveRoleErrors[keyof UsersRemoveRoleErrors];
+
+export type UsersRemoveRoleResponses = {
+    /**
+     * No Content
+     */
+    204: unknown;
+};
+
+export type InquiriesGetAllData = {
     body?: never;
     path?: never;
     query?: {
@@ -2807,57 +3024,57 @@ export type GetV1InquiriesData = {
     url: '/v1/inquiries';
 };
 
-export type GetV1InquiriesResponses = {
+export type InquiriesGetAllResponses = {
     /**
      * OK
      */
     200: Array<InquiryResponse>;
 };
 
-export type GetV1InquiriesResponse = GetV1InquiriesResponses[keyof GetV1InquiriesResponses];
+export type InquiriesGetAllResponse = InquiriesGetAllResponses[keyof InquiriesGetAllResponses];
 
-export type PostV1InquiriesData = {
+export type InquiriesSubmitData = {
     body: SubmitInquiryRequest;
     path?: never;
     query?: never;
     url: '/v1/inquiries';
 };
 
-export type PostV1InquiriesErrors = {
+export type InquiriesSubmitErrors = {
     /**
      * Bad Request
      */
     400: ProblemDetails;
 };
 
-export type PostV1InquiriesError = PostV1InquiriesErrors[keyof PostV1InquiriesErrors];
+export type InquiriesSubmitError = InquiriesSubmitErrors[keyof InquiriesSubmitErrors];
 
-export type PostV1InquiriesResponses = {
+export type InquiriesSubmitResponses = {
     /**
      * OK
      */
     200: InquiryResponse;
 };
 
-export type PostV1InquiriesResponse = PostV1InquiriesResponses[keyof PostV1InquiriesResponses];
+export type InquiriesSubmitResponse = InquiriesSubmitResponses[keyof InquiriesSubmitResponses];
 
-export type GetV1InquiriesSubmittedData = {
+export type InquiriesGetSubmittedData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/v1/inquiries/submitted';
 };
 
-export type GetV1InquiriesSubmittedResponses = {
+export type InquiriesGetSubmittedResponses = {
     /**
      * OK
      */
     200: Array<InquiryResponse>;
 };
 
-export type GetV1InquiriesSubmittedResponse = GetV1InquiriesSubmittedResponses[keyof GetV1InquiriesSubmittedResponses];
+export type InquiriesGetSubmittedResponse = InquiriesGetSubmittedResponses[keyof InquiriesGetSubmittedResponses];
 
-export type GetV1InquiriesByIdData = {
+export type InquiriesGetByIdData = {
     body?: never;
     path: {
         id: string;
@@ -2866,25 +3083,25 @@ export type GetV1InquiriesByIdData = {
     url: '/v1/inquiries/{id}';
 };
 
-export type GetV1InquiriesByIdErrors = {
+export type InquiriesGetByIdErrors = {
     /**
      * Not Found
      */
     404: ProblemDetails;
 };
 
-export type GetV1InquiriesByIdError = GetV1InquiriesByIdErrors[keyof GetV1InquiriesByIdErrors];
+export type InquiriesGetByIdError = InquiriesGetByIdErrors[keyof InquiriesGetByIdErrors];
 
-export type GetV1InquiriesByIdResponses = {
+export type InquiriesGetByIdResponses = {
     /**
      * OK
      */
     200: InquiryResponse;
 };
 
-export type GetV1InquiriesByIdResponse = GetV1InquiriesByIdResponses[keyof GetV1InquiriesByIdResponses];
+export type InquiriesGetByIdResponse = InquiriesGetByIdResponses[keyof InquiriesGetByIdResponses];
 
-export type PatchV1InquiriesByIdStatusData = {
+export type InquiriesUpdateStatusData = {
     body: UpdateInquiryStatusRequest;
     path: {
         id: string;
@@ -2893,7 +3110,7 @@ export type PatchV1InquiriesByIdStatusData = {
     url: '/v1/inquiries/{id}/status';
 };
 
-export type PatchV1InquiriesByIdStatusErrors = {
+export type InquiriesUpdateStatusErrors = {
     /**
      * Bad Request
      */
@@ -2904,18 +3121,18 @@ export type PatchV1InquiriesByIdStatusErrors = {
     404: ProblemDetails;
 };
 
-export type PatchV1InquiriesByIdStatusError = PatchV1InquiriesByIdStatusErrors[keyof PatchV1InquiriesByIdStatusErrors];
+export type InquiriesUpdateStatusError = InquiriesUpdateStatusErrors[keyof InquiriesUpdateStatusErrors];
 
-export type PatchV1InquiriesByIdStatusResponses = {
+export type InquiriesUpdateStatusResponses = {
     /**
      * OK
      */
     200: InquiryResponse;
 };
 
-export type PatchV1InquiriesByIdStatusResponse = PatchV1InquiriesByIdStatusResponses[keyof PatchV1InquiriesByIdStatusResponses];
+export type InquiriesUpdateStatusResponse = InquiriesUpdateStatusResponses[keyof InquiriesUpdateStatusResponses];
 
-export type GetV1InquiriesByIdCommentsData = {
+export type InquiriesGetCommentsData = {
     body?: never;
     path: {
         id: string;
@@ -2924,25 +3141,25 @@ export type GetV1InquiriesByIdCommentsData = {
     url: '/v1/inquiries/{id}/comments';
 };
 
-export type GetV1InquiriesByIdCommentsErrors = {
+export type InquiriesGetCommentsErrors = {
     /**
      * Not Found
      */
     404: ProblemDetails;
 };
 
-export type GetV1InquiriesByIdCommentsError = GetV1InquiriesByIdCommentsErrors[keyof GetV1InquiriesByIdCommentsErrors];
+export type InquiriesGetCommentsError = InquiriesGetCommentsErrors[keyof InquiriesGetCommentsErrors];
 
-export type GetV1InquiriesByIdCommentsResponses = {
+export type InquiriesGetCommentsResponses = {
     /**
      * OK
      */
     200: Array<InquiryCommentResponse>;
 };
 
-export type GetV1InquiriesByIdCommentsResponse = GetV1InquiriesByIdCommentsResponses[keyof GetV1InquiriesByIdCommentsResponses];
+export type InquiriesGetCommentsResponse = InquiriesGetCommentsResponses[keyof InquiriesGetCommentsResponses];
 
-export type PostV1InquiriesByIdCommentsData = {
+export type InquiriesAddCommentData = {
     body: AddInquiryCommentRequest;
     path: {
         id: string;
@@ -2951,23 +3168,23 @@ export type PostV1InquiriesByIdCommentsData = {
     url: '/v1/inquiries/{id}/comments';
 };
 
-export type PostV1InquiriesByIdCommentsErrors = {
+export type InquiriesAddCommentErrors = {
     /**
      * Bad Request
      */
     400: ProblemDetails;
 };
 
-export type PostV1InquiriesByIdCommentsError = PostV1InquiriesByIdCommentsErrors[keyof PostV1InquiriesByIdCommentsErrors];
+export type InquiriesAddCommentError = InquiriesAddCommentErrors[keyof InquiriesAddCommentErrors];
 
-export type PostV1InquiriesByIdCommentsResponses = {
+export type InquiriesAddCommentResponses = {
     /**
      * Created
      */
     201: unknown;
 };
 
-export type GetV1NotificationsData = {
+export type NotificationsGetNotificationsData = {
     body?: never;
     path?: never;
     query?: {
@@ -2977,50 +3194,50 @@ export type GetV1NotificationsData = {
     url: '/v1/notifications';
 };
 
-export type GetV1NotificationsErrors = {
+export type NotificationsGetNotificationsErrors = {
     /**
      * Unauthorized
      */
     401: ProblemDetails;
 };
 
-export type GetV1NotificationsError = GetV1NotificationsErrors[keyof GetV1NotificationsErrors];
+export type NotificationsGetNotificationsError = NotificationsGetNotificationsErrors[keyof NotificationsGetNotificationsErrors];
 
-export type GetV1NotificationsResponses = {
+export type NotificationsGetNotificationsResponses = {
     /**
      * OK
      */
     200: PagedNotificationResponse;
 };
 
-export type GetV1NotificationsResponse = GetV1NotificationsResponses[keyof GetV1NotificationsResponses];
+export type NotificationsGetNotificationsResponse = NotificationsGetNotificationsResponses[keyof NotificationsGetNotificationsResponses];
 
-export type GetV1NotificationsUnreadCountData = {
+export type NotificationsGetUnreadCountData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/v1/notifications/unread-count';
 };
 
-export type GetV1NotificationsUnreadCountErrors = {
+export type NotificationsGetUnreadCountErrors = {
     /**
      * Unauthorized
      */
     401: ProblemDetails;
 };
 
-export type GetV1NotificationsUnreadCountError = GetV1NotificationsUnreadCountErrors[keyof GetV1NotificationsUnreadCountErrors];
+export type NotificationsGetUnreadCountError = NotificationsGetUnreadCountErrors[keyof NotificationsGetUnreadCountErrors];
 
-export type GetV1NotificationsUnreadCountResponses = {
+export type NotificationsGetUnreadCountResponses = {
     /**
      * OK
      */
     200: UnreadCountResponse;
 };
 
-export type GetV1NotificationsUnreadCountResponse = GetV1NotificationsUnreadCountResponses[keyof GetV1NotificationsUnreadCountResponses];
+export type NotificationsGetUnreadCountResponse = NotificationsGetUnreadCountResponses[keyof NotificationsGetUnreadCountResponses];
 
-export type PostV1NotificationsByIdReadData = {
+export type NotificationsMarkAsReadData = {
     body?: never;
     path: {
         id: string;
@@ -3029,7 +3246,7 @@ export type PostV1NotificationsByIdReadData = {
     url: '/v1/notifications/{id}/read';
 };
 
-export type PostV1NotificationsByIdReadErrors = {
+export type NotificationsMarkAsReadErrors = {
     /**
      * Unauthorized
      */
@@ -3040,46 +3257,46 @@ export type PostV1NotificationsByIdReadErrors = {
     404: ProblemDetails;
 };
 
-export type PostV1NotificationsByIdReadError = PostV1NotificationsByIdReadErrors[keyof PostV1NotificationsByIdReadErrors];
+export type NotificationsMarkAsReadError = NotificationsMarkAsReadErrors[keyof NotificationsMarkAsReadErrors];
 
-export type PostV1NotificationsByIdReadResponses = {
+export type NotificationsMarkAsReadResponses = {
     /**
      * No Content
      */
     204: unknown;
 };
 
-export type PostV1NotificationsReadAllData = {
+export type NotificationsMarkAllAsReadData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/v1/notifications/read-all';
 };
 
-export type PostV1NotificationsReadAllErrors = {
+export type NotificationsMarkAllAsReadErrors = {
     /**
      * Unauthorized
      */
     401: ProblemDetails;
 };
 
-export type PostV1NotificationsReadAllError = PostV1NotificationsReadAllErrors[keyof PostV1NotificationsReadAllErrors];
+export type NotificationsMarkAllAsReadError = NotificationsMarkAllAsReadErrors[keyof NotificationsMarkAllAsReadErrors];
 
-export type PostV1NotificationsReadAllResponses = {
+export type NotificationsMarkAllAsReadResponses = {
     /**
      * No Content
      */
     204: unknown;
 };
 
-export type GetV1AdminPushConfigData = {
+export type PushConfigurationGetTenantPushConfigData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/v1/admin/push/config';
 };
 
-export type GetV1AdminPushConfigResponses = {
+export type PushConfigurationGetTenantPushConfigResponses = {
     /**
      * OK
      */
@@ -3090,55 +3307,55 @@ export type GetV1AdminPushConfigResponses = {
     204: unknown;
 };
 
-export type GetV1AdminPushConfigResponse = GetV1AdminPushConfigResponses[keyof GetV1AdminPushConfigResponses];
+export type PushConfigurationGetTenantPushConfigResponse = PushConfigurationGetTenantPushConfigResponses[keyof PushConfigurationGetTenantPushConfigResponses];
 
-export type PutV1AdminPushConfigData = {
+export type PushConfigurationUpsertTenantPushConfigData = {
     body: UpsertTenantPushConfigRequest;
     path?: never;
     query?: never;
     url: '/v1/admin/push/config';
 };
 
-export type PutV1AdminPushConfigErrors = {
+export type PushConfigurationUpsertTenantPushConfigErrors = {
     /**
      * Bad Request
      */
     400: ProblemDetails;
 };
 
-export type PutV1AdminPushConfigError = PutV1AdminPushConfigErrors[keyof PutV1AdminPushConfigErrors];
+export type PushConfigurationUpsertTenantPushConfigError = PushConfigurationUpsertTenantPushConfigErrors[keyof PushConfigurationUpsertTenantPushConfigErrors];
 
-export type PutV1AdminPushConfigResponses = {
+export type PushConfigurationUpsertTenantPushConfigResponses = {
     /**
      * No Content
      */
     204: unknown;
 };
 
-export type PatchV1AdminPushConfigEnabledData = {
+export type PushConfigurationSetTenantPushEnabledData = {
     body: SetTenantPushEnabledRequest;
     path?: never;
     query?: never;
     url: '/v1/admin/push/config/enabled';
 };
 
-export type PatchV1AdminPushConfigEnabledErrors = {
+export type PushConfigurationSetTenantPushEnabledErrors = {
     /**
      * Not Found
      */
     404: ProblemDetails;
 };
 
-export type PatchV1AdminPushConfigEnabledError = PatchV1AdminPushConfigEnabledErrors[keyof PatchV1AdminPushConfigEnabledErrors];
+export type PushConfigurationSetTenantPushEnabledError = PushConfigurationSetTenantPushEnabledErrors[keyof PushConfigurationSetTenantPushEnabledErrors];
 
-export type PatchV1AdminPushConfigEnabledResponses = {
+export type PushConfigurationSetTenantPushEnabledResponses = {
     /**
      * No Content
      */
     204: unknown;
 };
 
-export type DeleteV1AdminPushConfigByPlatformData = {
+export type PushConfigurationRemoveTenantPushConfigData = {
     body?: never;
     path: {
         platform: PushPlatform;
@@ -3147,62 +3364,62 @@ export type DeleteV1AdminPushConfigByPlatformData = {
     url: '/v1/admin/push/config/{platform}';
 };
 
-export type DeleteV1AdminPushConfigByPlatformResponses = {
+export type PushConfigurationRemoveTenantPushConfigResponses = {
     /**
      * No Content
      */
     204: unknown;
 };
 
-export type GetV1PushDevicesData = {
+export type PushDevicesGetUserDevicesData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/v1/push/devices';
 };
 
-export type GetV1PushDevicesErrors = {
+export type PushDevicesGetUserDevicesErrors = {
     /**
      * Unauthorized
      */
     401: ProblemDetails;
 };
 
-export type GetV1PushDevicesError = GetV1PushDevicesErrors[keyof GetV1PushDevicesErrors];
+export type PushDevicesGetUserDevicesError = PushDevicesGetUserDevicesErrors[keyof PushDevicesGetUserDevicesErrors];
 
-export type GetV1PushDevicesResponses = {
+export type PushDevicesGetUserDevicesResponses = {
     /**
      * OK
      */
     200: Array<DeviceRegistrationResponse>;
 };
 
-export type GetV1PushDevicesResponse = GetV1PushDevicesResponses[keyof GetV1PushDevicesResponses];
+export type PushDevicesGetUserDevicesResponse = PushDevicesGetUserDevicesResponses[keyof PushDevicesGetUserDevicesResponses];
 
-export type PostV1PushDevicesData = {
+export type PushDevicesRegisterDeviceData = {
     body: RegisterDeviceRequest;
     path?: never;
     query?: never;
     url: '/v1/push/devices';
 };
 
-export type PostV1PushDevicesErrors = {
+export type PushDevicesRegisterDeviceErrors = {
     /**
      * Unauthorized
      */
     401: ProblemDetails;
 };
 
-export type PostV1PushDevicesError = PostV1PushDevicesErrors[keyof PostV1PushDevicesErrors];
+export type PushDevicesRegisterDeviceError = PushDevicesRegisterDeviceErrors[keyof PushDevicesRegisterDeviceErrors];
 
-export type PostV1PushDevicesResponses = {
+export type PushDevicesRegisterDeviceResponses = {
     /**
      * No Content
      */
     204: unknown;
 };
 
-export type DeleteV1PushDevicesByIdData = {
+export type PushDevicesDeregisterDeviceData = {
     body?: never;
     path: {
         id: string;
@@ -3211,7 +3428,7 @@ export type DeleteV1PushDevicesByIdData = {
     url: '/v1/push/devices/{id}';
 };
 
-export type DeleteV1PushDevicesByIdErrors = {
+export type PushDevicesDeregisterDeviceErrors = {
     /**
      * Unauthorized
      */
@@ -3222,71 +3439,71 @@ export type DeleteV1PushDevicesByIdErrors = {
     404: ProblemDetails;
 };
 
-export type DeleteV1PushDevicesByIdError = DeleteV1PushDevicesByIdErrors[keyof DeleteV1PushDevicesByIdErrors];
+export type PushDevicesDeregisterDeviceError = PushDevicesDeregisterDeviceErrors[keyof PushDevicesDeregisterDeviceErrors];
 
-export type DeleteV1PushDevicesByIdResponses = {
+export type PushDevicesDeregisterDeviceResponses = {
     /**
      * No Content
      */
     204: unknown;
 };
 
-export type PostV1PushSendData = {
+export type PushDevicesSendPushData = {
     body: SendPushRequest;
     path?: never;
     query?: never;
     url: '/v1/push/send';
 };
 
-export type PostV1PushSendErrors = {
+export type PushDevicesSendPushErrors = {
     /**
      * Unauthorized
      */
     401: ProblemDetails;
 };
 
-export type PostV1PushSendError = PostV1PushSendErrors[keyof PostV1PushSendErrors];
+export type PushDevicesSendPushError = PushDevicesSendPushErrors[keyof PushDevicesSendPushErrors];
 
-export type PostV1PushSendResponses = {
+export type PushDevicesSendPushResponses = {
     /**
      * No Content
      */
     204: unknown;
 };
 
-export type GetV1NotificationSettingsData = {
+export type UserNotificationSettingsGetUserNotificationSettingsData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/v1/notification-settings';
 };
 
-export type GetV1NotificationSettingsErrors = {
+export type UserNotificationSettingsGetUserNotificationSettingsErrors = {
     /**
      * Unauthorized
      */
     401: ProblemDetails;
 };
 
-export type GetV1NotificationSettingsError = GetV1NotificationSettingsErrors[keyof GetV1NotificationSettingsErrors];
+export type UserNotificationSettingsGetUserNotificationSettingsError = UserNotificationSettingsGetUserNotificationSettingsErrors[keyof UserNotificationSettingsGetUserNotificationSettingsErrors];
 
-export type GetV1NotificationSettingsResponses = {
+export type UserNotificationSettingsGetUserNotificationSettingsResponses = {
     /**
      * OK
      */
     200: UserNotificationSettingsResponse;
 };
 
-export type GetV1NotificationSettingsResponse = GetV1NotificationSettingsResponses[keyof GetV1NotificationSettingsResponses];
+export type UserNotificationSettingsGetUserNotificationSettingsResponse = UserNotificationSettingsGetUserNotificationSettingsResponses[keyof UserNotificationSettingsGetUserNotificationSettingsResponses];
 
-export type PutV1NotificationSettingsChannelData = {
+export type UserNotificationSettingsSetChannelEnabledData = {
     body: SetChannelEnabledRequest;
     path?: never;
     query?: never;
     url: '/v1/notification-settings/channel';
 };
 
-export type PutV1NotificationSettingsChannelErrors = {
+export type UserNotificationSettingsSetChannelEnabledErrors = {
     /**
      * Bad Request
      */
@@ -3297,23 +3514,23 @@ export type PutV1NotificationSettingsChannelErrors = {
     401: ProblemDetails;
 };
 
-export type PutV1NotificationSettingsChannelError = PutV1NotificationSettingsChannelErrors[keyof PutV1NotificationSettingsChannelErrors];
+export type UserNotificationSettingsSetChannelEnabledError = UserNotificationSettingsSetChannelEnabledErrors[keyof UserNotificationSettingsSetChannelEnabledErrors];
 
-export type PutV1NotificationSettingsChannelResponses = {
+export type UserNotificationSettingsSetChannelEnabledResponses = {
     /**
      * No Content
      */
     204: unknown;
 };
 
-export type PutV1NotificationSettingsTypeData = {
+export type UserNotificationSettingsSetNotificationTypeEnabledData = {
     body: SetNotificationTypeEnabledRequest;
     path?: never;
     query?: never;
     url: '/v1/notification-settings/type';
 };
 
-export type PutV1NotificationSettingsTypeErrors = {
+export type UserNotificationSettingsSetNotificationTypeEnabledErrors = {
     /**
      * Bad Request
      */
@@ -3324,23 +3541,23 @@ export type PutV1NotificationSettingsTypeErrors = {
     401: ProblemDetails;
 };
 
-export type PutV1NotificationSettingsTypeError = PutV1NotificationSettingsTypeErrors[keyof PutV1NotificationSettingsTypeErrors];
+export type UserNotificationSettingsSetNotificationTypeEnabledError = UserNotificationSettingsSetNotificationTypeEnabledErrors[keyof UserNotificationSettingsSetNotificationTypeEnabledErrors];
 
-export type PutV1NotificationSettingsTypeResponses = {
+export type UserNotificationSettingsSetNotificationTypeEnabledResponses = {
     /**
      * No Content
      */
     204: unknown;
 };
 
-export type PostV1StorageBucketsData = {
+export type StorageCreateBucketData = {
     body: CreateBucketRequest;
     path?: never;
     query?: never;
     url: '/v1/storage/buckets';
 };
 
-export type PostV1StorageBucketsErrors = {
+export type StorageCreateBucketErrors = {
     /**
      * Bad Request
      */
@@ -3351,18 +3568,18 @@ export type PostV1StorageBucketsErrors = {
     409: ProblemDetails;
 };
 
-export type PostV1StorageBucketsError = PostV1StorageBucketsErrors[keyof PostV1StorageBucketsErrors];
+export type StorageCreateBucketError = StorageCreateBucketErrors[keyof StorageCreateBucketErrors];
 
-export type PostV1StorageBucketsResponses = {
+export type StorageCreateBucketResponses = {
     /**
      * Created
      */
     201: BucketResponse;
 };
 
-export type PostV1StorageBucketsResponse = PostV1StorageBucketsResponses[keyof PostV1StorageBucketsResponses];
+export type StorageCreateBucketResponse = StorageCreateBucketResponses[keyof StorageCreateBucketResponses];
 
-export type DeleteV1StorageBucketsByNameData = {
+export type StorageDeleteBucketData = {
     body?: never;
     path: {
         name: string;
@@ -3373,7 +3590,7 @@ export type DeleteV1StorageBucketsByNameData = {
     url: '/v1/storage/buckets/{name}';
 };
 
-export type DeleteV1StorageBucketsByNameErrors = {
+export type StorageDeleteBucketErrors = {
     /**
      * Bad Request
      */
@@ -3384,16 +3601,16 @@ export type DeleteV1StorageBucketsByNameErrors = {
     404: ProblemDetails;
 };
 
-export type DeleteV1StorageBucketsByNameError = DeleteV1StorageBucketsByNameErrors[keyof DeleteV1StorageBucketsByNameErrors];
+export type StorageDeleteBucketError = StorageDeleteBucketErrors[keyof StorageDeleteBucketErrors];
 
-export type DeleteV1StorageBucketsByNameResponses = {
+export type StorageDeleteBucketResponses = {
     /**
      * No Content
      */
     204: unknown;
 };
 
-export type GetV1StorageBucketsByNameData = {
+export type StorageGetBucketData = {
     body?: never;
     path: {
         name: string;
@@ -3402,25 +3619,25 @@ export type GetV1StorageBucketsByNameData = {
     url: '/v1/storage/buckets/{name}';
 };
 
-export type GetV1StorageBucketsByNameErrors = {
+export type StorageGetBucketErrors = {
     /**
      * Not Found
      */
     404: ProblemDetails;
 };
 
-export type GetV1StorageBucketsByNameError = GetV1StorageBucketsByNameErrors[keyof GetV1StorageBucketsByNameErrors];
+export type StorageGetBucketError = StorageGetBucketErrors[keyof StorageGetBucketErrors];
 
-export type GetV1StorageBucketsByNameResponses = {
+export type StorageGetBucketResponses = {
     /**
      * OK
      */
     200: BucketResponse;
 };
 
-export type GetV1StorageBucketsByNameResponse = GetV1StorageBucketsByNameResponses[keyof GetV1StorageBucketsByNameResponses];
+export type StorageGetBucketResponse = StorageGetBucketResponses[keyof StorageGetBucketResponses];
 
-export type PostV1StorageUploadData = {
+export type StorageUploadData = {
     body: {
         file?: IFormFile;
     } & {
@@ -3435,7 +3652,7 @@ export type PostV1StorageUploadData = {
     url: '/v1/storage/upload';
 };
 
-export type PostV1StorageUploadErrors = {
+export type StorageUploadErrors = {
     /**
      * Bad Request
      */
@@ -3446,18 +3663,18 @@ export type PostV1StorageUploadErrors = {
     404: ProblemDetails;
 };
 
-export type PostV1StorageUploadError = PostV1StorageUploadErrors[keyof PostV1StorageUploadErrors];
+export type StorageUploadError = StorageUploadErrors[keyof StorageUploadErrors];
 
-export type PostV1StorageUploadResponses = {
+export type StorageUploadResponses = {
     /**
      * Created
      */
     201: UploadResponse;
 };
 
-export type PostV1StorageUploadResponse = PostV1StorageUploadResponses[keyof PostV1StorageUploadResponses];
+export type StorageUploadResponse = StorageUploadResponses[keyof StorageUploadResponses];
 
-export type DeleteV1StorageFilesByIdData = {
+export type StorageDeleteData = {
     body?: never;
     path: {
         id: string;
@@ -3466,23 +3683,23 @@ export type DeleteV1StorageFilesByIdData = {
     url: '/v1/storage/files/{id}';
 };
 
-export type DeleteV1StorageFilesByIdErrors = {
+export type StorageDeleteErrors = {
     /**
      * Not Found
      */
     404: ProblemDetails;
 };
 
-export type DeleteV1StorageFilesByIdError = DeleteV1StorageFilesByIdErrors[keyof DeleteV1StorageFilesByIdErrors];
+export type StorageDeleteError = StorageDeleteErrors[keyof StorageDeleteErrors];
 
-export type DeleteV1StorageFilesByIdResponses = {
+export type StorageDeleteResponses = {
     /**
      * No Content
      */
     204: unknown;
 };
 
-export type GetV1StorageFilesByIdData = {
+export type StorageGetFileData = {
     body?: never;
     path: {
         id: string;
@@ -3491,25 +3708,25 @@ export type GetV1StorageFilesByIdData = {
     url: '/v1/storage/files/{id}';
 };
 
-export type GetV1StorageFilesByIdErrors = {
+export type StorageGetFileErrors = {
     /**
      * Not Found
      */
     404: ProblemDetails;
 };
 
-export type GetV1StorageFilesByIdError = GetV1StorageFilesByIdErrors[keyof GetV1StorageFilesByIdErrors];
+export type StorageGetFileError = StorageGetFileErrors[keyof StorageGetFileErrors];
 
-export type GetV1StorageFilesByIdResponses = {
+export type StorageGetFileResponses = {
     /**
      * OK
      */
     200: FileMetadataResponse;
 };
 
-export type GetV1StorageFilesByIdResponse = GetV1StorageFilesByIdResponses[keyof GetV1StorageFilesByIdResponses];
+export type StorageGetFileResponse = StorageGetFileResponses[keyof StorageGetFileResponses];
 
-export type GetV1StorageFilesByIdDownloadData = {
+export type StorageDownloadData = {
     body?: never;
     path: {
         id: string;
@@ -3518,16 +3735,16 @@ export type GetV1StorageFilesByIdDownloadData = {
     url: '/v1/storage/files/{id}/download';
 };
 
-export type GetV1StorageFilesByIdDownloadErrors = {
+export type StorageDownloadErrors = {
     /**
      * Not Found
      */
     404: ProblemDetails;
 };
 
-export type GetV1StorageFilesByIdDownloadError = GetV1StorageFilesByIdDownloadErrors[keyof GetV1StorageFilesByIdDownloadErrors];
+export type StorageDownloadError = StorageDownloadErrors[keyof StorageDownloadErrors];
 
-export type GetV1StorageFilesData = {
+export type StorageListFilesData = {
     body?: never;
     path?: never;
     query?: {
@@ -3539,32 +3756,32 @@ export type GetV1StorageFilesData = {
     url: '/v1/storage/files';
 };
 
-export type GetV1StorageFilesErrors = {
+export type StorageListFilesErrors = {
     /**
      * Not Found
      */
     404: ProblemDetails;
 };
 
-export type GetV1StorageFilesError = GetV1StorageFilesErrors[keyof GetV1StorageFilesErrors];
+export type StorageListFilesError = StorageListFilesErrors[keyof StorageListFilesErrors];
 
-export type GetV1StorageFilesResponses = {
+export type StorageListFilesResponses = {
     /**
      * OK
      */
     200: PagedResultOfFileMetadataResponse;
 };
 
-export type GetV1StorageFilesResponse = GetV1StorageFilesResponses[keyof GetV1StorageFilesResponses];
+export type StorageListFilesResponse = StorageListFilesResponses[keyof StorageListFilesResponses];
 
-export type PostV1StoragePresignedUploadData = {
+export type StorageGetPresignedUploadUrlData = {
     body: PresignedUploadRequest;
     path?: never;
     query?: never;
     url: '/v1/storage/presigned-upload';
 };
 
-export type PostV1StoragePresignedUploadErrors = {
+export type StorageGetPresignedUploadUrlErrors = {
     /**
      * Bad Request
      */
@@ -3575,18 +3792,18 @@ export type PostV1StoragePresignedUploadErrors = {
     404: ProblemDetails;
 };
 
-export type PostV1StoragePresignedUploadError = PostV1StoragePresignedUploadErrors[keyof PostV1StoragePresignedUploadErrors];
+export type StorageGetPresignedUploadUrlError = StorageGetPresignedUploadUrlErrors[keyof StorageGetPresignedUploadUrlErrors];
 
-export type PostV1StoragePresignedUploadResponses = {
+export type StorageGetPresignedUploadUrlResponses = {
     /**
      * OK
      */
     200: PresignedUploadResponse;
 };
 
-export type PostV1StoragePresignedUploadResponse = PostV1StoragePresignedUploadResponses[keyof PostV1StoragePresignedUploadResponses];
+export type StorageGetPresignedUploadUrlResponse = StorageGetPresignedUploadUrlResponses[keyof StorageGetPresignedUploadUrlResponses];
 
-export type GetV1StorageFilesByIdPresignedUrlData = {
+export type StorageGetPresignedDownloadUrlData = {
     body?: never;
     path: {
         id: string;
@@ -3597,41 +3814,41 @@ export type GetV1StorageFilesByIdPresignedUrlData = {
     url: '/v1/storage/files/{id}/presigned-url';
 };
 
-export type GetV1StorageFilesByIdPresignedUrlErrors = {
+export type StorageGetPresignedDownloadUrlErrors = {
     /**
      * Not Found
      */
     404: ProblemDetails;
 };
 
-export type GetV1StorageFilesByIdPresignedUrlError = GetV1StorageFilesByIdPresignedUrlErrors[keyof GetV1StorageFilesByIdPresignedUrlErrors];
+export type StorageGetPresignedDownloadUrlError = StorageGetPresignedDownloadUrlErrors[keyof StorageGetPresignedDownloadUrlErrors];
 
-export type GetV1StorageFilesByIdPresignedUrlResponses = {
+export type StorageGetPresignedDownloadUrlResponses = {
     /**
      * OK
      */
     200: PresignedUrlResponse;
 };
 
-export type GetV1StorageFilesByIdPresignedUrlResponse = GetV1StorageFilesByIdPresignedUrlResponses[keyof GetV1StorageFilesByIdPresignedUrlResponses];
+export type StorageGetPresignedDownloadUrlResponse = StorageGetPresignedDownloadUrlResponses[keyof StorageGetPresignedDownloadUrlResponses];
 
-export type GetV1StorageConfigData = {
+export type StorageSettingsGetConfigData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/v1/storage/config';
 };
 
-export type GetV1StorageConfigResponses = {
+export type StorageSettingsGetConfigResponses = {
     /**
      * OK
      */
     200: ResolvedSettingsConfig;
 };
 
-export type GetV1StorageConfigResponse = GetV1StorageConfigResponses[keyof GetV1StorageConfigResponses];
+export type StorageSettingsGetConfigResponse = StorageSettingsGetConfigResponses[keyof StorageSettingsGetConfigResponses];
 
-export type DeleteV1StorageSettingsTenantData = {
+export type StorageSettingsDeleteTenantSettingData = {
     body?: never;
     path?: never;
     query?: {
@@ -3640,62 +3857,62 @@ export type DeleteV1StorageSettingsTenantData = {
     url: '/v1/storage/settings/tenant';
 };
 
-export type DeleteV1StorageSettingsTenantErrors = {
+export type StorageSettingsDeleteTenantSettingErrors = {
     /**
      * Bad Request
      */
     400: ProblemDetails;
 };
 
-export type DeleteV1StorageSettingsTenantError = DeleteV1StorageSettingsTenantErrors[keyof DeleteV1StorageSettingsTenantErrors];
+export type StorageSettingsDeleteTenantSettingError = StorageSettingsDeleteTenantSettingErrors[keyof StorageSettingsDeleteTenantSettingErrors];
 
-export type DeleteV1StorageSettingsTenantResponses = {
+export type StorageSettingsDeleteTenantSettingResponses = {
     /**
      * No Content
      */
     204: unknown;
 };
 
-export type GetV1StorageSettingsTenantData = {
+export type StorageSettingsGetTenantSettingsData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/v1/storage/settings/tenant';
 };
 
-export type GetV1StorageSettingsTenantResponses = {
+export type StorageSettingsGetTenantSettingsResponses = {
     /**
      * OK
      */
     200: Array<ResolvedSetting>;
 };
 
-export type GetV1StorageSettingsTenantResponse = GetV1StorageSettingsTenantResponses[keyof GetV1StorageSettingsTenantResponses];
+export type StorageSettingsGetTenantSettingsResponse = StorageSettingsGetTenantSettingsResponses[keyof StorageSettingsGetTenantSettingsResponses];
 
-export type PutV1StorageSettingsTenantData = {
+export type StorageSettingsUpsertTenantSettingData = {
     body: SettingUpdateRequest;
     path?: never;
     query?: never;
     url: '/v1/storage/settings/tenant';
 };
 
-export type PutV1StorageSettingsTenantErrors = {
+export type StorageSettingsUpsertTenantSettingErrors = {
     /**
      * Bad Request
      */
     400: ProblemDetails;
 };
 
-export type PutV1StorageSettingsTenantError = PutV1StorageSettingsTenantErrors[keyof PutV1StorageSettingsTenantErrors];
+export type StorageSettingsUpsertTenantSettingError = StorageSettingsUpsertTenantSettingErrors[keyof StorageSettingsUpsertTenantSettingErrors];
 
-export type PutV1StorageSettingsTenantResponses = {
+export type StorageSettingsUpsertTenantSettingResponses = {
     /**
      * No Content
      */
     204: unknown;
 };
 
-export type DeleteV1StorageSettingsUserData = {
+export type StorageSettingsDeleteUserSettingData = {
     body?: never;
     path?: never;
     query?: {
@@ -3704,87 +3921,57 @@ export type DeleteV1StorageSettingsUserData = {
     url: '/v1/storage/settings/user';
 };
 
-export type DeleteV1StorageSettingsUserErrors = {
+export type StorageSettingsDeleteUserSettingErrors = {
     /**
      * Bad Request
      */
     400: ProblemDetails;
 };
 
-export type DeleteV1StorageSettingsUserError = DeleteV1StorageSettingsUserErrors[keyof DeleteV1StorageSettingsUserErrors];
+export type StorageSettingsDeleteUserSettingError = StorageSettingsDeleteUserSettingErrors[keyof StorageSettingsDeleteUserSettingErrors];
 
-export type DeleteV1StorageSettingsUserResponses = {
+export type StorageSettingsDeleteUserSettingResponses = {
     /**
      * No Content
      */
     204: unknown;
 };
 
-export type GetV1StorageSettingsUserData = {
+export type StorageSettingsGetUserSettingsData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/v1/storage/settings/user';
 };
 
-export type GetV1StorageSettingsUserResponses = {
+export type StorageSettingsGetUserSettingsResponses = {
     /**
      * OK
      */
     200: Array<ResolvedSetting>;
 };
 
-export type GetV1StorageSettingsUserResponse = GetV1StorageSettingsUserResponses[keyof GetV1StorageSettingsUserResponses];
+export type StorageSettingsGetUserSettingsResponse = StorageSettingsGetUserSettingsResponses[keyof StorageSettingsGetUserSettingsResponses];
 
-export type PutV1StorageSettingsUserData = {
+export type StorageSettingsUpsertUserSettingData = {
     body: SettingUpdateRequest;
     path?: never;
     query?: never;
     url: '/v1/storage/settings/user';
 };
 
-export type PutV1StorageSettingsUserErrors = {
+export type StorageSettingsUpsertUserSettingErrors = {
     /**
      * Bad Request
      */
     400: ProblemDetails;
 };
 
-export type PutV1StorageSettingsUserError = PutV1StorageSettingsUserErrors[keyof PutV1StorageSettingsUserErrors];
+export type StorageSettingsUpsertUserSettingError = StorageSettingsUpsertUserSettingErrors[keyof StorageSettingsUpsertUserSettingErrors];
 
-export type PutV1StorageSettingsUserResponses = {
+export type StorageSettingsUpsertUserSettingResponses = {
     /**
      * No Content
      */
     204: unknown;
-};
-
-export type GetAliveData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/alive';
-};
-
-export type GetAliveResponses = {
-    /**
-     * OK
-     */
-    200: unknown;
-};
-
-export type GetEventsData = {
-    body?: never;
-    path?: never;
-    query?: {
-        subscribe?: string;
-    };
-    url: '/events';
-};
-
-export type GetEventsResponses = {
-    /**
-     * OK
-     */
-    200: unknown;
 };

@@ -1,67 +1,58 @@
-import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 
 /**
- * Inquiries feature `api.ts` (Wallow-evd5.2.2) — a THIN RE-EXPORT SEAM over
- * `@bc-solutions-coder/sdk/query`. This spec pins the seam (re-export identity)
- * and the preserved key/invalidation behavior: create sweeps the list, add
- * comment sweeps that inquiry's comments, set status sweeps that inquiry's
- * detail. The old `vi.mock("../../lib/wallow-sdk")` delegation spec is gone.
+ * Inquiries feature `api.ts` — a THIN RE-EXPORT SEAM over
+ * `@bc-solutions-coder/sdk/query`. Everything behind it is GENERATED as of
+ * Wallow-pu6a.5.5: the mutations no longer carry an `onSuccess`, so the
+ * invalidation model (create sweeps the list, add-comment sweeps that inquiry's
+ * comments, set-status sweeps its detail) now lives at the call sites, where the
+ * component specs assert it against the rendered screen.
+ *
+ * What is still this seam's own decision — and what this spec pins — is which
+ * curated predicate reaches which queries. The per-inquiry sweeps go through
+ * `queriesForOperation`, NOT the `Inquiries` tag: the tag spans list, detail and
+ * comments together, so using it would refetch the whole feature after every
+ * comment. Both the reach and that narrowness are asserted here.
  */
 
-import * as api from "./api";
-import { inquiriesQueries } from "./api";
-import { queryKeys } from "@bc-solutions-coder/sdk/query";
 import * as query from "@bc-solutions-coder/sdk/query";
 
-/** A QueryClient whose invalidateQueries records the keys it was asked to sweep. */
-function captureInvalidations(): { client: QueryClient; keys: unknown[] } {
-  const client = new QueryClient();
-  const keys: unknown[] = [];
-  client.invalidateQueries = (filters?: { queryKey?: unknown }) => {
-    keys.push(filters?.queryKey);
-    return Promise.resolve();
-  };
-  return { client, keys };
-}
+import { sweeps } from "../../test/invalidation";
+import * as api from "./api";
 
-describe("api.ts re-exports the SDK inquiries query layer", () => {
+const commentsKey: readonly unknown[] = api.inquiriesGetCommentsQueryKey({ path: { id: "i1" } });
+const detailKey: readonly unknown[] = api.inquiriesGetByIdQueryKey({ path: { id: "i1" } });
+
+describe("api.ts re-exports the SDK inquiries query surface", () => {
   it("re-exports each symbol by identity from @bc-solutions-coder/sdk/query", () => {
-    expect(api.inquiriesQueries).toBe(query.inquiriesQueries);
-    expect(api.createInquiryMutation).toBe(query.createInquiryMutation);
-    expect(api.addCommentMutation).toBe(query.addCommentMutation);
-    expect(api.setStatusMutation).toBe(query.setStatusMutation);
+    expect(api.inquiriesGetAllOptions).toBe(query.inquiriesGetAllOptions);
+    expect(api.inquiriesGetAllQueryKey).toBe(query.inquiriesGetAllQueryKey);
+    expect(api.inquiriesGetByIdOptions).toBe(query.inquiriesGetByIdOptions);
+    expect(api.inquiriesGetByIdQueryKey).toBe(query.inquiriesGetByIdQueryKey);
+    expect(api.inquiriesGetCommentsOptions).toBe(query.inquiriesGetCommentsOptions);
+    expect(api.inquiriesGetCommentsQueryKey).toBe(query.inquiriesGetCommentsQueryKey);
+    expect(api.inquiriesSubmitMutation).toBe(query.inquiriesSubmitMutation);
+    expect(api.inquiriesAddCommentMutation).toBe(query.inquiriesAddCommentMutation);
+    expect(api.inquiriesUpdateStatusMutation).toBe(query.inquiriesUpdateStatusMutation);
+    expect(api.queriesForOperation).toBe(query.queriesForOperation);
+    expect(api.queriesWithTag).toBe(query.queriesWithTag);
   });
 });
 
-describe("inquiriesQueries", () => {
-  it("keys every option from the central queryKeys factory", () => {
-    expect(inquiriesQueries.list().queryKey).toEqual(queryKeys.inquiries.all);
-    expect(inquiriesQueries.detail("i1").queryKey).toEqual(queryKeys.inquiries.detail("i1"));
-    expect(inquiriesQueries.comments("i1").queryKey).toEqual(queryKeys.inquiries.comments("i1"));
+describe("inquiries invalidation", () => {
+  it("sweeps the inquiry list by tag", () => {
+    expect(sweeps(api.queriesWithTag("Inquiries"), api.inquiriesGetAllQueryKey())).toBe(true);
   });
 
-  it("keeps the list queryKey stable across calls", () => {
-    expect(inquiriesQueries.list().queryKey).toEqual(inquiriesQueries.list().queryKey);
-  });
-});
-
-describe("inquiries mutation invalidation", () => {
-  it("createInquiryMutation sweeps the inquiries list", () => {
-    const { client, keys } = captureInvalidations();
-    api.createInquiryMutation(client).onSuccess();
-    expect(keys).toEqual([queryKeys.inquiries.all]);
+  it("leaves another feature's queries alone", () => {
+    expect(sweeps(api.queriesWithTag("Inquiries"), query.appsGetUserAppsQueryKey())).toBe(false);
   });
 
-  it("addCommentMutation sweeps that inquiry's comments", () => {
-    const { client, keys } = captureInvalidations();
-    api.addCommentMutation(client, "i1").onSuccess();
-    expect(keys).toEqual([queryKeys.inquiries.comments("i1")]);
+  it("reaches an inquiry's comments by operation", () => {
+    expect(sweeps(api.queriesForOperation(commentsKey), commentsKey)).toBe(true);
   });
 
-  it("setStatusMutation sweeps that inquiry's detail", () => {
-    const { client, keys } = captureInvalidations();
-    api.setStatusMutation(client, "i1").onSuccess();
-    expect(keys).toEqual([queryKeys.inquiries.detail("i1")]);
+  it("does not drag the detail query along when only the comments were swept", () => {
+    expect(sweeps(api.queriesForOperation(commentsKey), detailKey)).toBe(false);
   });
 });

@@ -5,6 +5,17 @@ namespace Wallow.Shared.Kernel.Extensions;
 public static class ClaimsPrincipalExtensions
 {
     /// <summary>
+    /// The claim type carrying the explicit platform operator flag.
+    /// </summary>
+    public const string OperatorClaimType = "is_operator";
+
+    /// <summary>
+    /// The claim type carrying the explicit global administrator flag. Global admin is a
+    /// distinct, non-assignable claim, never a role: no tenant-facing endpoint may grant it.
+    /// </summary>
+    public const string GlobalAdminClaimType = "is_global_admin";
+
+    /// <summary>
     /// Resolves the user identifier from NameIdentifier or the OIDC "sub" claim.
     /// </summary>
     public static string? GetUserId(this ClaimsPrincipal? principal) =>
@@ -74,6 +85,22 @@ public static class ClaimsPrincipalExtensions
     /// </summary>
     public static string? GetPlan(this ClaimsPrincipal? principal) =>
         principal?.FindFirst("plan")?.Value;
+
+    /// <summary>
+    /// Indicates whether the caller carries the explicit platform operator flag, granting
+    /// cross-tenant privileges such as the X-Tenant-Id override. Only the literal value
+    /// "true" on the "is_operator" claim grants it; absence or any other value does not.
+    /// </summary>
+    public static bool IsOperator(this ClaimsPrincipal? principal) =>
+        bool.TryParse(principal?.FindFirst(OperatorClaimType)?.Value, out bool isOperator) && isOperator;
+
+    /// <summary>
+    /// Indicates whether the caller carries the explicit global administrator flag, granting
+    /// governance across every tenant. Only the literal value "true" on the "is_global_admin"
+    /// claim grants it; absence or any other value does not.
+    /// </summary>
+    public static bool IsGlobalAdmin(this ClaimsPrincipal? principal) =>
+        bool.TryParse(principal?.FindFirst(GlobalAdminClaimType)?.Value, out bool isGlobalAdmin) && isGlobalAdmin;
 
     /// <summary>
     /// Returns all roles from both ClaimTypes.Role and OIDC "role" claims, deduplicated.

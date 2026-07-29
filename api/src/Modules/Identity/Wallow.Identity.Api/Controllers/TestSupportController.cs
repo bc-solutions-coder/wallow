@@ -13,6 +13,10 @@ namespace Wallow.Identity.Api.Controllers;
 [Route("v{version:apiVersion}/identity/test")]
 [Authorize]
 [Tags("Test Support")]
+// Hides the action from ApiExplorer so neither its path NOR its request schema is ever
+// collected. The "Test Support" document transformer removes the path afterwards, but by
+// then the schema has already been harvested into components and would ship as a dead type.
+[ApiExplorerSettings(IgnoreApi = true)]
 [Produces("application/json")]
 [Consumes("application/json")]
 public sealed class TestSupportController(

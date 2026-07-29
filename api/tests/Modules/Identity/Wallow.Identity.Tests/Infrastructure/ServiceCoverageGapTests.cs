@@ -55,7 +55,7 @@ public sealed class PreRegisteredClientSyncServiceGapTests
         {
             ClientId = "spa",
             DisplayName = "SPA",
-            // No Secret = public
+            Public = true,
             RedirectUris = ["https://spa/cb"],
             PostLogoutRedirectUris = [],
             Scopes = ["openid"]

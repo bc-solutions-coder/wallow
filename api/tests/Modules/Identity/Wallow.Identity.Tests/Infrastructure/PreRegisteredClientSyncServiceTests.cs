@@ -59,6 +59,7 @@ public sealed class PreRegisteredClientSyncServiceTests
         {
             ClientId = "spa",
             DisplayName = "SPA",
+            Public = true,
             RedirectUris = ["https://l/cb"],
             PostLogoutRedirectUris = [],
             Scopes = ["openid"]
@@ -68,6 +69,73 @@ public sealed class PreRegisteredClientSyncServiceTests
         await _sut.SyncAsync(CancellationToken.None);
         await _appManager.Received(1).CreateAsync(
             Arg.Is<OpenIddictApplicationDescriptor>(d => d.ClientType == ClientTypes.Public),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SyncAsync_SecretlessClientWithoutExplicitPublicFlag_ThrowsWithoutRegisteringAnything()
+    {
+        // An undeclared secret-less client is the fail-open case: registration must hard-fail
+        // at startup rather than quietly minting a public client.
+        _options.Clients.Add(new PreRegisteredClientDefinition
+        {
+            ClientId = "silent-public",
+            DisplayName = "Silent Public",
+            RedirectUris = ["https://l/cb"],
+            PostLogoutRedirectUris = [],
+            Scopes = ["openid"]
+        });
+        _appManager.FindByClientIdAsync("silent-public", Arg.Any<CancellationToken>())
+            .Returns(_ => new ValueTask<object?>((object?)null));
+
+        Func<Task> sync = () => _sut.SyncAsync(CancellationToken.None);
+
+        await sync.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*silent-public*");
+        await _appManager.DidNotReceive().CreateAsync(
+            Arg.Any<OpenIddictApplicationDescriptor>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SyncAsync_SecretlessClientWithoutExplicitPublicFlag_FailsBeforeDeletingRemovedClients()
+    {
+        // The hard-fail must precede the destructive reconciliation pass, so a misconfigured
+        // deployment cannot delete existing registrations on its way to throwing.
+        _options.Clients.Add(new PreRegisteredClientDefinition
+        {
+            ClientId = "silent-public",
+            DisplayName = "Silent Public",
+            RedirectUris = ["https://l/cb"],
+            PostLogoutRedirectUris = [],
+            Scopes = ["openid"]
+        });
+
+        Func<Task> sync = () => _sut.SyncAsync(CancellationToken.None);
+
+        await sync.Should().ThrowAsync<InvalidOperationException>();
+        await _appManager.DidNotReceive().DeleteAsync(Arg.Any<object>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SyncAsync_ConfidentialClientWithSecret_SetsConfidentialAndKeepsSecret()
+    {
+        _options.Clients.Add(new PreRegisteredClientDefinition
+        {
+            ClientId = "bff",
+            DisplayName = "BFF",
+            Secret = "s3cret",
+            RedirectUris = ["https://l/cb"],
+            PostLogoutRedirectUris = [],
+            Scopes = ["openid"]
+        });
+        _appManager.FindByClientIdAsync("bff", Arg.Any<CancellationToken>())
+            .Returns(_ => new ValueTask<object?>((object?)null));
+
+        await _sut.SyncAsync(CancellationToken.None);
+
+        await _appManager.Received(1).CreateAsync(
+            Arg.Is<OpenIddictApplicationDescriptor>(d =>
+                d.ClientType == ClientTypes.Confidential && d.ClientSecret == "s3cret"),
             Arg.Any<CancellationToken>());
     }
 

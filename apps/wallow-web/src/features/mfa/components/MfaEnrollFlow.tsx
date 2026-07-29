@@ -3,7 +3,7 @@
  * UX: a single component driving a small step machine. In wallow-web the whole
  * SPA is same-origin via the BFF
  * proxy, so there is NO cross-app EnrollToken redirect dance — this component
- * calls `postV1IdentityMfaEnrollTotp` directly through the facade.
+ * calls the generated `mfaEnrollTotp` operation directly.
  *
  * STEP MACHINE (strict order, derived from local state):
  *   "setup"  — the `mfa-enroll-begin-setup` CTA is shown; clicking it runs the
@@ -11,24 +11,30 @@
  *   "verify" — once the secret exists, `mfa-enroll-secret` + `mfa-enroll-qr`
  *              (QR from the `qrUri`) + `mfa-enroll-code` (input) + `mfa-enroll-
  *              submit` are shown; submit runs the `confirmEnroll` mutation.
- *   "done"   — on a `{ succeeded: true }` confirm, the one-time
+ *   "done"   — once a confirm RESOLVES, the one-time
  *              `mfa-enroll-backup-codes` (one child per code) are revealed ONCE
  *              with a Done action; status is invalidated so the card flips to
  *              Enabled.
  *
- * `mfa-enroll-error` surfaces any step's failure (RFC 7807 `detail` on a thrown
- * ProblemDetails, or the mapped `error` code when confirm returns
- * `{ succeeded: false }`); `mfa-enroll-cancel` is always visible.
+ * `mfa-enroll-error` surfaces any step's failure. There is no resolved-but-
+ * rejected branch left: every MFA failure — RFC 7807 body or the controller's
+ * raw `{ succeeded: false, error }` — arrives as a thrown `WallowError`, which
+ * `problemDetail` renders. `mfa-enroll-cancel` is always visible.
  *
  * Testids mirror the C# E2E page object `MfaEnrollPage`.
  */
 import { Button, Card, CardTitle, ErrorBanner, Field, Input, Label } from "@bc-solutions-coder/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
 
-import { confirmEnrollMutation, enrollTotpMutation } from "../api";
-import { mapMfaError, problemDetail } from "../errors";
-import type { MfaConfirmResponse, MfaEnrollResponse } from "../types";
+import {
+  mfaConfirmEnrollmentMutation,
+  mfaEnrollTotpMutation,
+  mfaGetStatusQueryKey,
+  queriesForOperation,
+} from "../api";
+import { problemDetail } from "../errors";
 
 /** Props: `onDone` fires after the backup codes are acknowledged; `onCancel` backs out. */
 export interface MfaEnrollFlowProps {
@@ -102,9 +108,21 @@ function DoneStep(props: { codes: string[]; onDone: () => void }) {
 
 export function MfaEnrollFlow(props: MfaEnrollFlowProps) {
   const { onDone, onCancel } = props;
+  const { sdk } = useRouteContext({ from: "__root__" });
   const queryClient = useQueryClient();
-  const enroll = useMutation(enrollTotpMutation());
-  const confirm = useMutation(confirmEnrollMutation(queryClient));
+  // Enrolling only mints a one-time secret, so it invalidates nothing; confirming
+  // is what flips the status the settings card renders, and it re-reads that one
+  // operation (generated keys are flat, and the status query's `Identity` tag is
+  // far broader than this write touches).
+  const enroll = useMutation(mfaEnrollTotpMutation({ client: sdk.client }));
+  const confirm = useMutation({
+    ...mfaConfirmEnrollmentMutation({ client: sdk.client }),
+    onSuccess: (): void => {
+      void queryClient.invalidateQueries(
+        queriesForOperation(mfaGetStatusQueryKey({ client: sdk.client })),
+      );
+    },
+  });
 
   const [secret, setSecret] = useState<string | null>(null);
   const [qrUri, setQrUri] = useState<string | null>(null);
@@ -114,16 +132,18 @@ export function MfaEnrollFlow(props: MfaEnrollFlowProps) {
 
   const handleBegin = () => {
     setError(null);
-    enroll.mutate(undefined, {
-      onSuccess: (data) => {
-        const result = data as MfaEnrollResponse;
-        setSecret(result.secret);
-        setQrUri(result.qrUri);
+    enroll.mutate(
+      {},
+      {
+        onSuccess: (data) => {
+          setSecret(data.secret);
+          setQrUri(data.qrUri);
+        },
+        onError: (err) => {
+          setError(problemDetail(err, ENROLL_FAILED));
+        },
       },
-      onError: (err) => {
-        setError(problemDetail(err, ENROLL_FAILED));
-      },
-    });
+    );
   };
 
   const handleSubmit = () => {
@@ -132,20 +152,23 @@ export function MfaEnrollFlow(props: MfaEnrollFlowProps) {
     }
     setError(null);
     confirm.mutate(
-      { secret, code },
+      { body: { secret, code } },
       {
         onSuccess: (data) => {
-          const result = data as MfaConfirmResponse;
-          if (result.succeeded) {
-            // One-time reveal: hold the codes locally, drop the secret so the
-            // verify step is gone. The factory's own onSuccess invalidates
-            // `['mfa', 'status']` so the card flips to Enabled.
-            setBackupCodes(result.backupCodes ?? []);
-            setSecret(null);
-          } else {
-            // Resolved-but-rejected: inspect `succeeded`, not `isError`.
-            setError(mapMfaError(result.error) ?? CONFIRM_FAILED);
-          }
+          // A rejected confirmation no longer resolves: the SDK's error
+          // interceptor turns the endpoint's `{ succeeded: false, error }`
+          // BadRequest into a thrown `WallowError`, so reaching here means the
+          // enrollment took. One-time reveal: hold the codes locally and drop
+          // the secret so the verify step is gone; the mutation's own onSuccess
+          // re-reads the status so the card flips to Enabled.
+          //
+          // The `??` survives the move to the generated type even though that
+          // type declares `backupCodes` REQUIRED: the declaration is the
+          // schema's claim, not the wire's. A null list serializes to an absent
+          // member, and `DoneStep` maps over what it is given — so an enrollment
+          // that WORKED would blow up on its own success screen.
+          setBackupCodes(data.backupCodes ?? []);
+          setSecret(null);
         },
         onError: (err) => {
           setError(problemDetail(err, CONFIRM_FAILED));

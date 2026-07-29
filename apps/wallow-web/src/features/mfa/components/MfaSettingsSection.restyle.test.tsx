@@ -1,10 +1,8 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactElement } from "react";
+import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { installSdkClientMock, type SdkClientMock } from "../../../test/sdk-client-mock";
 import {
   byTestId,
   expectClasses,
@@ -15,6 +13,9 @@ import {
   within,
 } from "../../../test/style-contract";
 import { MfaSettingsSection } from "./MfaSettingsSection";
+
+/** The transport backing each render, rebuilt per test. */
+let harness: SdkHarness;
 
 /**
  * Restyle spec for the MFA settings section (Wallow-urec.4.4). Like the profile
@@ -55,30 +56,16 @@ function json(body: unknown): Response {
   });
 }
 
-function newClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: {
-      queries: { retry: false, staleTime: Number.POSITIVE_INFINITY },
-      mutations: { retry: false },
-    },
-  });
-}
-
-function renderWithClient(client: QueryClient, ui: ReactElement) {
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-}
-
 /**
  * Render the section seeded with `status` (omit for the loading state) and
  * resolve the settled element named by `anchor` — the testid of the state under
  * test.
  */
 async function renderSection(status: unknown | undefined, anchor: string): Promise<HTMLElement> {
-  const client = newClient();
   if (status !== undefined) {
-    client.setQueryData(["mfa", "status"], status);
+    harness.resolveJson(status);
   }
-  renderWithClient(client, <MfaSettingsSection />);
+  renderWithWallow(<MfaSettingsSection />, { harness });
   return waitForTestId(anchor);
 }
 
@@ -106,10 +93,8 @@ async function openConfirm(action: "disable" | "regenerate"): Promise<HTMLElemen
 }
 
 describe("MfaSettingsSection (restyle)", () => {
-  let sdk: SdkClientMock;
-
   beforeEach(() => {
-    sdk = installSdkClientMock();
+    harness = createSdkHarness();
   });
 
   it("sits on its own titled card below the profile section", async () => {
@@ -174,10 +159,12 @@ describe("MfaSettingsSection (restyle)", () => {
   });
 
   it("frames the regenerated-codes reveal without changing its copy", async () => {
-    sdk.respond((call) =>
+    harness.respond((call) =>
       call.path === REGENERATE_PATH ? json({ codes: ["z1", "z2"] }) : json(ENABLED_STATUS),
     );
-    await openConfirm("regenerate");
+    renderWithWallow(<MfaSettingsSection />, { harness });
+    await userEvent.click(await waitForTestId("settings-mfa-regenerate"));
+    await waitForTestId("settings-mfa-confirm-submit");
     await userEvent.type(page.getByTestId("settings-mfa-confirm-password"), "hunter2");
     await userEvent.click(page.getByTestId("settings-mfa-confirm-submit"));
 
@@ -196,7 +183,7 @@ describe("MfaSettingsSection (restyle)", () => {
   });
 
   it("centers the loading state without changing its wording", async () => {
-    sdk.pending();
+    harness.pending();
     const loading = await renderSection(undefined, "settings-mfa-loading");
 
     expect(loading.textContent).toBe("Loading MFA status…");

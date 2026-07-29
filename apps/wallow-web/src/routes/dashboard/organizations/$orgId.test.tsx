@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-import { createRouter } from "../../../router";
+import { getRouter } from "../../../router";
 import { Route } from "./$orgId";
 
 /**
@@ -14,37 +14,12 @@ import { Route } from "./$orgId";
  * contract only.
  */
 
-// The detail page mounts queries via OrganizationDetail; mock the facade so any
-// module-load-time wiring stays inert.
-const mocks = vi.hoisted(() => ({
-  get: vi.fn(),
-  members: vi.fn(),
-  addMember: vi.fn(),
-  removeMember: vi.fn(),
-  archive: vi.fn(),
-  reactivate: vi.fn(),
-}));
-
-vi.mock("../../../lib/wallow-sdk", () => ({
-  getWallowSdk: () => ({
-    organizations: {
-      list: vi.fn(),
-      get: mocks.get,
-      create: vi.fn(),
-      members: mocks.members,
-      addMember: mocks.addMember,
-      removeMember: mocks.removeMember,
-      archive: mocks.archive,
-      reactivate: mocks.reactivate,
-    },
-  }),
-}));
+// Nothing to mock: importing the route no longer configures anything. The
+// module-global client this file used to neutralise — `getWallowSdk()` out of
+// `src/lib/wallow-sdk` — is deleted (Wallow-pu6a.5.5), and the detail page now
+// takes its client from the router context at render time.
 
 describe("routes/dashboard/organizations/$orgId (route)", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it("exposes a route component", () => {
     expect(Route.options.component).toBeDefined();
   });
@@ -56,8 +31,8 @@ describe("routes/dashboard/organizations/$orgId (route)", () => {
 
 describe("routes/dashboard/organizations/$orgId (router registration)", () => {
   it("registers /dashboard/organizations/$orgId in the router tree", () => {
-    const router = createRouter();
-    const paths = Object.keys((router as { routesByPath: Record<string, unknown> }).routesByPath);
+    const router = getRouter();
+    const paths = Object.keys(router.routesByPath);
     expect(paths).toContain("/dashboard/organizations/$orgId");
   });
 });

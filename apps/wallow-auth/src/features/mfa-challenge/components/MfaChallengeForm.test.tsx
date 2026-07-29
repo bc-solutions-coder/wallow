@@ -1,16 +1,14 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import {
-  createMemoryHistory,
-  createRootRoute,
-  createRouter,
-  Outlet,
-  RouterProvider,
-} from "@tanstack/react-router";
+  type SdkCall,
+  type SdkHarness,
+  type SdkResponder,
+} from "@bc-solutions-coder/testing/sdk-harness";
 import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createAuthHarness } from "../../../test/harness";
 import { Route as mfaChallengeRoute } from "../../../routes/mfa/challenge";
 import { MfaChallengeForm, type MfaChallengeFormProps } from "./MfaChallengeForm";
 
@@ -21,11 +19,30 @@ import { MfaChallengeForm, type MfaChallengeFormProps } from "./MfaChallengeForm
  * `mfa-challenge-error`, `mfa-challenge-success`, `mfa-challenge-backup-code`,
  * `mfa-challenge-code`, `mfa-challenge-submit`, `mfa-challenge-toggle-backup`.
  *
- * MOCKING SEAM: `../../../lib/wallow-auth-sdk` — the app's own facade, never
- * `@bc-solutions-coder/sdk` directly (that module is the only permitted importer
- * of the SDK). Per bd memories `vitest-resetmodules-breaks-instanceof-across-
- * graphs`, this file uses a plain `vi.mock` factory + `vi.hoisted` spies and
- * NEVER `vi.resetModules()`.
+ * TEST SEAM: `@bc-solutions-coder/testing/sdk-harness` (Wallow-pu6a.5.1). The
+ * SDK is the REAL one and only its `fetch` is faked, so the screen's whole
+ * pipeline — request-scoped SDK -> generated operation -> CSRF interceptor ->
+ * serialization -> error shaping -> React Query — runs here. Nothing mocks
+ * `@bc-solutions-coder/sdk` or its `./query` entry, and there is no app-level
+ * facade left to mock (Wallow-pu6a.5.5). `renderWithWallow` supplies the router
+ * context the screen reads its SDK off, and `createAuthHarness()` pins the
+ * harness origin to this app's root-mounted API surface — so every recorded
+ * `call.path` below is the endpoint path verbatim, with no `/api` prefix.
+ *
+ * WHAT THAT BOUGHT. Three seams that used to be spies are now the real thing:
+ *
+ *   - `verifyMfa` / `useBackupCode` are ONE endpoint (`POST /v1/identity/auth/
+ *     mfa/verify`) distinguished by `useBackupCode: false | true` in the body
+ *     body. The pair of spies could only say "the right method was called";
+ *     the recorded REQUEST says which code went to which
+ *     validator, which is the claim those tests were reaching for.
+ *   - the allow-list probe is a real `GET /v1/identity/auth/redirect-uri/validate`,
+ *     so the mirrored `IsAllowedAsync` rule below now reads `uri` and `clientId`
+ *     off the QUERY STRING the screen actually built — including the
+ *     omit-the-key-entirely contract for a blank client id.
+ *   - `isSafeReturnUrl` and `buildExchangeTicketUrl` are the REAL pure builders
+ *     from `packages/sdk/src/auth-oidc.ts`, no longer mirrored or stubbed, so
+ *     the exchange hand-off is asserted as the exact URL the user is sent to.
  *
  * ── THE ERROR-BRANCH PORT (read off the controller, not assumed) ──────────────
  *
@@ -46,6 +63,9 @@ import { MfaChallengeForm, type MfaChallengeFormProps } from "./MfaChallengeForm
  *     423 { succeeded: false, error: "mfa_locked_out" }   already locked, or now locked
  *     200 { succeeded: true, signInTicket }               the ONLY success
  *
+ * Those five bodies are now literally what the failure tests below put ON THE
+ * WIRE, rather than a hand-built rejection object standing in for them.
+ *
  * Two of the oracle's three branches are warts, and are NOT ported:
  *
  *  1. `"expired_challenge"` IS DEAD CODE. This endpoint never emits that string —
@@ -65,7 +85,7 @@ import { MfaChallengeForm, type MfaChallengeFormProps } from "./MfaChallengeForm
  * so the token sitting under `error` was never read and the screen always
  * received `code: "UNKNOWN"`.
  *
- * Wallow-vec7.7 closed that: `readCode` (packages/sdk/src/auth-client.ts) now
+ * Wallow-vec7.7 closed that: `readCode` (now `packages/sdk/src/runtime-config.ts`)
  * probes `extensions.code > code > error`, so the API's own token reaches the
  * screen intact. The loss is recovered and this spec is revised UPWARD to pin
  * the better behaviour — the distinction the oracle's switch was reaching for:
@@ -94,7 +114,7 @@ import { MfaChallengeForm, type MfaChallengeFormProps } from "./MfaChallengeForm
  * The oracle prepends an absolute API origin (`Configuration["ApiBaseUrl"] ??
  * "http://localhost:5001"`) to BOTH of its navigation targets — the
  * exchange-ticket URL and `BuildApiReturnUrl`. That prepend is deliberately NOT
- * ported: apps/wallow-auth's h3 server (`src/lib/auth-server.ts`) is a
+ * ported: apps/wallow-auth's API surface (`src/lib/api-passthrough.ts`) is a
  * passthrough reverse proxy mounting `/v1/**` and `/connect/**` at the ROOT, so
  * this origin DOES host them and the origin argument is `""` (bd memory
  * `wallow-auth-same-origin-baseurl-apps-wallow-auth`).
@@ -102,80 +122,31 @@ import { MfaChallengeForm, type MfaChallengeFormProps } from "./MfaChallengeForm
  * This is the security decision this screen exists to prove. Going cross-origin
  * would drop the `SameSite` partial-auth cookie that `mfa/verify` reads and the
  * exchange-ticket endpoint upgrades — the exact round-trip named in this bead's
- * acceptance. The builder-seam assertions below pin it in both directions.
+ * acceptance. It is pinned end-to-end now: the recorded navigation target is a
+ * ROOT-RELATIVE path, so it resolves against the page's own origin, and an
+ * implementation that prepended an API origin would produce a different absolute
+ * URL and fail.
  *
  * ── NAVIGATION SEAM (Wallow-xzha.3.1: real Chromium, not jsdom) ───────────────
  *
  * `window.location` is `[Unforgeable]` in a real browser, so the old jsdom-only
  * `vi.stubGlobal("location", …)` cannot shadow it and a real `location.href = …`
- * navigates the Chromium runner away and tears it down. The exchange hand-off is
- * therefore pinned by asserting the deterministic URL-builder seam
- * (`buildExchangeTicketUrl`) was called with the exact origin + ticket +
- * returnUrl — equivalent to pinning the assigned string — and the builder mock
- * returns a NON-navigating fragment sentinel so the assignment stays put. The
- * one hand-off with no builder (the no-ticket branch's direct
- * `location.href = returnUrl`) is exercised with a same-page `#`-suffixed
- * returnUrl (`directReturnUrl`), which is still relative-safe and changes only
- * the fragment, so the navigation is observable without unloading the runner.
+ * navigates the Chromium runner away and tears it down. The seam that replaces
+ * it is the NAVIGATION API: a `navigate` listener records
+ * `event.destination.url` and calls `event.preventDefault()`, which cancels the
+ * cross-document navigation before it unloads the runner. So the assigned URL is
+ * observed DIRECTLY and exactly, and the two workarounds the builder mock forced
+ * — a non-navigating `#exchange-ticket` sentinel return value, and a same-page
+ * `directReturnUrl()` for the builder-less branch — are both gone.
  */
 
-// Hoisted so the vi.mock factories and the test bodies share the same spies.
+// Hoisted so the vi.mock factory and the test bodies share the same spy. Only
+// the router's `useNavigate` is mocked: it is the seam for the screen's in-app
+// bail to /error, has nothing to do with how the screen reaches the API, and is
+// not matched by the SDK-seam guard (`src/sdk-test-seam.test.ts`).
 const mocks = vi.hoisted(() => ({
-  verifyMfa: vi.fn(),
-  useBackupCode: vi.fn(),
-  validateRedirectUri: vi.fn(),
-  isSafeReturnUrl: vi.fn(),
-  buildExchangeTicketUrl: vi.fn(),
   navigate: vi.fn(),
 }));
-
-vi.mock("../../../lib/wallow-auth-sdk", () => ({
-  getWallowAuthSdk: () => ({
-    auth: {
-      verifyMfa: mocks.verifyMfa,
-      useBackupCode: mocks.useBackupCode,
-    },
-    oidc: {
-      isSafeReturnUrl: mocks.isSafeReturnUrl,
-      buildExchangeTicketUrl: mocks.buildExchangeTicketUrl,
-    },
-  }),
-}));
-
-/**
- * THE READ SEAM MOVED (Wallow-evd5.3.1). The absolute-returnUrl probe is now
- * `useQuery(authQueries.redirectValidation(returnUrl))` from the SDK query layer
- * rather than a facade call inside inline `useQuery` options, so the facade mock
- * above no longer carries `validateRedirectUri` and the spy hangs off the
- * FACTORY. Code verification and the backup-code path are facade mutations and
- * stay there.
- *
- * The factory is SHARED with the logout screen — both ask the same endpoint
- * whether a URL is allowed — so `importOriginal` keeping the real `queryKey`
- * matters: the two screens are meant to hit one cache entry per URL. The spy
- * returns the RAW endpoint payload (the screen narrows it to a boolean), which is
- * what these tests already feed it.
- *
- * The client id (Wallow-nv7l.1) is forwarded to the spy only when the caller
- * supplies one, so the pre-existing single-argument assertions keep saying what
- * they always said: an unscoped probe is one argument, a scoped one is two.
- */
-vi.mock("@bc-solutions-coder/sdk/query", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@bc-solutions-coder/sdk/query")>();
-  return {
-    ...actual,
-    authQueries: {
-      ...actual.authQueries,
-      redirectValidation: (url: string, clientId?: string) => ({
-        ...actual.authQueries.redirectValidation(url, clientId),
-        queryFn: async (): Promise<unknown> =>
-          clientId === undefined
-            ? await mocks.validateRedirectUri(url)
-            : await mocks.validateRedirectUri(url, clientId),
-      }),
-    },
-  };
-});
 
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),
@@ -187,15 +158,11 @@ const BACKUP_CODE = "abcd-efgh-ijkl";
 const TICKET = "sign-in-ticket-xyz";
 const RETURN_URL = "/connect/authorize?client_id=web";
 
-/**
- * The non-navigating value `buildExchangeTicketUrl` is mocked to return. The real
- * builder produces `/v1/identity/auth/exchange-ticket?...`, which would navigate
- * the Chromium runner when the screen assigns it to `location.href`. A pure
- * fragment resolves against the current page and changes only the hash, so the
- * assignment stays put. The assigned string is not asserted; the builder's CALL
- * ARGS are (see the navigation-seam note above).
- */
-const EXCHANGE_TICKET_SENTINEL = "#exchange-ticket";
+/** The one endpoint behind BOTH `verifyMfa` and `useBackupCode`. */
+const VERIFY_PATH = "/v1/identity/auth/mfa/verify";
+
+/** The server-authoritative allow-list probe. */
+const VALIDATE_PATH = "/v1/identity/auth/redirect-uri/validate";
 
 /**
  * The returnUrl the EXTERNAL-LOGIN hand-off really sends (Wallow-vec7.3.17).
@@ -260,35 +227,9 @@ const ALLOWED_ORIGINS = new Set([
 const ERROR_HREF = "/error?reason=invalid_redirect_uri";
 
 /**
- * A relative-safe returnUrl that resolves to the CURRENT test page plus a
- * fragment, so the screen's builder-less no-ticket hand-off
- * (`globalThis.location.href = returnUrl`) changes only the hash and does NOT
- * unload the Chromium runner. It still starts with a single `/`, so
- * `isSafeReturnUrl` accepts it with no server probe, exactly as a real relative
- * returnUrl is accepted — the branch under test.
- */
-function directReturnUrl(): string {
-  return `${globalThis.location.pathname}${globalThis.location.search}#direct-return`;
-}
-
-/**
- * The real `isSafeReturnUrl` rule (packages/sdk/src/auth-oidc.ts), mirrored
- * rather than imported: screens may not import the SDK, so the seam is mocked,
- * and a mock that returned a constant would let an unsafe-returnUrl test pass
- * for the wrong reason. Under 67 tests of its own in Wallow-vec7.2.2.
- */
-function isSafeReturnUrlRule(url: string | null | undefined): boolean {
-  if (url === null || url === undefined || url.trim() === "") {
-    return false;
-  }
-
-  return url.startsWith("/") && !url.startsWith("//");
-}
-
-/**
  * The real `IsAllowedAsync` rule (OpenIddictRedirectUriValidator.cs:23-32),
- * mirrored for the same reason `isSafeReturnUrlRule` is: a mock that returned a
- * constant would let the evil-origin test pass for the wrong reason.
+ * mirrored rather than hard-coded: a fake that answered a constant would let the
+ * evil-origin test pass for the wrong reason.
  *
  * Both halves are load-bearing. `Uri.TryCreate(uri, UriKind.Absolute)` is the
  * parse gate -- `new URL()` throws on `//evil.example.com/steal` exactly as
@@ -309,60 +250,156 @@ function allowedOriginsFor(clientId: string | undefined): ReadonlySet<string> {
   return new Set([AUTH_URL_ORIGIN, ...(CLIENT_REGISTERED_ORIGINS.get(clientId) ?? [])]);
 }
 
-function validateRedirectUriRule(
-  uri: string,
-  clientId?: string,
-): Promise<{ readonly allowed: boolean }> {
+function isAllowedByServer(uri: string, clientId: string | undefined): boolean {
   let parsed: URL;
   try {
     parsed = new URL(uri);
   } catch {
     // Not absolute -- `TryCreate(UriKind.Absolute)` fails and the endpoint says no.
-    return Promise.resolve({ allowed: false });
+    return false;
   }
 
-  return Promise.resolve({ allowed: allowedOriginsFor(clientId).has(parsed.origin) });
+  return allowedOriginsFor(clientId).has(parsed.origin);
 }
 
 /**
- * What the facade really throws for this endpoint's failures. `title` stays
- * "Unknown error" — these endpoints emit no problem details, so no human-readable
- * title ever arrives and the screen must supply its own copy. `code` carries the
- * API's own token, which `readCode` now recovers from the body's `error` member
- * (Wallow-vec7.7); `status` is the response status.
+ * The allow-list endpoint, answering off the QUERY STRING the screen built.
+ *
+ * Reading `uri`/`clientId` back out of `call.url` rather than off a spy's
+ * arguments is what makes the scoping assertions below real: an implementation
+ * that computed the right client id and then failed to put it on the wire would
+ * now be caught.
  */
-function rejection(status: number, code: string): Error & { status: number; code: string } {
-  return Object.assign(new Error("Unknown error"), {
-    name: "WallowError",
-    status,
-    code,
-    title: "Unknown error",
+const allowListResponder: SdkResponder = (call: SdkCall): Response => {
+  const params: URLSearchParams = new URL(call.url).searchParams;
+  const clientId: string | null = params.get("clientId");
+
+  return Response.json({
+    allowed: isAllowedByServer(params.get("uri") ?? "", clientId ?? undefined),
   });
+};
+
+/** The endpoint's ONLY success: `200 { succeeded: true, signInTicket }`. */
+function verifiedResponse(ticket?: string): Response {
+  return Response.json(
+    ticket === undefined ? { succeeded: true } : { succeeded: true, signInTicket: ticket },
+  );
+}
+
+/**
+ * What this endpoint really puts on the wire for a failure: a non-2xx carrying a
+ * bare `{ succeeded: false, error }` anon object — NOT problem details. The
+ * screen's `code` comes from that `error` member via `readCode`'s third probe,
+ * and its `status` from the transport status.
+ */
+function rejectionResponse(status: number, error: string): Response {
+  return Response.json({ succeeded: false, error }, { status });
 }
 
 /** 401 + `invalid_code`: the code was wrong. Two of the endpoint's three 401s. */
-function invalidCodeRejection(): Error & { status: number; code: string } {
-  return rejection(401, "invalid_code");
+function invalidCodeResponse(): Response {
+  return rejectionResponse(401, "invalid_code");
 }
 
 /** 401 + `no_mfa_session`: the partial-auth cookie is missing or expired. */
-function noMfaSessionRejection(): Error & { status: number; code: string } {
-  return rejection(401, "no_mfa_session");
+function noMfaSessionResponse(): Response {
+  return rejectionResponse(401, "no_mfa_session");
 }
 
 /** 423 + `mfa_locked_out` — the one failure status also identifies on its own. */
-function lockedOutRejection(): Error & { status: number; code: string } {
-  return rejection(423, "mfa_locked_out");
+function lockedOutResponse(): Response {
+  return rejectionResponse(423, "mfa_locked_out");
 }
 
-function newClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
+/**
+ * The exact URL `buildExchangeTicketUrl("", ticket, returnUrl, clientId?)`
+ * produces (packages/sdk/src/auth-oidc.ts:146-175), spelled out rather than
+ * imported: importing the builder to build the expectation would assert it
+ * against itself.
+ *
+ * ROOT-RELATIVE, which IS the same-origin claim — see the origin-divergence note
+ * in the file header.
+ */
+function exchangeUrl(ticket: string, returnUrl: string, clientId?: string): string {
+  const base: string =
+    `/v1/identity/auth/exchange-ticket` +
+    `?ticket=${encodeURIComponent(ticket)}` +
+    `&returnUrl=${encodeURIComponent(returnUrl)}`;
+
+  return clientId === undefined ? base : `${base}&clientId=${encodeURIComponent(clientId)}`;
 }
 
+/**
+ * The Navigation API's `destination.url` is always ABSOLUTE, so a relative
+ * expectation has to be resolved against the page the runner is on before it can
+ * be compared.
+ */
+function absolute(url: string): string {
+  return new URL(url, globalThis.location.href).href;
+}
+
+/**
+ * The minimum of the Navigation API this spec uses. Declared structurally
+ * because `globalThis.navigation` is not in the DOM lib this repo compiles
+ * against, and a cast would be an `as any` in all but name.
+ */
+interface NavigateEventLike {
+  readonly destination: { readonly url: string };
+  readonly cancelable: boolean;
+  preventDefault: () => void;
+}
+
+interface NavigationApi {
+  addEventListener: (type: "navigate", listener: (event: NavigateEventLike) => void) => void;
+  removeEventListener: (type: "navigate", listener: (event: NavigateEventLike) => void) => void;
+}
+
+function navigationApi(): NavigationApi | undefined {
+  return (globalThis as { navigation?: NavigationApi }).navigation;
+}
+
+/** Every URL the screen tried to navigate to, in order. Reset per test. */
+let navigations: string[] = [];
+
+/**
+ * Record the destination and CANCEL the navigation. The cancel is what keeps the
+ * Chromium runner alive: without it the first `location.href = …` unloads the
+ * page mid-suite and every later test dies with it.
+ */
+const recordNavigation = (event: NavigateEventLike): void => {
+  navigations.push(event.destination.url);
+  if (event.cancelable) {
+    event.preventDefault();
+  }
+};
+
+let harness: SdkHarness;
+
+/** How `POST /v1/identity/auth/mfa/verify` answers. Reassigned per test. */
+let verifyWith: SdkResponder;
+
+/** How `GET /v1/identity/auth/redirect-uri/validate` answers. Reassigned per test. */
+let validateWith: SdkResponder;
+
+/** Every recorded call to the verify endpoint — the "was it submitted" question. */
+function verifyCalls(): readonly SdkCall[] {
+  return harness.calls.filter((call: SdkCall) => call.path === VERIFY_PATH);
+}
+
+/** Every recorded call to the allow-list probe. */
+function validateCalls(): readonly SdkCall[] {
+  return harness.calls.filter((call: SdkCall) => call.path === VALIDATE_PATH);
+}
+
+/** Query string of the first allow-list probe, or an empty set if it never happened. */
+function probeQuery(): URLSearchParams {
+  const url: string | undefined = validateCalls().at(0)?.url;
+  return url === undefined ? new URLSearchParams() : new URL(url).searchParams;
+}
+
+/** Render `ui` on the shared harness: real SDK, fake transport, real router context. */
 function renderWithClient(ui: ReactElement) {
-  return render(<QueryClientProvider client={newClient()}>{ui}</QueryClientProvider>);
+  return renderWithWallow(ui, { harness });
 }
 
 /** Render the screen as an OIDC MFA hand-off would: a safe returnUrl present. */
@@ -389,13 +426,27 @@ async function submitCode(user: ReturnType<typeof userEvent.setup>, code: string
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.isSafeReturnUrl.mockImplementation(isSafeReturnUrlRule);
-  mocks.validateRedirectUri.mockImplementation(validateRedirectUriRule);
-  // Non-navigating fragment sentinel — the builder's CALL ARGS are asserted, not
-  // its return value (see the navigation-seam note in the file header).
-  mocks.buildExchangeTicketUrl.mockReturnValue(EXCHANGE_TICKET_SENTINEL);
-  mocks.verifyMfa.mockResolvedValue({ succeeded: true, signInTicket: TICKET });
-  mocks.useBackupCode.mockResolvedValue({ succeeded: true, signInTicket: TICKET });
+  navigations = [];
+  navigationApi()?.addEventListener("navigate", recordNavigation);
+
+  harness = createAuthHarness();
+  verifyWith = () => verifiedResponse(TICKET);
+  validateWith = allowListResponder;
+  // ONE dispatcher, installed once: the tests reprogram the two endpoint
+  // responders above rather than re-installing a whole transport each time.
+  harness.respond((call: SdkCall) => {
+    if (call.path === VERIFY_PATH) {
+      return verifyWith(call);
+    }
+    if (call.path === VALIDATE_PATH) {
+      return validateWith(call);
+    }
+    return Response.json({});
+  });
+});
+
+afterEach(() => {
+  navigationApi()?.removeEventListener("navigate", recordNavigation);
 });
 
 describe("MfaChallengeForm", () => {
@@ -510,7 +561,7 @@ describe("MfaChallengeForm — the backup-code toggle", () => {
   it("clears a standing error", async () => {
     // Oracle: `_errorMessage = null;` inside `ToggleBackupCode`. "Invalid
     // verification code" hanging over a freshly-opened backup-code box is a lie.
-    mocks.verifyMfa.mockRejectedValue(invalidCodeRejection());
+    verifyWith = invalidCodeResponse;
     const user = userEvent.setup();
     await renderForm();
 
@@ -535,7 +586,7 @@ describe("MfaChallengeForm — submitting a code", () => {
     await expect
       .element(page.getByTestId("mfa-challenge-error"))
       .toHaveTextContent(/enter the verification code/iu);
-    expect(mocks.verifyMfa).not.toHaveBeenCalled();
+    expect(verifyCalls()).toHaveLength(0);
   });
 
   it("asks for a backup code by name when the backup field is blank", async () => {
@@ -549,7 +600,7 @@ describe("MfaChallengeForm — submitting a code", () => {
     await expect
       .element(page.getByTestId("mfa-challenge-error"))
       .toHaveTextContent(/enter a backup code/iu);
-    expect(mocks.useBackupCode).not.toHaveBeenCalled();
+    expect(verifyCalls()).toHaveLength(0);
   });
 
   it("treats a whitespace-only code as blank", async () => {
@@ -560,25 +611,29 @@ describe("MfaChallengeForm — submitting a code", () => {
     await submitCode(user, "   ");
 
     await expect.element(page.getByTestId("mfa-challenge-error")).toBeInTheDocument();
-    expect(mocks.verifyMfa).not.toHaveBeenCalled();
+    expect(verifyCalls()).toHaveLength(0);
   });
 
   it("sends the typed code to the authenticator endpoint", async () => {
-    // Oracle: `await AuthClient.VerifyMfaChallengeAsync(_code)`.
+    // Oracle: `await AuthClient.VerifyMfaChallengeAsync(_code)`. The facade's two
+    // methods are ONE op distinguished by the body flag, so `useBackupCode: false`
+    // IS the "went to the authenticator validator" claim — strictly more than the
+    // old pair of "this spy, not that spy" assertions could say.
     const user = userEvent.setup();
     await renderForm();
 
     await submitCode(user);
 
     await vi.waitFor(() => {
-      expect(mocks.verifyMfa).toHaveBeenCalledWith(CODE);
+      expect(harness.last?.path).toBe(VERIFY_PATH);
     });
-    expect(mocks.useBackupCode).not.toHaveBeenCalled();
+    expect(harness.last?.method).toBe("POST");
+    expect(harness.last?.body).toEqual({ code: CODE, useBackupCode: false });
   });
 
   it("sends a backup code to the backup endpoint instead", async () => {
     // Oracle: `_useBackupCode ? UseBackupCodeAsync(_code) : VerifyMfaChallengeAsync(_code)`.
-    // These are the same API op with `useBackupCode: true/false` (auth-client.ts:176-179);
+    // These are the same API op with `useBackupCode: true/false` (auth-client.ts:196-198);
     // crossing them would send a recovery code to the TOTP validator.
     const user = userEvent.setup();
     await renderForm();
@@ -587,30 +642,38 @@ describe("MfaChallengeForm — submitting a code", () => {
     await submitCode(user, BACKUP_CODE);
 
     await vi.waitFor(() => {
-      expect(mocks.useBackupCode).toHaveBeenCalledWith(BACKUP_CODE);
+      expect(harness.last?.path).toBe(VERIFY_PATH);
     });
-    expect(mocks.verifyMfa).not.toHaveBeenCalled();
+    expect(harness.last?.body).toEqual({ code: BACKUP_CODE, useBackupCode: true });
   });
 
   it("disables submit while the request is in flight", async () => {
     // Oracle: `Disabled="_isSubmitting"` — one click, one attempt. This screen is
     // rate-limited into a 5-strike lockout, so a double submit can cost the user
     // two of their five.
-    let release: (value: unknown) => void = () => {};
-    mocks.verifyMfa.mockReturnValue(
-      new Promise((resolve) => {
-        release = resolve;
-      }),
-    );
+    let release: () => void = () => {};
+    verifyWith = async () =>
+      await new Promise<Response>((resolve) => {
+        release = () => {
+          resolve(verifiedResponse(TICKET));
+        };
+      });
     const user = userEvent.setup();
     await renderForm();
 
     await submitCode(user);
 
+    // Wait for the request to REACH the transport before releasing it: the submit
+    // button goes disabled the moment the mutation starts, which is a tick or two
+    // before `fetch` is called, and releasing into that gap would leave the
+    // never-settling responder installed forever.
+    await vi.waitFor(() => {
+      expect(verifyCalls()).toHaveLength(1);
+    });
     await expect.element(page.getByTestId("mfa-challenge-submit")).toBeDisabled();
     await expect.element(page.getByTestId("mfa-challenge-submit")).toHaveTextContent(/verifying/iu);
 
-    release({ succeeded: true, signInTicket: TICKET });
+    release();
     await expect.element(page.getByTestId("mfa-challenge-success")).toBeInTheDocument();
   });
 });
@@ -632,15 +695,16 @@ describe("MfaChallengeForm — a verified code", () => {
     // `{ApiBaseUrl}/v1/identity/auth/exchange-ticket?...`; this port passes `""`.
     // A cross-origin exchange would drop the SameSite cookie the whole partial-auth
     // round-trip depends on — see the origin-divergence note in the file header.
-    // The builder seam's ORIGIN argument (`""`) is what pins same-origin now that
-    // the assigned `location.href` cannot be read in a real browser.
+    // Asserted as the URL the user is really sent to: `exchangeUrl` is
+    // root-relative, so `absolute()` resolves it against the PAGE's origin and an
+    // implementation that prepended an API origin produces a different string.
     const user = userEvent.setup();
     await renderForm();
 
     await submitCode(user);
 
     await vi.waitFor(() => {
-      expect(mocks.buildExchangeTicketUrl).toHaveBeenCalledWith("", TICKET, RETURN_URL);
+      expect(navigations).toEqual([absolute(exchangeUrl(TICKET, RETURN_URL))]);
     });
   });
 
@@ -648,36 +712,34 @@ describe("MfaChallengeForm — a verified code", () => {
     // Oracle: `else if (!string.IsNullOrEmpty(safeReturnUrl))` ->
     // `BuildApiReturnUrl(safeReturnUrl)`. The oracle prepends `ApiBaseUrl` there
     // too; same-origin makes that prepend the identity function, so the safe
-    // relative path is navigated to verbatim. This branch has no builder seam, so
-    // it is exercised with a same-page returnUrl whose assignment is observable.
-    mocks.verifyMfa.mockResolvedValue({ succeeded: true });
+    // relative path is navigated to verbatim. The exact-match assertion is also
+    // what says the exchange builder was NOT used: an exchange URL is a different
+    // destination, and there is only one.
+    verifyWith = () => verifiedResponse();
     const user = userEvent.setup();
-    const returnUrl = directReturnUrl();
-    await renderForm({ returnUrl });
+    await renderForm();
 
     await submitCode(user);
 
     await vi.waitFor(() => {
-      expect(globalThis.location.href.endsWith(returnUrl)).toBe(true);
+      expect(navigations).toEqual([absolute(RETURN_URL)]);
     });
-    expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
   });
 
   it("treats a blank ticket as no ticket", async () => {
     // `IsNullOrEmpty(result.SignInTicket)`. `buildExchangeTicketUrl` THROWS on a
-    // blank ticket ("ticket is required", auth-oidc.ts:131) — a screen that
-    // called it anyway would replace the user's redirect with a crash.
-    mocks.verifyMfa.mockResolvedValue({ succeeded: true, signInTicket: "" });
+    // blank ticket ("ticket is required", auth-oidc.ts:154) — and it is the REAL
+    // builder here, so a screen that called it anyway really would replace the
+    // user's redirect with a crash and navigate nowhere.
+    verifyWith = () => verifiedResponse("");
     const user = userEvent.setup();
-    const returnUrl = directReturnUrl();
-    await renderForm({ returnUrl });
+    await renderForm();
 
     await submitCode(user);
 
     await vi.waitFor(() => {
-      expect(globalThis.location.href.endsWith(returnUrl)).toBe(true);
+      expect(navigations).toEqual([absolute(RETURN_URL)]);
     });
-    expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
   });
 
   it("stays put on a direct sign-in with no return url", async () => {
@@ -686,12 +748,11 @@ describe("MfaChallengeForm — a verified code", () => {
     // gets no "/" fallback (bd memory `returnurl-guard-refuse-dont-sanitize`).
     const user = userEvent.setup();
     await renderForm({ returnUrl: undefined });
-    const before: string = globalThis.location.href;
 
     await submitCode(user);
 
     await expect.element(page.getByTestId("mfa-challenge-success")).toBeInTheDocument();
-    expect(globalThis.location.href).toBe(before);
+    expect(navigations).toEqual([]);
     expect(mocks.navigate).not.toHaveBeenCalled();
   });
 
@@ -706,7 +767,7 @@ describe("MfaChallengeForm — a verified code", () => {
     await submitCode(user, BACKUP_CODE);
 
     await vi.waitFor(() => {
-      expect(mocks.buildExchangeTicketUrl).toHaveBeenCalledWith("", TICKET, RETURN_URL);
+      expect(navigations).toEqual([absolute(exchangeUrl(TICKET, RETURN_URL))]);
     });
   });
 });
@@ -727,7 +788,7 @@ describe("MfaChallengeForm — the open-redirect guard", () => {
       expect(mocks.navigate).toHaveBeenCalledWith(expect.objectContaining({ href: ERROR_HREF }));
     });
     expect(page.getByTestId("mfa-challenge-code").query()).toBeNull();
-    expect(mocks.verifyMfa).not.toHaveBeenCalled();
+    expect(verifyCalls()).toHaveLength(0);
   });
 
   it("refuses an absolute return url the allow-list does not know", async () => {
@@ -741,7 +802,7 @@ describe("MfaChallengeForm — the open-redirect guard", () => {
       expect(mocks.navigate).toHaveBeenCalledWith(expect.objectContaining({ href: ERROR_HREF }));
     });
     expect(page.getByTestId("mfa-challenge-code").query()).toBeNull();
-    expect(mocks.verifyMfa).not.toHaveBeenCalled();
+    expect(verifyCalls()).toHaveLength(0);
   });
 
   it("lets the external-login hand-off through on an allow-listed absolute return url", async () => {
@@ -763,7 +824,7 @@ describe("MfaChallengeForm — the open-redirect guard", () => {
     // Anchored on a POSITIVE assertion: the user reaches the exchange, not merely
     // "was not sent to /error" -- which a screen that renders nothing satisfies.
     await vi.waitFor(() => {
-      expect(mocks.buildExchangeTicketUrl).toHaveBeenCalledWith("", TICKET, EXTERNAL_RETURN_URL);
+      expect(navigations).toEqual([absolute(exchangeUrl(TICKET, EXTERNAL_RETURN_URL))]);
     });
     expect(mocks.navigate).not.toHaveBeenCalledWith(expect.objectContaining({ href: ERROR_HREF }));
   });
@@ -776,7 +837,7 @@ describe("MfaChallengeForm — the open-redirect guard", () => {
     await renderForm();
 
     await expect.element(page.getByTestId("mfa-challenge-code")).toBeInTheDocument();
-    expect(mocks.validateRedirectUri).not.toHaveBeenCalled();
+    expect(validateCalls()).toHaveLength(0);
     expect(mocks.navigate).not.toHaveBeenCalled();
   });
 
@@ -790,28 +851,31 @@ describe("MfaChallengeForm — the open-redirect guard", () => {
     await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith(expect.objectContaining({ href: ERROR_HREF }));
     });
-    expect(mocks.validateRedirectUri).not.toHaveBeenCalled();
+    expect(validateCalls()).toHaveLength(0);
   });
 
   it("does not render the form while the allow-list check is in flight", async () => {
     // FAIL CLOSED IN FLIGHT. A form rendered optimistically is a form a fast user
     // can submit -- burning a one-time second factor on a destination we may be
     // about to refuse, the exact cost the mount-time refusal exists to avoid.
-    mocks.validateRedirectUri.mockReturnValue(new Promise(() => {}));
+    validateWith = () => new Promise<Response>(() => {});
     await renderForm({ returnUrl: EXTERNAL_RETURN_URL });
 
     await vi.waitFor(() => {
-      expect(mocks.validateRedirectUri).toHaveBeenCalledWith(EXTERNAL_RETURN_URL);
+      expect(validateCalls()).toHaveLength(1);
     });
+    expect(probeQuery().get("uri")).toBe(EXTERNAL_RETURN_URL);
     expect(page.getByTestId("mfa-challenge-code").query()).toBeNull();
     expect(page.getByTestId("mfa-challenge-submit").query()).toBeNull();
   });
 
   it("refuses when the allow-list check is unreachable", async () => {
     // The C# `!IsSuccessStatusCode -> false` arm arrives as a REJECTION (the
-    // facade's `unwrap()` throws on non-2xx). An unreachable validator must never
-    // become a reason to TRUST a URI.
-    mocks.validateRedirectUri.mockRejectedValue(new Error("network down"));
+    // client throws on non-2xx, and a transport fault never resolves at all). An
+    // unreachable validator must never become a reason to TRUST a URI.
+    validateWith = () => {
+      throw new TypeError("network down");
+    };
     await renderForm({ returnUrl: EXTERNAL_RETURN_URL });
 
     await vi.waitFor(() => {
@@ -826,7 +890,7 @@ describe("MfaChallengeForm — the open-redirect guard", () => {
     // screen leaning on truthiness would redirect on `allowed: "false"` too.
     for (const body of [{ allowed: false }, { allowed: "true" }, {}, "allowed", null]) {
       mocks.navigate.mockClear();
-      mocks.validateRedirectUri.mockResolvedValue(body);
+      validateWith = () => Response.json(body);
       const { unmount } = await renderForm({ returnUrl: EXTERNAL_RETURN_URL });
 
       await vi.waitFor(() => {
@@ -867,7 +931,8 @@ describe("MfaChallengeForm — the open-redirect guard", () => {
  * SPELLINGS, both deliberate: the id arrives on the query string as `client_id`
  * (the OIDC spelling the API redirects with) and leaves as `clientId` (the
  * `[FromQuery]` name the endpoint binds) — the contract Wallow-53kr pinned on the
- * accept-terms relay, applied to the other screen on the same journey.
+ * accept-terms relay, applied to the other screen on the same journey. With the
+ * real transport under the spec, that outbound spelling is now read off the WIRE.
  */
 describe("MfaChallengeForm — the flow's client id", () => {
   it("carries it into the exchange-ticket hand-off", async () => {
@@ -881,7 +946,7 @@ describe("MfaChallengeForm — the flow's client id", () => {
     await submitCode(user);
 
     await vi.waitFor(() => {
-      expect(mocks.buildExchangeTicketUrl).toHaveBeenCalledWith("", TICKET, RETURN_URL, CLIENT_ID);
+      expect(navigations).toEqual([absolute(exchangeUrl(TICKET, RETURN_URL, CLIENT_ID))]);
     });
   });
 
@@ -890,17 +955,20 @@ describe("MfaChallengeForm — the flow's client id", () => {
     await renderForm({ returnUrl: EXTERNAL_RETURN_URL, clientId: CLIENT_ID });
 
     await vi.waitFor(() => {
-      expect(mocks.validateRedirectUri).toHaveBeenCalledWith(EXTERNAL_RETURN_URL, CLIENT_ID);
+      expect(validateCalls()).toHaveLength(1);
     });
+    expect(probeQuery().get("uri")).toBe(EXTERNAL_RETURN_URL);
+    expect(probeQuery().get("clientId")).toBe(CLIENT_ID);
 
     // Anchored on a positive outcome: the user still gets through on a URL their
-    // own client registered. "The probe was called with two arguments" is
-    // satisfied by a screen that then refuses everybody.
+    // own client registered. "The probe carried two parameters" is satisfied by a
+    // screen that then refuses everybody.
     await expect.element(page.getByTestId("mfa-challenge-code")).toBeInTheDocument();
     await submitCode(user);
     await vi.waitFor(() => {
-      expect(mocks.verifyMfa).toHaveBeenCalledWith(CODE);
+      expect(verifyCalls()).toHaveLength(1);
     });
+    expect(harness.last?.body).toEqual({ code: CODE, useBackupCode: false });
   });
 
   it("refuses a return url only ANOTHER client registered", async () => {
@@ -915,7 +983,7 @@ describe("MfaChallengeForm — the flow's client id", () => {
       expect(mocks.navigate).toHaveBeenCalledWith(expect.objectContaining({ href: ERROR_HREF }));
     });
     expect(page.getByTestId("mfa-challenge-code").query()).toBeNull();
-    expect(mocks.verifyMfa).not.toHaveBeenCalled();
+    expect(verifyCalls()).toHaveLength(0);
   });
 
   it("lets that same url through for the client that DID register it", async () => {
@@ -930,8 +998,9 @@ describe("MfaChallengeForm — the flow's client id", () => {
     await submitCode(user);
 
     await vi.waitFor(() => {
-      expect(mocks.verifyMfa).toHaveBeenCalledWith(CODE);
+      expect(verifyCalls()).toHaveLength(1);
     });
+    expect(harness.last?.body).toEqual({ code: CODE, useBackupCode: false });
     expect(mocks.navigate).not.toHaveBeenCalledWith(expect.objectContaining({ href: ERROR_HREF }));
   });
 
@@ -939,15 +1008,15 @@ describe("MfaChallengeForm — the flow's client id", () => {
     // A present-but-blank id is not a client. The endpoint fails an unknown
     // client CLOSED to the AuthUrl-only origin set, so relaying "" would refuse
     // the very returnUrl the user is mid-journey to, where sending nothing falls
-    // back to the behaviour that works today. Pinned on the exact ARITY, which
-    // is also what stops an unconditional `undefined` fourth argument.
+    // back to the behaviour that works today. The exact-URL match is what pins
+    // the ABSENCE: a `&clientId=` of any spelling makes it a different string.
     const user = userEvent.setup();
     await renderForm({ clientId: "" });
 
     await submitCode(user);
 
     await vi.waitFor(() => {
-      expect(mocks.buildExchangeTicketUrl).toHaveBeenCalledWith("", TICKET, RETURN_URL);
+      expect(navigations).toEqual([absolute(exchangeUrl(TICKET, RETURN_URL))]);
     });
   });
 });
@@ -956,7 +1025,7 @@ describe("MfaChallengeForm — a rejected code", () => {
   it("reports an invalid verification code on invalid_code", async () => {
     // The oracle's `"invalid_code" =>` branch, reached via the token the API
     // really sends now that the seam surfaces it (Wallow-vec7.7).
-    mocks.verifyMfa.mockRejectedValue(invalidCodeRejection());
+    verifyWith = invalidCodeResponse;
     const user = userEvent.setup();
     await renderForm();
 
@@ -969,7 +1038,7 @@ describe("MfaChallengeForm — a rejected code", () => {
 
   it("names the backup code when a backup code is rejected", async () => {
     // The oracle's invalid_code branch is mode-sensitive: "Invalid backup code."
-    mocks.useBackupCode.mockRejectedValue(invalidCodeRejection());
+    verifyWith = invalidCodeResponse;
     const user = userEvent.setup();
     await renderForm();
 
@@ -989,7 +1058,7 @@ describe("MfaChallengeForm — a rejected code", () => {
     // surfaces the token, so they get the truth: nothing they type here can
     // work, and the "Back to sign in" footer is the way out. This is what the
     // oracle's dead `expired_challenge` branch was reaching for.
-    mocks.verifyMfa.mockRejectedValue(noMfaSessionRejection());
+    verifyWith = noMfaSessionResponse;
     const user = userEvent.setup();
     await renderForm();
 
@@ -1004,7 +1073,7 @@ describe("MfaChallengeForm — a rejected code", () => {
     // The session message is about the session, not the input: the mode-sensitive
     // wording belongs to `invalid_code` alone. A user recovering with a backup
     // code must not be told a valid one was rejected.
-    mocks.useBackupCode.mockRejectedValue(noMfaSessionRejection());
+    verifyWith = noMfaSessionResponse;
     const user = userEvent.setup();
     await renderForm();
 
@@ -1020,7 +1089,7 @@ describe("MfaChallengeForm — a rejected code", () => {
     // Worth branching on: the user's codes cannot work until the lockout expires,
     // and "invalid code, try again" would send them round a loop that only
     // re-locks them. The oracle printed the raw token "mfa_locked_out" here.
-    mocks.verifyMfa.mockRejectedValue(lockedOutRejection());
+    verifyWith = lockedOutResponse;
     const user = userEvent.setup();
     await renderForm();
 
@@ -1037,7 +1106,7 @@ describe("MfaChallengeForm — a rejected code", () => {
     // the token: this status identifies the lockout on its own, and the cost of
     // missing it (a locked user retyping codes) is higher than the cost of the
     // extra rule. Pins the fallback against a code-only rewrite.
-    mocks.verifyMfa.mockRejectedValue(rejection(423, "UNKNOWN"));
+    verifyWith = () => rejectionResponse(423, "UNKNOWN");
     const user = userEvent.setup();
     await renderForm();
 
@@ -1049,7 +1118,7 @@ describe("MfaChallengeForm — a rejected code", () => {
   it("falls back to the generic message for an unrecognised status", async () => {
     // The oracle's `_ =>` tail. A 500 is not a wrong code and must not be
     // reported as one.
-    mocks.verifyMfa.mockRejectedValue(rejection(500, "UNKNOWN"));
+    verifyWith = () => rejectionResponse(500, "UNKNOWN");
     const user = userEvent.setup();
     await renderForm();
 
@@ -1065,7 +1134,7 @@ describe("MfaChallengeForm — a rejected code", () => {
     // Pins against the status-only narrowing this spec was revised away FROM:
     // a blanket `401 -> invalid code` would pass every other test in this block
     // while quietly re-guessing at failures it cannot identify.
-    mocks.verifyMfa.mockRejectedValue(rejection(401, "some_new_token"));
+    verifyWith = () => rejectionResponse(401, "some_new_token");
     const user = userEvent.setup();
     await renderForm();
 
@@ -1077,9 +1146,12 @@ describe("MfaChallengeForm — a rejected code", () => {
   });
 
   it("shows the generic message when the request fails without a status", async () => {
-    // A network-level rejection has no `status` at all; structural narrowing must
-    // not throw on it, and must not claim the code was wrong.
-    mocks.verifyMfa.mockRejectedValue(new Error("network down"));
+    // A network-level fault never reaches a response at all, so the rejection
+    // carries no API token; structural narrowing must not throw on it, and must
+    // not claim the code was wrong.
+    verifyWith = () => {
+      throw new TypeError("network down");
+    };
     const user = userEvent.setup();
     await renderForm();
 
@@ -1099,7 +1171,7 @@ describe("MfaChallengeForm — a rejected code", () => {
     // real token in the screen's hands, so "render the code" is a live temptation
     // and `no_mfa_session` is a string an implementation could now actually
     // print. Every token the endpoint can send is checked, whichever arrives.
-    mocks.verifyMfa.mockRejectedValue(invalidCodeRejection());
+    verifyWith = invalidCodeResponse;
     const user = userEvent.setup();
     await renderForm();
 
@@ -1111,7 +1183,7 @@ describe("MfaChallengeForm — a rejected code", () => {
     // The code the endpoint sends when the session is gone is the one an
     // implementation could most plausibly print: it is the branch with no
     // pre-existing oracle copy behind it.
-    mocks.verifyMfa.mockRejectedValue(noMfaSessionRejection());
+    verifyWith = noMfaSessionResponse;
     await user.click(page.getByTestId("mfa-challenge-submit"));
 
     await expect
@@ -1124,7 +1196,7 @@ describe("MfaChallengeForm — a rejected code", () => {
     // The oracle only replaces the form on `_verified`. A rejected code must
     // leave the field in place — the user has four attempts left and no way to
     // spend them if the form is gone.
-    mocks.verifyMfa.mockRejectedValue(invalidCodeRejection());
+    verifyWith = invalidCodeResponse;
     const user = userEvent.setup();
     await renderForm();
 
@@ -1138,22 +1210,24 @@ describe("MfaChallengeForm — a rejected code", () => {
   it("does not navigate on failure", async () => {
     // `_verified` gates the whole redirect block. A failed second factor that
     // still redirected would be the bug this screen must never have.
-    mocks.verifyMfa.mockRejectedValue(invalidCodeRejection());
+    verifyWith = invalidCodeResponse;
     const user = userEvent.setup();
     await renderForm();
-    const before: string = globalThis.location.href;
 
     await submitCode(user);
 
     await expect.element(page.getByTestId("mfa-challenge-error")).toBeInTheDocument();
-    expect(globalThis.location.href).toBe(before);
-    expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
+    expect(navigations).toEqual([]);
   });
 
   it("clears a previous error when the next attempt succeeds", async () => {
     // Oracle: `_errorMessage = null;` at the top of `HandleVerify`. A stale
     // "invalid code" banner above a successful verification would be a lie.
-    mocks.verifyMfa.mockRejectedValueOnce(invalidCodeRejection());
+    let attempts = 0;
+    verifyWith = () => {
+      attempts += 1;
+      return attempts === 1 ? invalidCodeResponse() : verifiedResponse(TICKET);
+    };
     const user = userEvent.setup();
     await renderForm();
 
@@ -1176,20 +1250,11 @@ describe("MfaChallengeForm — a rejected code", () => {
  * and `src/router.tsx` is off-limits to this task (Wallow-vec7.3.16).
  */
 function renderRouteAt(url: string) {
-  const rootRoute = createRootRoute({ component: Outlet });
-  const routeTree = rootRoute.addChildren([
-    mfaChallengeRoute.update({
-      id: "/mfa/challenge",
-      path: "/mfa/challenge",
-      getParentRoute: () => rootRoute,
-    } as any),
-  ]);
-  const router = createRouter({
-    routeTree,
-    history: createMemoryHistory({ initialEntries: [url] }),
+  return renderWithWallow(null, {
+    harness,
+    path: url,
+    routes: [{ path: "/mfa/challenge", route: mfaChallengeRoute }],
   });
-
-  return renderWithClient(<RouterProvider router={router} />);
 }
 
 describe("/mfa/challenge route", () => {
@@ -1211,16 +1276,15 @@ describe("/mfa/challenge route", () => {
     await submitCode(user);
 
     await vi.waitFor(() => {
-      expect(mocks.buildExchangeTicketUrl).toHaveBeenCalledWith("", TICKET, RETURN_URL);
+      expect(navigations).toEqual([absolute(exchangeUrl(TICKET, RETURN_URL))]);
     });
   });
 
   it("threads client_id out of the callback redirect into the exchange", async () => {
     // The relay end to end at the route level: the redirect
-    // `external-login-callback` issues goes in, the arguments the exchange
-    // builder receives come out, and the snake_case -> camelCase hop happens in
-    // between. `validateSearch` has to widen for `client_id` or the id stops at
-    // the router.
+    // `external-login-callback` issues goes in, the URL the user is sent to comes
+    // out, and the snake_case -> camelCase hop happens in between.
+    // `validateSearch` has to widen for `client_id` or the id stops at the router.
     const user = userEvent.setup();
     await renderRouteAt(
       `/mfa/challenge?returnUrl=${encodeURIComponent(RETURN_URL)}` +
@@ -1231,7 +1295,7 @@ describe("/mfa/challenge route", () => {
     await submitCode(user);
 
     await vi.waitFor(() => {
-      expect(mocks.buildExchangeTicketUrl).toHaveBeenCalledWith("", TICKET, RETURN_URL, CLIENT_ID);
+      expect(navigations).toEqual([absolute(exchangeUrl(TICKET, RETURN_URL, CLIENT_ID))]);
     });
   });
 
@@ -1249,7 +1313,7 @@ describe("/mfa/challenge route", () => {
     await submitCode(user);
 
     await vi.waitFor(() => {
-      expect(mocks.buildExchangeTicketUrl).toHaveBeenCalledWith("", TICKET, RETURN_URL);
+      expect(navigations).toEqual([absolute(exchangeUrl(TICKET, RETURN_URL))]);
     });
   });
 

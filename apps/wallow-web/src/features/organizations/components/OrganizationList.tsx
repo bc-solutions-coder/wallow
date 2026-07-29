@@ -1,17 +1,18 @@
 /**
  * Organizations list component (Wallow-8w1h.4.2) — the CANONICAL list-page
  * component every later vertical (Apps/Settings/MFA/Inquiries, Phases 4-6)
- * copies. It drives `useQuery(organizationsQueries.list())` and renders three
- * states: loading, empty, and a list of `organization-item` rows.
+ * copies. It drives `useQuery(organizationsGetAllOptions({ client }))` and renders
+ * three states: loading, empty, and a list of `organization-item` rows.
  */
+import type { OrganizationDto } from "@bc-solutions-coder/sdk";
 import { MutedText } from "@bc-solutions-coder/ui";
 import { useQuery } from "@tanstack/react-query";
+import { useRouteContext } from "@tanstack/react-router";
 
-import { organizationsQueries } from "../api";
-import type { Organization } from "../types";
+import { organizationsGetAllOptions } from "../api";
 
 /** A single organization row (extracted to keep the list's JSX nesting shallow). */
-function OrganizationRow({ org }: { org: Organization }) {
+function OrganizationRow({ org }: { org: OrganizationDto }) {
   return (
     <li
       data-testid="organization-item"
@@ -62,7 +63,8 @@ function OrganizationsEmptyState() {
 }
 
 export function OrganizationList() {
-  const { data, isPending } = useQuery(organizationsQueries.list());
+  const { sdk } = useRouteContext({ from: "__root__" });
+  const { data, isPending } = useQuery(organizationsGetAllOptions({ client: sdk.client }));
 
   if (isPending) {
     return (
@@ -72,9 +74,9 @@ export function OrganizationList() {
     );
   }
 
-  // The facade returns the list as `unknown`; narrow to the feature view-model
-  // at the render boundary (the sanctioned pattern later verticals copy).
-  const orgs = (data ?? []) as Organization[];
+  // No narrowing cast: the generated operation resolves the response BODY under
+  // `responseStyle: "data"`, so `data` is already `OrganizationDto[]`.
+  const orgs: readonly OrganizationDto[] = data ?? [];
 
   if (orgs.length === 0) {
     return <OrganizationsEmptyState />;

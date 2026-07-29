@@ -1,16 +1,10 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  createMemoryHistory,
-  createRootRoute,
-  createRouter,
-  Outlet,
-  RouterProvider,
-} from "@tanstack/react-router";
+import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+import type { SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createAuthHarness } from "../../../test/harness";
 import { Route as loginRoute } from "../../../routes/login";
 import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
 
@@ -28,6 +22,29 @@ import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
  * `LoginScreen.test.tsx` (.3.11's 52 tests) is NOT edited by this bead; it
  * deliberately says nothing about this panel's content beyond "selecting the tab
  * retires the password panel".
+ *
+ * ── TEST SEAM: THE REAL SDK OVER A FAKE TRANSPORT (Wallow-pu6a.5.1) ──────────
+ *
+ * The module mock of an app-level SDK facade is GONE, and `src/sdk-test-seam.test.ts`
+ * now forbids it (along with mocking the SDK barrel or its `/query` entry) for every
+ * spec under `src/features/**` and `src/routes/**`. A fake SDK object pins the
+ * SHAPE THE TEST IMAGINED, not the one the SDK exports: it cannot notice a renamed
+ * method, a moved endpoint, a changed request body or a rejection that stopped
+ * being the shape the screen reads.
+ *
+ * So this file drives the REAL request-scoped SDK off the router context — real
+ * generated operations, real error interceptor — over a fake `fetch` installed by
+ * `createAuthHarness()` (`@bc-solutions-coder/testing/sdk-harness`).
+ * `renderWithWallow` supplies that router context, and `createAuthHarness()` pins
+ * the harness origin to this app's root-mounted API surface, which is why every
+ * recorded `path` below is the bare endpoint path (Wallow-pu6a.5.5).
+ *
+ * The assertions therefore moved from "was this spy called with X" to "what
+ * request actually reached the wire": `harness.calls` (filtered by path, because
+ * the shell's `<ExternalProviders>` also issues a GET), `.method`, `.body` (decoded
+ * JSON) and `.url` (which carries the query string — `verify` sends its token
+ * there, not in a body). That is strictly stronger: it pins the endpoint, verb and
+ * payload the API really receives.
  *
  * ── THE WIRE, VERIFIED IN THE CONTROLLER (not in a client DTO) ───────────────
  *
@@ -53,11 +70,15 @@ import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
  *
  * 1. THE FAILURES ARE REJECTIONS, NOT 200 BODIES. Unlike `auth.login` — where
  *    three of four outcomes ride inside a 200 — every magic-link failure is a
- *    non-2xx, so `unwrap()` THROWS and the oracle's `if (result.Succeeded) … else`
- *    arms are reached through `onError`, not `onSuccess`. As of Wallow-vec7.7
- *    `readCode` probes `extensions.code > code > error`, so the `error` member of
- *    the bare `{ succeeded, error }` body arrives as `WallowError.code` — hence the
- *    WallowError-SHAPED rejection fixtures below.
+ *    non-2xx, and the generated operations are emitted with `throwOnError: true`,
+ *    so the oracle's `if (result.Succeeded) … else` arms are reached through
+ *    `onError`, not `onSuccess`. As of Wallow-vec7.7 `readCode` probes
+ *    `extensions.code > code > error`, so the `error` member of the bare
+ *    `{ succeeded, error }` body arrives as `WallowError.code` — which is why the
+ *    fixtures below are the REAL WIRE BODY answered at the REAL STATUS
+ *    (`Response.json({ succeeded: false, error: <token> }, { status })`) rather
+ *    than a hand-built rejection object. The error interceptor
+ *    (`packages/sdk/src/runtime-config.ts`) does that translation for real here.
  *
  * 2. THE TOKENS ARE ENGLISH SENTENCES, and one of the oracle's literals is DEAD.
  *    `HandleVerifyMagicLink` switches on `"invalid_token" or "Token expired or
@@ -88,39 +109,32 @@ import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
  * against and never shown. `neverRendersTheRawServerSentence` (send and verify)
  * pins that the oracle's `_ => result.Error`-style leak is not ported.
  *
- * ── NAVIGATION SEAM (Wallow-xzha.3.1 browser migration) ──────────────────────
+ * ── NAVIGATION SEAM (Wallow-xzha.3.1 browser migration, Wallow-pu6a.5.1) ─────
  *
  * `window.location` is `[Unforgeable]` in real Chromium, so the jsdom-only
  * `vi.stubGlobal("location", …)` hack is gone. The screen hands off with
  * `globalThis.location.href = buildExchangeTicketUrl(origin, ticket, returnUrl)`,
- * so the ticket-exchange tests assert the `buildExchangeTicketUrl` SEAM was called
- * with the exact origin + ticket + returnUrl (deterministic, so equivalent to
- * pinning the assigned string), and the builder mock returns a fragment-only
- * sentinel so the assignment never navigates the Chromium runner.
+ * and the builder is now the REAL pure function (`packages/sdk/src/auth-oidc.ts`)
+ * — there is no builder spy left to assert on, so the hand-off is observed where
+ * it actually happens: a `navigate` listener on the Navigation API records
+ * `destination.url` and `preventDefault()`s, capturing the URL the screen built
+ * while the runner stays put (bd memory `full-navigation-seam-for-wallow-auth-
+ * screens-that`). The recorded array stands in for the old settable
+ * `location.href`: a hand-off appends exactly ONE absolute URL, and "no exchange
+ * happened" (formerly `expect(buildExchangeTicketUrl).not.toHaveBeenCalled()`) is
+ * the array staying EMPTY — that assignment being the screen's only writer of
+ * `location.href`. Asserting the parsed URL is stronger than the old builder-args
+ * check: it pins the origin, path and encoding the browser would really be sent to.
+ *
+ * The listener is armed in `beforeEach` for EVERY test, not per test: the default
+ * verify fixture is a successful sign-in with a ticket, so any render carrying a
+ * token could navigate, and an unarmed test would tear the runner down instead of
+ * failing.
  */
 
-// Hoisted so the vi.mock factories and the test bodies share the same spies.
+// Hoisted so the vi.mock factory and the test bodies share the same spy.
 const mocks = vi.hoisted(() => ({
-  login: vi.fn(),
-  sendMagicLink: vi.fn(),
-  verifyMagicLink: vi.fn(),
-  isSafeReturnUrl: vi.fn(),
-  buildExchangeTicketUrl: vi.fn(),
   navigate: vi.fn(),
-}));
-
-vi.mock("../../../lib/wallow-auth-sdk", () => ({
-  getWallowAuthSdk: () => ({
-    auth: {
-      login: mocks.login,
-      sendMagicLink: mocks.sendMagicLink,
-      verifyMagicLink: mocks.verifyMagicLink,
-    },
-    oidc: {
-      isSafeReturnUrl: mocks.isSafeReturnUrl,
-      buildExchangeTicketUrl: mocks.buildExchangeTicketUrl,
-    },
-  }),
 }));
 
 // `importOriginal` MUST be spread: the route harness needs the real
@@ -134,14 +148,30 @@ const EMAIL = "user@example.com";
 const CLIENT_ID = "web";
 const TICKET = "sign-in-ticket-xyz";
 
+/** `AccountController.SendMagicLink` (:824) — the tab's POST. */
+const SEND_ENDPOINT = "/v1/identity/auth/passwordless/magic-link";
+
+/** `AccountController.VerifyMagicLink` (:838) — a GET; its token rides the query. */
+const VERIFY_ENDPOINT = "/v1/identity/auth/passwordless/magic-link/verify";
+
 /**
- * The fragment-only sentinel the `buildExchangeTicketUrl` mock returns. Assigning
- * a bare `#…` to `location.href` sets the hash WITHOUT navigating, so the screen's
- * `globalThis.location.href = …` hand-off stays put and never tears down the
- * Chromium runner. The exchange tests assert the builder's ARGUMENTS, not this
- * value, so a constant return is safe here.
+ * `AccountController.GetExternalProviders`. The shell mounts `<ExternalProviders>`
+ * next to the tab panels, so this GET lands on the transport in EVERY test that
+ * renders the screen — which is why the "was it called" assertions below filter
+ * `harness.calls` by path instead of counting them. Owned by `.3.14`; answered
+ * here only to host it.
  */
-const EXCHANGE_TICKET_SENTINEL = "#exchange-ticket-sentinel";
+const PROVIDERS_ENDPOINT = "/v1/identity/auth/external-providers";
+
+/** The path `buildExchangeTicketUrl` targets (packages/sdk/src/auth-oidc.ts:163). */
+const EXCHANGE_PATH = "/v1/identity/auth/exchange-ticket";
+
+const OK_STATUS = 200;
+const NOT_FOUND_STATUS = 404;
+
+/** The statuses this endpoint pair rejects with: send 400, verify 401. */
+const BAD_REQUEST_STATUS = 400;
+const UNAUTHORIZED_STATUS = 401;
 
 /**
  * A token shaped like the one the service really mints:
@@ -197,51 +227,131 @@ const RATE_LIMITED_MESSAGE =
 const GENERIC_MESSAGE = "An error occurred. Please try again.";
 const UNREACHABLE_MESSAGE = "Unable to reach the server. Please try again later.";
 
-/**
- * The real `isSafeReturnUrl` rule (packages/sdk/src/auth-oidc.ts:49-56), mirrored
- * rather than imported: screens may not import the SDK, so the seam is mocked —
- * and a mock returning a CONSTANT would let the guard tests pass for the wrong
- * reason, which is exactly how an outage gets pinned as a security feature.
- */
-function isSafeReturnUrlRule(url: string | null | undefined): boolean {
-  if (url === null || url === undefined || url.trim() === "") {
-    return false;
-  }
+let harness: SdkHarness;
 
-  return url.startsWith("/") && !url.startsWith("//");
+/**
+ * How the fake transport answers each of this tab's two endpoints. Reprogrammed
+ * per test — the dispatcher installed in `beforeEach` reads them on every call, so
+ * a test can change ONE endpoint's behaviour without re-stating the others the
+ * screen touches.
+ */
+let sendReply: () => Response | Promise<Response>;
+let verifyReply: () => Response | Promise<Response>;
+
+/** Answer the send POST with `body` at 200. */
+function respondWithSend(body: unknown): void {
+  sendReply = () => Response.json(body, { status: OK_STATUS });
+}
+
+/** Answer the verify GET with `body` at 200. */
+function respondWithVerify(body: unknown): void {
+  verifyReply = () => Response.json(body, { status: OK_STATUS });
 }
 
 /**
- * What the facade really throws for this endpoint's failures. `title` stays
- * "Unknown error": these endpoints emit no problem details, so no human-readable
- * title ever arrives and the screen must supply its own copy.
+ * The REAL failure body these two endpoints ship: a bare
+ * `{ succeeded: false, error: "<token>" }` anonymous object, at the real status.
+ * They emit no problem details at all, so no human-readable title ever arrives and
+ * the screen must supply its own copy. `readCode` (Wallow-vec7.7) probes
+ * `extensions.code > code > error`, so the sentence under `error` is what reaches
+ * the screen as `WallowError.code` — the mapping under test.
  */
-function rejection(status: number, code: string): Error & { status: number; code: string } {
-  return Object.assign(new Error("Unknown error"), {
-    name: "WallowError",
-    status,
-    code,
-    title: "Unknown error",
+function failureResponse(status: number, token: string): Response {
+  return Response.json({ succeeded: false, error: token }, { status });
+}
+
+function rejectSend(status: number, token: string): void {
+  sendReply = () => failureResponse(status, token);
+}
+
+function rejectVerify(status: number, token: string): void {
+  verifyReply = () => failureResponse(status, token);
+}
+
+/**
+ * A `fetch` failure: the request never lands, so the rejection carries neither a
+ * status nor a code. The TS shape of the oracle's `catch (HttpRequestException)`
+ * arm, which it keeps DISTINCT from its generic tail on both handlers.
+ */
+function failSendTransport(): void {
+  sendReply = () => {
+    throw new TypeError("Failed to fetch");
+  };
+}
+
+function failVerifyTransport(): void {
+  verifyReply = () => {
+    throw new TypeError("Failed to fetch");
+  };
+}
+
+/** Every recorded request to the send endpoint, in order. */
+function sendCalls() {
+  return harness.calls.filter((call) => call.path === SEND_ENDPOINT);
+}
+
+/** Every recorded request to the verify endpoint, in order. */
+function verifyCalls() {
+  return harness.calls.filter((call) => call.path === VERIFY_ENDPOINT);
+}
+
+/**
+ * NAVIGATION SEAM (Wallow-xzha.3.1 / Wallow-pu6a.5.1). See the header. The ticket
+ * hand-off is `globalThis.location.href = …`, which in real Chromium would
+ * navigate the runner iframe; listening for the Navigation API's `navigate` event
+ * lets us record the destination and cancel it.
+ */
+interface NavigateEvent extends Event {
+  readonly destination: { readonly url: string };
+}
+interface NavigationLike {
+  addEventListener: (type: "navigate", handler: (event: NavigateEvent) => void) => void;
+  removeEventListener: (type: "navigate", handler: (event: NavigateEvent) => void) => void;
+}
+const navigationApi: NavigationLike = (globalThis as unknown as { navigation: NavigationLike })
+  .navigation;
+
+/** Listeners registered by `captureHandoff`, torn down in `afterEach`. */
+const navDisposers: Array<() => void> = [];
+
+/** Arm the navigation seam and return the array the hand-off URL lands in. */
+function captureHandoff(): string[] {
+  const urls: string[] = [];
+  const handler = (event: NavigateEvent): void => {
+    urls.push(event.destination.url);
+    // Cancel the navigation so assigning `location.href` does not tear the
+    // Chromium runner down; the recorded URL is what we assert on.
+    event.preventDefault();
+  };
+  navigationApi.addEventListener("navigate", handler);
+  navDisposers.push(() => {
+    navigationApi.removeEventListener("navigate", handler);
   });
+  return urls;
 }
+
+/** Every hand-off URL this test recorded, newest last. Armed in `beforeEach`. */
+let handoffs: string[];
 
 /**
- * A `fetch` failure: no `status`, no `code`. The TS shape of the oracle's
- * `catch (HttpRequestException)` arm, which it keeps DISTINCT from its generic
- * tail on both handlers.
+ * Wait for the ticket hand-off and return its target, parsed.
+ *
+ * The exchange URL is built by the REAL `buildExchangeTicketUrl` against the `""`
+ * origin, so a correct screen produces a SAME-ORIGIN absolute URL whose pathname
+ * is {@link EXCHANGE_PATH} and whose `ticket`/`returnUrl` are single,
+ * properly-encoded query values.
  */
-function networkRejection(): Error {
-  return new TypeError("Failed to fetch");
-}
-
-function newClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+async function awaitHandoff(): Promise<URL> {
+  await vi.waitFor(() => {
+    expect(handoffs).toHaveLength(1);
   });
+
+  return new URL(handoffs[0]);
 }
 
+/** Render `ui` on the shared harness: real SDK, fake transport, real router context. */
 function renderWithClient(ui: ReactElement) {
-  return render(<QueryClientProvider client={newClient()}>{ui}</QueryClientProvider>);
+  return renderWithWallow(ui, { harness });
 }
 
 /**
@@ -275,14 +385,40 @@ async function submitEmail(user: ReturnType<typeof userEvent.setup>, email: stri
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.isSafeReturnUrl.mockImplementation(isSafeReturnUrlRule);
-  mocks.buildExchangeTicketUrl.mockReturnValue(EXCHANGE_TICKET_SENTINEL);
-  mocks.sendMagicLink.mockResolvedValue({ succeeded: true });
-  mocks.verifyMagicLink.mockResolvedValue({
-    succeeded: true,
-    email: EMAIL,
-    signInTicket: TICKET,
+  handoffs = captureHandoff();
+  harness = createAuthHarness();
+  respondWithSend({ succeeded: true });
+  respondWithVerify({ succeeded: true, email: EMAIL, signInTicket: TICKET });
+  harness.respond((call) => {
+    // The verify path EXTENDS the send path, so it is matched first — and both are
+    // exact comparisons, never `startsWith`.
+    if (call.path === VERIFY_ENDPOINT) {
+      return verifyReply();
+    }
+
+    if (call.path === SEND_ENDPOINT) {
+      return sendReply();
+    }
+
+    // `<ExternalProviders>` mounts with the shell. An empty list is the
+    // "no providers configured" answer and renders nothing — this file says
+    // nothing about that section (it is `.3.14`'s).
+    if (call.path === PROVIDERS_ENDPOINT) {
+      return Response.json([], { status: OK_STATUS });
+    }
+
+    // The route-level tests carry `client_id=web`, so `/login` also asks for that
+    // client's branding overlay. A bare 404 is the API's "no branding configured"
+    // and leaves the fork's chrome in place — nothing this file looks at.
+    return new Response(null, { status: NOT_FOUND_STATUS });
   });
+});
+
+afterEach(() => {
+  navDisposers.forEach((dispose) => {
+    dispose();
+  });
+  navDisposers.length = 0;
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -309,7 +445,7 @@ describe("LoginScreen magic-link tab: sending", () => {
     await openMagicLinkTab(user);
 
     await expect.element(page.getByTestId("login-magic-link-submit")).toBeInTheDocument();
-    expect(mocks.sendMagicLink).not.toHaveBeenCalled();
+    expect(sendCalls()).toHaveLength(0);
   });
 
   it("refuses a blank email without calling the API", async () => {
@@ -322,7 +458,7 @@ describe("LoginScreen magic-link tab: sending", () => {
     await submitEmail(user, "");
 
     await expect.element(page.getByTestId("login-error")).toHaveTextContent(BLANK_EMAIL_MESSAGE);
-    expect(mocks.sendMagicLink).not.toHaveBeenCalled();
+    expect(sendCalls()).toHaveLength(0);
   });
 
   it("refuses a whitespace-only email without calling the API", async () => {
@@ -334,7 +470,7 @@ describe("LoginScreen magic-link tab: sending", () => {
     await submitEmail(user, "   ");
 
     await expect.element(page.getByTestId("login-error")).toHaveTextContent(BLANK_EMAIL_MESSAGE);
-    expect(mocks.sendMagicLink).not.toHaveBeenCalled();
+    expect(sendCalls()).toHaveLength(0);
   });
 
   it("sends the typed email with the returnUrl and client_id the link carried", async () => {
@@ -348,11 +484,13 @@ describe("LoginScreen magic-link tab: sending", () => {
     await submitEmail(user);
 
     await vi.waitFor(() => {
-      expect(mocks.sendMagicLink).toHaveBeenCalledWith({
-        email: EMAIL,
-        returnUrl: RETURN_URL,
-        clientId: CLIENT_ID,
-      });
+      expect(sendCalls()).toHaveLength(1);
+    });
+    expect(sendCalls()[0].method).toBe("POST");
+    expect(sendCalls()[0].body).toEqual({
+      email: EMAIL,
+      returnUrl: RETURN_URL,
+      clientId: CLIENT_ID,
     });
   });
 
@@ -364,12 +502,12 @@ describe("LoginScreen magic-link tab: sending", () => {
     await submitEmail(user);
 
     await vi.waitFor(() => {
-      expect(mocks.sendMagicLink).toHaveBeenCalledWith({
-        email: EMAIL,
-        returnUrl: undefined,
-        clientId: undefined,
-      });
+      expect(sendCalls()).toHaveLength(1);
     });
+    // Read off the WIRE, so `{ returnUrl: undefined }` is not a member that was
+    // sent as `undefined` — `JSON.stringify` drops it, and the address arriving
+    // alone is exactly the "no cargo" claim.
+    expect(sendCalls()[0].body).toEqual({ email: EMAIL });
   });
 
   it("shows the sent confirmation and retires the form", async () => {
@@ -403,21 +541,25 @@ describe("LoginScreen magic-link tab: sending", () => {
 
   it("disables the send button while the request is in flight", async () => {
     // The oracle's `Disabled="_isSubmitting"`. A double send burns the rate limit.
-    let release: (value: unknown) => void = () => undefined;
-    mocks.sendMagicLink.mockReturnValue(
-      new Promise((resolve) => {
+    let release: (value: Response) => void = () => undefined;
+    sendReply = () =>
+      new Promise<Response>((resolve) => {
         release = resolve;
-      }),
-    );
+      });
     const user = userEvent.setup();
     await renderScreen();
 
     await openMagicLinkTab(user);
     await submitEmail(user);
 
+    // The button goes disabled a tick BEFORE the request reaches the transport, so
+    // wait for the call to land or `release` is still the no-op initialiser.
+    await vi.waitFor(() => {
+      expect(sendCalls()).toHaveLength(1);
+    });
     await expect.element(page.getByTestId("login-magic-link-submit")).toBeDisabled();
 
-    release({ succeeded: true });
+    release(Response.json({ succeeded: true }, { status: OK_STATUS }));
     await expect.element(page.getByTestId("login-magic-link-sent")).toBeInTheDocument();
   });
 
@@ -454,10 +596,10 @@ describe("LoginScreen magic-link tab: sending", () => {
   });
 
   it("fails closed when the send response is not a shape this screen understands", async () => {
-    // The facade types this `Promise<unknown>` (the C# endpoint returns an
+    // The operation types this `Promise<unknown>` (the C# endpoint returns an
     // anonymous `Ok(new { … })` with no OpenAPI schema), so the screen narrows at
     // its own boundary and a body it cannot read is NOT a sent link.
-    mocks.sendMagicLink.mockResolvedValue({});
+    respondWithSend({});
     const user = userEvent.setup();
     await renderScreen();
 
@@ -471,7 +613,7 @@ describe("LoginScreen magic-link tab: sending", () => {
   it("does not accept a stringly-typed succeeded flag", async () => {
     // C#'s `result.Succeeded` is a `bool`; JS truthiness would happily accept the
     // STRING "false". Strict `=== true` is the only place that can be rejected.
-    mocks.sendMagicLink.mockResolvedValue({ succeeded: "false" });
+    respondWithSend({ succeeded: "false" });
     const user = userEvent.setup();
     await renderScreen();
 
@@ -485,7 +627,7 @@ describe("LoginScreen magic-link tab: sending", () => {
 
 describe("LoginScreen magic-link tab: send failures", () => {
   it("tells a rate-limited user to wait rather than to try again", async () => {
-    mocks.sendMagicLink.mockRejectedValue(rejection(400, RATE_LIMITED_TOKEN));
+    rejectSend(BAD_REQUEST_STATUS, RATE_LIMITED_TOKEN);
     const user = userEvent.setup();
     await renderScreen();
 
@@ -500,7 +642,7 @@ describe("LoginScreen magic-link tab: send failures", () => {
     // The token is a server-authored English sentence, which makes it TEMPTING to
     // render — but it is still a machine token, and the oracle's `_ => result.Error`
     // family of tails is what this port refuses to reproduce.
-    mocks.sendMagicLink.mockRejectedValue(rejection(400, RATE_LIMITED_TOKEN));
+    rejectSend(BAD_REQUEST_STATUS, RATE_LIMITED_TOKEN);
     const user = userEvent.setup();
     await renderScreen();
 
@@ -513,7 +655,7 @@ describe("LoginScreen magic-link tab: send failures", () => {
   });
 
   it("falls back to the generic tail for a send failure it has never heard of", async () => {
-    mocks.sendMagicLink.mockRejectedValue(rejection(400, "some_new_token"));
+    rejectSend(BAD_REQUEST_STATUS, "some_new_token");
     const user = userEvent.setup();
     await renderScreen();
 
@@ -528,7 +670,7 @@ describe("LoginScreen magic-link tab: send failures", () => {
     // tail: "the server said no" and "the server never answered" are different
     // instructions, and collapsing them tells a user with no network to retype an
     // address that was fine.
-    mocks.sendMagicLink.mockRejectedValue(networkRejection());
+    failSendTransport();
     const user = userEvent.setup();
     await renderScreen();
 
@@ -539,7 +681,7 @@ describe("LoginScreen magic-link tab: send failures", () => {
   });
 
   it("leaves the form up after a failed send so the user can retry", async () => {
-    mocks.sendMagicLink.mockRejectedValue(networkRejection());
+    failSendTransport();
     const user = userEvent.setup();
     await renderScreen();
 
@@ -574,8 +716,15 @@ describe("LoginScreen magic-link auto-verify", () => {
     await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
     await vi.waitFor(() => {
-      expect(mocks.verifyMagicLink).toHaveBeenCalledWith({ token: MAGIC_LINK_TOKEN });
+      expect(verifyCalls()).toHaveLength(1);
     });
+    // A GET, so the token rides the QUERY STRING — which lives on `url`, not
+    // `path`, and must arrive as a single properly-encoded value (a real token
+    // carries `+`, `/` and `=`).
+    expect(verifyCalls()[0].method).toBe("GET");
+    expect(
+      new URL(verifyCalls()[0].url, globalThis.location.origin).searchParams.get("token"),
+    ).toBe(MAGIC_LINK_TOKEN);
   });
 
   it("opens on the password tab and verifies nothing when there is no token", async () => {
@@ -586,7 +735,7 @@ describe("LoginScreen magic-link auto-verify", () => {
       .element(page.getByTestId("login-tab-password"))
       .toHaveAttribute("aria-selected", "true");
     await expect.element(page.getByTestId("login-password")).toBeInTheDocument();
-    expect(mocks.verifyMagicLink).not.toHaveBeenCalled();
+    expect(verifyCalls()).toHaveLength(0);
   });
 
   it("treats an empty token as no token", async () => {
@@ -597,7 +746,7 @@ describe("LoginScreen magic-link auto-verify", () => {
     await expect
       .element(page.getByTestId("login-tab-password"))
       .toHaveAttribute("aria-selected", "true");
-    expect(mocks.verifyMagicLink).not.toHaveBeenCalled();
+    expect(verifyCalls()).toHaveLength(0);
   });
 
   it("verifies exactly once even though the failure re-renders the screen", async () => {
@@ -608,7 +757,7 @@ describe("LoginScreen magic-link auto-verify", () => {
     // hold the line and a `useRef` "started" latch must (bd memory
     // `exactly-once-server-mutations-in-react-need-a-ref-not-just-deps`; React
     // StrictMode double-invokes effects in dev for the same reason).
-    mocks.verifyMagicLink.mockRejectedValue(rejection(401, EXPIRED_TOKEN));
+    rejectVerify(UNAUTHORIZED_STATUS, EXPIRED_TOKEN);
     await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
     await expect.element(page.getByTestId("login-error")).toBeInTheDocument();
@@ -617,7 +766,7 @@ describe("LoginScreen magic-link auto-verify", () => {
       setTimeout(resolve, 50);
     });
 
-    expect(mocks.verifyMagicLink).toHaveBeenCalledTimes(1);
+    expect(verifyCalls()).toHaveLength(1);
   });
 
   it("exchanges the sign-in ticket at THIS origin for the returnUrl the email carried", async () => {
@@ -629,20 +778,23 @@ describe("LoginScreen magic-link auto-verify", () => {
     // point of the tab is: token in, ticket out, exchange, back into the OIDC flow.
     //
     // The origin is `""`. The oracle's `ApiBaseUrl` prepend is NOT ported: this
-    // app's h3 server is a passthrough reverse proxy mounting `/v1/**` at the ROOT,
+    // app's API surface is a passthrough reverse proxy mounting `/v1/**` at the ROOT,
     // and an absolute origin would send the browser cross-origin and DROP the
     // SameSite auth cookie the exchange endpoint just set — which is the entire
     // point of the ticket (bd memory `wallow-auth-screens-must-pass-origin-same-origin`).
     //
-    // Browser seam: `location.href` is unforgeable in Chromium, so instead of
-    // pinning the assigned string we pin the deterministic `buildExchangeTicketUrl`
-    // builder's arguments — the empty origin `""` is exactly the "same-origin, no
-    // localhost:5001" claim the old `location.href` assertions made.
+    // Browser seam: `location.href` is unforgeable in Chromium, so the hand-off is
+    // recorded by the Navigation API listener and asserted as a PARSED URL — the
+    // same-origin `origin` is exactly the "no localhost:5001" claim the old
+    // `location.href` assertions made.
     await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN, clientId: CLIENT_ID });
 
-    await vi.waitFor(() => {
-      expect(mocks.buildExchangeTicketUrl).toHaveBeenCalledWith("", TICKET, RETURN_URL);
-    });
+    const target: URL = await awaitHandoff();
+
+    expect(target.origin).toBe(globalThis.location.origin);
+    expect(target.pathname).toBe(EXCHANGE_PATH);
+    expect(target.searchParams.get("ticket")).toBe(TICKET);
+    expect(target.searchParams.get("returnUrl")).toBe(RETURN_URL);
     expect(mocks.navigate).not.toHaveBeenCalledWith({ href: ERROR_HREF });
   });
 
@@ -652,7 +804,9 @@ describe("LoginScreen magic-link auto-verify", () => {
     await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN, returnUrl: undefined });
 
     await expect.element(page.getByTestId("login-signed-in")).toBeInTheDocument();
-    expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
+    // The ticket exchange is the screen's only writer of `location.href`, so an
+    // EMPTY recording is the browser-true "no exchange happened".
+    expect(handoffs).toHaveLength(0);
   });
 
   it("refuses an absolute returnUrl before exchanging the ticket", async () => {
@@ -664,7 +818,9 @@ describe("LoginScreen magic-link auto-verify", () => {
     await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({ href: ERROR_HREF });
     });
-    expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
+    // The ticket exchange is the screen's only writer of `location.href`, so an
+    // EMPTY recording is the browser-true "no exchange happened".
+    expect(handoffs).toHaveLength(0);
   });
 
   it("hands an MFA-required verify response to the shell's branch table", async () => {
@@ -674,7 +830,7 @@ describe("LoginScreen magic-link auto-verify", () => {
     // `{ succeeded, email, signInTicket }`) — what is pinned here is the WIRING,
     // which is what stops three panels from disagreeing about where a
     // half-authenticated user lands.
-    mocks.verifyMagicLink.mockResolvedValue({ succeeded: false, mfaRequired: true });
+    respondWithVerify({ succeeded: false, mfaRequired: true });
     await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
     await vi.waitFor(() => {
@@ -687,7 +843,7 @@ describe("LoginScreen magic-link auto-verify", () => {
 
 describe("LoginScreen magic-link verify failures", () => {
   it("maps a spent token to the oracle's expired copy", async () => {
-    mocks.verifyMagicLink.mockRejectedValue(rejection(401, EXPIRED_TOKEN));
+    rejectVerify(UNAUTHORIZED_STATUS, EXPIRED_TOKEN);
     await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
     await expect.element(page.getByTestId("login-error")).toHaveTextContent(EXPIRED_MESSAGE);
@@ -698,7 +854,7 @@ describe("LoginScreen magic-link verify failures", () => {
     // spelling is `"Invalid token."` (PasswordlessService.cs:100-106, a failed HMAC
     // comparison). The dead literal is not ported; the live one the author plainly
     // meant is mapped in its place.
-    mocks.verifyMagicLink.mockRejectedValue(rejection(401, INVALID_TOKEN));
+    rejectVerify(UNAUTHORIZED_STATUS, INVALID_TOKEN);
     await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
     await expect.element(page.getByTestId("login-error")).toHaveTextContent(EXPIRED_MESSAGE);
@@ -712,21 +868,21 @@ describe("LoginScreen magic-link verify failures", () => {
     // `401 -> expired` rule passes every other failure test in this file and fails
     // THIS one — which is the whole reason it exists (bd memory `code-keyed-error-
     // mapping-needs-an-unrecognised-code-test-to-bind`). Do not "simplify" it away.
-    mocks.verifyMagicLink.mockRejectedValue(rejection(401, INVALID_TOKEN_FORMAT_TOKEN));
+    rejectVerify(UNAUTHORIZED_STATUS, INVALID_TOKEN_FORMAT_TOKEN);
     await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
     await expect.element(page.getByTestId("login-error")).toHaveTextContent(VERIFY_FAILED_MESSAGE);
   });
 
   it("falls back to the verify tail for a token on the same status it has never heard of", async () => {
-    mocks.verifyMagicLink.mockRejectedValue(rejection(401, "some_new_token"));
+    rejectVerify(UNAUTHORIZED_STATUS, "some_new_token");
     await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
     await expect.element(page.getByTestId("login-error")).toHaveTextContent(VERIFY_FAILED_MESSAGE);
   });
 
   it("never renders the raw server sentence on a failed verify", async () => {
-    mocks.verifyMagicLink.mockRejectedValue(rejection(401, EXPIRED_TOKEN));
+    rejectVerify(UNAUTHORIZED_STATUS, EXPIRED_TOKEN);
     await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
     await expect
@@ -737,7 +893,7 @@ describe("LoginScreen magic-link verify failures", () => {
   it("never renders the token itself", async () => {
     // The token is a live credential until it is redeemed. It is in the URL, but
     // that is not a reason to paint it into the page.
-    mocks.verifyMagicLink.mockRejectedValue(rejection(401, EXPIRED_TOKEN));
+    rejectVerify(UNAUTHORIZED_STATUS, EXPIRED_TOKEN);
     const { container } = await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
     await expect.element(page.getByTestId("login-error")).toBeInTheDocument();
@@ -745,7 +901,7 @@ describe("LoginScreen magic-link verify failures", () => {
   });
 
   it("tells the user the server is unreachable when the verify never lands", async () => {
-    mocks.verifyMagicLink.mockRejectedValue(networkRejection());
+    failVerifyTransport();
     await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
     await expect.element(page.getByTestId("login-error")).toHaveTextContent(UNREACHABLE_MESSAGE);
@@ -753,7 +909,7 @@ describe("LoginScreen magic-link verify failures", () => {
 
   it("offers the send form again after a failed verify", async () => {
     // "Please request a new one" is only advice if the user can act on it.
-    mocks.verifyMagicLink.mockRejectedValue(rejection(401, EXPIRED_TOKEN));
+    rejectVerify(UNAUTHORIZED_STATUS, EXPIRED_TOKEN);
     await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
     await expect.element(page.getByTestId("login-error")).toBeInTheDocument();
@@ -762,11 +918,13 @@ describe("LoginScreen magic-link verify failures", () => {
   });
 
   it("does not exchange a ticket when the verify fails", async () => {
-    mocks.verifyMagicLink.mockRejectedValue(rejection(401, EXPIRED_TOKEN));
+    rejectVerify(UNAUTHORIZED_STATUS, EXPIRED_TOKEN);
     await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
     await expect.element(page.getByTestId("login-error")).toBeInTheDocument();
-    expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
+    // The ticket exchange is the screen's only writer of `location.href`, so an
+    // EMPTY recording is the browser-true "no exchange happened".
+    expect(handoffs).toHaveLength(0);
     expect(page.getByTestId("login-signed-in").query()).toBeNull();
   });
 });
@@ -782,20 +940,11 @@ describe("LoginScreen magic-link verify failures", () => {
  * `wallow-auth-route-tests-never-bare-render-a`). Mirrors `LoginScreen.test.tsx`.
  */
 function renderRouteAt(url: string) {
-  const rootRoute = createRootRoute({ component: Outlet });
-  const routeTree = rootRoute.addChildren([
-    loginRoute.update({
-      id: "/login",
-      path: "/login",
-      getParentRoute: () => rootRoute,
-    } as any),
-  ]);
-  const router = createRouter({
-    routeTree,
-    history: createMemoryHistory({ initialEntries: [url] }),
+  return renderWithWallow(null, {
+    harness,
+    path: url,
+    routes: [{ path: "/login", route: loginRoute }],
   });
-
-  return renderWithClient(<RouterProvider router={router} />);
 }
 
 /** The emailed link, exactly as `MagicLinkRequestedNotificationHandler.cs:21-31` builds it. */
@@ -812,28 +961,34 @@ describe("/login route: magic link", () => {
     await renderRouteAt(emailedLink(MAGIC_LINK_TOKEN, RETURN_URL, CLIENT_ID));
 
     await vi.waitFor(() => {
-      expect(mocks.verifyMagicLink).toHaveBeenCalledWith({ token: MAGIC_LINK_TOKEN });
+      expect(verifyCalls()).toHaveLength(1);
     });
+    expect(
+      new URL(verifyCalls()[0].url, globalThis.location.origin).searchParams.get("token"),
+    ).toBe(MAGIC_LINK_TOKEN);
   });
 
   it("completes the emailed link end to end: token in, ticket exchanged", async () => {
     // ── THE WHOLE FEATURE, THROUGH THE REAL ROUTE. ──
     // A user clicks the link in their inbox and lands back in the OIDC flow they
     // started. Nothing here is a hostile input: if this fails, the tab is an outage.
-    // Browser seam: the deterministic builder's `returnUrl` argument stands in for
-    // the old `location.href` contains-returnUrl assertion.
+    // Browser seam: the recorded hand-off URL IS the old `location.href`
+    // contains-returnUrl assertion, parsed.
     await renderRouteAt(emailedLink(MAGIC_LINK_TOKEN, RETURN_URL, CLIENT_ID));
 
-    await vi.waitFor(() => {
-      expect(mocks.buildExchangeTicketUrl).toHaveBeenCalledWith("", TICKET, RETURN_URL);
-    });
+    const target: URL = await awaitHandoff();
+
+    expect(target.origin).toBe(globalThis.location.origin);
+    expect(target.pathname).toBe(EXCHANGE_PATH);
+    expect(target.searchParams.get("ticket")).toBe(TICKET);
+    expect(target.searchParams.get("returnUrl")).toBe(RETURN_URL);
   });
 
   it("renders the password tab for a bare /login and verifies nothing", async () => {
     await renderRouteAt("/login");
 
     await expect.element(page.getByTestId("login-password")).toBeInTheDocument();
-    expect(mocks.verifyMagicLink).not.toHaveBeenCalled();
+    expect(verifyCalls()).toHaveLength(0);
   });
 
   it("threads returnUrl and client_id from the query string into a send", async () => {
@@ -846,11 +1001,12 @@ describe("/login route: magic link", () => {
     await submitEmail(user);
 
     await vi.waitFor(() => {
-      expect(mocks.sendMagicLink).toHaveBeenCalledWith({
-        email: EMAIL,
-        returnUrl: RETURN_URL,
-        clientId: CLIENT_ID,
-      });
+      expect(sendCalls()).toHaveLength(1);
+    });
+    expect(sendCalls()[0].body).toEqual({
+      email: EMAIL,
+      returnUrl: RETURN_URL,
+      clientId: CLIENT_ID,
     });
   });
 
@@ -865,6 +1021,6 @@ describe("/login route: magic link", () => {
     await renderRouteAt("/login?magicLinkToken=123");
 
     await expect.element(page.getByTestId("login-password")).toBeInTheDocument();
-    expect(mocks.verifyMagicLink).not.toHaveBeenCalled();
+    expect(verifyCalls()).toHaveLength(0);
   });
 });
