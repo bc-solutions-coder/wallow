@@ -37,7 +37,11 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 COMPOSE_FILE="$REPO_ROOT/docker/docker-compose.test.yml"
-COMPOSE=(docker compose -f "$COMPOSE_FILE")
+# --project-name pins the Compose project even if the caller's environment (or
+# docker/.env, which COMPOSE_PROJECT_NAME-scopes the dev-infra stack) would
+# override the compose file's top-level `name:`. Without this, teardown's
+# `down --remove-orphans` removes the running dev-infra containers (Wallow-kd2e).
+COMPOSE=(docker compose --project-name wallow-test -f "$COMPOSE_FILE")
 
 UP_SERVICE="${E2E_UP_SERVICE:-wallow-api}"
 # Host-published API port from docker-compose.test.yml (wallow-api: 5050:8080).
@@ -131,8 +135,14 @@ if [[ -z "${E2E_BASE_URL:-}" ]]; then
   log "Installing workspace deps + Playwright Chromium"
   pnpm install --frozen-lockfile
   pnpm --filter ./apps/wallow-auth exec playwright install chromium
-  log "Building @bc-solutions-coder/sdk for the dev server"
-  pnpm --filter @bc-solutions-coder/sdk build
+  # Build every workspace package the dev server resolves against (sdk, forms,
+  # ui, styles, web-shell, ...): their exports all point at dist/, so any
+  # unbuilt dependency surfaces as a Vite import-analysis error overlay that
+  # blocks every click in the suite. The ^... filter selects the app's
+  # dependency closure without rebuilding the app itself, so new workspace
+  # packages are covered automatically.
+  log "Building wallow-auth's workspace dependencies for the dev server"
+  pnpm --filter "@bc-solutions-coder/wallow-auth^..." build
   # This only reaches a dev server Playwright actually STARTS. Its config sets
   # `reuseExistingServer`, so an unrelated `pnpm dev` already on the port is
   # adopted with its own upstream and quietly serves the suite against the dev

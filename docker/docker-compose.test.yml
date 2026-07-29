@@ -1,6 +1,16 @@
 # docker-compose.test.yml
 # Test environment - extends base infrastructure with application services
 # Uses separate ports and volume namespace to avoid conflicts with dev environment
+#
+# The explicit project name keeps this stack in a different Compose project from
+# the dev-infra stack (docker-compose.yml). Without it, this file resolves the
+# project directory to docker/ and picks up COMPOSE_PROJECT_NAME=wallow from
+# docker/.env, and `down --remove-orphans` then removes the running dev-infra
+# containers as orphans (Wallow-kd2e). NOTE: an environment (or docker/.env)
+# COMPOSE_PROJECT_NAME still outranks this field — scripts/e2e.sh therefore also
+# passes --project-name wallow-test explicitly. If you invoke this file by hand
+# with COMPOSE_PROJECT_NAME set, pass -p wallow-test yourself.
+name: wallow-test
 
 services:
   # ============================================

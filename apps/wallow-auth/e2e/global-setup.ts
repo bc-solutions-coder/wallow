@@ -23,8 +23,27 @@ import { chromium, type Browser, type FullConfig, type Page } from "@playwright/
  * of 504 "Outdated Optimize Dep", no hydration, no auto-reload) is fixed at
  * source by the TanStack Start Vite plugin, which points Vite's dependency scan
  * at the client entry.
+ *
+ * The warm-up walks WARMUP_PATHS, not just `/`, because dep discovery is
+ * per-route: a route module first loaded during a spec can still surface a dep
+ * Vite has not optimised yet (a freshly built workspace package such as
+ * `@bc-solutions-coder/forms`), and the resulting "optimized dependencies
+ * changed. reloading" full reload lands MID-SPEC — the page navigates while a
+ * submit is in flight, the form state is gone, and whichever parallel specs had
+ * a pending assertion (`login-signed-in`, `login-magic-link-sent`) time out.
+ * Loading each interactive entry route here moves that one-time reload into
+ * setup, where it is harmless.
  */
 const WARMUP_TIMEOUT_MS = 120_000;
+
+/** Every route an interactive spec drives directly (routes.spec.ts covers the rest read-only). */
+const WARMUP_PATHS: readonly string[] = [
+  "/",
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+];
 
 /**
  * Prove the app under test proxies to the API this run was pointed at, before
@@ -129,12 +148,18 @@ export default async function warmUpAppUnderTest(config: FullConfig): Promise<vo
 
   try {
     const page: Page = await browser.newPage();
-    await page.goto(baseURL);
-    // The same readiness marker every spec waits on (.claude/rules/E2E.md), so
-    // the warm-up proves precisely the condition the suite goes on to assume.
-    await page
-      .locator("[data-app-ready='true']")
-      .waitFor({ state: "attached", timeout: WARMUP_TIMEOUT_MS });
+    // Sequential on purpose: one page walks the routes so each load (and any
+    // dep-optimisation reload it triggers) fully settles before the next.
+    for (const path of WARMUP_PATHS) {
+      // eslint-disable-next-line no-await-in-loop
+      await page.goto(new URL(path, baseURL).href);
+      // The same readiness marker every spec waits on (.claude/rules/E2E.md), so
+      // the warm-up proves precisely the condition the suite goes on to assume.
+      // eslint-disable-next-line no-await-in-loop
+      await page
+        .locator("[data-app-ready='true']")
+        .waitFor({ state: "attached", timeout: WARMUP_TIMEOUT_MS });
+    }
   } finally {
     await browser.close();
   }
