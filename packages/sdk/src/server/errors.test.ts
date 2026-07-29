@@ -196,6 +196,80 @@ describe("parseProblemDetails", () => {
 });
 
 /**
+ * Field-level validation errors (Wallow-ov6w.1.2).
+ *
+ * The API answers a failed command with `ValidationProblemDetails`, whose RFC
+ * 7807 `errors` member maps a property name to its FluentValidation messages.
+ * The tunnel is what a form's submit actually rejects through, so the member has
+ * to survive `parseProblemDetails` — dropping it leaves a form with nothing but
+ * "One or more validation errors occurred." for a banner.
+ *
+ * The wire body is untrusted, so the shape is validated rather than cast: an
+ * entry survives only when its value is an array of strings, and `fieldErrors`
+ * stays `undefined` when no entry does.
+ */
+describe("parseProblemDetails field errors", () => {
+  it("maps the errors member onto fieldErrors", () => {
+    const body: string = JSON.stringify({
+      title: "One or more validation errors occurred.",
+      status: 400,
+      errors: {
+        Name: ["'Name' must not be empty."],
+        Email: ["'Email' is not a valid email address.", "'Email' is already taken."],
+      },
+      extensions: { code: "VALIDATION_ERROR" },
+    });
+
+    const error: WallowError = parseProblemDetails(problemResponse(400), body);
+
+    expect(error.fieldErrors).toEqual({
+      Name: ["'Name' must not be empty."],
+      Email: ["'Email' is not a valid email address.", "'Email' is already taken."],
+    });
+  });
+
+  it("leaves fieldErrors undefined when the body carries no errors member", () => {
+    const body: string = JSON.stringify({ title: "Not Found", status: 404 });
+
+    expect(parseProblemDetails(problemResponse(404), body).fieldErrors).toBeUndefined();
+  });
+
+  it("leaves fieldErrors undefined for a non-JSON body", () => {
+    const error: WallowError = parseProblemDetails(
+      problemResponse(502),
+      "<html>Bad Gateway</html>",
+    );
+
+    expect(error.fieldErrors).toBeUndefined();
+  });
+
+  it.each([
+    ["a string errors member", "not an object"],
+    ["an array errors member", ["Name"]],
+    ["a null errors member", null],
+    ["an empty errors member", {}],
+    ["entries that are not arrays", { Name: "'Name' must not be empty." }],
+    ["arrays holding non-strings", { Name: [42, { message: "nope" }] }],
+  ])("ignores %s rather than trusting the body", (_label: string, errors: unknown) => {
+    const body: string = JSON.stringify({ title: "Bad Request", status: 400, errors });
+
+    expect(parseProblemDetails(problemResponse(400), body).fieldErrors).toBeUndefined();
+  });
+
+  it("keeps the well-formed entries and drops the malformed ones", () => {
+    const body: string = JSON.stringify({
+      title: "Bad Request",
+      status: 400,
+      errors: { Name: ["'Name' must not be empty."], Age: 42, Tags: ["ok", 7] },
+    });
+
+    const error: WallowError = parseProblemDetails(problemResponse(400), body);
+
+    expect(error.fieldErrors).toEqual({ Name: ["'Name' must not be empty."] });
+  });
+});
+
+/**
  * Request-id correlation (Wallow-pu6a.6.7).
  *
  * A `WallowError` is what a user's bug report is really about, so it has to name

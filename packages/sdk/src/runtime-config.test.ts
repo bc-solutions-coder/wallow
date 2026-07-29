@@ -367,6 +367,62 @@ describe("toWallowError correlation", () => {
   });
 });
 
+/**
+ * Field-level validation errors on the browser leg (Wallow-ov6w.1.2).
+ *
+ * `runtime-config.ts` parses the problem details a SECOND time, independently of
+ * `server/errors.ts` — a body that reached the browser through the passthrough
+ * topology never passed through `parseProblemDetails` at all. Both parsers
+ * therefore have to read the `errors` member, and both have to distrust it: this
+ * is a wire body, so an entry survives only when its value is an array of
+ * strings, and `fieldErrors` stays `undefined` when no entry does.
+ */
+describe("toWallowError field errors", () => {
+  it("reads the RFC 7807 errors member onto fieldErrors", () => {
+    const error = toWallowError(
+      {
+        status: 400,
+        title: "One or more validation errors occurred.",
+        errors: { Name: ["'Name' must not be empty."], Email: ["Invalid email."] },
+        extensions: { code: "VALIDATION_ERROR" },
+      },
+      400,
+    );
+
+    expect(error.fieldErrors).toEqual({
+      Name: ["'Name' must not be empty."],
+      Email: ["Invalid email."],
+    });
+  });
+
+  it("leaves fieldErrors undefined when the body carries no errors member", () => {
+    expect(toWallowError({ title: "Conflict", status: 409 }, 409).fieldErrors).toBeUndefined();
+  });
+
+  it("leaves fieldErrors undefined on a transport fault, which has no body", () => {
+    expect(toWallowError(new TypeError("Failed to fetch"), undefined).fieldErrors).toBeUndefined();
+  });
+
+  it.each([
+    ["a string errors member", "not an object"],
+    ["an array errors member", ["Name"]],
+    ["an empty errors member", {}],
+    ["entries that are not arrays", { Name: "'Name' must not be empty." }],
+    ["arrays holding non-strings", { Name: [42] }],
+  ])("ignores %s rather than trusting the body", (_label: string, errors: unknown) => {
+    expect(toWallowError({ title: "Bad Request", errors }, 400).fieldErrors).toBeUndefined();
+  });
+
+  it("keeps the well-formed entries and drops the malformed ones", () => {
+    const error = toWallowError(
+      { title: "Bad Request", errors: { Name: ["'Name' must not be empty."], Age: 42 } },
+      400,
+    );
+
+    expect(error.fieldErrors).toEqual({ Name: ["'Name' must not be empty."] });
+  });
+});
+
 describe("wireWallowErrorInterceptor correlation", () => {
   it("reads the request id off the Response the client hands it", async () => {
     const { client, registered } = recordingClient();
@@ -464,6 +520,24 @@ describe("createWallowSdk registers the error interceptor", () => {
     expect((error as WallowError).traceId).toBe(
       "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
     );
+  });
+
+  it("carries the API's field errors onto the rejected error", async () => {
+    // What a form actually catches: a 400 from a failed command, with the
+    // per-property messages still attached so each one can land on its field.
+    const sdk = sdkAnswering(() =>
+      jsonResponse(400, {
+        title: "One or more validation errors occurred.",
+        status: 400,
+        errors: { Name: ["'Name' must not be empty."] },
+        extensions: { code: "VALIDATION_ERROR" },
+      }),
+    );
+
+    const error = await rejection(usersGetCurrentUser({ client: sdk.client }));
+
+    expect(isWallowError(error)).toBe(true);
+    expect((error as WallowError).fieldErrors).toEqual({ Name: ["'Name' must not be empty."] });
   });
 
   it("leaves the success path untouched", async () => {

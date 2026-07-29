@@ -36,6 +36,9 @@ const UNKNOWN_ERROR_TITLE: string = "Unknown error";
 /** Status attributed to a failure that names no status anywhere. */
 const FALLBACK_ERROR_STATUS: number = 500;
 
+/** Surviving-entry count below which {@link readFieldErrors} reports nothing. */
+const NO_FIELD_ERRORS: number = 0;
+
 /**
  * The status and code attributed to a request that never produced a response at
  * all.
@@ -114,7 +117,42 @@ export function toWallowError(
     detail: typeof detail === "string" ? detail : undefined,
     requestId,
     traceId: readTraceId(problem),
+    fieldErrors: readFieldErrors(problem),
   });
+}
+
+/**
+ * Recover the per-property validation messages a 400 carries in its RFC 7807
+ * `errors` member.
+ *
+ * This is the browser's own parse of the problem details, independent of the
+ * tunnel's: a body that reached the browser through the passthrough topology
+ * never went through `server/errors.ts` at all, so the member has to be read
+ * here too.
+ *
+ * Unlike `code` and `traceId` there is no `extensions` placement to probe —
+ * `errors` is a declared member of ASP.NET Core's `ValidationProblemDetails`,
+ * not an extension. The body is untrusted, so every entry is validated rather
+ * than cast: an entry survives only when its value is an array of strings, and a
+ * body that leaves no entry standing yields `undefined` rather than an empty
+ * record.
+ */
+function readFieldErrors(
+  problem: Record<string, unknown>,
+): Record<string, readonly string[]> | undefined {
+  const errors: unknown = problem["errors"];
+  if (!isPlainObject(errors)) {
+    return undefined;
+  }
+
+  const fieldErrors: Record<string, readonly string[]> = {};
+  for (const [field, messages] of Object.entries(errors)) {
+    if (isStringArray(messages)) {
+      fieldErrors[field] = messages;
+    }
+  }
+
+  return Object.keys(fieldErrors).length > NO_FIELD_ERRORS ? fieldErrors : undefined;
 }
 
 /**
@@ -165,6 +203,10 @@ function readCode(problem: Record<string, unknown>): string | undefined {
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isStringArray(value: unknown): value is readonly string[] {
+  return Array.isArray(value) && value.every((item: unknown) => typeof item === "string");
 }
 
 /**

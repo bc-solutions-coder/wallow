@@ -45,6 +45,12 @@ export interface ProblemDetails {
    * inside {@link extensions} depending on the serializer configuration.
    */
   traceId?: string;
+  /**
+   * Validation messages keyed by property name, as ASP.NET Core's
+   * `ValidationProblemDetails` (and FluentValidation behind it) emits them on a
+   * 400. Surfaced on {@link WallowError.fieldErrors}.
+   */
+  errors?: Record<string, string[]>;
   extensions?: Record<string, unknown>;
   [member: string]: unknown;
 }
@@ -87,6 +93,7 @@ export function parseProblemDetails(response: Response, bodyText: string): Wallo
     detail: typeof problem.detail === "string" ? problem.detail : undefined,
     requestId,
     traceId: readTraceId(problem),
+    fieldErrors: readFieldErrors(problem),
   });
 }
 
@@ -116,6 +123,9 @@ export function redact(value: unknown): unknown {
 
 /** Title used when the upstream response carries no problem details. */
 const UNKNOWN_ERROR_TITLE: string = "Unknown error";
+
+/** Surviving-entry count below which {@link readFieldErrors} reports nothing. */
+const NO_FIELD_ERRORS: number = 0;
 
 /** Member names whose values are always credentials, whatever they contain. */
 const SENSITIVE_MEMBERS: ReadonlySet<string> = new Set([
@@ -184,6 +194,36 @@ function readTraceId(problem: ProblemDetails): string | undefined {
   return typeof problem.traceId === "string" ? problem.traceId : undefined;
 }
 
+/**
+ * Recover the per-property validation messages, as ASP.NET Core's
+ * `ValidationProblemDetails` emits them on a 400.
+ *
+ * Unlike `code` and `traceId` there is no `extensions` placement to probe:
+ * `errors` is a declared member of `ValidationProblemDetails`, not an extension,
+ * so a flattening serializer has nothing to move.
+ *
+ * The body is untrusted wire data that {@link tryParseProblem} only asserted the
+ * type of, so every entry is validated rather than cast — an entry survives only
+ * when its value is an array of strings. A body whose `errors` leaves no entry
+ * standing yields `undefined` rather than an empty record, keeping "the API sent
+ * no field errors" distinguishable from "the API sent field errors".
+ */
+function readFieldErrors(problem: ProblemDetails): Record<string, readonly string[]> | undefined {
+  const errors: unknown = problem.errors;
+  if (!isPlainObject(errors)) {
+    return undefined;
+  }
+
+  const fieldErrors: Record<string, readonly string[]> = {};
+  for (const [field, messages] of Object.entries(errors)) {
+    if (isStringArray(messages)) {
+      fieldErrors[field] = messages;
+    }
+  }
+
+  return Object.keys(fieldErrors).length > NO_FIELD_ERRORS ? fieldErrors : undefined;
+}
+
 function isSensitiveMember(member: string): boolean {
   const normalized: string = member.toLowerCase();
 
@@ -199,4 +239,8 @@ function isTokenShaped(value: string): boolean {
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isStringArray(value: unknown): value is readonly string[] {
+  return Array.isArray(value) && value.every((item: unknown) => typeof item === "string");
 }

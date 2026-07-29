@@ -39,6 +39,11 @@ const WALLOW_ERROR_BRAND: unique symbol = Symbol.for("wallow.error");
  * puts in its problem details and OTel exports to Tempo. Either one takes a
  * reported error to the backend work that produced it — see
  * `docs/operations/request-correlation.md`.
+ *
+ * `fieldErrors` is the RFC 7807 `errors` member a validation failure carries. It
+ * is the only part of the payload that says WHICH property a message belongs to,
+ * so without it a form catching a 400 can do nothing better than repeat `title`
+ * in a banner.
  */
 export class WallowError extends Error {
   readonly [WALLOW_ERROR_BRAND]: true = true;
@@ -50,6 +55,12 @@ export class WallowError extends Error {
   readonly requestId?: string;
   /** The backend's W3C trace id, as the API's problem details report it. */
   readonly traceId?: string;
+  /**
+   * The RFC 7807 `errors` member — validation messages keyed by property name,
+   * as ASP.NET Core's `ValidationProblemDetails` emits them, when the API sent
+   * any.
+   */
+  readonly fieldErrors?: Readonly<Record<string, readonly string[]>>;
 
   constructor(init: {
     status: number;
@@ -58,6 +69,7 @@ export class WallowError extends Error {
     detail?: string;
     requestId?: string;
     traceId?: string;
+    fieldErrors?: Readonly<Record<string, readonly string[]>>;
   }) {
     super(init.detail ? `${init.title}: ${init.detail}` : init.title);
     this.name = "WallowError";
@@ -67,6 +79,7 @@ export class WallowError extends Error {
     this.detail = init.detail;
     this.requestId = init.requestId;
     this.traceId = init.traceId;
+    this.fieldErrors = init.fieldErrors;
   }
 }
 

@@ -63,6 +63,52 @@ describe("one shared definition across both entries", () => {
   });
 });
 
+/**
+ * Field-level validation errors (Wallow-ov6w.1.2).
+ *
+ * A 400 from the API is a `ValidationProblemDetails`: its RFC 7807 `errors`
+ * member maps a property name to the messages FluentValidation produced for it.
+ * That member is the only thing that can put a message under the field that
+ * caused it, so it has to survive onto the error a form catches — a form that
+ * only has `title` can do nothing better than a banner saying "one or more
+ * validation errors occurred".
+ */
+describe("field errors", () => {
+  it("carries RFC 7807 validation errors when provided", () => {
+    const error: WallowError = new WallowError({
+      status: 400,
+      code: "VALIDATION_ERROR",
+      title: "One or more validation errors occurred.",
+      fieldErrors: { Name: ["'Name' must not be empty."], Email: ["Invalid email."] },
+    });
+
+    expect(error.fieldErrors).toEqual({
+      Name: ["'Name' must not be empty."],
+      Email: ["Invalid email."],
+    });
+  });
+
+  it("leaves fieldErrors undefined when the problem details had none", () => {
+    const error: WallowError = new WallowError({ status: 500, code: "UNKNOWN", title: "boom" });
+
+    expect(error.fieldErrors).toBeUndefined();
+  });
+
+  it("survives the server's parseProblemDetails onto the shared error type", () => {
+    const response: Response = new Response(null, { status: 400 });
+    const body: string = JSON.stringify({
+      title: "One or more validation errors occurred.",
+      status: 400,
+      errors: { Name: ["'Name' must not be empty."] },
+      extensions: { code: "VALIDATION_ERROR" },
+    });
+
+    const error: WallowError = parseProblemDetails(response, body);
+
+    expect(error.fieldErrors).toEqual({ Name: ["'Name' must not be empty."] });
+  });
+});
+
 describe("isWallowError", () => {
   it("recognizes a WallowError instance", () => {
     expect(isWallowError(makeError())).toBe(true);
