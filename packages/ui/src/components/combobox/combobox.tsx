@@ -257,8 +257,38 @@ function ComboboxTrigger({ className, ...rest }: ComboboxTriggerProps): ReactEle
   return <BaseCombobox.Trigger className={cn(comboboxTriggerRecipe(), className)} {...rest} />;
 }
 
-function ComboboxIcon({ className, ...rest }: ComboboxIconProps): ReactElement {
-  return <BaseCombobox.Icon className={cn(comboboxIconRecipe(), className)} {...rest} />;
+/**
+ * The chevron `Combobox.Icon` falls back to when a caller passes no children —
+ * the same default `Select.Icon` gets, for the same reasons: this package ships
+ * no icon library and must not gain one, and a text glyph sits off the baseline
+ * of the `size-4` icon box. `Autocomplete` re-exports these parts verbatim, so
+ * this one default covers that component too.
+ *
+ * It does not rotate: `ComboboxIconState` is the empty interface, so the icon
+ * carries no `data-popup-open` for a modifier to hang off.
+ */
+function DefaultChevron(): ReactElement {
+  return (
+    <svg
+      className="size-4"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+function ComboboxIcon({ className, children, ...rest }: ComboboxIconProps): ReactElement {
+  return (
+    <BaseCombobox.Icon className={cn(comboboxIconRecipe(), className)} {...rest}>
+      {children ?? <DefaultChevron />}
+    </BaseCombobox.Icon>
+  );
 }
 
 function ComboboxClear({ className, ...rest }: ComboboxClearProps): ReactElement {

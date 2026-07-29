@@ -26,7 +26,7 @@ import { Select } from "./select";
  *   <div id="…-label">                                  <- Select.Label
  *   <button role="combobox" aria-haspopup="listbox">    <- Select.Trigger
  *     <span>alpha</span>                                <- Select.Value
- *     <span aria-hidden="true">                         <- Select.Icon
+ *     <span aria-hidden="true"><svg/></span>            <- Select.Icon
  *   <input aria-hidden tabindex="-1" name value>        <- SIBLING of the trigger
  *
  *   …and, only while open, portalled onto <body>:
@@ -101,8 +101,19 @@ const BACKDROP_CLASSES = ["fixed", "inset-0"];
  */
 const POSITIONER_CLASSES = ["z-50", "outline-none"];
 
-/** Utilities `Select.Popup` must render. */
+/**
+ * Utilities `Select.Popup` must render.
+ *
+ * `min-w-[var(--anchor-width)]` is what stops the popup shrinking to its longest
+ * option and rendering narrower than the control it belongs to. Base UI
+ * publishes the trigger's measured width as `--anchor-width` on
+ * `Select.Positioner`, the popup's ancestor, so the `var()` resolves through
+ * inheritance. It is a MINIMUM, not a fixed width: an option longer than the
+ * trigger must still be allowed to widen the popup. Combobox already carries the
+ * same utility on its own popup recipe.
+ */
 const POPUP_CLASSES = [
+  "min-w-[var(--anchor-width)]",
   "rounded-md",
   "border",
   "border-border",
@@ -228,7 +239,7 @@ function FullSelect(): ReactElement {
       <Select.Label data-testid="s-label">Font</Select.Label>
       <Select.Trigger data-testid="s-trigger">
         <Select.Value data-testid="s-value" />
-        <Select.Icon data-testid="s-icon">▾</Select.Icon>
+        <Select.Icon data-testid="s-icon" />
       </Select.Trigger>
       <Select.Portal>
         <Select.Backdrop data-testid="s-backdrop" />
@@ -314,6 +325,40 @@ describe("Select", () => {
     expect(part("s-icon").getAttribute("aria-hidden")).toBe("true");
     expect(classSet(part("s-icon"))).toEqual(ICON_CLASSES.toSorted());
     expect(part("s-icon").parentElement).toBe(part("s-trigger"));
+  });
+
+  it("fills an empty Select.Icon with a default inline-svg chevron", async () => {
+    // The catalog owes callers a chevron they do not have to supply. It has to
+    // be INLINE SVG: `ui` ships no icon library and must not gain one, and a
+    // text glyph (the "▾" every call site used to pass) sits off the baseline of
+    // the size-4 icon box and renders differently on every platform.
+    await render(<FullSelect />);
+
+    const icon = part("s-icon");
+    const chevron = icon.querySelector("svg");
+    expect(chevron, "Select.Icon rendered no default chevron").not.toBeNull();
+
+    // Nothing but the svg: a glyph left alongside it would still paint the old
+    // off-baseline arrow.
+    expect(icon.textContent).toBe("");
+    expect(icon.children.length).toBe(1);
+  });
+
+  it("lets a caller's children replace the default chevron", async () => {
+    // The default is a default, not a lock-in — a fork substituting its own icon
+    // must still get exactly what it passed and no svg beside it.
+    await render(
+      <Select.Root defaultValue="alpha">
+        <Select.Trigger>
+          <Select.Value />
+          <Select.Icon data-testid="ov-icon">▾</Select.Icon>
+        </Select.Trigger>
+      </Select.Root>,
+    );
+
+    const icon = part("ov-icon");
+    expect(icon.textContent).toBe("▾");
+    expect(icon.querySelector("svg")).toBeNull();
   });
 
   it("renders the label with its recipe and names the trigger with it", async () => {

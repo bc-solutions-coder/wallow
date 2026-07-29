@@ -67,7 +67,7 @@ function FontCombobox({
           </Combobox.Clear>
         ) : null}
         <Combobox.Trigger data-testid="font-trigger">
-          <Combobox.Icon>▾</Combobox.Icon>
+          <Combobox.Icon />
         </Combobox.Trigger>
       </Combobox.InputGroup>
       <span data-testid="font-value">
@@ -103,7 +103,7 @@ function GroupedCombobox(): ReactElement {
       <Combobox.InputGroup data-testid="grouped-input-group">
         <Combobox.Input data-testid="grouped-input" placeholder="Search fonts" />
         <Combobox.Trigger data-testid="grouped-trigger">
-          <Combobox.Icon>▾</Combobox.Icon>
+          <Combobox.Icon />
         </Combobox.Trigger>
       </Combobox.InputGroup>
       <Combobox.Portal>

@@ -80,7 +80,7 @@ function SelectControlTrigger(props: {
   return (
     <Select.Trigger data-testid={props.testId} className={props.className}>
       <Select.Value placeholder={props.placeholder} />
-      <Select.Icon>▾</Select.Icon>
+      <Select.Icon />
     </Select.Trigger>
   );
 }

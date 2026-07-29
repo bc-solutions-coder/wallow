@@ -69,9 +69,19 @@ export const selectPositionerRecipe = cva("z-50 outline-none");
 /** The positioner recipe's variant props, mixed into `SelectPositionerProps`. */
 export type SelectPositionerRecipeProps = VariantProps<typeof selectPositionerRecipe>;
 
-/** The popup card itself — Base UI's `Select.Popup`, a `<div>`. */
+/**
+ * The popup card itself — Base UI's `Select.Popup`, a `<div>`.
+ *
+ * `min-w-[var(--anchor-width)]` keeps the popup from shrinking to its longest
+ * option and rendering narrower than the trigger it belongs to. Base UI
+ * publishes the trigger's measured width as `--anchor-width` on
+ * `Select.Positioner`, the popup's ancestor, so the `var()` resolves through
+ * inheritance. It is a MINIMUM, not a fixed width: an option longer than the
+ * trigger is still allowed to widen the popup. `Combobox.Popup` carries the same
+ * utility.
+ */
 export const selectPopupRecipe = cva(
-  "rounded-md border border-border bg-popover py-1 text-popover-foreground shadow-md",
+  "min-w-[var(--anchor-width)] rounded-md border border-border bg-popover py-1 text-popover-foreground shadow-md",
 );
 
 /** The popup recipe's variant props, mixed into `SelectPopupProps`. */

@@ -59,7 +59,7 @@ function FontSelect({
       <Select.Label data-testid="font-label">Font</Select.Label>
       <Select.Trigger data-testid="font-trigger">
         <Select.Value data-testid="font-value" placeholder={placeholder} />
-        <Select.Icon>▾</Select.Icon>
+        <Select.Icon data-testid="font-icon" />
       </Select.Trigger>
       <Select.Portal>
         <Select.Positioner>
@@ -129,6 +129,34 @@ export const OpenAndSelect: Story = {
     await expect(args.onValueChange).toHaveBeenCalledWith("mono", expect.anything());
     await waitFor(async () => {
       await expect(canvas.getByTestId("font-value")).toHaveTextContent("mono");
+    });
+  },
+};
+
+/**
+ * The popup spans the trigger instead of shrinking to its longest option — the
+ * user-visible half of the Select bugfix, and a fact only this project can
+ * establish. select.test.tsx pins `min-w-[var(--anchor-width)]` in the popup's
+ * class set, but the `browser` project compiles no Tailwind, so it cannot tell a
+ * utility backed by real CSS from one that resolves to nothing; and Base UI only
+ * writes `--anchor-width` onto the positioner once the popup is really
+ * measured and placed, which needs a real open popup rather than a class string.
+ */
+export const PopupSpansTheTrigger: Story = {
+  play: async ({ canvas }) => {
+    const trigger = canvas.getByTestId("font-trigger");
+    const triggerWidth = trigger.getBoundingClientRect().width;
+
+    await userEvent.click(trigger);
+    const popup = await screen.findByTestId("font-popup");
+
+    // Base UI writes --anchor-width on the positioner after the first
+    // measurement pass, so the popup reaches its final width a frame or two
+    // after it mounts.
+    await waitFor(async () => {
+      // A minimum, not an equality: an option longer than the trigger is still
+      // allowed to widen the popup. The 1px slack absorbs sub-pixel layout.
+      await expect(popup.getBoundingClientRect().width).toBeGreaterThanOrEqual(triggerWidth - 1);
     });
   },
 };

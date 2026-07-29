@@ -327,7 +327,7 @@ function FullCombobox(): ReactElement {
         <Combobox.Input data-testid="c-input" placeholder="Search fonts" />
         <Combobox.Clear data-testid="c-clear" keepMounted />
         <Combobox.Trigger data-testid="c-trigger">
-          <Combobox.Icon data-testid="c-icon">▾</Combobox.Icon>
+          <Combobox.Icon data-testid="c-icon" />
         </Combobox.Trigger>
       </Combobox.InputGroup>
       <Combobox.Portal>
@@ -452,6 +452,35 @@ describe("Combobox", () => {
     expect(classSet(icon)).toEqual(ICON_CLASSES.toSorted());
 
     expect(classSet(part("c-clear"))).toEqual(CLEAR_CLASSES.toSorted());
+  });
+
+  it("fills an empty Combobox.Icon with a default inline-svg chevron", async () => {
+    // The same default `Select.Icon` gets, for the same reasons: no icon library
+    // in this package, and a text glyph sits off the baseline of the size-4 box.
+    // Autocomplete re-exports these parts verbatim, so this one default covers
+    // that component too.
+    await render(<FullCombobox />);
+
+    const icon = part("c-icon");
+    const chevron = icon.querySelector("svg");
+    expect(chevron, "Combobox.Icon rendered no default chevron").not.toBeNull();
+
+    expect(icon.textContent).toBe("");
+    expect(icon.children.length).toBe(1);
+  });
+
+  it("lets a caller's children replace the default chevron", async () => {
+    await render(
+      <Combobox.Root defaultValue="alpha">
+        <Combobox.Trigger>
+          <Combobox.Icon data-testid="ov-icon">▾</Combobox.Icon>
+        </Combobox.Trigger>
+      </Combobox.Root>,
+    );
+
+    const icon = part("ov-icon");
+    expect(icon.textContent).toBe("▾");
+    expect(icon.querySelector("svg")).toBeNull();
   });
 
   it("gives the icon no state attribute to hang a modifier on", async () => {

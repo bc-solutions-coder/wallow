@@ -192,8 +192,37 @@ function SelectValue({ className, ...rest }: SelectValueProps): ReactElement {
   return <BaseSelect.Value className={cn(selectValueRecipe(), className)} {...rest} />;
 }
 
-function SelectIcon({ className, ...rest }: SelectIconProps): ReactElement {
-  return <BaseSelect.Icon className={cn(selectIconRecipe(), className)} {...rest} />;
+/**
+ * The chevron `Select.Icon` falls back to when a caller passes no children.
+ *
+ * Inline SVG on purpose: this package ships no icon library and must not gain
+ * one, and the text glyph call sites used to pass sits off the baseline of the
+ * `size-4` icon box and renders differently on every platform. `currentColor`
+ * and the plain `size-4` box let the icon recipe keep driving both the colour
+ * and the `data-[popup-open]:rotate-180` flip.
+ */
+function DefaultChevron(): ReactElement {
+  return (
+    <svg
+      className="size-4"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+function SelectIcon({ className, children, ...rest }: SelectIconProps): ReactElement {
+  return (
+    <BaseSelect.Icon className={cn(selectIconRecipe(), className)} {...rest}>
+      {children ?? <DefaultChevron />}
+    </BaseSelect.Icon>
+  );
 }
 
 function SelectBackdrop({ className, ...rest }: SelectBackdropProps): ReactElement {
