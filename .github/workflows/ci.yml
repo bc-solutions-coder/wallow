@@ -439,26 +439,43 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       # ubuntu-latest runners have no Playwright browser cache; install Chromium
-      # (and its OS deps) before running the suite.
+      # (and its OS deps) before running the suites. One install covers wallow-auth
+      # and wallow-web: they pin the same @playwright/test version, so both resolve
+      # the same shared per-version browser cache.
       - name: Install Playwright browser
         run: pnpm --filter ./apps/wallow-auth exec playwright install --with-deps chromium
 
-      # Serve the app from the prebuilt wallow-auth container on :5051 and drive it
-      # directly (E2E_BASE_URL) — no local dev server. The runner brings up the
-      # compose stack, waits for the API + seeded admin, runs the suite, tears down.
-      - name: Run wallow-auth E2E suite
+      # Serve wallow-auth from its prebuilt container on :5051 and drive it directly
+      # (E2E_BASE_URL) — no local dev server. The runner brings up the compose stack
+      # (including wallow-web on :5053), waits for the API + seeded admin, then runs
+      # all three suites — wallow-auth, wallow-web, and the cross-app login journey,
+      # which gates the full login + authenticated mutation + logout loop — and tears
+      # the stack down.
+      - name: Run E2E suites
         env:
           E2E_SKIP_IMAGE_BUILD: "1"
           E2E_UP_SERVICE: wallow-auth
           E2E_BASE_URL: http://localhost:5051
         run: ./scripts/e2e.sh
 
-      - name: Upload Playwright report
+      - name: Upload wallow-auth Playwright report
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: playwright-report-wallow-auth
           path: apps/wallow-auth/playwright-report
+          if-no-files-found: ignore
+          retention-days: 5
+
+      # Both wallow-web suites (playwright.config.ts and playwright.cross-app.config.ts)
+      # write into the same apps/wallow-web/playwright-report directory, so one upload
+      # covers them.
+      - name: Upload wallow-web Playwright report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-wallow-web
+          path: apps/wallow-web/playwright-report
           if-no-files-found: ignore
           retention-days: 5
 

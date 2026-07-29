@@ -212,5 +212,13 @@ Run this app's Playwright suite (it boots the dev server itself on port 3000):
 pnpm --filter ./apps/wallow-web test:e2e
 ```
 
+The cross-app login journey (`e2e-cross-app/`) boots no server of its own — it needs a full stack
+cross-wiring wallow-web, the API's OIDC issuer, and wallow-auth:
+
+```bash
+E2E_BASE_URL=http://localhost:5053 pnpm --filter ./apps/wallow-web test:e2e:cross-app
+```
+
 For the full backend-dependent flow, `./scripts/e2e.sh` brings up the containerized stack
-(infra + API + seeder), runs the suite against it, and tears down.
+(infra + API + seeder + this app on `:5053`), runs all three suites against it — wallow-auth,
+this app's reachability gate, and the cross-app journey — and tears down.

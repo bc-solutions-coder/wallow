@@ -43,12 +43,15 @@ pnpm --filter ./apps/wallow-auth exec playwright test routes.spec.ts   # reachab
 ```
 
 **One-command backend-dependent runner:** `./scripts/e2e.sh` brings up the containerised stack
-(`docker/docker-compose.test.yml`: infra + API + seeder), runs the wallow-auth Playwright suite
-against it, and tears down. Env knobs: `E2E_SKIP_IMAGE_BUILD=1` (reuse prebuilt images),
-`E2E_UP_SERVICE`, `E2E_BASE_URL` (container mode), `E2E_KEEP_STACK`. **Named `e2e.sh`, NOT
-`run-e2e.sh`** (which this file forbids). CI runs the same script in the `e2e-tests` job of
-`.github/workflows/ci.yml` (installs Chromium, runs `./scripts/e2e.sh`, uploads the
-`playwright-report` artifact).
+(`docker/docker-compose.test.yml`: infra + API + seeder + `wallow-web`), runs **all three**
+Playwright suites against it — wallow-auth, wallow-web, and the wallow-web cross-app login
+journey — and tears down. The two wallow-web suites always drive the containerised app on
+`:5053`; only the wallow-auth suite's serving mode follows `E2E_BASE_URL`. Env knobs:
+`E2E_SKIP_IMAGE_BUILD=1` (reuse prebuilt images), `E2E_UP_SERVICE`, `E2E_BASE_URL` (container
+mode), `E2E_KEEP_STACK`. **Named `e2e.sh`, NOT `run-e2e.sh`** (which this file forbids). CI runs
+the same script in the `e2e-tests` job of `.github/workflows/ci.yml` (installs Chromium, runs
+`./scripts/e2e.sh`, uploads the `playwright-report-wallow-auth` and `playwright-report-wallow-web`
+artifacts).
 
 Or drive the backend manually (infra + API + seeder):
 

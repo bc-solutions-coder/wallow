@@ -295,7 +295,7 @@ job in this workflow.
 | `integration-tests` | `build` | `dotnet test --filter "Category=Integration"`. PostgreSQL comes from a GitHub Actions service container; Valkey is started with a `docker run` step and polled until it answers `PING`. Uploads the `coverage-integration` artifact. |
 | `docker-images-app` | `build` | Publishes the API, migration, and seeder container images plus the `wallow-auth-react` / `wallow-web-react` Docker builds, for both `linux-x64` and `linux-arm64`, then caches them as a tarball. |
 | `docker-images-infra` | `build` | Builds the `garage` image via `docker compose -f docker/docker-compose.test.yml build garage` and the Postgres replica image, then caches them. |
-| `e2e-tests` | `docker-images-app`, `docker-images-infra` | Loads the cached images, installs Chromium, and runs `./scripts/e2e.sh` (`ci.yml:365`) with `E2E_SKIP_IMAGE_BUILD=1`, `E2E_UP_SERVICE=wallow-auth`, `E2E_BASE_URL=http://localhost:5051`. Uploads the `playwright-report-wallow-auth` artifact (`ci.yml:371`). |
+| `e2e-tests` | `docker-images-app`, `docker-images-infra` | Loads the cached images, installs Chromium, and runs `./scripts/e2e.sh` with `E2E_SKIP_IMAGE_BUILD=1`, `E2E_UP_SERVICE=wallow-auth`, `E2E_BASE_URL=http://localhost:5051`. That one script runs all three Playwright suites — wallow-auth, wallow-web, and the cross-app login journey. Uploads the `playwright-report-wallow-auth` and `playwright-report-wallow-web` artifacts. |
 | `merge-coverage` | `unit-tests`, `integration-tests` | Merges the two coverage artifacts with ReportGenerator, enforces the coverage threshold, and uploads the `coverage-report` artifact. |
 
 Because `docker-images-app` prebuilds and caches every `:test` image, the `e2e-tests` job sets

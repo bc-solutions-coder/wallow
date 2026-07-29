@@ -1,26 +1,32 @@
 #!/usr/bin/env bash
-# One-command backend-dependent E2E runner for the apps/wallow-auth Playwright suite.
+# One-command backend-dependent E2E runner for all three Playwright suites:
+# apps/wallow-auth, apps/wallow-web, and the wallow-web cross-app login journey.
 #
 # Brings the docker/docker-compose.test.yml stack up (Postgres, Valkey, Mailpit,
-# GarageHQ, migrations, seeder, Wallow.Api), waits for the API + seeded admin,
-# runs `pnpm --filter ./apps/wallow-auth test:e2e`, then tears the stack down.
+# GarageHQ, migrations, seeder, Wallow.Api, wallow-auth, wallow-web), waits for
+# the API + seeded admin, runs the suites, then tears the stack down.
 #
-# Two serving modes, selected by whether E2E_BASE_URL is set:
+# E2E_BASE_URL selects how the **wallow-auth** suite is served:
 #
 #   LOCAL (default): the app is served by Playwright's own `pnpm dev` webServer on
 #     :3002; its passthrough proxy targets the containerised API (WALLOW_API_INTERNAL_URL).
-#     The compose stack provides infra + API + seeder only (service: wallow-api).
+#     The compose stack provides infra + API + seeder (service: wallow-api).
 #
 #   CONTAINER (E2E_BASE_URL set, e.g. CI): the app is served by the prebuilt
 #     wallow-auth-react:test container on :5051; Playwright drives it directly and
 #     boots no local dev server. Bring up the `wallow-auth` service instead.
 #
+# The two **wallow-web** suites always run in container mode against :5053,
+# regardless of that choice — see the comment above their invocation below.
+#
 # Env knobs:
 #   E2E_SKIP_IMAGE_BUILD=1  Skip `dotnet publish` of the API/migration/seeder
 #                           images (CI preloads them from cache; set this there).
-#   E2E_UP_SERVICE=<svc>    Compose service to `up --wait` (default: wallow-api;
-#                           CI sets wallow-auth to serve the app from a container).
-#   E2E_BASE_URL=<url>      Drive an already-running app at <url>; skips `pnpm dev`.
+#   E2E_UP_SERVICE=<svc>    Extra compose service to `up --wait` (default:
+#                           wallow-api; CI sets wallow-auth to serve that app from
+#                           a container). `wallow-web` is always brought up too.
+#   E2E_BASE_URL=<url>      Drive an already-running wallow-auth at <url>; skips
+#                           `pnpm dev`. Does not affect the wallow-web suites.
 #   E2E_KEEP_STACK=1        Leave the stack up after the run (for debugging).
 #
 # Usage:
@@ -37,6 +43,8 @@ UP_SERVICE="${E2E_UP_SERVICE:-wallow-api}"
 # Host-published API port from docker-compose.test.yml (wallow-api: 5050:8080).
 API_URL="http://localhost:5050"
 DISCOVERY_URL="$API_URL/.well-known/openid-configuration"
+# Host-published wallow-web port from docker-compose.test.yml (5053:3000).
+WEB_URL="http://localhost:5053"
 
 log() { printf '\n=== %s ===\n' "$1"; }
 
@@ -84,11 +92,16 @@ if [[ -z "${E2E_SKIP_IMAGE_BUILD:-}" ]]; then
   done
 fi
 
-# `up --wait` brings up the target service and its transitive deps (Postgres,
+# `up --wait` brings up the target services and their transitive deps (Postgres,
 # Valkey, Garage, Mailpit, migrations, seeder) and blocks until each is healthy /
 # completed. Garage is auto-built from its build block if the image is absent.
-log "Bringing up compose stack (service: $UP_SERVICE)"
-"${COMPOSE[@]}" up -d --wait "$UP_SERVICE"
+#
+# wallow-web is always in the set: the cross-app journey drives it directly and
+# its own `depends_on` (wallow-api, wallow-auth, valkey) pulls up the other two
+# origins that journey traverses. Like wallow-auth it carries a build block, so a
+# cold run without a prebuilt wallow-web-react:test image builds one here.
+log "Bringing up compose stack (services: $UP_SERVICE, wallow-web)"
+"${COMPOSE[@]}" up -d --wait "$UP_SERVICE" wallow-web
 
 # `--wait` returns once wallow-api is *running*, not necessarily once Kestrel is
 # listening. Poll OIDC discovery so the login spec never races the boot.
@@ -113,6 +126,8 @@ if [[ -z "${E2E_BASE_URL:-}" ]]; then
   # browser, and the @bc-solutions-coder/sdk dist/ the dev server resolves against
   # may all be missing — provision them. (CI does its own install + browser step
   # and serves the app from a container, so this branch is skipped there.)
+  # One `playwright install` covers both apps: they pin the same @playwright/test
+  # version, and the browser binaries live in a shared per-version cache.
   log "Installing workspace deps + Playwright Chromium"
   pnpm install --frozen-lockfile
   pnpm --filter ./apps/wallow-auth exec playwright install chromium
@@ -125,3 +140,16 @@ fi
 
 log "Running the wallow-auth Playwright suite"
 env "${E2E_ENV[@]}" pnpm --filter ./apps/wallow-auth test:e2e
+
+# Both wallow-web suites always drive the containerised app on :5053, whichever
+# mode the wallow-auth suite ran in. The cross-app journey needs three
+# cooperating origins the compose stack alone cross-wires — wallow-web (where the
+# journey starts and ends), the API's OIDC issuer, and the wallow-auth login UI —
+# and playwright.cross-app.config.ts boots no server of its own. Passing
+# E2E_BASE_URL also stops apps/wallow-web/playwright.config.ts from starting a
+# `pnpm dev` webServer, so the reachability gate hits that same container.
+log "Running the wallow-web Playwright suite"
+env "E2E_BASE_URL=$WEB_URL" pnpm --filter ./apps/wallow-web test:e2e
+
+log "Running the wallow-web cross-app login journey suite"
+env "E2E_BASE_URL=$WEB_URL" pnpm --filter ./apps/wallow-web test:e2e:cross-app
