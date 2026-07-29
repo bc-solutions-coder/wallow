@@ -252,6 +252,10 @@ services:
       # Downstream API for the /api proxy (container-to-container)
       BFF_API_BASE_URL: "http://wallow-api:8080"
       COOKIE_PASSWORD: "e2e-web-cookie-seal-password-min-32-chars"
+      # Safari/WebKit refuses Secure cookies over plain-HTTP localhost (Chrome and Firefox
+      # allow them), so the BFF's login-transaction cookie never survives the redirect and
+      # every /bff/callback fails with a 400. This stack is plain HTTP, so drop the flag here.
+      COOKIE_SECURE: "false"
       # Server-side sessions in Valkey so logout truly revokes (see bff-example).
       REDIS_URL: "redis://:WallowTestValkey123!@valkey:6379"
     # node:24-slim ships no curl/wget, so liveness is probed with node's own fetch.
@@ -286,9 +290,11 @@ services:
   #     (matches the API's OpenIddict issuer), used to build authorize/end-session
   #     redirect URLs the browser follows.
   #   - OIDC_METADATA_URL = http://host.docker.internal:5050/... is the
-  #     server-reachable discovery URL. The SDK fetches discovery from it and
-  #     rewrites the backchannel token_endpoint to that origin, so container-side
-  #     code exchange and silent refresh reach the API published on the host.
+  #     server-reachable discovery URL. The SDK uses the discovered
+  #     token_endpoint verbatim (it rewrites nothing) -- the API derives its
+  #     endpoints from the request base, so discovery fetched through this URL
+  #     already returns a backchannel endpoint the container can reach for code
+  #     exchange and silent refresh.
   bff-example:
     image: wallow-bff-example:test
     build:
@@ -313,6 +319,10 @@ services:
       # Downstream API for the /api proxy (container-to-container)
       BFF_API_BASE_URL: "http://wallow-api:8080"
       COOKIE_PASSWORD: "e2e-bff-cookie-seal-password-min-32-chars"
+      # Safari/WebKit refuses Secure cookies over plain-HTTP localhost (Chrome and Firefox
+      # allow them), so the BFF's login-transaction cookie never survives the redirect and
+      # every /bff/callback fails with a 400. This stack is plain HTTP, so drop the flag here.
+      COOKIE_SECURE: "false"
       # Server-side sessions in Valkey: the cookie becomes an opaque ref and the
       # tokens live in Valkey, so logout truly revokes. Without this the example
       # falls back to the stateless cookie store.
