@@ -102,6 +102,9 @@ importers:
 
   apps/wallow-auth:
     dependencies:
+      '@bc-solutions-coder/forms':
+        specifier: workspace:*
+        version: link:../../packages/forms
       '@bc-solutions-coder/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
@@ -141,6 +144,9 @@ importers:
       react-dom:
         specifier: ^19.2.7
         version: 19.2.7(react@19.2.7)
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@playwright/test':
         specifier: ^1.61.1

@@ -1,9 +1,9 @@
-import { Button, Card, CardTitle, ErrorBanner, Field, Input, Label } from "@bc-solutions-coder/ui";
-import { useForm } from "@tanstack/react-form";
+import { AppForm, FormError, SubmitButton, useAppForm } from "@bc-solutions-coder/forms";
+import { Card, CardTitle } from "@bc-solutions-coder/ui";
 import { accountResetPassword } from "@bc-solutions-coder/sdk";
-import { useMutation } from "@tanstack/react-query";
 import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
+import { z } from "zod";
 import { toAppHref } from "../../../lib/base-path";
 
 /**
@@ -47,6 +47,29 @@ import { toAppHref } from "../../../lib/base-path";
  * with no loss of user-visible behaviour. Narrowing is STRUCTURAL rather than
  * `instanceof WallowError`, because that class is exported from the SDK's
  * `./server` entry and screens may not import the SDK at all.
+ *
+ * ── WHY THIS SCREEN RUNS THE FORMS PACKAGE "SIDEWAYS" (Wallow-ov6w.3.2) ───────
+ *
+ * The screen now renders on `@bc-solutions-coder/forms`, but it deliberately
+ * uses NEITHER of the two things `useAppForm` normally supplies for a failure:
+ *
+ *  1. **No `mutation` option, and so no `splitServerError`.** That split reads
+ *     RFC 7807 members to decide which text is a field message and which is the
+ *     banner. This endpoint's 400 is not problem details (see above), so the
+ *     split has nothing to work with and the status-code narrowing below is the
+ *     only thing that can tell the two messages apart. The whole existing guard
+ *     order — link check, mismatch check, clear, call, map the rejection — is
+ *     preserved verbatim inside the hook's plain-`onSubmit` escape hatch.
+ *  2. **No `onSuccess` option.** The escape hatch's trap is that an early
+ *     `return` out of the submit callback still RESOLVES the internal mutation,
+ *     which would fire `onSuccess` and bounce the user to the login banner as
+ *     though the reset had happened. Navigation therefore happens at the end of
+ *     the callback, on the one path that actually reached the endpoint.
+ *
+ * Consequently the banner text is this screen's own `useState` and is handed to
+ * the shell as an EXPLICIT `serverError` prop, which `AppForm` prefers over
+ * `form.wallow.serverError` (that stays `null` here — every rejection is caught
+ * below). `<FormError />` still derives `reset-password-error` from the prefix.
  */
 
 /** The oracle's guard for a link missing either half of its identity. */
@@ -68,12 +91,21 @@ const GENERIC_FAILURE_MESSAGE = "Failed to reset password. Please try again.";
  */
 const INVALID_TOKEN_STATUS = 400;
 
-/** The request the endpoint takes, once both halves of the link are known good. */
-interface ResetPasswordRequest {
-  readonly email: string;
-  readonly token: string;
-  readonly newPassword: string;
-}
+/**
+ * The screen's only field-level rule, and the one the oracle's local check
+ * expressed: without it an empty password would POST, the server would fail
+ * `ResetPasswordAsync` and answer 400 invalid_token — telling a user who typed
+ * nothing that their *link* expired, which is actively misleading.
+ *
+ * `confirmPassword` carries NO rule of its own on purpose: an empty confirmation
+ * against a typed password is a genuine mismatch, and the mismatch guard below
+ * already says so in the form-level banner. A per-field message here would
+ * report the same fault twice, in two different places.
+ */
+const resetPasswordSchema = z.object({
+  newPassword: z.string().min(1, "New password is required"),
+  confirmPassword: z.string(),
+});
 
 /**
  * Map a rejection onto one of the oracle's two messages by HTTP status — see the
@@ -95,116 +127,99 @@ function resetFailureMessage(cause: unknown): string {
   return GENERIC_FAILURE_MESSAGE;
 }
 
-/**
- * A masked password field. `type="password"` mirrors the oracle and is pinned by
- * the spec — a reset form that echoed the new password would be a real
- * regression. `errorTestId` is omitted for fields that carry no validator, so no
- * empty error slot is rendered for them.
- */
-function PasswordField(props: {
-  readonly id: string;
-  readonly label: string;
-  readonly testId: string;
-  readonly errorTestId?: string;
-  readonly value: string;
-  readonly error?: string;
-  readonly onChange: (value: string) => void;
-}) {
-  const { id, label, testId, errorTestId, value, error, onChange } = props;
-
-  return (
-    <Field>
-      <Label htmlFor={id}>{label}</Label>
-      <Input
-        id={id}
-        type="password"
-        data-testid={testId}
-        value={value}
-        onChange={(e) => {
-          onChange(e.target.value);
-        }}
-      />
-      {error === undefined || errorTestId === undefined ? null : (
-        <span className="text-sm text-destructive" data-testid={errorTestId}>
-          {error}
-        </span>
-      )}
-    </Field>
-  );
+export interface ResetPasswordFormProps {
+  /** The `email` query parameter — `undefined` when the reset link omits it. */
+  readonly email?: string;
+  /** The `token` query parameter — `undefined` when the reset link omits it. */
+  readonly token?: string;
 }
 
 /**
- * The two password fields plus the submit. Owns its own `useForm` and hands the
- * caller the raw pair, so the form element is this component's root and the JSX
- * nesting stays within the repo's budget — the same shape the sibling
- * ForgotPassword port and wallow-web's canonical create-form template use.
+ * The reset itself: the two password fields, the banner and the submit, on the
+ * shared form shell. It owns the whole request — schema, submit and pending
+ * state all live in the `useAppForm` instance — so the card around it stays a
+ * layout component that knows nothing about the form.
+ *
+ * `testIdPrefix="reset-password"` reproduces every id the suites select
+ * (`reset-password-form`, `-new-password`, `-new-password-error`, `-error`,
+ * `-submit`) by derivation. The single exception is the confirmation control,
+ * whose id predates the convention — see the `testId` note below.
  */
-function ResetPasswordFields(props: {
-  readonly pending: boolean;
-  readonly onSubmit: (newPassword: string, confirmPassword: string) => void;
-}) {
-  const { pending, onSubmit } = props;
+function ResetForm({ email, token }: ResetPasswordFormProps) {
+  const { sdk } = useRouteContext({ from: "__root__" });
+  const navigate = useNavigate();
+  const [formError, setFormError] = useState<string | null>(null);
 
-  const form = useForm({
+  const form = useAppForm({
+    schema: resetPasswordSchema,
     defaultValues: { newPassword: "", confirmPassword: "" },
-    onSubmit: ({ value }) => {
-      onSubmit(value.newPassword, value.confirmPassword);
+    // The no-mutation escape hatch: the guards, the clear and the status-code
+    // narrowing all have to stay on this one path, in this order — see the
+    // header note on why the built-in mutation/server-error split cannot serve
+    // this endpoint.
+    onSubmit: async (values): Promise<void> => {
+      // The oracle's `IsNullOrEmpty(Token) || IsNullOrEmpty(Email)` — an empty
+      // string is a missing one, so `?token=` never reaches the endpoint. Checked
+      // before the mismatch guard, matching the oracle's order, and narrowing both
+      // to `string` for the request below without a cast.
+      if (email === undefined || email === "" || token === undefined || token === "") {
+        setFormError(INVALID_LINK_MESSAGE);
+        return;
+      }
+
+      if (values.newPassword !== values.confirmPassword) {
+        setFormError(PASSWORD_MISMATCH_MESSAGE);
+        return;
+      }
+
+      // The oracle's `_error = null;` immediately before the call: a stale "link
+      // expired" — or "passwords do not match" — banner sitting above a
+      // successful reset would be a lie. It clears HERE rather than at the top of
+      // the callback so a guard's own message survives the submit that produced it.
+      setFormError(null);
+
+      try {
+        await accountResetPassword({
+          client: sdk.client,
+          body: { email, token, newPassword: values.newPassword },
+        });
+      } catch (error: unknown) {
+        setFormError(resetFailureMessage(error));
+        return;
+      }
+
+      // `href` (a raw location) rather than `to` + `search`: /login's
+      // `validateSearch` is owned by the in-flight Login task and this screen
+      // must not couple to it (bd memory
+      // `tanstack-router-redirect-to-an-unregistered-route-use-href-not-to`).
+      // Reached only from the end of the successful path, never from a guard —
+      // an early `return` above resolves this callback just as normally as a
+      // completed reset does, so `onSuccess` could not tell them apart.
+      void navigate({ href: "/login?message=password_reset" });
     },
   });
 
   return (
-    <form
-      className="space-y-4"
-      onSubmit={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        void form.handleSubmit();
-      }}
-    >
-      <form.Field
-        name="newPassword"
-        validators={{
-          // DELIBERATE local required-field check, flagged on the bead. Without
-          // it, an empty password would POST and the server return 400
-          // invalid_token — so a user who typed nothing is told their *link*
-          // expired. That is actively
-          // misleading. This keeps the empty case local, and matches the
-          // `{page}-{element}-error` convention the sibling ForgotPassword port
-          // set. No confirm-side validator: an empty confirmation against a
-          // typed password is a genuine mismatch and the oracle's own guard
-          // already says so.
-          onSubmit: ({ value }) => (value === "" ? "New password is required" : undefined),
-        }}
-      >
-        {(field) => (
-          <PasswordField
-            id="new-password"
-            label="New password"
-            testId="reset-password-new-password"
-            errorTestId="reset-password-new-password-error"
-            value={field.state.value}
-            error={field.state.meta.errors[0]}
-            onChange={field.handleChange}
-          />
-        )}
-      </form.Field>
+    <AppForm form={form} testIdPrefix="reset-password" serverError={formError}>
+      <FormError />
 
-      <form.Field name="confirmPassword">
-        {(field) => (
-          <PasswordField
-            id="confirm-password"
-            label="Confirm new password"
-            testId="reset-password-confirm"
-            value={field.state.value}
-            onChange={field.handleChange}
-          />
-        )}
-      </form.Field>
+      <form.AppField name="newPassword">
+        {(field) => <field.PasswordField label="New password" />}
+      </form.AppField>
 
-      <Button type="submit" disabled={pending} data-testid="reset-password-submit">
-        {pending ? "Resetting..." : "Reset password"}
-      </Button>
-    </form>
+      {/* `newPassword` kebab-derives to `reset-password-new-password` (and its
+          message to `-error`), which is what the suites already select, so it
+          needs no override. `confirmPassword` would derive to
+          `reset-password-confirm-password`, so its `testId` IS load-bearing: the
+          E2E suite fills `reset-password-confirm`. */}
+      <form.AppField name="confirmPassword">
+        {(field) => (
+          <field.PasswordField label="Confirm new password" testId="reset-password-confirm" />
+        )}
+      </form.AppField>
+
+      <SubmitButton pendingLabel="Resetting...">Reset password</SubmitButton>
+    </AppForm>
   );
 }
 
@@ -229,67 +244,11 @@ function BackToSignIn() {
   );
 }
 
-export interface ResetPasswordFormProps {
-  /** The `email` query parameter — `undefined` when the reset link omits it. */
-  readonly email?: string;
-  /** The `token` query parameter — `undefined` when the reset link omits it. */
-  readonly token?: string;
-}
-
 export function ResetPasswordForm({ email, token }: ResetPasswordFormProps): ReactNode {
-  const { sdk } = useRouteContext({ from: "__root__" });
-  const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
-
-  const mutation = useMutation({
-    mutationFn: async (request: ResetPasswordRequest): Promise<void> => {
-      await accountResetPassword({ client: sdk.client, body: request });
-    },
-  });
-
-  const handleSubmit = (newPassword: string, confirmPassword: string): void => {
-    // The oracle's `IsNullOrEmpty(Token) || IsNullOrEmpty(Email)` — an empty
-    // string is a missing one, so `?token=` never reaches the endpoint. Checked
-    // before the mismatch guard, matching the oracle's order, and narrowing both
-    // to `string` for the request below without a cast.
-    if (email === undefined || email === "" || token === undefined || token === "") {
-      setError(INVALID_LINK_MESSAGE);
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setError(PASSWORD_MISMATCH_MESSAGE);
-      return;
-    }
-
-    // The oracle's `_error = null;` immediately before the call: a stale "link
-    // expired" banner sitting above a successful reset would be a lie.
-    setError(null);
-
-    mutation.mutate(
-      { email, token, newPassword },
-      {
-        onSuccess: () => {
-          // `href` (a raw location) rather than `to` + `search`: /login's
-          // `validateSearch` is owned by the in-flight Login task and this
-          // screen must not couple to it (bd memory
-          // `tanstack-router-redirect-to-an-unregistered-route-use-href-not-to`).
-          void navigate({ href: "/login?message=password_reset" });
-        },
-        onError: (cause: unknown) => {
-          setError(resetFailureMessage(cause));
-        },
-      },
-    );
-  };
-
   return (
     <Card>
       <CardHeading />
-      {error === null ? null : (
-        <ErrorBanner data-testid="reset-password-error">{error}</ErrorBanner>
-      )}
-      <ResetPasswordFields pending={mutation.isPending} onSubmit={handleSubmit} />
+      <ResetForm email={email} token={token} />
       <BackToSignIn />
     </Card>
   );

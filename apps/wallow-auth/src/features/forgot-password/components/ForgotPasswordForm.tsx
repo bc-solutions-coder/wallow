@@ -1,9 +1,9 @@
-import { Button, Card, CardTitle, Field, Input, Label } from "@bc-solutions-coder/ui";
-import { useForm } from "@tanstack/react-form";
+import { AppForm, SubmitButton, useAppForm } from "@bc-solutions-coder/forms";
+import { Card, CardTitle } from "@bc-solutions-coder/ui";
 import { accountForgotPassword } from "@bc-solutions-coder/sdk";
-import { useMutation } from "@tanstack/react-query";
 import { useRouteContext } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
+import { z } from "zod";
 import { toAppHref } from "../../../lib/base-path";
 
 /**
@@ -35,46 +35,27 @@ import { toAppHref } from "../../../lib/base-path";
  * The API is reached through the GENERATED operation, bound to the request's own
  * SDK instance off the router context — there is no app-level facade or client
  * singleton to route through (Wallow-pu6a.5.5).
+ *
+ * The request half now runs on `@bc-solutions-coder/forms` (Wallow-ov6w.3.1).
+ * Every testid above is DERIVED from the shell's `testIdPrefix` rather than
+ * written out, and the derivation reproduces all four of them exactly — see
+ * `RequestResetForm`.
  */
 
 /**
- * Presentational email field, extracted so the form's render-prop tree stays
- * within the repo's JSX nesting budget. `error` is the first validator message
- * (undefined when the field is valid).
+ * The required-field rule, and the only validation this screen has ever done:
+ * the oracle's `if (string.IsNullOrWhiteSpace(_email)) return;`. No format
+ * check — the oracle does none, so neither does this port.
  *
- * The input is a plain text field, mirroring the oracle's untyped `BbInput`.
- * `type="email"` would have the browser strip surrounding whitespace under the
- * value sanitisation algorithm, quietly doing the blank guard's job for it; the
- * guard is specified against `IsNullOrWhiteSpace` and is kept honest here.
+ * `.trim()` here makes `"   "` fail the `min(1)`, which is the whitespace-only
+ * guard. It does NOT trim the value the submit callback receives: TanStack's
+ * standard-schema adapter reads only the issue list off a validation result and
+ * discards the parsed output, so `form.state.values` stays raw. The submit below
+ * therefore still trims by hand before the address goes out.
  */
-function EmailField(props: {
-  readonly value: string;
-  readonly error: string | undefined;
-  readonly onChange: (value: string) => void;
-}) {
-  const { value, error, onChange } = props;
-
-  return (
-    <Field>
-      <Label htmlFor="forgot-email">Email</Label>
-      <Input
-        id="forgot-email"
-        type="text"
-        placeholder="you@example.com"
-        data-testid="forgot-password-email"
-        value={value}
-        onChange={(e) => {
-          onChange(e.target.value);
-        }}
-      />
-      {error === undefined ? null : (
-        <span className="text-sm text-destructive" data-testid="forgot-password-email-error">
-          {error}
-        </span>
-      )}
-    </Field>
-  );
-}
+const forgotPasswordSchema = z.object({
+  email: z.string().trim().min(1, "Email is required"),
+});
 
 /**
  * The one message this screen ever shows after a submit. It is a pure constant:
@@ -98,55 +79,55 @@ function SubmittedConfirmation() {
 }
 
 /**
- * The request half of the screen: the email field plus the submit. It owns its
- * own `useForm` and hands the caller a validated, trimmed address — so the form
- * element is this component's root and the JSX nesting stays within the repo's
- * budget, the same shape wallow-web's canonical create-form template uses.
+ * The request half of the screen: the email field plus the submit, on the shared
+ * form shell. It owns the whole request — schema, mutation and pending state all
+ * live in the `useAppForm` instance — and tells the parent only that a submit
+ * completed, which is the one bit the card body's swap turns on.
+ *
+ * `testIdPrefix="forgot-password"` reproduces every id the suites select
+ * (`forgot-password-form`, `-email`, `-email-error`, `-submit`) by derivation,
+ * so no `testId` override is needed on this screen. The prefix is the only place
+ * they are written down now; changing it moves all four at once.
+ *
+ * Deliberately NO `<FormError />`: the submit swallows its rejection (see the
+ * anti-enumeration note above), so there is nothing for a banner to say, and the
+ * spec asserts `forgot-password-error` never appears.
  */
-function RequestResetForm(props: {
-  readonly pending: boolean;
-  readonly onSubmit: (email: string) => void;
-}) {
-  const { pending, onSubmit } = props;
+function RequestResetForm(props: { readonly onSubmitted: () => void }) {
+  const { onSubmitted } = props;
+  const { sdk } = useRouteContext({ from: "__root__" });
 
-  const form = useForm({
+  const form = useAppForm({
+    schema: forgotPasswordSchema,
     defaultValues: { email: "" },
-    onSubmit: ({ value }) => {
-      onSubmit(value.email.trim());
+    // The no-mutation escape hatch: this screen cannot use the built-in
+    // mutation/server-error split, because a failure must never reach the page.
+    onSubmit: async (values): Promise<void> => {
+      try {
+        // Trimmed HERE, not by the schema — see `forgotPasswordSchema`.
+        await accountForgotPassword({ client: sdk.client, body: { email: values.email.trim() } });
+      } catch {
+        // Swallowed deliberately — see the anti-enumeration note above. The
+        // reason never escapes this callback, so the mutation cannot enter an
+        // error state and there is no error surface for a branch to render.
+      }
     },
+    onSuccess: onSubmitted,
   });
 
   return (
-    <form
-      className="space-y-4"
-      onSubmit={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        void form.handleSubmit();
-      }}
-    >
-      <form.Field
-        name="email"
-        validators={{
-          // The oracle's `if (string.IsNullOrWhiteSpace(_email)) return;` — a
-          // blank submit never reaches the network. Required-only: the oracle
-          // does no format check, so neither does this port.
-          onSubmit: ({ value }) => (value.trim() ? undefined : "Email is required"),
-        }}
-      >
-        {(field) => (
-          <EmailField
-            value={field.state.value}
-            error={field.state.meta.errors[0]}
-            onChange={field.handleChange}
-          />
-        )}
-      </form.Field>
+    <AppForm form={form} testIdPrefix="forgot-password">
+      {/* Left at the default `type="text"`, mirroring the oracle's untyped
+          `BbInput`. `type="email"` would have the browser strip surrounding
+          whitespace under the value sanitisation algorithm, quietly doing the
+          blank guard's job for it; the guard is specified against
+          `IsNullOrWhiteSpace` and is kept honest here. */}
+      <form.AppField name="email">
+        {(field) => <field.TextField label="Email" placeholder="you@example.com" />}
+      </form.AppField>
 
-      <Button type="submit" disabled={pending} data-testid="forgot-password-submit">
-        {pending ? "Sending..." : "Send reset link"}
-      </Button>
-    </form>
+      <SubmitButton pendingLabel="Sending...">Send reset link</SubmitButton>
+    </AppForm>
   );
 }
 
@@ -174,30 +155,10 @@ function BackToSignIn() {
 }
 
 export function ForgotPasswordForm(): ReactNode {
-  const { sdk } = useRouteContext({ from: "__root__" });
-  const [submitted, setSubmitted] = useState(false);
-
-  const mutation = useMutation({
-    mutationFn: async (email: string): Promise<void> => {
-      try {
-        await accountForgotPassword({ client: sdk.client, body: { email } });
-      } catch {
-        // Swallowed deliberately — see the anti-enumeration note above. The
-        // reason never escapes this function, so the mutation cannot enter an
-        // error state and there is no error surface for a branch to render.
-      }
-    },
-  });
-
   // `_submitted` in the oracle: it swaps the whole card body, so the form goes
-  // away and the confirmation is all that is left to read.
-  const handleSubmit = (email: string): void => {
-    mutation.mutate(email, {
-      onSuccess: () => {
-        setSubmitted(true);
-      },
-    });
-  };
+  // away and the confirmation is all that is left to read. This swap is the
+  // screen's own state, not the form's — the shell knows nothing about it.
+  const [submitted, setSubmitted] = useState(false);
 
   return (
     <Card>
@@ -205,7 +166,11 @@ export function ForgotPasswordForm(): ReactNode {
       {submitted ? (
         <SubmittedConfirmation />
       ) : (
-        <RequestResetForm pending={mutation.isPending} onSubmit={handleSubmit} />
+        <RequestResetForm
+          onSubmitted={() => {
+            setSubmitted(true);
+          }}
+        />
       )}
       <BackToSignIn />
     </Card>
