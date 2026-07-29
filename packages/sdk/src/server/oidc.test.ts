@@ -211,6 +211,179 @@ describe("discover", () => {
 });
 
 /**
+ * Path-preserving endpoint pinning (Wallow-vufu.2.1).
+ *
+ * OpenIddict derives its advertised endpoint URIs from the base of the request
+ * that fetched them, so a discovery document fetched over the internal network
+ * advertises the internal host and — behind a path-based reverse proxy — omits
+ * the public path prefix entirely. Pinning must therefore rebase the
+ * browser-facing endpoints onto the FULL public issuer URL (origin *and* path),
+ * not just its origin: with issuer `https://wallow.dev/api`, the browser has to
+ * be sent to `https://wallow.dev/api/connect/authorize`, never
+ * `https://wallow.dev/connect/authorize`.
+ */
+interface PinningCase {
+  /** Deployment topology this row stands for. */
+  readonly topology: string;
+  /** Public issuer the browser reaches, as configured on the BFF. */
+  readonly issuer: string;
+  /** Server-reachable discovery URL (`BffConfig.metadataUrl`). */
+  readonly metadataUrl: string;
+  /** `authorization_endpoint` the metadata advertises. */
+  readonly advertisedAuthorize: string;
+  /** `end_session_endpoint` the metadata advertises. */
+  readonly advertisedEndSession: string;
+  /** `token_endpoint` the metadata advertises (backchannel). */
+  readonly advertisedToken: string;
+  /** `userinfo_endpoint` the metadata advertises (backchannel). */
+  readonly advertisedUserinfo: string;
+  /** Browser-facing authorize URL the pinning must produce. */
+  readonly expectedAuthorize: string;
+  /** Browser-facing end-session URL the pinning must produce. */
+  readonly expectedEndSession: string;
+}
+
+const PINNING_CASES: readonly PinningCase[] = [
+  {
+    topology: "dev (Aspire: auth app on 3002, API on 5001, no path prefix)",
+    issuer: "http://localhost:3002",
+    metadataUrl: "http://localhost:5001/.well-known/openid-configuration",
+    advertisedAuthorize: "http://localhost:5001/connect/authorize",
+    advertisedEndSession: "http://localhost:5001/connect/logout",
+    advertisedToken: "http://localhost:5001/connect/token",
+    advertisedUserinfo: "http://localhost:5001/connect/userinfo",
+    expectedAuthorize: "http://localhost:3002/connect/authorize",
+    expectedEndSession: "http://localhost:3002/connect/logout",
+  },
+  {
+    topology: "e2e (containerised stack reached through host.docker.internal)",
+    issuer: "http://localhost:5050",
+    metadataUrl: "http://host.docker.internal:5050/.well-known/openid-configuration",
+    advertisedAuthorize: "http://host.docker.internal:5050/connect/authorize",
+    advertisedEndSession: "http://host.docker.internal:5050/connect/logout",
+    advertisedToken: "http://host.docker.internal:5050/connect/token",
+    advertisedUserinfo: "http://host.docker.internal:5050/connect/userinfo",
+    expectedAuthorize: "http://localhost:5050/connect/authorize",
+    expectedEndSession: "http://localhost:5050/connect/logout",
+  },
+  {
+    topology: "prod path-based (issuer /api, metadata advertises no prefix)",
+    issuer: "https://wallow.dev/api",
+    metadataUrl: "http://wallow-api:8080/.well-known/openid-configuration",
+    advertisedAuthorize: "http://wallow-api:8080/connect/authorize",
+    advertisedEndSession: "http://wallow-api:8080/connect/logout",
+    advertisedToken: "http://wallow-api:8080/connect/token",
+    advertisedUserinfo: "http://wallow-api:8080/connect/userinfo",
+    expectedAuthorize: "https://wallow.dev/api/connect/authorize",
+    expectedEndSession: "https://wallow.dev/api/connect/logout",
+  },
+  {
+    topology: "prod path-based (API runs with PathBase, metadata already carries /api)",
+    issuer: "https://wallow.dev/api",
+    metadataUrl: "http://wallow-api:8080/api/.well-known/openid-configuration",
+    advertisedAuthorize: "http://wallow-api:8080/api/connect/authorize",
+    advertisedEndSession: "http://wallow-api:8080/api/connect/logout",
+    advertisedToken: "http://wallow-api:8080/api/connect/token",
+    advertisedUserinfo: "http://wallow-api:8080/api/connect/userinfo",
+    expectedAuthorize: "https://wallow.dev/api/connect/authorize",
+    expectedEndSession: "https://wallow.dev/api/connect/logout",
+  },
+];
+
+describe("discover pins browser-facing endpoints to the full public issuer", () => {
+  it.each(PINNING_CASES)(
+    "$topology: rebases authorize and end-session onto the issuer, leaving backchannel endpoints alone",
+    async (testCase: PinningCase) => {
+      const config: BffConfig = makeConfig({
+        issuer: testCase.issuer,
+        metadataUrl: testCase.metadataUrl,
+      });
+      discoveryMock.mockResolvedValue(
+        makeConfiguration({
+          issuer: new URL(testCase.metadataUrl).origin,
+          authorization_endpoint: testCase.advertisedAuthorize,
+          token_endpoint: testCase.advertisedToken,
+          end_session_endpoint: testCase.advertisedEndSession,
+          userinfo_endpoint: testCase.advertisedUserinfo,
+        }),
+      );
+
+      const result: DiscoveryDoc = await discover(config);
+
+      expect(result.authorization_endpoint).toBe(testCase.expectedAuthorize);
+      expect(result.end_session_endpoint).toBe(testCase.expectedEndSession);
+      // Backchannel endpoints are server-reachable by construction; rebasing
+      // them onto the public issuer would route the token exchange back out
+      // through the proxy.
+      expect(result.token_endpoint).toBe(testCase.advertisedToken);
+      expect(result.userinfo_endpoint).toBe(testCase.advertisedUserinfo);
+    },
+  );
+
+  it("tolerates a trailing slash on the issuer without doubling it into the path", async () => {
+    const config: BffConfig = makeConfig({
+      issuer: "https://wallow.dev/api/",
+      metadataUrl: "http://wallow-api-slash:8080/.well-known/openid-configuration",
+    });
+    discoveryMock.mockResolvedValue(
+      makeConfiguration({
+        issuer: "http://wallow-api-slash:8080",
+        authorization_endpoint: "http://wallow-api-slash:8080/connect/authorize",
+        token_endpoint: "http://wallow-api-slash:8080/connect/token",
+        end_session_endpoint: "http://wallow-api-slash:8080/connect/logout",
+        userinfo_endpoint: "http://wallow-api-slash:8080/connect/userinfo",
+      }),
+    );
+
+    const result: DiscoveryDoc = await discover(config);
+
+    expect(result.authorization_endpoint).toBe("https://wallow.dev/api/connect/authorize");
+    expect(result.end_session_endpoint).toBe("https://wallow.dev/api/connect/logout");
+  });
+
+  it("preserves a query string carried on an advertised endpoint", async () => {
+    const config: BffConfig = makeConfig({
+      issuer: "https://wallow.dev/api",
+      metadataUrl: "http://wallow-api-query:8080/.well-known/openid-configuration",
+    });
+    discoveryMock.mockResolvedValue(
+      makeConfiguration({
+        issuer: "http://wallow-api-query:8080",
+        authorization_endpoint: "http://wallow-api-query:8080/connect/authorize?tenant=acme",
+        token_endpoint: "http://wallow-api-query:8080/connect/token",
+        end_session_endpoint: "http://wallow-api-query:8080/connect/logout",
+      }),
+    );
+
+    const result: DiscoveryDoc = await discover(config);
+
+    expect(result.authorization_endpoint).toBe(
+      "https://wallow.dev/api/connect/authorize?tenant=acme",
+    );
+  });
+
+  it("leaves endpoints untouched when metadataUrl is unset even if the issuer carries a path", async () => {
+    // Without a split horizon the metadata was fetched through the public URL,
+    // so its endpoints already carry the prefix and must not be rebased again.
+    const config: BffConfig = makeConfig({ issuer: "https://wallow-nopin.dev/api" });
+    discoveryMock.mockResolvedValue(
+      makeConfiguration({
+        issuer: "https://wallow-nopin.dev/api",
+        authorization_endpoint: "https://wallow-nopin.dev/api/connect/authorize",
+        token_endpoint: "https://wallow-nopin.dev/api/connect/token",
+        end_session_endpoint: "https://wallow-nopin.dev/api/connect/logout",
+        userinfo_endpoint: "https://wallow-nopin.dev/api/connect/userinfo",
+      }),
+    );
+
+    const result: DiscoveryDoc = await discover(config);
+
+    expect(result.authorization_endpoint).toBe("https://wallow-nopin.dev/api/connect/authorize");
+    expect(result.end_session_endpoint).toBe("https://wallow-nopin.dev/api/connect/logout");
+  });
+});
+
+/**
  * The plain-HTTP discovery gate (Wallow-pu6a.4.7).
  *
  * The apps are TanStack Start, so the SDK's server entry is bundled INTO each
@@ -841,5 +1014,48 @@ describe("buildLogoutUrl", () => {
     expect(parsed.pathname).toBe("/connect/logout");
     expect(parsed.searchParams.get("post_logout_redirect_uri")).toBe(config.postLogoutRedirectUri);
     expect(parsed.searchParams.has("id_token_hint")).toBe(false);
+  });
+
+  it("keeps the issuer path prefix on the fallback URL behind a path-based proxy", () => {
+    // OpenIddict advertises no end_session_endpoint, so the fallback is the
+    // only logout URL the browser ever sees — resolving it against the issuer
+    // ORIGIN drops the /api prefix and lands on the frontend's 404 page.
+    const config: BffConfig = makeConfig({
+      issuer: "https://wallow.dev/api",
+      postLogoutRedirectUri: "https://wallow.dev/",
+    });
+    const noEndSessionDoc: DiscoveryDoc = {
+      authorization_endpoint: "https://wallow.dev/api/connect/authorize",
+      token_endpoint: "http://wallow-api:8080/connect/token",
+      end_session_endpoint: undefined,
+      configuration: makeConfiguration({
+        issuer: "https://wallow.dev/api",
+      }) as unknown as DiscoveryDoc["configuration"],
+    };
+
+    const url: string = buildLogoutUrl(config, noEndSessionDoc, "id-token-hint-abc");
+
+    expect(buildEndSessionUrlMock).not.toHaveBeenCalled();
+    const parsed: URL = new URL(url);
+    expect(parsed.origin).toBe("https://wallow.dev");
+    expect(parsed.pathname).toBe("/api/connect/logout");
+    expect(parsed.searchParams.get("post_logout_redirect_uri")).toBe(config.postLogoutRedirectUri);
+    expect(parsed.searchParams.get("id_token_hint")).toBe("id-token-hint-abc");
+  });
+
+  it("tolerates a trailing slash on the issuer when building the fallback URL", () => {
+    const config: BffConfig = makeConfig({ issuer: "https://wallow.dev/api/" });
+    const noEndSessionDoc: DiscoveryDoc = {
+      authorization_endpoint: "https://wallow.dev/api/connect/authorize",
+      token_endpoint: "http://wallow-api:8080/connect/token",
+      end_session_endpoint: undefined,
+      configuration: makeConfiguration({
+        issuer: "https://wallow.dev/api/",
+      }) as unknown as DiscoveryDoc["configuration"],
+    };
+
+    const url: string = buildLogoutUrl(config, noEndSessionDoc);
+
+    expect(new URL(url).pathname).toBe("/api/connect/logout");
   });
 });

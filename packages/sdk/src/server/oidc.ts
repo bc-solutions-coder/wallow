@@ -97,16 +97,34 @@ export function shouldAllowInsecureRequests(metadataUrl: string): boolean {
 const NO_EXPIRY_SECONDS = 0;
 
 /**
- * Rewrite the origin (protocol + host) of an absolute URL, preserving its path
- * and query. Used to pin the browser-facing endpoints to the public issuer
- * origin when discovery is fetched from a server-reachable internal host.
+ * Rebase an endpoint onto the FULL public issuer URL — origin *and* path prefix —
+ * preserving the endpoint's own path and query.
+ *
+ * Used to pin the browser-facing endpoints when discovery is fetched from a
+ * server-reachable internal host. Rebasing onto the issuer's origin alone is not
+ * enough behind a path-based reverse proxy: with issuer `https://wallow.dev/api`
+ * the browser must be sent to `https://wallow.dev/api/connect/authorize`, never
+ * `https://wallow.dev/connect/authorize`. Taking the issuer's `origin` (rather
+ * than assigning `URL.host`) also drops the internal port, which a bare host
+ * assignment would otherwise leave in place.
+ *
+ * The issuer path is prepended only when the endpoint does not already carry it,
+ * so a provider running with a matching PathBase (advertising `/api/connect/*`)
+ * is not double-prefixed. A trailing slash on the issuer is ignored.
+ *
+ * @param endpoint Endpoint to rebase: an absolute URL, or a root-relative path
+ *   resolved against the issuer's origin.
+ * @param issuer Public issuer URL the browser reaches.
  */
-function rewriteOrigin(endpoint: string, targetOrigin: string): string {
-  const url: URL = new URL(endpoint);
-  const target: URL = new URL(targetOrigin);
-  url.protocol = target.protocol;
-  url.host = target.host;
-  return url.toString();
+function rebaseToIssuer(endpoint: string, issuer: string): string {
+  const source: URL = new URL(endpoint, issuer);
+  const base: URL = new URL(issuer);
+  const issuerPath: string = base.pathname.replace(/\/+$/u, "");
+  const alreadyPrefixed: boolean =
+    issuerPath !== "" &&
+    (source.pathname === issuerPath || source.pathname.startsWith(`${issuerPath}/`));
+  const path: string = alreadyPrefixed ? source.pathname : `${issuerPath}${source.pathname}`;
+  return `${base.origin}${path}${source.search}`;
 }
 
 /**
@@ -116,14 +134,16 @@ function rewriteOrigin(endpoint: string, targetOrigin: string): string {
  * server-reachable URL. The backchannel `token_endpoint` (and `userinfo_endpoint`)
  * are used exactly as the metadata advertises them (reachable from the server),
  * while the browser-facing `authorization_endpoint` and `end_session_endpoint`
- * are pinned to the public {@link BffConfig.issuer} origin so the user agent can
- * follow the redirects.
+ * are pinned to the full public {@link BffConfig.issuer} URL — origin *and* path
+ * prefix — so the user agent can follow the redirects (see
+ * {@link rebaseToIssuer}).
  *
  * This handles OpenID providers (such as OpenIddict) that derive their endpoint
- * URIs from the incoming request host rather than the configured issuer: when
+ * URIs from the incoming request base rather than the configured issuer: when
  * discovery is fetched from the internal host, every advertised endpoint points
- * at that internal host, so the interactive endpoints must be re-pinned to the
- * public origin.
+ * at that internal host and — behind a path-based reverse proxy — omits the
+ * public path prefix, so the interactive endpoints must be re-pinned to the
+ * public issuer.
  *
  * Insecure (plain HTTP) requests are permitted for both the discovery request
  * and the resolved {@link Configuration} exactly when the URL discovery is
@@ -165,13 +185,12 @@ export async function discover(config: BffConfig): Promise<DiscoveryDoc> {
   };
 
   if (config.metadataUrl !== undefined) {
-    const issuerOrigin: string = new URL(config.issuer).origin;
     doc = {
       ...doc,
-      authorization_endpoint: rewriteOrigin(authorizationEndpoint, issuerOrigin),
+      authorization_endpoint: rebaseToIssuer(authorizationEndpoint, config.issuer),
       end_session_endpoint:
         endSessionEndpoint !== undefined
-          ? rewriteOrigin(endSessionEndpoint, issuerOrigin)
+          ? rebaseToIssuer(endSessionEndpoint, config.issuer)
           : endSessionEndpoint,
     };
   }
@@ -315,9 +334,10 @@ export async function fetchUserInfo(
  * openid-client's {@link buildEndSessionUrl} using the resolved
  * {@link Configuration} carried on the discovery {@link DiscoveryDoc}, forwarding
  * `post_logout_redirect_uri` and an optional `id_token_hint`. When it does not,
- * falls back to `<issuerOrigin>/connect/logout` (Appendix A) carrying the same
+ * falls back to `<issuer>/connect/logout` (Appendix A) carrying the same
  * parameters so providers without a discovery-advertised end-session endpoint
- * (such as OpenIddict) still terminate the upstream session.
+ * (such as OpenIddict) still terminate the upstream session. The fallback is
+ * rebased onto the full issuer URL, keeping any path prefix the issuer carries.
  *
  * @param config BFF configuration providing the issuer and post-logout redirect.
  * @param doc Discovery document providing the end-session endpoint (if any) and
@@ -336,8 +356,7 @@ export function buildLogoutUrl(config: BffConfig, doc: DiscoveryDoc, idTokenHint
     return buildEndSessionUrl(doc.configuration!, params).toString();
   }
 
-  const issuerOrigin: string = new URL(config.issuer).origin;
-  const url: URL = new URL("/connect/logout", issuerOrigin);
+  const url: URL = new URL(rebaseToIssuer("/connect/logout", config.issuer));
   url.searchParams.set("post_logout_redirect_uri", config.postLogoutRedirectUri);
   if (idTokenHint !== undefined) {
     url.searchParams.set("id_token_hint", idTokenHint);
