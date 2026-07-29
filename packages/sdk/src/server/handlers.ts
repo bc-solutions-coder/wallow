@@ -153,6 +153,9 @@ const MS_PER_SECOND = 1000;
 /** Lifetime of the transient login-transaction cookie (seconds). */
 const TX_COOKIE_MAX_AGE_SECONDS = 600;
 
+/** HTTP status for a logout that had no session to end. */
+const NO_CONTENT_STATUS = 204;
+
 /** HTTP status for a malformed or replayed callback request. */
 const BAD_REQUEST_STATUS = 400;
 
@@ -399,7 +402,7 @@ function callbackUrl(config: BffConfig, incoming: URL): URL {
 export function createBffHandlers(
   config: BffConfig,
   store: SessionStore = new CookieSessionStore({
-    password: config.cookiePassword,
+    password: config.cookiePasswords ?? config.cookiePassword,
     ttlSeconds: config.sessionTtlSeconds,
   }),
 ): BffHandlers {
@@ -416,7 +419,7 @@ export function createBffHandlers(
       const nonce: string = randomUrlSafe(TOKEN_BYTES);
 
       const tx: LoginTx = { state, nonce, verifier, returnTo };
-      const sealed: string = await sealTx(tx, config.cookiePassword);
+      const sealed: string = await sealTx(tx, config.cookiePasswords ?? config.cookiePassword);
 
       const headers: Headers = new Headers();
       appendCookie(headers, txCookieName(config.cookieName), sealed, {
@@ -443,7 +446,10 @@ export function createBffHandlers(
         return new Response(null, { status: BAD_REQUEST_STATUS });
       }
 
-      const tx: LoginTx | null = await unsealTx(sealedTx, config.cookiePassword);
+      const tx: LoginTx | null = await unsealTx(
+        sealedTx,
+        config.cookiePasswords ?? config.cookiePassword,
+      );
       const headers: Headers = new Headers();
       appendCookie(headers, txName, "", clearCookieOpts(config));
 
@@ -508,7 +514,9 @@ export function createBffHandlers(
       // the token from here rather than from the companion cookie. Session
       // tokens are never part of this shape.
       const body: BffUserResponse = { ...session.user, csrfToken: session.csrfToken };
-      return Response.json(body);
+      // Identity claims and a live CSRF token are per-session secrets: no cache
+      // between the browser and here may keep a copy to hand to the next caller.
+      return Response.json(body, { headers: { "cache-control": "no-store" } });
     },
 
     logout: async (request: Request): Promise<Response> => {
@@ -525,10 +533,26 @@ export function createBffHandlers(
       }
 
       const session: BffSession | null = await readSession(request, config, store);
+
+      // No session at all — including a cookie this server can no longer unseal
+      // after a password rotation or an expired seal — leaves the CSRF gate with
+      // nothing to protect, and `csrfTokenMatches(undefined, ...)` is false by
+      // construction, so the gate would answer a genuinely empty logout with the
+      // same 403 as a cross-site attempt. The request is a no-op that succeeds;
+      // the cookies are still cleared, because a jar the server cannot read is
+      // exactly the state the user is trying to get out of. This escape hatch is
+      // for `session === null` ONLY: a session that exists without a csrfToken
+      // falls through to the gate below and stays rejected.
+      if (session === null) {
+        const headers: Headers = new Headers();
+        clearSession(headers, request, config);
+        return new Response(null, { status: NO_CONTENT_STATUS, headers });
+      }
+
       // `Headers.get` answers `null` where h3 answered `undefined`; coerce, or
       // the constant-time comparison is handed a value its types deny.
       const presented: string | undefined = request.headers.get(CSRF_HEADER) ?? undefined;
-      if (!csrfTokenMatches(session?.csrfToken, presented)) {
+      if (!csrfTokenMatches(session.csrfToken, presented)) {
         return problemResponse(
           FORBIDDEN_STATUS,
           "CSRF token mismatch or missing",
@@ -546,7 +570,7 @@ export function createBffHandlers(
       clearSession(headers, request, config);
 
       const doc: DiscoveryDoc = await discover(config);
-      return redirect(buildLogoutUrl(config, doc, session?.idToken), headers);
+      return redirect(buildLogoutUrl(config, doc, session.idToken), headers);
     },
   };
 }

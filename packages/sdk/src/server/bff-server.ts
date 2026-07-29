@@ -92,7 +92,7 @@ function selectStore(
   if (options.redisClient !== undefined) {
     return new ValkeySessionStore({
       client: createRedisAdapter(options.redisClient),
-      password: config.cookiePassword,
+      password: config.cookiePasswords ?? config.cookiePassword,
       ttlSeconds: config.sessionTtlSeconds,
     });
   }
@@ -107,7 +107,7 @@ function selectStore(
   }
 
   return new CookieSessionStore({
-    password: config.cookiePassword,
+    password: config.cookiePasswords ?? config.cookiePassword,
     ttlSeconds: config.sessionTtlSeconds,
   });
 }

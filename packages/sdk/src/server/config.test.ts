@@ -1,6 +1,23 @@
 import { describe, expect, it } from "vitest";
 
-import { type BffConfig, loadBffConfigFromEnv } from "./config";
+import {
+  DEFAULT_COOKIE_KEY_ID,
+  loadBffConfigFromEnv,
+  type BffConfig,
+  type CookiePasswordSet,
+} from "./config";
+
+/**
+ * `cookiePasswords` is optional on the public {@link BffConfig} type so a fork
+ * that hand-builds a config still compiles, but the loader always fills it in.
+ */
+function passwordsOf(config: BffConfig): CookiePasswordSet {
+  const set: CookiePasswordSet | undefined = config.cookiePasswords;
+  if (set === undefined) {
+    throw new Error("loadBffConfigFromEnv must always populate cookiePasswords");
+  }
+  return set;
+}
 
 /** The seven variables the loader requires; every test starts from these. */
 function requiredEnv(): NodeJS.ProcessEnv {
@@ -292,6 +309,192 @@ describe("loadBffConfigFromEnv — COOKIE_PASSWORD length", () => {
     const message: string = (caught as Error).message;
     expect(message).toContain("Missing required environment variable: COOKIE_PASSWORD");
     expect(message.split("COOKIE_PASSWORD").length - 1).toBe(1);
+  });
+});
+
+/**
+ * Keyed cookie secrets for rotation (finding L3).
+ *
+ * With one secret, changing it 401s every signed-in browser at once, because
+ * nothing can unseal the cookies the previous secret sealed. `COOKIE_PASSWORDS`
+ * carries a JSON map of key ID to secret instead: the FIRST entry seals new
+ * cookies and every entry stays valid for unsealing, so an operator adds the new
+ * key, deploys, waits out the old cookies' TTL, and only then drops the old key.
+ */
+describe("loadBffConfigFromEnv — COOKIE_PASSWORDS rotation", () => {
+  const V2: string = "v2".repeat(20);
+  const V1: string = "v1".repeat(20);
+
+  it("wraps a single COOKIE_PASSWORD into a one-key set", () => {
+    const config: BffConfig = loadBffConfigFromEnv(requiredEnv());
+
+    expect(passwordsOf(config).activeKeyId).toBe(DEFAULT_COOKIE_KEY_ID);
+    expect(passwordsOf(config).keys).toEqual({ [DEFAULT_COOKIE_KEY_ID]: "0".repeat(32) });
+  });
+
+  /**
+   * The wrapping key ID is not free choice. iron-webcrypto seals a bare-string
+   * password with an EMPTY id and resolves that to the literal `"default"` when
+   * unsealing against a map, so a map keyed by anything else ("1", "v1", ...)
+   * throws `Cannot find password: default` for every cookie an earlier build
+   * sealed — mass-invalidating exactly the sessions this feature protects.
+   */
+  it("keys the wrapped single password by 'default', the ID iron gives an unkeyed seal", () => {
+    expect(DEFAULT_COOKIE_KEY_ID).toBe("default");
+  });
+
+  it("leaves cookiePassword itself untouched when only COOKIE_PASSWORD is set", () => {
+    const config: BffConfig = loadBffConfigFromEnv(requiredEnv());
+
+    expect(config.cookiePassword).toBe("0".repeat(32));
+  });
+
+  it("parses COOKIE_PASSWORDS into every key it names", () => {
+    const config: BffConfig = loadBffConfigFromEnv(
+      envWith({ COOKIE_PASSWORDS: JSON.stringify({ v2: V2, v1: V1 }) }),
+    );
+
+    expect(passwordsOf(config).keys).toEqual({ v2: V2, v1: V1 });
+  });
+
+  it("makes the FIRST key in COOKIE_PASSWORDS the active one that seals new cookies", () => {
+    const config: BffConfig = loadBffConfigFromEnv(
+      envWith({ COOKIE_PASSWORDS: JSON.stringify({ v2: V2, v1: V1 }) }),
+    );
+
+    expect(passwordsOf(config).activeKeyId).toBe("v2");
+  });
+
+  it("reports cookiePassword as the ACTIVE secret when COOKIE_PASSWORDS is set", () => {
+    const config: BffConfig = loadBffConfigFromEnv(
+      envWith({ COOKIE_PASSWORDS: JSON.stringify({ v2: V2, v1: V1 }) }),
+    );
+
+    // The back-compat field keeps its meaning: the secret new cookies are sealed
+    // with. Call sites that only seal therefore need no change.
+    expect(config.cookiePassword).toBe(V2);
+  });
+
+  it("accepts COOKIE_PASSWORDS on its own, without a redundant COOKIE_PASSWORD", () => {
+    const env: NodeJS.ProcessEnv = envWith({
+      COOKIE_PASSWORDS: JSON.stringify({ v2: V2, v1: V1 }),
+    });
+    delete env.COOKIE_PASSWORD;
+
+    const config: BffConfig = loadBffConfigFromEnv(env);
+
+    expect(passwordsOf(config).activeKeyId).toBe("v2");
+    expect(config.cookiePassword).toBe(V2);
+  });
+
+  it("throws when COOKIE_PASSWORDS is not valid JSON", () => {
+    expect(() => loadBffConfigFromEnv(envWith({ COOKIE_PASSWORDS: "{not json" }))).toThrow(
+      /COOKIE_PASSWORDS/u,
+    );
+  });
+
+  it("throws when COOKIE_PASSWORDS is JSON but not an object", () => {
+    expect(() => loadBffConfigFromEnv(envWith({ COOKIE_PASSWORDS: '["v1","v2"]' }))).toThrow(
+      /COOKIE_PASSWORDS/u,
+    );
+    expect(() => loadBffConfigFromEnv(envWith({ COOKIE_PASSWORDS: '"just-a-string"' }))).toThrow(
+      /COOKIE_PASSWORDS/u,
+    );
+  });
+
+  it("throws when COOKIE_PASSWORDS is an empty object, which would seal nothing", () => {
+    expect(() => loadBffConfigFromEnv(envWith({ COOKIE_PASSWORDS: "{}" }))).toThrow(
+      /COOKIE_PASSWORDS/u,
+    );
+  });
+
+  it("applies the 32-character minimum to every key, naming the offending one", () => {
+    let caught: unknown;
+    try {
+      loadBffConfigFromEnv(
+        envWith({ COOKIE_PASSWORDS: JSON.stringify({ v2: V2, v1: "too-short" }) }),
+      );
+    } catch (error: unknown) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(Error);
+    const message: string = (caught as Error).message;
+    expect(message).toContain("COOKIE_PASSWORDS");
+    expect(message).toContain("v1");
+    expect(message).toContain("32");
+  });
+
+  /**
+   * iron rejects any key ID outside `/^\w+$/` at SEAL time ("Invalid password
+   * id"), which without this check is a 500 in the login callback rather than a
+   * boot failure — the same class of bug as the too-short COOKIE_PASSWORD.
+   */
+  it("rejects a key ID iron would refuse to seal with", () => {
+    let caught: unknown;
+    try {
+      loadBffConfigFromEnv(envWith({ COOKIE_PASSWORDS: JSON.stringify({ "v-2": V2 }) }));
+    } catch (error: unknown) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(Error);
+    expect((caught as Error).message).toContain("v-2");
+  });
+
+  /**
+   * An all-digit key ID passes iron's `/^\w+$/` check but is a different trap:
+   * JavaScript enumerates integer-like object keys in ascending numeric order
+   * ahead of every string key, so `{"2": new, "1": old}` would make the OLD
+   * secret active and silently seal new cookies with the key being retired.
+   */
+  it("rejects an all-digit key ID, which JavaScript would reorder", () => {
+    let caught: unknown;
+    try {
+      loadBffConfigFromEnv(envWith({ COOKIE_PASSWORDS: JSON.stringify({ "2": V2, "1": V1 }) }));
+    } catch (error: unknown) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(Error);
+    const message: string = (caught as Error).message;
+    expect(message).toContain("COOKIE_PASSWORDS");
+    expect(message).toContain("2");
+    expect(message).toContain("all digits");
+  });
+
+  it("accepts a key ID that merely starts with a digit", () => {
+    // Only an ALL-digit ID reorders; "2v" sorts as an ordinary string key, so
+    // rejecting it would be over-broad.
+    const config: BffConfig = loadBffConfigFromEnv(
+      envWith({ COOKIE_PASSWORDS: JSON.stringify({ "2v": V2, v1: V1 }) }),
+    );
+
+    expect(config.cookiePasswords?.activeKeyId).toBe("2v");
+  });
+
+  it("reports a bad COOKIE_PASSWORDS in the SAME aggregated error as other problems", () => {
+    const env: NodeJS.ProcessEnv = envWith({ COOKIE_PASSWORDS: "{not json" });
+    delete env.OIDC_ISSUER;
+
+    const thrown: unknown[] = [];
+    try {
+      loadBffConfigFromEnv(env);
+    } catch (error: unknown) {
+      thrown.push(error);
+    }
+
+    expect(thrown).toHaveLength(1);
+    const message: string = (thrown[0] as Error).message;
+    expect(message).toContain("Invalid BFF environment configuration");
+    expect(message).toContain("COOKIE_PASSWORDS");
+    expect(message).toContain("OIDC_ISSUER");
+  });
+
+  it("ignores an empty COOKIE_PASSWORDS and keeps the single-password path", () => {
+    const config: BffConfig = loadBffConfigFromEnv(envWith({ COOKIE_PASSWORDS: "" }));
+
+    expect(passwordsOf(config).keys).toEqual({ [DEFAULT_COOKIE_KEY_ID]: "0".repeat(32) });
   });
 });
 

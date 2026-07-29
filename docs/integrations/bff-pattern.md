@@ -403,6 +403,32 @@ If a fork genuinely needs `form_post`, the transaction cookie has to move to `Sa
 first, which weakens the CSRF posture that `Lax` provides for free. Changing the response mode alone
 does not work.
 
+### Rotating the Cookie Password
+
+`COOKIE_PASSWORD` is a single secret, and replacing it invalidates every sealed cookie at once — every signed-in user is logged out, and every login already in flight fails at the callback. To rotate without that outage, set the optional `COOKIE_PASSWORDS` instead: a JSON object mapping a key ID to a secret.
+
+```bash
+COOKIE_PASSWORDS='{"v2":"<32+ char secret>","default":"<the secret you are retiring>"}'
+```
+
+The **first key in the object seals** new cookies; **every key in it can unseal**, so cookies written under the old secret keep working until they expire. Set `COOKIE_PASSWORDS` and `COOKIE_PASSWORD` is no longer required (if both are present, `COOKIE_PASSWORDS` wins). This covers the session cookie, the short-lived login-transaction cookie, and the sealed session reference the Valkey store puts in the cookie.
+
+Two constraints the BFF enforces at boot, both of which fail the process with `Invalid BFF environment configuration` rather than at runtime:
+
+- **Key IDs may only contain letters, digits, and underscores** (`/^\w+$/`) — that is all iron-webcrypto will seal with.
+- **A key ID may not be all digits.** JavaScript enumerates integer-like object keys ahead of string keys, so `{"2":"new","1":"old"}` would silently make `1` the active key and seal new cookies with the secret you are retiring.
+
+**Your first rotation must name the outgoing secret `default`.** A deployment running on plain `COOKIE_PASSWORD` seals its cookies with no key ID at all, and iron-webcrypto reads a missing key ID back as the literal `default`. Publish that secret as `v1` and every live session 401s on the next request — exactly the outage you were rotating to avoid. Subsequent rotations are free to use any allowed ID, because by then every cookie in the wild carries one.
+
+The procedure:
+
+1. Deploy with `COOKIE_PASSWORDS='{"default":"<current secret>"}'`. Nothing changes behaviourally; this is the step that gets a key ID onto newly sealed cookies. (You can skip this and go straight to step 2 — it is written as its own deploy only so the rotation and the format change are not in the same change.)
+2. Deploy with the new secret first and the old one second: `{"v2":"<new>","default":"<old>"}`. New cookies seal under `v2`; existing ones still unseal.
+3. Wait out the session TTL (`SESSION_TTL_SECONDS`, one day by default) so no cookie sealed under the old secret can still be presented.
+4. Drop the retired key: `{"v2":"<new>"}`. The old secret is now unusable and can be destroyed.
+
+Rotate in this order, one deploy at a time, across all instances — a fleet where some instances know a key and others do not will fail unpredictably depending on which instance serves the request.
+
 ### Valkey Key Management
 
 Use a dedicated Valkey database or key namespace for BFF sessions. Set appropriate TTLs so session data is not retained indefinitely. Rotate your Valkey credentials and connection strings as part of standard operational hygiene.

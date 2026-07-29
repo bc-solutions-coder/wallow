@@ -1059,3 +1059,195 @@ describe("buildLogoutUrl", () => {
     expect(new URL(url).pathname).toBe("/api/connect/logout");
   });
 });
+
+/**
+ * Browser-bound URLs must be built from the REBASED endpoints (Wallow-vufu.5.4).
+ *
+ * `discover` rebases `authorization_endpoint` and `end_session_endpoint` onto the
+ * public issuer, but those strings were dead: `buildAuthorizeUrl` and
+ * `buildLogoutUrl` delegate to openid-client, which builds from the
+ * `Configuration`'s OWN `serverMetadata()` — the raw, un-rebased discovery
+ * response. So under a split-horizon deployment (discovery fetched over the
+ * container network, browser on the public origin) the BFF answered
+ * `GET /bff/login` with a 302 to `http://wallow-api:8080/connect/authorize`: an
+ * internal Docker hostname no browser can reach. The rebasing was correct and
+ * simply never reached the user agent.
+ *
+ * The mocks below reproduce that faithfully: openid-client is made to return a
+ * URL on the INTERNAL host, exactly as the real library does when its
+ * Configuration carries raw metadata. The wrapper is what must pin it.
+ */
+describe("browser-bound URLs under a split-horizon issuer", () => {
+  /** The public origin plus path prefix the browser reaches, via the ingress. */
+  const PUBLIC_ISSUER: string = "http://localhost/api";
+
+  /**
+   * Resolve a split-horizon discovery document: metadata fetched from an
+   * internal container host that advertises itself, issuer public.
+   *
+   * @param internalHost Unique internal host for this test — the discovery cache
+   *   is keyed by metadata URL, so each case needs its own.
+   */
+  async function discoverSplitHorizon(
+    internalHost: string,
+  ): Promise<{ config: BffConfig; resolved: DiscoveryDoc }> {
+    const internalOrigin: string = `http://${internalHost}:8080`;
+    const config: BffConfig = makeConfig({
+      issuer: PUBLIC_ISSUER,
+      postLogoutRedirectUri: "http://localhost/",
+      metadataUrl: `${internalOrigin}/.well-known/openid-configuration`,
+    });
+    discoveryMock.mockResolvedValue(
+      makeConfiguration({
+        issuer: internalOrigin,
+        authorization_endpoint: `${internalOrigin}/connect/authorize`,
+        token_endpoint: `${internalOrigin}/connect/token`,
+        end_session_endpoint: `${internalOrigin}/connect/logout`,
+        userinfo_endpoint: `${internalOrigin}/connect/userinfo`,
+      }),
+    );
+    const resolved: DiscoveryDoc = await discover(config);
+    return { config, resolved };
+  }
+
+  /**
+   * Stand in for openid-client's builders, which resolve the endpoint from the
+   * Configuration's raw metadata and append the caller's parameters.
+   *
+   * @param endpoint Absolute endpoint URL the real library would have used.
+   */
+  function buildLikeOpenIdClient(endpoint: string) {
+    return (_configuration: unknown, params: Record<string, string>): URL => {
+      const url: URL = new URL(endpoint);
+      for (const [key, value] of Object.entries(params)) {
+        url.searchParams.set(key, value);
+      }
+      return url;
+    };
+  }
+
+  it("sends the browser to the public authorize endpoint, not the internal host", async () => {
+    const { config, resolved } = await discoverSplitHorizon("wallow-api-authz");
+    buildAuthorizationUrlMock.mockImplementation(
+      buildLikeOpenIdClient("http://wallow-api-authz:8080/connect/authorize"),
+    );
+
+    const url: URL = new URL(
+      buildAuthorizeUrl(config, resolved, {
+        state: "state-123",
+        codeChallenge: "challenge-abc",
+        nonce: "nonce-xyz",
+      }),
+    );
+
+    // The whole point: a reachable origin, with the ingress path prefix intact.
+    expect(url.origin).toBe("http://localhost");
+    expect(url.pathname).toBe("/api/connect/authorize");
+    // The internal hostname must not survive anywhere in the redirect — and nor
+    // must its port, which a bare `URL.host` assignment would leave behind.
+    expect(url.toString()).not.toContain("wallow-api-authz");
+    expect(url.port).toBe("");
+  });
+
+  it("keeps every authorization parameter openid-client produced", async () => {
+    const { config, resolved } = await discoverSplitHorizon("wallow-api-params");
+    buildAuthorizationUrlMock.mockImplementation(
+      buildLikeOpenIdClient("http://wallow-api-params:8080/connect/authorize"),
+    );
+
+    const url: URL = new URL(
+      buildAuthorizeUrl(config, resolved, {
+        state: "state-123",
+        codeChallenge: "challenge-abc",
+        nonce: "nonce-xyz",
+      }),
+    );
+
+    // Pinning relocates the endpoint; it must not disturb the query openid-client
+    // encoded, or PKCE/state/nonce validation fails on the callback.
+    expect(url.searchParams.get("response_type")).toBe("code");
+    expect(url.searchParams.get("client_id")).toBe(config.clientId);
+    expect(url.searchParams.get("redirect_uri")).toBe(config.redirectUri);
+    expect(url.searchParams.get("scope")).toBe("openid profile email offline_access");
+    expect(url.searchParams.get("state")).toBe("state-123");
+    expect(url.searchParams.get("code_challenge")).toBe("challenge-abc");
+    expect(url.searchParams.get("code_challenge_method")).toBe("S256");
+    expect(url.searchParams.get("nonce")).toBe("nonce-xyz");
+  });
+
+  it("sends the browser to the public end-session endpoint, not the internal host", async () => {
+    const { config, resolved } = await discoverSplitHorizon("wallow-api-logout");
+    buildEndSessionUrlMock.mockImplementation(
+      buildLikeOpenIdClient("http://wallow-api-logout:8080/connect/logout"),
+    );
+
+    // OpenIddict always advertises end_session_endpoint, so this — not the
+    // fallback below it — is the branch production actually takes.
+    const url: URL = new URL(buildLogoutUrl(config, resolved, "id-token-hint-abc"));
+
+    expect(url.origin).toBe("http://localhost");
+    expect(url.pathname).toBe("/api/connect/logout");
+    expect(url.toString()).not.toContain("wallow-api-logout");
+    expect(url.searchParams.get("post_logout_redirect_uri")).toBe(config.postLogoutRedirectUri);
+    expect(url.searchParams.get("id_token_hint")).toBe("id-token-hint-abc");
+  });
+
+  it("preserves a query string the advertised endpoint itself carries", async () => {
+    const internalOrigin: string = "http://wallow-api-tenant:8080";
+    const config: BffConfig = makeConfig({
+      issuer: PUBLIC_ISSUER,
+      metadataUrl: `${internalOrigin}/.well-known/openid-configuration`,
+    });
+    discoveryMock.mockResolvedValue(
+      makeConfiguration({
+        issuer: internalOrigin,
+        authorization_endpoint: `${internalOrigin}/connect/authorize?tenant=acme`,
+        token_endpoint: `${internalOrigin}/connect/token`,
+      }),
+    );
+    const resolved: DiscoveryDoc = await discover(config);
+    buildAuthorizationUrlMock.mockImplementation(
+      buildLikeOpenIdClient(`${internalOrigin}/connect/authorize?tenant=acme`),
+    );
+
+    const url: URL = new URL(
+      buildAuthorizeUrl(config, resolved, {
+        state: "state-123",
+        codeChallenge: "challenge-abc",
+        nonce: "nonce-xyz",
+      }),
+    );
+
+    expect(url.origin).toBe("http://localhost");
+    expect(url.pathname).toBe("/api/connect/authorize");
+    // The provider's own parameter and the authorization parameters coexist.
+    expect(url.searchParams.get("tenant")).toBe("acme");
+    expect(url.searchParams.get("state")).toBe("state-123");
+  });
+
+  it("leaves the built URL alone when there is no split horizon", async () => {
+    // Same origin on both sides: pinning must be a no-op, not a rewrite that
+    // happens to land in the same place by luck.
+    const config: BffConfig = makeConfig({ issuer: "https://no-split.example.com" });
+    discoveryMock.mockResolvedValue(
+      makeConfiguration({
+        issuer: "https://no-split.example.com",
+        authorization_endpoint: "https://no-split.example.com/connect/authorize",
+        token_endpoint: "https://no-split.example.com/connect/token",
+      }),
+    );
+    const resolved: DiscoveryDoc = await discover(config);
+    const built: URL = new URL(
+      "https://no-split.example.com/connect/authorize?response_type=code&client_id=web-bff",
+    );
+    buildAuthorizationUrlMock.mockReturnValue(built);
+
+    const url: string = buildAuthorizeUrl(config, resolved, {
+      state: "state-123",
+      codeChallenge: "challenge-abc",
+      nonce: "nonce-xyz",
+    });
+
+    expect(url).toBe(built.toString());
+  });
+});

@@ -9,7 +9,8 @@
 
 import { defaults, seal, unseal } from "iron-webcrypto";
 
-import { DEFAULT_SESSION_TTL_SECONDS } from "./config";
+import { DEFAULT_SESSION_TTL_SECONDS, type CookieSecret } from "./config";
+import { sealPassword, unsealPassword } from "./cookie-secret";
 import { webCrypto } from "./webcrypto";
 
 const MS_PER_SECOND: number = 1000;
@@ -58,37 +59,42 @@ export interface BffSession {
  * storing in a cookie.
  *
  * @param session The session to seal.
- * @param password The cookie password (>= 32 characters).
+ * @param password The cookie password (>= 32 characters), or a keyed
+ *        {@link CookieSecret} set, in which case its ACTIVE key seals the blob.
  * @param ttlMs Lifetime baked into the blob, in milliseconds. Defaults to
  *        {@link DEFAULT_SESSION_TTL_MS}.
  * @returns The sealed, URL-safe token string.
  */
 export function sealSession(
   session: BffSession,
-  password: string,
+  password: CookieSecret,
   ttlMs: number = DEFAULT_SESSION_TTL_MS,
 ): Promise<string> {
-  return seal(webCrypto, session, password, { ...defaults, ttl: ttlMs });
+  return seal(webCrypto, session, sealPassword(password), { ...defaults, ttl: ttlMs });
 }
 
 /**
  * Unseal a previously {@link sealSession sealed} session string.
  *
  * @param sealed The sealed token produced by {@link sealSession}.
- * @param password The cookie password used to seal it.
+ * @param password The cookie password used to seal it, or a keyed
+ *        {@link CookieSecret} set — ANY key in the set may have sealed the blob.
  * @param ttlMs Session lifetime in milliseconds. Defaults to
  *        {@link DEFAULT_SESSION_TTL_MS}. The blob's own baked-in expiry always
  *        wins; this value can never extend it.
  * @returns The decoded session, or `null` when the token is invalid, tampered,
- *          expired, or sealed with a different password.
+ *          expired, or sealed with a password no longer in the set.
  */
 export async function unsealSession(
   sealed: string,
-  password: string,
+  password: CookieSecret,
   ttlMs: number = DEFAULT_SESSION_TTL_MS,
 ): Promise<BffSession | null> {
   try {
-    const result: unknown = await unseal(webCrypto, sealed, password, { ...defaults, ttl: ttlMs });
+    const result: unknown = await unseal(webCrypto, sealed, unsealPassword(password), {
+      ...defaults,
+      ttl: ttlMs,
+    });
     return result as BffSession;
   } catch {
     return null;

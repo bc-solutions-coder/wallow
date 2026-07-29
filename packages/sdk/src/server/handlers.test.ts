@@ -573,6 +573,25 @@ describe("user handler", () => {
     const body: BffUserResponse = (await res.json()) as BffUserResponse;
     expect(body.sub).toBe(session.user.sub);
   });
+
+  it("marks the identity response no-store", async () => {
+    // This body carries the user's claims AND the CSRF token (Wallow-vufu.5.1,
+    // finding L2). Without an explicit directive a shared intermediary — or the
+    // browser's own back/forward cache — may keep one user's session data and
+    // hand it to the next request on the same connection.
+    const config: BffConfig = makeConfig("https://user-no-store.example.com");
+    const sealed: string = await sealSession(makeSession(), config.cookiePassword);
+    const handle = makeHandle(createBffHandlers(config));
+
+    const res: Response = await handle(
+      new Request("http://localhost/bff/user", {
+        headers: { cookie: `wallow_bff=${sealed}` },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control") ?? "").toContain("no-store");
+  });
 });
 
 /**
@@ -837,6 +856,128 @@ describe("logout CSRF gate", () => {
 
     expect(res.status).toBe(302);
     expect(destroyed).toEqual([sealed]);
+  });
+
+  /**
+   * Anonymous logout is idempotent, not forbidden (Wallow-vufu.5.1, finding L1).
+   *
+   * The CSRF gate above used to run unconditionally, and
+   * `csrfTokenMatches(undefined, presented)` is false by construction — so a
+   * logout with no session at all was answered with the same 403 as a genuine
+   * cross-site attempt, and the user saw a spurious "Logout failed" for a
+   * session that was already gone. There is nothing to protect when there is no
+   * session: the request is a no-op that should succeed and tidy up the
+   * browser's stale cookies.
+   *
+   * The narrowness matters. ONLY a null session skips the gate. A session that
+   * EXISTS but carries no `csrfToken` stays rejected — treating a missing token
+   * as "no protection needed" would hand every unprotected session to any
+   * cross-site caller, which is the opposite of the fix.
+   */
+  it("answers an anonymous POST with 204 instead of 403", async () => {
+    const { handle, destroyed } = makeLogout("https://logout-anon-204.example.com");
+
+    const res: Response = await handle(
+      new Request("http://localhost/bff/logout", { method: "POST" }),
+    );
+
+    expect(res.status).toBe(204);
+    // Nothing existed to revoke, so the store is never asked to destroy a ref.
+    expect(destroyed).toEqual([]);
+  });
+
+  it("clears the session and CSRF cookies on an anonymous POST", async () => {
+    const { handle } = makeLogout("https://logout-anon-clears.example.com");
+
+    const res: Response = await handle(
+      new Request("http://localhost/bff/logout", { method: "POST" }),
+    );
+
+    // The browser may still be holding a cookie this server can no longer read
+    // (rotated password, expired seal). Clearing is the whole point of letting
+    // the request through.
+    const session: string | undefined = setCookieFor(res, "wallow_bff");
+    const csrf: string | undefined = setCookieFor(res, "wallow_bff-csrf");
+    expect(session).toBeDefined();
+    expect(csrf).toBeDefined();
+    expect(cookieValueOf(session ?? "")).toBe("");
+    expect(cookieValueOf(csrf ?? "")).toBe("");
+  });
+
+  it("answers 204 for an anonymous POST even when it carries a stale CSRF token", async () => {
+    const { handle, destroyed } = makeLogout("https://logout-anon-stale-token.example.com");
+
+    // The realistic shape of this request: the session cookie expired but the
+    // browser-readable CSRF companion is still in the jar, so the client sends
+    // a token for a session that no longer exists.
+    const res: Response = await handle(
+      new Request("http://localhost/bff/logout", {
+        method: "POST",
+        headers: { [CSRF_HEADER]: "stale-csrf-token-eeeeeeeeeeeeeeee" },
+      }),
+    );
+
+    expect(res.status).toBe(204);
+    expect(destroyed).toEqual([]);
+  });
+
+  it("treats an unreadable session cookie as anonymous rather than as a CSRF failure", async () => {
+    const { handle, destroyed } = makeLogout("https://logout-anon-garbage.example.com");
+
+    // `readSession` answers null for a cookie it cannot unseal, which is the
+    // same "no session" state as sending no cookie at all.
+    const res: Response = await handle(
+      new Request("http://localhost/bff/logout", {
+        method: "POST",
+        headers: { cookie: "wallow_bff=not-a-sealed-session" },
+      }),
+    );
+
+    expect(res.status).toBe(204);
+    expect(destroyed).toEqual([]);
+  });
+
+  it.each([
+    ["undefined", undefined],
+    ["empty", ""],
+  ])(
+    "still rejects a POST for a session that exists but whose csrfToken is %s",
+    async (label: string, csrfToken: string | undefined) => {
+      const { handle, destroyed, config } = makeLogout(
+        `https://logout-csrf-${label}-token.example.com`,
+      );
+      const sealed: string = await sealSession(makeSession({ csrfToken }), config.cookiePassword);
+
+      const res: Response = await handle(
+        logoutRequest(`wallow_bff=${sealed}`, "any-token-at-all-ffffffffffffffff"),
+      );
+
+      // Fail-secure: a session with no token is unprotected, not unguarded. The
+      // anonymous escape hatch is for `session === null` only.
+      expect(res.status).toBe(403);
+      const body: Record<string, unknown> = (await res.json()) as Record<string, unknown>;
+      expect(body["code"]).toBe(CSRF_INVALID_CODE);
+      expect(destroyed).toEqual([]);
+      expect(res.headers.getSetCookie()).toEqual([]);
+    },
+  );
+
+  it("leaves the authenticated logout redirect untouched", async () => {
+    // Regression guard for the branch the anonymous path must not disturb: a
+    // real session still gets revoked server-side and still hands the browser
+    // the IdP's end-session URL rather than a 204.
+    const { handle, destroyed, config } = makeLogout("https://logout-authn-regression.example.com");
+    const session: BffSession = makeSession();
+    const sealed: string = await sealSession(session, config.cookiePassword);
+
+    const res: Response = await handle(logoutRequest(`wallow_bff=${sealed}`));
+
+    expect(res.status).toBe(302);
+    expect(destroyed).toEqual([sealed]);
+    const url: URL = new URL(res.headers.get("location") ?? "");
+    expect(url.pathname).toBe("/connect/logout");
+    expect(url.searchParams.get("id_token_hint")).toBe(session.idToken);
+    expect(cookieValueOf(setCookieFor(res, "wallow_bff") ?? "")).toBe("");
   });
 });
 

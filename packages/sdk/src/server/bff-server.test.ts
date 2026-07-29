@@ -309,7 +309,15 @@ describe("createWallowBffServer — BFF dispatch", () => {
     expect(res.headers.get("allow")).toBe("POST");
   });
 
-  it("routes POST /bff/logout to the logout handler, which enforces CSRF", async () => {
+  /**
+   * This request carries NO Cookie header, so it is the genuinely anonymous
+   * case: the logout handler answers 204 and clears cookies without consulting
+   * the CSRF token at all (Wallow-vufu.5.1). It pins DISPATCH — that POST
+   * reaches the logout handler rather than the 405 branch above. The CSRF gate
+   * itself is exercised in `handlers.test.ts` against a real sealed session,
+   * which is the only shape that can reach it.
+   */
+  it("routes POST /bff/logout to the logout handler, which answers an anonymous POST with 204", async () => {
     const server: WallowBffServer = createWallowBffServer({
       config: makeConfig("https://issuer-logoutpost.test"),
     });
@@ -321,7 +329,8 @@ describe("createWallowBffServer — BFF dispatch", () => {
       }),
     );
 
-    expect(res.status).toBe(403);
+    // Even a stale CSRF token cannot turn an anonymous logout into a 403.
+    expect(res.status).toBe(204);
   });
 
   it("routes /bff/callback to the callback handler, which rejects a request with no state", async () => {

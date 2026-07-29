@@ -15,7 +15,7 @@
  * await client.connect();
  * const store = new ValkeySessionStore({
  *   client: createRedisAdapter(client),
- *   password: config.cookiePassword,
+ *   password: config.cookiePasswords ?? config.cookiePassword,
  * });
  * ```
  */

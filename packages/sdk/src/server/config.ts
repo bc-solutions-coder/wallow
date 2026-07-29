@@ -5,6 +5,43 @@
  * and passed to the OIDC and session helpers. Nothing here is safe to expose to
  * the browser — the client secret and cookie password are confidential.
  */
+/**
+ * The cookie secrets in play during a password rotation.
+ *
+ * `keys` maps a key ID to its secret; every entry can UNSEAL an existing cookie,
+ * while only `activeKeyId` SEALS new ones. Deploying a new key alongside the old
+ * one therefore keeps every live session readable, and the old key can be
+ * dropped once its cookies have aged out — rotating the single secret instead
+ * 401s every signed-in browser at once.
+ *
+ * iron-webcrypto embeds the key ID inside the sealed blob and picks the matching
+ * entry on unseal, so a caller never tries the keys itself.
+ */
+export interface CookiePasswordSet {
+  /** Key ID whose secret seals newly issued cookies. Must exist in {@link keys}. */
+  activeKeyId: string;
+  /** Every accepted key ID mapped to its secret, including the active one. */
+  keys: Record<string, string>;
+}
+
+/**
+ * A cookie secret in either accepted form: a bare string (the single-secret
+ * path, unchanged) or a keyed {@link CookiePasswordSet} for rotation.
+ */
+export type CookieSecret = string | CookiePasswordSet;
+
+/**
+ * Key ID used when only the single `COOKIE_PASSWORD` is configured.
+ *
+ * The value is load-bearing and cannot be an arbitrary label like `"1"`:
+ * iron-webcrypto seals a bare-string password with an EMPTY id and normalizes
+ * that empty id back to the literal `"default"` when unsealing against a key
+ * map. A map keyed by anything else fails every cookie sealed by an earlier
+ * build with `Cannot find password: default` — i.e. the mass session
+ * invalidation this whole feature exists to avoid.
+ */
+export const DEFAULT_COOKIE_KEY_ID: string = "default";
+
 export interface BffConfig {
   /** OIDC issuer base URL, e.g. `https://auth.example.com`. */
   issuer: string;
@@ -27,8 +64,26 @@ export interface BffConfig {
    * DROPS such a cookie on a plain-http origin.
    */
   cookieName: string;
-  /** Password used to seal/unseal the session and transaction cookies. */
+  /**
+   * The ACTIVE password used to seal the session and transaction cookies —
+   * unchanged in shape and meaning, and still the whole story when no rotation
+   * is in progress. Prefer {@link cookiePasswords} when unsealing, so cookies
+   * sealed under a retired key are still accepted.
+   */
   cookiePassword: string;
+  /**
+   * Every cookie secret currently accepted, and which one seals new cookies.
+   * Built from `COOKIE_PASSWORDS` when set, otherwise a single entry wrapping
+   * {@link cookiePassword}.
+   *
+   * {@link loadBffConfigFromEnv} always populates it. It stays OPTIONAL because
+   * `BffConfig` is public API a fork may build by hand, and requiring a new
+   * field would break every such caller; those callers keep working on
+   * {@link cookiePassword} alone. Seal/unseal sites therefore pass
+   * `config.cookiePasswords ?? config.cookiePassword`, which is exactly a
+   * {@link CookieSecret}.
+   */
+  cookiePasswords?: CookiePasswordSet;
   /**
    * Optional server-side discovery/metadata URL, used when the OP is reachable
    * from the browser and the server under different hostnames (split-horizon
@@ -71,6 +126,96 @@ const MIN_COOKIE_PASSWORD_LENGTH = 32;
 /** A clean environment contract: no collected problems to report. */
 const NO_PROBLEMS = 0;
 
+/** A `COOKIE_PASSWORDS` object naming no keys at all, which could seal nothing. */
+const NO_KEYS = 0;
+
+/**
+ * The key IDs iron-webcrypto will seal with. Anything outside this throws
+ * `Invalid password id` inside `seal()`, which without this check surfaces as a
+ * 500 in the login callback instead of a boot failure.
+ */
+const COOKIE_KEY_ID_PATTERN = /^\w+$/u;
+
+/**
+ * Key IDs that JavaScript would reorder, which `COOKIE_PASSWORDS` cannot allow.
+ *
+ * The active key is the FIRST one the JSON names, but an object's integer-like
+ * keys are enumerated in ascending numeric order ahead of every string key
+ * regardless of where they were written. `{"2": new, "1": old}` therefore makes
+ * the OLD secret active and silently seals new cookies with the key the operator
+ * is retiring — so an all-digit ID is rejected rather than quietly misread.
+ */
+const NUMERIC_COOKIE_KEY_ID = /^\d+$/u;
+
+/** Shared prefix for every `COOKIE_PASSWORDS` problem, so they read as one group. */
+const COOKIE_PASSWORDS_PROBLEM: string = "Invalid environment variable COOKIE_PASSWORDS";
+
+/**
+ * The reason `keyId` cannot name a rotation key, or `undefined` if it can.
+ */
+function cookieKeyIdProblem(keyId: string): string | undefined {
+  if (!COOKIE_KEY_ID_PATTERN.test(keyId)) {
+    return `${COOKIE_PASSWORDS_PROBLEM}: key ID "${keyId}" must be letters, digits or underscores, which is all iron-webcrypto will seal with`;
+  }
+  if (NUMERIC_COOKIE_KEY_ID.test(keyId)) {
+    return `${COOKIE_PASSWORDS_PROBLEM}: key ID "${keyId}" must not be all digits, because such keys are reordered ahead of the others and would change which key is active`;
+  }
+  return undefined;
+}
+
+/**
+ * Parse the `COOKIE_PASSWORDS` JSON object into a {@link CookiePasswordSet}.
+ *
+ * Every problem found is pushed onto `problems` rather than thrown, so a bad key
+ * map is reported in the same aggregated error as every other misconfiguration.
+ * Returns `undefined` when the value cannot yield a usable set, in which case
+ * the caller has already collected the reason.
+ */
+function parseCookiePasswords(raw: string, problems: string[]): CookiePasswordSet | undefined {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    problems.push(`${COOKIE_PASSWORDS_PROBLEM}: expected a JSON object of key ID to secret`);
+    return undefined;
+  }
+
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    problems.push(`${COOKIE_PASSWORDS_PROBLEM}: expected a JSON object of key ID to secret`);
+    return undefined;
+  }
+
+  const entries: [string, unknown][] = Object.entries(parsed as Record<string, unknown>);
+  if (entries.length === NO_KEYS) {
+    problems.push(`${COOKIE_PASSWORDS_PROBLEM}: expected at least one key ID, got an empty object`);
+    return undefined;
+  }
+
+  const keys: Record<string, string> = {};
+  for (const [keyId, secret] of entries) {
+    const idProblem: string | undefined = cookieKeyIdProblem(keyId);
+    if (idProblem !== undefined) {
+      problems.push(idProblem);
+    } else if (typeof secret !== "string" || secret.length < MIN_COOKIE_PASSWORD_LENGTH) {
+      const got: string = typeof secret === "string" ? `${secret.length}` : typeof secret;
+      problems.push(
+        `${COOKIE_PASSWORDS_PROBLEM}: expected key "${keyId}" to be a secret of at least ${MIN_COOKIE_PASSWORD_LENGTH} characters, got ${got}`,
+      );
+    } else {
+      keys[keyId] = secret;
+    }
+  }
+
+  // The first key the JSON names seals new cookies; the rest stay valid for
+  // unsealing until their cookies age out.
+  const [activeKeyId] = Object.keys(keys);
+  if (activeKeyId === undefined) {
+    return undefined;
+  }
+
+  return { activeKeyId, keys };
+}
+
 /** Unprefixed session-cookie name, used when the `__Host-` prefix is not viable. */
 const DEFAULT_COOKIE_NAME: string = "wallow_bff";
 
@@ -110,6 +255,15 @@ function defaultCookieName(hostPrefixRaw: string, cookieSecure: boolean): string
  * iron-webcrypto seals a session with — so a too-short secret fails here at
  * boot instead of inside the first OIDC callback.
  *
+ * `COOKIE_PASSWORDS` is the optional rotation form: a JSON object of key ID to
+ * secret, e.g. `{"v2":"<32+ chars>","v1":"<32+ chars>"}`. The FIRST key seals new
+ * cookies and every key stays valid for unsealing, which is what lets a secret be
+ * replaced without 401ing every live session. It makes `COOKIE_PASSWORD`
+ * unnecessary (and overrides it when both are set), and each of its secrets is
+ * held to the same 32-character minimum. When it is unset the single password is
+ * wrapped under {@link DEFAULT_COOKIE_KEY_ID}, so both paths produce the same
+ * shape.
+ *
  * A malformed `SESSION_TTL_SECONDS` throws rather than silently falling back to
  * the default, so a startup misconfiguration fails loudly. `COOKIE_SECURE` and
  * `COOKIE_HOST_PREFIX` instead fail secure: only the literal `false` clears
@@ -147,13 +301,27 @@ export function loadBffConfigFromEnv(env: NodeJS.ProcessEnv = process.env): BffC
   const redirectUri: string = require("OIDC_REDIRECT_URI");
   const postLogoutRedirectUri: string = require("OIDC_POST_LOGOUT_REDIRECT_URI");
   const apiBaseUrl: string = require("BFF_API_BASE_URL");
-  const cookiePassword: string = require("COOKIE_PASSWORD");
-  // A missing password is already reported by require(), which returns ""; the
-  // length guard keeps it from being reported a second time as "too short".
-  if (cookiePassword !== "" && cookiePassword.length < MIN_COOKIE_PASSWORD_LENGTH) {
-    problems.push(
-      `Invalid environment variable COOKIE_PASSWORD: expected at least ${MIN_COOKIE_PASSWORD_LENGTH} characters, got ${cookiePassword.length}`,
-    );
+  // A key map carries the active secret itself, so COOKIE_PASSWORD is required
+  // only on the single-secret path. Setting both is allowed and the map wins —
+  // that is what lets an operator add COOKIE_PASSWORDS to a running deployment
+  // without first removing the variable the old build still needs on rollback.
+  const passwordsRaw: string = (env.COOKIE_PASSWORDS ?? "").trim();
+  const cookiePasswords: CookiePasswordSet | undefined =
+    passwordsRaw === "" ? undefined : parseCookiePasswords(passwordsRaw, problems);
+
+  let cookiePassword: string = passwordsRaw === "" ? require("COOKIE_PASSWORD") : "";
+  if (passwordsRaw === "") {
+    // A missing password is already reported by require(), which returns ""; the
+    // length guard keeps it from being reported a second time as "too short".
+    if (cookiePassword !== "" && cookiePassword.length < MIN_COOKIE_PASSWORD_LENGTH) {
+      problems.push(
+        `Invalid environment variable COOKIE_PASSWORD: expected at least ${MIN_COOKIE_PASSWORD_LENGTH} characters, got ${cookiePassword.length}`,
+      );
+    }
+  } else if (cookiePasswords !== undefined) {
+    // Keep the back-compat field meaning exactly what it always did: the secret
+    // new cookies are sealed with. Seal-only call sites therefore need no change.
+    cookiePassword = cookiePasswords.keys[cookiePasswords.activeKeyId] ?? "";
   }
 
   const ttlRaw: string = (env.SESSION_TTL_SECONDS ?? "").trim();
@@ -188,6 +356,13 @@ export function loadBffConfigFromEnv(env: NodeJS.ProcessEnv = process.env): BffC
     apiBaseUrl,
     cookieName: env.COOKIE_NAME ?? defaultCookieName(hostPrefixRaw, cookieSecure),
     cookiePassword,
+    // Always populated: the parsed key map, or the single password wrapped under
+    // the one ID iron gives an unkeyed seal, so every unseal site can take the
+    // same shape whether or not a rotation is in progress.
+    cookiePasswords: cookiePasswords ?? {
+      activeKeyId: DEFAULT_COOKIE_KEY_ID,
+      keys: { [DEFAULT_COOKIE_KEY_ID]: cookiePassword },
+    },
     metadataUrl:
       env.OIDC_METADATA_URL !== undefined && env.OIDC_METADATA_URL !== ""
         ? env.OIDC_METADATA_URL

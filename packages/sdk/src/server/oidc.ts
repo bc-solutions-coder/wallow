@@ -128,6 +128,43 @@ function rebaseToIssuer(endpoint: string, issuer: string): string {
 }
 
 /**
+ * Point an openid-client-built URL at the browser-facing endpoint recorded on the
+ * discovery document, keeping the query openid-client encoded exactly as it built it.
+ *
+ * openid-client builds authorization and end-session URLs from the
+ * {@link Configuration}'s own `serverMetadata()`, which holds the RAW discovery
+ * response. Under a split horizon that metadata names the internal host, so the
+ * URL handed to the browser would be an unreachable container address — the
+ * rebasing {@link discover} performed would never reach the user agent. The
+ * endpoint strings on the {@link DiscoveryDoc} are the browser-facing ones, so
+ * they, not the Configuration, decide where the user agent is sent.
+ *
+ * The Configuration itself is deliberately left un-rebased: the backchannel
+ * token and userinfo calls read from it and must keep reaching the internal host
+ * directly rather than hairpinning back through the public proxy.
+ *
+ * Origin components are replaced individually — including an explicit `port`
+ * reset — because assigning `URL.host` a host without a port leaves the previous
+ * port in place, which would leak the internal port into the redirect.
+ *
+ * @param built URL as openid-client constructed it, carrying the request parameters.
+ * @param browserEndpoint Browser-facing endpoint from the discovery document.
+ */
+function pinToBrowserEndpoint(built: URL, browserEndpoint: string | undefined): string {
+  if (browserEndpoint === undefined || browserEndpoint === "") {
+    return built.toString();
+  }
+
+  const target: URL = new URL(browserEndpoint);
+  const url: URL = new URL(built.toString());
+  url.protocol = target.protocol;
+  url.hostname = target.hostname;
+  url.port = target.port;
+  url.pathname = target.pathname;
+  return url.toString();
+}
+
+/**
  * Resolve and cache the issuer's discovery document via openid-client.
  *
  * When {@link BffConfig.metadataUrl} is set, discovery is fetched from that
@@ -206,6 +243,11 @@ export async function discover(config: BffConfig): Promise<DiscoveryDoc> {
  * {@link Configuration} carried on the discovery {@link DiscoveryDoc}, so the
  * authorization request is constructed and encoded by openid-client rather than
  * hand-rolled. PKCE uses S256.
+ *
+ * The result is then pinned to the doc's browser-facing
+ * `authorization_endpoint` — this URL becomes a redirect the user agent has to
+ * follow, so it must name the public issuer rather than the internal discovery
+ * host. See {@link pinToBrowserEndpoint}.
  */
 export function buildAuthorizeUrl(
   config: BffConfig,
@@ -222,7 +264,7 @@ export function buildAuthorizeUrl(
     code_challenge_method: "S256",
     nonce: params.nonce,
   });
-  return url.toString();
+  return pinToBrowserEndpoint(url, doc.authorization_endpoint);
 }
 
 /**
@@ -353,7 +395,11 @@ export function buildLogoutUrl(config: BffConfig, doc: DiscoveryDoc, idTokenHint
     if (idTokenHint !== undefined) {
       params.id_token_hint = idTokenHint;
     }
-    return buildEndSessionUrl(doc.configuration!, params).toString();
+    // Pinned for the same reason as the authorize URL: the browser follows it.
+    return pinToBrowserEndpoint(
+      buildEndSessionUrl(doc.configuration!, params),
+      doc.end_session_endpoint,
+    );
   }
 
   const url: URL = new URL(rebaseToIssuer("/connect/logout", config.issuer));

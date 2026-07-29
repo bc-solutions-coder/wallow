@@ -61,8 +61,16 @@ export interface SessionStore {
    * Run `fn` while holding a refresh lock for `ref`, serializing concurrent
    * token refreshes for the same session.
    *
-   * @returns The result of `fn`, or `undefined` when the lock could not be
-   *          acquired (another refresh is already in progress).
+   * Stores may resolve contention either way. A store with shared state (e.g.
+   * Redis) declines the lock and returns `undefined`, leaving the caller to
+   * re-read the session and adopt the winner's write; a store whose state lives
+   * only in the cookie has nothing to re-read, so it instead JOINS the in-flight
+   * refresh and resolves with that call's result. Callers must therefore handle
+   * `undefined` but must not assume it.
+   *
+   * @returns The result of `fn`; the result of an in-flight refresh this call
+   *          joined; or `undefined` when the lock could not be acquired
+   *          (another refresh is already in progress).
    */
   withRefreshLock: <T>(ref: string, fn: () => Promise<T>) => Promise<T | undefined>;
 }

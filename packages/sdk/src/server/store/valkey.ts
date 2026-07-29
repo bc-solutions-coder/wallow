@@ -11,6 +11,8 @@
 
 import { defaults, seal, unseal } from "iron-webcrypto";
 
+import { type CookieSecret } from "../config";
+import { sealPassword, unsealPassword } from "../cookie-secret";
 import { randomUrlSafe } from "../pkce";
 import { type BffSession } from "../session";
 import { webCrypto } from "../webcrypto";
@@ -31,8 +33,12 @@ const SESSION_ID_BYTES = 24;
 export interface ValkeySessionStoreOptions {
   /** The Redis-compatible client used to persist sessions and locks. */
   client: RedisLike;
-  /** The cookie password used to seal and unseal session references (>= 32 chars). */
-  password: string;
+  /**
+   * The cookie password used to seal and unseal session references (>= 32
+   * chars), or a keyed set during a rotation — every key in it can unseal a
+   * reference, and its active key seals new ones.
+   */
+  password: CookieSecret;
   /** Session record time-to-live in seconds. Defaults to `86400` (one day). */
   ttlSeconds?: number;
   /** Refresh-lock time-to-live in seconds. Defaults to `10`. */
@@ -52,7 +58,7 @@ export interface ValkeySessionStoreOptions {
  */
 export class ValkeySessionStore implements SessionStore {
   private readonly client: RedisLike;
-  private readonly password: string;
+  private readonly password: CookieSecret;
   private readonly ttlSeconds: number;
   private readonly lockTtlSeconds: number;
   private readonly keyPrefix: string;
@@ -76,7 +82,7 @@ export class ValkeySessionStore implements SessionStore {
   /** Unseal a cookie reference back into its session id, or `null` on failure. */
   private async refToId(ref: string): Promise<string | null> {
     try {
-      const result: unknown = await unseal(webCrypto, ref, this.password, defaults);
+      const result: unknown = await unseal(webCrypto, ref, unsealPassword(this.password), defaults);
       return result as string;
     } catch {
       return null;
@@ -105,7 +111,7 @@ export class ValkeySessionStore implements SessionStore {
     await this.client.set(this.sessionKey(id), JSON.stringify(record), {
       ex: this.ttlSeconds,
     });
-    return seal(webCrypto, id, this.password, defaults);
+    return seal(webCrypto, id, sealPassword(this.password), defaults);
   }
 
   async destroy(ref: string): Promise<void> {

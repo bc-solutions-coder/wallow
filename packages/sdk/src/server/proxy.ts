@@ -723,7 +723,7 @@ function respondToFailure(error: unknown, cookies: Headers, requestId: string): 
 export function createApiProxy(
   config: BffConfig,
   store: SessionStore = new CookieSessionStore({
-    password: config.cookiePassword,
+    password: config.cookiePasswords ?? config.cookiePassword,
     ttlSeconds: config.sessionTtlSeconds,
   }),
 ): ApiProxyHandler {
