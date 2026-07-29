@@ -22,11 +22,21 @@
  *    permanently disable the BFF.
  */
 import {
+  CLIENT_IP_HEADER,
   createWallowBffServer,
   type NodeRedisClient,
   type WallowBffServer,
 } from "@bc-solutions-coder/sdk/server";
 import { createClient, type RedisClientType } from "redis";
+
+/**
+ * The inbound request as srvx hands it to a Start server route. A WHATWG
+ * `Request` has no socket, so the peer address arrives on this extra `ip`
+ * property (populated in `vite dev` and in the built Nitro server alike).
+ */
+interface PeerRequest extends Request {
+  readonly ip?: string | undefined;
+}
 
 let pending: Promise<WallowBffServer> | undefined;
 
@@ -111,9 +121,29 @@ export async function handleBffRequest(request: Request): Promise<Response> {
   return server.handleBff(request);
 }
 
-/** Handle a request under `/api` — the reverse proxy that attaches the session's bearer. */
-export async function handleApiRequest(request: Request): Promise<Response> {
+/**
+ * Handle a request under `/api` — the reverse proxy that attaches the session's bearer.
+ *
+ * The client IP is stamped onto the SDK's `CLIENT_IP_HEADER` before handing over:
+ * the proxy appends that header to the outgoing `X-Forwarded-For` chain and
+ * strips the seam header itself, but it can only do so if the host supplies the
+ * address — without this the API sees every user of this app as one client and
+ * rate-limits them together (Wallow-vufu.4.2, the BFF twin of Wallow-tt5j).
+ *
+ * The header is set ON THE INBOUND REQUEST rather than on a clone. The obvious
+ * `new Request(request, { headers })` throws `Cannot read private member #state`
+ * at runtime: srvx's request is its own class that only claims to be a `Request`
+ * through `Symbol.hasInstance`, so undici's copy constructor passes the instance
+ * check and then reads a private field that does not exist. Mutating is also
+ * safe — the proxy builds its own outgoing `Headers`, and the request object is
+ * per-request and dead once this returns.
+ */
+export async function handleApiRequest(request: PeerRequest): Promise<Response> {
   const server: WallowBffServer = await getBffServer();
+  const clientIp: string | undefined = request.ip;
+  if (clientIp !== undefined && clientIp !== "") {
+    request.headers.set(CLIENT_IP_HEADER, clientIp);
+  }
   return server.handleApi(request);
 }
 

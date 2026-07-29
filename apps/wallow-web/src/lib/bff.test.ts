@@ -15,7 +15,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  *  - the Redis client is constructed and CONNECTED here and handed to the
  *    preset, which is the whole reason the host still depends on `redis` —
  *    `createWallowBffServer` throws rather than silently serving stateless
- *    cookie sessions when `REDIS_URL` is set with no client.
+ *    cookie sessions when `REDIS_URL` is set with no client;
+ *  - the peer address is stamped onto the SDK's client-IP seam header, because
+ *    only the host can see a socket (Wallow-vufu.4.2).
  */
 
 const mocks = vi.hoisted(() => ({
@@ -42,10 +44,26 @@ mocks.createClient.mockImplementation(() => ({
 }));
 
 vi.mock("@bc-solutions-coder/sdk/server", () => ({
+  CLIENT_IP_HEADER: "x-wallow-client-ip",
   createWallowBffServer: mocks.createWallowBffServer,
 }));
 
 vi.mock("redis", () => ({ createClient: mocks.createClient }));
+
+/** The SDK's client-IP seam header, restated so the mock above is the only source. */
+const CLIENT_IP_HEADER = "x-wallow-client-ip";
+
+/** A stand-in for the srvx request a Start server route receives: a `Request` plus `ip`. */
+function peerRequest(
+  ip?: string,
+  url = "http://localhost:3000/api/v1/users/me",
+): Request & { ip?: string } {
+  const request = new Request(url) as Request & { ip?: string };
+  if (ip !== undefined) {
+    Object.defineProperty(request, "ip", { value: ip });
+  }
+  return request;
+}
 
 /** Re-evaluate the module so its memoised server starts empty. */
 async function importModule(): Promise<typeof import("./bff")> {
@@ -122,6 +140,38 @@ describe("the wallow-web BFF host", () => {
     expect(mocks.createClient).toHaveBeenCalledWith({ url: "redis://valkey:6379" });
     expect(mocks.connect).toHaveBeenCalledTimes(1);
     expect(buildOptions()).toHaveProperty("redisClient");
+  });
+
+  it("stamps the peer address onto the SDK's client-IP seam header", async () => {
+    const { handleApiRequest } = await importModule();
+    const request = peerRequest("198.51.100.4");
+
+    await handleApiRequest(request);
+
+    const forwarded: Request | undefined = mocks.handleApi.mock.calls[0]?.[0];
+    expect(forwarded?.headers.get(CLIENT_IP_HEADER)).toBe("198.51.100.4");
+  });
+
+  it("forwards the inbound request itself rather than a copy", async () => {
+    const { handleApiRequest } = await importModule();
+    const request = peerRequest("198.51.100.4");
+
+    await handleApiRequest(request);
+
+    // Identity, not `toHaveBeenCalledWith` — that compares structurally, and a
+    // clone of this request would satisfy it. srvx's request class cannot
+    // survive undici's copy constructor, so the header must be set in place.
+    expect(mocks.handleApi.mock.calls[0]?.[0]).toBe(request);
+  });
+
+  it("stamps nothing when the host supplied no peer address", async () => {
+    const { handleApiRequest } = await importModule();
+    const request = peerRequest();
+
+    await handleApiRequest(request);
+
+    const forwarded: Request | undefined = mocks.handleApi.mock.calls[0]?.[0];
+    expect(forwarded?.headers.has(CLIENT_IP_HEADER)).toBe(false);
   });
 
   it("does not cache a failed build", async () => {

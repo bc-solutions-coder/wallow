@@ -18,6 +18,7 @@ import { timingSafeEqual } from "node:crypto";
 import { REQUEST_ID_HEADER, resolveRequestId } from "../request-id";
 import type { BffConfig } from "./config";
 import { parseProblemDetails, redact, WallowError } from "./errors";
+import { applyForwardedHeaders, CLIENT_IP_HEADER } from "./forwarded";
 import { readSession, readSessionRef, writeSession, writeSessionRef } from "./handlers";
 import { discover, refreshTokens, type DiscoveryDoc, type TokenResponse } from "./oidc";
 import type { BffSession } from "./session";
@@ -549,8 +550,24 @@ const PARENT_SEGMENT: string = "..";
 /** Byte length at which a buffered request body is no body at all. */
 const EMPTY_BODY_LENGTH = 0;
 
-/** Request headers forwarded upstream; `authorization` is added per attempt. */
-const FORWARDED_REQUEST_HEADERS: readonly string[] = ["content-type", "accept"];
+/**
+ * Request headers forwarded upstream; `authorization` is added per attempt.
+ *
+ * This is an allowlist, not a copy-everything: the inbound `Cookie` carries the
+ * BFF's own session credential and stops at this hop. The `x-forwarded-*` names
+ * and the client-IP seam are here because {@link applyForwardedHeaders} reads
+ * and rewrites them, and it runs against these outgoing headers — an inbound
+ * chain that never made it across would be silently replaced by this hop's own
+ * view instead of extended (Wallow-vufu.4.2).
+ */
+const FORWARDED_REQUEST_HEADERS: readonly string[] = [
+  "content-type",
+  "accept",
+  "x-forwarded-for",
+  "x-forwarded-proto",
+  "x-forwarded-host",
+  CLIENT_IP_HEADER,
+];
 
 /**
  * Response headers never re-emitted on the re-framed response.
@@ -808,6 +825,11 @@ async function proxyRequest(
       forwardHeaders.set(name, value);
     }
   }
+
+  // The API rate-limits on the forwarded chain, so the peer address the host
+  // stamped has to survive this hop: without it every user of this app reaches
+  // the API wearing the BFF's own address and is limited as one client (M6).
+  applyForwardedHeaders(forwardHeaders, url, true);
 
   // Set on the headers `forwardWithResilience` replays from, not per attempt, so
   // a reactive-401 replay reaches the API under the id the first attempt used:

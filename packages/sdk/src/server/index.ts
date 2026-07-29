@@ -25,6 +25,7 @@ export {
   type BffHandlers,
   type BffUserResponse,
 } from "./handlers";
+export { CLIENT_IP_HEADER } from "./forwarded";
 export { INTERNAL_ORIGIN_ENV_KEY, resolveInternalOrigin } from "./internal-origin";
 export {
   createApiProxy,
