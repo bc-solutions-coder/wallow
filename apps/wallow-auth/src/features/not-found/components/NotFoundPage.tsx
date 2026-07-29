@@ -1,5 +1,6 @@
 import { Card, CardTitle, MutedText } from "@bc-solutions-coder/ui";
 import type { ReactNode } from "react";
+import { toAppHref } from "../../../lib/base-path";
 
 /**
  * The Not Found screen (Wallow-ffpq.2.7).
@@ -49,7 +50,7 @@ function NotFoundFooter() {
   return (
     <div className="w-full text-center">
       <a
-        href="/login"
+        href={toAppHref("/login")}
         data-testid="not-found-login-link"
         className="text-sm font-medium text-primary hover:text-primary/80"
       >

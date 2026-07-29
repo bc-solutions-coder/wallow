@@ -1,5 +1,6 @@
 import { Button, Card, Checkbox, ErrorBanner } from "@bc-solutions-coder/ui";
 import { useId, useState, type ReactNode } from "react";
+import { BASE_PATH, toAppHref } from "../../../lib/base-path";
 
 /**
  * The AcceptTerms screen (Wallow-vec7.3.10).
@@ -71,10 +72,14 @@ const COMPLETE_REGISTRATION_PATH = "/v1/identity/auth/complete-external-registra
  * endpoint would bounce them to `/login?error=session_expired`. It would also
  * reintroduce an `ApiBaseUrl` knob this app deliberately lacks:
  * `WALLOW_API_INTERNAL_URL` is a SERVER-side address the browser cannot resolve
- * at all. Named rather than inlined so the `""` reads as a decision rather than a
- * forgotten argument.
+ * at all. Named rather than inlined so the empty default reads as a decision
+ * rather than a forgotten argument.
+ *
+ * It is the BASE PATH and not the empty string because under a based build this
+ * app's passthrough answers under that prefix, and the site root belongs to a
+ * different app entirely.
  */
-const SAME_ORIGIN = "";
+const SAME_ORIGIN_BASE: string = BASE_PATH;
 
 /** The oracle's `_ =>` arm. */
 const GENERIC_ERROR_MESSAGE = "An error occurred. Please try again.";
@@ -197,14 +202,14 @@ function ConsentBoxes(props: {
         testId="accept-terms-checkbox"
         checked={termsAccepted}
         onChange={onTermsChange}
-        href="/terms"
+        href={toAppHref("/terms")}
         documentName="Terms of Service"
       />
       <ConsentCheckbox
         testId="accept-terms-privacy-checkbox"
         checked={privacyAccepted}
         onChange={onPrivacyChange}
-        href="/privacy"
+        href={toAppHref("/privacy")}
         documentName="Privacy Policy"
       />
     </div>
@@ -286,7 +291,7 @@ export function AcceptTermsScreen({
     // top-level navigation for the browser to attach the SameSite=Lax
     // ExternalLoginState cookie the endpoint needs (bd memory
     // `full-navigation-seam-for-wallow-auth-screens-that`).
-    globalThis.location.href = `${SAME_ORIGIN}${COMPLETE_REGISTRATION_PATH}?acceptedTerms=true&returnUrl=${encodedReturnUrl}${clientIdParam}`;
+    globalThis.location.href = `${SAME_ORIGIN_BASE}${COMPLETE_REGISTRATION_PATH}?acceptedTerms=true&returnUrl=${encodedReturnUrl}${clientIdParam}`;
   };
 
   return (
@@ -333,7 +338,7 @@ export function AcceptTermsScreen({
       */}
       <p className="text-center text-sm text-muted-foreground">
         Changed your mind?{" "}
-        <a href="/login" className="text-primary underline-offset-4 hover:underline">
+        <a href={toAppHref("/login")} className="text-primary underline-offset-4 hover:underline">
           Back to sign in
         </a>
       </p>

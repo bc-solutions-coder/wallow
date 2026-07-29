@@ -16,6 +16,7 @@ import {
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
+import { BASE_PATH, toAppHref } from "../../../lib/base-path";
 
 /**
  * The Register screen (Wallow-vec7.3.8).
@@ -86,8 +87,11 @@ import { type ReactNode, useState } from "react";
  * the ROOT, so this origin hosts them and the origin is `""`.
  */
 
-/** This app's own origin — see the origin note above. */
-const SAME_ORIGIN = "";
+/**
+ * This app's own origin, plus the base path it is served under — see the origin
+ * note above.
+ */
+const SAME_ORIGIN_BASE: string = BASE_PATH;
 
 /** The bail target for an unsafe returnUrl, matching the sibling ports. */
 const ERROR_HREF = "/error?reason=invalid_redirect_uri";
@@ -247,7 +251,7 @@ function externalLoginUrl(provider: string): string {
   const returnUrl = `${globalThis.location.pathname}${globalThis.location.search}`;
 
   return (
-    `${SAME_ORIGIN}/v1/identity/auth/external-login` +
+    `${SAME_ORIGIN_BASE}/v1/identity/auth/external-login` +
     `?provider=${encodeURIComponent(provider)}` +
     `&returnUrl=${encodeURIComponent(returnUrl)}`
   );
@@ -554,7 +558,7 @@ function RegisterFields(props: {
           id="termsAccepted"
           testId="register-terms"
           checked={props.termsAccepted}
-          href="/terms"
+          href={toAppHref("/terms")}
           linkText="Terms of Service"
           onChange={props.onTermsChange}
         />
@@ -562,7 +566,7 @@ function RegisterFields(props: {
           id="privacyAccepted"
           testId="register-privacy"
           checked={props.privacyAccepted}
-          href="/privacy"
+          href={toAppHref("/privacy")}
           linkText="Privacy Policy"
           onChange={props.onPrivacyChange}
         />

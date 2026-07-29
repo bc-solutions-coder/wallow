@@ -1,5 +1,7 @@
 import { isSafeReturnUrl } from "@bc-solutions-coder/sdk";
 
+import { toAppHref } from "../../lib/base-path";
+
 /**
  * Build the "go to sign in" link both verify-email screens end on, forwarding
  * `returnUrl` into the login page only when the open-redirect guard accepts it.
@@ -42,10 +44,15 @@ export function signInHref(returnUrl: string | undefined): string {
   // itself) and is kept only to narrow `returnUrl` to `string` for the template
   // below without a cast — the guard returns a boolean, not a type predicate.
   if (returnUrl === undefined || !isSafeReturnUrl(returnUrl)) {
-    return "/login";
+    return toAppHref("/login");
   }
 
   // `Uri.EscapeDataString` parity: the value becomes ONE query parameter. An
   // unencoded `&` would forge extra parameters onto the login page.
-  return `/login?returnUrl=${encodeURIComponent(returnUrl)}`;
+  //
+  // Through `toAppHref` because this is rendered as a raw `<a href>`, which the
+  // router never sees and therefore never rebases; `returnUrl` itself is left
+  // alone, since the login page hands it to `navigate()` and the router applies
+  // the base path on the way out.
+  return toAppHref(`/login?returnUrl=${encodeURIComponent(returnUrl)}`);
 }

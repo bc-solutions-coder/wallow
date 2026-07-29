@@ -11,6 +11,7 @@ import { Button, Card, CardTitle, ErrorBanner, Field, Input, Label } from "@bc-s
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useState } from "react";
+import { BASE_PATH, toAppHref } from "../../../lib/base-path";
 
 /**
  * The MfaChallenge screen (Wallow-vec7.3.6).
@@ -74,8 +75,11 @@ import { type ReactNode, useEffect, useState } from "react";
  * upgrades — the round-trip this screen exists to prove.
  */
 
-/** This app's own origin — see the origin-divergence note above. */
-const SAME_ORIGIN = "";
+/**
+ * This app's own origin, plus the base path it is served under — see the
+ * origin-divergence note above.
+ */
+const SAME_ORIGIN_BASE: string = BASE_PATH;
 
 /** The bail target for an unsafe returnUrl, matching the ConsentScreen port. */
 const ERROR_HREF = "/error?reason=invalid_redirect_uri";
@@ -315,7 +319,7 @@ function ToggleBackupCode(props: {
 function BackToSignIn() {
   return (
     <div className="text-center w-full">
-      <a href="/login" className="text-sm text-muted-foreground hover:text-foreground">
+      <a href={toAppHref("/login")} className="text-sm text-muted-foreground hover:text-foreground">
         Back to sign in
       </a>
     </div>
@@ -481,8 +485,8 @@ export function MfaChallengeForm({ returnUrl, clientId }: MfaChallengeFormProps)
     // asks the exact request it asks today.
     globalThis.location.href =
       scopedClientId === undefined
-        ? buildExchangeTicketUrl(SAME_ORIGIN, ticket, handOff)
-        : buildExchangeTicketUrl(SAME_ORIGIN, ticket, handOff, scopedClientId);
+        ? buildExchangeTicketUrl(SAME_ORIGIN_BASE, ticket, handOff)
+        : buildExchangeTicketUrl(SAME_ORIGIN_BASE, ticket, handOff, scopedClientId);
   };
 
   const handleToggle = (): void => {

@@ -53,6 +53,16 @@ COPY packages/ui packages/ui
 COPY packages/web-shell packages/web-shell
 COPY apps/wallow-auth apps/wallow-auth
 
+# The URL prefix this image serves under, empty by default (root-mounted, the
+# behavior every existing stack expects); a path-based ingress builds with
+# `--build-arg AUTH_BASE_PATH=/auth`. It is a BUILD input and not a runtime ENV
+# because `vite build` bakes it into every emitted asset URL — a container
+# started with a different value would still serve HTML pointing at the prefix it
+# was built with. Vite reads process.env, which sees the ENV and not the ARG, so
+# the promotion below is what actually carries it into the build.
+ARG AUTH_BASE_PATH=""
+ENV AUTH_BASE_PATH=${AUTH_BASE_PATH}
+
 # Build all packages first (`pnpm --filter './packages/*' build` runs them in
 # topological order, so a package is always built before any package that
 # depends on it), then the app. The app's

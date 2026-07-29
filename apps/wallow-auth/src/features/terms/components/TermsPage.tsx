@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { toAppHref } from "../../../lib/base-path";
 
 /**
  * The Terms of Service screen (Wallow-vec7.3.3).
@@ -118,7 +119,7 @@ function BackToRegister() {
   return (
     <div className="px-0 pt-6 pb-8 flex justify-center">
       <a
-        href="/register"
+        href={toAppHref("/register")}
         data-testid="terms-back-button"
         className="block w-full rounded-md border border-border px-3 py-2 text-center text-sm font-medium text-foreground"
       >

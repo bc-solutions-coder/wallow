@@ -5,6 +5,7 @@ import { createRouter as createTanStackRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 import { getGlobalStartContext } from "@tanstack/react-start";
 
+import { BASE_PATH, withBasePath } from "./lib/base-path";
 import { routeTree } from "./routeTree.gen";
 
 /**
@@ -34,7 +35,8 @@ import { routeTree } from "./routeTree.gen";
 export function getRouter() {
   const queryClient: QueryClient = createQueryClient();
   const sdk: WallowSdk =
-    getGlobalStartContext()?.sdk ?? createWallowSdk({ baseUrl: globalThis.location.origin });
+    getGlobalStartContext()?.sdk ??
+    createWallowSdk({ baseUrl: withBasePath(globalThis.location.origin, BASE_PATH) });
 
   const router = createTanStackRouter({
     routeTree,

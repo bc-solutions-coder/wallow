@@ -1,5 +1,6 @@
 import { Card, ErrorBanner } from "@bc-solutions-coder/ui";
 import type { ReactNode } from "react";
+import { toAppHref } from "../../../lib/base-path";
 
 /**
  * The Error screen (Wallow-vec7.3.3).
@@ -83,7 +84,7 @@ function ErrorMessageAlert({ reason }: { readonly reason?: string }) {
 function SignOutLink() {
   return (
     <a
-      href="/logout"
+      href={toAppHref("/logout")}
       data-testid="error-sign-out-link"
       className="text-sm font-medium text-primary hover:text-primary/80"
     >
@@ -98,7 +99,7 @@ function ErrorFooter({ reason }: { readonly reason?: string }) {
     <div className="flex flex-col items-center gap-2 w-full">
       {reason === NOT_A_MEMBER ? <SignOutLink /> : null}
       <a
-        href="/"
+        href={toAppHref("/")}
         data-testid="error-back-link"
         className="text-sm text-muted-foreground hover:text-foreground"
       >

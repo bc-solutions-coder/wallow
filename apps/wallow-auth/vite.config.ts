@@ -4,6 +4,8 @@ import react from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
 
+import { AUTH_BASE_PATH_ENV_KEY, normalizeBasePath, toViteBase } from "./src/lib/base-path";
+
 /**
  * The one Vite config wallow-auth has: `vite dev` serves it and `vite build`
  * emits both environments plus the Nitro server bundle (`.output/server/index.mjs`
@@ -16,14 +18,30 @@ import { defineConfig } from "vite";
  * never claimed.
  *
  * There is deliberately NO `vite: { installDevServerMiddleware }` key. The Start
- * plugin auto-detects a non-runnable SSR environment — which is exactly what
- * `nitro()` installs — and skips its dev middleware; forcing the option on makes
+ * plugin auto-detects a non-runnable SSR environment — which is exactly what the
+ * `nitro` plugin installs — and skips its dev middleware; forcing the option on makes
  * `vite dev` fail to boot.
  */
 /** The port a bare `pnpm dev` lands on — the port every fixture already expects. */
 const DEFAULT_PORT = 3002;
 
+/**
+ * The URL prefix this build is served under, empty by default. It is a BUILD
+ * input and not a runtime one because it is baked into every asset URL below, so
+ * the Dockerfile takes it as an `ARG` promoted to an `ENV` before `pnpm build`.
+ *
+ * It has to be spelled in three places that each want a different shape: Vite's
+ * own `base` (trailing slash), the Start plugin's `router.basepath` (no trailing
+ * slash), and — the one that is easy to miss — nitro's `baseURL`. Vite's `base`
+ * only rewrites the URLs written INTO the HTML; without nitro's `baseURL` the
+ * server keeps serving `.output/public` at the root, so every prefixed script and
+ * stylesheet 404s and the page renders but never hydrates.
+ */
+const BASE_PATH: string = normalizeBasePath(process.env[AUTH_BASE_PATH_ENV_KEY]);
+const VITE_BASE: string = toViteBase(BASE_PATH);
+
 export default defineConfig({
+  base: VITE_BASE,
   server: { port: Number(process.env.PORT ?? DEFAULT_PORT) },
   resolve: {
     alias: [
@@ -60,12 +78,17 @@ export default defineConfig({
   },
   plugins: [
     tanstackStart({
-      // Specs are co-located with the code they cover, so a spec under
-      // `src/routes/` would otherwise be codegen'd in as a route.
-      router: { routeFileIgnorePattern: String.raw`\.(test|spec)\.(ts|tsx)$` },
+      router: {
+        // The plugin derives this from `base` when it is left unset; spelled out
+        // so the router's own basepath cannot silently drift from Vite's.
+        basepath: BASE_PATH === "" ? undefined : BASE_PATH,
+        // Specs are co-located with the code they cover, so a spec under
+        // `src/routes/` would otherwise be codegen'd in as a route.
+        routeFileIgnorePattern: String.raw`\.(test|spec)\.(ts|tsx)$`,
+      },
     }),
     react(),
-    nitro(),
+    nitro({ baseURL: VITE_BASE }),
     ...wallowStyles(),
   ],
 });

@@ -4,6 +4,7 @@ import { Card } from "@bc-solutions-coder/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useRouteContext } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { BASE_PATH, toAppHref } from "../../../lib/base-path";
 
 /**
  * The Logout screen (Wallow-vec7.3.5).
@@ -74,11 +75,12 @@ import type { ReactNode } from "react";
  */
 
 /**
- * The origin the logout URL is built against: this one. See the origin trap above
- * — named rather than inlined so the `""` reads as a decision rather than a
- * forgotten argument.
+ * The same-origin base the logout URL is built against: this app. See the origin
+ * trap above — named rather than inlined so the empty default reads as a decision
+ * rather than a forgotten argument. It carries the base path because under a
+ * based build the passthrough answers under that prefix, not at the site root.
  */
-const SAME_ORIGIN = "";
+const SAME_ORIGIN_BASE: string = BASE_PATH;
 
 /**
  * The oracle's `SignedOut == "true"` — an ordinal string equality, not a boolean
@@ -132,7 +134,7 @@ function CardHeading({ signedOut }: { readonly signedOut: boolean }) {
  * CSRF sink `<img src="/logout">` would otherwise be.
  */
 function ConfirmStep({ postLogoutRedirectUri }: { readonly postLogoutRedirectUri?: string }) {
-  const logoutUrl: string = buildConnectLogoutUrl(SAME_ORIGIN, postLogoutRedirectUri);
+  const logoutUrl: string = buildConnectLogoutUrl(SAME_ORIGIN_BASE, postLogoutRedirectUri);
 
   return (
     <div className="space-y-4">
@@ -186,7 +188,7 @@ function LogoutFooter() {
   return (
     <div className="w-full text-center">
       <a
-        href="/login"
+        href={toAppHref("/login")}
         data-testid="logout-back-link"
         className="text-sm text-muted-foreground hover:text-foreground"
       >

@@ -4,6 +4,7 @@ import { Card, ErrorBanner } from "@bc-solutions-coder/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { useEffect, useMemo, type ReactNode } from "react";
+import { BASE_PATH } from "../../../lib/base-path";
 
 /**
  * The Consent screen (Wallow-vec7.3.4).
@@ -113,11 +114,13 @@ const LOAD_FAILURE_MESSAGE = "Unable to load consent information. Please try aga
 const ERROR_HREF = "/error?reason=invalid_redirect_uri";
 
 /**
- * The origin the consent submit URL is built against: this one. See the origin
- * divergence note above — named rather than inlined so the `""` reads as a
- * decision rather than a forgotten argument.
+ * The same-origin base the consent submit URL is built against: this app. See the
+ * origin divergence note above — named rather than inlined so the empty default
+ * reads as a decision rather than a forgotten argument. It carries the base path
+ * because under a based build the passthrough answers under that prefix, not at
+ * the site root.
  */
-const SAME_ORIGIN = "";
+const SAME_ORIGIN_BASE: string = BASE_PATH;
 
 /**
  * One requested scope, typed structurally against the generated `ScopeInfo`
@@ -343,7 +346,7 @@ export function ConsentScreen({ clientId, returnUrl, scope }: ConsentScreenProps
   const submitConsent = (granted: boolean): void => {
     // A FULL navigation, not `navigate()`: `/connect/authorize` is served by the
     // passthrough reverse proxy, not by the client-side route tree, which would 404 in-app.
-    globalThis.location.href = buildConsentSubmitUrl(SAME_ORIGIN, returnUrl, granted);
+    globalThis.location.href = buildConsentSubmitUrl(SAME_ORIGIN_BASE, returnUrl, granted);
   };
 
   return (

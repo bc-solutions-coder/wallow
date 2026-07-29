@@ -22,6 +22,8 @@ import {
   type ApiPassthrough,
 } from "@bc-solutions-coder/sdk/server/passthrough";
 
+import { BASE_PATH, stripBasePath } from "./base-path";
+
 /**
  * The inbound request as srvx hands it to a Start server route. A WHATWG
  * `Request` has no socket, so the peer address arrives on this extra `ip`
@@ -49,9 +51,29 @@ let passthrough: ApiPassthrough | undefined;
  * check and then reads a private field that does not exist. Mutating is also
  * safe — the passthrough copies the headers before touching them, and the
  * request object is per-request and dead once this returns.
+ *
+ * @param request The inbound request, as srvx hands it to the server route.
+ * @param basePath The URL prefix this app is served under, which must be removed
+ *   before the request reaches the SDK: TanStack Start rebases the pathname it
+ *   MATCHES against the route tree but passes the handler the original request,
+ *   and the upstream API knows nothing about the prefix. Defaults to this
+ *   build's {@link BASE_PATH}; the routes never pass it.
  */
-export function handleApiPassthrough(request: PeerRequest): Promise<Response> {
+export function handleApiPassthrough(
+  request: PeerRequest,
+  basePath: string = BASE_PATH,
+): Promise<Response> {
   passthrough ??= createApiPassthrough();
+
+  // Rebased in place, for the same reason the client-IP header is set in place:
+  // srvx's request cannot survive undici's copy constructor. `url` is a getter on
+  // `Request.prototype`, so an own data property shadows it.
+  const url: URL = new URL(request.url);
+  const unprefixed: string = stripBasePath(url.pathname, basePath);
+  if (unprefixed !== url.pathname) {
+    url.pathname = unprefixed;
+    Object.defineProperty(request, "url", { value: url.toString(), configurable: true });
+  }
 
   const clientIp: string | undefined = request.ip;
   if (clientIp !== undefined && clientIp !== "") {

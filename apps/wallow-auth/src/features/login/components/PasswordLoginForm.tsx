@@ -5,6 +5,7 @@ import { useRouteContext } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import { BLANK_CREDENTIALS_MESSAGE, loginFailureMessage } from "../auth-result";
 import type { LoginPanelProps } from "../panel";
+import { toAppHref } from "../../../lib/base-path";
 
 /**
  * The PASSWORD tab of the login screen (Wallow-vec7.3.11 / 2.8a), ported from the
@@ -62,7 +63,7 @@ function PasswordLabelRow() {
     <div className="flex items-center justify-between">
       <Label htmlFor="password">Password</Label>
       <a
-        href="/forgot-password"
+        href={toAppHref("/forgot-password")}
         className="text-sm text-muted-foreground hover:text-primary"
         data-testid="login-forgot-password"
       >

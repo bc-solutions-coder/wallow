@@ -1,6 +1,8 @@
 import { createWallowSdk, type WallowSdk } from "@bc-solutions-coder/sdk";
 import { createMiddleware, createStart } from "@tanstack/react-start";
 
+import { BASE_PATH, withBasePath } from "./lib/base-path";
+
 /**
  * The Start instance — global request middleware that mints one SDK per request
  * and hands it down through the start context, which `getRouter()` lifts into
@@ -50,12 +52,14 @@ function resolveInternalOrigin(): string | undefined {
 }
 
 const sdkMiddleware = createMiddleware().server(({ next, request }) => {
-  // The browser-facing origin: this app proxies `/v1/**` at its own root, so the
-  // origin serving the page is also the origin the API is reachable on.
+  // The browser-facing base URL: this app proxies `/v1/**` under its own base
+  // path, so the origin serving the page plus that prefix is where the API is
+  // reachable. Under a based build the bare origin is whatever the ingress
+  // serves at the root — a different app — so the prefix is not optional here.
   const requestOrigin: string = new URL(request.url).origin;
 
   const sdk: WallowSdk = createWallowSdk({
-    baseUrl: requestOrigin,
+    baseUrl: withBasePath(requestOrigin, BASE_PATH),
     internalOrigin: resolveInternalOrigin(),
     cookieHeader: request.headers.get("cookie") ?? undefined,
   });

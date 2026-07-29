@@ -4,6 +4,7 @@ import { accountResetPassword } from "@bc-solutions-coder/sdk";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
+import { toAppHref } from "../../../lib/base-path";
 
 /**
  * The ResetPassword screen (Wallow-vec7.3.2).
@@ -221,7 +222,7 @@ function CardHeading() {
 function BackToSignIn() {
   return (
     <div className="text-center w-full">
-      <a href="/login" className="text-sm text-muted-foreground hover:text-foreground">
+      <a href={toAppHref("/login")} className="text-sm text-muted-foreground hover:text-foreground">
         Back to sign in
       </a>
     </div>

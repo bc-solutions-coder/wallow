@@ -14,6 +14,7 @@ import { ExternalProviders } from "./ExternalProviders";
 import { MagicLinkLoginForm } from "./MagicLinkLoginForm";
 import { OtpLoginForm } from "./OtpLoginForm";
 import { PasswordLoginForm } from "./PasswordLoginForm";
+import { BASE_PATH, toAppHref } from "../../../lib/base-path";
 
 /**
  * The Login screen (Wallow-vec7.3.11 / 2.8a).
@@ -67,8 +68,11 @@ import { PasswordLoginForm } from "./PasswordLoginForm";
  * client router) and not a full page load. Do not re-add `cookieRelay`.
  */
 
-/** This app's own origin — see the origin-divergence note above. */
-const SAME_ORIGIN = "";
+/**
+ * This app's own origin, plus the base path it is served under — see the
+ * origin-divergence note above.
+ */
+const SAME_ORIGIN_BASE: string = BASE_PATH;
 
 /** The oracle's `MfaEnrollmentBanner` description (Shared/MfaEnrollmentBanner.razor). */
 function formatGraceDeadline(deadline: string): string {
@@ -101,7 +105,7 @@ function MfaEnrollmentBanner({ deadline }: { readonly deadline: string }) {
         Your organization requires two-factor authentication. Please set it up before{" "}
         {formatGraceDeadline(deadline)}.
       </p>
-      <a className="inline-block text-sm font-medium text-primary" href="/mfa/enroll">
+      <a className="inline-block text-sm font-medium text-primary" href={toAppHref("/mfa/enroll")}>
         Set up now
       </a>
     </div>
@@ -273,7 +277,10 @@ function registerHref(clientId: string | undefined, returnUrl: string | undefine
     params.push(`returnUrl=${encodeURIComponent(returnUrl)}`);
   }
 
-  return params.length === 0 ? "/register" : `/register?${params.join("&")}`;
+  // Through `toAppHref` because this is rendered as a raw `<a href>` the router
+  // never sees; the `returnUrl` cargo is left alone, since `/register` hands it
+  // to `navigate()` and the router applies the base path itself.
+  return toAppHref(params.length === 0 ? "/register" : `/register?${params.join("&")}`);
 }
 
 /** The oracle's `BbCardFooter` sign-up prompt. */
@@ -369,7 +376,7 @@ export function LoginScreen({
         // A FULL navigation: the exchange endpoint is served by the passthrough reverse
         // proxy, not by the client-side route tree, which would 404 in-app.
         globalThis.location.href = buildExchangeTicketUrl(
-          SAME_ORIGIN,
+          SAME_ORIGIN_BASE,
           outcome.ticket,
           outcome.returnUrl,
         );

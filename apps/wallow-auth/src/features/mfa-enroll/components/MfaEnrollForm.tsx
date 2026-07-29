@@ -11,6 +11,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { QRCodeSVG } from "qrcode.react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { toAppHref } from "../../../lib/base-path";
 
 /**
  * The MfaEnroll screen (Wallow-vec7.3.7).
@@ -118,7 +119,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 const ERROR_HREF = "/error?reason=invalid_redirect_uri";
 
 /** The oracle's `Sanitize(null)` fallback for a user who arrived without one. */
-const HOME_HREF = "/";
+const HOME_HREF: string = toAppHref("/");
 
 /** The oracle's `IsNullOrWhiteSpace(_code)` guard. */
 const BLANK_CODE_MESSAGE = "Please enter the verification code.";

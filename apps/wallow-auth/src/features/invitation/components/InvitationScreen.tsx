@@ -5,6 +5,7 @@ import { Card, ErrorBanner } from "@bc-solutions-coder/ui";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouteContext } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { toAppHref } from "../../../lib/base-path";
 
 /**
  * The InvitationLanding screen (Wallow-vec7.3.9).
@@ -103,7 +104,7 @@ const EXPIRED_MESSAGE =
  * The oracle's `NavigateTo("/", forceLoad: true)` target, and the decline link's
  * `Href="/"`.
  */
-const HOME_HREF = "/";
+const HOME_HREF: string = toAppHref("/");
 
 /** The way out of the error state (InvitationLanding.razor:32-34). */
 const SIGN_IN_HREF = "/login";
@@ -192,12 +193,18 @@ function registerHref(email: string, token: string): string {
   // (Wallow-vec7.3.8).
   // Kept because it is the oracle's link contract and a `/register` that prefills
   // the invited address is a plausible follow-up — not because it prefills today.
-  return `/register?email=${encodeURIComponent(email)}&returnUrl=${encodeURIComponent(selfReturnUrl(token))}`;
+  // Both links go through `toAppHref` because they render as raw `<a href>`s the
+  // router never sees. `selfReturnUrl` stays unprefixed on purpose: it is cargo
+  // the destination screen replays through `navigate()`, which applies the base
+  // path itself, so prefixing it here would double it.
+  return toAppHref(
+    `/register?email=${encodeURIComponent(email)}&returnUrl=${encodeURIComponent(selfReturnUrl(token))}`,
+  );
 }
 
 /** The oracle's `GetLoginUrl()` (InvitationLanding.razor:203-207). */
 function loginHref(token: string): string {
-  return `/login?returnUrl=${encodeURIComponent(selfReturnUrl(token))}`;
+  return toAppHref(`/login?returnUrl=${encodeURIComponent(selfReturnUrl(token))}`);
 }
 
 /** The oracle's `BbCardHeader`. */
