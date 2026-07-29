@@ -61,10 +61,12 @@ public static class IdentityInfrastructureExtensions
             })
             .AddServer(options =>
             {
-                options.SetAuthorizationEndpointUris("/connect/authorize")
-                    .SetTokenEndpointUris("/connect/token")
-                    .SetEndSessionEndpointUris("/connect/logout")
-                    .SetUserInfoEndpointUris("/connect/userinfo");
+                // Relative, never root-relative — see OpenIddictEndpointUris for why a leading
+                // slash breaks the path-based reverse-proxy topology.
+                options.SetAuthorizationEndpointUris(OpenIddictEndpointUris.Authorization)
+                    .SetTokenEndpointUris(OpenIddictEndpointUris.Token)
+                    .SetEndSessionEndpointUris(OpenIddictEndpointUris.EndSession)
+                    .SetUserInfoEndpointUris(OpenIddictEndpointUris.UserInfo);
 
                 // The browser reaches /connect/** through the unified auth origin's reverse
                 // proxy, so the advertised issuer must be that public origin rather than the
