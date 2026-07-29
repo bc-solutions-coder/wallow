@@ -133,6 +133,11 @@ if [[ -z "${E2E_BASE_URL:-}" ]]; then
   pnpm --filter ./apps/wallow-auth exec playwright install chromium
   log "Building @bc-solutions-coder/sdk for the dev server"
   pnpm --filter @bc-solutions-coder/sdk build
+  # This only reaches a dev server Playwright actually STARTS. Its config sets
+  # `reuseExistingServer`, so an unrelated `pnpm dev` already on the port is
+  # adopted with its own upstream and quietly serves the suite against the dev
+  # API. apps/wallow-auth/e2e/global-setup.ts compares OIDC discovery issuers to
+  # catch exactly that and aborts the run with the offending URLs.
   E2E_ENV+=("WALLOW_API_INTERNAL_URL=$API_URL")
 else
   E2E_ENV+=("E2E_BASE_URL=$E2E_BASE_URL")
