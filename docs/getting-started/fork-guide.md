@@ -253,6 +253,51 @@ the [Integration Cookbook](../integrations/integration-cookbook.md).
 
 ---
 
+## Origins, Issuer, and the Ingress Contract
+
+Rebranding a fork is configuration-only, but **re-hosting** one is not: the moment you change a
+hostname, a port, or a path prefix, you are editing one member of a coupled set. The API, the auth
+app, and every BFF have to agree on which origin is the OIDC issuer, and the OAuth client records
+have to agree on where the browser is allowed to be sent back. Change one and leave the rest and the
+deployment still builds, still boots, and still passes health checks — it just fails at login.
+
+### Change one origin, change all of them
+
+| If you move…              | Also update                                                                                                                                                                                                                    |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **The API's public URL**  | `API_PUBLIC_URL` (production compose feeds it to both `OpenIddict__Issuer` and the web app's `OIDC_ISSUER`), and `API_PATH_BASE` if the prefix changed.                                                                         |
+| **The auth app's origin** | `AUTH_PUBLIC_URL`, the API's `AuthUrl` (`appsettings*.json` — this is the issuer fallback when `OpenIddict:Issuer` is unset), and `AUTH_BASE_PATH` if the prefix changed. `AUTH_BASE_PATH` is a **build** argument, not runtime. |
+| **A frontend's origin**   | That app's `OIDC_REDIRECT_URI` and `OIDC_POST_LOGOUT_REDIRECT_URI`, **and** the URIs registered on its OAuth client — `redirectUris` / `postLogoutRedirectUris` in `api/seed.json` for seeded clients, or the application's settings in the dashboard. |
+| **The parent domain**     | `COOKIE_DOMAIN` (`Authentication__CookieDomain`). It scopes the API's identity cookies, and a leading-dot value widens them to **every** subdomain of that parent, present and future. Set it as narrowly as your topology allows. Values per topology: [Reverse Proxy → Required Configuration](../operations/reverse-proxy.md#2-required-configuration-per-service). |
+
+Prefer deriving these from one variable over setting each by hand — that is why the production
+compose reads `API_PUBLIC_URL` in two places instead of taking two independent inputs. Whether the
+issuer is the API's origin or the auth app's is an environment-by-environment decision, and this
+repository answers it differently in dev, E2E, and production; the table and the reasoning are in
+[The Issuer and Origin Contract](../integrations/bff-pattern.md#the-issuer-and-origin-contract).
+
+### Two contracts a fork must not break silently
+
+Both of these hold regardless of how you rebrand or re-host, and both fail in ways that do not point
+back at the change that caused them.
+
+1. **Your ingress must send `X-Forwarded-Proto: https`.** The reference stack ships a Caddy ingress
+   ([Deployment → Routing Topologies](../operations/deployment.md#2-routing-topologies)), and
+   replacing it is supported — but the replacement inherits this requirement. Without the header the
+   API builds `http://` redirect URIs and discovery documents, `Secure` cookie logic misreads the
+   connection, and server-rendered queries compute a different base URL than the browser does, so
+   hydration re-fetches instead of reusing. Details on the proxy side are in
+   [Reverse Proxy → Forwarded Headers](../operations/reverse-proxy.md#4-forwarded-headers); the
+   frontend consequences are in
+   [What the BFF requires from your ingress](../integrations/bff-pattern.md#what-the-bff-requires-from-your-ingress).
+2. **The OIDC callback must stay a top-level GET redirect.** The login-transaction cookie holding
+   the PKCE verifier, `state`, and `nonce` is written `SameSite=Lax`, which survives a top-level
+   navigation and nothing else. Switching to `response_mode=form_post`, or running the flow in an
+   iframe, means the cookie is never sent and every callback 400s. See
+   [The Callback Must Stay a Top-Level GET Redirect](../integrations/bff-pattern.md#the-callback-must-stay-a-top-level-get-redirect).
+
+---
+
 ## Data Protection (GDPR)
 
 If you operate a fork that processes personal data of EU residents, you are the **data controller**. Key responsibilities:

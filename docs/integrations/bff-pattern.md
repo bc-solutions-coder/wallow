@@ -78,6 +78,109 @@ The BFF must be a server-side process (Node.js, ASP.NET Core, or similar). It ca
 
 ---
 
+## The Issuer and Origin Contract
+
+A BFF configuration names **three different URLs for the same Wallow deployment**, and they are
+not interchangeable. Getting the split wrong is the most common way a fork builds, boots, and
+then fails at login.
+
+| Setting             | Who resolves it    | What it must be                                                                                                                                                                                                                                                                                                  |
+| ------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `OIDC_ISSUER`       | The **browser**    | The public origin the browser is redirected to for `/connect/authorize` and `/connect/logout`. It must match the issuer the API advertises, character for character, path prefix included.                                                                                                                        |
+| `OIDC_METADATA_URL` | The **BFF server** | Where the server fetches the discovery document. Defaults to `${OIDC_ISSUER}/.well-known/openid-configuration`. Set it explicitly whenever the server reaches the API under a different name than the browser does — a container network, split-horizon DNS, or to avoid hairpinning back out through the ingress. |
+| `BFF_API_BASE_URL`  | The **BFF server** | The upstream the `/api` proxy forwards to. In every deployed topology this is a container-internal address, never the public one.                                                                                                                                                                                 |
+
+Those are the SDK's concrete variable names. In the hand-rolled walkthrough below they appear as
+`WALLOW_AUTH_URL` (the browser-facing origin the user is redirected to) and `WALLOW_API_URL` (the
+backchannel base for token and userinfo calls). The distinction that matters is not the naming, it
+is **which side of the connection resolves the URL** — a browser-facing origin and a
+server-reachable one are frequently not the same string.
+
+The server uses the discovery document's `token_endpoint` and `userinfo_endpoint` verbatim —
+those are backchannel calls that never leave the server. It **re-bases** the browser-facing
+`authorization_endpoint` and `end_session_endpoint` onto `OIDC_ISSUER`, preserving the issuer's
+path prefix. That re-basing is what lets the browser and the server reach one OP under two
+different names.
+
+### The issuer differs per environment
+
+Wallow's own three environments each answer "what is the issuer" differently, and none of them is
+wrong. A fork inherits this shape, so it is worth knowing which one you are copying:
+
+| Environment                                          | `OIDC_ISSUER` (browser-facing)                     | `OIDC_METADATA_URL` (server-reachable)                          | Why it is what it is                                                                                                                                                                                                                                     |
+| ---------------------------------------------------- | -------------------------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Local Aspire dev** (`pnpm backend`)                | `http://localhost:3002` — the **auth app's** origin | `http://localhost:5001/.well-known/openid-configuration`         | In development the API advertises the auth app as its issuer (`AuthUrl` in `appsettings.Development.json`), because the auth app same-origin-proxies `/connect/*` and `/.well-known/*` through to the API. Discovery goes straight to the API to save a proxy hop. |
+| **Containerised E2E** (`docker/docker-compose.test.yml`) | `http://localhost:5050` — the **API's** origin      | `http://host.docker.internal:5050/.well-known/openid-configuration` | That stack pins `OpenIddict__Issuer` to the API's published port, so the issuer is the API itself rather than the auth app. Inside the BFF container `localhost` is the container, not the host, so discovery has to go through `host.docker.internal` instead.                    |
+| **Production compose** (path-based, the default)     | `https://wallow.dev/api` — one public host **with a path prefix** | `http://wallow-api:8080/.well-known/openid-configuration`         | Everything sits behind one ingress hostname, so the issuer carries the `/api` prefix. Discovery travels over the container network, which is why it needs no TLS and no path prefix.                                                                        |
+
+Two things follow from that table:
+
+- **The issuer is not always the same service.** The API decides what it advertises: an explicit
+  `OpenIddict:Issuer` (env-var form `OpenIddict__Issuer`) wins, otherwise it falls back to
+  `AuthUrl`. Whatever the API ends up advertising, the BFF's `OIDC_ISSUER` must equal it.
+- **The issuer may carry a path.** In the path-based production topology it is
+  `https://wallow.dev/api`, not `https://wallow.dev`. Every browser-facing endpoint is re-based
+  onto that prefix, so a fork that drops the path silently sends users to `/connect/authorize` on
+  the web app's origin, where nothing serves it.
+
+### What breaks when one origin moves
+
+These URLs are a coupled set. Changing one without the others produces failures that look
+unrelated to the change:
+
+| You changed                                                                 | What actually breaks                                                                                                                    | How it shows up                                                                                                                       |
+| --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| The auth app's host or port, but not the API's `AuthUrl` / `OpenIddict__Issuer` | The API keeps advertising — and keeps minting `iss` claims for — the old origin, so no value of `OIDC_ISSUER` is correct.              | Point the BFF at the new origin and the callback rejects the `id_token`, whose `iss` no longer matches the discovered issuer; leave it at the old one and the browser is redirected to a host that no longer answers. |
+| `OIDC_ISSUER` on the BFF only                                                | The browser-facing authorize and end-session URLs are re-based onto an origin that serves neither.                                       | A 404 or connection error at authorize, before the user sees a login form — or, if `OIDC_METADATA_URL` was left to default off `OIDC_ISSUER`, a discovery failure at boot instead. |
+| The API's public URL, but not `OIDC_ISSUER` on every consuming app          | Each app disagrees with the API about who the issuer is.                                                                                | Some apps log in and others 404 at authorize, depending on which you updated.                                                          |
+| The BFF app's own origin (its port, hostname, or path prefix)                | `OIDC_REDIRECT_URI` and `OIDC_POST_LOGOUT_REDIRECT_URI` no longer match the URIs registered on the client record.                        | `invalid_request` at authorize (redirect URI mismatch), or logout landing on an error instead of the post-logout page.                |
+| Only the runtime env, not the registered client                             | The registered redirect URIs live on the OAuth client — in `api/seed.json` for seeded clients, or in the dashboard for ones you registered. | Same as above; re-seed or edit the application to add the new URIs.                                                                     |
+| The public origin, in a topology where a browser calls the API cross-origin  | `Cors__AllowedOrigins` still lists the old origin.                                                                                      | CORS preflight failures on direct browser-to-API calls. Same-origin topologies, where everything goes through the BFF proxy, are unaffected. |
+
+The one reliable way to keep them in step is to derive them from a single variable. The production
+compose does exactly that: `API_PUBLIC_URL` feeds both the API's `OpenIddict__Issuer` and the web
+app's `OIDC_ISSUER`, so they cannot drift apart.
+
+### Identity cookie scope
+
+The API scopes its own auth cookies with `Authentication__CookieDomain`. Under path-based routing
+it is the bare host; under subdomain routing it is a leading-dot parent domain, which **widens the
+cookie to every subdomain of that parent** — including any host a fork later adds under the same
+parent. Set it as narrowly as your topology allows, and never point it at a domain you share with
+untrusted hosts. The exact values per topology are in the
+[Reverse Proxy guide](../operations/reverse-proxy.md#2-required-configuration-per-service).
+
+This is separate from the BFF's own session cookie, which is host-only by design: the BFF sets no
+`Domain` attribute, so a sibling subdomain cannot clobber it.
+
+### What the BFF requires from your ingress
+
+The BFF and the API both run behind a TLS-terminating proxy in production, speaking plain HTTP
+inside the network. Replacing the reference Caddy ingress with your own is fully supported, but the
+replacement inherits a hard contract: **it must send `X-Forwarded-Proto: https` (and
+`X-Forwarded-Host`) on every proxied request.** The API side of that requirement — including
+`ASPNETCORE_FORWARDEDHEADERS_ENABLED` — is covered in
+[Reverse Proxy → Forwarded Headers](../operations/reverse-proxy.md#4-forwarded-headers). Two
+consequences land specifically on the BFF:
+
+- **The SSR base URL is derived from the incoming request's scheme.** Server-rendered loaders
+  build their base URL from `X-Forwarded-Proto` when present, falling back to the request's own
+  protocol. Without the header, SSR computes an `http://` base URL while the browser computes
+  `https://`. Both work, but they produce *different* query keys — generated keys embed the base
+  URL — so every server-rendered query is re-fetched on hydration instead of being reused.
+- **The API's cookie `Secure` flags and redirect URIs depend on it too.** With the header absent,
+  the API reconstructs the request as plain HTTP and emits `http://` redirect URIs and discovery
+  metadata. The BFF's own session and transaction cookies are not derived from the request — they
+  follow the explicit `COOKIE_SECURE` setting, which exists as `false` only for plain-HTTP local
+  development (Safari refuses `Secure` cookies over HTTP on `localhost`, which would otherwise
+  break the callback). Leave it at its secure default in any TLS deployment.
+
+Terminating TLS at the proxy without forwarding the scheme is the failure mode to watch for: every
+service still answers, so nothing looks broken, and the damage is confined to redirect URLs, cookie
+flags, and cache reuse.
+
+---
+
 ## Authorization Code Flow
 
 ### Step 1 — Initiate Login
@@ -278,6 +381,27 @@ Always issue session cookies with:
 ### State Parameter
 
 Always validate that the `state` returned in the callback matches what you sent. This is your primary CSRF defense for the authorization flow itself.
+
+### The Callback Must Stay a Top-Level GET Redirect
+
+The authorization request deliberately sends no `response_mode` parameter, so the flow uses the
+default for `response_type=code`: the authorization server returns the code in the **query string
+of a top-level GET redirect** back to the callback URL. Do not "upgrade" this to
+`response_mode=form_post`, and do not run the flow inside an iframe.
+
+The reason is the login-transaction cookie. Between the authorize redirect and the callback, the
+BFF stores the PKCE `code_verifier`, the `state`, and the `nonce` in a short-lived sealed cookie
+(ten minutes) written with `SameSite=Lax`. `Lax` is what makes that cookie survive the round trip:
+it is sent on **top-level navigations**, which is exactly what a 302 back to the callback is.
+
+Switch to `form_post` and the callback becomes a cross-site `POST` instead. A `SameSite=Lax` cookie
+is not sent on a cross-site POST, so the transaction cookie never arrives, and the callback fails
+with a 400 — every time, for every user, with nothing in the request that obviously explains it.
+The same applies to an iframed flow: the request is no longer top-level, so the cookie is withheld.
+
+If a fork genuinely needs `form_post`, the transaction cookie has to move to `SameSite=None; Secure`
+first, which weakens the CSRF posture that `Lax` provides for free. Changing the response mode alone
+does not work.
 
 ### Valkey Key Management
 
@@ -689,3 +813,6 @@ All `/connect/*` endpoints are served by the OpenIddict middleware. When Wallow 
 | Consent screen appears on every login | Application not granted `offline_access` or user previously denied  | Ensure `offline_access` is in the requested scopes and the user approves |
 | Session cookie not sent to BFF        | `SameSite=Strict` blocking cross-site redirect                      | The BFF and the callback URL must be on the same origin as your frontend |
 | Redirect URI mismatch                 | Registered URI does not exactly match `redirect_uri` in the request | Update the registered redirect URI in the Wallow dashboard to match      |
+| Authorize URL 404s before the login form appears | Issuer origin (or its path prefix) does not match what the API advertises | See [The Issuer and Origin Contract](#the-issuer-and-origin-contract)   |
+| Callback always 400s, no session is created | Login-transaction cookie was not returned — usually a `form_post` response mode or an iframed flow | Keep the callback a top-level GET redirect; see [The Callback Must Stay a Top-Level GET Redirect](#the-callback-must-stay-a-top-level-get-redirect) |
+| Redirect URIs come back `http://` behind an HTTPS proxy | Ingress is not sending `X-Forwarded-Proto: https` | See [What the BFF requires from your ingress](#what-the-bff-requires-from-your-ingress) |
