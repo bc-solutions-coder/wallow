@@ -1,6 +1,8 @@
 import { createWallowSdk, type WallowSdk } from "@bc-solutions-coder/sdk";
 import { createMiddleware, createStart } from "@tanstack/react-start";
 
+import { resolveRequestOrigin } from "./lib/request-origin";
+
 /**
  * The Start instance — global request middleware that mints one SDK per request
  * and hands it down through the start context, which `getRouter()` lifts into
@@ -28,8 +30,10 @@ function normalizeOrigin(value: string): string {
 
 const sdkMiddleware = createMiddleware().server(({ next, request }) => {
   // The browser-facing origin: this app proxies `/v1/**` at its own root, so the
-  // origin serving the page is also the origin the API is reachable on.
-  const requestOrigin: string = new URL(request.url).origin;
+  // origin serving the page is also the origin the API is reachable on. Resolved
+  // through the helper so an HTTPS-terminating ingress does not leave the SSR
+  // pass building `http` query keys the hydrating browser never matches.
+  const requestOrigin: string = resolveRequestOrigin(request);
   const override: string | undefined = process.env[INTERNAL_ORIGIN_ENV_KEY];
 
   const sdk: WallowSdk = createWallowSdk({

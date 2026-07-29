@@ -2,6 +2,7 @@ import { createWallowSdk, type WallowSdk } from "@bc-solutions-coder/sdk";
 import { createMiddleware, createStart } from "@tanstack/react-start";
 
 import { BASE_PATH, withBasePath } from "./lib/base-path";
+import { resolveRequestOrigin } from "./lib/request-origin";
 
 /**
  * The Start instance — global request middleware that mints one SDK per request
@@ -56,7 +57,9 @@ const sdkMiddleware = createMiddleware().server(({ next, request }) => {
   // path, so the origin serving the page plus that prefix is where the API is
   // reachable. Under a based build the bare origin is whatever the ingress
   // serves at the root — a different app — so the prefix is not optional here.
-  const requestOrigin: string = new URL(request.url).origin;
+  // Resolved through the helper so an HTTPS-terminating ingress does not leave
+  // the SSR pass building `http` query keys the hydrating browser never matches.
+  const requestOrigin: string = resolveRequestOrigin(request);
 
   const sdk: WallowSdk = createWallowSdk({
     baseUrl: withBasePath(requestOrigin, BASE_PATH),

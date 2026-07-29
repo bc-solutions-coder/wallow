@@ -1,6 +1,8 @@
 import { createWallowSdk, type WallowSdk } from "@bc-solutions-coder/sdk";
 import { createMiddleware, createStart } from "@tanstack/react-start";
 
+import { resolveRequestOrigin } from "./lib/request-origin";
+
 /**
  * The Start instance — global request middleware that mints one SDK per request
  * and hands it down through the start context, which `getRouter()` lifts into
@@ -61,7 +63,9 @@ function resolveInternalOrigin(): string | undefined {
 const sdkMiddleware = createMiddleware().server(({ next, request }) => {
   // The browser-facing origin: this app answers its own BFF surface, so the
   // origin serving the page is also the origin the API proxy is reachable on.
-  const requestOrigin: string = new URL(request.url).origin;
+  // Resolved through the helper so an HTTPS-terminating ingress does not leave
+  // the SSR pass building `http` query keys the hydrating browser never matches.
+  const requestOrigin: string = resolveRequestOrigin(request);
   const internalOrigin: string | undefined = resolveInternalOrigin();
   const cookieHeader: string | undefined = request.headers.get("cookie") ?? undefined;
 
