@@ -76,9 +76,21 @@ async function connectRedisClient(): Promise<NodeRedisClient | undefined> {
   return adaptRedisClient(redisClient);
 }
 
-/** Build the BFF server, connecting the session store first when one is configured. */
+/**
+ * Build the BFF server, connecting the session store first when one is configured.
+ *
+ * The choice is logged because the fallback is otherwise silent: an unset
+ * `REDIS_URL` degrades to stateless cookie sessions with no error, so a
+ * deployment that meant to have server-side sessions (and real logout
+ * revocation) looks identical at boot to one that did not.
+ */
 async function buildBffServer(): Promise<WallowBffServer> {
   const redisClient: NodeRedisClient | undefined = await connectRedisClient();
+  console.info(
+    redisClient === undefined
+      ? "BFF session store: cookie (stateless) — REDIS_URL is unset"
+      : "BFF session store: redis/valkey (server-side)",
+  );
   return createWallowBffServer(redisClient === undefined ? {} : { redisClient });
 }
 

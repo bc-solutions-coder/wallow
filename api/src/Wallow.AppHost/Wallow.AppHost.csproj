@@ -8,7 +8,10 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>Wallow.AppHost</RootNamespace>
     <!-- Transitive KubernetesClient vulnerability from Aspire.Hosting; not exploitable in dev orchestrator -->
-    <NoWarn>$(NoWarn);NU1902;NU1903;NU1904</NoWarn>
+    <!-- ASPIRECERTIFICATES001: WithoutHttpsCertificate is still evaluation-only. It is the only
+         supported way to turn off Aspire's default TLS on the Valkey endpoint, which the Node
+         BFF cannot use because Aspire configures no certificate trust for JavaScript apps. -->
+    <NoWarn>$(NoWarn);NU1902;NU1903;NU1904;ASPIRECERTIFICATES001</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

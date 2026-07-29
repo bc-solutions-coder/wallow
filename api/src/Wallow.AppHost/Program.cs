@@ -8,7 +8,13 @@ string wallowWebDir = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, ".
 // Infrastructure
 IResourceBuilder<PostgresDatabaseResource> postgres = builder.AddPostgres("postgres")
     .AddDatabase("wallow");
-IResourceBuilder<RedisResource> valkey = builder.AddRedis("valkey");
+// Aspire terminates the Redis endpoint with TLS and its own developer certificate by default.
+// It configures certificate trust for .NET and container resources, but not for JavaScript app
+// resources (it never sets NODE_EXTRA_CA_CERTS), so node-redis in wallow-web cannot verify that
+// certificate and a rediss:// URL fails with "self-signed certificate". Plain TCP here is what
+// both compose stacks already run.
+IResourceBuilder<RedisResource> valkey = builder.AddRedis("valkey")
+    .WithoutHttpsCertificate();
 
 // S3-compatible object storage (built from docker/images/garage/Dockerfile: Alpine + garage
 // binary + entrypoint that renders garage.toml from env). Credentials must match
@@ -93,6 +99,11 @@ builder.AddJavaScriptApp("wallow-web", wallowWebDir, "dev")
     // allow them), so the BFF's login-transaction cookie never survives the redirect and
     // every /bff/callback fails with a 400. Local dev is plain HTTP, so drop the flag here.
     .WithEnvironment("COOKIE_SECURE", "false")
+    // The BFF picks the Valkey session store only when REDIS_URL is set. WithReference above
+    // injects ConnectionStrings__Redis instead, which the Node host never reads, so without
+    // this the store silently degrades to stateless cookie sessions here while both compose
+    // stacks use Valkey. UriExpression renders redis://[:{password}@]{host}:{port}.
+    .WithEnvironment("REDIS_URL", valkey.Resource.UriExpression)
     .WaitFor(api)
     .WaitFor(valkey);
 
