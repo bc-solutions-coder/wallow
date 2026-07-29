@@ -39,6 +39,10 @@ const extraBrowserOptimizeDeps: string[] = [
   "@tanstack/react-form",
   "zustand",
   "lucide-react",
+  // Arrives with @bc-solutions-coder/forms: a migrated form imports it for its
+  // schema, and it is the schema module — not the form package — that the
+  // scanner misses on the first pass. Every form this app migrates needs it.
+  "zod",
   // The catalog components wallow-web mounts reach Base UI through per-component
   // SUBPATHS, and Vite pre-bundles a subpath only when it is named — the package
   // root does not cover them.

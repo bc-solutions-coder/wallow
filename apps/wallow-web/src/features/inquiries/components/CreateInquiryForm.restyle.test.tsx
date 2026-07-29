@@ -24,8 +24,11 @@ import { CreateInquiryForm } from "./CreateInquiryForm";
  * Two things the restyle owns here:
  *   1. The bare `select`/`textarea` controls carry no classes at all today, so
  *      they render as unstyled browser widgets next to the token-styled `ui`
- *      `Input`s. They adopt the SAME recipe `ui/input.tsx` uses, plus the focus
- *      ring the old Blazor form had (mapped from `ring-[#d4a017]` to `ring-ring`).
+ *      `Input`s. They adopt the SAME recipe `ui/input.tsx` uses. (Both controls
+ *      have since become catalog components — the selects in Wallow-m5aq.5.3,
+ *      the textarea in Wallow-ov6w.4.3 — so each assertion below has been
+ *      narrowed to the OVERLAP this restyle promised, leaving the recipe's own
+ *      additions to the component. See the `CONTROL` note.)
  *   2. The success state grows into the recipe's centered card — pig emoji and
  *      all — but keeps its existing sentence VERBATIM as the card heading, the
  *      rule `.4.1` set with `AppList`'s empty state. A restyle adds chrome; it
@@ -37,12 +40,34 @@ import { CreateInquiryForm } from "./CreateInquiryForm";
  */
 
 /**
- * The shared control recipe — `ui/input.tsx`'s measured string plus the Blazor
- * form's focus ring. Kept local to this spec rather than pushed into
- * `src/test/style-contract.ts`, which is shared with the sibling Phase 4 tasks.
+ * The shared control recipe — `ui/input.tsx`'s measured string. Kept local to
+ * this spec rather than pushed into `src/test/style-contract.ts`, which is
+ * shared with the sibling Phase 4 tasks.
+ *
+ * NARROWED IN Wallow-ov6w.4.3, exactly as the select assertion below already
+ * was: the three focus utilities this constant used to carry
+ * (`focus:outline-none focus:ring-2 focus:ring-ring`) described the HAND-ROLLED
+ * control this restyle wrote, not the shared look it promised. The message
+ * textarea is now the catalog `Textarea`, whose recipe is `inputRecipe`'s string
+ * verbatim — the compat guarantee `packages/ui` states in
+ * `textarea.styles.ts`/`textarea.test.tsx` and asserts as an EXACT class set, so
+ * a focus ring cannot be added to one control without moving the other. Keeping
+ * the pin would have demanded that the multi-line control alone carry a ring the
+ * four `Input`s beside it in this very form have never had, using a `focus:`
+ * variant the catalog deliberately does not use (its own convention, in
+ * `menubar`/`toolbar`/`scroll-area`, is `outline-none focus-visible:ring-2
+ * focus-visible:ring-ring`). Dropping `focus:outline-none` also RESTORES the
+ * browser's native focus outline, so the control stays visibly focusable. An
+ * explicit, catalog-wide focus treatment for `Input` + `Textarea` is a real
+ * improvement, but it belongs to `packages/ui` and to both recipes at once —
+ * not to a form migration.
+ *
+ * What replaces the dropped pin: `CreateInquiryForm.forms.test.tsx` asserts the
+ * textarea carries `min-h-20` / `resize-y`, the two utilities only the catalog
+ * recipe adds, so the control cannot silently go back to a hand-copied string.
  */
 const CONTROL =
-  "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring";
+  "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground";
 
 /** Every field filled with a valid value, so submit reaches the success state. */
 const FILLERS: readonly (() => Promise<void>)[] = [

@@ -15,6 +15,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@bc-solutions-coder/forms": "workspace:*",
     "@bc-solutions-coder/sdk": "workspace:*",
     "@bc-solutions-coder/styles": "workspace:*",
     "@bc-solutions-coder/testing": "workspace:*",
@@ -29,6 +30,7 @@
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "redis": "^4.7.0",
+    "zod": "^4.4.3",
     "zustand": "^5.0.8"
   },
   "devDependencies": {

@@ -187,6 +187,9 @@ importers:
 
   apps/wallow-web:
     dependencies:
+      '@bc-solutions-coder/forms':
+        specifier: workspace:*
+        version: link:../../packages/forms
       '@bc-solutions-coder/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
@@ -229,6 +232,9 @@ importers:
       redis:
         specifier: ^4.7.0
         version: 4.7.1
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
       zustand:
         specifier: ^5.0.8
         version: 5.0.14(@types/react@19.2.17)(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7))

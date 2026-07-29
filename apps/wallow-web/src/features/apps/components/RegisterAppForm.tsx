@@ -1,62 +1,53 @@
 /**
- * Register-app form (Wallow-8w1h.5.3) — copies the CANONICAL create-form
- * template (`CreateOrganizationForm`): `useForm` (TanStack Form) + `useMutation(
- * appsRegisterMutation({ client }))`. On top of the template it adds the
- * behaviors unique to app registration:
+ * Register-app form (Wallow-8w1h.5.3, migrated to `@bc-solutions-coder/forms` in
+ * Wallow-ov6w.4.2) — one `useAppForm` call holding the zod schema, the GENERATED
+ * `appsRegisterMutation({ client })` and the success work, rendered through the
+ * shared `AppForm` shell (see `CreateOrganizationForm`, the canonical template).
  *
- *   - Field remap (API request contract):
- *     DisplayName -> clientName, Scopes -> requestedScopes; `clientType`
- *     defaults to "public"; redirect URIs are a newline-separated textarea,
- *     split on `\n` with blank lines dropped.
- *   - Scope multi-select toggle buttons (available: inquiries.read,
- *     inquiries.write, announcements.read, storage.read; default selected:
- *     inquiries.read).
+ * On top of the template it keeps the behaviors unique to app registration:
+ *
+ *   - Field remap (API request contract): `displayName` -> `clientName`,
+ *     `scopes` -> `requestedScopes`; `clientType` defaults to "public"; the two
+ *     redirect-URI lists are newline-separated textareas split on `\n` with
+ *     blank lines dropped. All of it lives in `toVariables`, which is the one
+ *     place the form's values become the request body.
+ *   - Scope multi-select toggle buttons. `forms` has no multi-select-toggle
+ *     field, so `ScopeToggles` stays hand-rolled on the `AppField` render-prop
+ *     escape hatch — still a form field, just not a catalog one.
+ *   - The uncontrolled `BrandingSection`, wired to nothing and therefore a plain
+ *     child of the shell rather than a field.
  *   - The ONE-TIME client secret: `AppRegistrationResponse.clientSecret` comes
  *     back ONLY from the register call (GET /apps and GET /apps/{id} carry no
- *     secret), so it is rendered exactly once — in the post-success view, from
- *     `mutation.data`, never persisted beyond it, never re-fetchable, with a
- *     "Save your client secret now. It will not be shown again." warning.
+ *     secret), so it is rendered exactly once — in the post-success view, never
+ *     persisted beyond it, never re-fetchable, with a "Save your client secret
+ *     now. It will not be shown again." warning. `useAppForm` owns the mutation
+ *     and does not hand the instance back, so the reveal is gated on the
+ *     response captured in `onSuccess` rather than on `mutation.isSuccess`. It
+ *     REPLACES the form: a live form beside a secret that can never be shown
+ *     again would invite a second registration that discards the first secret.
  *
- * Testids follow the apps feature's `app-*` convention: `app-display-name`
- * (input), `app-client-type` (select), `app-redirect-uris` (textarea),
- * `app-scope-{scope-dashed}` (toggle buttons), `app-register-submit` (submit),
- * `app-display-name-error` (required-field validation), `app-register-error`
- * (server RFC 7807 ProblemDetails surface), and the one-time success reveal
- * `app-client-secret` + `app-client-secret-copy` + `app-client-id`.
+ * Testids follow the apps feature's `app-*` convention. `app-register-form`,
+ * `app-register-error` and `app-register-submit` are DERIVED from the shell's
+ * `testIdPrefix`; the four catalog fields predate the convention
+ * (`app-display-name`, not `app-register-display-name`) so each carries an
+ * explicit `testId`, which the catalog also suffixes for its message
+ * (`app-display-name-error`, `app-redirect-uris-error`).
  */
 import {
-  Button,
-  Card,
-  ErrorBanner,
-  Field,
-  Input,
-  Toggle,
-  ToggleGroup,
-} from "@bc-solutions-coder/ui";
-import { useForm } from "@tanstack/react-form";
-import { useMutation, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
+  AppForm,
+  FormError,
+  type SelectFieldOption,
+  SubmitButton,
+  useAppForm,
+} from "@bc-solutions-coder/forms";
+import { Button, Card, Field, Input, Toggle, ToggleGroup } from "@bc-solutions-coder/ui";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouteContext } from "@tanstack/react-router";
-import type {
-  AppRegistrationResponse,
-  AppsRegisterData,
-  AppsRegisterError,
-  Options,
-} from "@bc-solutions-coder/sdk";
+import { useState } from "react";
+import { z } from "zod";
+import type { AppRegistrationResponse } from "@bc-solutions-coder/sdk";
 
-import { SelectControl, type SelectControlOption } from "../../../components/SelectControl";
-import { errorText } from "../../../lib/error-text";
 import { appsRegisterMutation, queriesWithTag } from "../api";
-
-/**
- * What `useMutation(appsRegisterMutation(...))` hands the form body: the
- * generated mutation is typed on the operation, so its variables are the
- * operation's own call options rather than a hand-declared request DTO.
- */
-type RegisterAppMutation = UseMutationResult<
-  AppRegistrationResponse,
-  AppsRegisterError,
-  Options<AppsRegisterData>
->;
 
 /**
  * Scopes a caller may request: the developer-app scopes plus the OIDC login
@@ -75,80 +66,40 @@ const AVAILABLE_SCOPES = [
   "offline_access",
 ] as const;
 
-/**
- * Presentational display-name field, extracted so the form's render-prop tree
- * stays within the repo's JSX nesting budget (the template's convention).
- * `error` is the first validator message (undefined when the field is valid).
- */
-function DisplayNameField(props: {
-  value: string;
-  error: string | undefined;
-  onChange: (value: string) => void;
-}) {
-  const { value, error, onChange } = props;
-  return (
-    <>
-      <Field>
-        <Input
-          data-testid="app-display-name"
-          value={value}
-          onChange={(e) => {
-            onChange(e.target.value);
-          }}
-        />
-      </Field>
-      {error === undefined ? null : (
-        <ErrorBanner data-testid="app-display-name-error">{error}</ErrorBanner>
-      )}
-    </>
-  );
-}
-
-/** The two client types the API accepts, as catalog-`Select` options. */
-const CLIENT_TYPE_OPTIONS: readonly SelectControlOption[] = [
+/** The two client types the API accepts, as catalog-`SelectField` options. */
+const CLIENT_TYPE_OPTIONS: readonly SelectFieldOption[] = [
   { value: "public", label: "Public" },
   { value: "confidential", label: "Confidential" },
 ];
 
-/** Public/confidential client-type select (defaults to "public"). */
-function ClientTypeField(props: { value: string; onChange: (value: string) => void }) {
-  const { value, onChange } = props;
-  return (
-    <SelectControl
-      testId="app-client-type"
-      value={value}
-      options={CLIENT_TYPE_OPTIONS}
-      onChange={onChange}
-    />
-  );
-}
+/**
+ * The required-display-name rule, carried over verbatim from the hand-written
+ * `value.trim() ? undefined : "Display name is required"` validator this form
+ * used before the migration — including its message, which the suites assert.
+ *
+ * `.trim()` is what makes `"   "` fail the `min(1)`. It does NOT trim the value
+ * the submit receives: TanStack's standard-schema adapter reads only the issue
+ * list off a validation result and discards the parsed output, so
+ * `form.state.values` stays raw — which is also what the pre-migration form
+ * posted, so the payload is unchanged.
+ */
+const registerAppSchema = z.object({
+  displayName: z.string().trim().min(1, "Display name is required"),
+  clientType: z.string(),
+  redirectUris: z.string(),
+  postLogoutRedirectUris: z.string(),
+  scopes: z.array(z.string()),
+});
 
-/** Newline-separated redirect-URIs textarea. */
-function RedirectUrisField(props: { value: string; onChange: (value: string) => void }) {
-  const { value, onChange } = props;
-  return (
-    <textarea
-      data-testid="app-redirect-uris"
-      value={value}
-      onChange={(e) => {
-        onChange(e.target.value);
-      }}
-    />
-  );
-}
-
-/** Newline-separated post-logout redirect-URIs textarea. */
-function PostLogoutRedirectUrisField(props: { value: string; onChange: (value: string) => void }) {
-  const { value, onChange } = props;
-  return (
-    <textarea
-      data-testid="app-post-logout-redirect-uris"
-      value={value}
-      onChange={(e) => {
-        onChange(e.target.value);
-      }}
-    />
-  );
+/**
+ * A newline-separated textarea as the API's string array: one URI per line,
+ * trimmed, with blank lines dropped so a trailing newline does not post `""`.
+ */
+function toUriList(value: string): string[] {
+  return value
+    .split("\n")
+    .map((uri) => uri.trim())
+    .filter(Boolean);
 }
 
 /**
@@ -177,7 +128,8 @@ function ScopeToggles(props: { value: string[]; onChange: (value: string[]) => v
  * / logo inputs are reachable in the form view. Testids follow the apps feature's
  * `app-*` convention. Presentational (uncontrolled) per the epic's reachability
  * bar; the live upsert (`clientBrandingUpsertBrandingMutation`) needs the client
- * id the register call returns and is left as a structural seam here.
+ * id the register call returns and is left as a structural seam here. It is
+ * wired to no form field at all, so it rides the shell as a plain child.
  */
 function BrandingSection() {
   return (
@@ -216,120 +168,106 @@ function SuccessView(props: { result: AppRegistrationResponse }) {
 }
 
 export function RegisterAppForm() {
-  const { sdk } = useRouteContext({ from: "__root__" });
-  const queryClient = useQueryClient();
-  const mutation: RegisterAppMutation = useMutation({
-    ...appsRegisterMutation({ client: sdk.client }),
-    onSuccess: (): void => {
-      void queryClient.invalidateQueries(queriesWithTag("Apps"));
-    },
-  });
+  // One-time secret: the registration response lives only here and in the
+  // success view below — never written to the query cache, never re-fetched.
+  // Holding it in the PARENT of the form is what lets the reveal REPLACE the
+  // form instead of appearing beside it.
+  const [registration, setRegistration] = useState<AppRegistrationResponse | null>(null);
 
-  // One-time secret: the returned secret lives only in `mutation.data` and the
-  // success view below — never copied into long-lived component state.
-  if (mutation.isSuccess) {
-    return <SuccessView result={mutation.data} />;
+  if (registration !== null) {
+    return <SuccessView result={registration} />;
   }
 
   return (
     <Card>
-      <RegisterAppFormFields mutation={mutation} />
+      <RegisterAppFormFields onRegistered={setRegistration} />
     </Card>
   );
 }
 
 /**
  * The form body, split out so the `Card` surface stays a shallow wrapper and the
- * `form > form.Field > *Field` chains keep within the repo's JSX nesting budget.
+ * success reveal can unmount the form wholesale.
  */
-function RegisterAppFormFields(props: { mutation: RegisterAppMutation }) {
-  const { mutation } = props;
+function RegisterAppFormFields(props: { onRegistered: (result: AppRegistrationResponse) => void }) {
+  const { onRegistered } = props;
+  const { sdk } = useRouteContext({ from: "__root__" });
+  const queryClient = useQueryClient();
 
-  const form = useForm({
+  const form = useAppForm({
+    schema: registerAppSchema,
     defaultValues: {
       displayName: "",
       clientType: "public",
       redirectUris: "",
       postLogoutRedirectUris: "",
-      scopes: ["inquiries.read"] as string[],
+      scopes: ["inquiries.read"],
     },
-    onSubmit: ({ value }) => {
-      // Fire-and-observe: the mutation captures success/error in its own state
-      // (surfaced below), so we drive it with `mutate` rather than awaiting
-      // `mutateAsync` — a rejected register must NOT escape the submit handler
-      // as an unhandled rejection. The mutation's own `onSuccess` sweeps the
-      // Apps tag.
-      mutation.mutate({
-        body: {
-          clientName: value.displayName,
-          requestedScopes: value.scopes,
-          clientType: value.clientType,
-          redirectUris: value.redirectUris
-            .split("\n")
-            .map((uri) => uri.trim())
-            .filter(Boolean),
-          postLogoutRedirectUris: value.postLogoutRedirectUris
-            .split("\n")
-            .map((uri) => uri.trim())
-            .filter(Boolean),
-        },
-      });
+    // The generated factory goes over WHOLE — `useAppForm` infers its `TError`
+    // (Wallow-ov6w.2.6), so nothing here has to be destructured or cast.
+    mutation: appsRegisterMutation({ client: sdk.client }),
+    // The whole request contract in one place: the field remap the API expects,
+    // and the newline split the two URI textareas carry.
+    toVariables: (values) => ({
+      body: {
+        clientName: values.displayName,
+        requestedScopes: values.scopes,
+        clientType: values.clientType,
+        redirectUris: toUriList(values.redirectUris),
+        postLogoutRedirectUris: toUriList(values.postLogoutRedirectUris),
+      },
+    }),
+    onSuccess: (data) => {
+      // Generated keys are flat, so there is no `['apps']` prefix to invalidate
+      // by — the Apps tag predicate is the sweep.
+      void queryClient.invalidateQueries(queriesWithTag("Apps"));
+      // No `form.reset()` here: this hands the page over to the reveal, which
+      // unmounts the form and its values with it.
+      onRegistered(data);
     },
+    fallbackError: "Could not register the app.",
   });
 
   return (
-    <form
-      data-testid="app-register-form"
-      onSubmit={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        void form.handleSubmit();
-      }}
-    >
-      <form.Field
-        name="displayName"
-        validators={{
-          onSubmit: ({ value }) => (value.trim() ? undefined : "Display name is required"),
-        }}
-      >
+    <AppForm form={form} testIdPrefix="app-register">
+      <form.AppField name="displayName">
+        {(field) => <field.TextField label="Display name" testId="app-display-name" />}
+      </form.AppField>
+
+      <form.AppField name="clientType">
         {(field) => (
-          <DisplayNameField
-            value={field.state.value}
-            error={field.state.meta.errors[0]}
-            onChange={field.handleChange}
+          <field.SelectField
+            label="Client type"
+            testId="app-client-type"
+            options={CLIENT_TYPE_OPTIONS}
           />
         )}
-      </form.Field>
+      </form.AppField>
 
-      <form.Field name="clientType">
-        {(field) => <ClientTypeField value={field.state.value} onChange={field.handleChange} />}
-      </form.Field>
+      <form.AppField name="redirectUris">
+        {(field) => <field.TextareaField label="Redirect URIs" testId="app-redirect-uris" />}
+      </form.AppField>
 
-      <form.Field name="redirectUris">
-        {(field) => <RedirectUrisField value={field.state.value} onChange={field.handleChange} />}
-      </form.Field>
-
-      <form.Field name="postLogoutRedirectUris">
+      <form.AppField name="postLogoutRedirectUris">
         {(field) => (
-          <PostLogoutRedirectUrisField value={field.state.value} onChange={field.handleChange} />
+          <field.TextareaField
+            label="Post-logout redirect URIs"
+            testId="app-post-logout-redirect-uris"
+          />
         )}
-      </form.Field>
+      </form.AppField>
 
-      <form.Field name="scopes">
+      {/* No catalog field is a multi-select toggle, so this one keeps its own
+          control on the render-prop escape hatch — still a form field. */}
+      <form.AppField name="scopes">
         {(field) => <ScopeToggles value={field.state.value} onChange={field.handleChange} />}
-      </form.Field>
+      </form.AppField>
 
       <BrandingSection />
 
-      {mutation.isError ? (
-        <ErrorBanner data-testid="app-register-error">
-          {errorText(mutation.error, "Could not register the app.")}
-        </ErrorBanner>
-      ) : null}
+      <FormError />
 
-      <Button type="submit" data-testid="app-register-submit">
-        Register app
-      </Button>
-    </form>
+      <SubmitButton>Register app</SubmitButton>
+    </AppForm>
   );
 }
