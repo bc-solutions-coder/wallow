@@ -344,6 +344,7 @@ export {
   type TabsRootProps,
   type TabsTabProps,
 } from "./components/tabs";
+export { Textarea, type TextareaProps } from "./components/textarea";
 export {
   createToastManager,
   Toast,

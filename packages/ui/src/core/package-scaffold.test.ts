@@ -327,6 +327,7 @@ const COMPONENT_FOLDERS = [
   "slider",
   "switch",
   "tabs",
+  "textarea",
   "toast",
   "toggle",
   "toggle-group",
