@@ -10,6 +10,6 @@ import { twMerge } from "tailwind-merge";
  * Layer 0 of the package layering — `src/core/` imports nothing from
  * `src/components/`.
  */
-export function cn(...values: ReadonlyArray<string | false | null | undefined>): string {
+export function cn(...values: readonly (string | false | null | undefined)[]): string {
   return twMerge(values.filter(Boolean).join(" "));
 }

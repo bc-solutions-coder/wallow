@@ -438,11 +438,11 @@ describe("packages/ui component layering", () => {
     // not a production dependency.
     const offenders: string[] = [];
 
-    for (const entry of readEntries(coreDir)) {
-      if (!entry.isFile || /\.test\.tsx?$/u.test(entry.name)) {
-        continue;
-      }
+    const authored = readEntries(coreDir).filter(
+      (entry) => entry.isFile && !/\.test\.tsx?$/u.test(entry.name),
+    );
 
+    for (const entry of authored) {
       const source = readFileSync(join(coreDir, entry.name), "utf8");
       for (const specifier of moduleSpecifiers(source)) {
         if (specifier.startsWith("../components")) {

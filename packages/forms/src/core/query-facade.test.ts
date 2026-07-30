@@ -58,11 +58,12 @@ const STATIC_IMPORT_PATTERN = /(?:\bfrom|^\s*import|\brequire\s*\()\s*["']([^"']
 /** Every authored `.ts`/`.tsx` module under `src/`, minus this file. */
 function sourceFiles(dir: string = sourceDir): string[] {
   const found: string[] = [];
-  for (const entry of readdirSync(dir)) {
+  const visible = readdirSync(dir).filter(
+    (entry) => !entry.startsWith(".") && !SKIPPED_DIRECTORIES.has(entry),
+  );
+
+  for (const entry of visible) {
     const full = join(dir, entry);
-    if (entry.startsWith(".") || SKIPPED_DIRECTORIES.has(entry)) {
-      continue;
-    }
     if (statSync(full).isDirectory()) {
       found.push(...sourceFiles(full));
     } else if ((full.endsWith(".ts") || full.endsWith(".tsx")) && full !== SELF) {
@@ -124,7 +125,7 @@ function namedImports(source: string): NamedImport[] {
 function facadeBindings(source: string): string[] {
   return namedImports(source)
     .filter((statement) => statement.specifier === FACADE)
-    .flatMap((statement) => [...statement.bindings]);
+    .flatMap((statement) => statement.bindings);
 }
 
 describe("packages/forms query facade", () => {
@@ -136,7 +137,9 @@ describe("packages/forms query facade", () => {
 
   it("imports react-query in no module, spec or otherwise", () => {
     const offenders = sourceFiles()
-      .filter((file) => importedSpecifiers(readFileSync(file, "utf8")).some(isRawQuery))
+      .filter((file) =>
+        importedSpecifiers(readFileSync(file, "utf8")).some((specifier) => isRawQuery(specifier)),
+      )
       .map((file) => relative(packageDir, file));
 
     expect(offenders).toEqual([]);

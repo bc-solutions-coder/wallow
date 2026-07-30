@@ -141,9 +141,9 @@ describe("packages/forms browser pre-bundle list", () => {
 
   it("declares every package its optimizeDeps.include names", () => {
     const declared = declaredDependencyNames();
-    const undeclared = [...new Set(browserProjectIncludes().map(packageNameOf))].filter(
-      (name) => !declared.includes(name),
-    );
+    const undeclared = [
+      ...new Set(browserProjectIncludes().map((include) => packageNameOf(include))),
+    ].filter((name) => !declared.includes(name));
 
     // Under pnpm an undeclared package is an unresolvable one, so this is the
     // cause and the assertion below is the symptom. Named here separately

@@ -162,7 +162,7 @@ export const PaintedByTheDesignTokens: Story = {
     await expect(Math.round(parseFloat(thumbStyle.width))).toBe(8);
     await expect(parseFloat(thumbStyle.height)).toBeGreaterThan(0);
 
-    const horizontalThumb = canvas.getByTestId("changelog-thumb-x");
-    await expect(Math.round(parseFloat(getComputedStyle(horizontalThumb).height))).toBe(8);
+    const horizontalThumbStyle = getComputedStyle(canvas.getByTestId("changelog-thumb-x"));
+    await expect(Math.round(parseFloat(horizontalThumbStyle.height))).toBe(8);
   },
 };

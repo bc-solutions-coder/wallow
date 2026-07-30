@@ -56,12 +56,9 @@ function componentEntries(): Record<string, string> {
   const entries: Record<string, string> = {};
 
   for (const entry of readdirSync(componentsDir, { withFileTypes: true })) {
-    if (!entry.isDirectory()) {
-      continue;
-    }
-
     const barrel = new URL(`${entry.name}/index.ts`, componentsDir);
-    if (existsSync(barrel)) {
+
+    if (entry.isDirectory() && existsSync(barrel)) {
       entries[`components/${entry.name}/index`] = fileURLToPath(barrel);
     }
   }

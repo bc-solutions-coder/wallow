@@ -149,6 +149,7 @@ export const PaintedByTheDesignTokens: Story = {
     const italic = canvas.getByTestId("format-italic");
     await expect(italic).toHaveAttribute("data-disabled");
     await expect(parseFloat(getComputedStyle(italic).opacity)).toBeLessThan(1);
-    await expect(parseFloat(getComputedStyle(canvas.getByTestId("format-bold")).opacity)).toBe(1);
+    const boldStyle = getComputedStyle(canvas.getByTestId("format-bold"));
+    await expect(parseFloat(boldStyle.opacity)).toBe(1);
   },
 };

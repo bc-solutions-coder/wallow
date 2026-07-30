@@ -17,7 +17,7 @@
  * The first displayable message in a field's error list, or `undefined` when
  * there is none (no errors, or a shape carrying no string message).
  */
-export function firstErrorMessage(errors: ReadonlyArray<unknown>): string | undefined {
+export function firstErrorMessage(errors: readonly unknown[]): string | undefined {
   const first: unknown = errors[0];
 
   if (typeof first === "string") {

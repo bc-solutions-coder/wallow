@@ -23,7 +23,7 @@ import { forkResolvedBranding, renderThemeStyle } from "@bc-solutions-coder/styl
 
 const THEME_STYLE_ID = "wallow-forms-theme";
 
-if (document.getElementById(THEME_STYLE_ID) === null) {
+if (document.querySelector(`#${THEME_STYLE_ID}`) === null) {
   const themeStyle = document.createElement("style");
   themeStyle.id = THEME_STYLE_ID;
   themeStyle.textContent = renderThemeStyle(forkResolvedBranding);

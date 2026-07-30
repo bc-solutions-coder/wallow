@@ -107,10 +107,9 @@ describe("Button", () => {
 
     const button = onlyButton(container);
     for (const legacy of LEGACY_PRIMARY_RECIPE.split(" ")) {
-      if (legacy === LEGACY_DISABLED_UTILITY) {
-        continue;
+      if (legacy !== LEGACY_DISABLED_UTILITY) {
+        expect(button.classList.contains(legacy), legacy).toBe(true);
       }
-      expect(button.classList.contains(legacy), legacy).toBe(true);
     }
 
     expect(button.classList.contains(LEGACY_DISABLED_UTILITY)).toBe(false);

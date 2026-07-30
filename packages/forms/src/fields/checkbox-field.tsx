@@ -67,25 +67,57 @@ function CheckboxFieldText({
   );
 }
 
+/**
+ * The box itself, one nesting level down from the row.
+ *
+ * Its own component for the same reason `SelectField`'s popup tree is split
+ * into one component per level: `react/jsx-max-depth` is 2 and `pnpm lint` runs
+ * `--deny-warnings`, so `Field > Field.Item > Checkbox.Root > Checkbox.Indicator`
+ * cannot be written as one tree.
+ */
+function CheckboxFieldBox({
+  checked,
+  disabled,
+  testId,
+  onCheckedChange,
+  onBlur,
+}: {
+  readonly checked: boolean;
+  readonly disabled: boolean;
+  readonly testId: string;
+  readonly onCheckedChange: (checked: boolean) => void;
+  readonly onBlur: () => void;
+}): ReactElement {
+  return (
+    <Checkbox.Root
+      checked={checked}
+      disabled={disabled}
+      data-testid={testId}
+      onCheckedChange={onCheckedChange}
+      onBlur={onBlur}
+    >
+      <Checkbox.Indicator>
+        <CheckTick />
+      </Checkbox.Indicator>
+    </Checkbox.Root>
+  );
+}
+
 export function CheckboxField({ label, description, testId }: CheckboxFieldProps): ReactElement {
   const { field, pending, error, controlTestId, errorTestId } = useCatalogField<boolean>(testId);
 
   return (
     <Field invalid={error !== undefined}>
       <Field.Item>
-        <Checkbox.Root
+        <CheckboxFieldBox
           checked={field.state.value}
           disabled={pending}
-          data-testid={controlTestId}
+          testId={controlTestId}
           onCheckedChange={(checked: boolean) => {
             field.handleChange(checked);
           }}
           onBlur={field.handleBlur}
-        >
-          <Checkbox.Indicator>
-            <CheckTick />
-          </Checkbox.Indicator>
-        </Checkbox.Root>
+        />
         <CheckboxFieldText label={label} description={description} />
       </Field.Item>
       <CatalogFieldError message={error} testId={errorTestId} />

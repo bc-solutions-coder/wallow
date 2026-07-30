@@ -403,12 +403,12 @@ const PUBLIC_RUNTIME_EXPORTS = [
  * `createToastManager` (a manager factory for use outside React). Everything
  * else on the barrel is a component.
  */
-const NON_COMPONENT_EXPORTS = [
+const NON_COMPONENT_EXPORTS = new Set([
   "MAIN_HEADING_SELECTOR",
   "READY_ATTRIBUTE",
   "createToastManager",
   "useToastManager",
-];
+]);
 
 /**
  * Whether React would accept `value` as a component type. Plain function
@@ -435,24 +435,20 @@ describe("@bc-solutions-coder/ui public API", () => {
     // whose every member is a renderable part — `Select.Root`,
     // `Select.Trigger`. A stray constant or an empty object is a mistake, so the
     // namespace case still demands at least one part and checks each of them.
-    const components = PUBLIC_RUNTIME_EXPORTS.filter(
-      (name) => !NON_COMPONENT_EXPORTS.includes(name),
-    );
+    const components = PUBLIC_RUNTIME_EXPORTS.filter((name) => !NON_COMPONENT_EXPORTS.has(name));
 
     for (const name of components) {
       const exported = (ui as Record<string, unknown>)[name];
 
-      if (isRenderable(exported)) {
-        continue;
-      }
+      if (!isRenderable(exported)) {
+        expect(typeof exported, name).toBe("object");
 
-      expect(typeof exported, name).toBe("object");
+        const parts = Object.entries(exported as Record<string, unknown>);
+        expect(parts.length, `${name} parts`).toBeGreaterThan(0);
 
-      const parts = Object.entries(exported as Record<string, unknown>);
-      expect(parts.length, `${name} parts`).toBeGreaterThan(0);
-
-      for (const [part, value] of parts) {
-        expect(isRenderable(value), `${name}.${part}`).toBe(true);
+        for (const [part, value] of parts) {
+          expect(isRenderable(value), `${name}.${part}`).toBe(true);
+        }
       }
     }
   });

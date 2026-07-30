@@ -4,12 +4,13 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { afterAll, describe, expect, it } from "vitest";
@@ -670,4 +671,109 @@ describe("the facade exemption is narrow by construction", () => {
       new Set(["apps/**/src/features/*/api.test.ts", "packages/sdk/src/**/index.test.ts"]),
     );
   });
+});
+
+/**
+ * Build output and dependency trees, skipped so the walk below stays fast and
+ * never mistakes a dependency's own config for one of ours. Dot-prefixed
+ * directories go too (`.git`, `.docfx`, `.output`, `.nitro`, `.tanstack`): no
+ * authored `.oxlintrc.json` lives inside one, and `.docfx` alone holds hundreds
+ * of generated files.
+ */
+const UNWALKED_DIRECTORIES: Set<string> = new Set([
+  "bin",
+  "coverage",
+  "dist",
+  "node_modules",
+  "obj",
+  "playwright-report",
+  "test-results",
+]);
+
+/** Every authored `.oxlintrc.json` in the tree, root included. */
+function oxlintConfigPaths(dir: string = repoRoot): string[] {
+  const found: string[] = [];
+
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full: string = join(dir, entry.name);
+    const walkable: boolean =
+      entry.isDirectory() && !entry.name.startsWith(".") && !UNWALKED_DIRECTORIES.has(entry.name);
+
+    if (walkable) {
+      found.push(...oxlintConfigPaths(full));
+    } else if (entry.isFile() && entry.name === ".oxlintrc.json") {
+      found.push(full);
+    }
+  }
+
+  return found;
+}
+
+interface NestedOxlintConfig extends OxlintConfig {
+  extends?: string[];
+  categories?: Record<string, string>;
+  plugins?: string[];
+}
+
+function readNestedConfig(configPath: string): NestedOxlintConfig {
+  return JSON.parse(readFileSync(configPath, "utf8")) as NestedOxlintConfig;
+}
+
+describe("every nested oxlint config inherits the root", () => {
+  const nested: string[] = oxlintConfigPaths().filter(
+    (configPath: string): boolean => configPath !== oxlintConfigPath,
+  );
+
+  it("finds the nested configs to check", () => {
+    // Non-vacuity guard: a broken walk would make every assertion below pass by
+    // iterating an empty list, which is precisely the failure mode this whole
+    // block exists to close (bead Wallow-i3hr).
+    expect(nested.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it.each(nested.map((configPath: string): string => relative(repoRoot, configPath)))(
+    "%s extends the root config",
+    (relativePath: string) => {
+      // oxlint reads the NEAREST config for a file and does not merge upward on
+      // its own, so a nested config without `extends` silently replaces the
+      // root's plugins, categories and every no-restricted-imports ban for its
+      // whole subtree — the package looks linted while running almost no rules.
+      const configPath: string = resolve(repoRoot, relativePath);
+      const resolved: string[] = (readNestedConfig(configPath).extends ?? []).map(
+        (entry: string): string => resolve(dirname(configPath), entry),
+      );
+
+      expect(resolved).toContain(oxlintConfigPath);
+    },
+  );
+
+  it.each(nested.map((configPath: string): string => relative(repoRoot, configPath)))(
+    "%s does not redeclare the severity baseline",
+    (relativePath: string) => {
+      // `categories` and `plugins` in a nested config detach it from the root's
+      // baseline even WITH `extends`, which reintroduces the same blind spot one
+      // level down. A nested config narrows named rules; it never restates the
+      // baseline.
+      const config: NestedOxlintConfig = readNestedConfig(resolve(repoRoot, relativePath));
+
+      expect(config.categories).toBeUndefined();
+      expect(config.plugins).toBeUndefined();
+    },
+  );
+
+  it.each(nested.map((configPath: string): string => relative(repoRoot, configPath)))(
+    "%s keeps its override globs directory-relative",
+    (relativePath: string) => {
+      // The non-obvious half. An override glob in a nested config is matched
+      // against the path RELATIVE TO THAT CONFIG'S DIRECTORY, so a repo-rooted
+      // prefix copied from the root config (`packages/ui/**/*.tsx`) matches
+      // nothing and fails silently — the override reads as applied while every
+      // rule it names stays on. Ban the prefixes outright.
+      const globs: string[] = (readNestedConfig(resolve(repoRoot, relativePath)).overrides ?? [])
+        .flatMap((override: OxlintOverride): string[] => override.files ?? [])
+        .filter((glob: string): boolean => /^(?:apps|packages|scripts)\//u.test(glob));
+
+      expect(globs).toEqual([]);
+    },
+  );
 });

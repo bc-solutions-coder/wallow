@@ -26,5 +26,5 @@ const themeDecorator: Decorator = (Story) => (
 export const decorators: Decorator[] = [themeDecorator];
 
 export const parameters: Preview["parameters"] = {
-  controls: { matchers: { color: /(background|color)$/iu, date: /Date$/u } },
+  controls: { matchers: { color: /(?<colorProp>background|color)$/iu, date: /Date$/u } },
 };

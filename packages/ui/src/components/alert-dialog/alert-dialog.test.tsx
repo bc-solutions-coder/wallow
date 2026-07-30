@@ -404,10 +404,9 @@ describe("AlertDialog", () => {
       // The single exception, and the reason it is an exception: an alert's two
       // buttons share a footer row, so the recipe appends `w-auto` and lets
       // tailwind-merge drop the Button component's app-form `w-full`.
-      if (utility === "w-full") {
-        continue;
+      if (utility !== "w-full") {
+        expect(rendered.has(utility), `close is missing the button utility ${utility}`).toBe(true);
       }
-      expect(rendered.has(utility), `close is missing the button utility ${utility}`).toBe(true);
     }
     expect(rendered.has("w-full")).toBe(false);
     expect(rendered.has("w-auto")).toBe(true);
