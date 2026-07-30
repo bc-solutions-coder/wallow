@@ -151,6 +151,13 @@ public sealed partial class PreRegisteredClientSyncService(
 
     private async Task DeleteRemovedClientsAsync(HashSet<string> configuredClientIds, CancellationToken ct)
     {
+        // Two passes on purpose. ListAsync streams straight off an open Npgsql data reader, and that
+        // reader owns the connection until the enumeration completes, so deleting from inside the
+        // loop issues a second command on a busy connection and throws
+        // NpgsqlOperationInProgressException ("A command is already in progress") — which fails the
+        // whole seeder. Collect first, delete after the reader is done.
+        List<(object Application, string ClientId)> removed = [];
+
         await foreach (object application in applicationManager.ListAsync(int.MaxValue, 0, ct))
         {
             OpenIddictApplicationDescriptor descriptor = new();
@@ -170,9 +177,14 @@ public sealed partial class PreRegisteredClientSyncService(
             string? clientId = await applicationManager.GetClientIdAsync(application, ct);
             if (clientId is not null && !configuredClientIds.Contains(clientId))
             {
-                await applicationManager.DeleteAsync(application, ct);
-                LogClientDeleted(clientId);
+                removed.Add((application, clientId));
             }
+        }
+
+        foreach ((object application, string clientId) in removed)
+        {
+            await applicationManager.DeleteAsync(application, ct);
+            LogClientDeleted(clientId);
         }
     }
 

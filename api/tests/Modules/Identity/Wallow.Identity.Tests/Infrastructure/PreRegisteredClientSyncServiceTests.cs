@@ -243,6 +243,48 @@ public sealed class PreRegisteredClientSyncServiceTests
     }
 
     [Fact]
+    public async Task SyncAsync_DoesNotDeleteWhileTheApplicationListReaderIsStillOpen()
+    {
+        _options.Clients.Clear();
+        object first = new object();
+        object second = new object();
+        ReaderBackedApplicationList applications = new([first, second]);
+        _appManager.ListAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(_ => applications.Enumerate());
+        _appManager.PopulateAsync(
+                Arg.Any<OpenIddictApplicationDescriptor>(), Arg.Any<object>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                callInfo.ArgAt<OpenIddictApplicationDescriptor>(0).Properties["source"] =
+                    JsonSerializer.SerializeToElement("config");
+                return ValueTask.CompletedTask;
+            });
+        _appManager.GetClientIdAsync(first, Arg.Any<CancellationToken>())
+            .Returns(_ => new ValueTask<string?>("removed-first"));
+        _appManager.GetClientIdAsync(second, Arg.Any<CancellationToken>())
+            .Returns(_ => new ValueTask<string?>("removed-second"));
+
+        List<object> deleted = [];
+        _appManager.DeleteAsync(Arg.Any<object>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                if (applications.ReaderIsOpen)
+                {
+                    // What Npgsql itself raises when a second command starts on a connection whose
+                    // data reader has not been drained.
+                    throw new InvalidOperationException("A command is already in progress");
+                }
+
+                deleted.Add(callInfo.ArgAt<object>(0));
+                return ValueTask.CompletedTask;
+            });
+
+        await _sut.SyncAsync(CancellationToken.None);
+
+        deleted.Should().Equal(first, second);
+    }
+
+    [Fact]
     public async Task SyncAsync_TenantNameOnlyClient_RoutesOrgCreationThroughOrganizationService()
     {
         _options.Clients.Add(new PreRegisteredClientDefinition
@@ -269,6 +311,38 @@ public sealed class PreRegisteredClientSyncServiceTests
         // never a bypass path — Organization.Create is the single tenant-id mint point (T5.1).
         await _orgService.Received(1).CreateOrganizationAsync(
             "Acme", Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>
+    /// Stands in for the OpenIddict EF Core store's <c>ListAsync</c>, which streams off an open
+    /// Npgsql data reader that holds the connection until the enumeration finishes. Exposes whether
+    /// that reader is still open so a test can reject any command issued mid-enumeration, the way
+    /// the real driver does.
+    /// </summary>
+    private sealed class ReaderBackedApplicationList(IReadOnlyList<object> applications)
+    {
+        public bool ReaderIsOpen { get; private set; }
+
+        public async IAsyncEnumerable<object> Enumerate()
+        {
+            ReaderIsOpen = true;
+
+            try
+            {
+                foreach (object application in applications)
+                {
+                    yield return application;
+                }
+
+                await Task.CompletedTask;
+            }
+            finally
+            {
+                // Disposing the enumerator is what closes the reader; `await foreach` does it on
+                // the way out of the loop.
+                ReaderIsOpen = false;
+            }
+        }
     }
 
     private static async IAsyncEnumerable<object> ToAsync(List<object> items)
