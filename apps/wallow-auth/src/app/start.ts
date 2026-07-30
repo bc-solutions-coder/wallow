@@ -1,8 +1,8 @@
 import { createWallowSdk, type WallowSdk } from "@bc-solutions-coder/sdk";
 import { createMiddleware, createStart } from "@tanstack/react-start";
 
-import { BASE_PATH, withBasePath } from "./lib/base-path";
-import { resolveRequestOrigin } from "./lib/request-origin";
+import { BASE_PATH, withBasePath } from "@shared/lib/base-path";
+import { resolveRequestOrigin } from "@shared/lib/request-origin";
 
 /**
  * The Start instance — global request middleware that mints one SDK per request

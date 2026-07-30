@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AuthLayout } from "../components/auth-layout";
-import { ErrorPage } from "../features/error/components/ErrorPage";
+import { AuthLayout } from "@shared/components/auth-layout";
+import { ErrorPage } from "@features/error";
 
 /**
  * The `/error` route (Wallow-vec7.3.3).

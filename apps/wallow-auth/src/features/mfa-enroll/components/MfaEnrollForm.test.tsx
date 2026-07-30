@@ -4,8 +4,8 @@ import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AUTH_HARNESS_ORIGIN, createAuthHarness } from "../../../test/harness";
-import { Route as mfaEnrollRoute } from "../../../routes/mfa/enroll";
+import { AUTH_HARNESS_ORIGIN, createAuthHarness } from "@shared/testing/harness";
+import { Route as mfaEnrollRoute } from "@app/routes/mfa/enroll";
 import { MfaEnrollForm } from "./MfaEnrollForm";
 
 /**

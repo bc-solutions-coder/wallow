@@ -8,7 +8,7 @@ import { type ReactNode, useState } from "react";
 import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 
-import { createAuthHarness } from "../../../test/harness";
+import { createAuthHarness } from "@shared/testing/harness";
 import { accountVerifyMagicLinkQueryKey } from "../api";
 import { MAGIC_LINK_EXPIRED_MESSAGE, MAGIC_LINK_VERIFY_FAILED_MESSAGE } from "../magic-link-result";
 import { MagicLinkLoginForm } from "./MagicLinkLoginForm";

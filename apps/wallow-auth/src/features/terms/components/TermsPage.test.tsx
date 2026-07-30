@@ -3,7 +3,7 @@ import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { describe, expect, it } from "vitest";
 
-import { Route as termsRoute } from "../../../routes/terms";
+import { Route as termsRoute } from "@app/routes/terms";
 import { TermsPage } from "./TermsPage";
 
 /**

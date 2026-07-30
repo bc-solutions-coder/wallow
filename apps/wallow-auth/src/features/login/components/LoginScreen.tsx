@@ -14,7 +14,7 @@ import { ExternalProviders } from "./ExternalProviders";
 import { MagicLinkLoginForm } from "./MagicLinkLoginForm";
 import { OtpLoginForm } from "./OtpLoginForm";
 import { PasswordLoginForm } from "./PasswordLoginForm";
-import { BASE_PATH, toAppHref } from "../../../lib/base-path";
+import { BASE_PATH, toAppHref } from "@shared/lib/base-path";
 
 /**
  * The Login screen (Wallow-vec7.3.11 / 2.8a).

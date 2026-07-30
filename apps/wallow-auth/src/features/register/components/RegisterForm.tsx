@@ -17,7 +17,7 @@ import {
   accountGetExternalProvidersOptions,
   accountRegisterMutation,
 } from "../api";
-import { BASE_PATH, toAppHref } from "../../../lib/base-path";
+import { BASE_PATH, toAppHref } from "@shared/lib/base-path";
 
 /**
  * The Register screen (Wallow-vec7.3.8).

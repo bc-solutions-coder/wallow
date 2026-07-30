@@ -1,6 +1,6 @@
 import { Card, ErrorBanner } from "@bc-solutions-coder/ui";
 import type { ReactNode } from "react";
-import { toAppHref } from "../../../lib/base-path";
+import { toAppHref } from "@shared/lib/base-path";
 
 /**
  * The Error screen (Wallow-vec7.3.3).

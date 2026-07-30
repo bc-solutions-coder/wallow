@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AuthLayout } from "../components/auth-layout";
-import { ForgotPasswordForm } from "../features/forgot-password/components/ForgotPasswordForm";
+import { AuthLayout } from "@shared/components/auth-layout";
+import { ForgotPasswordForm } from "@features/forgot-password";
 
 /**
  * The `/forgot-password` route (Wallow-vec7.3.1).

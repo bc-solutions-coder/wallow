@@ -4,8 +4,8 @@ import type { SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { page, userEvent } from "vitest/browser";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createAuthHarness } from "../../../test/harness";
-import { Route as loginRoute } from "../../../routes/login";
+import { createAuthHarness } from "@shared/testing/harness";
+import { Route as loginRoute } from "@app/routes/login";
 
 /**
  * ROUTE-LEVEL spec for the MFA hand-off (Wallow-vec7.3.15 / 2.8e).

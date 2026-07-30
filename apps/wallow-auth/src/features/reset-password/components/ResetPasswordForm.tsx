@@ -4,7 +4,7 @@ import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import { z } from "zod";
 import { accountResetPassword } from "../api";
-import { toAppHref } from "../../../lib/base-path";
+import { toAppHref } from "@shared/lib/base-path";
 
 /**
  * The ResetPassword screen (Wallow-vec7.3.2).

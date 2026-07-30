@@ -4,7 +4,7 @@ import { useRouteContext } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import { z } from "zod";
 import { accountForgotPassword } from "../api";
-import { toAppHref } from "../../../lib/base-path";
+import { toAppHref } from "@shared/lib/base-path";
 
 /**
  * ForgotPassword screen (Wallow-vec7.3.1).

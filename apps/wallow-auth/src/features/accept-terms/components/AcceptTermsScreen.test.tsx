@@ -3,8 +3,8 @@ import type { SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { page, userEvent } from "vitest/browser";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createAuthHarness } from "../../../test/harness";
-import { Route as acceptTermsRoute } from "../../../routes/accept-terms";
+import { createAuthHarness } from "@shared/testing/harness";
+import { Route as acceptTermsRoute } from "@app/routes/accept-terms";
 import { AcceptTermsScreen } from "./AcceptTermsScreen";
 
 /**

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { toAppHref } from "../../../lib/base-path";
+import { toAppHref } from "@shared/lib/base-path";
 
 /**
  * The Privacy Policy screen (Wallow-vec7.3.3).

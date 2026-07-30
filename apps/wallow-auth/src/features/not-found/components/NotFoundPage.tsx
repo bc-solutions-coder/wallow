@@ -1,6 +1,6 @@
 import { Card, CardTitle, MutedText } from "@bc-solutions-coder/ui";
 import type { ReactNode } from "react";
-import { toAppHref } from "../../../lib/base-path";
+import { toAppHref } from "@shared/lib/base-path";
 
 /**
  * The Not Found screen (Wallow-ffpq.2.7).

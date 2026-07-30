@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AuthLayout } from "../../components/auth-layout";
-import { VerifyEmailNotice } from "../../features/verify-email/components/VerifyEmailNotice";
+import { AuthLayout } from "@shared/components/auth-layout";
+import { VerifyEmailNotice } from "@features/verify-email";
 
 /**
  * The `/verify-email` route (Wallow-vec7.3.3).

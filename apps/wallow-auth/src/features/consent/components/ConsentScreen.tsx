@@ -4,7 +4,7 @@ import { useQuery } from "@bc-solutions-coder/query";
 import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { useEffect, useMemo, type ReactNode } from "react";
 import { appsGetConsentInfoOptions } from "../api";
-import { BASE_PATH } from "../../../lib/base-path";
+import { BASE_PATH } from "@shared/lib/base-path";
 
 /**
  * The Consent screen (Wallow-vec7.3.4).

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AuthLayout } from "../../components/auth-layout";
-import { MfaChallengeForm } from "../../features/mfa-challenge/components/MfaChallengeForm";
+import { AuthLayout } from "@shared/components/auth-layout";
+import { MfaChallengeForm } from "@features/mfa-challenge";
 
 /**
  * The `/mfa/challenge` route (Wallow-vec7.3.6).

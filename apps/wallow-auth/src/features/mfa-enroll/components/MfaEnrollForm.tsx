@@ -9,7 +9,7 @@ import {
   mfaEnrollTotpMutation,
   mfaExchangeEnrollmentToken,
 } from "../api";
-import { toAppHref } from "../../../lib/base-path";
+import { toAppHref } from "@shared/lib/base-path";
 
 /**
  * The MfaEnroll screen (Wallow-vec7.3.7).

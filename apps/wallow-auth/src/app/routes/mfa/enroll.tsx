@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AuthLayout } from "../../components/auth-layout";
-import { MfaEnrollForm } from "../../features/mfa-enroll/components/MfaEnrollForm";
+import { AuthLayout } from "@shared/components/auth-layout";
+import { MfaEnrollForm } from "@features/mfa-enroll";
 
 /**
  * The `/mfa/enroll` route (Wallow-vec7.3.7).

@@ -4,8 +4,8 @@ import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createAuthHarness } from "../../../test/harness";
-import { Route as loginRoute } from "../../../routes/login";
+import { createAuthHarness } from "@shared/testing/harness";
+import { Route as loginRoute } from "@app/routes/login";
 import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
 
 /**

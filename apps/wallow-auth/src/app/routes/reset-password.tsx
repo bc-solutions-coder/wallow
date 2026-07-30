@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AuthLayout } from "../components/auth-layout";
-import { ResetPasswordForm } from "../features/reset-password/components/ResetPasswordForm";
+import { AuthLayout } from "@shared/components/auth-layout";
+import { ResetPasswordForm } from "@features/reset-password";
 
 /**
  * The `/reset-password` route (Wallow-vec7.3.2).

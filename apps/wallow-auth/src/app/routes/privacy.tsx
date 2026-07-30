@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AuthLayout } from "../components/auth-layout";
-import { PrivacyPage } from "../features/privacy/components/PrivacyPage";
+import { AuthLayout } from "@shared/components/auth-layout";
+import { PrivacyPage } from "@features/privacy";
 
 /**
  * The `/privacy` route (Wallow-vec7.3.3).

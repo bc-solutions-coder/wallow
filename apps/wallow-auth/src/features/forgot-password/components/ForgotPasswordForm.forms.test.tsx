@@ -4,7 +4,7 @@ import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createAuthHarness } from "../../../test/harness";
+import { createAuthHarness } from "@shared/testing/harness";
 import { ForgotPasswordForm } from "./ForgotPasswordForm";
 
 /**

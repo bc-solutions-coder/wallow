@@ -8,8 +8,8 @@ import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createAuthHarness } from "../../../test/harness";
-import { Route as mfaChallengeRoute } from "../../../routes/mfa/challenge";
+import { createAuthHarness } from "@shared/testing/harness";
+import { Route as mfaChallengeRoute } from "@app/routes/mfa/challenge";
 import { MfaChallengeForm, type MfaChallengeFormProps } from "./MfaChallengeForm";
 
 /**

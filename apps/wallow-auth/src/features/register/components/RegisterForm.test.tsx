@@ -4,8 +4,8 @@ import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createAuthHarness } from "../../../test/harness";
-import { Route as registerRoute } from "../../../routes/register";
+import { createAuthHarness } from "@shared/testing/harness";
+import { Route as registerRoute } from "@app/routes/register";
 import { RegisterForm } from "./RegisterForm";
 
 /**

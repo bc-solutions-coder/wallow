@@ -4,7 +4,7 @@ import { createRouter as createTanStackRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 import { getGlobalStartContext } from "@tanstack/react-start";
 
-import { BASE_PATH, withBasePath } from "./lib/base-path";
+import { BASE_PATH, withBasePath } from "@shared/lib/base-path";
 import { routeTree } from "./routeTree.gen";
 
 /**

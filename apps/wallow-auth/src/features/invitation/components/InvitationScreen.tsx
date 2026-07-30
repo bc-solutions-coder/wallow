@@ -5,7 +5,7 @@ import { useMutation, useQuery } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { invitationsAcceptMutation, invitationsVerifyOptions } from "../api";
-import { toAppHref } from "../../../lib/base-path";
+import { toAppHref } from "@shared/lib/base-path";
 
 /**
  * The InvitationLanding screen (Wallow-vec7.3.9).

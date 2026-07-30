@@ -5,7 +5,7 @@ import { type ReactNode, useState } from "react";
 import { accountLoginMutation } from "../api";
 import { BLANK_CREDENTIALS_MESSAGE, loginFailureMessage } from "../auth-result";
 import type { LoginPanelProps } from "../panel";
-import { toAppHref } from "../../../lib/base-path";
+import { toAppHref } from "@shared/lib/base-path";
 
 /**
  * The PASSWORD tab of the login screen (Wallow-vec7.3.11 / 2.8a), ported from the

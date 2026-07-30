@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AuthLayout } from "../components/auth-layout";
-import { RegisterForm } from "../features/register/components/RegisterForm";
+import { AuthLayout } from "@shared/components/auth-layout";
+import { RegisterForm } from "@features/register";
 
 /**
  * The `/register` route (Wallow-vec7.3.8).

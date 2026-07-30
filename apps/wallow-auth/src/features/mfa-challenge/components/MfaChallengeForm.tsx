@@ -10,7 +10,7 @@ import { useMutation, useQuery } from "@bc-solutions-coder/query";
 import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useState } from "react";
 import { accountValidateRedirectUriOptions, accountVerifyMfaChallengeMutation } from "../api";
-import { BASE_PATH, toAppHref } from "../../../lib/base-path";
+import { BASE_PATH, toAppHref } from "@shared/lib/base-path";
 
 /**
  * The MfaChallenge screen (Wallow-vec7.3.6).

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AuthLayout } from "../components/auth-layout";
-import { LogoutScreen } from "../features/logout/components/LogoutScreen";
+import { AuthLayout } from "@shared/components/auth-layout";
+import { LogoutScreen } from "@features/logout";
 
 /**
  * The `/logout` route (Wallow-vec7.3.5).

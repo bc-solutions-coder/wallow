@@ -4,7 +4,7 @@ import { useQuery } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { accountValidateRedirectUriOptions } from "../api";
-import { BASE_PATH, toAppHref } from "../../../lib/base-path";
+import { BASE_PATH, toAppHref } from "@shared/lib/base-path";
 
 /**
  * The Logout screen (Wallow-vec7.3.5).

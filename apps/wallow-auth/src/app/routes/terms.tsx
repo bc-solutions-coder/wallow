@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AuthLayout } from "../components/auth-layout";
-import { TermsPage } from "../features/terms/components/TermsPage";
+import { AuthLayout } from "@shared/components/auth-layout";
+import { TermsPage } from "@features/terms";
 
 /**
  * The `/terms` route (Wallow-vec7.3.3).

@@ -3,7 +3,7 @@ import { page } from "vitest/browser";
 import type { ReactElement } from "react";
 import { describe, expect, it } from "vitest";
 
-import { Route as privacyRoute } from "../../../routes/privacy";
+import { Route as privacyRoute } from "@app/routes/privacy";
 import { PrivacyPage } from "./PrivacyPage";
 
 /**

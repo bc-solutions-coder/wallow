@@ -1,11 +1,8 @@
 import { useCurrentUser } from "@bc-solutions-coder/auth";
 import { createFileRoute, useRouteContext } from "@tanstack/react-router";
 
-import { AuthLayout } from "../components/auth-layout";
-import {
-  InvitationLoading,
-  InvitationScreen,
-} from "../features/invitation/components/InvitationScreen";
+import { AuthLayout } from "@shared/components/auth-layout";
+import { InvitationLoading, InvitationScreen } from "@features/invitation";
 
 /**
  * The `/invitation` route (Wallow-vec7.3.9).

@@ -8,7 +8,7 @@ import type { SdkCall, SdkHarness } from "@bc-solutions-coder/testing/sdk-harnes
 import { page } from "vitest/browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createAuthHarness } from "../test/harness";
+import { createAuthHarness } from "@shared/testing/harness";
 import { Route as invitationRoute } from "./invitation";
 
 /**

@@ -1,6 +1,6 @@
 import { Button, Card, Checkbox, ErrorBanner } from "@bc-solutions-coder/ui";
 import { useId, useState, type ReactNode } from "react";
-import { BASE_PATH, toAppHref } from "../../../lib/base-path";
+import { BASE_PATH, toAppHref } from "@shared/lib/base-path";
 
 /**
  * The AcceptTerms screen (Wallow-vec7.3.10).

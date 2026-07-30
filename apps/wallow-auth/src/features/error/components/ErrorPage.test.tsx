@@ -9,7 +9,7 @@ import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { describe, expect, it } from "vitest";
 
-import { Route as errorRoute } from "../../../routes/error";
+import { Route as errorRoute } from "@app/routes/error";
 import { ErrorPage } from "./ErrorPage";
 
 /**

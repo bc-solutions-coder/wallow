@@ -4,8 +4,8 @@ import type { ReactElement } from "react";
 import { page } from "vitest/browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createAuthHarness } from "../../../test/harness";
-import { Route as verifyEmailConfirmRoute } from "../../../routes/verify-email/confirm";
+import { createAuthHarness } from "@shared/testing/harness";
+import { Route as verifyEmailConfirmRoute } from "@app/routes/verify-email/confirm";
 import { VerifyEmailConfirm } from "./VerifyEmailConfirm";
 
 /**

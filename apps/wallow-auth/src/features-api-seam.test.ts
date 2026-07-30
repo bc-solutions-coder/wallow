@@ -35,7 +35,7 @@ import { describe, expect, it } from "vitest";
  * so an identity spec may reach past the seam it tests. Until the rule lands,
  * nothing in the toolchain notices a screen that reaches around the seam.
  *
- * The scope is `src/features/**` and `src/routes/**`. It is deliberately not the
+ * The scope is `src/features/**` and `src/app/routes/**`. It is deliberately not the
  * whole app: `router.tsx`, `start.ts` and `routes/__root.tsx` build the
  * request-scoped SDK itself and must name the package, and the app-level guard
  * specs beside this one (`query-facade.test.ts`, `generated-mutations.test.ts`)
@@ -98,7 +98,7 @@ const RAW_DATA_OPERATIONS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Every module under `src/features/**` and `src/routes/**` that reaches the API,
+ * Every module under `src/features/**` and `src/app/routes/**` that reaches the API,
  * the seam it must reach it through, and the exact artifacts it takes from there.
  *
  * The KEYS are the migration's checklist: each one imported an SDK entry directly
@@ -209,9 +209,12 @@ const DATA_CONSUMERS: Readonly<Record<string, DataConsumer>> = {
     seam: "../api",
     names: ["accountVerifyEmailOptions"],
   },
-  "routes/login.tsx": {
+  "app/routes/login.tsx": {
     owner: "login",
-    seam: "../features/login/api",
+    // An ALIAS seam, not a relative one: routes reach a feature only through its
+    // barrel now, so this names the barrel and the assertion below branches on
+    // the leading `@`.
+    seam: "@features/login",
     names: ["clientBrandingGetBrandingOptions"],
   },
 };
@@ -272,7 +275,7 @@ function appSources(): readonly string[] {
         entry.isFile() && (entry.name.endsWith(".ts") || entry.name.endsWith(".tsx")),
     )
     .map((entry): string => relative(srcDir, join(entry.parentPath, entry.name)))
-    .filter((path): boolean => path !== SELF && path !== "routeTree.gen.ts")
+    .filter((path): boolean => path !== SELF && !path.endsWith("routeTree.gen.ts"))
     .toSorted();
 }
 
@@ -323,8 +326,21 @@ function exportedNamesFrom(relativePath: string, moduleSpecifier: string): reado
 }
 
 /**
- * Every module specifier a file pulls from: `import … from`, `export … from` and
- * bare side-effect imports alike. Read off comment-stripped code.
+ * Every module specifier a file pulls from: `import … from`, `export … from`,
+ * bare side-effect imports, and DYNAMIC `import("…")`. Read off comment-stripped
+ * code.
+ *
+ * The third pattern is the one that is easy to leave out, and this comment used
+ * to read "bare side-effect imports alike" as if it covered the case — it did
+ * not. `await import("…")` matches neither of the first two: there is no `from`,
+ * and `import(` is neither line-anchored nor followed by whitespace. A dynamic
+ * import is exactly how a module reaches something it is not supposed to reach at
+ * module scope, so a boundary guard blind to it is a boundary guard with a hole
+ * shaped like the violation it exists to catch. `src/zone-dag.test.ts` carries the
+ * same three patterns for the same reason.
+ *
+ * Template-literal and variable specifiers stay out of scope — they cannot be
+ * judged statically, and this app has none.
  */
 function moduleSpecifiers(relativePath: string): readonly string[] {
   const code: string = codeOf(relativePath);
@@ -332,14 +348,17 @@ function moduleSpecifiers(relativePath: string): readonly string[] {
   return [
     ...[...code.matchAll(/\bfrom\s+"([^"]+)"/gu)].map((match): string => match[1] as string),
     ...[...code.matchAll(/^\s*import\s+"([^"]+)"/gmu)].map((match): string => match[1] as string),
+    ...[...code.matchAll(/\bimport\(\s*"([^"]+)"\s*\)/gu)].map(
+      (match): string => match[1] as string,
+    ),
   ];
 }
 
-/** `src/features/**` and `src/routes/**` minus the seam files, which may reach past it. */
+/** `src/features/**` and `src/app/routes/**` minus the seam files, which may reach past it. */
 function boundaryScope(): readonly string[] {
   return appSources().filter(
     (path): boolean =>
-      (path.startsWith("features/") || path.startsWith("routes/")) && !SEAM_FILE.test(path),
+      (path.startsWith("features/") || path.startsWith("app/routes/")) && !SEAM_FILE.test(path),
   );
 }
 
@@ -422,9 +441,18 @@ describe("wallow-auth's feature data seams", () => {
     // seam's contents while `seam` drives the source scan, so a mismatch would
     // have this spec checking one feature's file against another's surface.
     for (const [path, consumer] of Object.entries(DATA_CONSUMERS)) {
-      expect(join(dirname(path), consumer.seam), `${path} declares the wrong seam`).toBe(
-        `features/${consumer.owner}/api`,
-      );
+      // Two seam shapes, two resolutions. A RELATIVE seam is resolved against the
+      // consumer's own directory and must land on the owner's api module. An
+      // ALIAS seam does not resolve that way at all — `join(dirname(path), "@features/login")`
+      // is a nonsense path — so it is compared to the barrel name directly.
+      const resolved: string = consumer.seam.startsWith("@")
+        ? consumer.seam
+        : join(dirname(path), consumer.seam);
+      const expected: string = consumer.seam.startsWith("@")
+        ? `@features/${consumer.owner}`
+        : `features/${consumer.owner}/api`;
+
+      expect(resolved, `${path} declares the wrong seam`).toBe(expected);
     }
   });
 

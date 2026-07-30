@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { handleApiPassthrough } from "../../lib/api-passthrough";
+import { handleApiPassthrough } from "@shared/lib/api-passthrough";
 
 /**
  * `/connect/**` — the OpenIddict endpoints (authorize, token, logout, userinfo),

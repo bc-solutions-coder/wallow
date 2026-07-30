@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AuthLayout } from "../components/auth-layout";
-import { AcceptTermsScreen } from "../features/accept-terms/components/AcceptTermsScreen";
+import { AuthLayout } from "@shared/components/auth-layout";
+import { AcceptTermsScreen } from "@features/accept-terms";
 
 /**
  * The `/accept-terms` route (Wallow-vec7.3.10).

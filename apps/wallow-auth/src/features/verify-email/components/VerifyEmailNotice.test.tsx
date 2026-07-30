@@ -9,7 +9,7 @@ import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { describe, expect, it } from "vitest";
 
-import { Route as verifyEmailRoute } from "../../../routes/verify-email/index";
+import { Route as verifyEmailRoute } from "@app/routes/verify-email/index";
 import { VerifyEmailNotice } from "./VerifyEmailNotice";
 
 /**

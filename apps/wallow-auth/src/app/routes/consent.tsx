@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AuthLayout } from "../components/auth-layout";
-import { ConsentScreen } from "../features/consent/components/ConsentScreen";
+import { AuthLayout } from "@shared/components/auth-layout";
+import { ConsentScreen } from "@features/consent";
 
 /**
  * The `/consent` route (Wallow-vec7.3.4).

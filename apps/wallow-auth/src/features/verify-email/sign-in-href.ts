@@ -1,6 +1,6 @@
 import { isSafeReturnUrl } from "@bc-solutions-coder/sdk";
 
-import { toAppHref } from "../../lib/base-path";
+import { toAppHref } from "@shared/lib/base-path";
 
 /**
  * Build the "go to sign in" link both verify-email screens end on, forwarding

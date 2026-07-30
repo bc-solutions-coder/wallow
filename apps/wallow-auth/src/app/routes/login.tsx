@@ -6,11 +6,14 @@ import {
 import { useQuery } from "@bc-solutions-coder/query";
 import { createFileRoute, useRouteContext } from "@tanstack/react-router";
 
-import { AuthLayout } from "../components/auth-layout";
-import { clientBrandingGetBrandingOptions } from "../features/login/api";
-import { isPasswordResetMessage, PASSWORD_RESET_MESSAGE } from "../features/login/auth-result";
-import { LoginScreen } from "../features/login/components/LoginScreen";
-import { BASE_PATH } from "../lib/base-path";
+import { AuthLayout } from "@shared/components/auth-layout";
+import {
+  clientBrandingGetBrandingOptions,
+  isPasswordResetMessage,
+  LoginScreen,
+  PASSWORD_RESET_MESSAGE,
+} from "@features/login";
+import { BASE_PATH } from "@shared/lib/base-path";
 
 /**
  * The `/login` route (Wallow-vec7.3.11 / 2.8a).
