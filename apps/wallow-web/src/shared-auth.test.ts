@@ -42,17 +42,31 @@ const AUTH = "@bc-solutions-coder/auth";
 const CURRENT_USER_STALE_TIME_MS = 30_000;
 
 /** The route gates that read the signed-in user. */
-const GATE_ROUTES: readonly string[] = ["src/routes/index.tsx", "src/routes/dashboard/route.tsx"];
+const GATE_ROUTES: readonly string[] = [
+  "src/app/routes/index.tsx",
+  "src/app/routes/dashboard/route.tsx",
+];
 
 const read = (relativePath: string): string => readFileSync(resolve(appRoot, relativePath), "utf8");
 
 describe("the app's own current-user copy", () => {
+  it("looks in a directory that is really there", () => {
+    // The two cases below assert a path does NOT exist, which a stale directory
+    // name satisfies for free — `src/lib/` became `src/shared/lib/` in the zone
+    // restructure, and neither case would have noticed. Prove the directory this
+    // spec scans exists and holds modules before trusting an absence in it.
+    const sharedLib: string = resolve(appRoot, "src/shared/lib");
+
+    expect(existsSync(sharedLib)).toBe(true);
+    expect(readdirSync(sharedLib).length).toBeGreaterThan(0);
+  });
+
   it("no longer exists", () => {
-    expect(existsSync(resolve(appRoot, "src/lib/current-user.ts"))).toBe(false);
+    expect(existsSync(resolve(appRoot, "src/shared/lib/current-user.ts"))).toBe(false);
   });
 
   it("leaves no co-located spec behind", () => {
-    expect(existsSync(resolve(appRoot, "src/lib/current-user.test.ts"))).toBe(false);
+    expect(existsSync(resolve(appRoot, "src/shared/lib/current-user.test.ts"))).toBe(false);
   });
 
   it("is imported from nowhere", () => {

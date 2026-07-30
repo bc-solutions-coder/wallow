@@ -24,7 +24,7 @@ import { resolveRequestOrigin } from "./request-origin";
  */
 
 const libDir: string = dirname(fileURLToPath(import.meta.url));
-const appsDir: string = resolve(libDir, "..", "..", "..");
+const appsDir: string = resolve(libDir, "..", "..", "..", "..");
 
 function requestWith(url: string, forwardedProto?: string): Request {
   const headers: Headers = new Headers();
@@ -123,11 +123,14 @@ describe("resolveRequestOrigin", () => {
   });
 });
 
-describe("src/start.ts wiring", () => {
-  const source: string = readFileSync(resolve(libDir, "..", "start.ts"), "utf8");
+describe("src/app/start.ts wiring", () => {
+  // `start.ts` is app-zone (it is the host entry); this helper is shared-zone, so
+  // the hop out of `shared/lib/` and into `app/` is spelled out rather than the
+  // single `..` it was when both sat directly under `src/`.
+  const source: string = readFileSync(resolve(libDir, "..", "..", "app", "start.ts"), "utf8");
 
   it("derives the per-request SDK's origin through the helper", () => {
-    expect(source).toMatch(/from\s+"\.\/lib\/request-origin"/u);
+    expect(source).toMatch(/from\s+"@shared\/lib\/request-origin"/u);
     expect(source).toMatch(/resolveRequestOrigin\(request\)/u);
   });
 
@@ -143,7 +146,7 @@ describe("src/start.ts wiring", () => {
 });
 
 describe("the copy in every other Start app", () => {
-  // The fix is duplicated because `src/start.ts` lands in the client bundle and
+  // The fix is duplicated because `src/app/start.ts` lands in the client bundle and
   // may not import a Node-only module; the copies must not drift apart.
   const canonical: string = readFileSync(resolve(libDir, "request-origin.ts"), "utf8");
 

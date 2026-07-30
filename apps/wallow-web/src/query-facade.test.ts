@@ -88,7 +88,7 @@ describe("wallow-web's dependency manifest", () => {
 
 describe("wallow-web's imports", () => {
   it("takes createQueryClient and the QueryClient type from the facade", () => {
-    const names: readonly string[] = importedNamesFrom(read("src/router.tsx"), FACADE);
+    const names: readonly string[] = importedNamesFrom(read("src/app/router.tsx"), FACADE);
 
     expect(names).toContain("createQueryClient");
     expect(names).toContain("QueryClient");
@@ -98,14 +98,18 @@ describe("wallow-web's imports", () => {
     // `RouterContext.queryClient` and the client `src/router.tsx` constructs must
     // name the SAME type, or the router factory stops type-checking against its
     // own route tree.
-    expect(importedNamesFrom(read("src/routes/__root.tsx"), FACADE)).toContain("QueryClient");
+    expect(importedNamesFrom(read("src/app/routes/__root.tsx"), FACADE)).toContain("QueryClient");
   });
 
   it("takes the invalidation-assertion types from the facade", () => {
-    // `src/test/invalidation.ts` runs the REAL `queriesWithTag`/`queriesForOperation`
-    // predicates against real generated keys, so its `Query`/`QueryFilters` types
-    // have to be the same ones the app's queries are built from.
-    const names: readonly string[] = importedNamesFrom(read("src/test/invalidation.ts"), FACADE);
+    // `src/shared/testing/invalidation.ts` runs the REAL `queriesWithTag` /
+    // `queriesForOperation` predicates against real generated keys, so its
+    // `Query`/`QueryFilters` types have to be the same ones the app's queries are
+    // built from.
+    const names: readonly string[] = importedNamesFrom(
+      read("src/shared/testing/invalidation.ts"),
+      FACADE,
+    );
 
     expect(names).toContain("Query");
     expect(names).toContain("QueryFilters");

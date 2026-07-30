@@ -24,11 +24,11 @@ function source(relativePath: string): string {
 
 describe("wallow-web ported markup carries styling hooks", () => {
   it("styles the dashboard layout shell", () => {
-    expect(source("components/DashboardLayout.tsx")).toContain("className");
+    expect(source("shared/components/DashboardLayout.tsx")).toContain("className");
   });
 
   it("styles the dashboard navigation", () => {
-    expect(source("components/DashboardNav.tsx")).toContain("className");
+    expect(source("shared/components/DashboardNav.tsx")).toContain("className");
   });
 
   it("styles the public home route", () => {
