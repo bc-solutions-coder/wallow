@@ -1,6 +1,13 @@
 import type { WallowSdk } from "@bc-solutions-coder/sdk";
 import { renderThemeStyle, type ResolvedBranding } from "@bc-solutions-coder/styles";
-import { Card, DocumentStyles, FocusOnNavigate, MutedText } from "@bc-solutions-coder/ui";
+import {
+  Card,
+  DocumentStyles,
+  FocusOnNavigate,
+  MutedText,
+  ThemeProvider,
+  ThemeScript,
+} from "@bc-solutions-coder/ui";
 import type { QueryClient } from "@bc-solutions-coder/query";
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import type { ReactElement, ReactNode } from "react";
@@ -46,7 +53,13 @@ export interface RouterContext {
  * `<DocumentStyles/>` still carries the fork's theme custom properties (mirroring
  * the `<HeadContent>` block the Blazor `AuthLayout.razor` had), with a null href
  * because the stylesheet link is Start's job now. `<html>` carries the fork's
- * default colour scheme as a class so `.dark`/`.light` resolve with no client JS.
+ * default colour scheme as a class so `.dark`/`.light` resolve with no client JS
+ * — the server's best guess, which `<ThemeScript/>` corrects before first paint.
+ * It matters more on this origin than on wallow-web: login is the first page a
+ * visitor sees and the page a cross-origin OIDC hop lands on, so a visitor who
+ * has chosen a theme must not be bounced back to the fork default on the way
+ * through. `<ThemeProvider/>` publishes what the script decided to the tree,
+ * which is what {@link AuthLayout}'s toggle reads and writes.
  *
  * `<ReadyIndicator/>` sits at the root so *every* auth page emits the hydration
  * marker the Playwright suites wait on.
@@ -57,10 +70,11 @@ function RootDocument({ children }: { readonly children: ReactNode }): ReactElem
       <head>
         <HeadContent />
         <DocumentStyles themeCss={renderThemeStyle(branding)} stylesheetHref={null} />
+        <ThemeScript defaultMode={branding.defaultMode} />
       </head>
       <body>
         <FocusOnNavigate />
-        {children}
+        <ThemeProvider defaultMode={branding.defaultMode}>{children}</ThemeProvider>
         <ReadyIndicator />
         <Scripts />
       </body>

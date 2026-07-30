@@ -11,6 +11,12 @@
  * which this package cannot do on the app's behalf — a scan declared here would
  * see this package's files, not the app's, and ship a stylesheet that styles
  * nothing.
+ *
+ * The sidebar and success tokens carry a two-level fallback the older tokens do
+ * not need: api/branding.json is merge=ours in .gitattributes, so a fork whose
+ * copy predates those keys never receives them from an upstream merge and the
+ * theme emits no custom property for them. The fallback lands such a fork on a
+ * colour its palette has always carried instead of on nothing at all.
  */
 @import "tailwindcss";
 
@@ -34,6 +40,11 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar, var(--foreground));
+  --color-sidebar-foreground: var(--sidebar-foreground, var(--background));
+  --color-sidebar-accent: var(--sidebar-accent, var(--accent));
+  --color-success: var(--success, var(--primary));
+  --color-success-foreground: var(--success-foreground, var(--primary-foreground));
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);

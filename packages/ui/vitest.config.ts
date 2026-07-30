@@ -67,6 +67,9 @@ const baseUiSubpaths = [
   "@base-ui/react/toggle-group",
   "@base-ui/react/toolbar",
   "@base-ui/react/tooltip",
+  // Not a part: the `useRender` hook, which `ListRow` uses to get Base UI's
+  // `render` contract on a plain `<li>` that wraps no headless part.
+  "@base-ui/react/use-render",
 ];
 
 /**

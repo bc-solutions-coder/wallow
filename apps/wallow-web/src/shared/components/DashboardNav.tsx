@@ -6,6 +6,7 @@ import { logout } from "@bc-solutions-coder/sdk";
 // fail to link here.
 import { ErrorBanner } from "@bc-solutions-coder/ui/error-banner";
 import { NavigationMenu } from "@bc-solutions-coder/ui/navigation-menu";
+import { ThemeToggle } from "@bc-solutions-coder/ui/theme-toggle";
 import { Link, type LinkProps } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
@@ -140,6 +141,26 @@ function NavDestinationList(props: {
   );
 }
 
+/**
+ * The theme control, in the footer band above Sign Out so it is reachable in all
+ * THREE nav modes — a toggle that existed only in the expanded rail would vanish
+ * the moment a visitor collapsed the nav or opened the dashboard on a phone.
+ *
+ * The catalog control always renders its state as text ("Light"/"Dark"/
+ * "System"), so the icon rail gets a smaller box rather than the label-stripping
+ * `showLabel` treatment the destinations get: there is no icon to fall back to.
+ */
+function NavThemeToggle(props: { showLabel: boolean }) {
+  return (
+    <div className="px-4 pt-4">
+      <ThemeToggle
+        data-testid="theme-toggle"
+        className={props.showLabel ? "w-full" : "w-full px-1 text-xs"}
+      />
+    </div>
+  );
+}
+
 /** Sign Out — a button rather than a `Link`, since it calls the BFF logout. */
 function NavLogout(props: { showLabel: boolean }) {
   const Icon = navIcons.signOut;
@@ -194,6 +215,7 @@ function NavRail(props: { showOrganizations: boolean }) {
         showOrganizations={props.showOrganizations}
         showLabels={!isNavCollapsed}
       />
+      <NavThemeToggle showLabel={!isNavCollapsed} />
       <NavLogout showLabel={!isNavCollapsed} />
     </aside>
   );
@@ -217,6 +239,7 @@ function NavDrawer(props: { showOrganizations: boolean }) {
         showLabels
         onNavigate={closeMobileNav}
       />
+      <NavThemeToggle showLabel />
       <NavLogout showLabel />
     </div>
   );

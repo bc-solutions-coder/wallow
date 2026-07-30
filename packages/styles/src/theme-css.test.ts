@@ -2,7 +2,15 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-import { forkBranding, toCssVars } from "./branding";
+import {
+  type ForkBranding,
+  type ThemeColors,
+  type ThemeMode,
+  forkBranding,
+  mergeClientBranding,
+  renderThemeStyle,
+  toCssVars,
+} from "./branding";
 
 /**
  * The package's two halves have to agree:
@@ -48,11 +56,16 @@ function themeTokens(css: string): Record<string, string> {
   return tokens;
 }
 
-/** The custom properties a `@theme` block indirects through `var(...)`. */
+/**
+ * The custom properties a `@theme` block indirects through `var(...)` —
+ * including the ones inside a fallback chain, `var(--sidebar, var(--foreground))`,
+ * which names two: the palette property the token wants and the one it degrades
+ * to when a fork's `api/branding.json` is too old to define it.
+ */
 function themedVarNames(tokens: Record<string, string>): readonly string[] {
   const matches: RegExpStringIterator<RegExpExecArray> = Object.values(tokens)
     .join(" ")
-    .matchAll(/var\((?<name>--[\w-]+)\)/gu);
+    .matchAll(/var\(\s*(?<name>--[\w-]+)/gu);
   return [...new Set([...matches].map((match): string => match.groups!["name"]))];
 }
 
@@ -125,6 +138,122 @@ describe("the branding palette", () => {
 
   it("maps every custom property forkBranding.theme emits, in dark mode", () => {
     referencesEveryEmittedVar("dark");
+  });
+});
+
+/**
+ * The semantic colours the app surfaces need — the dashboard rail (which today
+ * fakes a surface by inverting `bg-foreground`/`text-background`) and the state
+ * chip that has no green to reach for — mapped to the exact chain each `@theme`
+ * token must go through.
+ *
+ * The two-level `var(--sidebar, var(--foreground))` is not decoration:
+ * `api/branding.json` is `merge=ours` in `.gitattributes`, so a fork's copy
+ * never receives new theme keys from an upstream merge, and `toCssVars` emits
+ * nothing for a key that is not there. Without the fallback the fork's build
+ * resolves the token to nothing at all.
+ */
+const forkSafeTokens: Readonly<Record<string, string>> = {
+  "--color-sidebar": "var(--sidebar, var(--foreground))",
+  "--color-sidebar-foreground": "var(--sidebar-foreground, var(--background))",
+  "--color-sidebar-accent": "var(--sidebar-accent, var(--accent))",
+  "--color-success": "var(--success, var(--primary))",
+  "--color-success-foreground": "var(--success-foreground, var(--primary-foreground))",
+};
+
+/** The palette properties those tokens want: `--color-sidebar` -> `--sidebar`. */
+const newVarNames: readonly string[] = Object.keys(forkSafeTokens).map((token: string): string =>
+  token.replace("--color-", "--"),
+);
+
+/** The same colours as `api/branding.json` authors them, in camelCase. */
+const newThemeKeys: ReadonlySet<string> = new Set([
+  "sidebar",
+  "sidebarForeground",
+  "sidebarAccent",
+  "success",
+  "successForeground",
+]);
+
+const themeModes: readonly ThemeMode[] = ["light", "dark"];
+
+describe("the sidebar and success semantic tokens", () => {
+  for (const [token, chain] of Object.entries(forkSafeTokens)) {
+    it(`maps ${token} through the palette with a fork-safe fallback`, () => {
+      expect(themeTokens(sharedCss)[token]).toBe(chain);
+    });
+  }
+
+  for (const mode of themeModes) {
+    it(`is defined by api/branding.json's ${mode} theme`, () => {
+      expect(Object.keys(toCssVars(forkBranding.theme[mode]))).toEqual(
+        expect.arrayContaining([...newVarNames]),
+      );
+    });
+  }
+
+  it("leaves the pre-existing colour tokens on their plain, un-defaulted mapping", () => {
+    // Only the new tokens get the two-level indirection. Every existing token
+    // resolves through a property `api/branding.json` has always carried, so
+    // giving those a fallback would change well-tested behaviour for nothing.
+    const untouched: readonly (readonly [string, string])[] = Object.entries(
+      themeTokens(sharedCss),
+    ).filter(
+      ([name]: [string, string]): boolean =>
+        name.startsWith("--color-") && !(name in forkSafeTokens),
+    );
+
+    expect(untouched.length).toBeGreaterThan(0);
+    for (const [name, value] of untouched) {
+      expect(value, `${name} must stay a plain var()`).toMatch(/^var\(--[\w-]+\)$/u);
+    }
+  });
+});
+
+describe("a fork whose api/branding.json predates these tokens", () => {
+  /** That fork's palette: this fork's, minus every key it never received. */
+  function withoutNewKeys(colors: ThemeColors): ThemeColors {
+    return Object.fromEntries(
+      Object.entries(colors).filter(([key]: [string, string]): boolean => !newThemeKeys.has(key)),
+    );
+  }
+
+  const legacyFork: ForkBranding = {
+    ...forkBranding,
+    theme: {
+      ...forkBranding.theme,
+      light: withoutNewKeys(forkBranding.theme.light),
+      dark: withoutNewKeys(forkBranding.theme.dark),
+    },
+  };
+
+  for (const mode of themeModes) {
+    it(`emits no custom property for the colours its ${mode} theme omits`, () => {
+      const emitted: readonly string[] = Object.keys(toCssVars(legacyFork.theme[mode]));
+      expect(emitted.filter((name: string): boolean => newVarNames.includes(name))).toEqual([]);
+    });
+  }
+
+  it("renders a theme stylesheet carrying no declaration for them", () => {
+    const rendered: string = renderThemeStyle(mergeClientBranding(legacyFork, null));
+    for (const name of newVarNames) {
+      expect(rendered).not.toMatch(new RegExp(`${name}\\s*:`, "u"));
+    }
+  });
+
+  it("still resolves every new token, through a fallback its palette does define", () => {
+    // The point of the whole exercise: an old fork must land on a coherent
+    // colour, not on `currentcolor` or nothing.
+    const tokens: Record<string, string> = themeTokens(sharedCss);
+    const legacyVars: readonly string[] = Object.keys(toCssVars(legacyFork.theme.light));
+
+    for (const token of Object.keys(forkSafeTokens)) {
+      const chain: RegExpMatchArray | null = (tokens[token] ?? "").match(
+        /^var\(--[\w-]+,\s*var\((?<fallback>--[\w-]+)\)\)$/u,
+      );
+      expect(chain?.groups, `${token} must map through var(--x, var(--fallback))`).toBeDefined();
+      expect(legacyVars).toContain(chain!.groups!["fallback"]);
+    }
   });
 });
 

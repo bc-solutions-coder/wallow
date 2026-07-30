@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import { forkBranding, type ResolvedBranding } from "@bc-solutions-coder/styles";
-import { CenteredCardLayout, ForkAttribution } from "@bc-solutions-coder/ui";
+import { CenteredCardLayout, ForkAttribution, ThemeToggle } from "@bc-solutions-coder/ui";
 
 import { appIconUrl, forkResolvedBranding } from "../lib/branding";
 
@@ -19,6 +19,20 @@ function ForkFooter() {
         iconUrl={appIconUrl}
         repositoryUrl={forkBranding.repositoryUrl}
       />
+    </div>
+  );
+}
+
+/**
+ * The theme control, on its own row ABOVE the branded heading. wallow-auth has
+ * no nav, so this layout is the app's only shared home for it — and the `<h1>`
+ * below is `FocusOnNavigate`'s route-change focus target, so a control placed
+ * inside it would be announced as part of every screen's name.
+ */
+function ThemeControl() {
+  return (
+    <div className="flex justify-end mb-2">
+      <ThemeToggle data-testid="theme-toggle" />
     </div>
   );
 }
@@ -82,6 +96,7 @@ export function AuthLayout({ branding, children }: AuthLayoutProps): ReactNode {
 
   return (
     <CenteredCardLayout>
+      <ThemeControl />
       <BrandingHeader branding={resolved} />
       {children}
       <ForkFooter />

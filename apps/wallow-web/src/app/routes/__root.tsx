@@ -12,6 +12,8 @@ import {
   DocumentStyles,
   FocusOnNavigate,
   MutedText,
+  ThemeProvider,
+  ThemeScript,
 } from "@bc-solutions-coder/ui";
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import type { ReactElement, ReactNode } from "react";
@@ -57,7 +59,12 @@ export interface RouterContext {
  * `<DocumentStyles/>` still carries the fork's theme custom properties, with a
  * null href because the stylesheet link is Start's job now. `<html>` carries the
  * fork's default colour scheme as a class so `.dark`/`.light` resolve with no
- * client JS.
+ * client JS — that is the server's best guess, and `<ThemeScript/>` is what
+ * corrects it. The script blocks in `<head>` on purpose: the visitor's own
+ * choice has to be on `document.documentElement` BEFORE first paint, or they see
+ * the fork default flash past on every navigation into the app.
+ * `<ThemeProvider/>` then publishes what the script decided to the tree, so any
+ * `ThemeToggle` below reads and writes one source of truth.
  *
  * `<ReadyIndicator/>` sits at the root so *every* page emits the hydration
  * marker the Playwright suites wait on.
@@ -68,10 +75,11 @@ function RootDocument({ children }: { readonly children: ReactNode }): ReactElem
       <head>
         <HeadContent />
         <DocumentStyles themeCss={renderThemeStyle(branding)} stylesheetHref={null} />
+        <ThemeScript defaultMode={branding.defaultMode} />
       </head>
       <body>
         <FocusOnNavigate />
-        {children}
+        <ThemeProvider defaultMode={branding.defaultMode}>{children}</ThemeProvider>
         <ReadyIndicator />
         <Scripts />
       </body>
