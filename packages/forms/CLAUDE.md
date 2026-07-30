@@ -105,6 +105,15 @@ Four files move together, plus a fifth when new Base UI surface is involved:
 - **`react/jsx-max-depth` is 2** and `pnpm lint` runs `--deny-warnings`, which is why `SelectField`'s
   portal tree is split into one component per nesting level. `unicorn/catch-error-name` requires the
   catch parameter be named `error` outside tests.
+- **`.oxlintrc.json` here `extends` the root config, and its override globs must stay
+  directory-relative.** oxlint reads the NEAREST config for a file and does not merge upward on
+  its own, so dropping `extends` silently replaces the root's plugins, categories and every
+  `no-restricted-imports` ban for this whole subtree. The non-obvious half: an override glob in
+  this file is matched against the path relative to `packages/forms/`, so a repo-rooted prefix
+  copied from the root config (`packages/forms/**/*.tsx`) matches nothing and fails silently.
+  Never restate `categories` or `plugins` here either. `packages/sdk/src/oxlint-guardrails.test.ts`
+  asserts all three. The rules the test/story override turns off, and why each is wrong for a
+  component spec, are listed in `packages/ui/CLAUDE.md`; the two configs are kept identical.
 - `.oxlintrc.json` here turns off `react/jsx-props-no-spreading`.
 - The package is `private: true`, so it is **not** in `scripts/check-exports.sh`'s package list
   (same as `packages/ui`) — `pnpm check:exports` neither covers it nor needs to.

@@ -1,6 +1,27 @@
 {
   "$schema": "../../node_modules/oxlint/configuration_schema.json",
+  "extends": ["../../.oxlintrc.json"],
   "rules": {
     "react/jsx-props-no-spreading": "off"
-  }
+  },
+  "overrides": [
+    {
+      "files": ["**/*.{ts,tsx}"],
+      "rules": {
+        "no-magic-numbers": ["warn", { "ignore": [0, 1] }]
+      }
+    },
+    {
+      "files": ["**/*.{test,stories}.{ts,tsx}"],
+      "rules": {
+        "no-magic-numbers": "off",
+        "unicorn/prefer-dom-node-dataset": "off",
+        "unicorn/prefer-number-coercion": "off",
+        "unicorn/prefer-query-selector": "off",
+        "unicorn/error-message": "off",
+        "func-name-matching": "off",
+        "react/jsx-max-depth": "off"
+      }
+    }
+  ]
 }

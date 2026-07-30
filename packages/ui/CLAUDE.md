@@ -125,7 +125,25 @@ real Tailwind pipeline and the fork's real theme attached).
   in as a prop.
 - React, `react-dom`, and `@tanstack/react-router` are **peer** dependencies — keep them out
   of `dependencies`.
-- `.oxlintrc.json` here turns off `react/jsx-props-no-spreading` (passthrough is the pattern).
+- **`.oxlintrc.json` here `extends` the root config, and its override globs must stay
+  directory-relative.** oxlint reads the NEAREST config for a file and does not merge upward
+  on its own, so dropping `extends` silently replaces the root's plugins, categories and
+  every `no-restricted-imports` ban for this whole subtree. The non-obvious half: an override
+  glob in this file is matched against the path relative to `packages/ui/`, so a repo-rooted
+  prefix copied from the root config (`packages/ui/**/*.tsx`) matches nothing and fails
+  silently. Never restate `categories` or `plugins` here either — that detaches the severity
+  baseline even with `extends`. `packages/sdk/src/oxlint-guardrails.test.ts` asserts all three.
+- Beyond `react/jsx-props-no-spreading` (passthrough is the pattern), the test/story override
+  turns off five rules whose advice is wrong for component specs:
+  `unicorn/prefer-number-coercion` (these specs read `getComputedStyle` values like `"8px"`,
+  where `Number()` is `NaN` and `parseFloat` is the only correct reader),
+  `unicorn/prefer-query-selector` (React `useId` values contain `:` and are not valid CSS
+  selectors unescaped), `unicorn/error-message` (`new Error("")` is the SUBJECT of the
+  messageless-error specs), `func-name-matching` (Storybook's canonical
+  `render: function ControlledX()` must stay a named component for hooks and DevTools), and
+  `unicorn/prefer-dom-node-dataset` (`getAttribute("data-*")` is the documented way to assert
+  component state here). `react/jsx-max-depth` is off for stories/specs only; production
+  source still honours it.
 
 ## Scripts
 

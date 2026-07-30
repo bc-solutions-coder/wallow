@@ -26,6 +26,7 @@
     "max-statements": "off",
     "max-params": "off",
     "max-lines-per-function": "off",
+    "no-duplicate-imports": ["warn", { "allowSeparateTypeImports": true }],
     "no-restricted-imports": [
       "error",
       {
@@ -209,7 +210,7 @@
       }
     },
     {
-      "files": ["**/*.test.*"],
+      "files": ["**/*.test.*", "**/*.stories.tsx"],
       "rules": {
         "no-await-in-loop": "off",
         "no-magic-numbers": "off",
