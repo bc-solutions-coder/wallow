@@ -74,14 +74,25 @@ describe("OrganizationList (restyle)", () => {
     expectClasses(list, "divide-y divide-border");
   });
 
-  it("styles every organization row as a table row", async () => {
+  // SUPERSEDED BY Wallow-lrlm.4.1. The row used to be an inert `li` carrying the
+  // recipe inline; it is now the catalog `ListRow` composed with a router `Link`,
+  // so `render` substitutes an `<a>` for the `li` and the classes come from
+  // `listRowRecipe()`. Two deliberate departures ride along, both decided in
+  // Wallow-lrlm.3.5: `hover:bg-background/50` becomes `hover:bg-muted` (this epic
+  // erases opacity-suffixed colours in favour of the real token) and the row
+  // gains the catalog focus indicator, because a navigable row is focusable.
+  // The row's outgoing link is pinned by `OrganizationList.navigation.test.tsx`.
+  it("styles every organization row as a navigable table row", async () => {
     await renderList(ORGS, "organizations-table");
 
     const rows = allByTestId("organization-item");
     expect(rows).toHaveLength(ORGS.length);
     for (const row of rows) {
-      expectTag(row, "li");
-      expectClasses(row, "flex items-center justify-between px-6 py-4 hover:bg-background/50");
+      expectTag(row, "a");
+      expectClasses(
+        row,
+        "flex items-center justify-between px-6 py-4 hover:bg-muted outline-none focus-visible:ring-2 focus-visible:ring-ring",
+      );
     }
   });
 

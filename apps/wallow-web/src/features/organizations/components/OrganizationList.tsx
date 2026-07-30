@@ -6,17 +6,23 @@
  */
 import { useQuery } from "@bc-solutions-coder/query";
 import type { OrganizationDto } from "@bc-solutions-coder/sdk";
-import { MutedText } from "@bc-solutions-coder/ui";
-import { useRouteContext } from "@tanstack/react-router";
+import { ListRow, MutedText } from "@bc-solutions-coder/ui";
+import { Link, useRouteContext } from "@tanstack/react-router";
 
 import { organizationsGetAllOptions } from "../api";
 
-/** A single organization row (extracted to keep the list's JSX nesting shallow). */
+/**
+ * A single organization row (extracted to keep the list's JSX nesting shallow).
+ *
+ * `ListRow`'s `render` SUBSTITUTES the `li` rather than wrapping it, so the row
+ * IS the `Link` — the whole row navigates, and the shipped `organization-item`
+ * test id (derived from `name`) rides along onto the anchor.
+ */
 function OrganizationRow({ org }: { org: OrganizationDto }) {
   return (
-    <li
-      data-testid="organization-item"
-      className="flex items-center justify-between px-6 py-4 hover:bg-background/50"
+    <ListRow
+      name="organization"
+      render={<Link to="/dashboard/organizations/$orgId" params={{ orgId: org.id }} />}
     >
       <span
         data-testid="organization-item-name"
@@ -38,7 +44,7 @@ function OrganizationRow({ org }: { org: OrganizationDto }) {
       >
         {org.memberCount}
       </span>
-    </li>
+    </ListRow>
   );
 }
 

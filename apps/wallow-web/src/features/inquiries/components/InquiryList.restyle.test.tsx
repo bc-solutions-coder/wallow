@@ -85,14 +85,22 @@ describe("InquiryList (restyle)", () => {
     expectClasses(list, "divide-y divide-border");
   });
 
-  it("styles every inquiry row as a table row", async () => {
+  // SUPERSEDED BY Wallow-lrlm.4.1 — see the twin note in
+  // `OrganizationList.restyle.test.tsx`. The row is the catalog `ListRow`
+  // composed with a router `Link`, so it renders as an `<a>` carrying
+  // `listRowRecipe()`; the link itself is pinned by
+  // `InquiryList.navigation.test.tsx`.
+  it("styles every inquiry row as a navigable table row", async () => {
     await renderList(INQUIRIES, "inquiries-table");
 
     const rows = allByTestId("inquiry-item");
     expect(rows).toHaveLength(INQUIRIES.length);
     for (const row of rows) {
-      expectTag(row, "li");
-      expectClasses(row, "flex items-center justify-between px-6 py-4 hover:bg-background/50");
+      expectTag(row, "a");
+      expectClasses(
+        row,
+        "flex items-center justify-between px-6 py-4 hover:bg-muted outline-none focus-visible:ring-2 focus-visible:ring-ring",
+      );
     }
   });
 

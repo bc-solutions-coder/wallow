@@ -6,8 +6,8 @@
  */
 import { useQuery } from "@bc-solutions-coder/query";
 import type { InquiryResponse } from "@bc-solutions-coder/sdk";
-import { MutedText } from "@bc-solutions-coder/ui";
-import { useRouteContext } from "@tanstack/react-router";
+import { ListRow, MutedText } from "@bc-solutions-coder/ui";
+import { Link, useRouteContext } from "@tanstack/react-router";
 
 import { inquiriesGetAllOptions } from "../api";
 
@@ -31,12 +31,17 @@ function InquiryIdentity({ inquiry }: { inquiry: InquiryResponse }) {
   );
 }
 
-/** A single inquiry row (extracted to keep the list's JSX nesting shallow). */
+/**
+ * A single inquiry row (extracted to keep the list's JSX nesting shallow).
+ *
+ * As in `OrganizationList`, `ListRow`'s `render` substitutes the `li`, so the
+ * row itself is the `Link` to the inquiry's detail route.
+ */
 function InquiryRow({ inquiry }: { inquiry: InquiryResponse }) {
   return (
-    <li
-      data-testid="inquiry-item"
-      className="flex items-center justify-between px-6 py-4 hover:bg-background/50"
+    <ListRow
+      name="inquiry"
+      render={<Link to="/dashboard/inquiries/$inquiryId" params={{ inquiryId: inquiry.id }} />}
     >
       <InquiryIdentity inquiry={inquiry} />
       <span
@@ -45,7 +50,7 @@ function InquiryRow({ inquiry }: { inquiry: InquiryResponse }) {
       >
         {inquiry.status}
       </span>
-    </li>
+    </ListRow>
   );
 }
 
