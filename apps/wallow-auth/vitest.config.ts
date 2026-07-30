@@ -1,6 +1,8 @@
 import { createVitestProjects } from "@bc-solutions-coder/testing";
 import { defineConfig } from "vitest/config";
 
+import { resolveAlias } from "./aliases";
+
 /**
  * Vitest harness for wallow-auth — the shared two-project (node + headless
  * Chromium) split now lives in `@bc-solutions-coder/testing`'s
@@ -14,7 +16,7 @@ import { defineConfig } from "vitest/config";
  * `*.test.tsx` mounts a component and belongs in the browser project.
  * wallow-auth needs no node-project overrides.
  */
-const nodeTsxSpecs = ["src/routes/index.test.tsx"];
+const nodeTsxSpecs = ["src/app/routes/index.test.tsx"];
 
 /*
  * Runtimes wallow-auth reaches beyond the preset baseline, pre-bundled so the
@@ -47,6 +49,13 @@ const { node, browser } = createVitestProjects({ nodeTsxSpecs, extraBrowserOptim
 
 export default defineConfig({
   test: {
-    projects: [node, browser],
+    // Both projects carry the zone aliases from `aliases.ts` — the same map
+    // `vite.config.ts` appends to its alias array and `tsconfig.json` mirrors.
+    // Vitest resolves specifiers itself, so an alias missing here fails only
+    // under test even though the app builds.
+    projects: [
+      { ...node, resolve: { alias: resolveAlias } },
+      { ...browser, resolve: { alias: resolveAlias } },
+    ],
   },
 });
