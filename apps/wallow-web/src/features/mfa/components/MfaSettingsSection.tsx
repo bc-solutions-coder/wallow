@@ -10,7 +10,13 @@
  *     and `settings-mfa-regenerate`. Each opens a shared password-confirm panel
  *     (`settings-mfa-confirm-password` + `settings-mfa-confirm-submit`) driving
  *     the `disable` / `regenerateBackupCodes` mutations.
- *   - `settings-mfa-error` — shared RFC 7807 error surface.
+ *   - `settings-mfa-error` — shared RFC 7807 error surface for the two
+ *     MUTATIONS (disable / regenerate).
+ *   - `settings-mfa-status-error` — the initial status READ's own failure
+ *     surface. It is deliberately NOT `settings-mfa-error`: the two never
+ *     co-render, but a spec (or a reader) asserting on one testid has to be able
+ *     to say WHICH failure it saw, and the E2E page object already binds
+ *     `settings-mfa-error` to the confirm-panel flow.
  *
  * Testids mirror the C# E2E page object `SettingsMfaSection`.
  */
@@ -28,6 +34,7 @@ import {
 import { useRouteContext } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 
+import { errorText } from "@shared/lib/error-text";
 import {
   mfaDisableMutation,
   mfaGetStatusOptions,
@@ -185,7 +192,14 @@ function RegeneratedCodes(props: { codes: string[] }) {
 export function MfaSettingsSection() {
   const { sdk } = useRouteContext({ from: "__root__" });
   const queryClient = useQueryClient();
-  const { data, isPending } = useQuery(mfaGetStatusOptions({ client: sdk.client }));
+  // The status READ's rejection is `statusError`; the plain `error` below is the
+  // MUTATIONS' copy, which is a different failure with a different surface.
+  const {
+    data,
+    isPending,
+    isError,
+    error: statusError,
+  } = useQuery(mfaGetStatusOptions({ client: sdk.client }));
   // Both writes change the status the card renders (enrollment state and the
   // remaining-code count), so each re-reads the status OPERATION. Generated keys
   // are flat, so there is no `['mfa']` prefix to sweep by; the status query is
@@ -215,6 +229,18 @@ export function MfaSettingsSection() {
       <MutedText data-testid="settings-mfa-loading" className="text-center py-12">
         Loading MFA status…
       </MutedText>
+    );
+  }
+
+  // `enabled = status?.enabled ?? false` would otherwise make a failed read look
+  // like a confirmed "MFA is off" and invite a second enrolment, so the card
+  // refuses to claim a state it does not have — unless a cached status survives
+  // the failure, which is still the truth as of the last successful read.
+  if (isError && data === undefined) {
+    return (
+      <ErrorBanner data-testid="settings-mfa-status-error">
+        {errorText(statusError, "Could not load your MFA status.")}
+      </ErrorBanner>
     );
   }
 

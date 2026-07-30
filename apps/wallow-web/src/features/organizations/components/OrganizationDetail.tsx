@@ -2,8 +2,9 @@
  * Organization detail (Wallow-8w1h.4.4). Drives
  * `useQuery(organizationsGetByIdOptions(...))` and renders the org heading +
  * info (rendering `organization-detail-heading` /
- * `organization-detail-back-link` / `organization-detail-not-found`),
- * archive/reactivate actions, and the `MemberList` for `orgId`.
+ * `organization-detail-back-link` / `organization-detail-not-found` /
+ * `organization-detail-error`), archive/reactivate actions, and the `MemberList`
+ * for `orgId`.
  *
  * The back link is a plain anchor (not a router `Link`) so it needs no matched
  * route of its own; the SDK still comes off the router context, which every
@@ -18,6 +19,7 @@ import { useState } from "react";
 import { useRouteContext } from "@tanstack/react-router";
 
 import { SelectControl, type SelectControlOption } from "@shared/components/SelectControl";
+import { errorText } from "@shared/lib/error-text";
 import {
   clientsCreateMutation,
   clientsGetByTenantOptions,
@@ -157,15 +159,16 @@ function RegisterClientForm(props: { onRegister: (body: RegisterClientInput) => 
 /**
  * Bound OAuth clients + register-client flow (Wallow-ffpq.3.6). Lists the org's
  * bound clients and offers an inline register-client form, reachable straight
- * from the org detail page, rendering `organization-detail-clients-table` /
- * `organization-detail-register-*` testids. The flow is a structural port (per
+ * from the org detail page, rendering `organization-detail-clients-table` (or
+ * `organization-detail-clients-error`) / `organization-detail-register-*`
+ * testids. The flow is a structural port (per
  * the epic's reachability bar), not a hardened one.
  */
 function ClientsSection(props: { orgId: string }) {
   const { orgId } = props;
   const { sdk } = useRouteContext({ from: "__root__" });
   const queryClient = useQueryClient();
-  const { data } = useQuery(
+  const { data, isError, error } = useQuery(
     clientsGetByTenantOptions({ client: sdk.client, path: { tenantId: orgId } }),
   );
   const register = useMutation({
@@ -190,7 +193,16 @@ function ClientsSection(props: { orgId: string }) {
       >
         Bound Clients
       </h2>
-      <ClientsTable clients={clients} />
+      {/* A failed read is not an empty tenant: without this the section would
+          render a bound-clients table with no rows and say nothing went wrong.
+          Cached clients still win over a failed background refetch. */}
+      {isError && data === undefined ? (
+        <ErrorBanner data-testid="organization-detail-clients-error">
+          {errorText(error, "Could not load the bound clients.")}
+        </ErrorBanner>
+      ) : (
+        <ClientsTable clients={clients} />
+      )}
       {register.isSuccess && result !== undefined ? (
         <RegisterClientResult clientId={result.clientId} clientSecret={result.clientSecret} />
       ) : null}
@@ -258,7 +270,7 @@ export function OrganizationDetail(props: { orgId: string }) {
   const { orgId } = props;
   const { sdk } = useRouteContext({ from: "__root__" });
   const queryClient = useQueryClient();
-  const { data, isPending } = useQuery(
+  const { data, isPending, isError, error } = useQuery(
     organizationsGetByIdOptions({ client: sdk.client, path: { id: orgId } }),
   );
   // Archive and reactivate each flip a field the LIST also renders, so both
@@ -277,6 +289,22 @@ export function OrganizationDetail(props: { orgId: string }) {
 
   if (isPending) {
     return <MutedText data-testid="organization-detail-loading">Loading organization…</MutedText>;
+  }
+
+  // The split `InquiryDetail` already ships: an errored read reaches `org ===
+  // null` just as a resolved-empty one does, so without this branch a genuine
+  // 500 claims the organization does not exist. `data === undefined` is what
+  // separates them — a resolved-null body still means "not found", and a cached
+  // org survives a failed background refetch.
+  if (isError && data === undefined) {
+    return (
+      <div className="space-y-8">
+        <BackLink />
+        <ErrorBanner data-testid="organization-detail-error">
+          {errorText(error, "Could not load the organization.")}
+        </ErrorBanner>
+      </div>
+    );
   }
 
   const org = data ?? null;

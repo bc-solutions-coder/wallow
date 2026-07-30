@@ -9,17 +9,22 @@
  * keys are flat, so `queriesForOperation(organizationsGetMembersQueryKey(...))`
  * is what re-reads the list this component just changed.
  *
- * Testids follow `{page}-{element}` kebab-case: `organization-members-loading`
- * and `organization-members-empty` (query states), `organization-member-userid`
- * + `organization-member-add-submit` (add form), `organization-member-remove`
- * (per-row remove).
+ * A failed members read replaces the TABLE region only (`organization-members-
+ * error`): the heading and the add-member form are not query-backed, so they
+ * stay reachable and the user can still act on the organization.
+ *
+ * Testids follow `{page}-{element}` kebab-case: `organization-members-loading`,
+ * `organization-members-error` and `organization-members-empty` (query states),
+ * `organization-member-userid` + `organization-member-add-submit` (add form),
+ * `organization-member-remove` (per-row remove).
  */
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@bc-solutions-coder/query";
 import type { UserDto, WallowSdk } from "@bc-solutions-coder/sdk";
-import { Button, Field, Input, MutedText } from "@bc-solutions-coder/ui";
+import { Button, ErrorBanner, Field, Input, MutedText } from "@bc-solutions-coder/ui";
 import { useRouteContext } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
+import { errorText } from "@shared/lib/error-text";
 import {
   organizationsAddMemberMutation,
   organizationsGetMembersOptions,
@@ -69,7 +74,7 @@ export function MemberList(props: { orgId: string }) {
   const { orgId } = props;
   const { sdk } = useRouteContext({ from: "__root__" });
   const queryClient = useQueryClient();
-  const { data, isPending } = useQuery(
+  const { data, isPending, isError, error } = useQuery(
     organizationsGetMembersOptions({ client: sdk.client, path: { id: orgId } }),
   );
   const removeMember = useMutation({
@@ -92,20 +97,52 @@ export function MemberList(props: { orgId: string }) {
 
       <AddMemberForm client={sdk.client} queryClient={queryClient} orgId={orgId} />
 
-      {isPending ? (
-        <MutedText data-testid="organization-members-loading" className="text-center py-8">
-          Loading members…
-        </MutedText>
-      ) : (
-        <MemberTable
-          members={data ?? []}
-          onRemove={(userId) => {
-            removeMember.mutate({ path: { id: orgId, userId } });
-          }}
-        />
-      )}
+      <MembersRegion
+        members={data}
+        isPending={isPending}
+        isError={isError}
+        error={error}
+        onRemove={(userId) => {
+          removeMember.mutate({ path: { id: orgId, userId } });
+        }}
+      />
     </div>
   );
+}
+
+/**
+ * The query-backed half of the section — loading, errored, or the loaded table.
+ * Its own component so the three states read as statements rather than as a
+ * ternary chain wedged into the section's JSX.
+ */
+function MembersRegion(props: {
+  members: readonly UserDto[] | undefined;
+  isPending: boolean;
+  isError: boolean;
+  error: unknown;
+  onRemove: (userId: string) => void;
+}): ReactNode {
+  const { members, isPending, isError, error, onRemove } = props;
+
+  if (isPending) {
+    return (
+      <MutedText data-testid="organization-members-loading" className="text-center py-8">
+        Loading members…
+      </MutedText>
+    );
+  }
+
+  // Only when there is no cached roster to fall back on: otherwise a failed
+  // background refetch would replace a real membership list with a banner.
+  if (isError && members === undefined) {
+    return (
+      <ErrorBanner data-testid="organization-members-error">
+        {errorText(error, "Could not load the members.")}
+      </ErrorBanner>
+    );
+  }
+
+  return <MemberTable members={members ?? []} onRemove={onRemove} />;
 }
 
 /** Add-member form, backed by the generated add-member mutation. */

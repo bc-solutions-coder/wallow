@@ -14,10 +14,11 @@
  * cover.
  */
 import { useQuery } from "@bc-solutions-coder/query";
-import { Card, CardTitle, MutedText } from "@bc-solutions-coder/ui";
+import { Card, CardTitle, ErrorBanner, MutedText } from "@bc-solutions-coder/ui";
 import { useRouteContext } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
+import { errorText } from "@shared/lib/error-text";
 import { usersGetCurrentUserOptions } from "../api";
 
 /** The uppercase caption above each read-only value. */
@@ -55,13 +56,26 @@ function RoleChips(props: { roles: readonly string[] }) {
 
 export function ProfileSection() {
   const { sdk } = useRouteContext({ from: "__root__" });
-  const { data, isPending } = useQuery(usersGetCurrentUserOptions({ client: sdk.client }));
+  const { data, isPending, isError, error } = useQuery(
+    usersGetCurrentUserOptions({ client: sdk.client }),
+  );
 
   if (isPending) {
     return (
       <MutedText data-testid="settings-profile-loading" className="text-center py-12">
         Loading profile…
       </MutedText>
+    );
+  }
+
+  // Without this branch `data ?? {}` renders a complete-looking card of "Not
+  // set" values, presenting a failed read as a fact about the account. A cached
+  // profile still wins, so a failed background refetch keeps the real values.
+  if (isError && data === undefined) {
+    return (
+      <ErrorBanner data-testid="settings-profile-error">
+        {errorText(error, "Could not load your profile.")}
+      </ErrorBanner>
     );
   }
 

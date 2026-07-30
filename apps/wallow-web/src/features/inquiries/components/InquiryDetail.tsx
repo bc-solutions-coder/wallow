@@ -16,8 +16,14 @@
  * `inquiry-detail-error`, `inquiry-detail-status`, `inquiry-status-select` +
  * `inquiry-status-submit` + `inquiry-status-error`,
  * `inquiry-comments-table` + `inquiry-comment-row`,
- * `inquiry-comments-loading` / `inquiry-comments-empty`, `inquiry-comment-content` +
- * `inquiry-comment-internal` + `inquiry-comment-submit`, `inquiry-comment-error`.
+ * `inquiry-comments-loading` / `inquiry-comments-empty` / `inquiry-comments-error`,
+ * `inquiry-comment-content` + `inquiry-comment-internal` + `inquiry-comment-submit`,
+ * `inquiry-comment-error`.
+ *
+ * `inquiry-comments-error` (the comment thread's READ failing) is deliberately
+ * distinct from `inquiry-comment-error` (the add-comment MUTATION failing) —
+ * they can co-render, so a spec asserting one must be able to say which failure
+ * it saw.
  */
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@bc-solutions-coder/query";
 import type { InquiryCommentResponse, WallowSdk } from "@bc-solutions-coder/sdk";
@@ -193,16 +199,27 @@ function CommentRow(props: { comment: InquiryCommentResponse }) {
   );
 }
 
-/** The comment thread: loading / empty / row-list states. */
+/** The comment thread: loading / errored / empty / row-list states. */
 function CommentThread(props: { inquiryId: string }) {
   const { inquiryId } = props;
   const { sdk } = useRouteContext({ from: "__root__" });
-  const { data, isPending } = useQuery(
+  const { data, isPending, isError, error } = useQuery(
     inquiriesGetCommentsOptions({ client: sdk.client, path: { id: inquiryId } }),
   );
 
   if (isPending) {
     return <MutedText data-testid="inquiry-comments-loading">Loading comments…</MutedText>;
+  }
+
+  // A failed read is not an empty thread: without this the `data ?? []` below
+  // would render "No comments yet." over a server error. Cached comments still
+  // win over a failed background refetch.
+  if (isError && data === undefined) {
+    return (
+      <ErrorBanner data-testid="inquiry-comments-error">
+        {errorText(error, "Could not load the comments.")}
+      </ErrorBanner>
+    );
   }
 
   const comments: readonly InquiryCommentResponse[] = data ?? [];

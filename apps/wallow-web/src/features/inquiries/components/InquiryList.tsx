@@ -1,14 +1,15 @@
 /**
  * Inquiries list component (Wallow-8w1h.7.2) — copies the CANONICAL
  * OrganizationList shape. It drives `useQuery(inquiriesGetAllOptions({ client }))`
- * and renders three states: loading, empty, and a list of `inquiry-item` rows,
- * each showing the inquiry's status via `inquiry-item-status`.
+ * and renders four states: loading, errored, empty, and a list of `inquiry-item`
+ * rows, each showing the inquiry's status via `inquiry-item-status`.
  */
 import { useQuery } from "@bc-solutions-coder/query";
 import type { InquiryResponse } from "@bc-solutions-coder/sdk";
-import { ListRow, MutedText } from "@bc-solutions-coder/ui";
+import { ErrorBanner, ListRow, MutedText } from "@bc-solutions-coder/ui";
 import { Link, useRouteContext } from "@tanstack/react-router";
 
+import { errorText } from "@shared/lib/error-text";
 import { inquiriesGetAllOptions } from "../api";
 
 /**
@@ -76,13 +77,25 @@ function InquiriesEmptyState() {
 
 export function InquiryList() {
   const { sdk } = useRouteContext({ from: "__root__" });
-  const { data, isPending } = useQuery(inquiriesGetAllOptions({ client: sdk.client }));
+  const { data, isPending, isError, error } = useQuery(
+    inquiriesGetAllOptions({ client: sdk.client }),
+  );
 
   if (isPending) {
     return (
       <MutedText data-testid="inquiries-loading" className="text-center py-12">
         Loading inquiries…
       </MutedText>
+    );
+  }
+
+  // The same branch the sibling `InquiryDetail` already ships: error only when
+  // there is no cached list, so "we could not ask" never reads as "none yet".
+  if (isError && data === undefined) {
+    return (
+      <ErrorBanner data-testid="inquiries-error">
+        {errorText(error, "Could not load inquiries.")}
+      </ErrorBanner>
     );
   }
 
