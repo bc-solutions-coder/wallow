@@ -34,7 +34,7 @@ COPY apps/wallow-auth/package.json apps/wallow-auth/
 
 RUN pnpm install --frozen-lockfile
 
-# The fork's branding is a BUILD input, not just a runtime one: src/lib/branding.ts
+# The fork's branding is a BUILD input, not just a runtime one: src/shared/lib/branding.ts
 # statically imports ../../../../api/branding.json so Vite inlines it into both
 # bundles. It lives outside apps/ (it is the one source of fork identity shared
 # with the .NET apps), so it must be copied in explicitly or `vite build` fails

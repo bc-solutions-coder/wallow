@@ -5,7 +5,7 @@ import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
 
 import { resolveAlias } from "./aliases";
-import { AUTH_BASE_PATH_ENV_KEY, normalizeBasePath, toViteBase } from "./src/lib/base-path";
+import { AUTH_BASE_PATH_ENV_KEY, normalizeBasePath, toViteBase } from "./src/shared/lib/base-path";
 
 /**
  * The one Vite config wallow-auth has: `vite dev` serves it and `vite build`
@@ -84,12 +84,29 @@ export default defineConfig({
   },
   plugins: [
     tanstackStart({
+      // The three-zone layout puts everything the host runtime owns under
+      // `src/app/`: routes, router.tsx, start.ts, the generated route tree and
+      // styles.css. `srcDirectory` is the ONE knob that relocates all of them —
+      // the plugin resolves `router.routesDirectory`, `router.generatedRouteTree`
+      // and every entry (router, start, client, server) RELATIVE to it. Setting
+      // `routesDirectory: "src/app/routes"` instead would resolve to
+      // `src/src/app/routes`, and the router entry — which is `required: true` —
+      // would still not be found, so the build would hard-fail.
+      srcDirectory: "src/app",
+
+      // MANDATORY alongside the line above, not optional. With no `include`, the
+      // import-protection plugin uses `srcDirectory` itself as the importer scope.
+      // Narrowing srcDirectory to `src/app` would therefore silently stop
+      // enforcing the server-only / client-bundle boundary for everything under
+      // `src/features/**` and `src/shared/**`.
+      importProtection: { include: ["src/**"] },
+
       router: {
         // The plugin derives this from `base` when it is left unset; spelled out
         // so the router's own basepath cannot silently drift from Vite's.
         basepath: BASE_PATH === "" ? undefined : BASE_PATH,
         // Specs are co-located with the code they cover, so a spec under
-        // `src/routes/` would otherwise be codegen'd in as a route.
+        // `src/app/routes/` would otherwise be codegen'd in as a route.
         routeFileIgnorePattern: String.raw`\.(test|spec)\.(ts|tsx)$`,
       },
     }),
