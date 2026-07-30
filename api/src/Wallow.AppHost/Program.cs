@@ -59,25 +59,38 @@ IResourceBuilder<ProjectResource> api = builder.AddProject<Projects.Wallow_Api>(
     .WaitFor(valkey)
     .WaitFor(garage);
 
+// The one place the API's address is named. It resolves to the DCP proxy Aspire puts in front of
+// the project (http://localhost:5001 locally, pinned by Wallow.Api's launchSettings applicationUrl
+// while the process itself binds a dynamic port behind it), and to a per-environment binding
+// placeholder in a published manifest. Spelling the URL out as a literal instead would duplicate a
+// port launchSettings owns, and would bake localhost into every deployment target.
+EndpointReference apiEndpoint = api.GetEndpoint("http");
+
 // Auth and Web wait for API to be fully ready.
 // Auth is the TanStack Start app (apps/wallow-auth), run via its pnpm dev script (vite dev) on port 3002.
-// WithReference(api) injects Aspire service-discovery vars; WALLOW_API_INTERNAL_URL is the
-// explicit upstream for the app's server-side API proxy (the Aspire/Docker DNS default does not
-// resolve locally).
+// WithReference(api) injects Aspire service-discovery vars, which the Node host never reads, so
+// WALLOW_API_INTERNAL_URL still has to name the upstream for the app's server-side API proxy
+// outright (the proxy's own default, http://wallow-api, is Docker DNS and does not resolve here).
 builder.AddJavaScriptApp("wallow-auth", wallowAuthDir, "dev")
     .WithPnpm()
     .WithHttpEndpoint(port: 3002, env: "PORT", isProxied: false)
     .WithReference(valkey, connectionName: "Redis")
     .WithReference(api)
-    .WithEnvironment("WALLOW_API_INTERNAL_URL", "http://localhost:5001")
+    .WithEnvironment("WALLOW_API_INTERNAL_URL", apiEndpoint)
     .WaitFor(api)
     .WaitFor(valkey);
 
 // Web is the TanStack Start app (apps/wallow-web), run via its pnpm dev script on port 3000.
 // WithReference(api) injects Aspire service-discovery vars; the OIDC_*/BFF/COOKIE vars are the
 // BFF config that loadBffConfigFromEnv() requires (it throws on any missing var). Values mirror
-// docker/docker-compose.test.yml, remapped to the Aspire-local API port 5001 and web port 3000.
+// docker/docker-compose.test.yml, remapped to the Aspire-local ports.
 // wallow-web-client/wallow-web-secret are the seeded OIDC client credentials (api/seed.json).
+//
+// Only the two vars that name WHERE THE API LISTENS go through apiEndpoint. The rest stay literal
+// on purpose: each must equal a value some other file already fixed — the redirect URIs are
+// matched against the ones registered in api/seed.json, and OIDC_ISSUER against the issuer the API
+// derives from AuthUrl — so pointing them at an Aspire endpoint would only make them agree with
+// the app's own port by coincidence, and quietly disagree the moment that file changes.
 builder.AddJavaScriptApp("wallow-web", wallowWebDir, "dev")
     .WithPnpm()
     .WithHttpEndpoint(port: 3000, env: "PORT", isProxied: false)
@@ -88,12 +101,12 @@ builder.AddJavaScriptApp("wallow-web", wallowWebDir, "dev")
     // so the client must expect that issuer, while discovery is fetched from the API directly
     // (the auth app's passthrough would serve it too, but going direct saves a proxy hop).
     .WithEnvironment("OIDC_ISSUER", "http://localhost:3002")
-    .WithEnvironment("OIDC_METADATA_URL", "http://localhost:5001/.well-known/openid-configuration")
+    .WithEnvironment("OIDC_METADATA_URL", ReferenceExpression.Create($"{apiEndpoint}/.well-known/openid-configuration"))
     .WithEnvironment("OIDC_CLIENT_ID", "wallow-web-client")
     .WithEnvironment("OIDC_CLIENT_SECRET", "wallow-web-secret")
     .WithEnvironment("OIDC_REDIRECT_URI", "http://localhost:3000/bff/callback")
     .WithEnvironment("OIDC_POST_LOGOUT_REDIRECT_URI", "http://localhost:3000")
-    .WithEnvironment("BFF_API_BASE_URL", "http://localhost:5001")
+    .WithEnvironment("BFF_API_BASE_URL", apiEndpoint)
     .WithEnvironment("COOKIE_PASSWORD", "wallow-web-dev-cookie-seal-password-min-32-chars")
     // Safari/WebKit refuses Secure cookies over plain-HTTP localhost (Chrome and Firefox
     // allow them), so the BFF's login-transaction cookie never survives the redirect and
