@@ -126,7 +126,12 @@ export const SelectingATab: Story = {
     await waitFor(() => {
       expect(canvas.getByTestId("panel-password")).toBeVisible();
     });
-    await expect(canvas.queryByTestId("panel-account")).toBeNull();
+    // The outgoing panel leaves on Base UI's transition lifecycle, so it is
+    // still in the DOM (`inert`, `data-ending-style`) for a beat after the new
+    // one paints — the unmount has to be waited for, not asserted inline.
+    await waitFor(() => {
+      expect(canvas.queryByTestId("panel-account")).toBeNull();
+    });
   },
 };
 
