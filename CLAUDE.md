@@ -183,6 +183,24 @@ SDK) `sdk-v*` triggers a separate npm publish.
 Docs rules live in `docs/CLAUDE.md` (site content only; lowercase-kebab filenames; add new
 guides to `docs/toc.yml`).
 
+### External library docs — use ref.tools, not memory
+
+Wallow rides a lot of fast-moving third-party API surface (Wolverine, EF Core, .NET Aspire,
+TanStack Start/Router/Query/Form, Base UI, Tailwind v4, zod, Vitest browser mode, Playwright, oxc,
+DocFX, release-please). **Look the API up before writing against it** — do not answer or code from
+recalled signatures.
+
+- `mcp__ref-context__ref_search_documentation` — search official docs for a library/framework/API.
+  Query with the library name plus the specific symbol or task
+  (e.g. "Wolverine in-memory integration event subscriber", "TanStack Form useAppForm field API").
+- `mcp__ref-context__ref_read_url` — read a search hit (or any known doc URL) in full.
+
+Prefer these over `WebSearch`/`WebFetch` for library documentation; ref.tools returns the versioned
+official docs rather than blog-post drift. Reach for ref.tools whenever you're about to use an
+unfamiliar API, a config key, or a CLI flag — and *always* when a build/test error names a
+third-party type or option. Repo-internal questions still go to the local docs and
+`.claude/rules/` files above, not to ref.tools.
+
 ## Conventions & Rules
 
 Detailed, enforced rules live in `.claude/rules/` — read the relevant file before touching its area:
