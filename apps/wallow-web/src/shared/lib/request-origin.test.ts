@@ -151,7 +151,9 @@ describe("the copy in every other Start app", () => {
   const canonical: string = readFileSync(resolve(libDir, "request-origin.ts"), "utf8");
 
   it.each([
-    ["apps/wallow-auth", "wallow-auth/src/lib/request-origin.ts"],
+    // wallow-auth is zoned like this app, so its copy is `shared/lib`;
+    // minimal-app is not, so its copy is still directly under `src/lib`.
+    ["apps/wallow-auth", "wallow-auth/src/shared/lib/request-origin.ts"],
     ["apps/examples/minimal-app", "examples/minimal-app/src/lib/request-origin.ts"],
   ])("is byte-identical in %s", (_label: string, relativePath: string) => {
     expect(readFileSync(resolve(appsDir, relativePath), "utf8")).toBe(canonical);
