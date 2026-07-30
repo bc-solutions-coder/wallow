@@ -31,11 +31,22 @@ import { Route } from "./index";
 /** The transport backing each render, rebuilt per test. */
 let harness: SdkHarness;
 
-/** Render the route page and resolve its settled root element. */
+/**
+ * Render the route page and resolve its settled root element.
+ *
+ * The root and the heading commit on the first paint, but `InquiryList` renders
+ * `inquiries-loading` until the harness answers `GET /v1/inquiries` — so gating
+ * on the root alone leaves every list assertion racing that response (it loses
+ * on a loaded CI runner). Gate on the list too: it is the last thing this page
+ * paints, so once it is in the document the whole page is settled and the specs
+ * below can read the DOM synchronously.
+ */
 async function renderPage(): Promise<HTMLElement> {
   const Page = Route.options.component!;
   renderWithWallow(<Page />, { harness });
-  return waitForTestId("dashboard-inquiries");
+  const root = await waitForTestId("dashboard-inquiries");
+  await waitForTestId("inquiries-table");
+  return root;
 }
 
 describe("routes/dashboard/inquiries (restyle)", () => {

@@ -28,11 +28,19 @@ import { Route } from "./index";
 /** The transport backing each render, rebuilt per test. */
 let harness: SdkHarness;
 
-/** Render the route page and resolve its settled root element. */
+/**
+ * Render the route page and resolve its settled root element.
+ *
+ * Gated on the list as well as the root: the root paints immediately, but the
+ * list only replaces its loading state once the harness answers, and reading
+ * `apps-table` synchronously after the root would race that response.
+ */
 async function renderPage(): Promise<HTMLElement> {
   const Page = Route.options.component!;
   renderWithWallow(<Page />, { harness });
-  return waitForTestId("dashboard-apps");
+  const root = await waitForTestId("dashboard-apps");
+  await waitForTestId("apps-table");
+  return root;
 }
 
 describe("routes/dashboard/apps (restyle)", () => {
