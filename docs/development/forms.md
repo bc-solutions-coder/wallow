@@ -14,6 +14,11 @@ It sits one layer above the component library and depends on it one way:
 `ui` knows nothing about forms and must never import this package. Like `ui`, `forms` is private
 (never published) and consumed as a `workspace:*` dependency.
 
+The mutation half of a form is TanStack Query, and it arrives the same way it does everywhere
+else in this workspace: through `@bc-solutions-coder/query`, never `@tanstack/react-query`
+directly — including in the samples below, and including inside `packages/forms` itself. See
+[Frontend State](frontend-state.md#the-query-facade).
+
 ## Why it exists
 
 Before it, each of the five forms in the two apps hand-rolled the same things and disagreed about
@@ -30,14 +35,14 @@ suites already select.
 `src/index.ts` is the only entry — there are no subpaths, and nothing else in `packages/forms/src`
 is importable. Everything below comes from `@bc-solutions-coder/forms`.
 
-| Export                                                                   | What it is                                                                                       |
-| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| `useAppForm`                                                             | The one hook a form calls: schema + mutation + submit pipeline + RFC 7807 error split.           |
-| `AppForm`                                                                | The shell: owns the `<form>` element, the submit wiring, the vertical rhythm, and the testid prefix. |
-| `SubmitButton`, `FormError`                                              | The two children that read the shell's `pending` / `serverError` instead of taking them as props. |
-| `TextField`, `PasswordField`, `TextareaField`, `SelectField`, `CheckboxField` | The catalog fields, reached through `form.AppField`'s render prop.                            |
-| `fieldTestId`, `fieldErrorTestId`, `splitServerError`                    | The derivation and error-split helpers, so a bespoke control can match the catalog exactly.      |
-| `withForm`                                                               | TanStack's higher-order form composition, bound to this package's contexts.                       |
+| Export                                                                        | What it is                                                                                           |
+| ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `useAppForm`                                                                  | The one hook a form calls: schema + mutation + submit pipeline + RFC 7807 error split.               |
+| `AppForm`                                                                     | The shell: owns the `<form>` element, the submit wiring, the vertical rhythm, and the testid prefix. |
+| `SubmitButton`, `FormError`                                                   | The two children that read the shell's `pending` / `serverError` instead of taking them as props.    |
+| `TextField`, `PasswordField`, `TextareaField`, `SelectField`, `CheckboxField` | The catalog fields, reached through `form.AppField`'s render prop.                                   |
+| `fieldTestId`, `fieldErrorTestId`, `splitServerError`                         | The derivation and error-split helpers, so a bespoke control can match the catalog exactly.          |
+| `withForm`                                                                    | TanStack's higher-order form composition, bound to this package's contexts.                          |
 
 ## Authoring a form
 
@@ -47,7 +52,7 @@ shape:
 
 ```tsx
 import { AppForm, FormError, SubmitButton, useAppForm } from "@bc-solutions-coder/forms";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
 import { z } from "zod";
 
@@ -96,25 +101,25 @@ is destructured or cast.
 
 ### `useAppForm` options
 
-| Option          | Required | What it does                                                                                                         |
-| --------------- | -------- | -------------------------------------------------------------------------------------------------------------------- |
-| `schema`        | yes      | A zod schema, wired as TanStack's `validators.onSubmit`. Its input type is the form's value shape.                    |
-| `defaultValues` | yes      | The initial values. Its **keys are also the field names** the server-error split matches against.                     |
+| Option          | Required | What it does                                                                                                           |
+| --------------- | -------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `schema`        | yes      | A zod schema, wired as TanStack's `validators.onSubmit`. Its input type is the form's value shape.                     |
+| `defaultValues` | yes      | The initial values. Its **keys are also the field names** the server-error split matches against.                      |
 | `mutation`      | no       | The generated `{operation}Mutation({ client })` options object, passed whole. Omit it for the `onSubmit` escape hatch. |
 | `toVariables`   | no       | Values → mutation variables. Defaults to `(values) => ({ body: values })` when `mutation` is given.                    |
 | `onSubmit`      | no       | The no-mutation escape hatch (see below). Still runs through an internal mutation, so `pending` keeps working.         |
-| `onSuccess`     | no       | Runs with the mutation's data: sweep the query cache, reset the form, hand a one-time secret to the parent.           |
-| `fallbackError` | no       | Banner text for a failure carrying nothing usable. Defaults to `"Something went wrong. Please try again."`.           |
+| `onSuccess`     | no       | Runs with the mutation's data: sweep the query cache, reset the form, hand a one-time secret to the parent.            |
+| `fallbackError` | no       | Banner text for a failure carrying nothing usable. Defaults to `"Something went wrong. Please try again."`.            |
 
 It returns the TanStack form instance (so `form.AppField`, `form.Field`, `form.reset` and
 `form.handleSubmit` are all where a TanStack user expects them) plus a `form.wallow` member:
 
-| `form.wallow`       | What it holds                                                                             |
-| ------------------- | ------------------------------------------------------------------------------------------- |
-| `pending`           | Whether the submit mutation is in flight. `AppForm` publishes it to `SubmitButton` and the fields. |
-| `serverError`       | The form-level failure text `FormError` renders, or `null`.                                 |
-| `reset()`           | Drops the mutation's result/error state — e.g. when a dialog reopens.                       |
-| `clearServerErrors()` | Drops the last submit's banner and server field messages. `AppForm` calls it on every submit. |
+| `form.wallow`         | What it holds                                                                                      |
+| --------------------- | -------------------------------------------------------------------------------------------------- |
+| `pending`             | Whether the submit mutation is in flight. `AppForm` publishes it to `SubmitButton` and the fields. |
+| `serverError`         | The form-level failure text `FormError` renders, or `null`.                                        |
+| `reset()`             | Drops the mutation's result/error state — e.g. when a dialog reopens.                              |
+| `clearServerErrors()` | Drops the last submit's banner and server field messages. `AppForm` calls it on every submit.      |
 
 ### The catalog fields
 
@@ -122,13 +127,13 @@ Every field is reached as a member of `form.AppField`'s render-prop argument (`f
 `field.SelectField`, …) and shares `label`, `testId`, and disabling itself while the form is
 pending.
 
-| Field           | Value type | Props beyond `label` / `testId`                                 |
-| --------------- | ---------- | ---------------------------------------------------------------- |
+| Field           | Value type | Props beyond `label` / `testId`                                                           |
+| --------------- | ---------- | ----------------------------------------------------------------------------------------- |
 | `TextField`     | `string`   | `type` (`"text" \| "email" \| "tel" \| "url"`), `placeholder`, `autoComplete`, `optional` |
-| `PasswordField` | `string`   | `placeholder`, `autoComplete` — the type is pinned to `"password"` and cannot be widened |
-| `TextareaField` | `string`   | `placeholder`, `rows`, `optional`                                |
-| `SelectField`   | `string`   | `options` (`{ value, label }[]`), `placeholder`, `optional`      |
-| `CheckboxField` | `boolean`  | `description`                                                    |
+| `PasswordField` | `string`   | `placeholder`, `autoComplete` — the type is pinned to `"password"` and cannot be widened  |
+| `TextareaField` | `string`   | `placeholder`, `rows`, `optional`                                                         |
+| `SelectField`   | `string`   | `options` (`{ value, label }[]`), `placeholder`, `optional`                               |
+| `CheckboxField` | `boolean`  | `description`                                                                             |
 
 `optional` renders a muted `(optional)` marker after the label, which is how a form says a field is
 not required instead of leaving a user to discover it by submitting.
@@ -139,13 +144,13 @@ Testids are **derived**, never hand-written, from the shell's `testIdPrefix` plu
 name (camelCase folded to kebab-case), so they satisfy the repo's `{page}-{element}` rule
 (`.claude/rules/E2E.md`) by construction:
 
-| Element              | Derived id                              | With `testIdPrefix="inquiry"`, field `projectType` |
-| -------------------- | --------------------------------------- | --------------------------------------------------- |
-| The `<form>` element | `{testIdPrefix}-form`                   | `inquiry-form`                                      |
-| A field's control    | `{testIdPrefix}-{kebab field name}`     | `inquiry-project-type`                              |
-| A field's message    | the control's id plus `-error`          | `inquiry-project-type-error`                        |
-| `SubmitButton`       | `{testIdPrefix}-submit`                 | `inquiry-submit`                                    |
-| `FormError`          | `{testIdPrefix}-error`                  | `inquiry-error`                                     |
+| Element              | Derived id                          | With `testIdPrefix="inquiry"`, field `projectType` |
+| -------------------- | ----------------------------------- | -------------------------------------------------- |
+| The `<form>` element | `{testIdPrefix}-form`               | `inquiry-form`                                     |
+| A field's control    | `{testIdPrefix}-{kebab field name}` | `inquiry-project-type`                             |
+| A field's message    | the control's id plus `-error`      | `inquiry-project-type-error`                       |
+| `SubmitButton`       | `{testIdPrefix}-submit`             | `inquiry-submit`                                   |
+| `FormError`          | `{testIdPrefix}-error`              | `inquiry-error`                                    |
 
 `testIdPrefix` and `testId` are different tools, and mixing them up is the easiest way to move an id
 a Playwright suite depends on:
@@ -164,11 +169,11 @@ overrides the element alone with `testId="inquiry-create-form"`.
 
 Three failure surfaces, two testid shapes, one path each:
 
-| Failure                         | Route                                                                                       | Rendered as                                             |
-| ------------------------------- | ------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| Client-side validation          | zod schema → TanStack's `onSubmit` validator → `field.state.meta.errors`                     | `Field.Error` under the control — `{prefix}-{field}-error` |
-| Server field errors             | RFC 7807 `errors` dict → `WallowError.fieldErrors` → `splitServerError` → `form.setErrorMap({ onServer })` | the same `Field.Error`, the same testid    |
-| Form-level failure              | RFC 7807 `detail`, the `fallbackError`, or a thrown `Error`'s own message → `form.wallow.serverError` | `FormError` → a ui `ErrorBanner` — `{prefix}-error` |
+| Failure                | Route                                                                                                      | Rendered as                                                |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Client-side validation | zod schema → TanStack's `onSubmit` validator → `field.state.meta.errors`                                   | `Field.Error` under the control — `{prefix}-{field}-error` |
+| Server field errors    | RFC 7807 `errors` dict → `WallowError.fieldErrors` → `splitServerError` → `form.setErrorMap({ onServer })` | the same `Field.Error`, the same testid                    |
+| Form-level failure     | RFC 7807 `detail`, the `fallbackError`, or a thrown `Error`'s own message → `form.wallow.serverError`      | `FormError` → a ui `ErrorBanner` — `{prefix}-error`        |
 
 `splitServerError` decides which is which, and the rules are worth knowing because they are what
 keeps a message from disappearing:

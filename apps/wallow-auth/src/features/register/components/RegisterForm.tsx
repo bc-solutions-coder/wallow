@@ -8,14 +8,15 @@ import {
   Input,
   Label,
 } from "@bc-solutions-coder/ui";
-import { accountRegister, isSafeReturnUrl } from "@bc-solutions-coder/sdk";
+import { isSafeReturnUrl } from "@bc-solutions-coder/sdk";
+import { useMutation, useQuery } from "@bc-solutions-coder/query";
+import { useNavigate, useRouteContext } from "@tanstack/react-router";
+import { type ReactNode, useState } from "react";
 import {
   accountGetClientTenantOptions,
   accountGetExternalProvidersOptions,
-} from "@bc-solutions-coder/sdk/query";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { useNavigate, useRouteContext } from "@tanstack/react-router";
-import { type ReactNode, useState } from "react";
+  accountRegisterMutation,
+} from "../api";
 import { BASE_PATH, toAppHref } from "../../../lib/base-path";
 
 /**
@@ -623,27 +624,28 @@ export function RegisterForm({ clientId, returnUrl }: RegisterFormProps): ReactN
     enabled: tenantClientId !== "",
   });
 
-  const registerMutation = useMutation({
-    mutationFn: async (request: RegisterRequest): Promise<void> => {
-      await accountRegister({ client: sdk.client, body: request });
-    },
-  });
+  const registerMutation = useMutation(accountRegisterMutation({ client: sdk.client }));
 
   /** Create the account. The ONLY caller of `register`. */
   const submitRegistration = (request: RegisterRequest): void => {
-    registerMutation.mutate(request, {
-      // Resolution IS success: every failure this endpoint has is non-2xx, so
-      // `unwrap()` has already thrown by the time this runs.
-      onSuccess: () => {
-        void navigate({ href: verifyEmailTarget(returnUrl) });
+    // The generated artifact's REQUEST object, not a bare body: the factory
+    // assembles the request itself, and a bare body would send an empty one.
+    registerMutation.mutate(
+      { body: request },
+      {
+        // Resolution IS success: every failure this endpoint has is non-2xx, so
+        // `unwrap()` has already thrown by the time this runs.
+        onSuccess: () => {
+          void navigate({ href: verifyEmailTarget(returnUrl) });
+        },
+        onError: (cause: unknown) => {
+          // No account was created, so there IS something to fix. Every reason this
+          // endpoint rejects for is actionable only on the fields, so drop back to
+          // the form.
+          setError(registerFailureMessage(cause));
+        },
       },
-      onError: (cause: unknown) => {
-        // No account was created, so there IS something to fix. Every reason this
-        // endpoint rejects for is actionable only on the fields, so drop back to
-        // the form.
-        setError(registerFailureMessage(cause));
-      },
-    });
+    );
   };
 
   const handleSubmit = (): void => {

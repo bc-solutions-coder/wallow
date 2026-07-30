@@ -34,6 +34,18 @@ const extraBrowserOptimizeDeps: string[] = [
   "react/jsx-dev-runtime",
   "react/jsx-runtime",
   "react-dom",
+  // The query facade and the auth package that rides on it are LINKED workspace
+  // packages, and Vite does not pre-bundle a link by default. Named here, the
+  // pre-bundled chunk carries react-query's runtime inlined, so the browser graph
+  // holds exactly ONE react-query copy (and therefore one `QueryClientProvider`
+  // context — two would surface as "No QueryClient set" from a provider the hook
+  // does not recognise).
+  "@bc-solutions-coder/query",
+  "@bc-solutions-coder/auth",
+  // Stays on the list as policy: react-query is still the module actually being
+  // pre-bundled, one facade hop away. It no longer resolves from this app's root
+  // (the manifest dropped it), so Vite logs one "Failed to resolve dependency"
+  // line per run; the pre-bundling it names is done by the facade entry above.
   "@tanstack/react-query",
   "@tanstack/react-router",
   "@tanstack/react-form",
@@ -67,6 +79,13 @@ const nodeAsyncHooksShim: string = fileURLToPath(
 const { node, browser } = createVitestProjects({ nodeTsxSpecs, extraBrowserOptimizeDeps });
 
 export default defineConfig({
+  // The other half of the linked-facade wiring, for the NODE project: without
+  // `ssr.noExternal` Vite externalizes the linked package to a bare Node import
+  // instead of transforming its source, so the SSR-side route specs never see it.
+  // Same knob `packages/testing`'s own config carries.
+  ssr: {
+    noExternal: ["@bc-solutions-coder/query", "@bc-solutions-coder/auth"],
+  },
   test: {
     projects: [
       node,

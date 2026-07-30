@@ -26,7 +26,7 @@ const routeSource: string = readFileSync(
 );
 
 /**
- * The SDK helpers the route must import from the package root.
+ * The shared helpers the route must import rather than hand-roll.
  *
  * `loginRedirect` is deliberately not in this list: `requireAuth` composes it
  * internally (pinned by the SDK's own `route-context.test.ts`, which asserts the
@@ -35,13 +35,18 @@ const routeSource: string = readFileSync(
  */
 const REQUIRED_HELPERS: readonly string[] = ["isAdmin", "requireAuth"];
 
-describe("routes/dashboard/route (SDK auth-utility adoption)", () => {
-  it.each(REQUIRED_HELPERS)("imports %s from the SDK browser entry", (helper: string) => {
+/**
+ * Either shared package is a correct source (Wallow-x4qn.8): the SDK browser
+ * entry defines these guards, and `@bc-solutions-coder/auth` re-exports them BY
+ * REFERENCE so an app's auth imports can come from one package instead of two.
+ * What this spec forbids is neither — a guard hand-rolled in this app.
+ */
+const SHARED_SOURCES = String.raw`@bc-solutions-coder/(?:sdk|auth)`;
+
+describe("routes/dashboard/route (shared auth-utility adoption)", () => {
+  it.each(REQUIRED_HELPERS)("imports %s from a shared package", (helper: string) => {
     expect(routeSource).toMatch(
-      new RegExp(
-        `import\\s*\\{[^}]*\\b${helper}\\b[^}]*\\}\\s*from\\s*"@bc-solutions-coder/sdk"`,
-        "s",
-      ),
+      new RegExp(`import\\s*\\{[^}]*\\b${helper}\\b[^}]*\\}\\s*from\\s*"${SHARED_SOURCES}"`, "s"),
     );
   });
 
@@ -70,7 +75,7 @@ describe("routes/dashboard/route (SDK auth-utility adoption)", () => {
     // (Wallow-zyxe). `loginRedirect` is the SSR-safe replacement, and `\blogin\b`
     // does not match it.
     expect(routeSource).not.toMatch(
-      /import\s*\{[^}]*\blogin\b[^}]*\}\s*from\s*"@bc-solutions-coder\/sdk"/s,
+      new RegExp(`import\\s*\\{[^}]*\\blogin\\b[^}]*\\}\\s*from\\s*"${SHARED_SOURCES}"`, "s"),
     );
   });
 });

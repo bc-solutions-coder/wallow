@@ -1,10 +1,10 @@
 import { isSafeReturnUrl } from "@bc-solutions-coder/sdk";
-import { accountVerifyEmailOptions } from "@bc-solutions-coder/sdk/query";
 import { Card } from "@bc-solutions-coder/ui";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
+import { accountVerifyEmailOptions } from "../api";
 import { signInHref } from "../sign-in-href";
 
 /**
@@ -226,9 +226,6 @@ function VerificationState(props: {
     // "helpfully" sent `token: undefined` would 400 and blame the user's link
     // for its own bug.
     enabled: linkIsComplete,
-    // A single-use token is not a retryable request: a 400 will never become a
-    // 200, and retrying only delays telling the user their link is bad.
-    retry: false,
   });
 
   // Checked before `isPending`, which is also true for a disabled query: the

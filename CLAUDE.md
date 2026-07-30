@@ -12,22 +12,23 @@ This repo is a **polyglot monorepo** with two toolchains:
 
 ## Repository Layout
 
-| Path                  | What it is                                                                                                                    |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `api/`                | .NET 10 solution (`Wallow.slnx`), central build/package props, `.editorconfig`, `stylecop.json`, `seed.json`, `branding.json` |
-| `packages/sdk/`       | `@bc-solutions-coder/sdk` — TypeScript BFF auth SDK + generated OpenAPI client                                                |
-| `packages/styles/`    | `@bc-solutions-coder/styles` — shared Tailwind v4 CSS entry + theme tokens emitted from `api/branding.json`                   |
-| `packages/ui/`        | `@bc-solutions-coder/ui` — shared browser-only React component catalog (Base UI + CVA); see `packages/ui/CLAUDE.md`           |
-| `packages/forms/`     | `@bc-solutions-coder/forms` — shared form-authoring layer (TanStack Form catalog + zod + RFC 7807 errors) bound to `@bc-solutions-coder/ui`; see `packages/forms/CLAUDE.md` |
-| `packages/web-shell/` | `@bc-solutions-coder/web-shell` — shared browser-safe frontend runtime (the TanStack Query client factory)                    |
-| `packages/testing/`   | `@bc-solutions-coder/testing` — shared vitest preset + browser-mode test utilities                                            |
-| `apps/wallow-web/`    | TanStack Start + BFF OIDC reference frontend (dashboard) that consumes the SDK                                                |
-| `apps/wallow-auth/`   | TanStack Start auth frontend (login/signup/MFA screens) on port 3002                                                          |
-| `apps/examples/`      | Example apps (`minimal-app`)                                                                                                  |
-| `docker/`             | Compose files for infra, production, and the e2e test stack                                                                   |
-| `docs/`               | DocFX documentation site (`docfx.json` at root builds it)                                                                     |
-| `scripts/`            | `run-tests.sh`, `e2e.sh` (backend-dependent E2E runner), docs/theme helpers                                                   |
-| `docs/plans/`         | Session/design artifacts, local-only (gitignored) — NOT part of the docs site                                                 |
+| Path                | What it is                                                                                                                                                                  |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `api/`              | .NET 10 solution (`Wallow.slnx`), central build/package props, `.editorconfig`, `stylecop.json`, `seed.json`, `branding.json`                                               |
+| `packages/sdk/`     | `@bc-solutions-coder/sdk` — TypeScript BFF auth SDK + generated OpenAPI client                                                                                              |
+| `packages/styles/`  | `@bc-solutions-coder/styles` — shared Tailwind v4 CSS entry + theme tokens emitted from `api/branding.json`                                                                 |
+| `packages/ui/`      | `@bc-solutions-coder/ui` — shared browser-only React component catalog (Base UI + CVA); see `packages/ui/CLAUDE.md`                                                         |
+| `packages/forms/`   | `@bc-solutions-coder/forms` — shared form-authoring layer (TanStack Form catalog + zod + RFC 7807 errors) bound to `@bc-solutions-coder/ui`; see `packages/forms/CLAUDE.md` |
+| `packages/query/`   | `@bc-solutions-coder/query` — the shared TanStack Query facade: re-exports react-query plus `createQueryClient`; see `packages/query/CLAUDE.md`                             |
+| `packages/auth/`    | `@bc-solutions-coder/auth` — shared authn/authz layer (current-user query + hook, `beforeLoad` primer, role/permission helpers, re-exported SDK guards)                     |
+| `packages/testing/` | `@bc-solutions-coder/testing` — shared vitest preset + browser-mode test utilities                                                                                          |
+| `apps/wallow-web/`  | TanStack Start + BFF OIDC reference frontend (dashboard) that consumes the SDK                                                                                              |
+| `apps/wallow-auth/` | TanStack Start auth frontend (login/signup/MFA screens) on port 3002                                                                                                        |
+| `apps/examples/`    | Example apps (`minimal-app`)                                                                                                                                                |
+| `docker/`           | Compose files for infra, production, and the e2e test stack                                                                                                                 |
+| `docs/`             | DocFX documentation site (`docfx.json` at root builds it)                                                                                                                   |
+| `scripts/`          | `run-tests.sh`, `e2e.sh` (backend-dependent E2E runner), docs/theme helpers                                                                                                 |
+| `docs/plans/`       | Session/design artifacts, local-only (gitignored) — NOT part of the docs site                                                                                               |
 
 New plans MUST be written to `docs/plans/<YYYY-MM-DD>/<HHmm>-<name>.md` (date folder =
 creation date, 24h HHmm prefix). Every plan starts with a `**status: active|completed|superseded**`
@@ -84,7 +85,22 @@ per-operation artifacts in `@bc-solutions-coder/sdk/query` — `{operation}Optio
 inline key literals, and never a hand-rolled factory. Those keys are flat
 (`[{ _id, baseUrl, tags, ...args }]`) with no prefix to sweep by, so invalidation goes through
 the curated `invalidations` predicates (`queriesWithTag`, `queriesForOperation`) from the same
-entry. Zustand holds UI-only global state; it never stores API data.
+entry.
+
+react-query itself enters this workspace in exactly one place. Import `useQuery`,
+`useMutation`, `QueryClient`, `QueryClientProvider` and every other react-query symbol from
+**`@bc-solutions-coder/query`**, never `@tanstack/react-query` directly — the facade also owns
+`createQueryClient` and the pinned version, and it keeps one `QueryClientProvider` context
+across the workspace. This is lint-enforced, not a convention: a root `.oxlintrc.json`
+`no-restricted-imports` entry fails `pnpm lint` on a direct import, and only `packages/query`
+itself plus the few `packages/sdk` files that need react-query's types are exempt.
+
+Auth state comes from **`@bc-solutions-coder/auth`**, never from a per-app copy:
+`currentUserQuery` / `useCurrentUser` for the current user, `ensureCurrentUser` for a route's
+`beforeLoad` gate, and `hasRole` / `hasPermission` (plus the SDK's `requireAuth` / `isAdmin`,
+re-exported by reference) for role and permission checks.
+
+Zustand holds UI-only global state; it never stores API data.
 See `docs/development/frontend-state.md`.
 
 ## Backend (summary — full detail in `api/CLAUDE.md`)

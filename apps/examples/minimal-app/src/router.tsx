@@ -1,6 +1,5 @@
+import { createQueryClient, type QueryClient } from "@bc-solutions-coder/query";
 import { createWallowSdk, type WallowSdk } from "@bc-solutions-coder/sdk";
-import { createQueryClient } from "@bc-solutions-coder/web-shell";
-import type { QueryClient } from "@tanstack/react-query";
 import { createRouter as createTanStackRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 import { getGlobalStartContext } from "@tanstack/react-start";

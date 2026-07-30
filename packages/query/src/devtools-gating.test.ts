@@ -27,10 +27,10 @@
  * before they are pointed at the real `apps/` tree, so a green repo sweep is
  * evidence of compliance rather than of a scanner that finds nothing.
  *
- * This spec lives in web-shell because web-shell is the shared frontend-host
- * package — it already owns the `QueryClient` factory every app boots from, and
- * the devtools in question are the panels for that client and its router. No
- * single app owns a rule that binds all three.
+ * This spec lives in the query package, the shared TanStack Query facade — it
+ * already owns the `QueryClient` factory every app boots from, and the devtools
+ * in question are the panels for that client and its router. No single app owns
+ * a rule that binds all three.
  */
 import {
   existsSync,
@@ -48,7 +48,7 @@ import { fileURLToPath } from "node:url";
 
 import { afterAll, describe, expect, it } from "vitest";
 
-// packages/web-shell/src -> repo root (src -> web-shell -> packages -> repo).
+// packages/query/src -> repo root (src -> query -> packages -> repo).
 const repoRoot: string = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const appsDir: string = resolve(repoRoot, "apps");
 

@@ -1,14 +1,15 @@
 # apps — Frontend Applications Agent Guide
 
-Every app here is a **TanStack Start** frontend consuming the six `@bc-solutions-coder`
-workspace packages (`sdk`, `styles`, `ui`, `forms`, `web-shell`, `testing`) via `workspace:*`.
-`forms` is the only optional one — `examples/minimal-app` renders no form and omits it.
+Every app here is a **TanStack Start** frontend consuming the seven `@bc-solutions-coder`
+workspace packages (`sdk`, `styles`, `ui`, `forms`, `query`, `auth`, `testing`) via
+`workspace:*`. `forms` and `auth` are the optional ones — `examples/minimal-app` renders no
+form and has no signed-in user, so it omits both.
 
-| App                     | Port | What it is                                                               |
-| ----------------------- | ---- | ------------------------------------------------------------------------ |
-| `wallow-web/`           | 3000 | Reference dashboard demonstrating the full same-origin BFF OIDC flow.    |
-| `wallow-auth/`          | 3002 | Auth frontend — login / signup / MFA screens.                            |
-| `examples/minimal-app/` | 3010 | Smallest app wiring all five shared packages into a TanStack Start host. |
+| App                     | Port | What it is                                                                    |
+| ----------------------- | ---- | ----------------------------------------------------------------------------- |
+| `wallow-web/`           | 3000 | Reference dashboard demonstrating the full same-origin BFF OIDC flow.         |
+| `wallow-auth/`          | 3002 | Auth frontend — login / signup / MFA screens.                                 |
+| `examples/minimal-app/` | 3010 | Smallest app wiring the five core shared packages into a TanStack Start host. |
 
 **Build the SDK before touching an app** — apps typecheck against `packages/sdk/dist/`:
 `pnpm --filter @bc-solutions-coder/sdk build`.
@@ -20,8 +21,8 @@ Per-app scripts (`pnpm --filter ./apps/<app> <script>`): `dev` (`vite dev`), `bu
 
 - **Hosting is per-app and owned by Start.** Each app has one `vite.config.ts`
   (`tanstackStart` + `react` + `nitro` + `wallowStyles`) and no host files: `server.ts`,
-  `dev-server.ts`, `vite.ssr.config.ts`, and the web-shell `./server` presets are all
-  deleted. Backend-facing surface = **server routes** under `src/routes/**` delegating to
+  `dev-server.ts`, `vite.ssr.config.ts`, and the hand-rolled host-runtime `./server` presets
+  the deleted shared frontend-runtime package used to ship are all gone. Backend-facing surface = **server routes** under `src/routes/**` delegating to
   an SDK preset (`createApiPassthrough` for wallow-auth/minimal-app, `createWallowBffServer`
   for wallow-web). `src/routeTree.gen.ts` regenerates as a side effect of `vite dev`/`vite
 build` — never hand-edit it, and do not add a `routes:generate` script or `tsr.config.json`.

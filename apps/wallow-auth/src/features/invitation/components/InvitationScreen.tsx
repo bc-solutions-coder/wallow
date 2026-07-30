@@ -1,10 +1,10 @@
-import { type InvitationResponse, invitationsAccept } from "@bc-solutions-coder/sdk";
-import { invitationsVerifyOptions } from "@bc-solutions-coder/sdk/query";
+import type { InvitationResponse } from "@bc-solutions-coder/sdk";
 import { forkBranding } from "@bc-solutions-coder/styles";
 import { Card, ErrorBanner } from "@bc-solutions-coder/ui";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { invitationsAcceptMutation, invitationsVerifyOptions } from "../api";
 import { toAppHref } from "../../../lib/base-path";
 
 /**
@@ -22,7 +22,7 @@ import { toAppHref } from "../../../lib/base-path";
  * `invitation-expired`, `invitation-accept-error`, `invitation-accept`,
  * `invitation-decline`, `invitation-create-account`, `invitation-sign-in`.
  *
- * Mutations call the GENERATED operations and reads use the generated
+ * Writes use the generated `{op}Mutation()` factories and reads the generated
  * `{op}Options()` factories, both bound to the request-scoped SDK off the router
  * context (`useRouteContext({ from: "__root__" })`). The OIDC URL builders are
  * pure and imported directly. There is no app-level facade (Wallow-pu6a.5.5).
@@ -409,17 +409,13 @@ export function InvitationScreen({ token, isAuthenticated }: InvitationScreenPro
     // Carries the oracle's guard to React Query: a tokenless link short-circuits
     // to the error state without ever going to the network.
     enabled: tokenIsPresent,
-    // A dead invitation will not come alive on a second try; retrying only delays
-    // telling the user their link is spent.
-    retry: false,
   });
 
+  // SPREAD, never passed straight through: the generated factory carries only a
+  // `mutationFn`, so handing it to `useMutation` as the whole options object would
+  // silently drop the `onSuccess` navigation below.
   const acceptMutation = useMutation({
-    mutationFn: async (accepted: string): Promise<void> => {
-      // Resolution IS success: the endpoint answers 204, and every failure is a
-      // non-2xx that `unwrap()` has already turned into a throw.
-      await invitationsAccept({ client: sdk.client, path: { token: accepted } });
-    },
+    ...invitationsAcceptMutation({ client: sdk.client }),
     onSuccess: () => {
       // A FULL navigation, not `navigate()` — the oracle's
       // `NavigateTo("/", forceLoad: true)` (:179). The reload is load-bearing:
@@ -428,9 +424,6 @@ export function InvitationScreen({ token, isAuthenticated }: InvitationScreenPro
       // destination.
       globalThis.location.href = HOME_HREF;
     },
-    // The token is one-shot; a rejected accept is not retried behind the user's
-    // back (they retry with the button, which is the oracle's affordance).
-    retry: false,
   });
 
   if (!tokenIsPresent || token === undefined) {
@@ -454,7 +447,10 @@ export function InvitationScreen({ token, isAuthenticated }: InvitationScreenPro
         acceptError={acceptMutation.isError ? acceptFailureMessage(acceptMutation.error) : null}
         isSubmitting={acceptMutation.isPending}
         onAccept={() => {
-          acceptMutation.mutate(token);
+          // The generated artifact's REQUEST object, not the bare token: this
+          // endpoint takes the token on the PATH, so a bare string would resolve to
+          // `/invitations//accept`.
+          acceptMutation.mutate({ path: { token } });
         }}
       />
     </Card>

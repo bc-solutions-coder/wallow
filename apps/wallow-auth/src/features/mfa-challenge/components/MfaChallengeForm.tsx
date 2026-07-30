@@ -1,16 +1,15 @@
 import {
-  accountVerifyMfaChallenge,
   type AllowListedReturnUrl,
   allowListedReturnUrl,
   buildExchangeTicketUrl,
   isSafeReturnUrl,
   validateRedirectUriArgs,
 } from "@bc-solutions-coder/sdk";
-import { accountValidateRedirectUriOptions } from "@bc-solutions-coder/sdk/query";
 import { Button, Card, CardTitle, ErrorBanner, Field, Input, Label } from "@bc-solutions-coder/ui";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@bc-solutions-coder/query";
 import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useState } from "react";
+import { accountValidateRedirectUriOptions, accountVerifyMfaChallengeMutation } from "../api";
 import { BASE_PATH, toAppHref } from "../../../lib/base-path";
 
 /**
@@ -413,9 +412,6 @@ export function MfaChallengeForm({ returnUrl, clientId }: MfaChallengeFormProps)
     // and the direct sign-in are already decided, and must not pay for a probe
     // that would sit between the user and their code field.
     enabled: local === "ask",
-    // A URI the allow-list refuses will not be on it a second later, and the
-    // refusal arm is already the safe one; retrying only delays the answer.
-    retry: false,
   });
 
   const returnUrlVerdict: ReturnUrlVerdict = verdictOf(
@@ -436,15 +432,10 @@ export function MfaChallengeForm({ returnUrl, clientId }: MfaChallengeFormProps)
     }
   }, [returnUrlVerdict, navigate]);
 
-  const mutation = useMutation({
-    // The same API op with `useBackupCode: true/false` — crossing them would
-    // send a recovery code to the TOTP validator.
-    mutationFn: async (attempt: { readonly code: string; readonly useBackupCode: boolean }) =>
-      (await accountVerifyMfaChallenge({
-        client: sdk.client,
-        body: { code: attempt.code, useBackupCode: attempt.useBackupCode },
-      })) as VerifyResult,
-  });
+  // The generated factory's response type governs; {@link VerifyResult} stays as the
+  // narrowing at the call site's `onSuccess`, because the schema declares
+  // `signInTicket` required and a direct sign-in really does omit it.
+  const mutation = useMutation(accountVerifyMfaChallengeMutation({ client: sdk.client }));
 
   const redirect = (ticket: string | undefined): void => {
     // Unsafe values were refused at mount, so a present returnUrl here is safe,
@@ -513,7 +504,10 @@ export function MfaChallengeForm({ returnUrl, clientId }: MfaChallengeFormProps)
     setError(null);
 
     mutation.mutate(
-      { code, useBackupCode },
+      // The generated artifact's REQUEST object, not a bare body. The same API op
+      // carries `useBackupCode: true/false` — crossing them would send a recovery
+      // code to the TOTP validator.
+      { body: { code, useBackupCode } },
       {
         // Resolution IS success: every failure this endpoint has is non-2xx, so
         // `unwrap()` has already thrown by the time this runs.

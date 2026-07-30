@@ -14,9 +14,9 @@
  * + `organization-member-add-submit` (add form), `organization-member-remove`
  * (per-row remove).
  */
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@bc-solutions-coder/query";
 import type { UserDto, WallowSdk } from "@bc-solutions-coder/sdk";
 import { Button, Field, Input, MutedText } from "@bc-solutions-coder/ui";
-import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
 

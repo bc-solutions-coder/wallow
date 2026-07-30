@@ -1,6 +1,10 @@
+import {
+  QueryClient,
+  QueryClientProvider,
+  type UseMutationOptions,
+} from "@bc-solutions-coder/query";
 import { WallowError } from "@bc-solutions-coder/sdk";
 import { render } from "@bc-solutions-coder/testing/render";
-import { QueryClient, QueryClientProvider, type UseMutationOptions } from "@tanstack/react-query";
 import { userEvent } from "vitest/browser";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";

@@ -1,8 +1,8 @@
 import { Button, Checkbox, Field, Input, Label } from "@bc-solutions-coder/ui";
-import { accountSendOtp, accountVerifyOtp } from "@bc-solutions-coder/sdk";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
+import { accountSendOtpMutation, accountVerifyOtpMutation } from "../api";
 import { GENERIC_MESSAGE } from "../auth-result";
 import {
   OTP_BLANK_CODE_MESSAGE,
@@ -193,23 +193,9 @@ export function OtpLoginForm({ onAuthResult, onError }: OtpLoginFormProps): Reac
    */
   const [rememberMe, setRememberMe] = useState(false);
 
-  const sendMutation = useMutation({
-    // `Promise<unknown>`: the C# endpoint returns an anonymous `Ok(new { … })` with
-    // no OpenAPI schema, so there is no generated type to lean on.
-    mutationFn: async (address: string): Promise<unknown> =>
-      await accountSendOtp({ client: sdk.client, body: { email: address } }),
-  });
+  const sendMutation = useMutation(accountSendOtpMutation({ client: sdk.client }));
 
-  const verifyMutation = useMutation({
-    mutationFn: async (value: string): Promise<unknown> =>
-      // `rememberMe` is sent EXPLICITLY, never omitted. The field is optional and the
-      // endpoint defaults it false (AccountController.cs:895), so `false` and omission
-      // buy the same session — but only one of them states on the wire which session
-      // the user asked for. This also matches `PasswordLoginForm`, which always sends
-      // the flag. The value read here is this panel's own box, never the password
-      // tab's (see `RememberMeField` above).
-      await accountVerifyOtp({ client: sdk.client, body: { email, code: value, rememberMe } }),
-  });
+  const verifyMutation = useMutation(accountVerifyOtpMutation({ client: sdk.client }));
 
   const handleSend = (): void => {
     // The oracle's `IsNullOrWhiteSpace(_email)` guard — WHITEspace, so "   " is
@@ -223,28 +209,33 @@ export function OtpLoginForm({ onAuthResult, onError }: OtpLoginFormProps): Reac
     // banner hanging over an in-flight retry is a lie about the current attempt.
     onError(null);
 
-    sendMutation.mutate(email, {
-      onSuccess: (body: unknown) => {
-        if (!otpWasSent(body)) {
-          // Fail closed: a body this screen cannot read is not a sent code, and
-          // sending the user to watch an empty inbox is worse than an error.
-          onError(GENERIC_MESSAGE);
-          return;
-        }
+    // The generated artifact's REQUEST object, not a bare body: the factory
+    // assembles the request itself, and a bare body would send an empty one.
+    sendMutation.mutate(
+      { body: { email } },
+      {
+        onSuccess: (body: unknown) => {
+          if (!otpWasSent(body)) {
+            // Fail closed: a body this screen cannot read is not a sent code, and
+            // sending the user to watch an empty inbox is worse than an error.
+            onError(GENERIC_MESSAGE);
+            return;
+          }
 
-        // The oracle's `_otpSent = true`. Note this is reached for an address with NO
-        // account too: `SendOtpAsync` returns the identical `200 { succeeded: true }`
-        // (PasswordlessService.cs:134-140) precisely so this screen cannot be used to
-        // enumerate users, and the screen must stay identical for both (bd memory
-        // `anti-enumeration-pattern-for-endpoints-that-must-not`).
-        setSent(true);
+          // The oracle's `_otpSent = true`. Note this is reached for an address with
+          // NO account too: `SendOtpAsync` returns the identical `200 { succeeded:
+          // true }` (PasswordlessService.cs:134-140) precisely so this screen cannot
+          // be used to enumerate users, and the screen must stay identical for both
+          // (bd memory `anti-enumeration-pattern-for-endpoints-that-must-not`).
+          setSent(true);
+        },
+        onError: (cause: unknown) => {
+          // The form deliberately stays up — the user's address may simply have
+          // been mistyped, and they need somewhere to fix it.
+          onError(sendOtpFailureMessage(cause));
+        },
       },
-      onError: (cause: unknown) => {
-        // The form deliberately stays up — the user's address may simply have been
-        // mistyped, and they need somewhere to fix it.
-        onError(sendOtpFailureMessage(cause));
-      },
-    });
+    );
   };
 
   const handleVerify = (): void => {
@@ -257,14 +248,23 @@ export function OtpLoginForm({ onAuthResult, onError }: OtpLoginFormProps): Reac
     // The oracle's `_errorMessage = null` at the top of `HandleVerifyOtp`.
     onError(null);
 
-    verifyMutation.mutate(code, {
-      // The RAW body goes up. Resolution is not, on its own, a destination: the shell
-      // narrows it and decides (see `../panel`).
-      onSuccess: onAuthResult,
-      onError: (cause: unknown) => {
-        onError(verifyOtpFailureMessage(cause));
+    // `rememberMe` is sent EXPLICITLY, never omitted. The field is optional and the
+    // endpoint defaults it false (AccountController.cs:895), so `false` and omission
+    // buy the same session — but only one of them states on the wire which session the
+    // user asked for. This also matches `PasswordLoginForm`, which always sends the
+    // flag. The value read here is this panel's own box, never the password tab's
+    // (see `RememberMeField` above).
+    verifyMutation.mutate(
+      { body: { email, code, rememberMe } },
+      {
+        // The RAW body goes up. Resolution is not, on its own, a destination: the
+        // shell narrows it and decides (see `../panel`).
+        onSuccess: onAuthResult,
+        onError: (cause: unknown) => {
+          onError(verifyOtpFailureMessage(cause));
+        },
       },
-    });
+    );
   };
 
   if (sent) {

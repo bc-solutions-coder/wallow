@@ -1,8 +1,8 @@
 import { Button, Checkbox, Field, Input, Label } from "@bc-solutions-coder/ui";
-import { accountLogin } from "@bc-solutions-coder/sdk";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
+import { accountLoginMutation } from "../api";
 import { BLANK_CREDENTIALS_MESSAGE, loginFailureMessage } from "../auth-result";
 import type { LoginPanelProps } from "../panel";
 import { toAppHref } from "../../../lib/base-path";
@@ -21,16 +21,10 @@ import { toAppHref } from "../../../lib/base-path";
  * `login-submit`.
  *
  * The API is reached through the request-scoped SDK on the router context
- * (`useRouteContext({ from: "__root__" })`), calling the generated operations
- * directly — there is no app-level facade (Wallow-pu6a.5.5).
+ * (`useRouteContext({ from: "__root__" })`), through the GENERATED
+ * `{operation}Mutation()` factory — the app hand-rolls no `mutationFn` of its own
+ * (Wallow-x4qn.9.3).
  */
-
-/** The oracle's `LoginRequest(_email, _password, _rememberMe)`. */
-interface Credentials {
-  readonly email: string;
-  readonly password: string;
-  readonly rememberMe: boolean;
-}
 
 /** The oracle's email `BbInput`. */
 function EmailField(props: { readonly value: string; readonly onChange: (v: string) => void }) {
@@ -148,13 +142,10 @@ export function PasswordLoginForm({ onAuthResult, onError }: LoginPanelProps): R
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
 
-  const mutation = useMutation({
-    // `Promise<unknown>`: the C# endpoint returns an anonymous `Ok(new { … })`
-    // with no OpenAPI schema, so there is no generated type to lean on. The
-    // narrowing belongs to the shell — see `../panel`.
-    mutationFn: async (credentials: Credentials): Promise<unknown> =>
-      await accountLogin({ client: sdk.client, body: credentials }),
-  });
+  // The generated factory's response type governs, and the narrowing still
+  // belongs to the shell — `onAuthResult` takes the RAW body and `../panel`
+  // decides, because three of this endpoint's four outcomes are 200s.
+  const mutation = useMutation(accountLoginMutation({ client: sdk.client }));
 
   const handleSubmit = (): void => {
     // The oracle's `IsNullOrWhiteSpace` guard — note WHITEspace, so "   " is blank.
@@ -170,7 +161,11 @@ export function PasswordLoginForm({ onAuthResult, onError }: LoginPanelProps): R
     onError(null);
 
     mutation.mutate(
-      { email, password, rememberMe },
+      // The oracle's `LoginRequest(_email, _password, _rememberMe)`, now spelled as
+      // the generated artifact's REQUEST object rather than a bare body: the
+      // factory assembles `{ body }`/`{ path }`/`{ query }` itself, and a bare body
+      // here would send an empty request.
+      { body: { email, password, rememberMe } },
       {
         // Resolution is NOT success here: three of this endpoint's four outcomes
         // arrive as 200 bodies. The shell narrows and branches.

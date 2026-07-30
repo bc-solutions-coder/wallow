@@ -14,6 +14,7 @@
  *
  * Testids mirror the C# E2E page object `SettingsMfaSection`.
  */
+import { useMutation, useQuery, useQueryClient } from "@bc-solutions-coder/query";
 import {
   Button,
   Card,
@@ -24,7 +25,6 @@ import {
   Label,
   MutedText,
 } from "@bc-solutions-coder/ui";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouteContext } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 

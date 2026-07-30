@@ -1,0 +1,69 @@
+{
+  "$schema": "../../node_modules/oxlint/configuration_schema.json",
+  "extends": ["../../.oxlintrc.json"],
+  "rules": {
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "@bc-solutions-coder/sdk",
+            "importNames": [
+              "client",
+              "configureBffClient",
+              "configureSsrClient",
+              "configureWallowClient",
+              "createAuthClient",
+              "createConfiguredOnce",
+              "createMfaClient",
+              "getSsrRequestContext",
+              "resolveSsrFetchOrigin",
+              "setSsrRequestContextResolver",
+              "unwrap",
+              "wireSsrCookieInterceptor"
+            ],
+            "message": "Deleted with the module-global client. Build a per-request instance with createWallowSdk({ baseUrl }) and pass { client: sdk.client } to the generated operations; errors already arrive as WallowError, so nothing needs unwrapping."
+          },
+          {
+            "name": "@bc-solutions-coder/sdk/query",
+            "importNames": [
+              "appsQueries",
+              "authQueries",
+              "ensureQueryBootstrapped",
+              "inquiriesQueries",
+              "mfaQueries",
+              "organizationsQueries",
+              "queryKeys",
+              "registerQueryBootstrap",
+              "resetQueryBootstrapForTests",
+              "settingsQueries",
+              "userQueries"
+            ],
+            "message": "The hand-written query slices and their key registry are deleted. Use the generated {op}Options()/{op}Mutation()/{op}QueryKey(), and sweep with queriesForOperation()/queriesWithTag()."
+          },
+          {
+            "name": "@bc-solutions-coder/web-shell",
+            "message": "@bc-solutions-coder/web-shell is deleted. createQueryClient now ships from @bc-solutions-coder/query, which also re-exports the react-query surface it used to wrap."
+          }
+        ],
+        "patterns": [
+          {
+            "group": [
+              "@bc-solutions-coder/sdk/dist",
+              "@bc-solutions-coder/sdk/dist/**",
+              "@bc-solutions-coder/sdk/src",
+              "@bc-solutions-coder/sdk/src/**",
+              "@bc-solutions-coder/sdk/generated",
+              "@bc-solutions-coder/sdk/generated/**"
+            ],
+            "message": "Import a published entry point instead: @bc-solutions-coder/sdk, /server, /server/passthrough, or /query. The dist and src layouts are internals and are not covered by the package's export contract."
+          },
+          {
+            "group": ["**/lib/wallow-sdk", "**/lib/wallow-auth-sdk", "**/lib/sdk"],
+            "message": "The per-app SDK facade singletons are deleted. Read the request-scoped sdk off the router context (useRouteContext({ from: '__root__' }).sdk) instead of a module-global facade."
+          }
+        ]
+      }
+    ]
+  }
+}

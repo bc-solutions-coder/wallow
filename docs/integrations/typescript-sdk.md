@@ -16,12 +16,12 @@ you.
 
 `@bc-solutions-coder/sdk` has four entrypoints:
 
-| Import                                       | Runs in                                             | Purpose                                                                                                                                                                                                                                                                                                  |
-| -------------------------------------------- | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Import                                       | Runs in                                             | Purpose                                                                                                                                                                                                                                                                                              |
+| -------------------------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `@bc-solutions-coder/sdk`                    | Browser (also safe to import from a Node SSR entry) | `createWallowSdk()` — the [per-request client factory](#browser-api) targeting the same-origin `/api` proxy — plus `login()`, `logout()`, `getUser()`, the generated typed operations, the [CSRF module](#csrf-protection), and the [SSR wiring](#per-request-instances-for-server-rendered-loaders) |
-| `@bc-solutions-coder/sdk/server`             | Server (Node)                                       | The BFF tunnel: `createWallowBffServer()`, `createBffHandlers()`, `createApiProxy()`, `loadBffConfigFromEnv()`, and the session stores. Every handler is a plain `(Request) => Promise<Response>` function                                                                                               |
-| `@bc-solutions-coder/sdk/server/passthrough` | Server (Node)                                       | `createApiPassthrough()` — a pure reverse proxy that owns no session and forwards the upstream response verbatim. Its own subpath so a passthrough-only app never pulls `openid-client` into its server bundle                                                                                           |
-| `@bc-solutions-coder/sdk/query`              | Browser                                             | The TanStack Query layer — a generated `{op}Options()` / `{op}QueryKey()` / `{op}Mutation()` trio per OpenAPI operation, plus the curated invalidation predicates `queriesForOperation()` and `queriesWithTag()`                                                                                          |
+| `@bc-solutions-coder/sdk/server`             | Server (Node)                                       | The BFF tunnel: `createWallowBffServer()`, `createBffHandlers()`, `createApiProxy()`, `loadBffConfigFromEnv()`, and the session stores. Every handler is a plain `(Request) => Promise<Response>` function                                                                                           |
+| `@bc-solutions-coder/sdk/server/passthrough` | Server (Node)                                       | `createApiPassthrough()` — a pure reverse proxy that owns no session and forwards the upstream response verbatim. Its own subpath so a passthrough-only app never pulls `openid-client` into its server bundle                                                                                       |
+| `@bc-solutions-coder/sdk/query`              | Browser                                             | The TanStack Query layer — a generated `{op}Options()` / `{op}QueryKey()` / `{op}Mutation()` trio per OpenAPI operation, plus the curated invalidation predicates `queriesForOperation()` and `queriesWithTag()`                                                                                     |
 
 The browser never holds an access token. It holds only a sealed, `httpOnly`
 session cookie. The BFF exchanges the authorization code, stores the token set
@@ -270,7 +270,7 @@ any required key is missing or empty):
 | `OIDC_POST_LOGOUT_REDIRECT_URI` | Yes      | Absolute URL to land on after logout, e.g. `http://localhost:3000/`                                                                                                                                                                                                                                                         |
 | `BFF_API_BASE_URL`              | Yes      | Base URL of the downstream Wallow API the proxy forwards to                                                                                                                                                                                                                                                                 |
 | `COOKIE_PASSWORD`               | Yes\*    | Secret (32+ chars) used to seal/unseal the session and transaction cookies. Not required when `COOKIE_PASSWORDS` is set                                                                                                                                                                                                     |
-| `COOKIE_PASSWORDS`              | No       | Keyed form of `COOKIE_PASSWORD` for rotation without logging everyone out: a JSON object of key ID to secret, e.g. `{"v2":"...","default":"..."}`. The first key seals, every key unseals, and it takes precedence over `COOKIE_PASSWORD`. See [Rotating the Cookie Password](bff-pattern.md#rotating-the-cookie-password)   |
+| `COOKIE_PASSWORDS`              | No       | Keyed form of `COOKIE_PASSWORD` for rotation without logging everyone out: a JSON object of key ID to secret, e.g. `{"v2":"...","default":"..."}`. The first key seals, every key unseals, and it takes precedence over `COOKIE_PASSWORD`. See [Rotating the Cookie Password](bff-pattern.md#rotating-the-cookie-password)  |
 | `OIDC_SCOPES`                   | No       | Space-separated scopes. Defaults to `openid profile email offline_access`                                                                                                                                                                                                                                                   |
 | `COOKIE_NAME`                   | No       | Session cookie name. Defaults to `wallow_bff`                                                                                                                                                                                                                                                                               |
 | `OIDC_METADATA_URL`             | No       | Server-side discovery URL, for split-horizon DNS where the issuer is reachable under different hostnames from the browser and the server. The backchannel uses its `token_endpoint`; browser-facing redirects stay pinned to the public `OIDC_ISSUER` origin. Defaults to `${OIDC_ISSUER}/.well-known/openid-configuration` |
@@ -453,14 +453,14 @@ Each takes the request-scoped client as a call option — components read that c
 router context rather than importing one:
 
 ```tsx
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouteContext } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@bc-solutions-coder/query";
 import {
   inquiriesGetAllOptions,
   inquiriesGetAllQueryKey,
   inquiriesSubmitMutation,
   queriesForOperation,
 } from "@bc-solutions-coder/sdk/query";
+import { useRouteContext } from "@tanstack/react-router";
 
 function InquiriesList(): React.ReactElement {
   const { sdk } = useRouteContext({ from: "__root__" });

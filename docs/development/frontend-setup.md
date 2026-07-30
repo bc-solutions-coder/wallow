@@ -100,14 +100,17 @@ one of them — TanStack Start and Nitro own that, per app.
 | `@bc-solutions-coder/ui`        | no (`private`) | `.`, `./*`, `./source.css`                         | The 47-component Base UI + CVA catalog — forms, overlays, navigation, feedback — via the root barrel (`.`) or a per-component subpath (`./button`), plus the app-wiring components (`ReadyIndicator`, `FocusOnNavigate`, `DocumentStyles`, `ForkAttribution`) and the Tailwind `@source` scan of its component tree. See [Component Library](component-library.md)                                                                           |
 | `@bc-solutions-coder/sdk`       | yes            | `.`, `./server`, `./server/passthrough`, `./query` | Browser BFF client + typed API operations (`.`); the BFF server preset, handlers, API proxy, and session stores (`./server`); the pure reverse-proxy preset `createApiPassthrough` (`./server/passthrough`, a separate subpath so a passthrough-only app never pulls `openid-client` into its server bundle); the TanStack Query layer — a generated `{op}Options()` / `{op}QueryKey()` / `{op}Mutation()` trio per operation plus the curated invalidation predicates (`./query`) |
 | `@bc-solutions-coder/testing`   | no (`private`) | `.`, `./render`                                    | The `createVitestProjects` node + browser preset (`.`); the browser-mode `render` helper (`./render`)                                                                                                                                                                                                                                                                                                                                        |
-| `@bc-solutions-coder/web-shell` | no (`private`) | `.`                                                | `createQueryClient`, the shared TanStack Query client factory. Browser-safe by construction — the hand-rolled host runtime it used to ship behind `./server` is gone                                                                                                                                                                                                                                                                         |
+| `@bc-solutions-coder/query`      | no (`private`) | `.`                                                | The TanStack Query facade — every react-query symbol an app uses (`useQuery`, `useMutation`, `QueryClientProvider`, …) re-exported by reference, plus `createQueryClient`, the shared client factory. Only this package depends on `@tanstack/react-query`; apps never import it directly. See [Frontend State](frontend-state.md)                                                                                                            |
+| `@bc-solutions-coder/auth`       | no (`private`) | `.`                                                | The shared authn/authz layer — the canonical current-user query, `useCurrentUser`, the `ensureCurrentUser` `beforeLoad` primer, `hasRole`/`hasPermission`, and the SDK's route guards and claim helpers re-exported so an app's auth imports come from one package                                                                                                                                                                            |
 
-`wallow-auth` and `wallow-web` both depend on all five as `workspace:*` runtime
+`wallow-auth` and `wallow-web` both depend on all six as `workspace:*` runtime
 `dependencies` (no per-app `@tailwindcss/vite`, `tailwindcss`, or `vitest` preset
 of their own), plus `@bc-solutions-coder/forms` — see [Forms](forms.md) — which an app
-adds once it renders a form. Bootstrapping a new app is these steps.
+adds once it renders a form. Only the first five are core: `examples/minimal-app`
+renders no form and has no signed-in user, so it takes neither `forms` nor `auth`.
+Bootstrapping a new app is these steps.
 
-### 1. Depend on all five packages
+### 1. Depend on the five core packages
 
 In the app's `package.json` `dependencies` (not `devDependencies` — the SDK and
 styles packages are imported by the app's server routes and `vite.config.ts` at
@@ -116,11 +119,11 @@ build time):
 ```json
 {
   "dependencies": {
+    "@bc-solutions-coder/query": "workspace:*",
     "@bc-solutions-coder/sdk": "workspace:*",
     "@bc-solutions-coder/styles": "workspace:*",
     "@bc-solutions-coder/testing": "workspace:*",
-    "@bc-solutions-coder/ui": "workspace:*",
-    "@bc-solutions-coder/web-shell": "workspace:*"
+    "@bc-solutions-coder/ui": "workspace:*"
   }
 }
 ```

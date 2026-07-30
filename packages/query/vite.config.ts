@@ -2,14 +2,17 @@ import { fileURLToPath } from "node:url";
 
 import { defineConfig } from "vite";
 
-// Vite 8 library-mode build for the web-shell package (mirrors
+// Vite 8 library-mode build for the query package (mirrors
 // packages/sdk/vite.config.ts). Vite 8 bundles with Rolldown natively, but
 // neither Vite nor Rolldown emits type declarations — those come from
 // `tsc -p tsconfig.build.json` (see the package `build` script).
 //
-// This package exposes a single browser-safe `.` barrel (the query-client), so
-// there is one named lib entry (`index` -> src/index.ts), ES output only, and
-// every non-relative import is externalized so runtime deps are never bundled in.
+// This package exposes a single browser-safe `.` barrel (the TanStack Query
+// facade), so there is one named lib entry (`index` -> src/index.ts), ES output
+// only, and every non-relative import is externalized so runtime deps —
+// @tanstack/react-query above all — are never bundled in. A bundled copy would
+// defeat the whole point of the facade: consumers would end up with a second
+// react-query instance and its own QueryClientProvider context.
 export default defineConfig({
   build: {
     target: "es2023",

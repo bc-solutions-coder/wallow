@@ -1,17 +1,17 @@
 import { isSafeReturnUrl } from "@bc-solutions-coder/sdk";
-import { accountGetExternalProvidersQueryKey } from "@bc-solutions-coder/sdk/query";
 import {
   createTestQueryClient,
   renderWithWallow,
 } from "@bc-solutions-coder/testing/render-with-wallow";
 import type { SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
-import { QueryClient } from "@tanstack/react-query";
+import { QueryClient } from "@bc-solutions-coder/query";
 import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createAuthHarness } from "../../../test/harness";
 import { Route as loginRoute } from "../../../routes/login";
+import { accountGetExternalProvidersQueryKey } from "../api";
 import { ExternalProviders } from "./ExternalProviders";
 
 /**

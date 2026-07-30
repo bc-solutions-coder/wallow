@@ -23,8 +23,8 @@
  *
  * Testids mirror the C# E2E page object `MfaEnrollPage`.
  */
+import { useMutation, useQueryClient } from "@bc-solutions-coder/query";
 import { Button, Card, CardTitle, ErrorBanner, Field, Input, Label } from "@bc-solutions-coder/ui";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
 

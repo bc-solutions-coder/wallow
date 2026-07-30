@@ -1,13 +1,13 @@
-import { clientBrandingGetBrandingOptions } from "@bc-solutions-coder/sdk/query";
 import {
   forkBranding,
   mergeClientBranding,
   type ResolvedBranding,
 } from "@bc-solutions-coder/styles";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@bc-solutions-coder/query";
 import { createFileRoute, useRouteContext } from "@tanstack/react-router";
 
 import { AuthLayout } from "../components/auth-layout";
+import { clientBrandingGetBrandingOptions } from "../features/login/api";
 import { isPasswordResetMessage, PASSWORD_RESET_MESSAGE } from "../features/login/auth-result";
 import { LoginScreen } from "../features/login/components/LoginScreen";
 
@@ -127,7 +127,8 @@ function validateSearch(search: Record<string, unknown>): LoginSearch {
  * query never runs), the fetch still in flight, and a client with no branding row,
  * which the API answers with a bare 404 and the SDK surfaces as a rejection. None
  * of them may gate the sign-in form or show the person an error they cannot act on
- * — hence `retry: false` and no read of `isError` here.
+ * — hence no read of `isError` here, and no retry (`createQueryClient()` sets
+ * `retry: false` for every query in the app, so this needs no local override).
  *
  * Per-client THEME COLOURS are deliberately out of scope: the CSS variables are
  * emitted by `__root.tsx` from the module constant `forkResolvedBranding`, and the
@@ -145,7 +146,6 @@ function useClientBranding(
   const { data } = useQuery({
     ...clientBrandingGetBrandingOptions({ client: sdk.client, path: { clientId } }),
     enabled: clientId !== "",
-    retry: false,
   });
 
   return data === undefined ? undefined : mergeClientBranding(forkBranding, data);

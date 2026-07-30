@@ -1,7 +1,8 @@
-import { accountGetExternalProvidersOptions } from "@bc-solutions-coder/sdk/query";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+
+import { accountGetExternalProvidersOptions } from "../api";
 
 /**
  * The Login screen's external-provider list (Wallow-vec7.3.14 / 2.8d).
@@ -156,12 +157,7 @@ export interface ExternalProvidersProps {
 
 export function ExternalProviders({ returnUrl }: ExternalProvidersProps): ReactNode {
   const { sdk } = useRouteContext({ from: "__root__" });
-  const query = useQuery({
-    ...accountGetExternalProvidersOptions({ client: sdk.client }),
-    // A provider list that failed to load will not load on a second try fast
-    // enough to matter to someone staring at a sign-in form.
-    retry: false,
-  });
+  const query = useQuery(accountGetExternalProvidersOptions({ client: sdk.client }));
 
   const providers: readonly string[] = providerNamesOf(query.data);
 

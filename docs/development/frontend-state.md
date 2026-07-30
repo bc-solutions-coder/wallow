@@ -12,7 +12,7 @@ came from — or is derived from — an API response: organizations, members, ap
 status, the current user. Every one of those has exactly one key, and that key is **generated**:
 `@bc-solutions-coder/sdk/query` emits a `{operation}Options()` factory, a `{operation}QueryKey()`
 builder, and a `{operation}Mutation()` factory for every operation in the OpenAPI document, so
-every `useQuery(usersGetCurrentUserOptions({ client }))` call anywhere in either app resolves to
+every `useQuery(organizationsGetAllOptions({ client }))` call anywhere in either app resolves to
 the _same_ cache entry — there is no per-component duplicate fetch and no way for two screens to
 disagree about whether an organization was just archived. Freshness is controlled by `staleTime`
 per query (see [The current user query](#the-current-user-query) below), and cache invalidation is
@@ -22,6 +22,50 @@ explicit: a mutation's `onSuccess` sweeps the entries its write affects.
 `queryKey`: sidebar collapsed/expanded, which step a multi-step wizard is on, whether a modal is
 open, the active tab. If a piece of state can be re-derived by calling the API again, it does not
 belong in a Zustand store — it belongs behind a generated options factory instead.
+
+Two shared packages stand between an app and that first store, and both are mandatory routes
+rather than conveniences: [`@bc-solutions-coder/query`](#the-query-facade) is where react-query
+itself comes from, and [`@bc-solutions-coder/auth`](#the-shared-auth-package) owns the one query
+that answers "who is signed in".
+
+## The query facade
+
+`@bc-solutions-coder/query` (`packages/query`) is the **one place TanStack Query enters this
+workspace**. It has a single browser-safe entry, `.`, exporting two things:
+
+- **the whole react-query surface, re-exported by reference** — `useQuery`, `useMutation`,
+  `useQueryClient`, `QueryClient`, `QueryClientProvider`, `queryOptions`, everything else. The
+  re-export is a wildcard on purpose: a hand-kept list would lag react-query, and the first
+  missing symbol is where the facade starts eroding.
+- **`createQueryClient()`** — the shared client factory every app wires into its router context
+  and its `__root` `QueryClientProvider`. Its policy is the contract: `retry: false` (no silent
+  backoff, deterministic tests) and a fresh client per call, so one SSR request never shares a
+  cache with another.
+
+**Import react-query symbols from `@bc-solutions-coder/query`, never `@tanstack/react-query`
+directly.** That holds for the apps and for every other shared package — `forms`, `auth`,
+`testing` all go through the facade too. Only `packages/query` itself declares the react-query
+dependency.
+
+The rule is machine-enforced rather than a convention: the repo-root `.oxlintrc.json` carries a
+`no-restricted-imports` entry for `@tanstack/react-query`, so a direct import fails
+`pnpm lint` (and CI) with a message pointing at the facade. The only exemptions are
+`packages/query/**` itself and the handful of `packages/sdk` files that need react-query's
+_types_ to describe the generated artifacts.
+
+Two things go wrong without it. Version drift is the boring one; the sharp one is **identity** —
+two react-query copies in one dependency graph mean two `QueryClientProvider` contexts, and a
+`useQuery` from copy B mounted inside a provider from copy A throws `No QueryClient set` at
+runtime, in the browser, with a stack that points at neither package.
+
+```ts
+// Every consumer — apps and shared packages alike.
+import { useMutation, useQuery, useQueryClient } from "@bc-solutions-coder/query";
+```
+
+The same import from the raw package fails with the rule's own message: _"Import it from
+`@bc-solutions-coder/query` instead. The facade owns the pinned version and the shared client
+defaults, and keeps one `QueryClient` context instance across the workspace."_
 
 ## The generated key shape
 
@@ -73,23 +117,64 @@ drive the rules below:
 components/MfaEnrollForm.tsx`, which threads the enrollment secret and QR URI through `useState`
   scoped to the enroll flow, never through Zustand or the query cache.
 
+## The shared auth package
+
+`@bc-solutions-coder/auth` (`packages/auth`) owns the workspace's auth state — who is signed in,
+what they may do, and the `beforeLoad` primer routes gate on. One browser-safe entry, `.`:
+
+| Export                                       | What it is                                                                                                                             |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `currentUserQuery(client)`                   | The canonical `queryOptions` for the signed-in user; resolves `null` when anonymous.                                                   |
+| `useCurrentUser(client)`                     | `useQuery(currentUserQuery(client))` — how a screen reads the user.                                                                    |
+| `ensureCurrentUser({ queryClient, client })` | `ensureQueryData` over the same query, for a route's `beforeLoad`.                                                                     |
+| `type CurrentUser`                           | The API's response plus the `sub` the SDK's claim helpers key off.                                                                     |
+| `hasRole`, `hasPermission`                   | Membership over `CurrentUser.roles` / `.permissions`. Roles are case-insensitive, permissions case-sensitive — both mirror the server. |
+| `requireAuth`, `loginRedirect`, `isAdmin`    | The SDK's route guards and claim helpers, re-exported **by reference** so an app's auth imports come from one package.                 |
+
+**No app defines its own current-user query.** Before this package existed, wallow-web and
+wallow-auth each carried one and they had already drifted (wallow-auth's copy had no `staleTime`
+and no `sub`). Two definitions of "who is signed in" is what the package exists to end. Neither
+is authorization: `hasRole`/`hasPermission` gate UI, and the API re-checks every role and
+permission on every request.
+
+Nothing here imports a router — `useCurrentUser` and `ensureCurrentUser` take the client and the
+query client as arguments, which screens read off their router context.
+
 ### The current user query
 
-Both apps read the signed-in user through one generated query rather than each maintaining its own
-auth-state store. Per-query overrides are applied by spreading the generated options:
+Both apps read the signed-in user through `currentUserQuery` from `@bc-solutions-coder/auth`
+rather than each maintaining its own auth-state store. It is the **generated** operation and the
+**generated** key (`usersGetCurrentUserQueryKey`), so an invalidation raised anywhere in the app
+reaches it:
 
 ```ts
-import { usersGetCurrentUserOptions } from "@bc-solutions-coder/sdk/query";
+import { currentUserQuery, ensureCurrentUser, useCurrentUser } from "@bc-solutions-coder/auth";
 
-const currentUser = queryOptions({
-  ...usersGetCurrentUserOptions({ client: sdk.client }),
-  staleTime: 30_000,
-});
+// In a component.
+const { data: user } = useCurrentUser(sdk.client);
+
+// In a route's `beforeLoad` — the same query, primed into the cache before the gate runs.
+const gateUser = await ensureCurrentUser({ queryClient, client: sdk.client });
 ```
 
-The 30-second `staleTime` exists so a router `beforeLoad` calling `ensureQueryData` on every
-navigation does not refetch the user on each route change — the cache, not a separate auth store,
-is what both apps treat as "am I signed in, and as whom."
+`useCurrentUser` **is** `useQuery(currentUserQuery(client))` and `ensureCurrentUser` **is**
+`ensureQueryData` over the same options, so all three read one cache entry. Reach for
+`currentUserQuery` yourself — with `useQuery` from `@bc-solutions-coder/query` — only when a call
+site needs to override an option.
+
+Two behavioural contracts its callers depend on:
+
+- **A 401 is the answer "anonymous", not a failure.** The SDK's `getCurrentUser` softens it and
+  the query resolves `null`, which is why a signed-out visitor reaches a route's login gate
+  instead of its error boundary. **Only** 401 is soft — a 500 still reaches the caller, or a
+  backend outage would sign every real user out.
+- **A 30-second `staleTime`.** Paired with `ensureQueryData` (not `fetchQuery`) it is what keeps
+  a `beforeLoad` running on every navigation from re-reading the user on each route change — the
+  cache, not a separate auth store, is what both apps treat as "am I signed in, and as whom."
+
+Pass the **request-scoped** client (`context.sdk.client`), never a module-global one: that
+instance is what carries the session cookie and the internal origin an SSR render needs, so one
+query works on both sides.
 
 ## How to add a query
 
@@ -99,23 +184,44 @@ regenerating is what makes its query and mutation artifacts exist.
 1. **Regenerate** after the OpenAPI document changes, and commit `openapi/v1.json` together with
    `packages/sdk/src/generated/**`. CI fails on drift between the snapshot and a live API.
 
-2. **Call the generated factory** from the component or route loader, binding the request-scoped
-   client:
+2. **Re-export the artifacts you need through the feature's `api.ts` seam.** Each feature has one
+   `src/features/<name>/api.ts` — a thin re-export over `@bc-solutions-coder/sdk/query`, listing
+   the generated factories that feature uses plus the `invalidations` predicates. Routes and
+   components import from `./api`, never from the SDK entry directly, so "`api.ts` is the only
+   data import" stays true and one file shows a feature's whole data surface:
 
    ```ts
-   import { organizationsGetMembersOptions } from "@bc-solutions-coder/sdk/query";
+   // src/features/organizations/api.ts
+   export {
+     organizationsAddMemberMutation,
+     organizationsGetMembersOptions,
+     organizationsGetMembersQueryKey,
+     queriesForOperation,
+     queriesWithTag,
+   } from "@bc-solutions-coder/sdk/query";
+   ```
+
+3. **Call the generated factory** from the component or route loader, binding the request-scoped
+   client. The hooks come from the facade, the factories from the seam:
+
+   ```ts
+   import { useQuery } from "@bc-solutions-coder/query";
+
+   import { organizationsGetMembersOptions } from "../api";
 
    const members = useQuery(organizationsGetMembersOptions({ client: sdk.client, path: { id } }));
    ```
 
-3. **Write through the matching mutation factory**, and sweep what the write invalidated:
+4. **Write through the matching mutation factory**, and sweep what the write invalidated:
 
    ```ts
+   import { useMutation, useQueryClient } from "@bc-solutions-coder/query";
+
    import {
      organizationsAddMemberMutation,
-     queriesForOperation,
      organizationsGetMembersQueryKey,
-   } from "@bc-solutions-coder/sdk/query";
+     queriesForOperation,
+   } from "../api";
 
    const queryClient = useQueryClient();
    const addMember = useMutation({

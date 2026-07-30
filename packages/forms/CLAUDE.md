@@ -2,8 +2,8 @@
 
 The shared **form-authoring layer**: TanStack Form (`@tanstack/react-form` ^1.33.2) state bound
 onto the `@bc-solutions-coder/ui` catalog, with zod validation, a `useMutation` submit pipeline
-and the RFC 7807 error split. Private (never published), consumed by `apps/wallow-auth` and
-`apps/wallow-web` as `workspace:*`.
+(the hook comes from the `@bc-solutions-coder/query` facade) and the RFC 7807 error split.
+Private (never published), consumed by `apps/wallow-auth` and `apps/wallow-web` as `workspace:*`.
 
 ## Layering — one direction, no exceptions
 
@@ -14,8 +14,16 @@ and the RFC 7807 error split. Private (never published), consumed by `apps/wallo
 `ui` knows nothing about forms and **must never import this package**. `forms` depends on `ui`
 (the `Field`, `Select`, `Checkbox`, `Textarea`, `Button` and `ErrorBanner` parts it wraps) and on
 `@bc-solutions-coder/sdk` for exactly one symbol: `isWallowError`, in `core/server-error.ts`.
-React, `react-dom` and `@tanstack/react-query` are **peer** dependencies — keep them out of
-`dependencies`.
+React and `react-dom` are **peer** dependencies — keep them out of `dependencies`.
+
+**TanStack Query is not a peer here, and this package must never name
+`@tanstack/react-query`.** It arrives as a `workspace:*` **dependency** on
+`@bc-solutions-coder/query`, the private facade that is the one declarer of react-query in the
+repo — so `useAppForm`'s `useMutation` and the host's `QueryClientProvider` are guaranteed to be
+the same module instance (two copies means "No QueryClient set"), which a peer range could not
+guarantee. That applies to the specs too: a spec building its own `QueryClient` takes it from the
+facade. `src/core/query-facade.test.ts` (imports, pre-bundle list, this guide) and
+`src/core/package-scaffold.test.ts` (the manifest) are the two halves of the guard.
 
 ## Internal layout — three layers plus the barrel
 

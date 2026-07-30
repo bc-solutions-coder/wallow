@@ -45,7 +45,10 @@ describe("routes/index (cached current-user gate wiring)", () => {
     );
 
     expect(source).not.toMatch(/getWallowSdk|lib\/wallow-sdk/u);
-    expect(source).toMatch(/currentUserQuery/u);
-    expect(source).toMatch(/ensureQueryData/u);
+    // Either spelling of the shared read from `@bc-solutions-coder/auth`: the
+    // query + `ensureQueryData`, or the `ensureCurrentUser` primer that composes
+    // the pair (Wallow-x4qn.8).
+    expect(source).toMatch(/currentUserQuery|ensureCurrentUser/u);
+    expect(source).toMatch(/ensureQueryData|ensureCurrentUser/u);
   });
 });

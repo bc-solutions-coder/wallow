@@ -9,8 +9,9 @@ import { AUTH_BASE_PATH_ENV_KEY, normalizeBasePath, toViteBase } from "./src/lib
 /**
  * The one Vite config wallow-auth has: `vite dev` serves it and `vite build`
  * emits both environments plus the Nitro server bundle (`.output/server/index.mjs`
- * + `.output/public`). The separate client/SSR passes the web-shell presets drove
- * are gone, and so is `tsr generate` — the Start plugin owns route codegen.
+ * + `.output/public`). The separate client/SSR passes the deleted shared
+ * host-runtime presets drove are gone, and so is `tsr generate` — the Start
+ * plugin owns route codegen.
  *
  * `vite dev` binds 3000 when `PORT` is unset, so this app's port is spelled out
  * here. Playwright waits on 3002 and does not inject `PORT` into the `pnpm dev`

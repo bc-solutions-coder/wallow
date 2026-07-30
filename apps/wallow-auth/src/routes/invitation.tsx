@@ -1,6 +1,4 @@
-import { type CurrentUserResponse, getCurrentUser } from "@bc-solutions-coder/sdk";
-import { usersGetCurrentUserQueryKey } from "@bc-solutions-coder/sdk/query";
-import { useQuery } from "@tanstack/react-query";
+import { useCurrentUser } from "@bc-solutions-coder/auth";
 import { createFileRoute, useRouteContext } from "@tanstack/react-router";
 
 import { AuthLayout } from "../components/auth-layout";
@@ -22,23 +20,28 @@ import {
  *
  * ── THE AUTH-STATE PROBE ─────────────────────────────────────────────────────
  *
- * This app has no server session and
- * the auth cookie is HttpOnly, so the answer comes from the SDK's `getCurrentUser`
- * seam (Wallow-vec7.2.4): a same-origin `GET /v1/identity/users/me` through the
- * SDK passthrough proxy, whose 200-vs-401 IS the answer. JS never reads the
- * cookie; it observes only the status of its own request.
+ * This app has no server session and the auth cookie is HttpOnly, so the answer
+ * comes from `useCurrentUser` — the workspace's ONE definition of "who is signed
+ * in" (`@bc-solutions-coder/auth`), a same-origin `GET /v1/identity/users/me`
+ * through the SDK passthrough proxy whose 200-vs-401 IS the answer. JS never
+ * reads the cookie; it observes only the status of its own request.
  *
  * CLIENT-SIDE, not in an SSR loader: the browser attaches the cookie to a
  * same-origin request automatically, whereas the SDK client is `baseUrl: "/"`
  * with no server-side cookie plumbing — and auth state must not be SSR-cached.
+ * The subscribing hook, not the `beforeLoad` primer half of that contract: this
+ * route must RENDER for an anonymous visitor — an invitation link is reached by
+ * people who have no account yet — rather than resolve a user before it renders.
  *
  * A REJECTION IS ANONYMOUS, mirroring the oracle's `catch { _isAuthenticated =
- * false; }` (:133-136). `getCurrentUser` already answers 401 with `null` without
- * throwing, so a rejection here means the probe itself failed — and the
- * less-privileged branch is the safe read: it offers a sign-in link, while the
- * other offers an accept button whose POST would 401. The server enforces the
- * real thing regardless (`{token}/accept` is `[Authorize]`d); this is a UI
- * affordance only.
+ * false; }` (:133-136). The canonical current-user query owns the 401-softening
+ * (that status resolves `null` instead of throwing), so a rejection here means
+ * the probe itself failed — and the less-privileged branch is the safe read: it
+ * offers a sign-in link, while the other offers an accept button whose POST
+ * would 401. The server enforces the real thing regardless (`{token}/accept` is
+ * `[Authorize]`d); this is a UI affordance only. A failed probe is not retried,
+ * which is the shared query client's own default: grinding on it would hold the
+ * invitation behind a spinner when a failure is already an answer.
  *
  * The screen mounts only once the probe settles. The alternative — mount with
  * `isAuthenticated: false` and flip on arrival — would flash "Create account" at
@@ -73,17 +76,9 @@ function InvitationRoute() {
   const { token } = Route.useSearch();
   const { sdk } = useRouteContext({ from: "__root__" });
 
-  const authQuery = useQuery({
-    // The GENERATED key for `users/me`, with a hand-written `queryFn`: the
-    // generated one rejects on 401, and here that status IS the answer. The
-    // SDK's `getCurrentUser` owns that softening (it resolves `null`).
-    queryKey: usersGetCurrentUserQueryKey({ client: sdk.client }),
-    queryFn: async (): Promise<CurrentUserResponse | null> =>
-      await getCurrentUser({ client: sdk.client }),
-    // A failed probe is an answer here (anonymous), not something to grind on:
-    // retrying would hold the invitation behind a spinner.
-    retry: false,
-  });
+  // The request-scoped client off the router context — never a module-global
+  // one, which would hand one request's session to the next under SSR.
+  const authQuery = useCurrentUser(sdk.client);
 
   if (authQuery.isPending) {
     return (

@@ -10,7 +10,7 @@
  * kept off the `{ data, error }` shape of a generated call so Wallow-pu6a.5.2's
  * `throwOnError` flip cannot break this seam's contract.
  */
-import { QueryClient, useQuery } from "@tanstack/react-query";
+import { QueryClient, useQuery } from "@bc-solutions-coder/query";
 import { createRootRoute, createRoute, useRouter } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { page } from "vitest/browser";

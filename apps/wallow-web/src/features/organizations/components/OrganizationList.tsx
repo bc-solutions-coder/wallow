@@ -4,9 +4,9 @@
  * copies. It drives `useQuery(organizationsGetAllOptions({ client }))` and renders
  * three states: loading, empty, and a list of `organization-item` rows.
  */
+import { useQuery } from "@bc-solutions-coder/query";
 import type { OrganizationDto } from "@bc-solutions-coder/sdk";
 import { MutedText } from "@bc-solutions-coder/ui";
-import { useQuery } from "@tanstack/react-query";
 import { useRouteContext } from "@tanstack/react-router";
 
 import { organizationsGetAllOptions } from "../api";

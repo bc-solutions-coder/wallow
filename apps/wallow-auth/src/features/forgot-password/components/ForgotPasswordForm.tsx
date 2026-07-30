@@ -1,9 +1,9 @@
 import { AppForm, SubmitButton, useAppForm } from "@bc-solutions-coder/forms";
 import { Card, CardTitle } from "@bc-solutions-coder/ui";
-import { accountForgotPassword } from "@bc-solutions-coder/sdk";
 import { useRouteContext } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import { z } from "zod";
+import { accountForgotPassword } from "../api";
 import { toAppHref } from "../../../lib/base-path";
 
 /**

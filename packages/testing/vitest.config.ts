@@ -19,9 +19,24 @@ import { createVitestProjects } from "./src/vitest-projects";
  * `optimizeDeps` baseline because `render-with-wallow.tsx` imports them; leaving
  * them out lets Vite discover them mid-run and reload, which drops the test
  * runner ("Vitest failed to find the runner").
+ *
+ * `@bc-solutions-coder/query` joined the list with Wallow-x4qn.4, when
+ * `render-with-wallow.tsx` stopped importing react-query directly and started
+ * taking `QueryClient`/`QueryClientProvider` from the facade. It has to be named
+ * explicitly because a LINKED workspace package is not pre-bundled by default;
+ * with it listed, the pre-bundled `@bc-solutions-coder_query.js` chunk carries
+ * react-query's runtime inlined, so there is exactly ONE react-query copy (and
+ * therefore one `QueryClientProvider` context) in the browser graph.
+ *
+ * `@tanstack/react-query` stays on the list as policy — it is still the module
+ * actually being pre-bundled, one facade hop away, and this package must not read
+ * as if the facade replaced it. It no longer resolves from THIS package's root
+ * (the manifest dropped it), so Vite logs one "Failed to resolve dependency"
+ * line per run; the pre-bundling it names is done by the facade entry above.
  */
 const { node, browser } = createVitestProjects({
   extraBrowserOptimizeDeps: [
+    "@bc-solutions-coder/query",
     "@bc-solutions-coder/sdk",
     "@tanstack/react-query",
     "@tanstack/react-router",
@@ -29,6 +44,15 @@ const { node, browser } = createVitestProjects({
 });
 
 export default defineConfig({
+  // The query facade is a LINKED workspace package, which Vite neither
+  // pre-bundles nor inlines by default, so it is named on both sides
+  // explicitly: `optimizeDeps.include` above keeps the browser project from
+  // discovering it (and its react-query re-export) mid-run and reloading, and
+  // `ssr.noExternal` keeps the node project transforming its source instead of
+  // externalizing it to a bare Node import.
+  ssr: {
+    noExternal: ["@bc-solutions-coder/query"],
+  },
   test: {
     projects: [node, browser],
   },

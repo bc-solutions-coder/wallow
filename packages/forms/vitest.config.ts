@@ -41,10 +41,17 @@ const baseUiSubpaths = [
  * in through its `*.styles.ts`. Same failure mode as the Base UI subpaths: left
  * undiscovered they land mid-run ("dependencies optimized: ..." -> reload),
  * which drops the test runner.
+ *
+ * TanStack Query appears here under its facade name, `@bc-solutions-coder/query`,
+ * and never under the react-query specifier the facade re-exports. An entry Vite
+ * cannot resolve is only a warning, after which it pre-bundles nothing (see
+ * `src/core/browser-deps.test.ts`), and under pnpm's strict `node_modules` this
+ * package resolves only what it declares — which is the facade. The facade
+ * carries the same module through the one package that does declare react-query.
  */
 const formRuntime = [
   "@tanstack/react-form",
-  "@tanstack/react-query",
+  "@bc-solutions-coder/query",
   "zod",
   "class-variance-authority",
   "tailwind-merge",

@@ -24,8 +24,24 @@ const nodeTsxSpecs = ["src/routes/index.test.tsx"];
  * `zod` arrives with @bc-solutions-coder/forms: a migrated screen imports it for
  * its schema, and it is the schema module — not the form package — that the
  * scanner misses on the first pass. Every form this app migrates needs it.
+ *
+ * TanStack Query appears here under its facade name, @bc-solutions-coder/query,
+ * and never under the react-query specifier the facade re-exports: this app no
+ * longer declares react-query, so under pnpm's strict `node_modules` it cannot
+ * resolve that specifier at all — and an unresolvable `optimizeDeps` entry is
+ * only a WARNING, after which Vite pre-bundles nothing and the discovery reload
+ * comes back with a config that looks correct. packages/forms hit this first.
+ *
+ * @bc-solutions-coder/auth rides on that facade and is a LINKED workspace package
+ * too, so it needs naming for the same reason: `routes/invitation.tsx` reads the
+ * visitor through its `useCurrentUser` (Wallow-x4qn.9.2), and wallow-web's config
+ * already names it for this exact reason.
  */
-const extraBrowserOptimizeDeps: string[] = ["zod"];
+const extraBrowserOptimizeDeps: string[] = [
+  "@bc-solutions-coder/query",
+  "@bc-solutions-coder/auth",
+  "zod",
+];
 
 const { node, browser } = createVitestProjects({ nodeTsxSpecs, extraBrowserOptimizeDeps });
 

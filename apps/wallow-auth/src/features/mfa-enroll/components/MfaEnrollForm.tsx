@@ -1,16 +1,14 @@
-import {
-  isSafeReturnUrl,
-  mfaConfirmEnrollment,
-  type MfaEnrollmentConfirmedResponse,
-  type MfaEnrollmentSecretResponse,
-  mfaEnrollTotp,
-  mfaExchangeEnrollmentToken,
-} from "@bc-solutions-coder/sdk";
+import { isSafeReturnUrl, type MfaEnrollmentConfirmedResponse } from "@bc-solutions-coder/sdk";
 import { Button, Card, CardTitle, ErrorBanner, Field, Input, Label } from "@bc-solutions-coder/ui";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation } from "@bc-solutions-coder/query";
 import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { QRCodeSVG } from "qrcode.react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import {
+  mfaConfirmEnrollmentMutation,
+  mfaEnrollTotpMutation,
+  mfaExchangeEnrollmentToken,
+} from "../api";
 import { toAppHref } from "../../../lib/base-path";
 
 /**
@@ -469,15 +467,22 @@ export function MfaEnrollForm({ returnUrl, enrollToken }: MfaEnrollFormProps): R
    * silently invalidate the QR the user has already scanned.
    */
   const startEnrollment = useMutation({
-    mutationFn: async (): Promise<MfaEnrollmentSecretResponse> =>
-      await mfaEnrollTotp({ client: sdk.client }),
+    // SPREAD, never passed straight through: the generated factory carries only a
+    // `mutationFn`, so handing it over as the whole options object would drop the
+    // `onMutate`/`onError` arms below.
+    ...mfaEnrollTotpMutation({ client: sdk.client }),
     // The oracle's `_errorMessage = null;`. Cleared EAGERLY at mutate time rather
     // than derived from `error`, which would leave the dead message standing
     // above an in-flight retry for the whole request.
     onMutate: () => {
       setErrorMessage(null);
     },
-    onError: (cause: unknown) => {
+    // `Error`, not `unknown`: the generated factory declares react-query's
+    // `DefaultError`, and annotating wider than that makes the spread above and this
+    // arm disagree about the mutation's error type. It is also what actually arrives
+    // — the SDK's error interceptor normalises every rejection into a `WallowError`
+    // — and `startFailureMessage` reads it as `unknown` regardless.
+    onError: (cause: Error) => {
       setErrorMessage(startFailureMessage(cause));
     },
   });
@@ -522,21 +527,19 @@ export function MfaEnrollForm({ returnUrl, enrollToken }: MfaEnrollFormProps): R
       // Opened BEFORE the exchange flag drops, so the two updates batch into one
       // render: the busy state passes straight from the exchange to the start
       // with no frame in between offering a live retry button.
-      startEnroll();
+      //
+      // `{}` and not `()`: the generated artifact's variables are its REQUEST object,
+      // which is required even when — as here — this endpoint takes no body, path or
+      // query of its own.
+      startEnroll({});
       setExchanging(false);
     })();
   }, [returnUrlIsUnsafe, navigate, enrollToken, startEnroll, sdk]);
 
-  const confirmMutation = useMutation({
-    mutationFn: async (attempt: {
-      readonly secret: string;
-      readonly code: string;
-    }): Promise<MfaEnrollmentConfirmedResponse> =>
-      await mfaConfirmEnrollment({
-        client: sdk.client,
-        body: { secret: attempt.secret, code: attempt.code },
-      }),
-  });
+  // Its own mutation, never folded into the start above: different endpoint,
+  // different lifetime (the start fires once on mount, the confirm once per submit
+  // and again in place after a rejected code).
+  const confirmMutation = useMutation({ ...mfaConfirmEnrollmentMutation({ client: sdk.client }) });
 
   const handleDone = (): void => {
     // Unsafe values were refused at mount, so a present returnUrl here is safe.
@@ -562,10 +565,11 @@ export function MfaEnrollForm({ returnUrl, enrollToken }: MfaEnrollFormProps): R
     setErrorMessage(null);
 
     confirmMutation.mutate(
-      // The secret MUST be the one `enroll/totp` minted — the server re-validates
-      // the TOTP against the secret in the body before storing it. Nothing else
-      // rides along: the oracle needed a cookie header here, and this does not.
-      { secret, code },
+      // The generated artifact's REQUEST object, not a bare body. The secret MUST be
+      // the one `enroll/totp` minted — the server re-validates the TOTP against the
+      // secret in the body before storing it. Nothing else rides along: the oracle
+      // needed a cookie header here, and this does not.
+      { body: { secret, code } },
       {
         // Resolution IS success: every failure this endpoint has is non-2xx, so
         // `unwrap()` has already thrown by the time this runs.
@@ -623,7 +627,7 @@ export function MfaEnrollForm({ returnUrl, enrollToken }: MfaEnrollFormProps): R
         onSubmit: handleSubmit,
         onDone: handleDone,
         onBeginSetup: () => {
-          startEnroll();
+          startEnroll({});
         },
       })}
       <CancelLink />

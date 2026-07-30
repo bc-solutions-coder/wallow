@@ -22,8 +22,8 @@ export function HelloCard(): ReactElement {
       <Card>
         <CardTitle data-testid="hello-heading">Hello from {forkResolvedBranding.name}</CardTitle>
         <MutedText data-testid="hello-body">
-          This minimal app wires all five shared packages — sdk, styles, ui, testing, and web-shell
-          — into a TanStack Start app. See the README for the golden path.
+          This minimal app wires all five shared packages — sdk, styles, ui, testing, and query —
+          into a TanStack Start app. See the README for the golden path.
         </MutedText>
         <ForkAttribution
           appName={forkResolvedBranding.name}

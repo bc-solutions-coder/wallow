@@ -7,10 +7,10 @@ import { defineConfig } from "vite";
 /**
  * The one Vite config wallow-web has: `vite dev` serves it and `vite build`
  * emits both environments plus the Nitro server bundle (`.output/server/index.mjs`
- * + `.output/public`). The separate client/SSR passes the web-shell presets drove
- * are gone, along with the standalone `server.ts`/`dev-server.ts` hosts that
- * consumed their output — and so is `tsr generate`, since the Start plugin owns
- * route codegen as a side effect of dev/build.
+ * + `.output/public`). The separate client/SSR passes the deleted shared host
+ * presets drove are gone, along with the standalone `server.ts`/`dev-server.ts`
+ * hosts that consumed their output — and so is `tsr generate`, since the Start
+ * plugin owns route codegen as a side effect of dev/build.
  *
  * `vite dev` binds 3000 when `PORT` is unset, which is also this app's port, but
  * it is spelled out anyway: Playwright waits on 3000 and does not inject `PORT`

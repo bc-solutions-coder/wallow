@@ -1,13 +1,18 @@
+import { ensureCurrentUser } from "@bc-solutions-coder/auth";
 import { forkBranding } from "@bc-solutions-coder/styles";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { PublicLayout } from "../components/PublicLayout";
 import { LandingPage } from "../features/landing/components/LandingPage";
-import { currentUserQuery } from "../lib/current-user";
 
 /**
  * The public home page (Wallow-8w1h.2.2 / Wallow-ffpq.3.6) — the anonymous
  * marketing landing at `/`.
+ *
+ * "Who is signed in" comes from `@bc-solutions-coder/auth` (Wallow-x4qn.8), the
+ * one definition of it in this workspace; `ensureCurrentUser` is its
+ * `beforeLoad` primer — `ensureQueryData(currentUserQuery(client))` — so this
+ * gate and `/dashboard`'s read the SAME cache entry with the same 30s staleTime.
  *
  * The `beforeLoad` gate:
  *   - an AUTHENTICATED visitor is redirected to the dashboard
@@ -42,7 +47,10 @@ function HomeComponent() {
 
 export const Route = createFileRoute("/")({
   beforeLoad: async ({ context }) => {
-    const user = await context.queryClient.ensureQueryData(currentUserQuery(context.sdk.client));
+    const user = await ensureCurrentUser({
+      queryClient: context.queryClient,
+      client: context.sdk.client,
+    });
     if (user !== null) {
       // TanStack stores the target under `.options.to`; also surface `to` at the
       // top level so it reads directly off the thrown redirect.

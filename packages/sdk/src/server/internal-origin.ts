@@ -26,8 +26,8 @@ export const INTERNAL_ORIGIN_ENV_KEY = "WALLOW_WEB_INTERNAL_URL";
  *
  * Resolution order: {@link INTERNAL_ORIGIN_ENV_KEY} (an empty value counts as
  * unset, mirroring wallow-auth's `WALLOW_API_INTERNAL_URL` convention), then
- * `http://localhost:${PORT}` (the listener the host binds, per
- * `@bc-solutions-coder/web-shell`'s `PORT` handling), then the caller-supplied
+ * `http://localhost:${PORT}` (the listener the host binds — every app's
+ * `vite.config.ts` spells out the same `PORT` convention), then the caller-supplied
  * `requestOrigin`, then `undefined` when nothing indicates a reachable origin.
  */
 export function resolveInternalOrigin(

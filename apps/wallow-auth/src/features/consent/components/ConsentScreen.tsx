@@ -1,9 +1,9 @@
 import { buildConsentSubmitUrl, consentInfoArgs, isSafeReturnUrl } from "@bc-solutions-coder/sdk";
-import { appsGetConsentInfoOptions } from "@bc-solutions-coder/sdk/query";
 import { Card, ErrorBanner } from "@bc-solutions-coder/ui";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@bc-solutions-coder/query";
 import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { useEffect, useMemo, type ReactNode } from "react";
+import { appsGetConsentInfoOptions } from "../api";
 import { BASE_PATH } from "../../../lib/base-path";
 
 /**
@@ -338,9 +338,6 @@ export function ConsentScreen({ clientId, returnUrl, scope }: ConsentScreenProps
     }),
     // Both refusals carried to React Query, so neither path reaches the network.
     enabled: clientIsKnown && !returnUrlIsUnsafe,
-    // A malformed consent request will not become a well-formed one on a second
-    // try; retrying only delays telling the user.
-    retry: false,
   });
 
   const submitConsent = (granted: boolean): void => {

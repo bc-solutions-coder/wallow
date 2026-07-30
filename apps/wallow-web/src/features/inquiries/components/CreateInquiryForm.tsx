@@ -42,8 +42,8 @@ import {
   SubmitButton,
   useAppForm,
 } from "@bc-solutions-coder/forms";
+import { useQueryClient } from "@bc-solutions-coder/query";
 import { Card } from "@bc-solutions-coder/ui";
-import { useQueryClient } from "@tanstack/react-query";
 import { useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
 import { z } from "zod";

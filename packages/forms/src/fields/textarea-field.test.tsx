@@ -1,5 +1,5 @@
+import { QueryClient, QueryClientProvider } from "@bc-solutions-coder/query";
 import { render } from "@bc-solutions-coder/testing/render";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { userEvent } from "vitest/browser";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";

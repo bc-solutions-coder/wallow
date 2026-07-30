@@ -6,7 +6,7 @@ import {
   type ResolvedBranding,
 } from "@bc-solutions-coder/styles";
 import { Card, DocumentStyles, FocusOnNavigate, MutedText } from "@bc-solutions-coder/ui";
-import type { QueryClient } from "@tanstack/react-query";
+import type { QueryClient } from "@bc-solutions-coder/query";
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import type { ReactElement, ReactNode } from "react";
 

@@ -1,9 +1,9 @@
 import { buildConnectLogoutUrl, validateRedirectUriArgs } from "@bc-solutions-coder/sdk";
-import { accountValidateRedirectUriOptions } from "@bc-solutions-coder/sdk/query";
 import { Card } from "@bc-solutions-coder/ui";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { accountValidateRedirectUriOptions } from "../api";
 import { BASE_PATH, toAppHref } from "../../../lib/base-path";
 
 /**
@@ -238,9 +238,6 @@ export function LogoutScreen({ postLogoutRedirectUri, signedOut }: LogoutScreenP
     // parameter on the end-session request itself — and would leak a probe on
     // every render of the prompt.
     enabled: isSignedOut && hasRedirectUri,
-    // A URI the allow-list refuses will not be on it a second later, and the
-    // failure arm below is already the safe one; retrying only delays the answer.
-    retry: false,
   });
 
   // FAIL CLOSED, in every direction. The C# `!IsSuccessStatusCode → false` arm

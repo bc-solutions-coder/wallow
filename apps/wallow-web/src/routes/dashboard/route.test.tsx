@@ -1,11 +1,11 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
+import { currentUserQuery } from "@bc-solutions-coder/auth";
 import { createSdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { type AnyRedirect, isRedirect } from "@tanstack/react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { currentUserQuery } from "../../lib/current-user";
 import { getRouter } from "../../router";
 import { Route } from "./route";
 
@@ -15,7 +15,10 @@ import { Route } from "./route";
  * Wallow-zyxe.
  *
  * The gate must read the current user through the router-context QueryClient via
- * `context.queryClient.ensureQueryData(currentUserQuery(context.sdk.client))` — the
+ * `ensureQueryData(currentUserQuery(context.sdk.client))` — or the equivalent
+ * `ensureCurrentUser({ queryClient, client })` primer, which composes exactly
+ * that pair — where the query is the SHARED one from `@bc-solutions-coder/auth`
+ * (Wallow-x4qn.8), not a copy this app keeps in `src/lib/`. Either way it is the
  * GENERATED current-user read bound to the request's own SDK instance
  * (Wallow-pu6a.5.5), NOT a module-global client and not the retired
  * `getWallowSdk().user.me()` facade. When the cached user
@@ -149,8 +152,10 @@ describe("routes/dashboard/route (auth gate)", () => {
     );
 
     expect(source).not.toMatch(/getWallowSdk|lib\/wallow-sdk/u);
-    expect(source).toMatch(/currentUserQuery/u);
-    expect(source).toMatch(/ensureQueryData/u);
+    // Either spelling of the shared read: the query + `ensureQueryData`, or the
+    // auth package's `ensureCurrentUser` primer that composes the pair.
+    expect(source).toMatch(/currentUserQuery|ensureCurrentUser/u);
+    expect(source).toMatch(/ensureQueryData|ensureCurrentUser/u);
   });
 
   it("does not import the SDK's browser-only login helper", () => {

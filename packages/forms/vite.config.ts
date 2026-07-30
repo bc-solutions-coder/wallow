@@ -7,10 +7,10 @@ import { defineConfig } from "vite";
 // neither Vite nor Rolldown emits type declarations — those come from
 // `tsc -p tsconfig.build.json` (see the package `build` script).
 //
-// ES output only, and every non-relative import is externalized so
-// react/react-dom/react-query (peer deps) and the ui and sdk workspace packages
-// the host app already has are never bundled in — a second copy of any of them
-// would duplicate a runtime.
+// ES output only, and every non-relative import is externalized so react and
+// react-dom (peer deps) and the query, ui and sdk workspace packages the host app
+// already has are never bundled in — a second copy of any of them would duplicate
+// a runtime.
 //
 // Unlike packages/ui this package publishes ONE entry: the curated `src/index.ts`
 // barrel. There is no subpath export to back, so there are no extra entries to

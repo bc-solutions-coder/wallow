@@ -11,7 +11,8 @@ import { routeTree } from "./routeTree.gen";
  * per request, and the request's own SDK instance — from the `start.ts`
  * middleware on the server, minted same-origin in the browser.
  *
- * A plain `new QueryClient()` rather than the web-shell helper: this scratch app
+ * A plain `new QueryClient()` rather than the workspace `createQueryClient`
+ * helper: this scratch app
  * consumes only the two packed tarballs (sdk + styles), so it must stand up
  * without the rest of the workspace.
  */

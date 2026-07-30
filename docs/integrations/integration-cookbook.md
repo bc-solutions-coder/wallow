@@ -5,12 +5,12 @@ from `npm install` to a working feature reading and writing module data through 
 
 This page is the connective tissue between guides that each own one piece:
 
-| For…                                                  | Read                                                                       |
-| ----------------------------------------------------- | -------------------------------------------------------------------------- |
-| The full Vite/Vitest/Tailwind wiring of a new app     | [Frontend Setup](../development/frontend-setup.md)                         |
-| The SDK's entry points, env vars, and session model   | [TypeScript SDK](typescript-sdk.md)                                        |
-| The query/Zustand boundary and how to add a query     | [Frontend State](../development/frontend-state.md)                         |
-| The wire protocol, if you are writing a BFF elsewhere | [BFF Pattern](bff-pattern.md)                                              |
+| For…                                                  | Read                                                                                                          |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| The full Vite/Vitest/Tailwind wiring of a new app     | [Frontend Setup](../development/frontend-setup.md)                                                            |
+| The SDK's entry points, env vars, and session model   | [TypeScript SDK](typescript-sdk.md)                                                                           |
+| The query/Zustand boundary and how to add a query     | [Frontend State](../development/frontend-state.md)                                                            |
+| The wire protocol, if you are writing a BFF elsewhere | [BFF Pattern](bff-pattern.md)                                                                                 |
 | Why the platform mandates a BFF at all                | [Fork Guide → Frontend auth policy](../getting-started/fork-guide.md#frontend-authentication-policy-bff-only) |
 
 Six steps. Each one names the reference file in this repository that already does it, so
@@ -70,9 +70,9 @@ hand-edit it, and do not add a `routes:generate` script. The complete config, in
 
 Pick the topology first, because it decides which SDK preset sits behind your routes:
 
-| Topology            | Preset                                                              | Use it when                                                                                                                 |
-| ------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| **BFF tunnel**      | `createWallowBffServer()` (`@bc-solutions-coder/sdk/server`)        | The app signs users in and calls the API on their behalf. Owns an OIDC session; mounts `/bff/**` and `/api/**`              |
+| Topology             | Preset                                                                  | Use it when                                                                                                                                                |
+| -------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **BFF tunnel**       | `createWallowBffServer()` (`@bc-solutions-coder/sdk/server`)            | The app signs users in and calls the API on their behalf. Owns an OIDC session; mounts `/bff/**` and `/api/**`                                             |
 | **Pure passthrough** | `createApiPassthrough()` (`@bc-solutions-coder/sdk/server/passthrough`) | The app only needs the API on its own origin with no session of its own — an auth frontend, for example. Mounts `/v1/**`, `/connect/**`, `/.well-known/**` |
 
 Either way, each prefix is one splat route with a **single `ANY` handler**. A method map
@@ -192,7 +192,7 @@ factories:
 
 ```tsx
 // src/features/inquiries/components/InquiryList.tsx
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
 
 import {
@@ -217,7 +217,13 @@ export function InquiryList(): React.ReactElement {
     },
   });
 
-  return <ul>{data?.map((inquiry) => <li key={inquiry.id}>{inquiry.name}</li>)}</ul>;
+  return (
+    <ul>
+      {data?.map((inquiry) => (
+        <li key={inquiry.id}>{inquiry.name}</li>
+      ))}
+    </ul>
+  );
 }
 ```
 
@@ -250,15 +256,15 @@ The collapse of the hand-written SDK surface deleted these outright — no depre
 no re-export stub. Root `.oxlintrc.json` carries `no-restricted-imports` entries so each one
 fails `pnpm lint` with a message naming its replacement, rather than resurfacing in a fork:
 
-| Don't                                                                       | Do instead                                                                           |
-| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `configureBffClient()`, `configureWallowClient()`, importing `client`       | `createWallowSdk({ baseUrl })` per request; pass `{ client: sdk.client }`             |
+| Don't                                                                                  | Do instead                                                                         |
+| -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `configureBffClient()`, `configureWallowClient()`, importing `client`                  | `createWallowSdk({ baseUrl })` per request; pass `{ client: sdk.client }`          |
 | `configureSsrClient()`, `setSsrRequestContextResolver()`, `wireSsrCookieInterceptor()` | `createWallowSdk({ baseUrl, cookieHeader, internalOrigin })` in request middleware |
-| `createAuthClient()`, `createMfaClient()`, `unwrap()`                       | The generated operations; failures already arrive as `WallowError`                   |
-| `queryKeys`, `organizationsQueries`, `mfaQueries`, and the other slices     | The generated `{op}Options()` / `{op}Mutation()` / `{op}QueryKey()`                   |
-| `registerQueryBootstrap()`, `ensureQueryBootstrapped()`                     | Nothing — pass `{ client }` explicitly; there is no module state to bootstrap         |
-| A `src/lib/wallow-sdk.ts` facade singleton                                  | `useRouteContext({ from: "__root__" }).sdk`                                          |
-| Deep-importing `@bc-solutions-coder/sdk/dist/**` or `/src/**`               | The published entries: `.`, `/server`, `/server/passthrough`, `/query`               |
+| `createAuthClient()`, `createMfaClient()`, `unwrap()`                                  | The generated operations; failures already arrive as `WallowError`                 |
+| `queryKeys`, `organizationsQueries`, `mfaQueries`, and the other slices                | The generated `{op}Options()` / `{op}Mutation()` / `{op}QueryKey()`                |
+| `registerQueryBootstrap()`, `ensureQueryBootstrapped()`                                | Nothing — pass `{ client }` explicitly; there is no module state to bootstrap      |
+| A `src/lib/wallow-sdk.ts` facade singleton                                             | `useRouteContext({ from: "__root__" }).sdk`                                        |
+| Deep-importing `@bc-solutions-coder/sdk/dist/**` or `/src/**`                          | The published entries: `.`, `/server`, `/server/passthrough`, `/query`             |
 
 The last row is the one worth internalising even in a greenfield fork: `dist/` and `src/`
 layouts are internals, not contract, and an import that reaches past the exports map breaks on

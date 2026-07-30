@@ -73,8 +73,10 @@ describe("@bc-solutions-coder/testing sdk test-seam entries", () => {
 
     expect(peers).toHaveProperty("react");
     expect(peers).toHaveProperty("react-dom");
-    expect(peers).toHaveProperty("@tanstack/react-query");
     expect(peers).toHaveProperty("@tanstack/react-router");
+    // `@tanstack/react-query` is deliberately absent: react-query arrives through
+    // the `@bc-solutions-coder/query` facade, which this package takes as a
+    // regular dependency. `query-facade-routing.test.ts` owns that policy.
   });
 
   it("emits both entries from the Vite library build", () => {

@@ -7,8 +7,9 @@ import { defineConfig } from "vite";
 /**
  * The one Vite config the app has: `vite dev` serves it and `vite build` emits
  * both environments plus the Nitro server bundle (`.output/server/index.mjs` +
- * `.output/public`). The separate client/SSR passes the web-shell presets drove
- * are gone, and so is `tsr generate` — the Start plugin owns route codegen.
+ * `.output/public`). The separate client/SSR passes the deleted host runtime's
+ * presets drove are gone, and so is `tsr generate` — the Start plugin owns route
+ * codegen.
  *
  * `vite dev` binds 3000 when `PORT` is unset, so this app's port is spelled out
  * here: a bare `pnpm dev` must land on 3010 like the deleted host did.

@@ -10,8 +10,8 @@
  * not have to thread either through props.
  */
 
+import { useMutation, type UseMutationOptions } from "@bc-solutions-coder/query";
 import type { FormValidateAsyncFn, StandardSchemaV1 } from "@tanstack/react-form";
-import { useMutation, type UseMutationOptions } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 
 import { useTanstackAppForm } from "../core/form-hook";

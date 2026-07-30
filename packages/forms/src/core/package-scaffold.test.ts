@@ -10,8 +10,8 @@ import { describe, expect, it } from "vitest";
 // authoring: it binds TanStack Form state onto @bc-solutions-coder/ui's
 // components. At the scaffold stage it has no behaviour, so its "correctness" is
 // entirely its wiring — a ui-style package.json with a single root export, the
-// right dependency/peer split (react, react-dom and react-query are the HOST's
-// to supply; sdk, ui, react-form and zod are this package's own), the
+// right dependency/peer split (react and react-dom are the HOST's to supply;
+// sdk, ui, query, react-form and zod are this package's own), the
 // workspace-baseline tsconfig pair, a Vite library-mode build reduced to the one
 // barrel entry, and the shared node + headless-Chromium vitest preset with the
 // pre-bundle list its future component specs need.
@@ -88,7 +88,7 @@ describe("packages/forms scaffold", () => {
     expect(scripts.typecheck).toBe("tsc --noEmit");
   });
 
-  it("takes sdk, ui, react-form and zod as regular dependencies", () => {
+  it("takes sdk, ui, query, react-form and zod as regular dependencies", () => {
     const pkg = readPackageJson();
     const deps = pkg.dependencies as Record<string, string> | undefined;
 
@@ -97,36 +97,60 @@ describe("packages/forms scaffold", () => {
     // never have to. Contrast the peers below, which the host app owns.
     expect(deps?.["@bc-solutions-coder/sdk"]).toBe("workspace:*");
     expect(deps?.["@bc-solutions-coder/ui"]).toBe("workspace:*");
+    // TanStack Query arrives ONLY through the workspace facade — see the peer
+    // rationale below for why that is a regular dependency and not a peer.
+    expect(deps?.["@bc-solutions-coder/query"]).toBe("workspace:*");
     expect(deps?.["@tanstack/react-form"]).toMatch(/^\^1\./u);
     // zod v4 — the validation library the catalog's schemas are written against.
     expect(deps?.zod).toMatch(/^\^4\./u);
   });
 
-  it("leaves react, react-dom and react-query as the only peer dependencies", () => {
+  it("leaves react and react-dom as the only peer dependencies", () => {
     const pkg = readPackageJson();
     const peers = pkg.peerDependencies as Record<string, string> | undefined;
 
-    // A second copy of React or of the QueryClient's context would break hooks
-    // and detach every mutation from the app's cache, so all three must resolve
-    // to the host's single instance.
-    expect(Object.keys(peers ?? {}).toSorted()).toEqual([
-      "@tanstack/react-query",
-      "react",
-      "react-dom",
-    ]);
+    // A second copy of React would break hooks, so it and react-dom must still
+    // resolve to the host's single instance.
+    //
+    // react-query used to sit here for the same reason one rung down: a second
+    // copy of the QueryClient's context detaches every `useAppForm` mutation
+    // from the app's cache ("No QueryClient set"). That argument now lands on
+    // @bc-solutions-coder/query instead. The facade is a private workspace
+    // package that is the ONE declarer of @tanstack/react-query in the repo, so
+    // a `workspace:*` dependency on it cannot fork the version the host resolves
+    // the way a peer range could — every consumer is linked to the same
+    // directory and therefore to the same context. Peering the facade would only
+    // push a private, unpublished package onto app manifests for no gain.
+    expect(Object.keys(peers ?? {}).toSorted()).toEqual(["react", "react-dom"]);
   });
 
   it("keeps dev copies of the peers so it can build and run its own specs", () => {
     const pkg = readPackageJson();
     const devDeps = pkg.devDependencies as Record<string, string> | undefined;
 
-    for (const name of ["@tanstack/react-query", "react", "react-dom"]) {
+    for (const name of ["react", "react-dom"]) {
       expect(devDeps, name).toHaveProperty(name);
     }
     // The browser-mode specs render ui components, which need the fork theme,
     // and the shared vitest preset supplies the node/Chromium project pair.
     expect(devDeps?.["@bc-solutions-coder/styles"]).toBe("workspace:*");
     expect(devDeps?.["@bc-solutions-coder/testing"]).toBe("workspace:*");
+  });
+
+  it("declares @tanstack/react-query in no dependency bucket at all", () => {
+    const pkg = readPackageJson();
+
+    // The facade rule, enforced at the manifest: this package may not name
+    // react-query anywhere, in any bucket. Under pnpm's strict node_modules that
+    // makes a direct `from "@tanstack/react-query"` unresolvable here — the
+    // declaration and the import discipline (query-facade.test.ts) are two
+    // halves of the same guard, and dropping only the import would leave the
+    // door open for the next contributor.
+    for (const bucket of ["dependencies", "devDependencies", "peerDependencies"]) {
+      const declared = pkg[bucket] as Record<string, string> | undefined;
+
+      expect(Object.keys(declared ?? {}), bucket).not.toContain("@tanstack/react-query");
+    }
   });
 
   it("does not copy packages/sdk's TS6 typescript pin", () => {
@@ -222,11 +246,23 @@ describe("packages/forms scaffold", () => {
     expect(vitestConfig).toMatch(/@base-ui\/react\/input/u);
     // Same failure mode for this package's own runtime deps: a mid-run reload
     // after the first import drops the test runner.
-    for (const dep of ["@tanstack/react-form", "@tanstack/react-query", "zod"]) {
+    //
+    // @bc-solutions-coder/query stands in for @tanstack/react-query, which this
+    // package no longer declares. The name here has to be the one this package
+    // can RESOLVE: Vite reports an unresolvable optimizeDeps entry as a warning
+    // and then carries on with it silently absent (see browser-deps.test.ts), and
+    // under pnpm's strict node_modules an undeclared react-query resolves from
+    // nowhere. Listing the facade instead pre-bundles the same react-query
+    // module through the one package that does declare it.
+    for (const dep of ["@tanstack/react-form", "@bc-solutions-coder/query", "zod"]) {
       expect(vitestConfig, dep).toMatch(
         new RegExp(`["']${dep.replaceAll("/", String.raw`\/`)}["']`, "u"),
       );
     }
+    // And the config must not still name the raw package: an entry left behind
+    // is the unresolvable-warning case above, plus a second pre-bundle of a
+    // module the facade already carries.
+    expect(vitestConfig).not.toMatch(/@tanstack\/react-query/u);
   });
 
   it("has a placeholder src/index.ts barrel", () => {
@@ -262,8 +298,8 @@ describe("packages/forms installed dependencies", () => {
   const INSTALLED = [
     "@bc-solutions-coder/sdk",
     "@bc-solutions-coder/ui",
+    "@bc-solutions-coder/query",
     "@tanstack/react-form",
-    "@tanstack/react-query",
     "react",
     "react-dom",
     "zod",

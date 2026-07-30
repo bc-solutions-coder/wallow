@@ -1,5 +1,13 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -21,6 +29,11 @@ import { afterAll, describe, expect, it } from "vitest";
  * nothing, so the config surface is pinned AND the real binary is run over
  * snippets: each restricted form must produce a `no-restricted-imports`
  * diagnostic, and the surviving entry points must produce none.
+ *
+ * The second half of the file covers the facade ban (`@tanstack/react-query` is
+ * reachable only through `@bc-solutions-coder/query`) and its exemption, which
+ * needs a stronger harness than a snippet — see the comment above
+ * `lintMirrorTree`.
  */
 
 // packages/sdk/src -> packages/sdk
@@ -48,17 +61,64 @@ interface RestrictedImportsOptions {
   patterns?: RestrictedPattern[];
 }
 
-interface OxlintConfig {
+interface OxlintOverride {
+  files?: string[];
   rules?: Record<string, unknown>;
 }
 
+interface OxlintConfig {
+  rules?: Record<string, unknown>;
+  overrides?: OxlintOverride[];
+}
+
+function readConfig(): OxlintConfig {
+  return JSON.parse(readFileSync(oxlintConfigPath, "utf8")) as OxlintConfig;
+}
+
 function readRuleEntry(): [string, RestrictedImportsOptions] {
-  const config: OxlintConfig = JSON.parse(readFileSync(oxlintConfigPath, "utf8")) as OxlintConfig;
-  const entry: unknown = config.rules?.["no-restricted-imports"];
+  const entry: unknown = readConfig().rules?.["no-restricted-imports"];
 
   expect(Array.isArray(entry)).toBe(true);
   const [severity, options] = entry as [string, RestrictedImportsOptions];
   return [severity, options];
+}
+
+/** Every `overrides[]` entry that says anything about `no-restricted-imports`. */
+function overridesTouchingTheRule(): OxlintOverride[] {
+  return (readConfig().overrides ?? []).filter(
+    (override: OxlintOverride): boolean => override.rules?.["no-restricted-imports"] !== undefined,
+  );
+}
+
+/**
+ * The single override that RE-DECLARES the rule (a `[severity, options]` array)
+ * instead of switching it off — the facade exemption.
+ *
+ * oxlint has no per-name partial disable, so the only way to let the facade and
+ * the SDK's four react-query peers import the real package while every other ban
+ * survives is to copy the rule minus one entry. Selecting the exemption by SHAPE
+ * (re-declared, not `"off"`) rather than by its `files` is what makes the
+ * assertions below fail loudly if someone "fixes" a lint error by reaching for
+ * `"no-restricted-imports": "off"` over a wider glob.
+ */
+function facadeExemption(): [OxlintOverride, RestrictedImportsOptions] {
+  const redeclared: OxlintOverride[] = overridesTouchingTheRule().filter(
+    (override: OxlintOverride): boolean => Array.isArray(override.rules?.["no-restricted-imports"]),
+  );
+
+  expect(redeclared, "no override re-declares no-restricted-imports").toHaveLength(1);
+
+  const override: OxlintOverride = redeclared[0] ?? {};
+  const [, options] = (override.rules?.["no-restricted-imports"] ?? ["error", {}]) as [
+    string,
+    RestrictedImportsOptions,
+  ];
+
+  return [override, options];
+}
+
+function pathNames(options: RestrictedImportsOptions): string[] {
+  return (options.paths ?? []).map((path: RestrictedPath): string => path.name);
 }
 
 function restrictedPathFor(moduleName: string): RestrictedPath {
@@ -255,5 +315,359 @@ describe("the guardrails fire on real source", () => {
     );
 
     expect(diagnostics).toEqual([]);
+  });
+});
+
+/**
+ * The facade ban (bead Wallow-x4qn.12) — `@tanstack/react-query` is importable
+ * only through `@bc-solutions-coder/query`, and `@bc-solutions-coder/web-shell`
+ * is importable nowhere.
+ *
+ * This ban is the first one in the config with an EXEMPTION, and an exemption is
+ * the part that rots: oxlint cannot disable one restricted name, so the facade
+ * and the four SDK files that hold the optional peer are let through by a
+ * re-declared copy of the rule. Two things can quietly go wrong there and
+ * neither shows up as a lint error — the exemption's glob can be wider than the
+ * five locations it names (reopening the ban for a whole package), and the
+ * re-declared copy can drift into `"off"` (reopening every OTHER ban for those
+ * files). Snippets linted from a scratch directory cannot see either, because an
+ * absolute path outside the repo matches no `files` glob at all.
+ *
+ * So the fixtures below are a MIRROR of the repo: a tmp root holding a verbatim
+ * copy of `.oxlintrc.json` plus files at the repo-relative paths that matter.
+ * oxlint resolves `files` and `ignorePatterns` against the config's own
+ * directory, so a fixture at `apps/wallow-web/src/routes/dashboard.tsx` is
+ * matched by exactly the globs its real counterpart is — which makes "an app
+ * violation is caught" and "the exemption stops at these five locations"
+ * assertions about the real binary's behaviour rather than about config text.
+ */
+
+/** One `no-restricted-imports` diagnostic, attributed to the mirror file that earned it. */
+interface Offence {
+  readonly file: string;
+  readonly message: string;
+  readonly help: string;
+}
+
+/**
+ * `realpathSync` is load-bearing, not tidiness: oxlint canonicalizes each file's
+ * path before matching it against an override's `files`, while the globs are
+ * resolved against the config's directory as given. On macOS `os.tmpdir()` is
+ * `/var/folders/...`, a symlink to `/private/var/folders/...`, so a mirror rooted
+ * at the symlinked form matches NO override — every exemption silently evaporates
+ * and the tree only ever proves the root rule. The harness proof below is what
+ * catches that.
+ */
+const mirrorParent: string = mkdtempSync(join(tmpdir(), "wallow-oxlint-mirror-"));
+const mirrorRoot: string = realpathSync(mirrorParent);
+
+afterAll((): void => {
+  rmSync(mirrorRoot, { force: true, recursive: true });
+});
+
+/**
+ * Lints a tree of repo-relative fixture files against a copy of the real config
+ * placed at the tree's root, and returns every `no-restricted-imports`
+ * diagnostic it produced. One binary run covers the whole fixture set.
+ */
+function lintMirrorTree(files: Readonly<Record<string, string>>): Offence[] {
+  copyFileSync(oxlintConfigPath, join(mirrorRoot, ".oxlintrc.json"));
+
+  for (const [relativePath, source] of Object.entries(files)) {
+    const full: string = join(mirrorRoot, relativePath);
+    mkdirSync(dirname(full), { recursive: true });
+    writeFileSync(full, source, "utf8");
+  }
+
+  let stdout: string = "";
+  try {
+    stdout = execFileSync(
+      oxlintBinPath,
+      ["-c", join(mirrorRoot, ".oxlintrc.json"), "-f", "json", "."],
+      { cwd: mirrorRoot, encoding: "utf8", stdio: "pipe" },
+    );
+  } catch (error: unknown) {
+    stdout = (error as { stdout?: string }).stdout ?? "";
+  }
+
+  const report: {
+    diagnostics?: { code?: string; filename?: string; help?: string; message?: string }[];
+  } = JSON.parse(stdout) as {
+    diagnostics?: { code?: string; filename?: string; help?: string; message?: string }[];
+  };
+
+  return (report.diagnostics ?? [])
+    .filter((diagnostic): boolean => diagnostic.code === RULE_CODE)
+    .map(
+      (diagnostic): Offence => ({
+        // oxlint reports paths relative to the directory it was pointed at.
+        file: (diagnostic.filename ?? "").replace(/^\.\//u, ""),
+        help: diagnostic.help ?? "",
+        message: diagnostic.message ?? "",
+      }),
+    );
+}
+
+const FACADE = "@bc-solutions-coder/query";
+const TANSTACK = "@tanstack/react-query";
+const WEB_SHELL = "@bc-solutions-coder/web-shell";
+
+/**
+ * Every fixture, linted in one pass. Each path is one a real file could occupy,
+ * so the glob that matches it here is the glob that would match it in the repo.
+ */
+const MIRROR_FIXTURES: Readonly<Record<string, string>> = {
+  // The harness's own proof, using an exemption that already exists: the seam
+  // specs turn the rule off, their siblings do not. Linted before anything is
+  // claimed about the new ban, so a green result below is evidence of the config
+  // rather than of a mirror where no override ever matches.
+  "apps/wallow-web/src/features/apps/api.test.ts":
+    'import { queryKeys } from "@bc-solutions-coder/sdk/query";\nexport const use = queryKeys;\n',
+  "apps/wallow-web/src/features/apps/list.ts":
+    'import { queryKeys } from "@bc-solutions-coder/sdk/query";\nexport const use = queryKeys;\n',
+
+  // Consumers that must all go through the facade.
+  "apps/wallow-web/src/routes/dashboard/index.tsx":
+    'import { useQuery } from "@tanstack/react-query";\nexport const use = useQuery;\n',
+  "apps/wallow-auth/src/features/login/use-login.ts":
+    'import { useMutation } from "@tanstack/react-query";\nexport const use = useMutation;\n',
+  "apps/examples/minimal-app/src/main.tsx":
+    'import { QueryClientProvider } from "@tanstack/react-query";\nexport const use = QueryClientProvider;\n',
+  // packages/forms is routed through the facade by an earlier feature, so the ban
+  // applies to it like any other package — it gets NO exemption. Type-only, which
+  // is the form a "harmless" direct import comes back as.
+  "packages/forms/src/core/use-app-form.ts":
+    'import type { UseMutationResult } from "@tanstack/react-query";\nexport type Result = UseMutationResult;\n',
+  "packages/auth/src/current-user.ts":
+    'import { useQuery } from "@tanstack/react-query";\nexport const use = useQuery;\n',
+  "packages/testing/src/render.tsx":
+    'import { QueryClient } from "@tanstack/react-query";\nexport const use = QueryClient;\n',
+  // Inside the SDK but not one of the four named files: the exemption must be
+  // per-file, not `packages/sdk/**`.
+  "packages/sdk/src/create-sdk.ts": 'export { useQuery } from "@tanstack/react-query";\n',
+  // Inside the SDK's query directory but not invalidations.ts.
+  "packages/sdk/src/query/index.ts":
+    'import { useQuery } from "@tanstack/react-query";\nexport const use = useQuery;\n',
+
+  // The deleted package, which nothing may import — app or facade.
+  "apps/wallow-web/src/router.tsx":
+    'import { createQueryClient } from "@bc-solutions-coder/web-shell";\nexport const use = createQueryClient;\n',
+
+  // The exemption's five locations. Each also carries a violation of a ban that
+  // must SURVIVE the re-declaration, so a drift to `"off"` fails here.
+  "packages/query/src/index.ts": [
+    'export * from "@tanstack/react-query";',
+    'import { configureBffClient } from "@bc-solutions-coder/sdk";',
+    "export const legacy = configureBffClient;",
+    "",
+  ].join("\n"),
+  "packages/query/src/query-client.ts": [
+    'import { QueryClient } from "@tanstack/react-query";',
+    'import { createQueryClient } from "@bc-solutions-coder/web-shell";',
+    "export const surface = [QueryClient, createQueryClient];",
+    "",
+  ].join("\n"),
+  "packages/sdk/src/route-context.ts": [
+    'import type { QueryClient } from "@tanstack/react-query";',
+    'import { queryKeys } from "@bc-solutions-coder/sdk/query";',
+    "export const legacy = queryKeys;",
+    "export type Client = QueryClient;",
+    "",
+  ].join("\n"),
+  "packages/sdk/src/route-context.test.ts": [
+    'import { QueryClient } from "@tanstack/react-query";',
+    'import { thing } from "@bc-solutions-coder/sdk/dist/index.js";',
+    "export const surface = [QueryClient, thing];",
+    "",
+  ].join("\n"),
+  "packages/sdk/src/query/invalidations.ts":
+    'import type { QueryKey } from "@tanstack/react-query";\nexport type Key = QueryKey;\n',
+  "packages/sdk/src/generated-query-surface.test.ts":
+    'import { QueryClient } from "@tanstack/react-query";\nexport const use = QueryClient;\n',
+
+  // The compliant shape every consumer is expected to write.
+  "apps/wallow-web/src/routes/settings.tsx": [
+    'import { createQueryClient, useMutation, useQuery } from "@bc-solutions-coder/query";',
+    "export const surface = [createQueryClient, useMutation, useQuery];",
+    "",
+  ].join("\n"),
+};
+
+const mirrorOffences: Offence[] = lintMirrorTree(MIRROR_FIXTURES);
+
+/** Every offence the mirror reported for one file. */
+function offencesIn(file: string): Offence[] {
+  return mirrorOffences.filter((offence: Offence): boolean => offence.file === file);
+}
+
+/** Every offence for one file that names a given module — the ban that fired. */
+function offencesNaming(file: string, moduleName: string): string[] {
+  return offencesIn(file)
+    .filter((offence: Offence): boolean => offence.message.includes(`'${moduleName}`))
+    .map((offence: Offence): string => `${offence.message} ${offence.help}`);
+}
+
+describe("the mirror tree reproduces the repo's override matching", () => {
+  it("finds fixtures to lint", () => {
+    // Without this the per-file assertions could go vacuously green: a mirror
+    // that oxlint silently skipped reports no offences and forbids nothing.
+    expect(mirrorOffences.length).toBeGreaterThan(0);
+  });
+
+  it("suppresses a ban inside a glob the real config exempts", () => {
+    expect(offencesIn("apps/wallow-web/src/features/apps/api.test.ts")).toEqual([]);
+  });
+
+  it("still reports it one file over, outside that glob", () => {
+    expect(offencesIn("apps/wallow-web/src/features/apps/list.ts")).not.toHaveLength(0);
+  });
+});
+
+describe("only the facade may import @tanstack/react-query", () => {
+  it.each([
+    "apps/wallow-web/src/routes/dashboard/index.tsx",
+    "apps/wallow-auth/src/features/login/use-login.ts",
+    "apps/examples/minimal-app/src/main.tsx",
+    "packages/forms/src/core/use-app-form.ts",
+    "packages/auth/src/current-user.ts",
+    "packages/testing/src/render.tsx",
+    "packages/sdk/src/create-sdk.ts",
+    "packages/sdk/src/query/index.ts",
+  ])("rejects the direct import in %s", (file: string) => {
+    expect(offencesNaming(file, TANSTACK)).not.toHaveLength(0);
+  });
+
+  it("names the facade as the replacement rather than only forbidding", () => {
+    expect(offencesNaming("apps/wallow-web/src/routes/dashboard/index.tsx", TANSTACK)[0]).toContain(
+      FACADE,
+    );
+  });
+
+  it.each([
+    "packages/query/src/index.ts",
+    "packages/query/src/query-client.ts",
+    "packages/sdk/src/route-context.ts",
+    "packages/sdk/src/route-context.test.ts",
+    "packages/sdk/src/query/invalidations.ts",
+    "packages/sdk/src/generated-query-surface.test.ts",
+  ])("allows the direct import in %s", (file: string) => {
+    expect(offencesNaming(file, TANSTACK)).toEqual([]);
+  });
+
+  it("leaves a consumer that imports through the facade completely alone", () => {
+    expect(offencesIn("apps/wallow-web/src/routes/settings.tsx")).toEqual([]);
+  });
+});
+
+describe("nothing may import the deleted @bc-solutions-coder/web-shell", () => {
+  it("rejects it in an app", () => {
+    expect(offencesNaming("apps/wallow-web/src/router.tsx", WEB_SHELL)).not.toHaveLength(0);
+  });
+
+  it("points at the facade's createQueryClient instead", () => {
+    const [message] = offencesNaming("apps/wallow-web/src/router.tsx", WEB_SHELL);
+
+    expect(message).toContain(FACADE);
+    expect(message).toContain("createQueryClient");
+  });
+
+  it("rejects it inside the exemption too", () => {
+    expect(offencesNaming("packages/query/src/query-client.ts", WEB_SHELL)).not.toHaveLength(0);
+  });
+});
+
+describe("the exemption reopens one ban, not the rest", () => {
+  it("still restricts a deleted browser-entry export inside the facade", () => {
+    expect(offencesNaming("packages/query/src/index.ts", "configureBffClient")).not.toHaveLength(0);
+  });
+
+  it("still restricts a retired query export inside an exempted SDK file", () => {
+    expect(offencesNaming("packages/sdk/src/route-context.ts", "queryKeys")).not.toHaveLength(0);
+  });
+
+  it("still restricts a dist deep import inside an exempted SDK file", () => {
+    expect(
+      offencesNaming("packages/sdk/src/route-context.test.ts", "@bc-solutions-coder/sdk/dist"),
+    ).not.toHaveLength(0);
+  });
+});
+
+describe("the root config states the facade convention", () => {
+  it("bans the whole @tanstack/react-query package, not a list of its exports", () => {
+    // With `importNames` the ban would cover only the symbols named today, and
+    // the next hook react-query adds would be importable directly.
+    expect(restrictedPathFor(TANSTACK).importNames).toBeUndefined();
+  });
+
+  it("points a reader at the facade, and says why it is the only door", () => {
+    const message: string = restrictedPathFor(TANSTACK).message ?? "";
+
+    expect(message).toContain(FACADE);
+    expect(message).toMatch(/version/iu);
+    expect(message).toContain("QueryClient");
+  });
+
+  it("bans the deleted web-shell package by name", () => {
+    const message: string = restrictedPathFor(WEB_SHELL).message ?? "";
+
+    expect(message).toContain("createQueryClient");
+    expect(message).toContain(FACADE);
+  });
+});
+
+describe("the facade exemption is narrow by construction", () => {
+  it("covers the facade package and exactly the four SDK peers", () => {
+    const [override] = facadeExemption();
+
+    // Compared as a set, and exactly — a sixth glob here is how the exemption
+    // grows from "the facade plus its four peers" into "whatever was failing".
+    expect(new Set(override.files)).toEqual(
+      new Set([
+        "packages/query/**",
+        "packages/sdk/src/generated-query-surface.test.ts",
+        "packages/sdk/src/query/invalidations.ts",
+        "packages/sdk/src/route-context.test.ts",
+        "packages/sdk/src/route-context.ts",
+      ]),
+    );
+  });
+
+  it("omits @tanstack/react-query from its re-declared paths", () => {
+    const [, options] = facadeExemption();
+
+    expect(pathNames(options)).not.toContain(TANSTACK);
+  });
+
+  it("carries the root rule's other restricted paths verbatim", () => {
+    const [, rootOptions] = readRuleEntry();
+    const [, options] = facadeExemption();
+    const survivors: RestrictedPath[] = (rootOptions.paths ?? []).filter(
+      (path: RestrictedPath): boolean => path.name !== TANSTACK,
+    );
+
+    expect(options.paths).toEqual(survivors);
+  });
+
+  it("carries the root rule's restricted patterns verbatim", () => {
+    const [, rootOptions] = readRuleEntry();
+    const [, options] = facadeExemption();
+
+    expect(options.patterns).toEqual(rootOptions.patterns);
+  });
+
+  it("turns the rule off only for the two seam-spec globs", () => {
+    // A `"no-restricted-imports": "off"` over `packages/sdk/**` would be the easy
+    // way to write this exemption and would reopen every ban above for the whole
+    // package. The seam specs are the one place the rule is legitimately off.
+    const disabled: string[] = overridesTouchingTheRule()
+      .filter(
+        (override: OxlintOverride): boolean => override.rules?.["no-restricted-imports"] === "off",
+      )
+      .flatMap((override: OxlintOverride): string[] => override.files ?? []);
+
+    expect(disabled).toHaveLength(2);
+    expect(new Set(disabled)).toEqual(
+      new Set(["apps/**/src/features/*/api.test.ts", "packages/sdk/src/**/index.test.ts"]),
+    );
   });
 });

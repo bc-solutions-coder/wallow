@@ -38,10 +38,10 @@
  * (.claude/rules/TESTING.md).
  */
 
+import { QueryClient, QueryClientProvider } from "@bc-solutions-coder/query";
 import { createWallowSdk, type WallowSdk } from "@bc-solutions-coder/sdk";
 import { appsRegisterMutation, organizationsCreateMutation } from "@bc-solutions-coder/sdk/query";
 import { render } from "@bc-solutions-coder/testing/render";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { userEvent } from "vitest/browser";
 import { describe, expect, it, vi } from "vitest";

@@ -24,5 +24,24 @@ declare, so a broken `exports` map fails the build:
 | `src/styles.css`        | `.../styles/styles.css`                       |
 
 Keep this app dependent on those two packages only. Reaching for
-`@bc-solutions-coder/ui`, `web-shell` or `testing` would mean packing them too,
+`@bc-solutions-coder/ui`, `query` or `testing` would mean packing them too,
 and the smoke stops being about the SDK surface.
+
+## Why this directory has its own `.oxlintrc.json`
+
+`@bc-solutions-coder/query` is private and unpublished, so the facade the root
+config funnels every `@tanstack/react-query` import through is genuinely
+unresolvable out here — `src/router.tsx` has to construct its `QueryClient` from
+the real package. oxlint has no per-name partial disable, so the nested config
+**re-declares** `no-restricted-imports` with the root's paths minus the
+`@tanstack/react-query` entry, exactly as the facade's own exemption is written.
+Switching the rule `"off"` instead would reopen all four bans and both pattern
+groups for the whole template, silencing precisely the SDK-exports regressions
+this app exists to catch.
+
+Two things about that file are load-bearing. Its `extends` is what carries the
+root's plugins and its pedantic/style categories down here; without it fork-smoke
+silently drops to oxlint's defaults. And it must stay comment-free JSON — the
+deleted-package deletion sweep in `packages/query/src/` exempts a lint config only
+after `JSON.parse` proves every mention it makes is one of its own bans, and a
+`//` comment makes that parse throw.

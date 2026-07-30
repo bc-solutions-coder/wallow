@@ -13,7 +13,7 @@
  * what these answer — by running the real predicate against the real generated
  * key, so a mutation invalidating the wrong tag still fails the spec.
  */
-import type { Query, QueryFilters } from "@tanstack/react-query";
+import type { Query, QueryFilters } from "@bc-solutions-coder/query";
 import { expect, vi } from "vitest";
 
 /** Would `filters` sweep a cached query keyed `queryKey`? */

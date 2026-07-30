@@ -1,8 +1,8 @@
 {
-  "name": "@bc-solutions-coder/web-shell",
+  "name": "@bc-solutions-coder/query",
   "version": "0.0.0",
   "private": true,
-  "description": "Wallow shared browser-safe frontend runtime (TanStack Query client factory)",
+  "description": "Wallow shared TanStack Query facade (react-query re-export + client factory)",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

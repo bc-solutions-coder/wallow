@@ -56,11 +56,11 @@ function browserProjectIncludes(): readonly string[] {
 }
 
 /**
- * Resolve every id in a PRISTINE Node process anchored at this package.
+ * Resolve every id in a PRISTINE Node process anchored at `fromDir`.
  *
- * Two things have to be neutralised for the answer to match Vite's, and BOTH
- * were observed making this check pass against a package that Vite could not
- * resolve a single Base UI subpath in:
+ * Three things have to be neutralised for the answer to match Vite's, and the
+ * first two were observed making this check pass against a package that Vite
+ * could not resolve a single Base UI subpath in:
  *
  *   - vitest's node project runs specs through its own module runner, which
  *     patches CJS resolution for mocking, so an in-process
@@ -68,21 +68,32 @@ function browserProjectIncludes(): readonly string[] {
  *     Hence a child process.
  *   - `pnpm run` exports NODE_PATH pointing at the hoisted virtual store
  *     (`node_modules/.pnpm/node_modules`), where every transitive package in the
- *     workspace is reachable. Node honours it; Vite, which walks `node_modules`
- *     directories itself, does not. Hence the empty NODE_PATH below — without it
- *     the child inherits pnpm's and answers a different question.
+ *     workspace is reachable. Node's CJS resolver honours it; Vite, which walks
+ *     `node_modules` directories itself, does not. Hence the empty NODE_PATH
+ *     below — without it a CJS child inherits pnpm's and answers a different
+ *     question.
+ *   - the walk has to run under the IMPORT conditions, which is what Vite reads
+ *     an `optimizeDeps.include` entry with. Every workspace package here (the
+ *     `@bc-solutions-coder/query` facade, `ui`, `sdk`) publishes an `exports` map
+ *     with an `import` condition and no `require` one, so `require.resolve`
+ *     reports ERR_PACKAGE_PATH_NOT_EXPORTED for a package Vite pre-bundles
+ *     happily — a false alarm on the facade, and previously invisible only
+ *     because no workspace package was listed. Hence `import.meta.resolve` in an
+ *     ESM child anchored by its cwd. That also puts NODE_PATH out of reach for
+ *     good: ESM resolution ignores it entirely.
  *
- * What is left is a plain directory walk from this package's root: exactly what
- * Vite does when it reads `optimizeDeps.include`.
+ * What is left is a plain directory walk from `fromDir`: exactly what Vite does
+ * when it reads `optimizeDeps.include`.
  */
-function resolveInPristineNode(ids: readonly string[]): Readonly<Record<string, string | null>> {
+function resolveInPristineNode(
+  ids: readonly string[],
+  fromDir: string = packageDir,
+): Readonly<Record<string, string | null>> {
   const script = `
-    const { createRequire } = require("node:module");
-    const req = createRequire(${JSON.stringify(join(packageDir, "package.json"))});
     const out = {};
     for (const id of ${JSON.stringify(ids)}) {
       try {
-        out[id] = req.resolve(id);
+        out[id] = import.meta.resolve(id);
       } catch {
         out[id] = null;
       }
@@ -90,12 +101,13 @@ function resolveInPristineNode(ids: readonly string[]): Readonly<Record<string, 
     process.stdout.write(JSON.stringify(out));
   `;
 
-  return JSON.parse(runPristineNode(script)) as Record<string, string | null>;
+  return JSON.parse(runPristineNode(script, fromDir)) as Record<string, string | null>;
 }
 
-/** Runs `script` in a child Node with pnpm's NODE_PATH cleared. */
-function runPristineNode(script: string): string {
-  return execFileSync(process.execPath, ["-e", script], {
+/** Runs `script` as ESM in a child Node rooted at `fromDir`, NODE_PATH cleared. */
+function runPristineNode(script: string, fromDir: string): string {
+  return execFileSync(process.execPath, ["--input-type=module", "-e", script], {
+    cwd: fromDir,
     encoding: "utf8",
     env: { ...process.env, NODE_PATH: "" },
   });
@@ -156,15 +168,12 @@ describe("packages/forms browser pre-bundle list", () => {
     // working — the exact class of bug the pre-bundle list guards against.
     const probe = "@base-ui/react/field";
     const fromForms = resolveInPristineNode([probe])[probe];
-    const uiEntry = join(packageDir, "node_modules", "@bc-solutions-coder", "ui", "package.json");
-    const fromUi = JSON.parse(
-      runPristineNode(
-        `const { createRequire } = require("node:module");
-         const req = createRequire(${JSON.stringify(uiEntry)});
-         process.stdout.write(JSON.stringify(req.resolve(${JSON.stringify(probe)})));`,
-      ),
-    ) as string;
+    const uiDir = join(packageDir, "node_modules", "@bc-solutions-coder", "ui");
+    const fromUi = resolveInPristineNode([probe], uiDir)[probe];
 
+    // Both sides report `null` when they resolve nothing, so equality alone would
+    // pass on a total resolution failure.
+    expect(fromForms).not.toBeNull();
     expect(fromForms).toBe(fromUi);
   });
 });

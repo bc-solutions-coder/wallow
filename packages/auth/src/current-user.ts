@@ -1,5 +1,6 @@
 /**
- * The current-user query the router gates read (Wallow-pu6a.5.5).
+ * The current-user query every app's router gates read — the ONE canonical
+ * definition of "who is signed in" for this workspace.
  *
  * The deleted hand-written query layer answered this from the BFF's own
  * `/bff/user` endpoint through a module-global SSR request context. Both halves
@@ -27,6 +28,7 @@
  * `ensureQueryData` on every navigation from re-reading the user on each route
  * change (see `docs/development/frontend-state.md`).
  */
+import { queryOptions } from "@bc-solutions-coder/query";
 import {
   getCurrentUser,
   type CurrentUserResponse,
@@ -34,7 +36,6 @@ import {
   type WallowUser,
 } from "@bc-solutions-coder/sdk";
 import { usersGetCurrentUserQueryKey } from "@bc-solutions-coder/sdk/query";
-import { queryOptions } from "@tanstack/react-query";
 
 /** How long a resolved user is held before `beforeLoad` reads it again. */
 const CURRENT_USER_STALE_TIME_MS: number = 30_000;

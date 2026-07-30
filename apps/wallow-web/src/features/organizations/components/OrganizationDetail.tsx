@@ -11,10 +11,10 @@
  * `organization-detail-archive` / `organization-detail-reactivate`
  * (`{page}-{element}` kebab-case).
  */
+import { useMutation, useQuery, useQueryClient } from "@bc-solutions-coder/query";
 import type { ClientResponse } from "@bc-solutions-coder/sdk";
 import { Button, ErrorBanner, Field, Input, MutedText } from "@bc-solutions-coder/ui";
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouteContext } from "@tanstack/react-router";
 
 import { SelectControl, type SelectControlOption } from "../../../components/SelectControl";

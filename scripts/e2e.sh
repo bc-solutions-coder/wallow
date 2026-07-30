@@ -136,7 +136,7 @@ if [[ -z "${E2E_BASE_URL:-}" ]]; then
   pnpm install --frozen-lockfile
   pnpm --filter ./apps/wallow-auth exec playwright install chromium
   # Build every workspace package the dev server resolves against (sdk, forms,
-  # ui, styles, web-shell, ...): their exports all point at dist/, so any
+  # ui, styles, query, auth, ...): their exports all point at dist/, so any
   # unbuilt dependency surfaces as a Vite import-analysis error overlay that
   # blocks every click in the suite. The ^... filter selects the app's
   # dependency closure without rebuilding the app itself, so new workspace

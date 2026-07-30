@@ -23,11 +23,13 @@ WORKDIR /repo
 # @bc-solutions-coder scoped-registry config; the workspace dep is resolved
 # locally so no NODE_AUTH_TOKEN is needed at build time.
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc tsconfig.base.json ./
+COPY packages/auth/package.json packages/auth/
+COPY packages/forms/package.json packages/forms/
+COPY packages/query/package.json packages/query/
 COPY packages/sdk/package.json packages/sdk/
 COPY packages/styles/package.json packages/styles/
 COPY packages/testing/package.json packages/testing/
 COPY packages/ui/package.json packages/ui/
-COPY packages/web-shell/package.json packages/web-shell/
 COPY apps/wallow-web/package.json apps/wallow-web/
 
 RUN pnpm install --frozen-lockfile
@@ -40,16 +42,20 @@ RUN pnpm install --frozen-lockfile
 COPY api/branding.json api/branding.json
 
 # Copy every workspace package plus the app sources, then build all package
-# dist output the app imports (@bc-solutions-coder/{sdk,styles,testing,ui,
-# web-shell}) followed by the app's own Start build. The app declares all five
+# dist output the app imports (@bc-solutions-coder/{auth,forms,query,sdk,styles,
+# testing,ui}) followed by the app's own Start build. The app declares all seven
 # packages as `workspace:*` dependencies and its vite.config.ts imports
 # @bc-solutions-coder/styles/vite, so every package dir must be present and
-# built or `vite build` fails with UNRESOLVED_IMPORT.
+# built or `vite build` fails with UNRESOLVED_IMPORT. This list is mirrored from
+# the manifest by src/docker-workspace-copies.test.ts, so a new workspace dep
+# fails there rather than minutes into an image build.
+COPY packages/auth packages/auth
+COPY packages/forms packages/forms
+COPY packages/query packages/query
 COPY packages/sdk packages/sdk
 COPY packages/styles packages/styles
 COPY packages/testing packages/testing
 COPY packages/ui packages/ui
-COPY packages/web-shell packages/web-shell
 COPY apps/wallow-web apps/wallow-web
 
 # Build all packages first (`pnpm --filter './packages/*' build` runs them in

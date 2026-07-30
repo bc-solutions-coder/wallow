@@ -13,8 +13,8 @@
  * optional in the OpenAPI document, which is what the "Not set" fallbacks below
  * cover.
  */
+import { useQuery } from "@bc-solutions-coder/query";
 import { Card, CardTitle, MutedText } from "@bc-solutions-coder/ui";
-import { useQuery } from "@tanstack/react-query";
 import { useRouteContext } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 

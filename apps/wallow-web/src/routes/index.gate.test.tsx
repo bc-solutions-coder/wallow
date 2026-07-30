@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
+import { currentUserQuery } from "@bc-solutions-coder/auth";
 import { createSdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { type AnyRedirect, isRedirect } from "@tanstack/react-router";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { currentUserQuery } from "../lib/current-user";
 import { Route } from "./index";
 
 /**
@@ -19,7 +19,10 @@ import { Route } from "./index";
  *
  * The gate runs in the route's `beforeLoad`, reading the user through the
  * router-context QueryClient via
- * `context.queryClient.ensureQueryData(currentUserQuery(context.sdk.client))` — the
+ * `ensureQueryData(currentUserQuery(context.sdk.client))` — or the equivalent
+ * `ensureCurrentUser({ queryClient, client })` primer — where the query is the
+ * SHARED one from `@bc-solutions-coder/auth` (Wallow-x4qn.8) rather than a copy
+ * in this app's `src/lib/`. Either way it is the
  * GENERATED current-user read bound to the request's own SDK instance
  * (Wallow-pu6a.5.5), NOT the retired `getWallowSdk().user.me()` facade. The landing-page flag
  * is read through a partially mocked `@bc-solutions-coder/styles`; the component

@@ -1,3 +1,4 @@
+import type { QueryClient } from "@bc-solutions-coder/query";
 import type { WallowSdk } from "@bc-solutions-coder/sdk";
 import {
   appIconUrl,
@@ -13,7 +14,6 @@ import {
   FocusOnNavigate,
   MutedText,
 } from "@bc-solutions-coder/ui";
-import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import type { ReactElement, ReactNode } from "react";
 

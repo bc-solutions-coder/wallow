@@ -17,7 +17,7 @@
  * evaluates `vitest/browser` at import time and throws in the plain Node process
  * that loads every app's `vitest.config.ts`. Same rule as `./render`.
  */
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@bc-solutions-coder/query";
 import {
   type AnyRoute,
   type AnyRouter,

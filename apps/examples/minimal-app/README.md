@@ -14,17 +14,17 @@ this README is the boot recipe.
 
 ## The five packages it wires
 
-| Package                         | Published          | What this app pulls from it                                                                                                                                           |
-| ------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@bc-solutions-coder/styles`    | yes                | Tailwind v4 pipeline (`wallowStyles()` in `vite.config.ts`), brand theme tokens + assets (`src/styles.css`, `__root.tsx`)                                             |
-| `@bc-solutions-coder/ui`        | **no (`private`)** | Shared components (`Card`, `MutedText`, `CenteredCardLayout`, `ForkAttribution`, `DocumentStyles`, `FocusOnNavigate`, `ReadyIndicator`) + its Tailwind `@source` scan |
-| `@bc-solutions-coder/sdk`       | yes                | `createWallowSdk` (`src/start.ts`), the `createApiPassthrough` server preset (`src/lib/api-passthrough.ts`), and the generated `./query` TanStack Query layer         |
-| `@bc-solutions-coder/testing`   | **no (`private`)** | The `createVitestProjects` node+browser preset (`vitest.config.ts`) and the browser-mode `render` helper (`*.test.tsx`)                                               |
-| `@bc-solutions-coder/web-shell` | **no (`private`)** | `createQueryClient` — the router's `QueryClient` factory. Start owns the host runtime now, so none of web-shell's `./server` factories are used                       |
+| Package                       | Published          | What this app pulls from it                                                                                                                                           |
+| ----------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@bc-solutions-coder/styles`  | yes                | Tailwind v4 pipeline (`wallowStyles()` in `vite.config.ts`), brand theme tokens + assets (`src/styles.css`, `__root.tsx`)                                             |
+| `@bc-solutions-coder/ui`      | **no (`private`)** | Shared components (`Card`, `MutedText`, `CenteredCardLayout`, `ForkAttribution`, `DocumentStyles`, `FocusOnNavigate`, `ReadyIndicator`) + its Tailwind `@source` scan |
+| `@bc-solutions-coder/sdk`     | yes                | `createWallowSdk` (`src/start.ts`), the `createApiPassthrough` server preset (`src/lib/api-passthrough.ts`), and the generated `./query` TanStack Query layer         |
+| `@bc-solutions-coder/testing` | **no (`private`)** | The `createVitestProjects` node+browser preset (`vitest.config.ts`) and the browser-mode `render` helper (`*.test.tsx`)                                               |
+| `@bc-solutions-coder/query`   | **no (`private`)** | `createQueryClient` — the router's `QueryClient` factory — and every react-query symbol the app uses, re-exported from the one facade                                 |
 
 > **Copy-outside-the-monorepo caveat:** only `@bc-solutions-coder/sdk` and
 > `@bc-solutions-coder/styles` are published to GitHub Packages. `ui`, `testing`,
-> and `web-shell` are `private` workspace packages — the `workspace:*` deps below
+> and `query` are `private` workspace packages — the `workspace:*` deps below
 > resolve in-repo but would NOT resolve if this directory were lifted out of the
 > monorepo. A fork extends the repo in place rather than copying this folder out.
 
@@ -108,20 +108,26 @@ needs, already in place:
 - `src/router.tsx` lifts that instance into the router context (falling back to a
   browser-side instance when there is no request), so every route and component
   reads it from context rather than importing a facade.
-- `createQueryClient` (from `@bc-solutions-coder/web-shell`) already supplies the
+- `createQueryClient` (from `@bc-solutions-coder/query`) already supplies the
   router's `QueryClient`.
 
 So a fork adds a read by calling the generated options factory for the operation
 and binding it to the context SDK:
 
 ```tsx
+import { useQuery } from "@bc-solutions-coder/query";
 import { usersGetCurrentUserOptions } from "@bc-solutions-coder/sdk/query";
-import { useQuery } from "@tanstack/react-query";
 import { useRouteContext } from "@tanstack/react-router";
 
 const { sdk } = useRouteContext({ from: "__root__" });
 const { data } = useQuery(usersGetCurrentUserOptions({ client: sdk.client }));
 ```
+
+Note where each half of that snippet comes from. The hooks (`useQuery`,
+`useMutation`, `QueryClient`, …) come from `@bc-solutions-coder/query` — the
+workspace's single TanStack Query facade. An app never depends on
+`@tanstack/react-query` itself: only the facade does, so the whole graph shares one
+copy of the library and therefore one `QueryClientProvider` context.
 
 Reads come from `@bc-solutions-coder/sdk`'s **`./query`** entry, and every
 artifact on it is **generated** from the OpenAPI document — an `{op}Options()`,

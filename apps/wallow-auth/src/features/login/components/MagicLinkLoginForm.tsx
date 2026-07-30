@@ -1,8 +1,8 @@
 import { Button, Field, Input, Label } from "@bc-solutions-coder/ui";
-import { accountSendMagicLink, accountVerifyMagicLink } from "@bc-solutions-coder/sdk";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { accountSendMagicLinkMutation, accountVerifyMagicLinkOptions } from "../api";
 import { GENERIC_MESSAGE } from "../auth-result";
 import {
   BLANK_EMAIL_MESSAGE,
@@ -41,6 +41,17 @@ import type { LoginPanelProps } from "../panel";
  *   token is redeemed ON LOAD — the oracle's `OnInitializedAsync` (:255-259), which
  *   also forces the tab. There is no button: the user already clicked it, in their
  *   inbox.
+ *
+ * ── WHY SEND IS A MUTATION AND VERIFY IS NOT (Wallow-x4qn.9.3) ────────────────
+ *
+ * `GET /passwordless/magic-link/verify` is a READ to the code generator, so
+ * `@bc-solutions-coder/sdk/query` emits `accountVerifyMagicLinkOptions` and NO
+ * `accountVerifyMagicLinkMutation`. Rather than hand-roll a wrapper back — the shape
+ * this bead deletes everywhere else — the redemption runs through the query client
+ * (`fetchQuery`), which is also the app's rule for reads. Two consequences the effect
+ * below is written around: the response lands in the CACHE (so it must never be
+ * served stale — see the latch note), and a failure REJECTS rather than arriving at
+ * an `onError` callback (so the rejection is caught explicitly).
  *
  * ── WHY `returnUrl`/`clientId` ARE PROPS AND NOT IN `LoginPanelProps` ────────
  *
@@ -128,6 +139,7 @@ export function MagicLinkLoginForm({
   onError,
 }: MagicLinkLoginFormProps): ReactNode {
   const { sdk } = useRouteContext({ from: "__root__" });
+  const queryClient = useQueryClient();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   /**
@@ -142,31 +154,19 @@ export function MagicLinkLoginForm({
    * (bd memory `exactly-once-server-mutations-in-react-need-a-ref-not-just-deps`).
    * KNOWN TRADEOFF, per that memory: the ref masks a stray-dep regression, so the
    * "exactly once" test binds the OUTCOME, not the mechanism.
+   *
+   * The latch survives the move to `fetchQuery` and is MORE load-bearing there:
+   * `queryClient` is stable across renders where the old mutation object was not,
+   * which makes the effect merely LOOK dep-safe.
    */
   const verifyStartedRef = useRef(false);
 
-  const sendMutation = useMutation({
-    // `Promise<unknown>`: the C# endpoint returns an anonymous `Ok(new { … })` with
-    // no OpenAPI schema, so there is no generated type to lean on.
-    mutationFn: async (address: string): Promise<unknown> =>
-      await accountSendMagicLink({
-        client: sdk.client,
-        body: { email: address, returnUrl, clientId },
-      }),
-  });
-
-  const verifyMutation = useMutation({
-    mutationFn: async (value: string): Promise<unknown> =>
-      // No `rememberMe`: the oracle passes none, and the endpoint defaults it false
-      // (AccountController.cs:840). A link mailed to an inbox is not a "trust this
-      // device" signal.
-      await accountVerifyMagicLink({ client: sdk.client, query: { token: value } }),
-  });
+  const sendMutation = useMutation(accountSendMagicLinkMutation({ client: sdk.client }));
 
   useEffect(() => {
-    // The latch, READ FIRST. `verifyMutation` is a fresh object every render and the
-    // failure arm sets the shell's banner, which re-renders this panel — so without
-    // this the effect re-fires forever, redeeming a one-time token in a loop.
+    // The latch, READ FIRST. The failure arm sets the shell's banner, which
+    // re-renders this panel with fresh callback identities — so without this the
+    // effect re-fires, redeeming a one-time token that Redis has already deleted.
     if (verifyStartedRef.current) {
       return;
     }
@@ -182,15 +182,25 @@ export function MagicLinkLoginForm({
     // The oracle's `_errorMessage = null` at the top of `HandleVerifyMagicLink`.
     onError(null);
 
-    verifyMutation.mutate(token, {
-      // The RAW body goes up. Resolution is not, on its own, a destination: the
-      // shell narrows it and decides (see `../panel`).
-      onSuccess: onAuthResult,
-      onError: (cause: unknown) => {
-        onError(verifyMagicLinkFailureMessage(cause));
-      },
-    });
-  }, [token, onAuthResult, onError, verifyMutation]);
+    // No `rememberMe`: the oracle passes none, and the endpoint defaults it false
+    // (AccountController.cs:840). A link mailed to an inbox is not a "trust this
+    // device" signal. No `staleTime`/`initialData` either — see the header: a
+    // replayed cache entry would hand back a `signInTicket` for a redemption that
+    // never happened.
+    void queryClient
+      .fetchQuery(accountVerifyMagicLinkOptions({ client: sdk.client, query: { token } }))
+      .then(
+        // The RAW body goes up. Resolution is not, on its own, a destination: the
+        // shell narrows it and decides (see `../panel`).
+        onAuthResult,
+        // A rejection, NOT an `onError` option: `fetchQuery` throws where
+        // `mutate()` routed failure to a callback, and an uncaught rejection here
+        // would leave the banner empty over a dead form.
+        (error: unknown) => {
+          onError(verifyMagicLinkFailureMessage(error));
+        },
+      );
+  }, [token, onAuthResult, onError, queryClient, sdk]);
 
   const handleSubmit = (): void => {
     // The oracle's `IsNullOrWhiteSpace(_email)` guard — WHITEspace, so "   " is
@@ -204,23 +214,28 @@ export function MagicLinkLoginForm({
     // stale banner hanging over an in-flight retry is a lie.
     onError(null);
 
-    sendMutation.mutate(email, {
-      onSuccess: (body: unknown) => {
-        if (!magicLinkWasSent(body)) {
-          // Fail closed: a body this screen cannot read is not a sent link, and
-          // sending the user to watch an empty inbox is worse than an error.
-          onError(GENERIC_MESSAGE);
-          return;
-        }
+    // The generated artifact's REQUEST object, not a bare body: `returnUrl` and
+    // `clientId` ride along so the emailed link can resume this OIDC flow.
+    sendMutation.mutate(
+      { body: { email, returnUrl, clientId } },
+      {
+        onSuccess: (body: unknown) => {
+          if (!magicLinkWasSent(body)) {
+            // Fail closed: a body this screen cannot read is not a sent link, and
+            // sending the user to watch an empty inbox is worse than an error.
+            onError(GENERIC_MESSAGE);
+            return;
+          }
 
-        setSent(true);
+          setSent(true);
+        },
+        onError: (cause: unknown) => {
+          // The form deliberately stays up — the user's address may simply have
+          // been mistyped, and they need somewhere to fix it.
+          onError(sendMagicLinkFailureMessage(cause));
+        },
       },
-      onError: (cause: unknown) => {
-        // The form deliberately stays up — the user's address may simply have been
-        // mistyped, and they need somewhere to fix it.
-        onError(sendMagicLinkFailureMessage(cause));
-      },
-    });
+    );
   };
 
   if (sent) {

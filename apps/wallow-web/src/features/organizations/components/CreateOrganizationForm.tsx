@@ -21,8 +21,8 @@
  * `e2e-cross-app/login-journey.spec.ts`; none may drift.
  */
 import { AppForm, FormError, SubmitButton, useAppForm } from "@bc-solutions-coder/forms";
+import { useQueryClient } from "@bc-solutions-coder/query";
 import { Card, CardTitle } from "@bc-solutions-coder/ui";
-import { useQueryClient } from "@tanstack/react-query";
 import { useRouteContext } from "@tanstack/react-router";
 import { z } from "zod";
 

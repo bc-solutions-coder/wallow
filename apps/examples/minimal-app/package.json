@@ -13,12 +13,11 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@bc-solutions-coder/query": "workspace:*",
     "@bc-solutions-coder/sdk": "workspace:*",
     "@bc-solutions-coder/styles": "workspace:*",
     "@bc-solutions-coder/testing": "workspace:*",
     "@bc-solutions-coder/ui": "workspace:*",
-    "@bc-solutions-coder/web-shell": "workspace:*",
-    "@tanstack/react-query": "^5.101.2",
     "@tanstack/react-router": "1.170.18",
     "@tanstack/react-router-ssr-query": "1.167.1",
     "@tanstack/react-start": "1.168.32",

@@ -4,9 +4,9 @@
  * and renders three states: loading, empty, and a list of `inquiry-item` rows,
  * each showing the inquiry's status via `inquiry-item-status`.
  */
+import { useQuery } from "@bc-solutions-coder/query";
 import type { InquiryResponse } from "@bc-solutions-coder/sdk";
 import { MutedText } from "@bc-solutions-coder/ui";
-import { useQuery } from "@tanstack/react-query";
 import { useRouteContext } from "@tanstack/react-router";
 
 import { inquiriesGetAllOptions } from "../api";

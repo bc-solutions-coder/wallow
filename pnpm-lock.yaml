@@ -32,6 +32,9 @@ importers:
 
   apps/examples/minimal-app:
     dependencies:
+      '@bc-solutions-coder/query':
+        specifier: workspace:*
+        version: link:../../../packages/query
       '@bc-solutions-coder/sdk':
         specifier: workspace:*
         version: link:../../../packages/sdk
@@ -44,12 +47,6 @@ importers:
       '@bc-solutions-coder/ui':
         specifier: workspace:*
         version: link:../../../packages/ui
-      '@bc-solutions-coder/web-shell':
-        specifier: workspace:*
-        version: link:../../../packages/web-shell
-      '@tanstack/react-query':
-        specifier: ^5.101.2
-        version: 5.101.2(react@19.2.7)
       '@tanstack/react-router':
         specifier: 1.170.18
         version: 1.170.18(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -102,9 +99,15 @@ importers:
 
   apps/wallow-auth:
     dependencies:
+      '@bc-solutions-coder/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@bc-solutions-coder/forms':
         specifier: workspace:*
         version: link:../../packages/forms
+      '@bc-solutions-coder/query':
+        specifier: workspace:*
+        version: link:../../packages/query
       '@bc-solutions-coder/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
@@ -117,15 +120,9 @@ importers:
       '@bc-solutions-coder/ui':
         specifier: workspace:*
         version: link:../../packages/ui
-      '@bc-solutions-coder/web-shell':
-        specifier: workspace:*
-        version: link:../../packages/web-shell
       '@tanstack/react-form':
         specifier: ^1.33.2
         version: 1.33.2(@tanstack/react-start@1.168.32(crossws@0.4.10(srvx@0.11.22))(esbuild@0.28.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(rolldown@1.1.5)(rollup@4.62.2)(vite@8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@tanstack/react-query':
-        specifier: ^5.101.2
-        version: 5.101.2(react@19.2.7)
       '@tanstack/react-router':
         specifier: 1.170.18
         version: 1.170.18(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -187,9 +184,15 @@ importers:
 
   apps/wallow-web:
     dependencies:
+      '@bc-solutions-coder/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@bc-solutions-coder/forms':
         specifier: workspace:*
         version: link:../../packages/forms
+      '@bc-solutions-coder/query':
+        specifier: workspace:*
+        version: link:../../packages/query
       '@bc-solutions-coder/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
@@ -202,15 +205,9 @@ importers:
       '@bc-solutions-coder/ui':
         specifier: workspace:*
         version: link:../../packages/ui
-      '@bc-solutions-coder/web-shell':
-        specifier: workspace:*
-        version: link:../../packages/web-shell
       '@tanstack/react-form':
         specifier: ^1.33.2
         version: 1.33.2(@tanstack/react-start@1.168.32(crossws@0.4.10(srvx@0.11.22))(esbuild@0.28.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(rolldown@1.1.5)(rollup@4.62.2)(vite@8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@tanstack/react-query':
-        specifier: ^5.101.2
-        version: 5.101.2(react@19.2.7)
       '@tanstack/react-router':
         specifier: 1.170.18
         version: 1.170.18(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -276,8 +273,39 @@ importers:
         specifier: ^2.2.0
         version: 2.2.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(vitest@4.1.10)
 
+  packages/auth:
+    dependencies:
+      '@bc-solutions-coder/query':
+        specifier: workspace:*
+        version: link:../query
+      '@bc-solutions-coder/sdk':
+        specifier: workspace:*
+        version: link:../sdk
+    devDependencies:
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.13.3
+      '@types/react':
+        specifier: ^19.2.17
+        version: 19.2.17
+      react:
+        specifier: ^19.2.7
+        version: 19.2.7
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+      vite:
+        specifier: ^8.1.4
+        version: 8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@24.13.3)(@vitest/browser-playwright@4.1.10)(jsdom@29.1.1)(vite@8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))
+
   packages/forms:
     dependencies:
+      '@bc-solutions-coder/query':
+        specifier: workspace:*
+        version: link:../query
       '@bc-solutions-coder/sdk':
         specifier: workspace:*
         version: link:../sdk
@@ -300,9 +328,6 @@ importers:
       '@bc-solutions-coder/testing':
         specifier: workspace:*
         version: link:../testing
-      '@tanstack/react-query':
-        specifier: ^5.101.2
-        version: 5.101.2(react@19.2.7)
       '@types/node':
         specifier: ^24.0.0
         version: 24.13.3
@@ -336,6 +361,25 @@ importers:
       vitest-browser-react:
         specifier: ^2.2.0
         version: 2.2.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(vitest@4.1.10)
+
+  packages/query:
+    dependencies:
+      '@tanstack/react-query':
+        specifier: ^5.101.2
+        version: 5.101.2(react@19.2.7)
+    devDependencies:
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.13.3
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+      vite:
+        specifier: ^8.1.4
+        version: 8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@24.13.3)(@vitest/browser-playwright@4.1.10)(jsdom@29.1.1)(vite@8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))
 
   packages/sdk:
     dependencies:
@@ -395,6 +439,9 @@ importers:
 
   packages/testing:
     dependencies:
+      '@bc-solutions-coder/query':
+        specifier: workspace:*
+        version: link:../query
       '@bc-solutions-coder/sdk':
         specifier: workspace:*
         version: link:../sdk
@@ -411,9 +458,6 @@ importers:
         specifier: ^2.2.0
         version: 2.2.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(vitest@4.1.10)
     devDependencies:
-      '@tanstack/react-query':
-        specifier: ^5.101.2
-        version: 5.101.2(react@19.2.7)
       '@tanstack/react-router':
         specifier: 1.170.18
         version: 1.170.18(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -484,25 +528,6 @@ importers:
       storybook:
         specifier: ^10.5.5
         version: 10.5.5(@types/react@19.2.17)(prettier@3.9.5)(react@19.2.7)
-      typescript:
-        specifier: ^5.6.0
-        version: 5.9.3
-      vite:
-        specifier: ^8.1.4
-        version: 8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)
-      vitest:
-        specifier: ^4.1.10
-        version: 4.1.10(@types/node@24.13.3)(@vitest/browser-playwright@4.1.10)(jsdom@29.1.1)(vite@8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))
-
-  packages/web-shell:
-    dependencies:
-      '@tanstack/react-query':
-        specifier: ^5.101.2
-        version: 5.101.2(react@19.2.7)
-    devDependencies:
-      '@types/node':
-        specifier: ^24.0.0
-        version: 24.13.3
       typescript:
         specifier: ^5.6.0
         version: 5.9.3
