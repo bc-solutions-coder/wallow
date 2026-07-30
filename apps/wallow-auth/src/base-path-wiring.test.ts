@@ -30,9 +30,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
  * particular FILE carries a particular wiring, which importing would paper over.
  */
 
-const libDir: string = dirname(fileURLToPath(import.meta.url));
-const appDir: string = resolve(libDir, "..", "..");
-const srcDir: string = resolve(libDir, "..");
+const srcDir: string = dirname(fileURLToPath(import.meta.url));
+const appDir: string = resolve(srcDir, "..");
 
 function readAppFile(...segments: string[]): string {
   return readFileSync(join(appDir, ...segments), "utf8");
@@ -50,7 +49,7 @@ describe("vite.config.ts", () => {
       vi.stubEnv("AUTH_BASE_PATH", basePath);
     }
     vi.resetModules();
-    const module = (await import("../../vite.config")) as { default: Record<string, unknown> };
+    const module = (await import("../vite.config")) as { default: Record<string, unknown> };
     return module.default;
   }
 
@@ -105,14 +104,14 @@ describe("the SDK base URL", () => {
     // src/start.ts builds the per-request SDK from `new URL(request.url).origin`.
     // Under a prefix the bare origin points at whatever the ingress serves at
     // the root — wallow-web — so every SSR-side call leaves this app.
-    const source: string = readAppFile("src", "start.ts");
+    const source: string = readAppFile("src", "app", "start.ts");
 
     expect(source).toMatch(/withBasePath|BASE_PATH/u);
   });
 
   it("is the origin PLUS the base path in the browser too", () => {
     // src/router.tsx mints its own same-origin SDK when there is no request.
-    const source: string = readAppFile("src", "router.tsx");
+    const source: string = readAppFile("src", "app", "router.tsx");
 
     expect(source).toMatch(/withBasePath|BASE_PATH/u);
   });
@@ -154,7 +153,7 @@ describe("the Dockerfile", () => {
  */
 describe("internal navigation", () => {
   /** Component trees whose links are app-internal navigation. */
-  const SCOPED_DIRS: readonly string[] = ["components", "features", "routes"];
+  const SCOPED_DIRS: readonly string[] = ["shared/components", "features", "app/routes"];
 
   /** A literal root-relative href — the form the router cannot rebase. */
   const RAW_INTERNAL_HREF: RegExp = /href="\/[^"]*"/gu;
@@ -170,6 +169,24 @@ describe("internal navigation", () => {
       )
       .map((entry) => join(entry.parentPath, entry.name));
   }
+
+  it("scans every scoped directory, so a stale name cannot empty the scan", () => {
+    // `componentSources()` filters by a path PREFIX, and a prefix that matches
+    // nothing yields an empty list, which makes the case below pass green having
+    // read no file at all. The zone restructure renamed two of the three (
+    // `components/` -> `shared/components/`, `routes/` -> `app/routes/`) and
+    // nothing here would have noticed.
+    const scanned: readonly string[] = componentSources().map((file: string): string =>
+      relative(srcDir, file),
+    );
+
+    for (const dir of SCOPED_DIRS) {
+      expect(
+        scanned.filter((path: string): boolean => path.startsWith(`${dir}/`)).length,
+        `${dir}/ contributed no source file`,
+      ).toBeGreaterThan(0);
+    }
+  });
 
   it("uses no literal root-relative href, so every link survives a base path", () => {
     const offenders: string[] = componentSources().flatMap((file: string): string[] => {

@@ -27,8 +27,11 @@ import { appIconUrl, forkResolvedBranding } from "./branding";
 
 const libDir: string = dirname(fileURLToPath(import.meta.url));
 
+/** `src/`, from `src/shared/lib/` — every path below is spelled zone-first. */
+const srcDir: string = resolve(libDir, "..", "..");
+
 function sourceOf(...segments: string[]): string {
-  return readFileSync(resolve(libDir, "..", ...segments), "utf8");
+  return readFileSync(resolve(srcDir, ...segments), "utf8");
 }
 
 /** The `@bc-solutions-coder/styles` import statement of a source file, if any. */
@@ -57,8 +60,8 @@ describe("forkResolvedBranding", () => {
   });
 });
 
-describe("src/lib/branding.ts wiring", () => {
-  const source: string = sourceOf("lib", "branding.ts");
+describe("src/shared/lib/branding.ts wiring", () => {
+  const source: string = sourceOf("shared", "lib", "branding.ts");
 
   it("passes this build's base path into both", () => {
     expect(source).toMatch(/toAppIconUrl\(BASE_PATH\)/u);
@@ -67,9 +70,13 @@ describe("src/lib/branding.ts wiring", () => {
 });
 
 describe("the screens that render branding", () => {
+  // Two specifiers for one module, and both are correct. The root route is in the
+  // `app` zone and reaches `shared` by ALIAS, which is the only legal shape for a
+  // cross-zone import; the auth layout lives in `shared` beside this file and
+  // reaches it relatively, which is the only legal shape WITHIN a zone.
   it.each([
-    ["the root route", ["routes", "__root.tsx"], "../lib/branding"],
-    ["the auth layout", ["components", "auth-layout.tsx"], "../lib/branding"],
+    ["the root route", ["app", "routes", "__root.tsx"], "@shared/lib/branding"],
+    ["the auth layout", ["shared", "components", "auth-layout.tsx"], "../lib/branding"],
   ])(
     "has %s take its branding from this module, not the package",
     (_label: string, segments: string[], specifier: string) => {
@@ -83,7 +90,7 @@ describe("the screens that render branding", () => {
   );
 
   it("has the login route overlay client branding on top of the based fork branding", () => {
-    expect(sourceOf("routes", "login.tsx")).toMatch(
+    expect(sourceOf("app", "routes", "login.tsx")).toMatch(
       /mergeClientBranding\(forkBranding,\s*data,\s*BASE_PATH\)/u,
     );
   });

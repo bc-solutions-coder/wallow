@@ -77,9 +77,9 @@ const SELF: string = relative(srcDir, fileURLToPath(import.meta.url));
  * react-query name of its own. `src/shared-current-user.test.ts` owns that route.
  */
 const REACT_QUERY_USERS: Readonly<Record<string, readonly string[]>> = {
-  "router.tsx": ["QueryClient"],
-  "routes/__root.tsx": ["QueryClient"],
-  "routes/login.tsx": ["useQuery"],
+  "app/router.tsx": ["QueryClient"],
+  "app/routes/__root.tsx": ["QueryClient"],
+  "app/routes/login.tsx": ["useQuery"],
   "features/consent/components/ConsentScreen.tsx": ["useQuery"],
   "features/invitation/components/InvitationScreen.tsx": ["useMutation", "useQuery"],
   "features/login/components/ExternalProviders.test.tsx": ["QueryClient"],
@@ -149,7 +149,7 @@ function appSources(): readonly string[] {
         entry.isFile() && (entry.name.endsWith(".ts") || entry.name.endsWith(".tsx")),
     )
     .map((entry): string => relative(srcDir, join(entry.parentPath, entry.name)))
-    .filter((path): boolean => path !== SELF && path !== "routeTree.gen.ts")
+    .filter((path): boolean => path !== SELF && !path.endsWith("routeTree.gen.ts"))
     .toSorted();
 }
 
@@ -306,7 +306,7 @@ describe("wallow-auth's react-query imports", () => {
     // `getRouter()` is called once per SSR request and once in the browser; the
     // client it builds is the one every screen's hooks resolve against, so this
     // is the single import that decides which copy the whole app runs on.
-    expect(importedNamesFrom("router.tsx", FACADE)).toContain("createQueryClient");
+    expect(importedNamesFrom("app/router.tsx", FACADE)).toContain("createQueryClient");
   });
 
   it("has at least as many facade importers as it had react-query importers", () => {

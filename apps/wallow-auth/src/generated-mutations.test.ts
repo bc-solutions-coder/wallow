@@ -210,7 +210,7 @@ function appSources(): readonly string[] {
         entry.isFile() && (entry.name.endsWith(".ts") || entry.name.endsWith(".tsx")),
     )
     .map((entry): string => relative(srcDir, join(entry.parentPath, entry.name)))
-    .filter((path): boolean => path !== SELF && path !== "routeTree.gen.ts")
+    .filter((path): boolean => path !== SELF && !path.endsWith("routeTree.gen.ts"))
     .toSorted();
 }
 
@@ -305,7 +305,7 @@ describe("wallow-auth's mutation call sites", () => {
       // above by importing from the seam and STILL keep a direct query-entry import
       // beside it — two doors to the same artifact, and the seam stops being a
       // statement of what the feature reaches. `features-api-seam.test.ts` asserts
-      // the same rule across all of `features/` and `routes/`; this is the per-file
+      // the same rule across all of `features/` and `app/routes/`; this is the per-file
       // form, so a failure names the screen.
       expect(importedNamesFrom(path, QUERY_ENTRY)).toEqual([]);
     },

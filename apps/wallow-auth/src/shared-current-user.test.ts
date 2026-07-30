@@ -33,7 +33,7 @@ import { describe, expect, it } from "vitest";
  *
  * The behaviour of the SURVIVING probe — what the route does with a 200, a 401,
  * a 500, and with a user the shared query already primed — is pinned in
- * `src/routes/invitation.test.tsx`, in a real browser against the real SDK.
+ * `src/app/routes/invitation.test.tsx`, in a real browser against the real SDK.
  *
  * Node project: reads source as text and imports the linked package's built
  * `dist/`; it mounts nothing. Reading rather than importing is deliberate — the
@@ -51,7 +51,7 @@ const AUTH = "@bc-solutions-coder/auth";
 const FACADE = "@bc-solutions-coder/query";
 
 /** The route that hand-rolled the probe. */
-const PROBE_ROUTE = "routes/invitation.tsx";
+const PROBE_ROUTE = "app/routes/invitation.tsx";
 
 /** The two SDK symbols the hand-rolled probe was built out of. */
 const PROBE_PARTS: readonly string[] = ["getCurrentUser", "usersGetCurrentUserQueryKey"];
@@ -88,7 +88,7 @@ function appSources(): readonly string[] {
         entry.isFile() && (entry.name.endsWith(".ts") || entry.name.endsWith(".tsx")),
     )
     .map((entry): string => relative(srcDir, join(entry.parentPath, entry.name)))
-    .filter((path): boolean => path !== SELF && path !== "routeTree.gen.ts")
+    .filter((path): boolean => path !== SELF && !path.endsWith("routeTree.gen.ts"))
     .filter((path): boolean => !/\.test\.tsx?$/u.test(path))
     .toSorted();
 }

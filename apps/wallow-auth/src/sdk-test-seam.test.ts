@@ -37,8 +37,8 @@ const srcDir = dirname(fileURLToPath(import.meta.url));
 const FORBIDDEN_MOCK =
   /vi\.mock\(\s*["'`]([^"'`]*wallow-auth-sdk[^"'`]*|@bc-solutions-coder\/sdk(?:\/query)?)["'`]/gu;
 
-/** Where the rule applies: the screen specs — everything under `features/` and `routes/`. */
-const SCOPED_DIRS = ["features", "routes"];
+/** Where the rule applies: the screen specs — everything under `features/` and `app/routes/`. */
+const SCOPED_DIRS = ["features", "app/routes"];
 
 function isInScope(relativePath: string): boolean {
   return SCOPED_DIRS.some((dir) => relativePath.startsWith(`${dir}/`));

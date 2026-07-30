@@ -52,11 +52,14 @@ describe("resolveRequestOrigin", () => {
   });
 });
 
-describe("src/start.ts wiring", () => {
-  const source: string = readFileSync(resolve(libDir, "..", "start.ts"), "utf8");
+describe("src/app/start.ts wiring", () => {
+  // `libDir` is `src/shared/lib`, so the app zone is two hops up and over.
+  const source: string = readFileSync(resolve(libDir, "..", "..", "app", "start.ts"), "utf8");
 
   it("derives the per-request SDK's origin through the helper", () => {
-    expect(source).toMatch(/from\s+"\.\/lib\/request-origin"/u);
+    // An alias, not a relative hop: `start.ts` is in the `app` zone now, and the
+    // only legal way out of a zone is the alias.
+    expect(source).toMatch(/from\s+"@shared\/lib\/request-origin"/u);
     expect(source).toMatch(/resolveRequestOrigin\(request\)/u);
   });
 
