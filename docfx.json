@@ -21,16 +21,14 @@
     "content": [
       {
         "files": ["**/*.md", "toc.yml"],
-        "exclude": ["plans/**", "claude/**", "CLAUDE.md"],
+        "exclude": ["plans/**", "claude/**", "CLAUDE.md", "audits/**"],
         "src": "docs",
         "dest": "."
       },
       {
-        "files": ["toc.yml"],
-        "src": "docfx"
-      },
-      {
-        "files": [".docfx/api/**.yml", ".docfx/api/index.md"]
+        "files": ["**.yml", "index.md"],
+        "src": ".docfx/api",
+        "dest": "api"
       }
     ],
     "globalMetadata": {

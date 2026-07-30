@@ -82,3 +82,11 @@
   items:
     - name: Service Accounts
       href: api/service-accounts.md
+    # The generated .NET reference. docfx's metadata block writes one page per namespace/type
+    # plus its own toc.yml to .docfx/api/, which docfx.json maps onto the site's api/ folder.
+    # The href is the SOURCE path, not the output path: docfx resolves a toc include against
+    # the source tree, so `api/toc.yml` fails with InvalidTocInclude (there is no
+    # docs/api/toc.yml) and this `../.docfx/...` path is the one that resolves. The included
+    # entries still emit as api/Wallow.*.html because that is where the metadata output maps.
+    - name: .NET API Reference
+      href: ../.docfx/api/toc.yml
