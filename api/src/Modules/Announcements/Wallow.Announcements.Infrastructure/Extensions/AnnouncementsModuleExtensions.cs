@@ -7,6 +7,7 @@ using Npgsql;
 using Wallow.Announcements.Application.Announcements.Interfaces;
 using Wallow.Announcements.Application.Announcements.Services;
 using Wallow.Announcements.Application.Changelogs.Interfaces;
+using Wallow.Announcements.Application.Extensions;
 using Wallow.Announcements.Infrastructure.Persistence;
 using Wallow.Announcements.Infrastructure.Persistence.Repositories;
 using Wallow.Shared.Infrastructure.Core.Extensions;
@@ -20,6 +21,8 @@ public static class AnnouncementsModuleExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        services.AddAnnouncementsApplication();
+
         int maxPoolSize = configuration.GetValue("Database:MaxPoolSize", 200);
         int minPoolSize = configuration.GetValue("Database:MinPoolSize", 10);
 

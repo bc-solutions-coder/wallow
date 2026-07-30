@@ -232,8 +232,15 @@ try
         opts.ConfigureStandardErrorHandling();
         opts.ConfigureMessageLogging();
 
-        // FluentValidation middleware — validates commands before handlers
-        opts.UseFluentValidation();
+        // FluentValidation middleware — validates commands before handlers.
+        // Each module registers its own validators (AddXApplication -> AddValidatorsFromAssembly),
+        // so Wolverine must NOT also discover them: its scan appends registrations with a plain
+        // IServiceCollection.Add, leaving two IValidator<T> entries per command. Two registrations
+        // flip FluentValidationPolicy from ExecuteOne(IValidator<T>) to
+        // ExecuteMany(IEnumerable<IValidator<T>>), and the enumerable is service-located from the
+        // root provider — which throws "Cannot resolve scoped service
+        // 'IEnumerable<IValidator<T>>' from root provider" under Development scope validation.
+        opts.UseFluentValidation(RegistrationBehavior.ExplicitRegistration);
 
         // Module tagging middleware — tags Wolverine messages with wallow.module
         opts.Policies.AddMiddleware(typeof(WolverineModuleTaggingMiddleware));
