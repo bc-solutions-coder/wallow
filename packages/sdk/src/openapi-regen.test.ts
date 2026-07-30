@@ -99,25 +99,35 @@ function findDuplicateOperationIds(spec: OpenApiSpec): string[] {
   return [...duplicates];
 }
 
-// An operation violates the typed-200 rule when it declares a 200 but no body schema for it.
-// BOTH shapes count: a bare 200 with no `content` at all, and — the case a naive check misses —
-// a 200 whose `content` key exists (every [Produces("application/json")] action emits one) but
-// carries no `schema` for any media type. hey-api generates `unknown` for both alike.
+// An operation violates the typed-success rule when it declares a body-bearing 2xx but no body
+// schema for it. EVERY non-204 success code counts, not just 200 — a 201 that returns a created
+// resource generates `unknown` just as readily as an untyped 200 does. 204 is the sole exemption:
+// it carries no body by definition.
+// BOTH untyped shapes count: a bare response with no `content` at all, and — the case a naive
+// check misses — one whose `content` key exists (every [Produces("application/json")] action emits
+// one) but carries no `schema` for any media type. hey-api generates `unknown` for both alike.
+function isBodyBearingSuccessCode(statusCode: string): boolean {
+  return /^2\d\d$/.test(statusCode) && statusCode !== "204";
+}
+
 function findOperationsWithUntypedSuccess(spec: OpenApiSpec): string[] {
   return collectOperations(spec)
-    .filter((entry: OperationEntry) => {
-      const success: ResponseObject | undefined = entry.operation.responses?.["200"];
-      if (success === undefined) {
-        return false;
-      }
+    .filter((entry: OperationEntry) =>
+      Object.entries(entry.operation.responses ?? {}).some(
+        ([statusCode, success]: [string, ResponseObject]) => {
+          if (!isBodyBearingSuccessCode(statusCode)) {
+            return false;
+          }
 
-      const declaresBare200: boolean = success.content === undefined;
-      const schemas: unknown[] = Object.values(success.content ?? {})
-        .map((mediaType: MediaTypeObject) => mediaType?.schema)
-        .filter((schema: unknown) => schema !== undefined);
+          const declaresBareResponse: boolean = success.content === undefined;
+          const schemas: unknown[] = Object.values(success.content ?? {})
+            .map((mediaType: MediaTypeObject) => mediaType?.schema)
+            .filter((schema: unknown) => schema !== undefined);
 
-      return declaresBare200 || schemas.length === 0;
-    })
+          return declaresBareResponse || schemas.length === 0;
+        },
+      ),
+    )
     .map((entry: OperationEntry) => describeOperation(entry));
 }
 
@@ -200,7 +210,7 @@ describe("committed OpenAPI snapshot holds the codegen invariants", () => {
     expect(findDuplicateOperationIds(loadSnapshot())).toEqual([]);
   });
 
-  it("declares a body schema for every 200 response", () => {
+  it("declares a body schema for every non-204 2xx response", () => {
     expect(findOperationsWithUntypedSuccess(loadSnapshot())).toEqual([]);
   });
 
@@ -270,8 +280,29 @@ describe("the invariants reject a violating document", () => {
     expect(findOperationsWithUntypedSuccess(specWith(typedSuccess))).toEqual([]);
   });
 
+  it("catches an untyped 201 alongside a typed 200", () => {
+    const spec: OpenApiSpec = specWith({
+      ...typedSuccess,
+      responses: {
+        ...typedSuccess.responses,
+        "201": { content: { "application/json": {} } },
+      },
+    });
+
+    expect(findOperationsWithUntypedSuccess(spec)).toEqual(["GET /v1/things"]);
+  });
+
   it("passes an operation that answers only 204, which carries no body by definition", () => {
     const spec: OpenApiSpec = specWith({ ...typedSuccess, responses: { "204": {} } });
+
+    expect(findOperationsWithUntypedSuccess(spec)).toEqual([]);
+  });
+
+  it("ignores a non-2xx response that declares no schema", () => {
+    const spec: OpenApiSpec = specWith({
+      ...typedSuccess,
+      responses: { ...typedSuccess.responses, "404": {} },
+    });
 
     expect(findOperationsWithUntypedSuccess(spec)).toEqual([]);
   });

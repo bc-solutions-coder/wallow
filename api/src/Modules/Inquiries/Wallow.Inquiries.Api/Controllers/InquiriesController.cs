@@ -165,7 +165,7 @@ public partial class InquiriesController(IMessageBus bus, ITenantContext tenantC
 
     [HttpPost("{id:guid}/comments")]
     [HasPermission(PermissionType.InquiriesWrite)]
-    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(InquiryCommentCreatedResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> AddComment(
         Guid id,
@@ -189,7 +189,9 @@ public partial class InquiriesController(IMessageBus bus, ITenantContext tenantC
             return result.ToActionResult();
         }
 
-        return Created($"{id}/comments/{result.Value.Value}", new { Id = result.Value.Value });
+        return Created(
+            $"{id}/comments/{result.Value.Value}",
+            new InquiryCommentCreatedResponse(result.Value.Value));
     }
 
     [HttpGet("{id:guid}/comments")]

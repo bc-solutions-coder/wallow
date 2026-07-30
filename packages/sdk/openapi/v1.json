@@ -4605,7 +4605,11 @@
           "201": {
             "description": "Created",
             "content": {
-              "application/json": { }
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InquiryCommentCreatedResponse"
+                }
+              }
             }
           },
           "400": {
@@ -7238,6 +7242,18 @@
       "IFormFile": {
         "type": "string",
         "format": "binary"
+      },
+      "InquiryCommentCreatedResponse": {
+        "required": [
+          "id"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
       },
       "InquiryCommentResponse": {
         "required": [

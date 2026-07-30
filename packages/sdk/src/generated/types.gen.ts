@@ -334,6 +334,10 @@ export type FileMetadataResponse = {
 
 export type IFormFile = Blob | File;
 
+export type InquiryCommentCreatedResponse = {
+    id: string;
+};
+
 export type InquiryCommentResponse = {
     id: string;
     inquiryId: string;
@@ -3181,8 +3185,10 @@ export type InquiriesAddCommentResponses = {
     /**
      * Created
      */
-    201: unknown;
+    201: InquiryCommentCreatedResponse;
 };
+
+export type InquiriesAddCommentResponse = InquiriesAddCommentResponses[keyof InquiriesAddCommentResponses];
 
 export type NotificationsGetNotificationsData = {
     body?: never;
