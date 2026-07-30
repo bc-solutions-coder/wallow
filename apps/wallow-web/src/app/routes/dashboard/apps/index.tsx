@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { Button } from "@bc-solutions-coder/ui";
+import { createFileRoute, Link } from "@tanstack/react-router";
 
 import { AppList, appsGetUserAppsOptions } from "@features/apps";
 
@@ -19,6 +20,23 @@ import { AppList, appsGetUserAppsOptions } from "@features/apps";
 /**
  * Title row: page heading on the left, gold pill CTA on the right. Extracted so
  * the page body stays within the repo's JSX nesting budget.
+ *
+ * The CTA is a TanStack `Link` wearing the catalog `Button` (Wallow-lrlm.4.3).
+ * It used to be a raw `<a>`, which made an in-app hop to a route already in the
+ * tree a full document load — router torn down, query cache thrown away, white
+ * flash. Composing through `render` keeps the real anchor (so middle-click and
+ * copy-link still work) while the router claims the click.
+ *
+ * The two props that look like incantations are not: `nativeButton={false}`
+ * tells Base UI it is not wrapping a native `<button>` (left at its default it
+ * logs a dev-mode "expected a native <button>" error on every render), and
+ * `role={undefined}` strips the `role="button"` that flag would otherwise add —
+ * `useButton` merges its own role BEFORE the caller's props, so the caller
+ * wins. A navigation must stay announced as a link.
+ *
+ * `width="auto"` and `shape="pill"` override the recipe's `w-full`/`rounded-md`
+ * defaults; the `className` keeps the shipped `px-6 py-2.5` footprint, which no
+ * size on the scale reproduces exactly.
  */
 function AppsHeader() {
   return (
@@ -26,13 +44,17 @@ function AppsHeader() {
       <h1 data-testid="apps-heading" className="text-3xl font-bold text-foreground">
         My Apps
       </h1>
-      <a
+      <Button
+        render={<Link to="/dashboard/apps/register" />}
+        nativeButton={false}
+        role={undefined}
+        shape="pill"
+        width="auto"
         data-testid="apps-register-link"
-        href="/dashboard/apps/register"
-        className="bg-primary text-primary-foreground font-medium px-6 py-2.5 rounded-full hover:opacity-90 no-underline text-sm transition-colors"
+        className="px-6 py-2.5 no-underline"
       >
         Register New App
-      </a>
+      </Button>
     </div>
   );
 }

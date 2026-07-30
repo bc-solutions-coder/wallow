@@ -82,13 +82,21 @@ describe("routes/dashboard/apps (restyle)", () => {
     expect(headerRow.contains(byTestId("apps-register-link"))).toBe(true);
   });
 
+  // Wallow-lrlm.4.3 widened this case. The pill's own utilities — token colours,
+  // weight, padding, radius, type scale — are UNCHANGED and still pinned here;
+  // what moved is the interaction treatment, which now comes from the catalog
+  // `buttonRecipe` (F3.T1) instead of being hand-written: `hover:opacity-90`
+  // became the recipe's `hover:bg-primary/90`, `transition-colors` became
+  // `motion-safe:transition-colors`, and a focus-visible ring the hand-rolled
+  // pill never had arrived with it. The behavioural half — anchor, href, router
+  // click, no `role="button"` — lives in the sibling `index.navigation.test.tsx`.
   it("styles the register link as the gold pill CTA", async () => {
     await renderPage();
 
     const link = byTestId("apps-register-link");
     expectClasses(
       link,
-      "bg-primary text-primary-foreground font-medium px-6 py-2.5 rounded-full hover:opacity-90 no-underline text-sm transition-colors",
+      "bg-primary text-primary-foreground font-medium px-6 py-2.5 rounded-full no-underline text-sm hover:bg-primary/90 motion-safe:transition-colors focus-visible:ring-2 focus-visible:ring-ring",
     );
     // Regression guard: the pill is still the same link, with the same words.
     expect(link.getAttribute("href")).toBe("/dashboard/apps/register");
