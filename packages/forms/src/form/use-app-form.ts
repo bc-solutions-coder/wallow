@@ -11,7 +11,11 @@
  */
 
 import { useMutation, type UseMutationOptions } from "@bc-solutions-coder/query";
-import type { FormValidateAsyncFn, StandardSchemaV1 } from "@tanstack/react-form";
+import {
+  type FormValidateAsyncFn,
+  revalidateLogic,
+  type StandardSchemaV1,
+} from "@tanstack/react-form";
 import { useCallback, useState } from "react";
 
 import { useTanstackAppForm } from "../core/form-hook";
@@ -62,9 +66,12 @@ type ServerErrorSlot<TValues> = FormValidateAsyncFn<TValues>;
  * `form.Field` and `form.handleSubmit` exactly where a TanStack user expects.
  *
  * The validator generics are pinned to the one shape this hook ever builds: a
- * standard-schema `onSubmit` validator (the caller's zod schema) and nothing
+ * standard-schema `onDynamic` validator (the caller's zod schema) and nothing
  * else. `FormApi` declares them `in out`, so an approximation would not be
- * assignable — they have to match the instantiation below exactly.
+ * assignable — they have to match the instantiation below exactly. The schema
+ * sits in the `TOnDynamic` slot rather than `TOnSubmit` because
+ * {@link revalidateLogic} runs only that one validator; see the instantiation
+ * below for why.
  */
 export type AppFormApi<TValues> = ReturnType<
   typeof useTanstackAppForm<
@@ -74,9 +81,9 @@ export type AppFormApi<TValues> = ReturnType<
     undefined,
     undefined,
     undefined,
+    undefined,
+    undefined,
     StandardSchemaV1<TValues, unknown>,
-    undefined,
-    undefined,
     undefined,
     ServerErrorSlot<TValues>,
     never
@@ -87,9 +94,11 @@ export type AppFormApi<TValues> = ReturnType<
 
 export interface UseAppFormOptions<TValues, TVariables, TData, TError = unknown> {
   /**
-   * The zod schema, wired as TanStack's `validators.onSubmit`. It is typed as
-   * the standard-schema interface zod implements, which is what TanStack itself
-   * accepts; `TValues` is the schema's input type, i.e. the shape the form holds.
+   * The zod schema, wired as TanStack's `validators.onDynamic` under
+   * {@link revalidateLogic} — so it runs on submit, and thereafter on every
+   * change. It is typed as the standard-schema interface zod implements, which
+   * is what TanStack itself accepts; `TValues` is the schema's input type, i.e.
+   * the shape the form holds.
    */
   readonly schema: StandardSchemaV1<TValues, unknown>;
   readonly defaultValues: TValues;
@@ -154,15 +163,32 @@ export function useAppForm<TValues, TVariables = unknown, TData = unknown, TErro
     undefined,
     undefined,
     undefined,
+    undefined,
+    undefined,
     StandardSchemaV1<TValues, unknown>,
-    undefined,
-    undefined,
     undefined,
     ServerErrorSlot<TValues>,
     never
   >({
     defaultValues: options.defaultValues,
-    validators: { onSubmit: options.schema },
+    /*
+     * WHEN validation runs, and the reason the schema is an `onDynamic`
+     * validator rather than an `onSubmit` one.
+     *
+     * `revalidateLogic()` defaults to `mode: "submit"` /
+     * `modeAfterSubmission: "change"`, which is exactly the rule every Wallow
+     * form wants: a first-time visitor is never judged mid-keystroke, and a
+     * field the submit has already flagged then tracks the value live, so the
+     * message clears the moment it is fixed instead of waiting for a second
+     * submit. It is deliberately set HERE and not per form — the five migrated
+     * screens configure none of this.
+     *
+     * The strategy runs ONLY the `onDynamic` validator (it ignores
+     * `onChange`/`onBlur`/`onSubmit` entirely), so leaving the schema on
+     * `onSubmit` would silently validate nothing at all.
+     */
+    validationLogic: revalidateLogic(),
+    validators: { onDynamic: options.schema },
     onSubmit: ({ value }) => {
       // A banner must not outlive the submit that produced it, and a submit
       // reached programmatically skips the shell's own clear.

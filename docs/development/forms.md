@@ -103,7 +103,7 @@ is destructured or cast.
 
 | Option          | Required | What it does                                                                                                           |
 | --------------- | -------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `schema`        | yes      | A zod schema, wired as TanStack's `validators.onSubmit`. Its input type is the form's value shape.                     |
+| `schema`        | yes      | A zod schema, wired as TanStack's `validators.onDynamic`. Its input type is the form's value shape.                    |
 | `defaultValues` | yes      | The initial values. Its **keys are also the field names** the server-error split matches against.                      |
 | `mutation`      | no       | The generated `{operation}Mutation({ client })` options object, passed whole. Omit it for the `onSubmit` escape hatch. |
 | `toVariables`   | no       | Values → mutation variables. Defaults to `(values) => ({ body: values })` when `mutation` is given.                    |
@@ -171,7 +171,7 @@ Three failure surfaces, two testid shapes, one path each:
 
 | Failure                | Route                                                                                                      | Rendered as                                                |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| Client-side validation | zod schema → TanStack's `onSubmit` validator → `field.state.meta.errors`                                   | `Field.Error` under the control — `{prefix}-{field}-error` |
+| Client-side validation | zod schema → TanStack's `onDynamic` validator → `field.state.meta.errors`                                  | `Field.Error` under the control — `{prefix}-{field}-error` |
 | Server field errors    | RFC 7807 `errors` dict → `WallowError.fieldErrors` → `splitServerError` → `form.setErrorMap({ onServer })` | the same `Field.Error`, the same testid                    |
 | Form-level failure     | RFC 7807 `detail`, the `fallbackError`, or a thrown `Error`'s own message → `form.wallow.serverError`      | `FormError` → a ui `ErrorBanner` — `{prefix}-error`        |
 
@@ -195,8 +195,11 @@ space and no stale testid is left behind.
   wholesale rather than merging (`CreateOrganizationForm` passes `space-y-6` for its card).
 - **Every field has a visible label.** There is no label-less catalog field; use `optional` to mark
   a field that is not required.
-- **Validation runs on submit.** The schema is wired as `validators.onSubmit` — nothing validates on
-  keystroke, so a user is not corrected mid-word.
+- **Validation runs on submit, then keeps up.** The schema is wired as `validators.onDynamic` under
+  TanStack's `revalidateLogic()`, which validates on submit and on every change thereafter. A
+  first-time visitor is never corrected mid-word; once a submit has flagged a field, its message
+  tracks the value live — it clears the moment the value is fixed and returns if the value goes bad
+  again, with no second submit. This is set in `useAppForm` and inherited, so no form configures it.
 - **Server errors are cleared on the way into a submit**, not after it. `AppForm` calls
   `clearServerErrors()` before `handleSubmit()`, because `handleSubmit` aborts on a field still
   carrying the previous submit's server error and nothing in TanStack clears an `onServer` error by

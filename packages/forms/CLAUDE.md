@@ -85,6 +85,16 @@ Four files move together, plus a fifth when new Base UI surface is involved:
 - **`z.string().trim()` does not trim submitted values.** TanStack's standard-schema adapter reads
   only the issue list off a validation result and discards the parsed output, so `form.state.values`
   stays raw. `.trim()` only makes `"   "` fail a `.min(1)`.
+- **The schema is an `onDynamic` validator, never an `onSubmit` one.** `useAppForm` sets
+  `validationLogic: revalidateLogic()` (validate on submit, revalidate on change thereafter), and
+  that strategy runs **only** `onDynamic` — it ignores `onChange`/`onBlur`/`onSubmit` entirely, so
+  moving the schema back to `validators.onSubmit` silently validates nothing. The timing contract
+  lives in `src/form/use-app-form.revalidate.test.tsx`; the `TOnDynamic` generic slot in
+  `AppFormApi` has to move with it or the instance type stops matching.
+- **App-level specs resolve this package from `dist/`, not `src/`.** Change the hook and the
+  `wallow-auth`/`wallow-web` suites keep testing the previous bundle until
+  `pnpm --filter @bc-solutions-coder/forms build` runs. A consumer spec failing on behaviour the
+  package's own specs prove is that, not a real divergence.
 - **`clearServerErrors()` runs before validation, not inside `onSubmit`.** `handleSubmit` aborts on
   `!isFieldsValid`, and nothing in `@tanstack/form-core` clears an `onServer` error by itself — so a
   stale server field error would wedge every later submit. `AppForm`'s submit handler owns the call.

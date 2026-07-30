@@ -47,6 +47,15 @@ import { ForgotPasswordForm } from "./ForgotPasswordForm";
  *      during the migration (into the zod schema and into `SubmitButton`'s
  *      `pendingLabel`).
  *
+ * WHAT THE PACKAGE LATER ADDED (Wallow-ov6w.6):
+ *
+ *   6./7. WHEN the required-field message appears. It stays away while a
+ *      first-time visitor types, and once a failed submit has raised it, it
+ *      tracks the value live — gone when an address is typed, back when it is
+ *      deleted, with no second submit. The rule is the shared hook's and is
+ *      configured nowhere on this screen, which is exactly why it is asserted
+ *      here: this is the level that proves a migrated form inherits it.
+ *
  * There is deliberately NO error-surface case here: the absence of
  * `forgot-password-error` is the oracle's to assert, in seven places, and
  * restating it would just create a second thing to keep in sync.
@@ -153,6 +162,45 @@ describe("ForgotPasswordForm on @bc-solutions-coder/forms", () => {
     await expect
       .element(page.getByTestId("forgot-password-submit"))
       .toHaveTextContent("Send reset link");
+  });
+
+  it("says nothing while a first-time visitor is still typing the address", async () => {
+    // Validation timing reaches this screen from the package, not from anything
+    // written here (Wallow-ov6w.6): nothing has been submitted, so a half-typed
+    // address must not be judged. `"  "` is whitespace-only and so genuinely
+    // breaks the schema's trimmed `min(1)` — the only thing keeping the message
+    // away is WHEN the shared hook validates.
+    const user = userEvent.setup();
+    await renderWithClient(<ForgotPasswordForm />);
+
+    await user.fill(page.getByTestId("forgot-password-email"), "  ");
+    await expect.poll(() => emailInput().value).toBe("  ");
+
+    expect(page.getByTestId("forgot-password-email-error").query()).toBeNull();
+  });
+
+  it("re-validates as the user types once the submit has already flagged the field", async () => {
+    // The other half of the timing rule, at the level that proves a real
+    // consumer form inherits it: after a failed submit the message tracks the
+    // value live, disappearing when the address is typed and returning when it
+    // is deleted — with no second submit, which the untouched transport proves.
+    const user = userEvent.setup();
+    await renderWithClient(<ForgotPasswordForm />);
+
+    await user.click(page.getByTestId("forgot-password-submit"));
+    await expect
+      .element(page.getByTestId("forgot-password-email-error"))
+      .toHaveTextContent("Email is required");
+
+    await user.fill(page.getByTestId("forgot-password-email"), EMAIL);
+    await expect.poll(() => page.getByTestId("forgot-password-email-error").query()).toBeNull();
+
+    await user.fill(page.getByTestId("forgot-password-email"), "");
+
+    await expect
+      .element(page.getByTestId("forgot-password-email-error"))
+      .toHaveTextContent("Email is required");
+    expect(harness.calls).toHaveLength(0);
   });
 
   it("disables the email input and relabels the submit while the request is in flight", async () => {
