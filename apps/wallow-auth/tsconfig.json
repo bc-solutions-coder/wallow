@@ -7,7 +7,15 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "types": ["node"]
+    "types": ["node"],
+    // Mirrored from `aliases.ts` — JSON cannot import it, so `src/alias-map.test.ts`
+    // pins the two together. `moduleResolution: "Bundler"` resolves these relative
+    // to this file, so no `baseUrl` is needed.
+    "paths": {
+      "@app/*": ["./src/app/*"],
+      "@features/*": ["./src/features/*"],
+      "@shared/*": ["./src/shared/*"]
+    }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts", "vitest.config.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "aliases.ts", "vite.config.ts", "vitest.config.ts"]
 }
