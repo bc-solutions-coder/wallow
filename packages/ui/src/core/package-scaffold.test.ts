@@ -179,8 +179,10 @@ describe("packages/ui scaffold", () => {
   it("is imported by both apps' Tailwind CSS entries so ui sources are scanned", () => {
     const importLine = /@import\s+["']@bc-solutions-coder\/ui\/source\.css["']/u;
 
-    const authStyles = readText([repoRoot, "apps", "wallow-auth", "src", "styles.css"]);
-    const webStyles = readText([repoRoot, "apps", "wallow-web", "src", "styles.css"]);
+    // Both apps are zoned, so the single Tailwind entry lives in the `app` zone
+    // beside the root route that imports it for side effects.
+    const authStyles = readText([repoRoot, "apps", "wallow-auth", "src", "app", "styles.css"]);
+    const webStyles = readText([repoRoot, "apps", "wallow-web", "src", "app", "styles.css"]);
 
     expect(authStyles).toMatch(importLine);
     expect(webStyles).toMatch(importLine);
