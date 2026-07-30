@@ -27,7 +27,15 @@
  */
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@bc-solutions-coder/query";
 import type { InquiryCommentResponse, WallowSdk } from "@bc-solutions-coder/sdk";
-import { Button, Card, Checkbox, ErrorBanner, MutedText } from "@bc-solutions-coder/ui";
+import {
+  Button,
+  Card,
+  Checkbox,
+  ErrorBanner,
+  Field,
+  Label,
+  MutedText,
+} from "@bc-solutions-coder/ui";
 import { useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
 
@@ -154,6 +162,7 @@ function StatusControl(props: {
     <>
       <SelectControl
         testId="inquiry-status-select"
+        label="Status"
         value={status}
         options={STATUS_OPTIONS}
         onChange={setStatus}
@@ -304,14 +313,18 @@ function AddCommentForm(props: {
         );
       }}
     >
-      <textarea
-        data-testid="inquiry-comment-content"
-        className={CONTROL}
-        value={content}
-        onChange={(e) => {
-          setContent(e.target.value);
-        }}
-      />
+      <Field>
+        <Label htmlFor="inquiry-comment-content-input">Comment</Label>
+        <textarea
+          id="inquiry-comment-content-input"
+          data-testid="inquiry-comment-content"
+          className={CONTROL}
+          value={content}
+          onChange={(e) => {
+            setContent(e.target.value);
+          }}
+        />
+      </Field>
       <InternalFlag
         checked={isInternal}
         onChange={(next: boolean) => {

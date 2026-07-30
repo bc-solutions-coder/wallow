@@ -41,7 +41,7 @@ import {
   useAppForm,
 } from "@bc-solutions-coder/forms";
 import { useQueryClient } from "@bc-solutions-coder/query";
-import { Button, Card, Field, Input, Toggle, ToggleGroup } from "@bc-solutions-coder/ui";
+import { Button, Card, Field, Input, Label, Toggle, ToggleGroup } from "@bc-solutions-coder/ui";
 import { useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
 import { z } from "zod";
@@ -134,14 +134,30 @@ function ScopeToggles(props: { value: string[]; onChange: (value: string[]) => v
 function BrandingSection() {
   return (
     <fieldset data-testid="app-branding">
+      {/* The legend names the FIELDSET, not the controls inside it, and a
+          placeholder is not a label — it disappears the moment a value is typed.
+          So each control carries a real one: the two Base UI-backed `Input`s
+          associate through the `Field` row, and the raw file input spells the
+          `htmlFor`/`id` pair out because there is no catalog part behind it to
+          register. */}
       <legend>Branding (optional)</legend>
       <Field>
+        <Label>Display name</Label>
         <Input data-testid="app-branding-display-name" placeholder="Display name" />
       </Field>
       <Field>
+        <Label>Tagline</Label>
         <Input data-testid="app-branding-tagline" placeholder="Tagline" />
       </Field>
-      <input data-testid="app-logo-input" type="file" accept="image/*" />
+      <Field>
+        <Label htmlFor="app-logo-input-control">Logo</Label>
+        <input
+          id="app-logo-input-control"
+          data-testid="app-logo-input"
+          type="file"
+          accept="image/*"
+        />
+      </Field>
     </fieldset>
   );
 }

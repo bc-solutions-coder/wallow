@@ -20,7 +20,7 @@
  */
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@bc-solutions-coder/query";
 import type { UserDto, WallowSdk } from "@bc-solutions-coder/sdk";
-import { Button, ErrorBanner, Field, Input, MutedText } from "@bc-solutions-coder/ui";
+import { Button, ErrorBanner, Field, Input, Label, MutedText } from "@bc-solutions-coder/ui";
 import { useRouteContext } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 
@@ -181,7 +181,9 @@ function AddMemberForm(props: {
       }}
     >
       <Field>
+        <Label htmlFor="organization-member-userid-input">User ID</Label>
         <Input
+          id="organization-member-userid-input"
           data-testid="organization-member-userid"
           value={userId}
           onChange={(e) => {

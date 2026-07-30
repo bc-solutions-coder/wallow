@@ -14,7 +14,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@bc-solutions-coder/query";
 import type { ClientResponse } from "@bc-solutions-coder/sdk";
-import { Button, ErrorBanner, Field, Input, MutedText } from "@bc-solutions-coder/ui";
+import { Button, ErrorBanner, Field, Input, Label, MutedText } from "@bc-solutions-coder/ui";
 import { useState } from "react";
 import { useRouteContext } from "@tanstack/react-router";
 
@@ -85,6 +85,7 @@ function ClientTypeSelect(props: { value: string; onChange: (value: string) => v
   return (
     <SelectControl
       testId="organization-detail-register-client-type"
+      label="Client type"
       value={value}
       options={CLIENT_TYPE_OPTIONS}
       onChange={onChange}
@@ -128,7 +129,9 @@ function RegisterClientForm(props: { onRegister: (body: RegisterClientInput) => 
       }}
     >
       <Field>
+        <Label htmlFor="organization-detail-register-display-name-input">Display name</Label>
         <Input
+          id="organization-detail-register-display-name-input"
           data-testid="organization-detail-register-display-name"
           value={displayName}
           onChange={(e) => {
@@ -137,14 +140,18 @@ function RegisterClientForm(props: { onRegister: (body: RegisterClientInput) => 
         />
       </Field>
       <ClientTypeSelect value={clientType} onChange={setClientType} />
-      <textarea
-        data-testid="organization-detail-register-redirect-uris"
-        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
-        value={redirectUris}
-        onChange={(e) => {
-          setRedirectUris(e.target.value);
-        }}
-      />
+      <Field>
+        <Label htmlFor="organization-detail-register-redirect-uris-input">Redirect URIs</Label>
+        <textarea
+          id="organization-detail-register-redirect-uris-input"
+          data-testid="organization-detail-register-redirect-uris"
+          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
+          value={redirectUris}
+          onChange={(e) => {
+            setRedirectUris(e.target.value);
+          }}
+        />
+      </Field>
       <Button
         type="submit"
         className="rounded-full"

@@ -19,8 +19,15 @@
  *   - the trigger reports the LABEL rather than the value, which is what `items`
  *     buys: without it Base UI's `Select.Value` renders the raw value, so a
  *     `web-app` / "Web Application" pair would show the wire value to the user.
+ *
+ * `label` is REQUIRED (Wallow-lrlm.4.4): the trigger is a `role="combobox"`
+ * button with no text content of its own (only the chosen option's label, which
+ * is empty until something is picked), so without an explicit name a screen
+ * reader announces it as unlabelled. `Field`/`Label` wrap the trigger the same
+ * way every other form control in the catalog is named — there is no
+ * lower-ceremony way to say "this select is for X" than the caller passing X.
  */
-import { Select } from "@bc-solutions-coder/ui";
+import { Field, Label, Select } from "@bc-solutions-coder/ui";
 
 /** One option: `value` travels on the wire, `label` is what a user reads. */
 export interface SelectControlOption {
@@ -88,6 +95,8 @@ function SelectControlTrigger(props: {
 export function SelectControl(props: {
   /** Preserved from the pre-migration `<select>`; names the TRIGGER. */
   testId: string;
+  /** The accessible name every catalog form control is given via `Label`. */
+  label: string;
   value: string;
   options: readonly SelectControlOption[];
   onChange: (value: string) => void;
@@ -95,17 +104,20 @@ export function SelectControl(props: {
   placeholder?: string | undefined;
   className?: string | undefined;
 }) {
-  const { testId, value, options, onChange, placeholder, className } = props;
+  const { testId, label, value, options, onChange, placeholder, className } = props;
   return (
-    <Select.Root
-      items={options}
-      value={value === "" ? null : value}
-      onValueChange={(next: string | null) => {
-        onChange(next ?? "");
-      }}
-    >
-      <SelectControlTrigger testId={testId} placeholder={placeholder} className={className} />
-      <SelectPopupLayer options={options} />
-    </Select.Root>
+    <Field>
+      <Label>{label}</Label>
+      <Select.Root
+        items={options}
+        value={value === "" ? null : value}
+        onValueChange={(next: string | null) => {
+          onChange(next ?? "");
+        }}
+      >
+        <SelectControlTrigger testId={testId} placeholder={placeholder} className={className} />
+        <SelectPopupLayer options={options} />
+      </Select.Root>
+    </Field>
   );
 }
