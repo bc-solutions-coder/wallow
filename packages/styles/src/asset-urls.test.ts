@@ -77,3 +77,90 @@ describe("toRootRelativeAssetUrl", () => {
     expect(toRootRelativeAssetUrl("https://cdn.test/acme.svg")).toBe("https://cdn.test/acme.svg");
   });
 });
+
+/**
+ * The second half of the same bug (Wallow-8via). "The site root" is only the
+ * URL root when the app owns the origin. Served under a prefix — which
+ * wallow-auth's `AUTH_BASE_PATH` knob exists to do — the brand assets are
+ * copied under that prefix too (Vite's `base` plus nitro's `baseURL`), so a
+ * root-relative `/piggy-icon.svg` points at the SITE root, which behind the
+ * path-based ingress is a DIFFERENT app. The icon 404s.
+ *
+ * The base path is a build-time value the CONSUMING app bakes in, so it arrives
+ * as an argument: this package ships a prebuilt bundle and would otherwise
+ * freeze its own `import.meta.env.BASE_URL` (always "/") into every consumer.
+ * It is normalized here rather than by each caller so an app can hand over
+ * Vite's raw `import.meta.env.BASE_URL` ("/", "/auth/") or an already-normalized
+ * prefix ("/auth") and get the same answer.
+ */
+describe("toRootRelativeAssetUrl under a base path", () => {
+  it("serves a bare filename from under the prefix, not from the site root", () => {
+    expect(toRootRelativeAssetUrl("piggy-icon.svg", "/auth")).toBe("/auth/piggy-icon.svg");
+  });
+
+  it("prefixes a path written relative to the current directory", () => {
+    expect(toRootRelativeAssetUrl("./piggy-icon.svg", "/auth")).toBe("/auth/piggy-icon.svg");
+  });
+
+  it("prefixes a path a fork wrote with its own leading slash", () => {
+    expect(toRootRelativeAssetUrl("/piggy-icon.svg", "/auth")).toBe("/auth/piggy-icon.svg");
+  });
+
+  it("keeps a nested asset path nested under the prefix", () => {
+    expect(toRootRelativeAssetUrl("brand/logo.svg", "/auth")).toBe("/auth/brand/logo.svg");
+  });
+
+  it("handles a multi-segment prefix", () => {
+    expect(toRootRelativeAssetUrl("piggy-icon.svg", "/apps/auth")).toBe(
+      "/apps/auth/piggy-icon.svg",
+    );
+  });
+
+  it("is idempotent, so a value already under the prefix is not prefixed twice", () => {
+    expect(toRootRelativeAssetUrl("/auth/piggy-icon.svg", "/auth")).toBe("/auth/piggy-icon.svg");
+  });
+
+  it("only treats the prefix as present on a segment boundary", () => {
+    // `/authentic` is not below `/auth` — the same rule the passthrough's
+    // stripBasePath follows, for the same reason.
+    expect(toRootRelativeAssetUrl("/authentic/logo.svg", "/auth")).toBe("/auth/authentic/logo.svg");
+  });
+
+  it("leaves an absolute URL untouched under a prefix", () => {
+    expect(toRootRelativeAssetUrl("https://cdn.test/acme.svg", "/auth")).toBe(
+      "https://cdn.test/acme.svg",
+    );
+  });
+
+  it("leaves a protocol-relative URL untouched under a prefix", () => {
+    expect(toRootRelativeAssetUrl("//cdn.test/acme.svg", "/auth")).toBe("//cdn.test/acme.svg");
+  });
+
+  it.each([
+    ["Vite's own unprefixed BASE_URL", "/"],
+    ["the empty string", ""],
+    ["whitespace from a hand-edited env file", "   "],
+  ])("treats %s as no prefix, leaving the unbased result unchanged", (_label, basePath) => {
+    expect(toRootRelativeAssetUrl("piggy-icon.svg", basePath)).toBe("/piggy-icon.svg");
+  });
+
+  it.each([
+    ["Vite's own BASE_URL, with its trailing slash", "/auth/"],
+    ["the canonical prefix", "/auth"],
+    ["a prefix written without its leading slash", "auth"],
+    ["surrounding whitespace from a hand-edited env file", "  /auth  "],
+  ])("accepts %s and produces one canonical URL", (_label, basePath) => {
+    expect(toRootRelativeAssetUrl("piggy-icon.svg", basePath)).toBe("/auth/piggy-icon.svg");
+  });
+
+  it("resolves to the same file from every route depth below the prefix", () => {
+    const based: string = toRootRelativeAssetUrl("piggy-icon.svg", "/auth");
+    const resolved: string[] = [
+      "http://wallow.dev/auth/",
+      "http://wallow.dev/auth/login",
+      "http://wallow.dev/auth/mfa/challenge",
+    ].map((route: string): string => new URL(based, route).pathname);
+
+    expect(new Set(resolved)).toEqual(new Set(["/auth/piggy-icon.svg"]));
+  });
+});

@@ -24,8 +24,10 @@ export {
   parseThemeCssVars,
   renderThemeStyle,
   type ResolvedBranding,
+  resolveForkBranding,
   type ThemeColors,
   type ThemeMode,
+  toAppIconUrl,
   toCssVarName,
   toCssVars,
 } from "./branding";

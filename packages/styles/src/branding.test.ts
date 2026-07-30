@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  appIconUrl,
   type ClientBranding,
   type ForkBranding,
   forkBranding,
@@ -9,6 +10,8 @@ import {
   parseThemeCssVars,
   renderThemeStyle,
   type ResolvedBranding,
+  resolveForkBranding,
+  toAppIconUrl,
   toCssVarName,
 } from "./branding";
 
@@ -234,5 +237,63 @@ describe("forkBranding read from api/branding.json", () => {
     expect(forkResolvedBranding.defaultMode).toBe("light");
     expect(forkResolvedBranding.cssVars.light["--card"]).toBe("oklch(1 0 0)");
     expect(forkResolvedBranding.cssVars.dark["--primary-foreground"]).toBe("oklch(0.18 0.03 45)");
+  });
+});
+
+/**
+ * Branding for an app served under a URL prefix (Wallow-8via). The fork's icon
+ * is the only asset this module resolves itself, so it is the only thing the
+ * base path changes — a client's hosted `logoUrl` is somebody else's origin and
+ * must survive untouched.
+ */
+describe("branding under a base path", () => {
+  it("serves the fork's icon from under the prefix", () => {
+    expect(mergeClientBranding(testFork, null, "/auth").logoUrl).toBe("/auth/test-icon.svg");
+  });
+
+  it("leaves a client's hosted logo alone under a prefix", () => {
+    expect(
+      mergeClientBranding(testFork, makeClient({ logoUrl: "https://cdn.test/acme.svg" }), "/auth")
+        .logoUrl,
+    ).toBe("https://cdn.test/acme.svg");
+  });
+
+  it("changes nothing else about the merge", () => {
+    expect(mergeClientBranding(testFork, null, "/auth")).toEqual({
+      ...mergeClientBranding(testFork, null),
+      logoUrl: "/auth/test-icon.svg",
+    });
+  });
+
+  it("is the unprefixed merge when no base path is given", () => {
+    expect(mergeClientBranding(testFork, null, "")).toEqual(mergeClientBranding(testFork, null));
+  });
+});
+
+describe("toAppIconUrl", () => {
+  it("names the icon api/branding.json names, under the prefix the app is served at", () => {
+    expect(toAppIconUrl("/auth")).toBe(`/auth/${forkBranding.appIcon}`);
+  });
+
+  it("accepts Vite's raw BASE_URL, so an app passes import.meta.env.BASE_URL as-is", () => {
+    expect(toAppIconUrl("/auth/")).toBe(`/auth/${forkBranding.appIcon}`);
+    expect(toAppIconUrl("/")).toBe(`/${forkBranding.appIcon}`);
+  });
+
+  it("is the module constant when there is no prefix, so unbased apps are unchanged", () => {
+    expect(toAppIconUrl()).toBe(appIconUrl);
+    expect(toAppIconUrl("")).toBe(appIconUrl);
+  });
+});
+
+describe("resolveForkBranding", () => {
+  it("resolves the fork's own branding with its icon under the prefix", () => {
+    expect(resolveForkBranding("/auth").logoUrl).toBe(`/auth/${forkBranding.appIcon}`);
+    expect(resolveForkBranding("/auth").name).toBe(forkResolvedBranding.name);
+  });
+
+  it("is the module constant when there is no prefix", () => {
+    expect(resolveForkBranding()).toEqual(forkResolvedBranding);
+    expect(resolveForkBranding("/")).toEqual(forkResolvedBranding);
   });
 });

@@ -176,6 +176,11 @@ function orNull(value: string | null | undefined): string | null {
  *    "Acme" showing Wallow's piggy icon and "Wallow in it" would misattribute
  *    the fork, so the layout renders neither instead.
  *
+ * `basePath` is the URL prefix the consuming app is served under (empty by
+ * default). It reaches only the fork's icon, which is the one asset resolved
+ * here: a client's `logoUrl` is an absolute URL on its own origin, where this
+ * app's prefix means nothing.
+ *
  * Themes differ from the identity fields: the client's `ThemeJson` is *overlaid*
  * on the fork's colours per mode, so a client that overrides only `primary`
  * keeps a coherent palette. (The Blazor layout emits only the client's variables
@@ -186,6 +191,7 @@ function orNull(value: string | null | undefined): string | null {
 export function mergeClientBranding(
   fork: ForkBranding,
   client: ClientBranding | null,
+  basePath: string = "",
 ): ResolvedBranding {
   const forkLight: CssVars = toCssVars(fork.theme.light);
   const forkDark: CssVars = toCssVars(fork.theme.dark);
@@ -195,7 +201,7 @@ export function mergeClientBranding(
     return {
       name: fork.appName,
       tagline: orNull(fork.tagline),
-      logoUrl: toRootRelativeAssetUrl(fork.appIcon),
+      logoUrl: toRootRelativeAssetUrl(fork.appIcon, basePath),
       defaultMode,
       cssVars: { light: forkLight, dark: forkDark },
     };
@@ -242,11 +248,34 @@ export function renderThemeStyle(resolved: ResolvedBranding): string {
   return blocks.join("\n");
 }
 
-/** The fork's own branding, resolved with no client overlay. */
-export const forkResolvedBranding: ResolvedBranding = mergeClientBranding(forkBranding, null);
+/**
+ * The fork's own branding, resolved with no client overlay, for an app served
+ * under `basePath` (empty — the site root — by default).
+ *
+ * An app with a URL prefix must call this with that prefix rather than read
+ * {@link forkResolvedBranding}: this package ships prebuilt, so it cannot see
+ * the consumer's `import.meta.env.BASE_URL` and the constant is always the
+ * unprefixed resolution.
+ */
+export function resolveForkBranding(basePath: string = ""): ResolvedBranding {
+  return mergeClientBranding(forkBranding, null, basePath);
+}
+
+/**
+ * The fork's app icon under `basePath` — what to render, in place of
+ * `forkBranding.appIcon`, wherever the icon or favicon is shown by an app served
+ * under a URL prefix.
+ */
+export function toAppIconUrl(basePath: string = ""): string {
+  return toRootRelativeAssetUrl(forkBranding.appIcon, basePath);
+}
+
+/** The fork's own branding, resolved with no client overlay, at the site root. */
+export const forkResolvedBranding: ResolvedBranding = resolveForkBranding();
 
 /**
  * The fork's app icon at the site root — what to render, in place of
- * `forkBranding.appIcon`, wherever the icon or favicon is shown.
+ * `forkBranding.appIcon`, wherever the icon or favicon is shown by an app served
+ * at the origin root. Under a URL prefix, call {@link toAppIconUrl} instead.
  */
-export const appIconUrl: string = toRootRelativeAssetUrl(forkBranding.appIcon);
+export const appIconUrl: string = toAppIconUrl();

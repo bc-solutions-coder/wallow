@@ -1,12 +1,9 @@
 import type { ReactNode } from "react";
 
-import {
-  appIconUrl,
-  forkBranding,
-  forkResolvedBranding,
-  type ResolvedBranding,
-} from "@bc-solutions-coder/styles";
+import { forkBranding, type ResolvedBranding } from "@bc-solutions-coder/styles";
 import { CenteredCardLayout, ForkAttribution } from "@bc-solutions-coder/ui";
+
+import { appIconUrl, forkResolvedBranding } from "../lib/branding";
 
 /**
  * The footer rule plus the fork attribution beneath the page body. The

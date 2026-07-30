@@ -10,6 +10,7 @@ import { AuthLayout } from "../components/auth-layout";
 import { clientBrandingGetBrandingOptions } from "../features/login/api";
 import { isPasswordResetMessage, PASSWORD_RESET_MESSAGE } from "../features/login/auth-result";
 import { LoginScreen } from "../features/login/components/LoginScreen";
+import { BASE_PATH } from "../lib/base-path";
 
 /**
  * The `/login` route (Wallow-vec7.3.11 / 2.8a).
@@ -148,7 +149,11 @@ function useClientBranding(
     enabled: clientId !== "",
   });
 
-  return data === undefined ? undefined : mergeClientBranding(forkBranding, data);
+  // The base path resolves the FORK's icon, which the client branch never
+  // renders (a client shows its own hosted logo or none), so it changes nothing
+  // here today. Passed anyway so there is one based call shape in the app and no
+  // second, unprefixed one to drift back to.
+  return data === undefined ? undefined : mergeClientBranding(forkBranding, data, BASE_PATH);
 }
 
 function LoginRoute() {

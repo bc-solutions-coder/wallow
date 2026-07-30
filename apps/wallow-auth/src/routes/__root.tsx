@@ -1,10 +1,5 @@
 import type { WallowSdk } from "@bc-solutions-coder/sdk";
-import {
-  appIconUrl,
-  forkResolvedBranding,
-  renderThemeStyle,
-  type ResolvedBranding,
-} from "@bc-solutions-coder/styles";
+import { renderThemeStyle, type ResolvedBranding } from "@bc-solutions-coder/styles";
 import { Card, DocumentStyles, FocusOnNavigate, MutedText } from "@bc-solutions-coder/ui";
 import type { QueryClient } from "@bc-solutions-coder/query";
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
@@ -14,6 +9,7 @@ import { AuthLayout } from "../components/auth-layout";
 import { ReadyIndicator } from "../components/ready-indicator";
 import { ErrorPage } from "../features/error/components/ErrorPage";
 import { NotFoundPage } from "../features/not-found/components/NotFoundPage";
+import { appIconUrl, forkResolvedBranding } from "../lib/branding";
 
 // Side-effect import, NOT `?url` + a head() link. Start builds two Vite
 // environments; a `?url` import resolved in the SSR graph yields a CSS hash the
