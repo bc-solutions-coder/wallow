@@ -17,9 +17,37 @@ catalogs:
     "@tanstack/react-form": ^1.33.2
     "@tanstack/react-query": ^5.101.2
     zustand: ^5.0.8
+  # Exact pin. The compiler is a build-wide singleton in the way that matters:
+  # two members on different tsc versions disagree about what typechecks, and the
+  # failure surfaces as an inexplicable diff between `pnpm typecheck` and an
+  # editor. Every workspace member references this, so a bump is one edit here.
+  #
+  # 7.x is the native (Go) port of the compiler — a faithful reimplementation of
+  # the same type-checking algorithms, not a semantics change. Every workspace
+  # member typechecks clean under it. See `overrides` for the one exception.
+  tooling:
+    typescript: 7.0.2
+  # packages/sdk ONLY, and only because of its generator. @hey-api/openapi-ts
+  # builds the SDK client by constructing AST nodes with the JS COMPILER API,
+  # which the native 7.x compiler does not ship: it reads `ts.SyntaxKind.AnyKeyword`,
+  # undefined on 7.x, so merely importing openapi-ts.config.ts throws
+  # ("Cannot read properties of undefined (reading 'AnyKeyword')",
+  # ts-dsl/type/ternary.ts:22) and takes three suites with it. 6.0.3 is the last
+  # JS-implementation release. TS6 and TS7 run the same type-checking algorithms,
+  # so this splits which BINARY packages/sdk uses, not what typechecks.
+  # Fold this back into `tooling` once openapi-ts emits without the compiler API.
+  tooling-tsc6:
+    typescript: 6.0.3
 
 # @hey-api/openapi-ts pins @hey-api/json-schema-ref-parser, which pins js-yaml
 # 4.2.0 — vulnerable to quadratic CPU blowup on YAML merge-key chains, patched in
 # 4.3.0. Drop this once upstream ships a ref-parser on a fixed js-yaml.
 overrides:
   js-yaml: ^4.3.0
+  # NOTE: an `"@hey-api/openapi-ts>typescript"` entry does NOT work here, however
+  # much it looks like the right tool. `typescript` is a PEER dependency of
+  # openapi-ts, and pnpm satisfies a peer from the importing package, so the
+  # override only rewrites the declared range — openapi-ts still loads whatever
+  # packages/sdk resolves, and you get an unmet-peer warning plus the original
+  # crash. The pin has to live on packages/sdk itself; see the `tooling-tsc6`
+  # catalog.

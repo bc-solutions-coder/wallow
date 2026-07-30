@@ -24,7 +24,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
-    "typescript": "^5.6.0",
+    "typescript": "catalog:tooling",
     "vite": "^8.1.4",
     "vitest": "^4.1.10"
   }

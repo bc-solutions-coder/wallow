@@ -1,6 +1,7 @@
 {
-  // Shared TypeScript 7 compiler semantics for every pnpm workspace member
-  // (packages/sdk, apps/tanstack-min, and future workspace members).
+  // Shared TypeScript compiler semantics for every pnpm workspace member.
+  // The compiler version itself is pinned once in the `tooling` catalog
+  // (pnpm-workspace.yaml), not per member.
   // TS7 (Project Corsa) is a faithful native port of TS6 — same type-checking
   // algorithms — so this only centralizes the options members already agreed
   // on, it is not a type-behavior migration.
