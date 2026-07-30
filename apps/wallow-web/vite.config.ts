@@ -69,8 +69,29 @@ export default defineConfig({
   },
   plugins: [
     tanstackStart({
+      // The three-zone layout puts everything the host runtime owns under
+      // `src/app/`: routes, router.tsx, start.ts, the generated route tree and
+      // styles.css. `srcDirectory` is the ONE knob that relocates all of them —
+      // the plugin resolves `router.routesDirectory`, `router.generatedRouteTree`
+      // and every entry (router, start, client, server) RELATIVE to it
+      // (start-plugin-core schema.js:48-49, planning.js:54-95). Setting
+      // `routesDirectory: "src/app/routes"` instead would resolve to
+      // `src/src/app/routes`, and the router entry — which is `required: true` —
+      // would still not be found, so the build would hard-fail.
+      srcDirectory: "src/app",
+
+      // MANDATORY alongside the line above, not optional. With no `include`, the
+      // import-protection plugin uses `srcDirectory` itself as the importer scope
+      // (import-protection/adapterUtils.js:23). Narrowing srcDirectory to
+      // `src/app` would therefore silently stop enforcing the server-only /
+      // client-bundle boundary for everything under `src/features/**` and
+      // `src/shared/**` — i.e. this restructure would quietly disable the
+      // protection that stops `app/lib/bff.ts`'s `redis` import from being pulled
+      // into a client bundle.
+      importProtection: { include: ["src/**"] },
+
       // Specs are co-located with the code they cover, so a spec under
-      // `src/routes/` would otherwise be codegen'd in as a route.
+      // `src/app/routes/` would otherwise be codegen'd in as a route.
       router: { routeFileIgnorePattern: String.raw`\.(test|spec)\.(ts|tsx)$` },
     }),
     react(),

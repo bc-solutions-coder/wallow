@@ -1,4 +1,4 @@
-import { statSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -7,7 +7,7 @@ import { wallowStyles } from "@bc-solutions-coder/styles/vite";
 import type { Plugin, UserConfig } from "vite";
 import { describe, expect, it } from "vitest";
 
-import viteConfig from "../../vite.config";
+import viteConfig from "../vite.config";
 
 /**
  * A root-relative `<img src="/piggy-icon.svg">` / `<link rel="icon">` is only
@@ -25,8 +25,11 @@ import viteConfig from "../../vite.config";
  * behaviour through that seam.
  */
 const brandAssetsDir: string = fileURLToPath(
-  new URL("../../../../packages/styles/assets/", import.meta.url),
+  new URL("../../../packages/styles/assets/", import.meta.url),
 );
+
+/** This app's own root — the directory holding `vite.config.ts` and `public/`. */
+const appDir: string = fileURLToPath(new URL("../", import.meta.url));
 
 /** Resolve the `publicDir` the shared brand-assets plugin contributes via its
  * `config()` hook, or `undefined` if the plugin declares none. */
@@ -66,11 +69,32 @@ describe("the wallow-web client build", () => {
   it("keeps no brand asset copy of its own", () => {
     // Two copies of the icon is two places a fork has to remember to rebrand,
     // and the drift is silent.
-    const appPublicDir: string = fileURLToPath(new URL("../../public", import.meta.url));
+    const appPublicDir: string = join(appDir, "public");
 
+    // `statSync(..., { throwIfNoEntry: false })` answers `undefined` for a path
+    // that does not exist AND for a path whose PARENT does not exist, so a wrong
+    // `appPublicDir` would make the assertion below pass vacuously. Prove the
+    // shared copy is really there through the same call first: if this line
+    // resolves, the negative one below is measuring something.
+    expect(
+      statSync(join(brandAssetsDir, forkBranding.appIcon), { throwIfNoEntry: false }),
+    ).toBeDefined();
     expect(statSync(join(appPublicDir, forkBranding.appIcon), { throwIfNoEntry: false })).toBe(
       undefined,
     );
+  });
+
+  it("keeps import protection covering every zone, not just src/app", () => {
+    // Regression guard for the `srcDirectory: "src/app"` narrowing: with no
+    // `include`, import protection falls back to srcDirectory as its importer
+    // scope, which would silently stop enforcing the server-only/client-bundle
+    // boundary for everything under `src/features/**` and `src/shared/**`.
+    // Nothing about that failure is visible until a `redis` import reaches a
+    // browser bundle, so it is asserted on the config text.
+    const text: string = readFileSync(join(appDir, "vite.config.ts"), "utf8");
+
+    expect(text).toMatch(/srcDirectory:\s*"src\/app"/u);
+    expect(text).toMatch(/importProtection:\s*\{\s*include:\s*\["src\/\*\*"\]\s*\}/u);
   });
 
   it("re-enables copyPublicDir on the client environment", () => {

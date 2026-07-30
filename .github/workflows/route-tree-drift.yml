@@ -1,6 +1,6 @@
 name: Route Tree Drift
 
-# Keeps each app's committed src/routeTree.gen.ts in sync with its src/routes/**
+# Keeps each app's committed routeTree.gen.ts in sync with its routes/** sources.
 # sources. Regenerates all three apps' trees exactly the way a developer would,
 # and fails if a committed tree has drifted from what the generator now emits.
 #
@@ -16,8 +16,10 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - "apps/wallow-*/src/routes/**"
-      - "apps/wallow-*/src/routeTree.gen.ts"
+      # The wallow apps keep everything the Start plugin owns under src/app/;
+      # minimal-app is still on the flat src/ layout.
+      - "apps/wallow-*/src/app/routes/**"
+      - "apps/wallow-*/src/app/routeTree.gen.ts"
       - "apps/examples/minimal-app/src/routes/**"
       - "apps/examples/minimal-app/src/routeTree.gen.ts"
       # Each app configures the Start plugin that owns its codegen right here,
@@ -28,8 +30,10 @@ on:
   push:
     branches: [main]
     paths:
-      - "apps/wallow-*/src/routes/**"
-      - "apps/wallow-*/src/routeTree.gen.ts"
+      # The wallow apps keep everything the Start plugin owns under src/app/;
+      # minimal-app is still on the flat src/ layout.
+      - "apps/wallow-*/src/app/routes/**"
+      - "apps/wallow-*/src/app/routeTree.gen.ts"
       - "apps/examples/minimal-app/src/routes/**"
       - "apps/examples/minimal-app/src/routeTree.gen.ts"
       # Each app configures the Start plugin that owns its codegen right here,
@@ -80,15 +84,15 @@ jobs:
       - name: Fail on route-tree drift
         run: |
           if ! git diff --exit-code -- \
-            apps/wallow-auth/src/routeTree.gen.ts \
-            apps/wallow-web/src/routeTree.gen.ts \
+            apps/wallow-auth/src/app/routeTree.gen.ts \
+            apps/wallow-web/src/app/routeTree.gen.ts \
             apps/examples/minimal-app/src/routeTree.gen.ts; then
-            echo "::error::A committed routeTree.gen.ts is out of date with its src/routes/** sources."
+            echo "::error::A committed routeTree.gen.ts is out of date with its routes/** sources."
             echo "::error::Regenerate it locally and commit the result:"
             echo "::error::  pnpm --filter @bc-solutions-coder/wallow-auth build"
             echo "::error::  pnpm --filter @bc-solutions-coder/wallow-web build"
             echo "::error::  pnpm --filter @bc-solutions-coder/example-minimal-app build"
-            echo "::error::  git add apps/*/src/routeTree.gen.ts apps/examples/minimal-app/src/routeTree.gen.ts && git commit"
+            echo "::error::  git add apps/wallow-*/src/app/routeTree.gen.ts apps/examples/minimal-app/src/routeTree.gen.ts && git commit"
             exit 1
           fi
           echo "All route trees are in sync with their sources."

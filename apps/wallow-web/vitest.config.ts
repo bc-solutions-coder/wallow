@@ -12,7 +12,7 @@ import { resolveAlias } from "./aliases";
  *
  * Two runtimes, one per project (owned by the preset):
  *
- *   node    — every pure-logic spec (`src/lib/*.test.ts`, the BFF host wiring)
+ *   node    — every pure-logic spec (`src/shared/lib/*.test.ts`, the BFF host wiring)
  *             PLUS the SSR route specs that render via `react-dom/server`
  *             (`renderToString`) or assert a route's `beforeLoad` redirect and
  *             never mount a live DOM, listed in `nodeTsxSpecs`.
@@ -21,12 +21,15 @@ import { resolveAlias } from "./aliases";
  *             preset's `playwright()` provider with ZERO jsdom involvement.
  *
  * The `openid-client` alias and inlined workspace SDK this config used to carry
- * are gone with `src/lib/bff-server.test.ts`: the BFF wiring is the SDK's now,
- * and the host spec that replaced it (`src/lib/bff.test.ts`) mocks the SDK's
+ * are gone with the old `bff-server.test.ts`: the BFF wiring is the SDK's now,
+ * and the host spec that replaced it (`src/app/lib/bff.test.ts`) mocks the SDK's
  * server entry directly, so nothing needs the transitive `openid-client` import
  * to resolve to one shared module id.
  */
-const nodeTsxSpecs: string[] = ["src/routes/index.test.tsx", "src/routes/dashboard/route.test.tsx"];
+const nodeTsxSpecs: string[] = [
+  "src/app/routes/index.test.tsx",
+  "src/app/routes/dashboard/route.test.tsx",
+];
 
 // Browser render/runtime libraries wallow-web pulls in beyond the shared preset
 // baseline, pre-bundled so the browser provider does not discover them mid-run
@@ -67,7 +70,7 @@ const extraBrowserOptimizeDeps: string[] = [
   "@base-ui/react/toggle-group",
 ];
 
-// `src/router.tsx` imports `@tanstack/react-start`, which loads Start's
+// `src/app/router.tsx` imports `@tanstack/react-start`, which loads Start's
 // per-request `AsyncLocalStorage` from `node:async_hooks` at module scope. A real
 // client build never sees that module (the Start plugin compiles the isomorphic
 // helper down to its client branch), but the browser project runs without that
@@ -75,7 +78,7 @@ const extraBrowserOptimizeDeps: string[] = [
 // spec importing the router died at import. Point it at a real in-browser
 // implementation instead; see the shim for why answering "no scope" is correct.
 const nodeAsyncHooksShim: string = fileURLToPath(
-  new URL("src/testing/node-async-hooks-browser-shim.ts", import.meta.url),
+  new URL("src/shared/testing/node-async-hooks-browser-shim.ts", import.meta.url),
 );
 
 const { node, browser } = createVitestProjects({ nodeTsxSpecs, extraBrowserOptimizeDeps });
