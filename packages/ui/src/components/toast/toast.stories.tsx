@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { type ReactElement, useEffect } from "react";
+import { type ReactElement, useEffect, useRef } from "react";
 import { expect, fn, screen, userEvent, waitFor } from "storybook/test";
 
 import { Toast, useToastManager } from "./toast";
@@ -93,6 +93,10 @@ function InitialToastRaiser({ initial, onClose }: ToastDemoProps): null {
 /** The controls a story's play function drives. They sit OUTSIDE the viewport. */
 function ToastControls({ onClose }: ToastDemoProps): ReactElement {
   const manager = useToastManager();
+  // The upload promise settles only when the play function says so. A timer here
+  // races the root's 150ms enter transition: on a slow runner the toast can reach
+  // `toBeVisible` already re-typed to `success`, so `loading` is never observable.
+  const finishUpload = useRef<((file: string) => void) | null>(null);
 
   return (
     <div className="flex flex-wrap gap-2">
@@ -128,7 +132,7 @@ function ToastControls({ onClose }: ToastDemoProps): ReactElement {
         onClick={() => {
           manager.promise(
             new Promise<string>((resolve) => {
-              setTimeout(() => resolve("logo.svg"), 60);
+              finishUpload.current = resolve;
             }),
             {
               loading: { title: "Uploading…" },
@@ -139,6 +143,16 @@ function ToastControls({ onClose }: ToastDemoProps): ReactElement {
         }}
       >
         Upload file
+      </button>
+      <button
+        type="button"
+        data-testid="toast-upload-finish"
+        className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
+        onClick={() => {
+          finishUpload.current?.("logo.svg");
+        }}
+      >
+        Finish upload
       </button>
     </div>
   );
@@ -294,6 +308,9 @@ export const PromiseToast: Story = {
     });
     await expect(uploading).toHaveAttribute("data-type", "loading");
     await expect(uploading).toHaveTextContent("Uploading…");
+
+    // Only now does the promise settle — see `finishUpload` in ToastControls.
+    await userEvent.click(canvas.getByTestId("toast-upload-finish"));
 
     await waitFor(async () => {
       await expect(uploading).toHaveAttribute("data-type", "success");
