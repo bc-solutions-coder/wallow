@@ -58,6 +58,39 @@ export default defineConfig({
     // One React in the graph, from any resolution path.
     dedupe: ["react", "react-dom"],
   },
+  ssr: {
+    /*
+     * One React Query in the SERVER graph. This is not `resolve.dedupe`'s job:
+     * there is exactly one `@tanstack/react-query` on disk, and the two copies
+     * that used to reach the bundle came from Vite's SSR externalization split,
+     * not from resolution.
+     *
+     * Vite externalizes every dependency for SSR EXCEPT linked ones, which it
+     * always bundles so HMR works. `@bc-solutions-coder/query` is a workspace
+     * link, so react-query arrived through it BUNDLED; `@tanstack/react-router-
+     * ssr-query` is an ordinary dependency, so it stayed external and Nitro
+     * later bundled it with a SECOND react-query of its own. Each copy calls
+     * `createContext`, and `setupRouterSsrQueryIntegration` installs the
+     * provider from its copy while components read the facade's — so a
+     * `useQuery` under SSR throws "No QueryClient set", React falls back past
+     * the failed subtree, and the route ships as a shell that only fills in on
+     * the client (Wallow-ka3m).
+     *
+     * wallow-web carried the same duplicated context as wallow-auth. It went
+     * unnoticed because the routes that render under SSR here are public and
+     * query-free, while wallow-auth's `/login` calls `useQuery` on the way in —
+     * so this app was one SSR-rendered query away from the same silent failure.
+     *
+     * Naming the integration here puts it in the same bundled graph as the
+     * facade, so both resolve to one module and one context. react-query is
+     * named alongside it so any FUTURE external consumer joins that graph too
+     * rather than quietly reintroducing the split.
+     *
+     * Nothing in the test suite catches this: vitest never builds the Nitro
+     * bundle. Only a booted `.output/server/index.mjs` or an E2E run does.
+     */
+    noExternal: ["@tanstack/react-router-ssr-query", "@tanstack/react-query"],
+  },
   environments: {
     // `nitro/vite` assumes it alone fills `.output/public` and forces the client
     // environment's `copyPublicDir` off. That silently drops the shared brand
