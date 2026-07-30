@@ -13,12 +13,21 @@ import { expect, test } from "@playwright/test";
  * an incidental URL side effect. `logout-confirm-heading` is deliberately shared
  * across both phases (the oracle's choice), so the phase is told apart by copy.
  *
- * The allowed origin is `http://localhost:5051` — the API's own configured
- * `AuthUrl` in docker-compose.test.yml, which OpenIddictRedirectUriValidator adds
- * to the allow-list unconditionally, so this holds regardless of which OIDC
- * clients the seeder registered.
+ * The allowed origin is the API's OWN configured `AuthUrl`, which
+ * OpenIddictRedirectUriValidator adds to the allow-list unconditionally, so it
+ * holds regardless of which OIDC clients the seeder registered. That makes it a
+ * property of the BACKEND: :5051 under docker-compose.test.yml, :3002 under a
+ * local backend (appsettings.Development.json). The runner that supplies a
+ * non-local backend therefore names it in `E2E_AUTH_ORIGIN` — scripts/e2e.sh
+ * exports it on every path it takes — and the default below covers a local one.
+ *
+ * Deriving it from `E2E_BASE_URL` does NOT work: that selects how this APP is
+ * served, not which API is behind it, and e2e.sh's default mode leaves it unset
+ * while still driving the containerised API.
  */
-const ALLOWED_REDIRECT_URI = "http://localhost:5051/after-logout";
+const AUTH_ORIGIN: string = process.env.E2E_AUTH_ORIGIN ?? "http://localhost:3002";
+
+const ALLOWED_REDIRECT_URI = `${AUTH_ORIGIN}/after-logout`;
 const DISALLOWED_REDIRECT_URI = "https://evil.example.com/";
 
 test("confirm phase offers the sign-out handoff to /connect/logout", async ({ page }) => {

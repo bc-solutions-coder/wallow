@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { waitForEmailBody } from "./mailpit";
+import { seenEmailIds, waitForEmailBody } from "./mailpit";
 
 /**
  * OTP login tab, end to end — the passwordless SIGN-IN tab on /login, NOT MFA.
@@ -42,6 +42,14 @@ test("otp send then verify reaches an authenticated state", async ({ page, reque
 
   await page.getByTestId("login-tab-otp").click();
   await page.getByTestId("login-otp-email").fill(ADMIN_EMAIL);
+
+  // admin@wallow.dev is a fixed recipient, so a long-lived local Mailpit still
+  // holds earlier runs' codes — and those are one-time, already redeemed.
+  const seen: ReadonlySet<string> = await seenEmailIds(request, {
+    to: ADMIN_EMAIL,
+    subject: "Your Login Code",
+  });
+
   await page.getByTestId("login-otp-send-submit").click();
 
   // The email form flips to the code form once the send lands.
@@ -50,6 +58,7 @@ test("otp send then verify reaches an authenticated state", async ({ page, reque
   const emailHtml: string = await waitForEmailBody(request, {
     to: ADMIN_EMAIL,
     subject: "Your Login Code",
+    ignore: seen,
   });
   const code: string = extractOtpCode(emailHtml);
 

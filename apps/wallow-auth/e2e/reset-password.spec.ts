@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { waitForEmailBody } from "./mailpit";
+import { seenEmailIds, waitForEmailBody } from "./mailpit";
 
 /**
  * Reset-password flow, end to end. BACKEND-DEPENDENT and MAILPIT-DEPENDENT: the
@@ -53,12 +53,22 @@ test("forgot then reset with the emailed token shows the login success banner", 
   await expect(page.locator("[data-app-ready='true']")).toBeAttached();
 
   await page.getByTestId("forgot-password-email").fill(ADMIN_EMAIL);
+
+  // admin@wallow.dev is a fixed recipient, so a long-lived local Mailpit still
+  // holds earlier runs' reset emails — and this spec's own password change
+  // rotates the security stamp, which invalidates every token issued before it.
+  const seen: ReadonlySet<string> = await seenEmailIds(request, {
+    to: ADMIN_EMAIL,
+    subject: "Password Reset Request",
+  });
+
   await page.getByTestId("forgot-password-submit").click();
   await expect(page.getByTestId("forgot-password-success")).toBeVisible({ timeout: 15_000 });
 
   const emailHtml: string = await waitForEmailBody(request, {
     to: ADMIN_EMAIL,
     subject: "Password Reset Request",
+    ignore: seen,
   });
   const query: string = extractResetQuery(emailHtml);
 

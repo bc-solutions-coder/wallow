@@ -49,6 +49,17 @@ API_URL="http://localhost:5050"
 DISCOVERY_URL="$API_URL/.well-known/openid-configuration"
 # Host-published wallow-web port from docker-compose.test.yml (5053:3000).
 WEB_URL="http://localhost:5053"
+# Two more endpoints the backend-dependent wallow-auth specs need, and which only
+# this script can know. Both branches below drive the CONTAINERISED backend, so
+# both get these — E2E_BASE_URL picks the app's serving mode, not the backend's,
+# and using it to infer either of these would read the local values off a run
+# whose API is a container.
+#   Mailpit HTTP: docker-compose.test.yml publishes 127.0.0.1:8035:8025, and the
+#     API's Smtp__Host points at that same container.
+#   Auth origin: the API's own configured AuthUrl in that stack, which
+#     OpenIddictRedirectUriValidator allow-lists unconditionally.
+MAILPIT_URL="http://127.0.0.1:8035"
+AUTH_ORIGIN="http://localhost:5051"
 
 log() { printf '\n=== %s ===\n' "$1"; }
 
@@ -123,7 +134,7 @@ for attempt in $(seq 1 60); do
   sleep 1
 done
 
-E2E_ENV=()
+E2E_ENV=("E2E_MAILPIT_URL=$MAILPIT_URL" "E2E_AUTH_ORIGIN=$AUTH_ORIGIN")
 if [[ -z "${E2E_BASE_URL:-}" ]]; then
   # Local mode: Playwright's `pnpm dev` webServer serves the app and proxies to
   # the containerised API. From a cold checkout the workspace deps, the Chromium

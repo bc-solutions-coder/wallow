@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { waitForEmailBody } from "./mailpit";
+import { seenEmailIds, waitForEmailBody } from "./mailpit";
 
 /**
  * Magic-link login, end to end. BACKEND-DEPENDENT and MAILPIT-DEPENDENT: the send
@@ -45,6 +45,14 @@ test("magic-link send then verify reaches an authenticated state", async ({ page
 
   await page.getByTestId("login-tab-magic-link").click();
   await page.getByTestId("login-magic-link-email").fill(ADMIN_EMAIL);
+
+  // admin@wallow.dev is a fixed recipient, so a long-lived local Mailpit still
+  // holds earlier runs' magic links — and those are one-time, already redeemed.
+  const seen: ReadonlySet<string> = await seenEmailIds(request, {
+    to: ADMIN_EMAIL,
+    subject: "Your Magic Link",
+  });
+
   await page.getByTestId("login-magic-link-submit").click();
 
   // The form is replaced by the anti-enumeration confirmation once the send lands.
@@ -53,6 +61,7 @@ test("magic-link send then verify reaches an authenticated state", async ({ page
   const emailHtml: string = await waitForEmailBody(request, {
     to: ADMIN_EMAIL,
     subject: "Your Magic Link",
+    ignore: seen,
   });
   const token: string = extractMagicLinkToken(emailHtml);
 
