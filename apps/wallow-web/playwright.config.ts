@@ -19,7 +19,7 @@ const webServer: PlaywrightTestConfig["webServer"] = externalBaseURL
         // Outside Aspire the proxy's default target (http://wallow-api) does not
         // resolve; point it at the locally-run API unless the caller overrides.
         WALLOW_API_INTERNAL_URL: process.env.WALLOW_API_INTERNAL_URL ?? "http://localhost:5001",
-        // src/lib/bff.ts builds the SDK's BFF server on the first /bff|/api|
+        // src/app/lib/bff.server.ts builds the SDK's BFF server on the first /bff|/api|
         // /health request, and that build reads the OIDC config from env and
         // throws on ANY missing key. Without these the bridge 500s and every
         // route whose `beforeLoad` resolves `getUser()` (notably `/`) fails the

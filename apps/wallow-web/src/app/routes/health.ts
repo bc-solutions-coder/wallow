@@ -12,7 +12,7 @@ import { createFileRoute } from "@tanstack/react-router";
  * the same misconfiguration crashed the process at import; here it surfaces as a
  * failed healthcheck instead.
  *
- * `src/lib/bff.ts` is imported lazily for the reason spelled out in
+ * `src/app/lib/bff.server.ts` is imported lazily for the reason spelled out in
  * `src/routes/bff/$.ts`: it is Node-only, and route modules are reachable from
  * the client graph.
  */
@@ -20,7 +20,7 @@ export const Route = createFileRoute("/health")({
   server: {
     handlers: {
       GET: async (): Promise<Response> => {
-        const { handleHealthRequest } = await import("../lib/bff");
+        const { handleHealthRequest } = await import("../lib/bff.server");
         return handleHealthRequest();
       },
     },

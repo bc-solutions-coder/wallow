@@ -21,7 +21,7 @@ import { defineConfig } from "vitest/config";
  *
  * The `openid-client` alias and inlined workspace SDK this config used to carry
  * are gone with the old `bff-server.test.ts`: the BFF wiring is the SDK's now,
- * and the host spec that replaced it (`src/app/lib/bff.test.ts`) mocks the SDK's
+ * and the host spec that replaced it (`src/app/lib/bff.server.test.ts`) mocks the SDK's
  * server entry directly, so nothing needs the transitive `openid-client` import
  * to resolve to one shared module id.
  */

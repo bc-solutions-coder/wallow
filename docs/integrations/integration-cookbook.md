@@ -88,7 +88,7 @@ export const Route = createFileRoute("/bff/$")({
     handlers: {
       // Dynamic import: this preset pulls node:crypto + openid-client, and every
       // route module is a member of the tree the CLIENT graph also imports.
-      ANY: async ({ request }) => (await import("../../lib/bff")).handleBffRequest(request),
+      ANY: async ({ request }) => (await import("../../lib/bff.server")).handleBffRequest(request),
     },
   },
 });
@@ -96,7 +96,7 @@ export const Route = createFileRoute("/bff/$")({
 
 Build the preset **lazily and memoise it at module scope** so importing a route module does
 not construct it, and so a config throw cannot take down SSR at bundle-evaluation time.
-`apps/wallow-web/src/app/lib/bff.ts` (BFF) and `apps/wallow-auth/src/shared/lib/api-passthrough.ts`
+`apps/wallow-web/src/app/lib/bff.server.ts` (BFF) and `apps/wallow-auth/src/shared/lib/api-passthrough.server.ts`
 (passthrough) are the reference implementations; the environment variables each preset reads
 are tabulated in [TypeScript SDK → Environment variables](typescript-sdk.md#environment-variables).
 

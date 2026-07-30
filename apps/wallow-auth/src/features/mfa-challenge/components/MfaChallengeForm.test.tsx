@@ -114,7 +114,7 @@ import { MfaChallengeForm, type MfaChallengeFormProps } from "./MfaChallengeForm
  * The oracle prepends an absolute API origin (`Configuration["ApiBaseUrl"] ??
  * "http://localhost:5001"`) to BOTH of its navigation targets — the
  * exchange-ticket URL and `BuildApiReturnUrl`. That prepend is deliberately NOT
- * ported: apps/wallow-auth's API surface (`src/lib/api-passthrough.ts`) is a
+ * ported: apps/wallow-auth's API surface (`src/shared/lib/api-passthrough.server.ts`) is a
  * passthrough reverse proxy mounting `/v1/**` and `/connect/**` at the ROOT, so
  * this origin DOES host them and the origin argument is `""` (bd memory
  * `wallow-auth-same-origin-baseurl-apps-wallow-auth`).

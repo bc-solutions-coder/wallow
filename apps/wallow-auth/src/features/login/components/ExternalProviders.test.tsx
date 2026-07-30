@@ -61,7 +61,7 @@ import { ExternalProviders } from "./ExternalProviders";
  * is NOT ported. It matters MORE here than anywhere else in the chain: this link
  * starts the OIDC challenge, and the whole external-login handshake rides
  * SameSite cookies that a cross-origin top-level GET would drop. This app's API
- * surface mounts `/v1/**` and `/connect/**` at the ROOT (`src/lib/api-passthrough.ts`),
+ * surface mounts `/v1/**` and `/connect/**` at the ROOT (`src/shared/lib/api-passthrough.server.ts`),
  * so the same-origin path IS the endpoint. `pointsAtThisOrigin` pins it in both
  * directions — the path must be right AND the API origin must not appear.
  *

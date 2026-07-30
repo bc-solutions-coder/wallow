@@ -39,7 +39,7 @@ import { AcceptTermsScreen } from "./AcceptTermsScreen";
  * ── ACCEPTANCE: THE ExternalLoginState COOKIE IS PURE PROXY PASSTHROUGH ───────
  *
  * The cookie is `HttpOnly`, so this screen *cannot* read it even if it tried,
- * and it must not try: `apps/wallow-auth/src/lib/api-passthrough.ts` is a passthrough
+ * and it must not try: `apps/wallow-auth/src/shared/lib/api-passthrough.server.ts` is a passthrough
  * reverse proxy mounting `/v1/**` at the ROOT and forwarding `Cookie` inbound and
  * `Set-Cookie` outbound verbatim. The browser attaches the cookie itself on a
  * top-level same-origin navigation (SameSite=Lax permits exactly this: a
@@ -482,7 +482,7 @@ describe("AcceptTermsScreen accept branch", () => {
     // THE ORIGIN DECISION. The oracle builds `{ApiBaseUrl}/v1/…` from config,
     // defaulting to http://localhost:5001. That prepend is deliberately not
     // ported, for the reason ConsentScreen documents at length: this origin DOES
-    // host /v1/** (api-passthrough.ts mounts the proxy at the root), so prepending an
+    // host /v1/** (api-passthrough.server.ts mounts the proxy at the root), so prepending an
     // API origin would send the browser CROSS-ORIGIN and drop the SameSite=Lax
     // ExternalLoginState cookie — which is the user's whole identity here, so the
     // endpoint would bounce them to /login?error=session_expired. It would also

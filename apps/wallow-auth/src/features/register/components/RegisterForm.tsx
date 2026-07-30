@@ -85,7 +85,7 @@ import { BASE_PATH, toAppHref } from "@shared/lib/base-path";
  *
  * The oracle builds external-login links as `{ApiBaseUrl}/v1/...` against a
  * cross-origin API. That prepend is NOT ported: this app's API surface
- * (`src/lib/api-passthrough.ts`) is a passthrough reverse proxy mounting `/v1/**` at
+ * (`src/shared/lib/api-passthrough.server.ts`) is a passthrough reverse proxy mounting `/v1/**` at
  * the ROOT, so this origin hosts them and the origin is `""`.
  */
 

@@ -55,7 +55,7 @@ async function importModule(): Promise<{
   ) => Promise<Response>;
 }> {
   vi.resetModules();
-  return import("./api-passthrough");
+  return import("./api-passthrough.server");
 }
 
 /** The URL the SDK preset was actually asked to forward. */

@@ -66,9 +66,9 @@ function peerRequest(
 }
 
 /** Re-evaluate the module so its memoised server starts empty. */
-async function importModule(): Promise<typeof import("./bff")> {
+async function importModule(): Promise<typeof import("./bff.server")> {
   vi.resetModules();
-  return import("./bff");
+  return import("./bff.server");
 }
 
 /** The options `createWallowBffServer` was called with on the Nth (0-based) build. */

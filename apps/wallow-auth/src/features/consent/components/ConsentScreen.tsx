@@ -34,7 +34,7 @@ import { BASE_PATH } from "@shared/lib/base-path";
  * /connect/authorize".
  *
  * That premise is FALSE in this app, so the prepend is deliberately NOT ported.
- * apps/wallow-auth's API surface (`src/lib/api-passthrough.ts`) is a passthrough
+ * apps/wallow-auth's API surface (`src/shared/lib/api-passthrough.server.ts`) is a passthrough
  * reverse proxy mounting `/connect/**` and `/v1/**` at the ROOT — the same fact
  * behind the facade's `baseUrl: '/'` (bd memory
  * `wallow-auth-same-origin-baseurl-apps-wallow-auth`). This origin DOES host

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { handleApiPassthrough } from "@shared/lib/api-passthrough";
+import { handleApiPassthrough } from "@shared/lib/api-passthrough.server";
 
 /**
  * `/v1/**` — the API surface, reverse-proxied verbatim to Wallow.Api.

@@ -48,7 +48,7 @@ import { toAppHref } from "@shared/lib/base-path";
  * `HttpContext` is null — can restore them and re-inject the cookie on the
  * confirm call (`PersistedEnrollment`, `ApiCookieJar`, `SeedFromBrowserCookies`).
  *
- * None of that is ported. This app's API surface (`src/lib/api-passthrough.ts`) is a
+ * None of that is ported. This app's API surface (`src/shared/lib/api-passthrough.server.ts`) is a
  * passthrough reverse proxy and the client sends `credentials: "include"`, so the
  * `Identity.MfaPartial` cookie rides ordinary same-origin requests: `enrollTotp()`
  * takes no arguments and `confirmEnrollment` receives only `{ secret, code }`,

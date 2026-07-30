@@ -34,7 +34,7 @@ import { InvitationScreen } from "./InvitationScreen";
  * This screen depends on auth state that a server session would hold for free.
  * apps/wallow-auth
  * has no equivalent: its API surface is a PASSTHROUGH REVERSE PROXY with no
- * session store (`src/lib/api-passthrough.ts`) and the auth cookie is HttpOnly.
+ * session store (`src/shared/lib/api-passthrough.server.ts`) and the auth cookie is HttpOnly.
  *
  * `isAuthenticated` is therefore a PROP, and the tests below pin both branches
  * against it. The ROUTE answers it with the generated

@@ -57,7 +57,7 @@ import { LogoutScreen } from "./LogoutScreen";
  *
  * **That prepend must NOT be ported**, for exactly the reasons established on
  * `/consent` (Wallow-vec7.3.4). apps/wallow-auth's API surface
- * (`src/lib/api-passthrough.ts`) is a PASSTHROUGH REVERSE PROXY mounting
+ * (`src/shared/lib/api-passthrough.server.ts`) is a PASSTHROUGH REVERSE PROXY mounting
  * `/connect/**` and `/v1/**` at the ROOT — the same fact behind this app's
  * origin-rooted SDK `baseUrl` (bd memory
  * `wallow-auth-same-origin-baseurl-apps-wallow-auth`).

@@ -66,7 +66,7 @@ apps/wallow-auth/
 │   ├── shared/
 │   │   ├── components/
 │   │   │   └── ready-indicator.tsx # Stamps data-app-ready='true' after hydration
-│   │   ├── lib/api-passthrough.ts  # createApiPassthrough() wrapper the splat routes call
+│   │   ├── lib/api-passthrough.server.ts  # createApiPassthrough() wrapper the splat routes call
 │   │   └── testing/                # Spec harnesses
 │   └── zone-dag.test.ts            # Enforces the import DAG below
 ├── tsconfig.json                   # The zone alias map (`paths`); vite + vitest read it
@@ -82,7 +82,7 @@ apps/wallow-web/
 │   │   │   ├── bff/$.ts            # Server route: OIDC tunnel (login/callback/user/logout)
 │   │   │   ├── api/$.ts            # Server route: /api proxy with a bearer attached
 │   │   │   └── health.ts           # Server route: liveness JSON
-│   │   ├── lib/bff.ts              # createWallowBffServer() host the server routes call
+│   │   ├── lib/bff.server.ts       # createWallowBffServer() host the server routes call
 │   │   └── start.ts, router.tsx, styles.css, routeTree.gen.ts
 │   ├── features/<name>/            # organizations, apps, settings, mfa, inquiries
 │   └── shared/                     # components/, lib/, stores/, testing/
@@ -299,7 +299,7 @@ handles a whole prefix:
 // src/routes/v1/$.ts — everything under /v1 goes to the API
 import { createFileRoute } from "@tanstack/react-router";
 
-import { handleApiPassthrough } from "../../lib/api-passthrough";
+import { handleApiPassthrough } from "@shared/lib/api-passthrough.server";
 
 export const Route = createFileRoute("/v1/$")({
   server: { handlers: { ANY: ({ request }) => handleApiPassthrough(request) } },
@@ -314,7 +314,7 @@ The preset behind the handler is built **lazily and memoised at module scope**,
 so importing the route module does not construct it:
 
 ```ts
-// src/lib/api-passthrough.ts
+// src/shared/lib/api-passthrough.server.ts
 import {
   CLIENT_IP_HEADER,
   createApiPassthrough,
@@ -352,8 +352,13 @@ Two rules the reference apps encode:
   in `node:crypto`/`openid-client` (as `createWallowBffServer` does). Every route
   module is a member of the tree the **client** graph also imports, so a top-level
   import breaks browser-mode specs on externalised Node builtins.
-  `apps/wallow-web/src/app/lib/bff.ts` is the reference — and it lives in the `app` zone, not
-  `shared/`, precisely so nothing else can import it.
+  `apps/wallow-web/src/app/lib/bff.server.ts` is the reference. It lives in the `app` zone,
+  not `shared/`, precisely so nothing else can import it — and the `.server.` suffix is what
+  makes that a build error rather than a convention. Start's import protection denies an
+  imported file matching `**/*.server.*` from the client graph; it does **not** know that
+  `redis` or `node:crypto` are server-only, so a plainly-named wrapper around them builds
+  clean and ships to the browser. Name every server-only module `*.server.*`;
+  `src/server-only-naming.test.ts` in each zoned app enforces it.
 
 `src/start.ts` completes the picture: `createStart()` registers a global request
 middleware that mints one SDK **per request** (never per module — a module-global

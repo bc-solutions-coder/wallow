@@ -59,7 +59,7 @@ import { ConsentScreen } from "./ConsentScreen";
  * /connect/authorize".
  *
  * **That premise does not hold in this app, so the prepend must not be ported.**
- * apps/wallow-auth's API surface (`src/lib/api-passthrough.ts`) is a PASSTHROUGH
+ * apps/wallow-auth's API surface (`src/shared/lib/api-passthrough.server.ts`) is a PASSTHROUGH
  * REVERSE PROXY that mounts `/connect/**` (and `/v1/**`) at the ROOT and
  * forwards them verbatim to the API — that is the same fact that makes the SDK
  * facade configure `baseUrl: '/'` rather than the SDK's `/api` default (bd
@@ -550,7 +550,7 @@ describe("ConsentScreen — approve", () => {
     await user.click(page.getByTestId("consent-approve"));
 
     // A FULL navigation, not `router.navigate`: `/connect/authorize` is served
-    // by the passthrough reverse proxy (src/lib/api-passthrough.ts), not by the client-side
+    // by the passthrough reverse proxy (src/shared/lib/api-passthrough.server.ts), not by the client-side
     // route tree — the router has no route for it and would 404 in-app. The
     // assigned URL is read straight off the cancelled navigation, so this pins
     // the string the REAL builder produced rather than the arguments it got.

@@ -113,14 +113,22 @@ export default defineConfig({
       // would still not be found, so the build would hard-fail.
       srcDirectory: "src/app",
 
-      // MANDATORY alongside the line above, not optional. With no `include`, the
-      // import-protection plugin uses `srcDirectory` itself as the importer scope
-      // (import-protection/adapterUtils.js:23). Narrowing srcDirectory to
-      // `src/app` would therefore silently stop enforcing the server-only /
-      // client-bundle boundary for everything under `src/features/**` and
-      // `src/shared/**` — i.e. this restructure would quietly disable the
-      // protection that stops `app/lib/bff.ts`'s `redis` import from being pulled
-      // into a client bundle.
+      // MANDATORY alongside the line above, not optional. `include` is the
+      // IMPORTER scope, and with no `include` the plugin falls back to
+      // `srcDirectory` itself (import-protection/adapterUtils.js:23) — so
+      // narrowing srcDirectory to `src/app` would silently stop checking every
+      // importer under `src/features/**` and `src/shared/**`, which is exactly
+      // where an accidental server-only import would come from.
+      //
+      // What the rule then denies is a matter of NAMING, not of this option.
+      // Start's default client ruleset (import-protection/defaults.js) blocks
+      // two things: the specifiers `@tanstack/{react,solid,vue}-start/server`,
+      // and any imported file matching `**/*.server.*`. `redis`, `node:*` and
+      // `@bc-solutions-coder/sdk/server` are NOT on that list — a client module
+      // importing a plainly-named `lib/bff.ts` builds clean and ships redis in
+      // the browser chunk (Wallow-v940, measured at 512 KB). The protection is
+      // real only because every server-only module in this app is named
+      // `*.server.*`; `src/server-only-naming.test.ts` is what keeps that true.
       importProtection: { include: ["src/**"] },
 
       // Specs are co-located with the code they cover, so a spec under

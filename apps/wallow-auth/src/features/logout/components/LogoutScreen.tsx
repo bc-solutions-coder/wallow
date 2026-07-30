@@ -38,7 +38,7 @@ import { BASE_PATH, toAppHref } from "@shared/lib/base-path";
  *
  * That prepend is deliberately NOT ported, for the reasons established on
  * `/consent` (Wallow-vec7.3.4). apps/wallow-auth's API surface
- * (`src/lib/api-passthrough.ts`) is a PASSTHROUGH REVERSE PROXY mounting `/connect/**`
+ * (`src/shared/lib/api-passthrough.server.ts`) is a PASSTHROUGH REVERSE PROXY mounting `/connect/**`
  * and `/v1/**` at the ROOT — the same fact behind the facade's `baseUrl: '/'` (bd
  * memory `wallow-auth-same-origin-baseurl-apps-wallow-auth`). This origin DOES
  * host `/connect/logout`, so the origin argument is `""`.

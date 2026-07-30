@@ -115,7 +115,7 @@ import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
  *
  * The oracle's `ApiBaseUrl` prepend (`BuildApiReturnUrl`, and the hand-rolled
  * exchange-ticket URL at L544-550) is deliberately NOT ported. This app's API
- * surface (`src/lib/api-passthrough.ts`) is a passthrough reverse proxy mounting
+ * surface (`src/shared/lib/api-passthrough.server.ts`) is a passthrough reverse proxy mounting
  * `/v1/**` and `/connect/**` at the ROOT, so this origin hosts them and the
  * origin argument is `""` (bd memory `wallow-auth-screens-must-pass-origin-same-
  * origin`). Prepending an absolute origin would send the browser cross-origin

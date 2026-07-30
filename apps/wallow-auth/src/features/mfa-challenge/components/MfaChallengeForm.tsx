@@ -76,7 +76,7 @@ import { BASE_PATH, toAppHref } from "@shared/lib/base-path";
  *
  * The oracle prepends an absolute API origin (`Configuration["ApiBaseUrl"]`) to
  * BOTH navigation targets. That prepend is deliberately NOT ported: this app's API
- * surface (`src/lib/api-passthrough.ts`) is a passthrough reverse proxy mounting
+ * surface (`src/shared/lib/api-passthrough.server.ts`) is a passthrough reverse proxy mounting
  * `/v1/**` and `/connect/**` at the ROOT, so this origin hosts them and the
  * origin argument is `""`. Going cross-origin would drop the `SameSite`
  * partial-auth cookie that `mfa/verify` reads and the exchange-ticket endpoint

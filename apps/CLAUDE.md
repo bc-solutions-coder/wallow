@@ -41,7 +41,12 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
   belong in `app/` (that is what keeps `node:crypto`/`openid-client` out of the client graph),
   and `srcDirectory: "src/app"` in `vite.config.ts` must be paired with
   `importProtection: { include: ["src/**"] }` or Start scopes its env-boundary check to
-  `src/app` alone and silently stops checking `features/` and `shared/`.
+  `src/app` alone and silently stops checking `features/` and `shared/`. That pairing sets
+  only the importer SCOPE. What actually gets denied is the **filename**: Start's default
+  client rule blocks an imported file matching `**/*.server.*` and knows nothing about
+  `redis` or `node:crypto`, so every server-only module is named `*.server.*`
+  (`wallow-web/src/app/lib/bff.server.ts`, `wallow-auth/src/shared/lib/api-passthrough.server.ts`)
+  and `src/server-only-naming.test.ts` — byte-identical in both apps — keeps it that way.
 - Every app spells out `server.port` in its `vite.config.ts` (`vite dev` binds 3000 when
   `PORT` is unset). `@tanstack/react-start`/`react-router`/`react-router-ssr-query` are still
   pinned exactly, but the pin now lives in the **`start` catalog** in `pnpm-workspace.yaml`:

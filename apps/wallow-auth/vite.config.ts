@@ -123,11 +123,22 @@ export default defineConfig({
       // would still not be found, so the build would hard-fail.
       srcDirectory: "src/app",
 
-      // MANDATORY alongside the line above, not optional. With no `include`, the
-      // import-protection plugin uses `srcDirectory` itself as the importer scope.
-      // Narrowing srcDirectory to `src/app` would therefore silently stop
-      // enforcing the server-only / client-bundle boundary for everything under
-      // `src/features/**` and `src/shared/**`.
+      // MANDATORY alongside the line above, not optional. `include` is the
+      // IMPORTER scope, and with no `include` the plugin falls back to
+      // `srcDirectory` itself — so narrowing srcDirectory to `src/app` would
+      // silently stop checking every importer under `src/features/**` and
+      // `src/shared/**`, which is exactly where an accidental server-only import
+      // would come from.
+      //
+      // What the rule then denies is a matter of NAMING, not of this option.
+      // Start's default client ruleset (import-protection/defaults.js) blocks
+      // two things: the specifiers `@tanstack/{react,solid,vue}-start/server`,
+      // and any imported file matching `**/*.server.*`. `node:*` and
+      // `@bc-solutions-coder/sdk/server` are NOT on that list, so a plainly-named
+      // module wrapping them builds clean and ships to the browser (Wallow-v940).
+      // The protection is real only because every server-only module in this app
+      // is named `*.server.*` — here that is `shared/lib/api-passthrough.server.ts`,
+      // and `src/server-only-naming.test.ts` is what keeps the convention true.
       importProtection: { include: ["src/**"] },
 
       router: {

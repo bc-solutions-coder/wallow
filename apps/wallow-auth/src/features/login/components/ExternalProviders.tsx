@@ -23,7 +23,7 @@ import { accountGetExternalProvidersOptions } from "../api";
  * it matters most in the chain. This link starts the OIDC challenge; the
  * handshake it kicks off rides SameSite cookies, and a cross-origin top-level GET
  * drops them. This app's API surface mounts `/v1/**` at the ROOT
- * (`src/lib/api-passthrough.ts`), so the same-origin path IS the endpoint. The
+ * (`src/shared/lib/api-passthrough.server.ts`), so the same-origin path IS the endpoint. The
  * `ApiBaseUrl` knob this app deliberately lacks would also be unresolvable from a
  * browser: `WALLOW_API_INTERNAL_URL` is a SERVER-side address.
  *

@@ -149,7 +149,7 @@ store**, and dispatches by path. What comes back is three web-standard entry poi
 `handleBff`, `handleApi`, and `handleHealth` — plus the resolved `config` and `store`:
 
 ```ts
-// src/lib/bff.ts — build the host once, lazily
+// src/app/lib/bff.server.ts — build the host once, lazily
 import { createWallowBffServer, type WallowBffServer } from "@bc-solutions-coder/sdk/server";
 
 let server: WallowBffServer | undefined;
@@ -194,7 +194,7 @@ export const Route = createFileRoute("/bff/$")({
       ANY: async ({ request }): Promise<Response> => {
         // dynamic import: this module pulls node:crypto + openid-client, and every
         // route module is a member of the tree the CLIENT graph also imports
-        const { handleBffRequest } = await import("../../lib/bff");
+        const { handleBffRequest } = await import("../../lib/bff.server");
         return handleBffRequest(request);
       },
     },
@@ -214,7 +214,7 @@ no framework-specific handler object to unwrap.
 
 A runnable reference host lives in the repository at `apps/wallow-web/` — a
 TanStack Start app that mounts exactly these routes (`src/app/routes/bff/$.ts`,
-`src/app/routes/api/$.ts`, `src/app/routes/health.ts`, over `src/app/lib/bff.ts`) and
+`src/app/routes/api/$.ts`, `src/app/routes/health.ts`, over `src/app/lib/bff.server.ts`) and
 consumes the proxy from its dashboard. The `app/` prefix is that app's host zone; a
 flat app mounts the same files directly under `src/`.
 
@@ -241,7 +241,7 @@ else `http://localhost:5001`. To get real client IPs into the API's rate limiter
 host stamps the peer address onto the `x-wallow-client-ip` header before calling
 `handle()`; the passthrough appends it to any inbound `X-Forwarded-For` chain and
 strips the seam header before the upstream hop. `apps/wallow-auth/` is the reference
-consumer (`src/shared/lib/api-passthrough.ts` plus three splat routes).
+consumer (`src/shared/lib/api-passthrough.server.ts` plus three splat routes).
 
 ### The `/api` proxy and silent refresh
 
