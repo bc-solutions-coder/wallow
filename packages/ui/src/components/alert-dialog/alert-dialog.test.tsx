@@ -184,6 +184,10 @@ const DESCRIPTION_CLASSES = ["mt-2", "text-sm", "text-muted-foreground"];
  * "builds the close recipe from the button's own recipe" spec below asserts that
  * collapse against `buttonRecipe`'s LIVE output, so this list cannot drift away
  * from the button without failing.
+ *
+ * The hover, focus-visible and reduced-motion utilities below arrive from the
+ * button too, and arrive here BY DESIGN: an alert's footer buttons are real
+ * buttons and get the same keyboard and pointer affordances as any other.
  */
 const CLOSE_CANCEL_CLASSES = [
   "inline-flex",
@@ -195,9 +199,14 @@ const CLOSE_CANCEL_CLASSES = [
   "py-2",
   "text-sm",
   "font-medium",
+  "outline-none",
+  "motion-safe:transition-colors",
+  "focus-visible:ring-2",
+  "focus-visible:ring-ring",
   "data-[disabled]:opacity-50",
   "bg-secondary",
   "text-secondary-foreground",
+  "hover:bg-secondary/80",
 ];
 
 /** The same, for the confirm button of a destructive alert. */
@@ -211,9 +220,14 @@ const CLOSE_DESTRUCTIVE_CLASSES = [
   "py-2",
   "text-sm",
   "font-medium",
+  "outline-none",
+  "motion-safe:transition-colors",
+  "focus-visible:ring-2",
+  "focus-visible:ring-ring",
   "data-[disabled]:opacity-50",
   "bg-destructive",
   "text-destructive-foreground",
+  "hover:bg-destructive/90",
 ];
 
 /**
