@@ -3,6 +3,21 @@ packages:
   - "apps/examples/*"
   - "packages/*"
 
+catalogs:
+  # Exact pins. App-side runtime singletons: two copies at runtime is a broken app,
+  # not a slow one. Bump these together, deliberately, in one commit.
+  start:
+    "@tanstack/react-start": 1.168.32
+    "@tanstack/react-router": 1.170.18
+    "@tanstack/react-router-ssr-query": 1.167.1
+  # Ranges. What packages/* declare as peers and use in devDependencies.
+  react:
+    react: ^19.2.7
+    react-dom: ^19.2.7
+    "@tanstack/react-form": ^1.33.2
+    "@tanstack/react-query": ^5.101.2
+    zustand: ^5.0.8
+
 # @hey-api/openapi-ts pins @hey-api/json-schema-ref-parser, which pins js-yaml
 # 4.2.0 — vulnerable to quadratic CPU blowup on YAML merge-key chains, patched in
 # 4.3.0. Drop this once upstream ships a ref-parser on a fixed js-yaml.

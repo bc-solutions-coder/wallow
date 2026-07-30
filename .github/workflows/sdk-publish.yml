@@ -67,6 +67,11 @@ jobs:
           echo "Setting package version to $VERSION"
           pnpm version "$VERSION" --no-git-tag-version --allow-same-version
 
+      # `pnpm publish` is load-bearing, not interchangeable with `npm publish`.
+      # This manifest uses two workspace protocols that only pnpm resolves at pack
+      # time: `workspace:*` (sibling packages) and `catalog:` (the shared version
+      # pins in pnpm-workspace.yaml). `npm publish` would ship both verbatim and
+      # consumers would get an uninstallable manifest.
       - name: Publish to GitHub Packages
         run: pnpm publish --no-git-checks
         env:

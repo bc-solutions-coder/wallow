@@ -4,6 +4,34 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+catalogs:
+  react:
+    '@tanstack/react-form':
+      specifier: ^1.33.2
+      version: 1.33.2
+    '@tanstack/react-query':
+      specifier: ^5.101.2
+      version: 5.101.2
+    react:
+      specifier: ^19.2.7
+      version: 19.2.7
+    react-dom:
+      specifier: ^19.2.7
+      version: 19.2.7
+    zustand:
+      specifier: ^5.0.8
+      version: 5.0.14
+  start:
+    '@tanstack/react-router':
+      specifier: 1.170.18
+      version: 1.170.18
+    '@tanstack/react-router-ssr-query':
+      specifier: 1.167.1
+      version: 1.167.1
+    '@tanstack/react-start':
+      specifier: 1.168.32
+      version: 1.168.32
+
 overrides:
   js-yaml: ^4.3.0
 
@@ -48,19 +76,19 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/ui
       '@tanstack/react-router':
-        specifier: 1.170.18
+        specifier: catalog:start
         version: 1.170.18(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@tanstack/react-router-ssr-query':
-        specifier: 1.167.1
+        specifier: catalog:start
         version: 1.167.1(@tanstack/query-core@5.101.2)(@tanstack/react-query@5.101.2(react@19.2.7))(@tanstack/react-router@1.170.18(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@tanstack/router-core@1.171.15)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@tanstack/react-start':
-        specifier: 1.168.32
+        specifier: catalog:start
         version: 1.168.32(crossws@0.4.10(srvx@0.11.22))(esbuild@0.28.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(rolldown@1.1.5)(rollup@4.62.2)(vite@8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))
       react:
-        specifier: ^19.2.7
+        specifier: catalog:react
         version: 19.2.7
       react-dom:
-        specifier: ^19.2.7
+        specifier: catalog:react
         version: 19.2.7(react@19.2.7)
     devDependencies:
       '@types/node':
@@ -121,25 +149,25 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       '@tanstack/react-form':
-        specifier: ^1.33.2
+        specifier: catalog:react
         version: 1.33.2(@tanstack/react-start@1.168.32(crossws@0.4.10(srvx@0.11.22))(esbuild@0.28.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(rolldown@1.1.5)(rollup@4.62.2)(vite@8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@tanstack/react-router':
-        specifier: 1.170.18
+        specifier: catalog:start
         version: 1.170.18(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@tanstack/react-router-ssr-query':
-        specifier: 1.167.1
+        specifier: catalog:start
         version: 1.167.1(@tanstack/query-core@5.101.2)(@tanstack/react-query@5.101.2(react@19.2.7))(@tanstack/react-router@1.170.18(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@tanstack/router-core@1.171.15)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@tanstack/react-start':
-        specifier: 1.168.32
+        specifier: catalog:start
         version: 1.168.32(crossws@0.4.10(srvx@0.11.22))(esbuild@0.28.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(rolldown@1.1.5)(rollup@4.62.2)(vite@8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))
       qrcode.react:
         specifier: ^4.2.0
         version: 4.2.0(react@19.2.7)
       react:
-        specifier: ^19.2.7
+        specifier: catalog:react
         version: 19.2.7
       react-dom:
-        specifier: ^19.2.7
+        specifier: catalog:react
         version: 19.2.7(react@19.2.7)
       zod:
         specifier: ^4.4.3
@@ -206,25 +234,25 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       '@tanstack/react-form':
-        specifier: ^1.33.2
+        specifier: catalog:react
         version: 1.33.2(@tanstack/react-start@1.168.32(crossws@0.4.10(srvx@0.11.22))(esbuild@0.28.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(rolldown@1.1.5)(rollup@4.62.2)(vite@8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@tanstack/react-router':
-        specifier: 1.170.18
+        specifier: catalog:start
         version: 1.170.18(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@tanstack/react-router-ssr-query':
-        specifier: 1.167.1
+        specifier: catalog:start
         version: 1.167.1(@tanstack/query-core@5.101.2)(@tanstack/react-query@5.101.2(react@19.2.7))(@tanstack/react-router@1.170.18(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@tanstack/router-core@1.171.15)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@tanstack/react-start':
-        specifier: 1.168.32
+        specifier: catalog:start
         version: 1.168.32(crossws@0.4.10(srvx@0.11.22))(esbuild@0.28.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(rolldown@1.1.5)(rollup@4.62.2)(vite@8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))
       lucide-react:
         specifier: ^1.27.0
         version: 1.27.0(react@19.2.7)
       react:
-        specifier: ^19.2.7
+        specifier: catalog:react
         version: 19.2.7
       react-dom:
-        specifier: ^19.2.7
+        specifier: catalog:react
         version: 19.2.7(react@19.2.7)
       redis:
         specifier: ^4.7.0
@@ -233,7 +261,7 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
       zustand:
-        specifier: ^5.0.8
+        specifier: catalog:react
         version: 5.0.14(@types/react@19.2.17)(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7))
     devDependencies:
       '@playwright/test':
@@ -289,7 +317,7 @@ importers:
         specifier: ^19.2.17
         version: 19.2.17
       react:
-        specifier: ^19.2.7
+        specifier: catalog:react
         version: 19.2.7
       typescript:
         specifier: ^5.6.0
@@ -313,7 +341,7 @@ importers:
         specifier: workspace:*
         version: link:../ui
       '@tanstack/react-form':
-        specifier: ^1.33.2
+        specifier: catalog:react
         version: 1.33.2(@tanstack/react-start@1.168.32(crossws@0.4.10(srvx@0.11.22))(esbuild@0.28.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(rolldown@1.1.5)(rollup@4.62.2)(vite@8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       zod:
         specifier: ^4.4.3
@@ -341,10 +369,10 @@ importers:
         specifier: ^0.7.1
         version: 0.7.1
       react:
-        specifier: ^19.2.7
+        specifier: catalog:react
         version: 19.2.7
       react-dom:
-        specifier: ^19.2.7
+        specifier: catalog:react
         version: 19.2.7(react@19.2.7)
       tailwind-merge:
         specifier: ^3.6.0
@@ -365,7 +393,7 @@ importers:
   packages/query:
     dependencies:
       '@tanstack/react-query':
-        specifier: ^5.101.2
+        specifier: catalog:react
         version: 5.101.2(react@19.2.7)
     devDependencies:
       '@types/node':
@@ -397,7 +425,7 @@ importers:
         specifier: ^0.99.0
         version: 0.99.0(typescript@5.9.3)
       '@tanstack/react-query':
-        specifier: ^5.101.2
+        specifier: catalog:react
         version: 5.101.2(react@19.2.7)
       '@types/node':
         specifier: ^24.0.0
@@ -459,7 +487,7 @@ importers:
         version: 2.2.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(vitest@4.1.10)
     devDependencies:
       '@tanstack/react-router':
-        specifier: 1.170.18
+        specifier: catalog:start
         version: 1.170.18(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@types/node':
         specifier: ^24.0.0
@@ -471,10 +499,10 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       react:
-        specifier: ^19.2.7
+        specifier: catalog:react
         version: 19.2.7
       react-dom:
-        specifier: ^19.2.7
+        specifier: catalog:react
         version: 19.2.7(react@19.2.7)
       typescript:
         specifier: ^5.6.0
@@ -520,10 +548,10 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       react:
-        specifier: ^19.2.7
+        specifier: catalog:react
         version: 19.2.7
       react-dom:
-        specifier: ^19.2.7
+        specifier: catalog:react
         version: 19.2.7(react@19.2.7)
       storybook:
         specifier: ^10.5.5

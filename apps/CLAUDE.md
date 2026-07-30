@@ -27,8 +27,13 @@ Per-app scripts (`pnpm --filter ./apps/<app> <script>`): `dev` (`vite dev`), `bu
   for wallow-web). `src/routeTree.gen.ts` regenerates as a side effect of `vite dev`/`vite
 build` — never hand-edit it, and do not add a `routes:generate` script or `tsr.config.json`.
 - Every app spells out `server.port` in its `vite.config.ts` (`vite dev` binds 3000 when
-  `PORT` is unset) and pins `@tanstack/react-start`/`react-router`/`react-router-ssr-query`
-  exactly, with no `^`.
+  `PORT` is unset). `@tanstack/react-start`/`react-router`/`react-router-ssr-query` are still
+  pinned exactly, but the pin now lives in the **`start` catalog** in `pnpm-workspace.yaml`:
+  app manifests say `"catalog:start"`, and the exact version is edited in one place. Ranged
+  shared deps (`react`, `react-dom`, `@tanstack/react-form`/`react-query`, `zustand`) come from
+  the sibling **`react` catalog**. Do not collapse the two — a library peering
+  `@tanstack/react-router@^1.170.18` against an app pinning `1.170.18` exactly is correct
+  practice, not drift, and stays a literal.
 
 - **Tests**: `test` is vitest with the two-project node/browser split from
   `@bc-solutions-coder/testing`; component specs run in real headless Chromium, never jsdom.

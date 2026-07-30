@@ -35,6 +35,29 @@ function readConfigText(relativePath: string): string {
   return readFileSync(join(packageDir, relativePath), "utf8");
 }
 
+/**
+ * Reads one entry out of a named catalog in `pnpm-workspace.yaml`.
+ *
+ * Shared version ranges live in catalogs, so a manifest assertion that stopped at
+ * `"catalog:react"` would assert the indirection and nothing about the version.
+ * This follows the ref so the range stays pinned by a test.
+ *
+ * A regex rather than a YAML parser: this package has no yaml dependency and
+ * should not grow one for two lines, and the same read-the-artifact-off-disk
+ * idiom is what `docker-workspace-copies.test.ts` already does.
+ */
+function catalogEntry(catalog: string, packageName: string): string | undefined {
+  const workspace: string = readFileSync(join(repoRoot, "pnpm-workspace.yaml"), "utf8");
+  const blockPattern = new RegExp(String.raw`^  ${catalog}:\n((?:^ {4}.*\n|^\s*\n)*)`, "mu");
+  const block: string = blockPattern.exec(workspace)?.[1] ?? "";
+  const entryPattern = new RegExp(
+    String.raw`^ {4}"?${packageName.replaceAll("/", String.raw`\/`)}"?:\s*(\S+)\s*$`,
+    "mu",
+  );
+
+  return entryPattern.exec(block)?.[1];
+}
+
 function stripLineComments(source: string): string {
   return source.replaceAll(/^\s*\/\/.*$/gmu, "");
 }
@@ -100,7 +123,12 @@ describe("packages/forms scaffold", () => {
     // TanStack Query arrives ONLY through the workspace facade — see the peer
     // rationale below for why that is a regular dependency and not a peer.
     expect(deps?.["@bc-solutions-coder/query"]).toBe("workspace:*");
-    expect(deps?.["@tanstack/react-form"]).toMatch(/^\^1\./u);
+    // react-form's range lives in the `react` catalog in pnpm-workspace.yaml, so
+    // this manifest names the catalog rather than a literal. Follow the
+    // indirection instead of just accepting the ref — otherwise "on v1" stops
+    // being asserted anywhere and a major bump lands silently.
+    expect(deps?.["@tanstack/react-form"]).toBe("catalog:react");
+    expect(catalogEntry("react", "@tanstack/react-form")).toMatch(/^\^1\./u);
     // zod v4 — the validation library the catalog's schemas are written against.
     expect(deps?.zod).toMatch(/^\^4\./u);
   });

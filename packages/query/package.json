@@ -20,7 +20,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.101.2"
+    "@tanstack/react-query": "catalog:react"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
