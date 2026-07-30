@@ -10,8 +10,9 @@ namespace Wallow.AppHost.Tests;
 /// BFF request under 'pnpm backend' 500s because loadBffConfigFromEnv() throws on the
 /// missing variables, and wallow-auth's passthrough proxy cannot resolve its upstream API.
 ///
-/// Known-correct target values come from the bead (Aspire-local ports) and mirror the
-/// containerised values proven in docker/docker-compose.test.yml.
+/// Known-correct target values are the Aspire-local ports set in Wallow.AppHost/Program.cs.
+/// They deliberately do NOT match docker/docker-compose.test.yml, which uses :5050 for both the
+/// issuer and the metadata URL because the containerised origins differ. Do not "align" them.
 /// </summary>
 public sealed class AppHostEnvironmentWiringTests : IClassFixture<AppHostFixture>
 {
@@ -51,7 +52,13 @@ public sealed class AppHostEnvironmentWiringTests : IClassFixture<AppHostFixture
     {
         Dictionary<string, string> env = await GetEnvironmentAsync(WebResourceName);
 
-        env.Should().ContainKey("OIDC_ISSUER").WhoseValue.Should().Be("http://localhost:5001");
+        // The dev issuer is the wallow-auth origin, not the API's: appsettings.Development.json
+        // sets AuthUrl=http://localhost:3002 and OpenIddictIssuerResolver echoes it, so the client
+        // must EXPECT :3002 while fetching discovery from the API directly on :5001. Assert both:
+        // either one alone permits a mismatched pair that would break the real flow.
+        env.Should().ContainKey("OIDC_ISSUER").WhoseValue.Should().Be("http://localhost:3002");
+        env.Should().ContainKey("OIDC_METADATA_URL").WhoseValue.Should()
+            .Be("http://localhost:5001/.well-known/openid-configuration");
         env.Should().ContainKey("OIDC_CLIENT_ID").WhoseValue.Should().Be("wallow-web-client");
         env.Should().ContainKey("OIDC_CLIENT_SECRET").WhoseValue.Should().Be("wallow-web-secret");
         env.Should().ContainKey("OIDC_REDIRECT_URI").WhoseValue.Should().Be("http://localhost:3000/bff/callback");
