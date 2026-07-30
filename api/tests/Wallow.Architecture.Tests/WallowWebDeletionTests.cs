@@ -35,12 +35,35 @@ public class WallowWebDeletionTests
         "workflows",
         "deploy.yml");
 
-    private static readonly string _bffSurfaceTestPath = Path.Combine(
-        _repoRoot,
-        "apps",
-        "wallow-web",
+    private static readonly string _reactWebAppDir = Path.Combine(_repoRoot, "apps", "wallow-web");
+
+    private static readonly string _oldH3ServerPath = Path.Combine(_reactWebAppDir, "server.ts");
+    private static readonly string _oldH3BffServerPath = Path.Combine(
+        _reactWebAppDir,
+        "src",
+        "lib",
+        "bff-server.ts");
+
+    private static readonly string _oldBffSurfaceTestPath = Path.Combine(
+        _reactWebAppDir,
         "src",
         "bff-surface.test.ts");
+
+    private static readonly string _bffHostPath = Path.Combine(_reactWebAppDir, "src", "lib", "bff.ts");
+
+    private static readonly string _bffRoutePath = Path.Combine(
+        _reactWebAppDir,
+        "src",
+        "routes",
+        "bff",
+        "$.ts");
+
+    private static readonly string _apiProxyRoutePath = Path.Combine(
+        _reactWebAppDir,
+        "src",
+        "routes",
+        "api",
+        "$.ts");
 
     // ---- Physical deletion of the Blazor projects --------------------------------------
 
@@ -144,28 +167,35 @@ public class WallowWebDeletionTests
             "api/CLAUDE.md's host/component tests line must drop the deleted Wallow.Web.Tests reference");
     }
 
-    // ---- Cleanup folded into this bead: stale bff-surface guard -------------------------
+    // ---- BFF host surface of the React app ---------------------------------------------
 
     [Fact]
-    public void BffSurfaceTest_ShouldNotGuard_OldH3Host()
+    public void ReactWebApp_ShouldNotKeep_OldH3BffHost()
     {
-        // The Wallow-8w1h.2.2 guard pinned the OLD pre-migration h3 BFF host by reading
-        // apps/wallow-web/server.ts; task 3.3 moved those routes into src/lib/bff-server.ts,
-        // so the guard now reads the wrong file and fails. It must be removed, or rewritten to
-        // guard the new host (never referencing ../server.ts as the route source). A deleted
-        // file trivially satisfies this.
-        if (!File.Exists(_bffSurfaceTestPath))
-        {
-            return;
-        }
+        File.Exists(_oldH3ServerPath).Should().BeFalse(
+            "apps/wallow-web/server.ts (the standalone h3 host that mounted the hand-rolled BFF) " +
+            "must be deleted now that TanStack Start server routes host the app");
+        File.Exists(_oldH3BffServerPath).Should().BeFalse(
+            "apps/wallow-web/src/lib/bff-server.ts (the hand-rolled h3 BFF app) must be deleted now " +
+            "that src/lib/bff.ts wraps the SDK's createWallowBffServer preset");
+        File.Exists(_oldBffSurfaceTestPath).Should().BeFalse(
+            "apps/wallow-web/src/bff-surface.test.ts guarded the deleted h3 host and must not come " +
+            "back; the surviving host is covered by src/lib/bff.test.ts");
+    }
 
-        string source = File.ReadAllText(_bffSurfaceTestPath);
+    [Fact]
+    public void ReactWebApp_ShouldRouteBffTraffic_ThroughTheStartHost()
+    {
+        File.Exists(_bffHostPath).Should().BeTrue(
+            "apps/wallow-web/src/lib/bff.ts is the post-migration BFF host and must exist for the " +
+            "deletion of the h3 host above to mean anything");
 
-        source.Should().NotContain(
-            "../server.ts",
-            "apps/wallow-web/src/bff-surface.test.ts guards the old h3 host in server.ts, whose BFF " +
-            "routes moved to src/lib/bff-server.ts (task 3.3); the stale guard must be removed or " +
-            "rewritten to read the new host so `pnpm test` is green");
+        File.ReadAllText(_bffRoutePath).Should().Contain(
+            "../../lib/bff",
+            "the /bff/** Start server route must reach the BFF host through src/lib/bff.ts");
+        File.ReadAllText(_apiProxyRoutePath).Should().Contain(
+            "../../lib/bff",
+            "the /api/** Start server route must reach the BFF proxy through src/lib/bff.ts");
     }
 
     private static string FindApiRoot()
