@@ -96,7 +96,7 @@ export const Route = createFileRoute("/bff/$")({
 
 Build the preset **lazily and memoise it at module scope** so importing a route module does
 not construct it, and so a config throw cannot take down SSR at bundle-evaluation time.
-`apps/wallow-web/src/lib/bff.ts` (BFF) and `apps/wallow-auth/src/lib/api-passthrough.ts`
+`apps/wallow-web/src/app/lib/bff.ts` (BFF) and `apps/wallow-auth/src/shared/lib/api-passthrough.ts`
 (passthrough) are the reference implementations; the environment variables each preset reads
 are tabulated in [TypeScript SDK → Environment variables](typescript-sdk.md#environment-variables).
 
@@ -146,7 +146,7 @@ rather than deprecated, and why reaching for one is now a lint error (see
 `src/start.ts` lands in **both** module graphs — Start aliases it as the client entry too — so
 keep `@bc-solutions-coder/sdk/server` and every other Node-only import out of it. Read
 `process.env` inside the server callback, which the browser never runs.
-`apps/wallow-web/src/start.ts` is the reference, including the `internalOrigin` resolution a
+`apps/wallow-web/src/app/start.ts` is the reference, including the `internalOrigin` resolution a
 containerised deployment needs.
 
 ## 5. The first feature: `src/features/<name>/api.ts`

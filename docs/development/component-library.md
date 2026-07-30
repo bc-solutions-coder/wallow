@@ -53,7 +53,7 @@ components from the barrel ships three components.
    subpath alone, so styling internals never widen the package's headline API.
 2. **The module graph is not tree-shaken.** A dev server or a Vitest run links the whole barrel,
    including components you never render. If a spec stubs a dependency that some unrelated barrel
-   member imports, the barrel fails to link — `apps/wallow-web/src/components/DashboardNav.tsx`
+   member imports, the barrel fails to link — `apps/wallow-web/src/shared/components/DashboardNav.tsx`
    imports `@bc-solutions-coder/ui/navigation-menu` for exactly this reason (the barrel also pulls
    in `FocusOnNavigate`, which needs router context its specs do not provide).
 

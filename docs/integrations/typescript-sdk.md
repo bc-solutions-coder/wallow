@@ -213,9 +213,10 @@ wrote. Each handler is a plain `(request: Request) => Promise<Response>`; there 
 no framework-specific handler object to unwrap.
 
 A runnable reference host lives in the repository at `apps/wallow-web/` — a
-TanStack Start app that mounts exactly these routes (`src/routes/bff/$.ts`,
-`src/routes/api/$.ts`, `src/routes/health.ts`, over `src/lib/bff.ts`) and consumes
-the proxy from its dashboard.
+TanStack Start app that mounts exactly these routes (`src/app/routes/bff/$.ts`,
+`src/app/routes/api/$.ts`, `src/app/routes/health.ts`, over `src/app/lib/bff.ts`) and
+consumes the proxy from its dashboard. The `app/` prefix is that app's host zone; a
+flat app mounts the same files directly under `src/`.
 
 ### The pure passthrough: `createApiPassthrough()`
 
@@ -240,7 +241,7 @@ else `http://localhost:5001`. To get real client IPs into the API's rate limiter
 host stamps the peer address onto the `x-wallow-client-ip` header before calling
 `handle()`; the passthrough appends it to any inbound `X-Forwarded-For` chain and
 strips the seam header before the upstream hop. `apps/wallow-auth/` is the reference
-consumer (`src/lib/api-passthrough.ts` plus three splat routes).
+consumer (`src/shared/lib/api-passthrough.ts` plus three splat routes).
 
 ### The `/api` proxy and silent refresh
 
@@ -582,7 +583,7 @@ Nothing here reads module scope, so there is no `AsyncLocalStorage` to own and n
 register. The old request-context seam — `configureSsrClient`, `getSsrRequestContext`,
 `setSsrRequestContextResolver`, `wireSsrCookieInterceptor` — existed only to feed per-request
 values to a module-global client, and is deleted along with it.
-`apps/wallow-web/src/start.ts` is the reference host: it mints the instance in a global request
+`apps/wallow-web/src/app/start.ts` is the reference host: it mints the instance in a global request
 middleware and `getRouter()` lifts it into the router context.
 
 ---

@@ -22,10 +22,24 @@ Per-app scripts (`pnpm --filter ./apps/<app> <script>`): `dev` (`vite dev`), `bu
 - **Hosting is per-app and owned by Start.** Each app has one `vite.config.ts`
   (`tanstackStart` + `react` + `nitro` + `wallowStyles`) and no host files: `server.ts`,
   `dev-server.ts`, `vite.ssr.config.ts`, and the hand-rolled host-runtime `./server` presets
-  the deleted shared frontend-runtime package used to ship are all gone. Backend-facing surface = **server routes** under `src/routes/**` delegating to
+  the deleted shared frontend-runtime package used to ship are all gone. Backend-facing surface = **server routes** under `src/app/routes/**` delegating to
   an SDK preset (`createApiPassthrough` for wallow-auth/minimal-app, `createWallowBffServer`
-  for wallow-web). `src/routeTree.gen.ts` regenerates as a side effect of `vite dev`/`vite
+  for wallow-web). `src/app/routeTree.gen.ts` regenerates as a side effect of `vite dev`/`vite
 build` — never hand-edit it, and do not add a `routes:generate` script or `tsr.config.json`.
+- **`wallow-web` and `wallow-auth` are zoned; `examples/minimal-app` is deliberately not.**
+  In the two zoned apps `src/` is `app/` (routes, router, entries, server-only modules),
+  `features/<name>/` (one directory per screen or vertical, reachable only through its
+  `index.ts` barrel) and `shared/` (limited to `components`, `hooks`, `lib`, `stores`,
+  `testing`, `types`). Cross-zone imports are spelled as aliases — `@app/*`,
+  `@features/<name>`, `@shared/*` — declared once in the app's `aliases.ts` and mirrored by
+  `vite.config.ts`, `vitest.config.ts` and `tsconfig.json`. Relative specifiers stay correct
+  _within_ a zone. Both halves are enforced by specs, not convention: `src/alias-map.test.ts`
+  pins the three mirrors in agreement, and `src/zone-dag.test.ts` resolves every specifier and
+  judges the edge. Two consequences worth knowing before you move a file: server-only modules
+  belong in `app/` (that is what keeps `node:crypto`/`openid-client` out of the client graph),
+  and `srcDirectory: "src/app"` in `vite.config.ts` must be paired with
+  `importProtection: { include: ["src/**"] }` or Start scopes its env-boundary check to
+  `src/app` alone and silently stops checking `features/` and `shared/`.
 - Every app spells out `server.port` in its `vite.config.ts` (`vite dev` binds 3000 when
   `PORT` is unset). `@tanstack/react-start`/`react-router`/`react-router-ssr-query` are still
   pinned exactly, but the pin now lives in the **`start` catalog** in `pnpm-workspace.yaml`:

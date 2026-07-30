@@ -464,7 +464,7 @@ already implements the pieces of it that are easy to get subtly wrong by hand:
   arguments to `createWallowSdk({ baseUrl, cookieHeader, internalOrigin })`,
   which builds an instance owning its own client, cookie, and interceptor list —
   so nothing is shared between concurrent renders and no `node:` import leaks
-  into the browser bundle. `apps/wallow-web/src/start.ts` is the reference
+  into the browser bundle. `apps/wallow-web/src/app/start.ts` is the reference
   consumer: its global request middleware mints one instance per request and the
   router lifts it into the route context. See
   [Per-request instances for server-rendered loaders](typescript-sdk.md#per-request-instances-for-server-rendered-loaders).

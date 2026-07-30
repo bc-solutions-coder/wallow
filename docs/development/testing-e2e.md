@@ -161,7 +161,7 @@ is identical apart from the port.
 ## React Readiness
 
 Both apps stamp `data-app-ready="true"` on the document once React hydration completes, emitted
-by `src/components/ready-indicator.tsx`. Wait for that marker before interacting with a page:
+by `src/shared/components/ready-indicator.tsx`. Wait for that marker before interacting with a page:
 
 ```ts
 await expect(page.locator("[data-app-ready='true']")).toBeAttached();
