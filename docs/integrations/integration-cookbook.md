@@ -22,7 +22,7 @@ you can read a working version rather than trusting a snippet.
 
 **Inside a fork of this repository**, a new app under `apps/` depends on the five workspace
 packages as `workspace:*` runtime dependencies — see
-[Frontend Setup → Depend on all five packages](../development/frontend-setup.md#1-depend-on-all-five-packages).
+[Frontend Setup → Depend on the five core packages](../development/frontend-setup.md#1-depend-on-the-five-core-packages).
 
 **Outside the workspace**, `@bc-solutions-coder/sdk` and `@bc-solutions-coder/styles` are
 published to GitHub Packages under the repository owner's scope, so point the scope at that
