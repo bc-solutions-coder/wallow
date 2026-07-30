@@ -4,6 +4,8 @@ import react from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
 
+import { resolveAlias } from "./aliases";
+
 /**
  * The one Vite config wallow-web has: `vite dev` serves it and `vite build`
  * emits both environments plus the Nitro server bundle (`.output/server/index.mjs`
@@ -48,6 +50,10 @@ export default defineConfig({
       // reads `useSyncExternalStore` off whatever this alias resolves to.
       { find: /^use-sync-external-store\/shim$/u, replacement: "react" },
       { find: /^use-sync-external-store\/shim\/index\.js$/u, replacement: "react" },
+      // The three zone aliases, from the app-local map that `vitest.config.ts`
+      // and `tsconfig.json` also mirror. Appended AFTER the shim regexes so the
+      // anchored rewrites still match first.
+      ...Object.entries(resolveAlias).map(([find, replacement]) => ({ find, replacement })),
     ],
     // One React in the graph, from any resolution path.
     dedupe: ["react", "react-dom"],

@@ -3,6 +3,8 @@ import { fileURLToPath } from "node:url";
 import { createVitestProjects } from "@bc-solutions-coder/testing";
 import { defineConfig } from "vitest/config";
 
+import { resolveAlias } from "./aliases";
+
 /**
  * Vitest harness for wallow-web — the shared node + real-Chromium two-project
  * split from `@bc-solutions-coder/testing`'s `createVitestProjects` preset,
@@ -88,8 +90,11 @@ export default defineConfig({
   },
   test: {
     projects: [
-      node,
-      { ...browser, resolve: { alias: { "node:async_hooks": nodeAsyncHooksShim } } },
+      { ...node, resolve: { alias: resolveAlias } },
+      {
+        ...browser,
+        resolve: { alias: { ...resolveAlias, "node:async_hooks": nodeAsyncHooksShim } },
+      },
     ],
   },
 });
