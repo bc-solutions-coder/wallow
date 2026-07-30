@@ -3,7 +3,7 @@ import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow
 import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { chooseOption, expectCatalogSelect } from "../../../test/catalog-select";
+import { chooseOption, expectCatalogSelect } from "@shared/testing/catalog-select";
 import {
   byTestId,
   expectClasses,
@@ -12,7 +12,7 @@ import {
   parentOf,
   waitForTestId,
   within,
-} from "../../../test/style-contract";
+} from "@shared/testing/style-contract";
 import { CreateInquiryForm } from "./CreateInquiryForm";
 
 /**

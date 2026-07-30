@@ -3,8 +3,8 @@ import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow
 import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { chooseOption, expectCatalogSelect } from "../../../test/catalog-select";
-import { byTestId, waitForTestId } from "../../../test/style-contract";
+import { chooseOption, expectCatalogSelect } from "@shared/testing/catalog-select";
+import { byTestId, waitForTestId } from "@shared/testing/style-contract";
 import { RegisterAppForm } from "./RegisterAppForm";
 
 /** The transport backing each render, rebuilt per test. */

@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import {
+  InquiryDetail,
   inquiriesGetByIdOptions,
   inquiriesGetCommentsOptions,
-} from "../../../features/inquiries/api";
-import { InquiryDetail } from "../../../features/inquiries/components/InquiryDetail";
+} from "@features/inquiries";
 
 /**
  * The dashboard inquiry-detail route (Wallow-8w1h.7.4). Mirrors the canonical

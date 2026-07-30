@@ -4,7 +4,7 @@ import { render } from "vitest-browser-react";
 import { describe, expect, it, vi } from "vitest";
 
 import { PublicLayout } from "./PublicLayout";
-import { docsUrl, getStartedHref, repositoryUrl } from "../lib/site-links";
+import { docsUrl, getStartedHref, repositoryUrl } from "@shared/lib/site-links";
 
 // `PublicLayout`'s nav uses TanStack `Link`s in the green implementation; stub
 // `Link` to a plain anchor (passing `to` through as `href`) so it renders in

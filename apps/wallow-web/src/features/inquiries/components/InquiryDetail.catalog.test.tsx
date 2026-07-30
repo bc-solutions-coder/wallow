@@ -1,12 +1,12 @@
 import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 
-import { routeHarness } from "../../../test/harness-routes";
+import { routeHarness } from "@shared/testing/harness-routes";
 import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { chooseOption, expectCatalogSelect } from "../../../test/catalog-select";
-import { byTestId, waitForTestId } from "../../../test/style-contract";
+import { chooseOption, expectCatalogSelect } from "@shared/testing/catalog-select";
+import { byTestId, waitForTestId } from "@shared/testing/style-contract";
 import { InquiryDetail } from "./InquiryDetail";
 import { INQUIRY_STATUSES } from "../statuses";
 

@@ -17,7 +17,7 @@
 
 import { appIconUrl, forkBranding } from "@bc-solutions-coder/styles";
 
-import { getStartedHref, repositoryUrl } from "../../../lib/site-links";
+import { getStartedHref, repositoryUrl } from "@shared/lib/site-links";
 
 interface Feature {
   emoji: string;

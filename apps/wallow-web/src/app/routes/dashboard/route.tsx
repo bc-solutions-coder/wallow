@@ -1,7 +1,7 @@
 import { ensureCurrentUser, isAdmin, requireAuth } from "@bc-solutions-coder/auth";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
-import { DashboardLayout } from "../../components/DashboardLayout";
+import { DashboardLayout } from "@shared/components/DashboardLayout";
 
 /**
  * The `/dashboard` layout route (Wallow-8w1h.8.1) — the authenticated shell that

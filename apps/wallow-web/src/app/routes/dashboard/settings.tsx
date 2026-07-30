@@ -1,9 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { mfaGetStatusOptions } from "../../features/mfa/api";
-import { MfaSettingsSection } from "../../features/mfa/components/MfaSettingsSection";
-import { usersGetCurrentUserOptions } from "../../features/settings/api";
-import { ProfileSection } from "../../features/settings/components/ProfileSection";
+import { mfaGetStatusOptions, MfaSettingsSection } from "@features/mfa";
+import { ProfileSection, usersGetCurrentUserOptions } from "@features/settings";
 
 /**
  * Settings route (Wallow-8w1h.6.5) — composes the profile section and the MFA

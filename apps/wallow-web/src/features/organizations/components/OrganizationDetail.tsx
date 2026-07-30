@@ -17,7 +17,7 @@ import { Button, ErrorBanner, Field, Input, MutedText } from "@bc-solutions-code
 import { useState } from "react";
 import { useRouteContext } from "@tanstack/react-router";
 
-import { SelectControl, type SelectControlOption } from "../../../components/SelectControl";
+import { SelectControl, type SelectControlOption } from "@shared/components/SelectControl";
 import {
   clientsCreateMutation,
   clientsGetByTenantOptions,

@@ -1,10 +1,10 @@
 import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 
-import { routeHarness } from "../../../test/harness-routes";
+import { routeHarness } from "@shared/testing/harness-routes";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { expectCatalogSelect } from "../../../test/catalog-select";
+import { expectCatalogSelect } from "@shared/testing/catalog-select";
 import {
   allByTestId,
   byTestId,
@@ -13,7 +13,7 @@ import {
   expectTokenColorsOnly,
   waitForTestId,
   within,
-} from "../../../test/style-contract";
+} from "@shared/testing/style-contract";
 import { InquiryDetail } from "./InquiryDetail";
 
 /** The transport backing each render, rebuilt per test. */

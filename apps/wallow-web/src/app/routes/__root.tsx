@@ -16,8 +16,8 @@ import {
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import type { ReactElement, ReactNode } from "react";
 
-import { PublicLayout } from "../components/PublicLayout";
-import { ReadyIndicator } from "../components/ready-indicator";
+import { PublicLayout } from "@shared/components/PublicLayout";
+import { ReadyIndicator } from "@shared/components/ready-indicator";
 
 // Side-effect import, NOT `?url` + a head() link. Start builds two Vite
 // environments; a `?url` import resolved in the SSR graph yields a CSS hash the

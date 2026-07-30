@@ -10,7 +10,7 @@ import {
   parentOf,
   waitForTestId,
   within,
-} from "../../../test/style-contract";
+} from "@shared/testing/style-contract";
 import { InquiryList } from "./InquiryList";
 
 /** The transport backing each render, rebuilt per test. */

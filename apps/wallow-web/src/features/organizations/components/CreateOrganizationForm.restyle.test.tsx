@@ -10,7 +10,7 @@ import {
   expectTokenColorsOnly,
   parentOf,
   waitForTestId,
-} from "../../../test/style-contract";
+} from "@shared/testing/style-contract";
 import { CreateOrganizationForm } from "./CreateOrganizationForm";
 
 /** The transport backing each render, rebuilt per test. */

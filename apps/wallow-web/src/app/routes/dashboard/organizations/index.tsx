@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { organizationsGetAllOptions } from "../../../features/organizations/api";
-import { CreateOrganizationForm } from "../../../features/organizations/components/CreateOrganizationForm";
-import { OrganizationList } from "../../../features/organizations/components/OrganizationList";
+import {
+  CreateOrganizationForm,
+  organizationsGetAllOptions,
+  OrganizationList,
+} from "@features/organizations";
 
 /**
  * The dashboard organizations index route (Wallow-8w1h.4.2) — the CANONICAL

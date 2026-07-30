@@ -1,7 +1,7 @@
 import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 
-import { routeHarness } from "../../../test/harness-routes";
+import { routeHarness } from "@shared/testing/harness-routes";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {
@@ -13,7 +13,7 @@ import {
   parentOf,
   waitForTestId,
   within,
-} from "../../../test/style-contract";
+} from "@shared/testing/style-contract";
 import { OrganizationDetail } from "./OrganizationDetail";
 
 /** The transport backing each render, rebuilt per test. */

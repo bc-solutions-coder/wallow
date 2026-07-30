@@ -25,8 +25,8 @@ import { Button, Card, Checkbox, ErrorBanner, MutedText } from "@bc-solutions-co
 import { useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
 
-import { SelectControl, type SelectControlOption } from "../../../components/SelectControl";
-import { errorText } from "../../../lib/error-text";
+import { SelectControl, type SelectControlOption } from "@shared/components/SelectControl";
+import { errorText } from "@shared/lib/error-text";
 import {
   inquiriesAddCommentMutation,
   inquiriesGetByIdOptions,

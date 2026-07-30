@@ -2,8 +2,8 @@ import { ensureCurrentUser } from "@bc-solutions-coder/auth";
 import { forkBranding } from "@bc-solutions-coder/styles";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
-import { PublicLayout } from "../components/PublicLayout";
-import { LandingPage } from "../features/landing/components/LandingPage";
+import { PublicLayout } from "@shared/components/PublicLayout";
+import { LandingPage } from "@features/landing";
 
 /**
  * The public home page (Wallow-8w1h.2.2 / Wallow-ffpq.3.6) — the anonymous

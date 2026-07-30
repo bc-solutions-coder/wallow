@@ -3,7 +3,7 @@ import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow
 import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { chooseOption } from "../../../test/catalog-select";
+import { chooseOption } from "@shared/testing/catalog-select";
 import { CreateInquiryForm } from "./CreateInquiryForm";
 
 /**

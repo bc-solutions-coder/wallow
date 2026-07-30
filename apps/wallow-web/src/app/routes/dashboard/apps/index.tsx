@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { appsGetUserAppsOptions } from "../../../features/apps/api";
-import { AppList } from "../../../features/apps/components/AppList";
+import { AppList, appsGetUserAppsOptions } from "@features/apps";
 
 /**
  * The dashboard apps index route (Wallow-8w1h.5.2) — copies the CANONICAL

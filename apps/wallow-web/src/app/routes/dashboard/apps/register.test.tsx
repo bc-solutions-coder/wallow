@@ -3,7 +3,7 @@ import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/s
 import { page } from "vitest/browser";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { getRouter } from "../../../router";
+import { getRouter } from "@app/router";
 import { Route } from "./register";
 
 /**

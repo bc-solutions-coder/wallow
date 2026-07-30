@@ -11,7 +11,7 @@ import {
   parentOf,
   waitForTestId,
   within,
-} from "../../../test/style-contract";
+} from "@shared/testing/style-contract";
 import { MemberList } from "./MemberList";
 
 /** The transport backing each render, rebuilt per test. */

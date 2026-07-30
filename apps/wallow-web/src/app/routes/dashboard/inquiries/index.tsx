@@ -1,8 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { inquiriesGetAllOptions } from "../../../features/inquiries/api";
-import { CreateInquiryForm } from "../../../features/inquiries/components/CreateInquiryForm";
-import { InquiryList } from "../../../features/inquiries/components/InquiryList";
+import { CreateInquiryForm, inquiriesGetAllOptions, InquiryList } from "@features/inquiries";
 
 /**
  * The dashboard inquiries index route (Wallow-8w1h.7.2) — copies the CANONICAL

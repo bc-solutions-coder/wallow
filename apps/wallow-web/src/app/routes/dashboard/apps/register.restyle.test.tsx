@@ -9,7 +9,7 @@ import {
   expectTag,
   expectTokenColorsOnly,
   waitForTestId,
-} from "../../../test/style-contract";
+} from "@shared/testing/style-contract";
 import { Route } from "./register";
 
 /**

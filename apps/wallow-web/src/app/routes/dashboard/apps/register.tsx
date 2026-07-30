@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { RegisterAppForm } from "../../../features/apps/components/RegisterAppForm";
+import { RegisterAppForm } from "@features/apps";
 
 /**
  * The dashboard register-app route (Wallow-ffpq.3.5) — the intended mount point

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 import { appIconUrl, forkBranding } from "@bc-solutions-coder/styles";
 
-import { docsUrl, getStartedHref, repositoryUrl } from "../lib/site-links";
+import { docsUrl, getStartedHref, repositoryUrl } from "@shared/lib/site-links";
 
 /**
  * PublicLayout (Wallow-ffpq.3.6) — the chrome wrapped around the public

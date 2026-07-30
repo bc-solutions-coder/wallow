@@ -3,8 +3,8 @@ import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow
 import { page } from "vitest/browser";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { getRouter } from "../../router";
-import { routeHarness } from "../../test/harness-routes";
+import { getRouter } from "@app/router";
+import { routeHarness } from "@shared/testing/harness-routes";
 import { Route } from "./settings";
 
 /**

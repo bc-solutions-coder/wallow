@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getRouter } from "../../../router";
+import { getRouter } from "@app/router";
 import { Route } from "./$orgId";
 
 /**

@@ -6,7 +6,7 @@ import { createSdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { type AnyRedirect, isRedirect } from "@tanstack/react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getRouter } from "../../router";
+import { getRouter } from "@app/router";
 import { Route } from "./route";
 
 /**

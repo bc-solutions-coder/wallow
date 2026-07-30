@@ -4,7 +4,7 @@ import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 
-import { getRouter } from "../router";
+import { getRouter } from "@app/router";
 import { Route } from "./bff-demo";
 
 /** The transport backing each render, rebuilt per test. */

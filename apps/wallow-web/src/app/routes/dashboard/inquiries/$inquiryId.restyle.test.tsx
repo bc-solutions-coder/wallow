@@ -1,10 +1,14 @@
 import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 
-import { routeHarness } from "../../../test/harness-routes";
+import { routeHarness } from "@shared/testing/harness-routes";
 import { beforeEach, describe, it, vi } from "vitest";
 
-import { expectClasses, expectTokenColorsOnly, waitForTestId } from "../../../test/style-contract";
+import {
+  expectClasses,
+  expectTokenColorsOnly,
+  waitForTestId,
+} from "@shared/testing/style-contract";
 import { Route } from "./$inquiryId";
 
 /**

@@ -4,7 +4,7 @@ import { render } from "vitest-browser-react";
 import { describe, expect, it } from "vitest";
 
 import { LandingPage } from "./LandingPage";
-import { getStartedHref, repositoryUrl } from "../../../lib/site-links";
+import { getStartedHref, repositoryUrl } from "@shared/lib/site-links";
 
 /**
  * LandingPage spec (Wallow-urec.3.1) — the marketing body ported from the

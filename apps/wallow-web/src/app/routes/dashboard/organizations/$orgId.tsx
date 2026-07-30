@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import {
+  OrganizationDetail,
   organizationsGetByIdOptions,
   organizationsGetMembersOptions,
-} from "../../../features/organizations/api";
-import { OrganizationDetail } from "../../../features/organizations/components/OrganizationDetail";
+} from "@features/organizations";
 
 /**
  * The dashboard organization-detail route (Wallow-8w1h.4.4). Mirrors the list

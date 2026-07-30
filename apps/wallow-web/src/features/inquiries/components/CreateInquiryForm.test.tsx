@@ -3,8 +3,8 @@ import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow
 import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { chooseOption } from "../../../test/catalog-select";
-import { expectSwept } from "../../../test/invalidation";
+import { chooseOption } from "@shared/testing/catalog-select";
+import { expectSwept } from "@shared/testing/invalidation";
 import { inquiriesGetAllQueryKey } from "../api";
 import { CreateInquiryForm } from "./CreateInquiryForm";
 
