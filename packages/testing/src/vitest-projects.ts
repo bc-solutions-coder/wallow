@@ -7,7 +7,8 @@
  * consumed by `defineConfig({ test: { projects: [node, browser] } })`:
  *
  *   node    — pure-logic specs: `src/**\/*.test.ts` plus a caller-supplied list
- *             of pure-logic/SSR `*.test.tsx` specs (`nodeTsxSpecs`). No DOM.
+ *             of pure-logic/SSR `*.test.tsx` specs (`nodeTsxSpecs`). No DOM;
+ *             a 60s testTimeout (see the literal) covering the cold route-graph import.
  *   browser — every component spec (`src/**\/*.test.tsx`) MINUS `nodeTsxSpecs`,
  *             run in headless Chromium via the Vitest 4 `playwright()` factory
  *             provider (NOT the v3 `"playwright"` string, which throws).
@@ -37,6 +38,8 @@ export interface VitestNodeTestConfig {
   environment: string;
   include: string[];
   exclude: string[];
+  /** See the node project literal for why this is 60s and not vitest's 5s default. */
+  testTimeout: number;
   [key: string]: unknown;
 }
 
@@ -92,6 +95,14 @@ export function createVitestProjects(options: VitestProjectsOptions = {}): Vites
       environment: "node",
       include: ["src/**/*.test.ts", ...nodeTsxSpecs],
       exclude: [...configDefaults.exclude],
+      // A route-root spec's FIRST `await import("./__root")` pays a cold Vite transform of the
+      // whole route graph — measured at 19s for wallow-auth's __root.provider.test.tsx, against
+      // 1ms for the second test in the same file once the module is cached. Vitest's 5s default
+      // fails that import whenever this project competes with the browser project for CPU. The
+      // cost is structural (TanStack Router/Start + react-query, NOT the @bc-solutions-coder/ui
+      // barrel — swapping to ui subpaths moved it 19043ms -> 18805ms), so the budget belongs in
+      // the shared preset. 60s clears the measurement 3x over while still failing a real hang.
+      testTimeout: 60_000,
     },
   };
 
