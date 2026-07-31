@@ -5,35 +5,14 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * Forgot-password feature `api.ts` — a THIN RE-EXPORT SEAM over the RAW SDK
- * barrel (`@bc-solutions-coder/sdk`), added by Wallow-x4qn.9.4.
+ * Forgot-password `api.ts` — a thin re-export seam over the RAW SDK barrel, not
+ * the generated `{op}Mutation()` factory every other seam re-exports: the screen
+ * must report the same outcome whether or not the address exists, and a mutation's
+ * error surface would make the form an account-enumeration oracle.
  *
- * READ THIS BEFORE "FIXING" IT. Every other seam in this app re-exports GENERATED
- * `{op}Mutation()` / `{op}Options()` factories from `@bc-solutions-coder/sdk/query`.
- * This one re-exports a raw operation, and that is deliberate:
- * `ForgotPasswordForm` uses `@bc-solutions-coder/forms`' NO-MUTATION escape hatch
- * and calls `accountForgotPassword` directly inside `useAppForm`'s `onSubmit`,
- * because the screen must report the SAME outcome whether or not the address
- * exists. A generated mutation would hand the form a real error surface, and a
- * form that can distinguish a failure from a success is an account-enumeration
- * oracle. Wallow-x4qn.9.3 excluded this screen from the mutation conversion for
- * exactly that reason.
- *
- * So the seam still holds — `api.ts` is the feature's only data import — while
- * what sits behind it is the raw POST. The last describe below is the guard on that
- * rationale, and note the shape it does NOT take: the SDK's generator emits an
- * `{op}Mutation()` factory for EVERY non-GET operation unconditionally, so
- * `accountForgotPasswordMutation` does exist on the query entry. The enforceable —
- * and the only true — invariant is that this feature never ADOPTS it, so what is
- * pinned is the absence from the seam's surface and from the feature's source, not
- * an absence from the SDK.
- *
- * Why identity and not just presence: a hand-written look-alike would carry the
- * same name, the same call shape and the same type, pass the screen's behavioural
- * specs, and reach an endpoint the OpenAPI document does not describe. `toBe` is
- * the only assertion that rules that out.
- *
- * Node project — it imports built package output and mounts nothing.
+ * Identity (`toBe`), not presence — a hand-written look-alike carries the same
+ * name, shape and type, passes every behavioural spec, and reaches an endpoint
+ * the OpenAPI document does not describe.
  */
 
 import * as sdk from "@bc-solutions-coder/sdk";
@@ -41,13 +20,11 @@ import * as query from "@bc-solutions-coder/sdk/query";
 
 import * as api from "./api";
 
-/** The raw POST this feature really reaches, on the barrel and behind the seam. */
 const RAW_OPERATION = "accountForgotPassword";
 
-/** The seam's whole surface, in the order an ESM namespace enumerates it. */
 const SURFACE: readonly string[] = [RAW_OPERATION];
 
-/** The generated factory the SDK does emit for that POST, and this feature must never adopt. */
+/** The factory the SDK does emit for that POST, and this feature must never adopt. */
 const GENERATED_FACTORY = "accountForgotPasswordMutation";
 
 const featureDir: string = dirname(fileURLToPath(import.meta.url));
@@ -58,15 +35,10 @@ const SELF: string = relative(featureDir, fileURLToPath(import.meta.url));
 /**
  * Files in THIS feature whose comment-stripped code contains `needle`.
  *
- * Scoped to the feature dir rather than to `src/`, because the invariant is about
- * this feature: whichever door someone walks through — the seam, a direct query-entry
- * import in the screen, an alias — the name has to appear in one of these files.
- *
- * Comments are stripped exactly as `features-api-seam.test.ts` does it, so the
- * prose above is not read as a use.
+ * Comments are stripped so this file's own prose is not read as a use.
  * `withFileTypes` + `isFile()` matters: Vitest browser mode writes failure
- * screenshots into `components/__screenshots__/<spec>/` directories, and a name-only
- * filter would hand `readFileSync` a directory.
+ * screenshots into `components/__screenshots__/<spec>/` directories, and a
+ * name-only filter would hand `readFileSync` a directory.
  */
 function featureFilesNaming(needle: string): readonly string[] {
   return readdirSync(featureDir, { recursive: true, withFileTypes: true })
@@ -108,12 +80,8 @@ describe("why this seam differs from every other one", () => {
   it("never adopts the generated mutation factory the SDK does emit for this POST", () => {
     // The first assertion is the PREMISE, stated so it cannot silently invert: the
     // generator emits an `{op}Mutation()` for every non-GET operation regardless of
-    // who calls it, so this factory exists and is one import away at all times.
-    // The other two are the invariant — nothing in this feature reaches for it,
-    // neither the seam's surface nor the screen behind it. Adopting it would hand
-    // `useAppForm` a real error surface and turn the screen into an
-    // account-enumeration oracle, which is why the guard has to survive a reader who
-    // notices the factory and assumes the raw import was an oversight.
+    // who calls it, so this factory exists and is one import away at all times. The
+    // other two are the invariant — nothing in this feature reaches for it.
     expect(typeof query[GENERATED_FACTORY], `${GENERATED_FACTORY} is no longer generated`).toBe(
       "function",
     );
@@ -124,9 +92,9 @@ describe("why this seam differs from every other one", () => {
   });
 
   it("has no bare operation on the generated entry to prefer instead", () => {
-    // The half of this case that was always true, kept: the query entry carries
-    // factories only, never the raw operation, so re-exporting `accountForgotPassword`
-    // from the barrel is not someone missing a same-named export one entry over.
+    // The query entry carries factories only, never the raw operation, so
+    // re-exporting `accountForgotPassword` from the barrel is not someone missing a
+    // same-named export one entry over.
     expect(RAW_OPERATION in query).toBe(false);
   });
 });

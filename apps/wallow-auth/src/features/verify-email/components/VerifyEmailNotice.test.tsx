@@ -13,50 +13,13 @@ import { Route as verifyEmailRoute } from "@app/routes/verify-email/index";
 import { VerifyEmailNotice } from "./VerifyEmailNotice";
 
 /**
- * Component spec for the VerifyEmail "check your inbox" screen (Wallow-vec7.3.3).
+ * Verify-email "check your inbox" screen: inert — no request, no state, one
+ * computed href — so there is no harness and nothing to fake.
  *
- * Testids come verbatim from the oracle (scout inventory on Wallow-vec7.3):
- * `verify-email-heading`, `verify-email-description`, `verify-email-back-link`.
- *
- * This screen is inert — no SDK call, no state, one computed href. It exists to
- * tell the user to go read their email.
- *
- * ── A DELIBERATE DEVIATION FROM THE ORACLE (hardening) ───────────────────────
- *
- * The oracle computes its back-link as:
- *
- *     private string LoginUrl => string.IsNullOrEmpty(ReturnUrl)
- *         ? "/login"
- *         : $"/login?returnUrl={Uri.EscapeDataString(ReturnUrl)}";
- *
- * — `IsNullOrEmpty`, NOT `ReturnUrlValidator.IsSafe`. Its sibling
- * `VerifyEmailConfirm.razor` guards the very same link with `IsSafe`, so this is
- * an inconsistency in the original rather than a decision: this page will
- * forward `?returnUrl=https://evil.example` into the login page's query string
- * untouched.
- *
- * The port applies the guard here too (an unsafe returnUrl is dropped, exactly
- * as VerifyEmailConfirm drops it). This is a deviation from the oracle and is
- * called out as such — it strictly narrows behaviour, forwards nothing hostile,
- * and makes the two sibling screens agree. It is NOT the refuse-vs-sanitize case
- * from bd memory `returnurl-guard-refuse-dont-sanitize`: nothing navigates here,
- * the screen merely declines to hand a hostile value to the next screen. Flagged
- * on the bead for the verifier.
- *
- * ── TEST SEAM: NONE, AND THAT IS THE POINT (Wallow-pu6a.5.1) ─────────────────
- *
- * This file used to `vi.mock` the app's SDK facade purely to hand the screen an
- * `isSafeReturnUrl` stub — and then restate the real rule inside that stub,
- * because a stub answering a flat `true`/`false` would have proved nothing about
- * the guard. A restatement of a security rule is a second copy to get wrong, so
- * the mock is gone and `signInHref` reaches the REAL
- * `isSafeReturnUrl` (`packages/sdk/src/auth-oidc.ts`) — a pure string-in/
- * boolean-out function with no transport underneath it.
- *
- * No `sdk-harness` here either: the screen is inert, issues no request, and has
- * nothing to fake. The cases below (`/apps?a=1&b=2` safe, `https://evil.example`
- * and `//evil.example` unsafe) are now answered by the shipped guard rather than
- * by this file's own opinion of it.
+ * The back-link runs the shipped `isSafeReturnUrl` rather than a stub, because a
+ * stub would restate the security rule and become a second copy to get wrong. An
+ * unsafe returnUrl is dropped rather than forwarded into the login page's query
+ * string, matching the sibling confirmation screen.
  */
 
 describe("VerifyEmailNotice", () => {
@@ -72,8 +35,6 @@ describe("VerifyEmailNotice", () => {
   });
 
   it("mentions the spam folder", async () => {
-    // The oracle's card body — the single most useful sentence on the page, and
-    // trivially easy to drop when porting the "static" parts by eye.
     await render(<VerifyEmailNotice />);
 
     await expect.element(page.getByTestId("verify-email-heading")).toBeInTheDocument();
@@ -97,7 +58,6 @@ describe("VerifyEmailNotice", () => {
   });
 
   it("drops an unsafe returnUrl from the back link", async () => {
-    // The deliberate deviation — see this file's header.
     await render(<VerifyEmailNotice returnUrl="https://evil.example" />);
 
     await expect
@@ -115,12 +75,10 @@ describe("VerifyEmailNotice", () => {
 });
 
 /**
- * Route-level spec. Rendered through a real memory router rather than by poking
- * at `Route.options.component`: this route's component reads `returnUrl` through
- * `Route.useSearch()`, and every router hook dereferences a `null` router
- * outside a `RouterProvider` (`useRouter` only warns; `useMatch` then throws on
- * `router.stores`), so a bare render is unsatisfiable by any correct
- * implementation. Mirrors `ResetPasswordForm.test.tsx`'s harness.
+ * A real memory router, not `Route.options.component`: the component reads
+ * `returnUrl` through `Route.useSearch()`, and a router hook outside a
+ * `RouterProvider` dereferences a `null` router (`useRouter` warns, `useMatch`
+ * then throws), so a bare render cannot pass.
  */
 function renderRouteAt(url: string) {
   const rootRoute = createRootRoute({ component: Outlet });
@@ -145,8 +103,7 @@ describe("/verify-email route", () => {
 
     await expect.element(page.getByTestId("verify-email-heading")).toBeInTheDocument();
     expect(page.getByTestId("route-placeholder").query()).toBeNull();
-    // Proves the query string threaded through `validateSearch` into the screen:
-    // a route that dropped `returnUrl` would render a bare `/login` back-link.
+    // A route that dropped `returnUrl` renders a bare `/login` back-link.
     await expect
       .element(page.getByTestId("verify-email-back-link"))
       .toHaveAttribute("href", `/login?returnUrl=${encodeURIComponent("/apps?a=1&b=2")}`);

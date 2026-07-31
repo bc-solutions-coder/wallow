@@ -9,34 +9,14 @@ import { Route as forgotPasswordRoute } from "@app/routes/forgot-password";
 import { ForgotPasswordForm } from "./ForgotPasswordForm";
 
 /**
- * Component spec for the ForgotPassword screen (Wallow-vec7.3.1).
+ * Forgot-password screen. Anti-enumeration is the point: it renders one fixed
+ * "if an account exists..." message and never reveals whether the address
+ * resolved, so it is the one screen in this app with no `{page}-error` testid —
+ * the absences asserted below are deliberate, not gaps.
  *
- * THE POINT OF THIS SCREEN IS ANTI-ENUMERATION. The oracle renders one fixed
- * "if an account exists..." message and never tells the caller whether the
- * address resolved to a user; a screen that surfaced a backend error would leak
- * exactly the fact the endpoint is designed to hide. That asymmetry — an error
- * path that must be *swallowed*, not shown — is what these tests pin, and it is
- * the one place this port is allowed to look "wrong" next to every other screen
- * in the app (all of which surface `{page}-error`). Hence the deliberate
- * assertions below that NO error testid ever appears.
- *
- * Testids come verbatim from the oracle (scout inventory on Wallow-vec7.3):
- * `forgot-password-email`, `forgot-password-submit`, `forgot-password-success`.
- * The oracle has NO error testid for this screen, by design — see above.
- *
- * TEST SEAM: `@bc-solutions-coder/testing/sdk-harness` (Wallow-pu6a.5.1). The
- * SDK is the REAL one and only its `fetch` is faked, so the screen's whole
- * pipeline — request-scoped SDK -> generated operation -> CSRF interceptor ->
- * serialization -> error shaping -> React Query — runs here, and the assertions
- * below read the outgoing REQUEST rather than a spy on a stand-in double.
- * `renderWithWallow` supplies the router context the screen reads its SDK off,
- * and `createAuthHarness()` pins the harness origin to this app's root-mounted
- * API surface (Wallow-pu6a.5.5).
- *
- * REJECTION SHAPE: the failure tests answer with a bare 500 carrying no problem
- * details. That is deliberate and costs nothing here — this screen must behave
- * identically for EVERY failure regardless of shape, and testing with the
- * least-informative one is the strongest form of that claim.
+ * Runs the real SDK over a faked fetch (sdk-harness), so assertions read the
+ * recorded request. Failures answer a bare 500 with no problem details: the
+ * screen must behave identically for every failure shape.
  */
 
 const EMAIL = "ada@example.com";
@@ -45,23 +25,16 @@ const SERVER_ERROR = 500;
 
 let harness: SdkHarness;
 
-/** Render `ui` on the shared harness: real SDK, fake transport, real router context. */
 function renderWithClient(ui: ReactElement) {
   return renderWithWallow(ui, { harness });
 }
 
-/** Fill the email field and press submit — the whole happy interaction. */
 async function submitEmail(user: ReturnType<typeof userEvent.setup>, email: string = EMAIL) {
   await user.type(page.getByTestId("forgot-password-email"), email);
   await user.click(page.getByTestId("forgot-password-submit"));
 }
 
-/**
- * The screen must never render an error surface. Checked as an explicit absence
- * because the anti-enumeration guarantee is exactly "no branch reveals the
- * backend's answer" — `{page}-error` is the testid a copy-paste from any other
- * screen in this app would introduce.
- */
+/** `{page}-error` is the testid a copy-paste from any other screen would introduce. */
 function expectNoErrorSurface() {
   expect(page.getByTestId("forgot-password-error").query()).toBeNull();
 }
@@ -81,9 +54,7 @@ describe("ForgotPasswordForm", () => {
   });
 
   it("links back to sign in", async () => {
-    // The card footer. It has no testid and the scout's inventory forbids
-    // inventing one for an element that shipped without it, so this asserts the
-    // link by role + href instead.
+    // The card footer ships without a testid, so this asserts by role + href.
     await renderWithClient(<ForgotPasswordForm />);
 
     await expect
@@ -110,8 +81,8 @@ describe("ForgotPasswordForm", () => {
 
     await submitEmail(user);
 
-    // The oracle swaps the whole card content on `_submitted` — the form goes
-    // away, so the user cannot re-submit into the same success state.
+    // The whole card content swaps, so the user cannot re-submit into the same
+    // success state.
     await expect.element(page.getByTestId("forgot-password-success")).toBeInTheDocument();
     expect(page.getByTestId("forgot-password-email").query()).toBeNull();
     expect(page.getByTestId("forgot-password-submit").query()).toBeNull();
@@ -123,16 +94,14 @@ describe("ForgotPasswordForm", () => {
 
     await submitEmail(user);
 
-    // The oracle's copy, verbatim in substance: conditional ("if an account
-    // exists"), never "we sent you a link".
+    // Conditional ("if an account exists"), never "we sent you a link".
     const success = page.getByTestId("forgot-password-success");
     await expect.element(success).toHaveTextContent(/check your email/iu);
     await expect.element(success).toHaveTextContent(/if an account exists/iu);
   });
 
   it("shows the same confirmation when the backend rejects the request", async () => {
-    // THE anti-enumeration criterion. An unknown address, a rate limit, a 500 —
-    // the user sees the identical screen either way.
+    // An unknown address, a rate limit, a 500 — the user sees the same screen.
     harness.rejectJson({ detail: "user_not_found" }, SERVER_ERROR);
     const user = userEvent.setup();
     await renderWithClient(<ForgotPasswordForm />);
@@ -144,8 +113,6 @@ describe("ForgotPasswordForm", () => {
   });
 
   it("never leaks the rejection reason into the page", async () => {
-    // A generic error surface is a leak too if it appears only for some inputs;
-    // this pins that the reason string itself never reaches the DOM.
     harness.rejectJson({ detail: "user_not_found" }, SERVER_ERROR);
     const user = userEvent.setup();
     await renderWithClient(<ForgotPasswordForm />);
@@ -158,8 +125,7 @@ describe("ForgotPasswordForm", () => {
   });
 
   it("renders the same confirmation markup whether the backend accepts or rejects", async () => {
-    // The strongest statement of the criterion: the two branches are
-    // indistinguishable to a caller diffing the rendered page.
+    // The two branches are indistinguishable to a caller diffing the page.
     const user = userEvent.setup();
 
     const accepted = await renderWithClient(<ForgotPasswordForm />);
@@ -177,8 +143,6 @@ describe("ForgotPasswordForm", () => {
   });
 
   it("requires an email before calling the endpoint", async () => {
-    // Oracle: `if (string.IsNullOrWhiteSpace(_email)) return;` — a blank submit
-    // is a no-op that never reaches the network and never claims success.
     const user = userEvent.setup();
     await renderWithClient(<ForgotPasswordForm />);
 
@@ -190,7 +154,6 @@ describe("ForgotPasswordForm", () => {
   });
 
   it("treats a whitespace-only email as blank", async () => {
-    // `IsNullOrWhiteSpace`, not `IsNullOrEmpty` — "   " must not be submitted.
     const user = userEvent.setup();
     await renderWithClient(<ForgotPasswordForm />);
 
@@ -202,7 +165,6 @@ describe("ForgotPasswordForm", () => {
   });
 
   it("disables submit while the request is in flight", async () => {
-    // Oracle: `Disabled="_loading"` — one click, one email.
     let release: () => void = () => {};
     harness.respond(
       async () =>
@@ -217,10 +179,9 @@ describe("ForgotPasswordForm", () => {
 
     await submitEmail(user);
 
-    // Wait for the request to REACH the transport before releasing it: the
-    // submit button goes disabled the moment the form starts submitting, which
-    // is a tick or two before `fetch` is called, and releasing into that gap
-    // would leave the never-settling responder installed forever.
+    // Wait for the request to REACH the transport before releasing it: submit
+    // goes disabled a tick or two before `fetch` is called, and releasing into
+    // that gap leaves the never-settling responder installed forever.
     await vi.waitFor(() => {
       expect(harness.calls).toHaveLength(1);
     });
@@ -233,9 +194,6 @@ describe("ForgotPasswordForm", () => {
 
 describe("/forgot-password route", () => {
   it("renders the real screen in place of the pre-registration placeholder", async () => {
-    // Wallow-vec7.3.16 registered this path against a placeholder component;
-    // this task's job is to replace it. The path itself is the contract and is
-    // not this task's to change (router.tsx is off-limits).
     const RouteComponent = forgotPasswordRoute.options.component as () => ReactElement;
 
     await renderWithClient(<RouteComponent />);
