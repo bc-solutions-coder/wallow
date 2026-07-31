@@ -74,7 +74,9 @@ Errors are the reason most of it went: every operation's failure path now surfac
   longer resets `vi.fn` module-factory mocks itself).
 - `openid-client` must be mocked in **both** `oidc.test.ts` and `handlers.test.ts`; the
   discovery cache in `oidc.ts` is keyed by metadata URL — use a unique issuer per test.
-- Meta-specs guard the toolchain (`openapi-regen.test.ts`, `build-config.test.ts`) — update
-  them when changing build/CI wiring. The publish workflow itself is NOT spec'd: `sdk-publish.yml`
+- One meta-spec guards the toolchain (`openapi-regen.test.ts`) — update it when changing
+  build/CI wiring. The bundler wiring itself is deliberately NOT spec'd: `build-config.test.ts`
+  asserted `vite.config.ts` and `scripts.build` by source text, which pinned the build's shape
+  rather than its result and blocked consolidating it. The publish workflow is not spec'd either: `sdk-publish.yml`
   is validated by running, and the published package's exports map and type resolution are
   checked in CI by `publint` + `@arethetypeswrong/cli` (`pnpm check:exports`).

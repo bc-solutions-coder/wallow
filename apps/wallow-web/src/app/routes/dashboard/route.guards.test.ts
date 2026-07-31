@@ -17,7 +17,7 @@ import { describe, expect, it } from "vitest";
  *
  * Source reading is the narrow tool for a "this logic lives in the SDK now"
  * contract, and it is the pattern the SDK already uses for its own structural
- * guarantees (`build-config.test.ts`, `bff-pattern-docs.test.ts`).
+ * guarantees (`bff-pattern-docs.test.ts`).
  */
 
 const routeSource: string = readFileSync(
