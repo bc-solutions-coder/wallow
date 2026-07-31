@@ -9,15 +9,25 @@
  * 0x0 and every spec that CLICKS it hangs to Playwright's actionability timeout.
  * See ./vitest-styles.css.
  *
- * The utilities only, deliberately — NOT the fork theme that packages/forms'
- * setup file also renders. The theme supplies the custom properties the COLOUR
- * utilities read; nothing about an element's geometry depends on it, so it buys
- * this project nothing, and importing `@bc-solutions-coder/styles` here costs
- * something real: it is a LINKED workspace package, so the import lands as the
- * setup file runs and re-optimizes the dep graph MID-RUN. That reload hands the
- * specs a second `@tanstack/react-router` copy, after which a `redirect` thrown
- * through one module instance stops satisfying `isRedirect` from the other
- * (`src/app/routes/index.gate.test.tsx` catches exactly that).
+ * Both halves, exactly as the running app has them:
+ *
+ *   - ./vitest-styles.css — the compiled Tailwind utilities.
+ *   - virtual:wallow-theme.css — the fork theme, i.e. the custom-property VALUES
+ *     those utilities read. `@bc-solutions-coder/styles`'s shared entry maps every
+ *     colour token onto a valueless custom property, so without this a
+ *     `bg-sidebar` element paints `rgba(0, 0, 0, 0)` and a rendered-colour
+ *     assertion cannot tell a contrast defect from a passing test.
+ *
+ * The theme arrives as a VIRTUAL stylesheet served by `wallowStyles()`, not as a
+ * JS `import { renderThemeStyle } from "@bc-solutions-coder/styles"`. That import
+ * is what previously forced the theme out of this file: styles is a LINKED
+ * workspace package, so the import landed as the setup file ran, re-optimized the
+ * dep graph MID-RUN, and the reload handed the specs a second
+ * `@tanstack/react-router` copy — after which a `redirect` thrown through one
+ * module instance stopped satisfying `isRedirect` from the other
+ * (`src/app/routes/index.gate.test.tsx` catches exactly that). A virtual id is
+ * outside `node_modules`, so the optimizer has nothing to discover.
  */
 
 import "./vitest-styles.css";
+import "virtual:wallow-theme.css";
