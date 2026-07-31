@@ -7,14 +7,18 @@
   "compilerOptions": {
     "noEmit": true,
     "types": ["node"],
-    // Mirrored from `aliases.ts` — JSON cannot import it, so `src/alias-map.test.ts`
-    // pins the two together. `moduleResolution: "Bundler"` resolves these relative
-    // to this file, so no `baseUrl` is needed.
+    // The SINGLE declaration site for this app's zone aliases. Vite reads it via
+    // `resolve.tsconfigPaths` (vite.config.ts), vitest reads it per project
+    // (vitest.config.ts), and `src/zone-dag.test.ts` reads it to derive which
+    // prefixes it polices. Adding a zone is this edit and nothing else.
+    // `moduleResolution: "Bundler"` resolves these relative to THIS file, so no
+    // `baseUrl` — and `paths` must NOT move to `tsconfig.base.json`, which would
+    // resolve them against the repo root.
     "paths": {
       "@app/*": ["./src/app/*"],
       "@features/*": ["./src/features/*"],
       "@shared/*": ["./src/shared/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "aliases.ts", "vite.config.ts", "vitest.config.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts", "vitest.config.ts"]
 }

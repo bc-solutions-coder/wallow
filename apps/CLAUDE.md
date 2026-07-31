@@ -31,10 +31,12 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
   `features/<name>/` (one directory per screen or vertical, reachable only through its
   `index.ts` barrel) and `shared/` (limited to `components`, `hooks`, `lib`, `stores`,
   `testing`, `types`). Cross-zone imports are spelled as aliases — `@app/*`,
-  `@features/<name>`, `@shared/*` — declared once in the app's `aliases.ts` and mirrored by
-  `vite.config.ts`, `vitest.config.ts` and `tsconfig.json`. Relative specifiers stay correct
-  _within_ a zone. Both halves are enforced by specs, not convention: `src/alias-map.test.ts`
-  pins the three mirrors in agreement, and `src/zone-dag.test.ts` resolves every specifier and
+  `@features/<name>`, `@shared/*` — declared **once**, in the app's `tsconfig.json` `paths`.
+  Vite reads it natively (`resolve.tsconfigPaths: true`), vitest reads it inside each
+  `test.projects` entry, and `src/zone-dag.test.ts` reads it to derive which prefixes it
+  polices — so adding a zone is that one edit. Relative specifiers stay correct
+  _within_ a zone. The DAG itself is enforced by a spec, not convention:
+  `src/zone-dag.test.ts` resolves every specifier against its importer's real directory and
   judges the edge. Two consequences worth knowing before you move a file: server-only modules
   belong in `app/` (that is what keeps `node:crypto`/`openid-client` out of the client graph),
   and `srcDirectory: "src/app"` in `vite.config.ts` must be paired with

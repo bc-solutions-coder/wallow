@@ -4,8 +4,6 @@ import { wallowStyles } from "@bc-solutions-coder/styles/vite";
 import { createVitestProjects } from "@bc-solutions-coder/testing";
 import { defineConfig } from "vitest/config";
 
-import { resolveAlias } from "./aliases";
-
 /**
  * Vitest harness for wallow-web — the shared node + real-Chromium two-project
  * split from `@bc-solutions-coder/testing`'s `createVitestProjects` preset,
@@ -30,6 +28,10 @@ import { resolveAlias } from "./aliases";
 const nodeTsxSpecs: string[] = [
   "src/app/routes/index.test.tsx",
   "src/app/routes/dashboard/route.test.tsx",
+  // `useIsDesktop`'s SERVER snapshot — the one branch a browser-mode spec cannot
+  // reach, since a mount always takes the client snapshot. Renders a probe
+  // through `react-dom/server` and mounts nothing.
+  "src/shared/lib/use-is-desktop.ssr.test.tsx",
 ];
 
 // Browser render/runtime libraries wallow-web pulls in beyond the shared preset
@@ -40,6 +42,11 @@ const extraBrowserOptimizeDeps: string[] = [
   "react/jsx-dev-runtime",
   "react/jsx-runtime",
   "react-dom",
+  // `DashboardLayout.ssr-flash.test.tsx` renders the shell the way the BFF does
+  // — through `react-dom/server` — inside Chromium, so the pre-hydration paint
+  // can be measured against real CSS at a real viewport. Discovered mid-run it
+  // triggers a Vite reload ("Vitest unexpectedly reloaded a test").
+  "react-dom/server",
   // The query facade and the auth package that rides on it are LINKED workspace
   // packages, and Vite does not pre-bundle a link by default. Named here, the
   // pre-bundled chunk carries react-query's runtime inlined, so the browser graph
@@ -64,7 +71,12 @@ const extraBrowserOptimizeDeps: string[] = [
   // The catalog components wallow-web mounts reach Base UI through per-component
   // SUBPATHS, and Vite pre-bundles a subpath only when it is named — the package
   // root does not cover them.
+  "@base-ui/react/autocomplete",
   "@base-ui/react/checkbox",
+  // The add-member picker is an `Autocomplete`, whose parts are Base UI's
+  // COMBOBOX parts re-exported — the autocomplete subpath alone does not cover
+  // them.
+  "@base-ui/react/combobox",
   "@base-ui/react/navigation-menu",
   "@base-ui/react/select",
   "@base-ui/react/toggle",
@@ -93,8 +105,12 @@ export default defineConfig({
     noExternal: ["@bc-solutions-coder/query", "@bc-solutions-coder/auth"],
   },
   test: {
+    // `resolve` is PER PROJECT — a root-level `resolve` is NOT inherited by
+    // `test.projects`, so `tsconfigPaths` has to be repeated in each entry. Both
+    // read the same `tsconfig.json` `paths` the app builds against, which is why
+    // the runtime and the test runner cannot disagree about a zone.
     projects: [
-      { ...node, resolve: { alias: resolveAlias } },
+      { ...node, resolve: { tsconfigPaths: true } },
       {
         ...browser,
         // The styling the preset deliberately leaves to each consumer, wired the
@@ -107,7 +123,10 @@ export default defineConfig({
         // `<span role="checkbox">` measures 0x0 and every spec that CLICKS it
         // hangs to the actionability timeout.
         plugins: wallowStyles(),
-        resolve: { alias: { ...resolveAlias, "node:async_hooks": nodeAsyncHooksShim } },
+        // `node:async_hooks` stays in `alias` — `tsconfig.json` `paths` cannot
+        // express it, and without it every spec importing `src/app/router.tsx`
+        // dies at import.
+        resolve: { tsconfigPaths: true, alias: { "node:async_hooks": nodeAsyncHooksShim } },
         test: { ...browser.test, setupFiles: ["./vitest.setup.ts"] },
       },
     ],

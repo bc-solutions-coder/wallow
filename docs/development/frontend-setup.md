@@ -51,7 +51,6 @@ that serves dev and emits the production bundle:
 
 ```
 apps/wallow-auth/
-├── aliases.ts                      # The zone alias map; the three configs below mirror it
 ├── src/
 │   ├── app/                        # The host zone
 │   │   ├── routes/                 # File-based routes (login, register, mfa, consent, ...)
@@ -69,15 +68,14 @@ apps/wallow-auth/
 │   │   │   └── ready-indicator.tsx # Stamps data-app-ready='true' after hydration
 │   │   ├── lib/api-passthrough.ts  # createApiPassthrough() wrapper the splat routes call
 │   │   └── testing/                # Spec harnesses
-│   ├── alias-map.test.ts           # Pins vite/vitest/tsconfig to aliases.ts
 │   └── zone-dag.test.ts            # Enforces the import DAG below
+├── tsconfig.json                   # The zone alias map (`paths`); vite + vitest read it
 ├── vite.config.ts                  # tanstackStart + react + nitro + wallowStyles
 ├── playwright.config.ts            # E2E config (data-testid selectors, port 3002)
 ├── e2e/                            # @playwright/test specs
 └── package.json
 
 apps/wallow-web/
-├── aliases.ts
 ├── src/
 │   ├── app/
 │   │   ├── routes/                 # Dashboard, settings, public pages
@@ -88,6 +86,7 @@ apps/wallow-web/
 │   │   └── start.ts, router.tsx, styles.css, routeTree.gen.ts
 │   ├── features/<name>/            # organizations, apps, settings, mfa, inquiries
 │   └── shared/                     # components/, lib/, stores/, testing/
+├── tsconfig.json
 ├── vite.config.ts
 ├── playwright.config.ts            # E2E config (data-testid selectors, port 3000)
 ├── e2e/                            # @playwright/test specs
@@ -122,10 +121,13 @@ Three things follow that are easy to get wrong:
   never at the cost of widening a prop from a feature type to `unknown` — duplication is
   cheaper than a bad abstraction.
 
-The alias map is declared once per app in `aliases.ts` and mirrored by `vite.config.ts`,
-`vitest.config.ts` and `tsconfig.json`. Both halves are enforced by specs rather than
-convention: `src/alias-map.test.ts` pins the three mirrors in agreement, and
-`src/zone-dag.test.ts` resolves every specifier — static, side-effect and dynamic
+The alias map is declared once per app, in `tsconfig.json` `paths`, and nowhere else. Vite
+resolves against it natively (`resolve.tsconfigPaths: true`), vitest repeats that option
+inside each `test.projects` entry — a root-level `resolve` is not inherited — and
+`src/zone-dag.test.ts` reads the same file to derive the zone list it polices. Adding a zone
+is that one edit, and the DAG guard picks it up immediately. The DAG itself is enforced by a
+spec rather than convention: `src/zone-dag.test.ts` resolves every specifier — static,
+side-effect and dynamic
 `import("…")` alike — against its importer's real directory and judges the resulting edge.
 The DAG constrains the *product* graph, not the test graph: a spec may import
 `@app/routes/<name>` and mount the real route, because the component's contract is the
@@ -147,7 +149,9 @@ The steps below build the **flat** shape, which is what `apps/examples/minimal-a
 uses and the right starting point for an app with a handful of routes. Adopt the
 [zones](#the-zone-rules) once the app grows features worth keeping apart: move
 `routes/`, `router.tsx`, `start.ts`, `styles.css` and any server-only module under
-`src/app/`, add the alias map, and set `srcDirectory: "src/app"` alongside
+`src/app/`, declare the zone aliases in `tsconfig.json` `paths` with
+`resolve.tsconfigPaths: true` in `vite.config.ts` and each vitest project, and set
+`srcDirectory: "src/app"` alongside
 `importProtection: { include: ["src/**"] }` in `vite.config.ts`. That second option
 is not optional — without it Start scopes its env-boundary check to `srcDirectory`
 and silently stops checking `features/` and `shared/`.

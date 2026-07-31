@@ -1,8 +1,6 @@
 import { createVitestProjects } from "@bc-solutions-coder/testing";
 import { defineConfig } from "vitest/config";
 
-import { resolveAlias } from "./aliases";
-
 /**
  * Vitest harness for wallow-auth — the shared two-project (node + headless
  * Chromium) split now lives in `@bc-solutions-coder/testing`'s
@@ -49,13 +47,14 @@ const { node, browser } = createVitestProjects({ nodeTsxSpecs, extraBrowserOptim
 
 export default defineConfig({
   test: {
-    // Both projects carry the zone aliases from `aliases.ts` — the same map
-    // `vite.config.ts` appends to its alias array and `tsconfig.json` mirrors.
-    // Vitest resolves specifiers itself, so an alias missing here fails only
-    // under test even though the app builds.
+    // `resolve` is PER PROJECT — a root-level `resolve` is NOT inherited by
+    // `test.projects`, so `tsconfigPaths` has to be repeated in each entry. Both
+    // read the same `tsconfig.json` `paths` the app builds against; vitest
+    // resolves specifiers itself, so an option missing here fails only under test
+    // even though the app builds.
     projects: [
-      { ...node, resolve: { alias: resolveAlias } },
-      { ...browser, resolve: { alias: resolveAlias } },
+      { ...node, resolve: { tsconfigPaths: true } },
+      { ...browser, resolve: { tsconfigPaths: true } },
     ],
   },
 });

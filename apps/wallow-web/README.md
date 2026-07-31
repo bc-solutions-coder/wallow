@@ -60,8 +60,9 @@ pnpm --filter @bc-solutions-coder/wallow-web test       # vitest run  (test:watc
 
 Cross-zone imports are spelled as aliases — `@app/*`, `@features/<name>`,
 `@shared/*` — so a boundary crossing is visible in the import block. The alias map
-lives in `aliases.ts` and is mirrored by `vite.config.ts`, `vitest.config.ts` and
-`tsconfig.json`; `src/alias-map.test.ts` pins the three in agreement.
+lives in `tsconfig.json` `paths` and nowhere else: Vite and vitest both read it
+through `resolve.tsconfigPaths`, and `src/zone-dag.test.ts` reads it to know which
+zones exist.
 
 | Path                                                                             | Role                                                                                                                                                                                                                                                                                                                                                   |
 | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

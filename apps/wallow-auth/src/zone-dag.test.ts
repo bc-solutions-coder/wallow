@@ -21,16 +21,62 @@ import { describe, expect, it } from "vitest";
  * both bans legitimate intra-zone imports. So the guard resolves every specifier
  * against its importer's real directory and judges the resulting edge.
  *
- * Cross-zone edges must be spelled as ALIASES (`@app/*`, `@features/<x>`,
- * `@shared/*`) rather than relative hops. That is not decoration: an alias makes
- * a boundary crossing visible in the import block, and it is what lets a module
- * move within its zone without a rewrite. Relative specifiers stay legal — and
- * required — WITHIN a zone.
+ * Cross-zone edges must be spelled as ALIASES rather than relative hops, using
+ * the zone aliases declared in `tsconfig.json` `paths`. That is not decoration:
+ * an alias makes a boundary crossing visible in the import block, and it is what
+ * lets a module move within its zone without a rewrite. Relative specifiers stay
+ * legal — and required — WITHIN a zone.
+ *
+ * This spec READS that `paths` map rather than naming zones inline, so the list
+ * it polices and the list Vite/vitest resolve are one list. That is what replaced
+ * the deleted `alias-map.test.ts`: there is no longer a duplicate of the alias map
+ * to pin, only a single declaration with consumers that read it.
  *
  * Node project — it reads files as text and mounts nothing.
  */
 
 const srcDir: string = dirname(fileURLToPath(import.meta.url));
+
+/**
+ * The zone aliases, read from the app's `tsconfig.json` `paths` — the ONE place a
+ * zone is declared, and the same file Vite and vitest resolve against.
+ *
+ * Deriving rather than hard-coding is the point: a fourth zone added to `paths` is
+ * policed by every rule below from the moment it exists. The previous version of
+ * this spec listed `@app/`, `@features/` and `@shared/` inline, so a new zone fell
+ * through `targetOf` to `kind: "package"` and crossed every boundary unwatched
+ * while the suite reported a clean DAG. A guard that fails open is worse than none.
+ *
+ * `tsconfig.json` carries `//` comments — strip them before parsing.
+ */
+function declaredZoneAliases(): readonly string[] {
+  const text: string = readFileSync(resolve(srcDir, "..", "tsconfig.json"), "utf8").replaceAll(
+    /^\s*\/\/.*$/gmu,
+    "",
+  );
+  const config = JSON.parse(text) as { compilerOptions?: { paths?: Record<string, string[]> } };
+  const paths: Record<string, string[]> = config.compilerOptions?.paths ?? {};
+
+  return Object.keys(paths)
+    .map((key): string => key.replace(/\/\*$/u, ""))
+    .toSorted();
+}
+
+/** `["@app", "@features", "@shared"]` — alias prefixes, no trailing `/*`. */
+const ZONE_ALIASES: readonly string[] = declaredZoneAliases();
+
+/** `["app", "features", "shared"]` — the zone names those aliases name. */
+const ZONE_NAMES: readonly string[] = ZONE_ALIASES.map((alias): string => alias.slice(1));
+
+/**
+ * Zones whose members are BARREL-ONLY: `@features/login` is the contract,
+ * `@features/login/anything` reaches around it. Every other zone is a flat
+ * namespace where a deep path is normal (`@shared/lib/x`, `@app/routes/y`).
+ *
+ * This is a design decision per zone, not something a path can tell you — so it
+ * stays an explicit list, and a new zone defaults to flat.
+ */
+const BARREL_ZONES: ReadonlySet<string> = new Set(["features"]);
 
 /** This file is the guard; it necessarily names the zones it polices. */
 const SELF: string = relative(srcDir, fileURLToPath(import.meta.url));
@@ -151,35 +197,32 @@ function zoneOf(srcRelativePath: string): Zone {
   if (segments.length < 2) {
     return "root";
   }
-  if (segments[0] === "features") {
-    return `features/${segments[1] as string}`;
-  }
 
-  return segments[0] as string;
+  const top: string = segments[0] as string;
+
+  return BARREL_ZONES.has(top) ? `${top}/${segments[1] as string}` : top;
 }
 
 /** Classify one specifier as written by `file`. */
 function targetOf(file: string, specifier: string): Target {
-  if (specifier.startsWith("@app/") || specifier.startsWith("@shared/")) {
-    return {
-      kind: "zone",
-      zone: specifier.slice(1).split("/")[0] as string,
-      alias: true,
-      deep: false,
-    };
-  }
+  const alias: string | undefined = ZONE_ALIASES.find((candidate): boolean =>
+    specifier.startsWith(`${candidate}/`),
+  );
 
-  if (specifier.startsWith("@features/")) {
+  if (alias !== undefined) {
+    const zoneName: string = alias.slice(1);
     const segments: readonly string[] = specifier.split("/");
 
-    return {
-      kind: "zone",
-      zone: `features/${segments[1] as string}`,
-      alias: true,
-      // Barrel-only: `@features/login` is the contract, `@features/login/anything`
-      // reaches around it.
-      deep: segments.length > 2,
-    };
+    return BARREL_ZONES.has(zoneName)
+      ? {
+          kind: "zone",
+          // Barrel-only: `@features/login` is the contract,
+          // `@features/login/anything` reaches around it.
+          zone: `${zoneName}/${segments[1] as string}`,
+          alias: true,
+          deep: segments.length > 2,
+        }
+      : { kind: "zone", zone: zoneName, alias: true, deep: false };
   }
 
   if (!specifier.startsWith(".")) {
@@ -221,12 +264,14 @@ describe("the zone walk itself", () => {
   // A guard on the guard. Every rule below is a filter over `ALL`, so a walk that
   // found nothing — a renamed directory, a broken relativize — would report a
   // clean DAG rather than a broken scan.
-  it("finds importers in all three zones", () => {
+  it("finds importers in every declared zone", () => {
     const zones: ReadonlySet<Zone> = new Set(
-      ALL.map((edge): string => (edge.zone.startsWith("features/") ? "features" : edge.zone)),
+      ALL.map((edge): string => edge.zone.split("/")[0] as string),
     );
 
-    expect([...zones].toSorted()).toEqual(["app", "features", "root", "shared"]);
+    // `root` is not a tsconfig zone — it is the policy specs sitting directly
+    // under `src/`, which this file is one of.
+    expect([...zones].toSorted()).toEqual(["root", ...ZONE_NAMES].toSorted());
   });
 
   it("reads a substantial number of edges, not a handful", () => {
