@@ -109,7 +109,7 @@ drawer scrim, because a translucent surface is categorically not tinted text.
 
 > **A rule sees one JS/TS file at a time, and only files oxlint lints.**
 
-That is the whole test. Anything failing it stays a vitest spec: a relationship *between* files, an
+That is the whole test. Anything failing it stays a vitest spec: a relationship _between_ files, an
 **absence** (a missing barrel has no file to attach a diagnostic to), a non-JS input (Dockerfiles,
 markdown, the lint config itself), a computed style that only exists at runtime, or runtime/
 compile-time identity.

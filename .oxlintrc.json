@@ -102,6 +102,7 @@
     "**/dist/**",
     "**/generated/**",
     "packages/sdk/src/generated/**",
+    "packages/lint/fixtures/**",
     "**/routeTree.gen.ts",
     "**/.output/**",
     "**/.nitro/**",

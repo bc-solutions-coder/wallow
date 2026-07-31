@@ -11,6 +11,7 @@
     "**/routeTree.gen.ts",
     "packages/sdk/src/generated/**",
     "packages/sdk/openapi/**",
+    "packages/lint/fixtures/**",
     "**/CHANGELOG.md",
     "**/.output/**",
     "**/.nitro/**",
