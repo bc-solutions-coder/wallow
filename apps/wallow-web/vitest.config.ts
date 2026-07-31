@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 
+import { wallowStyles } from "@bc-solutions-coder/styles/vite";
 import { createVitestProjects } from "@bc-solutions-coder/testing";
 import { defineConfig } from "vitest/config";
 
@@ -96,7 +97,18 @@ export default defineConfig({
       { ...node, resolve: { alias: resolveAlias } },
       {
         ...browser,
+        // The styling the preset deliberately leaves to each consumer, wired the
+        // same way packages/forms and packages/ui do it: `wallowStyles()` (the
+        // `@tailwindcss/vite` + brand-assets pair) compiles ./vitest-styles.css
+        // and ./vitest.setup.ts loads it plus the fork theme into the page.
+        //
+        // Not cosmetic. A ui control gets its BOX from a Tailwind utility in its
+        // recipe, so with no stylesheet the catalog checkbox's
+        // `<span role="checkbox">` measures 0x0 and every spec that CLICKS it
+        // hangs to the actionability timeout.
+        plugins: wallowStyles(),
         resolve: { alias: { ...resolveAlias, "node:async_hooks": nodeAsyncHooksShim } },
+        test: { ...browser.test, setupFiles: ["./vitest.setup.ts"] },
       },
     ],
   },

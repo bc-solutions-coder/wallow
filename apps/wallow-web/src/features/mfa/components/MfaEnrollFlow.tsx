@@ -24,7 +24,16 @@
  * Testids mirror the C# E2E page object `MfaEnrollPage`.
  */
 import { useMutation, useQueryClient } from "@bc-solutions-coder/query";
-import { Button, Card, CardTitle, ErrorBanner, Field, Input, Label } from "@bc-solutions-coder/ui";
+import {
+  Button,
+  Card,
+  CardTitle,
+  ErrorBanner,
+  Field,
+  Input,
+  Label,
+  Text,
+} from "@bc-solutions-coder/ui";
 import { useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
 
@@ -66,9 +75,11 @@ function VerifyStep(props: {
   const { secret, qrUri, code, onCodeChange, onSubmit } = props;
   return (
     <div>
-      <span data-testid="mfa-enroll-secret">{secret}</span>
+      <Text as="span" variant="body" data-testid="mfa-enroll-secret">
+        {secret}
+      </Text>
       <div data-testid="mfa-enroll-qr">
-        <code>{qrUri}</code>
+        <Text as="code">{qrUri}</Text>
       </div>
       <Field>
         <Label htmlFor="mfa-enroll-code-input">Verification code</Label>
@@ -93,7 +104,9 @@ function DoneStep(props: { codes: string[]; onDone: () => void }) {
   const { codes, onDone } = props;
   return (
     <div>
-      <p>Save your backup codes now. They will not be shown again.</p>
+      <Text as="p" variant="body">
+        Save your backup codes now. They will not be shown again.
+      </Text>
       <ul data-testid="mfa-enroll-backup-codes">
         {codes.map((codeValue) => (
           <li key={codeValue}>{codeValue}</li>

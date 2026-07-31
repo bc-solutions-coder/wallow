@@ -7,10 +7,10 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   byTestId,
   expectClasses,
+  expectPageContainer,
   expectPrecedes,
   expectTag,
   expectTokenColorsOnly,
-  parentOf,
   waitForTestId,
 } from "@shared/testing/style-contract";
 import { Route } from "./index";
@@ -59,27 +59,41 @@ describe("routes/dashboard/apps (restyle)", () => {
     });
   });
 
-  it("centers the page body in the dashboard shell", async () => {
+  it("centers the page body in the shared dashboard container", async () => {
     const root = await renderPage();
 
-    expectClasses(root, "max-w-5xl mx-auto");
+    expectPageContainer(root);
   });
 
   it("titles the page with an h1 reading My Apps", async () => {
     await renderPage();
 
-    const heading = byTestId("apps-heading");
+    // Wallow-lrlm.5.1: the heading is `PageHeader`'s own `<h1>`, so its testid is
+    // DERIVED from the header's (`apps-header` -> `apps-header-title`) and its
+    // type scale is `Text`'s `title` variant rather than a hand-written triple.
+    const heading = byTestId("apps-header-title");
     expectTag(heading, "h1");
     expect(heading.textContent).toBe("My Apps");
-    expectClasses(heading, "text-3xl font-bold text-foreground");
+    expectClasses(heading, "text-3xl font-bold tracking-tight text-foreground");
   });
 
   it("lays the heading and the register CTA out in one header row", async () => {
     await renderPage();
 
-    const headerRow = parentOf(byTestId("apps-heading"));
-    expectClasses(headerRow, "flex items-center justify-between mb-8");
-    expect(headerRow.contains(byTestId("apps-register-link"))).toBe(true);
+    const header = byTestId("apps-header");
+    expectClasses(header, "flex items-start justify-between gap-4 mb-8");
+    expect(header.contains(byTestId("apps-header-title"))).toBe(true);
+    expect(header.contains(byTestId("apps-register-link"))).toBe(true);
+  });
+
+  it("puts the register CTA in the header's trailing actions slot", async () => {
+    await renderPage();
+
+    const actions = byTestId("apps-header-actions");
+    expectClasses(actions, "flex items-center gap-3 shrink-0");
+    expect(actions.contains(byTestId("apps-register-link"))).toBe(true);
+    // The actions slot trails the title, which is the whole point of the slot.
+    expectPrecedes(byTestId("apps-header-title"), actions);
   });
 
   // Wallow-lrlm.4.3 widened this case. The pill's own utilities — token colours,
@@ -106,7 +120,7 @@ describe("routes/dashboard/apps (restyle)", () => {
   it("renders the header row above the app list", async () => {
     await renderPage();
 
-    expectPrecedes(byTestId("apps-heading"), byTestId("apps-table"));
+    expectPrecedes(byTestId("apps-header-title"), byTestId("apps-table"));
   });
 
   it("styles the page with theme tokens only", async () => {

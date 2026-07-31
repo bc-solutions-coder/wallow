@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   byTestId,
   expectClasses,
+  expectPageContainer,
   expectPrecedes,
   expectTag,
   expectTokenColorsOnly,
@@ -16,9 +17,13 @@ import { Route } from "./settings";
 
 /**
  * Restyle spec for the settings page (Wallow-urec.4.4), following the worked
- * example in `routes/dashboard/apps/index.restyle.test.tsx`. Settings is
- * form-heavy rather than a table, so it takes the NARROW shell (`max-w-2xl`) and
- * leans on the `ui` Card sections rather than the list-card surface.
+ * example in `routes/dashboard/apps/index.restyle.test.tsx`. Settings leans on
+ * the `ui` Card sections rather than the list-card surface.
+ *
+ * Wallow-lrlm.5.1 retired the NARROW/WIDE shell split this page used to opt into
+ * (`max-w-2xl` against the list pages' `max-w-5xl`). Every dashboard page now
+ * takes the one shared `PAGE_CONTAINER`, so the width is no longer a per-page
+ * decision and this spec no longer names one.
  *
  * Only page chrome is asserted here; the route's behaviour (loader, the
  * `dashboard-settings` root, and the fact that both sections mount inside it)
@@ -57,25 +62,29 @@ describe("routes/dashboard/settings (restyle)", () => {
     });
   });
 
-  it("constrains the settings page to the narrow shell", async () => {
+  it("centers the settings page in the shared dashboard container", async () => {
     const root = await renderPage();
 
-    expectClasses(root, "max-w-2xl mx-auto");
+    expectPageContainer(root);
   });
 
   it("titles the page with an h1 reading Settings", async () => {
     await renderPage();
 
-    const heading = byTestId("settings-heading");
+    // Wallow-lrlm.5.1: `PageHeader`'s derived testid and `Text`'s title scale.
+    // The `mb-8` the hand-rolled `<h1>` carried moved to the header ROW, which
+    // is where the page rhythm belongs when a title can grow an actions slot.
+    const heading = byTestId("settings-header-title");
     expectTag(heading, "h1");
     expect(heading.textContent).toBe("Settings");
-    expectClasses(heading, "text-3xl font-bold text-foreground mb-8");
+    expectClasses(heading, "text-3xl font-bold tracking-tight text-foreground");
+    expectClasses(byTestId("settings-header"), "flex items-start justify-between gap-4 mb-8");
   });
 
   it("renders the heading above the profile section and the MFA section", async () => {
     await renderPage();
 
-    expectPrecedes(byTestId("settings-heading"), byTestId("settings-profile-name"));
+    expectPrecedes(byTestId("settings-header-title"), byTestId("settings-profile-name"));
     expectPrecedes(byTestId("settings-profile-name"), byTestId("settings-mfa-status"));
   });
 

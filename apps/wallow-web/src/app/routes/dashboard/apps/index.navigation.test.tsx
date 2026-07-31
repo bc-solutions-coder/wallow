@@ -194,7 +194,10 @@ describe("routes/dashboard/apps register CTA navigation", () => {
   it("keeps the CTA inside the page header row", async () => {
     await renderPage();
 
-    const headerRow = byTestId("apps-heading").parentElement;
-    expect(headerRow?.contains(byTestId("apps-register-link"))).toBe(true);
+    // Wallow-lrlm.5.1: the row is `PageHeader`'s root, so it is addressed by its
+    // own testid rather than by walking up from the heading — the heading's
+    // parent is now the title/description column, which the CTA is NOT in.
+    const headerRow = byTestId("apps-header");
+    expect(headerRow.contains(byTestId("apps-register-link"))).toBe(true);
   });
 });

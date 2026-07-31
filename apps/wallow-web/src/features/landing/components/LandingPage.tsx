@@ -16,6 +16,7 @@
  */
 
 import { appIconUrl, forkBranding } from "@bc-solutions-coder/styles";
+import { MutedText, Text } from "@bc-solutions-coder/ui";
 
 import { getStartedHref, repositoryUrl } from "@shared/lib/site-links";
 
@@ -95,13 +96,17 @@ function Hero() {
         className="size-40 mx-auto mb-6"
         style={{ shapeRendering: "geometricPrecision" }}
       />
-      <h1 data-testid="home-heading" className="text-5xl font-bold text-foreground mb-4">
+      {/* `display` is text-4xl; the hero is one step larger, and the marketing
+          scale is deliberate, so the size rides as a className override. The
+          tagline stays the h1's ONLY child — `routes/index.test.tsx` matches the
+          server-rendered `<h1>` against it. */}
+      <Text as="h1" variant="display" className="text-5xl mb-4" data-testid="home-heading">
         {forkBranding.tagline}
-      </h1>
-      <p className="text-lg text-foreground/70 max-w-2xl mx-auto mb-10">
+      </Text>
+      <Text as="p" color="muted" className="text-lg max-w-2xl mx-auto mb-10">
         A modular .NET foundation for building production-ready applications. Multi-tenant,
         event-driven, and built on Clean Architecture from day one.
-      </p>
+      </Text>
       <div className="flex items-center justify-center gap-4">
         <a
           href={getStartedHref}
@@ -115,7 +120,7 @@ function Hero() {
           target="_blank"
           rel="noreferrer"
           data-testid="home-github-link"
-          className="border border-foreground text-foreground font-medium px-8 py-3 rounded-full hover:bg-foreground hover:text-background no-underline text-base transition-colors"
+          className="border border-foreground text-foreground font-medium px-8 py-3 rounded-full hover:bg-sidebar hover:text-sidebar-foreground no-underline text-base transition-colors"
         >
           View on GitHub
         </a>
@@ -124,18 +129,26 @@ function Hero() {
   );
 }
 
-/** The platform's stack, as pill badges. */
+/**
+ * The platform's stack, as pill badges. Deliberately NOT the `Badge` primitive:
+ * these are marketing pills with their own geometry, not the status chips
+ * `Badge` encodes.
+ */
 function TechBadges() {
   return (
     <section className="flex flex-wrap items-center justify-center gap-3 px-6 pb-20">
       {techBadges.map((badge: string) => (
-        <span
+        <Text
           key={badge}
+          as="span"
+          variant="bodySm"
+          color="accent"
+          weight="medium"
+          className="bg-accent px-4 py-1.5 rounded-full"
           data-testid="home-tech-badge"
-          className="bg-accent text-accent-foreground text-sm font-medium px-4 py-1.5 rounded-full"
         >
           {badge}
-        </span>
+        </Text>
       ))}
     </section>
   );
@@ -146,13 +159,18 @@ function FeatureCard(props: Feature) {
   return (
     <div className="bg-card border-l-4 border-primary rounded-lg p-6 shadow-sm">
       <div className="text-2xl mb-2">{props.emoji}</div>
-      <h3
+      {/* `subheading` is text-xl; the card title sits one step down, so the
+          marketing size rides as a className override. */}
+      <Text
+        as="h3"
+        variant="subheading"
+        color="onCard"
+        className="text-lg mb-2"
         data-testid="home-feature-title"
-        className="text-lg font-semibold text-card-foreground mb-2"
       >
         {props.title}
-      </h3>
-      <p className="text-sm text-card-foreground/70">{props.body}</p>
+      </Text>
+      <MutedText>{props.body}</MutedText>
     </div>
   );
 }
@@ -164,9 +182,10 @@ function FeatureCard(props: Feature) {
 function FeaturesGrid() {
   return (
     <section id="features" data-testid="home-features" className="max-w-6xl mx-auto px-6 pb-24">
-      <h2 className="text-3xl font-bold text-foreground text-center mb-12">
+      {/* No explicit variant: `h2` already defaults to `title` (text-3xl bold). */}
+      <Text as="h2" className="text-center mb-12">
         Everything you need to build
-      </h2>
+      </Text>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {features.map((feature: Feature) => (
           <FeatureCard
@@ -186,10 +205,20 @@ function QuickStartStep(props: { position: number; title: string; command: strin
   return (
     <div>
       <div className="text-primary text-4xl font-bold mb-3">{props.position}</div>
-      <h3 data-testid="home-step-title" className="text-lg font-semibold mb-2">
+      {/* `onSidebar` on both: this step sits inside the inverted band, where
+          `Text`'s default `text-foreground` would be dark-on-dark. */}
+      <Text
+        as="h3"
+        variant="subheading"
+        color="onSidebar"
+        className="text-lg mb-2"
+        data-testid="home-step-title"
+      >
         {props.title}
-      </h3>
-      <code className="text-sm text-background/60">{props.command}</code>
+      </Text>
+      <Text as="code" color="onSidebar">
+        {props.command}
+      </Text>
     </div>
   );
 }
@@ -213,9 +242,11 @@ function StepsGrid() {
 /** The inverted quick-start band closing the page. */
 function StepsBand() {
   return (
-    <section className="bg-foreground text-background py-20 px-6">
+    <section className="bg-sidebar text-sidebar-foreground py-20 px-6">
       <div className="max-w-4xl mx-auto text-center">
-        <h2 className="text-3xl font-bold mb-12">Get running in minutes</h2>
+        <Text as="h2" color="onSidebar" className="mb-12">
+          Get running in minutes
+        </Text>
         <StepsGrid />
       </div>
     </section>

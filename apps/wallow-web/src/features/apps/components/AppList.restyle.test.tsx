@@ -4,8 +4,11 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   allByTestId,
+  expectBadge,
   expectClasses,
-  expectTag,
+  expectEmptyState,
+  expectListCard,
+  expectListRow,
   expectTokenColorsOnly,
   parentOf,
   waitForTestId,
@@ -30,6 +33,15 @@ let harness: SdkHarness;
  *   2. The empty state grows into the recipe's centered card (pig emoji, heading,
  *      body copy) but keeps its existing sentence, "No apps yet.", VERBATIM as
  *      the card's heading. A restyle adds chrome; it never rewrites copy.
+ *
+ * Wallow-lrlm.5.2 moves all three surfaces onto the catalog: the card + `ul` are
+ * a `ListCard`, the rows are `ListRow`s, the type chip is a `Badge` and the empty
+ * card is an `EmptyState`. Unlike the other lists this one had NOT been migrated
+ * at all, so both halves change here. The testids are unchanged — `ListCard
+ * name="apps"` derives `apps-table` and `ListRow name="app"` derives `app-item`.
+ *
+ * The rows stay plain `li`s rather than becoming links: there is no app-detail
+ * route to navigate to. `ListRow` without `render` resolves to its default `li`.
  */
 
 const APPS = [
@@ -66,19 +78,10 @@ describe("AppList (restyle)", () => {
     harness = createSdkHarness();
   });
 
-  it("wraps the list in the card surface", async () => {
+  it("renders the list as a catalog list card", async () => {
     const list = await renderList(APPS, "apps-table");
 
-    const surface = parentOf(list);
-    expectTag(surface, "div");
-    expectClasses(surface, "bg-card rounded-lg shadow-sm border border-border overflow-hidden");
-  });
-
-  it("keeps the list a ul and divides its rows", async () => {
-    const list = await renderList(APPS, "apps-table");
-
-    expectTag(list, "ul");
-    expectClasses(list, "divide-y divide-border");
+    expectListCard(list);
   });
 
   it("styles every app row as a table row", async () => {
@@ -87,8 +90,7 @@ describe("AppList (restyle)", () => {
     const rows = allByTestId("app-item");
     expect(rows).toHaveLength(APPS.length);
     for (const row of rows) {
-      expectTag(row, "li");
-      expectClasses(row, "flex items-center justify-between px-6 py-4 hover:bg-background/50");
+      expectListRow(row, "li");
     }
   });
 
@@ -103,21 +105,18 @@ describe("AppList (restyle)", () => {
 
     const chip = within(first, '[data-testid="app-item-type"]');
     expect(chip.textContent?.trim()).toBe("public");
-    expectClasses(
-      chip,
-      "inline-block bg-accent text-accent-foreground text-xs font-medium px-2.5 py-0.5 rounded-full",
-    );
+    expectBadge(chip, "neutral");
   });
 
-  it("presents the empty state as a centered card that keeps its sentence", async () => {
+  it("presents the empty state as a catalog empty state that keeps its copy", async () => {
     const empty = await renderList([], "apps-empty-state");
 
-    expectClasses(empty, "bg-card rounded-lg shadow-sm border border-border p-12 text-center");
-    expect(empty.textContent).toContain("🐷");
-
-    const heading = within(empty, "h2");
-    expect(heading.textContent).toBe("No apps yet.");
-    expectClasses(heading, "text-xl font-semibold text-foreground mb-2");
+    expectEmptyState(empty, "apps-empty-state", {
+      icon: "🐷",
+      message: "No apps yet.",
+      description:
+        "Nothing has been registered here. Get started by creating your first application.",
+    });
   });
 
   it("centers the loading state without changing its wording", async () => {

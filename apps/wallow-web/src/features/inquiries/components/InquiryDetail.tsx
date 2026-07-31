@@ -15,7 +15,7 @@
  * `inquiry-detail-heading`, `inquiry-detail-back-link`, `inquiry-detail-not-found`,
  * `inquiry-detail-error`, `inquiry-detail-status`, `inquiry-status-select` +
  * `inquiry-status-submit` + `inquiry-status-error`,
- * `inquiry-comments-table` + `inquiry-comment-row`,
+ * `inquiry-comments-table` + `inquiry-comment-item`,
  * `inquiry-comments-loading` / `inquiry-comments-empty` / `inquiry-comments-error`,
  * `inquiry-comment-content` + `inquiry-comment-internal` + `inquiry-comment-submit`,
  * `inquiry-comment-error`.
@@ -25,19 +25,22 @@
  * they can co-render, so a spec asserting one must be able to say which failure
  * it saw.
  */
+import { AppForm, FormError, SubmitButton, useAppForm } from "@bc-solutions-coder/forms";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@bc-solutions-coder/query";
 import type { InquiryCommentResponse, WallowSdk } from "@bc-solutions-coder/sdk";
 import {
+  Badge,
   Button,
   Card,
-  Checkbox,
   ErrorBanner,
-  Field,
-  Label,
+  ListCard,
+  ListRow,
   MutedText,
+  Text,
 } from "@bc-solutions-coder/ui";
 import { useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
+import { z } from "zod";
 
 import { SelectControl, type SelectControlOption } from "@shared/components/SelectControl";
 import { errorText } from "@shared/lib/error-text";
@@ -52,13 +55,17 @@ import {
 } from "../api";
 import { INQUIRY_STATUSES } from "../statuses";
 
-/** The status/marker pill shared with the inquiries list rows. */
-const CHIP =
-  "inline-block bg-accent text-accent-foreground text-xs font-medium px-2.5 py-0.5 rounded-full";
+/**
+ * The comment thread is a sub-list INSIDE the detail card, not a page-level list
+ * card, so it overrides the catalog recipe down to a flat, tighter frame with a
+ * tighter, left-aligned cell. Both are caller `className`s that tailwind-merge
+ * collapses against the recipe — the alternative would be a second catalog
+ * recipe for a shape one screen uses.
+ */
+const SUB_LIST_SURFACE = "rounded-md shadow-none";
 
-/** The `ui` `Input` recipe, applied to the bare `textarea` control. */
-const CONTROL =
-  "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring";
+/** The sub-list's row cell — packed and left-aligned, not spread apart. */
+const SUB_LIST_ROW = "justify-start gap-3 px-4 py-3";
 
 /**
  * The domain's statuses as catalog-`Select` options. Value and label are the
@@ -100,7 +107,7 @@ export function InquiryDetail(props: { inquiryId: string }) {
         <a
           href="/dashboard/inquiries"
           data-testid="inquiry-detail-back-link"
-          className="inline-block text-sm text-foreground/60 hover:text-foreground no-underline mb-4"
+          className="inline-block text-sm text-muted-foreground hover:text-foreground no-underline mb-4"
         >
           Back to inquiries
         </a>
@@ -114,19 +121,15 @@ export function InquiryDetail(props: { inquiryId: string }) {
       <a
         href="/dashboard/inquiries"
         data-testid="inquiry-detail-back-link"
-        className="inline-block text-sm text-foreground/60 hover:text-foreground no-underline mb-4"
+        className="inline-block text-sm text-muted-foreground hover:text-foreground no-underline mb-4"
       >
         Back to inquiries
       </a>
-      <h1 data-testid="inquiry-detail-heading" className="text-3xl font-bold text-foreground">
+      <Text as="h1" variant="title" data-testid="inquiry-detail-heading">
         {inquiry.name}
-      </h1>
-      <div data-testid="inquiry-detail-email" className="text-sm text-foreground/60">
-        {inquiry.email}
-      </div>
-      <div data-testid="inquiry-detail-status" className={CHIP}>
-        {inquiry.status}
-      </div>
+      </Text>
+      <MutedText data-testid="inquiry-detail-email">{inquiry.email}</MutedText>
+      <Badge data-testid="inquiry-detail-status">{inquiry.status}</Badge>
 
       <StatusControl
         client={sdk.client}
@@ -185,26 +188,30 @@ function StatusControl(props: {
   );
 }
 
-/** A single comment row (author + content, flagged when internal). */
+/**
+ * A single comment row (author + content, flagged when internal). `ListRow`
+ * derives its test id from `name` as `inquiry-comment-item`.
+ */
 function CommentRow(props: { comment: InquiryCommentResponse }) {
   const { comment } = props;
   return (
-    <li
-      data-testid="inquiry-comment-row"
-      className="flex items-center gap-3 px-4 py-3 hover:bg-background/50"
-    >
-      <span data-testid="inquiry-comment-author" className="text-xs font-medium text-foreground/60">
+    <ListRow name="inquiry-comment" className={SUB_LIST_ROW}>
+      <Text
+        as="span"
+        variant="caption"
+        color="muted"
+        weight="medium"
+        data-testid="inquiry-comment-author"
+      >
         {comment.authorName}
-      </span>
-      <span data-testid="inquiry-comment-body" className="text-sm text-card-foreground">
+      </Text>
+      <Text as="span" variant="bodySm" color="onCard" data-testid="inquiry-comment-body">
         {comment.content}
-      </span>
+      </Text>
       {comment.isInternal ? (
-        <span data-testid="inquiry-comment-internal-flag" className={CHIP}>
-          (internal)
-        </span>
+        <Badge data-testid="inquiry-comment-internal-flag">(internal)</Badge>
       ) : null}
-    </li>
+    </ListRow>
   );
 }
 
@@ -242,103 +249,103 @@ function CommentThread(props: { inquiryId: string }) {
   }
 
   return (
-    <ul
-      data-testid="inquiry-comments-table"
-      className="divide-y divide-border rounded-md border border-border overflow-hidden"
-    >
+    <ListCard name="inquiry-comments" className={SUB_LIST_SURFACE}>
       {comments.map((comment) => (
         <CommentRow key={comment.id} comment={comment} />
       ))}
-    </ul>
+    </ListCard>
   );
 }
 
 /**
- * The add-comment form's public/internal flag — the catalog `Checkbox`, keeping
- * the `inquiry-comment-internal` testid on the box a user actually clicks.
+ * The required-comment rule. Before the migration this form had NO validation at
+ * all: an empty submit POSTed `{ content: "" }` and paid a round trip to learn
+ * what the form already knew.
  *
- * The tick is `keepMounted` and hidden with `invisible` (which still reserves
- * its space) rather than left to Base UI's default unmount, so ticking the box
- * cannot reflow the row it sits in.
+ * `.trim()` is what makes `"   "` fail the `min(1)`. It does NOT trim the
+ * submitted value: TanStack's standard-schema adapter reads only the issue list
+ * off a validation result and discards the parsed output, so `form.state.values`
+ * stays raw — which is also what the pre-migration form posted, so the two
+ * bodies `InquiryDetail.test.tsx` pins are unchanged.
  */
-function InternalFlag(props: { checked: boolean; onChange: (checked: boolean) => void }) {
-  const { checked, onChange } = props;
-  return (
-    <Checkbox.Root
-      data-testid="inquiry-comment-internal"
-      aria-label="Internal note"
-      checked={checked}
-      onCheckedChange={onChange}
-    >
-      <Checkbox.Indicator keepMounted className="data-[unchecked]:invisible">
-        ✓
-      </Checkbox.Indicator>
-    </Checkbox.Root>
-  );
-}
+const addCommentSchema = z.object({
+  content: z.string().trim().min(1, "Comment is required"),
+  isInternal: z.boolean(),
+});
 
-/** Add-comment form with a public/internal toggle. */
+/**
+ * Add-comment form (migrated to `@bc-solutions-coder/forms` in Wallow-lrlm.5.5) —
+ * one `useAppForm` call holding the zod schema, the GENERATED
+ * `inquiriesAddCommentMutation({ client })` and the success work, rendered
+ * through the shared `AppForm` shell (see `CreateOrganizationForm`, the canonical
+ * template).
+ *
+ * `inquiry-comment-form`, `inquiry-comment-content`, `inquiry-comment-error` and
+ * `inquiry-comment-submit` all DERIVE from the shell's `testIdPrefix`. The
+ * internal flag does not: `isInternal` would derive `inquiry-comment-is-internal`,
+ * but `InquiryDetail.test.tsx` clicks — and `InquiryDetail.catalog.test.tsx`
+ * inspects — `inquiry-comment-internal`, so it carries an explicit `testId`.
+ *
+ * The flag also gains a VISIBLE label: `CheckboxField` requires one and renders
+ * it beside the box. It reuses the box's existing `aria-label` copy verbatim,
+ * "Internal note", so the accessible name is unchanged — a migration adds
+ * chrome, it never rewrites copy.
+ *
+ * ERROR SURFACE. The sibling `ErrorBanner` that named nothing becomes the RFC
+ * 7807 split: per-property `errors` render through the field's own message
+ * (`aria-describedby`'d and `aria-invalid`'d onto the control), and only what is
+ * left over reaches the banner — which keeps the id `inquiry-comment-error` and,
+ * for a failure carrying no message of its own, the sentence it always had.
+ */
 function AddCommentForm(props: {
   client: WallowSdk["client"];
   queryClient: QueryClient;
   inquiryId: string;
 }) {
   const { client, queryClient, inquiryId } = props;
-  const mutation = useMutation({
-    ...inquiriesAddCommentMutation({ client }),
-    onSuccess: (): void => {
+
+  const form = useAppForm({
+    schema: addCommentSchema,
+    defaultValues: { content: "", isInternal: false },
+    // The generated factory goes over WHOLE — `useAppForm` infers its `TError`,
+    // so nothing here has to be destructured or cast.
+    mutation: inquiriesAddCommentMutation({ client }),
+    // The operation carries a path parameter, so the default `{ body: values }`
+    // would post to the wrong URL. The body itself is the values verbatim.
+    toVariables: (values) => ({
+      path: { id: inquiryId },
+      body: { content: values.content, isInternal: values.isInternal },
+    }),
+    onSuccess: () => {
+      // Generated keys are flat, so there is no `['comments']` prefix to
+      // invalidate by — the comments OPERATION predicate is the sweep.
       void queryClient.invalidateQueries(
         queriesForOperation(inquiriesGetCommentsQueryKey({ client, path: { id: inquiryId } })),
       );
+      // TanStack's own `reset` (the form's values), NOT `form.wallow.reset` (the
+      // mutation's result state). Leaving the flag stuck on is how the NEXT
+      // comment gets posted internal by accident. Closing over `form` is safe —
+      // `onSuccess` only ever runs after a render.
+      form.reset();
     },
+    fallbackError: "Could not add the comment.",
   });
-  const [content, setContent] = useState("");
-  const [isInternal, setIsInternal] = useState(false);
 
   return (
-    <form
-      data-testid="inquiry-comment-form"
-      className="space-y-3"
-      onSubmit={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        mutation.mutate(
-          { path: { id: inquiryId }, body: { content, isInternal } },
-          {
-            onSuccess: () => {
-              setContent("");
-              setIsInternal(false);
-            },
-          },
-        );
-      }}
-    >
-      <Field>
-        <Label htmlFor="inquiry-comment-content-input">Comment</Label>
-        <textarea
-          id="inquiry-comment-content-input"
-          data-testid="inquiry-comment-content"
-          className={CONTROL}
-          value={content}
-          onChange={(e) => {
-            setContent(e.target.value);
-          }}
-        />
-      </Field>
-      <InternalFlag
-        checked={isInternal}
-        onChange={(next: boolean) => {
-          setIsInternal(next);
-        }}
-      />
-      {mutation.isError ? (
-        <ErrorBanner data-testid="inquiry-comment-error">
-          {errorText(mutation.error, "Could not add the comment.")}
-        </ErrorBanner>
-      ) : null}
-      <Button type="submit" data-testid="inquiry-comment-submit">
-        Add comment
-      </Button>
-    </form>
+    // `space-y-3`, not the shell's default `space-y-5` — this form's rhythm is
+    // pinned by `InquiryDetail.restyle.test.tsx`.
+    <AppForm form={form} testIdPrefix="inquiry-comment" className="space-y-3">
+      <form.AppField name="content">
+        {(field) => <field.TextareaField label="Comment" />}
+      </form.AppField>
+
+      <form.AppField name="isInternal">
+        {(field) => <field.CheckboxField label="Internal note" testId="inquiry-comment-internal" />}
+      </form.AppField>
+
+      <FormError />
+
+      <SubmitButton>Add comment</SubmitButton>
+    </AppForm>
   );
 }

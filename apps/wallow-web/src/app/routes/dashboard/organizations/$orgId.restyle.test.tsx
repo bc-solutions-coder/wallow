@@ -5,7 +5,7 @@ import { routeHarness } from "@shared/testing/harness-routes";
 import { beforeEach, describe, it, vi } from "vitest";
 
 import {
-  expectClasses,
+  expectPageContainer,
   expectTokenColorsOnly,
   waitForTestId,
 } from "@shared/testing/style-contract";
@@ -23,8 +23,9 @@ import {
  * approach `__root.focus.test.tsx` uses for `Outlet`/`FocusOnNavigate`.
  *
  * Blazor reference (`2e039fcb:...Dashboard/OrganizationDetail.razor`): the detail
- * page uses the WIDE `max-w-5xl` shell, not the narrow form shell — it carries
- * two tables.
+ * page carries two tables, so it always wanted the wide column. Wallow-lrlm.5.1
+ * made that width the shared `PAGE_CONTAINER` every dashboard page takes, so
+ * this page no longer names a width of its own.
  */
 vi.mock("@tanstack/react-router", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@tanstack/react-router")>();
@@ -79,10 +80,10 @@ describe("routes/dashboard/organizations/$orgId (restyle)", () => {
     );
   });
 
-  it("centers the detail page in the wide dashboard shell", async () => {
+  it("centers the detail page in the shared dashboard container", async () => {
     const root = await renderPage();
 
-    expectClasses(root, "max-w-5xl mx-auto");
+    expectPageContainer(root);
   });
 
   it("styles the page with theme tokens only", async () => {

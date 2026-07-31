@@ -6,6 +6,9 @@ import {
   allByTestId,
   byTestId,
   expectClasses,
+  expectEmptyState,
+  expectListCard,
+  expectListRow,
   expectTag,
   expectTokenColorsOnly,
   parentOf,
@@ -32,6 +35,16 @@ let harness: SdkHarness;
  *
  * New testids (pure additions — no spec pins a section heading or the per-row
  * email cell today): `organization-members-heading`, `organization-member-email`.
+ *
+ * Wallow-lrlm.5.2 moves the table onto the catalog `ListCard`/`ListRow` and the
+ * empty branch onto `EmptyState`. ONE id moves with it: `ListRow` derives its id
+ * as `{name}-item` and that derivation cannot be overridden, so the row is
+ * `organization-detail-member-item`, not `…-member-row`. The bead asks for the
+ * ids to be preserved BECAUSE e2e specs assert them — no e2e spec references
+ * this one (or the client/comment rows that move the same way), so the rename
+ * costs nothing and the alternative is leaving the named-in-the-bead list off
+ * the catalog entirely. Flagged on the bead for the verifier. The table's own id
+ * IS preserved: `ListCard name="organization-detail-members"` derives it.
  */
 
 const MEMBERS = [
@@ -91,32 +104,26 @@ describe("MemberList (restyle)", () => {
     expectClasses(byTestId("organization-member-add-submit"), "w-auto");
   });
 
-  it("wraps the members table in the card surface", async () => {
+  it("renders the members table as a catalog list card", async () => {
     const table = await renderMembers(MEMBERS, "organization-detail-members-table");
 
-    expectTag(table, "ul");
-    expectClasses(table, "divide-y divide-border");
-
-    const surface = parentOf(table);
-    expectTag(surface, "div");
-    expectClasses(surface, "bg-card rounded-lg shadow-sm border border-border overflow-hidden");
+    expectListCard(table);
   });
 
   it("styles every member row as a table row", async () => {
     await renderMembers(MEMBERS, "organization-detail-members-table");
 
-    const rows = allByTestId("organization-detail-member-row");
+    const rows = allByTestId("organization-detail-member-item");
     expect(rows).toHaveLength(MEMBERS.length);
     for (const row of rows) {
-      expectTag(row, "li");
-      expectClasses(row, "flex items-center justify-between px-6 py-4 hover:bg-background/50");
+      expectListRow(row, "li");
     }
   });
 
   it("renders each row's email cell and a compact remove action", async () => {
     await renderMembers(MEMBERS, "organization-detail-members-table");
 
-    const [first] = allByTestId("organization-detail-member-row");
+    const [first] = allByTestId("organization-detail-member-item");
 
     const email = within(first, '[data-testid="organization-member-email"]');
     expect(email.textContent).toBe("ada@acme.io");
@@ -127,11 +134,18 @@ describe("MemberList (restyle)", () => {
     expect(remove.textContent?.trim()).toBe("Remove");
   });
 
-  it("presents the empty state as a centered card that keeps its sentence", async () => {
+  // The one empty state in this app that carried no glyph and no supporting
+  // copy. It keeps both omissions: `EmptyState` renders nothing for a slot it is
+  // not given, so the card is the sentence alone — now promoted to the catalog's
+  // `<h2>` message, which is the shape every other empty card already had.
+  it("presents the empty state as a catalog empty state that keeps its sentence", async () => {
     const empty = await renderMembers([], "organization-members-empty");
 
-    expectClasses(empty, "bg-card rounded-lg shadow-sm border border-border p-8 text-center");
-    expect(empty.textContent).toBe("No members yet.");
+    expectEmptyState(empty, "organization-members-empty", {
+      icon: null,
+      message: "No members yet.",
+      description: null,
+    });
   });
 
   it("centers the loading state without changing its wording", async () => {

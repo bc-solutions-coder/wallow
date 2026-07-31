@@ -41,7 +41,16 @@ import {
   useAppForm,
 } from "@bc-solutions-coder/forms";
 import { useQueryClient } from "@bc-solutions-coder/query";
-import { Button, Card, Field, Input, Label, Toggle, ToggleGroup } from "@bc-solutions-coder/ui";
+import {
+  Button,
+  Card,
+  Field,
+  Input,
+  Label,
+  Text,
+  Toggle,
+  ToggleGroup,
+} from "@bc-solutions-coder/ui";
 import { useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
 import { z } from "zod";
@@ -140,7 +149,11 @@ function BrandingSection() {
           associate through the `Field` row, and the raw file input spells the
           `htmlFor`/`id` pair out because there is no catalog part behind it to
           register. */}
-      <legend>Branding (optional)</legend>
+      {/* `variant="body"` overrides `legend`'s catalog default of `caption`: the
+          shipped legend is unclassed, so caption would shrink it. */}
+      <Text as="legend" variant="body">
+        Branding (optional)
+      </Text>
       <Field>
         <Label>Display name</Label>
         <Input data-testid="app-branding-display-name" placeholder="Display name" />
@@ -167,9 +180,15 @@ function SuccessView(props: { result: AppRegistrationResponse }) {
   const { result } = props;
   return (
     <Card data-testid="app-register-success">
-      <p>Save your client secret now. It will not be shown again.</p>
-      <span data-testid="app-client-id">{result.clientId}</span>
-      <span data-testid="app-client-secret">{result.clientSecret}</span>
+      <Text as="p" variant="body">
+        Save your client secret now. It will not be shown again.
+      </Text>
+      <Text as="span" variant="body" data-testid="app-client-id">
+        {result.clientId}
+      </Text>
+      <Text as="span" variant="body" data-testid="app-client-secret">
+        {result.clientSecret}
+      </Text>
       <Button
         type="button"
         data-testid="app-client-secret-copy"

@@ -14,41 +14,38 @@
  * cover.
  */
 import { useQuery } from "@bc-solutions-coder/query";
-import { Card, CardTitle, ErrorBanner, MutedText } from "@bc-solutions-coder/ui";
+import { Badge, Card, CardTitle, ErrorBanner, MutedText, Text } from "@bc-solutions-coder/ui";
 import { useRouteContext } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
 import { errorText } from "@shared/lib/error-text";
 import { usersGetCurrentUserOptions } from "../api";
 
-/** The uppercase caption above each read-only value. */
-const FIELD_LABEL = "block text-xs font-semibold text-foreground/70 uppercase tracking-wider mb-1";
-
-/** A read-only field value. */
-const FIELD_VALUE = "text-sm text-foreground";
-
-/** The shared status/type pill from the dashboard recipe. */
-const CHIP =
-  "inline-block bg-accent text-accent-foreground text-xs font-medium px-2.5 py-0.5 rounded-full";
-
 /** A captioned read-only field row (extracted to keep the card's JSX shallow). */
 function ProfileField(props: { label: string; children: ReactNode }) {
   return (
     <div>
-      <span className={FIELD_LABEL}>{props.label}</span>
+      {/* `overline` IS the uppercase caption scale; only the layout stays local. */}
+      <Text as="span" variant="overline" color="muted" className="block mb-1">
+        {props.label}
+      </Text>
       {props.children}
     </div>
   );
 }
 
-/** The role chips (extracted so the roles field stays within the nesting budget). */
+/**
+ * The role chips (extracted so the roles field stays within the nesting budget).
+ * They stay `neutral`: a role is an identity, not a state, so tinting one would
+ * invent a judgement this card does not make.
+ */
 function RoleChips(props: { roles: readonly string[] }) {
   return (
     <div data-testid="settings-profile-roles" className="flex flex-wrap gap-2">
       {props.roles.map((role) => (
-        <span key={role} data-testid="settings-profile-role" className={CHIP}>
+        <Badge key={role} data-testid="settings-profile-role">
           {role}
-        </span>
+        </Badge>
       ))}
     </div>
   );
@@ -88,14 +85,14 @@ export function ProfileSection() {
     <Card>
       <CardTitle>Profile</CardTitle>
       <ProfileField label="Name">
-        <div data-testid="settings-profile-name" className={FIELD_VALUE}>
+        <Text as="div" variant="bodySm" data-testid="settings-profile-name">
           {name}
-        </div>
+        </Text>
       </ProfileField>
       <ProfileField label="Email">
-        <div data-testid="settings-profile-email" className={FIELD_VALUE}>
+        <Text as="div" variant="bodySm" data-testid="settings-profile-email">
           {email}
-        </div>
+        </Text>
       </ProfileField>
       <ProfileField label="Roles">
         {roles.length > 0 ? (

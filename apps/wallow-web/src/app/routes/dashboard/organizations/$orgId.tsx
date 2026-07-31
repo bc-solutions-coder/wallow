@@ -5,6 +5,7 @@ import {
   organizationsGetByIdOptions,
   organizationsGetMembersOptions,
 } from "@features/organizations";
+import { PAGE_CONTAINER } from "@shared/lib/page-container";
 
 /**
  * The dashboard organization-detail route (Wallow-8w1h.4.4). Mirrors the list
@@ -19,7 +20,7 @@ import {
 function OrganizationDetailPage() {
   const { orgId } = Route.useParams();
   return (
-    <div data-testid="dashboard-organization-detail" className="max-w-5xl mx-auto">
+    <div data-testid="dashboard-organization-detail" className={PAGE_CONTAINER}>
       <OrganizationDetail orgId={orgId} />
     </div>
   );

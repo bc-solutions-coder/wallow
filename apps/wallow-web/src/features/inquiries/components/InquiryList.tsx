@@ -6,7 +6,15 @@
  */
 import { useQuery } from "@bc-solutions-coder/query";
 import type { InquiryResponse } from "@bc-solutions-coder/sdk";
-import { ErrorBanner, ListRow, MutedText } from "@bc-solutions-coder/ui";
+import {
+  Badge,
+  EmptyState,
+  ErrorBanner,
+  ListCard,
+  ListRow,
+  MutedText,
+  Text,
+} from "@bc-solutions-coder/ui";
 import { Link, useRouteContext } from "@tanstack/react-router";
 
 import { errorText } from "@shared/lib/error-text";
@@ -20,13 +28,19 @@ import { inquiriesGetAllOptions } from "../api";
 function InquiryIdentity({ inquiry }: { inquiry: InquiryResponse }) {
   return (
     <div className="flex flex-col">
-      <span data-testid="inquiry-item-name" className="text-sm font-medium text-card-foreground">
+      <Text
+        as="span"
+        variant="bodySm"
+        color="onCard"
+        weight="medium"
+        data-testid="inquiry-item-name"
+      >
         {inquiry.name}
-      </span>
+      </Text>
       {inquiry.company === null ? null : (
-        <span data-testid="inquiry-item-company" className="text-xs text-foreground/60">
+        <Text as="span" variant="caption" color="muted" data-testid="inquiry-item-company">
           {inquiry.company}
-        </span>
+        </Text>
       )}
     </div>
   );
@@ -45,12 +59,7 @@ function InquiryRow({ inquiry }: { inquiry: InquiryResponse }) {
       render={<Link to="/dashboard/inquiries/$inquiryId" params={{ inquiryId: inquiry.id }} />}
     >
       <InquiryIdentity inquiry={inquiry} />
-      <span
-        data-testid="inquiry-item-status"
-        className="inline-block bg-accent text-accent-foreground text-xs font-medium px-2.5 py-0.5 rounded-full"
-      >
-        {inquiry.status}
-      </span>
+      <Badge data-testid="inquiry-item-status">{inquiry.status}</Badge>
     </ListRow>
   );
 }
@@ -62,16 +71,12 @@ function InquiryRow({ inquiry }: { inquiry: InquiryResponse }) {
  */
 function InquiriesEmptyState() {
   return (
-    <div
+    <EmptyState
       data-testid="inquiries-empty-state"
-      className="bg-card rounded-lg shadow-sm border border-border p-12 text-center"
-    >
-      <div className="text-[80px] leading-none mb-4">🐷</div>
-      <h2 className="text-xl font-semibold text-foreground mb-2">No inquiries yet.</h2>
-      <p className="text-foreground/60">
-        Nothing has arrived here. New inquiries show up as soon as one is submitted.
-      </p>
-    </div>
+      icon="🐷"
+      message="No inquiries yet."
+      description="Nothing has arrived here. New inquiries show up as soon as one is submitted."
+    />
   );
 }
 
@@ -107,15 +112,13 @@ export function InquiryList() {
     return <InquiriesEmptyState />;
   }
 
-  // A raw div, not the ui `Card`: Card's fixed `p-6 space-y-6` fights the
-  // recipe's `px-6 py-4` row cells, which need to bleed to the card edge.
+  // `ListCard`, not the ui `Card`: Card's fixed padding fights row cells that
+  // have to bleed to the card edge. `inquiries-table` is derived from `name`.
   return (
-    <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
-      <ul data-testid="inquiries-table" className="divide-y divide-border">
-        {inquiries.map((inquiry) => (
-          <InquiryRow key={inquiry.id} inquiry={inquiry} />
-        ))}
-      </ul>
-    </div>
+    <ListCard name="inquiries">
+      {inquiries.map((inquiry) => (
+        <InquiryRow key={inquiry.id} inquiry={inquiry} />
+      ))}
+    </ListCard>
   );
 }

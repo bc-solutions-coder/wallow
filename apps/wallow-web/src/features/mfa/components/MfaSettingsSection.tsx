@@ -22,6 +22,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@bc-solutions-coder/query";
 import {
+  Badge,
   Button,
   Card,
   CardTitle,
@@ -30,6 +31,7 @@ import {
   Input,
   Label,
   MutedText,
+  Text,
 } from "@bc-solutions-coder/ui";
 import { useRouteContext } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
@@ -50,20 +52,6 @@ type ConfirmAction = "disable" | "regenerate";
 
 const CONFIRM_FAILED = "Unable to complete that action.";
 
-/** The uppercase caption above each read-only value. */
-const FIELD_LABEL = "block text-xs font-semibold text-foreground/70 uppercase tracking-wider mb-1";
-
-/** A read-only field value. */
-const FIELD_VALUE = "text-sm text-foreground";
-
-/**
- * The shared status/type pill from the dashboard recipe. The old design tinted
- * this by state (green when enabled); there is no success token in the theme, so
- * the chip stays state-independent rather than reaching for a raw palette hue.
- */
-const CHIP =
-  "inline-block bg-accent text-accent-foreground text-xs font-medium px-2.5 py-0.5 rounded-full";
-
 /** The framed sub-panels nested inside the card (confirm + codes reveal). */
 const PANEL = "rounded-md border border-border p-4";
 
@@ -71,7 +59,10 @@ const PANEL = "rounded-md border border-border p-4";
 function MfaField(props: { label: string; children: ReactNode }) {
   return (
     <div>
-      <span className={FIELD_LABEL}>{props.label}</span>
+      {/* `overline` IS the uppercase caption scale; only the layout stays local. */}
+      <Text as="span" variant="overline" color="muted" className="block mb-1">
+        {props.label}
+      </Text>
       {props.children}
     </div>
   );
@@ -82,9 +73,7 @@ function DisabledCard(props: { onEnable: () => void }) {
   return (
     <div className="space-y-4">
       <MfaField label="Status">
-        <span data-testid="settings-mfa-status" className={CHIP}>
-          Disabled
-        </span>
+        <Badge data-testid="settings-mfa-status">Disabled</Badge>
       </MfaField>
       <Button type="button" data-testid="settings-mfa-enable" onClick={props.onEnable}>
         Enable MFA
@@ -104,15 +93,18 @@ function EnabledCard(props: {
   const { backupCodeCount, onDisable, onRegenerate } = props;
   return (
     <div className="space-y-4">
+      {/* The old design tinted this green when enabled and the port could not:
+          the theme had no success token. F1.T1 added `--color-success`, so the
+          state the card reports is expressible in tokens again. */}
       <MfaField label="Status">
-        <span data-testid="settings-mfa-status" className={CHIP}>
+        <Badge variant="success" data-testid="settings-mfa-status">
           Enabled
-        </span>
+        </Badge>
       </MfaField>
       <MfaField label="Backup Codes Remaining">
-        <span data-testid="settings-mfa-backup-count" className={FIELD_VALUE}>
+        <Text as="span" variant="bodySm" data-testid="settings-mfa-backup-count">
           {backupCodeCount}
-        </span>
+        </Text>
       </MfaField>
       {/* A grid, not a flex row: `ui` Button is `w-full`, so the cells size the
           buttons instead of fighting the primitive's own width. */}
@@ -146,7 +138,7 @@ function ConfirmPanel(props: {
 }) {
   const { password, onPasswordChange, onSubmit } = props;
   return (
-    <div className={`${PANEL} bg-background/50 space-y-3`}>
+    <div className={`${PANEL} bg-muted space-y-3`}>
       <Field>
         <Label htmlFor="settings-mfa-confirm-password-input">Password</Label>
         <Input
@@ -174,9 +166,9 @@ function ConfirmPanel(props: {
 function RegeneratedCodes(props: { codes: string[] }) {
   return (
     <div className={PANEL}>
-      <p className="text-sm font-semibold text-foreground mb-2">
+      <Text as="p" variant="bodySm" weight="semibold" className="mb-2">
         New backup codes — save these somewhere safe. They will not be shown again.
-      </p>
+      </Text>
       <ul
         data-testid="settings-mfa-regenerated-codes"
         className="font-mono text-sm space-y-1 text-foreground"

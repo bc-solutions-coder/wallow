@@ -2,7 +2,7 @@
  * Organization member list + management (Wallow-8w1h.4.4). Drives
  * `useQuery(organizationsGetMembersOptions(...))` and renders the members table
  * (rendering `organization-detail-members-table` /
- * `organization-detail-member-row`), a per-row remove button, and an add-member
+ * `organization-detail-member-item`), a per-row remove button, and an add-member
  * form backed by the generated add/remove member mutations.
  *
  * Both writes sweep the members OPERATION rather than a key prefix — generated
@@ -18,11 +18,21 @@
  * `organization-member-userid` + `organization-member-add-submit` (add form),
  * `organization-member-remove` (per-row remove).
  */
+import { AppForm, FormError, SubmitButton, useAppForm } from "@bc-solutions-coder/forms";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@bc-solutions-coder/query";
 import type { UserDto, WallowSdk } from "@bc-solutions-coder/sdk";
-import { Button, ErrorBanner, Field, Input, Label, MutedText } from "@bc-solutions-coder/ui";
+import {
+  Button,
+  EmptyState,
+  ErrorBanner,
+  ListCard,
+  ListRow,
+  MutedText,
+  Text,
+} from "@bc-solutions-coder/ui";
 import { useRouteContext } from "@tanstack/react-router";
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
+import { z } from "zod";
 
 import { errorText } from "@shared/lib/error-text";
 import {
@@ -33,20 +43,23 @@ import {
   queriesForOperation,
 } from "../api";
 
-/** A single member row with a remove action. */
+/**
+ * A single member row with a remove action. `ListRow` derives the row's test id
+ * from `name` as `organization-detail-member-item`.
+ */
 function MemberRow(props: { member: UserDto; onRemove: (userId: string) => void }) {
   const { member, onRemove } = props;
   return (
-    <li
-      data-testid="organization-detail-member-row"
-      className="flex items-center justify-between px-6 py-4 hover:bg-background/50"
-    >
-      <span
+    <ListRow name="organization-detail-member">
+      <Text
+        as="span"
+        variant="bodySm"
+        color="onCard"
+        weight="medium"
         data-testid="organization-member-email"
-        className="text-sm font-medium text-card-foreground"
       >
         {member.email}
-      </span>
+      </Text>
       <Button
         type="button"
         variant="destructive"
@@ -58,7 +71,7 @@ function MemberRow(props: { member: UserDto; onRemove: (userId: string) => void 
       >
         Remove
       </Button>
-    </li>
+    </ListRow>
   );
 }
 
@@ -84,16 +97,18 @@ export function MemberList(props: { orgId: string }) {
     },
   });
 
-  // No ui `Card` around the section: the table's `px-6 py-4` cells must bleed to
-  // their own card's edge, which Card's fixed `p-6 space-y-6` prevents.
+  // No ui `Card` around the section: the table's own `ListCard` is the surface,
+  // and wrapping it in a second one would nest card inside card.
   return (
     <div>
-      <h2
+      <Text
+        as="h2"
+        variant="subheading"
+        className="mb-4"
         data-testid="organization-members-heading"
-        className="text-xl font-semibold text-foreground mb-4"
       >
         Members
-      </h2>
+      </Text>
 
       <AddMemberForm client={sdk.client} queryClient={queryClient} orgId={orgId} />
 
@@ -145,56 +160,83 @@ function MembersRegion(props: {
   return <MemberTable members={members ?? []} onRemove={onRemove} />;
 }
 
-/** Add-member form, backed by the generated add-member mutation. */
+/**
+ * The required-user-id rule. It replaces the handler's silent
+ * `if (userId.trim() === "") return;` — same trim, but the user now learns why
+ * nothing happened.
+ *
+ * `.trim()` is what makes `"   "` fail the `min(1)`. It does NOT trim the
+ * submitted value: TanStack's standard-schema adapter reads only the issue list
+ * off a validation result and discards the parsed output, so `form.state.values`
+ * stays raw — which is also what the pre-migration form posted, so the body
+ * `MemberList.test.tsx` pins is unchanged.
+ */
+const addMemberSchema = z.object({
+  userId: z.string().trim().min(1, "User ID is required"),
+});
+
+/**
+ * Add-member form (migrated to `@bc-solutions-coder/forms` in Wallow-lrlm.5.5) —
+ * one `useAppForm` call holding the zod schema, the GENERATED
+ * `organizationsAddMemberMutation({ client })` and the success work, rendered
+ * through the shared `AppForm` shell (see `CreateOrganizationForm`, the canonical
+ * template).
+ *
+ * `organization-member-add-form`, `-add-submit` and `-add-error` all DERIVE from
+ * the shell's `testIdPrefix`. The field does not: `userId` would derive
+ * `organization-member-add-user-id`, but three closed specs (the oracle, the
+ * restyle spec and the a11y spec) select the control as
+ * `organization-member-userid` — so it carries an explicit `testId`, which the
+ * catalog also suffixes for its message (`organization-member-userid-error`).
+ *
+ * `organization-member-add-error` is a NEW surface: before the migration a
+ * rejected add — a bad id, a duplicate member, a 403 — was completely silent.
+ */
 function AddMemberForm(props: {
   client: WallowSdk["client"];
   queryClient: QueryClient;
   orgId: string;
 }) {
   const { client, queryClient, orgId } = props;
-  const addMember = useMutation({
-    ...organizationsAddMemberMutation({ client }),
-    onSuccess: (): void => {
+
+  const form = useAppForm({
+    schema: addMemberSchema,
+    defaultValues: { userId: "" },
+    // The generated factory goes over WHOLE — `useAppForm` infers its `TError`,
+    // so nothing here has to be destructured or cast.
+    mutation: organizationsAddMemberMutation({ client }),
+    // The operation carries a path parameter, so the default `{ body: values }`
+    // would post to the wrong URL. The body itself stays `{ userId }`.
+    toVariables: (values) => ({ path: { id: orgId }, body: { userId: values.userId } }),
+    onSuccess: () => {
       void queryClient.invalidateQueries(membersOfOperation(client, orgId));
+      // TanStack's own `reset` (the form's values), NOT `form.wallow.reset` (the
+      // mutation's result state): clearing the input is what the pre-migration
+      // per-call `mutate` `onSuccess` did. Closing over `form` is safe —
+      // `onSuccess` only ever runs after a render.
+      form.reset();
     },
+    fallbackError: "Could not add the member.",
   });
-  const [userId, setUserId] = useState("");
 
   return (
-    <form
-      data-testid="organization-member-add-form"
+    // `flex items-end gap-3 mb-4`, not the shell's default `space-y-5` — this
+    // form is one inline row, pinned by `MemberList.restyle.test.tsx`.
+    <AppForm
+      form={form}
+      testIdPrefix="organization-member-add"
       className="flex items-end gap-3 mb-4"
-      onSubmit={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (userId.trim() === "") {
-          return;
-        }
-        addMember.mutate(
-          { path: { id: orgId }, body: { userId } },
-          {
-            onSuccess: () => {
-              setUserId("");
-            },
-          },
-        );
-      }}
     >
-      <Field>
-        <Label htmlFor="organization-member-userid-input">User ID</Label>
-        <Input
-          id="organization-member-userid-input"
-          data-testid="organization-member-userid"
-          value={userId}
-          onChange={(e) => {
-            setUserId(e.target.value);
-          }}
-        />
-      </Field>
-      <Button type="submit" className="w-auto" data-testid="organization-member-add-submit">
-        Add member
-      </Button>
-    </form>
+      <form.AppField name="userId">
+        {(field) => <field.TextField label="User ID" testId="organization-member-userid" />}
+      </form.AppField>
+
+      {/* The shared Button is `w-full` by default; inline beside the input it
+          sizes to its label instead of stretching. */}
+      <SubmitButton className="w-auto">Add member</SubmitButton>
+
+      <FormError />
+    </AppForm>
   );
 }
 
@@ -203,25 +245,17 @@ function MemberTable(props: { members: readonly UserDto[]; onRemove: (userId: st
   const { members, onRemove } = props;
 
   if (members.length === 0) {
-    // This empty state stays a MutedText: unlike the list/detail ones it has no
-    // block children, so a `<p>` is still legal markup.
-    return (
-      <MutedText
-        data-testid="organization-members-empty"
-        className="bg-card rounded-lg shadow-sm border border-border p-8 text-center"
-      >
-        No members yet.
-      </MutedText>
-    );
+    // The one empty state in this app that carries neither a glyph nor
+    // supporting copy: `EmptyState` omits a slot it is not given, so the card is
+    // the sentence alone.
+    return <EmptyState data-testid="organization-members-empty" message="No members yet." />;
   }
 
   return (
-    <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
-      <ul data-testid="organization-detail-members-table" className="divide-y divide-border">
-        {members.map((member) => (
-          <MemberRow key={member.id} member={member} onRemove={onRemove} />
-        ))}
-      </ul>
-    </div>
+    <ListCard name="organization-detail-members">
+      {members.map((member) => (
+        <MemberRow key={member.id} member={member} onRemove={onRemove} />
+      ))}
+    </ListCard>
   );
 }

@@ -6,29 +6,35 @@
  */
 import { useQuery } from "@bc-solutions-coder/query";
 import type { DeveloperAppResponse } from "@bc-solutions-coder/sdk";
-import { ErrorBanner, MutedText } from "@bc-solutions-coder/ui";
+import {
+  Badge,
+  EmptyState,
+  ErrorBanner,
+  ListCard,
+  ListRow,
+  MutedText,
+  Text,
+} from "@bc-solutions-coder/ui";
 import { useRouteContext } from "@tanstack/react-router";
 
 import { errorText } from "@shared/lib/error-text";
 import { appsGetUserAppsOptions } from "../api";
 
-/** A single app row (extracted to keep the list's JSX nesting shallow). */
+/**
+ * A single app row (extracted to keep the list's JSX nesting shallow).
+ *
+ * Unlike the organization and inquiry rows this one composes no `render` prop:
+ * there is no app-detail route to navigate to, so the row stays `ListRow`'s
+ * default element. The shipped `app-item` test id is derived from `name`.
+ */
 function AppRow({ app }: { app: DeveloperAppResponse }) {
   return (
-    <li
-      data-testid="app-item"
-      className="flex items-center justify-between px-6 py-4 hover:bg-background/50"
-    >
-      <span data-testid="app-item-name" className="text-sm font-medium text-card-foreground">
+    <ListRow name="app">
+      <Text as="span" variant="bodySm" color="onCard" weight="medium" data-testid="app-item-name">
         {app.displayName}
-      </span>
-      <span
-        data-testid="app-item-type"
-        className="inline-block bg-accent text-accent-foreground text-xs font-medium px-2.5 py-0.5 rounded-full"
-      >
-        {app.clientType}
-      </span>
-    </li>
+      </Text>
+      <Badge data-testid="app-item-type">{app.clientType}</Badge>
+    </ListRow>
   );
 }
 
@@ -39,16 +45,12 @@ function AppRow({ app }: { app: DeveloperAppResponse }) {
  */
 function AppsEmptyState() {
   return (
-    <div
+    <EmptyState
       data-testid="apps-empty-state"
-      className="bg-card rounded-lg shadow-sm border border-border p-12 text-center"
-    >
-      <div className="text-[80px] leading-none mb-4">🐷</div>
-      <h2 className="text-xl font-semibold text-foreground mb-2">No apps yet.</h2>
-      <p className="text-foreground/60">
-        Nothing has been registered here. Get started by creating your first application.
-      </p>
-    </div>
+      icon="🐷"
+      message="No apps yet."
+      description="Nothing has been registered here. Get started by creating your first application."
+    />
   );
 }
 
@@ -82,15 +84,13 @@ export function AppList() {
     return <AppsEmptyState />;
   }
 
-  // A raw div, not the ui `Card`: Card's fixed `p-6 space-y-6` fights the
-  // recipe's `px-6 py-4` row cells, which need to bleed to the card edge.
+  // `ListCard`, not the ui `Card`: Card's fixed padding fights row cells that
+  // have to bleed to the card edge. The shipped `apps-table` id is derived.
   return (
-    <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
-      <ul data-testid="apps-table" className="divide-y divide-border">
-        {apps.map((app) => (
-          <AppRow key={app.clientId} app={app} />
-        ))}
-      </ul>
-    </div>
+    <ListCard name="apps">
+      {apps.map((app) => (
+        <AppRow key={app.clientId} app={app} />
+      ))}
+    </ListCard>
   );
 }

@@ -64,11 +64,33 @@ const destinations: readonly NavDestination[] = [
   { to: "/dashboard/inquiries", testid: "dashboard-nav-inquiries", icon: "inquiries" },
 ];
 
+/*
+ * The rail's palette is NAMED, not mixed (Wallow-lrlm.5.4). `bg-foreground
+ * text-background` used to invert the two page colours, which only lands on a
+ * sidebar by coincidence — in dark mode it painted a glaring light rail against
+ * a dark page. `--color-sidebar` / `--color-sidebar-foreground` /
+ * `--color-sidebar-accent` (Wallow-lrlm.1.1) name the surface instead, so both
+ * modes are deliberate and a fork rebrands the rail from `branding.json`.
+ *
+ * The hover (`/10`) and active (`/15`) overlays collapse onto the ONE
+ * `sidebar-accent` the theme ships: 10% of the page background over the rail is
+ * that token's value exactly. The active row stays legible against an idle one
+ * because it alone carries a surface at rest.
+ *
+ * `hover:text-sidebar-foreground` is NOT redundant with the rest state. A row is
+ * a `NavigationMenu.Link`, so what renders is `twMerge(navigationMenuLinkRecipe(),
+ * itemClass)` and the recipe contributes `hover:text-accent-foreground`. twMerge
+ * only drops a class the caller CONFLICTS with — variant included — so an
+ * unmodified `text-sidebar-foreground` leaves the recipe's hover colour standing
+ * and the label drops to ~1.3:1 against `sidebar-accent` in light mode. This
+ * class is the suppression; `DashboardNav.restyle.test.tsx` asserts the merged
+ * output, not this string.
+ */
 const itemClass =
-  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap text-background/80 hover:bg-background/10 hover:text-background no-underline";
+  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground no-underline";
 const iconOnlyItemClass = `${itemClass} justify-center`;
 /** Active-route styling handed to `Link`'s `activeProps`, so both modes share it. */
-const activeItemClass = "bg-background/15 text-background";
+const activeItemClass = "bg-sidebar-accent text-sidebar-foreground";
 const iconClass = "size-5 shrink-0";
 
 /**
@@ -181,7 +203,7 @@ function NavLogout(props: { showLabel: boolean }) {
   }
 
   return (
-    <div className="px-4 py-4 border-t border-background/10">
+    <div className="px-4 py-4 border-t border-sidebar-accent">
       <button
         type="button"
         data-testid="dashboard-logout-link"
@@ -209,7 +231,7 @@ function NavRail(props: { showOrganizations: boolean }) {
       id="dashboard-nav"
       data-testid="dashboard-nav"
       data-nav-open={isNavCollapsed ? "false" : "true"}
-      className="relative z-30 w-16 data-[nav-open=true]:w-64 bg-foreground text-background flex flex-col shrink-0 transition-[width] duration-200"
+      className="relative z-30 w-16 data-[nav-open=true]:w-64 bg-sidebar text-sidebar-foreground flex flex-col shrink-0 transition-[width] duration-200"
     >
       <NavDestinationList
         showOrganizations={props.showOrganizations}
@@ -232,7 +254,7 @@ function NavDrawer(props: { showOrganizations: boolean }) {
     <div
       id="dashboard-nav-drawer"
       data-testid="dashboard-nav-drawer"
-      className="fixed inset-y-0 left-0 z-30 w-64 bg-foreground text-background flex flex-col"
+      className="fixed inset-y-0 left-0 z-30 w-64 bg-sidebar text-sidebar-foreground flex flex-col"
     >
       <NavDestinationList
         showOrganizations={props.showOrganizations}

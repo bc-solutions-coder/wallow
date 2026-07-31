@@ -43,7 +43,7 @@ import {
   useAppForm,
 } from "@bc-solutions-coder/forms";
 import { useQueryClient } from "@bc-solutions-coder/query";
-import { Card } from "@bc-solutions-coder/ui";
+import { Card, Text } from "@bc-solutions-coder/ui";
 import { useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
 import { z } from "zod";
@@ -119,9 +119,9 @@ function InquirySubmittedView() {
   return (
     <div data-testid="inquiry-success" className="text-center py-6">
       <div className="text-[80px] leading-none mb-4">🐷</div>
-      <h2 className="text-xl font-semibold text-foreground mb-2">
+      <Text as="h2" variant="subheading" className="mb-2">
         Thank you — your inquiry has been submitted.
-      </h2>
+      </Text>
     </div>
   );
 }
@@ -147,9 +147,9 @@ function CreateInquiryFormFields() {
 
   return (
     <>
-      <h2 data-testid="inquiry-create-heading" className="text-xl font-semibold text-foreground">
+      <Text as="h2" variant="subheading" data-testid="inquiry-create-heading">
         Submit an Inquiry
-      </h2>
+      </Text>
       <InquiryFormBody
         onSubmitted={() => {
           setSubmitted(true);

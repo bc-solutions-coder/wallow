@@ -8,11 +8,13 @@ import {
   allByTestId,
   byTestId,
   expectClasses,
+  expectEmptyState,
+  expectListCard,
+  expectListRow,
   expectTag,
   expectTokenColorsOnly,
   parentOf,
   waitForTestId,
-  within,
 } from "@shared/testing/style-contract";
 import { OrganizationDetail } from "./OrganizationDetail";
 
@@ -37,6 +39,20 @@ let harness: SdkHarness;
  * New testids (pure additions — no spec pins a heading or the register form
  * element today): `organization-detail-clients-heading`,
  * `organization-detail-register-form`.
+ *
+ * Wallow-lrlm.5.2 moves the bound-clients table onto `ListCard`/`ListRow` and
+ * the not-found card onto `EmptyState`, deleting this file's local `TABLE_CARD` /
+ * `TABLE_ROW` constants — the duplication those constants named is exactly what
+ * the catalog now owns. Two consequences, both flagged on the bead:
+ *
+ *   - The row id becomes `organization-detail-client-item`: `ListRow` derives
+ *     `{name}-item` and the derivation cannot be overridden. No e2e spec
+ *     references the old `…-client-row`, so nothing outside this app moves.
+ *   - The not-found card is in scope even though it is not a LIST's empty
+ *     branch. It hand-rolls the identical centered-card string the empty states
+ *     do, so `features/list-catalog.test.ts` — which bans that string outright —
+ *     would otherwise need an exemption written specifically to protect one
+ *     copy of the markup this task exists to delete.
  */
 
 const ORG = { id: "o1", name: "Acme", domain: "acme.io", memberCount: "2" };
@@ -137,26 +153,19 @@ describe("OrganizationDetail (restyle)", () => {
     expectClasses(heading, "text-xl font-semibold text-foreground mb-4");
   });
 
-  it("wraps the bound-clients list in the card surface", async () => {
+  it("renders the bound-clients list as a catalog list card", async () => {
     await renderLoaded();
 
-    const table = byTestId("organization-detail-clients-table");
-    expectTag(table, "ul");
-    expectClasses(table, "divide-y divide-border");
-
-    const surface = parentOf(table);
-    expectTag(surface, "div");
-    expectClasses(surface, "bg-card rounded-lg shadow-sm border border-border overflow-hidden");
+    expectListCard(byTestId("organization-detail-clients-table"));
   });
 
   it("styles every bound-client row as a table row", async () => {
     await renderLoaded();
 
-    const rows = allByTestId("organization-detail-client-row");
+    const rows = allByTestId("organization-detail-client-item");
     expect(rows).toHaveLength(CLIENTS.length);
     for (const row of rows) {
-      expectTag(row, "li");
-      expectClasses(row, "flex items-center justify-between px-6 py-4 hover:bg-background/50");
+      expectListRow(row, "li");
     }
   });
 
@@ -180,14 +189,17 @@ describe("OrganizationDetail (restyle)", () => {
     expect(submit.textContent?.trim()).toBe("Register client");
   });
 
-  it("presents the not-found state as a centered card that keeps its sentence", async () => {
+  it("presents the not-found state as a catalog empty state that keeps its copy", async () => {
     const notFound = await renderNotFound();
 
-    expectClasses(notFound, "bg-card rounded-lg shadow-sm border border-border p-12 text-center");
-
-    const heading = within(notFound, "h2");
-    expect(heading.textContent).toBe("Organization not found.");
-    expectClasses(heading, "text-xl font-semibold text-foreground mb-2");
+    // No icon: this card never carried one, and `EmptyState` omits the slot it
+    // is not given rather than rendering an empty one that collects the gap.
+    expectEmptyState(notFound, "organization-detail-not-found", {
+      icon: null,
+      message: "Organization not found.",
+      description:
+        "It may have been archived, or the link may point somewhere that no longer exists.",
+    });
   });
 
   it("styles the loaded page with theme tokens only", async () => {

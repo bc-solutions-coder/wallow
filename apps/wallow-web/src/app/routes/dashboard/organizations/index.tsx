@@ -1,3 +1,4 @@
+import { PageHeader } from "@bc-solutions-coder/ui";
 import { createFileRoute } from "@tanstack/react-router";
 
 import {
@@ -5,6 +6,7 @@ import {
   organizationsGetAllOptions,
   OrganizationList,
 } from "@features/organizations";
+import { PAGE_CONTAINER } from "@shared/lib/page-container";
 
 /**
  * The dashboard organizations index route (Wallow-8w1h.4.2) — the CANONICAL
@@ -21,24 +23,15 @@ import {
  * route yet; that lands in Phase 7).
  */
 /**
- * Title row. Extracted so the page body stays within the repo's JSX nesting
- * budget. Unlike the apps page there is no CTA beside the heading: the create
- * form mounts inline below the list, so there is no create-page to link to.
+ * The title block is the catalog `PageHeader` (Wallow-lrlm.5.1). Unlike the apps
+ * page it is given no `actions`: the create form mounts inline below the list,
+ * so there is no create-page to link to, and `PageHeader` then omits the actions
+ * slot rather than leaving an empty flex child in the row.
  */
-function OrganizationsHeader() {
-  return (
-    <div className="flex items-center justify-between mb-8">
-      <h1 data-testid="organizations-heading" className="text-3xl font-bold text-foreground">
-        Organizations
-      </h1>
-    </div>
-  );
-}
-
 function OrganizationsIndexPage() {
   return (
-    <div data-testid="dashboard-organizations" className="max-w-5xl mx-auto">
-      <OrganizationsHeader />
+    <div data-testid="dashboard-organizations" className={PAGE_CONTAINER}>
+      <PageHeader data-testid="organizations-header" title="Organizations" />
       <OrganizationList />
       <CreateOrganizationForm />
     </div>

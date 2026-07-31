@@ -6,7 +6,15 @@
  */
 import { useQuery } from "@bc-solutions-coder/query";
 import type { OrganizationDto } from "@bc-solutions-coder/sdk";
-import { ErrorBanner, ListRow, MutedText } from "@bc-solutions-coder/ui";
+import {
+  Badge,
+  EmptyState,
+  ErrorBanner,
+  ListCard,
+  ListRow,
+  MutedText,
+  Text,
+} from "@bc-solutions-coder/ui";
 import { Link, useRouteContext } from "@tanstack/react-router";
 
 import { errorText } from "@shared/lib/error-text";
@@ -25,26 +33,27 @@ function OrganizationRow({ org }: { org: OrganizationDto }) {
       name="organization"
       render={<Link to="/dashboard/organizations/$orgId" params={{ orgId: org.id }} />}
     >
-      <span
+      <Text
+        as="span"
+        variant="bodySm"
+        color="onCard"
+        weight="medium"
         data-testid="organization-item-name"
-        className="text-sm font-medium text-card-foreground"
       >
         {org.name}
-      </span>
+      </Text>
       {org.domain === null ? null : (
-        <span
+        <Text
+          as="span"
+          variant="bodySm"
+          color="muted"
+          className="font-mono"
           data-testid="organization-item-domain"
-          className="text-sm text-foreground/70 font-mono"
         >
           {org.domain}
-        </span>
+        </Text>
       )}
-      <span
-        data-testid="organization-item-members"
-        className="inline-block bg-accent text-accent-foreground text-xs font-medium px-2.5 py-0.5 rounded-full"
-      >
-        {org.memberCount}
-      </span>
+      <Badge data-testid="organization-item-members">{org.memberCount}</Badge>
     </ListRow>
   );
 }
@@ -56,16 +65,12 @@ function OrganizationRow({ org }: { org: OrganizationDto }) {
  */
 function OrganizationsEmptyState() {
   return (
-    <div
+    <EmptyState
       data-testid="organizations-empty-state"
-      className="bg-card rounded-lg shadow-sm border border-border p-12 text-center"
-    >
-      <div className="text-[80px] leading-none mb-4">🏢</div>
-      <h2 className="text-xl font-semibold text-foreground mb-2">No organizations yet.</h2>
-      <p className="text-foreground/60">
-        Nothing belongs here yet. Get started by creating your first organization.
-      </p>
-    </div>
+      icon="🏢"
+      message="No organizations yet."
+      description="Nothing belongs here yet. Get started by creating your first organization."
+    />
   );
 }
 
@@ -102,15 +107,13 @@ export function OrganizationList() {
     return <OrganizationsEmptyState />;
   }
 
-  // A raw div, not the ui `Card`: Card's fixed `p-6 space-y-6` fights the
-  // recipe's `px-6 py-4` row cells, which need to bleed to the card edge.
+  // `ListCard`, not the ui `Card`: Card's fixed padding fights row cells that
+  // have to bleed to the card edge. `organizations-table` is derived from `name`.
   return (
-    <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
-      <ul data-testid="organizations-table" className="divide-y divide-border">
-        {orgs.map((org) => (
-          <OrganizationRow key={org.id} org={org} />
-        ))}
-      </ul>
-    </div>
+    <ListCard name="organizations">
+      {orgs.map((org) => (
+        <OrganizationRow key={org.id} org={org} />
+      ))}
+    </ListCard>
   );
 }

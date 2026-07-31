@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   byTestId,
+  expectBadge,
   expectClasses,
   expectTag,
   expectTokenColorsOnly,
@@ -26,17 +27,31 @@ let harness: SdkHarness;
  * Behaviour — every `settings-mfa-*` testid, the Disabled/Enabled wording, the
  * confirm-panel flow, and the regenerated-codes reveal — stays pinned by the
  * sibling `MfaSettingsSection.test.tsx`, which the restyle must not edit.
+ *
+ * Wallow-lrlm.5.2 moves the status pill onto the catalog `Badge`, and the two
+ * states stop being the same chip. This file's own comment recorded why they
+ * were identical: "the old design tinted this by state (green when enabled);
+ * there is no success token in the theme, so the chip stays state-independent
+ * rather than reaching for a raw palette hue." F1.T1 added `--color-success` /
+ * `--color-success-foreground` and `Badge` exposes them as `variant="success"`,
+ * so the stated blocker is gone and the design's intent is now expressible in
+ * tokens. Enabled is `success`; Disabled stays `neutral`.
+ *
+ * This is the one judgement call in the task that is not forced by the catalog —
+ * flagged on the bead. If the verifier rules the tint out of F5.T2's scope it
+ * reverts to `neutral` here and in the component, and nothing else moves.
+ *
+ * The regenerated-codes `<ul>` is NOT a `ListCard`: it reveals one-time codes as
+ * a plain content list inside `PANEL`, with no card surface, no row cell and no
+ * per-row id. `features/list-catalog.test.ts` exempts it by name.
  */
 
 /** The uppercase caption above each read-only value (ported from the old design). */
-const FIELD_LABEL = "block text-xs font-semibold text-foreground/70 uppercase tracking-wider mb-1";
+const FIELD_LABEL =
+  "block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1";
 
 /** A read-only field value. */
 const FIELD_VALUE = "text-sm text-foreground";
-
-/** The shared status/type pill from the Phase 4 recipe. */
-const CHIP =
-  "inline-block bg-accent text-accent-foreground text-xs font-medium px-2.5 py-0.5 rounded-full";
 
 /** `ui` Card's rendered surface at its default spacing, plus the section offset. */
 const CARD = "rounded-lg border border-border bg-card p-6 space-y-6 mt-6";
@@ -115,16 +130,15 @@ describe("MfaSettingsSection (restyle)", () => {
     expect(label.textContent).toBe("Status");
     expectClasses(label, FIELD_LABEL);
 
-    expectTag(status, "span");
-    expectClasses(status, CHIP);
+    expectBadge(status, "neutral");
     // Regression guard: the chip is the same element, with the same word.
     expect(status.textContent).toBe("Disabled");
   });
 
-  it("renders Enabled as the same chip", async () => {
+  it("tints the Enabled chip with the success token", async () => {
     const status = await renderSection(ENABLED_STATUS, "settings-mfa-status");
 
-    expectClasses(status, CHIP);
+    expectBadge(status, "success");
     expect(status.textContent).toBe("Enabled");
   });
 
@@ -154,7 +168,7 @@ describe("MfaSettingsSection (restyle)", () => {
     const submit = await openConfirm("disable");
 
     const panel = parentOf(submit);
-    expectClasses(panel, `${PANEL} bg-background/50 space-y-3`);
+    expectClasses(panel, `${PANEL} bg-muted space-y-3`);
     expect(panel.contains(byTestId("settings-mfa-confirm-password"))).toBe(true);
   });
 

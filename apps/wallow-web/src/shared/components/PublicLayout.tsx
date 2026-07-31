@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { appIconUrl, forkBranding } from "@bc-solutions-coder/styles";
+import { Text } from "@bc-solutions-coder/ui";
 
 import { docsUrl, getStartedHref, repositoryUrl } from "@shared/lib/site-links";
 
@@ -89,7 +90,7 @@ function FooterLinks() {
         target="_blank"
         rel="noreferrer"
         data-testid="public-footer-github"
-        className="text-background hover:text-primary no-underline"
+        className="text-sidebar-foreground hover:text-primary no-underline"
       >
         GitHub
       </a>
@@ -98,7 +99,7 @@ function FooterLinks() {
         target="_blank"
         rel="noreferrer"
         data-testid="public-footer-docs"
-        className="text-background hover:text-primary no-underline"
+        className="text-sidebar-foreground hover:text-primary no-underline"
       >
         Docs
       </a>
@@ -110,7 +111,11 @@ function FooterLinks() {
 function FooterContent() {
   return (
     <div className="max-w-6xl mx-auto flex items-center justify-between text-sm">
-      <span>MIT Licensed</span>
+      {/* `onSidebar` because the footer is the page's second inverted band: the
+          default `text-foreground` would land dark-on-dark. */}
+      <Text as="span" variant="bodySm" color="onSidebar">
+        MIT Licensed
+      </Text>
       <FooterLinks />
     </div>
   );
@@ -125,7 +130,7 @@ export function PublicLayout(props: { children?: ReactNode }) {
         <GetStartedCta />
       </nav>
       <main className="flex-1">{props.children}</main>
-      <footer data-testid="public-footer" className="bg-foreground text-background px-6 py-8">
+      <footer data-testid="public-footer" className="bg-sidebar text-sidebar-foreground px-6 py-8">
         <FooterContent />
       </footer>
     </div>

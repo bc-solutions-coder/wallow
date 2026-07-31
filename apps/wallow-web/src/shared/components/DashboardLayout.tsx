@@ -38,6 +38,18 @@ import { useUiStore } from "../stores/ui-store";
  * inside oxlint's `react/jsx-max-depth` budget.
  */
 
+/*
+ * The two controls are ONE outline button declared once (Wallow-lrlm.5.4). They
+ * sit in the main column on `bg-background`, not on the rail, so they take the
+ * PAGE's own named tokens — `border-border` for the outline and `bg-muted` for
+ * the recessed hover, the substitution Wallow-lrlm.3.5 settled for `ListRow` —
+ * rather than the hand-mixed `foreground/20` and `foreground/10` they used to
+ * carry. The sidebar palette is deliberately absent: painting a control on a
+ * light page with the rail's colours would make it a black box.
+ */
+const navControlClass =
+  "relative z-20 mb-4 px-3 py-2 rounded-md border border-border text-sm font-medium text-foreground hover:bg-muted";
+
 /** Desktop: expand/collapse the persistent rail between labels and icons. */
 function NavToggle() {
   const isNavCollapsed = useUiStore((state) => state.isNavCollapsed);
@@ -51,7 +63,7 @@ function NavToggle() {
       aria-expanded={!isNavCollapsed}
       aria-label={navIconLabels.navToggle}
       onClick={toggleNavCollapsed}
-      className="relative z-20 mb-4 px-3 py-2 rounded-md border border-foreground/20 text-sm font-medium text-foreground hover:bg-foreground/10"
+      className={navControlClass}
     >
       <Icon aria-hidden="true" className="size-5" />
     </button>
@@ -72,7 +84,7 @@ function MobileMenuButton() {
       aria-expanded={isMobileNavOpen}
       aria-label={navIconLabels.mobileMenu}
       onClick={isMobileNavOpen ? closeMobileNav : openMobileNav}
-      className="relative z-20 mb-4 px-3 py-2 rounded-md border border-foreground/20 text-sm font-medium text-foreground hover:bg-foreground/10"
+      className={navControlClass}
     >
       <Icon aria-hidden="true" className="size-5" />
     </button>
@@ -80,8 +92,28 @@ function MobileMenuButton() {
 }
 
 /**
- * Dismiss-by-clicking-outside for the mobile drawer. Covers the page beneath the
+ * The scrim's tint — the ONE `foreground` colour the dashboard chrome keeps
+ * (Wallow-lrlm.5.4), hoisted so the carve-out is exactly one literal on exactly
+ * one line for Wallow-lrlm.5.6's lint gate to exempt.
+ *
+ * A scrim is not an inversion. Translucency IS the control: a backdrop that is
+ * not see-through is a blank page, so no opaque token can express it, and the
+ * catalog reaches for the same idiom (`drawerBackdropRecipe` and
+ * `alertDialogBackdropRecipe` are `bg-foreground/50`, `popoverBackdropRecipe`
+ * `/20`). `bg-sidebar` here would hide the page it exists to dim.
+ */
+const BACKDROP_SCRIM = "bg-foreground/40";
+
+/**
+ * Dismiss-by-clicking-outside for the mobile drawer. Covers the page beside the
  * drawer, which stays interactive above it.
+ *
+ * It starts at the drawer's trailing edge (`left-64`) rather than spanning the
+ * viewport (`inset-0`). The two look identical — the drawer is opaque and sits a
+ * layer above — but only this one is honest about where the backdrop can
+ * actually be clicked. Under `inset-0` at phone widths the element's own centre
+ * falls BEHIND the drawer (`w-64` = 256px of a 390px viewport), so anything
+ * targeting the backdrop's centre hits the drawer instead.
  */
 function NavBackdrop() {
   const closeMobileNav = useUiStore((state) => state.closeMobileNav);
@@ -91,7 +123,7 @@ function NavBackdrop() {
       data-testid="dashboard-nav-backdrop"
       aria-label={navIconLabels.close}
       onClick={closeMobileNav}
-      className="fixed inset-0 z-20 bg-foreground/40"
+      className={`fixed inset-y-0 right-0 left-64 z-20 ${BACKDROP_SCRIM}`}
     />
   );
 }

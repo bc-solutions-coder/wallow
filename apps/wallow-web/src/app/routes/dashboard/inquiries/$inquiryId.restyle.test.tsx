@@ -5,7 +5,7 @@ import { routeHarness } from "@shared/testing/harness-routes";
 import { beforeEach, describe, it, vi } from "vitest";
 
 import {
-  expectClasses,
+  expectPageContainer,
   expectTokenColorsOnly,
   waitForTestId,
 } from "@shared/testing/style-contract";
@@ -54,10 +54,13 @@ describe("routes/dashboard/inquiries/$inquiryId (restyle)", () => {
     vi.spyOn(Route, "useParams").mockReturnValue({ inquiryId: "i1" });
   });
 
-  it("constrains the detail page to the narrow column", async () => {
+  it("centers the detail page in the shared dashboard container", async () => {
     const root = await renderPage();
 
-    expectClasses(root, "max-w-2xl mx-auto");
+    // Wallow-lrlm.5.1: this page used to pick the narrow `max-w-2xl` column
+    // while the organization-detail page next door picked the wide one. The
+    // width is one shared rule now, so neither page names it.
+    expectPageContainer(root);
   });
 
   it("styles the page with theme tokens only", async () => {

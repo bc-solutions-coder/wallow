@@ -1,0 +1,21 @@
+/*
+ * Tailwind entry for the browser project's Chromium page.
+ *
+ * Component specs here drive real ui components, and a ui control gets its BOX
+ * from a Tailwind utility in its recipe. Rendered with no stylesheet the catalog
+ * checkbox's `size-4` never compiles, `Checkbox.Root`'s `<span role="checkbox">`
+ * measures 0x0, and a spec that clicks it hangs until Playwright's actionability
+ * timeout. So the specs need the same CSS the app serves, not an approximation.
+ *
+ * This mirrors the app's real entry (src/app/styles.css) rather than inventing a
+ * test-only stylesheet, and it is the same wiring packages/forms and packages/ui
+ * already carry. Tailwind v4 resolves `@source` relative to the declaring
+ * stylesheet, which is why this file sits at the app root beside
+ * vitest.config.ts and scans `./src` from there.
+ *
+ * Nothing under src/ may import this — it is loaded only by ./vitest.setup.ts.
+ */
+@import "@bc-solutions-coder/styles/styles.css";
+@import "@bc-solutions-coder/ui/source.css";
+
+@source "./src";

@@ -18,7 +18,7 @@ import { MemberList } from "./MemberList";
  * and add/remove are asserted via the recorded outgoing request
  * (`harness.calls`) and the render's own `invalidateQueries`.
  *
- * Testids: `organization-detail-members-table` + `organization-detail-member-row`
+ * Testids: `organization-detail-members-table` + `organization-detail-member-item`
  * (table), `organization-members-empty`/`organization-members-loading`
  * (states), `organization-member-userid` + `organization-member-add-submit`
  * (add form), `organization-member-remove` (per-row remove) — all
@@ -52,13 +52,13 @@ describe("MemberList", () => {
     harness = createSdkHarness();
   });
 
-  it("renders each seeded member as an organization-detail-member-row", async () => {
+  it("renders each seeded member as an organization-detail-member-item", async () => {
     harness.resolveJson(twoMembers);
 
     renderWithWallow(<MemberList orgId="o1" />, { harness });
 
     await expect.element(page.getByTestId("organization-detail-members-table")).toBeInTheDocument();
-    expect(page.getByTestId("organization-detail-member-row").elements()).toHaveLength(2);
+    expect(page.getByTestId("organization-detail-member-item").elements()).toHaveLength(2);
     await expect.element(page.getByText("ada@acme.io")).toBeInTheDocument();
     await expect.element(page.getByText("bob@acme.io")).toBeInTheDocument();
   });
@@ -69,7 +69,7 @@ describe("MemberList", () => {
     renderWithWallow(<MemberList orgId="o1" />, { harness });
 
     await expect.element(page.getByTestId("organization-members-empty")).toBeInTheDocument();
-    expect(page.getByTestId("organization-detail-member-row").elements()).toHaveLength(0);
+    expect(page.getByTestId("organization-detail-member-item").elements()).toHaveLength(0);
   });
 
   it("shows a loading indicator while the members query is pending", async () => {

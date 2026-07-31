@@ -5,6 +5,7 @@ import {
   inquiriesGetByIdOptions,
   inquiriesGetCommentsOptions,
 } from "@features/inquiries";
+import { PAGE_CONTAINER } from "@shared/lib/page-container";
 
 /**
  * The dashboard inquiry-detail route (Wallow-8w1h.7.4). Mirrors the canonical
@@ -18,7 +19,7 @@ import {
 function InquiryDetailPage() {
   const { inquiryId } = Route.useParams();
   return (
-    <div data-testid="dashboard-inquiry-detail" className="max-w-2xl mx-auto">
+    <div data-testid="dashboard-inquiry-detail" className={PAGE_CONTAINER}>
       <InquiryDetail inquiryId={inquiryId} />
     </div>
   );

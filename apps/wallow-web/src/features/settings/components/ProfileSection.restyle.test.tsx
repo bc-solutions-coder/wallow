@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   allByTestId,
   byTestId,
+  expectBadge,
   expectClasses,
   expectTag,
   expectTokenColorsOnly,
@@ -23,17 +24,18 @@ import { ProfileSection } from "./ProfileSection";
  * Behaviour — which state renders when, and the `settings-profile-name` /
  * `-email` / `-roles` / `-role` / `-no-roles` / `-loading` testids — stays pinned
  * by the sibling `ProfileSection.test.tsx`, which the restyle must not edit.
+ *
+ * Wallow-lrlm.5.2 moves the role chips onto the catalog `Badge`. The roles are
+ * `neutral`: a role is an identity, not a state, so tinting one green or red
+ * would invent a judgement the page does not make.
  */
 
 /** The uppercase caption above each read-only value (ported from the old design). */
-const FIELD_LABEL = "block text-xs font-semibold text-foreground/70 uppercase tracking-wider mb-1";
+const FIELD_LABEL =
+  "block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1";
 
 /** A read-only field value. */
 const FIELD_VALUE = "text-sm text-foreground";
-
-/** The shared status/type pill from the Phase 4 recipe. */
-const CHIP =
-  "inline-block bg-accent text-accent-foreground text-xs font-medium px-2.5 py-0.5 rounded-full";
 
 /** `ui` Card's rendered surface at its default spacing. */
 const CARD = "rounded-lg border border-border bg-card p-6 space-y-6";
@@ -140,8 +142,7 @@ describe("ProfileSection (restyle)", () => {
     const chips = allByTestId("settings-profile-role");
     expect(chips).toHaveLength(PROFILE.roles.length);
     for (const chip of chips) {
-      expectTag(chip, "span");
-      expectClasses(chip, CHIP);
+      expectBadge(chip, "neutral");
     }
     expect(chips[0].textContent).toBe("Owner");
   });

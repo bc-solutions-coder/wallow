@@ -1,6 +1,8 @@
+import { PageHeader } from "@bc-solutions-coder/ui";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { CreateInquiryForm, inquiriesGetAllOptions, InquiryList } from "@features/inquiries";
+import { PAGE_CONTAINER } from "@shared/lib/page-container";
 
 /**
  * The dashboard inquiries index route (Wallow-8w1h.7.2) — copies the CANONICAL
@@ -16,12 +18,16 @@ import { CreateInquiryForm, inquiriesGetAllOptions, InquiryList } from "@feature
  * via `.update({ id, path, getParentRoute })` (there is no dashboard layout route
  * yet; that lands in Phase 7).
  */
+/**
+ * The title block is the catalog `PageHeader` (Wallow-lrlm.5.1); the width is
+ * the shared `PAGE_CONTAINER` rule. `space-y-8` stays on the root — that is this
+ * page's vertical rhythm between the header, the list and the create card, not a
+ * width, so the one-container rule leaves it alone.
+ */
 function InquiriesIndexPage() {
   return (
-    <div data-testid="dashboard-inquiries" className="max-w-5xl mx-auto space-y-8">
-      <h1 data-testid="inquiries-heading" className="text-3xl font-bold text-foreground">
-        Inquiries
-      </h1>
+    <div data-testid="dashboard-inquiries" className={`${PAGE_CONTAINER} space-y-8`}>
+      <PageHeader data-testid="inquiries-header" title="Inquiries" />
       <InquiryList />
       <CreateInquiryForm />
     </div>

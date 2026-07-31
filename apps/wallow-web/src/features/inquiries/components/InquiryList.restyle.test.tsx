@@ -4,8 +4,11 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   allByTestId,
+  expectBadge,
   expectClasses,
-  expectTag,
+  expectEmptyState,
+  expectListCard,
+  expectListRow,
   expectTokenColorsOnly,
   parentOf,
   waitForTestId,
@@ -29,6 +32,11 @@ let harness: SdkHarness;
  * block (`flex flex-col`) rather than a single span. Extracting that block into
  * its own component is also what keeps the row inside oxlint's
  * `react/jsx-max-depth` budget.
+ *
+ * Wallow-lrlm.5.2 moves the remaining surfaces onto the catalog: the card + `ul`
+ * are a `ListCard`, the status chip is a `Badge` and the empty card is an
+ * `EmptyState` (the rows were already `ListRow`s). `ListCard name="inquiries"`
+ * derives the shipped `inquiries-table` id, so no testid moves.
  */
 
 const INQUIRIES = [
@@ -70,19 +78,10 @@ describe("InquiryList (restyle)", () => {
     harness = createSdkHarness();
   });
 
-  it("wraps the list in the card surface", async () => {
+  it("renders the list as a catalog list card", async () => {
     const list = await renderList(INQUIRIES, "inquiries-table");
 
-    const surface = parentOf(list);
-    expectTag(surface, "div");
-    expectClasses(surface, "bg-card rounded-lg shadow-sm border border-border overflow-hidden");
-  });
-
-  it("keeps the list a ul and divides its rows", async () => {
-    const list = await renderList(INQUIRIES, "inquiries-table");
-
-    expectTag(list, "ul");
-    expectClasses(list, "divide-y divide-border");
+    expectListCard(list);
   });
 
   // SUPERSEDED BY Wallow-lrlm.4.1 — see the twin note in
@@ -96,11 +95,7 @@ describe("InquiryList (restyle)", () => {
     const rows = allByTestId("inquiry-item");
     expect(rows).toHaveLength(INQUIRIES.length);
     for (const row of rows) {
-      expectTag(row, "a");
-      expectClasses(
-        row,
-        "flex items-center justify-between px-6 py-4 hover:bg-muted outline-none focus-visible:ring-2 focus-visible:ring-ring",
-      );
+      expectListRow(row, "a");
     }
   });
 
@@ -119,7 +114,7 @@ describe("InquiryList (restyle)", () => {
 
     const company = within(second, '[data-testid="inquiry-item-company"]');
     expect(company.textContent).toBe("Navy");
-    expectClasses(company, "text-xs text-foreground/60");
+    expectClasses(company, "text-xs text-muted-foreground");
   });
 
   it("styles the status as a chip without changing its text", async () => {
@@ -129,21 +124,17 @@ describe("InquiryList (restyle)", () => {
 
     const chip = within(first, '[data-testid="inquiry-item-status"]');
     expect(chip.textContent).toBe("New");
-    expectClasses(
-      chip,
-      "inline-block bg-accent text-accent-foreground text-xs font-medium px-2.5 py-0.5 rounded-full",
-    );
+    expectBadge(chip, "neutral");
   });
 
-  it("presents the empty state as a centered card that keeps its sentence", async () => {
+  it("presents the empty state as a catalog empty state that keeps its copy", async () => {
     const empty = await renderList([], "inquiries-empty-state");
 
-    expectClasses(empty, "bg-card rounded-lg shadow-sm border border-border p-12 text-center");
-    expect(empty.textContent).toContain("🐷");
-
-    const heading = within(empty, "h2");
-    expect(heading.textContent).toBe("No inquiries yet.");
-    expectClasses(heading, "text-xl font-semibold text-foreground mb-2");
+    expectEmptyState(empty, "inquiries-empty-state", {
+      icon: "🐷",
+      message: "No inquiries yet.",
+      description: "Nothing has arrived here. New inquiries show up as soon as one is submitted.",
+    });
   });
 
   it("centers the loading state without changing its wording", async () => {

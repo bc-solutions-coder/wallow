@@ -1,7 +1,8 @@
-import { Button } from "@bc-solutions-coder/ui";
+import { Button, PageHeader } from "@bc-solutions-coder/ui";
 import { createFileRoute, Link } from "@tanstack/react-router";
 
 import { AppList, appsGetUserAppsOptions } from "@features/apps";
+import { PAGE_CONTAINER } from "@shared/lib/page-container";
 
 /**
  * The dashboard apps index route (Wallow-8w1h.5.2) — copies the CANONICAL
@@ -18,8 +19,7 @@ import { AppList, appsGetUserAppsOptions } from "@features/apps";
  * route yet; that lands in Phase 7).
  */
 /**
- * Title row: page heading on the left, gold pill CTA on the right. Extracted so
- * the page body stays within the repo's JSX nesting budget.
+ * The gold pill CTA the header carries in its trailing actions slot.
  *
  * The CTA is a TanStack `Link` wearing the catalog `Button` (Wallow-lrlm.4.3).
  * It used to be a raw `<a>`, which made an in-app hop to a route already in the
@@ -38,31 +38,31 @@ import { AppList, appsGetUserAppsOptions } from "@features/apps";
  * defaults; the `className` keeps the shipped `px-6 py-2.5` footprint, which no
  * size on the scale reproduces exactly.
  */
-function AppsHeader() {
-  return (
-    <div className="flex items-center justify-between mb-8">
-      <h1 data-testid="apps-heading" className="text-3xl font-bold text-foreground">
-        My Apps
-      </h1>
-      <Button
-        render={<Link to="/dashboard/apps/register" />}
-        nativeButton={false}
-        role={undefined}
-        shape="pill"
-        width="auto"
-        data-testid="apps-register-link"
-        className="px-6 py-2.5 no-underline"
-      >
-        Register New App
-      </Button>
-    </div>
-  );
-}
+const registerCta = (
+  <Button
+    render={<Link to="/dashboard/apps/register" />}
+    nativeButton={false}
+    role={undefined}
+    shape="pill"
+    width="auto"
+    data-testid="apps-register-link"
+    className="px-6 py-2.5 no-underline"
+  >
+    Register New App
+  </Button>
+);
 
+/**
+ * The page title block is the catalog `PageHeader` (Wallow-lrlm.5.1), which owns
+ * the row layout, the heading element and its type scale; the page names the
+ * header once and the inner testids (`apps-header-title`, `apps-header-actions`)
+ * derive from it. The content width is the shared `PAGE_CONTAINER` rule rather
+ * than a width written into this page.
+ */
 function AppsIndexPage() {
   return (
-    <div data-testid="dashboard-apps" className="max-w-5xl mx-auto">
-      <AppsHeader />
+    <div data-testid="dashboard-apps" className={PAGE_CONTAINER}>
+      <PageHeader data-testid="apps-header" title="My Apps" actions={registerCta} />
       <AppList />
     </div>
   );

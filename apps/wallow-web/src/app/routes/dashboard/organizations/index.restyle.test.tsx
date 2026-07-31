@@ -4,13 +4,15 @@ import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow
 import { routeHarness } from "@shared/testing/harness-routes";
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { page } from "vitest/browser";
+
 import {
   byTestId,
   expectClasses,
+  expectPageContainer,
   expectPrecedes,
   expectTag,
   expectTokenColorsOnly,
-  parentOf,
   waitForTestId,
 } from "@shared/testing/style-contract";
 import { Route } from "./index";
@@ -60,32 +62,43 @@ describe("routes/dashboard/organizations (restyle)", () => {
     });
   });
 
-  it("centers the page body in the dashboard shell", async () => {
+  it("centers the page body in the shared dashboard container", async () => {
     const root = await renderPage();
 
-    expectClasses(root, "max-w-5xl mx-auto");
+    expectPageContainer(root);
   });
 
   it("titles the page with an h1 reading Organizations", async () => {
     await renderPage();
 
-    const heading = byTestId("organizations-heading");
+    // Wallow-lrlm.5.1: `PageHeader`'s derived testid, `Text`'s title scale.
+    const heading = byTestId("organizations-header-title");
     expectTag(heading, "h1");
     expect(heading.textContent).toBe("Organizations");
-    expectClasses(heading, "text-3xl font-bold text-foreground");
+    expectClasses(heading, "text-3xl font-bold tracking-tight text-foreground");
   });
 
   it("lays the heading out in the page header row", async () => {
     await renderPage();
 
-    const headerRow = parentOf(byTestId("organizations-heading"));
-    expectClasses(headerRow, "flex items-center justify-between mb-8");
+    const header = byTestId("organizations-header");
+    expectClasses(header, "flex items-start justify-between gap-4 mb-8");
+    expect(header.contains(byTestId("organizations-header-title"))).toBe(true);
+  });
+
+  it("renders no actions slot on a page with no page-level action", async () => {
+    await renderPage();
+
+    // This page's create form mounts inline below the list, so there is no CTA
+    // to put beside the title — and `PageHeader` renders the slot only when it
+    // is given one, rather than leaving an empty flex child in the row.
+    expect(page.getByTestId("organizations-header-actions").elements()).toHaveLength(0);
   });
 
   it("renders the header row above the organization list", async () => {
     await renderPage();
 
-    expectPrecedes(byTestId("organizations-heading"), byTestId("organizations-table"));
+    expectPrecedes(byTestId("organizations-header-title"), byTestId("organizations-table"));
   });
 
   it("keeps the create form mounted below the list", async () => {

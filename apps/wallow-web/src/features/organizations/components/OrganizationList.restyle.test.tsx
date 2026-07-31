@@ -4,8 +4,11 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   allByTestId,
+  expectBadge,
   expectClasses,
-  expectTag,
+  expectEmptyState,
+  expectListCard,
+  expectListRow,
   expectTokenColorsOnly,
   parentOf,
   waitForTestId,
@@ -30,6 +33,15 @@ let harness: SdkHarness;
  *      because the specs pin the list testids.
  *   2. The empty state grows into the recipe's centered card but keeps its
  *      existing sentence, "No organizations yet.", VERBATIM as the card heading.
+ *
+ * Wallow-lrlm.5.2 moves all three surfaces onto the catalog: the card + `ul` are
+ * a `ListCard`, the rows are `ListRow`s, the member count is a `Badge` and the
+ * empty card is an `EmptyState`. The assertions below therefore name the catalog
+ * recipes (`expectListCard`, `expectListRow`, `expectBadge`, `expectEmptyState`)
+ * rather than repeating class strings this app would then have to maintain. The
+ * testids are unchanged — `ListCard name="organizations"` derives
+ * `organizations-table` and `ListRow name="organization"` derives
+ * `organization-item`, which is exactly what shipped.
  *
  * The domain cell renders only when the org HAS a domain (`domain === null`
  * renders nothing today). That conditional is behaviour, not chrome, so the
@@ -59,19 +71,10 @@ describe("OrganizationList (restyle)", () => {
     harness = createSdkHarness();
   });
 
-  it("wraps the list in the card surface", async () => {
+  it("renders the list as a catalog list card", async () => {
     const list = await renderList(ORGS, "organizations-table");
 
-    const surface = parentOf(list);
-    expectTag(surface, "div");
-    expectClasses(surface, "bg-card rounded-lg shadow-sm border border-border overflow-hidden");
-  });
-
-  it("keeps the list a ul and divides its rows", async () => {
-    const list = await renderList(ORGS, "organizations-table");
-
-    expectTag(list, "ul");
-    expectClasses(list, "divide-y divide-border");
+    expectListCard(list);
   });
 
   // SUPERSEDED BY Wallow-lrlm.4.1. The row used to be an inert `li` carrying the
@@ -88,11 +91,7 @@ describe("OrganizationList (restyle)", () => {
     const rows = allByTestId("organization-item");
     expect(rows).toHaveLength(ORGS.length);
     for (const row of rows) {
-      expectTag(row, "a");
-      expectClasses(
-        row,
-        "flex items-center justify-between px-6 py-4 hover:bg-muted outline-none focus-visible:ring-2 focus-visible:ring-ring",
-      );
+      expectListRow(row, "a");
     }
   });
 
@@ -107,10 +106,7 @@ describe("OrganizationList (restyle)", () => {
 
     const chip = within(first, '[data-testid="organization-item-members"]');
     expect(chip.textContent?.trim()).toBe("3");
-    expectClasses(
-      chip,
-      "inline-block bg-accent text-accent-foreground text-xs font-medium px-2.5 py-0.5 rounded-full",
-    );
+    expectBadge(chip, "neutral");
   });
 
   it("renders the domain cell only for orgs that have one", async () => {
@@ -120,22 +116,21 @@ describe("OrganizationList (restyle)", () => {
 
     const domain = within(withDomain, '[data-testid="organization-item-domain"]');
     expect(domain.textContent).toBe("acme.io");
-    expectClasses(domain, "text-sm text-foreground/70 font-mono");
+    expectClasses(domain, "text-sm text-muted-foreground font-mono");
 
     expect(withoutDomain.querySelector('[data-testid="organization-item-domain"]')).toBeNull();
   });
 
-  it("presents the empty state as a centered card that keeps its sentence", async () => {
+  it("presents the empty state as a catalog empty state that keeps its copy", async () => {
     const empty = await renderList([], "organizations-empty-state");
 
-    expectClasses(empty, "bg-card rounded-lg shadow-sm border border-border p-12 text-center");
     // The organizations page carries the office emoji in the restored design
-    // (the pig is the apps page); both use the same oversized-glyph block.
-    expect(empty.textContent).toContain("🏢");
-
-    const heading = within(empty, "h2");
-    expect(heading.textContent).toBe("No organizations yet.");
-    expectClasses(heading, "text-xl font-semibold text-foreground mb-2");
+    // (the pig is the apps page); both now sit in `EmptyState`'s icon slot.
+    expectEmptyState(empty, "organizations-empty-state", {
+      icon: "🏢",
+      message: "No organizations yet.",
+      description: "Nothing belongs here yet. Get started by creating your first organization.",
+    });
   });
 
   it("centers the loading state without changing its wording", async () => {

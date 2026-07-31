@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   byTestId,
   expectClasses,
+  expectPageContainer,
   expectPrecedes,
   expectTag,
   expectTokenColorsOnly,
@@ -21,11 +22,12 @@ import { Route } from "./index";
  * `inquiry-create-form`) stays pinned by the sibling `index.test.tsx`, which the
  * restyle must not edit.
  *
- * This page is the one list page in Phase 4 with NO call-to-action link, so it
- * takes `register.tsx`'s heading treatment (a bare `h1`) rather than `.4.1`'s
- * `flex items-center justify-between` header row — a flex row holding a single
- * child would be chrome with nothing to align. Vertical rhythm between the
- * heading, the list, and the create card comes from `space-y-8` on the shell.
+ * This page has NO call-to-action link. Under Wallow-lrlm.5.1 that no longer
+ * means a different heading treatment: every dashboard page opens with the same
+ * `PageHeader`, which simply renders no actions slot when it is given none — so
+ * "one page, one header component" costs nothing here. Vertical rhythm between
+ * the heading, the list, and the create card still comes from `space-y-8` on the
+ * shell; the width comes from the shared `PAGE_CONTAINER`.
  */
 
 /** The transport backing each render, rebuilt per test. */
@@ -67,25 +69,37 @@ describe("routes/dashboard/inquiries (restyle)", () => {
     });
   });
 
-  it("centers the page body in the dashboard shell", async () => {
+  it("centers the page body in the shared dashboard container", async () => {
     const root = await renderPage();
 
-    expectClasses(root, "max-w-5xl mx-auto space-y-8");
+    expectPageContainer(root);
+    // Regression guard: the width moved to the shared rule, the page's own
+    // vertical rhythm between heading, list, and create card did not.
+    expectClasses(root, "space-y-8");
   });
 
   it("titles the page with an h1 reading Inquiries", async () => {
     await renderPage();
 
-    const heading = byTestId("inquiries-heading");
+    // Wallow-lrlm.5.1: `PageHeader`'s derived testid, `Text`'s title scale.
+    const heading = byTestId("inquiries-header-title");
     expectTag(heading, "h1");
     expect(heading.textContent).toBe("Inquiries");
-    expectClasses(heading, "text-3xl font-bold text-foreground");
+    expectClasses(heading, "text-3xl font-bold tracking-tight text-foreground");
+  });
+
+  it("lays the heading out in the page header row", async () => {
+    await renderPage();
+
+    const header = byTestId("inquiries-header");
+    expectClasses(header, "flex items-start justify-between gap-4 mb-8");
+    expect(header.contains(byTestId("inquiries-header-title"))).toBe(true);
   });
 
   it("renders the heading above the inquiry list", async () => {
     await renderPage();
 
-    expectPrecedes(byTestId("inquiries-heading"), byTestId("inquiries-table"));
+    expectPrecedes(byTestId("inquiries-header-title"), byTestId("inquiries-table"));
   });
 
   it("keeps the create form below the list", async () => {

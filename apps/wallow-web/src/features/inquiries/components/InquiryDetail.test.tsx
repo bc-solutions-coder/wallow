@@ -36,7 +36,7 @@ let harness: SdkHarness;
  * `inquiry-detail-heading`, `inquiry-detail-back-link`, `inquiry-detail-not-found`,
  * `inquiry-detail-error`, `inquiry-detail-status`, `inquiry-status-select` +
  * `inquiry-status-submit` + `inquiry-status-error`,
- * `inquiry-comments-table` + `inquiry-comment-row`,
+ * `inquiry-comments-table` + `inquiry-comment-item`,
  * `inquiry-comments-loading` / `inquiry-comments-empty`, `inquiry-comment-content` +
  * `inquiry-comment-internal` + `inquiry-comment-submit`, `inquiry-comment-error`.
  *
@@ -228,13 +228,13 @@ describe("InquiryDetail — comment thread", () => {
     harness = createSdkHarness();
   });
 
-  it("renders each seeded comment as an inquiry-comment-row inside the comments table", async () => {
+  it("renders each seeded comment as an inquiry-comment-item inside the comments table", async () => {
     seedLoaded();
 
     renderWithWallow(<InquiryDetail inquiryId="i1" />, { harness });
 
-    await expect.element(page.getByTestId("inquiry-comment-row").first()).toBeInTheDocument();
-    expect(page.getByTestId("inquiry-comment-row").elements()).toHaveLength(2);
+    await expect.element(page.getByTestId("inquiry-comment-item").first()).toBeInTheDocument();
+    expect(page.getByTestId("inquiry-comment-item").elements()).toHaveLength(2);
     await expect.element(page.getByTestId("inquiry-comments-table")).toBeInTheDocument();
     await expect.element(page.getByText("First contact made.")).toBeInTheDocument();
     await expect.element(page.getByText("Internal note.")).toBeInTheDocument();
@@ -246,7 +246,7 @@ describe("InquiryDetail — comment thread", () => {
     renderWithWallow(<InquiryDetail inquiryId="i1" />, { harness });
 
     await expect.element(page.getByTestId("inquiry-comments-empty")).toBeInTheDocument();
-    expect(page.getByTestId("inquiry-comment-row").elements()).toHaveLength(0);
+    expect(page.getByTestId("inquiry-comment-item").elements()).toHaveLength(0);
   });
 
   it("shows a loading indicator while the comments query is pending", async () => {

@@ -12,6 +12,8 @@
 import { page } from "vitest/browser";
 import { expect } from "vitest";
 
+import { PAGE_CONTAINER } from "../lib/page-container";
+
 /** Tailwind's default palette hues — none of which are Wallow design tokens. */
 const PALETTE_HUES =
   "slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose";
@@ -80,6 +82,171 @@ export function expectClasses(element: Element, recipe: string): void {
     .split(/\s+/u)
     .filter((cls) => cls !== "" && !element.classList.contains(cls));
   expect(missing, `${describeElement(element)} is missing recipe classes`).toEqual([]);
+}
+
+/** Any Tailwind max-width utility, e.g. `max-w-5xl`, `max-w-2xl`, `max-w-[42rem]`. */
+const MAX_WIDTH_UTILITY = /^max-w-/u;
+
+/**
+ * `root` takes its content width from the shared `PAGE_CONTAINER` rule and from
+ * nothing else (Wallow-lrlm.5.1).
+ *
+ * Two halves, and the second is the one that matters: asserting the shared
+ * classes are PRESENT would still pass on a page that also carried a width of
+ * its own, which is exactly the "each page picks its own" state F5.T1 removes.
+ * So any `max-w-*` utility outside the shared rule is an offender.
+ */
+export function expectPageContainer(root: Element): void {
+  expectClasses(root, PAGE_CONTAINER);
+
+  const shared = new Set(PAGE_CONTAINER.split(/\s+/u).filter((cls) => cls !== ""));
+  const strays = [...root.classList].filter(
+    (cls) => MAX_WIDTH_UTILITY.test(cls) && !shared.has(cls),
+  );
+  expect(strays, `${describeElement(root)} must take its width from PAGE_CONTAINER alone`).toEqual(
+    [],
+  );
+}
+
+/*
+ * The catalog recipes wallow-web's lists, empty states and status chips migrate
+ * onto (Wallow-lrlm.5.2). Each constant is the recipe's own class string, copied
+ * from `packages/ui/src/components/*\/*.styles.ts` — a spec asserts against the
+ * recipe rather than against a string this app maintains, so a catalog restyle
+ * shows up here as a failing spec instead of as silent drift.
+ */
+
+/** `listCardRecipe()` — the card surface `ListCard` renders around its `<ul>`. */
+export const LIST_CARD_SURFACE =
+  "bg-card rounded-lg shadow-sm border border-border overflow-hidden";
+
+/** `listCardListRecipe()` — the divided `<ul>` the surface clips. */
+export const LIST_CARD_LIST = "divide-y divide-border";
+
+/**
+ * `listRowRecipe()` — the row cell. Two departures from the string the apps used
+ * to hand-roll, both decided in Wallow-lrlm.3.5: `hover:bg-background/50` became
+ * `hover:bg-muted`, and the row gained the catalog focus indicator because a
+ * row composed with a `Link` is a tab stop.
+ */
+export const LIST_ROW =
+  "flex items-center justify-between px-6 py-4 outline-none motion-safe:transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring";
+
+/** `badgeRecipe()`'s base — the pill SHAPE, which no variant changes. */
+export const BADGE_SHAPE = "inline-block text-xs font-medium px-2.5 py-0.5 rounded-full";
+
+/**
+ * `badgeRecipe()`'s variants. Each paints BOTH halves of a token pair, so a spec
+ * can assert one variant landed AND that no sibling variant's surface did.
+ */
+export const BADGE_VARIANTS = {
+  neutral: "bg-accent text-accent-foreground",
+  success: "bg-success text-success-foreground",
+  warning: "bg-primary text-primary-foreground",
+  destructive: "bg-destructive text-destructive-foreground",
+} as const;
+
+/** A `Badge` variant name. */
+export type BadgeVariant = keyof typeof BADGE_VARIANTS;
+
+/** `emptyStateRecipe()` — the spacing block `EmptyState` hands `Card`. */
+export const EMPTY_STATE_SPACING = "p-12 flex flex-col items-center gap-2 text-center";
+
+/** `cardRecipe()` — the surface `EmptyState` composes underneath that block. */
+export const CARD_SURFACE = "rounded-lg border border-border bg-card";
+
+/** `emptyStateIconRecipe()` — the decorative glyph slot above the message. */
+export const EMPTY_STATE_ICON = "text-7xl leading-none mb-2";
+
+/**
+ * `list` is the `<ul>` a catalog `ListCard` renders, clipped by the card surface
+ * `ListCard` puts around it. Both halves matter: the surface is what the app
+ * used to hand-roll, and the `<ul>` is what carries the shipped `X-table` testid.
+ */
+export function expectListCard(list: Element): void {
+  expectTag(list, "ul");
+  expectClasses(list, LIST_CARD_LIST);
+
+  const surface = parentOf(list);
+  expectTag(surface, "div");
+  expectClasses(surface, LIST_CARD_SURFACE);
+}
+
+/**
+ * `row` is a catalog `ListRow`. `tagName` says which element it resolved to —
+ * `"li"` for a plain row, `"a"` when the caller composed a router `Link` through
+ * `render`, which SUBSTITUTES the element rather than wrapping it.
+ */
+export function expectListRow(row: Element, tagName: string): void {
+  expectTag(row, tagName);
+  expectClasses(row, LIST_ROW);
+}
+
+/**
+ * `element` is a catalog `Badge` in `variant`. The negative half is the
+ * load-bearing one: the shape alone is variant-independent, so asserting only
+ * the presence of `variant`'s classes would pass an element that also carried a
+ * second variant's surface.
+ */
+export function expectBadge(element: Element, variant: BadgeVariant): void {
+  expectTag(element, "span");
+  expectClasses(element, BADGE_SHAPE);
+  expectClasses(element, BADGE_VARIANTS[variant]);
+
+  const foreign = Object.entries(BADGE_VARIANTS)
+    .filter(([name]) => name !== variant)
+    .flatMap(([, classes]) => classes.split(/\s+/u))
+    .filter((cls) => element.classList.contains(cls));
+  expect(foreign, `${describeElement(element)} must carry only the ${variant} variant`).toEqual([]);
+}
+
+/** The slots an `EmptyState` renders, each keyed by its derived test id suffix. */
+export interface EmptyStateParts {
+  /** The decorative glyph, or `null` when the card renders none. */
+  readonly icon: string | null;
+  /** The `<h2>` sentence. */
+  readonly message: string;
+  /** The supporting copy, or `null` when the card renders none. */
+  readonly description: string | null;
+}
+
+/**
+ * `root` is a catalog `EmptyState` carrying `testId`, with the given slots. The
+ * slots are addressed by the test ids `EmptyState` DERIVES from the root's, so
+ * this also pins that an app names the block once.
+ *
+ * A slot given as `null` must be ABSENT, not empty: `EmptyState` omits an unused
+ * slot entirely so it leaves no element behind to collect the column gap.
+ */
+export function expectEmptyState(root: Element, testId: string, parts: EmptyStateParts): void {
+  expectTag(root, "div");
+  expectClasses(root, CARD_SURFACE);
+  expectClasses(root, EMPTY_STATE_SPACING);
+
+  const message = within(root, `[data-testid="${testId}-message"]`);
+  expectTag(message, "h2");
+  expect(message.textContent).toBe(parts.message);
+  expectClasses(message, "text-xl font-semibold text-foreground");
+
+  expectOptionalSlot(root, `${testId}-icon`, parts.icon, EMPTY_STATE_ICON);
+  expectOptionalSlot(root, `${testId}-description`, parts.description, "text-muted-foreground");
+}
+
+/** One optional `EmptyState` slot: present with `text` and `recipe`, or absent. */
+function expectOptionalSlot(
+  root: Element,
+  testId: string,
+  text: string | null,
+  recipe: string,
+): void {
+  const found = root.querySelector(`[data-testid="${testId}"]`);
+  if (text === null) {
+    expect(found, `[data-testid="${testId}"] must be omitted, not rendered empty`).toBeNull();
+    return;
+  }
+  expect(found, `${describeElement(root)} has no [data-testid="${testId}"]`).not.toBeNull();
+  expect((found as HTMLElement).textContent).toBe(text);
+  expectClasses(found as HTMLElement, recipe);
 }
 
 /** `element` is rendered with the given tag (the restyle must not swap roles). */
