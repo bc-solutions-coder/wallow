@@ -1,7 +1,6 @@
 import {
   Button,
   Card,
-  CardTitle,
   Checkbox,
   ErrorBanner,
   Field as FieldRow,
@@ -274,7 +273,9 @@ interface RegisterRequest {
 function CardHeading() {
   return (
     <div className="space-y-1 text-center">
-      <CardTitle>Create an account</CardTitle>
+      <Text as="h2" variant="body" weight="semibold" color="onCard">
+        Create an account
+      </Text>
       <MutedText>Enter your details to get started</MutedText>
     </div>
   );
@@ -479,10 +480,6 @@ function ProviderLink({ provider }: { readonly provider: string }) {
     <Button
       render={<a href={externalLoginUrl(provider)} />}
       nativeButton={false}
-      // Base UI stamps `role="button"` on every non-native element it composes
-      // onto; this one navigates to the challenge endpoint, so the truthful role
-      // is put back. It merges last and wins.
-      role="link"
       variant="outline"
       data-testid={`register-external-${provider.toLowerCase()}`}
     >

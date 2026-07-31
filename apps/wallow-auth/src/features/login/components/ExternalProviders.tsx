@@ -119,10 +119,6 @@ function ProviderLink({ provider, href }: { readonly provider: string; readonly 
     <Button
       render={<a href={href} />}
       nativeButton={false}
-      // Base UI stamps `role="button"` on every non-native element it composes
-      // onto; this one navigates to the challenge endpoint, so the truthful role
-      // is put back. It merges last and wins.
-      role="link"
       variant="outline"
       data-testid={providerTestId(provider)}
     >

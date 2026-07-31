@@ -1,5 +1,5 @@
 import { render } from "@bc-solutions-coder/testing/render";
-import type { ReactElement } from "react";
+import type { ComponentProps, ReactElement } from "react";
 import { userEvent } from "vitest/browser";
 import { describe, expect, it, vi } from "vitest";
 
@@ -620,5 +620,153 @@ describe("Button component", () => {
     await userEvent.click(onlyButton(container));
 
     expect(onClick).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * A stand-in for TanStack Router's `Link`: a COMPONENT-typed render element that
+ * turns its own routing prop into the `href`. The distinction from a literal
+ * `<a href>` is the whole difficulty of the spec below it — `render.type` here is
+ * a function and `render.props` carries no `href`, so nothing about this element
+ * says "anchor" until it has actually mounted. `apps/wallow-web` composes the
+ * catalog Button exactly this way for its header CTA.
+ */
+function StandInRouterLink({ to, ...rest }: { to: string } & ComponentProps<"a">): ReactElement {
+  return <a href={to} {...rest} />;
+}
+
+/**
+ * ROLE SEMANTICS (Wallow-lrlm.12).
+ *
+ * Base UI's `useButton` merges `isNativeButton ? { type: "button" } : { role:
+ * "button" }` into the props of whatever `render` substitutes, so every
+ * anchor-composed catalog Button announces a NAVIGATION as an ACTION: it is
+ * dropped from a screen reader's links list, while the retained `href` still
+ * gives the browser open-in-new-tab, copy-link-address and a status-bar target.
+ * That contradiction is the WCAG 2.2 SC 4.1.2 Name/Role/Value failure this block
+ * exists to make loud.
+ *
+ * WHY THIS BLOCK IS A `*.test.tsx` AND NOT A STORY: the catalog's render coverage
+ * lives in `button.stories.tsx`, but the subject here is the COMPUTED ACCESSIBLE
+ * ROLE, which a story renders and cannot assert. This is the same class of edge
+ * as the data-attribute and className-override specs above it.
+ *
+ * WHY THE ASSERTIONS READ THE ROLE ENGINE AND NOT `getAttribute("role")`: the
+ * defect is what the accessibility tree reports, and an implementation may reach
+ * the right answer either by setting `role="link"` or by omitting the attribute
+ * so the anchor's IMPLICIT role applies. Both are correct; pinning the literal
+ * attribute would pick one and reject the other. `getByRole` resolves implicit
+ * and explicit roles the way a browser does, so it accepts either and still
+ * fails on `role="button"`. `.query()` is used rather than `expect.element` so a
+ * negative case resolves immediately instead of retrying to timeout.
+ *
+ * WHY BASE UI IS NOT ASKED TO FIX THIS: it declines to. Base UI 1.6.0 documents
+ * the role as INTENTIONAL ("The Button component enforces button semantics
+ * (`role="button"`, keyboard interaction, disabled state). It should not be used
+ * for links") and exposes no opt-out prop — `nativeButton` only chooses between
+ * `type="button"` and `role="button"`. The override is the documented merge
+ * ORDER instead: `getButtonProps` merges `otherExternalProps` LAST, so a `role`
+ * the catalog Button supplies wins. Base UI's keyboard handling already agrees
+ * with these specs — `isValidLinkElement` (tagName `A` + `href`) suppresses the
+ * Space/Enter synthesis for exactly these elements. Only the role disagrees.
+ */
+describe("Button link semantics", () => {
+  /** The composed element, whatever tag `render` substituted. */
+  function composed(container: HTMLElement): Element {
+    const element = container.firstElementChild;
+    expect(element).not.toBeNull();
+    return element as Element;
+  }
+
+  it("announces an anchor composed through render as a link", async () => {
+    // THE DEFECT. `<a href>` is a link in every sense the browser cares about,
+    // and the catalog must say so without the caller asking.
+    const screen = await render(
+      <Button render={<a href="/docs" />} nativeButton={false} variant="link" width="auto">
+        Read the docs
+      </Button>,
+    );
+
+    expect(screen.getByRole("link", { name: "Read the docs" }).query()).toBe(
+      composed(screen.container),
+    );
+    expect(screen.getByRole("button", { name: "Read the docs" }).query()).toBeNull();
+  });
+
+  it("announces a component-typed render that resolves to an anchor as a link", async () => {
+    // The wallow-web shape. The element only becomes an anchor once the
+    // component has rendered, so an implementation that inspects `render.type`
+    // or `render.props.href` passes the spec above and fails here. Both call
+    // shapes are shipped today, so both are the contract.
+    const screen = await render(
+      <Button render={<StandInRouterLink to="/dashboard/apps/register" />} nativeButton={false}>
+        Register New App
+      </Button>,
+    );
+
+    const element = composed(screen.container);
+    expect(element.tagName).toBe("A");
+    expect(element.getAttribute("href")).toBe("/dashboard/apps/register");
+    expect(screen.getByRole("link", { name: "Register New App" }).query()).toBe(element);
+    expect(screen.getByRole("button", { name: "Register New App" }).query()).toBeNull();
+  });
+
+  it("keeps button semantics for a non-anchor composed through render", async () => {
+    // The other arm, and the reason the fix cannot simply drop the role: a <div>
+    // has no implicit role at all, so without Base UI's `role="button"` this
+    // control would announce as nothing. Passes today; it fails the moment a fix
+    // strips the role unconditionally instead of only for links.
+    const screen = await render(
+      <Button render={<div />} nativeButton={false}>
+        Complex content
+      </Button>,
+    );
+
+    expect(screen.getByRole("button", { name: "Complex content" }).query()).toBe(
+      composed(screen.container),
+    );
+  });
+
+  it("keeps button semantics for an anchor with no href", async () => {
+    // An <a> without an href is NOT a link — it has no implicit role, and Base
+    // UI's own `isValidLinkElement` requires the href before it treats the
+    // element as one. A fix that sniffs the tag name alone announces this
+    // control as a link to nowhere and fails here.
+    const screen = await render(
+      <Button render={<a />} nativeButton={false}>
+        Not a destination
+      </Button>,
+    );
+
+    expect(screen.getByRole("link", { name: "Not a destination" }).query()).toBeNull();
+    expect(screen.getByRole("button", { name: "Not a destination" }).query()).toBe(
+      composed(screen.container),
+    );
+  });
+
+  it("lets a caller's explicit role win over the catalog default", async () => {
+    // The escape hatch has to survive the fix. A composed Button inside a menu
+    // or a toolbar still needs its own role, so the catalog's default must be a
+    // DEFAULT and not an override — the same merge order the fix itself relies
+    // on, asserted from the caller's side.
+    const { container } = await render(
+      <Button render={<a href="/docs" role="menuitem" />} nativeButton={false}>
+        Read the docs
+      </Button>,
+    );
+
+    expect(composed(container).getAttribute("role")).toBe("menuitem");
+  });
+
+  it("leaves a native button carrying no role attribute", async () => {
+    // The default path is untouched: a real <button> gets `type="button"` and no
+    // role, and its implicit button role is what the tree reports. Guards
+    // against a fix that reaches the uncomposed component at all.
+    const screen = await render(<Button>Sign in</Button>);
+
+    const button = onlyButton(screen.container);
+    expect(button.hasAttribute("role")).toBe(false);
+    expect(button.getAttribute("type")).toBe("button");
+    expect(screen.getByRole("button", { name: "Sign in" }).query()).toBe(button);
   });
 });

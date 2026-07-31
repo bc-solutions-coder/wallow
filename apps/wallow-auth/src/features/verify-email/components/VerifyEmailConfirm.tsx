@@ -102,7 +102,7 @@ function verifyFailureMessage(cause: unknown): string {
 /** The oracle's `BbCardHeader`. */
 function CardHeading() {
   return (
-    <Text as="h2" variant="subheading" color="onCard">
+    <Text as="h2" variant="body" weight="semibold" color="onCard">
       Email Verification
     </Text>
   );
@@ -151,12 +151,6 @@ function ContinueButton({ returnUrl }: { readonly returnUrl: string }) {
     <Button
       render={<a href={returnUrl} />}
       nativeButton={false}
-      // Base UI stamps `role="button"` on every non-native element it composes
-      // the button behaviour onto (internals/use-button: `isNativeButton ?
-      // {type:'button'} : {role:'button'}`). On a real <a href> that is a LIE to
-      // the accessibility tree — this control navigates, it does not act — so
-      // the role is put back. It merges last and therefore wins.
-      role="link"
       data-testid="verify-email-confirm-continue"
     >
       Continue

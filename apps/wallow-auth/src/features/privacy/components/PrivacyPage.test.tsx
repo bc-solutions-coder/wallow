@@ -77,6 +77,14 @@ describe("PrivacyPage", () => {
     await expect
       .element(page.getByTestId("privacy-back-button"))
       .toHaveAttribute("href", "/register");
+
+    // And it is announced as a LINK — see the twin assertion in TermsPage.test.tsx.
+    // The catalog Button supplies the role (Wallow-lrlm.12); this call site used to
+    // pass `role="link"` by hand with nothing asserting it.
+    expect(page.getByRole("link", { name: /back to register/iu }).query()).toBe(
+      page.getByTestId("privacy-back-button").element(),
+    );
+    expect(page.getByRole("button", { name: /back to register/iu }).query()).toBeNull();
   });
 });
 

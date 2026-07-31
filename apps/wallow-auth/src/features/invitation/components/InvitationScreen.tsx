@@ -211,7 +211,7 @@ function loginHref(token: string): string {
 function CardHeading() {
   return (
     <div className="text-center space-y-1">
-      <Text as="h2" variant="subheading" color="onCard">
+      <Text as="h2" variant="body" weight="semibold" color="onCard">
         You&apos;ve been invited
       </Text>
       <MutedText>Join {forkBranding.appName}</MutedText>
@@ -295,14 +295,13 @@ function AcceptActions(props: { readonly isSubmitting: boolean; readonly onAccep
         Decline stays an ANCHOR — see the note above — so it composes onto one
         through `render` rather than becoming a button. `nativeButton={false}`
         tells Base UI the rendered element is not a `<button>`, which is what
-        keeps it from logging a dev-mode error; `role="link"` then undoes the
-        `role="button"` Base UI stamps on every non-native element it composes
-        onto, because this control navigates rather than acts.
+        keeps it from logging a dev-mode error. The catalog `Button` supplies the
+        `link` role itself, and drops it for exactly the window where this anchor
+        has no `href` and is therefore no longer a destination.
       */}
       <Button
         render={<a href={isSubmitting ? undefined : HOME_HREF} />}
         nativeButton={false}
-        role="link"
         variant="outline"
         width="auto"
         className="flex-1"
@@ -348,13 +347,11 @@ function AnonymousActions(props: { readonly email: string; readonly token: strin
     <div className="space-y-3">
       {/*
         Both are real navigations, so they compose the recipe onto anchors the
-        way `Decline` does — and put back the `role="link"` Base UI overwrites
-        with `role="button"` on any non-native element.
+        way `Decline` does; the catalog `Button` announces them as links.
       */}
       <Button
         render={<a href={registerHref(email, token)} />}
         nativeButton={false}
-        role="link"
         data-testid="invitation-create-account"
       >
         Create account
@@ -362,7 +359,6 @@ function AnonymousActions(props: { readonly email: string; readonly token: strin
       <Button
         render={<a href={loginHref(token)} />}
         nativeButton={false}
-        role="link"
         variant="outline"
         data-testid="invitation-sign-in"
       >

@@ -486,6 +486,17 @@ describe("InvitationScreen — authenticated branch", () => {
     // revoke the invitation; it stays open for a later visit.
     await expect.element(page.getByTestId("invitation-decline")).toHaveAttribute("href", HOME_HREF);
     expect(acceptCalls()).toEqual([]);
+
+    // And it is ANNOUNCED as the navigation it is. This is the catalog Button
+    // composed onto an anchor, and Base UI stamps `role="button"` on every
+    // non-native element it substitutes — which would put "No thanks" in a screen
+    // reader's buttons list, alongside the accept control that really does POST.
+    // The catalog supplies the link role itself (Wallow-lrlm.12); this call site
+    // used to pass `role="link"` by hand with nothing asserting it.
+    expect(page.getByRole("link", { name: /no thanks/iu }).query()).toBe(
+      page.getByTestId("invitation-decline").element(),
+    );
+    expect(page.getByRole("button", { name: /no thanks/iu }).query()).toBeNull();
   });
 
   it("accepts the invitation with the link's token and lands the user home", async () => {
@@ -623,6 +634,22 @@ describe("InvitationScreen — unauthenticated branch", () => {
     // Accepting needs a `[Authorize]`d POST (InvitationsController.cs:82-83);
     // offering it to an anonymous visitor buys them a 401.
     expect(page.getByTestId("invitation-accept").query()).toBeNull();
+
+    // Both are the catalog Button composed onto an anchor, and both must ANNOUNCE
+    // as links: Base UI stamps `role="button"` on every non-native element it
+    // substitutes, which drops them from a screen reader's links list while their
+    // hrefs still offer open-in-new-tab. The catalog supplies the link role itself
+    // (Wallow-lrlm.12); both call sites used to pass `role="link"` by hand, and
+    // the "back to sign in" assertion elsewhere in this file covers the error
+    // state's PLAIN anchor, not either of these.
+    expect(page.getByRole("link", { name: /create account/iu }).query()).toBe(
+      page.getByTestId("invitation-create-account").element(),
+    );
+    expect(page.getByRole("link", { name: /sign in to accept/iu }).query()).toBe(
+      page.getByTestId("invitation-sign-in").element(),
+    );
+    expect(page.getByRole("button", { name: /create account/iu }).query()).toBeNull();
+    expect(page.getByRole("button", { name: /sign in to accept/iu }).query()).toBeNull();
   });
 
   it("sends the visitor to register with the invited address and a way back", async () => {

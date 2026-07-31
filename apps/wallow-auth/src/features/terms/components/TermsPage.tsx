@@ -67,7 +67,7 @@ const SECTIONS: readonly { readonly heading: string; readonly body: string }[] =
 function DocumentHeading() {
   return (
     <div className="px-0 pt-0 text-center space-y-1">
-      <Text as="h2" variant="subheading" color="onCard" data-testid="terms-heading">
+      <Text as="h2" variant="body" weight="semibold" color="onCard" data-testid="terms-heading">
         Terms of Service
       </Text>
       <MutedText>Last updated: {LAST_UPDATED}</MutedText>
@@ -123,10 +123,6 @@ function BackToRegister() {
       <Button
         render={<a href={toAppHref("/register")} />}
         nativeButton={false}
-        // Base UI stamps `role="button"` on every non-native element it composes
-        // onto; this one navigates, so the truthful role is put back. It merges
-        // last and wins.
-        role="link"
         variant="outline"
         data-testid="terms-back-button"
       >

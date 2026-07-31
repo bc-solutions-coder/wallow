@@ -400,6 +400,23 @@ describe("RegisterForm — concurrent init", () => {
     expect(href).not.toContain("5001");
   });
 
+  it("announces each provider challenge as a link, not a button", async () => {
+    // The provider control is the catalog Button composed onto `<a href>`, and
+    // Base UI stamps `role="button"` on every non-native element it substitutes.
+    // The catalog supplies the link role itself now (Wallow-lrlm.12); this call
+    // site used to pass `role="link"` by hand, unasserted. The consent-link
+    // assertions further down cover PLAIN anchors, so they never covered this.
+    routes.providers = ok(["Google"]);
+
+    await renderReadyForm();
+
+    const link = page.getByTestId("register-external-google");
+    await expect.element(link).toBeInTheDocument();
+
+    expect(page.getByRole("link", { name: "Google" }).query()).toBe(link.element());
+    expect(page.getByRole("button", { name: "Google" }).query()).toBeNull();
+  });
+
   it("renders no provider section when the API offers none", async () => {
     // Oracle: `@if (_externalProviders.Count > 0)`.
     await renderReadyForm();

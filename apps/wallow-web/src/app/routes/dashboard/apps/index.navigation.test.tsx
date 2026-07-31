@@ -1,7 +1,7 @@
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import type { AnyRouter } from "@tanstack/react-router";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { byTestId, expectClasses, expectTag, waitForTestId } from "@shared/testing/style-contract";
@@ -149,10 +149,16 @@ describe("routes/dashboard/apps register CTA navigation", () => {
     await renderPage();
     const cta = byTestId("apps-register-link");
 
-    // `role="button"` is what Base UI's `Button` adds when it substitutes a
-    // non-button element, and `type` is what it adds when it does not. A
-    // navigation must carry neither.
-    expect(cta.getAttribute("role")).not.toBe("button");
+    // Read through the ROLE ENGINE, not the `role` attribute: the catalog Button
+    // announces a mounted anchor as a link on its own (Wallow-lrlm.12), and it may
+    // do so either by setting `role="link"` or by leaving the anchor's implicit
+    // role alone. Both are correct; `role="button"` — what Base UI stamps on any
+    // non-native element it substitutes — never is. Until Wallow-lrlm.12 this CTA
+    // carried a hand-written `role={undefined}` to strip it, which is exactly the
+    // workaround this assertion now covers.
+    expect(page.getByRole("link", { name: "Register New App" }).query()).toBe(cta);
+    expect(page.getByRole("button", { name: "Register New App" }).query()).toBeNull();
+    // `type` is what Base UI adds instead when `nativeButton` is left at its default.
     expect(cta.getAttribute("type")).toBeNull();
   });
 

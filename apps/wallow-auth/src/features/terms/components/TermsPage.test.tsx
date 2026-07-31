@@ -73,6 +73,17 @@ describe("TermsPage", () => {
     await expect
       .element(page.getByTestId("terms-back-button"))
       .toHaveAttribute("href", "/register");
+
+    // And it is announced as a LINK. The catalog Button composes onto an anchor
+    // here, and Base UI stamps `role="button"` on every non-native element it
+    // substitutes — which drops this control out of a screen reader's links list
+    // while its href still offers open-in-new-tab. The catalog now supplies the
+    // link role itself (Wallow-lrlm.12); before that this call site passed
+    // `role="link"` by hand, with nothing asserting it.
+    expect(page.getByRole("link", { name: /back to register/iu }).query()).toBe(
+      page.getByTestId("terms-back-button").element(),
+    );
+    expect(page.getByRole("button", { name: /back to register/iu }).query()).toBeNull();
   });
 
   it("is the document, not the acceptance gate", () => {

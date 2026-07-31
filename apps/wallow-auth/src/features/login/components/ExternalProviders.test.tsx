@@ -273,6 +273,21 @@ describe("ExternalProviders — the list", () => {
     await expect.element(page.getByTestId("login-external-microsoft")).toBeInTheDocument();
   });
 
+  it("announces each challenge link as a link, not a button", async () => {
+    // These carry the catalog Button's recipe through `render={<a href/>}`, and
+    // Base UI stamps `role="button"` on every non-native element it substitutes:
+    // a challenge link would be dropped from a screen reader's links list while
+    // its href still offered open-in-new-tab (WCAG 2.2 SC 4.1.2). The catalog
+    // supplies the link role itself now (Wallow-lrlm.12); this call site used to
+    // pass `role="link"` by hand, with nothing asserting it.
+    renderProviders();
+
+    const google: HTMLElement = await providerLink("login-external-google");
+
+    expect(page.getByRole("link", { name: "Google" }).query()).toBe(google);
+    expect(page.getByRole("button", { name: "Google" }).query()).toBeNull();
+  });
+
   it("labels each link with the provider's display name", async () => {
     renderProviders();
 

@@ -27,12 +27,13 @@ import { PAGE_CONTAINER } from "@shared/lib/page-container";
  * flash. Composing through `render` keeps the real anchor (so middle-click and
  * copy-link still work) while the router claims the click.
  *
- * The two props that look like incantations are not: `nativeButton={false}`
- * tells Base UI it is not wrapping a native `<button>` (left at its default it
- * logs a dev-mode "expected a native <button>" error on every render), and
- * `role={undefined}` strips the `role="button"` that flag would otherwise add —
- * `useButton` merges its own role BEFORE the caller's props, so the caller
- * wins. A navigation must stay announced as a link.
+ * The prop that looks like an incantation is not: `nativeButton={false}` tells
+ * Base UI it is not wrapping a native `<button>` (left at its default it logs a
+ * dev-mode "expected a native <button>" error on every render). The `link` role
+ * used to be spelled here too, as `role={undefined}` to strip the `role="button"`
+ * Base UI stamps on any non-native element; the catalog `Button` now announces a
+ * mounted anchor as a link on its own (Wallow-lrlm.12), and it sees through the
+ * `Link` component to do it.
  *
  * `width="auto"` and `shape="pill"` override the recipe's `w-full`/`rounded-md`
  * defaults; the `className` keeps the shipped `px-6 py-2.5` footprint, which no
@@ -42,7 +43,6 @@ const registerCta = (
   <Button
     render={<Link to="/dashboard/apps/register" />}
     nativeButton={false}
-    role={undefined}
     shape="pill"
     width="auto"
     data-testid="apps-register-link"
