@@ -10,126 +10,14 @@ import { Route as invitationRoute } from "@app/routes/invitation";
 import { InvitationScreen } from "./InvitationScreen";
 
 /**
- * Component spec for the InvitationLanding screen (Wallow-vec7.3.9).
+ * Invitation landing screen, and the `/invitation` route that feeds it.
  *
- * Testids come verbatim from the oracle (scout inventory on Wallow-vec7.3):
- * `invitation-loading`, `invitation-error`, `invitation-info`,
- * `invitation-expired`, `invitation-accept-error`, `invitation-accept`,
- * `invitation-decline`, `invitation-create-account`, `invitation-sign-in`.
+ * Runs the real SDK over a faked fetch (sdk-harness), so assertions read the
+ * recorded request, not a spy. `createAuthHarness()` pins the harness origin to
+ * this app's root-mounted API surface — hence bare paths, no `/api` prefix.
  *
- * TEST SEAM: `@bc-solutions-coder/testing/sdk-harness` (Wallow-pu6a.5.1). Nothing
- * here mocks the SDK — not `@bc-solutions-coder/sdk`, not its `./query` entry,
- * and there is no app-level facade left to mock (Wallow-pu6a.5.5). The harness
- * builds the REAL SDK over a recording fake `fetch`, so the whole pipeline the
- * app ships — request-scoped SDK -> generated operation -> CSRF interceptor ->
- * serialization -> `WallowError` shaping -> React Query — executes here, and the
- * assertions below read the outgoing REQUEST instead of a spy on a stand-in.
- * `renderWithWallow` supplies the router context both the screen and the route
- * read their SDK off, and `createAuthHarness()` pins the harness origin to this
- * app's root-mounted API surface — which is why every recorded `path` below is
- * the bare endpoint path, with no `/api` prefix.
- *
- * ── THE AUTH-STATE SEAM (the gap this file's red phase left open) ────────────
- *
- * This screen depends on auth state that a server session would hold for free.
- * apps/wallow-auth
- * has no equivalent: its API surface is a PASSTHROUGH REVERSE PROXY with no
- * session store (`src/shared/lib/api-passthrough.server.ts`) and the auth cookie is HttpOnly.
- *
- * `isAuthenticated` is therefore a PROP, and the tests below pin both branches
- * against it. The ROUTE answers it with the generated
- * `usersGetCurrentUserQueryKey()` paired with the SDK's `getCurrentUser`
- * (Wallow-vec7.2.4, re-pointed at the generated surface in Wallow-pu6a.5.5): a
- * same-origin `GET /v1/identity/users/me` whose 200-vs-401 IS the answer —
- * `null` for anonymous, and it never throws on a 401. The route tests at the
- * bottom pin all three of its outcomes, stated as the wire statuses themselves.
- *
- * And the authenticated branch is a BUG FIX, not a port: `Wallow.Auth` registers
- * no authentication at all, so the oracle's `_isAuthenticated` is always false
- * and its accept/decline branch is dead code — while the API has always
- * supported it (`{token}/accept` is `[Authorize]`d, InvitationsController.cs:
- * 82-84).
- *
- * ── FOUR ORACLE BRANCHES COLLAPSE INTO REJECTIONS AT THIS SEAM ───────────────
- *
- * The oracle reads its API through `AuthApiClient`, which SWALLOWS non-2xx into
- * a sentinel — `VerifyInvitationAsync` returns `null` on any failure
- * (AuthApiClient.cs:297-312), `AcceptInvitationAsync` returns
- * `IsSuccessStatusCode` (AuthApiClient.cs:314-322) — so the oracle distinguishes
- * "the server said no" from "the call blew up" by sentinel-vs-`catch`, and gives
- * each its own copy:
- *
- *   verify:  null  -> "This invitation is not valid or has already been used."
- *            catch -> "Unable to verify this invitation. Please try again later."
- *   accept:  false -> "Unable to accept this invitation. It may have expired or
- *                      already been used."
- *            catch -> "An error occurred while accepting the invitation. Please
- *                      try again."
- *
- * The TS client THROWS on every non-2xx, so both of each pair arrive as one
- * rejected promise and the sentinel-vs-catch fork is gone. What survives is the
- * STATUS: `toWallowError` always populates `.status`, falling back to the raw
- * `Response.status` and then to 500 (packages/sdk/src/runtime-config.ts). That is
- * enough to keep all four messages, because the fork maps cleanly onto
- * 4xx-vs-not:
- *
- *   - `GET /v1/identity/invitations/verify/{token}` returns exactly ONE failure,
- *     `NotFound()` (InvitationsController.cs:71-80) — i.e. the oracle's `null`
- *     case IS the 404. Anything else (500, proxy/network) is the `catch` case.
- *   - `POST /v1/identity/invitations/{token}/accept` (InvitationsController.cs:
- *     82-91) throws `EntityNotFoundException` for an unknown/spent token and
- *     rejects an expired one from the aggregate — the "expired or already been
- *     used" copy verbatim — all 4xx. A 5xx is the `catch` case.
- *
- * Keyed on STATUS, not on `code`: unlike the `/v1/identity/auth/*` endpoints
- * (bd memory `mfa-endpoints-mfacontroller-return-business-failures-as-a`), these
- * two send no machine-readable code at all — `NotFound()` is a bare status with
- * no body, so `readCode()` finds nothing and every one of these rejections is
- * `code: "UNKNOWN"` (bd memory `wallow-auth-auth-client-ts-wallowerror-code-
- * loss`). A code-keyed mapping here would collapse all four messages into the
- * generic one. Verified by reading the controller, not assumed.
- *
- * ── THE INERT `email=` PARAMETER (an oracle wart, ported deliberately) ────────
- *
- * `GetRegisterUrl()` (InvitationLanding.razor:196-201) builds
- * `/register?email=…&returnUrl=…`, but `Register.razor` declares only
- * `client_id` and `returnUrl` as `[SupplyParameterFromQuery]` (Register.razor:
- * 179-183) — it never reads `email`. The `/register` route (Wallow-vec7.3.8)
- * likewise reads
- * only `client_id`/`returnUrl`. The `email` param is kept anyway — it is the link
- * contract, it costs nothing, and a Register that prefills the invited address
- * is a plausible follow-up — but it is pinned below as INERT so no one reads
- * these tests as proof the address prefills. It does not.
- *
- * ── WHY NO `isSafeReturnUrl` GUARD ON THIS SCREEN ────────────────────────────
- *
- * Every screen that ACCEPTS a returnUrl guards it (bd memory `returnurl-guard-
- * refuse-dont-sanitize`). This one accepts none: the oracle's only
- * `[SupplyParameterFromQuery]` is `Token`, and the two returnUrls here are BUILT
- * by the screen (`/invitation?token=…`), so they are safe by construction —
- * there is no open-redirect surface to guard. The attacker-controlled part is
- * the token, and the test below pins that it is percent-encoded INTO the
- * returnUrl (so a token like `x&returnUrl=//evil.example` cannot smuggle a
- * second parameter out) and that the result still satisfies the real
- * `isSafeReturnUrl` — imported from the SDK, not restated here.
- */
-
-/**
- * THE READ SEAM (Wallow-evd5.3.1, re-expressed at the transport in
- * Wallow-pu6a.5.1, unified in Wallow-pu6a.5.5). The screen's invitation lookup is
- * `useQuery(invitationsVerifyOptions(...))` — the GENERATED factory — and the
- * ROUTE's signed-in probe is the generated `usersGetCurrentUserQueryKey()` paired
- * with the SDK's `getCurrentUser`, which softens the 401 to `null`. Accepting the
- * invitation calls the generated `invitationsAccept` operation. All three run for
- * real here; only the wire is faked.
- *
- * All three now share ONE transport, which is the change worth noting. The probe
- * used to be `getUser()` reaching for the GLOBAL `fetch` against `/bff/user`, so
- * this file carried a second stub to answer it. wallow-auth mounts no `/bff/**`
- * route at all (its server routes are the `/v1/**` and `/connect/**` passthrough
- * proxies), so that request had nowhere to land in the real app; the probe now
- * goes to `/v1/identity/users/me` through the same request-scoped SDK as
- * everything else, and the harness answers it alongside the rest.
+ * Both endpoints fail with a bare status and no machine-readable code, so the
+ * four failure messages are keyed on 4xx-vs-5xx and never on `code`.
  */
 
 const TOKEN = "inv-tok-123";
@@ -139,16 +27,11 @@ const HOME_HREF = "/";
 /** The self-referential returnUrl both unauthenticated links carry back here. */
 const SELF_RETURN_URL = `/invitation?token=${TOKEN}`;
 
-/**
- * Wire paths, read off `packages/sdk/src/generated/sdk.gen.ts` rather than
- * guessed, and bare (no `/api` prefix) because wallow-auth's passthrough proxy
- * puts the client's baseUrl at `/` — see the TEST SEAM note above.
- */
 const INVITATIONS_ROOT = "/v1/identity/invitations";
 const VERIFY_PREFIX = `${INVITATIONS_ROOT}/verify/`;
 const ACCEPT_SUFFIX = "/accept";
 const ACCEPT_PATH = `${INVITATIONS_ROOT}/${TOKEN}${ACCEPT_SUFFIX}`;
-/** The route's signed-in probe — `usersGetCurrentUser`, softened by `getCurrentUser`. */
+/** The route's signed-in probe, whose 200-vs-401 is the whole answer. */
 const CURRENT_USER_PATH = "/v1/identity/users/me";
 
 const UNAUTHORIZED = 401;
@@ -156,7 +39,7 @@ const NOT_FOUND = 404;
 const SERVER_ERROR = 500;
 const NO_CONTENT = 204;
 
-/** An `InvitationResponse`, as `InvitationsController.MapToResponse` shapes it. */
+/** An `InvitationResponse`, in the shape the API sends. */
 function invitation(overrides: Record<string, unknown> = {}) {
   return {
     id: "8f1d4c9e-0000-4000-8000-000000000001",
@@ -170,12 +53,9 @@ function invitation(overrides: Record<string, unknown> = {}) {
 }
 
 /**
- * The wire form of the only failure either endpoint sends: a BARE status with no
- * body (see "FOUR ORACLE BRANCHES" above). Driven through the real client this
- * becomes a `WallowError` carrying that status and `code: "UNKNOWN"` — the
- * code-less shape is not a convenience, it is what these two endpoints actually
- * produce, and answering with it stops an implementer from keying the copy on a
- * machine code that never arrives.
+ * The only failure either endpoint sends: a bare status, no body. Through the
+ * real client that becomes a `WallowError` with `code: "UNKNOWN"`, so an
+ * implementer cannot key the copy on a machine code that never arrives.
  */
 function failure(status: number): Response {
   return new Response(null, { status });
@@ -210,24 +90,14 @@ function renderScreen(props: { token?: string; isAuthenticated?: boolean } = {})
 }
 
 /**
- * THE NAVIGATION SEAM (vitest.config.ts NAVIGATION SEAM, real-browser variant).
- *
- * On a successful accept the screen hands off with a RAW
- * `globalThis.location.href = "/"` (the oracle's `NavigateTo("/", forceLoad:
- * true)`) — a full, non-`navigate()` reload, and NOT routed through a URL-builder
- * this test could assert instead. Under jsdom the old spec swapped `location`
- * wholesale with `vi.stubGlobal`; in real Chromium `window.location` is
+ * THE NAVIGATION SEAM. A successful accept hands off with a raw
+ * `globalThis.location.href = "/"`. In real Chromium `window.location` is
  * `[Unforgeable]` and cannot be shadowed, and letting the assignment run
- * navigates the runner's iframe and tears the whole file down.
- *
- * So the hand-off is observed at the Navigation API instead: a same-origin
- * `location.href =` fires a cancelable `navigate` event whose `destination.url`
- * is exactly the string the screen assigned (resolved to an absolute URL).
- * Recording it and calling `preventDefault()` pins the destination for the one
- * test that asserts it AND keeps every other accept-success test from navigating
- * the iframe. The guard is installed once for the file and its log is reset per
- * test — equivalent to pinning the assigned `location.href`, since the
- * destination is deterministic.
+ * navigates the runner's iframe and tears the whole file down. So the hand-off is
+ * observed at the Navigation API instead: a same-origin assignment fires a
+ * cancelable `navigate` event carrying the destination. Recording it and calling
+ * `preventDefault()` pins the destination and keeps every other accept-success
+ * test from navigating the iframe.
  */
 interface NavigateEvent extends Event {
   readonly destination: { readonly url: string };
@@ -250,11 +120,10 @@ browserNavigation.navigation.addEventListener("navigate", (event) => {
 });
 
 /**
- * The `href` of one of the screen's links, PARSED — so the assertions below read
- * the query string the way a browser does (one decode, parameters by name)
- * rather than string-matching an encoded blob, which would pass on
- * `?returnUrl=/x&returnUrl=//evil.example` too. The base is a throwaway: these
- * hrefs are relative, and `URL` needs an origin to resolve one.
+ * The `href` of one of the screen's links, PARSED — so assertions read the query
+ * string the way a browser does rather than string-matching an encoded blob,
+ * which would pass on `?returnUrl=/x&returnUrl=//evil.example` too. The base is a
+ * throwaway: these hrefs are relative, and `URL` needs an origin to resolve one.
  */
 async function linkUrl(testId: string): Promise<URL> {
   const link = page.getByTestId(testId);
@@ -266,8 +135,8 @@ async function linkUrl(testId: string): Promise<URL> {
 let harness: SdkHarness;
 
 /**
- * Per-test wire answers, dispatched by the ONE responder installed below. Held as
- * FUNCTIONS rather than values so a test can hand back a promise it settles by
+ * Per-test wire answers, dispatched by the one responder installed below. Held as
+ * functions rather than values so a test can hand back a promise it settles by
  * hand (the in-flight cases) or vary its answer per call (the retry case).
  */
 let verifyAnswer: () => Response | Promise<Response>;
@@ -285,12 +154,9 @@ function acceptCalls(): readonly SdkCall[] {
 }
 
 /**
- * The token the screen actually put on the wire, decoded.
- *
- * Read back off the request PATH rather than from a spy's call arguments, and
- * percent-decoded because the token is a path segment the client escapes on the
- * way out. Throws rather than returning a sentinel so `vi.waitFor` retries while
- * no request has been made yet, and so a missing call fails loudly.
+ * The token the screen actually put on the wire, percent-decoded because the
+ * token is a path segment the client escapes on the way out. Throws rather than
+ * returning a sentinel so `vi.waitFor` retries while no request has been made yet.
  */
 function verifiedToken(): string {
   const [call] = verifyCalls();
@@ -306,9 +172,7 @@ beforeEach(() => {
 
   verifyAnswer = () => Response.json(invitation());
   acceptAnswer = () => new Response(null, { status: NO_CONTENT });
-  // The probe's anonymous answer: a 401, which `getUser()` maps to `null` WITHOUT
-  // throwing (Wallow-vec7.2.4). Only the route probes; the component takes
-  // `isAuthenticated` as a prop.
+  // Only the route probes; the component takes `isAuthenticated` as a prop.
   currentUserAnswer = () => failure(UNAUTHORIZED);
 
   harness = createAuthHarness();
@@ -331,8 +195,6 @@ describe("InvitationScreen — missing token", () => {
   it("refuses a link with no token, without calling the API", async () => {
     renderScreen({ token: undefined });
 
-    // The oracle's `IsNullOrWhiteSpace(Token)` guard (InvitationLanding.razor:
-    // 118-124): its own message, and it returns BEFORE the verify call.
     await expect
       .element(page.getByTestId("invitation-error"))
       .toHaveTextContent(/no invitation token provided/iu);
@@ -351,7 +213,6 @@ describe("InvitationScreen — missing token", () => {
   it("offers a way back to sign-in from the error state", async () => {
     renderScreen({ token: undefined });
 
-    // InvitationLanding.razor:32-34 — the error branch is a dead end without it.
     await expect.element(page.getByTestId("invitation-error")).toBeInTheDocument();
     await expect
       .element(page.getByRole("link", { name: /back to sign in/iu }))
@@ -389,8 +250,6 @@ describe("InvitationScreen — verifying", () => {
   it("names the invited address once verified", async () => {
     renderScreen();
 
-    // InvitationLanding.razor:41 — the address is the whole point of the info
-    // block: it tells the user WHICH identity the invitation is for.
     await expect.element(page.getByTestId("invitation-info")).toHaveTextContent(EMAIL);
   });
 
@@ -410,9 +269,9 @@ describe("InvitationScreen — verifying", () => {
 
     renderScreen();
 
-    // The oracle's `catch` branch. Distinct copy from the 404: telling a user
-    // their invitation is spent when the server merely fell over sends them to
-    // an administrator for a replacement they do not need.
+    // Distinct copy from the 404: telling a user their invitation is spent when
+    // the server merely fell over sends them to an administrator for a
+    // replacement they do not need.
     await expect
       .element(page.getByTestId("invitation-error"))
       .toHaveTextContent(/unable to verify this invitation/iu);
@@ -430,10 +289,9 @@ describe("InvitationScreen — expired invitation", () => {
   });
 
   it("shows the expired notice when expiresAt has passed, whatever the status says", async () => {
-    // InvitationLanding.razor:147 is an OR: a `Pending` row whose `ExpiresAt` is
-    // past is expired too. The status only flips to `Expired` when the
-    // `CleanupExpiredAsync` sweep gets to it (InvitationService.cs:71-89), so
-    // between expiry and the sweep this is the ONLY branch that catches it.
+    // The status only flips to `Expired` when the server's cleanup sweep gets to
+    // it, so between expiry and the sweep this is the ONLY branch that catches a
+    // `Pending` row whose `expiresAt` has passed.
     const oneSecondAgo: string = new Date(Date.now() - 1_000).toISOString();
     verifyAnswer = () => Response.json(invitation({ status: "Pending", expiresAt: oneSecondAgo }));
 
@@ -459,8 +317,8 @@ describe("InvitationScreen — expired invitation", () => {
 
     renderScreen({ isAuthenticated: false });
 
-    // The expiry check precedes the auth branch (InvitationLanding.razor:46-54):
-    // signing in to accept a dead invitation is a wasted round trip.
+    // The expiry check precedes the auth branch: signing in to accept a dead
+    // invitation is a wasted round trip.
     await expect.element(page.getByTestId("invitation-expired")).toBeInTheDocument();
     expect(page.getByTestId("invitation-create-account").query()).toBeNull();
     expect(page.getByTestId("invitation-sign-in").query()).toBeNull();
@@ -482,17 +340,14 @@ describe("InvitationScreen — authenticated branch", () => {
   it("declining just leaves, without touching the invitation", async () => {
     renderScreen({ isAuthenticated: true });
 
-    // InvitationLanding.razor:75-81 — `Href="/"`, no call. "No thanks" does NOT
-    // revoke the invitation; it stays open for a later visit.
+    // "No thanks" does NOT revoke the invitation; it stays open for a later visit.
     await expect.element(page.getByTestId("invitation-decline")).toHaveAttribute("href", HOME_HREF);
     expect(acceptCalls()).toEqual([]);
 
-    // And it is ANNOUNCED as the navigation it is. This is the catalog Button
-    // composed onto an anchor, and Base UI stamps `role="button"` on every
-    // non-native element it substitutes — which would put "No thanks" in a screen
-    // reader's buttons list, alongside the accept control that really does POST.
-    // The catalog supplies the link role itself (Wallow-lrlm.12); this call site
-    // used to pass `role="link"` by hand with nothing asserting it.
+    // And it is ANNOUNCED as the navigation it is. Base UI stamps `role="button"`
+    // on every non-native element it substitutes, which would put "No thanks" in
+    // a screen reader's buttons list alongside the accept control that really
+    // does POST; the catalog supplies the link role instead.
     expect(page.getByRole("link", { name: /no thanks/iu }).query()).toBe(
       page.getByTestId("invitation-decline").element(),
     );
@@ -505,21 +360,17 @@ describe("InvitationScreen — authenticated branch", () => {
     renderScreen({ isAuthenticated: true });
     await user.click(page.getByTestId("invitation-accept"));
 
-    // The token is in the PATH — `POST /v1/identity/invitations/{token}/accept`
-    // (sdk.gen.ts) — so the request itself carries the whole claim the old
-    // `toHaveBeenCalledWith(TOKEN)` made, and one layer closer to the API.
+    // The token is a PATH segment, so the recorded request carries the claim.
     await vi.waitFor(() => {
       expect(acceptCalls()).toHaveLength(1);
     });
     expect(acceptCalls()[0]?.path).toBe(ACCEPT_PATH);
     expect(acceptCalls()[0]?.method).toBe("POST");
 
-    // A FULL navigation, not `navigate()` — the oracle's
-    // `NavigateTo("/", forceLoad: true)` (InvitationLanding.razor:179). The
-    // reload is load-bearing: accepting the invitation changes the user's tenant
-    // membership, and a client-side transition would carry the pre-acceptance
-    // session state into the destination. Observed at the Navigation API seam
-    // (see the guard above): the raw `location.href = "/"` resolves to home.
+    // A FULL navigation, not `navigate()`. The reload is load-bearing: accepting
+    // the invitation changes the user's tenant membership, and a client-side
+    // transition would carry the pre-acceptance session state into the
+    // destination. Observed at the Navigation API seam (see the guard above).
     await vi.waitFor(() => {
       expect(recordedNavigations.length).toBeGreaterThan(0);
     });
@@ -548,8 +399,7 @@ describe("InvitationScreen — authenticated branch", () => {
       expect(acceptCalls()).toHaveLength(1);
     });
 
-    // The oracle's `_isSubmitting` guard (InvitationLanding.razor:164,169-171):
-    // a second accept is a second POST against a one-shot token.
+    // A second accept is a second POST against a one-shot token.
     await expect.element(page.getByTestId("invitation-accept")).toBeDisabled();
 
     // Decline is a LINK, and a link cannot carry `disabled`: `toBeDisabled` only
@@ -580,8 +430,7 @@ describe("InvitationScreen — authenticated branch", () => {
       .element(page.getByTestId("invitation-accept-error"))
       .toHaveTextContent(/expired or already been used/iu);
     // `invitation-accept-error`, NOT `invitation-error`: the invitation verified
-    // fine, so the info block and the buttons stay (InvitationLanding.razor:
-    // 58-65 renders inside the authenticated branch, above the buttons).
+    // fine, so the info block and the buttons stay.
     await expect.element(page.getByTestId("invitation-info")).toBeInTheDocument();
     await expect.element(page.getByTestId("invitation-accept")).toBeEnabled();
   });
@@ -600,10 +449,9 @@ describe("InvitationScreen — authenticated branch", () => {
 
   it("clears a previous accept error when the user tries again", async () => {
     const user = userEvent.setup();
-    // The FIRST accept fails, the retry succeeds. Keyed off the recorded calls
-    // rather than a `mockRejectedValueOnce`, which the transport has no analogue
-    // for — the harness records before it answers, so during the first POST
-    // exactly one accept is on the log.
+    // The FIRST accept fails, the retry succeeds. Keyed off the recorded calls:
+    // the harness records before it answers, so during the first POST exactly
+    // one accept is on the log.
     acceptAnswer = () =>
       acceptCalls().length === 1
         ? failure(SERVER_ERROR)
@@ -613,9 +461,8 @@ describe("InvitationScreen — authenticated branch", () => {
     await user.click(page.getByTestId("invitation-accept"));
     await expect.element(page.getByTestId("invitation-accept-error")).toBeInTheDocument();
 
-    // The oracle's `_acceptError = null` on re-entry (InvitationLanding.razor:
-    // 170): a stale failure banner above a succeeded accept is a lie. The retry
-    // succeeds, so its home hand-off is absorbed by the Navigation guard above.
+    // The retry succeeds, so its home hand-off is absorbed by the Navigation
+    // guard above.
     await user.click(page.getByTestId("invitation-accept"));
 
     await vi.waitFor(() => {
@@ -631,17 +478,13 @@ describe("InvitationScreen — unauthenticated branch", () => {
 
     await expect.element(page.getByTestId("invitation-create-account")).toBeInTheDocument();
     await expect.element(page.getByTestId("invitation-sign-in")).toBeInTheDocument();
-    // Accepting needs a `[Authorize]`d POST (InvitationsController.cs:82-83);
-    // offering it to an anonymous visitor buys them a 401.
+    // Accepting needs an authenticated POST; offering it to an anonymous visitor
+    // buys them a 401.
     expect(page.getByTestId("invitation-accept").query()).toBeNull();
 
-    // Both are the catalog Button composed onto an anchor, and both must ANNOUNCE
-    // as links: Base UI stamps `role="button"` on every non-native element it
-    // substitutes, which drops them from a screen reader's links list while their
-    // hrefs still offer open-in-new-tab. The catalog supplies the link role itself
-    // (Wallow-lrlm.12); both call sites used to pass `role="link"` by hand, and
-    // the "back to sign in" assertion elsewhere in this file covers the error
-    // state's PLAIN anchor, not either of these.
+    // Both must ANNOUNCE as links: Base UI stamps `role="button"` on every
+    // non-native element it substitutes, which drops them from a screen reader's
+    // links list while their hrefs still offer open-in-new-tab.
     expect(page.getByRole("link", { name: /create account/iu }).query()).toBe(
       page.getByTestId("invitation-create-account").element(),
     );
@@ -658,8 +501,8 @@ describe("InvitationScreen — unauthenticated branch", () => {
     const url: URL = await linkUrl("invitation-create-account");
 
     expect(url.pathname).toBe("/register");
-    // INERT — `/register` does not read `email` (see the header note). Pinned so
-    // the oracle's link shape survives verbatim, not as a claim that it prefills.
+    // INERT: `/register` does not read `email`. Pinned as the link's shape, not
+    // as a claim that the invited address prefills.
     expect(url.searchParams.get("email")).toBe(EMAIL);
     expect(url.searchParams.get("returnUrl")).toBe(SELF_RETURN_URL);
   });
@@ -670,8 +513,6 @@ describe("InvitationScreen — unauthenticated branch", () => {
     const url: URL = await linkUrl("invitation-sign-in");
 
     expect(url.pathname).toBe("/login");
-    // The round trip is the point: sign in, come back HERE, and the screen then
-    // renders the authenticated branch with the accept button.
     expect(url.searchParams.get("returnUrl")).toBe(SELF_RETURN_URL);
   });
 
@@ -686,8 +527,8 @@ describe("InvitationScreen — unauthenticated branch", () => {
     // second parameter appended to the query string.
     expect(url.searchParams.getAll("returnUrl")).toHaveLength(1);
     expect(url.searchParams.get("returnUrl")).toBe(`/invitation?token=${hostileToken}`);
-    // And what we built still satisfies the real guard — the SDK's own
-    // `isSafeReturnUrl`, not a local restatement of it. This screen accepts no
+    // And what the screen built still satisfies the real guard — the SDK's own
+    // `isSafeReturnUrl`, not a local restatement. This screen accepts no
     // returnUrl of its own, so safety is by construction, not by check.
     expect(isSafeReturnUrl(url.searchParams.get("returnUrl"))).toBe(true);
   });
@@ -697,8 +538,6 @@ describe("InvitationScreen — unauthenticated branch", () => {
  * Route-level spec. Rendered through a real memory router rather than by poking
  * at `Route.options.component`, because the criterion under test — "the token is
  * read from the query string" — only exists once a URL is parsed by a router.
- * The root here is a throwaway: the app's real `__root.tsx` renders `<html>`,
- * and `src/router.tsx` is off-limits to this task (Wallow-vec7.3.16).
  */
 function renderRouteAt(url: string) {
   return renderWithWallow(null, {
@@ -710,9 +549,6 @@ function renderRouteAt(url: string) {
 
 describe("/invitation route", () => {
   it("renders the real screen in place of the pre-registration placeholder", async () => {
-    // Wallow-vec7.3.16 registered this path against a placeholder component;
-    // this task's job is to replace it. The path is the contract — `/invitation`,
-    // singular — and is not this task's to change.
     renderRouteAt(`/invitation?token=${TOKEN}`);
 
     await expect.element(page.getByTestId("invitation-info")).toBeInTheDocument();
@@ -749,9 +585,8 @@ describe("/invitation route", () => {
   });
 
   it("asks the API who the visitor is, and shows the accept button to a signed-in one", async () => {
-    // The route's answer to the oracle's `AuthStateProvider` (see the header):
-    // a resolved user IS the session. The auth cookie is HttpOnly, so the 200 is
-    // the only thing the browser can observe about it.
+    // The auth cookie is HttpOnly, so the 200 is the only thing the browser can
+    // observe about the session.
     currentUserAnswer = () => Response.json({ id: "u-1", email: EMAIL });
 
     renderRouteAt(`/invitation?token=${TOKEN}`);
@@ -761,9 +596,8 @@ describe("/invitation route", () => {
   });
 
   it("treats the seam's anonymous answer as anonymous", async () => {
-    // `getUser()` maps 401 to `null` WITHOUT throwing (Wallow-vec7.2.4) —
-    // anonymous is an expected answer, not a failure. Stated as the WIRE answer
-    // now, so the mapping itself is under test rather than assumed.
+    // The probe maps a 401 to `null` WITHOUT throwing: anonymous is an expected
+    // answer, not a failure.
     currentUserAnswer = () => failure(UNAUTHORIZED);
 
     renderRouteAt(`/invitation?token=${TOKEN}`);
@@ -773,10 +607,9 @@ describe("/invitation route", () => {
   });
 
   it("treats a failed auth probe as anonymous rather than crashing the invitation", async () => {
-    // The oracle's `catch { _isAuthenticated = false; }` (InvitationLanding.razor:
-    // 133-136). A 500 from `/users/me` is not evidence of a session, and the
-    // less-privileged branch is the safe read: it offers a sign-in link, where the
-    // other offers an accept button whose `[Authorize]`d POST would 401.
+    // A 500 from the probe is not evidence of a session, and the less-privileged
+    // branch is the safe read: it offers a sign-in link, where the other offers
+    // an accept button whose authenticated POST would 401.
     currentUserAnswer = () => failure(SERVER_ERROR);
 
     renderRouteAt(`/invitation?token=${TOKEN}`);
@@ -790,9 +623,8 @@ describe("/invitation route", () => {
 
   it("treats a non-string token as absent rather than verifying a boolean", async () => {
     // TanStack's search parsing JSON-parses scalars, so `?token=true` arrives as
-    // the BOOLEAN `true`, not the string "true" (bd memory on validateSearch).
-    // Handing that to `verifyInvitation(token: string)` would put `true` in a URL
-    // path segment.
+    // the BOOLEAN `true`, not the string "true" — which would otherwise reach the
+    // wire as a URL path segment.
     renderRouteAt("/invitation?token=true");
 
     await expect
