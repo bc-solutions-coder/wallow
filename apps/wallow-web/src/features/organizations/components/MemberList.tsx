@@ -22,16 +22,18 @@ import { AppForm, FormError, SubmitButton, useAppForm } from "@bc-solutions-code
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@bc-solutions-coder/query";
 import type { UserDto, WallowSdk } from "@bc-solutions-coder/sdk";
 import {
+  Autocomplete,
   Button,
   EmptyState,
   ErrorBanner,
+  Field,
   ListCard,
   ListRow,
   MutedText,
   Text,
 } from "@bc-solutions-coder/ui";
 import { useRouteContext } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { z } from "zod";
 
 import { errorText } from "@shared/lib/error-text";
@@ -41,6 +43,7 @@ import {
   organizationsGetMembersQueryKey,
   organizationsRemoveMemberMutation,
   queriesForOperation,
+  usersGetUsersOptions,
 } from "../api";
 
 /**
@@ -186,11 +189,15 @@ const addMemberSchema = z.object({
  * the shell's `testIdPrefix`. The field does not: `userId` would derive
  * `organization-member-add-user-id`, but three closed specs (the oracle, the
  * restyle spec and the a11y spec) select the control as
- * `organization-member-userid` — so it carries an explicit `testId`, which the
- * catalog also suffixes for its message (`organization-member-userid-error`).
+ * `organization-member-userid` — so {@link UserIdPicker} spells that id (and its
+ * `-error` suffix) out literally, exactly as the catalog's `testId` override did.
  *
  * `organization-member-add-error` is a NEW surface: before the migration a
  * rejected add — a bad id, a duplicate member, a 403 — was completely silent.
+ *
+ * The control itself stopped being a text box in Wallow-lrlm.6.1: it is now a
+ * {@link UserIdPicker} searching the users operation by EMAIL, so nobody has to
+ * know a uuid by heart.
  */
 function AddMemberForm(props: {
   client: WallowSdk["client"];
@@ -198,6 +205,11 @@ function AddMemberForm(props: {
   orgId: string;
 }) {
   const { client, queryClient, orgId } = props;
+
+  // The directory the picker searches. `items` is what the paged endpoint
+  // returns; `?? []` also covers the reads that have not landed yet.
+  const directory = useQuery(usersGetUsersOptions({ client }));
+  const users: readonly UserDto[] = directory.data?.items ?? [];
 
   const form = useAppForm({
     schema: addMemberSchema,
@@ -228,7 +240,18 @@ function AddMemberForm(props: {
       className="flex items-end gap-3 mb-4"
     >
       <form.AppField name="userId">
-        {(field) => <field.TextField label="User ID" testId="organization-member-userid" />}
+        {(field) => (
+          <UserIdPicker
+            users={users}
+            value={field.state.value}
+            error={fieldErrorMessage(field.state.meta.errors)}
+            disabled={form.wallow.pending}
+            onChange={(next) => {
+              field.handleChange(next);
+            }}
+            onBlur={field.handleBlur}
+          />
+        )}
       </form.AppField>
 
       {/* The shared Button is `w-full` by default; inline beside the input it
@@ -237,6 +260,164 @@ function AddMemberForm(props: {
 
       <FormError />
     </AppForm>
+  );
+}
+
+/**
+ * The message TanStack Form currently publishes for a field, as a string.
+ *
+ * A local copy of what `useCatalogField` does for the five catalog fields:
+ * `firstErrorMessage` is INTERNAL to `@bc-solutions-coder/forms` (its barrel spec
+ * asserts it absent), and this control is built on the `AppField` render-prop
+ * escape hatch rather than on a catalog field, so it cannot borrow the helper.
+ * Same shape either way — a zod issue object, or a bare string from the server
+ * error split.
+ */
+function fieldErrorMessage(errors: readonly unknown[]): string | undefined {
+  const first: unknown = errors[0];
+
+  if (typeof first === "string") {
+    return first;
+  }
+  if (typeof first !== "object" || first === null || !("message" in first)) {
+    return undefined;
+  }
+
+  const message: unknown = first.message;
+  return typeof message === "string" ? message : undefined;
+}
+
+/**
+ * One suggestion. The row shows the person's EMAIL — the whole point of the
+ * picker — while `itemToStringValue` on the root decides that what the input
+ * COMMITS when the row is pressed is their id.
+ */
+function UserOption(props: { user: UserDto }): ReactNode {
+  const { user } = props;
+  return (
+    <Autocomplete.Item value={user} data-testid="organization-member-userid-option">
+      {user.email}
+    </Autocomplete.Item>
+  );
+}
+
+/** The listbox: one row per person still matching what was typed. */
+function UserOptionRows(): ReactNode {
+  return (
+    <Autocomplete.List>
+      {(user: UserDto) => <UserOption key={user.id} user={user} />}
+    </Autocomplete.List>
+  );
+}
+
+/** The popup card the rows sit on. */
+function UserOptionCard(): ReactNode {
+  return (
+    <Autocomplete.Popup>
+      <UserOptionRows />
+    </Autocomplete.Popup>
+  );
+}
+
+/**
+ * The portalled half of the picker. Nothing below this is in the DOM while the
+ * list is closed, so a spec reaches it through `page` rather than the render
+ * container.
+ *
+ * Split into one component per nesting level for the same reason the forms
+ * catalog's `SelectField` is: spelled out inline the tree blows the repo's
+ * `react/jsx-max-depth` budget.
+ */
+function UserOptionList(): ReactNode {
+  return (
+    <Autocomplete.Portal>
+      <Autocomplete.Positioner>
+        <UserOptionCard />
+      </Autocomplete.Positioner>
+    </Autocomplete.Portal>
+  );
+}
+
+/** The control the operator types into. */
+function UserPickerInput(props: { onBlur: () => void }): ReactNode {
+  const { onBlur } = props;
+  return (
+    <Autocomplete.InputGroup>
+      <Autocomplete.Input data-testid="organization-member-userid" onBlur={onBlur} />
+    </Autocomplete.InputGroup>
+  );
+}
+
+/**
+ * The add-member control: search the directory by email, post a user id
+ * (Wallow-lrlm.6.1).
+ *
+ * AUTOCOMPLETE, NOT COMBOBOX, and the distinction is the whole design.
+ * `Combobox.Root` holds the SELECTED ITEM and keeps the typed text beside it, so
+ * a value nobody picked off the list is not the form's value — which would break
+ * every closed spec that types a bare id and expects it posted verbatim.
+ * `Autocomplete.Root`'s value IS the input text (`selectionMode: "none"`), so
+ * hand-typed ids keep working untouched; pressing a suggestion merely WRITES
+ * into that text, and `itemToStringValue` makes what it writes the person's id
+ * rather than their email.
+ *
+ * The list is filtered HERE rather than by Base UI's collator (`filter={null}`
+ * hands the root a pre-narrowed `items`): the input's text is a user id once
+ * somebody has picked, and matching that id against the emails on screen would
+ * re-open the popup over the submit button with nothing in it.
+ *
+ * `open` is controlled for the same reason — a popup is mounted only while there
+ * is something to show, so `aria-expanded` never claims a list that would be
+ * empty and no invisible surface sits between the operator and `Add member`.
+ *
+ * Hand-rolled from `Field` + `Autocomplete` rather than added to the forms
+ * catalog: the parts a catalog field is built from (`useCatalogField`,
+ * `CatalogFieldLabel`, `CatalogFieldError`) are internal to the package. Base UI
+ * does the association work regardless — `Field.Root` publishes the label id,
+ * the description ids and the invalid flag through context, and
+ * `Autocomplete.Input` reads all three, so the accessible name, the
+ * `aria-describedby` chain and `aria-invalid` land exactly where `TextField` put
+ * them.
+ */
+function UserIdPicker(props: {
+  users: readonly UserDto[];
+  value: string;
+  error: string | undefined;
+  disabled: boolean;
+  onChange: (next: string) => void;
+  onBlur: () => void;
+}): ReactNode {
+  const { users, value, error, disabled, onChange, onBlur } = props;
+  const [requestedOpen, setRequestedOpen] = useState(false);
+
+  const query: string = value.trim().toLowerCase();
+  const matches: readonly UserDto[] = useMemo(
+    () => users.filter((user) => user.email.toLowerCase().includes(query)),
+    [users, query],
+  );
+
+  return (
+    <Field invalid={error !== undefined}>
+      <Field.Label>User ID</Field.Label>
+      <Autocomplete.Root
+        items={matches}
+        filter={null}
+        itemToStringValue={(user: UserDto) => user.id}
+        value={value}
+        onValueChange={onChange}
+        open={requestedOpen && matches.length > 0}
+        onOpenChange={setRequestedOpen}
+        disabled={disabled}
+      >
+        <UserPickerInput onBlur={onBlur} />
+        <UserOptionList />
+      </Autocomplete.Root>
+      {error === undefined ? null : (
+        <Field.Error match data-testid="organization-member-userid-error">
+          {error}
+        </Field.Error>
+      )}
+    </Field>
   );
 }
 

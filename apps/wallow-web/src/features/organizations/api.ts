@@ -32,4 +32,5 @@ export {
   organizationsRemoveMemberMutation,
   queriesForOperation,
   queriesWithTag,
+  usersGetUsersOptions,
 } from "@bc-solutions-coder/sdk/query";
