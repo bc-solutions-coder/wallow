@@ -6,8 +6,7 @@
   // OpenAPI codegen).
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "declaration": true,
-    "outDir": "dist",
+    // Typecheck only — no emit settings here on purpose; see tsconfig.base.json.
     "types": ["node"]
   },
   "include": [".storybook", "src", "vite.config.ts", "vitest.config.ts"]

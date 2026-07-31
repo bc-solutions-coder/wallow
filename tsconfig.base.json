@@ -6,10 +6,16 @@
   // algorithms — so this only centralizes the options members already agreed
   // on, it is not a type-behavior migration.
   //
-  // Members extend this file and layer on their own emit settings
-  // (declaration/declarationMap/outDir/noEmit), "types", and "include" —
-  // none of those belong here since they differ per member (e.g. packages/sdk
-  // emits declarations, apps only typecheck).
+  // Members extend this file and layer on their own "types" and "include" —
+  // neither belongs here, since both differ per member.
+  //
+  // Emit settings are NOT layered on here by anyone. A member's tsconfig.json is
+  // its `tsc --noEmit` typecheck config and nothing else; declaration emit is
+  // the job of its tsconfig.build.json, which takes declaration/rootDir/outDir
+  // from tsconfig.build.base.json. Naming `outDir` in a typecheck config is not
+  // merely redundant — it makes TypeScript INFER a rootDir spanning every input,
+  // so a config that legitimately reaches outside its own directory (every
+  // package's vite.config.ts imports tools/vite/library.ts) fails with TS6059.
   "compilerOptions": {
     "target": "esnext",
     "lib": ["ESNext", "DOM", "DOM.Iterable"],

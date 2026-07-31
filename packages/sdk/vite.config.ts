@@ -1,55 +1,22 @@
-import { fileURLToPath } from "node:url";
+import { defineLibraryConfig } from "../../tools/vite/library";
 
-import { defineConfig } from "vite";
-
-// Vite 8 library-mode build for the SDK. This replaces tsup for the JS bundle
-// ONLY — Vite 8 bundles with Rolldown natively (rolldown@~1.1.4 ships as a
-// dependency of vite, so no rolldown-vite alias/override is needed), but neither
-// Vite nor Rolldown emits type declarations. Declarations still come from
-// `tsc -p tsconfig.build.json` (see the package `build` script).
+// Declarations do NOT come from the bundler here — see tsconfig.build.json for
+// the full rationale, including why this package's own typescript devDependency
+// is pinned to TS6. In short: bundler-driven declaration emit goes through the
+// TypeScript compiler API programmatically, which is unstable on the TypeScript
+// 7.0 GA native compiler (the stable programmatic API lands in 7.1), while the
+// native `tsc --emitDeclarationOnly` CLI emits .d.ts correctly.
 //
-// We do NOT drive declaration emit through the bundler because that path drives
-// the TypeScript compiler API programmatically, which is unstable on the
-// TypeScript 7.0 GA native compiler (the stable programmatic API does not land
-// until 7.1) — and the rest of the workspace targets TS7. The native
-// `tsc --emitDeclarationOnly` CLI emits .d.ts correctly, so that is the
-// declaration path instead. See tsconfig.build.json for the full rationale,
-// including why this package's own typescript devDependency is pinned to TS6.
-//
-// Output contract (preserved from the previous tsup pipeline, matching the
-// package.json exports map): dist/index.js, dist/index.js.map,
-// dist/server/index.js, dist/server/index.js.map. Named lib entries keep the
-// `.`, `./server`, `./query`, and `./server/passthrough` subpaths pointing at
-// stable, unhashed filenames, and every non-relative import is externalized so
-// runtime deps are not bundled. `./server/passthrough` is its own entry rather
-// than a re-export so a passthrough-only app never pulls `openid-client` and
-// the BFF handler graph into its server bundle.
-export default defineConfig({
-  build: {
-    target: "es2023",
-    outDir: "dist",
-    emptyOutDir: true,
-    sourcemap: true,
-    minify: false,
-    lib: {
-      entry: {
-        index: fileURLToPath(new URL("src/index.ts", import.meta.url)),
-        "server/index": fileURLToPath(new URL("src/server/index.ts", import.meta.url)),
-        "server/passthrough": fileURLToPath(new URL("src/server/passthrough.ts", import.meta.url)),
-        "query/index": fileURLToPath(new URL("src/query/index.ts", import.meta.url)),
-      },
-      formats: ["es"],
-    },
-    rollupOptions: {
-      external: (id) => !id.startsWith(".") && !id.startsWith("/") && !isAbsoluteWindows(id),
-      output: {
-        entryFileNames: "[name].js",
-        chunkFileNames: "[name]-[hash].js",
-      },
-    },
+// Named entries keep the `.`, `./server`, `./query` and `./server/passthrough`
+// subpaths pointing at stable, unhashed filenames. `./server/passthrough` is its
+// own entry rather than a re-export so a passthrough-only app never pulls
+// `openid-client` and the BFF handler graph into its server bundle.
+export default defineLibraryConfig({
+  configUrl: import.meta.url,
+  entries: {
+    index: "src/index.ts",
+    "server/index": "src/server/index.ts",
+    "server/passthrough": "src/server/passthrough.ts",
+    "query/index": "src/query/index.ts",
   },
 });
-
-function isAbsoluteWindows(id: string): boolean {
-  return /^[a-zA-Z]:[\\/]/u.test(id);
-}

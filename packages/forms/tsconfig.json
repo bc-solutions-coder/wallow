@@ -6,8 +6,7 @@
   // the SDK's OpenAPI codegen).
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "declaration": true,
-    "outDir": "dist",
+    // Typecheck only — no emit settings here on purpose; see tsconfig.base.json.
     "types": ["node"]
   },
   "include": ["src", "vite.config.ts", "vitest.config.ts", "vitest.setup.ts"]

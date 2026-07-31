@@ -387,7 +387,7 @@ describe("discover pins browser-facing endpoints to the full public issuer", () 
  * The plain-HTTP discovery gate (Wallow-pu6a.4.7).
  *
  * The apps are TanStack Start, so the SDK's server entry is bundled INTO each
- * app's nitro production build. Vite/rollup substitutes build-time environment
+ * app's nitro production build. Vite's bundler substitutes build-time environment
  * reads with literals there and then constant-folds the branch away, which is
  * how `process.env.NODE_ENV !== "production"` silently became `void 0` in
  * `.output/server/_ssr/bff-*.mjs` and made every containerised login return
@@ -520,7 +520,7 @@ describe("the bundled server surface reads no bundler-foldable environment signa
   const SELF: string = fileURLToPath(import.meta.url);
 
   /**
-   * Signals vite/rollup substitute at BUILD time and then constant-fold. Any of
+   * Signals Vite's bundler substitutes at BUILD time and then constant-folds. Any
    * these in the server entry is a decision the built nitro bundle has already
    * made before the process starts, and no runtime environment can change it.
    */

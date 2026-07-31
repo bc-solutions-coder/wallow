@@ -10,13 +10,11 @@
   // package not held to the shared baseline. It compiles clean under the full
   // base semantics; the drift was inherited, not required.
   //
-  // What stays local is emit, which genuinely differs per member: this package
-  // emits declarations, and `types: ["node"]` is what lets the BFF server entry
-  // reach `node:*`.
+  // What stays local is `types: ["node"]`, which is what lets the BFF server
+  // entry reach `node:*`.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "declaration": true,
-    "outDir": "dist",
+    // Typecheck only — no emit settings here on purpose; see tsconfig.base.json.
     "types": ["node"]
   },
   "include": ["src", "scripts"]

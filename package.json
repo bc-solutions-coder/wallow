@@ -10,8 +10,8 @@
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
-    "lint": "oxlint apps packages --deny-warnings",
-    "lint:fix": "oxlint apps packages --fix",
+    "lint": "oxlint apps packages tools --deny-warnings",
+    "lint:fix": "oxlint apps packages tools --fix",
     "format": "oxfmt --write apps packages tools package.json pnpm-workspace.yaml tsconfig.base.json tsconfig.build.base.json .oxlintrc.json .oxfmtrc.json",
     "format:check": "oxfmt --check apps packages tools package.json pnpm-workspace.yaml tsconfig.base.json tsconfig.build.base.json .oxlintrc.json .oxfmtrc.json",
     "check:exports": "./scripts/check-exports.sh",
@@ -24,7 +24,8 @@
     "lint-staged": "^17.0.8",
     "oxfmt": "^0.59.0",
     "oxlint": "^1.74.0",
-    "publint": "^0.3.22"
+    "publint": "^0.3.22",
+    "vite": "^8.1.4"
   },
   "packageManager": "pnpm@10.20.0"
 }

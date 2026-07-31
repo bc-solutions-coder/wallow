@@ -5,8 +5,7 @@
   // statically imports this package's own branding.json so bundlers inline it.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "declaration": true,
-    "outDir": "dist",
+    // Typecheck only — no emit settings here on purpose; see tsconfig.base.json.
     "types": ["node"]
   },
   "include": ["src", "vite.config.ts", "vitest.config.ts"]

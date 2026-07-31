@@ -1,41 +1,11 @@
-import { fileURLToPath } from "node:url";
+import { defineLibraryConfig } from "../../tools/vite/library";
 
-import { defineConfig } from "vite";
-
-// Vite 8 library-mode build for the query package (mirrors
-// packages/sdk/vite.config.ts). Vite 8 bundles with Rolldown natively, but
-// neither Vite nor Rolldown emits type declarations — those come from
-// `tsc -p tsconfig.build.json` (see the package `build` script).
-//
-// This package exposes a single browser-safe `.` barrel (the TanStack Query
-// facade), so there is one named lib entry (`index` -> src/index.ts), ES output
-// only, and every non-relative import is externalized so runtime deps —
-// @tanstack/react-query above all — are never bundled in. A bundled copy would
-// defeat the whole point of the facade: consumers would end up with a second
-// react-query instance and its own QueryClientProvider context.
-export default defineConfig({
-  build: {
-    target: "es2023",
-    outDir: "dist",
-    emptyOutDir: true,
-    sourcemap: true,
-    minify: false,
-    lib: {
-      entry: {
-        index: fileURLToPath(new URL("src/index.ts", import.meta.url)),
-      },
-      formats: ["es"],
-    },
-    rollupOptions: {
-      external: (id) => !id.startsWith(".") && !id.startsWith("/") && !isAbsoluteWindows(id),
-      output: {
-        entryFileNames: "[name].js",
-        chunkFileNames: "[name]-[hash].js",
-      },
-    },
-  },
+// One browser-safe `.` barrel: the TanStack Query facade. Externalizing every
+// non-relative import — the shared preset's job — is the whole point here. A
+// bundled copy of @tanstack/react-query would hand consumers a second instance
+// with its own QueryClientProvider context, which is exactly what this package
+// exists to prevent.
+export default defineLibraryConfig({
+  configUrl: import.meta.url,
+  entries: { index: "src/index.ts" },
 });
-
-function isAbsoluteWindows(id: string): boolean {
-  return /^[a-zA-Z]:[\\/]/u.test(id);
-}

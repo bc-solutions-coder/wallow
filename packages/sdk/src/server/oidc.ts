@@ -79,8 +79,8 @@ const discoveryCache = new Map<string, DiscoveryDoc>();
  *
  * The decision must be reachable at RUNTIME in a bundled server: the SDK's
  * server entry is bundled into each app's nitro production build, where
- * vite/rollup statically folds build-time environment reads to literals and
- * then constant-folds the branch away entirely. The signal this reads is
+ * Vite's bundler (Rolldown) statically folds build-time environment reads to
+ * literals and then constant-folds the branch away entirely. The signal this reads is
  * therefore a value only known at runtime, never a bundler-substitutable one.
  *
  * The signal is the configured discovery URL itself: plain HTTP is permitted

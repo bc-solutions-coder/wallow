@@ -109,6 +109,12 @@
   ],
   "overrides": [
     {
+      "files": ["tools/**/*.{ts,js}"],
+      "rules": {
+        "no-magic-numbers": ["warn", { "ignore": [0, 1] }]
+      }
+    },
+    {
       "files": ["apps/wallow-web/**/*.{ts,tsx}"],
       "rules": {
         "unicorn/filename-case": ["error", { "cases": { "kebabCase": true, "pascalCase": true } }],
