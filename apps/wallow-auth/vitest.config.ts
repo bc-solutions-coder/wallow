@@ -1,3 +1,4 @@
+import { wallowStyles } from "@bc-solutions-coder/styles/vite";
 import { createVitestProjects } from "@bc-solutions-coder/testing";
 import { defineConfig } from "vitest/config";
 
@@ -54,7 +55,24 @@ export default defineConfig({
     // even though the app builds.
     projects: [
       { ...node, resolve: { tsconfigPaths: true } },
-      { ...browser, resolve: { tsconfigPaths: true } },
+      {
+        ...browser,
+        // The styling the preset deliberately leaves to each consumer, wired the
+        // same way packages/forms and apps/wallow-web do it: `wallowStyles()`
+        // (the `@tailwindcss/vite` + brand-assets + fork-theme trio) compiles
+        // ./vitest-styles.css and serves `virtual:wallow-theme.css`, and
+        // ./vitest.setup.ts loads both into the page.
+        //
+        // Not cosmetic on either half. The UTILITIES give a ui control its box —
+        // without them the catalog checkbox's `<span role="checkbox">` measures
+        // 0x0 and a click hangs to the actionability timeout. The THEME gives the
+        // colour utilities their values — without it every colour computes to
+        // transparent, so a rendered-colour assertion here could not tell a
+        // contrast defect from a passing test (Wallow-8ytl).
+        plugins: wallowStyles(),
+        resolve: { tsconfigPaths: true },
+        test: { ...browser.test, setupFiles: ["./vitest.setup.ts"] },
+      },
     ],
   },
 });
