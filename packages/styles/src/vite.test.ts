@@ -11,22 +11,22 @@ import { brandAssetsPlugin, forkThemePlugin, THEME_MODULE_ID, wallowStyles } fro
 
 /**
  * The `./vite` subpath is the one place a Wallow app's Tailwind + brand-assets
- * wiring lives. These tests pin the two behaviours apps depend on — the Tailwind
- * plugin is present, and the brand-assets plugin points `publicDir` at the
- * package's own assets directory — plus the manifest/build wiring that makes the
- * subpath resolve for a published consumer.
+ * wiring lives. These tests pin the behaviours apps depend on by CALLING the
+ * plugin hooks: the fork-theme plugin is ordered ahead of Tailwind's, it claims
+ * exactly the virtual theme id and nothing else, it serves the fork's real
+ * palette, and the brand-assets plugin contributes `publicDir` through its
+ * `config()` hook.
+ *
+ * Four specs that used to follow asserted the PACKAGING instead — that
+ * `exports["./vite"]` equalled an exact `{ types, import }` object, that the
+ * Tailwind deps sat in `dependencies` rather than `devDependencies`, and that
+ * `vite.config.ts` and `tsconfig.build.json` each contained the string
+ * `src/vite.ts`. That is `publint` + `@arethetypeswrong/cli` territory, and
+ * `pnpm check:exports` already covers this package — against the BUILT artifact,
+ * which a source-text read cannot see. Restating it here only meant a build
+ * restructure had to be spelled two ways before it could be tried once.
  */
 const packageRoot: string = fileURLToPath(new URL("../", import.meta.url));
-
-interface Manifest {
-  readonly dependencies?: Readonly<Record<string, string>>;
-  readonly devDependencies?: Readonly<Record<string, string>>;
-  readonly exports?: Readonly<Record<string, unknown>>;
-}
-
-const manifest: Manifest = JSON.parse(
-  readFileSync(join(packageRoot, "package.json"), "utf8"),
-) as Manifest;
 
 /**
  * `tailwindcss()` returns a nested `PluginOption` (an array of Vite plugins), so
@@ -153,39 +153,5 @@ describe("brandAssetsPlugin", () => {
     const config: UserConfig = invokeConfigHook(brandAssetsPlugin);
 
     expect(config.publicDir).toBe(brandAssetsDir);
-  });
-});
-
-describe("the package manifest", () => {
-  it("declares the Tailwind deps as real dependencies, not devDependencies", () => {
-    // The apps stop owning these; the package that owns the Tailwind wiring owns
-    // the deps. They must ship with the package, so they are dependencies.
-    expect(manifest.dependencies?.["@tailwindcss/vite"]).toBeDefined();
-    expect(manifest.dependencies?.["tailwindcss"]).toBeDefined();
-
-    expect(manifest.devDependencies?.["@tailwindcss/vite"]).toBeUndefined();
-    expect(manifest.devDependencies?.["tailwindcss"]).toBeUndefined();
-  });
-
-  it("exports the ./vite subpath, pointing at the built entry", () => {
-    // Same dist-pointing shape as the "." and "./assets" exports.
-    expect(manifest.exports?.["./vite"]).toEqual({
-      types: "./dist/vite.d.ts",
-      import: "./dist/vite.js",
-    });
-  });
-});
-
-describe("the library build wiring", () => {
-  it("bundles the vite entry", () => {
-    const viteConfig: string = readFileSync(join(packageRoot, "vite.config.ts"), "utf8");
-
-    expect(viteConfig).toContain("src/vite.ts");
-  });
-
-  it("emits declarations for the vite entry", () => {
-    const buildTsconfig: string = readFileSync(join(packageRoot, "tsconfig.build.json"), "utf8");
-
-    expect(buildTsconfig).toContain("src/vite.ts");
   });
 });
