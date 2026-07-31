@@ -187,6 +187,9 @@ importers:
       '@bc-solutions-coder/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@bc-solutions-coder/lint':
+        specifier: workspace:*
+        version: link:../../packages/lint
       '@playwright/test':
         specifier: ^1.61.1
         version: 1.61.1
@@ -281,6 +284,9 @@ importers:
       '@bc-solutions-coder/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@bc-solutions-coder/lint':
+        specifier: workspace:*
+        version: link:../../packages/lint
       '@playwright/test':
         specifier: ^1.61.1
         version: 1.61.1

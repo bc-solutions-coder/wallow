@@ -1,7 +1,7 @@
 {
   "$schema": "../../node_modules/oxlint/configuration_schema.json",
   "extends": ["../../.oxlintrc.json"],
-  "jsPlugins": ["../../tools/oxlint/wallow-lint-plugin.js"],
+  "jsPlugins": [{ "name": "wallow", "specifier": "@bc-solutions-coder/lint" }],
   "ignorePatterns": [
     "**/dist/**",
     "**/generated/**",
