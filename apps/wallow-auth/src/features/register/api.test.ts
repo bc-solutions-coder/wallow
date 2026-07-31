@@ -1,31 +1,20 @@
 import { describe, expect, it } from "vitest";
 
 /**
- * Register feature `api.ts` — a THIN RE-EXPORT SEAM over the SDK query entry
- * (`@bc-solutions-coder/sdk/query`), added by Wallow-x4qn.9.4. `RegisterForm`
- * imports from `../api`; everything behind it is GENERATED from
- * `packages/sdk/openapi/v1.json`.
+ * Register feature `api.ts` — a thin re-export seam over the SDK query entry.
+ * `accountGetExternalProvidersOptions` is in login's seam too: each seam states
+ * what THAT feature reaches, so the overlap is not duplication to collapse.
  *
- * Why identity and not just presence: a hand-written `accountRegisterMutation`
- * closing over its own `fetch` would carry the same name, the same call shape and
- * the same type, and the screen driving it would pass every behavioural spec
- * while posting a body the OpenAPI document does not describe. `toBe` is the only
- * assertion that rules that out.
- *
- * `accountGetExternalProvidersOptions` appears in this seam AND in login's. That
- * is not duplication to remove: both screens offer the same external-provider
- * buttons, and each feature's seam is a statement of what THAT feature reaches.
- * Collapsing them into a shared module would make the sign-up surface unreadable
- * from the sign-up feature.
- *
- * Node project — it imports built package output and mounts nothing.
+ * Identity (`toBe`), not presence: a hand-written `accountRegisterMutation`
+ * carries the same name, call shape and type, so a screen driving it passes
+ * every behavioural spec while posting a body the OpenAPI doc does not describe.
  */
 
 import * as query from "@bc-solutions-coder/sdk/query";
 
 import * as api from "./api";
 
-/** The seam's whole surface, in the order an ESM namespace enumerates it. */
+/** The seam's whole surface, sorted. */
 const SURFACE: readonly string[] = [
   "accountGetClientTenantOptions",
   "accountGetExternalProvidersOptions",

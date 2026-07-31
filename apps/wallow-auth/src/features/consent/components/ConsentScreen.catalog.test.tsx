@@ -8,35 +8,20 @@ import { createAuthHarness } from "@shared/testing/harness";
 import { ConsentScreen } from "./ConsentScreen";
 
 /**
- * The MEASURED half of wallow-auth's catalog adoption (Wallow-lrlm.7.1), taken
- * on the consent screen because it is the one screen carrying both halves of the
- * migration in one card: a hand-rolled `<h2>` heading and a hand-rolled pair of
- * `<button>`s (approve/deny) whose class strings are a copy of the `Button`
- * recipe.
+ * The measured half of wallow-auth's catalog adoption, on the consent screen.
  *
- * WHY MEASURED. Lint can prove the source names `Text` and `Button` and names a
- * variant — that is what `apps/wallow-auth/.oxlintrc.json`'s `react/forbid-elements`
- * and `wallow/text-heading-variant` do. It cannot prove what the browser PAINTS: the
- * live class list is the `twMerge` of the catalog recipe with whatever
- * `className` the call site passes, so a caller utility can quietly win an axis
- * the recipe thought it owned. Every claim about a rendered box or colour is
- * therefore read off `getComputedStyle` here.
- *
- * WHY PROBES RATHER THAN LITERALS. Asserting `font-size: 20px` or an `rgb()`
- * string would pin Tailwind's and `packages/styles/branding.json`'s current values into this
- * app's spec. Instead each assertion renders a sibling element carrying the
- * utility the migration is supposed to land on and compares the two computed
- * values, so the spec keeps meaning what it says after a fork retunes its scale
- * or palette. The probes double as the vacuity guard: this project loads the
- * real Tailwind pipeline and the fork theme (Wallow-8ytl), and the assertions
- * below check the probes actually resolved rather than trusting that they did.
+ * Lint proves the source names `Text` and `Button`; only the browser can say
+ * what it PAINTS, since the live class list is `twMerge`d with the call site's
+ * `className`. Every claim here reads `getComputedStyle` and compares against a
+ * sibling probe rather than a literal, so a fork retuning its scale or palette
+ * keeps the spec true — and an unresolved probe is caught, not passed over.
  */
 
 const CLIENT_ID = "wallow-web";
 const RETURN_URL = "/connect/authorize?client_id=wallow-web&scope=openid";
 const SCOPE = "openid profile";
 
-/** A `ConsentInfoResponse` with a long enough title to exercise the card. */
+/** A `ConsentInfoResponse`, as the generated type shapes it. */
 function consentInfo() {
   return {
     clientId: CLIENT_ID,
@@ -51,12 +36,8 @@ function consentInfo() {
 
 /**
  * The utilities each assertion measures against, rendered beside the screen.
- *
- * `text-base` is `Text`'s `body` step — the app-wide card-heading scale settled
- * on by Wallow-lrlm.13 — and `text-lg`/`text-xl` are the two steps wallow-auth's
- * headings used to split across before it. All three are rendered so the spec
- * can prove they are DISTINGUISHABLE before claiming the heading matches one of
- * them.
+ * All three type steps are rendered so the spec can prove they are
+ * DISTINGUISHABLE before claiming the heading matches one of them.
  */
 function StyleProbes() {
   return (
@@ -86,27 +67,14 @@ let harness: SdkHarness;
  * Move the real pointer to a corner nothing below renders into, BEFORE the
  * fixture mounts.
  *
- * Every claim in this file is about how the consent card paints AT REST, and
- * `buttonRecipe` gives both answers a hover arm over its own surface
- * (`hover:bg-primary/90` on approve, `hover:bg-accent` on deny) with a
- * `motion-safe:transition-colors` base. The Playwright pointer position
- * persists across spec FILES in this page, so whichever file ran before this
- * one leaves the cursor at a coordinate this fixture has no control over — and
- * the browser re-evaluates `:hover` when new content is inserted underneath it.
- * A rest-state colour read then returns a hover colour, or that hover
- * transition caught partway (measured: `rgba(210,157,0,0.98)` against the
- * resting `rgb(207,155,0)`, i.e. the fade toward alpha 0.9 about a fifth of the
- * way through). Wallow-io5f surfaced it by raising the heading 16px -> 20px,
- * which pushed the approve button down ~5px onto exactly such a stale
- * coordinate — the size change was the trigger, not the defect.
- *
- * Parking BEFORE the render is what makes this deterministic rather than lucky:
- * the buttons are never under the cursor at any point in their lifetime, so no
- * hover arm ever applies and no transition ever starts, whatever ran first. The
- * park element is `fixed` to a corner and removed once the pointer has moved —
- * it is the POSITION that persists, not the node. See `packages/ui/CLAUDE.md`
- * ("the mouse position persists across specs in a file"); the hazard reaches
- * the apps' `browser` project too.
+ * Every claim here is about the card AT REST, and `buttonRecipe` gives both
+ * answers a hover arm with a `motion-safe:transition-colors` base. The
+ * Playwright pointer position persists across spec FILES, and the browser
+ * re-evaluates `:hover` when new content is inserted underneath it — so a
+ * rest-state colour read can return a hover colour, or that transition caught
+ * partway. Parking before the render is what makes this deterministic: the
+ * buttons are never under the cursor at any point in their lifetime. It is the
+ * POSITION that persists, not the node, so the park element can be removed.
  */
 async function parkPointer(): Promise<void> {
   const park: HTMLDivElement = document.createElement("div");
@@ -153,9 +121,8 @@ function box(testId: string): DOMRect {
 
 describe("the consent card's heading takes its scale from Text", () => {
   it("distinguishes the three type steps at all", async () => {
-    // The vacuity guard for the assertions below: if the Tailwind pipeline were
-    // missing, all three probes would compute the inherited size and "the
-    // heading matches text-base" would also be "the heading matches text-lg".
+    // The vacuity guard: with no Tailwind pipeline all three probes compute the
+    // inherited size, and every comparison below passes against any of them.
     await renderPrompt();
 
     const steps: Set<string> = new Set([
@@ -174,9 +141,6 @@ describe("the consent card's heading takes its scale from Text", () => {
   });
 
   it("leaves the two steps this screen's heading used to sit on", async () => {
-    // The regression, stated as an absence: `text-lg` is where this screen's
-    // seven `CardTitle` siblings sat before Wallow-lrlm.13, and `text-base` is
-    // where all sixteen sat between that bead and Wallow-io5f.
     await renderPrompt();
 
     const heading: string = computed("consent-heading", "font-size");
@@ -198,10 +162,8 @@ describe("the consent card's heading takes its scale from Text", () => {
 
 describe("the consent actions are the catalog's Button", () => {
   it("gives the approve action the recipe's centred flex box", async () => {
-    // `inline-flex` + centred content is the recipe's base string, and it is what
-    // a hand-rolled `<button className="w-full rounded-md …">` does not have:
-    // that one computes `inline-block` and leaves its label wherever the text
-    // alignment put it.
+    // The discriminator: a hand-rolled `<button className="w-full rounded-md …">`
+    // computes `inline-block` and leaves its label wherever text-align put it.
     await renderPrompt();
 
     expect(computed("consent-approve", "display")).toBe("inline-flex");
@@ -227,21 +189,17 @@ describe("the consent actions are the catalog's Button", () => {
 
     expect(isTransparent(probe), "the fork theme resolved --color-primary").toBe(false);
 
-    // Read through a BOUNDED POLL rather than once. `parkPointer` is what makes
-    // the button at rest at all; this is a second, independent guard on the one
-    // axis that is a transition rather than a static value. It cannot let a
-    // wrong surface through — the poll's only exit is this exact equality
-    // against the `bg-primary` probe, so a button painting anything else still
-    // fails, a second later instead of instantly.
+    // A bounded poll rather than one read: background-color is the one axis
+    // carrying a transition. It cannot let a wrong surface through — the poll's
+    // only exit is this exact equality against the `bg-primary` probe.
     await expect
       .poll(() => computedColor(page.getByTestId("consent-approve").element(), "background-color"))
       .toEqual(probe);
   });
 
   it("draws deny as an outline — a border and no surface of its own", async () => {
-    // The whole reason F3.T1 added the `outline` variant: a deny button that
-    // paints the same solid surface as approve gives the two answers equal
-    // visual weight.
+    // A deny painting the same solid surface as approve gives the two answers
+    // equal visual weight.
     await renderPrompt();
 
     const deny: Element = page.getByTestId("consent-deny").element();
@@ -252,10 +210,8 @@ describe("the consent actions are the catalog's Button", () => {
     );
 
     // Widths are compared as the browser's own strings against the `border`
-    // probe rather than parsed to numbers: the probe carries the same utility
-    // the recipe does, so the comparison stays true if Tailwind retunes it, and
-    // the guard below is what stops `"0px" === "0px"` from passing for a button
-    // with no border at all.
+    // probe; the non-`"0px"` guard is what stops `"0px" === "0px"` from passing
+    // for a button with no border at all.
     expect(isTransparent(computedColor(deny, "background-color")), "no surface at rest").toBe(true);
     expect(computed("probe-border", "border-top-width"), "the border utility resolved").not.toBe(
       "0px",
