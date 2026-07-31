@@ -8,24 +8,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Route } from "./index";
 
 /**
- * SSR-safety spec for the public home route's `beforeLoad` gate (Wallow-fqw9),
- * the sibling of the `/dashboard` fix made in Wallow-zyxe.
+ * SSR safety for the public home route's `beforeLoad` gate.
  *
- * When the landing page is disabled and no user is cached, the gate must
- * **throw** a TanStack `redirect({ href, reloadDocument })` to the BFF login
- * rather than calling the SDK's browser-only `login()`. That helper assigns to
- * the bare global `location`, which does not exist under Node, so a full-page
- * SSR load of `/` would throw a `ReferenceError` and the request handler would
- * surface it as HTTP 500 instead of a redirect.
- *
- * This file deliberately does NOT mock `@bc-solutions-coder/sdk` — the `login`
- * spy in `index.gate.test.tsx` masks exactly that defect. It is a `.test.ts`, so
- * it runs in the vitest NODE project (`src/**\/*.test.ts`, see the shared
- * `createVitestProjects` preset): no global `location`, i.e. the same conditions
- * as a full-page SSR render. Only branding is mocked, so each test can
- * flip `landingPage.enabled` — the flag that decides whether the gate runs at
- * all (it defaults to `true`, which is why this defect is dormant in the
- * default fork configuration).
+ * With the landing page disabled and no cached user, the gate must THROW a
+ * TanStack `redirect({ href, reloadDocument })` to the BFF login rather than
+ * call the SDK's browser-only `login()`, which assigns to the bare global
+ * `location` and would surface as HTTP 500 under SSR. `@bc-solutions-coder/sdk`
+ * is therefore NOT mocked; as a `.test.ts` this runs in the NODE project, under
+ * the same no-global-`location` conditions as a full-page SSR render.
  */
 
 /** The BFF login target the gate must send a forced-login visitor to. */

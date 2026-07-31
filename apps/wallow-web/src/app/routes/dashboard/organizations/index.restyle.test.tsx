@@ -18,20 +18,11 @@ import {
 import { Route } from "./index";
 
 /**
- * Restyle spec for the organizations index page (Wallow-urec.4.3), following the
- * worked example in `routes/dashboard/apps/index.restyle.test.tsx`. It asserts
- * only the page chrome the restyle adds; the route's behaviour (loader,
- * `dashboard-organizations` root, the inline `organization-create-form`) stays
- * pinned by the sibling `index.test.tsx`, which the restyle must not edit.
+ * Page chrome for the organizations index: the shared container, the header row,
+ * and the order of list and create form.
  *
- * Unlike the apps page, this page has NO create-page CTA to put in the header
- * row: `/dashboard/organizations/create` does not exist in the React app (the
- * create form mounts inline below the list), and Phase 4 is styling-only, so the
- * Blazor original's "Create Organization" link is deliberately NOT ported. The
- * header row therefore holds the h1 alone.
- *
- * The page renders with a seeded, non-empty `['orgs']` cache so the whole page —
- * header row, populated list, create form — is on screen for the token scan.
+ * Renders with a non-empty list so the whole page — header row, populated list,
+ * create form — is on screen for the token-colour scan.
  */
 
 /** The transport backing each render, rebuilt per test. */
@@ -71,7 +62,6 @@ describe("routes/dashboard/organizations (restyle)", () => {
   it("titles the page with an h1 reading Organizations", async () => {
     await renderPage();
 
-    // Wallow-lrlm.5.1: `PageHeader`'s derived testid, `Text`'s title scale.
     const heading = byTestId("organizations-header-title");
     expectTag(heading, "h1");
     expect(heading.textContent).toBe("Organizations");
@@ -89,9 +79,9 @@ describe("routes/dashboard/organizations (restyle)", () => {
   it("renders no actions slot on a page with no page-level action", async () => {
     await renderPage();
 
-    // This page's create form mounts inline below the list, so there is no CTA
-    // to put beside the title — and `PageHeader` renders the slot only when it
-    // is given one, rather than leaving an empty flex child in the row.
+    // The create form mounts inline below the list, so there is no CTA to put
+    // beside the title — and `PageHeader` renders the slot only when it is given
+    // one, rather than leaving an empty flex child in the row.
     expect(page.getByTestId("organizations-header-actions").elements()).toHaveLength(0);
   });
 
@@ -104,8 +94,6 @@ describe("routes/dashboard/organizations (restyle)", () => {
   it("keeps the create form mounted below the list", async () => {
     await renderPage();
 
-    // Regression guard: the restyle reorders nothing — the inline create form
-    // (Wallow-ffpq.3.5) still trails the list on this page.
     expectPrecedes(byTestId("organizations-table"), byTestId("organization-create-form"));
   });
 

@@ -16,13 +16,11 @@ import {
 import { Route } from "./index";
 
 /**
- * Restyle spec for the apps index page (Wallow-urec.4.1) — the WORKED EXAMPLE
- * for Phase 4. It asserts only the page chrome the restyle adds; the route's
- * behaviour (loader, `dashboard-apps` root, `apps-register-link` href) stays
- * pinned by the sibling `index.test.tsx`, which the restyle must not edit.
+ * Page chrome for the apps index: the shared container, the header row, and the
+ * register CTA's styling.
  *
- * The page renders with a seeded, non-empty `['apps']` cache so the whole page —
- * header row plus populated list — is on screen for the token-color scan.
+ * Renders with a non-empty list so header row and populated list are both on
+ * screen for the token-colour scan.
  */
 
 /** The transport backing each render, rebuilt per test. */
@@ -68,9 +66,8 @@ describe("routes/dashboard/apps (restyle)", () => {
   it("titles the page with an h1 reading My Apps", async () => {
     await renderPage();
 
-    // Wallow-lrlm.5.1: the heading is `PageHeader`'s own `<h1>`, so its testid is
-    // DERIVED from the header's (`apps-header` -> `apps-header-title`) and its
-    // type scale is `Text`'s `title` variant rather than a hand-written triple.
+    // The heading is `PageHeader`'s own `<h1>`, so its testid is DERIVED from the
+    // header's: `apps-header` -> `apps-header-title`.
     const heading = byTestId("apps-header-title");
     expectTag(heading, "h1");
     expect(heading.textContent).toBe("My Apps");
@@ -92,18 +89,9 @@ describe("routes/dashboard/apps (restyle)", () => {
     const actions = byTestId("apps-header-actions");
     expectClasses(actions, "flex items-center gap-3 shrink-0");
     expect(actions.contains(byTestId("apps-register-link"))).toBe(true);
-    // The actions slot trails the title, which is the whole point of the slot.
     expectPrecedes(byTestId("apps-header-title"), actions);
   });
 
-  // Wallow-lrlm.4.3 widened this case. The pill's own utilities — token colours,
-  // weight, padding, radius, type scale — are UNCHANGED and still pinned here;
-  // what moved is the interaction treatment, which now comes from the catalog
-  // `buttonRecipe` (F3.T1) instead of being hand-written: `hover:opacity-90`
-  // became the recipe's `hover:bg-primary/90`, `transition-colors` became
-  // `motion-safe:transition-colors`, and a focus-visible ring the hand-rolled
-  // pill never had arrived with it. The behavioural half — anchor, href, router
-  // click, no `role="button"` — lives in the sibling `index.navigation.test.tsx`.
   it("styles the register link as the gold pill CTA", async () => {
     await renderPage();
 
@@ -112,7 +100,6 @@ describe("routes/dashboard/apps (restyle)", () => {
       link,
       "bg-primary text-primary-foreground font-medium px-6 py-2.5 rounded-full no-underline text-sm hover:bg-primary/90 motion-safe:transition-colors focus-visible:ring-2 focus-visible:ring-ring",
     );
-    // Regression guard: the pill is still the same link, with the same words.
     expect(link.getAttribute("href")).toBe("/dashboard/apps/register");
     expect(link.textContent?.trim()).toBe("Register New App");
   });

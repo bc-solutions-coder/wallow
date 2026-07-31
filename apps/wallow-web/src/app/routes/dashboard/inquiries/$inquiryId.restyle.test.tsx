@@ -12,16 +12,11 @@ import {
 import { Route } from "./$inquiryId";
 
 /**
- * Restyle spec for the inquiry-detail route shell (Wallow-urec.4.2). The route's
- * structural contract (component, loader, router registration) stays pinned by
- * the sibling `$inquiryId.test.tsx`, which the restyle must not edit, and the
- * page body's chrome belongs to `InquiryDetail.restyle.test.tsx` — all this file
- * owns is the column width the detail page sits in.
+ * The inquiry-detail route shell: the column width the detail page sits in.
  *
  * The page reads `Route.useParams()`, which needs a mounted router; rather than
  * stand a whole `RouterProvider` up for two class assertions, the param hook is
- * stubbed on the route object itself (`vi.spyOn`), the same "render the page
- * standalone" trick the other route specs get for free by not reading params.
+ * stubbed on the route object itself with `vi.spyOn`.
  */
 
 const INQUIRY = {
@@ -57,9 +52,6 @@ describe("routes/dashboard/inquiries/$inquiryId (restyle)", () => {
   it("centers the detail page in the shared dashboard container", async () => {
     const root = await renderPage();
 
-    // Wallow-lrlm.5.1: this page used to pick the narrow `max-w-2xl` column
-    // while the organization-detail page next door picked the wide one. The
-    // width is one shared rule now, so neither page names it.
     expectPageContainer(root);
   });
 

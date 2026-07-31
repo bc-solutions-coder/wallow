@@ -11,37 +11,13 @@ import { Route } from "./bff-demo";
 let harness: SdkHarness;
 
 /**
- * Route spec for the dedicated BFF smoke/demo route (Wallow-8w1h.8.2).
+ * The `/bff-demo` smoke surface and its `bff-*` testid contract.
  *
- * The C# `BffFlowTests` (api/tests/Wallow.E2E.Tests/Flows/BffFlowTests.cs) drives
- * the BFF example through a `data-testid` DOM contract:
- *   - bff-user-status   ("anonymous" | "authenticated")
- *   - bff-user-email    (authenticated user's email)
- *   - bff-login         (button -> login("/"))
- *   - bff-logout        (button -> logout())
- *   - bff-call-api      (button -> GET usersGetCurrentUser() through /api)
- *   - bff-mutate        (button -> POST organizationsCreate() with CSRF)
- *   - bff-api-result    (result of the last safe /api call)
- *   - bff-mutate-result (result of the last mutation)
- *
- * This route is the React port of the deleted vanilla `src/app.ts` demo. It lives
- * at a DEDICATED `/bff-demo` route rather than overwriting `src/routes/index.tsx`,
- * whose `home-heading` SSR contract (Wallow-8w1h.2.2) must remain intact.
- *
- * NOTHING here mocks the SDK's generated operations any more (Wallow-pu6a.5.5).
- * The route takes its client off the router context, so `renderWithWallow` hands
- * it a REAL `createWallowSdk()` instance over the harness transport: the CSRF
- * interceptor, the error interceptor and the response parsing the app ships all
- * execute, and the spec asserts on the request that actually went out.
- *
- * Two seams remain, both of them the browser rather than the SDK:
- *   - `/bff/user` is not a generated operation — `getUser()` reads it with the
- *     global `fetch`, so the global is what gets stubbed;
- *   - `login()`/`logout()` navigate by assigning to `location`, which would take
- *     the test iframe with them. They are overridden as render-nothing sentinels
- *     over `importOriginal`, the same narrow navigation/SSR-isolation exception
- *     `.claude/rules/TESTING.md` grants the `__root*.test.tsx` specs — every other
- *     export, generated ops included, stays real.
+ * Nothing here mocks the SDK's generated operations: the route takes its client
+ * off the router context, so `renderWithWallow` hands it a REAL SDK over the
+ * harness transport and the spec asserts on the request that actually went out.
+ * Two browser seams stay stubbed — `/bff/user` is read with the global `fetch`,
+ * and `login()`/`logout()` assign to `location`, taking the test iframe with them.
  */
 
 const navigationMocks = vi.hoisted(() => ({ login: vi.fn(), logout: vi.fn() }));
@@ -145,8 +121,7 @@ describe("routes/bff-demo (BFF smoke surface)", () => {
     stubBffUser(SIGNED_IN_USER);
     harness.resolveJson({ organizationId: "org-123" });
     renderDemo();
-    // The token is armed by the mount effect, so wait for it to land before the
-    // POST — this is the whole point of the demo's CSRF path.
+    // The token is armed by the mount effect; wait for it to land before the POST.
     await expect.element(page.getByTestId("bff-user-status")).toHaveTextContent("authenticated");
 
     await userEvent.click(page.getByTestId("bff-mutate"));
@@ -169,11 +144,6 @@ describe("routes/bff-demo (BFF smoke surface)", () => {
   });
 });
 
-/**
- * Router-registration spec: `src/router.tsx` must bind the `/bff-demo` route
- * under the root (like the other manually-bound routes), so the smoke surface is
- * reachable. Mirrors the registration assertions in the dashboard route tests.
- */
 describe("routes/bff-demo (router registration)", () => {
   it("registers /bff-demo in the router tree", () => {
     const router = getRouter();

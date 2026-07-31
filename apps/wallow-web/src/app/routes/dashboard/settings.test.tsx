@@ -8,21 +8,13 @@ import { routeHarness } from "@shared/testing/harness-routes";
 import { Route } from "./settings";
 
 /**
- * Route spec for the dashboard settings route (Wallow-8w1h.6.5), mirroring
- * routes/dashboard/apps/index.test.tsx. Covers three contracts:
- *   1. The route page renders a root carrying `data-testid="dashboard-settings"`
- *      and prefetches both queries via a `loader`.
- *   2. Both composed sections render inside that root — the profile section
- *      (`settings-profile-*`) and the MFA status card (`settings-mfa-*`).
- *   3. `src/router.tsx` registers the route under the root at
- *      `/dashboard/settings` (bound manually, no dashboard layout route yet).
+ * The dashboard settings route: page root, prefetch loader, the composed profile
+ * and MFA sections, and router registration.
+ *
+ * `ProfileSection` and `MfaSettingsSection` run for real against the harness
+ * transport, so they are driven by ANSWERING their two reads rather than by
+ * seeding their caches.
  */
-
-// The rendered page mounts ProfileSection (the current-user read) and
-// MfaSettingsSection (the MFA status read plus its disable/regenerate mutations).
-// Both now run for real against the harness transport (Wallow-pu6a.5.5) — the
-// facade this spec used to mock is deleted — so the sections are driven by
-// ANSWERING their two requests rather than by seeding their caches.
 
 /** The transport backing each render, rebuilt per test. */
 let harness: SdkHarness;

@@ -14,15 +14,9 @@ import {
 import { Route } from "./register";
 
 /**
- * Restyle spec for the register-app page (Wallow-urec.4.1) — the form-page half
- * of the WORKED EXAMPLE. This page is chrome only: `RegisterAppForm` already
- * renders through the shared `ui` primitives, so the restyle adds a heading and
- * a width and changes nothing inside the form. Its behaviour stays pinned by
- * `register.test.tsx` and `RegisterAppForm.test.tsx`, which the restyle must not
- * edit.
- *
- * Wallow-lrlm.5.1 retired the NARROW shell this form page used to opt into: the
- * width is now the one shared `PAGE_CONTAINER` every dashboard page takes.
+ * Page chrome for the register-app page: the shared container and the page
+ * heading. This page is chrome only — `RegisterAppForm` renders through the
+ * shared `ui` primitives and owns everything inside the form.
  */
 
 /** The transport backing each render, rebuilt per test. */
@@ -49,8 +43,8 @@ describe("routes/dashboard/apps/register (restyle)", () => {
   it("titles the page with an h1 reading Register New App", async () => {
     await renderPage();
 
-    // Wallow-lrlm.5.1: `PageHeader`'s derived testid and `Text`'s title scale;
-    // the page rhythm (`mb-8`) moved from the `<h1>` onto the header row.
+    // `PageHeader`'s derived testid; the page rhythm (`mb-8`) sits on the header
+    // ROW, not on the `<h1>`.
     const heading = byTestId("apps-register-header-title");
     expectTag(heading, "h1");
     expect(heading.textContent).toBe("Register New App");

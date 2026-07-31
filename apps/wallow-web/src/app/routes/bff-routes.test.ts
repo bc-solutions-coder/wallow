@@ -5,25 +5,14 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * The successor to the deleted `proxy-topology.test.ts`.
+ * Which URL prefixes this origin answers itself, rather than rendering the
+ * router into: `/bff/**` (the OIDC tunnel — `/` and `/dashboard/**` both gate on
+ * `/bff/user`), `/api/**` (the BFF's own reverse proxy, bearer attached
+ * server-side) and `/health` (both compose stacks probe it).
  *
- * Which URL prefixes this origin answers itself — rather than rendering the
- * router into — is the app's external contract, not an implementation detail.
- * Under the old hosts it was `isBffProxyPath`, a predicate two servers consulted;
- * under Start it is the SET OF ROUTE FILES, so a dropped file is now the way the
- * contract breaks — and it breaks silently, because a missing splat route is a
- * plain 404 that looks like an ordinary bad URL:
- *
- *  - `/bff/**` — the OIDC tunnel. Losing it breaks login and, because `/` and
- *    `/dashboard/**` gate on `/bff/user`, signs every visitor out.
- *  - `/api/**` — the BFF's own reverse proxy (bearer attached server-side), NOT
- *    a verbatim passthrough like wallow-auth's `/v1/**`.
- *  - `/health` — not a proxy, but the same kind of contract: both compose stacks
- *    probe it, and a container that fails its healthcheck never joins the stack.
- *
- * Asserted over the file text rather than by importing the modules: the point is
- * that the FILE exists at the path the route codegen scans, which is exactly what
- * an import would paper over.
+ * Asserted over the file text, not by importing: the contract is that the FILE
+ * exists where the route codegen scans, and a missing splat route fails silently
+ * as a plain 404 that looks like an ordinary bad URL.
  */
 
 const routesDir: string = dirname(fileURLToPath(import.meta.url));

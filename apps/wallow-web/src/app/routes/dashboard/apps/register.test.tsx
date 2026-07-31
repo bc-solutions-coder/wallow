@@ -7,19 +7,8 @@ import { getRouter } from "@app/router";
 import { Route } from "./register";
 
 /**
- * Route spec for the register-app route (Wallow-ffpq.3.5) — the intended mount
- * point for the orphan `RegisterAppForm`. Mirrors
- * routes/dashboard/apps/index.test.tsx. Covers three contracts:
- *   1. The route page renders a root carrying `data-testid="dashboard-apps-
- *      register"` and mounts `RegisterAppForm` (its `app-register-form` testid).
- *   2. `src/router.tsx` registers the route under `/dashboard` at
- *      `/dashboard/apps/register` (bound manually alongside `apps`, no
- *      file-based codegen yet).
- *
- * RED note (list-route gotcha, Wallow-8w1h.5.2): "exposes a route component"
- * passes on the compile-safe stub because `createFileRoute` always defines a
- * component; the wrapper-render, form-mount, and router-registration assertions
- * fail until GREEN.
+ * The register-app route: page root, the mounted `RegisterAppForm`, and router
+ * registration.
  */
 
 /** The transport backing each render, rebuilt per test. */

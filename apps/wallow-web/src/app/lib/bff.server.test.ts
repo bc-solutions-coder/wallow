@@ -1,23 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * The successor to the deleted `bff-server.test.ts`.
+ * The wallow-web BFF host's own share: lazy server build, redis client
+ * lifecycle, path dispatch, and the client-IP seam.
  *
- * Config loading, store selection, handler construction and path dispatch all
- * moved into the SDK's `createWallowBffServer` and are covered there. What is
- * left for this module — and what this spec pins — is the HOST's share:
- *
- *  - the server is built LAZILY and memoised, because a Start server-route
- *    module is evaluated as part of the server bundle, where a config throw at
- *    module load takes SSR down with it;
- *  - a failed build is not cached, so a Redis that was not up yet does not
- *    permanently disable the BFF;
- *  - the Redis client is constructed and CONNECTED here and handed to the
- *    preset, which is the whole reason the host still depends on `redis` —
- *    `createWallowBffServer` throws rather than silently serving stateless
- *    cookie sessions when `REDIS_URL` is set with no client;
- *  - the peer address is stamped onto the SDK's client-IP seam header, because
- *    only the host can see a socket (Wallow-vufu.4.2).
+ * The build is lazy and memoised because a Start server-route module is
+ * evaluated as part of the server bundle, where a config throw at module load
+ * takes SSR down with it. A failed build is not cached, so a Redis that is not
+ * up yet does not permanently disable the BFF.
  */
 
 const mocks = vi.hoisted(() => ({

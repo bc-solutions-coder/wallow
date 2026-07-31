@@ -4,20 +4,10 @@ import { getRouter } from "@app/router";
 import { Route } from "./$orgId";
 
 /**
- * Route spec for the org-detail route (Wallow-8w1h.4.4). Covers the same two
- * contracts as the list route: (1) the route exposes a component + a prefetch
- * `loader`; (2) `src/router.tsx` registers it at `/dashboard/organizations/
- * $orgId` (bound manually — no dashboard layout route exists yet).
- *
- * The rendered page reads the `orgId` route param, so full render coverage
- * lives in OrganizationDetail.test.tsx; here we assert the route's structural
- * contract only.
+ * The org-detail route's structural contract: component, prefetch loader, and
+ * router registration. The rendered page reads the `orgId` param, so render
+ * coverage lives in `OrganizationDetail.test.tsx`.
  */
-
-// Nothing to mock: importing the route no longer configures anything. The
-// module-global client this file used to neutralise — `getWallowSdk()` out of
-// `src/lib/wallow-sdk` — is deleted (Wallow-pu6a.5.5), and the detail page now
-// takes its client from the router context at render time.
 
 describe("routes/dashboard/organizations/$orgId (route)", () => {
   it("exposes a route component", () => {

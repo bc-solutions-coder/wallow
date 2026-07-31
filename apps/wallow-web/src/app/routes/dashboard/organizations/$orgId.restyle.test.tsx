@@ -11,21 +11,12 @@ import {
 } from "@shared/testing/style-contract";
 
 /**
- * Restyle spec for the organization-detail page shell (Wallow-urec.4.3). Only
- * the route's own chrome is asserted here — the shell width — because the page
- * body is `OrganizationDetail`, which has its own restyle spec. The route's
- * structural contract (component + loader + router registration) stays pinned by
- * the sibling `$orgId.test.tsx`, which the restyle must not edit.
+ * The organization-detail route shell: the column width the page sits in. The
+ * page body is `OrganizationDetail`, which has its own restyle spec.
  *
  * The page reads `Route.useParams()`, which throws outside a `RouterProvider`,
  * so `createFileRoute` is stubbed to hand back a plain route object with a fixed
- * `orgId` — the same "mock the router module to render a route standalone"
- * approach `__root.focus.test.tsx` uses for `Outlet`/`FocusOnNavigate`.
- *
- * Blazor reference (`2e039fcb:...Dashboard/OrganizationDetail.razor`): the detail
- * page carries two tables, so it always wanted the wide column. Wallow-lrlm.5.1
- * made that width the shared `PAGE_CONTAINER` every dashboard page takes, so
- * this page no longer names a width of its own.
+ * `orgId`.
  */
 vi.mock("@tanstack/react-router", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@tanstack/react-router")>();

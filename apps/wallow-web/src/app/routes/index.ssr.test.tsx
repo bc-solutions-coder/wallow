@@ -7,10 +7,9 @@ import { describe, expect, it } from "vitest";
 import { Route } from "./index";
 
 /**
- * SSR contract for the public home page (Wallow-8w1h.2.2 acceptance):
- * `GET /` must return server-rendered HTML containing an element with
- * data-testid="home-heading". We assert the route component renders that markup
- * via react-dom/server — the vitest equivalent of curling the dev server.
+ * SSR contract for the public home page: `GET /` returns server-rendered HTML
+ * carrying `data-testid="home-heading"` and a non-empty heading, asserted
+ * through `react-dom/server` — the vitest equivalent of curling the dev server.
  */
 describe("routes/index (public home SSR)", () => {
   it("exposes a route component", () => {
@@ -32,10 +31,8 @@ describe("routes/index (public home SSR)", () => {
 });
 
 /**
- * Cached current-user gate (Wallow-evd5.2.3, regenerated in Wallow-pu6a.5.5):
- * the `beforeLoad` must read the user through the router-context QueryClient via
- * `ensureQueryData(currentUserQuery(context.sdk.client))` and no longer import
- * the retired `getWallowSdk().user.me()` facade.
+ * The home `beforeLoad` reads the user through the router-context QueryClient,
+ * not through a module-global SDK facade.
  */
 describe("routes/index (cached current-user gate wiring)", () => {
   it("no longer imports the retired getWallowSdk facade", () => {
@@ -46,8 +43,8 @@ describe("routes/index (cached current-user gate wiring)", () => {
 
     expect(source).not.toMatch(/getWallowSdk|lib\/wallow-sdk/u);
     // Either spelling of the shared read from `@bc-solutions-coder/auth`: the
-    // query + `ensureQueryData`, or the `ensureCurrentUser` primer that composes
-    // the pair (Wallow-x4qn.8).
+    // query plus `ensureQueryData`, or the `ensureCurrentUser` primer that
+    // composes the pair.
     expect(source).toMatch(/currentUserQuery|ensureCurrentUser/u);
     expect(source).toMatch(/ensureQueryData|ensureCurrentUser/u);
   });

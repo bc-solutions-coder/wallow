@@ -16,20 +16,11 @@ import {
 import { Route } from "./settings";
 
 /**
- * Restyle spec for the settings page (Wallow-urec.4.4), following the worked
- * example in `routes/dashboard/apps/index.restyle.test.tsx`. Settings leans on
- * the `ui` Card sections rather than the list-card surface.
+ * Page chrome for the settings page: the shared container, the header row, and
+ * the order of the profile and MFA sections.
  *
- * Wallow-lrlm.5.1 retired the NARROW/WIDE shell split this page used to opt into
- * (`max-w-2xl` against the list pages' `max-w-5xl`). Every dashboard page now
- * takes the one shared `PAGE_CONTAINER`, so the width is no longer a per-page
- * decision and this spec no longer names one.
- *
- * Only page chrome is asserted here; the route's behaviour (loader, the
- * `dashboard-settings` root, and the fact that both sections mount inside it)
- * stays pinned by the sibling `settings.test.tsx`, which the restyle must not
- * edit. The page renders with both caches seeded so the profile and MFA sections
- * are on screen (not in their loading states) for the token-color scan.
+ * Both reads are answered so the sections are on screen rather than in their
+ * loading states for the token-colour scan.
  */
 
 const PROFILE = {
@@ -71,9 +62,8 @@ describe("routes/dashboard/settings (restyle)", () => {
   it("titles the page with an h1 reading Settings", async () => {
     await renderPage();
 
-    // Wallow-lrlm.5.1: `PageHeader`'s derived testid and `Text`'s title scale.
-    // The `mb-8` the hand-rolled `<h1>` carried moved to the header ROW, which
-    // is where the page rhythm belongs when a title can grow an actions slot.
+    // `PageHeader`'s derived testid. The `mb-8` sits on the header ROW, which is
+    // where page rhythm belongs when a title can grow an actions slot.
     const heading = byTestId("settings-header-title");
     expectTag(heading, "h1");
     expect(heading.textContent).toBe("Settings");

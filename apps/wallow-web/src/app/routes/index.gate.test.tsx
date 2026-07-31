@@ -9,24 +9,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Route } from "./index";
 
 /**
- * Public-home reachability spec (Wallow-ffpq.3.6), rewired in Wallow-evd5.2.3 to
- * the cached current-user query. The home gate:
- *   - an AUTHENTICATED visitor is redirected to the dashboard
- *     (`/dashboard/apps`),
- *   - an unauthenticated visitor is shown the marketing page only when
- *     the landing-page flag is enabled,
- *   - otherwise they are sent to the BFF login (an OIDC challenge).
+ * The public-home `beforeLoad` gate: an authenticated visitor is redirected to
+ * `/dashboard/apps`, an unauthenticated one sees the marketing page when the
+ * landing-page flag is enabled, and is sent to the BFF login when it is not.
  *
- * The gate runs in the route's `beforeLoad`, reading the user through the
- * router-context QueryClient via
- * `ensureQueryData(currentUserQuery(context.sdk.client))` — or the equivalent
- * `ensureCurrentUser({ queryClient, client })` primer — where the query is the
- * SHARED one from `@bc-solutions-coder/auth` (Wallow-x4qn.8) rather than a copy
- * in this app's `src/lib/`. Either way it is the
- * GENERATED current-user read bound to the request's own SDK instance
- * (Wallow-pu6a.5.5), NOT the retired `getWallowSdk().user.me()` facade. The landing-page flag
- * is read through a partially mocked `@bc-solutions-coder/styles`; the component
- * itself renders inside `PublicLayout`.
+ * The gate reads the user through the router-context QueryClient, using the
+ * SHARED `currentUserQuery` from `@bc-solutions-coder/auth`; the landing-page
+ * flag comes from a partially mocked `@bc-solutions-coder/styles`.
  */
 
 const loginMock = vi.hoisted(() => vi.fn());
@@ -154,10 +143,8 @@ describe("routes/index (public-home gate)", () => {
   });
 
   it("throws a BFF-login redirect (not a browser-only login() call) when the landing page is disabled", async () => {
-    // The SSR half of this contract lives in `index.ssr-gate.test.ts` (node
-    // project, real SDK). Here we only assert the client-side shape: the gate
-    // must hand TanStack a redirect rather than reach for the SDK's browser-only
-    // `login()`, which would 500 the same route under SSR (Wallow-fqw9).
+    // The client-side shape only — the SSR half is `index.ssr-gate.test.ts`,
+    // which runs in the node project against a real SDK.
     branding.forkBranding.landingPage.enabled = false;
 
     const thrown: unknown = await captureThrow(null);

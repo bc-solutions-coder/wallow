@@ -16,18 +16,12 @@ import {
 import { Route } from "./index";
 
 /**
- * Restyle spec for the inquiries index page (Wallow-urec.4.2), following the
- * `.4.1` apps worked example. It asserts only the page chrome the restyle adds;
- * the route's behaviour (loader, `dashboard-inquiries` root, the inline
- * `inquiry-create-form`) stays pinned by the sibling `index.test.tsx`, which the
- * restyle must not edit.
+ * Page chrome for the inquiries index: the shared container, the header row, and
+ * the order of list and create form.
  *
- * This page has NO call-to-action link. Under Wallow-lrlm.5.1 that no longer
- * means a different heading treatment: every dashboard page opens with the same
- * `PageHeader`, which simply renders no actions slot when it is given none — so
- * "one page, one header component" costs nothing here. Vertical rhythm between
- * the heading, the list, and the create card still comes from `space-y-8` on the
- * shell; the width comes from the shared `PAGE_CONTAINER`.
+ * This page has no call-to-action, and `PageHeader` renders no actions slot when
+ * it is given none. Vertical rhythm between heading, list and create card comes
+ * from `space-y-8` on the shell; the width comes from the shared `PAGE_CONTAINER`.
  */
 
 /** The transport backing each render, rebuilt per test. */
@@ -40,8 +34,7 @@ let harness: SdkHarness;
  * `inquiries-loading` until the harness answers `GET /v1/inquiries` — so gating
  * on the root alone leaves every list assertion racing that response (it loses
  * on a loaded CI runner). Gate on the list too: it is the last thing this page
- * paints, so once it is in the document the whole page is settled and the specs
- * below can read the DOM synchronously.
+ * paints, so the specs below can read the DOM synchronously.
  */
 async function renderPage(): Promise<HTMLElement> {
   const Page = Route.options.component!;
@@ -73,15 +66,13 @@ describe("routes/dashboard/inquiries (restyle)", () => {
     const root = await renderPage();
 
     expectPageContainer(root);
-    // Regression guard: the width moved to the shared rule, the page's own
-    // vertical rhythm between heading, list, and create card did not.
+    // The shared width does not carry the page's own vertical rhythm.
     expectClasses(root, "space-y-8");
   });
 
   it("titles the page with an h1 reading Inquiries", async () => {
     await renderPage();
 
-    // Wallow-lrlm.5.1: `PageHeader`'s derived testid, `Text`'s title scale.
     const heading = byTestId("inquiries-header-title");
     expectTag(heading, "h1");
     expect(heading.textContent).toBe("Inquiries");
@@ -105,7 +96,6 @@ describe("routes/dashboard/inquiries (restyle)", () => {
   it("keeps the create form below the list", async () => {
     await renderPage();
 
-    // Regression guard: the restyle reorders nothing — list first, create second.
     expectPrecedes(byTestId("inquiries-table"), byTestId("inquiry-create-form"));
   });
 

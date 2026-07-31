@@ -6,23 +6,14 @@ import { describe, expect, it } from "vitest";
 import { PAGE_CONTAINER } from "@shared/lib/page-container";
 
 /**
- * The cross-page half of F5.T1 (Wallow-lrlm.5.1) — the invariants no single
- * page's spec can see.
+ * The cross-page invariants no single page's spec can see: exactly one
+ * container-width rule (`PAGE_CONTAINER`) imported by every dashboard route
+ * page, and every page title rendered by `PageHeader` rather than a hand-rolled
+ * `<h1>` or `justify-between mb-8` row.
  *
- * Each `*.restyle.test.tsx` asserts what ITS page renders; nothing there can say
- * "and no OTHER dashboard page disagrees". These guards read the seven dashboard
- * route sources off disk and pin the two rules the migration establishes:
- *
- *   1. Exactly one container-width rule, `PAGE_CONTAINER`, imported by every
- *      dashboard route page — no page writes a `max-w-*` utility of its own.
- *   2. Every page-title block is a `PageHeader`; no dashboard route file
- *      hand-rolls an `<h1>` or the `justify-between mb-8` header row again.
- *
- * A source-level read is the right instrument here and not a shortcut: the rule
- * being pinned is "the width is declared in one place", which is a fact about
- * the source, not about the DOM. The rendered half is `expectPageContainer`.
- *
- * F5.T6 turns rule 2 into a lint gate; until it lands this spec is the gate.
+ * Read from source, not the DOM, because the rule being pinned is "the width is
+ * declared in one place" — a fact about the source. The rendered half of it is
+ * `expectPageContainer`.
  */
 
 const dashboardDir: URL = new URL("./", import.meta.url);
@@ -49,8 +40,7 @@ const PAGE_FILES: readonly string[] = [
 /**
  * The pages that render a title of their own. The two detail pages are absent
  * because they delegate their whole body — heading included — to a feature
- * component (`OrganizationDetail`, `InquiryDetail`); those two headings are
- * F5.T3's, see the bead note.
+ * component (`OrganizationDetail`, `InquiryDetail`).
  */
 const TITLED_PAGE_FILES: readonly string[] = [
   "apps/index.tsx",
@@ -72,13 +62,12 @@ const IMPORTS_PAGE_HEADER =
 /** A literal Tailwind max-width utility written into a source file. */
 const LITERAL_MAX_WIDTH = /\bmax-w-[\w[\]./-]+/u;
 
-/** The hand-rolled header row every list page opened with before `PageHeader`. */
+/** The hand-rolled header row `PageHeader`'s own recipe makes unnecessary. */
 const HAND_ROLLED_HEADER_ROW = /justify-between mb-8/u;
 
 describe("dashboard pages share one container-width rule", () => {
   it("declares the rule as a wide, centered column", () => {
-    // The migration collapses the old wide/narrow split onto ONE width. `5xl` is
-    // the width the list pages need; a `2xl` page would not fit its own table.
+    // `5xl` is the width the list pages need; a `2xl` column does not fit a table.
     expect(PAGE_CONTAINER).toBe("max-w-5xl mx-auto");
   });
 

@@ -7,17 +7,12 @@ import { getRouter } from "@app/router";
 import { Route } from "./index";
 
 /**
- * Route spec for the dashboard apps list route (Wallow-8w1h.5.2), mirroring
- * routes/dashboard/organizations/index.test.tsx. Covers two contracts:
- *   1. The route page renders a root carrying `data-testid="dashboard-apps"` and
- *      prefetches via a `loader`.
- *   2. `src/router.tsx` registers the route under the root at `/dashboard/apps`
- *      (bound manually alongside the organizations routes, no layout route yet).
+ * The dashboard apps list route: page root, prefetch loader, register link, and
+ * router registration.
+ *
+ * The page mounts `AppList`, whose `useQuery` runs for real against the harness
+ * transport — nothing in the path is stubbed.
  */
-
-// The rendered page mounts AppList, whose `useQuery` now runs for real against
-// the harness transport (Wallow-pu6a.5.5) — the facade this spec used to mock is
-// deleted, and there is nothing left in the path to stub.
 
 /** The transport backing each render, rebuilt per test. */
 let harness: SdkHarness;
@@ -44,9 +39,6 @@ describe("routes/dashboard/apps (route page)", () => {
     await expect.element(page.getByTestId("dashboard-apps")).toBeInTheDocument();
   });
 
-  // Wallow-ffpq.3.5 — the apps index links to the register route so
-  // RegisterAppForm is reachable via normal UI navigation (the
-  // `apps-register-link`), not just a directly-typed URL.
   it("links to the register route (apps-register-link)", async () => {
     harness.resolveJson([]);
 

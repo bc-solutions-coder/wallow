@@ -10,30 +10,15 @@ import { getRouter } from "@app/router";
 import { Route } from "./route";
 
 /**
- * Auth-gate spec for the `/dashboard` layout route (Wallow-8w1h.8.1), rewired in
- * Wallow-evd5.2.3 to the cached current-user query and made SSR-safe in
- * Wallow-zyxe.
+ * The `/dashboard` auth gate: it reads the current user through the
+ * router-context QueryClient (the SHARED `currentUserQuery` from
+ * `@bc-solutions-coder/auth`, or the `ensureCurrentUser` primer that composes
+ * the same pair), throws a redirect to the BFF login when that user is null, and
+ * exposes `isAdmin` when one is present.
  *
- * The gate must read the current user through the router-context QueryClient via
- * `ensureQueryData(currentUserQuery(context.sdk.client))` — or the equivalent
- * `ensureCurrentUser({ queryClient, client })` primer, which composes exactly
- * that pair — where the query is the SHARED one from `@bc-solutions-coder/auth`
- * (Wallow-x4qn.8), not a copy this app keeps in `src/lib/`. Either way it is the
- * GENERATED current-user read bound to the request's own SDK instance
- * (Wallow-pu6a.5.5), NOT a module-global client and not the retired
- * `getWallowSdk().user.me()` facade. When the cached user
- * resolves `null` it must **throw** a TanStack `redirect({ href, reloadDocument })`
- * to the BFF login rather than calling the SDK's browser-only `login()` — that
- * helper assigns to the bare global `location`, which does not exist under Node,
- * so a full-page SSR load of `/dashboard/**` returned HTTP 500 instead of a
- * redirect. When a user IS present the gate lets the navigation through and
- * exposes `isAdmin` derived from the user's roles claim.
- *
- * This file deliberately does NOT mock `@bc-solutions-coder/sdk`: the previous
- * `login` spy masked exactly the defect above. It runs in the vitest NODE project
- * (see `vitest.config.ts` → `nodeTsxSpecs`), so there is no global `location` and
- * any browser-only navigation reached from `beforeLoad` surfaces as a thrown
- * `ReferenceError` — the same failure the SSR handler turns into a 500.
+ * `@bc-solutions-coder/sdk` is deliberately NOT mocked, and this runs in the
+ * vitest NODE project: with no global `location`, a browser-only navigation from
+ * `beforeLoad` surfaces as the `ReferenceError` SSR turns into a 500.
  */
 
 /** The BFF login target the gate must send an unauthenticated visitor to. */
@@ -152,8 +137,8 @@ describe("routes/dashboard/route (auth gate)", () => {
     );
 
     expect(source).not.toMatch(/getWallowSdk|lib\/wallow-sdk/u);
-    // Either spelling of the shared read: the query + `ensureQueryData`, or the
-    // auth package's `ensureCurrentUser` primer that composes the pair.
+    // Either spelling of the shared read: the query plus `ensureQueryData`, or
+    // the auth package's `ensureCurrentUser` primer that composes the pair.
     expect(source).toMatch(/currentUserQuery|ensureCurrentUser/u);
     expect(source).toMatch(/ensureQueryData|ensureCurrentUser/u);
   });
@@ -173,11 +158,7 @@ describe("routes/dashboard/route (auth gate)", () => {
   });
 });
 
-/**
- * Router-registration spec: `src/router.tsx` must register the `/dashboard`
- * layout route AND reparent the existing dashboard verticals under it (instead
- * of directly under the root), so they render inside the shell's `<Outlet/>`.
- */
+/** The dashboard verticals must sit under `/dashboard` to render in its `<Outlet/>`. */
 describe("routes/dashboard/route (router registration)", () => {
   it("registers the /dashboard layout route in the router tree", () => {
     const router = getRouter();
@@ -186,9 +167,7 @@ describe("routes/dashboard/route (router registration)", () => {
 
   it("reparents the dashboard children under the /dashboard layout route", () => {
     const router = getRouter();
-    // The file-based codegen registers the index route with a trailing slash
-    // (`/dashboard/organizations/`); the old manual reparenting used the bare
-    // `/dashboard/organizations`. The parent is still the `/dashboard` shell.
+    // The file-based codegen registers the index route WITH a trailing slash.
     const child = router.routesById["/dashboard/organizations/"];
     expect(child?.parentRoute?.id).toBe("/dashboard");
   });
