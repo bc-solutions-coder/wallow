@@ -1,4 +1,0 @@
-/* GENUINE-COMMENT */
-const trailingStars = /\/*$/u;
-<h2 data-testid="block-open-in-regex-literal-survives">Stars</h2>
-const closer = "*/";

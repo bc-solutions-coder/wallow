@@ -1,2 +1,0 @@
-/* GENUINE-COMMENT */
-const endpoint = `https://${host}/v1/apps`; const badge = <span data-testid="url-in-template-literal-survives">Apps</span>;

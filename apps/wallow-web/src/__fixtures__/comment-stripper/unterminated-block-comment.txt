@@ -1,3 +1,0 @@
-/* GENUINE-COMMENT */
-<p data-testid="unterminated-block-comment-survives">Kept</p>
-/* the file ends before this comment ever closes

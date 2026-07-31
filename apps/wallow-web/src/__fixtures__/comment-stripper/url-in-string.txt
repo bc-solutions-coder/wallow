@@ -1,2 +1,0 @@
-/* GENUINE-COMMENT */
-const link = <a href="https://example.com/docs"><span data-testid="url-in-string-survives">Docs</span></a>;

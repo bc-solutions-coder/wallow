@@ -1,3 +1,0 @@
-// Don't let an apostrophe end anything.
-/* GENUINE-COMMENT: it's prose, not code */
-<p data-testid="apostrophe-in-comment-survives">Fine</p>

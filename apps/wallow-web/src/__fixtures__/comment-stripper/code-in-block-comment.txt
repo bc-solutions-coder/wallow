@@ -1,5 +1,0 @@
-/*
- * GENUINE-COMMENT — this file used to hand-roll `<h3>Legacy</h3>` and paint it
- * "text-foreground/60". Both are gone; the prose describing them is not.
- */
-<p data-testid="code-in-block-comment-survives">New</p>

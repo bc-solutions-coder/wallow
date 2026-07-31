@@ -57,18 +57,26 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
   `@tanstack/react-router@^1.170.18` against an app pinning `1.170.18` exactly is correct
   practice, not drift, and stays a literal.
 
-- **App surfaces are built from the catalog, and in `wallow-web` that is lint-enforced.**
-  `apps/wallow-web/.oxlintrc.json` (only there — `wallow-auth` has no per-app config at all,
-  and the root one carries neither rule) adds `react/forbid-elements` for raw `p`, `span` and
+- **App surfaces are built from the catalog, and in BOTH apps that is lint-enforced.**
+  `apps/wallow-web/.oxlintrc.json` and `apps/wallow-auth/.oxlintrc.json` (the root config carries
+  none of these rules) add `react/forbid-elements` for raw `p`, `span`, `legend`, `code` and
   `h1`–`h6`, pointing each at `Text`/`PageHeader` so the catalog owns the type scale once, plus
-  a custom `wallow/no-sidebar-inversion` from `tools/oxlint/wallow-lint-plugin.js` banning
-  hand-written inversion hacks (`bg-foreground`/`text-background`) in favour of the recipes'
-  `surface="sidebar"` axis. Both are off for `*.test.*` and `*.stories.tsx`. The scoping is
-  deliberate: `packages/ui` legitimately paints a `bg-foreground` backdrop, so the gate must
-  never reach it, and the plugin is loaded by a relative specifier from the nested config so it
-  stays invisible to `packages/sdk`'s guardrail test (which copies the ROOT config to a temp
-  dir). Extending the same gate to `wallow-auth` is open work — write app code as if it applied
-  there, but do not assume parity.
+  three custom rules from `tools/oxlint/wallow-lint-plugin.js`:
+  `wallow/no-sidebar-inversion` (bans the `bg-foreground`/`text-background` inversion hack in
+  favour of the recipes' `surface="sidebar"` axis), `wallow/no-tinted-text` (bans
+  `text-<token>/<alpha>` — muted copy is `text-muted-foreground`; a translucent _surface_ such as
+  the drawer scrim's `bg-foreground/40` stays legal), and `wallow/text-heading-variant`
+  (wallow-auth only: every `<Text as="h_">` must name its `variant`, an `h2` must be
+  `subheading` and carry no `weight`, and no file but `auth-layout.tsx` may open an `h1`). All
+  are off for `*.test.*` and `*.stories.tsx`. The scoping is deliberate: `packages/ui`
+  legitimately paints a `bg-foreground` backdrop, so the gate must never reach it, and the plugin
+  is loaded by a relative specifier from the nested configs so it stays invisible to
+  `packages/sdk`'s guardrail test (which copies the ROOT config to a temp dir). The two apps are
+  NOT identical — wallow-auth also forbids raw `<button>`, which wallow-web cannot because
+  `bff-demo` deliberately ships four un-catalogued ones. These rules replaced ~1,400 lines of
+  disk-sweeping guard specs (`catalog-adoption.test.ts`, both `typography.test.ts`,
+  `dashboard-chrome-tokens.test.ts`); do not reintroduce a regex sweep for something a rule can
+  say.
 - **A card heading is 20px (`text-xl`), catalog-wide.** That is `Text`'s `subheading` step,
   which already sat there, plus the four `packages/ui` "names the surface" title recipes moved
   onto it — `cardTitleRecipe`, `dialogTitleRecipe`, `alertDialogTitleRecipe` and
@@ -79,8 +87,8 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
   `popoverTitleRecipe` are transient chrome, not surface headings. All 16 `wallow-auth` screens
   compose `<Text as="h2" variant="subheading" color="onCard">` — no `weight` prop, the step
   carries `font-semibold` itself. `heading-scale.test.tsx` measures the computed font-size
-  across every screen in a real browser and `catalog-adoption.test.ts` sweeps the feature
-  directories off disk, so a new screen cannot skip it; in `packages/ui` the recipe-level pin is
+  across every screen in a real browser and `wallow/text-heading-variant` holds every file the
+  linter reaches, so a new screen cannot skip it; in `packages/ui` the recipe-level pin is
   a measured `HeadingScale` story per title-bearing component (`.storybook/heading-scale.tsx`),
   because only the `storybook` project there loads Tailwind. Assert the computed size, never the
   class string — `cn()` merges a caller's `className` over the recipe, so `text-xl` can be

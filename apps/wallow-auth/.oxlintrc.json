@@ -12,7 +12,7 @@
   ],
   "rules": {
     "wallow/no-sidebar-inversion": "error",
-    "wallow/no-tinted-text": "error",
+    "wallow/text-heading-variant": ["error", { "levels": { "h1": false, "h2": "subheading" } }],
     "react/forbid-elements": [
       "error",
       {
@@ -31,31 +31,35 @@
           },
           {
             "element": "code",
-            "message": "Raw <code> decides the type scale a second time. Render inline code through Text from @bc-solutions-coder/ui (<Text as=\"code\">) so the catalog owns the scale. Preformatted OUTPUT stays a raw <pre> — it is not copy."
+            "message": "Raw <code> decides the type scale a second time. Render inline code through Text from @bc-solutions-coder/ui (<Text as=\"code\">) so the catalog owns the scale."
           },
           {
             "element": "h1",
-            "message": "Raw <h1> decides the type scale a second time. Render headings through Text from @bc-solutions-coder/ui (<Text as=\"h1\" variant=\"title\">), or through PageHeader for a page title. The variant names a step on Text's scale — display, title, heading, subheading — not the element."
+            "message": "Raw <h1> decides the type scale a second time. Render headings through Text from @bc-solutions-coder/ui (<Text as=\"h1\" variant=\"heading\">) — and note AuthLayout already owns this app's only level-1 heading."
           },
           {
             "element": "h2",
-            "message": "Raw <h2> decides the type scale a second time. Render headings through Text from @bc-solutions-coder/ui (<Text as=\"h2\" variant=\"subheading\">), or through the Card and Section headings that already wrap it. Text DERIVES a much larger step from `as` when no variant is named."
+            "message": "Raw <h2> decides the type scale a second time. Render a card heading through Text from @bc-solutions-coder/ui (<Text as=\"h2\" variant=\"subheading\" color=\"onCard\">)."
           },
           {
             "element": "h3",
-            "message": "Raw <h3> decides the type scale a second time. Render headings through Text from @bc-solutions-coder/ui (<Text as=\"h3\" variant=\"subheading\">), or through the Card and Section headings that already wrap it."
+            "message": "Raw <h3> decides the type scale a second time. Render headings through Text from @bc-solutions-coder/ui (<Text as=\"h3\" variant=\"...\">)."
           },
           {
             "element": "h4",
-            "message": "Raw <h4> decides the type scale a second time. Render headings through Text from @bc-solutions-coder/ui (<Text as=\"h4\" variant=\"...\">), or through the Card and Section headings that already wrap it."
+            "message": "Raw <h4> decides the type scale a second time. Render headings through Text from @bc-solutions-coder/ui (<Text as=\"h4\" variant=\"...\">)."
           },
           {
             "element": "h5",
-            "message": "Raw <h5> decides the type scale a second time. Render headings through Text from @bc-solutions-coder/ui (<Text as=\"h5\">), or through the Card and Section headings that already wrap it."
+            "message": "Raw <h5> decides the type scale a second time. Render headings through Text from @bc-solutions-coder/ui (<Text as=\"h5\" variant=\"...\">)."
           },
           {
             "element": "h6",
-            "message": "Raw <h6> decides the type scale a second time. Render headings through Text from @bc-solutions-coder/ui (<Text as=\"h6\">), or through the Card and Section headings that already wrap it."
+            "message": "Raw <h6> decides the type scale a second time. Render headings through Text from @bc-solutions-coder/ui (<Text as=\"h6\" variant=\"...\">)."
+          },
+          {
+            "element": "button",
+            "message": "Raw <button> is a copy of the Button recipe that drifts on its own. Render controls through Button from @bc-solutions-coder/ui — it covers solid, outline, secondary, ghost and link treatments across four size steps, so a quiet control has a variant rather than a hand-rolled class string."
           }
         ]
       }
@@ -76,12 +80,18 @@
       }
     },
     {
+      "files": ["src/shared/components/auth-layout.tsx"],
+      "rules": {
+        "wallow/text-heading-variant": ["error", { "levels": { "h2": "subheading" } }]
+      }
+    },
+    {
       "files": ["**/*.test.*", "**/*.stories.tsx"],
       "rules": {
         "no-magic-numbers": "off",
         "react/forbid-elements": "off",
         "wallow/no-sidebar-inversion": "off",
-        "wallow/no-tinted-text": "off"
+        "wallow/text-heading-variant": "off"
       }
     }
   ]

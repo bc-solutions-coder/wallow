@@ -35,6 +35,21 @@ describe("AuthLayout", () => {
     expect(page.getByText(forkBranding.tagline).element()).toBeDefined();
   });
 
+  it("leaves its heading reachable by FocusOnNavigate and unreachable by Tab", async () => {
+    // The route-change focus seam. `FocusOnNavigate` moves focus to the page's
+    // `<h1>` after each client-side navigation so assistive tech announces the
+    // new screen, and a bare heading is not focusable — hence `tabindex="-1"`,
+    // which also keeps it out of the Tab order for sighted keyboard users.
+    // `Text` spreads its rest props onto the element, so both attributes have to
+    // survive on the rendered heading rather than on a wrapper.
+    await render(<AuthLayout />);
+
+    const heading = page.getByRole("heading", { level: 1 }).element() as HTMLElement;
+
+    expect(Object.hasOwn(heading.dataset, "focusTarget")).toBe(true);
+    expect(heading.getAttribute("tabindex")).toBe("-1");
+  });
+
   it("renders the page body it wraps", async () => {
     await render(
       <AuthLayout>

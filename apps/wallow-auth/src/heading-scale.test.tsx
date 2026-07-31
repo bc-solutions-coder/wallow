@@ -64,9 +64,12 @@ import { createAuthHarness } from "@shared/testing/harness";
  * could not fail.
  *
  * WHAT THIS FILE STILL CANNOT SAY. That no SEVENTEENTH screen drifted — a screen
- * this file forgot to mount is exactly what a render cannot see. That half is a
- * disk-derived source sweep in `catalog-adoption.test.ts`, which judges every
- * component on disk whether or not anyone remembered it.
+ * this file forgot to mount is exactly what a render cannot see. That half is
+ * `apps/wallow-auth/.oxlintrc.json`: `react/forbid-elements` bans the raw heading
+ * and `wallow/text-heading-variant` requires `variant="subheading"` on every
+ * `<Text as="h2">`, which judges every file the linter reaches whether or not
+ * anyone remembered it. (It replaced a 523-line disk sweep that judged the app
+ * once per `pnpm test` through a regex.)
  */
 
 /** The OIDC hand-off shape these screens are reached with in the app. */

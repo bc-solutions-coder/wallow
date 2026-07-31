@@ -1,4 +1,0 @@
-/* GENUINE-COMMENT */
-const opener = "/*";
-<p data-testid="comment-markers-in-strings-survives">Markers</p>
-const closer = "*/";

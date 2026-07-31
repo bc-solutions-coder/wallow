@@ -14,8 +14,9 @@ import { ConsentScreen } from "./ConsentScreen";
  * `<button>`s (approve/deny) whose class strings are a copy of the `Button`
  * recipe.
  *
- * WHY MEASURED. `catalog-adoption.test.ts` can prove the source names `Text` and
- * `Button` and names a variant. It cannot prove what the browser PAINTS: the
+ * WHY MEASURED. Lint can prove the source names `Text` and `Button` and names a
+ * variant — that is what `apps/wallow-auth/.oxlintrc.json`'s `react/forbid-elements`
+ * and `wallow/text-heading-variant` do. It cannot prove what the browser PAINTS: the
  * live class list is the `twMerge` of the catalog recipe with whatever
  * `className` the call site passes, so a caller utility can quietly win an axis
  * the recipe thought it owned. Every claim about a rendered box or colour is

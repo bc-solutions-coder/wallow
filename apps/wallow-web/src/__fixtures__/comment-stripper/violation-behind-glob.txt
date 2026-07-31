@@ -1,4 +1,0 @@
-// The dashboard proxies `/v1/**` to the API.
-<h1 className="text-foreground/60" data-testid="violation-behind-glob-survives">Hidden</h1>
-/* GENUINE-COMMENT */
-export const Probe = () => null;
