@@ -25,6 +25,7 @@ export default defineConfig({
         index: fileURLToPath(new URL("src/index.ts", import.meta.url)),
         render: fileURLToPath(new URL("src/render.tsx", import.meta.url)),
         "sdk-harness": fileURLToPath(new URL("src/sdk-harness.ts", import.meta.url)),
+        contrast: fileURLToPath(new URL("src/contrast.ts", import.meta.url)),
         "render-with-wallow": fileURLToPath(new URL("src/render-with-wallow.tsx", import.meta.url)),
       },
       formats: ["es"],

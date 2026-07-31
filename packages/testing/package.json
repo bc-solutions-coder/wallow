@@ -20,6 +20,10 @@
       "types": "./dist/sdk-harness.d.ts",
       "import": "./dist/sdk-harness.js"
     },
+    "./contrast": {
+      "types": "./dist/contrast.d.ts",
+      "import": "./dist/contrast.js"
+    },
     "./render-with-wallow": {
       "types": "./dist/render-with-wallow.d.ts",
       "import": "./dist/render-with-wallow.js"

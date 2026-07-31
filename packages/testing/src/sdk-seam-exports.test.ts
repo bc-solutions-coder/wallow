@@ -59,6 +59,29 @@ describe("@bc-solutions-coder/testing sdk test-seam entries", () => {
     expect(barrel).not.toContain("render-with-wallow");
   });
 
+  it("plumbs ./contrast the same way, and keeps it off the barrel too", () => {
+    // The measured-colour helpers (Wallow-8ytl). Browser-only for the same
+    // reason as ./render — they touch `document` and a canvas — so the barrel
+    // that every app's vitest.config.ts loads in plain Node must not reach them.
+    const exportsMap = readPackageJson().exports as Record<
+      string,
+      { types?: string; import?: string }
+    >;
+
+    expect(exportsMap["./contrast"]).toEqual({
+      types: "./dist/contrast.d.ts",
+      import: "./dist/contrast.js",
+    });
+    expect(readText("vite.config.ts")).toContain("src/contrast.ts");
+
+    const buildTsconfig = JSON.parse(stripLineComments(readText("tsconfig.build.json"))) as {
+      include?: string[];
+    };
+
+    expect(buildTsconfig.include).toContain("src/contrast.ts");
+    expect(readText("src/index.ts")).not.toContain("contrast");
+  });
+
   it("depends on the SDK it builds instances of", () => {
     const pkg = readPackageJson();
     const deps = pkg.dependencies as Record<string, string>;
