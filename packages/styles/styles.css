@@ -17,6 +17,23 @@
  * copy predates those keys never receives them from an upstream merge and the
  * theme emits no custom property for them. The fallback lands such a fork on a
  * colour its palette has always carried instead of on nothing at all.
+ *
+ * The sidebar-* family is deliberately named after its first consumer, not
+ * after what it now means: it is the theme's general inverted-surface family,
+ * and three of its four current consumers (PublicLayout's footer, LandingPage's
+ * StepsBand, LandingPage's outline-CTA hover — only the dashboard rail/drawer
+ * is an actual sidebar) are not sidebars. That mismatch was weighed and the
+ * name was kept, not renamed to something surface-neutral like inverse-*,
+ * because branding.ts's mergeClientBranding merges a per-client themeJson
+ * override over the fork's palette BY KEY NAME: a stored client override still
+ * spelled sidebar would stop applying the moment the fork's key became
+ * inverse, with no error and no build failure — a CSS var() fallback chain
+ * can prefer the fork's old name over its new one, but it cannot prefer a
+ * client's old-named override over the fork's new-named value, so no fallback
+ * can fix this. Renaming would also be a breaking change on two public
+ * surfaces (this branding.json key and @bc-solutions-coder/ui's Text
+ * color="onSidebar" prop) for a purely cosmetic gain. Do not reopen this; see
+ * Wallow-lrlm.6.6 for the full analysis.
  */
 @import "tailwindcss";
 
