@@ -7,8 +7,8 @@ import { getRouter } from "@app/router";
 import { Route } from "./index";
 
 /**
- * The dashboard inquiries list route: page root, prefetch loader, the inline
- * `CreateInquiryForm`, and router registration.
+ * The dashboard inquiries list route: page root, title, prefetch loader, the
+ * inline `CreateInquiryForm`, and router registration.
  *
  * The page mounts `InquiryList`, whose `useQuery` runs for real against the
  * harness transport — nothing in the path is stubbed.
@@ -37,6 +37,7 @@ describe("routes/dashboard/inquiries (route page)", () => {
     renderWithWallow(<Page />, { harness });
 
     await expect.element(page.getByTestId("dashboard-inquiries")).toBeInTheDocument();
+    await expect.element(page.getByTestId("inquiries-header-title")).toHaveTextContent("Inquiries");
   });
 
   // The create form mounts INLINE — list and create share this page, and there

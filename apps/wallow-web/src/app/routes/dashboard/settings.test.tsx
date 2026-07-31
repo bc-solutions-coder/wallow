@@ -8,8 +8,8 @@ import { routeHarness } from "@shared/testing/harness-routes";
 import { Route } from "./settings";
 
 /**
- * The dashboard settings route: page root, prefetch loader, the composed profile
- * and MFA sections, and router registration.
+ * The dashboard settings route: page root, title, prefetch loader, the composed
+ * profile and MFA sections, and router registration.
  *
  * `ProfileSection` and `MfaSettingsSection` run for real against the harness
  * transport, so they are driven by ANSWERING their two reads rather than by
@@ -58,6 +58,7 @@ describe("routes/dashboard/settings (route page)", () => {
     renderSettings();
 
     await expect.element(page.getByTestId("dashboard-settings")).toBeInTheDocument();
+    await expect.element(page.getByTestId("settings-header-title")).toHaveTextContent("Settings");
   });
 
   it("composes the profile section inside the dashboard-settings root", async () => {

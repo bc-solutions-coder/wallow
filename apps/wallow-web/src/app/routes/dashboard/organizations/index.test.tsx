@@ -7,8 +7,8 @@ import { getRouter } from "@app/router";
 import { Route } from "./index";
 
 /**
- * The dashboard organizations list route: page root, prefetch loader, the inline
- * `CreateOrganizationForm`, and router registration.
+ * The dashboard organizations list route: page root, title, prefetch loader, the
+ * inline `CreateOrganizationForm`, and router registration.
  *
  * The page mounts `OrganizationList`, whose `useQuery` runs for real against the
  * harness transport — nothing in the path is stubbed.
@@ -37,6 +37,13 @@ describe("routes/dashboard/organizations (route page)", () => {
     renderWithWallow(<Page />, { harness });
 
     await expect.element(page.getByTestId("dashboard-organizations")).toBeInTheDocument();
+    await expect
+      .element(page.getByTestId("organizations-header-title"))
+      .toHaveTextContent("Organizations");
+    // The create form mounts inline below the list, so there is no page-level
+    // CTA — and `PageHeader` omits the actions slot rather than leaving an empty
+    // flex child in the header row.
+    expect(page.getByTestId("organizations-header-actions").elements()).toHaveLength(0);
   });
 
   // The create form mounts INLINE on this index page; there is no

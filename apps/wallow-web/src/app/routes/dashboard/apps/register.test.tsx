@@ -7,8 +7,8 @@ import { getRouter } from "@app/router";
 import { Route } from "./register";
 
 /**
- * The register-app route: page root, the mounted `RegisterAppForm`, and router
- * registration.
+ * The register-app route: page root, title, the mounted `RegisterAppForm`, and
+ * router registration.
  */
 
 /** The transport backing each render, rebuilt per test. */
@@ -28,6 +28,9 @@ describe("routes/dashboard/apps/register (route page)", () => {
     renderWithWallow(<Page />, { harness });
 
     await expect.element(page.getByTestId("dashboard-apps-register")).toBeInTheDocument();
+    await expect
+      .element(page.getByTestId("apps-register-header-title"))
+      .toHaveTextContent("Register New App");
   });
 
   it("mounts the RegisterAppForm (app-register-form)", async () => {

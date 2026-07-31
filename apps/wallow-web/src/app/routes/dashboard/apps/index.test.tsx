@@ -7,8 +7,8 @@ import { getRouter } from "@app/router";
 import { Route } from "./index";
 
 /**
- * The dashboard apps list route: page root, prefetch loader, register link, and
- * router registration.
+ * The dashboard apps list route: page root, title, prefetch loader, register
+ * link, and router registration.
  *
  * The page mounts `AppList`, whose `useQuery` runs for real against the harness
  * transport — nothing in the path is stubbed.
@@ -37,6 +37,9 @@ describe("routes/dashboard/apps (route page)", () => {
     renderWithWallow(<Page />, { harness });
 
     await expect.element(page.getByTestId("dashboard-apps")).toBeInTheDocument();
+    // `PageHeader` DERIVES the title's testid from the header's: `apps-header`
+    // -> `apps-header-title`.
+    await expect.element(page.getByTestId("apps-header-title")).toHaveTextContent("My Apps");
   });
 
   it("links to the register route (apps-register-link)", async () => {
@@ -46,7 +49,7 @@ describe("routes/dashboard/apps (route page)", () => {
     renderWithWallow(<Page />, { harness });
 
     const link = page.getByTestId("apps-register-link");
-    await expect.element(link).toBeInTheDocument();
+    await expect.element(link).toHaveTextContent("Register New App");
     await expect.element(link).toHaveAttribute("href", "/dashboard/apps/register");
   });
 });
