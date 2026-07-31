@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
+import { stripComments } from "@shared/testing/strip-comments";
 import { describe, expect, it } from "vitest";
 
 /**
@@ -128,13 +129,57 @@ const SIDEBAR_INVERSION: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Strip block and line comments. Crude by design — it also truncates a `//`
- * inside a string literal, which no assertion below depends on.
+ * The file with its comments removed and nothing else — the shared scan in
+ * `@shared/testing/strip-comments`, which `src/app/typography.test.ts` reads
+ * through too. It replaced a two-pass regex that also deleted a `//` inside a
+ * string and opened a block comment on a `/*` inside a line comment; the
+ * `describe` below is that scan's contract.
  */
 function code(relativePath: string): string {
-  return read(relativePath)
-    .replaceAll(/\/\*[\s\S]*?\*\//gu, "")
-    .replaceAll(/\/\/[^\n]*/gu, "");
+  return stripComments(read(relativePath));
+}
+
+/**
+ * The stripper's adversarial inputs (Wallow-lrlm.14), one file per construct
+ * that LOOKS like a comment delimiter without being one. Each pairs a genuine
+ * comment (`GENUINE-COMMENT`, which must be removed) with real source
+ * (`data-testid="<name>-survives"`, which must not be). See the directory's
+ * README for why they are `.txt`.
+ */
+const FIXTURE_DIR = "__fixtures__/comment-stripper/";
+
+/** Every stripper fixture on disk, by name. */
+function fixtureNames(): string[] {
+  return readdirSync(fileURLToPath(new URL(FIXTURE_DIR, srcDir)), { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".txt"))
+    .map((entry) => entry.name.replace(/\.txt$/u, ""))
+    .toSorted();
+}
+
+const STRIPPER_FIXTURES: readonly string[] = fixtureNames();
+
+/**
+ * The fixtures on disk when this bead was written. As with `KNOWN_COMPONENTS`,
+ * this list exists only so deleting a fixture reads as a red spec rather than as
+ * a guard that quietly stopped covering the input that used to break it.
+ */
+const KNOWN_STRIPPER_FIXTURES: readonly string[] = [
+  "apostrophe-in-comment",
+  "block-open-in-regex-literal",
+  "code-in-block-comment",
+  "comment-markers-in-strings",
+  "glob-in-line-comment",
+  "slashes-in-regex-literal",
+  "unterminated-block-comment",
+  "url-in-jsx-text",
+  "url-in-string",
+  "url-in-template-literal",
+  "violation-behind-glob",
+];
+
+/** A fixture read through the very stripper every assertion below reads through. */
+function strippedFixture(name: string): string {
+  return code(`${FIXTURE_DIR}${name}.txt`);
 }
 
 /** A JSX opener for `tag`, however the element wraps across lines. */
@@ -170,6 +215,67 @@ function importsFromUi(symbol: string): RegExp {
     "u",
   );
 }
+
+/**
+ * The guard on the guard.
+ *
+ * Every assertion in this file judges `code(file)`, never the file. So the
+ * stripper decides what the sweep is allowed to see, and a stripper that deletes
+ * more than a comment turns the whole sweep green over source it never read —
+ * indistinguishable, from the outside, from an app that is genuinely clean. That
+ * is the failure this epic has paid for repeatedly, and it is why the stripper
+ * gets a contract of its own rather than a comment promising it is "crude by
+ * design".
+ *
+ * The contract is one sentence: **comments are removed and nothing else is.**
+ * Over-deletion is the dangerous direction — it hides violations. Under-deletion
+ * only produces a noisy red, which fixes itself.
+ */
+describe("the comment stripper this sweep reads through", () => {
+  it("reads every fixture on disk", () => {
+    expect(STRIPPER_FIXTURES).toEqual(expect.arrayContaining([...KNOWN_STRIPPER_FIXTURES]));
+    expect(STRIPPER_FIXTURES.length).toBeGreaterThanOrEqual(KNOWN_STRIPPER_FIXTURES.length);
+  });
+
+  it.each(STRIPPER_FIXTURES)("keeps the real source beside %s", (fixture) => {
+    const stripped: string = strippedFixture(fixture);
+
+    expect(stripped, `${fixture}: this construct is not a comment, so nothing here is`).toContain(
+      `data-testid="${fixture}-survives"`,
+    );
+  });
+
+  it.each(STRIPPER_FIXTURES)("still removes the genuine comment in %s", (fixture) => {
+    // The other half of the contract: a stripper that stripped nothing would
+    // satisfy every assertion above without stripping anything.
+    expect(strippedFixture(fixture), `${fixture}: a real comment must still go`).not.toContain(
+      "GENUINE-COMMENT",
+    );
+  });
+
+  /*
+   * The end-to-end half. The two above pin the stripper; these two pin the SWEEP
+   * that reads through it — a raw `<h1 className="text-foreground/60">` sitting
+   * behind a line comment that names a route glob is a violation of both
+   * contracts this file states, and it has to be caught as one.
+   */
+  it("still catches a text element the glob only appears to hide", () => {
+    const source: string = strippedFixture("violation-behind-glob");
+    const found: string[] = TEXT_ELEMENTS.filter((tag) => opener(tag).test(source));
+
+    expect(found, "the element sweep must judge what the comment appeared to hide").toContain("h1");
+  });
+
+  it("still catches an alpha-modified colour the glob only appears to hide", () => {
+    const found: string[] = [
+      ...new Set(strippedFixture("violation-behind-glob").match(ALPHA_COLOR)),
+    ];
+
+    expect(found, "the colour sweep must judge what the comment appeared to hide").toEqual([
+      "text-foreground/60",
+    ]);
+  });
+});
 
 describe("wallow-web renders its copy through the catalog's Text", () => {
   it("sweeps every component on disk", () => {

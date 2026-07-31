@@ -1,0 +1,2 @@
+/* GENUINE-COMMENT */
+const flatten = (path: string): string => path.replace(/\//gu, "-"); const slash = <span data-testid="slashes-in-regex-literal-survives">/</span>;

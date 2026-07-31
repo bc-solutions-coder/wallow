@@ -1,0 +1,4 @@
+// The BFF serves `/v1/**` through the passthrough proxy.
+<h1 data-testid="glob-in-line-comment-survives">Almost there</h1>
+/* GENUINE-COMMENT */
+const kept = 1;

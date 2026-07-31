@@ -1,0 +1,2 @@
+/* GENUINE-COMMENT */
+<p>Read https://example.com/terms first.</p> <span data-testid="url-in-jsx-text-survives">ok</span>
