@@ -109,7 +109,7 @@
   ],
   "overrides": [
     {
-      "files": ["tools/**/*.{ts,js}"],
+      "files": ["tools/**/*.{ts,js}", "packages/lint/src/**/*.ts"],
       "rules": {
         "no-magic-numbers": ["warn", { "ignore": [0, 1] }]
       }
