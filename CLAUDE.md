@@ -82,11 +82,23 @@ pnpm --filter @bc-solutions-coder/sdk build   # build the SDK FIRST (apps typech
 pnpm build                   # pnpm -r build   (recursive across workspace)
 pnpm test                    # pnpm -r test    (vitest per package)
 pnpm typecheck               # pnpm -r typecheck
-pnpm lint                    # oxlint apps packages --deny-warnings
+pnpm lint                    # oxlint over SOURCE only (test/story files excluded)
+pnpm lint:tests              # scripts/lint-tests.sh — the excluded files, + the vitest plugin
 pnpm format                  # oxfmt --write ...   (format:check verifies)
 pnpm check:exports           # publint + @arethetypeswrong/cli over the built packages (needs dist/)
-pnpm check                   # format:check + lint + typecheck + test + build + check:exports — the one-command quality gate
+pnpm check                   # format:check + lint + lint:tests + typecheck + test + build + check:exports — the one-command quality gate
 ```
+
+**Linting runs as two passes over one partition.** `pnpm lint` lints source, excluding
+`**/*.test.*` and `**/*.stories.tsx`; `pnpm lint:tests` lints exactly those excluded files with
+oxlint's **vitest plugin** additionally enabled. Together they cover every file exactly once, and
+`pnpm check` (and CI) runs both — running only `pnpm lint` leaves every spec unlinted. The test
+pass has to enumerate its file list rather than take a glob, because oxlint does not expand globs
+in path arguments and `ignorePatterns` has no `!` negation: get it wrong and oxlint lints **zero**
+files and exits 0, which is why `scripts/lint-tests.sh` prints its count and fails on zero. It
+deliberately passes no `-c`, which would disable nested-config lookup and drop `packages/ui`'s and
+`packages/forms`' test relaxations. Rule severities for both passes live in `.oxlintrc.json`; the
+vitest rules this repo opts out of sit in its `**/*.test.*` override.
 
 - **`packages/sdk`** — server-side **BFF** tunnel so the browser never holds a token, with
   four entries: browser (`.`), Node BFF (`./server`), pure reverse proxy

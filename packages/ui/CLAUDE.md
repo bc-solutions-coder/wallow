@@ -186,7 +186,10 @@ of null (reading 'useRef')`. `src/core/browser-deps.test.ts` checks that every e
   `render: function ControlledX()` must stay a named component for hooks and DevTools), and
   `unicorn/prefer-dom-node-dataset` (`getAttribute("data-*")` is the documented way to assert
   component state here). `react/jsx-max-depth` is off for stories/specs only; production
-  source still honours it.
+  source still honours it. Those five reach a spec only because the repo's test lint pass
+  (`pnpm lint:tests`, `scripts/lint-tests.sh`) passes **no** `-c` — an explicit config flag
+  disables oxlint's nested-config lookup, this file would stop being read, and all five would
+  come back as errors.
 
 ## Scripts
 

@@ -34,6 +34,12 @@
   the tree is the apps' `__root*.test.tsx` SSR-isolation specs, which use `vi.mock(..., importOriginal)` to
   spread the real module and override *only* `FocusOnNavigate`/`DocumentStyles` as render-nothing sentinels
   (`renderToString` has no router context) — a partial override for SSR isolation, not a replacement.
+- **Specs are linted by `pnpm lint:tests`, not `pnpm lint`.** `pnpm lint` covers source only; the test
+  and story files it excludes are linted by a second pass (`scripts/lint-tests.sh`) that additionally
+  enables oxlint's **vitest plugin** — `no-focused-tests`, `no-disabled-tests`, `valid-title`,
+  `no-standalone-expect` and the rest of its correctness set. `pnpm check` and CI run both passes; if
+  you lint by hand after touching a spec, run `pnpm lint:tests`. Playwright `e2e/**/*.spec.ts` files are
+  not `*.test.*`, so they stay on the **source** side and get no vitest rules.
 - **E2E tests are per-app Playwright suites** — `apps/wallow-auth/e2e/` and `apps/wallow-web/e2e/`. Run them
   with `pnpm --filter ./apps/wallow-auth test:e2e` (or `./apps/wallow-web`), or `./scripts/e2e.sh` for the
   full backend-dependent runner. Never skip E2E verification when modifying E2E test code.
