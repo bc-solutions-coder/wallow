@@ -15,134 +15,39 @@ import { accountGetExternalProvidersQueryKey } from "../api";
 import { ExternalProviders } from "./ExternalProviders";
 
 /**
- * Component spec for the Login screen's EXTERNAL PROVIDER list
- * (Wallow-vec7.3.14 / 2.8d).
+ * The login screen's external-provider list.
  *
- * This is the fourth bead of a five-bead chain over one screen. `.3.11` fixed the
- * structure and this spec honours it: the provider list is NOT a login panel (it
- * implements no `LoginPanelProps`, owns no mutation and reports nothing up), it
- * is a SECTION the shell renders next to `TabPanel`, gated on `signedIn` exactly
- * as the oracle gates it inside the `else` of `if (_signedIn)`.
+ * Runs the real SDK over a faked fetch (sdk-harness), so assertions read the
+ * recorded request, not a spy.
  *
- * Testids: the oracle tags NOTHING here — the scout's inventory records the gap
- * and mandates `{page}-{element}` names, so
- * these are INVENTED per the scout's mandate:
- *
- *     login-external-providers      the container (oracle: the whole `@if` block)
- *     login-external-{provider}     one per challenge link (kebab-cased name)
- *
- * ── TEST SEAM: THE REAL SDK OVER A FAKE TRANSPORT (Wallow-pu6a.5.1) ───────────
- *
- * `@bc-solutions-coder/testing/sdk-harness` fakes `fetch` and NOTHING else, so
- * the screen's whole pipeline — the generated `accountGetExternalProvidersOptions()`
- * -> the request-scoped SDK -> the generated operation -> the CSRF interceptor ->
- * response parsing -> the React Query cache — runs inside these tests. That
- * replaces the two module mocks this file used to carry (a hand-written app-level
- * facade and a `queryFn`-swapped query factory), both now forbidden by
- * `src/sdk-test-seam.test.ts`. Two consequences worth stating:
- *
- *   • The query KEY is no longer something a mock could get wrong. This screen
- *     and `RegisterForm` once keyed the SAME endpoint two different ways
- *     (`['external-providers']` vs `['auth','external-providers']`); they share
- *     one cache entry now because they share one factory, and the factory here
- *     is the real one.
- *   • "Was the endpoint called" is read off the RECORDED REQUEST
- *     (`harness.calls`), not off a spy — so it also pins the URL and method the
- *     screen really puts on the wire.
- *
- * `renderWithWallow` supplies the router context the screen reads its SDK off,
- * and `createAuthHarness()` pins the harness origin to this app's root-mounted
- * API surface (Wallow-pu6a.5.5). Because that surface is rooted at the origin, the
- * recorded `call.path` is the bare endpoint path, with no `/api` prefix.
- *
- * ── THE ORIGIN DIVERGENCE (inherited from Wallow-vec7.3.4/.3.6/.3.11) ─────────
- *
- * The oracle builds `{ApiBaseUrl}/v1/identity/auth/external-login?…`. That prepend
- * is NOT ported. It matters MORE here than anywhere else in the chain: this link
- * starts the OIDC challenge, and the whole external-login handshake rides
- * SameSite cookies that a cross-origin top-level GET would drop. This app's API
- * surface mounts `/v1/**` and `/connect/**` at the ROOT (`src/shared/lib/api-passthrough.server.ts`),
- * so the same-origin path IS the endpoint. `pointsAtThisOrigin` pins it in both
- * directions — the path must be right AND the API origin must not appear.
- *
- * ── NO `isSafeReturnUrl` GUARD (deferred — and this is the load-bearing call) ──
- *
- * bd memory `guard-where-the-client-picks-the-destination-defer`: guard where the
- * CLIENT picks the destination, defer where the SERVER does. Here the client
- * picks a same-origin CONSTANT path (`/v1/identity/auth/external-login`) and
- * `returnUrl` is inert query CARGO. `AccountController.ExternalLogin`
- * (api/.../Controllers/AccountController.cs:242-265) re-validates it FAIL-CLOSED
- * before doing anything at all:
- *
- *     if (string.IsNullOrEmpty(returnUrl) || !await redirectUriValidator.IsAllowedAsync(returnUrl))
- *         return Redirect($"{authUrl}/error?reason=invalid_redirect_uri");
- *
- * and `ExternalLoginCallback` (:274) validates it a second time. The open-redirect
- * decision is the API's, made server-side, against the OpenIddict allow-list.
- *
- * Wiring `isSafeReturnUrl` in here would not harden anything — it would BREAK
- * everything. `IsAllowedAsync` (OpenIddictRedirectUriValidator.cs:24) accepts ONLY
- * `Uri.TryCreate(…, UriKind.Absolute, …)` values; `isSafeReturnUrl`
- * (packages/sdk/src/auth-oidc.ts:60) accepts ONLY `startsWith('/') &&
- * !startsWith('//')`. The accept-sets are provably DISJOINT, so the guard would
- * refuse every value the server can actually honour. That is not a hypothetical:
- * `.3.6` shipped exactly that mistake on the MFA hand-off and dead-ended 100% of
- * external-login users at `/error` until `.3.17` fixed it.
- *
- * So this spec pins the deferral from BOTH poles, because a guard tested only
- * against attacks cannot tell "correct" from "refuses everything":
- *
- *   REAL-TRAFFIC POLE  `keepsAnAbsoluteReturnUrl` — the ABSOLUTE, allow-listed
- *     shape must still produce a working link. This is the .3.17 regression test.
- *   DEFERRAL POLE      `neverConsultsTheRelativeOnlyGuard` — the guard must not be
- *     consulted at all; if a later edit wires it in, this fails before it ships.
- *
- * The real `isSafeReturnUrl` is IMPORTED here rather than mirrored: it is a pure
- * function, so the harness leaves it running as the app runs it, and the deferral
- * pole is now stated against the genuine verdict instead of a local re-write of
- * the rule that could drift from it.
- *
- * What a deferred guard DOES owe is INJECTION, and that is pinned too
- * (`encodesTheReturnUrlAsASingleQueryValue`): ASP.NET binds a duplicated
- * `[FromQuery]` value as `"a,b"`, so unencoded cargo carrying `&provider=` could
- * change which identity provider the user is challenged against.
- *
- * ── NAVIGATION SEAM (Wallow-xzha.3.1) ─────────────────────────────────────────
- *
- * Under real Chromium, `globalThis.location` is `[Unforgeable]`, so the old
- * jsdom `vi.stubGlobal("location", …)` hack cannot shadow it. The component's
- * `ReturnUrl ?? currentUrl` fallback reads `globalThis.location.href`
- * (ExternalProviders.tsx:187); the two fallback tests therefore assert against
- * the LIVE `globalThis.location.href` the runner already sits at — the same value
- * the component reads — which pins identical intent without touching location.
+ * The challenge link must NOT consult `isSafeReturnUrl`: the server re-validates
+ * against an allow-list of ABSOLUTE urls that the relative-only guard rejects,
+ * so wiring it in refuses real traffic rather than hardening anything.
  */
 
-/**
- * The returnUrl `/connect/authorize` sends a DIRECT sign-in (relative by
- * construction: `AuthorizationController.cs:53` + `Url.IsLocalUrl` at :62).
- */
+/** The returnUrl a DIRECT sign-in carries: relative by construction. */
 const RETURN_URL = "/connect/authorize?client_id=web&scope=openid";
 
 /**
  * The returnUrl the EXTERNAL-LOGIN path really carries: ABSOLUTE and
- * origin-allow-listed, the only shape `IsAllowedAsync` can accept. `isSafeReturnUrl`
- * returns FALSE for this — which is precisely why it must not be consulted.
+ * origin-allow-listed, the only shape the server can accept. `isSafeReturnUrl`
+ * returns FALSE for it — which is precisely why it must not be consulted.
  */
 const ABSOLUTE_RETURN_URL = "https://app.wallow.test/connect/authorize?client_id=web";
 
-/** The endpoint the oracle's `GetExternalLoginUrl` targets, sans `ApiBaseUrl`. */
+/** The challenge endpoint, same-origin — no API origin prepended. */
 const EXTERNAL_LOGIN_PATH = "/v1/identity/auth/external-login";
 
-/** The origin the oracle prepends and this port does not. */
+/** An API origin the challenge link must never name. */
 const API_ORIGIN = "localhost:5001";
 
-/** The oracle's `GetExternalProvidersAsync` body: `Ok(List<string>)` of display names. */
+/** The endpoint's body: a list of provider display names. */
 const PROVIDERS = ["Google", "Microsoft"];
 
-/** `AccountController.GetExternalProviders` — where the provider list comes from. */
+/** Where the provider list comes from. */
 const PROVIDERS_ENDPOINT = "/v1/identity/auth/external-providers";
 
-/** `AccountController.Login` — reached only by the route-level tests below. */
+/** Reached only by the route-level tests below. */
 const LOGIN_ENDPOINT = "/v1/identity/auth/login";
 
 const NOT_FOUND_STATUS = 404;
@@ -167,14 +72,10 @@ function renderWithClient(ui: ReactElement, queryClient: QueryClient = createTes
 }
 
 /**
- * The query key `ExternalProviders` fetches under, asked of the very factory the
- * screen's `accountGetExternalProvidersOptions()` builds its key from.
- *
- * Spelling it as a literal is what this file used to do, and it is a trap worth
- * naming: the generated key carries the client's `baseUrl`, so it is not
- * knowable without the harness — and a literal that has drifted makes
- * `getQueryState` return `undefined` rather than fail, which quietly turns
- * {@link settleProviders} into a no-op wait.
+ * The query key the list fetches under, asked of the generating factory rather
+ * than spelled as a literal: the key carries the client's `baseUrl`, so a
+ * drifted literal makes `getQueryState` return `undefined` rather than fail,
+ * quietly turning {@link settleProviders} into a no-op wait.
  */
 function providersQueryKey() {
   return accountGetExternalProvidersQueryKey({ client: harness.client });
@@ -186,17 +87,10 @@ function providerCalls() {
 }
 
 /**
- * Wait until the provider query has actually SETTLED.
- *
- * Every "renders nothing" test below needs this, and the obvious alternative is a
- * trap that this spec fell into once already: waiting for the REQUEST to reach
- * the transport resolves the instant the query function is invoked — on mount —
- * which is BEFORE the response is parsed and the component re-renders. The DOM
- * assertion then runs against a still-pending render, so "nothing is on screen"
- * is true of every possible implementation and the test pins nothing. A mutant
- * that half-trusted a malformed provider list survived precisely that hole.
- * Waiting on the query's own state is the only honest signal that the narrowing
- * has had its chance to run.
+ * Wait until the provider query has actually SETTLED. Every "renders nothing"
+ * test needs this: waiting on the REQUEST instead resolves the instant the query
+ * function is invoked, BEFORE the response is parsed, so the DOM assertion runs
+ * against a still-pending render and is true of every implementation.
  */
 async function settleProviders(client: QueryClient): Promise<void> {
   await vi.waitFor(() => {
@@ -205,10 +99,9 @@ async function settleProviders(client: QueryClient): Promise<void> {
 }
 
 /**
- * `"returnUrl" in props` rather than `??`: the no-returnUrl branch (the oracle's
- * `Navigation.Uri` fallback) and the `""` branch are both under test, and a `??`
- * default would silently substitute for an explicit `undefined` — bd memory
- * `red-phase-render-helpers-must-distinguish-explicit-undefined`.
+ * `"returnUrl" in props` rather than `??`: the no-returnUrl branch and the `""`
+ * branch are both under test, and a `??` default would silently substitute for
+ * an explicit `undefined`.
  */
 function renderProviders(props: { returnUrl?: string } = {}): QueryClient {
   const returnUrl: string | undefined = "returnUrl" in props ? props.returnUrl : RETURN_URL;
@@ -250,17 +143,14 @@ beforeEach(() => {
       return providersReply();
     }
 
-    // The shell's password panel reaches this when the route-level tests below
-    // render the whole screen. Owned by `.3.11`; answered here only to host it.
-    // No signInTicket and no returnUrl is the shell's `signed-in` disposition
-    // (`auth-result.ts:285`) — the one state that retires the provider list.
+    // No signInTicket and no returnUrl is the shell's `signed-in` disposition —
+    // the one state that retires the provider list.
     if (call.path === LOGIN_ENDPOINT) {
       return Response.json({ succeeded: true });
     }
 
     // The route-level tests carry `client_id=web`, so `/login` also asks for that
-    // client's branding overlay. A bare 404 is the API's "no branding configured"
-    // and leaves the fork's chrome in place — nothing this file looks at.
+    // client's branding overlay. A bare 404 is "no branding configured".
     return new Response(null, { status: NOT_FOUND_STATUS });
   });
 });
@@ -276,10 +166,8 @@ describe("ExternalProviders — the list", () => {
   it("announces each challenge link as a link, not a button", async () => {
     // These carry the catalog Button's recipe through `render={<a href/>}`, and
     // Base UI stamps `role="button"` on every non-native element it substitutes:
-    // a challenge link would be dropped from a screen reader's links list while
-    // its href still offered open-in-new-tab (WCAG 2.2 SC 4.1.2). The catalog
-    // supplies the link role itself now (Wallow-lrlm.12); this call site used to
-    // pass `role="link"` by hand, with nothing asserting it.
+    // a challenge link would drop out of a screen reader's links list while its
+    // href still offered open-in-new-tab (WCAG 2.2 SC 4.1.2).
     renderProviders();
 
     const google: HTMLElement = await providerLink("login-external-google");
@@ -307,8 +195,8 @@ describe("ExternalProviders — the list", () => {
   });
 
   it("kebab-cases a multi-word provider name into its testid", async () => {
-    // `GetExternalProviders` returns `s.DisplayName ?? s.Name` — display names are
-    // prose ("Microsoft Entra ID"), so the testid cannot be the raw name.
+    // Display names are prose ("Microsoft Entra ID"), so the testid cannot be
+    // the raw name.
     respondWithProviders(["Microsoft Entra ID"]);
     renderProviders();
 
@@ -321,15 +209,13 @@ describe("ExternalProviders — the list", () => {
     renderProviders();
 
     await expect.element(page.getByTestId("login-external-google")).toBeInTheDocument();
-    // Read off the wire, so this also pins WHICH request the screen makes: one
-    // GET of the external-providers endpoint, not a re-fetch storm.
     expect(providerCalls()).toHaveLength(1);
     expect(providerCalls()[0]?.method).toBe("GET");
   });
 
   it("renders nothing at all when no providers are configured", async () => {
-    // The oracle's `@if (_externalProviders.Count > 0)` — a bare "Or continue
-    // with" separator over an empty grid is worse than no section.
+    // A bare "Or continue with" separator over an empty grid is worse than no
+    // section at all.
     respondWithProviders([]);
     const client: QueryClient = renderProviders();
 
@@ -339,10 +225,8 @@ describe("ExternalProviders — the list", () => {
 
   it("renders nothing while the provider list is still in flight", async () => {
     // This one must NOT use `settleProviders` — the response never arrives, which
-    // is the whole point. It pins that the section waits for real data rather than
-    // flashing an empty "Or continue with" separator on first paint. Its assertion
-    // is deliberately paired with the query being genuinely PENDING, so it cannot
-    // silently become a second copy of the "no providers" test.
+    // is the whole point. The assertion is paired with the query being genuinely
+    // PENDING so it cannot silently become a copy of the "no providers" test.
     providersReply = () => new Promise<Response>(() => {});
     const client: QueryClient = renderProviders();
 
@@ -354,12 +238,8 @@ describe("ExternalProviders — the list", () => {
   });
 
   it("renders nothing, and does not throw, when the provider call fails", async () => {
-    // The oracle awaits this in `OnInitializedAsync` with no try/catch, so a
-    // failure takes the whole page down. Not ported: password sign-in is still
-    // perfectly usable without the social buttons, so this degrades to the
-    // Count == 0 rendering rather than destroying the screen around it. The
-    // failure is a genuine TRANSPORT fault now — the harness rejects `fetch`
-    // exactly as an offline browser does.
+    // Password sign-in is still usable without the social buttons, so a fetch
+    // failure degrades to the empty rendering rather than taking the screen down.
     providersReply = async () => await Promise.reject(new TypeError("Failed to fetch"));
     const client: QueryClient = renderProviders();
 
@@ -368,9 +248,8 @@ describe("ExternalProviders — the list", () => {
   });
 
   it("renders nothing when the body is not a list at all", async () => {
-    // `getExternalProviders` is typed `Promise<unknown>` — the screen owns the
-    // narrowing at its boundary (bd memory `untyped-sdk-response-fail-closed-
-    // pattern-wallow-auth`). No cast, structural check, fail closed.
+    // `getExternalProviders` is typed `Promise<unknown>`, so the screen owns the
+    // narrowing at its boundary: no cast, structural check, fail closed.
     respondWithProviders({ providers: PROVIDERS });
     const client: QueryClient = renderProviders();
 
@@ -379,9 +258,8 @@ describe("ExternalProviders — the list", () => {
   });
 
   it("refuses a list that is not entirely non-empty strings", async () => {
-    // Fail-closed on the WHOLE body rather than filtering the good entries out of
-    // a bad one: a list this shape means the endpoint is not what we think it is,
-    // and half-trusting it would put a link built from `String(null)` on screen.
+    // Fail-closed on the WHOLE body rather than filtering the good entries out
+    // of a bad one: half-trusting it puts a `String(null)` link on screen.
     respondWithProviders(["Google", null, ""]);
     const client: QueryClient = renderProviders();
 
@@ -392,9 +270,9 @@ describe("ExternalProviders — the list", () => {
 
 describe("ExternalProviders — the challenge URL", () => {
   it("points at this origin's external-login endpoint, never the API origin", async () => {
-    // BOTH directions, per the .3.4/.3.11 origin pin: the path must be right AND
-    // the oracle's `ApiBaseUrl` prepend must be absent. A cross-origin top-level
-    // GET here drops the SameSite cookies the whole handshake rides on.
+    // BOTH directions: the path must be right AND no API origin may be
+    // prepended. A cross-origin top-level GET drops the SameSite cookies the
+    // whole handshake rides on.
     renderProviders();
 
     const link: HTMLElement = await providerLink("login-external-google");
@@ -419,26 +297,19 @@ describe("ExternalProviders — the challenge URL", () => {
   });
 
   it("keeps an absolute, allow-listed returnUrl instead of refusing it", async () => {
-    // THE REAL-TRAFFIC POLE, and the `.3.17` regression test. `IsAllowedAsync`
-    // accepts ONLY absolute URLs, so this is the shape the server can actually
-    // honour. If a future edit wires `isSafeReturnUrl` in here, this link stops
-    // existing (or loses its cargo) and 100% of external sign-in dies — an outage
-    // wearing a security feature's clothes.
+    // THE REAL-TRAFFIC POLE. The server accepts ONLY absolute URLs, so this is
+    // the shape it can actually honour; wiring `isSafeReturnUrl` in here would
+    // strip the cargo and kill external sign-in outright.
     renderProviders({ returnUrl: ABSOLUTE_RETURN_URL });
 
     expect(returnUrlParamOf(await providerLink("login-external-google"))).toBe(ABSOLUTE_RETURN_URL);
   });
 
   it("never consults the relative-only returnUrl guard", async () => {
-    // The DEFERRAL POLE. The destination is a same-origin constant path and the
-    // server re-validates fail-closed (AccountController.cs:257), so the guard has
-    // no business here — and its accept-set is disjoint from what arrives.
-    //
-    // The guard is the REAL pure function now, not a spy, so "never consulted" is
-    // observed at its EFFECT rather than at a call count: the genuine verdict on
-    // this value is FALSE (asserted first, so the test cannot pass on a value the
-    // guard would have waved through), and the link is still built with the value
-    // intact. No implementation that consulted the guard can produce that href.
+    // The DEFERRAL POLE. `isSafeReturnUrl` is the real pure function, not a spy,
+    // so "never consulted" is observed at its EFFECT: its genuine verdict here is
+    // FALSE (asserted first, so the test cannot pass on a value it would have
+    // waved through) and the link is still built with the value intact.
     expect(isSafeReturnUrl(ABSOLUTE_RETURN_URL)).toBe(false);
     renderProviders({ returnUrl: ABSOLUTE_RETURN_URL });
 
@@ -449,9 +320,9 @@ describe("ExternalProviders — the challenge URL", () => {
   });
 
   it("encodes the returnUrl as a single query value", async () => {
-    // The injection guard a DEFERRED open-redirect guard still owes. ASP.NET binds
-    // a duplicated `[FromQuery]` as "a,b", so raw cargo carrying `&provider=` could
-    // silently change which identity provider the user is challenged against.
+    // What a DEFERRED guard still owes. ASP.NET binds a duplicated `[FromQuery]`
+    // as "a,b", so raw cargo carrying `&provider=` could silently change which
+    // identity provider the user is challenged against.
     const hostile = "/connect/authorize?a=1&provider=evil-idp&returnUrl=https://evil.example.com";
     renderProviders({ returnUrl: hostile });
 
@@ -462,8 +333,7 @@ describe("ExternalProviders — the challenge URL", () => {
   });
 
   it("encodes the provider name as a single query value", async () => {
-    // The oracle escapes only the returnUrl (`GetExternalLoginUrl` L315-316). The
-    // provider name is escaped too: it is API-supplied prose, not a URL token.
+    // The provider name is escaped too: it is API-supplied prose, not a URL token.
     respondWithProviders(["Ac&me returnUrl=https://evil.example.com"]);
     renderProviders();
 
@@ -476,10 +346,9 @@ describe("ExternalProviders — the challenge URL", () => {
   });
 
   it("falls back to the current page URL when the link carried no returnUrl", async () => {
-    // The oracle's `ReturnUrl ?? currentUrl` (`Navigation.Uri`, L314): a user who
-    // reached /login directly and signs in with Google must land back where they
-    // started, not at a dead end. Under real Chromium the fallback IS
-    // `globalThis.location.href`, which is what the component reads too.
+    // A user who reached /login directly must land back where they started. The
+    // fallback is `globalThis.location.href`, which under real Chromium is the
+    // live value the component reads — so it is asserted against, not stubbed.
     const currentUrl: string = globalThis.location.href;
     renderProviders({ returnUrl: undefined });
 
@@ -487,11 +356,8 @@ describe("ExternalProviders — the challenge URL", () => {
   });
 
   it("falls back to the current page URL for an empty returnUrl", async () => {
-    // The oracle's `??` passes `""` THROUGH (it is not null), and the server then
-    // bounces the user to /error via its `IsNullOrEmpty` arm. That is a dead link
-    // rendered on purpose; the fallback that already exists for `undefined` serves
-    // the identical user with an identical intent, so `""` takes it too. Disclosed
-    // as a deliberate divergence on the bead.
+    // `""` is not nullish, so a bare `??` would pass it through and the server
+    // would bounce the user to /error. It takes the `undefined` fallback instead.
     const currentUrl: string = globalThis.location.href;
     renderProviders({ returnUrl: "" });
 
@@ -499,14 +365,9 @@ describe("ExternalProviders — the challenge URL", () => {
   });
 
   it("preserves client_id inside the returnUrl rather than as a parameter of its own", async () => {
-    // DIVERGENCE FROM THE BEAD'S ACCEPTANCE TEXT, disclosed on the bead. The
-    // acceptance asks that each link preserve `returnUrl`/`client_id`. There is no
-    // `client_id` to preserve at this seam: `ExternalLogin([FromQuery] string
-    // provider, [FromQuery] string returnUrl)` (AccountController.cs:242) binds no
-    // such parameter, and the oracle's `GetExternalLoginUrl` sends none. The
-    // client_id IS preserved — it rides INSIDE returnUrl, which is the
-    // `/connect/authorize?client_id=…` request the challenge resumes. Adding a
-    // top-level `client_id=` would be inventing cargo the server discards.
+    // There is no top-level `client_id` at this seam: the endpoint binds only
+    // `provider` and `returnUrl`. The client_id rides INSIDE returnUrl, which is
+    // the `/connect/authorize?client_id=…` request the challenge resumes.
     renderProviders();
 
     const link: HTMLElement = await providerLink("login-external-google");
@@ -518,10 +379,7 @@ describe("ExternalProviders — the challenge URL", () => {
   });
 });
 
-/**
- * The shell integration `.3.11` mandated: the provider list is a SECTION rendered
- * next to `TabPanel`, gated on `signedIn` — not a tab panel.
- */
+/** The provider list is a SECTION rendered next to `TabPanel`, not a tab panel. */
 function renderRouteAt(url: string) {
   return renderWithWallow(null, {
     harness,
@@ -544,8 +402,8 @@ describe("/login route — external providers", () => {
   });
 
   it("offers the providers on every tab, not just the password one", async () => {
-    // The oracle's `@if (_externalProviders.Count > 0)` sits OUTSIDE the tab
-    // `else if` chain — "Or continue with" is an alternative to all three tabs.
+    // "Or continue with" is an alternative to all three tabs, so it sits outside
+    // the tab chain.
     const user = userEvent.setup();
     renderRouteAt("/login");
 
@@ -556,13 +414,9 @@ describe("/login route — external providers", () => {
   });
 
   it("retires the provider list once the user is signed in", async () => {
-    // The oracle nests the whole `@if (_externalProviders.Count > 0)` block inside
-    // the `else` of `if (_signedIn)` — offering "or continue with Google" under a
-    // "you are now signed in" alert invites the user to start over.
-    //
-    // Asserted present BEFORE the sign-in, not just absent after: an "is absent"
-    // assertion alone passes for a component that renders nothing at all, which is
-    // exactly what the scaffold does. This must fail red for the right reason.
+    // Offering "or continue with Google" under a "you are now signed in" alert
+    // invites the user to start over. Asserted present BEFORE the sign-in too:
+    // "is absent" alone passes for a component that renders nothing at all.
     const user = userEvent.setup();
     renderRouteAt("/login");
 

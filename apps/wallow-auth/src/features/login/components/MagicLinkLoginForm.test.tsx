@@ -9,127 +9,15 @@ import { Route as loginRoute } from "@app/routes/login";
 import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
 
 /**
- * Component spec for the Login screen's MAGIC-LINK tab (Wallow-vec7.3.12 / 2.8b).
+ * The login screen's magic-link tab: sending, and auto-verify on load.
  *
- * This bead adds a PANEL and ONE `TabPanel` branch to the shell Wallow-vec7.3.11
- * established. It does not re-derive the branch table: on a verify response the
- * panel calls `onAuthResult(body)` and STOPS, and the shell's single
- * `authDispositionOf` (`../auth-result`) owns the MFA branches, the open-redirect
- * guard and the ticket exchange. The tests below that assert a ticket exchange or
- * a refusal are therefore INTEGRATION tests through the real shell — which is the
- * point: they prove this panel hands its result to the one branch table.
+ * Runs the real SDK over a faked fetch (sdk-harness), so assertions read the
+ * recorded request. The panel reports its result up; the shell's
+ * `authDispositionOf` owns the ticket exchange and the refusals.
  *
- * `LoginScreen.test.tsx` (.3.11's 52 tests) is NOT edited by this bead; it
- * deliberately says nothing about this panel's content beyond "selecting the tab
- * retires the password panel".
- *
- * ── TEST SEAM: THE REAL SDK OVER A FAKE TRANSPORT (Wallow-pu6a.5.1) ──────────
- *
- * The module mock of an app-level SDK facade is GONE, and `src/sdk-test-seam.test.ts`
- * now forbids it (along with mocking the SDK barrel or its `/query` entry) for every
- * spec under `src/features/**` and `src/routes/**`. A fake SDK object pins the
- * SHAPE THE TEST IMAGINED, not the one the SDK exports: it cannot notice a renamed
- * method, a moved endpoint, a changed request body or a rejection that stopped
- * being the shape the screen reads.
- *
- * So this file drives the REAL request-scoped SDK off the router context — real
- * generated operations, real error interceptor — over a fake `fetch` installed by
- * `createAuthHarness()` (`@bc-solutions-coder/testing/sdk-harness`).
- * `renderWithWallow` supplies that router context, and `createAuthHarness()` pins
- * the harness origin to this app's root-mounted API surface, which is why every
- * recorded `path` below is the bare endpoint path (Wallow-pu6a.5.5).
- *
- * The assertions therefore moved from "was this spy called with X" to "what
- * request actually reached the wire": `harness.calls` (filtered by path, because
- * the shell's `<ExternalProviders>` also issues a GET), `.method`, `.body` (decoded
- * JSON) and `.url` (which carries the query string — `verify` sends its token
- * there, not in a body). That is strictly stronger: it pins the endpoint, verb and
- * payload the API really receives.
- *
- * ── THE WIRE, VERIFIED IN THE CONTROLLER (not in a client DTO) ───────────────
- *
- * `AccountController` (api/.../Identity/Wallow.Identity.Api/Controllers/AccountController.cs):
- *
- *   POST /v1/identity/auth/passwordless/magic-link                        :824
- *     200 { succeeded: true }                       ALWAYS on the happy path — and
- *                                                   also for an address with NO
- *                                                   account (PasswordlessService.cs:63-67
- *                                                   returns success to defeat email
- *                                                   enumeration).
- *     400 { succeeded: false, error: "Rate limit exceeded. Please try again later." }
- *                                                   the ONLY failure the service
- *                                                   can produce (:56-60).
- *
- *   GET  /v1/identity/auth/passwordless/magic-link/verify                 :838
- *     200 { succeeded: true, email, signInTicket }                        :848
- *     401 { succeeded: false, error: "Invalid token format." }            PasswordlessService.cs:95
- *     401 { succeeded: false, error: "Invalid token." }                   PasswordlessService.cs:105
- *     401 { succeeded: false, error: "Token expired or already used." }   PasswordlessService.cs:112
- *
- * TWO CONSEQUENCES the oracle does not prepare you for:
- *
- * 1. THE FAILURES ARE REJECTIONS, NOT 200 BODIES. Unlike `auth.login` — where
- *    three of four outcomes ride inside a 200 — every magic-link failure is a
- *    non-2xx, and the generated operations are emitted with `throwOnError: true`,
- *    so the oracle's `if (result.Succeeded) … else` arms are reached through
- *    `onError`, not `onSuccess`. As of Wallow-vec7.7 `readCode` probes
- *    `extensions.code > code > error`, so the `error` member of the bare
- *    `{ succeeded, error }` body arrives as `WallowError.code` — which is why the
- *    fixtures below are the REAL WIRE BODY answered at the REAL STATUS
- *    (`Response.json({ succeeded: false, error: <token> }, { status })`) rather
- *    than a hand-built rejection object. The error interceptor
- *    (`packages/sdk/src/runtime-config.ts`) does that translation for real here.
- *
- * 2. THE TOKENS ARE ENGLISH SENTENCES, and one of the oracle's literals is DEAD.
- *    `HandleVerifyMagicLink` switches on `"invalid_token" or "Token expired or
- *    already used."`, but `ValidateMagicLinkAsync` NEVER returns `"invalid_token"` —
- *    its live spelling is `"Invalid token."` (PasswordlessService.cs:105). The
- *    dead literal is not ported and the LIVE one the author plainly meant is mapped
- *    in its place. `invalidTokenGetsTheExpiredCopy` pins that decision.
- *
- * ── CODE-KEYING IS BINDABLE HERE (unlike on `login` — see .3.11's note) ──────
- *
- * bd memory `code-keyed-error-mapping-needs-an-unrecognised-code-test-to-bind`
- * asks for a test that a status-keyed map cannot pass. `.3.11` could not write one
- * honestly (each `login` failure status carries exactly ONE token). THIS endpoint
- * can: `verify` answers 401 with THREE tokens carrying TWO meanings — "your link is
- * spent, get a new one" vs "something went wrong". So `invalidTokenFormatIsNotThe-
- * ExpiredCopy` and `unrecognisedTokenOnTheSameStatus` bind the code map with REAL
- * inputs the API really produces, not fiction. A blanket `401 -> expired` rule
- * fails both.
- *
- * No status FALLBACK is kept on verify, for the same reason: 401 does not identify
- * a failure on its own here (bd memory `wallow-auth-screens-key-error-copy-on-
- * wallowerror-code-not-http-status` keeps a status fallback "only where status
- * identifies a failure alone").
- *
- * ── THE SENTENCES ARE NEVER RENDERED ─────────────────────────────────────────
- *
- * A server-authored English sentence is still a machine token: it is matched
- * against and never shown. `neverRendersTheRawServerSentence` (send and verify)
- * pins that the oracle's `_ => result.Error`-style leak is not ported.
- *
- * ── NAVIGATION SEAM (Wallow-xzha.3.1 browser migration, Wallow-pu6a.5.1) ─────
- *
- * `window.location` is `[Unforgeable]` in real Chromium, so the jsdom-only
- * `vi.stubGlobal("location", …)` hack is gone. The screen hands off with
- * `globalThis.location.href = buildExchangeTicketUrl(origin, ticket, returnUrl)`,
- * and the builder is now the REAL pure function (`packages/sdk/src/auth-oidc.ts`)
- * — there is no builder spy left to assert on, so the hand-off is observed where
- * it actually happens: a `navigate` listener on the Navigation API records
- * `destination.url` and `preventDefault()`s, capturing the URL the screen built
- * while the runner stays put (bd memory `full-navigation-seam-for-wallow-auth-
- * screens-that`). The recorded array stands in for the old settable
- * `location.href`: a hand-off appends exactly ONE absolute URL, and "no exchange
- * happened" (formerly `expect(buildExchangeTicketUrl).not.toHaveBeenCalled()`) is
- * the array staying EMPTY — that assignment being the screen's only writer of
- * `location.href`. Asserting the parsed URL is stronger than the old builder-args
- * check: it pins the origin, path and encoding the browser would really be sent to.
- *
- * The listener is armed in `beforeEach` for EVERY test, not per test: the default
- * verify fixture is a successful sign-in with a ticket, so any render carrying a
- * token could navigate, and an unarmed test would tear the runner down instead of
- * failing.
+ * Every failure is a non-2xx whose `error` sentence arrives as `WallowError.code`.
+ * Verify's 401 carries three tokens with TWO meanings, so copy is keyed on the
+ * token, never on the status alone.
  */
 
 // Hoisted so the vi.mock factory and the test bodies share the same spy.
@@ -148,22 +36,20 @@ const EMAIL = "user@example.com";
 const CLIENT_ID = "web";
 const TICKET = "sign-in-ticket-xyz";
 
-/** `AccountController.SendMagicLink` (:824) — the tab's POST. */
+/** The tab's POST. */
 const SEND_ENDPOINT = "/v1/identity/auth/passwordless/magic-link";
 
-/** `AccountController.VerifyMagicLink` (:838) — a GET; its token rides the query. */
+/** A GET, so its token rides the query string, not a body. */
 const VERIFY_ENDPOINT = "/v1/identity/auth/passwordless/magic-link/verify";
 
 /**
- * `AccountController.GetExternalProviders`. The shell mounts `<ExternalProviders>`
- * next to the tab panels, so this GET lands on the transport in EVERY test that
- * renders the screen — which is why the "was it called" assertions below filter
- * `harness.calls` by path instead of counting them. Owned by `.3.14`; answered
- * here only to host it.
+ * The shell mounts `<ExternalProviders>` next to the tab panels, so this GET
+ * lands on the transport in EVERY test that renders the screen — which is why the
+ * "was it called" assertions filter `harness.calls` by path.
  */
 const PROVIDERS_ENDPOINT = "/v1/identity/auth/external-providers";
 
-/** The path `buildExchangeTicketUrl` targets (packages/sdk/src/auth-oidc.ts:163). */
+/** The path `buildExchangeTicketUrl` targets. */
 const EXCHANGE_PATH = "/v1/identity/auth/exchange-ticket";
 
 const OK_STATUS = 200;
@@ -174,26 +60,23 @@ const BAD_REQUEST_STATUS = 400;
 const UNAUTHORIZED_STATUS = 401;
 
 /**
- * A token shaped like the one the service really mints:
- * `Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))` + `"."` + an HMAC
- * signature (PasswordlessService.cs:70-72). Base64 of 32 bytes is 44 chars ending
- * in `=`, so a real token carries `+`, `/` and `=` and can never be JSON-parsed
- * into a number — which is what makes the route's `typeof === "string"` read safe.
+ * A token shaped like the one the service really mints: base64 of 32 bytes plus
+ * an HMAC signature. It carries `+`, `/` and `=`, so it can never be JSON-parsed
+ * into a number — which is what makes the route's scalar read safe.
  */
 const MAGIC_LINK_TOKEN = "n2Vv3sQ+K1/aB9cd7EfGhIjKlMnOpQrStUvWxYz0123=.mZ8pQ7rS6tU5vW4xY3z=";
 
 /**
- * The returnUrl `/connect/authorize` really sends (AuthorizationController.cs:53,
- * :67), and which `MagicLinkRequestedNotificationHandler.cs:21-26` copies onto the
- * EMAILED link: relative, and already past `Url.IsLocalUrl`. This is the
- * REAL-TRAFFIC pole — if the guard refuses this, every magic-link sign-in is dead.
+ * The returnUrl `/connect/authorize` sends, copied verbatim onto the EMAILED
+ * link: relative, and already past the server's own local-url check. The
+ * REAL-TRAFFIC pole — if the guard refuses this, magic-link sign-in is dead.
  */
 const RETURN_URL = "/connect/authorize?client_id=web&scope=openid";
 
 /** An absolute returnUrl from an origin the allow-list has never heard of. */
 const EVIL_RETURN_URL = "https://evil.example.com/steal";
 
-/** The bail target for an unsafe returnUrl, matching the ConsentScreen port. */
+/** The bail target for an unsafe returnUrl. */
 const ERROR_HREF = "/error?reason=invalid_redirect_uri";
 
 /** This endpoint's machine tokens — matched against, NEVER rendered. */
@@ -202,28 +85,23 @@ const EXPIRED_TOKEN = "Token expired or already used.";
 const INVALID_TOKEN = "Invalid token.";
 const INVALID_TOKEN_FORMAT_TOKEN = "Invalid token format.";
 
-/** The oracle's blank-email guard (Login.razor:376). */
 const BLANK_EMAIL_MESSAGE = "Please enter your email.";
 
-/** The oracle's sent alert (Login.razor:111). */
 const SENT_MESSAGE = "Check your email for a magic link.";
 
-/** The oracle's `HandleVerifyMagicLink` switch (Login.razor:419-420). */
 const EXPIRED_MESSAGE =
   "This magic link has expired or has already been used. Please request a new one.";
 const VERIFY_FAILED_MESSAGE = "An error occurred verifying the magic link. Please try again.";
 
 /**
- * DIVERGENCE, disclosed on the bead: the oracle shows its generic copy for every
- * send failure, but the ONLY send failure the service can produce is the rate
- * limit — and "An error occurred. Please try again." tells a rate-limited user to
- * do the one thing that cannot work. This is the same call `.3.11` made on the 423
- * lockout fallback, for the same reason.
+ * The ONLY send failure the service can produce is the rate limit, so the copy is
+ * specific: a generic "please try again" tells a rate-limited user to do the one
+ * thing that cannot work.
  */
 const RATE_LIMITED_MESSAGE =
   "Too many sign-in link requests. Please wait a few minutes and try again.";
 
-/** Shared with the password tab (`../auth-result`), not re-invented here. */
+/** Shared with the password tab, not re-invented here. */
 const GENERIC_MESSAGE = "An error occurred. Please try again.";
 const UNREACHABLE_MESSAGE = "Unable to reach the server. Please try again later.";
 
@@ -249,12 +127,11 @@ function respondWithVerify(body: unknown): void {
 }
 
 /**
- * The REAL failure body these two endpoints ship: a bare
- * `{ succeeded: false, error: "<token>" }` anonymous object, at the real status.
- * They emit no problem details at all, so no human-readable title ever arrives and
- * the screen must supply its own copy. `readCode` (Wallow-vec7.7) probes
- * `extensions.code > code > error`, so the sentence under `error` is what reaches
- * the screen as `WallowError.code` — the mapping under test.
+ * The REAL failure body these endpoints ship: a bare
+ * `{ succeeded: false, error: "<token>" }` at the real status. They emit no
+ * problem details, so no human-readable title ever arrives and the screen must
+ * supply its own copy; the sentence under `error` reaches it as
+ * `WallowError.code`.
  */
 function failureResponse(status: number, token: string): Response {
   return Response.json({ succeeded: false, error: token }, { status });
@@ -270,8 +147,7 @@ function rejectVerify(status: number, token: string): void {
 
 /**
  * A `fetch` failure: the request never lands, so the rejection carries neither a
- * status nor a code. The TS shape of the oracle's `catch (HttpRequestException)`
- * arm, which it keeps DISTINCT from its generic tail on both handlers.
+ * status nor a code, and it must stay DISTINCT from the generic tail.
  */
 function failSendTransport(): void {
   sendReply = () => {
@@ -296,10 +172,9 @@ function verifyCalls() {
 }
 
 /**
- * NAVIGATION SEAM (Wallow-xzha.3.1 / Wallow-pu6a.5.1). See the header. The ticket
- * hand-off is `globalThis.location.href = …`, which in real Chromium would
- * navigate the runner iframe; listening for the Navigation API's `navigate` event
- * lets us record the destination and cancel it.
+ * The ticket hand-off is `globalThis.location.href = …`, which in real Chromium
+ * would navigate the runner iframe away. `location` is `[Unforgeable]` and cannot
+ * be stubbed, so the Navigation API's `navigate` event is the seam.
  */
 interface NavigateEvent extends Event {
   readonly destination: { readonly url: string };
@@ -319,8 +194,7 @@ function captureHandoff(): string[] {
   const urls: string[] = [];
   const handler = (event: NavigateEvent): void => {
     urls.push(event.destination.url);
-    // Cancel the navigation so assigning `location.href` does not tear the
-    // Chromium runner down; the recorded URL is what we assert on.
+    // Cancel it: a live navigation tears the Chromium runner down.
     event.preventDefault();
   };
   navigationApi.addEventListener("navigate", handler);
@@ -334,12 +208,9 @@ function captureHandoff(): string[] {
 let handoffs: string[];
 
 /**
- * Wait for the ticket hand-off and return its target, parsed.
- *
- * The exchange URL is built by the REAL `buildExchangeTicketUrl` against the `""`
- * origin, so a correct screen produces a SAME-ORIGIN absolute URL whose pathname
- * is {@link EXCHANGE_PATH} and whose `ticket`/`returnUrl` are single,
- * properly-encoded query values.
+ * Wait for the ticket hand-off and return its target, parsed. The real
+ * `buildExchangeTicketUrl` runs against the `""` origin, so a correct screen
+ * produces a SAME-ORIGIN absolute URL.
  */
 async function awaitHandoff(): Promise<URL> {
   await vi.waitFor(() => {
@@ -358,11 +229,9 @@ function renderWithClient(ui: ReactElement) {
  * Render the screen as the OIDC hand-off would: a safe, relative returnUrl.
  *
  * `"x" in props` rather than `props.x ?? DEFAULT`: the absent-`returnUrl` and
- * absent-`magicLinkToken` branches are themselves under test, and a `??` helper
- * would silently substitute the default for an explicit `{ x: undefined }`,
- * making those tests exercise the PRESENT path while still failing red for a
- * right-looking reason (bd memory `red-phase-render-helpers-must-distinguish-
- * explicit-undefined`). Same for `""`, which is not nullish.
+ * absent-`magicLinkToken` branches are themselves under test, and a `??` default
+ * would silently substitute for an explicit `{ x: undefined }`. Same for `""`,
+ * which is not nullish.
  */
 function renderScreen(props: Partial<LoginScreenProps> = {}) {
   const returnUrl: string | undefined = "returnUrl" in props ? props.returnUrl : RETURN_URL;
@@ -370,12 +239,12 @@ function renderScreen(props: Partial<LoginScreenProps> = {}) {
   return renderWithClient(<LoginScreen {...props} returnUrl={returnUrl} />);
 }
 
-/** Open the magic-link tab — the oracle's `SwitchTab(LoginTab.MagicLink)`. */
+/** Open the magic-link tab. */
 async function openMagicLinkTab(user: ReturnType<typeof userEvent.setup>) {
   await user.click(page.getByTestId("login-tab-magic-link"));
 }
 
-/** Fill in the magic-link tab and submit it — the oracle's `HandleSendMagicLink`. */
+/** Fill in the magic-link tab and submit it. */
 async function submitEmail(user: ReturnType<typeof userEvent.setup>, email: string = EMAIL) {
   if (email !== "") {
     await user.type(page.getByTestId("login-magic-link-email"), email);
@@ -401,15 +270,13 @@ beforeEach(() => {
     }
 
     // `<ExternalProviders>` mounts with the shell. An empty list is the
-    // "no providers configured" answer and renders nothing — this file says
-    // nothing about that section (it is `.3.14`'s).
+    // "no providers configured" answer and renders nothing.
     if (call.path === PROVIDERS_ENDPOINT) {
       return Response.json([], { status: OK_STATUS });
     }
 
     // The route-level tests carry `client_id=web`, so `/login` also asks for that
-    // client's branding overlay. A bare 404 is the API's "no branding configured"
-    // and leaves the fork's chrome in place — nothing this file looks at.
+    // client's branding overlay. A bare 404 is "no branding configured".
     return new Response(null, { status: NOT_FOUND_STATUS });
   });
 });
@@ -421,10 +288,6 @@ afterEach(() => {
   navDisposers.length = 0;
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SENDING THE LINK — the oracle's `HandleSendMagicLink`.
-// ─────────────────────────────────────────────────────────────────────────────
-
 describe("LoginScreen magic-link tab: sending", () => {
   it("shows the email field and send button in place of the password panel", async () => {
     const user = userEvent.setup();
@@ -434,7 +297,7 @@ describe("LoginScreen magic-link tab: sending", () => {
 
     await expect.element(page.getByTestId("login-magic-link-email")).toBeInTheDocument();
     await expect.element(page.getByTestId("login-magic-link-submit")).toBeInTheDocument();
-    // The oracle's tabs are an `else if` chain: one panel at a time.
+    // One panel at a time.
     expect(page.getByTestId("login-password").query()).toBeNull();
   });
 
@@ -449,8 +312,8 @@ describe("LoginScreen magic-link tab: sending", () => {
   });
 
   it("refuses a blank email without calling the API", async () => {
-    // The oracle's `IsNullOrWhiteSpace(_email)` guard: a blank send cannot succeed
-    // and would spend one of the address's rate-limit allowance.
+    // A blank send cannot succeed and would spend the address's rate-limit
+    // allowance.
     const user = userEvent.setup();
     await renderScreen();
 
@@ -462,7 +325,7 @@ describe("LoginScreen magic-link tab: sending", () => {
   });
 
   it("refuses a whitespace-only email without calling the API", async () => {
-    // WHITEspace, not just empty — `IsNullOrWhiteSpace`, so "   " is blank.
+    // Whitespace-only input is blank, not merely empty.
     const user = userEvent.setup();
     await renderScreen();
 
@@ -474,9 +337,8 @@ describe("LoginScreen magic-link tab: sending", () => {
   });
 
   it("sends the typed email with the returnUrl and client_id the link carried", async () => {
-    // The oracle's `SendMagicLinkAsync(_email, ReturnUrl, ClientId)`. Both ride
-    // along so `MagicLinkRequestedNotificationHandler.cs:21-31` can put them back
-    // on the EMAILED link and land the user in the same OIDC flow they left.
+    // returnUrl and clientId ride along so the EMAILED link can carry them back
+    // and land the user in the same OIDC flow they left.
     const user = userEvent.setup();
     await renderScreen({ clientId: CLIENT_ID });
 
@@ -504,16 +366,14 @@ describe("LoginScreen magic-link tab: sending", () => {
     await vi.waitFor(() => {
       expect(sendCalls()).toHaveLength(1);
     });
-    // Read off the WIRE, so `{ returnUrl: undefined }` is not a member that was
-    // sent as `undefined` — `JSON.stringify` drops it, and the address arriving
-    // alone is exactly the "no cargo" claim.
+    // Read off the WIRE: `JSON.stringify` drops an `undefined` member, so the
+    // address arriving alone is exactly the "no cargo" claim.
     expect(sendCalls()[0].body).toEqual({ email: EMAIL });
   });
 
   it("shows the sent confirmation and retires the form", async () => {
-    // The oracle's `_magicLinkSent` swaps the form for the alert: the link is in
-    // the user's inbox, and a form still on screen invites a second send that the
-    // rate limiter will refuse.
+    // The link is in the user's inbox; a form still on screen invites a second
+    // send that the rate limiter will refuse.
     const user = userEvent.setup();
     await renderScreen();
 
@@ -525,11 +385,9 @@ describe("LoginScreen magic-link tab: sending", () => {
   });
 
   it("does not name the address in the confirmation", async () => {
-    // The API answers 200 { succeeded: true } for an address with NO account
-    // (PasswordlessService.cs:63-67) precisely so the screen cannot be used to
-    // enumerate users. Echoing the typed address back is harmless on its own, but
-    // the confirmation is the one artefact both backend outcomes share and it stays
-    // a constant (bd memory `anti-enumeration-pattern-for-endpoints-that-must-not`).
+    // The API answers 200 { succeeded: true } for an address with NO account,
+    // precisely so the screen cannot be used to enumerate users. The confirmation
+    // is the one artefact both outcomes share, so it stays a constant.
     const user = userEvent.setup();
     await renderScreen();
 
@@ -540,7 +398,7 @@ describe("LoginScreen magic-link tab: sending", () => {
   });
 
   it("disables the send button while the request is in flight", async () => {
-    // The oracle's `Disabled="_isSubmitting"`. A double send burns the rate limit.
+    // A double send burns the rate limit.
     let release: (value: Response) => void = () => undefined;
     sendReply = () =>
       new Promise<Response>((resolve) => {
@@ -564,8 +422,7 @@ describe("LoginScreen magic-link tab: sending", () => {
   });
 
   it("clears a previous error before retrying", async () => {
-    // The oracle's `_errorMessage = null` at the top of `HandleSendMagicLink`: a
-    // stale banner hanging over an in-flight retry is a lie.
+    // A stale banner hanging over an in-flight retry is a lie.
     const user = userEvent.setup();
     await renderScreen();
 
@@ -580,7 +437,7 @@ describe("LoginScreen magic-link tab: sending", () => {
   });
 
   it("clears the sent confirmation when the user leaves the tab and returns", async () => {
-    // The oracle's `SwitchTab` resets `_magicLinkSent`, so the tab is usable again.
+    // Switching tabs resets the sent state, so the tab is usable again.
     const user = userEvent.setup();
     await renderScreen();
 
@@ -596,9 +453,8 @@ describe("LoginScreen magic-link tab: sending", () => {
   });
 
   it("fails closed when the send response is not a shape this screen understands", async () => {
-    // The operation types this `Promise<unknown>` (the C# endpoint returns an
-    // anonymous `Ok(new { … })` with no OpenAPI schema), so the screen narrows at
-    // its own boundary and a body it cannot read is NOT a sent link.
+    // The operation is typed `Promise<unknown>`, so the screen narrows at its own
+    // boundary: a body it cannot read is NOT a sent link.
     respondWithSend({});
     const user = userEvent.setup();
     await renderScreen();
@@ -611,8 +467,8 @@ describe("LoginScreen magic-link tab: sending", () => {
   });
 
   it("does not accept a stringly-typed succeeded flag", async () => {
-    // C#'s `result.Succeeded` is a `bool`; JS truthiness would happily accept the
-    // STRING "false". Strict `=== true` is the only place that can be rejected.
+    // JS truthiness would happily accept the STRING "false"; only a strict
+    // `=== true` rejects it.
     respondWithSend({ succeeded: "false" });
     const user = userEvent.setup();
     await renderScreen();
@@ -640,8 +496,7 @@ describe("LoginScreen magic-link tab: send failures", () => {
 
   it("never renders the raw server sentence on a failed send", async () => {
     // The token is a server-authored English sentence, which makes it TEMPTING to
-    // render — but it is still a machine token, and the oracle's `_ => result.Error`
-    // family of tails is what this port refuses to reproduce.
+    // render — but it is still a machine token.
     rejectSend(BAD_REQUEST_STATUS, RATE_LIMITED_TOKEN);
     const user = userEvent.setup();
     await renderScreen();
@@ -666,10 +521,8 @@ describe("LoginScreen magic-link tab: send failures", () => {
   });
 
   it("tells the user the server is unreachable when the send never lands", async () => {
-    // The oracle's `catch (HttpRequestException)`, kept DISTINCT from the generic
-    // tail: "the server said no" and "the server never answered" are different
-    // instructions, and collapsing them tells a user with no network to retype an
-    // address that was fine.
+    // Kept DISTINCT from the generic tail: collapsing them tells a user with no
+    // network to retype an address that was fine.
     failSendTransport();
     const user = userEvent.setup();
     await renderScreen();
@@ -693,15 +546,10 @@ describe("LoginScreen magic-link tab: send failures", () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// AUTO-VERIFY ON LOAD — the oracle's `OnInitializedAsync` (:255-259).
-// ─────────────────────────────────────────────────────────────────────────────
-
 describe("LoginScreen magic-link auto-verify", () => {
   it("opens on the magic-link tab when the link carries a token", async () => {
-    // The oracle's `HandleVerifyMagicLink` sets `_activeTab = LoginTab.MagicLink`
-    // before it does anything else: the user clicked a link in their inbox and must
-    // land where the outcome will be reported.
+    // The user clicked a link in their inbox and must land where the outcome will
+    // be reported.
     await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
     await expect
@@ -719,8 +567,7 @@ describe("LoginScreen magic-link auto-verify", () => {
       expect(verifyCalls()).toHaveLength(1);
     });
     // A GET, so the token rides the QUERY STRING — which lives on `url`, not
-    // `path`, and must arrive as a single properly-encoded value (a real token
-    // carries `+`, `/` and `=`).
+    // `path`, and must arrive as a single properly-encoded value.
     expect(verifyCalls()[0].method).toBe("GET");
     expect(
       new URL(verifyCalls()[0].url, globalThis.location.origin).searchParams.get("token"),
@@ -728,7 +575,7 @@ describe("LoginScreen magic-link auto-verify", () => {
   });
 
   it("opens on the password tab and verifies nothing when there is no token", async () => {
-    // The guard against an implementation that is always in the magic-link tab.
+    // Guards against an implementation that is always in the magic-link tab.
     await renderScreen({ magicLinkToken: undefined });
 
     await expect
@@ -739,8 +586,8 @@ describe("LoginScreen magic-link auto-verify", () => {
   });
 
   it("treats an empty token as no token", async () => {
-    // `IsNullOrEmpty(MagicLinkToken)` parity: `""` is not nullish, and verifying it
-    // would spend a request to be told the format is invalid.
+    // `""` is not nullish, and verifying it would spend a request to be told the
+    // format is invalid.
     await renderScreen({ magicLinkToken: "" });
 
     await expect
@@ -750,13 +597,10 @@ describe("LoginScreen magic-link auto-verify", () => {
   });
 
   it("verifies exactly once even though the failure re-renders the screen", async () => {
-    // A magic-link token is ONE-TIME USE (PasswordlessService.cs:117 deletes the
-    // Redis key), so a second verify can only ever fail. The failure sets the
-    // shell's banner, which re-renders this panel and hands it a fresh
-    // `onAuthResult`/`onError` identity — so effect-dep correctness alone cannot
-    // hold the line and a `useRef` "started" latch must (bd memory
-    // `exactly-once-server-mutations-in-react-need-a-ref-not-just-deps`; React
-    // StrictMode double-invokes effects in dev for the same reason).
+    // A magic-link token is ONE-TIME USE, so a second verify can only ever fail.
+    // The failure sets the shell's banner, which re-renders this panel with fresh
+    // `onAuthResult`/`onError` identities, so effect deps alone cannot hold the
+    // line — only a ref latch can.
     rejectVerify(UNAUTHORIZED_STATUS, EXPIRED_TOKEN);
     await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
@@ -770,23 +614,10 @@ describe("LoginScreen magic-link auto-verify", () => {
   });
 
   it("exchanges the sign-in ticket at THIS origin for the returnUrl the email carried", async () => {
-    // ── THE LEGITIMATE PATH. If this test fails, magic-link sign-in is DEAD ──
-    //
-    // The emailed link is `{authUrl}/login?magicLinkToken=…&returnUrl=…&client_id=…`
-    // (MagicLinkRequestedNotificationHandler.cs:21-31), and its returnUrl is the
-    // RELATIVE `/connect/authorize?…` the authorize endpoint minted. So the whole
-    // point of the tab is: token in, ticket out, exchange, back into the OIDC flow.
-    //
-    // The origin is `""`. The oracle's `ApiBaseUrl` prepend is NOT ported: this
-    // app's API surface is a passthrough reverse proxy mounting `/v1/**` at the ROOT,
-    // and an absolute origin would send the browser cross-origin and DROP the
-    // SameSite auth cookie the exchange endpoint just set — which is the entire
-    // point of the ticket (bd memory `wallow-auth-screens-must-pass-origin-same-origin`).
-    //
-    // Browser seam: `location.href` is unforgeable in Chromium, so the hand-off is
-    // recorded by the Navigation API listener and asserted as a PARSED URL — the
-    // same-origin `origin` is exactly the "no localhost:5001" claim the old
-    // `location.href` assertions made.
+    // THE LEGITIMATE PATH: token in, ticket out, exchange, back into the OIDC
+    // flow. The origin is `""` — the API surface is a passthrough proxy mounting
+    // `/v1/**` at the ROOT, and an absolute origin would send the browser
+    // cross-origin and DROP the SameSite cookie the exchange endpoint just set.
     await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN, clientId: CLIENT_ID });
 
     const target: URL = await awaitHandoff();
@@ -800,7 +631,7 @@ describe("LoginScreen magic-link auto-verify", () => {
 
   it("signs the user in when the emailed link carried no returnUrl", async () => {
     // A magic link requested from a bare `/login` has no OIDC flow to resume, so
-    // there is nowhere to send the user — say so rather than invent a destination.
+    // there is nowhere to send the user.
     await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN, returnUrl: undefined });
 
     await expect.element(page.getByTestId("login-signed-in")).toBeInTheDocument();
@@ -810,9 +641,8 @@ describe("LoginScreen magic-link auto-verify", () => {
   });
 
   it("refuses an absolute returnUrl before exchanging the ticket", async () => {
-    // The CLIENT picks this destination (`location.href` built from returnUrl), so
-    // the guard belongs here — and it is the SHELL's, reached by handing the raw
-    // body up. REFUSE, don't sanitize.
+    // The CLIENT picks this destination, so the guard belongs here — and it is
+    // the SHELL's, reached by handing the raw body up. REFUSE, don't sanitize.
     await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN, returnUrl: EVIL_RETURN_URL });
 
     await vi.waitFor(() => {
@@ -824,12 +654,10 @@ describe("LoginScreen magic-link auto-verify", () => {
   });
 
   it("hands an MFA-required verify response to the shell's branch table", async () => {
-    // Proof this panel does NOT re-derive the navigation: it reports the RAW body
-    // up and the shell's one `authDispositionOf` decides. `verify` cannot itself
-    // return an MFA branch today (AccountController.cs:848 answers only
-    // `{ succeeded, email, signInTicket }`) — what is pinned here is the WIRING,
-    // which is what stops three panels from disagreeing about where a
-    // half-authenticated user lands.
+    // This panel does NOT re-derive the navigation: it reports the RAW body up and
+    // the shell's one `authDispositionOf` decides. `verify` cannot return an MFA
+    // branch today, so what is pinned is the WIRING — which is what stops three
+    // panels from disagreeing about where a half-authenticated user lands.
     respondWithVerify({ succeeded: false, mfaRequired: true });
     await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
@@ -850,10 +678,8 @@ describe("LoginScreen magic-link verify failures", () => {
   });
 
   it("maps a bad signature to the expired copy too", async () => {
-    // The oracle names `"invalid_token"`, which the service NEVER returns: its live
-    // spelling is `"Invalid token."` (PasswordlessService.cs:100-106, a failed HMAC
-    // comparison). The dead literal is not ported; the live one the author plainly
-    // meant is mapped in its place.
+    // `"Invalid token."` is the live spelling for a failed HMAC comparison, and it
+    // means the same thing to the user as an expired link.
     rejectVerify(UNAUTHORIZED_STATUS, INVALID_TOKEN);
     await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
@@ -861,13 +687,10 @@ describe("LoginScreen magic-link verify failures", () => {
   });
 
   it("does not promise a new link will help when the token is malformed", async () => {
-    // ── THE TEST THAT BINDS THE CODE MAP ──
-    //
-    // `"Invalid token format."` (PasswordlessService.cs:91-95) rides the SAME 401 as
-    // the two tokens above but is NOT in the oracle's expired list. A blanket
-    // `401 -> expired` rule passes every other failure test in this file and fails
-    // THIS one — which is the whole reason it exists (bd memory `code-keyed-error-
-    // mapping-needs-an-unrecognised-code-test-to-bind`). Do not "simplify" it away.
+    // THE TEST THAT BINDS THE CODE MAP. `"Invalid token format."` rides the SAME
+    // 401 as the two tokens above but means something else. A blanket
+    // `401 -> expired` rule passes every other failure test here and fails THIS
+    // one, which is the whole reason it exists.
     rejectVerify(UNAUTHORIZED_STATUS, INVALID_TOKEN_FORMAT_TOKEN);
     await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
@@ -929,15 +752,10 @@ describe("LoginScreen magic-link verify failures", () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// THE ROUTE — the query string only exists once a URL is parsed by a router.
-// ─────────────────────────────────────────────────────────────────────────────
-
 /**
- * Rendered through a real memory router rather than by poking at
- * `Route.options.component`: a bare render of a search-reading route component
- * ALWAYS dies on `router.stores` outside a `RouterProvider` (bd memory
- * `wallow-auth-route-tests-never-bare-render-a`). Mirrors `LoginScreen.test.tsx`.
+ * A real memory router, not a bare render of `Route.options.component`: a
+ * search-reading route component always dies on `router.stores` outside a
+ * `RouterProvider`.
  */
 function renderRouteAt(url: string) {
   return renderWithWallow(null, {
@@ -947,7 +765,7 @@ function renderRouteAt(url: string) {
   });
 }
 
-/** The emailed link, exactly as `MagicLinkRequestedNotificationHandler.cs:21-31` builds it. */
+/** The emailed link, exactly as the notification handler builds it. */
 function emailedLink(token: string, returnUrl: string, clientId: string): string {
   return (
     `/login?magicLinkToken=${encodeURIComponent(token)}` +
@@ -969,11 +787,9 @@ describe("/login route: magic link", () => {
   });
 
   it("completes the emailed link end to end: token in, ticket exchanged", async () => {
-    // ── THE WHOLE FEATURE, THROUGH THE REAL ROUTE. ──
-    // A user clicks the link in their inbox and lands back in the OIDC flow they
-    // started. Nothing here is a hostile input: if this fails, the tab is an outage.
-    // Browser seam: the recorded hand-off URL IS the old `location.href`
-    // contains-returnUrl assertion, parsed.
+    // THE WHOLE FEATURE, THROUGH THE REAL ROUTE: a user clicks the link in their
+    // inbox and lands back in the OIDC flow they started. Nothing here is a
+    // hostile input — if this fails, the tab is an outage.
     await renderRouteAt(emailedLink(MAGIC_LINK_TOKEN, RETURN_URL, CLIENT_ID));
 
     const target: URL = await awaitHandoff();
@@ -1012,12 +828,10 @@ describe("/login route: magic link", () => {
 
   it("ignores a magicLinkToken the search parser turned into a number", async () => {
     // TanStack's default parser JSON-parses EVERY query value before
-    // `validateSearch` sees it (bd memory `tanstack-router-default-search-parser-
-    // json-parses-values`), so `?magicLinkToken=123` arrives as the NUMBER 123.
-    // Unlike `error`, this one is NOT re-stringified: it is a credential compared
-    // by the server, not matched against literals, and a real token always carries
-    // base64 padding (`=`) so it can never be parsed into a scalar. A junk link
-    // must still render a usable form rather than throw a validation error.
+    // `validateSearch` sees it, so `?magicLinkToken=123` arrives as the NUMBER 123.
+    // Unlike `error`, this one is NOT re-stringified: it is a credential the server
+    // compares, and a real token's base64 padding means it can never parse into a
+    // scalar. A junk link must still render a usable form.
     await renderRouteAt("/login?magicLinkToken=123");
 
     await expect.element(page.getByTestId("login-password")).toBeInTheDocument();
