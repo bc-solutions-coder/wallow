@@ -201,17 +201,15 @@ function renderScreen(props: Partial<Parameters<typeof AcceptTermsScreen>[0]> = 
 }
 
 /**
- * Toggle a checkbox the way a keyboard user does — focus it, press Space —
- * rather than by clicking the box (Wallow-m5aq.5.2).
+ * Toggle a checkbox by CLICKING it, the way a pointer user does.
  *
- * A click ON THE BOX is not a stable way to say this. The catalog's `Checkbox`
- * renders its root as a `<span role="checkbox">` sized purely by Tailwind
- * utilities, and the browser vitest project compiles no Tailwind, so that root
- * measures ZERO wide here: Playwright's actionability check never settles and
- * the click times out. Space on the focused root is the same user intent,
- * depends on no layout, and behaves identically on a raw `<input
- * type="checkbox">` — so every assertion written through this helper reads the
- * same before and after the migration onto the catalog.
+ * This helper used to focus the root and press Space instead (Wallow-m5aq.5.2),
+ * for a reason that no longer holds: the catalog's `Checkbox` renders its root
+ * as a `<span role="checkbox">` sized purely by Tailwind utilities, this app's
+ * browser vitest project compiled no Tailwind, so the root measured ZERO wide
+ * and Playwright's actionability check never settled on a click. That project
+ * now loads the app's real stylesheet (Wallow-8ytl), so the box has its real box
+ * and the click says exactly what the user does.
  */
 async function toggleCheckbox(
   user: ReturnType<typeof userEvent.setup>,
@@ -220,8 +218,7 @@ async function toggleCheckbox(
   const box = page.getByTestId(testId);
 
   await expect.element(box).toBeInTheDocument();
-  (box.element() as HTMLElement).focus();
-  await user.keyboard(" ");
+  await user.click(box);
 }
 
 /** Tick both consent boxes — the only way to arm the submit button. */
