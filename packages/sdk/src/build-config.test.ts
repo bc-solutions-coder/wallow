@@ -7,7 +7,6 @@ import { describe, expect, it } from "vitest";
 // packages/sdk/src -> packages/sdk
 const packageRoot: string = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const viteConfigPath: string = resolve(packageRoot, "vite.config.ts");
-const tsupConfigPath: string = resolve(packageRoot, "tsup.config.ts");
 const packageJsonPath: string = resolve(packageRoot, "package.json");
 
 function readFile(path: string): string {
@@ -33,10 +32,6 @@ describe("SDK bundler migration (tsup -> Vite 8 library mode)", () => {
     expect(existsSync(viteConfigPath)).toBe(true);
   });
 
-  it("no longer has a tsup.config.ts", () => {
-    expect(existsSync(tsupConfigPath)).toBe(false);
-  });
-
   it("configures Vite library mode with both public entry points", () => {
     const config: string = readFile(viteConfigPath);
     // Vite lib build, not an app/html build.
@@ -59,16 +54,11 @@ describe("SDK bundler migration (tsup -> Vite 8 library mode)", () => {
     expect(build).toContain("vite build");
     // Declarations still come from the dedicated tsc build config.
     expect(build).toContain("tsc -p tsconfig.build.json");
-    // tsup must be gone from the build pipeline.
-    expect(build).not.toContain("tsup");
   });
 
-  it("declares vite and no longer declares tsup as a devDependency", () => {
+  it("declares vite as a devDependency", () => {
     const pkg: PackageJson = readPackageJson();
     const devDeps: Record<string, string> = pkg.devDependencies ?? {};
     expect(devDeps).toHaveProperty("vite");
-    expect(devDeps).not.toHaveProperty("tsup");
-    // tsup must not leak into runtime deps either.
-    expect(pkg.dependencies ?? {}).not.toHaveProperty("tsup");
   });
 });

@@ -11,8 +11,7 @@ import { PAGE_CONTAINER } from "@shared/lib/page-container";
  *
  * Each `*.restyle.test.tsx` asserts what ITS page renders; nothing there can say
  * "and no OTHER dashboard page disagrees". These guards read the seven dashboard
- * route sources off disk (the shape `src/styling.test.ts` already uses in this
- * app) and pin the two rules the migration establishes:
+ * route sources off disk and pin the two rules the migration establishes:
  *
  *   1. Exactly one container-width rule, `PAGE_CONTAINER`, imported by every
  *      dashboard route page — no page writes a `max-w-*` utility of its own.

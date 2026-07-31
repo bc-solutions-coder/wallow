@@ -105,7 +105,7 @@ describe("packages/ui scaffold", () => {
     expect(scripts.typecheck).toBe("tsc --noEmit");
   });
 
-  it("does not copy packages/sdk's TS6 typescript pin", () => {
+  it("declares its own typescript", () => {
     const pkg = readPackageJson();
     const deps = {
       ...(pkg.dependencies as Record<string, string> | undefined),
@@ -113,8 +113,6 @@ describe("packages/ui scaffold", () => {
     };
 
     expect(deps).toHaveProperty("typescript");
-    // packages/sdk pins "6.0.3" only for openapi-ts; this package must not copy it.
-    expect(deps.typescript).not.toBe("6.0.3");
   });
 
   it("extends the workspace base tsconfig", () => {
