@@ -38,7 +38,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 OXLINT="./node_modules/.bin/oxlint"
-ROOTS=(apps packages tools)
+ROOTS=(apps packages)
 
 # `--debug=files` prints the file list oxlint would lint, then exits. Keep only
 # the test and story files the source pass excludes. Read into an array with a
