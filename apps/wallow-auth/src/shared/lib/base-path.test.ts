@@ -10,19 +10,12 @@ import {
 } from "./base-path";
 
 /**
- * The string arithmetic behind `AUTH_BASE_PATH` (Wallow-vufu.2.2).
+ * The string arithmetic behind `AUTH_BASE_PATH`. Node project: pure string work,
+ * no DOM.
  *
- * Node project: pure string work, no DOM.
- *
- * Every case below came out of the spike that built this app with
- * `AUTH_BASE_PATH=/auth` and drove the built Nitro server. The two that look
- * pedantic are the two that actually bite:
- *
- *  - the segment-boundary rule in {@link stripBasePath}, because the passthrough
- *    forwards whatever pathname survives this function straight to the API, so a
- *    `startsWith` here would let `/authentic/v1/...` through mangled; and
- *  - the empty-base identity cases, because "unchanged with AUTH_BASE_PATH unset"
- *    is half of this task's acceptance criteria, not a nicety.
+ * The segment-boundary rule in {@link stripBasePath} is the case that bites: the
+ * passthrough forwards whatever pathname survives this function straight to the
+ * API, so a `startsWith` here would let `/authentic/v1/...` through mangled.
  */
 
 describe("normalizeBasePath", () => {

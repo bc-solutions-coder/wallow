@@ -11,9 +11,8 @@ import { AuthLayout } from "./auth-layout";
 
 /**
  * The fork's icon as the layout must render it: rooted, so it resolves to one
- * file from every route depth. Written from the JSON rather than as a literal —
- * the filename stays the fork's to choose, only the leading slash is the
- * platform's.
+ * file from every route depth. Built from the branding value rather than
+ * written as a literal — the filename stays the fork's to choose.
  */
 const rootedAppIcon = `/${forkBranding.appIcon}`;
 
@@ -36,12 +35,10 @@ describe("AuthLayout", () => {
   });
 
   it("leaves its heading reachable by FocusOnNavigate and unreachable by Tab", async () => {
-    // The route-change focus seam. `FocusOnNavigate` moves focus to the page's
-    // `<h1>` after each client-side navigation so assistive tech announces the
-    // new screen, and a bare heading is not focusable — hence `tabindex="-1"`,
-    // which also keeps it out of the Tab order for sighted keyboard users.
-    // `Text` spreads its rest props onto the element, so both attributes have to
-    // survive on the rendered heading rather than on a wrapper.
+    // `FocusOnNavigate` moves focus to the page's `<h1>` after each client-side
+    // navigation, and a bare heading is not focusable — hence `tabindex="-1"`,
+    // which also keeps it out of the Tab order. `Text` spreads its rest props,
+    // so both attributes land on the heading itself rather than on a wrapper.
     await render(<AuthLayout />);
 
     const heading = page.getByRole("heading", { level: 1 }).element() as HTMLElement;
@@ -93,14 +90,11 @@ describe("AuthLayout", () => {
   });
 
   it("serves every fork icon it renders from the site root", async () => {
-    // packages/styles/branding.json names the icon by bare filename (`piggy-icon.svg`), and
-    // rendering that value verbatim is what made the icon 404 on every nested
-    // route: the browser resolved it against the page, asking /mfa/challenge for
-    // /mfa/piggy-icon.svg. React does not normalise the path against the app
-    // base, so the layout must render the rooted URL.
-    //
-    // On a fork-branded page the icon appears twice — as the heading logo and in
-    // the footer attribution — and both are the same bug.
+    // `branding.json` names the icon by bare filename, and rendering that value
+    // verbatim 404s on every nested route: the browser resolves it against the
+    // page, asking /mfa/challenge for /mfa/piggy-icon.svg. React does not
+    // normalise against the app base, so the layout renders the rooted URL. On a
+    // fork-branded page the icon appears twice, and both are the same bug.
     await render(<AuthLayout />);
 
     const sources: (string | null)[] = page

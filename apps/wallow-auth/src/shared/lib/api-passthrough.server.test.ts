@@ -1,17 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * Guards the two things `handleApiPassthrough` adds on top of the SDK preset:
- * the client-IP stamp, and the fact that it hands the INBOUND request object
- * straight through.
+ * What `handleApiPassthrough` adds on top of the SDK preset: the client-IP
+ * stamp, and handing the INBOUND request object straight through.
  *
- * The no-clone case is a real regression, not a style preference. The obvious
- * `new Request(request, { headers })` throws `Cannot read private member #state`
- * at runtime under srvx: its request is a bespoke class that only claims to be a
- * `Request` via `Symbol.hasInstance`, so undici's copy constructor accepts it and
- * then reads a private field it does not have. Every login on this app goes
- * through `/connect/**`, so that failure would take the whole auth flow down —
- * and it type-checks, so only a spec catches it before a booted server does.
+ * The no-clone case is a real regression: `new Request(request, { headers })`
+ * throws `Cannot read private member #state` under srvx, whose request only
+ * claims to be a `Request` via `Symbol.hasInstance`, so undici's copy
+ * constructor accepts it and then reads a field it does not have. It type-checks,
+ * so only a spec catches it before a booted server does.
  */
 
 const mocks = vi.hoisted(() => ({
@@ -116,19 +113,14 @@ describe("handleApiPassthrough", () => {
 });
 
 /**
- * Base-path support (Wallow-vufu.2.2).
+ * TanStack Start strips the basepath from the pathname it MATCHES against the
+ * route tree — which is why `/auth/v1/me` reaches the `/v1/$` route — but hands
+ * the handler the ORIGINAL request, whose URL still carries the prefix. The SDK
+ * preset reads that URL both for its allowlist and for the upstream path, so the
+ * prefix comes off here and the SDK's allowlist stays unprefixed (it is shared
+ * with wallow-web).
  *
- * Established by spiking a real `AUTH_BASE_PATH=/auth` build against the built
- * Nitro server: TanStack Start strips the basepath from the pathname it MATCHES
- * against the route tree — which is why `/auth/v1/me` reaches the `/v1/$` route
- * at all — but hands the handler the ORIGINAL request, whose URL still carries
- * the prefix. The SDK preset then makes two decisions off that URL: whether the
- * path is in its allowlist (`/auth/v1/me` is not, so it 404s), and what path to
- * forward upstream (the API is not mounted under `/auth`). So the prefix has to
- * come off here, in the app's own wrapper, and the SDK's allowlist stays
- * unprefixed — it is shared with wallow-web and pinned by the SDK's own specs.
- *
- * The allowlist is the passthrough's entire security boundary, so the rebasing
+ * That allowlist is the passthrough's entire security boundary, so the rebasing
  * matches on segment boundaries exactly as the SDK's own prefix check does.
  */
 describe("handleApiPassthrough under a base path", () => {

@@ -8,48 +8,15 @@ import { createAuthHarness } from "@shared/testing/harness";
 import { Route as loginRoute } from "./login";
 
 /**
- * Route spec for `/login`'s PER-CLIENT BRANDING OVERLAY (Wallow-ffpq.2.5).
+ * `/login`'s per-client branding overlay: `?client_id=acme` renders that
+ * client's identity — name, tagline, logo — in place of the fork's.
  *
- * The overlay was ported with the screens but never wired: `mergeClientBranding`
- * (packages/styles) and `AuthLayout`'s optional `branding` prop both exist, and
- * `routes/login.tsx` already reads `client_id` out of the query string — it just
- * hands `AuthLayout` nothing, so a tenant hitting `/login?client_id=acme` gets
- * default Wallow branding. This file pins the criterion: that link renders THAT
- * CLIENT's branding.
+ * Driven through the ROUTE, not `LoginScreen`: `client_id` exists only once a
+ * router has parsed the URL, and a bare render of a search-reading route
+ * component dies on `router.stores` outside a `RouterProvider`.
  *
- * ── WHY THE ROUTE AND NOT THE SCREEN ─────────────────────────────────────────
- *
- * `client_id` only exists once a URL is parsed by a router, and the branded
- * chrome is `AuthLayout` — which the ROUTE renders around `LoginScreen`, not
- * `LoginScreen` itself. So the whole criterion lives at the route seam, and a
- * bare render of a search-reading route component always dies on `router.stores`
- * outside a `RouterProvider` (bd memory
- * `wallow-auth-route-tests-never-bare-render-a`). Hence the real memory router
- * below, with a throwaway root — the app's real `__root.tsx` renders `<html>`.
- *
- * ── THE SEAM IS THE WIRE, NOT A STAND-IN (Wallow-pu6a.5.1) ───────────────────
- *
- * The branding read is the generated `clientBrandingGetBrandingOptions()` bound
- * to the request-scoped SDK, but these tests deliberately dictate no particular
- * call shape: whatever the screen reaches for ends at the same request, so the
- * seam is `@bc-solutions-coder/testing/sdk-harness` — the REAL SDK with only its
- * `fetch` faked. The branding fixture is delivered as a genuine 200 on
- * `GET /v1/identity/apps/{clientId}/branding`, and "did it ask, and for whom" is
- * read off the RECORDED REQUEST — which pins the clientId in the URL rather than
- * in a spy's argument list. This also retires the two module mocks the file used
- * to carry, both now forbidden by `src/sdk-test-seam.test.ts`.
- *
- * `renderWithWallow` supplies the router context the screen reads its SDK off,
- * and `createAuthHarness()` pins the harness origin to this app's root-mounted
- * API surface (Wallow-pu6a.5.5).
- *
- * ── THEME COLOURS ARE OUT OF SCOPE (recorded so the gap is not read as a bug) ─
- *
- * The `<style>` block carrying the CSS variables is emitted by `__root.tsx` from
- * the module-constant `forkResolvedBranding`, and the root route has no loader,
- * so per-client COLOURS need root-route wiring that this bead does not do. The
- * acceptance criterion is the identity layer — name, tagline, logo — and that is
- * what is asserted here. `themeJson` is therefore `null` in every fixture.
+ * Runs the real SDK over a faked fetch (sdk-harness), so "did it ask, and for
+ * whom" is read off the recorded request path.
  */
 
 const CLIENT_ID = "acme-web";
@@ -62,9 +29,8 @@ const CLIENT_LOGO = "https://cdn.test/acme.svg";
 const BRANDING_ENDPOINT = `/v1/identity/apps/${CLIENT_ID}/branding`;
 
 /**
- * The provider list the login screen also renders. Not under test — answered
- * with an empty list so it cannot leave an unrelated rejection racing these
- * assertions.
+ * The provider list the login screen also renders, answered with an empty list
+ * so it cannot leave an unrelated rejection racing these assertions.
  */
 const PROVIDERS_ENDPOINT = "/v1/identity/auth/external-providers";
 
@@ -88,12 +54,9 @@ function clientBranding(overrides: Record<string, unknown> = {}) {
 }
 
 /**
- * What the API really answers when a client has no branding row: the controller
- * returns a BARE `NotFound()` with no body at all. The SDK turns every non-2xx
- * into a rejection, so "this client has no branding" arrives at the screen as a
- * FAILED query rather than as `null`, and the screen has to absorb it. Sent as
- * the real thing now instead of a hand-fabricated error object — a fixture that
- * cannot drift from what the SDK does with a 404.
+ * What the API answers when a client has no branding row: a BARE `NotFound()`
+ * with no body. The SDK turns every non-2xx into a rejection, so "this client
+ * has no branding" reaches the screen as a FAILED query, not as `null`.
  */
 function noBrandingRow(): Response {
   return new Response(null, { status: NOT_FOUND_STATUS });
@@ -148,8 +111,6 @@ describe("/login per-client branding", () => {
     await vi.waitFor(() => {
       expect(brandingCalls()).toHaveLength(1);
     });
-    // The clientId is a PATH segment, so asserting the recorded path is the same
-    // claim the old `toHaveBeenCalledWith(CLIENT_ID)` made — against the wire.
     expect(brandingCalls()[0]?.path).toBe(BRANDING_ENDPOINT);
     expect(brandingCalls()[0]?.method).toBe("GET");
   });

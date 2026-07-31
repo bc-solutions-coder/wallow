@@ -9,20 +9,14 @@ import { BASE_PATH } from "./base-path";
 import { appIconUrl, forkResolvedBranding } from "./branding";
 
 /**
- * This app's branding constants, bound to its base path (Wallow-8via).
- *
- * Node project: pure string work, no DOM.
+ * This app's branding constants, bound to its base path. Node project: pure
+ * string work, no DOM.
  *
  * `@bc-solutions-coder/styles` ships a PREBUILT bundle, so it cannot read this
- * app's `import.meta.env.BASE_URL` — its own is frozen at "/". The prefix has to
- * be handed to it, which is what this module does, once, so no screen picks up
- * the package's unbased `appIconUrl` by accident and 404s the icon under
- * `AUTH_BASE_PATH=/auth`.
- *
- * The wiring assertions below are source-text checks for the same reason
- * `request-origin.test.ts` uses them: the value is baked at BUILD time, so a
- * default (`AUTH_BASE_PATH` unset) test run cannot tell a prefixed URL from an
- * unprefixed one at runtime — only that the prefix is threaded through.
+ * app's `import.meta.env.BASE_URL` — its own is frozen at "/", and a screen that
+ * picks up the package's unbased `appIconUrl` 404s the icon under a base path.
+ * The wiring assertions are source-text checks because the value is baked at
+ * BUILD time: a default run cannot tell a prefixed URL from an unprefixed one.
  */
 
 const libDir: string = dirname(fileURLToPath(import.meta.url));

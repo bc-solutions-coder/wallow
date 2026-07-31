@@ -12,50 +12,21 @@ import { createAuthHarness } from "@shared/testing/harness";
 import { Route as invitationRoute } from "./invitation";
 
 /**
- * Route spec for `/invitation`'s AUTH-STATE PROBE (Wallow-x4qn.9.2).
+ * `/invitation`'s auth-state probe: what the route asks the API about the
+ * visitor, and what the screen offers for each answer.
  *
- * The route used to hand-roll that probe: the generated `users/me` key with its
- * own `queryFn` over the SDK's `getCurrentUser` and a local `retry: false`. This
- * task deletes it in favour of `useCurrentUser` from `@bc-solutions-coder/auth`,
- * the workspace's ONE definition of "who is signed in" — and a deletion of an
- * auth read is exactly the change that compiles cleanly while breaking the
- * screen. So this file pins the SURVIVING probe from both directions:
- *
- *  1. what must NOT change — the route still asks the API who the visitor is,
- *     still treats a 401 (and a failure) as anonymous rather than as an error,
- *     still refuses to redirect a signed-out visitor away from an invitation
- *     link, and still holds the screen back until the answer arrives;
- *  2. what the shared query ADDS — the resolved user lands in the cache with the
- *     `sub` the SDK's claim helpers read, and a user another route already
- *     primed is REUSED instead of re-fetched (the 30-second `staleTime` the
- *     inline probe never had).
- *
- * (2) is what a wrong deletion cannot fake: a hand-rolled copy resolves the same
- * cache key, so only the stored shape and the re-fetch behaviour tell the two
- * apart. `src/shared-current-user.test.ts` pins the same deletion structurally.
- *
- * TEST SEAM: `@bc-solutions-coder/testing/sdk-harness`. Nothing here mocks the
- * SDK or the auth package — the harness builds the REAL SDK over a recording
- * fake `fetch`, so the whole pipeline the app ships (request-scoped SDK ->
- * generated operation -> `getCurrentUser`'s 401 softening -> React Query) runs
- * for real and the assertions read the outgoing REQUEST. `renderWithWallow`
- * supplies the router context the route reads its SDK off, and
- * `createAuthHarness()` pins the harness origin to this app's root-mounted API
- * surface — which is why every path below is bare, with no `/api` prefix.
- *
- * The four wire branches of the probe (200 / 401 / 500 / in flight) are asserted
- * through the SCREEN's testids because that is the only thing a visitor sees of
- * the answer: `invitation-accept` for a signed-in one, `invitation-sign-in` for
- * an anonymous one. Those two branches are also exercised from
- * `features/invitation/components/InvitationScreen.test.tsx`; they are restated
- * here deliberately, as the regression pins for THIS task's deletion.
+ * Runs the real SDK over a faked fetch (sdk-harness), so assertions read the
+ * recorded request, not a spy. `renderWithWallow` supplies the router context
+ * the route reads its SDK off, and `createAuthHarness()` pins the harness origin
+ * to this app's root-mounted API surface — which is why every path below is
+ * bare, with no `/api` prefix.
  */
 
 const TOKEN = "inv-tok-9f2";
 const EMAIL = "invitee@example.com";
 const USER_ID = "8f1d4c9e-0000-4000-8000-0000000000a1";
 
-/** Wire paths, read off `packages/sdk/src/generated/sdk.gen.ts`. */
+/** Wire paths, as the generated SDK spells them. */
 const CURRENT_USER_PATH = "/v1/identity/users/me";
 const VERIFY_PREFIX = "/v1/identity/invitations/verify/";
 
@@ -80,7 +51,7 @@ function currentUserBody(): Record<string, unknown> {
   };
 }
 
-/** An `InvitationResponse`, pending and unexpired — not this file's subject. */
+/** An `InvitationResponse`, pending and unexpired. */
 function invitationBody(): Record<string, unknown> {
   return {
     id: "8f1d4c9e-0000-4000-8000-0000000000b2",
@@ -108,11 +79,9 @@ function verifyCalls(): readonly SdkCall[] {
 }
 
 /**
- * Mount the real route through a memory router, optionally on a cache a test has
- * primed BEFORE the route mounts — which stands in for the cache a real
- * navigation arrives with: `router.tsx`'s `createQueryClient()` lives for the
- * whole browser session, so a visitor who has already been through any other
- * current-user read reaches this route with the answer in hand.
+ * Mount the real route through a memory router, optionally on a cache primed
+ * before it mounts — which stands in for the cache a real navigation arrives
+ * with: the router's `createQueryClient()` lives for the whole browser session.
  */
 function renderRouteAt(url: string, queryClient?: QueryClient) {
   return renderWithWallow(null, {
@@ -161,9 +130,8 @@ describe("/invitation asks the API who the visitor is", () => {
 
   it("holds the screen back until the probe settles", async () => {
     // Mounting with `isAuthenticated: false` and flipping on arrival would flash
-    // "Create account" at a signed-in user. Asserted at the WIRE rather than on
-    // `invitation-loading` (which the screen's own pending state also renders):
-    // the screen has not mounted while no verify request exists.
+    // "Create account" at a signed-in user. The absence of a verify request is
+    // the load-bearing half: the screen has not mounted at all yet.
     currentUserAnswer = () => new Promise<Response>(() => {});
 
     renderRouteAt(`/invitation?token=${TOKEN}`);
@@ -223,9 +191,8 @@ describe("/invitation reads the visitor through the shared current-user query", 
   it("caches the resolved user with the sub the SDK's claim helpers read", async () => {
     // `packages/auth`'s query renames the API's `id` to `sub` so the stored user
     // satisfies `WallowUser` and the shared `requireAuth`/`isAdmin` guards can
-    // read it. The hand-rolled probe stored the raw response under the SAME key,
-    // so a guard reading this entry saw a user with no `sub` — which is the
-    // silent half of the duplication this task deletes.
+    // read it. A probe that stored the raw response under this same key would
+    // leave those guards seeing a user with no `sub`.
     const { queryClient } = renderRouteAt(`/invitation?token=${TOKEN}`);
 
     await expect.element(page.getByTestId("invitation-accept")).toBeInTheDocument();
@@ -239,11 +206,9 @@ describe("/invitation reads the visitor through the shared current-user query", 
   });
 
   it("reuses a user the shared query already primed instead of re-probing", async () => {
-    // The canonical query's 30-second `staleTime`, observed: primed data is FRESH,
-    // so mounting this route reads the cache. The inline probe declared no
-    // `staleTime` at all, which made every mount of an invitation link re-ask
-    // `users/me` — and left this route disagreeing with every other current-user
-    // read about how often to ask.
+    // The canonical query's 30-second `staleTime`, observed: primed data is
+    // FRESH, so mounting this route reads the cache rather than re-asking
+    // `users/me` on every arrival at an invitation link.
     const queryClient: QueryClient = createTestQueryClient();
     await queryClient.fetchQuery(currentUserQuery(harness.sdk.client));
 

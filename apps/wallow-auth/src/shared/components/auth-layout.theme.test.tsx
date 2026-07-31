@@ -5,18 +5,13 @@ import { describe, expect, it } from "vitest";
 import { AuthLayout } from "./auth-layout";
 
 /**
- * AuthLayout's theme control (Wallow-lrlm.1.2). wallow-auth has no nav — this
- * layout is the chrome every auth screen renders inside, so it is the app's only
- * shared home for the toggle.
+ * AuthLayout's theme control. wallow-auth has no nav, so this layout is the
+ * chrome every auth screen renders inside and the app's only shared home for
+ * the toggle.
  *
- * It matters more here than on the dashboard: the login screen is the first page
- * a visitor sees, often before any session exists, and it is the page a
- * cross-origin OIDC hop lands on. A visitor who has chosen a theme must not be
- * bounced back to the fork default on the way through.
- *
- * `data-testid="theme-toggle"` is the app-owned testid the Playwright suites
- * select on; `packages/ui` deliberately does not default it, so it is asserted
- * here at the place that supplies it.
+ * `data-testid="theme-toggle"` is app-owned: `packages/ui` deliberately does not
+ * default it and the Playwright suites select on it, so it is asserted here at
+ * the place that supplies it.
  */
 describe("AuthLayout theme toggle", () => {
   it("renders the theme toggle on every auth screen", async () => {

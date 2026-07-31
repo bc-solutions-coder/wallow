@@ -4,26 +4,14 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * Theme-activation wiring for wallow-auth's document shell (Wallow-lrlm.1.2) —
- * the sibling of `apps/wallow-web/src/app/routes/__root.theme.test.ts`, asserting
- * the same contract on the other origin. The two apps are served from different
- * ports and a visitor crosses between them mid-login, so a theme wired into only
- * one of them shows up as the login screen flipping scheme.
+ * Theme activation in wallow-auth's document shell.
  *
  * Asserted from the SOURCE rather than by rendering: `RootDocument` is not
- * exported (it reaches the router as `shellComponent`) and it renders a whole
- * `<html>/<head>/<body>` document, which `render()` cannot mount inside a test
- * container.
+ * exported (the router takes it as `shellComponent`) and it renders a whole
+ * `<html>` document, which `render()` cannot mount inside a test container.
  *
- * What has to be true:
- *
- *   - `ThemeScript` in `<head>`, so the `.light`/`.dark` class lands on
- *     `document.documentElement` BEFORE first paint.
- *   - `ThemeProvider` wrapping the body content, so the shell's `ThemeToggle`
- *     reads and writes one source of truth.
- *   - Both fed `branding.defaultMode`, the resolution order's last resort.
- *   - `<html className={branding.defaultMode}>` stays as the SSR baseline the
- *     script corrects.
+ * `ThemeScript` belongs in `<head>` so the scheme class lands on
+ * `document.documentElement` before first paint.
  */
 const source: string = readFileSync(
   fileURLToPath(new URL("./__root.tsx", import.meta.url)),

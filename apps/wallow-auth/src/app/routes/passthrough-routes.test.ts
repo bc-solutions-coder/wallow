@@ -5,23 +5,13 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * The successor to the deleted `proxy-paths.test.ts`.
- *
- * Which URL prefixes this origin forwards to the API is the app's external
- * contract, not an implementation detail. Under the old host it was a list in
- * `proxy-paths.ts`; under Start it is the SET OF ROUTE FILES, so a dropped file
- * is now the way the contract breaks — and it breaks silently, because a missing
- * splat route is a plain 404 that looks like an ordinary bad URL:
- *
- *  - `/.well-known/**` — OIDC discovery + JWKS. The documents the API publishes
- *    advertise URLs on THIS origin, so losing it breaks login with no useful error.
- *  - `/connect/**` — the OpenIddict authorize/token/logout/userinfo endpoints.
- *  - `/v1/**` — the API surface the screens call.
- *  - `/health` — not a proxy, but the same kind of contract: both compose stacks
- *    probe it, and a container that fails its healthcheck never joins the stack.
+ * Which URL prefixes this origin forwards to the API — the app's external
+ * contract, and under Start it is the SET OF ROUTE FILES. A dropped file breaks
+ * it silently: a missing splat route is a plain 404 that reads as a bad URL, so
+ * losing `/.well-known/**` breaks login with no useful error.
  *
  * Asserted over the file text rather than by importing the modules: the point is
- * that the FILE exists at the path the route codegen scans, which is exactly what
+ * that the FILE sits at the path the route codegen scans, which is exactly what
  * an import would paper over.
  */
 

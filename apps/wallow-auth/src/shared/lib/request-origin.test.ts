@@ -8,15 +8,13 @@ import { BASE_PATH, withBasePath } from "./base-path";
 import { resolveRequestOrigin } from "./request-origin";
 
 /**
- * This app's copy of the SSR origin derivation (Wallow-vufu.4.3).
- *
- * Node project: pure string work over a `Request`, no DOM.
+ * This app's copy of the SSR origin derivation. Node project: pure string work
+ * over a `Request`, no DOM.
  *
  * The full contract — proxy-chain header shapes, untrusted values, and the guard
- * that keeps all three copies byte-identical — lives in wallow-web's
- * `src/lib/request-origin.test.ts`. What this file owes is proof that THIS app's
- * copy honors both acceptance cases and that its `start.ts` actually routes
- * through it, composed with the base path the passthrough answers under.
+ * keeping all three copies byte-identical — lives in wallow-web's
+ * `request-origin.test.ts`. This file covers this app's own cases and that its
+ * `start.ts` routes through the helper, composed with the base path.
  */
 
 const libDir: string = dirname(fileURLToPath(import.meta.url));

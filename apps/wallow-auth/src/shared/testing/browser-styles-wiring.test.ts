@@ -4,19 +4,13 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * On-disk guard for the browser project's STYLING wiring (Wallow-8ytl), the twin
- * of apps/wallow-web's and the same shape
- * `packages/ui/src/core/storybook-setup.test.ts` uses for Storybook's theme
- * decorator.
+ * On-disk guard for the browser project's STYLING wiring. Node project
+ * (`*.test.ts`), because it reads files rather than rendering anything.
  *
  * `theme-wiring.test.tsx` proves the CSS is present by measuring a rendered box
- * and a rendered colour, which is the assertion that matters. This file is the
- * revert-proofing underneath it: it names the three pieces that have to stay
- * wired, so removing one fails with a message saying WHICH, rather than as a
- * pile of 15s actionability timeouts (utilities) or transparent colours (theme).
- *
- * Runs on the NODE project (`*.test.ts`), because it reads files rather than
- * rendering anything.
+ * and colour. This file names the pieces that have to stay wired, so removing
+ * one fails with a message saying WHICH, rather than as a pile of 15s
+ * actionability timeouts (utilities) or transparent colours (theme).
  */
 const appRoot = new URL("../../../", import.meta.url);
 
@@ -57,9 +51,9 @@ describe("browser project styling wiring", () => {
   });
 
   it("has no checkbox spec left working around a missing stylesheet", () => {
-    // Four specs used to toggle checkboxes by focus+Space because the catalog
-    // root measured 0x0 with no Tailwind. With real CSS they click instead; this
-    // pins the reason for the workaround as gone rather than merely unused.
+    // Without Tailwind a catalog checkbox root measures 0x0, and a spec works
+    // around it by toggling with focus+Space under a "depends on no layout"
+    // comment. With the stylesheet loaded, that workaround must not reappear.
     const specs: readonly string[] = [
       "src/features/accept-terms/components/AcceptTermsScreen.test.tsx",
       "src/features/register/components/RegisterForm.test.tsx",
