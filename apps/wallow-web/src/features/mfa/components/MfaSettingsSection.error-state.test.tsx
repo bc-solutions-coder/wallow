@@ -6,19 +6,12 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { MfaSettingsSection } from "./MfaSettingsSection";
 
 /**
- * Status-query error-state spec for the MFA settings card (Wallow-lrlm.4.2).
+ * The MFA settings card's status-query error state.
  *
- * The card's two MUTATIONS already surface failures through `settings-mfa-error`
- * — it is the initial `mfaGetStatusOptions()` READ that has no error branch.
  * `enabled = status?.enabled ?? false` makes a failed read look identical to a
- * confirmed "MFA is off", which is the most dangerous instance of this bug in
- * the app: it invites the user to enrol an account that may already be enrolled.
- *
- * The query error gets its OWN testid, `settings-mfa-status-error`, rather than
- * reusing the mutations' `settings-mfa-error`. The two never co-render (the read
- * error returns before the card exists), but a spec asserting on one testid must
- * be able to say WHICH failure it saw, and the E2E page object already binds
- * `settings-mfa-error` to the confirm-panel flow.
+ * confirmed "MFA is off", inviting the user to enrol an account that may already
+ * be enrolled. The read error carries its OWN testid rather than the mutations'
+ * `settings-mfa-error`, which the E2E page object binds to the confirm panel.
  */
 
 /** An RFC 7807 body the SDK's error interceptor brands as a `WallowError`. */

@@ -11,20 +11,12 @@ import { RegisterAppForm } from "./RegisterAppForm";
 let harness: SdkHarness;
 
 /**
- * Catalog-migration spec for the register-app form (Wallow-m5aq.5.3) — the two
- * hand-rolled primitives this form owned, and what each must become:
+ * The register-app form's two composite controls: the client-type `Select` and
+ * the scope `ToggleGroup`.
  *
- *   `app-client-type`   raw <select>                    -> catalog `Select`
- *   `app-scope-*`       raw aria-pressed <button> list   -> catalog `ToggleGroup`
- *
- * Every testid is preserved. The scope toggles are the interesting case: they
- * already carried `aria-pressed`, so the gap the migration closes is not the
- * per-button state but the GROUPING — eight independent pressed buttons in a
- * bare `<div>` announce as eight unrelated controls, where a toggle group
- * announces as one multi-select control. That is why these cases assert the
- * group wrapper and the multi-selection semantics, and leave "what a toggled
- * scope does to the submitted body" to `RegisterAppForm.test.tsx`, which already
- * pins it.
+ * Each scope button carries `aria-pressed` on its own; what the group adds is
+ * the GROUPING — eight loose pressed buttons announce as eight unrelated
+ * controls, where one toggle group announces as a single multi-select.
  */
 
 const OK_RESPONSE = {
@@ -94,8 +86,7 @@ describe("RegisterAppForm scope toggles (catalog ToggleGroup)", () => {
     const group: HTMLElement | null = groupContaining(SCOPE_TESTIDS[0] as string);
     expect(group, "the scope toggles must live inside a role=group container").not.toBeNull();
 
-    // ONE group, not one per toggle: the whole point is that these eight controls
-    // are announced as a single multi-select, so they must share a wrapper.
+    // ONE group, not one per toggle: the eight controls must share a wrapper.
     for (const testId of SCOPE_TESTIDS) {
       await expect.element(page.getByTestId(testId)).toBeInTheDocument();
       expect(groupContaining(testId)).toBe(group);
@@ -124,9 +115,8 @@ describe("RegisterAppForm scope toggles (catalog ToggleGroup)", () => {
   it("holds several scopes pressed at once", async () => {
     await renderForm();
 
-    // Multi-selection, not single: pressing a second scope must not release the
-    // first, which is the one behaviour a single-selection toggle group would
-    // silently break.
+    // Pressing a second scope must not release the first — the one behaviour a
+    // single-selection toggle group would silently break.
     await userEvent.click(byTestId("app-scope-storage-read"));
     await userEvent.click(byTestId("app-scope-openid"));
 

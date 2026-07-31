@@ -6,12 +6,10 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { AppList } from "./AppList";
 
 /**
- * Query error-state spec for the apps list (Wallow-lrlm.4.2). `AppList` copies
- * the canonical `OrganizationList` shape, including its gap: `data ?? []` turns
- * a failed `appsGetUserAppsOptions()` read into the "No apps yet." card. Same
- * fix, same shape as `OrganizationList.error-state.test.tsx` — the error branch
- * fires only when there is no cached data, and its sentence comes from
- * `errorText()`.
+ * The apps list's query error state.
+ *
+ * The list reads `data ?? []`, so a failed read must not fall through to the
+ * "No apps yet." card. The error branch fires only when there is no cached data.
  */
 
 /** An RFC 7807 body the SDK's error interceptor brands as a `WallowError`. */

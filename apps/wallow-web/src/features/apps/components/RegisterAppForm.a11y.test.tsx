@@ -10,43 +10,13 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { RegisterAppForm } from "./RegisterAppForm";
 
 /**
- * Accessible-name spec for the register-app BRANDING subsection
- * (Wallow-lrlm.4.4).
+ * Accessible names and message association for the register-app branding
+ * subsection.
  *
- * The four catalog fields above it are already correct — they went through
- * `@bc-solutions-coder/forms`, which renders a `Field.Label` bound to each
- * control. `BrandingSection` did not: it is the hand-rolled, uncontrolled block
- * at the bottom of the form, and all three of its controls are unnamed.
- *
- *   - `app-logo-input` — a fully bare `<input type="file">`. No label, no
- *     `aria-label`, not even a placeholder: it reaches the accessibility tree
- *     with NO accessible name at all.
- *   - `app-branding-display-name` / `app-branding-tagline` — `Input`s inside a
- *     `Field` with no `Field.Label`, carrying `placeholder="Display name"` /
- *     `placeholder="Tagline"`.
- *
- * The placeholder pair needs a sharper assertion than the file input does.
- * A placeholder IS the last-resort fallback in the accessible-name computation,
- * so `toHaveAccessibleName()` alone already passes for those two and would not
- * see the gap — while the name still vanishes the moment a user types, is not
- * announced by every AT, and is not a label by WCAG. So they are asserted on the
- * ASSOCIATION: a `<label>` (`input.labels`), an `aria-label`, or an
- * `aria-labelledby` — the three things that survive a filled-in field.
- *
- * The `<legend>Branding (optional)</legend>` above them names the FIELDSET, not
- * the controls inside it, so it does not close this gap either.
- *
- * WHAT WALLOW-LRLM.6.2 ADDS. The block stops being uncontrolled: the two text
- * controls become catalog `TextField`s (keeping their ids via an explicit
- * `testId` override) so the fix moves the naming onto the ui `Field` row every
- * other field on this form already uses, and the five assertions above go on
- * passing through it. Becoming real fields brings a message with them, and a
- * MESSAGE has the same association problem a label does — so the sixth case
- * asserts the one the uncontrolled block could never have had: the branding
- * display name is conditionally required (the endpoint 400s on a blank
- * `DisplayName`, so a tagline or logo without one cannot be sent), and that
- * message must be pointed at by the control's `aria-describedby` with
- * `aria-invalid` set, not merely rendered somewhere nearby.
+ * A placeholder is the last-resort fallback in the accessible-name computation,
+ * so `toHaveAccessibleName()` alone passes for a placeholder-only control. The
+ * two text inputs are asserted on the ASSOCIATION instead — `<label>`,
+ * `aria-label` or `aria-labelledby` — which is what survives a filled-in field.
  */
 
 /** The transport backing each render, rebuilt per test. */
@@ -66,8 +36,7 @@ function inputAt(testId: string): HTMLInputElement {
 
 /**
  * Whether the control carries a label that OUTLIVES a value being typed into
- * it — which a `placeholder`, the only thing naming two of these three controls
- * today, does not.
+ * it — which a `placeholder` does not.
  */
 function hasProgrammaticLabel(input: HTMLInputElement): boolean {
   return (
@@ -123,9 +92,6 @@ describe("RegisterAppForm — branding accessible names", () => {
     renderWithWallow(<RegisterAppForm />, { harness });
     await expect.element(page.getByTestId("app-branding-display-name")).toBeInTheDocument();
 
-    // The names themselves are already right (the placeholders say so); this
-    // pins them so the fix moves the wording onto a real label rather than
-    // replacing it.
     await expect
       .element(page.getByTestId("app-branding-display-name"))
       .toHaveAccessibleName(/display name/i);
@@ -133,9 +99,8 @@ describe("RegisterAppForm — branding accessible names", () => {
   });
 
   it("associates the conditional-required message with the branding display-name input", async () => {
-    // A tagline with no display name cannot be upserted — the endpoint rejects a
-    // blank `DisplayName` — so the form has to say so, ON the control that is
-    // missing rather than in a banner the user has to connect up by eye.
+    // The endpoint rejects a blank `DisplayName`, so a tagline or logo without
+    // one cannot be sent.
     renderWithWallow(<RegisterAppForm />, { harness });
 
     await userEvent.type(page.getByTestId("app-display-name"), "My App");
@@ -152,8 +117,6 @@ describe("RegisterAppForm — branding accessible names", () => {
     expect(describedByIds(control)).toContain(messageId);
     expect(control.getAttribute("aria-invalid")).toBe("true");
 
-    // The message is the point, but it is only honest if the request it stands
-    // in for really did not go out.
     expect(harness.calls.filter((call: SdkCall) => call.path.endsWith("/branding"))).toHaveLength(
       0,
     );

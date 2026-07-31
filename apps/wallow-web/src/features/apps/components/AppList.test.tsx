@@ -6,18 +6,12 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { AppList } from "./AppList";
 
 /**
- * Component spec for the Apps list page (Wallow-8w1h.5.2), mirroring
- * OrganizationList.test.tsx. Data flows through the generated
- * `appsGetUserAppsOptions()`, so the network seam is the `fetch` of the
- * request-scoped client this spec's own `createSdkHarness()` builds
- * (Wallow-pu6a.5.5 — there is no shared module-global client left to install a
- * mock onto). Every state is driven from the transport rather than the cache:
- * list and empty via `harness.resolveJson`, loading by leaving the request
- * never-settling (`harness.pending()`).
+ * The apps list page: its rows, its empty state, and its loading state.
  *
- * Testids follow `{page}-{element}` kebab-case: per-row
- * `app-item` (deliberately `app-item`, not `apps-row`), empty state
- * `apps-empty-state`, loading `apps-loading`.
+ * The network seam is the `fetch` of the request-scoped client `createSdkHarness()`
+ * builds, so every state is driven from the transport rather than the cache: list
+ * and empty via `harness.resolveJson`, loading by leaving the request
+ * never-settling (`harness.pending()`).
  */
 
 /** The transport backing each render, rebuilt per test. */
@@ -52,6 +46,8 @@ describe("AppList", () => {
     expect(page.getByTestId("app-item").elements()).toHaveLength(2);
     await expect.element(page.getByText("Acme App")).toBeInTheDocument();
     await expect.element(page.getByText("Globex App")).toBeInTheDocument();
+    await expect.element(page.getByTestId("app-item-name").first()).toHaveTextContent("Acme App");
+    await expect.element(page.getByTestId("app-item-type").first()).toHaveTextContent("public");
   });
 
   it("renders the empty state and no rows when the app list is empty", async () => {
@@ -59,7 +55,14 @@ describe("AppList", () => {
 
     renderWithWallow(<AppList />, { harness });
 
-    await expect.element(page.getByTestId("apps-empty-state")).toBeInTheDocument();
+    const empty = page.getByTestId("apps-empty-state");
+    await expect.element(empty).toBeInTheDocument();
+    await expect.element(empty).toHaveTextContent("No apps yet.");
+    await expect
+      .element(empty)
+      .toHaveTextContent(
+        "Nothing has been registered here. Get started by creating your first application.",
+      );
     expect(page.getByTestId("app-item").elements()).toHaveLength(0);
   });
 
@@ -70,7 +73,7 @@ describe("AppList", () => {
 
     renderWithWallow(<AppList />, { harness });
 
-    await expect.element(page.getByTestId("apps-loading")).toBeInTheDocument();
+    await expect.element(page.getByTestId("apps-loading")).toHaveTextContent("Loading apps…");
     expect(page.getByTestId("app-item").elements()).toHaveLength(0);
   });
 });

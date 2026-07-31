@@ -1,13 +1,10 @@
 /**
- * MFA error surfacing under the unified error contract (Wallow-pu6a.5.3).
+ * MFA error surfacing under the unified error contract.
  *
- * Before this task the MFA endpoints' raw `{ succeeded: false, error }` body was
- * thrown unchanged, so `problemDetail` read the machine code straight off the
- * thrown object. The SDK's error interceptor now normalizes EVERY failure —
- * RFC 7807 and raw-shape alike — into a `WallowError`, so the code arrives as
- * `error.code` and the human sentence as `error.detail`. These specs pin that
- * migration: the raw shape is no longer consulted, and an unmapped placeholder
- * code never reaches the user.
+ * The SDK's error interceptor normalizes EVERY failure — RFC 7807 and raw-shape
+ * alike — into a `WallowError`, so the machine code arrives as `error.code` and
+ * the human sentence as `error.detail`. A raw `{ succeeded, error }` body is
+ * never consulted, and the `UNKNOWN` placeholder never reaches the user.
  */
 
 import { WallowError } from "@bc-solutions-coder/sdk";
@@ -70,16 +67,13 @@ describe("problemDetail", () => {
   });
 
   it("falls back rather than showing the placeholder UNKNOWN code", () => {
-    // A failure the API named no code for normalizes to UNKNOWN; that is an
-    // internal placeholder, never user-facing copy.
     const error = wallowError({ code: "UNKNOWN", status: 500, title: "Unknown error" });
 
     expect(problemDetail(error, FALLBACK)).toBe(FALLBACK);
   });
 
   it("ignores a raw { error } body — nothing throws that shape any more", () => {
-    // The pre-interceptor contract. Reading it would keep the deleted raw-throw
-    // path alive and let an unbranded object dictate user-facing copy.
+    // An unbranded object must never dictate user-facing copy.
     expect(problemDetail({ succeeded: false, error: "invalid_code" }, FALLBACK)).toBe(FALLBACK);
   });
 

@@ -1,22 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 /**
- * Apps feature `api.ts` — a THIN RE-EXPORT SEAM over
- * `@bc-solutions-coder/sdk/query`. Everything behind it is GENERATED as of
- * Wallow-pu6a.5.5, which changed what this spec can usefully pin:
+ * The apps feature's `api.ts` re-export seam over `@bc-solutions-coder/sdk/query`.
  *
- *  - re-export identity is still worth pinning (a seam that re-declared instead
- *    of re-exporting would silently double the surface);
- *  - the old key and per-mutation `onSuccess` assertions are not. Generated keys
- *    are flat and built by hey-api, and the mutations no longer carry an
- *    `onSuccess` — invalidation moved to the call sites, where the component
- *    specs assert it against the rendered screen.
- *
- * What DOES still need pinning is the one editorial decision left here: which
- * curated predicate reaches this feature's queries. `queriesWithTag("Apps")`
- * takes a string the compiler cannot check, and a typo would leave every
- * post-registration sweep silently matching nothing — so it is checked against
- * the real generated key, with another feature's key as the negative control.
+ * A seam that re-declared instead of re-exporting would silently double the
+ * surface, so identity is pinned. `queriesWithTag("Apps")` takes a string the
+ * compiler cannot check, so it is checked against the real generated key with
+ * another feature's key as the negative control.
  */
 
 import * as query from "@bc-solutions-coder/sdk/query";

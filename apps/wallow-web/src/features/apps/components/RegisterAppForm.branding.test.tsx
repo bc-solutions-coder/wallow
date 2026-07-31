@@ -13,44 +13,13 @@ import { RegisterAppForm } from "./RegisterAppForm";
 let harness: SdkHarness;
 
 /**
- * App branding/logo-upsert spec — the optional "Branding" section that upserts a
- * display name, tagline, and logo file for the app.
+ * The optional branding subsection's post-register upsert.
  *
- * PART ONE — REACHABILITY (Wallow-ffpq.3.6, unchanged). The branding section
- * lives on the same register-app page, so once `RegisterAppForm` is mounted (at
- * `/dashboard/apps/register`, Wallow-ffpq.3.5) the branding display-name /
- * tagline / logo inputs must be reachable in the form view. Testids follow the
- * component's own `app-*` convention (the `register-app-*` testids were renamed
- * to `app-*`). Those three are render-only (no query/mutation fires); the SDK
- * client mock is installed only to guard against a real network call
- * (Wallow-evd5.2.6 — the retired `getWallowSdk()` facade is no longer in the
- * path).
- *
- * PART TWO — THE DATA PATH (Wallow-lrlm.6.2). Reachability was as far as
- * Wallow-ffpq.3.6 went: the three controls were left uncontrolled, bound to no
- * form field, and `toVariables` never read them — so a display name, tagline or
- * logo a user typed was DISCARDED on submit, with no error and no trace. Branding
- * cannot ride the register request body (it is a different endpoint,
- * `POST /v1/identity/apps/{clientId}/branding`, multipart, keyed on a clientId
- * that first exists in the register RESPONSE), so it becomes a POST-REGISTER
- * upsert and these cases pin it:
- *
- *   - Typed branding reaches the wire, at the clientId the REGISTER call
- *     answered with — `client-abc` here, a value that appears nowhere in the
- *     form, so a path carrying it can only have come from the response.
- *   - An untouched (or whitespace-only) section fires NOTHING. Not an
- *     optimisation: the endpoint 400s on a blank `DisplayName`, so an
- *     unconditional upsert would turn every plain registration into a visible
- *     failure.
- *   - A chosen logo file rides along in the same multipart body.
- *   - Register-ok / branding-failed still reveals the one-time client secret,
- *     and its retry re-fires ONLY the branding call. The secret is minted once
- *     and can never be re-shown, so a retry that re-ran the registration would
- *     destroy the very thing the success view exists to hand over.
- *
- * The assertions are on the RECORDED OUTGOING REQUESTS (`harness.calls`), not on
- * a spy: the real SDK serializes the multipart body and the harness decodes it
- * back, so "the branding reached the wire" is a claim about the wire.
+ * Branding cannot ride the register request body: it is a different endpoint,
+ * multipart, keyed on a clientId that first exists in the register RESPONSE. The
+ * endpoint 400s on a blank `DisplayName`, so an untouched or whitespace-only
+ * section must fire nothing. Assertions read the RECORDED OUTGOING REQUESTS, so
+ * "the branding reached the wire" is a claim about the wire, not about a spy.
  */
 
 /** The register response the harness answers a successful submit with. */
@@ -120,8 +89,6 @@ describe("RegisterAppForm branding/logo upsert", () => {
   });
 
   it("posts the typed branding to the branding endpoint for the returned clientId", async () => {
-    // The defect this whole case exists to kill: today both strings are typed
-    // into controls bound to nothing, and the submit drops them silently.
     programHarness(OK_STATUS, {});
     renderWithWallow(<RegisterAppForm />, { harness });
 
@@ -143,8 +110,6 @@ describe("RegisterAppForm branding/logo upsert", () => {
       DisplayName: "Wallow Console",
       Tagline: "Ship faster",
     });
-    // The register body contract does not move: branding is a second request,
-    // not a widened first one.
     expect(callsTo(REGISTER_PATH)).toHaveLength(1);
   });
 
@@ -171,8 +136,6 @@ describe("RegisterAppForm branding/logo upsert", () => {
   });
 
   it("fires no branding request at all when the section is untouched", async () => {
-    // The endpoint 400s on a blank DisplayName, so an unconditional upsert would
-    // make every plain registration look half-failed.
     programHarness(OK_STATUS, {});
     renderWithWallow(<RegisterAppForm />, { harness });
 
@@ -186,10 +149,9 @@ describe("RegisterAppForm branding/logo upsert", () => {
   });
 
   it("fires no branding request when the section holds only whitespace", async () => {
-    // Sharper than the untouched case: these fields have been TYPED IN, so an
-    // implementation gating on "dirty" rather than on the trimmed values would
-    // pass the case above and fail here — and would post the blank DisplayName
-    // the API rejects.
+    // These fields have been TYPED IN, so an implementation gating on "dirty"
+    // rather than on the trimmed values passes the untouched case above and
+    // fails here — posting the blank DisplayName the API rejects.
     programHarness(OK_STATUS, {});
     renderWithWallow(<RegisterAppForm />, { harness });
 
@@ -204,9 +166,8 @@ describe("RegisterAppForm branding/logo upsert", () => {
   });
 
   it("still reveals the one-time secret when the branding upsert fails", async () => {
-    // Register-ok / branding-failed. The client secret is minted once and is
-    // never re-fetchable, so a failed SECOND call must not cost the user the
-    // result of the first.
+    // The client secret is minted once and is never re-fetchable, so a failed
+    // SECOND call must not cost the user the result of the first.
     programHarness(BAD_REQUEST_STATUS, BRANDING_PROBLEM);
     renderWithWallow(<RegisterAppForm />, { harness });
 
@@ -223,8 +184,7 @@ describe("RegisterAppForm branding/logo upsert", () => {
 
   it("retries only the branding upsert, never the registration", async () => {
     // A retry that re-ran the registration would mint a SECOND client secret and
-    // discard the one already on screen, so this counts calls per path: a
-    // re-registration fails the test rather than merely looking odd.
+    // discard the one already on screen, so calls are counted per path.
     programHarness(BAD_REQUEST_STATUS, BRANDING_PROBLEM);
     renderWithWallow(<RegisterAppForm />, { harness });
 

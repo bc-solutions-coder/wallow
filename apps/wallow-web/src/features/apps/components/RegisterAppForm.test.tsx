@@ -8,52 +8,12 @@ import { appsGetUserAppsQueryKey } from "../api";
 import { RegisterAppForm } from "./RegisterAppForm";
 
 /**
- * Component spec for the register-app form (Wallow-8w1h.5.3). Copies the
- * CANONICAL create-form template (CreateOrganizationForm) — `useForm` (TanStack
- * Form) + `useMutation(registerAppMutation(queryClient))` — and adds the
- * behaviors unique to app registration:
+ * The register-app form: submitted body, scope toggles, the one-time secret
+ * reveal, and the server-error surface.
  *
- *   - Field remap (API request contract):
- *     DisplayName -> clientName, Scopes -> requestedScopes; clientType defaults
- *     to "public"; redirect URIs are a newline-separated textarea split on `\n`
- *     with empty lines dropped.
- *   - Scope multi-select toggle buttons (available: inquiries.read,
- *     inquiries.write, announcements.read, storage.read; default selected:
- *     inquiries.read).
- *   - The ONE-TIME client secret: `AppRegistrationResponse.clientSecret` is
- *     returned ONLY from the register call (GET /apps and GET /apps/{id} carry
- *     no secret), so it is rendered exactly once — after a successful
- *     registration — via `data-testid=app-client-secret` (+ `app-client-id`),
- *     never before, and never re-fetchable. Mirrors RegisterAppResult.cs /
- *     RegisterApp.razor:37-49 ("Save your client secret now. It will not be
- *     shown again.").
- *
- * The form builds its mutation from the GENERATED `appsRegisterMutation({ client })`
- * re-exported by api.ts (Wallow-pu6a.5.5), so the network seam is the SDK
- * instance the render puts on the router context, backed by `createSdkHarness()`.
- * The register call resolves the one-time-secret response
- * (`harness.resolveJson(OK_RESPONSE)` in `beforeEach`); the submitted body is
- * asserted via the recorded outgoing request (`harness.last`); the success sweep
- * is checked by running the filter the mutation passed `invalidateQueries`
- * against the real `appsGetUserAppsQueryKey()` (`expectSwept`); a server
- * ProblemDetails is driven with `harness.rejectJson`.
- *
- * Testids follow the apps feature's `app-*` convention (like `app-item`, and
- * the bead-mandated `app-client-secret`/`app-client-id`): `app-display-name`
- * (input), `app-client-type` (select), `app-redirect-uris` (textarea),
- * `app-post-logout-redirect-uris` (textarea), `app-scope-{scope-dashed}` (toggle
- * buttons), `app-register-submit` (submit), `app-display-name-error`
- * (required-field validation), `app-register-error` (server RFC 7807
- * ProblemDetails surface), `app-client-secret` + `app-client-secret-copy` +
- * `app-client-id` (one-time success reveal).
- *
- * F7/T7.2 CONTRACT UPDATE (reworked AppsController): the regenerated
- * `RegisterAppRequest` gained `postLogoutRedirectUris`, and the register endpoint
- * now accepts the OIDC login scopes (`ApiScopes.LoginScopes` = openid, profile,
- * email, offline_access) in addition to the developer-app scopes. The form must
- * collect post-logout redirect URIs and offer the login scopes as selectable.
- * (Secret rotation + redirect-URI management remain DESCOPED — no AppsController
- * endpoint exists for them; tracked separately.)
+ * The wire contract remaps `displayName` to `clientName` and `scopes` to
+ * `requestedScopes`; the redirect-URI textareas are newline-separated lists.
+ * `clientSecret` comes back ONLY from the register call, so it is never re-fetchable.
  */
 
 const OK_RESPONSE = {

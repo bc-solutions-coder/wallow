@@ -1,18 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 /**
- * MFA feature `api.ts` — a THIN RE-EXPORT SEAM over
- * `@bc-solutions-coder/sdk/query`. Everything behind it is GENERATED as of
- * Wallow-pu6a.5.5, so the invalidation model (confirm/disable/regenerate sweep
- * the status card; `enrollTotp` mints a one-time secret and sweeps nothing) moved
- * to the call sites, where the component specs assert it against the card.
+ * The MFA feature's `api.ts` re-export seam over `@bc-solutions-coder/sdk/query`.
  *
- * The decision this seam still owns — and the reason this spec exists — is that
- * MFA sweeps by OPERATION and not by tag. hey-api tags every MFA operation
+ * MFA sweeps by OPERATION, not by tag: hey-api tags every MFA operation
  * `Identity`, a tag it also puts on the account and session operations, so
  * `queriesWithTag("Identity")` would refetch most of the identity module to
- * repaint one status card. That distinction is invisible at a call site and is
- * asserted here.
+ * repaint one status card. That distinction is invisible at a call site.
  */
 
 import * as query from "@bc-solutions-coder/sdk/query";

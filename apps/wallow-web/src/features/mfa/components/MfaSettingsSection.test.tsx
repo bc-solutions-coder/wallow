@@ -8,33 +8,13 @@ import { mfaGetStatusQueryKey } from "../api";
 import { MfaSettingsSection } from "./MfaSettingsSection";
 
 /**
- * Component spec for the MFA settings status card (Wallow-8w1h.6.4). Mirrors the
- * C# E2E page object `SettingsMfaSection`:
+ * The MFA settings status card: Enabled/Disabled, the shared confirm panel behind
+ * both disable and regenerate, and the regenerated-codes reveal.
  *
- *   - `settings-mfa-status` ("Enabled"/"Disabled")
- *   - DISABLED: `settings-mfa-enable` -> enters the inline enroll flow
- *     (`mfa-enroll-begin-setup`); no cross-app redirect (same-origin SPA).
- *   - ENABLED: `settings-mfa-backup-count`, `settings-mfa-disable`,
- *     `settings-mfa-regenerate`; each opens the SHARED confirm panel
- *     (`settings-mfa-confirm-password` + `settings-mfa-confirm-submit`) driving
- *     the disable / regenerate mutations, which invalidate `['mfa', 'status']`.
- *   - `settings-mfa-error` — shared RFC 7807 error surface.
- *
- * Data flows through the GENERATED query surface (`mfaGetStatusOptions` +
- * `mfaDisableMutation`/`mfaRegenerateBackupCodesMutation`), so the network seam is
- * the SDK instance the render puts on the router context, backed by
- * `createSdkHarness()` (Wallow-pu6a.5.5). Status is no longer seeded into a cache
- * key — the status request is ANSWERED (`programStatus`), so the generated
- * operation and its parsing run as they do in the app — and the loading state
- * comes from a never-settling request (`harness.pending()`). The
- * disable/regenerate wire requests (`POST /api/v1/identity/mfa/disable`,
- * `.../backup-codes/regenerate`) are asserted via the recorded outgoing request
- * (`harness.calls`), and the post-success sweep by running the filter handed to
- * `invalidateQueries` against the real `mfaGetStatusQueryKey()` (`expectSwept`) —
- * the status operation specifically, not its `Identity` tag, which spans the whole
- * module. The error surface exercises the REAL wire shape: MFA controllers return
- * failures as a raw `{ succeeded: false, error }` body (NOT ProblemDetails), which
- * the SDK's error interceptor passes through to `onError`.
+ * The post-success sweep targets the status OPERATION, not its `Identity` tag,
+ * which spans the whole identity module. MFA controllers return failures as a raw
+ * `{ succeeded: false, error }` body rather than RFC 7807, so the error surface
+ * maps the `error` code instead of reading a `.detail`.
  */
 
 const DISABLED_STATUS = { enabled: false, method: null, backupCodeCount: 0 };
@@ -81,13 +61,17 @@ describe("MfaSettingsSection", () => {
 
     renderWithWallow(<MfaSettingsSection />, { harness });
 
-    await expect.element(page.getByTestId("settings-mfa-loading")).toBeInTheDocument();
+    await expect
+      .element(page.getByTestId("settings-mfa-loading"))
+      .toHaveTextContent("Loading MFA status…");
   });
 
   it("shows Disabled with the enable affordance and no enabled-only controls when MFA is off", async () => {
     renderStatus(DISABLED_STATUS);
 
     await expect.element(page.getByTestId("settings-mfa-status")).toHaveTextContent("Disabled");
+    await expect.element(page.getByText("Multi-Factor Authentication")).toBeInTheDocument();
+    await expect.element(page.getByText("Status")).toBeInTheDocument();
     await expect.element(page.getByTestId("settings-mfa-enable")).toBeInTheDocument();
     await expect.element(page.getByTestId("settings-mfa-disable")).not.toBeInTheDocument();
     await expect.element(page.getByTestId("settings-mfa-regenerate")).not.toBeInTheDocument();
@@ -98,6 +82,7 @@ describe("MfaSettingsSection", () => {
     renderStatus(ENABLED_STATUS);
 
     await expect.element(page.getByTestId("settings-mfa-status")).toHaveTextContent("Enabled");
+    await expect.element(page.getByText("Backup Codes Remaining")).toBeInTheDocument();
     await expect.element(page.getByTestId("settings-mfa-backup-count")).toHaveTextContent("7");
     await expect.element(page.getByTestId("settings-mfa-disable")).toBeInTheDocument();
     await expect.element(page.getByTestId("settings-mfa-regenerate")).toBeInTheDocument();
@@ -177,13 +162,6 @@ describe("MfaSettingsSection", () => {
     await expectSwept(invalidateSpy, mfaGetStatusQueryKey());
   });
 
-  // REAL WIRE SHAPE (Wallow-8w1h.6.6): MfaController.Disable /
-  // RegenerateBackupCodes return their failures as a raw anonymous object
-  // `{ succeeded: false, error: "<code>" }` (e.g. invalid_password), NOT an
-  // RFC 7807 ProblemDetails. `unwrap()` THROWS that raw body on the 400, so
-  // onError receives `{ succeeded:false, error }` with NO `.detail`. The error
-  // surface must map that `error` code to a meaningful message instead of
-  // always showing the generic "Unable to complete that action." fallback.
   it("surfaces the mapped error message in settings-mfa-error when disable rejects with the real { succeeded:false, error } body", async () => {
     // Only the disable POST fails; the status request keeps answering Enabled so
     // the card stays on the branch that owns the confirm panel.
@@ -196,7 +174,6 @@ describe("MfaSettingsSection", () => {
 
     const error = page.getByTestId("settings-mfa-error");
     await expect.element(error).toHaveTextContent("That password is incorrect.");
-    // Not the generic "Unable to complete that action." fallback.
     await expect.element(error).not.toHaveTextContent("Unable to complete that action.");
   });
 
@@ -213,12 +190,8 @@ describe("MfaSettingsSection", () => {
     await expect.element(error).not.toHaveTextContent("Unable to complete that action.");
   });
 
-  // REGENERATED-CODES REVEAL (Wallow-8w1h.6.6): the whole point of regenerating
-  // is that the OLD codes are invalidated and the user MUST save the NEW ones.
-  // The regenerated codes must be revealed in a "New Backup Codes (save these
-  // somewhere safe)" panel after a successful regenerate. The resolved
-  // `{ codes: string[] }` payload must be surfaced once under
-  // `settings-mfa-regenerated-codes`, not silently discarded.
+  // Regenerating invalidates the OLD codes, so the resolved `{ codes }` payload
+  // has to be revealed rather than silently discarded.
   it("reveals the regenerated backup codes under settings-mfa-regenerated-codes after a successful regenerate", async () => {
     renderStatus(ENABLED_STATUS, { codes: ["new-code-1", "new-code-2", "new-code-3"] });
 
@@ -231,9 +204,14 @@ describe("MfaSettingsSection", () => {
     await expect.element(codes).toHaveTextContent("new-code-1");
     await expect.element(codes).toHaveTextContent("new-code-2");
     await expect.element(codes).toHaveTextContent("new-code-3");
-    // The confirm panel closes once the new codes are revealed.
+    await expect
+      .element(
+        page.getByText(
+          "New backup codes — save these somewhere safe. They will not be shown again.",
+        ),
+      )
+      .toBeInTheDocument();
     await expect.element(page.getByTestId("settings-mfa-confirm-password")).not.toBeInTheDocument();
-    // No error surface on success.
     await expect.element(page.getByTestId("settings-mfa-error")).not.toBeInTheDocument();
   });
 });
