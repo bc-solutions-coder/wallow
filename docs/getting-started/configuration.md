@@ -43,9 +43,13 @@ That file is the single source of fork identity. `packages/styles` (`@bc-solutio
 
 Each color set is a map of camelCase token names to CSS values. The tokens the shipped `api/branding.json` defines are:
 
-`background`, `foreground`, `card`, `cardForeground`, `popover`, `popoverForeground`, `primary`, `primaryForeground`, `secondary`, `secondaryForeground`, `muted`, `mutedForeground`, `accent`, `accentForeground`, `destructive`, `destructiveForeground`, `border`, `input`, `ring`, `radius`
+`background`, `foreground`, `card`, `cardForeground`, `popover`, `popoverForeground`, `primary`, `primaryForeground`, `secondary`, `secondaryForeground`, `muted`, `mutedForeground`, `accent`, `accentForeground`, `destructive`, `destructiveForeground`, `border`, `input`, `ring`, `sidebar`, `sidebarForeground`, `sidebarAccent`, `success`, `successForeground`, `radius`
 
 All except `radius` are OKLCH colors; `radius` is a CSS length (`0.5rem`). The map is open-ended -- unknown keys are passed through as CSS custom properties, so a fork can add its own tokens.
+
+The `sidebar*` and `success*` tokens were added after the original set, so they resolve through a two-level fallback (`--color-sidebar: var(--sidebar, var(--foreground))`) rather than the plain `var(--x)` the older tokens use. Because `api/branding.json` is `merge=ours` in `.gitattributes`, a fork whose copy predates these keys never receives them from an upstream merge -- the fallback lands it on a colour its palette already carries instead of on nothing. The `sidebar*` family is the theme's general inverted-surface family, not solely a dashboard sidebar.
+
+**`defaultMode` is only the starting point.** It is the scheme applied when neither the visitor nor their OS states a preference; the frontends resolve the active scheme at load time as persisted choice, then OS `prefers-color-scheme`, then this value, and a visitor can change it at any time through the shared theme toggle. See [Dark Mode](../development/frontend-setup.md#dark-mode).
 
 **Example `api/branding.json`:**
 

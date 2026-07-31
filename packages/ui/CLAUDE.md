@@ -1,13 +1,14 @@
 # packages/ui — @bc-solutions-coder/ui Agent Guide
 
-The shared **browser-only** React component library: 47 component folders under
+The shared **browser-only** React component library: 56 component folders under
 `src/components/`, each a **Base UI** (`@base-ui/react` ^1.6.0) headless part wrapped in a
 **CVA** recipe built from `@bc-solutions-coder/styles` semantic tokens. Private (never
 published), consumed by `apps/wallow-auth` and `apps/wallow-web` as `workspace:*`.
 
-Four of those folders are app-wiring rather than visual primitives — `ReadyIndicator`,
-`FocusOnNavigate`, `DocumentStyles`, `ForkAttribution` — and are the only ones without a
-story.
+Five folders render nothing a story could show and are the only ones without one: the four
+app-wiring folders — `ReadyIndicator`, `FocusOnNavigate`, `DocumentStyles`,
+`ForkAttribution` — plus `theme-provider`, which is a context provider and a pre-paint
+`<script>`. Its `ThemeToggle` sibling is an ordinary visual component and does have stories.
 
 ## Layering — three layers, one direction
 
@@ -62,6 +63,17 @@ would fork the behaviour).
   recipe uses.
 - `@bc-solutions-coder/styles` is a **devDependency only** (for the Storybook preview);
   `src/` must never import it.
+- **`surface: page | sidebar` is the axis for WHICH PALETTE a control paints from**, kept
+  separate from `variant` (which says what KIND of control it is, and whose every arm paints
+  from the page palette — a `secondary` button dropped on the inverted rail is a light chip on
+  a dark surface). It is on `buttonRecipe`, `errorBannerRecipe` and
+  `navigationMenuLinkRecipe`; `navigationMenuTriggerRecipe` still lacks it (no app renders a
+  trigger, so it is a gap, not a defect). Two rules when adding it to a recipe: declare the
+  axis **LAST** so its utilities land after `variant`'s and `cn()`'s tailwind-merge collapses
+  the pair in its favour — that ordering IS the mechanism, do not reshuffle it — and have the
+  `sidebar` arm restate **every** colour dimension a `variant` arm can set (rest surface, rest
+  text, border, hover surface, hover text), since tailwind-merge only drops the class a caller
+  conflicts with and a dimension left unnamed stays a page colour on the rail.
 
 ## Exports — barrel _and_ subpath
 
@@ -117,6 +129,27 @@ real Tailwind pipeline and the fork's real theme attached).
 
 ## Gotchas
 
+- **A `.dark` WRAPPER DIV IS VACUOUS — the class only works on `document.documentElement`.**
+  `renderThemeStyle` emits `:root`/`.dark`/`.light` blocks carrying the RAW variables
+  (`--sidebar`, `--background`, …), while `styles.css`'s `@theme` declares the TOKEN
+  (`--color-sidebar: var(--sidebar, …)`) on `:root` alone. A `var()` inside a custom property
+  is substituted at computed-value time on the DECLARING element, so a descendant `.dark`
+  rebinds the raw variable while the token above it keeps the light value it already computed
+  — and that value is what inherits down. Measured: `bg-sidebar` is `rgb(40,21,12)` under a
+  `.dark` wrapper AND under a `.light` one, `rgb(35,17,8)` only with `.dark` on the document
+  element. A story or spec that must show or assert a scheme stamps `documentElement` and
+  cleans up (one shared document — design around leakage). Six story files (`empty-state`,
+  `list-card`, `list-row`, `page-header`, `text`, `theme-toggle`) still carry the wrapper
+  anti-pattern and a comment claiming a wrapper suffices; do not copy any of them, and correct
+  that sentence wherever it appears.
+- **`Button` supplies `role="link"` itself for composed anchors — never pass a `role`.**
+  Base UI's `useButton` merges `role="button"` onto every non-native element it composes onto,
+  so a `render`-composed anchor announced a navigation as an action (WCAG 2.2 SC 4.1.2). The
+  component measures the MOUNTED element, not the `render` descriptor — `render={<Link/>}` is
+  shipped and a component's type resolves to an anchor only once rendered — and re-measures
+  every render, because a destination can appear and vanish between them. The role is spread
+  BEFORE `rest` so it stays a default a caller can still override; `role={undefined}` would
+  delete the `role="button"` a composed `<div>` depends on. Assert with `getByRole("link")`.
 - **`ReadyIndicator` stamps the E2E hydration marker** (`READY_ATTRIBUTE` → `data-app-ready`)
   that every Playwright suite waits on. Changing it breaks E2E readiness across both apps.
 - This package ships a **prebuilt `dist/`**, so `import.meta.env.DEV` inside a component

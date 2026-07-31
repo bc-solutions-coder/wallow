@@ -56,6 +56,31 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
   `@tanstack/react-router@^1.170.18` against an app pinning `1.170.18` exactly is correct
   practice, not drift, and stays a literal.
 
+- **App surfaces are built from the catalog, and in `wallow-web` that is lint-enforced.**
+  `apps/wallow-web/.oxlintrc.json` (only there — `wallow-auth` has no per-app config at all,
+  and the root one carries neither rule) adds `react/forbid-elements` for raw `p`, `span` and
+  `h1`–`h6`, pointing each at `Text`/`PageHeader` so the catalog owns the type scale once, plus
+  a custom `wallow/no-sidebar-inversion` from `tools/oxlint/wallow-lint-plugin.js` banning
+  hand-written inversion hacks (`bg-foreground`/`text-background`) in favour of the recipes'
+  `surface="sidebar"` axis. Both are off for `*.test.*` and `*.stories.tsx`. The scoping is
+  deliberate: `packages/ui` legitimately paints a `bg-foreground` backdrop, so the gate must
+  never reach it, and the plugin is loaded by a relative specifier from the nested config so it
+  stays invisible to `packages/sdk`'s guardrail test (which copies the ROOT config to a temp
+  dir). Extending the same gate to `wallow-auth` is open work — write app code as if it applied
+  there, but do not assume parity.
+- **`wallow-auth` card headings are one 16px scale, and that standard is app-scoped.** All 16
+  screens compose `<Text as="h2" variant="body" weight="semibold" color="onCard">`;
+  `heading-scale.test.tsx` measures the computed font-size across every screen in a real
+  browser and `catalog-adoption.test.ts` sweeps the feature directories off disk, so a new
+  screen cannot skip it. The two shared `packages/ui` recipes were deliberately **not** retuned
+  — `cardTitleRecipe` is still `text-lg` (18px) and `Text`'s `subheading` step is still
+  `text-xl` (20px) — because moving either would also move `wallow-web` and `minimal-app`
+  headings, a cross-app decision left open. Do not describe 16px as a catalog-wide standard.
+- **The theme class belongs on `document.documentElement`.** Each app's `__root.tsx` stamps
+  `className={branding.defaultMode}` on `<html>`, runs `<ThemeScript/>` blocking in `<head>`,
+  and wraps the body in `<ThemeProvider/>`. A `<div className="dark">` wrapper anywhere renders
+  the LIGHT palette — a browser spec that needs a scheme must stamp `documentElement`. See
+  `docs/development/frontend-setup.md#dark-mode`.
 - **Tests**: `test` is vitest with the two-project node/browser split from
   `@bc-solutions-coder/testing`; component specs run in real headless Chromium, never jsdom.
   See `.claude/rules/TESTING.md`.

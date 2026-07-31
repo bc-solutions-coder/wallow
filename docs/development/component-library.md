@@ -13,16 +13,24 @@ Rebranding a fork changes `api/branding.json` — no component source changes.
 
 ## The catalog
 
-47 components, one folder per component under `packages/ui/src/components/`. The folder name is
+56 components, one folder per component under `packages/ui/src/components/`. The folder name is
 also the import subpath.
 
 | Group                | Components                                                                                                                                                                   |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Forms and input      | `Button`, `Input`, `Field`, `Fieldset`, `Form`, `Label`, `Checkbox`, `CheckboxGroup`, `Radio`, `RadioGroup`, `Select`, `Combobox`, `Autocomplete`, `Switch`, `Slider`, `NumberField`, `OTPField`, `Toggle`, `ToggleGroup` |
+| Forms and input      | `Button`, `Input`, `Textarea`, `Field`, `Fieldset`, `Form`, `Label`, `Checkbox`, `CheckboxGroup`, `Radio`, `RadioGroup`, `Select`, `Combobox`, `Autocomplete`, `Switch`, `Slider`, `NumberField`, `OTPField`, `Toggle`, `ToggleGroup` |
 | Overlays and menus   | `Dialog`, `AlertDialog`, `Drawer`, `Popover`, `Tooltip`, `PreviewCard`, `Menu`, `ContextMenu`, `Menubar`, `Toast`                                                             |
-| Layout and navigation | `Accordion`, `Collapsible`, `Tabs`, `NavigationMenu`, `Toolbar`, `ScrollArea`, `Separator`, `Card`, `CenteredCardLayout`                                                     |
-| Display and feedback | `Avatar`, `Progress`, `Meter`, `ErrorBanner`, `MutedText`                                                                                                                     |
+| Layout and navigation | `Accordion`, `Collapsible`, `Tabs`, `NavigationMenu`, `Toolbar`, `ScrollArea`, `Separator`, `Card`, `CenteredCardLayout`, `PageHeader`, `EmptyState`, `ListCard`, `ListRow`  |
+| Display and feedback | `Text`, `MutedText`, `Badge`, `Avatar`, `Progress`, `Meter`, `ErrorBanner`                                                                                                   |
+| Theming              | `ThemeProvider` (with `ThemeScript` and `useTheme`), `ThemeToggle`                                                                                                            |
 | App wiring           | `ReadyIndicator`, `FocusOnNavigate`, `DocumentStyles`, `ForkAttribution`                                                                                                      |
+
+`Text` is the typography primitive the rest of the catalog composes onto: it owns the type scale
+(`display`, `title`, `heading`, `subheading`, `body`, `bodySm`, `caption`, `overline`, `code`) and
+the semantic colour set (`default`, `muted`, `primary`, `accent`, `destructive`, `success`,
+`onSidebar`, `onCard`, `onPrimary`), with `weight` and `align` as independent axes.
+`MutedText` is now literally `<Text as="p" variant="bodySm" color="muted" />` — keep using it for
+secondary copy, but reach for `Text` whenever you need a scale step or colour it does not name.
 
 Browse them interactively with Storybook, which renders every component against the fork's real
 theme tokens:
@@ -83,6 +91,54 @@ the documentation for Wallow's:
 </Dialog.Root>
 ```
 
+### Composing `Button` onto a link
+
+A navigation styled as a button is composed through Base UI's `render` prop, either onto an
+intrinsic anchor or onto a router `Link`:
+
+```tsx
+<Button render={<a href="/terms" />}>Terms</Button>
+<Button render={<Link to="/dashboard/apps" />}>Register an app</Button>
+```
+
+**Do not pass a `role` yourself.** Base UI's `useButton` merges `role="button"` onto every
+non-native element it composes onto, which announced these navigations as actions and dropped them
+out of a screen reader's links list while the `href` still worked — a WCAG 2.2 SC 4.1.2
+Name/Role/Value mismatch. `Button` now measures the element it actually mounted and supplies
+`role="link"` as a **default** whenever that element is an anchor carrying a destination. It covers
+both shapes above, because a component-typed `render` only reveals its tag once mounted, and it
+re-measures every render, so a control whose `href` disappears while a request is in flight stops
+being a link for exactly that long.
+
+The role is a default, not an override — it is spread before your props — so a caller who genuinely
+needs `role="menuitem"` still wins. A hand-written `role="link"` is now redundant, and
+`role={undefined}` deletes the `role="button"` a composed `<div>` depends on. Assert the outcome
+with `getByRole("link", { name })` rather than restating the role in the markup.
+
+### `surface` — which palette a component paints from
+
+`variant` says what **kind** of control this is; every one of its arms paints from the page palette.
+`surface` says **which palette** it paints from, which is a different question the moment a control
+is dropped onto the fork's inverted rail — a `secondary` button there is a light chip on a dark
+surface. The axis has two arms, `page` (the default) and `sidebar`:
+
+```tsx
+<NavigationMenu.Link surface="sidebar" render={<Link to="/dashboard" />}>Overview</NavigationMenu.Link>
+<ThemeToggle surface="sidebar" />
+<ErrorBanner surface="sidebar">{message}</ErrorBanner>
+```
+
+It is carried today by `buttonRecipe` (and so by `ThemeToggle`, which composes `Button`),
+`errorBannerRecipe`, and `navigationMenuLinkRecipe`. `navigationMenuTriggerRecipe` does **not** have
+it yet — no app renders a trigger, so it is a known gap rather than a defect.
+`apps/wallow-web/src/shared/components/DashboardNav.tsx` is the reference example, passing it at all
+three of its rail call sites.
+
+Reach for `surface` instead of hand-writing an inversion (`bg-foreground text-background`) in a
+`className`: the recipe restates every colour dimension a `variant` arm can set, because
+tailwind-merge only drops the classes you actually conflict with and any dimension left unnamed
+stays a page colour on the rail.
+
 ### Overriding styles
 
 Every part merges its recipe with your `className` through `tailwind-merge`, so **the value you pass
@@ -123,6 +179,34 @@ never the reverse.
 App specs must never replace `@bc-solutions-coder/ui` with stubs. The components run in the same
 real headless Chromium the app's own specs do, and a stub is how a passing spec starts hiding a
 broken screen. See `.claude/rules/TESTING.md`.
+
+## Theming and dark mode
+
+`packages/styles` emits a `:root`, a `.dark` and a `.light` block from `api/branding.json`, and the
+catalog's three theming exports are what make them reachable. An app wires `ThemeScript` and
+`ThemeProvider` once in its root document — see
+[Dark Mode](frontend-setup.md#dark-mode) for that wiring — after which any screen can read or change
+the theme:
+
+```tsx
+import { ThemeToggle, useTheme } from "@bc-solutions-coder/ui";
+
+<ThemeToggle />; // cycles light -> dark -> system
+
+const { mode, preference, setPreference } = useTheme();
+```
+
+`preference` is what the visitor asked for (`"light"`, `"dark"` or `"system"`); `mode` is the
+scheme currently painted. They are different values on purpose: `"system"` is the default and the
+state a control must be able to return to, which is why `ThemeToggle` cycles through three states
+rather than toggling two and carries no `aria-pressed`. Its current state is exposed to tests as
+`data-theme-preference`. Passing both `preference` and `onPreferenceChange` makes it fully
+controlled, which is how a story renders one face without touching the real document.
+
+> **The mode class must be on `document.documentElement`.** Wrapping a subtree in
+> `<div className="dark">` compiles, renders, and paints the **light** palette — see
+> [Scoping dark mode](frontend-setup.md#scoping-dark-mode) for why. Anything that needs to render or
+> assert against a scheme has to stamp the class on the document element itself.
 
 ## Adding a component
 

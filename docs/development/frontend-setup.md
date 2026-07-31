@@ -396,7 +396,7 @@ exception: it belongs to TanStack Start and the app's own config.
 
 ## Component Library
 
-Both apps build their screens from `@bc-solutions-coder/ui`, a catalog of 47 components — each a
+Both apps build their screens from `@bc-solutions-coder/ui`, a catalog of 56 components — each a
 headless [Base UI](https://base-ui.com/react/overview/quick-start) primitive wrapped in a CVA class
 recipe written in the theme tokens `@bc-solutions-coder/styles` emits from `api/branding.json`. Apps
 import from the root barrel by default and from a per-component subpath when they need a component's
@@ -412,8 +412,13 @@ Base UI's part names exactly, and every part merges your `className` over its re
 `tailwind-merge`, so an override wins without discarding the rest of the recipe. Browse the catalog
 with `pnpm --filter @bc-solutions-coder/ui storybook`.
 
-[Component Library](component-library.md) covers the full catalog, both import styles, and the steps
-for adding a component.
+Copy — headings and body text alike — goes through the catalog's `Text` primitive (or `PageHeader`
+for a page title, `MutedText` for secondary copy) rather than a raw `p`/`span`/`h1`–`h6`, so the type
+scale is decided in one place. In `apps/wallow-web` that is enforced by an app-local oxlint rule; the
+other apps follow it by convention.
+
+[Component Library](component-library.md) covers the full catalog, both import styles, the `surface`
+axis, theming, and the steps for adding a component.
 
 ## Forms
 
@@ -633,8 +638,22 @@ variable names:
 --popover, --popover-foreground, --primary, --primary-foreground,
 --secondary, --secondary-foreground, --muted, --muted-foreground,
 --accent, --accent-foreground, --destructive, --destructive-foreground,
---border, --input, --ring, --radius
+--border, --input, --ring, --radius,
+--sidebar, --sidebar-foreground, --sidebar-accent,
+--success, --success-foreground
 ```
+
+The last five carry a **two-level fallback** the older tokens do not need — for example
+`--color-sidebar: var(--sidebar, var(--foreground))`. `api/branding.json` is `merge=ours` in
+`.gitattributes`, so a fork whose copy predates these keys never receives them from an upstream
+merge and the theme emits no custom property for them; the fallback lands such a fork on a colour
+its palette has always carried rather than on nothing at all.
+
+The `sidebar-*` family is the theme's general **inverted-surface** family, named after its first
+consumer rather than after what it now means (only one of its current consumers is an actual
+sidebar). The name is deliberately not being changed: `branding.ts` merges a per-client theme
+override over the fork's palette **by key name**, so a stored override still spelled `sidebar`
+would silently stop applying the moment the fork renamed the key.
 
 ### Adding a New Design Token
 
@@ -653,6 +672,69 @@ it exists in `styles.css`. `packages/styles/src/theme-css.test.ts` guards this r
 every CSS variable emitted from `forkBranding.theme` has a corresponding `@theme` mapping in
 `styles.css`, so a forgotten step 2 fails the build instead of silently rendering an unstyled
 token.
+
+## Dark Mode
+
+`@bc-solutions-coder/styles` emits three custom-property blocks from `api/branding.json` — a
+`:root` block carrying the fork's `theme.defaultMode` palette, plus a `.dark` and a `.light` block.
+Nothing in that package puts either class on the document; activation is the app's job, and it takes
+three lines in `src/app/routes/__root.tsx`. Both `apps/wallow-web` and `apps/wallow-auth` wire it
+identically:
+
+```tsx
+import { DocumentStyles, ReadyIndicator, ThemeProvider, ThemeScript } from "@bc-solutions-coder/ui";
+
+<html lang="en" className={branding.defaultMode}>
+  <head>
+    <HeadContent />
+    <DocumentStyles themeCss={renderThemeStyle(branding)} stylesheetHref={null} />
+    <ThemeScript defaultMode={branding.defaultMode} />
+  </head>
+  <body>
+    <ThemeProvider defaultMode={branding.defaultMode}>{children}</ThemeProvider>
+    <ReadyIndicator />
+    <Scripts />
+  </body>
+</html>;
+```
+
+Each piece answers a different problem:
+
+- **`className={branding.defaultMode}` on `<html>`** is the server's best guess. It makes the fork's
+  default scheme resolve with no client JS at all.
+- **`<ThemeScript/>` in `<head>`** corrects that guess. It is a blocking inline script — no `defer`,
+  no `async` — that reads `localStorage` and `matchMedia` synchronously and stamps the resolved class
+  on `document.documentElement` **before first paint**. Without it a visitor who chose dark sees the
+  fork default flash past on every entry into the app.
+- **`<ThemeProvider/>`** publishes what the script already decided, through `useSyncExternalStore`,
+  and owns the setter `ThemeToggle` calls. It deliberately does **not** compute the class in an
+  effect: the script has decided already, and recomputing on mount is the hydration flash.
+
+The resolution order, lowest priority first, is the fork's `theme.defaultMode`, then the OS
+(`prefers-color-scheme`), then the visitor's persisted choice. The persisted value is a
+**preference** (`"light"`, `"dark"` or `"system"`), not a mode, and lives under the `wallow-theme`
+key in `localStorage` — `"system"` is the default and has to remain reachable, which is why
+`ThemeToggle` cycles three states instead of toggling two. Anything else in that key (junk left by
+another app on the same origin, or a storage that throws under a blocked-cookies policy) resolves as
+"no preference" and hands the decision one level down.
+
+### Scoping Dark Mode
+
+**The mode class only works on `document.documentElement`.** Wrapping a subtree in
+`<div className="dark">` is vacuous — it compiles, it renders, and it paints the **light** palette.
+
+The reason is CSS custom-property substitution timing. The emitted `.dark` block rebinds the **raw**
+variables (`--sidebar`, `--background`, …), while Tailwind's `@theme` declares the **token**
+(`--color-sidebar: var(--sidebar, …)`) on `:root` alone. A `var()` inside a custom property is
+substituted at computed-value time **on the declaring element**, so a descendant `.dark` rebinds the
+raw variable long after the token above it has already computed its light value — and that computed
+value is what inherits down to your utilities. Measured against the real fork theme, `bg-sidebar`
+renders `rgb(40, 21, 12)` under a `.dark` wrapper and under a `.light` wrapper alike, and only
+becomes `rgb(35, 17, 8)` with `.dark` on the document element.
+
+So a spec or a story that needs to render or assert a scheme must stamp the class on
+`document.documentElement` and clean up after itself — a shared document means leakage between cases
+is the thing to design around. There is no wrapper-scoped shortcut.
 
 ## Authentication
 
