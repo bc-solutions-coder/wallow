@@ -5,40 +5,13 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * MFA-enroll feature `api.ts` — a THIN RE-EXPORT SEAM added by Wallow-x4qn.9.4,
- * and the ONE seam in this app that spans BOTH SDK entries. `MfaEnrollForm`
- * imports all three artifacts from `../api`.
+ * MFA-enroll feature `api.ts` — the re-export seam its screen imports from, and the one seam
+ * here spanning both SDK entries.
  *
- * Two come from the generated query entry (`@bc-solutions-coder/sdk/query`):
- * `mfaEnrollTotpMutation` mints the secret, `mfaConfirmEnrollmentMutation`
- * confirms the first code.
- *
- * `mfaExchangeEnrollmentToken` comes from the RAW barrel, and the reason is
- * sequencing rather than shape. The exchange is what mints the
- * `Identity.MfaPartial` cookie, and `enroll/totp` fired without it simply 401s —
- * so the screen awaits the exchange inside its mount effect's `try`/`catch`,
- * BEFORE starting the enrollment, precisely so a failed exchange skips a call that
- * could only fail. A `useMutation` would put that ordering behind a callback.
- * Wallow-x4qn.9.3 left it imperative on purpose; this seam keeps it that way
- * while still making `api.ts` the feature's only data import.
- *
- * Note the shape the guard on that does NOT take: the SDK's generator emits an
- * `{op}Mutation()` factory for EVERY non-GET operation unconditionally, so
- * `mfaExchangeEnrollmentTokenMutation` does exist on the query entry — sitting one
- * import away from the two factories this seam DOES re-export, which is exactly why
- * the guard is needed. The enforceable invariant is that this feature never ADOPTS
- * it, not that it is unavailable.
- *
- * Why identity and not just presence: a hand-written look-alike for any of the
- * three would carry the same name, the same call shape and the same type, and the
- * screen driving it would pass every behavioural spec while talking to something
- * the OpenAPI document does not describe — here, with a half-enrolled
- * authenticator as the user-visible result. `toBe` is the only assertion that
- * rules that out.
- *
- * `MfaEnrollmentConfirmedResponse` and `isSafeReturnUrl` stay on the raw barrel at
- * the call site: a DTO type is not a data import and the return-url guard issues
- * no request.
+ * The token exchange stays a RAW operation because sequencing is load-bearing: it mints the
+ * `Identity.MfaPartial` cookie `enroll/totp` authenticates with, so the screen awaits it
+ * imperatively before starting enrollment, and a `useMutation` would put that ordering
+ * behind a callback.
  *
  * Node project — it imports built package output and mounts nothing.
  */
@@ -51,7 +24,6 @@ import * as api from "./api";
 /** The imperative POST behind the seam: raw, and awaited before enrollment starts. */
 const RAW_OPERATION = "mfaExchangeEnrollmentToken";
 
-/** The seam's whole surface, in the order an ESM namespace enumerates it. */
 const SURFACE: readonly string[] = [
   "mfaConfirmEnrollmentMutation",
   "mfaEnrollTotpMutation",
@@ -67,17 +39,12 @@ const featureDir: string = dirname(fileURLToPath(import.meta.url));
 const SELF: string = relative(featureDir, fileURLToPath(import.meta.url));
 
 /**
- * Files in THIS feature whose comment-stripped code contains `needle`.
+ * Files in THIS feature whose comment-stripped code contains `needle`. Comments are
+ * stripped so the prose above is not read as a use.
  *
- * Scoped to the feature dir rather than to `src/`, because the invariant is about
- * this feature: whichever door someone walks through — the seam, a direct query-entry
- * import in the screen, an alias — the name has to appear in one of these files.
- *
- * Comments are stripped exactly as `features-api-seam.test.ts` does it, so the
- * prose above is not read as a use.
- * `withFileTypes` + `isFile()` matters: Vitest browser mode writes failure
- * screenshots into `components/__screenshots__/<spec>/` directories, and a name-only
- * filter would hand `readFileSync` a directory.
+ * `withFileTypes` + `isFile()` matters: Vitest browser mode writes failure screenshots into
+ * `components/__screenshots__/<spec>/` directories, and a name-only filter would hand
+ * `readFileSync` a directory.
  */
 function featureFilesNaming(needle: string): readonly string[] {
   return readdirSync(featureDir, { recursive: true, withFileTypes: true })
@@ -113,8 +80,8 @@ describe("the imperative enrollment-token exchange stays a raw operation", () =>
   });
 
   it("scans a feature tree with the seam and the screen in it", () => {
-    // A guard on the guard: an empty or misrooted walk would make the case below
-    // pass over nothing at all, which is exactly how a security guard rots.
+    // A guard on the guard: an empty or misrooted walk would make the case below pass over
+    // nothing at all.
     const users: readonly string[] = featureFilesNaming(RAW_OPERATION);
 
     expect(users).toContain("api.ts");
@@ -122,14 +89,10 @@ describe("the imperative enrollment-token exchange stays a raw operation", () =>
   });
 
   it("never adopts the generated mutation factory the SDK does emit for this POST", () => {
-    // This is the seam where the temptation is real: two of three artifacts come from
-    // the generated entry, so a reader will reach for a third — and the generator,
-    // which emits an `{op}Mutation()` for every non-GET operation regardless of who
-    // calls it, has one waiting. The first assertion states that premise so it cannot
-    // silently invert; the other two hold the invariant that nothing in this feature
-    // reaches for it, neither the seam's surface nor the screen behind it. Adopting it
-    // would move the exchange behind a callback and break the ordering the mount
-    // effect depends on: no `Identity.MfaPartial` cookie first, and `enroll/totp` 401s.
+    // The generator emits an `{op}Mutation()` for every non-GET operation regardless of who
+    // calls it, so one is waiting for this POST one import away from the two factories the
+    // seam does re-export. The first assertion states that premise so it cannot silently
+    // invert; the other two hold the invariant that nothing in this feature adopts it.
     expect(typeof query[GENERATED_FACTORY], `${GENERATED_FACTORY} is no longer generated`).toBe(
       "function",
     );
@@ -140,9 +103,8 @@ describe("the imperative enrollment-token exchange stays a raw operation", () =>
   });
 
   it("has no bare operation on the generated entry to prefer instead", () => {
-    // The half of this case that was always true, kept: the query entry carries
-    // factories only, never the raw operation, so taking the exchange off the barrel
-    // is not someone missing a same-named export one entry over.
+    // The query entry carries factories only, never the raw operation, so taking the
+    // exchange off the barrel is not someone missing a same-named export one entry over.
     expect(RAW_OPERATION in query).toBe(false);
   });
 });
