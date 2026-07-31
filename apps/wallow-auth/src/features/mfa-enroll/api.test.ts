@@ -73,8 +73,8 @@ const SELF: string = relative(featureDir, fileURLToPath(import.meta.url));
  * this feature: whichever door someone walks through — the seam, a direct query-entry
  * import in the screen, an alias — the name has to appear in one of these files.
  *
- * Comments are stripped exactly as `features-api-seam.test.ts` and
- * `generated-mutations.test.ts` do it, so the prose above is not read as a use.
+ * Comments are stripped exactly as `features-api-seam.test.ts` does it, so the
+ * prose above is not read as a use.
  * `withFileTypes` + `isFile()` matters: Vitest browser mode writes failure
  * screenshots into `components/__screenshots__/<spec>/` directories, and a name-only
  * filter would hand `readFileSync` a directory.

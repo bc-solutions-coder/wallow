@@ -3,14 +3,17 @@
  * TanStack Query through `@bc-solutions-coder/query`, never through
  * `@tanstack/react-query` directly.
  *
- * Why this is worth a spec rather than left to the repo-root oxlint
- * `no-restricted-imports` rule: the import statement is only half of it. The
- * other half is the MANIFEST — a package that keeps react-query in its own
- * `dependencies`/`peerDependencies` can still resolve a second copy through its
- * own `node_modules`, and two copies of react-query in one graph give two
- * `QueryClientProvider` React contexts (a `useQuery` from copy B inside a
- * provider from copy A throws "No QueryClient set" at runtime). Lint sees the
- * import; only this spec sees the resolution path that makes the import safe.
+ * The import half of that IS the repo-root oxlint `no-restricted-imports` rule, and
+ * since the lint split (`pnpm lint` + `pnpm lint:tests`) it reaches this package's
+ * specs as well as its sources — so the per-file import sweep that used to open this
+ * file is gone (Wallow-l5x2).
+ *
+ * What lint cannot see is the MANIFEST: a package that keeps react-query in its own
+ * `dependencies`/`peerDependencies` can still resolve a second copy through its own
+ * `node_modules`, and two copies of react-query in one graph give two
+ * `QueryClientProvider` React contexts (a `useQuery` from copy B inside a provider
+ * from copy A throws "No QueryClient set" at runtime). Lint sees the import; only
+ * this spec sees the resolution path that makes the import safe.
  *
  * Vitest browser-mode pre-bundling is pinned here too, and deliberately does NOT
  * treat the facade as a rename of react-query: `@tanstack/react-query` is still
@@ -21,7 +24,7 @@
  * Pure-logic spec: it reads this package's own manifest and sources, so it runs
  * in the node project.
  */
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -43,22 +46,6 @@ function readPackageJson(): Record<string, Record<string, string> | undefined> {
   return JSON.parse(readText("package.json")) as Record<string, Record<string, string> | undefined>;
 }
 
-/** Every TypeScript source in `src/`, specs included. */
-function sourceFileNames(): string[] {
-  return readdirSync(join(packageDir, "src")).filter(
-    (name: string): boolean => name.endsWith(".ts") || name.endsWith(".tsx"),
-  );
-}
-
-/** Files whose import statements name `specifier` as their module source. */
-function filesImportingFrom(specifier: string): string[] {
-  const quoted: string = specifier.replaceAll("/", String.raw`\/`);
-  const pattern = new RegExp(String.raw`from\s+"${quoted}"`, "u");
-  return sourceFileNames().filter((name: string): boolean =>
-    pattern.test(readText(join("src", name))),
-  );
-}
-
 /**
  * The `extraBrowserOptimizeDeps` entries this package's own `vitest.config.ts`
  * layers onto the shared baseline, read as text: that config is a module the
@@ -70,45 +57,6 @@ function extraBrowserOptimizeDeps(): string[] {
     readText("vitest.config.ts").match(/extraBrowserOptimizeDeps:\s*\[([^\]]*)\]/su)?.[1] ?? "";
   return [...block.matchAll(/"([^"]+)"/gu)].map((entry: RegExpExecArray): string => entry[1]);
 }
-
-describe("react-query imports route through the facade", () => {
-  it("takes the render seam's QueryClient and QueryClientProvider from the facade", () => {
-    const source = readText("src/render-with-wallow.tsx");
-
-    expect(source).toMatch(
-      /import\s+\{[^}]*\bQueryClient\b[^}]*\}\s+from\s+"@bc-solutions-coder\/query"/su,
-    );
-    expect(source).toMatch(
-      /import\s+\{[^}]*\bQueryClientProvider\b[^}]*\}\s+from\s+"@bc-solutions-coder\/query"/su,
-    );
-  });
-
-  it("takes the render seam spec's QueryClient and useQuery from the facade", () => {
-    // The spec exercises the seam through the same module the seam itself uses;
-    // if it kept importing react-query directly, its `toBeInstanceOf(QueryClient)`
-    // assertion would be comparing against a class from a different copy.
-    const source = readText("src/render-with-wallow.test.tsx");
-
-    expect(source).toMatch(
-      /import\s+\{[^}]*\bQueryClient\b[^}]*\}\s+from\s+"@bc-solutions-coder\/query"/su,
-    );
-    expect(source).toMatch(
-      /import\s+\{[^}]*\buseQuery\b[^}]*\}\s+from\s+"@bc-solutions-coder\/query"/su,
-    );
-  });
-
-  it("leaves no direct @tanstack/react-query import anywhere in src/", () => {
-    // Named as a list so a failure reports WHICH file regressed. Occurrences of
-    // the bare string are fine and expected (browser-optimize-deps.test.ts and
-    // vitest-projects.test.ts both feed it to `mergeOptimizeDeps` as sample
-    // input); only an import of it is a facade breach.
-    expect(filesImportingFrom(RAW)).toEqual([]);
-  });
-
-  it("has at least one file importing the facade, so the guard is not vacuous", () => {
-    expect(filesImportingFrom(FACADE).length).toBeGreaterThan(0);
-  });
-});
 
 describe("the manifest can only resolve react-query through the facade", () => {
   it("declares the facade as a workspace runtime dependency", () => {

@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -18,21 +18,25 @@ import vitestConfig from "../vitest.config";
  * "No QueryClient set" against a provider it does not recognise) gets into the
  * graph.
  *
- * Two kinds of assertion, because a facade is half manifest and half runtime:
+ * THE IMPORT HALF OF THAT LOCK IS NOW LINT'S (Wallow-l5x2). The root
+ * `.oxlintrc.json` restricts `@tanstack/react-query` outright, and since the lint
+ * split (`pnpm lint` + `pnpm lint:tests`) the ban reaches specs as well as source.
+ * This file used to re-state it as a regex sweep over every `.tsx` on disk plus a
+ * hand-kept table of twelve screen paths — a table that had to be edited whenever a
+ * component moved, and that reported nothing a linter does not report faster and at
+ * the offending line.
  *
- *  1. STRUCTURAL — the manifest declares the facade (and the auth package that
- *     rides on it) and not `@tanstack/react-query`, and no source file imports
- *     react-query directly. The README's directory table and `vite.config.ts`'s
- *     prose both describe the workspace a fork gets, so this app is documentation
- *     as much as it is code.
- *  2. RUNTIME — the facade actually resolves *from this app's own
- *     `node_modules`* and hands back a working `createQueryClient` plus the
- *     react-query surface. Grep alone would pass on a manifest edit pnpm never
- *     linked.
+ * WHAT IS LEFT IS WHAT A RULE CANNOT READ: the manifest, what pnpm actually linked,
+ * and what the vitest harness hands Vite.
  *
- * Structural assertions read source as TEXT rather than importing it: the files
- * under test are Vite/Vitest configs, a Start router factory and route modules,
- * none of which can be imported in a plain node context.
+ *  1. MANIFEST — the app declares the facade (and the auth package that rides on
+ *     it) and not react-query. Declaring both is exactly how a second library copy,
+ *     and with it a second `QueryClientProvider` context, gets into the graph.
+ *  2. HARNESS — the browser project pre-bundles the linked facade and the node
+ *     project inlines it, neither of which happens by default for a workspace link.
+ *  3. RUNTIME — the facade actually resolves *from this app's own `node_modules`*
+ *     and hands back a working `createQueryClient` plus the react-query surface.
+ *     Lint and grep alike would pass on a manifest edit pnpm never linked.
  *
  * Node project: reads files, mounts nothing.
  */
@@ -84,66 +88,6 @@ describe("wallow-web's dependency manifest", () => {
     // Dropping an entry must not take the rest of the workspace with it.
     for (const pkg of ["forms", "sdk", "styles", "testing", "ui"]) {
       expect(manifest().dependencies).toHaveProperty(`@bc-solutions-coder/${pkg}`);
-    }
-  });
-});
-
-describe("wallow-web's imports", () => {
-  it("takes createQueryClient and the QueryClient type from the facade", () => {
-    const names: readonly string[] = importedNamesFrom(read("src/app/router.tsx"), FACADE);
-
-    expect(names).toContain("createQueryClient");
-    expect(names).toContain("QueryClient");
-  });
-
-  it("types the root route's context with the facade's QueryClient", () => {
-    // `RouterContext.queryClient` and the client `src/router.tsx` constructs must
-    // name the SAME type, or the router factory stops type-checking against its
-    // own route tree.
-    expect(importedNamesFrom(read("src/app/routes/__root.tsx"), FACADE)).toContain("QueryClient");
-  });
-
-  it("takes the invalidation-assertion types from the facade", () => {
-    // `src/shared/testing/invalidation.ts` runs the REAL `queriesWithTag` /
-    // `queriesForOperation` predicates against real generated keys, so its
-    // `Query`/`QueryFilters` types have to be the same ones the app's queries are
-    // built from.
-    const names: readonly string[] = importedNamesFrom(
-      read("src/shared/testing/invalidation.ts"),
-      FACADE,
-    );
-
-    expect(names).toContain("Query");
-    expect(names).toContain("QueryFilters");
-  });
-
-  it.each([
-    "src/features/organizations/components/OrganizationDetail.tsx",
-    "src/features/organizations/components/OrganizationList.tsx",
-    "src/features/organizations/components/MemberList.tsx",
-    "src/features/organizations/components/CreateOrganizationForm.tsx",
-    "src/features/inquiries/components/InquiryDetail.tsx",
-    "src/features/inquiries/components/InquiryList.tsx",
-    "src/features/inquiries/components/CreateInquiryForm.tsx",
-    "src/features/apps/components/AppList.tsx",
-    "src/features/apps/components/RegisterAppForm.tsx",
-    "src/features/mfa/components/MfaSettingsSection.tsx",
-    "src/features/mfa/components/MfaEnrollFlow.tsx",
-    "src/features/settings/components/ProfileSection.tsx",
-  ])("routes %s's react-query hooks through the facade", (relativePath: string) => {
-    // Every screen that reads or writes backend data names the facade, and names
-    // it for the SAME hooks it used to import from react-query — a swap of the
-    // specifier only, never a drop of the hook.
-    const source: string = read(relativePath);
-    const viaFacade: readonly string[] = importedNamesFrom(source, FACADE);
-
-    expect(viaFacade.length, `${relativePath} imports nothing from ${FACADE}`).toBeGreaterThan(0);
-    expect(importSpecifiers(source), relativePath).not.toContain(REACT_QUERY);
-  });
-
-  it("imports react-query nowhere in the app", () => {
-    for (const [entry, source] of appSources()) {
-      expect(importSpecifiers(source), entry).not.toContain(REACT_QUERY);
     }
   });
 });
@@ -264,69 +208,4 @@ function browserPreBundleList(): readonly string[] {
   }[];
 
   return projects.find((project) => project.test?.name === "browser")?.optimizeDeps?.include ?? [];
-}
-
-/**
- * Every hand-written file of this app — the root-level configs, manifest,
- * Dockerfile and README, plus every source module under `src`. Specs are excluded
- * (they must name the banned packages in order to forbid them) and so is
- * `src/routeTree.gen.ts`, which is codegen.
- */
-function appFiles(
-  extensions: RegExp = /(?:\.(?:tsx?|json|md)|^Dockerfile)$/u,
-): readonly (readonly [string, string])[] {
-  const rootEntries: string[] = readdirSync(appRoot)
-    .filter((entry: string) => extensions.test(entry))
-    .filter((entry: string) => statSync(resolve(appRoot, entry)).isFile());
-
-  const srcEntries: string[] = readdirSync(resolve(appRoot, "src"), { recursive: true })
-    .map(String)
-    .filter((entry: string) => extensions.test(entry))
-    .map((entry: string) => `src/${entry}`);
-
-  return [...rootEntries, ...srcEntries]
-    .filter((entry: string) => !/\.test\.tsx?$/u.test(entry) && !entry.endsWith("routeTree.gen.ts"))
-    .map((entry: string) => [entry, read(entry)] as readonly [string, string]);
-}
-
-/**
- * The subset of the above that is executable TypeScript. The import guards use
- * this rather than `appFiles()` so a fenced example in the README is judged by
- * the README's own assertions, not reported as an app import.
- */
-function appSources(): readonly (readonly [string, string])[] {
-  return appFiles(/\.tsx?$/u);
-}
-
-/** Every module specifier the file imports from, `import type` included. */
-function importSpecifiers(source: string): readonly string[] {
-  return [...source.matchAll(/^\s*import\s[^;]*?from\s+"([^"]+)"/gmu)].map(
-    (match: RegExpMatchArray) => match[1] as string,
-  );
-}
-
-/**
- * The names a file imports from one module — value and type imports alike, alias
- * targets normalised away — so a rename can move `QueryClient` to the facade
- * without this spec dictating whether it rides in its own `import type` line.
- */
-function importedNamesFrom(source: string, moduleSpecifier: string): readonly string[] {
-  const escaped: string = moduleSpecifier.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`);
-  const pattern: RegExp = new RegExp(
-    String.raw`import\s+(?:type\s+)?\{([^}]*)\}\s+from\s+"${escaped}"`,
-    "gu",
-  );
-
-  return [...source.matchAll(pattern)].flatMap((match: RegExpMatchArray) =>
-    (match[1] as string)
-      .split(",")
-      .map(
-        (name: string) =>
-          name
-            .trim()
-            .replace(/^type\s+/u, "")
-            .split(/\s+as\s+/u)[0] as string,
-      )
-      .filter((name: string) => name.length > 0),
-  );
 }

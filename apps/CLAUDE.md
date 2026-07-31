@@ -77,6 +77,22 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
   disk-sweeping guard specs (`catalog-adoption.test.ts`, both `typography.test.ts`,
   `dashboard-chrome-tokens.test.ts`); do not reintroduce a regex sweep for something a rule can
   say.
+- **wallow-auth's data boundary is lint's too.** Under `src/features/**` and
+  `src/app/routes/**` a `no-restricted-imports` override bans `@bc-solutions-coder/sdk/query`
+  outright and bans the three raw data operations (`accountForgotPassword`,
+  `accountResetPassword`, `mfaExchangeEnrollmentToken`) from the barrel by name, so a screen
+  reaches the API only through its feature's `api.ts` seam; pure helpers and DTO types
+  (`isSafeReturnUrl`, `buildExchangeTicketUrl`, `InvitationResponse`) issue no request and stay
+  direct barrel imports. The seam itself is let past by a **later** override turning the rule
+  `"off"` for `src/features/*/api.ts` and its co-located `api.test.ts` — oxlint has no
+  `excludedFiles`, so ORDER is the mechanism, and an override's `no-restricted-imports` entry
+  REPLACES the base one rather than merging, which is why that override restates every root ban
+  it still wants. `wallow/no-hand-rolled-mutation` (the fourth plugin rule) reports any
+  `mutationFn` property, so a write goes through the generated `{operation}Mutation()` factory.
+  Together they replaced the table-driven halves of `generated-mutations.test.ts` and
+  `features-api-seam.test.ts` (~950 lines down to ~290); what those two still hold is runtime
+  fact about the generated surface and the seam's _shape_, derived from disk rather than from a
+  hand-kept list of screen paths.
 - **A card heading is 20px (`text-xl`), catalog-wide.** That is `Text`'s `subheading` step,
   which already sat there, plus the four `packages/ui` "names the surface" title recipes moved
   onto it — `cardTitleRecipe`, `dialogTitleRecipe`, `alertDialogTitleRecipe` and

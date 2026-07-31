@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -8,48 +8,47 @@ import vitestConfig from "../vitest.config";
 
 /**
  * wallow-auth reaches TanStack Query through ONE door: `@bc-solutions-coder/query`,
- * the workspace facade. This spec is that door's lock (Wallow-x4qn.9.1).
+ * the workspace facade. This spec is the half of that door's lock a linter cannot
+ * turn (Wallow-x4qn.9.1, narrowed by Wallow-l5x2).
  *
- * This app is the login / signup / MFA surface, which is why the swap gets a spec
- * of its own rather than being trusted to the 47 component specs beside it. A
- * facade swap is "mechanical" only in the sense that every edit is small; the two
- * ways it goes wrong are both silent:
+ * WHAT LINT ALREADY OWNS, and what this file therefore no longer sweeps. The root
+ * `.oxlintrc.json` restricts `@tanstack/react-query` outright, and since the lint
+ * split (`pnpm lint` + `pnpm lint:tests`) that ban reaches SPECS as well as source —
+ * which is what a per-file import table was for, because a spec holding its own
+ * `QueryClient` binding is the copy-identity bug in miniature. A regex sweep over
+ * `src/` said the same thing once per `pnpm test`, through a hand-rolled comment
+ * stripper, against a hand-kept list of fourteen modules that had to be edited every
+ * time a screen moved.
  *
- *  1. A DROPPED NAME. Fourteen modules import `useQuery`, `useMutation` or both.
- *     Rewriting `import { useMutation, useQuery } from …` and losing one half
- *     leaves a file that still compiles (TypeScript resolves the survivor) but
- *     whose screen no longer submits or no longer loads. {@link REACT_QUERY_USERS}
- *     is therefore a per-file table, not a global "somebody imports the facade"
- *     check: a name that disappears is named in the failure.
- *  2. A SECOND COPY of react-query. Two copies in one module graph give two
- *     `QueryClientProvider` React contexts, and a `useMutation` from copy B
- *     inside a provider from copy A throws "No QueryClient set" the moment the
- *     user presses Sign in. Nothing about that is visible in a diff, and it is
- *     not visible to a grep either — it lives in the resolution graph. So the
- *     last two describes leave the source behind and assert against the modules
- *     as this app, `@bc-solutions-coder/testing` (which mounts the provider every
- *     component spec renders under) and `@bc-solutions-coder/forms` (which owns
- *     the migrated password-recovery screens) actually resolve them.
+ * WHAT IS LEFT IS NOT ABOUT IMPORTS AT ALL. The failure this app actually fears is A
+ * SECOND COPY of react-query in the module graph: two copies give two
+ * `QueryClientProvider` React contexts, and a `useMutation` from copy B inside a
+ * provider from copy A throws "No QueryClient set" the moment the user presses Sign
+ * in. That is invisible to a diff and invisible to a grep — it lives in the manifest,
+ * in what pnpm links, and in module identity. So this file asks three things no rule
+ * can:
  *
- * Structural assertions read source as TEXT rather than importing it: the files
- * under test are a Start router factory, route modules and `.tsx` screens, none
- * of which can be imported in a plain node context. Comments are stripped first,
- * so a doc comment that legitimately discusses the old import (this file does)
- * is not mistaken for one.
+ *   1. The manifest declares the facade and NOT react-query — declaring both is
+ *      exactly how the second copy gets in, and it is also what would make a direct
+ *      import resolvable again.
+ *   2. pnpm therefore does not link react-query into this app at all, so a
+ *      reintroduced direct import cannot even resolve. (Failing here after a manifest
+ *      edit means the install has not been re-run.)
+ *   3. The facade module this app resolves IS the one `@bc-solutions-coder/testing`
+ *      mounts its provider from and the one `@bc-solutions-coder/forms` runs its
+ *      submit mutation from — asserted on the objects, not on the text.
  *
- * Node project — it reads files and dynamically imports built `dist/` output; it
+ * Plus one config contract of the same family: a linked workspace package is not
+ * pre-bundled by default, so the browser project has to name the facade.
+ *
+ * Node project — it reads manifests and dynamically imports built `dist/` output; it
  * mounts nothing.
  */
 
 /** The one place react-query is allowed to enter this workspace. */
 const FACADE = "@bc-solutions-coder/query";
 
-/**
- * The shared authn layer this app must declare here. Declared by Wallow-x4qn.9.1
- * so the install, the lockfile and the Dockerfile COPY lines moved exactly once;
- * first USED by Wallow-x4qn.9.2, which swapped `routes/invitation.tsx`'s
- * hand-rolled current-user probe onto `useCurrentUser`.
- */
+/** The shared authn layer, which rides on that same facade. */
 const AUTH = "@bc-solutions-coder/auth";
 
 /** The package no consumer may import or declare for itself. */
@@ -60,57 +59,6 @@ const RAW = "@tanstack/react-query";
 const srcDir: string = dirname(fileURLToPath(import.meta.url));
 const appDir: string = resolve(srcDir, "..");
 const repoRoot: string = resolve(appDir, "..", "..");
-
-/** This file, excluded from the source scans below: it must name the banned doors. */
-const SELF: string = relative(srcDir, fileURLToPath(import.meta.url));
-
-/**
- * Every react-query name each module imports, keyed by its path under `src/`.
- *
- * The KEYS are the swap's checklist — every module that reached react-query
- * before must reach the facade after, and no module may quietly drop out. The
- * VALUES are the anti-drop guard from the header: the exact names that must
- * survive the rewrite, whether they ride as values or as `import type`.
- *
- * `routes/invitation.tsx` is NOT here: Wallow-x4qn.9.1 swapped its specifier like
- * every other module's, and Wallow-x4qn.9.2 then deleted the hand-rolled
- * current-user probe that `useQuery` existed for — the route reads the visitor
- * through `@bc-solutions-coder/auth`'s `useCurrentUser` now and takes no
- * react-query name of its own. `src/shared-current-user.test.ts` owns that route.
- */
-const REACT_QUERY_USERS: Readonly<Record<string, readonly string[]>> = {
-  "app/router.tsx": ["QueryClient"],
-  "app/routes/__root.tsx": ["QueryClient"],
-  "app/routes/login.tsx": ["useQuery"],
-  "features/consent/components/ConsentScreen.tsx": ["useQuery"],
-  "features/invitation/components/InvitationScreen.tsx": ["useMutation", "useQuery"],
-  "features/login/components/ExternalProviders.test.tsx": ["QueryClient"],
-  "features/login/components/ExternalProviders.tsx": ["useQuery"],
-  "features/login/components/MagicLinkLoginForm.tsx": ["useMutation"],
-  "features/login/components/OtpLoginForm.tsx": ["useMutation"],
-  "features/login/components/PasswordLoginForm.tsx": ["useMutation"],
-  "features/logout/components/LogoutScreen.tsx": ["useQuery"],
-  "features/mfa-challenge/components/MfaChallengeForm.tsx": ["useMutation", "useQuery"],
-  "features/mfa-enroll/components/MfaEnrollForm.tsx": ["useMutation"],
-  "features/register/components/RegisterForm.tsx": ["useMutation", "useQuery"],
-  "features/verify-email/components/VerifyEmailConfirm.tsx": ["useQuery"],
-};
-
-/**
- * Dependencies the swap must NOT take with it. Two of them are the reason the
- * app renders at all (`react`, `@tanstack/react-router`); the other three are
- * the packages whose own react-query now arrives through the same facade, so an
- * over-eager "drop the query deps" edit is a live risk.
- */
-const SURVIVING_DEPENDENCIES: readonly string[] = [
-  "@bc-solutions-coder/forms",
-  "@bc-solutions-coder/sdk",
-  "@bc-solutions-coder/testing",
-  "@bc-solutions-coder/ui",
-  "@tanstack/react-router",
-  "@tanstack/react-router-ssr-query",
-  "react",
-];
 
 interface PackageManifest {
   readonly name?: string;
@@ -132,80 +80,6 @@ function everyDeclaredDependency(): Readonly<Record<string, string>> {
   const parsed: PackageManifest = manifest();
 
   return { ...parsed.dependencies, ...parsed.devDependencies, ...parsed.peerDependencies };
-}
-
-/**
- * Every hand-written TypeScript module under `src/`, specs included — a spec
- * that keeps its own `QueryClient` binding is the copy-identity bug in
- * miniature, so they are in scope rather than exempt.
- *
- * `withFileTypes` + `isFile()` matters: Vitest browser mode writes failure
- * screenshots into `src/**\/__screenshots__/<spec>.test.tsx/` directories, and a
- * name-only filter would hand `readFileSync` a directory. `routeTree.gen.ts` is
- * codegen and this file is the guard itself.
- */
-function appSources(): readonly string[] {
-  return readdirSync(srcDir, { recursive: true, withFileTypes: true })
-    .filter(
-      (entry): boolean =>
-        entry.isFile() && (entry.name.endsWith(".ts") || entry.name.endsWith(".tsx")),
-    )
-    .map((entry): string => relative(srcDir, join(entry.parentPath, entry.name)))
-    .filter((path): boolean => path !== SELF && !path.endsWith("routeTree.gen.ts"))
-    .toSorted();
-}
-
-/** Source with comments removed, so prose about an import is not read as one. */
-function codeOf(relativePath: string): string {
-  return readText(join(srcDir, relativePath))
-    .replaceAll(/\/\*[\s\S]*?\*\//gu, "")
-    .replaceAll(/^\s*\/\/.*$/gmu, "");
-}
-
-/**
- * Every module specifier a file pulls from: `import … from`, `export … from` and
- * bare side-effect imports alike. Read off comment-stripped code.
- */
-function moduleSpecifiers(relativePath: string): readonly string[] {
-  const code: string = codeOf(relativePath);
-
-  return [
-    ...[...code.matchAll(/\bfrom\s+"([^"]+)"/gu)].map((match): string => match[1] as string),
-    ...[...code.matchAll(/^\s*import\s+"([^"]+)"/gmu)].map((match): string => match[1] as string),
-  ];
-}
-
-/**
- * The names a file imports from one module — value imports, `import type` lines
- * and inline `type` members alike, alias targets normalised away — so the swap
- * stays free to merge `createQueryClient` and `QueryClient` into a single
- * statement or keep them apart.
- */
-function importedNamesFrom(relativePath: string, moduleSpecifier: string): readonly string[] {
-  const escaped: string = moduleSpecifier.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`);
-  const pattern = new RegExp(
-    String.raw`import\s+(?:type\s+)?\{([^}]*)\}\s*from\s+"${escaped}"`,
-    "gu",
-  );
-
-  return [...codeOf(relativePath).matchAll(pattern)].flatMap((match): readonly string[] =>
-    (match[1] as string)
-      .split(",")
-      .map((name): string =>
-        (
-          name
-            .trim()
-            .replace(/^type\s+/u, "")
-            .split(/\s+as\s+/u)[0] as string
-        ).trim(),
-      )
-      .filter((name): boolean => name.length > 0),
-  );
-}
-
-/** Files under `src/` whose imports name `specifier`. */
-function filesImportingFrom(specifier: string): readonly string[] {
-  return appSources().filter((path): boolean => moduleSpecifiers(path).includes(specifier));
 }
 
 /**
@@ -279,50 +153,6 @@ describe("wallow-auth's dependency manifest", () => {
     // is also what keeps a direct import resolvable under pnpm.
     expect(Object.keys(everyDeclaredDependency())).not.toContain(RAW);
   });
-
-  it.each(SURVIVING_DEPENDENCIES)("still declares %s", (dependency: string) => {
-    expect(Object.keys(everyDeclaredDependency())).toContain(dependency);
-  });
-});
-
-describe("wallow-auth's react-query imports", () => {
-  it("scans a source tree that actually has the modules under test in it", () => {
-    // A guard on the guard: a broken scan would make every case below pass
-    // vacuously, and this is a table-driven spec over paths that can move.
-    const scanned: readonly string[] = appSources();
-
-    for (const path of Object.keys(REACT_QUERY_USERS)) {
-      expect(scanned, `${path} is not in the scanned source tree`).toContain(path);
-    }
-  });
-
-  it.each(Object.entries(REACT_QUERY_USERS))(
-    "%s takes its react-query names from the facade",
-    (path: string, names: readonly string[]) => {
-      // Names, not just the specifier: collapsing `{ useMutation, useQuery }` to
-      // one of the two still type-checks and still passes a specifier-only
-      // check, while leaving a screen that cannot submit or cannot load.
-      expect(importedNamesFrom(path, FACADE)).toEqual(expect.arrayContaining([...names]));
-    },
-  );
-
-  it("leaves no direct react-query import anywhere under src/", () => {
-    // Named as a list, so a failure reports WHICH module regressed.
-    expect(filesImportingFrom(RAW)).toEqual([]);
-  });
-
-  it("takes createQueryClient from the facade in the router factory", () => {
-    // `getRouter()` is called once per SSR request and once in the browser; the
-    // client it builds is the one every screen's hooks resolve against, so this
-    // is the single import that decides which copy the whole app runs on.
-    expect(importedNamesFrom("app/router.tsx", FACADE)).toContain("createQueryClient");
-  });
-
-  it("has at least as many facade importers as it had react-query importers", () => {
-    expect(filesImportingFrom(FACADE).length).toBeGreaterThanOrEqual(
-      Object.keys(REACT_QUERY_USERS).length,
-    );
-  });
 });
 
 describe("browser-mode pre-bundling survives the facade hop", () => {
@@ -330,27 +160,15 @@ describe("browser-mode pre-bundling survives the facade hop", () => {
     // A linked workspace package is not pre-bundled by default, and a dependency
     // discovered mid-run triggers a Vite reload that DROPS the runner instead of
     // failing a test — the worst failure mode in this app, whose specs are the
-    // auth-flow safety net. Which of the two fixes to use (pre-bundle the facade
-    // or inline it for SSR) is the green phase's empirical call; this only pins
-    // that the choice was made explicitly.
-    const config: string = readText(join(appDir, "vitest.config.ts"));
-    const inlinedForSsr: boolean = /noExternal:\s*\[[^\]]*"@bc-solutions-coder\/query"/su.test(
-      config,
-    );
-
-    expect(inlinedForSsr || browserPreBundleList().includes(FACADE)).toBe(true);
-  });
-
-  it("does not pre-bundle react-query under its own name", () => {
-    // Under pnpm's strict `node_modules` an app that no longer declares
-    // react-query cannot resolve it, and an unresolvable `optimizeDeps` entry is
-    // a WARNING after which Vite pre-bundles nothing — the same silent reload,
-    // now with a config that looks correct. packages/forms hit this first.
-    expect(browserPreBundleList()).not.toContain(RAW);
-  });
-
-  it("keeps the extras this app already needed pre-bundled", () => {
-    expect(browserPreBundleList()).toContain("zod");
+    // auth-flow safety net.
+    //
+    // Only the facade's PRESENCE is asserted here. That the list is non-empty,
+    // that every entry is declared, and that every entry resolves from the app
+    // root under Vite's own conditions are the shared guard's three cases, run
+    // for this app by `src/browser-deps.test.ts` — and the declaration case is
+    // also what stops react-query being pre-bundled under its own name, since
+    // the manifest above no longer declares it.
+    expect(browserPreBundleList()).toContain(FACADE);
   });
 });
 

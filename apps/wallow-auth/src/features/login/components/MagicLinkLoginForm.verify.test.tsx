@@ -28,7 +28,9 @@ import { MagicLinkLoginForm } from "./MagicLinkLoginForm";
  *
  * `GET /v1/identity/auth/passwordless/magic-link/verify` is a READ to the code
  * generator, so `@bc-solutions-coder/sdk/query` emits `accountVerifyMagicLinkOptions`
- * and NO `accountVerifyMagicLinkMutation` (pinned in `src/generated-mutations.test.ts`).
+ * and NO `accountVerifyMagicLinkMutation` (the Options factory's shape is pinned in
+ * `src/generated-mutations.test.ts`; the mutation factory's absence is a fact of the
+ * generator, and reaching for it would not compile).
  * Its eight siblings swap a hand-rolled `mutationFn` for a `{op}Mutation()` factory;
  * this one stops being a mutation and is redeemed through the QUERY CLIENT
  * (`queryClient.fetchQuery`) instead.

@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -9,22 +9,23 @@ import { describe, expect, it } from "vitest";
  * `@bc-solutions-coder/query`, the workspace facade. This spec is that door's
  * lock (Wallow-x4qn.10).
  *
- * Two kinds of assertion, because a facade is half manifest and half runtime:
+ * THE IMPORT HALF OF THAT LOCK IS NOW LINT'S (Wallow-l5x2). The root
+ * `.oxlintrc.json` restricts `@tanstack/react-query` outright, and the two lint
+ * passes between them reach every source file and every spec — which is all the
+ * regex sweep this file used to run over `src` could say, and it said it later and
+ * without a line number.
  *
- *  1. STRUCTURAL — the manifest declares the facade and not
- *     `@tanstack/react-query`, and no file in the app imports react-query
- *     directly. The README table and `HelloCard`'s user-visible copy advertise
- *     the shared packages a fork gets, so this app is documentation as much as it
- *     is code.
- *  2. RUNTIME — the facade actually resolves *from this app's own
- *     `node_modules`* and hands back a working `createQueryClient` plus the
- *     react-query surface. Grep alone would pass on a manifest edit that pnpm
- *     never linked, and the whole point of the facade is that the app gets its
- *     react-query symbols and its `QueryClient` from a single module instance.
+ * Three things survive, none of them readable by a rule:
  *
- * Structural assertions read source as TEXT rather than importing it: the files
- * under test are a Vite config, a Start router factory and a route module, none
- * of which can be imported in a plain node context.
+ *  1. MANIFEST — the app declares the facade and not react-query. Declaring both
+ *     is how a second copy of the library, and with it a second `QueryClient`
+ *     identity, gets in.
+ *  2. RUNTIME — the facade actually resolves *from this app's own `node_modules`*
+ *     and hands back a working `createQueryClient` plus the react-query surface.
+ *     Lint would pass on a manifest edit that pnpm never linked.
+ *  3. THE README — this app is a copy-from recipe, and its prose is markdown, which
+ *     no linter in this repo reads. An example importing the banned door teaches
+ *     the banned door.
  */
 
 const here: string = dirname(fileURLToPath(import.meta.url));
@@ -63,31 +64,11 @@ describe("minimal-app's dependency manifest", () => {
   });
 });
 
-describe("minimal-app's imports", () => {
-  it("takes createQueryClient and the QueryClient type from the facade", () => {
-    const names: readonly string[] = importedNamesFrom(read("src/router.tsx"), FACADE);
-
-    expect(names).toContain("createQueryClient");
-    expect(names).toContain("QueryClient");
-  });
-
-  it("types the root route's context with the facade's QueryClient", () => {
-    // `RouterContext.queryClient` and the client `src/router.tsx` constructs must
-    // name the SAME type, or the router factory stops type-checking against its
-    // own route tree.
-    expect(importedNamesFrom(read("src/routes/__root.tsx"), FACADE)).toContain("QueryClient");
-  });
-
-  it("imports react-query nowhere in the app", () => {
-    for (const [entry, source] of appSources()) {
-      expect(importSpecifiers(source), entry).not.toContain(REACT_QUERY);
-    }
-  });
-
-  it("teaches a fork the facade import in the README's first-query example", () => {
+describe("the README a fork copies from", () => {
+  it("teaches the facade import in its first-query example", () => {
     // The README is this app's deliverable as much as its source is: it is the
     // copy-from recipe, so an example importing the banned door teaches the
-    // banned door.
+    // banned door. Markdown reaches no linter here, so this stays a spec.
     const readme: string = read("README.md");
 
     expect(readme).toContain(`from "${FACADE}"`);
@@ -156,69 +137,4 @@ async function importLinkedFacade(): Promise<Record<string, unknown>> {
   expect(existsSync(entryPath), `${FACADE} is not built (${entry} missing)`).toBe(true);
 
   return (await import(pathToFileURL(entryPath).href)) as Record<string, unknown>;
-}
-
-/**
- * Every hand-written file of this app — the root-level configs, manifest and
- * README, plus every source module under `src`. Specs are excluded (they must
- * name the banned packages in order to forbid them) and so is
- * `src/routeTree.gen.ts`, which is codegen.
- */
-function appFiles(
-  extensions: RegExp = /\.(?:tsx?|json|md)$/u,
-): readonly (readonly [string, string])[] {
-  const rootEntries: string[] = readdirSync(appRoot)
-    .filter((entry: string) => extensions.test(entry))
-    .filter((entry: string) => statSync(resolve(appRoot, entry)).isFile());
-
-  const srcEntries: string[] = readdirSync(resolve(appRoot, "src"), { recursive: true })
-    .map(String)
-    .filter((entry: string) => extensions.test(entry))
-    .map((entry: string) => `src/${entry}`);
-
-  return [...rootEntries, ...srcEntries]
-    .filter((entry: string) => !/\.test\.tsx?$/u.test(entry) && !entry.endsWith("routeTree.gen.ts"))
-    .map((entry: string) => [entry, read(entry)] as readonly [string, string]);
-}
-
-/**
- * The subset of the above that is executable TypeScript. The import guards use
- * this rather than `appFiles()` so a fenced example in the README is judged by
- * the README's own assertions, not reported as an app import.
- */
-function appSources(): readonly (readonly [string, string])[] {
-  return appFiles(/\.tsx?$/u);
-}
-
-/** Every module specifier the file imports from, `import type` included. */
-function importSpecifiers(source: string): readonly string[] {
-  return [...source.matchAll(/^\s*import\s[^;]*?from\s+"([^"]+)"/gmu)].map(
-    (match: RegExpMatchArray) => match[1] as string,
-  );
-}
-
-/**
- * The names a file imports from one module — value and type imports alike, alias
- * targets normalised away — so a rename can move `QueryClient` to the facade
- * without this spec dictating whether it rides in its own `import type` line.
- */
-function importedNamesFrom(source: string, moduleSpecifier: string): readonly string[] {
-  const escaped: string = moduleSpecifier.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`);
-  const pattern: RegExp = new RegExp(
-    String.raw`import\s+(?:type\s+)?\{([^}]*)\}\s+from\s+"${escaped}"`,
-    "gu",
-  );
-
-  return [...source.matchAll(pattern)].flatMap((match: RegExpMatchArray) =>
-    (match[1] as string)
-      .split(",")
-      .map(
-        (name: string) =>
-          name
-            .trim()
-            .replace(/^type\s+/u, "")
-            .split(/\s+as\s+/u)[0] as string,
-      )
-      .filter((name: string) => name.length > 0),
-  );
 }

@@ -22,8 +22,10 @@ React and `react-dom` are **peer** dependencies — keep them out of `dependenci
 repo — so `useAppForm`'s `useMutation` and the host's `QueryClientProvider` are guaranteed to be
 the same module instance (two copies means "No QueryClient set"), which a peer range could not
 guarantee. That applies to the specs too: a spec building its own `QueryClient` takes it from the
-facade. `src/core/query-facade.test.ts` (imports, pre-bundle list, this guide) and
-`src/core/package-scaffold.test.ts` (the manifest) are the two halves of the guard.
+facade. The guard is in two places, neither of them a disk sweep: the root `.oxlintrc.json`
+`no-restricted-imports` ban holds the imports (both lint passes run it, so specs are covered as
+well as sources), and `src/core/package-scaffold.test.ts` holds the manifest and the pre-bundle
+list. The `src/core/query-facade.test.ts` that used to restate the import half by regex is gone.
 
 ## Internal layout — three layers plus the barrel
 

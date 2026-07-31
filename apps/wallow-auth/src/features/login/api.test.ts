@@ -25,10 +25,9 @@ import { describe, expect, it } from "vitest";
  * `{op}Mutation()`; `verify` is a GET, so the generator emits
  * `accountVerifyMagicLinkOptions` and NO mutation factory — the redemption runs
  * through `queryClient.fetchQuery`. Both halves are named below. The ABSENCE of a
- * third is asserted in `src/generated-mutations.test.ts`, not here, and it is
- * asserted by scanning this app's source for the name the generator does not
- * emit — so this file must not spell that name either, or it becomes the very
- * offender that scan is looking for.
+ * third needs no assertion anywhere: unlike the three raw operations, whose
+ * generated factories DO exist and are deliberately not adopted, this one was never
+ * emitted — so a screen reaching for it fails to compile at the import.
  *
  * Node project — it imports built package output and mounts nothing.
  */

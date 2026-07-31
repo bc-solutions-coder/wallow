@@ -186,9 +186,10 @@ describe("packages/forms scaffold", () => {
     // The facade rule, enforced at the manifest: this package may not name
     // react-query anywhere, in any bucket. Under pnpm's strict node_modules that
     // makes a direct `from "@tanstack/react-query"` unresolvable here — the
-    // declaration and the import discipline (query-facade.test.ts) are two
-    // halves of the same guard, and dropping only the import would leave the
-    // door open for the next contributor.
+    // declaration and the import discipline (the root oxlint
+    // `no-restricted-imports` ban, which both lint passes apply to sources and
+    // specs alike) are two halves of the same guard, and dropping only the
+    // import would leave the door open for the next contributor.
     for (const bucket of ["dependencies", "devDependencies", "peerDependencies"]) {
       const declared = pkg[bucket] as Record<string, string> | undefined;
 
