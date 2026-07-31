@@ -12,23 +12,41 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
     },
     "./server": {
-      "types": "./dist/server/index.d.ts",
-      "import": "./dist/server/index.js"
+      "types": "./src/server/index.ts",
+      "import": "./src/server/index.ts"
     },
     "./server/passthrough": {
-      "types": "./dist/server/passthrough.d.ts",
-      "import": "./dist/server/passthrough.js"
+      "types": "./src/server/passthrough.ts",
+      "import": "./src/server/passthrough.ts"
     },
     "./query": {
-      "types": "./dist/query/index.d.ts",
-      "import": "./dist/query/index.js"
+      "types": "./src/query/index.ts",
+      "import": "./src/query/index.ts"
     }
   },
   "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      },
+      "./server": {
+        "types": "./dist/server/index.d.ts",
+        "import": "./dist/server/index.js"
+      },
+      "./server/passthrough": {
+        "types": "./dist/server/passthrough.d.ts",
+        "import": "./dist/server/passthrough.js"
+      },
+      "./query": {
+        "types": "./dist/query/index.d.ts",
+        "import": "./dist/query/index.js"
+      }
+    },
     "access": "restricted",
     "registry": "https://npm.pkg.github.com"
   },

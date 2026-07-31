@@ -5,14 +5,14 @@
   "description": "Wallow web frontend (TanStack Start + BFF SDK)",
   "type": "module",
   "scripts": {
-    "dev": "vite dev",
-    "build": "vite build",
+    "dev": "vite dev --configLoader runner",
+    "build": "vite build --configLoader runner",
     "start": "node .output/server/index.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --configLoader runner",
     "test:e2e": "playwright test",
     "test:e2e:cross-app": "playwright test --config playwright.cross-app.config.ts",
-    "test:watch": "vitest"
+    "test:watch": "vitest --configLoader runner"
   },
   "dependencies": {
     "@bc-solutions-coder/auth": "workspace:*",

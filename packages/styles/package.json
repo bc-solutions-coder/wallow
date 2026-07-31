@@ -13,20 +13,35 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
     },
     "./styles.css": "./styles.css",
     "./assets": {
-      "types": "./dist/assets.d.ts",
-      "import": "./dist/assets.js"
+      "types": "./src/assets.ts",
+      "import": "./src/assets.ts"
     },
     "./vite": {
-      "types": "./dist/vite.d.ts",
-      "import": "./dist/vite.js"
+      "types": "./src/vite.ts",
+      "import": "./src/vite.ts"
     }
   },
   "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      },
+      "./styles.css": "./styles.css",
+      "./assets": {
+        "types": "./dist/assets.d.ts",
+        "import": "./dist/assets.js"
+      },
+      "./vite": {
+        "types": "./dist/vite.d.ts",
+        "import": "./dist/vite.js"
+      }
+    },
     "access": "restricted",
     "registry": "https://npm.pkg.github.com"
   },

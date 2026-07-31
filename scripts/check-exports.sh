@@ -6,8 +6,17 @@
 # entrypoint the way a consumer's TypeScript would and reports entrypoints that
 # resolve to no types.
 #
-# Both tools pack the package, so `pnpm --filter './packages/*' build` must have
-# run first — an unbuilt dist/ reads as a broken exports map.
+# Both tools inspect a PACKED tarball, so `pnpm --filter './packages/*' build`
+# must have run first — an unbuilt dist/ reads as a broken exports map.
+#
+# The tarball is built here, with `pnpm pack`, and handed to both tools. That is
+# load-bearing rather than tidiness: in-repo every package's `exports` points at
+# `src/` so apps resolve from source with no prebuilt dist, and the `dist/` map
+# consumers get is applied at publish time from `publishConfig.exports`. pnpm
+# applies that field; `npm pack` does not. attw's own `--pack` flag shells out to
+# npm, so it would resolve the SOURCE map against a tarball containing only
+# `dist/` and report every entrypoint as unresolvable — a failure describing a
+# package nobody ever publishes. publint already packs with pnpm internally.
 #
 # Analysis scope, and why it is narrowed:
 #   --profile esm-only   these packages are ESM-only ("type": "module", no CJS
@@ -31,14 +40,19 @@ cd "$repo_root"
 packages=(packages/auth packages/query packages/sdk packages/styles packages/testing)
 attw_common=(--profile esm-only --ignore-rules internal-resolution-error --no-summary)
 
+tarball_dir="$(mktemp -d)"
+trap 'rm -rf "$tarball_dir"' EXIT
+
 for package in "${packages[@]}"; do
   echo "==> $package"
 
   pnpm exec publint --strict "$package"
 
+  tarball="$(pnpm --dir "$package" pack --pack-destination "$tarball_dir" | tail -n 1)"
+
   attw_args=("${attw_common[@]}")
   if [ "$package" = "packages/styles" ]; then
     attw_args+=(--exclude-entrypoints ./styles.css)
   fi
-  pnpm exec attw --pack "$package" "${attw_args[@]}"
+  pnpm exec attw "$tarball" "${attw_args[@]}"
 done

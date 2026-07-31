@@ -1,4 +1,3 @@
-import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,7 +23,6 @@ import { describe, expect, it } from "vitest";
 // unusable) satisfies them just as well.
 
 const packageDir = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
-const repoRoot = join(packageDir, "..", "..");
 const componentsSrcDir = join(packageDir, "src", "components");
 const distDir = join(packageDir, "dist");
 const distComponentsDir = join(distDir, "components");
@@ -166,31 +164,22 @@ describe("packages/ui dist structure", () => {
     expect(unresolved).toEqual([]);
   });
 
-  it.skipIf(distIsMissing)("is importable by subpath from a consuming app", () => {
-    // The end-to-end proof, run through Node's own resolver rather than Vite's:
-    // an app that only has the pnpm workspace symlink must be able to import
-    // `@bc-solutions-coder/ui/button` and get the Button component. This is the
-    // one assertion here that exercises the exports map for real — everything
-    // above reads files, this one makes Node resolve them.
-    const result = spawnSync(
-      process.execPath,
-      [
-        "-e",
-        "import('@bc-solutions-coder/ui/button').then((m) => { console.log(JSON.stringify(Object.keys(m))); });",
-      ],
-      {
-        cwd: join(repoRoot, "apps", "wallow-web"),
-        encoding: "utf8",
-        timeout: 60_000,
-      },
-    );
-
-    expect(result.status, result.stderr).toBe(0);
-    // Containment, not an exact set: the point is that Node's resolver reaches
-    // the subpath and gets the real component back. Every component's subpath
-    // also exports its CVA recipe (a runtime value, so it shows up in
-    // `Object.keys`), and pinning the exact surface here would re-break this
-    // shared gate on each new component for no added coverage.
-    expect(JSON.parse(result.stdout.trim())).toEqual(expect.arrayContaining(["Button"]));
-  });
+  /*
+   * A seventh spec used to sit here spawning Node from apps/wallow-web to
+   * `import('@bc-solutions-coder/ui/button')`, as the end-to-end proof that the
+   * wildcard subpath resolved. It is gone because in-repo it can no longer be
+   * true, by design: `exports` now points at `src/`, so the wildcard resolves to
+   * a TypeScript file with extensionless relative imports, which Vite and tsc
+   * read and plain Node does not. That is the whole point of Phase 2 — an app
+   * resolves this package from source with no prebuilt `dist/`.
+   *
+   * The contract itself is still covered, just not by Node: `pnpm build` and
+   * `pnpm typecheck` both resolve `@bc-solutions-coder/ui/<name>` from the apps
+   * through the same wildcard entry and fail if it does not resolve, and the
+   * specs above still assert the emitted per-component files that entry names.
+   * For the two packages that are actually published, `pnpm check:exports`
+   * resolves every entrypoint the way a consumer's TypeScript would, against the
+   * packed tarball with `publishConfig.exports` applied. This package is private
+   * and is not one of them.
+   */
 });

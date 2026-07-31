@@ -1,35 +1,27 @@
 {
-  // Declaration-only build config. The package `build` script runs Vite library
-  // mode for the JS bundle and then `tsc -p tsconfig.build.json` for the .d.ts
-  // files; `tsc --emitDeclarationOnly` owns declarations because Vite's lib mode
-  // emits none.
+  // Declaration-only build config. Emit settings, rootDir/outDir and the shared
+  // exclude list all come from ../../tsconfig.build.base.json; what is local is
+  // the entry list below. `server/passthrough.ts` is listed explicitly because
+  // nothing imports it — deliberately, so a passthrough-only app never reaches
+  // the BFF handler graph — and an unlisted entry emits no .d.ts at all.
   //
-  // `include` is narrowed to just the public entry points; tsc transitively
-  // pulls in every real src file they import, but *.test.ts / scripts / root
-  // *.config.ts stay out of the program, so no stray declaration files leak
-  // into dist/. `server/passthrough.ts` is listed explicitly because nothing
-  // imports it — deliberately, so a passthrough-only app never reaches the BFF
-  // handler graph — and an unlisted entry emits no .d.ts at all. `rootDir` is
-  // set explicitly to keep dist/ mirroring src/ (error TS5011 otherwise).
+  // This package is the ONE workspace member with its own typescript pin:
+  // `catalog:tooling-tsc6` (6.0.3), against the workspace's `tooling` catalog
+  // (7.0.2). The reason is the SDK's OpenAPI codegen — @hey-api/openapi-ts
+  // builds the client by constructing AST nodes with the JS COMPILER API, which
+  // the native 7.x compiler does not ship, so merely importing
+  // openapi-ts.config.ts throws on 7.x. `generate` and the specs that import
+  // that config therefore need a 6.x compiler. See the `tooling-tsc6` catalog in
+  // pnpm-workspace.yaml, which is where the pin is edited and where the
+  // fold-it-back-in condition is recorded.
   //
-  // This package's typescript devDependency tracks the rest of the workspace
-  // (^5.6.0) rather than carrying its own pin: the SDK's OpenAPI codegen,
-  // @hey-api/openapi-ts, declares peer `typescript: ^5.5.3` and drives the TS
-  // programmatic API, so `generate` and src/runtime-config.test.ts (which
-  // imports openapi-ts.config.ts) need a 5.x compiler. An SDK-local major-version
-  // pin here would put the codegen outside its own supported range.
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "declaration": true,
-    "emitDeclarationOnly": true,
-    "rootDir": "src",
-    "outDir": "dist"
-  },
+  // The generator's own peer range is permissive (`>=5.5.3 || >=6.0.0`), so the
+  // pin is about what the compiler API ships, not about satisfying a peer.
+  "extends": ["./tsconfig.json", "../../tsconfig.build.base.json"],
   "include": [
     "src/index.ts",
     "src/server/index.ts",
     "src/server/passthrough.ts",
     "src/query/index.ts"
-  ],
-  "exclude": ["**/*.test.ts", "scripts", "**/*.config.ts"]
+  ]
 }

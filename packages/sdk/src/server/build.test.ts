@@ -22,7 +22,7 @@ function readManifest(): PackageManifest {
   return JSON.parse(readFileSync(resolve(packageRoot, "package.json"), "utf8")) as PackageManifest;
 }
 
-describe("tsup dual-entry build", () => {
+describe("the multi-entry declaration build", () => {
   beforeAll(() => {
     execFileSync("npm", ["run", "build"], {
       cwd: packageRoot,
@@ -44,23 +44,18 @@ describe("tsup dual-entry build", () => {
   });
 });
 
-describe("package.json exports match tsup output", () => {
-  it("root subpath resolves to dist/index", () => {
-    const manifest: PackageManifest = readManifest();
-    expect(manifest.exports["."]).toEqual({
-      types: "./dist/index.d.ts",
-      import: "./dist/index.js",
-    });
-  });
-
-  it("server subpath resolves to nested dist/server/index (not flat dist/server.js)", () => {
-    const manifest: PackageManifest = readManifest();
-    expect(manifest.exports["./server"]).toEqual({
-      types: "./dist/server/index.d.ts",
-      import: "./dist/server/index.js",
-    });
-  });
-});
+/*
+ * Two specs used to sit here asserting `exports["."]` and `exports["./server"]`
+ * equalled an exact `./dist/...` pair. Both are gone, and neither invariant went
+ * with them. The nested-not-flat emit layout is asserted directly above, against
+ * the files the build actually produces; whether a consumer's resolver reaches
+ * them is publint + @arethetypeswrong/cli's job (`pnpm check:exports`), against
+ * the packed tarball. What the assertions additionally pinned — that the map in
+ * the working tree names `dist/` — is no longer true and should not be: in-repo
+ * every entry points at `src/` so apps resolve from source with no prebuilt
+ * dist, and the `dist/` map is applied at publish time from
+ * `publishConfig.exports`.
+ */
 
 /**
  * The passthrough preset ships as its OWN subpath (Wallow-pu6a.3.7) so an app
@@ -70,12 +65,16 @@ describe("package.json exports match tsup output", () => {
  * this package an app does not import at all.
  */
 describe("passthrough subpath packaging", () => {
-  it("declares the ./server/passthrough subpath export", () => {
+  it("declares ./server/passthrough as a subpath of its own, not an alias of ./server", () => {
     const manifest: PackageManifest = readManifest();
-    expect(manifest.exports["./server/passthrough"]).toEqual({
-      types: "./dist/server/passthrough.d.ts",
-      import: "./dist/server/passthrough.js",
-    });
+
+    // SEPARATION is the invariant — a subpath that exists and resolves
+    // somewhere other than the BFF entry. Where it resolves is not asserted
+    // here: in-repo it points at `src/` and the published `dist/` map comes from
+    // `publishConfig.exports`, so an exact-path assertion would pin the wrong
+    // half of the contract. `pnpm check:exports` covers resolution.
+    expect(manifest.exports["./server/passthrough"]).toBeDefined();
+    expect(manifest.exports["./server/passthrough"]).not.toEqual(manifest.exports["./server"]);
   });
 
   it("declares sideEffects: false so unused entries are tree-shakeable", () => {

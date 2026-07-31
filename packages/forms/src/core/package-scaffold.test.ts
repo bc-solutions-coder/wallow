@@ -68,26 +68,36 @@ describe("packages/forms scaffold", () => {
 
     expect(pkg.name).toBe("@bc-solutions-coder/forms");
     expect(pkg.version).toBe("0.0.0");
+    // `private: true` is what makes it unpublished, and it is the only thing
+    // asserted here. There used to be a second assertion that no
+    // `publishConfig` existed at all; the package now carries
+    // `publishConfig.exports`, deliberately and in company with all six other
+    // workspace packages. In-repo `exports` points at `src/` so consumers
+    // resolve from source with no prebuilt `dist/`, and the `dist/` map is the
+    // publish-time view. Carrying it uniformly — even on the private members
+    // that will never use it — is what stops a package that later drops
+    // `private` from publishing a manifest pointing at TypeScript sources.
     expect(pkg.private).toBe(true);
     expect(pkg.type).toBe("module");
-    // Fork-internal, like packages/ui and packages/testing: never published, so
-    // it carries NO publishConfig.
-    expect(pkg).not.toHaveProperty("publishConfig");
   });
 
-  it("exposes dist entry points behind a single '.' export", () => {
+  it("exposes exactly one curated '.' entry point", () => {
     const pkg = readPackageJson();
 
+    // The legacy fallbacks still name `dist/` — they are read only by resolvers
+    // too old to understand `exports`, which is every resolver that will never
+    // see this private package from a workspace symlink anyway.
     expect(pkg.main).toBe("./dist/index.js");
     expect(pkg.module).toBe("./dist/index.js");
     expect(pkg.types).toBe("./dist/index.d.ts");
 
     const exportsMap = pkg.exports as Record<string, unknown> | undefined;
     expect(exportsMap).toBeDefined();
-    expect(exportsMap?.["."]).toEqual({
-      types: "./dist/index.d.ts",
-      import: "./dist/index.js",
-    });
+    // WHAT the entry resolves to is deliberately not asserted: in-repo it points
+    // at `src/` so consumers resolve from source with no prebuilt `dist/`, and
+    // the `dist/` map is applied at publish time from `publishConfig.exports`.
+    // The invariant that survives both views is the key set below.
+    expect(exportsMap?.["."]).toBeDefined();
     // Unlike packages/ui there is no per-component wildcard and no CSS asset:
     // forms exposes one curated barrel, so consumers cannot reach past it into
     // internals that the catalog is meant to hide.
@@ -105,9 +115,14 @@ describe("packages/forms scaffold", () => {
     const pkg = readPackageJson();
     const scripts = pkg.scripts as Record<string, string>;
 
+    // Containment on the vitest scripts rather than exact strings: which runner
+    // runs is the contract, its flags are not. They carry `--configLoader
+    // runner` because `vitest.config.ts` imports `@bc-solutions-coder/testing`,
+    // which now resolves to TypeScript source — Vite's default config loader
+    // externalizes bare specifiers to Node's ESM resolver, which cannot read it.
     expect(scripts.build).toBe("vite build && tsc -p tsconfig.build.json");
-    expect(scripts.test).toBe("vitest run");
-    expect(scripts["test:watch"]).toBe("vitest");
+    expect(scripts.test).toContain("vitest run");
+    expect(scripts["test:watch"]).toContain("vitest");
     expect(scripts.typecheck).toBe("tsc --noEmit");
   });
 
@@ -199,23 +214,15 @@ describe("packages/forms scaffold", () => {
     expect(tsconfig.extends).toBe("../../tsconfig.base.json");
   });
 
-  it("provides a declaration-only tsconfig.build.json narrowed to the entry", () => {
-    expect(existsSync(join(packageDir, "tsconfig.build.json"))).toBe(true);
-
-    const buildConfig = JSON.parse(stripLineComments(readConfigText("tsconfig.build.json"))) as {
-      compilerOptions?: { emitDeclarationOnly?: boolean; rootDir?: string; outDir?: string };
-      include?: string[];
-      exclude?: string[];
-    };
-
-    expect(buildConfig.compilerOptions?.emitDeclarationOnly).toBe(true);
-    expect(buildConfig.compilerOptions?.rootDir).toBe("src");
-    expect(buildConfig.compilerOptions?.outDir).toBe("dist");
-    expect(buildConfig.include).toContain("src/index.ts");
-    expect(buildConfig.exclude).toContain("**/*.test.ts");
-    expect(buildConfig.exclude).toContain("**/*.test.tsx");
-  });
-
+  // A spec here used to read `tsconfig.build.json` and assert its
+  // `emitDeclarationOnly` / `rootDir` / `outDir` / `include` / `exclude` fields
+  // directly. `emitDeclarationOnly` now comes from the shared
+  // `packages/tsconfig.build.base.json`, so a field-by-field read of THIS file
+  // no longer sees it — the spec asserted where an option is written rather than
+  // that declarations get emitted. What it was really guarding is observable in
+  // `dist/`, which the build-output describe below already inspects: if the
+  // declaration program were mis-scoped, either the entry's .d.ts would be
+  // missing or a stray one would appear.
   // The build/test wiring is NOT asserted by reading `vite.config.ts` and
   // `vitest.config.ts` as text. Those regexes pinned the configs' SOURCE SHAPE —
   // a variable rename or a formatter rewrap failed them while the build still

@@ -1,0 +1,46 @@
+{
+  // Shared declaration-emit config for every workspace package's
+  // `tsconfig.build.json`, sitting beside `tsconfig.base.json` (which owns the
+  // type-checking semantics). A package's `build` script runs Vite library mode
+  // for the JS bundle and then `tsc -p tsconfig.build.json` for the .d.ts files,
+  // because Vite's lib mode emits no declarations — so all seven packages had
+  // byte-identical settings here before this file existed.
+  //
+  // `${configDir}` is what makes this hoistable at all, and it is not optional.
+  // TypeScript normally resolves a relative path against the directory of the
+  // file the path is WRITTEN in, so a plain `"outDir": "dist"` here would mean
+  // `<repo>/dist` and every package would emit its declarations on top of each
+  // other in one shared directory. Measured, not assumed: a base carrying a
+  // plain `outDir` built packages/query into `packages/dist` and produced no
+  // `packages/query/dist` at all. `${configDir}` instead resolves against the
+  // directory of the config doing the extending (TypeScript 5.5+), which is the
+  // per-package `tsconfig.build.json` — so each package emits into its own
+  // `dist/`, and this file can be moved without rewriting the paths.
+  //
+  // `rootDir` is set rather than inferred so `dist/` mirrors `src/`; TS7 fails
+  // with error TS5011 without it.
+  //
+  // What stays per-package is `include`: the hand-listed public entry points.
+  // That is load-bearing. tsc transitively pulls in every real src file an entry
+  // imports, so listing the entries is what keeps *.test.ts, scripts and root
+  // *.config.ts out of the declaration program and stops a stray .d.ts leaking
+  // into dist/. An entry nothing else imports — the SDK's
+  // `server/passthrough.ts`, deliberately unreferenced so a passthrough-only app
+  // never reaches the BFF handler graph — must be listed explicitly or it emits
+  // no .d.ts at all.
+  //
+  // NOTE for anyone editing `exclude` below: a package that declares its own
+  // `exclude` REPLACES this list rather than merging with it. No package does
+  // today; if one needs to add an entry, it has to restate these three.
+  "compilerOptions": {
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "rootDir": "${configDir}/src",
+    "outDir": "${configDir}/dist"
+  },
+  "exclude": [
+    "${configDir}/**/*.test.ts",
+    "${configDir}/**/*.test.tsx",
+    "${configDir}/**/*.config.ts"
+  ]
+}

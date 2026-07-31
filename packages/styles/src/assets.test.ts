@@ -82,11 +82,16 @@ describe("the package manifest", () => {
     // Separate because this module reads node:url. The main entry is bundled
     // into consumers' browser builds and must not drag node: imports in with it.
     //
-    // Named unhashed (Wallow-do5e): nothing here content-hashes without a build
-    // manifest to read the hashed name back out of.
-    expect(manifest.exports?.["./assets"]).toEqual({
-      types: "./dist/assets.d.ts",
-      import: "./dist/assets.js",
-    });
+    // SEPARATION is the invariant, so that is what this asserts. It used to
+    // assert the entry equalled an exact `./dist/assets.{d.ts,js}` pair, which
+    // also pinned WHERE the entry resolves — and in-repo it now resolves to
+    // `src/`, with the dist map applied at publish time from
+    // `publishConfig.exports`. The resolved paths are publint/attw's job
+    // (`pnpm check:exports`), against the built package.
+    const assets = manifest.exports?.["./assets"];
+    const main = manifest.exports?.["."];
+
+    expect(assets).toBeDefined();
+    expect(assets).not.toEqual(main);
   });
 });

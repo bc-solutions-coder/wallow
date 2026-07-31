@@ -47,11 +47,17 @@ describe("packages/ui scaffold", () => {
     const pkg = readPackageJson();
 
     expect(pkg.name).toBe("@bc-solutions-coder/ui");
+    // `private: true` is what makes it unpublished, and it is the only thing
+    // asserted here. There used to be a second assertion that no
+    // `publishConfig` existed at all; the package now carries
+    // `publishConfig.exports`, deliberately and in company with all six other
+    // workspace packages. In-repo every `exports` entry points at `src/` so
+    // consumers resolve from source with no prebuilt `dist/`, and the `dist/`
+    // map is the publish-time view. Carrying it uniformly — even on the private
+    // members that will never use it — is what stops a package that later drops
+    // `private` from publishing a manifest pointing at TypeScript sources.
     expect(pkg.private).toBe(true);
     expect(pkg.type).toBe("module");
-    // Fork-internal component library: never published (like packages/testing),
-    // so it carries NO publishConfig.
-    expect(pkg).not.toHaveProperty("publishConfig");
   });
 
   it("exports source.css as a raw file passthrough", () => {
@@ -92,8 +98,13 @@ describe("packages/ui scaffold", () => {
     const pkg = readPackageJson();
     const scripts = pkg.scripts as Record<string, string>;
 
-    expect(scripts.test).toBe("vitest run");
-    expect(scripts["test:watch"]).toBe("vitest");
+    // Containment rather than exact strings: which runner runs is the contract,
+    // its flags are not. This package's scripts carry `--configLoader runner`
+    // because `vitest.config.ts` imports `@bc-solutions-coder/testing`, which
+    // now resolves to TypeScript source — Vite's default config loader
+    // externalizes bare specifiers to Node's ESM resolver, which cannot read it.
+    expect(scripts.test).toContain("vitest run");
+    expect(scripts["test:watch"]).toContain("vitest");
     expect(scripts.typecheck).toBe("tsc --noEmit");
   });
 

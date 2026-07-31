@@ -5,12 +5,12 @@
   "description": "Minimal TanStack Start reference app wiring all five @bc-solutions-coder shared packages",
   "type": "module",
   "scripts": {
-    "dev": "vite dev",
-    "build": "vite build",
+    "dev": "vite dev --configLoader runner",
+    "build": "vite build --configLoader runner",
     "start": "node .output/server/index.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "test": "vitest run --configLoader runner",
+    "test:watch": "vitest --configLoader runner"
   },
   "dependencies": {
     "@bc-solutions-coder/query": "workspace:*",

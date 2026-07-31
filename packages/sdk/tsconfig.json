@@ -1,12 +1,20 @@
 {
+  // Inherits the workspace-standard TypeScript semantics from the repo-root base
+  // config (target/lib/module/moduleResolution/jsx/strict/isolatedModules/
+  // verbatimModuleSyntax/...), like every other workspace member.
+  //
+  // This file used to redeclare those options with DIFFERENT values — `target`
+  // and `lib` on ES2022 rather than ESNext, and no isolatedModules,
+  // verbatimModuleSyntax, resolveJsonModule, forceConsistentCasingInFileNames or
+  // jsx at all — so the package that every app compiles against was the one
+  // package not held to the shared baseline. It compiles clean under the full
+  // base semantics; the drift was inherited, not required.
+  //
+  // What stays local is emit, which genuinely differs per member: this package
+  // emits declarations, and `types: ["node"]` is what lets the BFF server entry
+  // reach `node:*`.
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
     "declaration": true,
     "outDir": "dist",
     "types": ["node"]

@@ -9,24 +9,48 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
     },
     "./render": {
-      "types": "./dist/render.d.ts",
-      "import": "./dist/render.js"
+      "types": "./src/render.tsx",
+      "import": "./src/render.tsx"
     },
     "./sdk-harness": {
-      "types": "./dist/sdk-harness.d.ts",
-      "import": "./dist/sdk-harness.js"
+      "types": "./src/sdk-harness.ts",
+      "import": "./src/sdk-harness.ts"
     },
     "./contrast": {
-      "types": "./dist/contrast.d.ts",
-      "import": "./dist/contrast.js"
+      "types": "./src/contrast.ts",
+      "import": "./src/contrast.ts"
     },
     "./render-with-wallow": {
-      "types": "./dist/render-with-wallow.d.ts",
-      "import": "./dist/render-with-wallow.js"
+      "types": "./src/render-with-wallow.tsx",
+      "import": "./src/render-with-wallow.tsx"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      },
+      "./render": {
+        "types": "./dist/render.d.ts",
+        "import": "./dist/render.js"
+      },
+      "./sdk-harness": {
+        "types": "./dist/sdk-harness.d.ts",
+        "import": "./dist/sdk-harness.js"
+      },
+      "./contrast": {
+        "types": "./dist/contrast.d.ts",
+        "import": "./dist/contrast.js"
+      },
+      "./render-with-wallow": {
+        "types": "./dist/render-with-wallow.d.ts",
+        "import": "./dist/render-with-wallow.js"
+      }
     }
   },
   "scripts": {

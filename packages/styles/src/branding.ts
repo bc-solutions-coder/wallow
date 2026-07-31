@@ -11,7 +11,13 @@
  * The port keeps that behaviour in one pure, testable function
  * ({@link mergeClientBranding}) so the React layout is left with rendering only.
  */
-import forkBrandingJson from "../../../api/branding.json";
+// The `with { type: "json" }` attribute is required, not decorative. In-repo
+// this module is resolved from source rather than from a prebuilt bundle that
+// already inlined the JSON, so consumers whose loader is plain Node ESM —
+// Storybook evaluating packages/ui/.storybook/main.ts, which reaches here
+// through `@bc-solutions-coder/styles/vite` — import this file directly, and
+// Node rejects a JSON import without the attribute (ERR_IMPORT_ATTRIBUTE_MISSING).
+import forkBrandingJson from "../../../api/branding.json" with { type: "json" };
 import { toRootRelativeAssetUrl } from "./asset-urls";
 
 /** The two colour schemes a theme defines. */
