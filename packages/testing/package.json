@@ -20,6 +20,10 @@
       "types": "./src/sdk-harness.ts",
       "import": "./src/sdk-harness.ts"
     },
+    "./browser-deps": {
+      "types": "./src/browser-deps.ts",
+      "import": "./src/browser-deps.ts"
+    },
     "./contrast": {
       "types": "./src/contrast.ts",
       "import": "./src/contrast.ts"
@@ -42,6 +46,10 @@
       "./sdk-harness": {
         "types": "./dist/sdk-harness.d.ts",
         "import": "./dist/sdk-harness.js"
+      },
+      "./browser-deps": {
+        "types": "./dist/browser-deps.d.ts",
+        "import": "./dist/browser-deps.js"
       },
       "./contrast": {
         "types": "./dist/contrast.d.ts",

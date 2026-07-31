@@ -147,13 +147,14 @@ describe("wallow-web's imports", () => {
 });
 
 describe("the vitest harness resolves the facade explicitly", () => {
-  it("keeps @tanstack/react-query pre-bundled for the browser project", () => {
-    // NOT a rename: react-query is still the module Vite pre-bundles, one facade
-    // hop away. Dropping this entry shows up as a mid-run Vite reload that
-    // silently drops the runner ("Vitest failed to find the runner"), not as a
-    // clean failure.
-    expect(extraBrowserOptimizeDeps()).toContain(REACT_QUERY);
-  });
+  // There is deliberately no spec pinning a `@tanstack/react-query` entry in the
+  // pre-bundle list. One was here, on the theory that react-query is still the
+  // module Vite pre-bundles, one facade hop away. It is not: this app does not
+  // declare react-query, so under pnpm's strict `node_modules` the entry resolved
+  // to nothing and Vite logged `Failed to resolve dependency` once per run and
+  // pre-bundled nothing at all. The facade entry below is what does the work, and
+  // `src/browser-deps.test.ts` now asserts the general invariant the dead entry
+  // hid behind — every entry in the list must actually resolve.
 
   it("pre-bundles the facade and the auth package, which pnpm merely LINKS", () => {
     // A linked workspace package is not pre-bundled by default, and both of these

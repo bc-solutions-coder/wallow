@@ -10,6 +10,7 @@ export default defineLibraryConfig({
     index: "src/index.ts",
     render: "src/render.tsx",
     "sdk-harness": "src/sdk-harness.ts",
+    "browser-deps": "src/browser-deps.ts",
     contrast: "src/contrast.ts",
     "render-with-wallow": "src/render-with-wallow.tsx",
   },

@@ -55,11 +55,6 @@ const extraBrowserOptimizeDeps: string[] = [
   // does not recognise).
   "@bc-solutions-coder/query",
   "@bc-solutions-coder/auth",
-  // Stays on the list as policy: react-query is still the module actually being
-  // pre-bundled, one facade hop away. It no longer resolves from this app's root
-  // (the manifest dropped it), so Vite logs one "Failed to resolve dependency"
-  // line per run; the pre-bundling it names is done by the facade entry above.
-  "@tanstack/react-query",
   "@tanstack/react-router",
   "@tanstack/react-form",
   "zustand",
@@ -68,20 +63,24 @@ const extraBrowserOptimizeDeps: string[] = [
   // schema, and it is the schema module — not the form package — that the
   // scanner misses on the first pass. Every form this app migrates needs it.
   "zod",
-  // The catalog components wallow-web mounts reach Base UI through per-component
-  // SUBPATHS, and Vite pre-bundles a subpath only when it is named — the package
-  // root does not cover them.
-  "@base-ui/react/autocomplete",
-  "@base-ui/react/checkbox",
-  // The add-member picker is an `Autocomplete`, whose parts are Base UI's
-  // COMBOBOX parts re-exported — the autocomplete subpath alone does not cover
-  // them.
-  "@base-ui/react/combobox",
-  "@base-ui/react/navigation-menu",
-  "@base-ui/react/select",
-  "@base-ui/react/toggle",
-  "@base-ui/react/toggle-group",
 ];
+
+/*
+ * Deliberately NOT here: `@base-ui/react/*` and `@tanstack/react-query`.
+ *
+ * Both were listed and both resolved to nothing. This app declares neither
+ * package — it reaches Base UI through `@bc-solutions-coder/ui` and react-query
+ * through the `@bc-solutions-coder/query` facade above — and under pnpm's strict
+ * `node_modules` a package resolves only what it declares. Vite answered with one
+ * `Failed to resolve dependency` warning per entry and pre-bundled nothing, so
+ * eight of the twenty-two entries were decoration: the list looked like it was
+ * protecting against duplicate React, and was not.
+ *
+ * The fix is not to declare them. Naming Base UI directly here would give the app
+ * a second route to a package the catalog exists to own, and the facade entry is
+ * what actually pre-bundles react-query's runtime. `src/browser-deps.test.ts`
+ * fails now if an entry stops resolving, so this cannot silently come back.
+ */
 
 // `src/app/router.tsx` imports `@tanstack/react-start`, which loads Start's
 // per-request `AsyncLocalStorage` from `node:async_hooks` at module scope. A real

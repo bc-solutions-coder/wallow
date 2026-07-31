@@ -15,26 +15,19 @@ import { defineConfig } from "vitest/config";
  */
 
 /**
- * Every `@base-ui/react/*` subpath reachable from the ui components this
- * package's fields wrap, listed for the browser project's `optimizeDeps.include`.
- * This is not an optimisation — it is required. Left to on-the-fly discovery,
- * Vite pre-bundles a Base UI subpath into a chunk carrying its own copy of React
- * and the first spec that renders the part dies on `Cannot read properties of
- * null (reading 'useRef')` (see packages/ui/CLAUDE.md).
+ * Every `@base-ui/react` subpath reachable from the ui components this package's
+ * fields wrap, for the browser project's `optimizeDeps.include`. This is not an
+ * optimisation — it is required. Left to on-the-fly discovery, Vite pre-bundles a
+ * Base UI subpath into a chunk carrying its own copy of React and the first spec
+ * that renders the part dies on `Cannot read properties of null (reading
+ * 'useRef')` (see packages/ui/CLAUDE.md).
  *
- * EVERY catalog field task must append the subpaths of the ui component it wraps
- * here as it lands, the same discipline packages/ui/vitest.config.ts follows.
+ * One glob, which Vite expands against Base UI's own `exports` keys — the same
+ * line packages/ui/vitest.config.ts carries. It replaces the five subpaths kept
+ * by hand here, and with them the rule that every new catalog field had to append
+ * the subpaths of the ui component it wraps.
  */
-const baseUiSubpaths = [
-  // `button` backs the ui Button that `form/submit-button.tsx` renders.
-  "@base-ui/react/button",
-  "@base-ui/react/field",
-  "@base-ui/react/input",
-  // The catalog fields: `checkbox` backs CheckboxField, `select` backs
-  // SelectField (TextareaField's control is a native element, so it adds none).
-  "@base-ui/react/checkbox",
-  "@base-ui/react/select",
-];
+const baseUi = ["@base-ui/react/*"];
 
 /**
  * This package's own runtimes plus the recipe runtime every ui component pulls
@@ -58,7 +51,7 @@ const formRuntime = [
 ];
 
 const { node, browser: unstyledBrowser } = createVitestProjects({
-  extraBrowserOptimizeDeps: [...baseUiSubpaths, ...formRuntime],
+  extraBrowserOptimizeDeps: [...baseUi, ...formRuntime],
 });
 
 /**

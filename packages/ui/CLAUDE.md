@@ -109,12 +109,16 @@ real Tailwind pipeline and the fork's real theme attached).
 - **No mocking.** ui's own tests mock nothing — real Base UI parts, real Chromium, real
   tokens. The only permitted double is a userland callback spy (`onClick={fn()}`). Apps must
   never mock `@bc-solutions-coder/ui` either (see `.claude/rules/TESTING.md`).
-- Every `@base-ui/react/<part>` subpath a component imports **must** be appended to
-  `baseUiSubpaths` in `vitest.config.ts` (alphabetically, as the component lands). It feeds
-  `optimizeDeps.include` for both browser projects — Storybook runs its own Vite server with
-  its own dep cache, so the list is repeated there, not shared. Without it Vite pre-bundles
-  the subpath with its own React copy and specs die on `Cannot read properties of null
-(reading 'useRef')`.
+- **Base UI pre-bundling needs no per-component step.** `vitest.config.ts` feeds
+  `optimizeDeps.include` the single glob `@base-ui/react/*`, which Vite expands against Base
+  UI's own `exports` keys, so a new component's subpath is covered the moment the package
+  publishes it. (This used to be a hand-maintained list of 39 that every component task had to
+  append to.) The list is still repeated for the `storybook` project — Storybook runs its own
+  Vite server with its own dep cache — and the mechanism itself is not optional: without it
+  Vite pre-bundles a subpath with its own React copy and specs die on `Cannot read properties
+of null (reading 'useRef')`. `src/core/browser-deps.test.ts` checks that every entry in both
+  projects' lists actually resolves, because Vite treats one that does not as a warning and
+  carries on pre-bundling nothing.
 - **The `browser` project loads no Tailwind**, so a component whose box comes only from its
   recipe and has no text (switch, checkbox, radio, slider, toggle) measures 0×0 and
   Playwright's actionability check makes `userEvent.click` hang until timeout. Activate with

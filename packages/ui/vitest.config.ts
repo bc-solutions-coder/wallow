@@ -17,73 +17,33 @@ import { defineConfig } from "vitest/config";
  */
 
 /**
- * Every `@base-ui/react/*` subpath this package's components import, listed for
- * BOTH browser projects' `optimizeDeps.include`. This is not an optimisation —
- * it is required. Left to on-the-fly discovery, Vite pre-bundles a Base UI
- * subpath into a chunk carrying its own copy of React, and the first spec that
- * renders the part dies on `Cannot read properties of null (reading 'useRef')`;
- * in the storybook project it instead triggers a mid-run reload and the story
- * fails to fetch its shim.
+ * Every `@base-ui/react` subpath, for BOTH browser projects'
+ * `optimizeDeps.include`. This is not an optimisation — it is required. Left to
+ * on-the-fly discovery, Vite pre-bundles a Base UI subpath into a chunk carrying
+ * its own copy of React, and the first spec that renders the part dies on
+ * `Cannot read properties of null (reading 'useRef')`; in the storybook project
+ * it instead triggers a mid-run reload and the story fails to fetch its shim.
  *
- * EVERY component task in the Base UI rebuild must append its own subpath here
- * as it lands (Wallow-m5aq.2.1 established this).
+ * One glob, not the 39 hand-listed subpaths this used to be. Vite expands it
+ * against the package's own `exports` keys (`expandGlobIds` →
+ * `resolvePackageData`), so it covers every part Base UI publishes plus the
+ * package root — a superset of any list kept by hand, with no "append your
+ * subpath here" step for a new component to forget.
  */
-const baseUiSubpaths = [
-  "@base-ui/react/accordion",
-  "@base-ui/react/alert-dialog",
-  "@base-ui/react/autocomplete",
-  "@base-ui/react/avatar",
-  "@base-ui/react/button",
-  "@base-ui/react/checkbox",
-  "@base-ui/react/checkbox-group",
-  "@base-ui/react/collapsible",
-  "@base-ui/react/combobox",
-  "@base-ui/react/context-menu",
-  "@base-ui/react/dialog",
-  "@base-ui/react/drawer",
-  "@base-ui/react/field",
-  "@base-ui/react/fieldset",
-  "@base-ui/react/form",
-  "@base-ui/react/input",
-  "@base-ui/react/menu",
-  "@base-ui/react/menubar",
-  "@base-ui/react/meter",
-  "@base-ui/react/navigation-menu",
-  "@base-ui/react/number-field",
-  "@base-ui/react/otp-field",
-  "@base-ui/react/popover",
-  "@base-ui/react/preview-card",
-  "@base-ui/react/progress",
-  "@base-ui/react/radio",
-  "@base-ui/react/radio-group",
-  "@base-ui/react/scroll-area",
-  "@base-ui/react/select",
-  "@base-ui/react/separator",
-  "@base-ui/react/slider",
-  "@base-ui/react/switch",
-  "@base-ui/react/tabs",
-  "@base-ui/react/toast",
-  "@base-ui/react/toggle",
-  "@base-ui/react/toggle-group",
-  "@base-ui/react/toolbar",
-  "@base-ui/react/tooltip",
-  // Not a part: the `useRender` hook, which `ListRow` uses to get Base UI's
-  // `render` contract on a plain `<li>` that wraps no headless part.
-  "@base-ui/react/use-render",
-];
+const baseUi = ["@base-ui/react/*"];
 
 /**
  * The recipe runtime every component pulls in through its `*.styles.ts` and
  * `src/core/cn.ts`. Same reason as the Base UI subpaths above: discovered on
  * the fly, they land mid-run ("dependencies optimized: class-variance-authority,
  * tailwind-merge" -> reload), which the storybook project cannot survive — its
- * stories then fail to fetch `@storybook_react-dom-shim.js`. Package-wide, so
- * unlike `baseUiSubpaths` this list does not grow per component.
+ * stories then fail to fetch `@storybook_react-dom-shim.js`. Two real package
+ * names rather than a glob: neither publishes subpaths worth pre-bundling.
  */
 const recipeRuntime = ["class-variance-authority", "tailwind-merge"];
 
 const { node, browser } = createVitestProjects({
-  extraBrowserOptimizeDeps: [...baseUiSubpaths, ...recipeRuntime],
+  extraBrowserOptimizeDeps: [...baseUi, ...recipeRuntime],
 });
 
 /**
@@ -104,7 +64,7 @@ const storybook = {
   // and recipe-runtime pre-bundle lists have to be repeated here — sharing the
   // constants, not the whole browser-project list (this project renders through
   // Storybook's runtime, not `vitest-browser-react`).
-  optimizeDeps: { include: [...baseUiSubpaths, ...recipeRuntime] },
+  optimizeDeps: { include: [...baseUi, ...recipeRuntime] },
   test: {
     name: "storybook",
     browser: {
