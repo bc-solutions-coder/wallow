@@ -99,15 +99,14 @@ describe("ListRow render contract", () => {
     expect(source).toMatch(/defaultTagName:\s*["']li["']/u);
   });
 
-  it("registers the use-render subpath for both browser vitest projects", () => {
-    const config = readFileSync(join(componentDir, "..", "..", "..", "vitest.config.ts"), "utf8");
-
-    // Every `@base-ui/react/*` subpath a component imports must be listed in
-    // `baseUiSubpaths` or Vite pre-bundles it with its own copy of React and
-    // the specs die on `Cannot read properties of null (reading 'useRef')`
-    // (packages/ui/CLAUDE.md).
-    expect(config).toContain(`"${USE_RENDER_SUBPATH}"`);
-  });
+  // A third spec here read `vitest.config.ts` and asserted the literal string
+  // `"@base-ui/react/use-render"` appeared in `baseUiSubpaths`. The consequence
+  // it guarded is real — an unregistered subpath is pre-bundled with its own
+  // React copy and the specs die on `Cannot read properties of null (reading
+  // 'useRef')` — but it guarded it by pinning HOW the list is spelled, so one
+  // component's spec would fail if the list were ever derived rather than hand
+  // written. The failure is loud, immediate, and lands in this component's own
+  // `*.test.tsx`; it needs no source-text proxy.
 });
 
 describe("ListRow source", () => {
