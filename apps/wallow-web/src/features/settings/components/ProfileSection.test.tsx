@@ -6,24 +6,14 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { ProfileSection } from "./ProfileSection";
 
 /**
- * Component spec for the read-only settings profile section (Wallow-8w1h.6.2).
+ * ProfileSection — the settings profile card. It is READ-ONLY: name, email and
+ * roles come off the authenticated principal, with no edit or save affordance.
  *
  * Data flows through the GENERATED `usersGetCurrentUserOptions`, bound to the
  * SDK instance the section reads off the router context. `renderWithWallow`
- * supplies that instance over the harness transport (Wallow-pu6a.5.5), so each
- * profile state is driven by the RESPONSE the section's own request gets rather
- * than by pre-seeding a cache key, and the loading state by a never-settling
- * request (`harness.pending()`).
- *
- * Profile is READ-ONLY (scout CRITICAL DIVERGENCE #1): data comes from
- * `usersGetCurrentUser` ->
- * `CurrentUserResponse{ id, email, firstName, lastName, roles, permissions }`,
- * and there is NO edit/save affordance — the profile is display-only, rendered
- * from name/email/roles off the authenticated principal with no mutation. Testids mirror the
- * C# page object `SettingsProfileSection`:
- *   settings-profile-name, settings-profile-email,
- *   settings-profile-roles (container) + settings-profile-role (per role) OR
- *   settings-profile-no-roles (mutually exclusive), plus a loading state.
+ * supplies that instance over the harness transport, so each state is driven by
+ * the RESPONSE the section's own request gets rather than by a pre-seeded cache
+ * key — and the loading state by a never-settling request (`harness.pending()`).
  */
 
 const profile = {
@@ -38,6 +28,12 @@ const profile = {
 /** The transport backing each render, rebuilt per test. */
 let harness: SdkHarness;
 
+/** The caption above a field's value element, which sits in its parent row. */
+function captionOf(testId: string): string {
+  const row = page.getByTestId(testId).element().parentElement;
+  return row?.querySelector("span")?.textContent ?? "";
+}
+
 describe("ProfileSection", () => {
   beforeEach(() => {
     harness = createSdkHarness();
@@ -48,12 +44,15 @@ describe("ProfileSection", () => {
 
     renderWithWallow(<ProfileSection />, { harness });
 
+    await expect.element(page.getByRole("heading", { name: "Profile" })).toBeInTheDocument();
     await expect
       .element(page.getByTestId("settings-profile-name"))
       .toHaveTextContent("Ada Lovelace");
     await expect
       .element(page.getByTestId("settings-profile-email"))
       .toHaveTextContent("ada@lovelace.io");
+    expect(captionOf("settings-profile-name")).toBe("Name");
+    expect(captionOf("settings-profile-email")).toBe("Email");
   });
 
   it("renders one role element per role inside the roles container", async () => {
@@ -62,6 +61,7 @@ describe("ProfileSection", () => {
     renderWithWallow(<ProfileSection />, { harness });
 
     await expect.element(page.getByTestId("settings-profile-roles")).toBeInTheDocument();
+    expect(captionOf("settings-profile-roles")).toBe("Roles");
     const roleEls = page.getByTestId("settings-profile-role").elements();
     expect(roleEls).toHaveLength(2);
     expect(roleEls[0]).toHaveTextContent("Owner");
@@ -74,7 +74,10 @@ describe("ProfileSection", () => {
 
     renderWithWallow(<ProfileSection />, { harness });
 
-    await expect.element(page.getByTestId("settings-profile-no-roles")).toBeInTheDocument();
+    await expect
+      .element(page.getByTestId("settings-profile-no-roles"))
+      .toHaveTextContent("No roles assigned.");
+    expect(captionOf("settings-profile-no-roles")).toBe("Roles");
     await expect.element(page.getByTestId("settings-profile-roles")).not.toBeInTheDocument();
   });
 
@@ -100,6 +103,8 @@ describe("ProfileSection", () => {
 
     renderWithWallow(<ProfileSection />, { harness });
 
-    await expect.element(page.getByTestId("settings-profile-loading")).toBeInTheDocument();
+    await expect
+      .element(page.getByTestId("settings-profile-loading"))
+      .toHaveTextContent("Loading profile…");
   });
 });

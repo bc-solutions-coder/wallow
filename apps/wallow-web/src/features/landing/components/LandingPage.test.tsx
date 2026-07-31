@@ -7,24 +7,16 @@ import { LandingPage } from "./LandingPage";
 import { getStartedHref, repositoryUrl } from "@shared/lib/site-links";
 
 /**
- * LandingPage spec (Wallow-urec.3.1) — the marketing body ported from the
- * retired Blazor `Home.razor`, rendered in real Chromium via
- * `vitest-browser-react`.
+ * LandingPage — the marketing body.
  *
- * Everything a fork owns is asserted against DATA, never against a literal
- * baked into the test: the heading against `forkBranding.tagline`, the hero
- * icon against the branding filename, and the two CTAs against the
- * `lib/site-links` constants (Wallow-urec.2.1 made that module the single
- * source for outbound hrefs). The copy the PLATFORM owns — tech badges,
- * feature titles, quick-start steps — is pinned literally and in order,
- * because that ordering is the page's content contract.
+ * Everything a FORK owns is asserted against data, never a literal baked into
+ * the test: the heading against `forkBranding.tagline`, the hero icon against
+ * the branding filename, the two CTAs against the `lib/site-links` constants.
+ * The copy the PLATFORM owns — tech badges, feature titles, quick-start steps
+ * — is pinned literally and in order; that ordering is the content contract.
  */
 
-/**
- * The fork's icon as the hero must render it: rooted, so it resolves to one
- * file from every route depth (the same contract `auth-layout.test.tsx`
- * enforces on wallow-auth's chrome).
- */
+/** Rooted, so the hero icon resolves to one file from every route depth. */
 const rootedAppIcon = `/${forkBranding.appIcon}`;
 
 const techBadges: readonly string[] = [
@@ -62,9 +54,9 @@ describe("LandingPage", () => {
     const heading: Element = page.getByTestId("home-heading").element();
 
     expect(heading.textContent).toBe(forkBranding.tagline);
-    // `routes/index.test.tsx` asserts the SSR shell contains a non-empty
-    // `<h1>..<h6>` via a regex that rejects nested markup, so the tagline must
-    // be the heading's ONLY child and a bare text node.
+    // The SSR shell spec matches a non-empty `<h1>..<h6>` with a regex that
+    // rejects nested markup, so the tagline must be the heading's ONLY child
+    // and a bare text node.
     expect(heading.children).toHaveLength(0);
   });
 
@@ -95,7 +87,7 @@ describe("LandingPage", () => {
     await render(<LandingPage />);
 
     // PublicLayout's Features nav link targets "/#features", so the section
-    // must carry that id or the nav link is dead again (Wallow-urec.2.1).
+    // must carry that id or the nav link goes nowhere.
     expect(page.getByTestId("home-features").element().getAttribute("id")).toBe("features");
     expect(textsOf("home-feature-title")).toEqual(featureTitles);
   });

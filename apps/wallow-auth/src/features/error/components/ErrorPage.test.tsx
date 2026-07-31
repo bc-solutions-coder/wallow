@@ -13,22 +13,16 @@ import { Route as errorRoute } from "@app/routes/error";
 import { ErrorPage } from "./ErrorPage";
 
 /**
- * Component spec for the Error screen (Wallow-vec7.3.3).
+ * Error screen: the `reason` query parameter, and the copy each one maps to.
  *
- * Testids come verbatim from the oracle (scout inventory on Wallow-vec7.3):
- * `error-heading`, `error-message`, `error-sign-out-link`, `error-back-link`.
- *
- * THIS SCREEN IS A CONTRACT, NOT A LEAF. Per bd memory
- * `returnurl-guard-refuse-dont-sanitize`, every other screen's open-redirect
- * refusal lands HERE via `/error?reason=invalid_redirect_uri`, and the OIDC
+ * This screen is a contract, not a leaf. Every other screen's open-redirect
+ * refusal lands here via `/error?reason=invalid_redirect_uri`, and the OIDC
  * flows route here with `not_a_member` / `access_denied` / `invalid_request`.
- * Each of those reasons is a caller Wallow-vec7.3.x is writing right now, so the
- * `reason` mapping below is pinned exhaustively rather than by sampling.
- *
- * No SDK mock: this screen is inert. It reads one query parameter and renders.
+ * Every one of those reasons has a caller elsewhere in the app, so the mapping
+ * is pinned exhaustively rather than by sampling.
  */
 
-/** The oracle's switch arms, verbatim. */
+/** Every reason the app routes here with. */
 const REASONS: readonly { readonly reason: string; readonly matches: RegExp }[] = [
   { reason: "not_a_member", matches: /don't have access to this application/iu },
   { reason: "invalid_redirect_uri", matches: /redirect destination is not permitted/iu },
@@ -52,8 +46,8 @@ describe("ErrorPage", () => {
   });
 
   it("falls back to a generic message for an unrecognised reason", async () => {
-    // Oracle's `_` arm. A reason this page has never heard of must still produce
-    // a page — this is the error screen; it has nowhere to escalate to.
+    // A reason this page has never heard of must still produce a page — this is
+    // the error screen; it has nowhere to escalate to.
     render(<ErrorPage reason="wat" />);
 
     await expect
@@ -62,8 +56,6 @@ describe("ErrorPage", () => {
   });
 
   it("falls back to a generic message when there is no reason at all", async () => {
-    // `/error` with a bare query string. Same arm — `null` hits `_` in the
-    // oracle's switch.
     render(<ErrorPage />);
 
     await expect
@@ -90,10 +82,9 @@ describe("ErrorPage", () => {
 
 describe("ErrorPage — the not_a_member escape hatch", () => {
   it("offers to sign out and try another account", async () => {
-    // Oracle: this link is gated on `reason == "not_a_member"`. That case means
-    // "you are signed in, as the wrong person" — the ONLY case where the fix is
-    // to sign out, and the one case where a back-to-home link alone would loop
-    // the user straight back into the same error.
+    // `not_a_member` means "you are signed in, as the wrong person" — the only
+    // case where the fix is to sign out, and the one case where a back-to-home
+    // link alone would loop the user straight back into the same error.
     render(<ErrorPage reason="not_a_member" />);
 
     await expect
@@ -129,16 +120,12 @@ describe("ErrorPage — the not_a_member escape hatch", () => {
 });
 
 /**
- * Route-level spec. Rendered through a real memory router rather than by poking
- * at `Route.options.component`, because this route's component reads `reason`
- * through `Route.useSearch()` — and every router hook dereferences a router that
- * is `null` outside a `RouterProvider` (`useRouter` only warns; `useMatch` then
- * throws on `router.stores`). A bare render is therefore unsatisfiable by any
- * correct implementation, not a bar this screen fails to clear. Mirrors the
- * harness `ResetPasswordForm.test.tsx` established for the same reason.
- *
- * The root here is a throwaway: the app's real `__root.tsx` renders `<html>`,
- * and `src/router.tsx` is off-limits to this task (Wallow-vec7.3.16).
+ * Render the route through a real memory router rather than by poking at
+ * `Route.options.component`: the component reads `reason` through
+ * `Route.useSearch()`, and every router hook dereferences a router that is
+ * `null` outside a `RouterProvider` (`useRouter` only warns; `useMatch` then
+ * throws on `router.stores`). The root route here is a throwaway — the app's
+ * real `__root.tsx` renders `<html>`.
  */
 function renderRouteAt(url: string) {
   const rootRoute = createRootRoute({ component: Outlet });
@@ -159,11 +146,10 @@ describe("/error route", () => {
 
     await expect.element(page.getByTestId("error-heading")).toBeInTheDocument();
     expect(page.getByTestId("route-placeholder").query()).toBeNull();
-    // `not_a_member` is the ONE reason that earns a sign-out link, so asserting
-    // it here proves the query string actually threaded through
-    // `validateSearch` into the screen — strictly more than the bare render
-    // pinned. A route that dropped `reason` would render the generic message
-    // and fail this line.
+    // `not_a_member` is the one reason that earns a sign-out link, so asserting
+    // it here proves the query string threaded through `validateSearch` into
+    // the screen. A route that dropped `reason` would render the generic
+    // message and still pass a bare-render check.
     await expect.element(page.getByTestId("error-sign-out-link")).toBeInTheDocument();
     await expect
       .element(page.getByTestId("error-message"))

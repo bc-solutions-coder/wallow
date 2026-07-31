@@ -6,18 +6,17 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { ProfileSection } from "./ProfileSection";
 
 /**
- * Query error-state spec for the settings profile card (Wallow-lrlm.4.2).
+ * ProfileSection's query error state.
  *
- * `ProfileSection` collapses `data ?? {}`, so a failed
- * `usersGetCurrentUserOptions()` read renders a fully-populated-looking card
- * whose every value is the "Not set" fallback — the failure mode this task
- * exists to end, because it presents an error as a fact about the account.
+ * The card collapses `data ?? {}`, so without its own error branch a failed
+ * `usersGetCurrentUserOptions()` read paints a fully-populated-looking card
+ * whose every value is the "Not set" fallback — presenting an error as a fact
+ * about the account.
  */
 
 /** An RFC 7807 body the SDK's error interceptor brands as a `WallowError`. */
 const PROBLEM = { status: 500, title: "Internal Server Error", detail: "Profile is unavailable." };
 
-/** The transport backing each render, rebuilt per test. */
 let harness: SdkHarness;
 
 describe("ProfileSection — query error state", () => {

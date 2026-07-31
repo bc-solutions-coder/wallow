@@ -7,23 +7,16 @@ import { Route as privacyRoute } from "@app/routes/privacy";
 import { PrivacyPage } from "./PrivacyPage";
 
 /**
- * Component spec for the Privacy Policy screen (Wallow-vec7.3.3).
+ * Privacy Policy screen.
  *
- * Testids come verbatim from the oracle (scout inventory on Wallow-vec7.3):
- * `privacy-heading`, `privacy-content`, `privacy-back-button`.
- *
- * WHAT THESE TESTS DO AND DO NOT PIN: the page is a legal document, and its prose
- * is not this port's to assert sentence-by-sentence — a test that hard-coded nine
- * paragraphs would fail every time Legal changed a word, which is noise, not
- * signal. What IS pinned is that all nine numbered sections survive the port with
- * their headings intact (the failure mode of porting a wall of text by eye is
- * silently dropping one) and that the page's two structural elements — its
- * heading and its way out — work.
- *
- * No SDK mock: this screen is inert. It makes no calls and reads no query string.
+ * The prose is a legal document, so it is not asserted sentence by sentence —
+ * that would fail on every wording change. What is pinned is that all nine
+ * numbered sections are present and carry a body, because silently dropping
+ * one is how a wall of text goes wrong, plus the page's heading and its way
+ * out.
  */
 
-/** The nine section headings, in the oracle's order. */
+/** The nine section headings, in document order. */
 const SECTIONS: readonly string[] = [
   "Information We Collect",
   "How We Use Your Information",
@@ -60,9 +53,6 @@ describe("PrivacyPage", () => {
   });
 
   it("gives every section a body, not just a heading", async () => {
-    // Guards the other half of the copy-paste failure: headings present, prose
-    // dropped. Nine headings plus nine paragraphs is a lot of text; a page that
-    // came out near-empty would still pass a heading-only check.
     await render(<PrivacyPage />);
 
     const content: HTMLElement = page.getByTestId("privacy-content").element() as HTMLElement;
@@ -70,17 +60,18 @@ describe("PrivacyPage", () => {
   });
 
   it("gives the reader a way back to register", async () => {
-    // Oracle: `Href="/register"` — this page is reached FROM the register form's
-    // consent checkboxes, so back means back to register, not to login.
+    // This page is reached FROM the register form's consent checkboxes, so back
+    // means back to register, not to login.
     await render(<PrivacyPage />);
 
     await expect
       .element(page.getByTestId("privacy-back-button"))
       .toHaveAttribute("href", "/register");
 
-    // And it is announced as a LINK — see the twin assertion in TermsPage.test.tsx.
-    // The catalog Button supplies the role (Wallow-lrlm.12); this call site used to
-    // pass `role="link"` by hand with nothing asserting it.
+    // And it is announced as a LINK: the catalog Button composes onto an anchor
+    // here, and Base UI stamps `role="button"` on every non-native element it
+    // substitutes, which would drop this control out of a screen reader's links
+    // list. Same assertion in `TermsPage.test.tsx`.
     expect(page.getByRole("link", { name: /back to register/iu }).query()).toBe(
       page.getByTestId("privacy-back-button").element(),
     );

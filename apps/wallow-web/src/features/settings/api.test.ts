@@ -2,15 +2,12 @@ import { describe, expect, it } from "vitest";
 
 /**
  * Settings (Profile) feature `api.ts` — a THIN RE-EXPORT SEAM over
- * `@bc-solutions-coder/sdk/query`. Profile is READ-ONLY (no mutation endpoint),
- * so the seam exposes only the current-user read.
+ * `@bc-solutions-coder/sdk/query`. Profile is READ-ONLY (no mutation
+ * endpoint), so the seam exposes only the current-user read.
  *
- * The behavioural point Wallow-pu6a.5.5 introduced, and what this spec pins, is
- * that the profile screen and the dashboard's auth guard now read the SAME
- * generated operation. Under the hand-written layer they had separate keys
- * (`['settings','profile']` vs `['user','current']`) and therefore two cache
- * entries and two requests for one resource; the generated key makes them one,
- * and that must not silently regress into a bespoke wrapper key again.
+ * Re-export by IDENTITY is the point: the profile screen and the dashboard's
+ * auth guard must read the same generated operation, or a wrapper key gives
+ * one resource two cache entries and two requests.
  */
 
 import * as query from "@bc-solutions-coder/sdk/query";

@@ -7,21 +7,16 @@ import { Route as termsRoute } from "@app/routes/terms";
 import { TermsPage } from "./TermsPage";
 
 /**
- * Component spec for the Terms of Service screen (Wallow-vec7.3.3).
- *
- * Testids come verbatim from the oracle (scout inventory on Wallow-vec7.3):
- * `terms-heading`, `terms-content`, `terms-back-button`.
- *
- * NOT `/accept-terms` — that is the ToS *gate* (a form the user submits), owned
- * by Wallow-vec7.3.10. This is the static document the gate links to. The two
- * are easy to cross; the last test in the component block pins that this page
- * has no gate-like controls on it.
+ * Terms of Service screen — the static document, NOT `/accept-terms`, which is
+ * the ToS *gate* (a form the user submits) that links here. The two are easy to
+ * cross, so the last test in the component block pins that this page carries no
+ * gate-like controls.
  *
  * On what is and is not pinned about the prose, see the header of
  * `PrivacyPage.test.tsx` — same reasoning, same shape.
  */
 
-/** The nine section headings, in the oracle's order. */
+/** The nine section headings, in document order. */
 const SECTIONS: readonly string[] = [
   "Acceptance of Terms",
   "Use of Service",
@@ -77,9 +72,7 @@ describe("TermsPage", () => {
     // And it is announced as a LINK. The catalog Button composes onto an anchor
     // here, and Base UI stamps `role="button"` on every non-native element it
     // substitutes — which drops this control out of a screen reader's links list
-    // while its href still offers open-in-new-tab. The catalog now supplies the
-    // link role itself (Wallow-lrlm.12); before that this call site passed
-    // `role="link"` by hand, with nothing asserting it.
+    // while its href still offers open-in-new-tab.
     expect(page.getByRole("link", { name: /back to register/iu }).query()).toBe(
       page.getByTestId("terms-back-button").element(),
     );
@@ -87,9 +80,8 @@ describe("TermsPage", () => {
   });
 
   it("is the document, not the acceptance gate", () => {
-    // `/terms` renders prose and a way back — no checkbox, no submit. If this
-    // ever fails, someone has crossed this screen with `/accept-terms`
-    // (Wallow-vec7.3.10).
+    // `/terms` renders prose and a way back — no checkbox, no submit. A failure
+    // here means someone has crossed this screen with `/accept-terms`.
     render(<TermsPage />);
 
     expect(page.getByRole("checkbox").query()).toBeNull();
