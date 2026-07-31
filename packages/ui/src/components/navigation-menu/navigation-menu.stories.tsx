@@ -1,3 +1,10 @@
+import {
+  computedColor,
+  contrastRatio,
+  isTransparent,
+  type Rgba,
+  textContrast,
+} from "@bc-solutions-coder/testing/contrast";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { type ReactElement, useState } from "react";
 import { expect, fn, screen, userEvent, waitFor } from "storybook/test";
@@ -565,5 +572,169 @@ export const SidebarSurface: Story = {
     await expect(active).toHaveAttribute("data-active");
     await expect(getComputedStyle(active).backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
     await expect(getComputedStyle(active).backgroundColor).not.toBe(rail);
+  },
+};
+
+/** WCAG 2.x AA for body-sized text — the bar a nav label has to clear. */
+const AA_CONTRAST = 4.5;
+
+/** One arm of the trigger surface comparison: an open row and an idle one. */
+interface TriggerArmProps {
+  /** `data-testid` stem — `<id>-open` and `<id>-idle`. */
+  readonly id: string;
+  /** Omitted renders the default (page) arm, which is the point of the comparison. */
+  readonly surface?: "page" | "sidebar";
+}
+
+/**
+ * A two-row menu with one row already open. `defaultValue` is what makes the OPEN
+ * row reachable at all here: it mounts the whole portal half with no pointer
+ * input (measured), and Base UI puts `data-popup-open` on the trigger it opened —
+ * so `data-[popup-open]:` treatment can be MEASURED rather than inferred from a
+ * class name, which is the one hover-free way into a trigger's active paint.
+ */
+function TriggerArm({ id, surface }: TriggerArmProps): ReactElement {
+  return (
+    <NavigationMenu.Root className="flex-col" orientation="vertical" defaultValue="open">
+      <NavigationMenu.List className="flex-col">
+        <NavigationMenu.Item value="open">
+          <NavigationMenu.Trigger data-testid={`${id}-open`} surface={surface}>
+            Open section
+          </NavigationMenu.Trigger>
+          <NavigationMenu.Content>
+            <NavigationMenu.Link href={`#${id}-files`} surface={surface}>
+              Files
+            </NavigationMenu.Link>
+          </NavigationMenu.Content>
+        </NavigationMenu.Item>
+        <NavigationMenu.Item value="idle">
+          <NavigationMenu.Trigger data-testid={`${id}-idle`} surface={surface}>
+            Idle section
+          </NavigationMenu.Trigger>
+          <NavigationMenu.Content>
+            <NavigationMenu.Link href={`#${id}-buckets`} surface={surface}>
+              Buckets
+            </NavigationMenu.Link>
+          </NavigationMenu.Content>
+        </NavigationMenu.Item>
+      </NavigationMenu.List>
+      <NavigationMenu.Portal>
+        <NavigationMenu.Positioner side="inline-end" align="start" sideOffset={8}>
+          <NavigationMenu.Popup>
+            <NavigationMenu.Viewport />
+          </NavigationMenu.Popup>
+        </NavigationMenu.Positioner>
+      </NavigationMenu.Portal>
+    </NavigationMenu.Root>
+  );
+}
+
+/**
+ * The `surface` axis on `NavigationMenu.Trigger` (Wallow-lrlm.10) — the sibling
+ * of the Link's axis two stories up, and the same question: WHICH PALETTE does
+ * this row paint from, which nothing in the DOM can say because only the caller
+ * knows what it composed the row onto.
+ *
+ * A CONSISTENCY GAP, NOT A LIVE DEFECT, when this was filed: no app renders a
+ * trigger at all, so nothing paints wrong in production today. The coverage
+ * therefore has to come from here rather than from an app spec — and that makes
+ * this story the only place in the repo where a trigger meets a real rail.
+ *
+ * WHY THIS PLAY MEASURES INSTEAD OF READING CLASSES. A class string is blind to
+ * `twMerge(recipe, className)`: a recipe can name every right token and still
+ * lose the pair to a page colour it left standing, which is how a 1.27:1 hover
+ * contrast defect shipped through a green suite (Wallow-lrlm.5.4). Only this
+ * project has the real Tailwind pipeline and the fork theme attached, so this is
+ * the only place a Wallow spec can ask what the row actually PAINTS. Colours go
+ * through `@bc-solutions-coder/testing/contrast`, which normalises by painting
+ * into a canvas — the fork palette is `oklch(...)` and Chromium hands that
+ * straight back, so an `rgb()` regex would silently never match.
+ *
+ * THE SWATCHES ARE NOT DECORATION. `bg-accent` and `bg-sidebar-accent` are
+ * rendered alongside so the assertions can name a TOKEN without hard-coding a
+ * hex the fork is free to rebrand — and so a theme-less page, where every swatch
+ * would collapse to the same nothing, fails loudly instead of passing quietly.
+ *
+ * WHAT THIS STORY CANNOT REACH: `hover:`. The pseudo-class needs a real pointer,
+ * and `storybook/test`'s `userEvent` is testing-library's — measured here, it
+ * dispatches the events but leaves `matches(":hover")` false. `vitest/browser`'s
+ * pointer does set it, but importing that into a story breaks the standalone
+ * explorer, which is a supported script. So the hover pair is pinned by class
+ * list in ../../sidebar-surface.test.ts instead, and the `data-[popup-open]:`
+ * pair below — which names the SAME two tokens — is what proves those tokens
+ * paint legibly on the rail.
+ */
+export const TriggerSidebarSurface: Story = {
+  render: function TriggerSurfaceComparison() {
+    return (
+      <div data-testid="trigger-rail" className="flex w-64 flex-col gap-4 bg-sidebar p-4">
+        <TriggerArm id="trigger-page" />
+        <TriggerArm id="trigger-sidebar" surface="sidebar" />
+        <span data-testid="swatch-sidebar-foreground" className="text-sidebar-foreground">
+          sidebar-foreground
+        </span>
+        <span data-testid="swatch-sidebar-accent" className="bg-sidebar-accent">
+          sidebar-accent
+        </span>
+        <span data-testid="swatch-accent" className="bg-accent">
+          accent
+        </span>
+      </div>
+    );
+  },
+  play: async ({ canvas }) => {
+    const rail: Rgba = computedColor(canvas.getByTestId("trigger-rail"), "background-color");
+    const pageAccent: Rgba = computedColor(canvas.getByTestId("swatch-accent"), "background-color");
+    const railAccent: Rgba = computedColor(
+      canvas.getByTestId("swatch-sidebar-accent"),
+      "background-color",
+    );
+    const railForeground: Rgba = computedColor(
+      canvas.getByTestId("swatch-sidebar-foreground"),
+      "color",
+    );
+
+    // The theme is attached and the two families are genuinely different paint.
+    // Everything below compares colours, so a page with no theme on it would
+    // otherwise satisfy the lot by making them all equal.
+    await expect(isTransparent(rail)).toBe(false);
+    await expect(railAccent).not.toEqual(pageAccent);
+
+    const pageIdle = canvas.getByTestId("trigger-page-idle");
+    const railIdle = canvas.getByTestId("trigger-sidebar-idle");
+
+    // A parked pointer from an earlier story would hand a "rest" row its hover
+    // paint. Fail with that diagnosis rather than as a mystery colour mismatch.
+    await expect(railIdle.matches(":hover"), "the pointer is parked on the row").toBe(false);
+
+    // REST TEXT. A `<button>` takes no colour from an ancestor's `text-*` the way
+    // its sibling `<a>` does, so a trigger that names no rest text of its own
+    // paints the UA's black — measured, on this very rail, before the axis
+    // existed. The sidebar arm has to name it, and name it from the rail family.
+    const railIdleText: Rgba = computedColor(railIdle, "color");
+
+    await expect(railIdleText).toEqual(railForeground);
+    await expect(railIdleText).not.toEqual(computedColor(pageIdle, "color"));
+    await expect(contrastRatio(railIdleText, rail)).toBeGreaterThanOrEqual(AA_CONTRAST);
+
+    // THE OPEN ROW. Base UI stamps `data-popup-open` on the trigger it opened,
+    // so the recipe's `data-[popup-open]:` pair is reachable with no pointer at
+    // all — and it is the pair that turns into a light chip on a dark rail when
+    // the row paints from the page palette.
+    const railOpen = canvas.getByTestId("trigger-sidebar-open");
+
+    await expect(railOpen).toHaveAttribute("data-popup-open");
+
+    const openSurface: Rgba = computedColor(railOpen, "background-color");
+
+    await expect(openSurface).toEqual(railAccent);
+    await expect(openSurface).not.toEqual(
+      computedColor(canvas.getByTestId("trigger-page-open"), "background-color"),
+    );
+    // The open row still reads as a row: it has a surface of its own, and it is
+    // not the rail's.
+    await expect(isTransparent(openSurface)).toBe(false);
+    await expect(openSurface).not.toEqual(rail);
+    await expect(textContrast(railOpen)).toBeGreaterThanOrEqual(AA_CONTRAST);
   },
 };

@@ -178,6 +178,13 @@ const TRIGGER_CLASSES = [
   "text-sm",
   "font-medium",
   "whitespace-nowrap",
+  // The trigger's REST TEXT, which it did not name before Wallow-lrlm.10. A
+  // `<button>` takes no colour from `text-foreground` on an ancestor the way the
+  // sibling `<a>` does, so an unnamed rest text left a trigger painting the UA's
+  // black beside a `Link` painting `text-foreground` — measured pure black on a
+  // real rail. It is a colour DIMENSION as much as the hover pair is, and the
+  // `surface` axis can only hand the rail a legible row by owning it.
+  "text-foreground",
   "outline-none",
   "transition-colors",
   "hover:bg-accent",
@@ -191,6 +198,43 @@ const TRIGGER_CLASSES = [
   // `data-[disabled]:` modifier copied from the other triggers in this catalog
   // would silently never match; the passthrough spec below pins the attribute
   // this depends on.
+  "aria-disabled:opacity-50",
+];
+
+/**
+ * Utilities `NavigationMenu.Trigger` must render when the caller composes it onto
+ * the INVERTED RAIL — `surface="sidebar"` (Wallow-lrlm.10). The same row shape,
+ * every colour respelled in the `sidebar-*` family, and not one page token left.
+ *
+ * All three states collapse onto the one `sidebar-accent` the theme ships,
+ * exactly as `navigationMenuLinkRecipe`'s sidebar arm does, because that is the
+ * only surface the inverted family names; the row still tells its states apart,
+ * since a row at rest carries no surface at all.
+ *
+ * Which surface a row was composed onto is the one thing about it no `data-*`
+ * attribute can say — only the caller knows — so this is a cva variant and never
+ * a modifier. What these classes PAINT is measured in the storybook project (see
+ * navigation-menu.stories.tsx's TriggerSidebarSurface); this project compiles no
+ * Tailwind, so all it can honestly assert is the class list.
+ */
+const TRIGGER_SIDEBAR_CLASSES = [
+  "flex",
+  "min-w-0",
+  "items-center",
+  "gap-3",
+  "rounded-md",
+  "px-3",
+  "py-2",
+  "text-sm",
+  "font-medium",
+  "whitespace-nowrap",
+  "text-sidebar-foreground",
+  "outline-none",
+  "transition-colors",
+  "hover:bg-sidebar-accent",
+  "hover:text-sidebar-foreground",
+  "data-[popup-open]:bg-sidebar-accent",
+  "data-[popup-open]:text-sidebar-foreground",
   "aria-disabled:opacity-50",
 ];
 
@@ -550,6 +594,46 @@ describe("NavigationMenu", () => {
     expect(classSet(part("n-link-inquiries"))).toEqual(LINK_CLASSES.toSorted());
   });
 
+  it("respells the trigger in the rail's palette, without leaking `surface` into the markup", async () => {
+    // The axis the Link got in Wallow-lrlm.6.4 and the trigger did not. No app
+    // renders a trigger today, so this is the gap closing rather than a defect
+    // healing — but a trigger dropped into a sidebar would otherwise reproduce
+    // exactly the 1.27:1 hover defect that axis was filed for.
+    await render(
+      <NavigationMenu.Root data-testid="s-root" defaultValue="one">
+        <NavigationMenu.List data-testid="s-list">
+          <NavigationMenu.Item value="one">
+            <NavigationMenu.Trigger data-testid="s-trigger" surface="sidebar">
+              Products
+            </NavigationMenu.Trigger>
+            <NavigationMenu.Content data-testid="s-content">
+              <NavigationMenu.Link data-testid="s-link" href="#apps" surface="sidebar">
+                Apps
+              </NavigationMenu.Link>
+            </NavigationMenu.Content>
+          </NavigationMenu.Item>
+        </NavigationMenu.List>
+        <NavigationMenu.Portal>
+          <NavigationMenu.Positioner data-testid="s-positioner">
+            <NavigationMenu.Popup data-testid="s-popup">
+              <NavigationMenu.Viewport data-testid="s-viewport" />
+            </NavigationMenu.Popup>
+          </NavigationMenu.Positioner>
+        </NavigationMenu.Portal>
+      </NavigationMenu.Root>,
+    );
+
+    const trigger = part("s-trigger");
+    expect(classSet(trigger)).toEqual(TRIGGER_SIDEBAR_CLASSES.toSorted());
+
+    // `surface` is a RECIPE AXIS, not an attribute. A forgotten destructure
+    // spreads it into the DOM as `surface="sidebar"` — invalid markup React
+    // warns about, and the kind of thing a class-list assertion sails past
+    // because the classes are still right.
+    expect(trigger.hasAttribute("surface")).toBe(false);
+    expect(part("s-link").hasAttribute("surface")).toBe(false);
+  });
+
   it("renders the portalled half with its recipes", async () => {
     await render(<SiteNav defaultValue="products" />);
 
@@ -644,6 +728,9 @@ describe("NavigationMenu", () => {
     expect(trigger.classList.contains("px-6")).toBe(true);
     expect(trigger.classList.contains("px-3")).toBe(false);
     expect(trigger.classList.contains("text-destructive")).toBe(true);
+    // The trigger's own rest text is out-merged like the link's below it — the
+    // colour a `surface` arm now owns is still a colour a caller may take.
+    expect(trigger.classList.contains("text-foreground")).toBe(false);
     expect(trigger.classList.contains("data-[popup-open]:bg-accent")).toBe(true);
 
     const link = part("w-link");

@@ -174,10 +174,17 @@ function NavigationMenuItem({ className, ...rest }: NavigationMenuItemProps): Re
   );
 }
 
-function NavigationMenuTrigger({ className, ...rest }: NavigationMenuTriggerProps): ReactElement {
+function NavigationMenuTrigger({
+  className,
+  surface,
+  ...rest
+}: NavigationMenuTriggerProps): ReactElement {
+  // `surface` is destructured, never spread — same reason as the link below: it
+  // is a recipe axis, not an attribute, and a forgotten one lands in the markup
+  // as `surface="sidebar"`.
   return (
     <BaseNavigationMenu.Trigger
-      className={cn(navigationMenuTriggerRecipe(), className)}
+      className={cn(navigationMenuTriggerRecipe({ surface }), className)}
       {...rest}
     />
   );

@@ -5,7 +5,10 @@ import {
   errorBannerRecipe,
   errorBannerTextRecipe,
 } from "./components/error-banner/error-banner.styles";
-import { navigationMenuLinkRecipe } from "./components/navigation-menu/navigation-menu.styles";
+import {
+  navigationMenuLinkRecipe,
+  navigationMenuTriggerRecipe,
+} from "./components/navigation-menu/navigation-menu.styles";
 import { cn } from "./core/cn";
 
 /**
@@ -134,6 +137,58 @@ function sidebarColorUtilities(classes: string): readonly string[] {
     });
 }
 
+/**
+ * The colour DIMENSION a utility occupies — its variant prefix plus the property
+ * it paints (`hover:|bg`, `|text`, `data-[popup-open]:|text`) — or `null` when
+ * the class paints no colour.
+ *
+ * This is the unit the `sidebar` arm has to match the page arm in (`hover|bg`,
+ * `data-[popup-open]|text`, …). Naming the right tokens is not enough: `twMerge`
+ * only drops the class a caller CONFLICTS with, so a dimension the sidebar arm
+ * never names is a dimension the page arm still owns on the inverted rail.
+ */
+function colorDimensionOf(cls: string): string | null {
+  if (colorTokenOf(cls) === null) {
+    return null;
+  }
+
+  const segments: readonly string[] = cls.split(":");
+  const utility: string = segments.at(-1) ?? "";
+  const variant: string = segments.slice(0, -1).join(":");
+  const property: string =
+    COLOUR_PREFIXES.find((prefix: string): boolean => utility.startsWith(`${prefix}-`)) ?? "";
+
+  return `${variant}|${property}`;
+}
+
+/** Every class in `classes` naming a theme colour, page family or sidebar family. */
+function colorClasses(classes: string): readonly string[] {
+  return [...pageSurfaceColorUtilities(classes), ...sidebarColorUtilities(classes)];
+}
+
+/**
+ * The theme colours one arm contributes that the `other` arm does not — the arm's
+ * OWN paint, with everything inherited from the recipe's base string removed.
+ */
+function onlyIn(arm: string, other: string): readonly string[] {
+  const shared: ReadonlySet<string> = new Set(other.split(/\s+/u));
+
+  return colorClasses(arm).filter((cls: string): boolean => !shared.has(cls));
+}
+
+/** Every colour dimension `classes` occupies, deduplicated and ordered. */
+function colorDimensions(classes: string): readonly string[] {
+  return [
+    ...new Set(
+      classes
+        .split(/\s+/u)
+        .filter(Boolean)
+        .map((cls: string): string | null => colorDimensionOf(cls))
+        .filter((dimension: string | null): dimension is string => dimension !== null),
+    ),
+  ].toSorted();
+}
+
 describe("the page-surface detector", () => {
   /*
    * The detector is the load-bearing part of every assertion below, so it is
@@ -151,6 +206,17 @@ describe("the page-surface detector", () => {
       "data-[active]:text-accent-foreground",
       "md:bg-secondary/80",
     ]);
+  });
+
+  it("reads a colour dimension as its variant prefix plus the property it paints", () => {
+    // Demonstrated rather than trusted, for the same reason as the detector
+    // above: a dimension reader that returned `null` everywhere would make the
+    // parity assertion below compare two empty lists and pass forever.
+    expect(
+      colorDimensions(
+        "text-sm rounded-md text-foreground hover:bg-accent hover:text-accent-foreground data-[popup-open]:bg-accent",
+      ),
+    ).toEqual(["data-[popup-open]|bg", "hover|bg", "hover|text", "|text"]);
   });
 
   it("flags neither a non-colour utility nor a sidebar-family colour", () => {
@@ -215,6 +281,109 @@ describe("navigationMenuLinkRecipe — surface", () => {
 
     expect(sidebar).not.toContain("data-[active]:bg-accent");
     expect(sidebar).not.toContain("data-[active]:text-accent-foreground");
+  });
+});
+
+describe("navigationMenuTriggerRecipe — surface", () => {
+  /*
+   * The Link's sibling (Wallow-lrlm.10). A trigger is not a button in a toolbar,
+   * it is a NAV ROW that happens to open a panel and has to sit flush beside the
+   * `Link` rows in the same list — so the two recipes carry the same row shape,
+   * and from here the same surface axis, spelled in the same two palettes.
+   *
+   * NOT a live defect when this was filed: no app renders a trigger, so nothing
+   * on a rail paints wrong today. It is closed anyway because a trigger dropped
+   * into a sidebar reproduces exactly the defect the Link's axis just fixed, and
+   * because a reader who has seen the Link recipe will assume this one matches.
+   *
+   * The class-list half lives here for the reason this whole file exists (see the
+   * header): "the row's colour no longer DEPENDS on a consumer suppressing
+   * catalog classes by name" is a statement about the recipe's output BEFORE any
+   * consumer `className` reaches it, and no rendered pixel can express it. What
+   * the row actually PAINTS on a real rail is measured in the storybook project —
+   * navigation-menu.stories.tsx's TriggerSidebarSurface.
+   */
+  it("keeps the page palette on the page arm", () => {
+    // The default is what every existing consumer renders, and it must go on
+    // painting exactly as it does today.
+    const page: string = cn(navigationMenuTriggerRecipe());
+
+    expect(pageSurfaceColorUtilities(page)).toEqual(
+      expect.arrayContaining([
+        "hover:bg-accent",
+        "hover:text-accent-foreground",
+        "data-[popup-open]:bg-accent",
+        "data-[popup-open]:text-accent-foreground",
+      ]),
+    );
+    expect(cn(navigationMenuTriggerRecipe({ surface: "page" }))).toBe(page);
+  });
+
+  it("hands the sidebar arm over with no page-surface colour in it", () => {
+    // THE criterion: whatever a trigger on the rail ends up wearing, none of it
+    // may be a page colour the consumer then has to out-merge by name.
+    const sidebar: string = cn(navigationMenuTriggerRecipe({ surface: "sidebar" }));
+
+    expect(pageSurfaceColorUtilities(sidebar)).toEqual([]);
+  });
+
+  it("names, in the sidebar arm ALONE, every colour dimension the trigger renders", () => {
+    // RULE 2, and the half a token-by-token assertion misses. `twMerge` drops
+    // only the class a caller conflicts with, so a dimension the sidebar arm
+    // leaves unnamed — the open row's text, say — keeps whatever the page arm
+    // or the surrounding page put there.
+    //
+    // It is asserted against the arm's OWN contribution rather than against the
+    // whole merged string on purpose: comparing the two merged strings passes
+    // trivially while both arms are empty and every colour still sits in the
+    // base, which is precisely the state this bead exists to leave.
+    const page: readonly string[] = colorClasses(navigationMenuTriggerRecipe({ surface: "page" }));
+    const sidebarOwn: readonly string[] = onlyIn(
+      navigationMenuTriggerRecipe({ surface: "sidebar" }),
+      navigationMenuTriggerRecipe({ surface: "page" }),
+    );
+
+    expect(colorDimensions(sidebarOwn.join(" "))).toEqual(colorDimensions(page.join(" ")));
+  });
+
+  it("leaves no colour in the base string for an arm to have to take back", () => {
+    // RULE 1's observable consequence. The axis is declared LAST so its
+    // utilities land after everything else and `cn()` collapses each pair in its
+    // favour — but the durable form of that is simply that no theme colour
+    // survives BOTH arms, i.e. every colour a trigger renders came from exactly
+    // one arm. A colour left in the base is one an arm can only out-merge, and
+    // out-merging is the race this axis exists to end.
+    const page: readonly string[] = cn(navigationMenuTriggerRecipe({ surface: "page" })).split(
+      /\s+/u,
+    );
+    const sidebar: readonly string[] = cn(
+      navigationMenuTriggerRecipe({ surface: "sidebar" }),
+    ).split(/\s+/u);
+    const shared: string = page.filter((cls: string): boolean => sidebar.includes(cls)).join(" ");
+
+    expect([...pageSurfaceColorUtilities(shared), ...sidebarColorUtilities(shared)]).toEqual([]);
+  });
+
+  it("paints the sidebar arm's own rest, hover and open colours, rather than none", () => {
+    // Without this, "no page colour" is satisfied by emitting no colour at all —
+    // which puts the row's paint straight back in the consumer's hands and
+    // leaves a hovered or open row with no feedback.
+    const sidebarColours: readonly string[] = sidebarColorUtilities(
+      cn(navigationMenuTriggerRecipe({ surface: "sidebar" })),
+    );
+
+    expect(
+      sidebarColours.filter((cls: string): boolean => !cls.includes(":")),
+      "the row has no rest colour of its own",
+    ).not.toEqual([]);
+    expect(
+      sidebarColours.filter((cls: string): boolean => cls.startsWith("hover:")),
+      "the row has no hover colour of its own",
+    ).not.toEqual([]);
+    expect(
+      sidebarColours.filter((cls: string): boolean => cls.startsWith("data-[popup-open]:")),
+      "the row has no open colour of its own",
+    ).not.toEqual([]);
   });
 });
 

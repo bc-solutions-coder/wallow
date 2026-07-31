@@ -21,9 +21,11 @@ import { cva, type VariantProps } from "class-variance-authority";
  * `aria-disabled="true"` and stays focusable — it gets no `data-disabled` at all
  * — so its recipe keys off `aria-disabled:`.
  *
- * `surface` on the link recipe is the one cva variant here, and it is not a
- * state: nothing in the DOM says which surface a caller composed the row onto,
- * so it cannot be a `data-*` modifier and has to be passed. See the recipe.
+ * `surface` on the trigger and link recipes is the one cva variant here, and it
+ * is not a state: nothing in the DOM says which surface a caller composed the
+ * row onto, so it cannot be a `data-*` modifier and has to be passed. Both nav
+ * rows carry the same axis with the same two arms, because a trigger and a link
+ * sit in the same list and have to paint alike. See the recipes.
  *
  * The expanded-vs-icon-rail axis the Phase-4 sidebar needs is NOT a variant
  * either, and that is a deliberate call rather than an omission. A rail is a
@@ -73,11 +75,35 @@ export type NavigationMenuItemRecipeProps = VariantProps<typeof navigationMenuIt
  * routinely composed onto a real `Button`. A navigation trigger is not a button
  * in a toolbar — it is a NAV ROW that happens to open a panel, and it has to sit
  * flush beside the `Link` rows in the same list, so it takes the shared row shape
- * and states its own hover/open colour. A caller who does want it colourless
- * overrides through `className`.
+ * and states its own rest/hover/open colour. A caller who does want it
+ * colourless overrides through `className`.
  */
 export const navigationMenuTriggerRecipe = cva(
-  "flex min-w-0 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap outline-none transition-colors hover:bg-accent hover:text-accent-foreground data-[popup-open]:bg-accent data-[popup-open]:text-accent-foreground aria-disabled:opacity-50",
+  "flex min-w-0 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap outline-none transition-colors aria-disabled:opacity-50",
+  {
+    variants: {
+      /*
+       * The same axis, spelled the same way, as `navigationMenuLinkRecipe`
+       * below — read that recipe's comment for why a surface is a cva variant
+       * and why no colour may stay in the base string. The one difference is
+       * the state each arm's active pair keys off: a trigger's active state is
+       * Base UI's `data-popup-open`, where a link's is `data-active`.
+       *
+       * REST TEXT is named here even on the `page` arm, which the trigger did
+       * not do before. It is not decoration: a `<button>` does not inherit an
+       * ancestor's `text-*` the way its sibling `<a>` does, so an unnamed rest
+       * text painted the UA's black — measured ~1.1:1 against a real
+       * `bg-sidebar` rail. An arm can only hand the rail a legible row by
+       * owning the dimension, and once one arm owns it both must.
+       */
+      surface: {
+        page: "text-foreground hover:bg-accent hover:text-accent-foreground data-[popup-open]:bg-accent data-[popup-open]:text-accent-foreground",
+        sidebar:
+          "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground data-[popup-open]:bg-sidebar-accent data-[popup-open]:text-sidebar-foreground",
+      },
+    },
+    defaultVariants: { surface: "page" },
+  },
 );
 
 /** The trigger recipe's variant props, mixed into `NavigationMenuTriggerProps`. */
