@@ -13,6 +13,7 @@
   "rules": {
     "wallow/no-sidebar-inversion": "error",
     "wallow/no-tinted-text": "error",
+    "wallow/zone-dag": "error",
     "react/forbid-elements": [
       "error",
       {

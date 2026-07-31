@@ -14,6 +14,7 @@
     "wallow/no-hand-rolled-mutation": "error",
     "wallow/no-sidebar-inversion": "error",
     "wallow/text-heading-variant": ["error", { "levels": { "h1": false, "h2": "subheading" } }],
+    "wallow/zone-dag": "error",
     "react/forbid-elements": [
       "error",
       {

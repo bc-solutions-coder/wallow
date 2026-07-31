@@ -1,0 +1,12 @@
+{
+  // The zone declaration the rule reads. Deriving the policed zones from this
+  // map rather than naming them in the rule is what makes one rule serve both
+  // apps, and what makes a fourth zone policed from the moment it exists.
+  "compilerOptions": {
+    "paths": {
+      "@app/*": ["./src/app/*"],
+      "@features/*": ["./src/features/*"],
+      "@shared/*": ["./src/shared/*"]
+    }
+  }
+}

@@ -4,6 +4,7 @@ import { noHandRolledMutation } from "./rules/no-hand-rolled-mutation.ts";
 import { noSidebarInversion } from "./rules/no-sidebar-inversion.ts";
 import { noTintedText } from "./rules/no-tinted-text.ts";
 import { textHeadingVariant } from "./rules/text-heading-variant.ts";
+import { zoneDag } from "./rules/zone-dag.ts";
 
 /**
  * Wallow's own oxlint rules — the ones with no native equivalent.
@@ -26,6 +27,7 @@ export default eslintCompatPlugin(
       "no-sidebar-inversion": noSidebarInversion,
       "no-tinted-text": noTintedText,
       "text-heading-variant": textHeadingVariant,
+      "zone-dag": zoneDag,
     },
   }),
 );
