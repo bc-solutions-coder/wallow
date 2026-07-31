@@ -75,8 +75,8 @@ A comment that cites a line number is wrong the moment either file moves.
 "this uses the catalog now" — delete it. So is any `it()` whose body only reads `element.classList`
 (the `shared/testing/style-contract.ts` helpers): a component can render the right classes and be
 broken, or restyle correctly with different classes and fail. Assert the computed value, never the
-class string — `cn()` merges a caller's `className` over the recipe. Where a lint rule in
-`tools/oxlint/wallow-lint-plugin.js` already says it, the spec is redundant by construction.
+class string — `cn()` merges a caller's `className` over the recipe. Where one of the `wallow/*`
+lint rules already says it, the spec is redundant by construction.
 
 ### Browser-mode facts that bite
 

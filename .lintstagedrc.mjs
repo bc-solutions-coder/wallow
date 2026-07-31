@@ -17,6 +17,11 @@ const PROTECTED_PATTERNS = [
   // Generated TanStack route trees are in oxfmt's ignorePatterns; passing
   // them alone makes oxfmt fail the same way as the lockfile above.
   "**/routeTree.gen.ts",
+  // Custom-lint-rule fixtures hold DELIBERATE violations on annotated lines.
+  // They are in both oxfmt's and oxlint's ignorePatterns, so oxfmt fails here
+  // the same way as the two entries above - and `oxlint --fix` would rewrite
+  // the very violations the fixtures exist to state.
+  "**/packages/lint/fixtures/**",
 ];
 
 /**
