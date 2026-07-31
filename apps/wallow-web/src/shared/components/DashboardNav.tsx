@@ -44,6 +44,11 @@ import { useUiStore } from "../stores/ui-store";
  *                       expanded content, dismissed by backdrop, nav link, or
  *                       Escape.
  *
+ * Those three are the states a visitor can be IN. Before them sits one render in
+ * which the width is not yet known — `useIsDesktop() === undefined` on the
+ * server and through hydration (Wallow-lrlm.6.3) — and it is resolved by CSS,
+ * not by picking a mode; see `NavRail`'s `hideBelowMd`.
+ *
  * `data-nav-open` (the inverse of `isNavCollapsed`) stays the attribute styling
  * and the specs key off. Collapsing stays presentational: the aside stays
  * mounted, so the links and the toggle's `aria-controls` target `#dashboard-nav`
@@ -223,15 +228,29 @@ function NavLogout(props: { showLabel: boolean }) {
   );
 }
 
-/** The persistent desktop rail — expanded or narrowed to icons, never absent. */
-function NavRail(props: { showOrganizations: boolean }) {
+const railClass =
+  "relative z-30 w-16 data-[nav-open=true]:w-64 bg-sidebar text-sidebar-foreground flex-col shrink-0 transition-[width] duration-200";
+
+/**
+ * The persistent desktop rail — expanded or narrowed to icons, never absent.
+ *
+ * `hideBelowMd` is the pre-hydration treatment (Wallow-lrlm.6.3): while
+ * `useIsDesktop` still answers `undefined` the rail is emitted but left to the
+ * `md` media query, so a phone's FIRST PAINT already omits it. `display: none`
+ * is not a half measure — it takes the rail out of the layout, the tab order and
+ * the accessibility tree exactly as not rendering it would, for the one render
+ * before the real viewport is known. Once it is known the rail is either mounted
+ * unconditionally visible or not mounted at all, which is why this stays a
+ * pre-hydration escape hatch rather than the steady state.
+ */
+function NavRail(props: { showOrganizations: boolean; hideBelowMd?: boolean }) {
   const isNavCollapsed = useUiStore((state) => state.isNavCollapsed);
   return (
     <aside
       id="dashboard-nav"
       data-testid="dashboard-nav"
       data-nav-open={isNavCollapsed ? "false" : "true"}
-      className="relative z-30 w-16 data-[nav-open=true]:w-64 bg-sidebar text-sidebar-foreground flex flex-col shrink-0 transition-[width] duration-200"
+      className={`${props.hideBelowMd ? "hidden md:flex" : "flex"} ${railClass}`}
     >
       <NavDestinationList
         showOrganizations={props.showOrganizations}
@@ -287,6 +306,12 @@ export function DashboardNav(props: { isAdmin?: boolean } = {}) {
     };
   }, [isMobileNavOpen, closeMobileNav]);
 
+  // No viewport observed yet (server render, first hydration render): hand the
+  // breakpoint to CSS instead of guessing one. The drawer is not a candidate
+  // here — it opens only from a control the visitor has not been able to press.
+  if (isDesktop === undefined) {
+    return <NavRail showOrganizations={showOrganizations} hideBelowMd />;
+  }
   if (!isDesktop) {
     return isMobileNavOpen ? <NavDrawer showOrganizations={showOrganizations} /> : null;
   }

@@ -50,8 +50,20 @@ import { useUiStore } from "../stores/ui-store";
 const navControlClass =
   "relative z-20 mb-4 px-3 py-2 rounded-md border border-border text-sm font-medium text-foreground hover:bg-muted";
 
+/**
+ * The pre-hydration display utilities (Wallow-lrlm.6.3). While `useIsDesktop`
+ * answers `undefined` both controls are emitted and the `md` media query picks
+ * which one paints — at first paint, which is the whole point: a control chosen
+ * in JavaScript cannot be chosen until JavaScript has run, and by then the wrong
+ * one has already been on screen. `md:inline-block` restores the default a
+ * `<button>` already has, so the visible control lays out identically to the
+ * unconditional one.
+ */
+const desktopOnlyClass = "hidden md:inline-block";
+const mobileOnlyClass = "md:hidden";
+
 /** Desktop: expand/collapse the persistent rail between labels and icons. */
-function NavToggle() {
+function NavToggle(props: { hideBelowMd?: boolean } = {}) {
   const isNavCollapsed = useUiStore((state) => state.isNavCollapsed);
   const toggleNavCollapsed = useUiStore((state) => state.toggleNavCollapsed);
   const Icon = navIcons.navToggle;
@@ -63,7 +75,7 @@ function NavToggle() {
       aria-expanded={!isNavCollapsed}
       aria-label={navIconLabels.navToggle}
       onClick={toggleNavCollapsed}
-      className={navControlClass}
+      className={props.hideBelowMd ? `${navControlClass} ${desktopOnlyClass}` : navControlClass}
     >
       <Icon aria-hidden="true" className="size-5" />
     </button>
@@ -71,7 +83,7 @@ function NavToggle() {
 }
 
 /** Mobile: summon (or dismiss) the overlay drawer. There is no rail to collapse. */
-function MobileMenuButton() {
+function MobileMenuButton(props: { hideAtMd?: boolean } = {}) {
   const isMobileNavOpen = useUiStore((state) => state.isMobileNavOpen);
   const openMobileNav = useUiStore((state) => state.openMobileNav);
   const closeMobileNav = useUiStore((state) => state.closeMobileNav);
@@ -84,7 +96,7 @@ function MobileMenuButton() {
       aria-expanded={isMobileNavOpen}
       aria-label={navIconLabels.mobileMenu}
       onClick={isMobileNavOpen ? closeMobileNav : openMobileNav}
-      className={navControlClass}
+      className={props.hideAtMd ? `${navControlClass} ${mobileOnlyClass}` : navControlClass}
     >
       <Icon aria-hidden="true" className="size-5" />
     </button>
@@ -128,16 +140,38 @@ function NavBackdrop() {
   );
 }
 
+/**
+ * Which control the main column carries. Extracted so the unresolved-viewport
+ * case is a branch rather than a nested ternary: before the width is known BOTH
+ * are emitted and CSS shows one, after it is known exactly one is mounted — so
+ * the "one control per width" rule above holds at every moment, including the
+ * first paint it previously did not cover.
+ */
+function NavControls(props: { isDesktop: boolean | undefined }) {
+  if (props.isDesktop === undefined) {
+    return (
+      <>
+        <NavToggle hideBelowMd />
+        <MobileMenuButton hideAtMd />
+      </>
+    );
+  }
+  return props.isDesktop ? <NavToggle /> : <MobileMenuButton />;
+}
+
 export function DashboardLayout(props: { isAdmin?: boolean } = {}) {
-  const isDesktop = useIsDesktop();
+  const isDesktop: boolean | undefined = useIsDesktop();
   const isMobileNavOpen = useUiStore((state) => state.isMobileNavOpen);
-  const showBackdrop = !isDesktop && isMobileNavOpen;
+  // `isDesktop === false`, not `!isDesktop`: an unresolved viewport is not a
+  // mobile one. The drawer cannot be open in that window anyway — nothing has
+  // been clickable yet — so a scrim there would be a scrim over nothing.
+  const showBackdrop = isDesktop === false && isMobileNavOpen;
   return (
     <div data-testid="dashboard-welcome" className="min-h-screen flex bg-background">
       <DashboardNav isAdmin={props.isAdmin} />
       {showBackdrop ? <NavBackdrop /> : null}
       <main className="flex-1 p-6 overflow-auto text-foreground">
-        {isDesktop ? <NavToggle /> : <MobileMenuButton />}
+        <NavControls isDesktop={isDesktop} />
         <Outlet />
       </main>
     </div>

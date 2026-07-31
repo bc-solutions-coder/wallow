@@ -14,10 +14,19 @@ import { useSyncExternalStore } from "react";
  * `48rem` is Tailwind v4's default `md`; `packages/styles` overrides no
  * breakpoints, so this string and the `md:` prefix stay the same boundary.
  *
- * SSR: there is no viewport on the server, so the server snapshot claims desktop
- * — the dashboard's primary form factor. `useSyncExternalStore` re-reads the
- * real query right after hydration, so a phone corrects itself in the first
- * client render instead of mismatching.
+ * SSR: there is no viewport on the server, so the server snapshot answers
+ * `undefined` — "no viewport has been observed yet" (Wallow-lrlm.6.3). It used
+ * to claim desktop, which made every phone paint the desktop rail and then have
+ * it yanked away a frame later; claiming mobile instead would only move that
+ * flash onto laptops. Neither guess can be right, so the hook does not guess.
+ *
+ * `useSyncExternalStore` consults `getServerSnapshot` during `renderToString`
+ * AND for React's first hydration render, then re-reads the real query — so
+ * `undefined` is exactly the window in which the client has not yet corrected
+ * anything, and a consumer that sees it must render chrome that is honest at
+ * either width (the dashboard shell hands that decision to a `md:` media query,
+ * which resolves at first paint; JavaScript cannot). A fresh client mount never
+ * observes `undefined`: it takes `getSnapshot` on its very first render.
  */
 const DESKTOP_QUERY = "(min-width: 48rem)";
 
@@ -33,11 +42,15 @@ function getSnapshot(): boolean {
   return globalThis.matchMedia(DESKTOP_QUERY).matches;
 }
 
-function getServerSnapshot(): boolean {
-  return true;
+function getServerSnapshot(): undefined {
+  return undefined;
 }
 
-/** True while the viewport is at or above the `md` breakpoint. */
-export function useIsDesktop(): boolean {
-  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+/**
+ * `true` while the viewport is at or above the `md` breakpoint, `false` below
+ * it, and `undefined` while no viewport has been observed — on the server and
+ * for React's first hydration render.
+ */
+export function useIsDesktop(): boolean | undefined {
+  return useSyncExternalStore<boolean | undefined>(subscribe, getSnapshot, getServerSnapshot);
 }
