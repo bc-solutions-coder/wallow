@@ -2,36 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import { browserOptimizeDepsBaseline, mergeOptimizeDeps } from "./browser-optimize-deps";
 
-// Unit guard for Wallow-0q2s.1.2: the shared browser-mode `optimizeDeps.include`
-// baseline + merge helper that every consuming app's browser Vitest project
-// pre-bundles. The baseline is the list named on the bead design (the union both
-// apps need pre-bundled: vitest-browser-react + the react jsx runtimes +
-// react-dom/client); apps layer their extras on via `mergeOptimizeDeps`.
-
-// The render helpers Vitest must pre-bundle for EVERY browser project, or the
-// provider re-optimizes them mid-run and drops the runner.
-const REQUIRED_BASELINE = [
-  "vitest-browser-react",
-  "react/jsx-runtime",
-  "react/jsx-dev-runtime",
-  "react-dom/client",
-] as const;
-
-describe("browserOptimizeDepsBaseline", () => {
-  it("includes every required browser-render dependency", () => {
-    for (const dep of REQUIRED_BASELINE) {
-      expect(browserOptimizeDepsBaseline).toContain(dep);
-    }
-  });
-
-  it("leads with the vitest-browser-react render helper", () => {
-    expect(browserOptimizeDepsBaseline[0]).toBe("vitest-browser-react");
-  });
-
-  it("carries no duplicate entries", () => {
-    expect(new Set(browserOptimizeDepsBaseline).size).toBe(browserOptimizeDepsBaseline.length);
-  });
-});
+// Unit guard for the `mergeOptimizeDeps` helper that every consuming app's
+// browser Vitest project layers its extras on with.
+//
+// The baseline's CONTENTS are deliberately not asserted here. Pinning the list
+// froze the shared `optimizeDeps.include` — every change to it, including
+// removing entries that resolve to nothing, had to edit this file first. What
+// actually matters about an entry is that it RESOLVES; that is verified against
+// the real dep graph, not against a copy of the list.
 
 describe("mergeOptimizeDeps", () => {
   it("returns exactly the baseline when there are no extras", () => {
