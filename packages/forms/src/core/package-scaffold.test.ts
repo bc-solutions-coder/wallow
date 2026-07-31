@@ -216,80 +216,14 @@ describe("packages/forms scaffold", () => {
     expect(buildConfig.exclude).toContain("**/*.test.tsx");
   });
 
-  it("builds the single barrel entry in Vite library mode, ES output only", () => {
-    expect(existsSync(join(packageDir, "vite.config.ts"))).toBe(true);
-
-    const viteConfig = readConfigText("vite.config.ts");
-    expect(viteConfig).toMatch(/lib\s*:/u);
-    expect(viteConfig).toMatch(/src\/index\.ts/u);
-    expect(viteConfig).toMatch(/formats\s*:\s*\[\s*["']es["']\s*\]/u);
-    // preserveModules keeps dist/ mirroring src/ so a consuming bundler can drop
-    // catalog fields the app never imports.
-    expect(viteConfig).toMatch(/preserveModules\s*:\s*true/u);
-    expect(viteConfig).toMatch(/preserveModulesRoot\s*:\s*["']src["']/u);
-  });
-
-  it("externalizes every non-relative import from the library build", () => {
-    const viteConfig = readConfigText("vite.config.ts");
-
-    // react/react-dom/react-query are peers and ui/sdk are workspace packages the
-    // app already has: bundling any of them in would duplicate a runtime.
-    expect(viteConfig).toMatch(/external\s*:/u);
-    expect(viteConfig).toMatch(/startsWith\(["']\.["']\)/u);
-  });
-
-  it("declares no per-component entries — the barrel is the only entry", () => {
-    const viteConfig = readConfigText("vite.config.ts");
-
-    // packages/ui's config enumerates src/components/<name>/index.ts as extra
-    // entries to back its "./*" subpath export. forms has no such export, so
-    // that helper must be DELETED rather than carried over from the template.
-    expect(viteConfig).not.toMatch(/componentEntries/u);
-    expect(viteConfig).not.toMatch(/src\/components/u);
-  });
-
-  it("uses the shared createVitestProjects preset for browser-mode specs", () => {
-    const vitestConfig = readConfigText("vitest.config.ts");
-
-    // The catalog's specs render real ui components, so this package needs the
-    // node + headless-Chromium split from @bc-solutions-coder/testing (like
-    // apps/wallow-auth), NOT a bare node-only environment.
-    expect(vitestConfig).toMatch(/@bc-solutions-coder\/testing/u);
-    expect(vitestConfig).toMatch(/createVitestProjects/u);
-    expect(vitestConfig).toMatch(/projects\s*:\s*\[\s*node\s*,\s*browser\s*\]/u);
-  });
-
-  it("pre-bundles the ui, form and validation runtimes for the browser project", () => {
-    const vitestConfig = readConfigText("vitest.config.ts");
-
-    expect(vitestConfig).toMatch(/extraBrowserOptimizeDeps/u);
-    // Left to on-the-fly discovery, Vite pre-bundles a Base UI subpath into a
-    // chunk carrying its own copy of React and the first spec that renders the
-    // part dies on "Cannot read properties of null (reading 'useRef')" — so
-    // every subpath the rendered ui components import has to be listed, exactly
-    // as packages/ui/vitest.config.ts does.
-    expect(vitestConfig).toMatch(/@base-ui\/react\/field/u);
-    expect(vitestConfig).toMatch(/@base-ui\/react\/input/u);
-    // Same failure mode for this package's own runtime deps: a mid-run reload
-    // after the first import drops the test runner.
-    //
-    // @bc-solutions-coder/query stands in for @tanstack/react-query, which this
-    // package no longer declares. The name here has to be the one this package
-    // can RESOLVE: Vite reports an unresolvable optimizeDeps entry as a warning
-    // and then carries on with it silently absent (see browser-deps.test.ts), and
-    // under pnpm's strict node_modules an undeclared react-query resolves from
-    // nowhere. Listing the facade instead pre-bundles the same react-query
-    // module through the one package that does declare it.
-    for (const dep of ["@tanstack/react-form", "@bc-solutions-coder/query", "zod"]) {
-      expect(vitestConfig, dep).toMatch(
-        new RegExp(`["']${dep.replaceAll("/", String.raw`\/`)}["']`, "u"),
-      );
-    }
-    // And the config must not still name the raw package: an entry left behind
-    // is the unresolvable-warning case above, plus a second pre-bundle of a
-    // module the facade already carries.
-    expect(vitestConfig).not.toMatch(/@tanstack\/react-query/u);
-  });
+  // The build/test wiring is NOT asserted by reading `vite.config.ts` and
+  // `vitest.config.ts` as text. Those regexes pinned the configs' SOURCE SHAPE —
+  // a variable rename or a formatter rewrap failed them while the build still
+  // worked, and consolidating the duplicated config into a shared preset was
+  // impossible without editing this file first. What the build actually has to
+  // do is verified where it is observable: `dist/` contents by the build-output
+  // describe below, and pre-bundle entries by their resolvability against the
+  // real dep graph (`browser-deps.test.ts`).
 
   it("has a placeholder src/index.ts barrel", () => {
     expect(existsSync(join(packageDir, "src", "index.ts"))).toBe(true);
