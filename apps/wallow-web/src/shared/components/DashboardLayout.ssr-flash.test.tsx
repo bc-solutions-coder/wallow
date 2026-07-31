@@ -8,26 +8,14 @@ import { DashboardLayout } from "./DashboardLayout";
 import { useUiStore } from "../stores/ui-store";
 
 /**
- * Pre-hydration paint spec for the dashboard shell (Wallow-lrlm.6.3).
+ * The dashboard shell's PRE-HYDRATION paint.
  *
- * WHY THIS FILE EXISTS AND THE OTHER RESPONSIVE SPECS DO NOT COVER IT. Every
- * other spec in this directory MOUNTS `DashboardLayout`, and a mount reads
- * `useIsDesktop`'s `getSnapshot` — real `matchMedia`, correct on the first
- * render. The flash lives strictly in the markup the SERVER emits and the
- * browser paints before React has run, so a mounting spec is structurally
- * incapable of seeing it. This one reproduces the real sequence instead:
- * `renderToString` produces exactly the bytes the BFF sends, they are put into
- * the live document at a real viewport, and what Chromium would show at that
- * moment is measured with `checkVisibility()` — computed style, not a class
- * string, because a class string cannot tell a hidden rail from a shown one.
- *
- * The assertions are deliberately mechanism-AGNOSTIC. "The desktop rail is not
- * painted on a phone" is satisfied by omitting the rail from the server markup
- * entirely (hide layout-dependent chrome until the viewport resolves) and
- * equally by emitting it behind a `hidden md:flex` for the initial paint. Both
- * are on the table in the bead's design; neither is pinned here. What is pinned
- * is that no viewport-specific nav chrome is painted at the wrong width, and
- * that hydration still converges on the right chrome at both widths.
+ * A spec that mounts the shell cannot see this: a mount reads `useIsDesktop`'s
+ * `getSnapshot` — real `matchMedia`, correct on the first render. The flash
+ * lives in the markup the server emits, so `renderToString`'s bytes go into the
+ * live document at a real viewport and `checkVisibility()` measures what
+ * Chromium would show. The assertions are mechanism-agnostic: omitting the
+ * chrome and hiding it behind `hidden md:flex` both satisfy them.
  */
 
 type LinkStubProps = {
@@ -37,8 +25,8 @@ type LinkStubProps = {
   onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
 } & Record<string, unknown>;
 
-// Stub the router primitives the shell composes, as every spec in this
-// directory does. `renderToString` has no router context to offer either.
+// Stub the router primitives the shell composes; `renderToString` has no router
+// context to offer either.
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ to, children, activeProps: _activeProps, onClick, ...rest }: LinkStubProps) => (
     <a
@@ -75,9 +63,8 @@ let root: Root | null = null;
 
 /**
  * Put the server's own HTML into the live document — the paint a visitor gets
- * before any JavaScript has run. Parsed into nodes and adopted rather than
- * assigned through `innerHTML`, which is the same DOM by a route that is not a
- * sink for a string.
+ * before any JavaScript has run. Parsed and adopted rather than assigned through
+ * `innerHTML`: the same DOM by a route that is not a sink for a string.
  */
 function paintServerMarkup(): void {
   const html: string = renderToString(<DashboardLayout />);
@@ -101,11 +88,9 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
-  // Let any scheduled hydration actually flush before tearing the root down.
   // `hydrateRoot` schedules its work rather than doing it inline, and unmounting
-  // over an unflushed root makes React abandon hydration ("This root received an
-  // early update, before anything was able hydrate") — an unhandled error that
-  // fails the run from the teardown of a passing case.
+  // over an unflushed root makes React abandon hydration — an unhandled error
+  // that fails the run from the teardown of a passing case.
   await new Promise((resolve) => {
     setTimeout(resolve, 0);
   });
@@ -117,11 +102,10 @@ afterEach(async () => {
 
 describe("the visibility instrument these cases measure with", () => {
   it("reads Tailwind's own utilities, so a hidden element reads as hidden", () => {
-    // Self-check. Every assertion below distinguishes "painted" from "not
-    // painted" via computed style, which is only meaningful while the browser
-    // project's stylesheet is actually attached (./vitest.setup.ts). Without it
-    // every element reads visible, and a fix that hides the rail with `hidden
-    // md:flex` for the initial paint would be reported as a flash it is not.
+    // Every assertion below distinguishes "painted" from "not painted" through
+    // computed style, which is meaningful only while the browser project's
+    // stylesheet is attached. Without it every element reads visible, and chrome
+    // hidden by `hidden md:flex` is reported as a flash it is not.
     const probe: HTMLDivElement = document.createElement("div");
     probe.className = "hidden";
     document.body.append(probe);
@@ -139,8 +123,8 @@ describe("dashboard shell pre-hydration paint", () => {
 
     paintServerMarkup();
 
-    // THE BUG. The server guesses desktop, so a phone's first paint is the full
-    // sidebar rail, yanked away a frame later once hydration reads matchMedia.
+    // A server that guesses desktop makes a phone's first paint the full sidebar
+    // rail, yanked away a frame later once hydration reads matchMedia.
     expect(paintedChrome()).not.toContain("dashboard-nav");
   });
 
@@ -149,8 +133,7 @@ describe("dashboard shell pre-hydration paint", () => {
 
     paintServerMarkup();
 
-    // The same flash on the other control: below `md` there is no rail to
-    // collapse, so this button is meaningless there.
+    // Below `md` there is no rail to collapse, so the button means nothing.
     expect(paintedChrome()).not.toContain("dashboard-nav-toggle");
   });
 
@@ -159,8 +142,8 @@ describe("dashboard shell pre-hydration paint", () => {
 
     paintServerMarkup();
 
-    // The symmetric guard: answering the server snapshot with `false` instead of
-    // `true` would pass both cases above while simply relocating the flash.
+    // Answering the server snapshot `false` rather than `true` passes both cases
+    // above while only relocating the flash.
     expect(paintedChrome()).not.toContain("dashboard-nav-mobile-menu");
   });
 });

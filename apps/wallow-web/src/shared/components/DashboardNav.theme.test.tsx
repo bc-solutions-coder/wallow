@@ -6,8 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DashboardNav } from "./DashboardNav";
 import { useUiStore } from "../stores/ui-store";
 
-// Stub TanStack `Link` to a plain anchor, exactly as every other spec in this
-// directory does (`DashboardNav.test.tsx`, `DashboardNav.toggle.test.tsx`).
+// Stub TanStack `Link` to a plain anchor.
 vi.mock("@tanstack/react-router", () => ({
   Link: ({
     to,
@@ -21,19 +20,12 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 /**
- * DashboardNav's theme control (Wallow-lrlm.1.2). The dashboard shell is where a
- * signed-in visitor lives, so it is where the fork's theme switch belongs.
+ * The theme control's REACHABILITY across the nav's three modes, not its looks.
+ * A toggle that exists only in the expanded rail disappears the moment a visitor
+ * collapses the nav or opens the app on a phone.
  *
- * The contract is deliberately about REACHABILITY across the nav's three modes
- * rather than about looks (the control's own rendering is covered by
- * `packages/ui`'s theme-toggle stories, which run with the real Tailwind
- * pipeline). A toggle that exists only in the expanded rail disappears the
- * moment a visitor collapses the nav or opens the app on a phone — which is the
- * regression this file guards.
- *
- * `data-testid="theme-toggle"` is the app-owned testid the Playwright suites
- * select on; `packages/ui` deliberately does not default it, so it is asserted
- * here at the place that supplies it.
+ * `data-testid="theme-toggle"` is app-owned — `packages/ui` does not default it,
+ * so it is asserted here at the place that supplies it.
  */
 describe("DashboardNav theme toggle", () => {
   beforeEach(async () => {

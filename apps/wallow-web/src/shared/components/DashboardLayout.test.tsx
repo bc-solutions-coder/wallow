@@ -23,15 +23,13 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 /**
- * DashboardLayout spec (Wallow-8w1h.8.1). The authenticated shell must render:
- *   - a root carrying `data-testid="dashboard-welcome"`,
- *   - the nav shell (its `dashboard-nav-*` links), and
- *   - a router `<Outlet/>` (the mount point for the reparented child routes).
+ * The authenticated shell's composition: a `dashboard-welcome` root, the nav's
+ * links, and a router `<Outlet/>` for the child routes.
  */
 describe("DashboardLayout", () => {
   // Vitest browser mode defaults to a 414x896 viewport — a phone, below the `md`
   // breakpoint at which the shell renders the nav rail rather than a mobile
-  // drawer (Wallow-0byr.2). These cases assert the desktop composition.
+  // drawer. These cases assert the desktop composition.
   beforeEach(async () => {
     await page.viewport(1280, 800);
   });

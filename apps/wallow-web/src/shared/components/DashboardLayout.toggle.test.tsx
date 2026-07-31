@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DashboardLayout } from "./DashboardLayout";
 import { useUiStore } from "../stores/ui-store";
 
-// Stub the router primitives the shell composes (as in `DashboardLayout.test.tsx`).
+// Stub the router primitives the shell composes.
 vi.mock("@tanstack/react-router", () => ({
   Link: ({
     to,
@@ -21,31 +21,14 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 /**
- * DashboardLayout nav-toggle spec (Wallow-evd5.4.1) — the affordance that makes
- * the UI store real. The shell owns the CONTROLS (they must stay reachable while
- * the drawer is collapsed, so they cannot live inside the drawer); `DashboardNav`
- * owns the drawer. Neither passes the flag to the other — that separation is the
- * reason this state is in `useUiStore` rather than a `useState` in one component.
- *
- * Contract:
- *   - `dashboard-nav-toggle` — always-rendered button; calls `toggleNav()` and
- *     reports the drawer state as `aria-expanded`, with `aria-controls` naming
- *     the nav element's id (`dashboard-nav`),
- *   - `dashboard-nav-backdrop` — NOT a desktop affordance (Wallow-0byr.2): the
- *     rail is persistent furniture, so nothing dims behind it in either state.
- *     The backdrop belongs to the mobile overlay drawer, covered in
- *     `DashboardLayout.mobile.test.tsx`.
- *
- * The store axis is `isNavCollapsed`, the inverse of the `isNavOpen` this spec
- * was written against (Wallow-0byr.1); every case below drives the same
- * behaviour through the inverted flag. This file stays the DESKTOP toggle spec;
- * the collapsed rail's rendering is `DashboardNav.modes.test.tsx` and the phone
- * drawer is `DashboardLayout.mobile.test.tsx`.
+ * The desktop rail toggle. The shell owns the CONTROL — it stays reachable while
+ * the rail is collapsed, so it cannot live inside the rail — and `DashboardNav`
+ * owns the rail. Neither passes the flag to the other, which is why the state
+ * lives in `useUiStore`.
  */
 describe("DashboardLayout nav toggle", () => {
   // Vitest browser mode's default viewport (414x896) is a phone, below the `md`
-  // breakpoint at which the shell renders this toggle at all (Wallow-0byr.2) —
-  // pin a desktop width so these cases keep exercising the control they name.
+  // breakpoint at which the shell renders this toggle at all.
   beforeEach(async () => {
     useUiStore.setState({ isNavCollapsed: true, isMobileNavOpen: false });
     await page.viewport(1280, 800);
@@ -100,11 +83,8 @@ describe("DashboardLayout nav toggle", () => {
   });
 
   it("renders no backdrop while the rail is expanded either", async () => {
-    // The backdrop moved to the MOBILE axis in Wallow-0byr.2. A desktop rail is
-    // persistent furniture, not an overlay: dimming the whole main column behind
-    // it and dismissing it by clicking away is overlay behaviour, and the
-    // overlay is now the phone drawer. Backdrop coverage lives in
-    // `DashboardLayout.mobile.test.tsx`, wired to `closeMobileNav`.
+    // Dimming the main column and dismissing by clicking away is overlay
+    // behaviour, and the only overlay is the phone drawer.
     useUiStore.setState({ isNavCollapsed: false });
 
     await render(<DashboardLayout />);

@@ -4,22 +4,14 @@ import { describe, expect, it } from "vitest";
 import { useIsDesktop } from "./use-is-desktop";
 
 /**
- * Server-snapshot contract for `useIsDesktop` (Wallow-lrlm.6.3).
+ * `useIsDesktop`'s server snapshot — the one code path a browser-mode spec can
+ * never reach, hence the `.ssr` name that routes this onto the node project.
+ * `useSyncExternalStore` consults `getServerSnapshot` only when there is no
+ * client store, so a spec that MOUNTS the hook takes `getSnapshot` and real
+ * `matchMedia` on the first render and sees nothing wrong.
  *
- * A node-project spec by design (listed in `vitest.config.ts`'s `nodeTsxSpecs`):
- * `getServerSnapshot` is the ONE code path a browser-mode spec can never reach.
- * `useSyncExternalStore` consults it only when there is no client store to read
- * — during `renderToString` on the server, and again for React's first
- * hydration render — so a spec that MOUNTS the hook takes `getSnapshot` and real
- * `matchMedia` on the very first render and sees nothing wrong. `renderToString`
- * is the repo's existing way of asking "what does the server actually emit"
- * (`src/app/routes/index.test.tsx`).
- *
- * The bug: the server has no viewport, so any boolean it returns is a guess, and
- * the guess is painted before hydration can correct it. Returning `true` makes
- * every phone paint the desktop rail first. Returning `false` would only move
- * the flash onto laptops. Both are asserted against here — the fix is to answer
- * "unknown", not to answer differently.
+ * The server has no viewport, so any boolean is a guess painted before
+ * hydration can correct it. "Unknown" is the only honest answer.
  */
 
 /** Renders the hook's value into an attribute so `renderToString` can be read. */
@@ -37,22 +29,20 @@ function serverRenderedValue(): string {
 
 describe("useIsDesktop server snapshot", () => {
   it("does not claim the viewport is desktop", () => {
-    // The current defect, stated directly: on a phone this value is the first
-    // thing painted, and it is wrong.
+    // On a phone this value is the first thing painted, so `true` paints the
+    // desktop rail before hydration corrects it.
     expect(serverRenderedValue()).not.toBe("true");
   });
 
   it("does not claim the viewport is mobile either", () => {
-    // Guards the lazy fix. Flipping the constant to `false` trades a flash on
-    // phones for a flash on laptops; the server still has no viewport.
+    // A constant `false` only trades a flash on phones for one on laptops.
     expect(serverRenderedValue()).not.toBe("false");
   });
 
   it("reports the viewport as unknown", () => {
-    // The positive contract: `undefined` is "no viewport has been observed yet",
-    // which is the truth on the server and during React's first hydration
-    // render. Consumers are expected to render viewport-neutral chrome while it
-    // holds; see `DashboardLayout.ssr-flash.test.tsx` for that half.
+    // `undefined` means "no viewport observed yet", which is the truth on the
+    // server and during React's first hydration render. Consumers render
+    // viewport-neutral chrome while it holds.
     expect(serverRenderedValue()).toBe("undefined");
   });
 });

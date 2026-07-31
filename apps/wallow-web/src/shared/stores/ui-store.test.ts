@@ -3,21 +3,13 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { useUiStore } from "./ui-store";
 
 /**
- * UI store spec (Wallow-evd5.4.1, reworked for Wallow-0byr.1) — pure logic, so
- * it runs on the vitest NODE project (`src/**\/*.test.ts`), never in Chromium.
+ * The store holds UI-only state more than one component needs; everything
+ * fetched from the API belongs to TanStack Query instead.
  *
- * The store is the wallow-web side of the epic's state boundary: TanStack Query
- * owns everything fetched from the API, and this store owns UI-only state that
- * more than one component needs. The dashboard nav is that state — the controls
- * live in `DashboardLayout`, the nav itself in `DashboardNav`.
- *
- * The nav has TWO independent axes, and most of what follows exists to keep them
- * that way: `isNavCollapsed` is the desktop rail's width, `isMobileNavOpen` is
- * the mobile overlay drawer. Acting on one must leave the other exactly where it
- * was, so each axis has a "does not disturb the other axis" test alongside its
- * own behaviour tests.
- *
- * The store is a module-scope singleton, so every test resets both axes first.
+ * The nav has TWO independent axes — `isNavCollapsed` is the desktop rail's
+ * width, `isMobileNavOpen` the mobile overlay drawer — and acting on one must
+ * leave the other where it was, hence a "does not disturb the other axis" case
+ * per axis. The store is a module-scope singleton, so every test resets both.
  */
 describe("ui store", () => {
   beforeEach(() => {
@@ -151,12 +143,10 @@ describe("ui store", () => {
     });
 
     it("holds UI-only state — no API data, and no re-conflated nav boolean", () => {
-      // Two things pinned at once. First the state boundary: anything fetched
-      // from the backend belongs to TanStack Query, so a server-data key here
-      // should fail and force the discussion (docs/development/frontend-state.md).
-      // Second the two-axis split: the retired single `isNavOpen`/`toggleNav`/
-      // `closeNav` trio must not reappear, since one boolean driving both the
-      // desktop rail and the mobile drawer is the bug this store was split to fix.
+      // Two things at once. The state boundary: a server-data key here must
+      // fail, because backend data belongs to TanStack Query. And the two-axis
+      // split: a single `isNavOpen`/`toggleNav`/`closeNav` trio would drive the
+      // desktop rail and the mobile drawer off one boolean.
       expect(Object.keys(useUiStore.getState()).toSorted()).toStrictEqual([
         "closeMobileNav",
         "isMobileNavOpen",

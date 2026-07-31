@@ -7,19 +7,11 @@ import { DashboardLayout } from "./DashboardLayout";
 import { useUiStore } from "../stores/ui-store";
 
 /**
- * Dashboard mobile overlay-drawer spec (Wallow-0byr.2) — the third nav mode.
- * Below Tailwind's `md` breakpoint there is no rail at all: a menu button
- * summons a temporary sheet over the page, and that sheet is dismissible the
- * three ways an overlay must be (backdrop, nav link, Escape).
- *
- * These cases render the whole `DashboardLayout` rather than `DashboardNav`
- * because the drawer, its backdrop, and the button that opens them are one
- * behaviour split across the shell and the nav — the spec should not care which
- * component owns which node, only that the shell produces them together.
- *
- * VIEWPORT: Vitest browser mode's 414x896 default is already below `md`, but
- * every case sets the width explicitly anyway — an implicit default is not a
- * stated intent, and the desktop specs in this directory move the viewport.
+ * The dashboard's mobile overlay drawer. Below Tailwind's `md` breakpoint there
+ * is no rail at all: a menu button summons a sheet over the page, dismissible
+ * the three ways an overlay must be (backdrop, nav link, Escape). The whole
+ * `DashboardLayout` renders because the drawer, its backdrop and the button that
+ * opens them are one behaviour split across the shell and the nav.
  */
 
 type LinkStubProps = {
@@ -28,11 +20,9 @@ type LinkStubProps = {
   onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
 } & Record<string, unknown>;
 
-// Stub the router primitives the shell composes (as in `DashboardLayout.test.tsx`).
-// The anchor's default navigation is suppressed so that "clicking a nav link
-// closes the drawer" can be asserted without the test iframe navigating away;
-// the click still bubbles, so it does not matter whether the close is wired on
-// the link itself or on a container above it.
+// Stub the router primitives the shell composes, suppressing the anchor's
+// default navigation so a click cannot move the test iframe. The click still
+// bubbles, so the close may be wired on the link or on a container above it.
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ to, children, onClick, ...rest }: LinkStubProps) => (
     <a
@@ -62,8 +52,7 @@ describe("dashboard nav below the breakpoint", () => {
     await render(<DashboardLayout />);
     await expect.element(page.getByTestId("dashboard-welcome")).toBeInTheDocument();
 
-    // Absent, not merely narrowed or visually hidden: on a phone the rail is not
-    // a thing that exists in a collapsed form, it is a thing that is not there.
+    // Absent, not narrowed or visually hidden.
     await expect.element(page.getByTestId("dashboard-nav")).not.toBeInTheDocument();
   });
 
@@ -71,8 +60,6 @@ describe("dashboard nav below the breakpoint", () => {
     await render(<DashboardLayout />);
     await expect.element(page.getByTestId("dashboard-welcome")).toBeInTheDocument();
 
-    // There is no rail to collapse, so the expand/collapse control is meaningless
-    // here; the menu button replaces it.
     await expect.element(page.getByTestId("dashboard-nav-toggle")).not.toBeInTheDocument();
   });
 
@@ -114,7 +101,6 @@ describe("dashboard mobile drawer", () => {
     await render(<DashboardLayout />);
     await expect.element(page.getByTestId("dashboard-nav-drawer")).toBeInTheDocument();
 
-    // The drawer is the expanded content, not an icon rail — it has the room.
     await expect
       .element(page.getByTestId("dashboard-nav-organizations"))
       .toHaveTextContent("Organizations");
@@ -150,7 +136,6 @@ describe("dashboard mobile drawer", () => {
     useUiStore.setState({ isMobileNavOpen: true });
     await render(<DashboardLayout />);
 
-    // Navigating away must not leave the sheet covering the page it navigated to.
     await userEvent.click(page.getByTestId("dashboard-nav-settings"));
 
     await expect.element(page.getByTestId("dashboard-nav-drawer")).not.toBeInTheDocument();
@@ -169,8 +154,6 @@ describe("dashboard mobile drawer", () => {
   });
 
   it("leaves the desktop rail expanded when the drawer is dismissed", async () => {
-    // Cross-axis guard at the RENDER level (the store's own guard is unit-tested):
-    // dismissing a phone sheet must not decide how the rail looks on a laptop.
     await render(<DashboardLayout />);
 
     await userEvent.click(page.getByTestId("dashboard-nav-mobile-menu"));

@@ -5,10 +5,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DashboardNav } from "./DashboardNav";
 
-// `DashboardNav` renders TanStack `Link`s. Outside a `RouterProvider` those
-// hooks throw, so stub `Link` to a plain anchor that passes through `to`
-// (as `href`) and any `data-testid`. This lets the nav render in isolation
-// while still asserting each link's target + testid.
+// `DashboardNav` renders TanStack `Link`s, whose hooks throw outside a
+// `RouterProvider`, so stub `Link` to a plain anchor that passes through `to`
+// (as `href`) and any `data-testid`.
 vi.mock("@tanstack/react-router", () => ({
   Link: ({
     to,
@@ -22,16 +21,14 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 /**
- * DashboardNav spec (Wallow-8w1h.8.1). The dashboard shell's nav links to the
- * verticals, each carrying a `data-testid="dashboard-nav-<feature>"` testid
- * pointing at its route. The Organizations link is admin-gated as of
- * Wallow-ffpq.3.6, so it is covered by
- * `DashboardNav.gate.test.tsx` rather than the unconditional loop here.
+ * The dashboard nav's links to the verticals, each carrying a
+ * `data-testid="dashboard-nav-<feature>"` pointing at its route. Organizations
+ * is admin-gated, so it is absent from the unconditional loop here.
  */
 describe("DashboardNav", () => {
   // Vitest browser mode defaults to a 414x896 viewport — a phone, below the `md`
-  // breakpoint at which the nav renders a rail at all (Wallow-0byr.2). These
-  // cases are about the desktop rail's links, so they must say so.
+  // breakpoint at which the nav renders a rail at all. These cases are about the
+  // desktop rail's links, so they must say so.
   beforeEach(async () => {
     await page.viewport(1280, 800);
   });

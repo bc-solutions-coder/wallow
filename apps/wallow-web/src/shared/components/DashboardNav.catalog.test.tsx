@@ -7,31 +7,13 @@ import { DashboardNav } from "./DashboardNav";
 import { useUiStore } from "../stores/ui-store";
 
 /**
- * Catalog-migration spec for the dashboard sidebar (Wallow-m5aq.5.3) — the
- * hand-rolled nav items (`DashboardNav`'s `NavItem` / `NavDestinationList`)
- * become the catalog `NavigationMenu`.
+ * The dashboard sidebar's LIST semantics, in all three nav modes.
  *
- * WHAT THE MIGRATION HAS TO BUY. The rail already got the accessible NAME of
- * each destination right (`aria-label` from `navIconLabels`, which is why the
- * icon rail is legible at all) — `DashboardNav.modes.test.tsx` pins that, and it
- * must not regress. What it never had is the STRUCTURE: four anchors dropped
- * straight into a `<nav>` announce as four loose links, with no count and no
- * "3 of 4" position. A navigation menu announces one list of four items. That
- * list, in all three modes, is what this file pins.
- *
- * THREE MODES, ONE CONTRACT (the modes themselves are `DashboardNav.modes` /
- * `DashboardLayout.mobile`'s subject, not this file's): the desktop expanded
- * rail, the desktop icon rail, and the mobile overlay drawer each render the
- * destinations through the SAME extracted list, so the list semantics must hold
- * in all three or the extraction has drifted.
- *
- * Structure is asserted by ROLE (`list` / `listitem`), accepting either the
- * native `ul`/`li` or an explicit role, because what a screen reader is handed
- * is the contract — not which element the catalog happened to render.
- *
- * VIEWPORT: Vitest browser mode's 414x896 default is below Tailwind's `md`
- * breakpoint, i.e. a phone. Every case sets the width it means, since the rail
- * only exists at desktop widths.
+ * Four anchors dropped into a `<nav>` announce as four loose links, with no
+ * count and no "3 of 4" position; a navigation menu announces one list of four
+ * items. Structure is asserted by ROLE, accepting native `ul`/`li` or an
+ * explicit one — what a screen reader is handed is the contract, not the
+ * element chosen.
  */
 
 type LinkStubProps = {
@@ -42,14 +24,9 @@ type LinkStubProps = {
   onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
 } & Record<string, unknown>;
 
-// Stub TanStack `Link` to a plain anchor, as every other spec in this directory
-// does. The sidebar hands its destinations to the router `Link`; whether it does
-// so directly or through the catalog's `render` prop is the migration's business,
-// and either way the stub is what ends up in the DOM.
+// Stub TanStack `Link` to a plain anchor. `activeProps` is dropped rather than
+// spread, since letting it fall into `...rest` puts an object on a DOM attribute.
 vi.mock("@tanstack/react-router", () => ({
-  // `activeProps` is pulled out and dropped: the real Link merges it in only for
-  // the active route, and letting it fall into `...rest` would put an object on
-  // a DOM attribute.
   Link: ({
     to,
     children,
@@ -100,11 +77,7 @@ function listFor(testId: string): HTMLElement | null {
   return byTestId(testId).closest<HTMLElement>('ul, ol, [role="list"]');
 }
 
-/**
- * Every destination is a listitem, and all four belong to the SAME list — the
- * whole assertion the migration exists for, applied identically to whichever
- * mode the caller has set up.
- */
+/** Every destination is a listitem, and all four belong to the SAME list. */
 async function expectOneNavigationList(): Promise<void> {
   for (const testId of destinationTestIds) {
     await expect.element(page.getByTestId(testId)).toBeInTheDocument();
@@ -119,7 +92,7 @@ async function expectOneNavigationList(): Promise<void> {
   }
 
   // One item per destination, so the list announces "4 items" rather than
-  // counting furniture that happens to sit beside them.
+  // counting furniture beside them.
   const items = (firstList as HTMLElement).querySelectorAll(
     ':scope > li, :scope > [role="listitem"]',
   );
@@ -189,8 +162,8 @@ describe("DashboardNav collapsed icon rail (catalog NavigationMenu)", () => {
     await render(<DashboardNav />);
     await expectOneNavigationList();
 
-    // The icon rail's whole premise: no rendered text, name from `aria-label`.
-    // Collapsing must not take the list structure down with the labels.
+    // The icon rail renders no text and takes its names from `aria-label`;
+    // collapsing must not take the list structure down with the labels.
     for (const testId of destinationTestIds) {
       expect(byTestId(testId).textContent?.trim()).toBe("");
       expect(byTestId(testId).getAttribute("aria-label")).not.toBeNull();

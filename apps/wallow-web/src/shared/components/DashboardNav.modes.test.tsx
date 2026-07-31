@@ -7,23 +7,16 @@ import { DashboardNav } from "./DashboardNav";
 import { useUiStore } from "../stores/ui-store";
 
 /**
- * DashboardNav desktop-mode spec (Wallow-0byr.2) — the two, and only two,
- * DESKTOP states: the expanded rail (icon + label) and the collapsed icon rail
- * (icon only). The mobile overlay drawer is a different axis entirely and lives
- * in `DashboardLayout.mobile.test.tsx`.
+ * The nav's two DESKTOP states: the expanded rail (icon + label) and the
+ * collapsed icon rail (icon only). The mobile drawer is a different axis.
  *
- * WHY EVERY CASE SETS A VIEWPORT: Vitest browser mode defaults to a 414x896
- * viewport, which is BELOW Tailwind's `md` breakpoint (48rem/768px) — i.e. the
- * default is a phone. Since the nav now renders a rail only at desktop widths,
- * a desktop spec that does not say so is silently a mobile spec. `page.viewport`
- * drives `matchMedia` in the real Chromium these specs run in (verified), so it
- * is the mobile/desktop switch for the whole suite.
+ * Every case sets a viewport because Vitest browser mode defaults to 414x896 —
+ * below Tailwind's `md` breakpoint, i.e. a phone — and the rail exists only at
+ * desktop widths, so a desktop spec that does not say so is a mobile spec.
  *
- * WHY THE COLLAPSED RAIL MUST CARRY NO TEXT NODE: no stylesheet is loaded in
- * browser mode, so a visually-hidden label and the clipped label this epic is
- * about are indistinguishable from the DOM. The only assertion that can tell
- * "deliberate icon rail" from "broken clipped text" is that the collapsed item
- * renders NO text at all and takes its accessible name from `aria-label`.
+ * The collapsed rail must carry NO text node: "deliberate icon rail" is only
+ * distinguishable from "label clipped by the rail" if the item renders no text
+ * at all and takes its accessible name from `aria-label`.
  */
 
 // Which route the stubbed router considers active. Mutable so a case can point
@@ -38,11 +31,10 @@ type LinkStubProps = {
   onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
 } & Record<string, unknown>;
 
-// Stub TanStack `Link` to a plain anchor (as in `DashboardNav.test.tsx`), with
-// two additions this spec needs: it applies `activeProps.className` when `to`
-// matches `routerState.activePath` (that is how TanStack styles the active
-// link, and the nav must supply it in BOTH desktop modes), and it suppresses
-// the anchor's default navigation so a click cannot move the test iframe.
+// Stub TanStack `Link` to a plain anchor, with two additions this spec needs: it
+// applies `activeProps.className` when `to` matches `routerState.activePath`
+// (that is how TanStack styles the active link, and the nav must supply it in
+// BOTH desktop modes), and it suppresses the anchor's default navigation.
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ to, children, className, activeProps, onClick, ...rest }: LinkStubProps) => (
     <a
@@ -145,8 +137,8 @@ describe("DashboardNav collapsed icon rail (desktop)", () => {
   it("renders no text node for any nav item", async () => {
     await render(<DashboardNav />);
 
-    // The epic's actual bug: the collapsed rail rendered full-size labels and let
-    // the rail clip them into "Settin" / "Inquir" / "Sign O".
+    // A collapsed rail that keeps full-size labels clips them into "Settin" /
+    // "Inquir" / "Sign O", which is what having no text node at all prevents.
     for (const [testid] of navItems) {
       await expect.element(page.getByTestId(testid)).toBeInTheDocument();
       expect(page.getByTestId(testid).element().textContent?.trim()).toBe("");

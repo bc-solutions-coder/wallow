@@ -16,44 +16,13 @@ import { DashboardNav } from "./DashboardNav";
 import { useUiStore } from "../stores/ui-store";
 
 /**
- * What the three CATALOG components inside the dashboard rail actually paint
- * (Wallow-lrlm.6.4).
+ * What the three CATALOG components inside the dashboard rail actually paint.
  *
- * `ThemeToggle`, `NavigationMenu.Link` and `ErrorBanner` all render inside a rail
- * that is genuinely dark in BOTH modes (`bg-sidebar`, L 0.20-0.22), and all three
- * paint from the PAGE palette because no catalog recipe knew it might be composed
- * onto an inverted surface. `ThemeToggle` hard-codes `Button variant="secondary"`
- * — an L 0.92 chip on an L 0.22 rail in light mode. The link recipe contributes
- * `text-foreground` / `hover:bg-accent` / `hover:text-accent-foreground` plus an
- * inert `data-[active]:` accent pair, which the consumer has to out-merge class by
- * class. `ErrorBanner` fills with `bg-destructive/10`, which over the rail is very
- * nearly the rail.
- *
- * WHY THIS FILE MEASURES. The sibling `DashboardNav.restyle.test.tsx` asserts
- * class strings, and a class string cannot see paint: the string that reaches the
- * DOM is `twMerge(recipe, className)`, and that merge is where a 1.27:1 hover
- * contrast defect hid behind a green suite (Wallow-lrlm.5.4). Since Wallow-8ytl
- * this project renders the real fork theme, so the colours can be read back
- * instead — see `DashboardNav.contrast.test.tsx`, whose helpers and mouse-parking
- * discipline this file follows.
- *
- * BOTH MODES, ON THE DOCUMENT ELEMENT — and it has to be the document element.
- * `renderThemeStyle` emits `:root` / `.dark` / `.light` blocks that set the RAW
- * `--sidebar`-style variables, while the `@theme` layer declares the token
- * `--color-sidebar: var(--sidebar, …)` on `:root` alone. A `var()` inside a custom
- * property is substituted at computed-value time ON THE DECLARING ELEMENT, so a
- * `.dark` wrapper somewhere down the tree rebinds `--sidebar` for descendants and
- * the already-computed `--color-*` token never notices: every utility keeps
- * painting the light palette. A wrapper therefore measures light mode TWICE and
- * calls one of them dark. Both blocks have to land on the same element for the
- * token to resolve against the dark value, which means stamping the class on
- * `documentElement` and clearing it afterwards so the mode cannot leak into the
- * next case.
- *
- * The one thing this file cannot see is whether the consumer still SUPPRESSES the
- * catalog's page colours by name — a row that suppresses correctly paints exactly
- * like one that never received them. That half is asserted on the recipes, in
- * `packages/ui/src/sidebar-surface.test.ts`, and on the source below.
+ * `ThemeToggle`, `NavigationMenu.Link` and `ErrorBanner` render inside a rail
+ * that is dark in BOTH modes, and each defaults to the PAGE palette. Measuring
+ * is the point — a class string cannot see what `twMerge` produced. The mode is
+ * stamped on `document.documentElement`, since `@theme` declares each token on
+ * `:root` alone and a wrapper element measures light mode twice.
  */
 
 const routerState = vi.hoisted(() => ({ activePath: "" }));
@@ -66,9 +35,7 @@ type LinkStubProps = {
   onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
 } & Record<string, unknown>;
 
-// Stub TanStack `Link` to a plain anchor that applies `activeProps.className` on
-// the active route, exactly as every other DashboardNav spec here does — the
-// active-row treatment reaches the DOM only through the router.
+// `activeProps.className` reaches the DOM only through the active route.
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ to, children, className, activeProps, onClick, ...rest }: LinkStubProps) => (
     <a
@@ -89,9 +56,7 @@ vi.mock("@tanstack/react-router", () => ({
 
 const logoutMock = vi.hoisted(() => vi.fn());
 
-// `logout()` is a real browser navigation in production. Rejecting it is the only
-// way to render the in-rail ErrorBanner, which is the whole point of surface 3:
-// the one message a visitor must not miss is the least legible thing on the rail.
+// Rejecting `logout()` is the only way to render the in-rail ErrorBanner.
 vi.mock("@bc-solutions-coder/sdk", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@bc-solutions-coder/sdk")>();
   return { ...actual, logout: logoutMock };
@@ -105,20 +70,13 @@ const AA_TEXT = 4.5;
 /** WCAG 2.1 AA for a non-text boundary: the banner's edge against the rail. */
 const AA_NON_TEXT = 3;
 
-/** The theme modes the fork ships, as the class that selects each one's palette. */
 const MODES: readonly string[] = ["light", "dark"];
 
 /**
- * The nav, a parking target for the mouse, and one probe per token this file
- * needs a REFERENCE colour for.
- *
- * The probes are how "paints from the sidebar family, not `bg-secondary`" becomes
- * measurable without hard-coding a hex: each probe renders one utility under the
- * mode currently stamped on `documentElement`, so its computed colour IS that
- * token's value in that mode.
- *
- * The parking target is pinned top-right above everything because Playwright's
- * actionability check retries until timeout on an element the rail covers.
+ * The nav, a parking target for the mouse, and one probe per token needing a
+ * REFERENCE colour, so nothing here hard-codes a hex. The parking target is
+ * pinned above everything because Playwright retries to timeout on a covered
+ * element.
  */
 function NavUnderTest() {
   return (
@@ -138,18 +96,14 @@ function applyMode(mode: string): void {
   document.documentElement.classList.toggle("light", mode === "light");
 }
 
-/** The colour a probe element paints, i.e. the value of the token it names. */
 function probe(testId: string): Rgba {
   return computedColor(page.getByTestId(testId).element(), "background-color");
 }
 
 /**
- * Fail loudly when the theme is absent.
- *
- * Without it every assertion in this file is vacuous in the same direction: a
- * theme-less page paints every token `rgba(0, 0, 0, 0)`, so "the toggle is not
- * `bg-secondary`" passes because NOTHING is anything. `theme-wiring.test.tsx`
- * guards the precondition globally; this is the per-case tripwire.
+ * Fail loudly when the theme is absent: a theme-less page paints every token
+ * `rgba(0, 0, 0, 0)`, so "the toggle is not `bg-secondary`" passes because
+ * NOTHING is anything.
  */
 function expectThemed(color: Rgba, label: string): Rgba {
   expect(isTransparent(color), `${label}: paints nothing — is the fork theme loaded?`).toBe(false);
@@ -163,21 +117,16 @@ beforeEach(async () => {
   await page.viewport(...DESKTOP_VIEWPORT);
 });
 
-// The document is shared by every case in the file, so a stamped mode is state
-// that has to be handed back — otherwise the last `dark` case silently repaints
-// whatever runs next.
+// The document is shared by every case, so a stamped mode has to be handed back
+// or the last `dark` case silently repaints whatever runs next.
 afterEach(() => {
   document.documentElement.classList.remove("dark", "light");
 });
 
 describe("the mode axis itself", () => {
   it("repaints the tokens, so a dark-mode case is not light mode measured twice", async () => {
-    // The tripwire for every `describe.each(MODES)` below. This file's first cut
-    // selected the mode with a wrapper `<div className={mode}>`, which measured
-    // the light palette under both labels and passed — five silently duplicated
-    // cases advertising dark coverage that did not exist. If `applyMode` ever
-    // stops reaching the token layer, THIS fails first and says so, instead of
-    // the mode arms quietly agreeing with each other.
+    // The tripwire for every `describe.each(MODES)` below: a mode selected on a
+    // wrapper `<div>` measures the light palette under both labels and passes.
     applyMode("light");
     await render(<NavUnderTest />);
     const lightRail: Rgba = expectThemed(probe("probe-sidebar"), "bg-sidebar in light mode");
@@ -212,8 +161,8 @@ describe.each(MODES)("the theme toggle on the rail — %s mode", (mode: string) 
       "the toggle's rendered surface",
     );
 
-    // The bead's surface 1: `variant="secondary"` is a page-palette chip, and in
-    // light mode that is L 0.92 sitting on an L 0.22 rail.
+    // `variant="secondary"` is a page-palette chip, which in light mode is
+    // L 0.92 sitting on an L 0.22 rail.
     expect(painted, "the toggle still paints the page's secondary surface").not.toEqual(secondary);
   });
 
@@ -226,9 +175,8 @@ describe.each(MODES)("the theme toggle on the rail — %s mode", (mode: string) 
       "the toggle's rendered surface",
     );
 
-    // Either token is a legitimate answer: a chip takes `sidebar-accent`, while a
-    // bordered or ghost treatment lets the rail's own `sidebar` show through. What
-    // is not legitimate is a colour from any other family.
+    // Either token is legitimate: a chip takes `sidebar-accent`, a bordered or
+    // ghost treatment lets the rail's own `sidebar` show through.
     expect(
       [expectThemed(probe("probe-sidebar"), "bg-sidebar"), probe("probe-sidebar-accent")],
       "the toggle's surface belongs to neither sidebar token",
@@ -251,11 +199,9 @@ describe.each(MODES)("the theme toggle on the rail — %s mode", (mode: string) 
 
 /**
  * The theme's PAGE-surface colour tokens. None may reach a row on the rail — not
- * at rest, not behind a `hover:`, and not behind a `data-[active]:`.
- *
- * `destructive` is absent on purpose: the sign-out banner is an error wherever it
- * renders, so it may keep naming that token, and whether it stays legible there
- * is measured above rather than spelled here.
+ * at rest, not behind a `hover:`, not behind a `data-[active]:`. `destructive`
+ * is absent on purpose: the sign-out banner is an error wherever it renders, so
+ * it may keep naming that token, and its legibility is measured above.
  */
 const PAGE_SURFACE_TOKENS: ReadonlySet<string> = new Set([
   "background",
@@ -309,22 +255,16 @@ describe("the nav rows' merged class attribute", () => {
   });
 
   /*
-   * The one criterion on this bead that is about a class string rather than a
-   * colour, and deliberately so. What reaches the DOM is
-   * `twMerge(navigationMenuLinkRecipe(), itemClass)`, and `twMerge` drops a recipe
-   * class only when the caller conflicts with it AT THE SAME VARIANT — so a page
-   * colour the consumer forgot to name survives the merge and waits for a state
-   * that reveals it. `data-[active]:bg-accent` is exactly that today: Base UI sets
-   * `data-active` only when its own `active` prop is passed and the app never
-   * passes it (TanStack's `activeProps` is a className merge), so the pair rides
-   * along on all four rows doing nothing, a light block latent on a dark rail.
-   *
-   * Measuring cannot catch it — an inert class paints nothing to measure.
+   * A class string rather than a colour, because an inert class paints nothing
+   * to measure. `twMerge` drops a recipe class only when the caller conflicts
+   * AT THE SAME VARIANT, so `data-[active]:bg-accent` rides along on all four
+   * rows: Base UI sets `data-active` only from its own `active` prop, which the
+   * app never passes (TanStack's `activeProps` is a className merge). It is a
+   * light block latent on a dark rail, waiting for a state that reveals it.
    */
   it("flags a page colour behind any variant prefix", () => {
-    // The detector is demonstrated, not trusted: one that matched nothing would
-    // make the case below pass on any markup at all. `text-sm` is the trap it has
-    // to survive, and `text-sidebar-foreground` must not read as `foreground`.
+    // A detector that matched nothing would make the case below pass on any
+    // markup at all. `text-sm` and `text-sidebar-foreground` are the traps.
     expect(
       pageSurfaceColorUtilities([
         "text-foreground",
@@ -398,9 +338,9 @@ describe.each(MODES)("the sign-out error banner on the rail — %s mode", (mode:
       "the rail",
     );
 
-    // A banner may announce itself with a fill OR with an edge — but with one of
-    // them. A 10% tint plus a border that both land within 3:1 of the rail is a
-    // message the reader's eye never lands on.
+    // A banner may announce itself with a fill OR an edge, but with one of them:
+    // a 10% tint and a border both within 3:1 of the rail is a message the
+    // reader's eye never lands on.
     const fill: number = contrastRatio(effectiveBackground(banner), rail);
     const edge: number = contrastRatio(over(computedColor(banner, "border-top-color"), rail), rail);
 

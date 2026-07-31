@@ -6,10 +6,8 @@ import { describe, expect, it, vi } from "vitest";
 import { PublicLayout } from "./PublicLayout";
 import { docsUrl, getStartedHref, repositoryUrl } from "@shared/lib/site-links";
 
-// `PublicLayout`'s nav uses TanStack `Link`s in the green implementation; stub
-// `Link` to a plain anchor (passing `to` through as `href`) so it renders in
-// isolation, mirroring `DashboardNav.test.tsx`. Any other react-router export a
-// nav might reach for is passed through untouched.
+// Stub TanStack `Link` to a plain anchor (`to` passed through as `href`) so the
+// nav renders without a router. Every other export passes through untouched.
 vi.mock("@tanstack/react-router", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@tanstack/react-router")>();
   return {
@@ -27,11 +25,10 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
 });
 
 /**
- * PublicLayout spec (Wallow-ffpq.3.6). The public chrome must render a navbar (home/logo link
- * to "/", Features/Docs/GitHub links, a "Get Started" CTA into the BFF login)
- * and a footer ("MIT Licensed", GitHub + Docs links) around its children, so
- * the marketing page is reachable and navigable. Testids follow the repo's
- * `{page}-{element}` kebab-case rule under the `public-` page prefix.
+ * The public chrome wraps its children in a navbar (home/logo link to "/",
+ * Features/Docs/GitHub links, a "Get Started" CTA into the BFF login) and a
+ * footer (MIT notice, GitHub + Docs links), so the marketing page is reachable
+ * and navigable. Testids take the `public-` page prefix.
  */
 describe("PublicLayout", () => {
   it("renders its children (the page body)", async () => {
@@ -74,12 +71,10 @@ describe("PublicLayout", () => {
 });
 
 /**
- * Link-target spec (Wallow-urec.2.1). The chrome's GitHub/Docs targets must come
- * from `../lib/site-links` — the single source that reads the fork's configured
- * `repositoryUrl`/`docsUrl` — so nav and footer can never drift apart or point at
- * the upstream repository. This file deliberately does NOT mock
- * `@bc-solutions-coder/styles`, so these assertions run against the fork's real
- * branding values.
+ * The chrome's GitHub/Docs targets come from `site-links`, the single source
+ * reading the fork's configured `repositoryUrl`/`docsUrl`, so nav and footer
+ * cannot drift apart or point at the upstream repository. Nothing here mocks
+ * `@bc-solutions-coder/styles`, so these run against the real branding values.
  */
 describe("PublicLayout link targets", () => {
   it("points the Features nav link at the landing page's features section", async () => {
@@ -108,8 +103,7 @@ describe("PublicLayout link targets", () => {
   it("exposes absolute link targets, with the docs site independent of the repository", () => {
     expect(repositoryUrl).toMatch(/^https:\/\/\S+/u);
     expect(docsUrl).toMatch(/^https:\/\/\S+/u);
-    // The old layout derived the docs URL from the repository URL; the fork's
-    // docs site is its own address.
+    // The docs site is its own address, not a path derived from the repository.
     expect(docsUrl).not.toBe(`${repositoryUrl}/tree/main/docs`);
     expect(getStartedHref).toContain("/bff/login");
   });

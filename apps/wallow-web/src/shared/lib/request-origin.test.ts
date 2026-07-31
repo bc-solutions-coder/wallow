@@ -7,20 +7,13 @@ import { describe, expect, it } from "vitest";
 import { resolveRequestOrigin } from "./request-origin";
 
 /**
- * The SSR origin derivation behind the SDK's `baseUrl` (Wallow-vufu.4.3).
+ * The SSR origin derivation behind the SDK's `baseUrl`.
  *
- * Node project: pure string work over a `Request`, no DOM.
- *
- * The bug this pins: behind an HTTPS-terminating ingress the app is reached over
- * plain HTTP, so the SSR pass derived `http://wallow.dev/api` as its `baseUrl`
- * while the browser derived `https://wallow.dev/api`. Generated TanStack Query
- * keys embed that `baseUrl` verbatim, so the two never matched and every
- * SSR-prefetched query refetched the moment the page hydrated.
- *
- * This file also owns the cross-app drift guard, because the fix is a verbatim
- * copy in each Start app rather than a shared module (`src/start.ts` compiles
- * into the client bundle too, so it cannot import the SDK's Node-only server
- * entry).
+ * Behind an HTTPS-terminating ingress the app is reached over plain HTTP, so an
+ * SSR pass reading the request URL derives `http://…` while the browser derives
+ * `https://…`. Generated query keys embed that `baseUrl` verbatim, so the two
+ * never match and every SSR-prefetched query refetches on hydration. The helper
+ * is a verbatim copy per Start app, so the drift guard lives here too.
  */
 
 const libDir: string = dirname(fileURLToPath(import.meta.url));
@@ -36,15 +29,15 @@ function requestWith(url: string, forwardedProto?: string): Request {
 
 describe("resolveRequestOrigin", () => {
   it("uses the scheme a terminating proxy reports, not the one it reached us on", () => {
-    // The acceptance case: HTTPS at the edge, plain HTTP to the app.
+    // HTTPS at the edge, plain HTTP to the app.
     expect(resolveRequestOrigin(requestWith("http://wallow.dev/x", "https"))).toBe(
       "https://wallow.dev",
     );
   });
 
   it("leaves the origin unchanged when no proxy reported a scheme", () => {
-    // The other half of the acceptance criteria: direct-to-app deployments and
-    // local `pnpm dev` must behave exactly as before.
+    // Direct-to-app deployments and local `pnpm dev` reach the app on the
+    // scheme the browser used, so there is nothing to correct.
     expect(resolveRequestOrigin(requestWith("http://wallow.dev/x"))).toBe("http://wallow.dev");
   });
 
@@ -124,9 +117,8 @@ describe("resolveRequestOrigin", () => {
 });
 
 describe("src/app/start.ts wiring", () => {
-  // `start.ts` is app-zone (it is the host entry); this helper is shared-zone, so
-  // the hop out of `shared/lib/` and into `app/` is spelled out rather than the
-  // single `..` it was when both sat directly under `src/`.
+  // `start.ts` is app-zone (it is the host entry) and this helper is
+  // shared-zone, hence the hop out of `shared/lib/` and into `app/`.
   const source: string = readFileSync(resolve(libDir, "..", "..", "app", "start.ts"), "utf8");
 
   it("derives the per-request SDK's origin through the helper", () => {
@@ -139,15 +131,15 @@ describe("src/app/start.ts wiring", () => {
   });
 
   it("still mounts the BFF proxy prefix onto that origin", () => {
-    // The scheme fix must not quietly drop `/api`, which is what makes this app's
-    // baseUrl the BFF token tunnel rather than the bare origin.
+    // `/api` is what makes this app's baseUrl the BFF token tunnel rather than
+    // the bare origin, so deriving the scheme must not drop it.
     expect(source).toMatch(/baseUrl:\s*`\$\{requestOrigin\}\$\{API_MOUNT\}`/u);
   });
 });
 
 describe("the copy in every other Start app", () => {
-  // The fix is duplicated because `src/app/start.ts` lands in the client bundle and
-  // may not import a Node-only module; the copies must not drift apart.
+  // The helper is duplicated because `src/app/start.ts` lands in the client
+  // bundle and may not import a Node-only module; the copies must not drift.
   const canonical: string = readFileSync(resolve(libDir, "request-origin.ts"), "utf8");
 
   it.each([

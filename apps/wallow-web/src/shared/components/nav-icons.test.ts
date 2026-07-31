@@ -3,14 +3,9 @@ import { describe, expect, it } from "vitest";
 import { navIconLabels, navIcons, type NavIconComponent, type NavIconName } from "./nav-icons";
 
 /**
- * Nav icon-set spec (Wallow-0byr.1) — pure logic (it inspects a map, it never
- * mounts anything), so it runs on the vitest NODE project (`src/**\/*.test.ts`)
- * and stays out of Chromium.
- *
- * The contract these tests pin is deliberately library-AGNOSTIC: they assert
- * that every nav destination and nav control resolves to a distinct icon
- * component under a distinct accessible name, never which library the icon came
- * from. Swapping icon libraries must not touch this file.
+ * Every nav destination and nav control resolves to a distinct icon component
+ * under a distinct accessible name. The contract is library-AGNOSTIC — nothing
+ * here names an icon library, so swapping one must not touch this file.
  */
 
 /** The nav destinations — the items a user navigates with, minus the controls. */

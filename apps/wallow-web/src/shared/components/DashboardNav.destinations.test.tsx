@@ -7,21 +7,15 @@ import { DashboardNav } from "./DashboardNav";
 import { useUiStore } from "../stores/ui-store";
 
 /**
- * DashboardNav destination-parity spec (Wallow-0byr.3) — the acceptance line the
- * per-mode specs each cover from one side only: EVERY nav destination stays
- * reachable, stays named, stays admin-gated, and still signs out, in ALL THREE
- * modes.
+ * Destination parity: every nav destination stays reachable, stays named, stays
+ * admin-gated and still signs out, in ALL THREE nav modes.
  *
- * `DashboardNav.modes.test.tsx` proves the two desktop modes render what they
- * should; `DashboardLayout.mobile.test.tsx` proves the drawer opens and closes;
- * `DashboardNav.gate.test.tsx` proves the admin gate — but only on the desktop
- * rail. The rail and the drawer share `NavDestinationList`/`NavLogout` today, so
- * the gate and the logout are structurally the same in both; these cases are
- * what keeps that true if the two renderings are ever pulled apart.
- *
- * Every case runs the SAME assertions against a mode fixture rather than being
- * written per mode: a destination that is only reachable in the mode whose spec
- * remembered to check it is exactly the regression this file exists to catch.
+ * The rail and the drawer share one destination list and one logout today, so
+ * the gate and the logout are structurally the same in both; these cases keep
+ * that true if the two renderings are ever pulled apart. Every case runs the
+ * same assertions against a mode fixture rather than being written per mode — a
+ * destination reachable only in the mode whose spec remembered to check it is
+ * the regression this file catches.
  */
 
 type LinkStubProps = {
@@ -31,11 +25,10 @@ type LinkStubProps = {
   onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
 } & Record<string, unknown>;
 
-// Stub TanStack `Link` to a plain anchor (as in `DashboardNav.test.tsx`), with the
-// anchor's default navigation suppressed so a click cannot move the test iframe.
-// `activeProps` is destructured away rather than spread: no case here asserts the
-// active highlight (that is `DashboardNav.modes.test.tsx`), and passing a
-// router-only prop through to an `<a>` only earns a React unknown-prop warning.
+// Stub TanStack `Link` to a plain anchor, with the anchor's default navigation
+// suppressed so a click cannot move the test iframe. `activeProps` is
+// destructured away rather than spread: no case here asserts the active
+// highlight, and a router-only prop on an `<a>` earns an unknown-prop warning.
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ to, children, activeProps: _activeProps, onClick, ...rest }: LinkStubProps) => (
     <a
