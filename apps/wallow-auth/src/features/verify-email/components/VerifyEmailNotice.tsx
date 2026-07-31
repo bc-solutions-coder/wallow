@@ -1,4 +1,4 @@
-import { Card } from "@bc-solutions-coder/ui";
+import { Card, MutedText, Text } from "@bc-solutions-coder/ui";
 import type { ReactNode } from "react";
 
 import { signInHref } from "../sign-in-href";
@@ -27,12 +27,12 @@ import { signInHref } from "../sign-in-href";
 function CardHeading() {
   return (
     <div className="space-y-1">
-      <h2 className="text-lg font-semibold text-card-foreground" data-testid="verify-email-heading">
+      <Text as="h2" variant="subheading" color="onCard" data-testid="verify-email-heading">
         Check your email
-      </h2>
-      <p className="text-sm text-muted-foreground" data-testid="verify-email-description">
+      </Text>
+      <MutedText data-testid="verify-email-description">
         We&apos;ve sent a verification link to your email address.
-      </p>
+      </MutedText>
     </div>
   );
 }
@@ -40,10 +40,10 @@ function CardHeading() {
 /** The oracle's `BbCardContent` — including the spam-folder hint. */
 function Instructions() {
   return (
-    <p className="text-sm text-muted-foreground">
+    <MutedText>
       Click the link in your email to verify your account. If you don&apos;t see it, check your spam
       folder.
-    </p>
+    </MutedText>
   );
 }
 

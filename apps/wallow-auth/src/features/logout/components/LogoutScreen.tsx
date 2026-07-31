@@ -1,5 +1,5 @@
 import { buildConnectLogoutUrl, validateRedirectUriArgs } from "@bc-solutions-coder/sdk";
-import { Card } from "@bc-solutions-coder/ui";
+import { Card, MutedText, Text } from "@bc-solutions-coder/ui";
 import { useQuery } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
 import type { ReactNode } from "react";
@@ -118,9 +118,15 @@ function isRedirectUriAllowed(body: unknown): boolean {
  */
 function CardHeading({ signedOut }: { readonly signedOut: boolean }) {
   return (
-    <h1 className="text-lg font-semibold text-card-foreground">
-      <span data-testid="logout-confirm-heading">{signedOut ? "Signed out" : "Sign out"}</span>
-    </h1>
+    /*
+      `as="h2"`, not the `<h1>` this card used to open: `AuthLayout` owns the
+      page's one level-1 heading. The testid moves off the inner `<span>` and
+      onto the heading itself — the span existed only to carry it, and it names
+      exactly the same text.
+    */
+    <Text as="h2" variant="subheading" color="onCard" data-testid="logout-confirm-heading">
+      {signedOut ? "Signed out" : "Sign out"}
+    </Text>
   );
 }
 
@@ -138,7 +144,7 @@ function ConfirmStep({ postLogoutRedirectUri }: { readonly postLogoutRedirectUri
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">Are you sure you want to sign out?</p>
+      <MutedText>Are you sure you want to sign out?</MutedText>
       <a
         href={logoutUrl}
         data-testid="logout-confirm-button"
@@ -177,7 +183,7 @@ function ReturnLink({ uri }: { readonly uri: string }) {
 function SignedOutLanding({ returnUri }: { readonly returnUri?: string }) {
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">You have been successfully signed out.</p>
+      <MutedText>You have been successfully signed out.</MutedText>
       {returnUri === undefined ? null : <ReturnLink uri={returnUri} />}
     </div>
   );

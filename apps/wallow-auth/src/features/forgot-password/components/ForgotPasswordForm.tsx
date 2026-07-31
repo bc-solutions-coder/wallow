@@ -1,5 +1,5 @@
 import { AppForm, SubmitButton, useAppForm } from "@bc-solutions-coder/forms";
-import { Card, CardTitle } from "@bc-solutions-coder/ui";
+import { Card, CardTitle, MutedText, Text } from "@bc-solutions-coder/ui";
 import { useRouteContext } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import { z } from "zod";
@@ -70,10 +70,12 @@ function SubmittedConfirmation() {
       className="rounded-md border border-border p-4 space-y-1"
       data-testid="forgot-password-success"
     >
-      <p className="text-sm font-medium text-foreground">Check your email</p>
-      <p className="text-sm text-muted-foreground">
+      <Text as="p" variant="bodySm" weight="medium">
+        Check your email
+      </Text>
+      <MutedText>
         If an account exists with that email, we&apos;ve sent a password reset link.
-      </p>
+      </MutedText>
     </div>
   );
 }
@@ -136,9 +138,7 @@ function CardHeading() {
   return (
     <div className="space-y-1">
       <CardTitle>Forgot your password?</CardTitle>
-      <p className="text-sm text-muted-foreground">
-        Enter your email address and we&apos;ll send you a reset link.
-      </p>
+      <MutedText>Enter your email address and we&apos;ll send you a reset link.</MutedText>
     </div>
   );
 }

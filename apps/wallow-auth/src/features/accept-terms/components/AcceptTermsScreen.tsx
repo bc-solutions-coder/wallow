@@ -1,4 +1,4 @@
-import { Button, Card, Checkbox, ErrorBanner } from "@bc-solutions-coder/ui";
+import { Button, Card, Checkbox, ErrorBanner, MutedText, Text } from "@bc-solutions-coder/ui";
 import { useId, useState, type ReactNode } from "react";
 import { BASE_PATH, toAppHref } from "@shared/lib/base-path";
 
@@ -121,11 +121,13 @@ function ErrorAlert({ code }: { readonly code: string }) {
 function SigningUpAs({ email, name }: { readonly email: string; readonly name?: string }) {
   return (
     <div className="rounded-md border border-border p-3 text-sm">
-      <p className="text-muted-foreground">Signing up as</p>
+      <MutedText>Signing up as</MutedText>
       {name === undefined || name === "" ? null : (
-        <p className="font-medium text-foreground">{name}</p>
+        <Text as="p" variant="bodySm" weight="medium">
+          {name}
+        </Text>
       )}
-      <p className="text-muted-foreground">{email}</p>
+      <MutedText>{email}</MutedText>
     </div>
   );
 }
@@ -297,15 +299,16 @@ export function AcceptTermsScreen({
   return (
     <Card>
       <div className="space-y-1 text-center">
-        <h1
-          className="text-lg font-semibold text-card-foreground"
-          data-testid="accept-terms-heading"
-        >
+        {/*
+          `as="h2"`, not the `<h1>` this screen used to open: `AuthLayout` owns
+          the page's one level-1 heading and it is `FocusOnNavigate`'s focus
+          target, so a second `<h1>` inside the card was an a11y defect the
+          migration fixes rather than carries across.
+        */}
+        <Text as="h2" variant="subheading" color="onCard" data-testid="accept-terms-heading">
           Almost there!
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Please accept our terms to create your account
-        </p>
+        </Text>
+        <MutedText>Please accept our terms to create your account</MutedText>
       </div>
 
       <div className="space-y-4">
@@ -336,12 +339,12 @@ export function AcceptTermsScreen({
         cookie to expire on its own (10 min); there is nothing to clean up
         client-side.
       */}
-      <p className="text-center text-sm text-muted-foreground">
+      <MutedText className="text-center">
         Changed your mind?{" "}
         <a href={toAppHref("/login")} className="text-primary underline-offset-4 hover:underline">
           Back to sign in
         </a>
-      </p>
+      </MutedText>
     </Card>
   );
 }

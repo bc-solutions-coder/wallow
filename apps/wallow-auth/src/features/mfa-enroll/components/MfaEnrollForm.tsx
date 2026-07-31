@@ -1,5 +1,15 @@
 import { isSafeReturnUrl, type MfaEnrollmentConfirmedResponse } from "@bc-solutions-coder/sdk";
-import { Button, Card, CardTitle, ErrorBanner, Field, Input, Label } from "@bc-solutions-coder/ui";
+import {
+  Button,
+  Card,
+  CardTitle,
+  ErrorBanner,
+  Field,
+  Input,
+  Label,
+  MutedText,
+  Text,
+} from "@bc-solutions-coder/ui";
 import { useMutation } from "@bc-solutions-coder/query";
 import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { QRCodeSVG } from "qrcode.react";
@@ -234,9 +244,9 @@ function CardHeading() {
   return (
     <div className="space-y-1 text-center">
       <CardTitle>Set up two-factor authentication</CardTitle>
-      <p className="text-sm text-muted-foreground">
+      <MutedText>
         Scan the QR code with your authenticator app, then enter the code to confirm.
-      </p>
+      </MutedText>
     </div>
   );
 }
@@ -263,11 +273,11 @@ function SecretPanel({
 }) {
   return (
     <div className="text-center space-y-2">
-      <p className="text-sm text-muted-foreground">
-        Scan this QR code with your authenticator app:
-      </p>
+      <MutedText>Scan this QR code with your authenticator app:</MutedText>
       {qrUri === null ? null : <QrPanel qrUri={qrUri} />}
-      <p className="text-xs text-muted-foreground">Or enter this secret manually:</p>
+      <Text as="p" variant="caption" color="muted">
+        Or enter this secret manually:
+      </Text>
       <div className="bg-muted rounded-md p-2 font-mono text-sm" data-testid="mfa-enroll-secret">
         {secret}
       </div>
@@ -325,11 +335,13 @@ function BackupCodesPanel({ codes }: { readonly codes: readonly string[] }) {
   return (
     <>
       <div className="rounded-md border border-success bg-success/10 p-3">
-        <p className="text-sm font-medium text-foreground">MFA enabled successfully</p>
-        <p className="text-sm text-muted-foreground">
+        <Text as="p" variant="bodySm" weight="medium">
+          MFA enabled successfully
+        </Text>
+        <MutedText>
           Save these backup codes in a safe place. They can be used to access your account if you
           lose your authenticator device.
-        </p>
+        </MutedText>
       </div>
       <div
         className="bg-muted rounded-md p-4 font-mono text-sm space-y-1"
@@ -347,11 +359,13 @@ function BackupCodesPanel({ codes }: { readonly codes: readonly string[] }) {
 function IntroCopy() {
   return (
     <div className="text-sm text-muted-foreground space-y-2">
-      <p>
+      <MutedText>
         Two-factor authentication adds an extra layer of security to your account by requiring a
         code from an authenticator app when you sign in.
-      </p>
-      <p className="font-semibold text-foreground">You will need:</p>
+      </MutedText>
+      <Text as="p" variant="bodySm" weight="semibold">
+        You will need:
+      </Text>
       <ul className="list-disc list-inside space-y-1">
         <IntroRequirements />
       </ul>

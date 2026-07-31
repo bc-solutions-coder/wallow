@@ -1,5 +1,5 @@
 import { buildConsentSubmitUrl, consentInfoArgs, isSafeReturnUrl } from "@bc-solutions-coder/sdk";
-import { Card, ErrorBanner } from "@bc-solutions-coder/ui";
+import { Button, Card, ErrorBanner, MutedText, Text } from "@bc-solutions-coder/ui";
 import { useQuery } from "@bc-solutions-coder/query";
 import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { useEffect, useMemo, type ReactNode } from "react";
@@ -156,9 +156,9 @@ function ConsentHeading({ info }: { readonly info: ConsentPrompt }) {
   const name: string = info.displayName ?? info.clientId;
 
   return (
-    <h2 className="text-lg font-semibold text-card-foreground" data-testid="consent-heading">
+    <Text as="h2" variant="subheading" color="onCard" data-testid="consent-heading">
       {name} is requesting access
-    </h2>
+    </Text>
   );
 }
 
@@ -177,10 +177,10 @@ function ScopeList({ scopes }: { readonly scopes: readonly RequestedScope[] }) {
     <ul className="space-y-2" data-testid="consent-scopes">
       {scopes.map((scope: RequestedScope) => (
         <li key={scope.name} className="space-y-0.5">
-          <p className="text-sm font-medium text-foreground">{scope.name}</p>
-          {scope.description === null ? null : (
-            <p className="text-sm text-muted-foreground">{scope.description}</p>
-          )}
+          <Text as="p" variant="bodySm" weight="medium">
+            {scope.name}
+          </Text>
+          {scope.description === null ? null : <MutedText>{scope.description}</MutedText>}
         </li>
       ))}
     </ul>
@@ -197,22 +197,16 @@ function ConsentActions(props: { readonly onApprove: () => void; readonly onDeny
 
   return (
     <div className="space-y-2">
-      <button
-        type="button"
-        data-testid="consent-approve"
-        onClick={onApprove}
-        className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
-      >
+      <Button type="button" data-testid="consent-approve" onClick={onApprove}>
         Approve
-      </button>
-      <button
-        type="button"
-        data-testid="consent-deny"
-        onClick={onDeny}
-        className="w-full rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground"
-      >
+      </Button>
+      {/*
+        `outline`, the variant F3.T1 added for exactly this: a deny that paints
+        the same solid surface as approve gives the two answers equal weight.
+      */}
+      <Button type="button" variant="outline" data-testid="consent-deny" onClick={onDeny}>
         Deny
-      </button>
+      </Button>
     </div>
   );
 }

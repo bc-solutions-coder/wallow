@@ -1,6 +1,6 @@
 import type { InvitationResponse } from "@bc-solutions-coder/sdk";
 import { forkBranding } from "@bc-solutions-coder/styles";
-import { Card, ErrorBanner } from "@bc-solutions-coder/ui";
+import { Button, Card, ErrorBanner, MutedText, Text } from "@bc-solutions-coder/ui";
 import { useMutation, useQuery } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
 import type { ReactNode } from "react";
@@ -211,8 +211,10 @@ function loginHref(token: string): string {
 function CardHeading() {
   return (
     <div className="text-center space-y-1">
-      <h2 className="text-lg font-semibold text-card-foreground">You&apos;ve been invited</h2>
-      <p className="text-sm text-muted-foreground">Join {forkBranding.appName}</p>
+      <Text as="h2" variant="subheading" color="onCard">
+        You&apos;ve been invited
+      </Text>
+      <MutedText>Join {forkBranding.appName}</MutedText>
     </div>
   );
 }
@@ -220,9 +222,9 @@ function CardHeading() {
 /** The oracle's `_isLoading` branch: the verify is in flight and nothing else. */
 export function InvitationLoading() {
   return (
-    <p className="text-sm text-muted-foreground text-center" data-testid="invitation-loading">
+    <MutedText className="text-center" data-testid="invitation-loading">
       Loading invitation...
-    </p>
+    </MutedText>
   );
 }
 
@@ -248,12 +250,14 @@ function ErrorState({ message }: { readonly message: string }) {
  */
 function InvitationInfo({ email }: { readonly email: string }) {
   return (
-    <p
-      className="rounded-md border border-border bg-muted/40 p-3 text-sm text-foreground"
+    <Text
+      as="p"
+      variant="bodySm"
+      className="rounded-md border border-border bg-muted/40 p-3"
       data-testid="invitation-info"
     >
       You&apos;ve been invited to join {forkBranding.appName} as {email}.
-    </p>
+    </Text>
   );
 }
 
@@ -277,23 +281,36 @@ function AcceptActions(props: { readonly isSubmitting: boolean; readonly onAccep
 
   return (
     <div className="flex gap-2">
-      <button
+      <Button
         type="button"
+        width="auto"
+        className="flex-1"
         data-testid="invitation-accept"
         disabled={isSubmitting}
         onClick={onAccept}
-        className="flex-1 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
       >
         Yes, join
-      </button>
-      <a
+      </Button>
+      {/*
+        Decline stays an ANCHOR — see the note above — so it composes onto one
+        through `render` rather than becoming a button. `nativeButton={false}`
+        tells Base UI the rendered element is not a `<button>`, which is what
+        keeps it from logging a dev-mode error; `role="link"` then undoes the
+        `role="button"` Base UI stamps on every non-native element it composes
+        onto, because this control navigates rather than acts.
+      */}
+      <Button
+        render={<a href={isSubmitting ? undefined : HOME_HREF} />}
+        nativeButton={false}
+        role="link"
+        variant="outline"
+        width="auto"
+        className="flex-1"
         data-testid="invitation-decline"
-        href={isSubmitting ? undefined : HOME_HREF}
         aria-disabled={isSubmitting}
-        className="flex-1 rounded-md border border-border px-3 py-2 text-center text-sm font-medium text-foreground"
       >
         No thanks
-      </a>
+      </Button>
     </div>
   );
 }
@@ -308,7 +325,9 @@ function AuthenticatedActions(props: {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-center">Would you like to join {forkBranding.appName}?</p>
+      <Text as="p" variant="bodySm" align="center">
+        Would you like to join {forkBranding.appName}?
+      </Text>
       {acceptError === null ? null : (
         <ErrorBanner data-testid="invitation-accept-error">{acceptError}</ErrorBanner>
       )}
@@ -327,20 +346,28 @@ function AnonymousActions(props: { readonly email: string; readonly token: strin
 
   return (
     <div className="space-y-3">
-      <a
+      {/*
+        Both are real navigations, so they compose the recipe onto anchors the
+        way `Decline` does — and put back the `role="link"` Base UI overwrites
+        with `role="button"` on any non-native element.
+      */}
+      <Button
+        render={<a href={registerHref(email, token)} />}
+        nativeButton={false}
+        role="link"
         data-testid="invitation-create-account"
-        href={registerHref(email, token)}
-        className="block w-full rounded-md bg-primary px-3 py-2 text-center text-sm font-medium text-primary-foreground"
       >
         Create account
-      </a>
-      <a
+      </Button>
+      <Button
+        render={<a href={loginHref(token)} />}
+        nativeButton={false}
+        role="link"
+        variant="outline"
         data-testid="invitation-sign-in"
-        href={loginHref(token)}
-        className="block w-full rounded-md border border-border px-3 py-2 text-center text-sm font-medium text-foreground"
       >
         Sign in to accept
-      </a>
+      </Button>
     </div>
   );
 }

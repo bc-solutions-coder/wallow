@@ -1,7 +1,13 @@
 import type { ReactNode } from "react";
 
 import { forkBranding, type ResolvedBranding } from "@bc-solutions-coder/styles";
-import { CenteredCardLayout, ForkAttribution, ThemeToggle } from "@bc-solutions-coder/ui";
+import {
+  CenteredCardLayout,
+  ForkAttribution,
+  MutedText,
+  Text,
+  ThemeToggle,
+} from "@bc-solutions-coder/ui";
 
 import { appIconUrl, forkResolvedBranding } from "../lib/branding";
 
@@ -54,12 +60,15 @@ function BrandingHeader({ branding }: { readonly branding: ResolvedBranding }) {
   return (
     <div className="text-center mb-8">
       {branding.logoUrl !== null && <BrandingLogo src={branding.logoUrl} alt={branding.name} />}
-      <h1 data-focus-target tabIndex={-1} className="text-2xl font-bold text-foreground">
+      {/*
+        `variant="heading"` + `weight="bold"`, not the `display` scale `as="h1"`
+        derives: this is a card-sized branded title, and the weight override
+        lands after the variant's `font-semibold` so tailwind-merge keeps it.
+      */}
+      <Text as="h1" variant="heading" weight="bold" data-focus-target tabIndex={-1}>
         {branding.name}
-      </h1>
-      {branding.tagline !== null && (
-        <p className="text-sm text-muted-foreground mt-1">{branding.tagline}</p>
-      )}
+      </Text>
+      {branding.tagline !== null && <MutedText className="mt-1">{branding.tagline}</MutedText>}
     </div>
   );
 }

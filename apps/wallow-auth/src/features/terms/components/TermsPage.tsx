@@ -1,3 +1,4 @@
+import { Button, MutedText, Text } from "@bc-solutions-coder/ui";
 import type { ReactNode } from "react";
 import { toAppHref } from "@shared/lib/base-path";
 
@@ -66,10 +67,10 @@ const SECTIONS: readonly { readonly heading: string; readonly body: string }[] =
 function DocumentHeading() {
   return (
     <div className="px-0 pt-0 text-center space-y-1">
-      <h2 className="text-lg font-semibold text-card-foreground" data-testid="terms-heading">
+      <Text as="h2" variant="subheading" color="onCard" data-testid="terms-heading">
         Terms of Service
-      </h2>
-      <p className="text-sm text-muted-foreground">Last updated: {LAST_UPDATED}</p>
+      </Text>
+      <MutedText>Last updated: {LAST_UPDATED}</MutedText>
     </div>
   );
 }
@@ -86,10 +87,11 @@ function TermsSection({
 }) {
   return (
     <section className="space-y-2">
-      <h3 className="font-medium text-foreground">
+      {/* `bodySm`, not the `heading` scale `as="h3"` derives — see PrivacyPage. */}
+      <Text as="h3" variant="bodySm" weight="medium">
         {number}. {heading}
-      </h3>
-      <p>{body}</p>
+      </Text>
+      <MutedText>{body}</MutedText>
     </section>
   );
 }
@@ -118,13 +120,18 @@ function TermsBody() {
 function BackToRegister() {
   return (
     <div className="px-0 pt-6 pb-8 flex justify-center">
-      <a
-        href={toAppHref("/register")}
+      <Button
+        render={<a href={toAppHref("/register")} />}
+        nativeButton={false}
+        // Base UI stamps `role="button"` on every non-native element it composes
+        // onto; this one navigates, so the truthful role is put back. It merges
+        // last and wins.
+        role="link"
+        variant="outline"
         data-testid="terms-back-button"
-        className="block w-full rounded-md border border-border px-3 py-2 text-center text-sm font-medium text-foreground"
       >
         Back to Register
-      </a>
+      </Button>
     </div>
   );
 }

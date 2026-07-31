@@ -1,4 +1,4 @@
-import { Card, ErrorBanner } from "@bc-solutions-coder/ui";
+import { Card, ErrorBanner, Text } from "@bc-solutions-coder/ui";
 import type { ReactNode } from "react";
 import { toAppHref } from "@shared/lib/base-path";
 
@@ -61,9 +61,9 @@ function errorMessage(reason: string | undefined): string {
 /** The oracle's `BbCardHeader`. */
 function CardHeading() {
   return (
-    <h2 className="text-lg font-semibold text-card-foreground" data-testid="error-heading">
+    <Text as="h2" variant="subheading" color="onCard" data-testid="error-heading">
       Something went wrong
-    </h2>
+    </Text>
   );
 }
 

@@ -1,3 +1,4 @@
+import { Button, Text } from "@bc-solutions-coder/ui";
 import { useQuery } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
 import type { ReactNode } from "react";
@@ -103,10 +104,11 @@ function providerTestId(provider: string): string {
 function SeparatorCaption() {
   return (
     <div className="relative flex items-center justify-center">
-      <span className="absolute inset-x-0 top-1/2 border-t border-border" />
-      <span className="relative bg-card px-2 text-xs uppercase text-muted-foreground">
+      {/* The rule itself carries no copy, so it is a plain box rather than a Text. */}
+      <div className="absolute inset-x-0 top-1/2 border-t border-border" />
+      <Text as="span" variant="caption" color="muted" className="relative bg-card px-2 uppercase">
         Or continue with
-      </span>
+      </Text>
     </div>
   );
 }
@@ -114,13 +116,18 @@ function SeparatorCaption() {
 /** One provider's challenge link — the oracle's outline `BbButton Href=…`. */
 function ProviderLink({ provider, href }: { readonly provider: string; readonly href: string }) {
   return (
-    <a
-      className="inline-flex items-center justify-center rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
-      href={href}
+    <Button
+      render={<a href={href} />}
+      nativeButton={false}
+      // Base UI stamps `role="button"` on every non-native element it composes
+      // onto; this one navigates to the challenge endpoint, so the truthful role
+      // is put back. It merges last and wins.
+      role="link"
+      variant="outline"
       data-testid={providerTestId(provider)}
     >
       {provider}
-    </a>
+    </Button>
   );
 }
 

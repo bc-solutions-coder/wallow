@@ -1,5 +1,5 @@
 import { isSafeReturnUrl } from "@bc-solutions-coder/sdk";
-import { Card } from "@bc-solutions-coder/ui";
+import { Button, Card, MutedText, Text } from "@bc-solutions-coder/ui";
 import { useQuery } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
 import type { ReactNode } from "react";
@@ -101,7 +101,11 @@ function verifyFailureMessage(cause: unknown): string {
 
 /** The oracle's `BbCardHeader`. */
 function CardHeading() {
-  return <h2 className="text-lg font-semibold text-card-foreground">Email Verification</h2>;
+  return (
+    <Text as="h2" variant="subheading" color="onCard">
+      Email Verification
+    </Text>
+  );
 }
 
 /** The oracle's `_loading` branch: a spinner and nothing else. */
@@ -111,7 +115,9 @@ function LoadingState() {
       className="flex items-center justify-center py-4"
       data-testid="verify-email-confirm-loading"
     >
-      <span className="text-sm text-muted-foreground">Verifying your email...</span>
+      <Text as="span" variant="bodySm" color="muted">
+        Verifying your email...
+      </Text>
     </div>
   );
 }
@@ -123,10 +129,10 @@ function SuccessAlert() {
       className="rounded-md border border-border bg-muted/40 p-3 space-y-1"
       data-testid="verify-email-confirm-success"
     >
-      <p className="text-sm font-medium text-foreground">Email verified!</p>
-      <p className="text-sm text-muted-foreground">
-        Your email has been verified. You can now sign in.
-      </p>
+      <Text as="p" variant="bodySm" weight="medium">
+        Email verified!
+      </Text>
+      <MutedText>Your email has been verified. You can now sign in.</MutedText>
     </div>
   );
 }
@@ -142,13 +148,19 @@ function SuccessAlert() {
  */
 function ContinueButton({ returnUrl }: { readonly returnUrl: string }) {
   return (
-    <a
-      href={returnUrl}
+    <Button
+      render={<a href={returnUrl} />}
+      nativeButton={false}
+      // Base UI stamps `role="button"` on every non-native element it composes
+      // the button behaviour onto (internals/use-button: `isNativeButton ?
+      // {type:'button'} : {role:'button'}`). On a real <a href> that is a LIE to
+      // the accessibility tree — this control navigates, it does not act — so
+      // the role is put back. It merges last and therefore wins.
+      role="link"
       data-testid="verify-email-confirm-continue"
-      className="block w-full rounded-md bg-primary px-3 py-2 text-center text-sm font-medium text-primary-foreground"
     >
       Continue
-    </a>
+    </Button>
   );
 }
 
@@ -171,8 +183,12 @@ function ErrorState({ message }: { readonly message: string }) {
       className="rounded-md border border-destructive bg-destructive/10 p-3 space-y-1"
       data-testid="verify-email-confirm-error"
     >
-      <p className="text-sm font-medium text-destructive">Verification failed</p>
-      <p className="text-sm text-destructive">{message}</p>
+      <Text as="p" variant="bodySm" color="destructive" weight="medium">
+        Verification failed
+      </Text>
+      <Text as="p" variant="bodySm" color="destructive">
+        {message}
+      </Text>
     </div>
   );
 }

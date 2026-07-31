@@ -1,5 +1,5 @@
 import { buildExchangeTicketUrl, isSafeReturnUrl } from "@bc-solutions-coder/sdk";
-import { Card, CardTitle, ErrorBanner, Tabs } from "@bc-solutions-coder/ui";
+import { Card, CardTitle, ErrorBanner, MutedText, Tabs, Text } from "@bc-solutions-coder/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 
@@ -100,11 +100,13 @@ function MfaEnrollmentBanner({ deadline }: { readonly deadline: string }) {
       className="rounded-md border border-warning bg-warning/10 p-3 space-y-2"
       data-testid="login-mfa-enrollment-banner"
     >
-      <p className="text-sm font-medium text-foreground">MFA enrollment required</p>
-      <p className="text-sm text-muted-foreground">
+      <Text as="p" variant="bodySm" weight="medium">
+        MFA enrollment required
+      </Text>
+      <MutedText>
         Your organization requires two-factor authentication. Please set it up before{" "}
         {formatGraceDeadline(deadline)}.
-      </p>
+      </MutedText>
       <a className="inline-block text-sm font-medium text-primary" href={toAppHref("/mfa/enroll")}>
         Set up now
       </a>
@@ -125,7 +127,9 @@ function PasswordResetNotice() {
       className="rounded-md border border-success bg-success/10 p-3"
       data-testid="login-password-reset-notice"
     >
-      <p className="text-sm text-foreground">Your password has been reset. You can now sign in.</p>
+      <Text as="p" variant="bodySm">
+        Your password has been reset. You can now sign in.
+      </Text>
     </div>
   );
 }
@@ -137,7 +141,9 @@ function SignedInBanner() {
       className="rounded-md border border-success bg-success/10 p-3"
       data-testid="login-signed-in"
     >
-      <p className="text-sm text-foreground">You are now signed in.</p>
+      <Text as="p" variant="bodySm">
+        You are now signed in.
+      </Text>
     </div>
   );
 }
@@ -147,7 +153,7 @@ function CardHeading() {
   return (
     <div className="space-y-1 text-center">
       <CardTitle>Sign in to your account</CardTitle>
-      <p className="text-sm text-muted-foreground">Enter your credentials to continue</p>
+      <MutedText>Enter your credentials to continue</MutedText>
     </div>
   );
 }

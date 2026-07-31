@@ -1,4 +1,4 @@
-import { Button, Field, Input, Label } from "@bc-solutions-coder/ui";
+import { Button, Field, Input, Label, Text } from "@bc-solutions-coder/ui";
 import { useMutation, useQueryClient } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useRef, useState } from "react";
@@ -114,7 +114,9 @@ function SentAlert() {
       className="rounded-md border border-success bg-success/10 p-3"
       data-testid="login-magic-link-sent"
     >
-      <p className="text-sm text-foreground">{MAGIC_LINK_SENT_MESSAGE}</p>
+      <Text as="p" variant="bodySm">
+        {MAGIC_LINK_SENT_MESSAGE}
+      </Text>
     </div>
   );
 }

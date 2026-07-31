@@ -1,5 +1,5 @@
 import { AppForm, FormError, SubmitButton, useAppForm } from "@bc-solutions-coder/forms";
-import { Card, CardTitle } from "@bc-solutions-coder/ui";
+import { Card, CardTitle, MutedText } from "@bc-solutions-coder/ui";
 import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import { z } from "zod";
@@ -228,7 +228,7 @@ function CardHeading() {
   return (
     <div className="space-y-1">
       <CardTitle>Reset your password</CardTitle>
-      <p className="text-sm text-muted-foreground">Enter your new password below.</p>
+      <MutedText>Enter your new password below.</MutedText>
     </div>
   );
 }

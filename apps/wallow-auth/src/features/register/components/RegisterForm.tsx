@@ -7,6 +7,8 @@ import {
   Field as FieldRow,
   Input,
   Label,
+  MutedText,
+  Text,
 } from "@bc-solutions-coder/ui";
 import { isSafeReturnUrl } from "@bc-solutions-coder/sdk";
 import { useMutation, useQuery } from "@bc-solutions-coder/query";
@@ -273,7 +275,7 @@ function CardHeading() {
   return (
     <div className="space-y-1 text-center">
       <CardTitle>Create an account</CardTitle>
-      <p className="text-sm text-muted-foreground">Enter your details to get started</p>
+      <MutedText>Enter your details to get started</MutedText>
     </div>
   );
 }
@@ -282,7 +284,9 @@ function CardHeading() {
 function OrgNameBanner({ orgName }: { readonly orgName: string }) {
   return (
     <div className="rounded-md border border-border bg-muted p-3" data-testid="register-org-name">
-      <p className="text-sm text-foreground">You&apos;re registering for {orgName}</p>
+      <Text as="p" variant="bodySm">
+        You&apos;re registering for {orgName}
+      </Text>
     </div>
   );
 }
@@ -291,7 +295,7 @@ function OrgNameBanner({ orgName }: { readonly orgName: string }) {
 function InitLoading() {
   return (
     <div className="py-6 text-center" data-testid="register-loading">
-      <p className="text-sm text-muted-foreground">Loading...</p>
+      <MutedText>Loading...</MutedText>
     </div>
   );
 }
@@ -306,7 +310,9 @@ function StrengthMeter({ strength }: { readonly strength: PasswordStrength }) {
           style={{ width: `${strength.percent}%` }}
         />
       </div>
-      <p className="text-xs text-muted-foreground">{strength.label}</p>
+      <Text as="p" variant="caption" color="muted">
+        {strength.label}
+      </Text>
     </div>
   );
 }
@@ -379,7 +385,9 @@ function PasswordBlock(props: {
           onChange={onConfirmChange}
         />
         {confirmPassword !== "" && password !== confirmPassword ? (
-          <p className="text-xs text-destructive">{PASSWORD_MISMATCH_MESSAGE}</p>
+          <Text as="p" variant="caption" color="destructive">
+            {PASSWORD_MISMATCH_MESSAGE}
+          </Text>
         ) : null}
       </div>
     </>
@@ -461,6 +469,28 @@ function PasswordlessToggle(props: {
   );
 }
 
+/**
+ * One provider's challenge link, split out of the grid below so the mapped
+ * element stays inside the JSX depth budget — the same shape the login
+ * feature's `ProviderLink` has.
+ */
+function ProviderLink({ provider }: { readonly provider: string }) {
+  return (
+    <Button
+      render={<a href={externalLoginUrl(provider)} />}
+      nativeButton={false}
+      // Base UI stamps `role="button"` on every non-native element it composes
+      // onto; this one navigates to the challenge endpoint, so the truthful role
+      // is put back. It merges last and wins.
+      role="link"
+      variant="outline"
+      data-testid={`register-external-${provider.toLowerCase()}`}
+    >
+      {provider}
+    </Button>
+  );
+}
+
 /** The oracle's "Or continue with" block, gated on `_externalProviders.Count > 0`. */
 function ExternalProviders({ providers }: { readonly providers: readonly string[] }) {
   if (providers.length === 0) {
@@ -469,17 +499,12 @@ function ExternalProviders({ providers }: { readonly providers: readonly string[
 
   return (
     <div className="space-y-3" data-testid="register-external-providers">
-      <p className="text-center text-xs uppercase text-muted-foreground">Or continue with</p>
+      <Text as="p" variant="caption" color="muted" align="center" className="uppercase">
+        Or continue with
+      </Text>
       <div className="grid grid-cols-2 gap-2">
         {providers.map((provider) => (
-          <a
-            key={provider}
-            href={externalLoginUrl(provider)}
-            className="rounded-md border border-border px-3 py-2 text-center text-sm text-foreground"
-            data-testid={`register-external-${provider.toLowerCase()}`}
-          >
-            {provider}
-          </a>
+          <ProviderLink key={provider} provider={provider} />
         ))}
       </div>
     </div>
@@ -497,12 +522,12 @@ function AlreadyHaveAccount({ returnUrl }: { readonly returnUrl?: string }) {
 
   return (
     <div className="w-full text-center">
-      <p className="text-sm text-muted-foreground">
+      <MutedText>
         Already have an account?{" "}
         <a href={href} className="text-primary underline-offset-4 hover:underline">
           Sign in
         </a>
-      </p>
+      </MutedText>
     </div>
   );
 }

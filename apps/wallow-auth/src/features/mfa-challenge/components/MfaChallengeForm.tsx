@@ -5,7 +5,17 @@ import {
   isSafeReturnUrl,
   validateRedirectUriArgs,
 } from "@bc-solutions-coder/sdk";
-import { Button, Card, CardTitle, ErrorBanner, Field, Input, Label } from "@bc-solutions-coder/ui";
+import {
+  Button,
+  Card,
+  CardTitle,
+  ErrorBanner,
+  Field,
+  Input,
+  Label,
+  MutedText,
+  Text,
+} from "@bc-solutions-coder/ui";
 import { useMutation, useQuery } from "@bc-solutions-coder/query";
 import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useState } from "react";
@@ -243,11 +253,11 @@ function CardHeading({ useBackupCode }: { readonly useBackupCode: boolean }) {
   return (
     <div className="space-y-1">
       <CardTitle>Two-factor authentication</CardTitle>
-      <p className="text-sm text-muted-foreground">
+      <MutedText>
         {useBackupCode
           ? "Enter one of your backup codes to continue."
           : "Enter the code from your authenticator app to continue."}
-      </p>
+      </MutedText>
     </div>
   );
 }
@@ -259,7 +269,9 @@ function SuccessBanner() {
       className="rounded-md border border-success bg-success/10 p-3"
       data-testid="mfa-challenge-success"
     >
-      <p className="text-sm text-foreground">Verification successful. Redirecting...</p>
+      <Text as="p" variant="bodySm">
+        Verification successful. Redirecting...
+      </Text>
     </div>
   );
 }
@@ -302,14 +314,21 @@ function ToggleBackupCode(props: {
 
   return (
     <div className="text-center">
-      <button
+      {/*
+        `width="auto"` is mandatory here — the recipe's width defaults to `full`
+        for the eleven call sites that want it, and this quiet toggle sitting
+        under a full-width Verify must not become a second button competing
+        with it. `link` is the variant that draws no box at all.
+      */}
+      <Button
         type="button"
-        className="text-sm text-muted-foreground hover:text-foreground"
+        variant="link"
+        width="auto"
         data-testid="mfa-challenge-toggle-backup"
         onClick={onToggle}
       >
         {useBackupCode ? "Use authenticator code instead" : "Use backup code instead"}
-      </button>
+      </Button>
     </div>
   );
 }
