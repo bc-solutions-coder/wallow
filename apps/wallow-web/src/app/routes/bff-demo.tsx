@@ -8,6 +8,7 @@ import {
   usersGetCurrentUser,
   type WallowUser,
 } from "@bc-solutions-coder/sdk";
+import { Text } from "@bc-solutions-coder/ui";
 import { createFileRoute, useRouteContext } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
@@ -147,14 +148,20 @@ function BffDemoComponent() {
 
   return (
     <main>
-      <h1>Wallow BFF example</h1>
+      <Text as="h1">Wallow BFF example</Text>
 
-      <p>
-        Status: <span data-testid="bff-user-status">{status}</span>
-      </p>
-      <p>
-        Signed in as: <span data-testid="bff-user-email">{email}</span>
-      </p>
+      <Text as="p">
+        Status:{" "}
+        <Text as="span" data-testid="bff-user-status">
+          {status}
+        </Text>
+      </Text>
+      <Text as="p">
+        Signed in as:{" "}
+        <Text as="span" data-testid="bff-user-email">
+          {email}
+        </Text>
+      </Text>
 
       <button type="button" data-testid="bff-login" onClick={() => login("/")}>
         Sign in
