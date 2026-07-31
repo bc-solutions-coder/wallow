@@ -1,6 +1,10 @@
-import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import {
+  createSdkHarness,
+  type SdkCall,
+  type SdkHarness,
+} from "@bc-solutions-coder/testing/sdk-harness";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { RegisterAppForm } from "./RegisterAppForm";
@@ -31,6 +35,18 @@ import { RegisterAppForm } from "./RegisterAppForm";
  *
  * The `<legend>Branding (optional)</legend>` above them names the FIELDSET, not
  * the controls inside it, so it does not close this gap either.
+ *
+ * WHAT WALLOW-LRLM.6.2 ADDS. The block stops being uncontrolled: the two text
+ * controls become catalog `TextField`s (keeping their ids via an explicit
+ * `testId` override) so the fix moves the naming onto the ui `Field` row every
+ * other field on this form already uses, and the five assertions above go on
+ * passing through it. Becoming real fields brings a message with them, and a
+ * MESSAGE has the same association problem a label does — so the sixth case
+ * asserts the one the uncontrolled block could never have had: the branding
+ * display name is conditionally required (the endpoint 400s on a blank
+ * `DisplayName`, so a tagline or logo without one cannot be sent), and that
+ * message must be pointed at by the control's `aria-describedby` with
+ * `aria-invalid` set, not merely rendered somewhere nearby.
  */
 
 /** The transport backing each render, rebuilt per test. */
@@ -59,6 +75,17 @@ function hasProgrammaticLabel(input: HTMLInputElement): boolean {
     input.getAttribute("aria-label") !== null ||
     input.getAttribute("aria-labelledby") !== null
   );
+}
+
+/**
+ * The ids `control` points its `aria-describedby` at. Split rather than compared
+ * whole: Base UI appends the message to whatever else already describes the
+ * control, so the claim is that it is AMONG them, not that it is alone.
+ */
+function describedByIds(control: HTMLElement): readonly string[] {
+  return (control.getAttribute("aria-describedby") ?? "")
+    .split(" ")
+    .filter((id: string) => id !== "");
 }
 
 describe("RegisterAppForm — branding accessible names", () => {
@@ -103,5 +130,32 @@ describe("RegisterAppForm — branding accessible names", () => {
       .element(page.getByTestId("app-branding-display-name"))
       .toHaveAccessibleName(/display name/i);
     await expect.element(page.getByTestId("app-branding-tagline")).toHaveAccessibleName(/tagline/i);
+  });
+
+  it("associates the conditional-required message with the branding display-name input", async () => {
+    // A tagline with no display name cannot be upserted — the endpoint rejects a
+    // blank `DisplayName` — so the form has to say so, ON the control that is
+    // missing rather than in a banner the user has to connect up by eye.
+    renderWithWallow(<RegisterAppForm />, { harness });
+
+    await userEvent.type(page.getByTestId("app-display-name"), "My App");
+    await userEvent.type(page.getByTestId("app-branding-tagline"), "Ship faster");
+    await userEvent.click(page.getByTestId("app-register-submit"));
+
+    const message = page.getByTestId("app-branding-display-name-error");
+    await expect.element(message).toBeInTheDocument();
+
+    const messageId: string = message.element().id;
+    expect(messageId).not.toBe("");
+
+    const control: HTMLInputElement = inputAt("app-branding-display-name");
+    expect(describedByIds(control)).toContain(messageId);
+    expect(control.getAttribute("aria-invalid")).toBe("true");
+
+    // The message is the point, but it is only honest if the request it stands
+    // in for really did not go out.
+    expect(harness.calls.filter((call: SdkCall) => call.path.endsWith("/branding"))).toHaveLength(
+      0,
+    );
   });
 });
