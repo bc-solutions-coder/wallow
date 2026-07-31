@@ -426,6 +426,22 @@ importers:
         specifier: ^2.2.0
         version: 2.2.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(vitest@4.1.10)
 
+  packages/lint:
+    dependencies:
+      '@oxlint/plugins':
+        specifier: ^1.76.0
+        version: 1.76.0
+    devDependencies:
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.13.3
+      typescript:
+        specifier: catalog:tooling
+        version: 7.0.2
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@24.13.3)(@vitest/browser-playwright@4.1.10)(jsdom@29.1.1)(vite@8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))
+
   packages/query:
     dependencies:
       '@tanstack/react-query':
@@ -1537,6 +1553,10 @@ packages:
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [win32]
+
+  '@oxlint/plugins@1.76.0':
+    resolution: {integrity: sha512-twmbsVrYAjkaOw6I2pDiYSAxVLNOV8kcqMzajJ599SpqXzea+GjDCZVad1VUqNR/4thWjM4PER5n+3/TQtTkZQ==}
+    engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
 
   '@playwright/test@1.61.1':
     resolution: {integrity: sha512-8nKv6+0RJSL9FE4jYOEGXnPeM/Hg12qZpmqzZjRh3qM0Y7c3z1mrOTfFLids72RDQYVh9WpLEfR5WdpNX4fkig==}
@@ -4788,6 +4808,8 @@ snapshots:
 
   '@oxlint/binding-win32-x64-msvc@1.74.0':
     optional: true
+
+  '@oxlint/plugins@1.76.0': {}
 
   '@playwright/test@1.61.1':
     dependencies:

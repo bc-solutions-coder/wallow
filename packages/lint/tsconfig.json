@@ -1,0 +1,15 @@
+{
+  // Inherits the workspace-standard TypeScript semantics from the repo-root base
+  // config. Typecheck only — no emit settings here; see tsconfig.base.json.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // oxlint loads src/index.ts as plain Node ESM, which rejects extensionless
+    // relative specifiers. Rule modules therefore import each other as
+    // "./rules/no-tinted-text.ts", which TypeScript only permits with this on.
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "types": ["node"]
+  },
+  // `src` ONLY. fixtures/ holds deliberately broken code and must never be typechecked.
+  "include": ["src", "vitest.config.ts"]
+}

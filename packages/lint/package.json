@@ -1,0 +1,40 @@
+{
+  "name": "@bc-solutions-coder/lint",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Wallow's own oxlint JS plugin rules",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      }
+    }
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@oxlint/plugins": "^1.76.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "catalog:tooling",
+    "vitest": "^4.1.10"
+  }
+}
