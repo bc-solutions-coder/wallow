@@ -114,3 +114,9 @@ storybook-static/
 
 # Playwright MCP debug artifacts (console logs, page snapshots)
 .playwright-mcp/
+
+# Lint-gate fixtures (written and deleted per assertion by src/lint-gate.test.ts).
+# Gitignored so oxlint skips them while WALKING a directory but still lints one
+# handed to it explicitly — which is what keeps a fixture leaked by a crashed run
+# from failing `pnpm lint` for everyone.
+__lintfixtures__/

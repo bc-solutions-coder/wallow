@@ -1,0 +1,78 @@
+{
+  "$schema": "../../node_modules/oxlint/configuration_schema.json",
+  "extends": ["../../.oxlintrc.json"],
+  "jsPlugins": ["../../tools/oxlint/wallow-lint-plugin.js"],
+  "ignorePatterns": [
+    "**/dist/**",
+    "**/generated/**",
+    "**/routeTree.gen.ts",
+    "**/.output/**",
+    "**/.nitro/**",
+    "**/.tanstack/**"
+  ],
+  "rules": {
+    "wallow/no-sidebar-inversion": "error",
+    "react/forbid-elements": [
+      "error",
+      {
+        "forbid": [
+          {
+            "element": "p",
+            "message": "Raw <p> decides the type scale a second time. Render copy through Text from @bc-solutions-coder/ui (<Text>, or MutedText for secondary copy) so the catalog owns the scale."
+          },
+          {
+            "element": "span",
+            "message": "Raw <span> decides the type scale a second time. Render copy through Text from @bc-solutions-coder/ui (<Text as=\"span\">, or MutedText for secondary copy) so the catalog owns the scale."
+          },
+          {
+            "element": "h1",
+            "message": "Raw <h1> decides the type scale a second time. Render headings through Text from @bc-solutions-coder/ui (<Text as=\"h1\" variant=\"h1\">), or through PageHeader for a page title."
+          },
+          {
+            "element": "h2",
+            "message": "Raw <h2> decides the type scale a second time. Render headings through Text from @bc-solutions-coder/ui (<Text as=\"h2\" variant=\"h2\">), or through the Card and Section headings that already wrap it."
+          },
+          {
+            "element": "h3",
+            "message": "Raw <h3> decides the type scale a second time. Render headings through Text from @bc-solutions-coder/ui (<Text as=\"h3\" variant=\"h3\">), or through the Card and Section headings that already wrap it."
+          },
+          {
+            "element": "h4",
+            "message": "Raw <h4> decides the type scale a second time. Render headings through Text from @bc-solutions-coder/ui (<Text as=\"h4\" variant=\"h4\">), or through the Card and Section headings that already wrap it."
+          },
+          {
+            "element": "h5",
+            "message": "Raw <h5> decides the type scale a second time. Render headings through Text from @bc-solutions-coder/ui (<Text as=\"h5\">), or through the Card and Section headings that already wrap it."
+          },
+          {
+            "element": "h6",
+            "message": "Raw <h6> decides the type scale a second time. Render headings through Text from @bc-solutions-coder/ui (<Text as=\"h6\">), or through the Card and Section headings that already wrap it."
+          }
+        ]
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["**/*.{ts,tsx}"],
+      "rules": {
+        "unicorn/filename-case": ["error", { "cases": { "kebabCase": true, "pascalCase": true } }],
+        "no-magic-numbers": ["warn", { "ignore": [0, 1] }]
+      }
+    },
+    {
+      "files": ["src/features/*/api.test.ts"],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    },
+    {
+      "files": ["**/*.test.*", "**/*.stories.tsx"],
+      "rules": {
+        "no-magic-numbers": "off",
+        "react/forbid-elements": "off",
+        "wallow/no-sidebar-inversion": "off"
+      }
+    }
+  ]
+}
