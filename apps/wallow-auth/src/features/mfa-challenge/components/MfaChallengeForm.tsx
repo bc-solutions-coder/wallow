@@ -8,7 +8,6 @@ import {
 import {
   Button,
   Card,
-  CardTitle,
   ErrorBanner,
   Field,
   Input,
@@ -252,7 +251,9 @@ interface VerifyResult {
 function CardHeading({ useBackupCode }: { readonly useBackupCode: boolean }) {
   return (
     <div className="space-y-1">
-      <CardTitle>Two-factor authentication</CardTitle>
+      <Text as="h2" variant="body" weight="semibold" color="onCard">
+        Two-factor authentication
+      </Text>
       <MutedText>
         {useBackupCode
           ? "Enter one of your backup codes to continue."

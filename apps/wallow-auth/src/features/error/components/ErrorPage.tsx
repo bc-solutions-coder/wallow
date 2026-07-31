@@ -61,7 +61,7 @@ function errorMessage(reason: string | undefined): string {
 /** The oracle's `BbCardHeader`. */
 function CardHeading() {
   return (
-    <Text as="h2" variant="subheading" color="onCard" data-testid="error-heading">
+    <Text as="h2" variant="body" weight="semibold" color="onCard" data-testid="error-heading">
       Something went wrong
     </Text>
   );

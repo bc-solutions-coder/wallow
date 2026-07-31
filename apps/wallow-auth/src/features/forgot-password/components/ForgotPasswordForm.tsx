@@ -1,5 +1,5 @@
 import { AppForm, SubmitButton, useAppForm } from "@bc-solutions-coder/forms";
-import { Card, CardTitle, MutedText, Text } from "@bc-solutions-coder/ui";
+import { Card, MutedText, Text } from "@bc-solutions-coder/ui";
 import { useRouteContext } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import { z } from "zod";
@@ -137,7 +137,9 @@ function RequestResetForm(props: { readonly onSubmitted: () => void }) {
 function CardHeading() {
   return (
     <div className="space-y-1">
-      <CardTitle>Forgot your password?</CardTitle>
+      <Text as="h2" variant="body" weight="semibold" color="onCard">
+        Forgot your password?
+      </Text>
       <MutedText>Enter your email address and we&apos;ll send you a reset link.</MutedText>
     </div>
   );

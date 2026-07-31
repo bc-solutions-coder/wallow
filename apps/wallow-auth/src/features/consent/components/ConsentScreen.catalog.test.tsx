@@ -51,18 +51,22 @@ function consentInfo() {
 /**
  * The utilities each assertion measures against, rendered beside the screen.
  *
- * `text-xl` is `Text`'s `subheading` step — the scale a card heading lands on
- * once it stops naming `text-lg` — and `text-lg` is the step it leaves. Both are
- * rendered so the spec can prove they are DISTINGUISHABLE before claiming the
- * heading matches one of them.
+ * `text-base` is `Text`'s `body` step — the app-wide card-heading scale settled
+ * on by Wallow-lrlm.13 — and `text-lg`/`text-xl` are the two steps wallow-auth's
+ * headings used to split across before it. All three are rendered so the spec
+ * can prove they are DISTINGUISHABLE before claiming the heading matches one of
+ * them.
  */
 function StyleProbes() {
   return (
     <div data-testid="probes">
-      <div data-testid="probe-subheading" className="text-xl">
+      <div data-testid="probe-base" className="text-base">
         probe
       </div>
       <div data-testid="probe-lg" className="text-lg">
+        probe
+      </div>
+      <div data-testid="probe-xl" className="text-xl">
         probe
       </div>
       <div data-testid="probe-primary" className="bg-primary">
@@ -108,21 +112,36 @@ function box(testId: string): DOMRect {
 }
 
 describe("the consent card's heading takes its scale from Text", () => {
-  it("distinguishes the two type steps at all", async () => {
-    // The vacuity guard for the assertion below: if the Tailwind pipeline were
-    // missing, both probes would compute the inherited size and "the heading
-    // matches subheading" would also be "the heading matches text-lg".
+  it("distinguishes the three type steps at all", async () => {
+    // The vacuity guard for the assertions below: if the Tailwind pipeline were
+    // missing, all three probes would compute the inherited size and "the
+    // heading matches text-base" would also be "the heading matches text-lg".
     await renderPrompt();
 
-    expect(computed("probe-subheading", "font-size")).not.toBe(computed("probe-lg", "font-size"));
+    const steps: Set<string> = new Set([
+      computed("probe-base", "font-size"),
+      computed("probe-lg", "font-size"),
+      computed("probe-xl", "font-size"),
+    ]);
+
+    expect(steps).toHaveProperty("size", 3);
   });
 
-  it("renders the heading at the subheading step, not the hand-rolled text-lg", async () => {
+  it("renders the heading at the app-wide card-heading step", async () => {
     await renderPrompt();
 
-    expect(computed("consent-heading", "font-size")).toBe(
-      computed("probe-subheading", "font-size"),
-    );
+    expect(computed("consent-heading", "font-size")).toBe(computed("probe-base", "font-size"));
+  });
+
+  it("leaves the two steps this app's headings used to split across", async () => {
+    // The regression, stated as an absence: `text-xl` is where this screen's own
+    // heading sat, and `text-lg` is where its seven `CardTitle` siblings sat.
+    await renderPrompt();
+
+    const heading: string = computed("consent-heading", "font-size");
+
+    expect(heading).not.toBe(computed("probe-lg", "font-size"));
+    expect(heading).not.toBe(computed("probe-xl", "font-size"));
   });
 
   it("keeps the heading on the card's foreground colour", async () => {

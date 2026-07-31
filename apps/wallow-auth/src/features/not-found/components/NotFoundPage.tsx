@@ -1,4 +1,4 @@
-import { Card, CardTitle, MutedText } from "@bc-solutions-coder/ui";
+import { Card, MutedText, Text } from "@bc-solutions-coder/ui";
 import type { ReactNode } from "react";
 import { toAppHref } from "@shared/lib/base-path";
 
@@ -27,12 +27,17 @@ import { toAppHref } from "@shared/lib/base-path";
  */
 
 /**
- * The heading. A `<CardTitle>` (an `<h2>`) rather than a `<div>`: the shell's
- * `<FocusOnNavigate/>` moves focus to the page heading on every navigation, and
- * `AuthLayout` owns the `<h1>` above this card.
+ * The heading. An `<h2>` rather than a `<div>`: the shell's `<FocusOnNavigate/>`
+ * moves focus to the page heading on every navigation, and `AuthLayout` owns the
+ * `<h1>` above this card. The scale is the app-wide card-heading step — see
+ * `src/heading-scale.test.tsx`.
  */
 function NotFoundHeading() {
-  return <CardTitle data-testid="not-found-heading">Page not found</CardTitle>;
+  return (
+    <Text as="h2" variant="body" weight="semibold" color="onCard" data-testid="not-found-heading">
+      Page not found
+    </Text>
+  );
 }
 
 /** The explanatory line — a page, rather than a bare status string. */

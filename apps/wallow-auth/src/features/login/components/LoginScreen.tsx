@@ -1,5 +1,5 @@
 import { buildExchangeTicketUrl, isSafeReturnUrl } from "@bc-solutions-coder/sdk";
-import { Card, CardTitle, ErrorBanner, MutedText, Tabs, Text } from "@bc-solutions-coder/ui";
+import { Card, ErrorBanner, MutedText, Tabs, Text } from "@bc-solutions-coder/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 
@@ -152,7 +152,9 @@ function SignedInBanner() {
 function CardHeading() {
   return (
     <div className="space-y-1 text-center">
-      <CardTitle>Sign in to your account</CardTitle>
+      <Text as="h2" variant="body" weight="semibold" color="onCard">
+        Sign in to your account
+      </Text>
       <MutedText>Enter your credentials to continue</MutedText>
     </div>
   );

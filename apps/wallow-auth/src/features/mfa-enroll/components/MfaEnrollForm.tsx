@@ -2,7 +2,6 @@ import { isSafeReturnUrl, type MfaEnrollmentConfirmedResponse } from "@bc-soluti
 import {
   Button,
   Card,
-  CardTitle,
   ErrorBanner,
   Field,
   Input,
@@ -243,7 +242,9 @@ function confirmFailureMessage(cause: unknown): string {
 function CardHeading() {
   return (
     <div className="space-y-1 text-center">
-      <CardTitle>Set up two-factor authentication</CardTitle>
+      <Text as="h2" variant="body" weight="semibold" color="onCard">
+        Set up two-factor authentication
+      </Text>
       <MutedText>
         Scan the QR code with your authenticator app, then enter the code to confirm.
       </MutedText>

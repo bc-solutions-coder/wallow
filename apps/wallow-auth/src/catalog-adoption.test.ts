@@ -190,19 +190,36 @@ const HAND_ROLLED_TEXT: readonly string[] = [
   "shared/components/auth-layout.tsx",
 ];
 
-/** The eight files that render a heading, and so must name a `Text` variant. */
+/** The files that render a heading, and so must name a `Text` variant. */
 const HEADING_FILES: readonly string[] = [
   "features/accept-terms/components/AcceptTermsScreen.tsx",
   "features/consent/components/ConsentScreen.tsx",
   "features/error/components/ErrorPage.tsx",
+  "features/forgot-password/components/ForgotPasswordForm.tsx",
   "features/invitation/components/InvitationScreen.tsx",
+  "features/login/components/LoginScreen.tsx",
   "features/logout/components/LogoutScreen.tsx",
+  "features/mfa-challenge/components/MfaChallengeForm.tsx",
+  "features/mfa-enroll/components/MfaEnrollForm.tsx",
+  "features/not-found/components/NotFoundPage.tsx",
   "features/privacy/components/PrivacyPage.tsx",
+  "features/register/components/RegisterForm.tsx",
+  "features/reset-password/components/ResetPasswordForm.tsx",
   "features/terms/components/TermsPage.tsx",
   "features/verify-email/components/VerifyEmailConfirm.tsx",
   "features/verify-email/components/VerifyEmailNotice.tsx",
   "shared/components/auth-layout.tsx",
 ];
+
+/**
+ * The sixteen screens carrying a CARD heading — every `HEADING_FILES` entry bar
+ * `auth-layout.tsx`, which owns the page's `<h1>` and is not a card heading at
+ * all. Listed only to prove the disk-derived walk below is not vacuous; the walk
+ * is what actually judges the app.
+ */
+const KNOWN_CARD_HEADINGS: readonly string[] = HEADING_FILES.filter(
+  (file) => file !== "shared/components/auth-layout.tsx",
+);
 
 /** The files hand-rolling a `<button>` before this bead. */
 const HAND_ROLLED_BUTTONS: readonly string[] = [
@@ -260,6 +277,23 @@ function importsFromUi(symbol: string): RegExp {
 function textOpeners(source: string): string[] {
   return [...source.matchAll(/<Text\b([^>]*)>/gu)].map((match) => match[1] ?? "");
 }
+
+/**
+ * Every `<Text as="h2" …>` opener in `source` — this app's CARD headings.
+ *
+ * Level 2 is the card-heading level throughout wallow-auth: `AuthLayout` owns
+ * the page's one `<h1>`, and the privacy/terms document sections are `<h3>`s at
+ * the `bodySm` step. So the level is the selector, and no screen can duck this
+ * sweep by omitting a testid.
+ */
+function cardHeadingOpeners(source: string): string[] {
+  return textOpeners(source).filter((attrs) => /\bas="h2"/u.test(attrs));
+}
+
+/** The swept components that render a card heading, re-derived from disk. */
+const CARD_HEADING_FILES: readonly string[] = SWEPT.filter(
+  (file) => cardHeadingOpeners(code(file)).length > 0,
+);
 
 describe("the comment stripper this sweep reads through", () => {
   /*
@@ -383,6 +417,67 @@ describe("wallow-auth renders its copy through the catalog's Text", () => {
     expect(levelOne[0], "the programmatic focus target stays unreachable by Tab").toContain(
       "tabIndex={-1}",
     );
+  });
+});
+
+/**
+ * The card-heading scale (Wallow-lrlm.13) — the SOURCE half of the pin.
+ *
+ * THE DEFECT. wallow-auth's sixteen screen headings used to render at two sizes
+ * on the same card slot: nine at `Text`'s `subheading` step (`text-xl`, 20px)
+ * and seven at `CardTitle`'s own `text-lg` literal (18px). The standard is now
+ * `Text`'s `body` step at `semibold` — 16px — composed identically everywhere:
+ * `<Text as="h2" variant="body" weight="semibold" color="onCard">`.
+ *
+ * WHY THE SOURCE, GIVEN `src/heading-scale.test.tsx` MEASURES IT. That file
+ * mounts all sixteen screens and proves they PAINT one size. What it cannot
+ * prove is anything about a SEVENTEENTH — a screen it was never told to mount is
+ * exactly what a render cannot see, and "no screen was forgotten" is a claim
+ * about the tree, not about a layout. This walk is disk-derived for that reason:
+ * the inventories in this epic's bead bodies have repeatedly been incomplete, so
+ * the next screen is judged the day it lands rather than the day someone
+ * remembers to add it to a list.
+ *
+ * WHY NOT `CardTitle`. Landing these sixteen on 16px through the catalog part
+ * would mean retuning `cardTitleRecipe` in `packages/ui`, which also moves
+ * wallow-web's six card headings and minimal-app's two. That is a separate,
+ * cross-app decision, so wallow-auth composes `Text` directly instead and the
+ * shared recipe is left alone.
+ */
+describe("wallow-auth renders every screen heading at one scale", () => {
+  it("finds a card heading on every screen known to carry one", () => {
+    // The vacuity guard on the walk: this only fails when the sweep stops
+    // finding headings it used to find, so a heading that moved out of reach
+    // shows up as a red spec rather than as a walk over nothing.
+    expect(CARD_HEADING_FILES).toEqual(expect.arrayContaining([...KNOWN_CARD_HEADINGS]));
+    expect(CARD_HEADING_FILES.length).toBeGreaterThanOrEqual(KNOWN_CARD_HEADINGS.length);
+  });
+
+  it.each(CARD_HEADING_FILES)("puts %s's card heading on the body step", (file) => {
+    const headings: string[] = cardHeadingOpeners(code(file));
+
+    expect(
+      headings.filter((attrs) => !/\bvariant="body"/u.test(attrs)),
+      `${file}'s card heading must take the app-wide card-heading scale`,
+    ).toEqual([]);
+  });
+
+  it.each(CARD_HEADING_FILES)("keeps %s's card heading at semibold", (file) => {
+    // `body` carries no `font-*` of its own, so the weight is a second explicit
+    // argument rather than something the scale brings along: drop it and the
+    // heading reads at the same size as the copy underneath it.
+    const headings: string[] = cardHeadingOpeners(code(file));
+
+    expect(
+      headings.filter((attrs) => !/\bweight="semibold"/u.test(attrs)),
+      `${file}'s card heading must stay distinguishable from body copy`,
+    ).toEqual([]);
+  });
+
+  it.each(SWEPT)("takes no card heading from CardTitle in %s", (file) => {
+    // `CardTitle` hard-codes `text-lg`, which is one of the two steps this app
+    // just left. Re-importing it anywhere here re-opens the split.
+    expect(code(file), `${file} must compose its heading from Text`).not.toContain("CardTitle");
   });
 });
 
