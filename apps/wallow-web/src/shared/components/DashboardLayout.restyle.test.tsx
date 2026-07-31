@@ -66,8 +66,25 @@ vi.mock("@tanstack/react-router", () => ({
 const DESKTOP_VIEWPORT = [1280, 800] as const;
 const MOBILE_VIEWPORT = [390, 844] as const;
 
-/** The outline-button treatment both nav controls share, in page tokens. */
-const CONTROL_SURFACE = "border border-border text-foreground hover:bg-muted";
+/**
+ * The outline-button treatment both nav controls share, in page tokens — which is
+ * `buttonRecipe`'s own `outline` arm, verbatim
+ * (`packages/ui/src/components/button/button.styles.ts`), since Wallow-lrlm.6.5
+ * stopped the shell hand-rolling it.
+ *
+ * The change from what this constant used to say is `hover:bg-muted` becoming
+ * `hover:bg-accent hover:text-accent-foreground` (plus the arm's explicit
+ * `bg-transparent`). That divergence is the reason the bead exists: Wallow-lrlm.5.4
+ * moved these controls onto page tokens and picked `bg-muted` for the recessed
+ * hover, which is within visual noise of the catalog's answer but is not the
+ * catalog's answer. Adopting the variant deletes the fork rather than restating it,
+ * so this constant follows the recipe — a third answer invented here would be the
+ * same drift under a new name. The recipe is asserted to still SAY this in
+ * `DashboardLayout.catalog-control.test.tsx`, which also pins that nothing outside
+ * the recipe's vocabulary paints these controls.
+ */
+const CONTROL_SURFACE =
+  "border border-border bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground";
 
 /** The hand-mixed tints both controls used to carry. */
 const RETIRED_CONTROL: readonly string[] = ["border-foreground/20", "hover:bg-foreground/10"];
