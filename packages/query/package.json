@@ -31,6 +31,7 @@
     "@tanstack/react-query": "catalog:react"
   },
   "devDependencies": {
+    "@bc-solutions-coder/config": "workspace:*",
     "@types/node": "^24.0.0",
     "typescript": "catalog:tooling",
     "vite": "^8.1.4",

@@ -63,6 +63,7 @@
     "openid-client": "^6.1.7"
   },
   "devDependencies": {
+    "@bc-solutions-coder/config": "workspace:*",
     "@hey-api/openapi-ts": "^0.99.0",
     "@tanstack/react-query": "catalog:react",
     "@types/node": "^24.0.0",

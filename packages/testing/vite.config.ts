@@ -1,4 +1,4 @@
-import { defineLibraryConfig } from "../../tools/vite/library";
+import { defineLibraryConfig } from "@bc-solutions-coder/config/vite/library";
 
 // A config-safe `.` barrel (plus `sdk-harness`, which imports no browser-only
 // module) alongside the browser-only subpaths, each with its own named entry so

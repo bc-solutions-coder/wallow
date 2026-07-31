@@ -4,6 +4,8 @@ import react from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
 
+import { wallowAppConfig } from "@bc-solutions-coder/config/vite/app";
+
 /**
  * The one Vite config the app has: `vite dev` serves it and `vite build` emits
  * both environments plus the Nitro server bundle (`.output/server/index.mjs` +
@@ -11,8 +13,16 @@ import { defineConfig } from "vite";
  * presets drove are gone, and so is `tsr generate` — the Start plugin owns route
  * codegen.
  *
- * `vite dev` binds 3000 when `PORT` is unset, so this app's port is spelled out
- * here: a bare `pnpm dev` must land on 3010 like the deleted host did.
+ * `wallowAppConfig()` supplies the port, the SSR graph, the
+ * `use-sync-external-store` aliases and the `copyPublicDir` restore. Two of
+ * those this app did not have: it built two react-query graphs, so a `useQuery`
+ * under SSR would have thrown "No QueryClient set" the moment the example grew a
+ * query (Wallow-uc2c). Nothing was wrong with the app — the fix had simply been
+ * discovered while debugging the other two, which is the argument for a preset
+ * rather than three independent configs.
+ *
+ * This app is deliberately un-zoned, so it takes the Start plugin's defaults
+ * rather than the `srcDirectory` / `importProtection` pairing the other two need.
  *
  * There is deliberately NO `vite: { installDevServerMiddleware }` key. The Start
  * plugin auto-detects a non-runnable SSR environment — which is exactly what
@@ -23,16 +33,7 @@ import { defineConfig } from "vite";
 const DEFAULT_PORT = 3010;
 
 export default defineConfig({
-  server: { port: Number(process.env.PORT ?? DEFAULT_PORT) },
-  environments: {
-    // `nitro/vite` assumes it alone fills `.output/public` and forces the client
-    // environment's `copyPublicDir` off. That silently drops the shared brand
-    // assets `wallowStyles()` points `publicDir` at, so `/piggy-icon.svg` — the
-    // favicon AND the attribution image — 404s in the built output while dev
-    // still serves it. Nitro sets the flag with `??=`, so spelling it out here
-    // wins and the copy happens again.
-    client: { build: { copyPublicDir: true } },
-  },
+  ...wallowAppConfig({ defaultPort: DEFAULT_PORT }),
   plugins: [
     tanstackStart({
       // Specs are co-located with the code they cover, so a spec under

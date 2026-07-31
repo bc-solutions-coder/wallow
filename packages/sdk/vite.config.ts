@@ -1,4 +1,4 @@
-import { defineLibraryConfig } from "../../tools/vite/library";
+import { defineLibraryConfig } from "@bc-solutions-coder/config/vite/library";
 
 // Declarations do NOT come from the bundler here — see tsconfig.build.json for
 // the full rationale, including why this package's own typescript devDependency

@@ -1,0 +1,15 @@
+{
+  // Inherits the workspace-standard TypeScript semantics from the repo-root base
+  // config, like every other workspace member.
+  //
+  // There is no `tsconfig.build.json` beside this one and no `build` script in
+  // the manifest, because this package has no build: see the note in
+  // `package.json` and `src/vite/index.ts`. `tsc --noEmit` is the whole of its
+  // gate.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Config code runs in Node — `process.env`, `node:url`, `node:fs`.
+    "types": ["node"]
+  },
+  "include": ["src"]
+}

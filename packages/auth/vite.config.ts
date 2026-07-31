@@ -1,4 +1,4 @@
-import { defineLibraryConfig } from "../../tools/vite/library";
+import { defineLibraryConfig } from "@bc-solutions-coder/config/vite/library";
 
 // One browser-safe `.` barrel: the shared authn/authz surface.
 export default defineLibraryConfig({

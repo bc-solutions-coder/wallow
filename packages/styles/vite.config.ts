@@ -1,4 +1,4 @@
-import { defineLibraryConfig } from "../../tools/vite/library";
+import { defineLibraryConfig } from "@bc-solutions-coder/config/vite/library";
 
 // The CSS entry (styles.css) is deliberately NOT part of this build. It ships
 // as-authored and is consumed through the "./styles.css" export: Tailwind v4 is

@@ -25,6 +25,7 @@
     "react-dom": "catalog:react"
   },
   "devDependencies": {
+    "@bc-solutions-coder/config": "workspace:*",
     "@types/node": "^24.0.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",

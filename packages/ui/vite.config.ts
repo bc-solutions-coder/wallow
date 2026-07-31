@@ -1,6 +1,6 @@
 import { existsSync, readdirSync } from "node:fs";
 
-import { defineLibraryConfig } from "../../tools/vite/library";
+import { defineLibraryConfig } from "@bc-solutions-coder/config/vite/library";
 
 // `preserveModules` keeps one output module per source module so `dist/` mirrors
 // `src/` and each component stays addressable at

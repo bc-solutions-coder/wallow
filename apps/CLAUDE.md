@@ -1,9 +1,10 @@
 # apps — Frontend Applications Agent Guide
 
-Every app here is a **TanStack Start** frontend consuming the seven `@bc-solutions-coder`
-workspace packages (`sdk`, `styles`, `ui`, `forms`, `query`, `auth`, `testing`) via
+Every app here is a **TanStack Start** frontend consuming the `@bc-solutions-coder` workspace
+packages (`sdk`, `styles`, `ui`, `forms`, `query`, `auth`, `testing`, `config`) via
 `workspace:*`. `forms` and `auth` are the optional ones — `examples/minimal-app` renders no
-form and has no signed-in user, so it omits both.
+form and has no signed-in user, so it omits both. `config` is the odd one: a build-time-only
+dependency supplying `wallowAppConfig()` to `vite.config.ts`, never imported by app code.
 
 | App                     | Port | What it is                                                                    |
 | ----------------------- | ---- | ----------------------------------------------------------------------------- |

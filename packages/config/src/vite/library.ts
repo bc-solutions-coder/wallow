@@ -26,9 +26,8 @@ import type { UserConfig } from "vite";
  *    straight at them; only internal chunks, which nothing outside the bundle
  *    references, carry a hash.
  *
- * This lives under `tools/` rather than in a workspace package deliberately: it
- * is imported by the build of `packages/testing` itself, so it must not be
- * something that has to be built first.
+ * This package is itself never built — a config that every build imports cannot
+ * be something every build has to build first. See `packages/config/CLAUDE.md`.
  */
 export interface LibraryConfigOptions {
   /**

@@ -1,0 +1,27 @@
+{
+  "name": "@bc-solutions-coder/config",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Wallow shared build configuration — the Vite presets every workspace member builds with",
+  "type": "module",
+  "exports": {
+    "./vite/library": {
+      "types": "./src/vite/library.ts",
+      "import": "./src/vite/library.ts"
+    },
+    "./vite/app": {
+      "types": "./src/vite/app.ts",
+      "import": "./src/vite/app.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "vite": "^8.1.4"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "catalog:tooling"
+  }
+}

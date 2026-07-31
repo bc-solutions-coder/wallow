@@ -52,6 +52,7 @@ apply cleanly to a fresh database.
 | `packages/query/`   | `@bc-solutions-coder/query` — the shared TanStack Query facade: re-exports react-query plus `createQueryClient`; see `packages/query/CLAUDE.md`                             |
 | `packages/auth/`    | `@bc-solutions-coder/auth` — shared authn/authz layer (current-user query + hook, `beforeLoad` primer, role/permission helpers, re-exported SDK guards)                     |
 | `packages/testing/` | `@bc-solutions-coder/testing` — shared vitest preset + browser-mode test utilities                                                                                          |
+| `packages/config/` | `@bc-solutions-coder/config` — the Vite presets every workspace member builds with; never built, never published; see `packages/config/CLAUDE.md`                            |
 | `apps/wallow-web/`  | TanStack Start + BFF OIDC reference frontend (dashboard) that consumes the SDK                                                                                              |
 | `apps/wallow-auth/` | TanStack Start auth frontend (login/signup/MFA screens) on port 3002                                                                                                        |
 | `apps/examples/`    | Example apps (`minimal-app`)                                                                                                                                                |

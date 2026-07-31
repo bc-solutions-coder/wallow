@@ -68,6 +68,7 @@
     "vitest-browser-react": "^2.2.0"
   },
   "devDependencies": {
+    "@bc-solutions-coder/config": "workspace:*",
     "@tanstack/react-router": "catalog:start",
     "@types/node": "^24.0.0",
     "@types/react": "^19.2.17",

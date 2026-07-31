@@ -1,4 +1,4 @@
-import { defineLibraryConfig } from "../../tools/vite/library";
+import { defineLibraryConfig } from "@bc-solutions-coder/config/vite/library";
 
 // Unlike packages/ui this package publishes ONE entry — the curated
 // `src/index.ts` barrel — so there is no subpath export to back and no extra

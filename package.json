@@ -24,8 +24,7 @@
     "lint-staged": "^17.0.8",
     "oxfmt": "^0.59.0",
     "oxlint": "^1.74.0",
-    "publint": "^0.3.22",
-    "vite": "^8.1.4"
+    "publint": "^0.3.22"
   },
   "packageManager": "pnpm@10.20.0"
 }
