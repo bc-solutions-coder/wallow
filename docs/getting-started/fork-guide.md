@@ -46,12 +46,12 @@ See the `NOTICE` file in the repository root. "Wallow" is a trademark of BC Solu
 The simplest fork strategy is to **keep all `Wallow.*` namespaces unchanged** and customize the user-facing product identity through configuration only:
 
 1. **Fork and clone** the repository
-2. **Edit `api/branding.json`** to set your product name, icon, tagline, landing-page toggle, and theme colors
+2. **Edit `packages/styles/branding.json`** to set your product name, icon, tagline, landing-page toggle, and theme colors
 3. **Edit `api/src/Wallow.Api/appsettings.json`** to configure connection strings, the SMTP sender name, and the OpenTelemetry service name
 4. **Edit `api/seed.json`** to set your bootstrap tenant, roles, and admin account
 5. **Set up the merge driver** so upstream merges don't overwrite your config (see "Merge Driver Setup" below)
 
-This approach has **zero risk of silent failures** and gives you the easiest upstream sync path. All fork identity in the React apps -- page titles, auth screens, theme colors -- is resolved from `api/branding.json` by `packages/styles`, so no source changes are needed. See the [Configuration Guide](configuration.md) for the full key reference.
+This approach has **zero risk of silent failures** and gives you the easiest upstream sync path. All fork identity in the React apps -- page titles, auth screens, theme colors -- is resolved from `packages/styles/branding.json` by `packages/styles`, so no source changes are needed. See the [Configuration Guide](configuration.md) for the full key reference.
 
 ### Merge Driver Setup
 
@@ -66,7 +66,7 @@ The entries it covers are:
 | Pattern | What it protects |
 |---------|------------------|
 | `appsettings*.json` | Every app settings file, in every project |
-| `branding.json` | Fork branding and theme (`api/branding.json`) |
+| `branding.json` | Fork branding and theme (`packages/styles/branding.json`) |
 | `docker/.env` | Your local Compose credentials |
 | `docker/.env.example` | Fork-specific additions to the example env |
 | `seed.json` | Bootstrap tenant, roles, and admin (`api/seed.json`) |
@@ -146,7 +146,7 @@ Should return nothing.
 | `docker/docker-compose.yml` | Network name, container prefixes |
 | `docker/docker-compose.production.yml` | Image names (`ghcr.io/<org>/<image>`), container names |
 | `api/src/Wallow.Api/appsettings.json` | `OpenTelemetry:ServiceName`, `Smtp:DefaultFromName` |
-| `api/branding.json` | `appName`, `tagline`, `appIcon` |
+| `packages/styles/branding.json` | `appName`, `tagline`, `appIcon` |
 | `api/Directory.Build.props`, `api/Directory.Packages.props` | Any hardcoded product name or assembly prefix |
 | `.github/workflows/*.yml` | Database names, connection strings, deploy paths, image names |
 
@@ -188,7 +188,7 @@ These components reference `"Wallow"` as a string literal and will **fail silent
 | **OpenTelemetry ServiceName** | `api/src/Wallow.Api/appsettings*.json` → `OpenTelemetry:ServiceName` | Traces/metrics report wrong service name |
 | **Diagnostics ActivitySource** | `api/src/Shared/Wallow.Shared.Kernel/Diagnostics.cs` | Custom traces stop appearing (`new ActivitySource("Wallow")`) |
 | **SMTP DefaultFromName** | `api/src/Wallow.Api/appsettings.json` → `Smtp:DefaultFromName` | Emails show "Wallow" as sender |
-| **branding.json** | `api/branding.json` → `appName` | React app titles and auth screens show "Wallow" |
+| **branding.json** | `packages/styles/branding.json` → `appName` | React app titles and auth screens show "Wallow" |
 | **Email templates** | `SimpleEmailTemplateService` in the Notifications module (`api/src/Modules/Notifications/Wallow.Notifications.Infrastructure/Services/`) | Email bodies may contain hardcoded product name |
 | **Container repositories** | `<ContainerRepository>` in `Wallow.Api.csproj`, `Wallow.MigrationService.csproj`, `Wallow.SeederService.csproj` | Published images keep the upstream image names |
 
@@ -992,7 +992,7 @@ git push origin main
 ## Checklist (Approach A)
 
 - [ ] Fork created and cloned
-- [ ] `api/branding.json` customized with your product identity
+- [ ] `packages/styles/branding.json` customized with your product identity
 - [ ] `api/src/Wallow.Api/appsettings.json` configured (SMTP, OpenTelemetry service name, connection strings)
 - [ ] `api/seed.json` configured with your bootstrap tenant and admin
 - [ ] Merge driver activated (`git config merge.ours.driver true`)

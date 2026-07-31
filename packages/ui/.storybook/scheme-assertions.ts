@@ -39,7 +39,7 @@ import { expect } from "storybook/test";
  * `@bc-solutions-coder/testing/contrast` helpers paint the string into a 2d
  * context and read sRGB bytes back, which normalises any CSS colour syntax.
  *
- * WHY NO HARD-CODED COLOURS. api/branding.json is fork config; a fork that
+ * WHY NO HARD-CODED COLOURS. packages/styles/branding.json is fork config; a fork that
  * repaints its palette must not have to edit assertions here. Both criteria
  * below are relations, not values.
  */

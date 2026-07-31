@@ -50,7 +50,7 @@ would fork the behaviour).
 - Recipes reference **only semantic token utilities already defined by
   `@bc-solutions-coder/styles`** (`bg-primary`, `text-muted-foreground`, `border-border`,
   `rounded-md`, …). Never a raw colour. A missing token is added to
-  `packages/styles/styles.css`'s `@theme` (plus `api/branding.json`) **first**.
+  `packages/styles/styles.css`'s `@theme` (plus `packages/styles/branding.json`) **first**.
 - Style state off Base UI's `data-*` attributes (`data-[disabled]`, `data-[open]`), not the
   `:disabled`/`:open` pseudo-classes, so the recipe still applies when a caller composes the
   part onto another element via `render`.

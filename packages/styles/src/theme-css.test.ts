@@ -21,7 +21,7 @@ import {
  *    oracle was deleted with the app; the move is pinned in git history.)
  *  - `branding.ts` is the palette. `styles.css` maps Tailwind tokens onto plain
  *    custom properties (`--color-primary: var(--primary)`) but must never
- *    *define* them — `api/branding.json` is the only place a fork edits to
+ *    *define* them — `packages/styles/branding.json` is the only place a fork edits to
  *    rebrand, so the values are emitted at render time from the JSON instead.
  *
  * These tests read the files off disk rather than through a bundler because the
@@ -60,7 +60,7 @@ function themeTokens(css: string): Record<string, string> {
  * The custom properties a `@theme` block indirects through `var(...)` —
  * including the ones inside a fallback chain, `var(--sidebar, var(--foreground))`,
  * which names two: the palette property the token wants and the one it degrades
- * to when a fork's `api/branding.json` is too old to define it.
+ * to when a fork's `packages/styles/branding.json` is too old to define it.
  */
 function themedVarNames(tokens: Record<string, string>): readonly string[] {
   const matches: RegExpStringIterator<RegExpExecArray> = Object.values(tokens)
@@ -88,7 +88,7 @@ describe("the shared Tailwind entry", () => {
     expect(sharedCss).not.toMatch(/@source/u);
   });
 
-  it("hardcodes no palette, so api/branding.json stays the only place to rebrand", () => {
+  it("hardcodes no palette, so packages/styles/branding.json stays the only place to rebrand", () => {
     // The Blazor entry inlined a :root/.dark palette — Wallow.Auth's was a
     // verbatim duplicate of branding.json's. It does not come along.
     expect(sharedCss).not.toMatch(/oklch\(/u);
@@ -120,10 +120,10 @@ describe("the branding palette", () => {
   // The two tests above pin one direction (every var the @theme block reaches
   // for is defined by the palette); these pin the reverse (every var the palette
   // *emits* is reached for by the @theme block). Without it, adding a colour to
-  // api/branding.json's theme would ship a custom property that renderThemeStyle
+  // packages/styles/branding.json's theme would ship a custom property that renderThemeStyle
   // writes onto :root but no Tailwind token ever consumes — a silently dead
   // token. The recipe is two files in lockstep: a new semantic colour touches
-  // api/branding.json's theme AND styles.css's @theme, nothing per-app.
+  // packages/styles/branding.json's theme AND styles.css's @theme, nothing per-app.
   const referencesEveryEmittedVar = (mode: "light" | "dark"): void => {
     const emitted: readonly string[] = Object.keys(toCssVars(forkBranding.theme[mode]));
     const unmapped: readonly string[] = emitted.filter(
@@ -148,7 +148,7 @@ describe("the branding palette", () => {
  * token must go through.
  *
  * The two-level `var(--sidebar, var(--foreground))` is not decoration:
- * `api/branding.json` is `merge=ours` in `.gitattributes`, so a fork's copy
+ * `packages/styles/branding.json` is `merge=ours` in `.gitattributes`, so a fork's copy
  * never receives new theme keys from an upstream merge, and `toCssVars` emits
  * nothing for a key that is not there. Without the fallback the fork's build
  * resolves the token to nothing at all.
@@ -166,7 +166,7 @@ const newVarNames: readonly string[] = Object.keys(forkSafeTokens).map((token: s
   token.replace("--color-", "--"),
 );
 
-/** The same colours as `api/branding.json` authors them, in camelCase. */
+/** The same colours as `packages/styles/branding.json` authors them, in camelCase. */
 const newThemeKeys: ReadonlySet<string> = new Set([
   "sidebar",
   "sidebarForeground",
@@ -185,7 +185,7 @@ describe("the sidebar and success semantic tokens", () => {
   }
 
   for (const mode of themeModes) {
-    it(`is defined by api/branding.json's ${mode} theme`, () => {
+    it(`is defined by packages/styles/branding.json's ${mode} theme`, () => {
       expect(Object.keys(toCssVars(forkBranding.theme[mode]))).toEqual(
         expect.arrayContaining([...newVarNames]),
       );
@@ -194,7 +194,7 @@ describe("the sidebar and success semantic tokens", () => {
 
   it("leaves the pre-existing colour tokens on their plain, un-defaulted mapping", () => {
     // Only the new tokens get the two-level indirection. Every existing token
-    // resolves through a property `api/branding.json` has always carried, so
+    // resolves through a property `packages/styles/branding.json` has always carried, so
     // giving those a fallback would change well-tested behaviour for nothing.
     const untouched: readonly (readonly [string, string])[] = Object.entries(
       themeTokens(sharedCss),
@@ -210,7 +210,7 @@ describe("the sidebar and success semantic tokens", () => {
   });
 });
 
-describe("a fork whose api/branding.json predates these tokens", () => {
+describe("a fork whose packages/styles/branding.json predates these tokens", () => {
   /** That fork's palette: this fork's, minus every key it never received. */
   function withoutNewKeys(colors: ThemeColors): ThemeColors {
     return Object.fromEntries(

@@ -31,7 +31,7 @@ describe("parseColor", () => {
     expect(parseColor("rgba(0, 0, 0, 0)").a).toBe(0);
   });
 
-  it("parses oklch(), the syntax api/branding.json actually uses", () => {
+  it("parses oklch(), the syntax packages/styles/branding.json actually uses", () => {
     // The whole reason these helpers paint into a canvas rather than running an
     // `rgb()` regex: Chromium hands back the authored colour space in a computed
     // value, and the fork palette is authored in oklch.

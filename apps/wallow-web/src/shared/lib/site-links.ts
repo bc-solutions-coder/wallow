@@ -3,7 +3,7 @@
  *
  * `PublicLayout` used to define its own repository/docs constants and DERIVE the
  * docs URL from the repository URL, which diverged from the canonical
- * `docsUrl` that `api/branding.json` now supplies. Every rendered GitHub/Docs
+ * `docsUrl` that `packages/styles/branding.json` now supplies. Every rendered GitHub/Docs
  * link reads from here instead.
  *
  */

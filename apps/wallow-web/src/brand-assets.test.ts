@@ -15,7 +15,7 @@ import viteConfig from "../vite.config";
  * `.output/public` at the root (the `dist/client` the deleted standalone host
  * read is gone with it), so all this app owes is getting the icon INTO that
  * directory — and getting it from the shared package, not from a copy of its own,
- * which is what makes api/branding.json the one place a fork swaps the icon.
+ * which is what makes packages/styles/branding.json the one place a fork swaps the icon.
  *
  * Vite's `publicDir` is that mechanism: its contents are copied to the build
  * root verbatim and unhashed, and the dev server serves the same directory. That

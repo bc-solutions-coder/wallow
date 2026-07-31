@@ -4,7 +4,7 @@ import { toRootRelativeAssetUrl } from "./asset-urls";
 import { appIconUrl, forkBranding } from "./branding";
 
 /**
- * The bug these tests exist for: `api/branding.json` names the app icon by bare
+ * The bug these tests exist for: `packages/styles/branding.json` names the app icon by bare
  * filename, and rendering that value directly makes the browser resolve it
  * against the current page. On `/login` that happens to work; on
  * `/mfa/challenge` the browser asks for `/mfa/piggy-icon.svg` and the icon
@@ -26,7 +26,7 @@ describe("appIconUrl", () => {
     expect(appIconUrl).toBe("/piggy-icon.svg");
   });
 
-  it("names the icon api/branding.json names, so a fork still swaps it there", () => {
+  it("names the icon packages/styles/branding.json names, so a fork still swaps it there", () => {
     // The rebrand contract: the filename is the JSON's to choose. Only the
     // leading slash is ours.
     expect(appIconUrl).toBe(`/${forkBranding.appIcon}`);

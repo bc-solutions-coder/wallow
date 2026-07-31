@@ -1,7 +1,7 @@
 import { defineConfig } from "vitest/config";
 
 /**
- * The package renders nothing — it is pure TypeScript over api/branding.json
+ * The package renders nothing — it is pure TypeScript over packages/styles/branding.json
  * plus a static CSS entry read off disk — so the node environment is enough and
  * no jsdom is pulled in.
  */

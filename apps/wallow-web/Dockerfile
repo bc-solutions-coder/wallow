@@ -35,11 +35,10 @@ COPY apps/wallow-web/package.json apps/wallow-web/
 RUN pnpm install --frozen-lockfile
 
 # The fork's branding is a BUILD input: @bc-solutions-coder/styles statically
-# imports api/branding.json (and src/lib/branding.ts re-exports it) so Vite
-# inlines it into the bundle. It lives outside apps/ (the one source of fork
-# identity shared with the .NET apps), so it must be copied in explicitly or
-# `vite build` fails with UNRESOLVED_IMPORT.
-COPY api/branding.json api/branding.json
+# imports branding.json so Vite inlines it into the bundle. It used to need its
+# own COPY line here, because it lived at api/branding.json — outside both apps/
+# and packages/. It now lives at packages/styles/branding.json, so the
+# `COPY packages/styles packages/styles` below brings it in.
 
 # Copy every workspace package plus the app sources, then build all package
 # dist output the app imports (@bc-solutions-coder/{auth,forms,query,sdk,styles,

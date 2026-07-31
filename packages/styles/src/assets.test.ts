@@ -51,7 +51,7 @@ describe("brandAssetsDir", () => {
     expect(resolve(brandAssetsDir)).toBe(resolve(packageRoot, "assets"));
   });
 
-  it("holds the icon api/branding.json names", () => {
+  it("holds the icon packages/styles/branding.json names", () => {
     expect(statSync(join(brandAssetsDir, forkBranding.appIcon)).isFile()).toBe(true);
   });
 

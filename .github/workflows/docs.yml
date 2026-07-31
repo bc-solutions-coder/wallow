@@ -6,7 +6,7 @@ on:
     paths:
       - "docs/**"
       - "api/src/**/*.cs"
-      - "api/branding.json"
+      - "packages/styles/branding.json"
       - "docfx.json"
       - "docfx/templates/**"
       - "scripts/generate-docs-theme.mjs"
@@ -16,7 +16,7 @@ on:
     paths:
       - "docs/**"
       - "api/src/**/*.cs"
-      - "api/branding.json"
+      - "packages/styles/branding.json"
       - "docfx.json"
       - "docfx/templates/**"
       - "scripts/generate-docs-theme.mjs"
@@ -92,7 +92,7 @@ jobs:
       - name: Generate theme CSS
         run: |
           mkdir -p docfx/templates/wallow/public
-          node scripts/generate-docs-theme.mjs api/branding.json
+          node scripts/generate-docs-theme.mjs packages/styles/branding.json
 
       - name: Restore tools and build docs
         run: |

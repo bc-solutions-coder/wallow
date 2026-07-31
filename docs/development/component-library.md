@@ -4,12 +4,12 @@
 frontends build their screens from. It is a **wrapper layer, not a framework**: every visual part
 is a headless [Base UI](https://base-ui.com/react/overview/quick-start) primitive
 (`@base-ui/react`) wrapped in a [CVA](https://cva.style/) class recipe written entirely in the
-semantic Tailwind tokens `@bc-solutions-coder/styles` emits from `api/branding.json`. Behaviour and
+semantic Tailwind tokens `@bc-solutions-coder/styles` emits from `packages/styles/branding.json`. Behaviour and
 accessibility come from Base UI; appearance comes from the fork's own theme; the package supplies
 the glue and the house style.
 
 The package is private (never published to a registry) and consumed as a `workspace:*` dependency.
-Rebranding a fork changes `api/branding.json` — no component source changes.
+Rebranding a fork changes `packages/styles/branding.json` — no component source changes.
 
 ## The catalog
 
@@ -182,7 +182,7 @@ broken screen. See `.claude/rules/TESTING.md`.
 
 ## Theming and dark mode
 
-`packages/styles` emits a `:root`, a `.dark` and a `.light` block from `api/branding.json`, and the
+`packages/styles` emits a `:root`, a `.dark` and a `.light` block from `packages/styles/branding.json`, and the
 catalog's three theming exports are what make them reachable. An app wires `ThemeScript` and
 `ThemeProvider` once in its root document — see
 [Dark Mode](frontend-setup.md#dark-mode) for that wiring — after which any screen can read or change

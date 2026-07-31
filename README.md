@@ -154,11 +154,11 @@ Each module follows four layers: **Domain** (no dependencies) → **Application*
 
 ## Configuration
 
-Wallow is designed to be customized without changing source code. All configuration flows through standard .NET mechanisms:
+Wallow is designed to be customized without changing source code. Backend configuration flows through standard .NET mechanisms; branding is frontend-only and lives with the styles package:
 
 | Area | Config Source | What it controls |
 |------|-------------|------------------|
-| **Branding** | `branding.json` | App name, icon, tagline, theme colors |
+| **Branding** | `packages/styles/branding.json` | App name, icon, tagline, theme colors |
 | **Database** | `appsettings.json` | PostgreSQL and Valkey connection strings |
 | **Email** | `appsettings.json` | SMTP host, port, TLS, sender defaults |
 | **Storage** | `appsettings.json` | S3 endpoint, bucket, ClamAV virus scanning |

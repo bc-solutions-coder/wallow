@@ -6,8 +6,8 @@ Wallow's frontend is two separate TanStack Start (React) applications:
 - **`apps/wallow-web`** -- Dashboard, settings, public pages
 
 Both are part of the pnpm workspace and talk to `Wallow.Api` (the headless backend) for all
-backend operations. They share branding configuration via `api/branding.json` at the repository
-root, consumed through the `@bc-solutions-coder/styles` package, which also owns the entire
+backend operations. They share branding configuration via `packages/styles/branding.json`,
+consumed through the `@bc-solutions-coder/styles` package, which also owns the entire
 Tailwind v4 build (see [Styling and Tailwind Setup](#styling-and-tailwind-setup)).
 
 Each app hosts itself: TanStack Start owns the dev server, SSR, and route codegen, and
@@ -398,7 +398,7 @@ exception: it belongs to TanStack Start and the app's own config.
 
 Both apps build their screens from `@bc-solutions-coder/ui`, a catalog of 56 components — each a
 headless [Base UI](https://base-ui.com/react/overview/quick-start) primitive wrapped in a CVA class
-recipe written in the theme tokens `@bc-solutions-coder/styles` emits from `api/branding.json`. Apps
+recipe written in the theme tokens `@bc-solutions-coder/styles` emits from `packages/styles/branding.json`. Apps
 import from the root barrel by default and from a per-component subpath when they need a component's
 style recipe:
 
@@ -521,7 +521,7 @@ Grafana on 3001.
 
 `@bc-solutions-coder/styles` owns the entire Tailwind v4 pipeline: the Tailwind compiler plugin,
 the brand-assets (icon/logo) static-file wiring, and the theme token CSS emitted from
-`api/branding.json`. Bootstrapping a new TanStack Start app in this workspace needs only three
+`packages/styles/branding.json`. Bootstrapping a new TanStack Start app in this workspace needs only three
 steps:
 
 1. **Add the workspace dependency** to the app's `package.json`:
@@ -591,12 +591,12 @@ constraint).
 ### Docker builds
 
 Because the app's Tailwind build depends on `@bc-solutions-coder/styles` and, transitively, on
-`api/branding.json`, an app's Dockerfile must, before building the app image:
+`packages/styles/branding.json`, an app's Dockerfile must, before building the app image:
 
 - `COPY packages/styles/package.json packages/styles/` alongside the other workspace manifests
   (before `pnpm install --frozen-lockfile`)
-- `COPY packages/styles packages/styles` and `COPY api/branding.json api/branding.json` (before
-  the build step)
+- `COPY packages/styles packages/styles` (before the build step) — this also brings in
+  `branding.json`, which lives at the package root, so it needs no COPY line of its own
 - Build the styles package before the app, e.g.
   `pnpm --filter @bc-solutions-coder/styles build`, since the app's Vite build imports the
   package's built `dist/` output (brand asset paths), not its source
@@ -605,7 +605,7 @@ Because the app's Tailwind build depends on `@bc-solutions-coder/styles` and, tr
 
 ## Branding Customization
 
-Edit `api/branding.json` in the repository root to customize identity across both apps:
+Edit `packages/styles/branding.json` to customize identity across both apps:
 
 ```json
 {
@@ -623,7 +623,7 @@ Edit `api/branding.json` in the repository root to customize identity across bot
 ### Branding Ownership
 
 The canonical branding schema lives in `packages/styles` (`@bc-solutions-coder/styles`,
-`src/branding.ts`), the TypeScript source of truth that parses `api/branding.json` and emits the
+`src/branding.ts`), the TypeScript source of truth that parses `packages/styles/branding.json` and emits the
 theme CSS every frontend consumes. It exposes `appName`, `appIcon`, `tagline`, `landingPage`, and
 `theme`.
 
@@ -644,7 +644,7 @@ variable names:
 ```
 
 The last five carry a **two-level fallback** the older tokens do not need — for example
-`--color-sidebar: var(--sidebar, var(--foreground))`. `api/branding.json` is `merge=ours` in
+`--color-sidebar: var(--sidebar, var(--foreground))`. `packages/styles/branding.json` is `merge=ours` in
 `.gitattributes`, so a fork whose copy predates these keys never receives them from an upstream
 merge and the theme emits no custom property for them; the fallback lands such a fork on a colour
 its palette has always carried rather than on nothing at all.
@@ -660,12 +660,12 @@ would silently stop applying the moment the fork renamed the key.
 Adding a new semantic design token (e.g. a `warning` or `success` color) touches exactly
 **two files** — nothing per-app needs to change:
 
-1. **`api/branding.json`** — add the new key under both `theme.light` and `theme.dark` with
+1. **`packages/styles/branding.json`** — add the new key under both `theme.light` and `theme.dark` with
    an OKLCH value.
 2. **`packages/styles/styles.css`** — add the matching `@theme` mapping (e.g.
    `--color-warning: var(--warning);`) so Tailwind exposes it as a utility class.
 
-`packages/styles/src/branding.ts` parses `api/branding.json` and emits every `theme.light`/
+`packages/styles/src/branding.ts` parses `packages/styles/branding.json` and emits every `theme.light`/
 `theme.dark` key as a CSS custom property at render time, so no app-level code references the
 token directly — apps just use the Tailwind utility (`bg-warning`, `text-warning`, etc.) once
 it exists in `styles.css`. `packages/styles/src/theme-css.test.ts` guards this rule: it asserts
@@ -675,7 +675,7 @@ token.
 
 ## Dark Mode
 
-`@bc-solutions-coder/styles` emits three custom-property blocks from `api/branding.json` — a
+`@bc-solutions-coder/styles` emits three custom-property blocks from `packages/styles/branding.json` — a
 `:root` block carrying the fork's `theme.defaultMode` palette, plus a `.dark` and a `.light` block.
 Nothing in that package puts either class on the document; activation is the app's job, and it takes
 three lines in `src/app/routes/__root.tsx`. Both `apps/wallow-web` and `apps/wallow-auth` wire it
@@ -781,7 +781,7 @@ the page.
 
 Forks customize identity through configuration, not code changes:
 
-1. Edit `api/branding.json` for name, icon, tagline, and theme colors
+1. Edit `packages/styles/branding.json` for name, icon, tagline, and theme colors
 2. Update `appsettings.json` for backend configuration
 3. `.gitattributes` marks `branding.json` and `appsettings*.json` as `merge=ours`, so upstream merges preserve fork config
 

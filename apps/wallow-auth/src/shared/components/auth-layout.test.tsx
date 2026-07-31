@@ -78,7 +78,7 @@ describe("AuthLayout", () => {
   });
 
   it("serves every fork icon it renders from the site root", async () => {
-    // api/branding.json names the icon by bare filename (`piggy-icon.svg`), and
+    // packages/styles/branding.json names the icon by bare filename (`piggy-icon.svg`), and
     // rendering that value verbatim is what made the icon 404 on every nested
     // route: the browser resolved it against the page, asking /mfa/challenge for
     // /mfa/piggy-icon.svg. React does not normalise the path against the app

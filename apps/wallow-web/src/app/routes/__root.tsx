@@ -29,7 +29,7 @@ import { ReadyIndicator } from "@shared/components/ready-indicator";
 // agree on one asset.
 import "../styles.css";
 
-/** The fork's own palette/name — build-time data from `api/branding.json`, never request input. */
+/** The fork's own palette/name — build-time data from `packages/styles/branding.json`, never request input. */
 const branding: ResolvedBranding = forkResolvedBranding;
 
 /**

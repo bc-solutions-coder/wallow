@@ -44,7 +44,7 @@ Category folders under `docs/`:
 
 ## Building and Validating
 
-The site needs the theme CSS generated from `api/branding.json` before it builds — the
+The site needs the theme CSS generated from `packages/styles/branding.json` before it builds — the
 script does both:
 
 ```bash
@@ -55,7 +55,7 @@ script does both:
 Raw equivalent (what CI and `docker/docs/Dockerfile` run):
 
 ```bash
-node scripts/generate-docs-theme.mjs api/branding.json
+node scripts/generate-docs-theme.mjs packages/styles/branding.json
 dotnet tool restore && dotnet docfx docfx.json
 ```
 

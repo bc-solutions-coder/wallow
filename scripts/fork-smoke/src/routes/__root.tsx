@@ -16,7 +16,7 @@ import "../styles.css";
 
 /**
  * The fork's resolved palette/name, baked into the packed styles tarball from
- * `api/branding.json`. Reading it here is the smoke test for that bake: if the
+ * `packages/styles/branding.json`. Reading it here is the smoke test for that bake: if the
  * JSON were resolved at consumer build time instead, this import would fail
  * outside the repo.
  */

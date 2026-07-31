@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.9-labs
 FROM node:22-alpine AS theme
 WORKDIR /build
-COPY api/branding.json scripts/generate-docs-theme.mjs ./
+COPY packages/styles/branding.json scripts/generate-docs-theme.mjs ./
 RUN node generate-docs-theme.mjs && \
     mv docfx/templates/wallow/public/main.css /main.css
 

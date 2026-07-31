@@ -8,7 +8,7 @@ import type { Decorator, Preview } from "@storybook/react-vite";
  *
  * Every story renders inside the fork's real theme: `renderThemeStyle` is fed
  * the same `forkResolvedBranding` an app's root route feeds it, so the custom
- * properties in Storybook are byte-for-byte the ones api/branding.json produces
+ * properties in Storybook are byte-for-byte the ones packages/styles/branding.json produces
  * for wallow-web. A hand-written palette here would let a component look right
  * in Storybook and wrong in the app.
  *

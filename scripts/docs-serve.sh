@@ -16,7 +16,7 @@ for arg in "$@"; do
 done
 
 echo "Generating docs theme from branding.json..."
-node scripts/generate-docs-theme.mjs api/branding.json
+node scripts/generate-docs-theme.mjs packages/styles/branding.json
 
 if [[ "$BUILD_ONLY" == "true" ]]; then
   echo "Building docs site..."

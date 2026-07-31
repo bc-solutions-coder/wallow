@@ -14,7 +14,7 @@
  * config time). See packages/testing/CLAUDE.md.
  *
  * WHY A CANVAS. `getComputedStyle` hands back whatever colour space the author
- * wrote — `api/branding.json`'s palette is `oklch(...)`, and Chromium preserves
+ * wrote — `packages/styles/branding.json`'s palette is `oklch(...)`, and Chromium preserves
  * that in the computed value — so an `rgb()` regex silently fails on the exact
  * tokens this repo uses. Painting the string into a 2d context and reading the
  * pixel back makes the browser itself do the conversion, so ANY CSS colour

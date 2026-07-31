@@ -57,7 +57,7 @@ export const brandAssetsPlugin: Plugin = {
  * It is also NOT a generated `theme.css` file on disk: the root `pnpm check`
  * runs `test` BEFORE `build`, so a build-time artifact would be stale exactly
  * when it matters. Serving it from the plugin means the bytes are rendered from
- * `api/branding.json` on every request.
+ * `packages/styles/branding.json` on every request.
  *
  * The `.css` suffix is load-bearing twice over: Vite routes the module through
  * its CSS pipeline (so a bare `import` injects a `<style>`), and TypeScript's

@@ -27,7 +27,7 @@ import { ReadyIndicator } from "../components/ready-indicator";
 // agree on one asset.
 import "../styles.css";
 
-/** The fork's resolved palette/name — build-time data from `api/branding.json`, never request input. */
+/** The fork's resolved palette/name — build-time data from `packages/styles/branding.json`, never request input. */
 const branding: ResolvedBranding = forkResolvedBranding;
 
 /** What the router hands every route through `Route.useRouteContext()`. */

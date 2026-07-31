@@ -15,7 +15,7 @@ rather than hand-rolling one.
 - **Keep `render` off the barrel.** `vitest-browser-react` evaluates `vitest/browser` at import
   and throws outside browser mode; the barrel is loaded in a plain Node process at config time,
   so importing it there breaks every config in the workspace.
-- **`./contrast` parses colours through a canvas, not a regex.** `api/branding.json`'s palette is
+- **`./contrast` parses colours through a canvas, not a regex.** `packages/styles/branding.json`'s palette is
   `oklch(...)` and Chromium preserves the authored colour space in a computed value, so an
   `rgb()` matcher silently fails on the exact tokens this repo uses. Painting the string and
   reading the pixel back normalises any CSS colour syntax to sRGB. It is browser-only for the

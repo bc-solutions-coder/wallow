@@ -17,7 +17,7 @@ import {
  *
  * The order under test, lowest priority first (the bead's acceptance criterion):
  *
- *   1. `api/branding.json`'s `theme.defaultMode`   — the fork's own choice
+ *   1. `packages/styles/branding.json`'s `theme.defaultMode`   — the fork's own choice
  *   2. `prefers-color-scheme`                       — what the OS asks for
  *   3. the visitor's persisted `localStorage` value — what they clicked
  *

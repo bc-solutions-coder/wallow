@@ -2,7 +2,7 @@
  * Brand asset URLs, resolved against the app's served root rather than the
  * current page.
  *
- * `api/branding.json` names its assets by bare filename (`appIcon:
+ * `packages/styles/branding.json` names its assets by bare filename (`appIcon:
  * "piggy-icon.svg"`), which is what a fork should be able to write. Handing that
  * value straight to an `<img src>` makes the browser resolve it against the
  * current document's URL, so the icon that loads from `/login` 404s from

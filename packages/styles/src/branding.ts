@@ -2,22 +2,28 @@
  * Fork + per-client branding resolution, shared by every Wallow frontend.
  *
  * This is the TypeScript port of the branding/theme logic in the Blazor auth
- * app's `Components/Layout/AuthLayout.razor`. That layout injects the fork's
- * `BrandingOptions` (bound from the repo-root `api/branding.json`) plus an
- * `IClientBrandingClient`, reads the `client_id` query parameter, and — when a
- * client is identified — overlays that OAuth client's own display name, tagline,
+ * app's `Components/Layout/AuthLayout.razor`. That layout injected the fork's
+ * `BrandingOptions` (bound from `branding.json`, which lived under `api/` for
+ * exactly that reason and now lives here, since no backend code ever read it)
+ * plus an `IClientBrandingClient`, read the `client_id` query parameter, and — when
+ * a client is identified — overlaid that OAuth client's own display name, tagline,
  * logo, and `ThemeJson` colours on top of the fork's.
  *
  * The port keeps that behaviour in one pure, testable function
  * ({@link mergeClientBranding}) so the React layout is left with rendering only.
  */
+// `branding.json` is the ONE file a fork edits to rebrand, and it sits at this
+// package's root — beside `styles.css` and `assets/`, the two other things a
+// fork's identity is made of. It is deliberately not under `src/`: it is
+// configuration a human edits, not a module.
+//
 // The `with { type: "json" }` attribute is required, not decorative. In-repo
 // this module is resolved from source rather than from a prebuilt bundle that
 // already inlined the JSON, so consumers whose loader is plain Node ESM —
 // Storybook evaluating packages/ui/.storybook/main.ts, which reaches here
 // through `@bc-solutions-coder/styles/vite` — import this file directly, and
 // Node rejects a JSON import without the attribute (ERR_IMPORT_ATTRIBUTE_MISSING).
-import forkBrandingJson from "../../../api/branding.json" with { type: "json" };
+import forkBrandingJson from "../branding.json" with { type: "json" };
 import { toRootRelativeAssetUrl } from "./asset-urls";
 
 /** The two colour schemes a theme defines. */
@@ -35,7 +41,7 @@ export type ThemeColors = Readonly<Record<string, string>>;
 /** CSS custom properties, keyed by full variable name (`--primary-foreground`). */
 export type CssVars = Readonly<Record<string, string>>;
 
-/** The fork's theme block (`theme` in `api/branding.json`). */
+/** The fork's theme block (`theme` in `packages/styles/branding.json`). */
 export interface ForkTheme {
   readonly defaultMode: string;
   readonly light: ThemeColors;
@@ -43,7 +49,7 @@ export interface ForkTheme {
 }
 
 /**
- * The fork's branding, i.e. the shape of `api/branding.json`. Mirrors the C#
+ * The fork's branding, i.e. the shape of `packages/styles/branding.json`. Mirrors the C#
  * `BrandingOptions`. `repositoryUrl` and `docsUrl` are optional here because the
  * JSON omits them when empty, where C# defaults them to `""`.
  */
@@ -86,9 +92,8 @@ export interface ResolvedBranding {
 }
 
 /**
- * The fork branding, read from the repo-root `api/branding.json` — the single
- * source of fork identity shared with the .NET apps (`api/CLAUDE.md`: "no source
- * changes are needed to rebrand").
+ * The fork branding, read from this package's `branding.json` — the single source
+ * of fork identity, and the one file a fork edits to rebrand.
  *
  * It is a static JSON *import*, not a runtime `fs` read, deliberately: Vite
  * inlines it at build/config time, so the same module resolves identically in

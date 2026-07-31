@@ -4,7 +4,7 @@ import { Badge } from "./badge";
 
 /*
  * The visual half of Badge's spec (Wallow-lrlm.3.4). Not interactive, so no
- * `play`. The preview decorator feeds these api/branding.json's real tokens,
+ * `play`. The preview decorator feeds these packages/styles/branding.json's real tokens,
  * which is the only place the state colours can actually be judged: the
  * `browser` project loads no Tailwind, so `badge.test.tsx` can assert the class
  * names but not that success reads as green against the fork's palette.

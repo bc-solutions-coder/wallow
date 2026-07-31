@@ -14,7 +14,7 @@ import viteConfig from "../vite.config";
  * has to answer that URL. Start's nitro output serves `.output/public` at the
  * root, so all this app owes is getting the icon INTO that directory — and
  * getting it from the shared package, not from a copy of its own, which is what
- * makes api/branding.json the one place a fork swaps the icon.
+ * makes packages/styles/branding.json the one place a fork swaps the icon.
  *
  * Vite's `publicDir` is that mechanism: its contents are copied to the build
  * root verbatim and unhashed (Wallow-do5e), and the dev server serves the same

@@ -34,7 +34,7 @@ import { useUiStore } from "../stores/ui-store";
  * vacuously. `../testing/theme-wiring.test.tsx` guards that precondition;
  * removing the theme fails BOTH files rather than silently disarming this one.
  *
- * The palette is `oklch(...)` in `api/branding.json` and Chromium preserves that
+ * The palette is `oklch(...)` in `packages/styles/branding.json` and Chromium preserves that
  * in the computed value, which is why the helpers parse via a canvas rather than
  * an `rgb()` regex.
  */

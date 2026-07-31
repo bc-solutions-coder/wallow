@@ -30,7 +30,7 @@ import { useUiStore } from "../stores/ui-store";
  * two strengths: 10% of the page background over the rail for hover, 15% for the
  * active route. In light mode `oklch(0.97 0.008 70)` at 10% over
  * `oklch(0.22 0.035 45)` is `oklch(0.30 …)` — which is `sidebarAccent`'s value
- * EXACTLY (`api/branding.json`). The token was cut for this job; both states now
+ * EXACTLY (`packages/styles/branding.json`). The token was cut for this job; both states now
  * take it, and the active row stays distinguishable from an idle one because it
  * alone carries a surface at all.
  *

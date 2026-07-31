@@ -3,7 +3,7 @@
  *
  * Tailwind v4 is CSS-first, so this file is the config. It maps Tailwind's
  * tokens onto plain custom properties and stops there: the palette those
- * properties resolve to is emitted at render time from api/branding.json (see
+ * properties resolve to is emitted at render time from packages/styles/branding.json (see
  * ./src/branding.ts), which keeps that JSON the only place a fork edits to
  * rebrand.
  *
@@ -13,7 +13,7 @@
  * nothing.
  *
  * The sidebar and success tokens carry a two-level fallback the older tokens do
- * not need: api/branding.json is merge=ours in .gitattributes, so a fork whose
+ * not need: packages/styles/branding.json is merge=ours in .gitattributes, so a fork whose
  * copy predates those keys never receives them from an upstream merge and the
  * theme emits no custom property for them. The fallback lands such a fork on a
  * colour its palette has always carried instead of on nothing at all.

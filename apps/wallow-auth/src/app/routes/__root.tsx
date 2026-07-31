@@ -27,7 +27,7 @@ import { appIconUrl, forkResolvedBranding } from "@shared/lib/branding";
 import "../styles.css";
 
 /**
- * The fork's own palette/name — build-time data from `api/branding.json`, never
+ * The fork's own palette/name — build-time data from `packages/styles/branding.json`, never
  * request input. The per-client (`client_id`) branding overlay is resolved by the
  * route that renders {@link AuthLayout}; this shell shows the fork's, which is
  * also the fallback whenever no client is identified.

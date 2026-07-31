@@ -102,7 +102,7 @@ is a 4-project Clean Architecture stack `Wallow.{Module}.{Domain,Application,Inf
 | `Directory.Packages.props` | **Central Package Management** — single source for all NuGet versions. |
 | `global.json` | Pins the .NET SDK (`rollForward: latestMinor`). |
 | `stylecop.json`, `.editorconfig` | Style rulesets driving `EnforceCodeStyleInBuild`. |
-| `seed.json` | Seeder input. `branding.json` | Fork branding read by Auth + Web. |
+| `seed.json` | Seeder input. (Fork branding is NOT here — no backend code reads it; it lives at `packages/styles/branding.json`.) |
 
 Warnings-as-errors + StyleCop/Meziantou/Roslynator run on every non-test project, so
 `dotnet format api/Wallow.slnx` before committing. No `--` inside XML comments in

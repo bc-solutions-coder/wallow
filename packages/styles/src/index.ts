@@ -2,7 +2,7 @@
  * Public entry for `@bc-solutions-coder/styles`.
  *
  * The package has two faces:
- *  - this TypeScript entry, which turns `api/branding.json` into the theme CSS
+ *  - this TypeScript entry, which turns `packages/styles/branding.json` into the theme CSS
  *    custom properties a consuming app renders into its document head; and
  *  - the `./styles.css` export, the shared Tailwind v4 entry, which a consuming
  *    app `@import`s and then `@source`s its own component directory from.

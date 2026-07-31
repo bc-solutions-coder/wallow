@@ -16,9 +16,9 @@ import {
 } from "./branding";
 
 /**
- * A minimal stand-in for `api/branding.json`. The merge tests drive this rather
+ * A minimal stand-in for `packages/styles/branding.json`. The merge tests drive this rather
  * than the real fork branding so they assert the merge *rules* and stay green
- * when the fork rebrands (which is the whole point of `api/branding.json`). The
+ * when the fork rebrands (which is the whole point of `packages/styles/branding.json`). The
  * few tests that must pin real fork values say so explicitly.
  */
 const testFork: ForkBranding = {
@@ -213,8 +213,8 @@ describe("renderThemeStyle", () => {
   });
 });
 
-describe("forkBranding read from api/branding.json", () => {
-  // Pins the real repo-root file: this is the contract the .NET apps share.
+describe("forkBranding read from packages/styles/branding.json", () => {
+  // Pins the real file, not a fixture: this is the fork's own identity.
   it("loads the fork identity at build time", () => {
     expect(forkBranding.appName).toBe("Wallow");
     expect(forkBranding.appIcon).toBe("piggy-icon.svg");
@@ -271,7 +271,7 @@ describe("branding under a base path", () => {
 });
 
 describe("toAppIconUrl", () => {
-  it("names the icon api/branding.json names, under the prefix the app is served at", () => {
+  it("names the icon packages/styles/branding.json names, under the prefix the app is served at", () => {
     expect(toAppIconUrl("/auth")).toBe(`/auth/${forkBranding.appIcon}`);
   });
 

@@ -22,7 +22,7 @@ import { ConsentScreen } from "./ConsentScreen";
  * therefore read off `getComputedStyle` here.
  *
  * WHY PROBES RATHER THAN LITERALS. Asserting `font-size: 20px` or an `rgb()`
- * string would pin Tailwind's and `api/branding.json`'s current values into this
+ * string would pin Tailwind's and `packages/styles/branding.json`'s current values into this
  * app's spec. Instead each assertion renders a sibling element carrying the
  * utility the migration is supposed to land on and compares the two computed
  * values, so the spec keeps meaning what it says after a fork retunes its scale

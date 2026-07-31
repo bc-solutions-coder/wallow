@@ -13,7 +13,7 @@ import {
  * Theme activation for the fork (Wallow-lrlm.1.2).
  *
  * `packages/styles` already emits `.light` / `.dark` custom-property blocks from
- * `api/branding.json`; nothing in either app ever put those classes on the
+ * `packages/styles/branding.json`; nothing in either app ever put those classes on the
  * document except the hardcoded `className={branding.defaultMode}` in each
  * `__root.tsx`. This folder is what makes the emitted CSS reachable: a pre-paint
  * inline script that stamps the class BEFORE React runs, plus a provider that
@@ -53,7 +53,7 @@ export interface ThemeResolutionInput {
    * gives the fork's own `defaultMode` something to decide.
    */
   readonly systemMode: ThemeMode | null;
-  /** The fork's `theme.defaultMode` from `api/branding.json`, the last resort. */
+  /** The fork's `theme.defaultMode` from `packages/styles/branding.json`, the last resort. */
   readonly defaultMode: ThemeMode;
 }
 

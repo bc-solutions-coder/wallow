@@ -10,13 +10,43 @@ This repo is a **polyglot monorepo** with two toolchains:
   backend architecture, modules, and commands.
 - **`apps/` + `packages/`** — a pnpm workspace (TypeScript). See the JavaScript section below.
 
+## Deployment Status — pre-release, no users
+
+**Wallow has never been deployed anywhere except locally. There are no production
+environments, no consumers, and no data worth preserving.** Assume this is true until this
+section is removed or amended.
+
+Consequences for how work is done here:
+
+- **Prefer the correct design over the compatible one.** Breaking changes to `main` are
+  acceptable and expected. Do not carry a worse design forward because changing it would break
+  something already on `main`.
+- **Schema changes do not need staged migrations.** No expand/contract, no dual-write windows,
+  no read-old-write-new phases, no deprecation periods. Reshape the schema, regenerate or
+  replace the migration, and re-seed. Local databases are disposable — `bd`-tracked data and
+  `api/seed.json` are the only state that matters.
+- **No backfills for the sake of existing rows.** If a model change would strand data, the
+  answer is to drop and re-seed, not to write a data migration.
+- **API and contract changes are free.** The OpenAPI snapshot, the SDK's public surface,
+  integration event shapes, and claim contents can all change in one commit. Regenerate
+  `packages/sdk/openapi/v1.json` and the SDK client rather than versioning around a change.
+- **No feature flags or compatibility shims** whose only purpose is protecting an existing
+  rollout. Flags for genuine product optionality are still fine.
+- **Do not spend effort on rollout edge cases** — coordinating releases, communicating
+  permission changes to affected users, keeping old columns readable for a release. None of
+  that applies.
+
+Still required, because these are about correctness rather than compatibility: quality gates
+(`pnpm check`, `./scripts/run-tests.sh`), conventional commits, and migrations that actually
+apply cleanly to a fresh database.
+
 ## Repository Layout
 
 | Path                | What it is                                                                                                                                                                  |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `api/`              | .NET 10 solution (`Wallow.slnx`), central build/package props, `.editorconfig`, `stylecop.json`, `seed.json`, `branding.json`                                               |
+| `api/`              | .NET 10 solution (`Wallow.slnx`), central build/package props, `.editorconfig`, `stylecop.json`, `seed.json`                                                                |
 | `packages/sdk/`     | `@bc-solutions-coder/sdk` — TypeScript BFF auth SDK + generated OpenAPI client                                                                                              |
-| `packages/styles/`  | `@bc-solutions-coder/styles` — shared Tailwind v4 CSS entry + theme tokens emitted from `api/branding.json`                                                                 |
+| `packages/styles/`  | `@bc-solutions-coder/styles` — shared Tailwind v4 CSS entry + theme tokens emitted from `packages/styles/branding.json`                                                                 |
 | `packages/ui/`      | `@bc-solutions-coder/ui` — shared browser-only React component catalog (Base UI + CVA); see `packages/ui/CLAUDE.md`                                                         |
 | `packages/forms/`   | `@bc-solutions-coder/forms` — shared form-authoring layer (TanStack Form catalog + zod + RFC 7807 errors) bound to `@bc-solutions-coder/ui`; see `packages/forms/CLAUDE.md` |
 | `packages/query/`   | `@bc-solutions-coder/query` — the shared TanStack Query facade: re-exports react-query plus `createQueryClient`; see `packages/query/CLAUDE.md`                             |
@@ -145,7 +175,7 @@ E2E tests are per-app `@playwright/test` suites (`apps/wallow-auth/e2e/`,
 
 ## Fork-First Configuration
 
-- **`api/branding.json`** — canonical fork branding (name, icon, tagline, theme colors);
+- **`packages/styles/branding.json`** — canonical fork branding (name, icon, tagline, theme colors);
   `packages/styles` owns the canonical branding types and emits theme CSS from it. No
   source changes are needed to rebrand.
 - `.gitattributes` marks `appsettings*.json`, `branding.json`, `docker/.env`,

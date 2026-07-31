@@ -7,7 +7,7 @@ import { Button } from "./button";
  * EXEMPLAR STORIES (Wallow-m5aq.2.1), extended by Wallow-lrlm.3.1. Stories in
  * this package are not a side-car explorer: `@storybook/addon-vitest` turns each
  * export below into a Vitest test case rendered in the same headless Chromium the
- * `browser` project uses, and the preview decorator feeds them api/branding.json's
+ * `browser` project uses, and the preview decorator feeds them packages/styles/branding.json's
  * real tokens. So a story is the VISUAL half of a component's spec — one per
  * variant and per state that a reviewer needs to eyeball — while
  * `button.test.tsx` holds the assertions about markup that a screenshot cannot

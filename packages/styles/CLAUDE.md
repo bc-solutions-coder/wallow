@@ -1,7 +1,7 @@
 # packages/styles — @bc-solutions-coder/styles Agent Guide
 
 Owns **fork branding**: the canonical branding types plus the shared Tailwind v4 entry.
-`api/branding.json` is the only file a fork edits to rebrand — this package turns it into
+`packages/styles/branding.json` is the only file a fork edits to rebrand — this package turns it into
 theme CSS custom properties at render time.
 
 ## Four exports

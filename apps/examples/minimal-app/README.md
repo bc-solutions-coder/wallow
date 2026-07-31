@@ -78,7 +78,7 @@ pnpm --filter @bc-solutions-coder/example-minimal-app test      # node + headles
 - **Inherits (no source of its own):** branding/theme tokens, the component
   library, the test harness, and the whole host runtime — the SSR server, the dev
   server, and the production Node server are Start + Nitro output, not app code.
-  Rebranding needs no source change here; it flows from `api/branding.json`
+  Rebranding needs no source change here; it flows from `packages/styles/branding.json`
   through `@bc-solutions-coder/styles`.
 
 ### Two config lines worth copying verbatim

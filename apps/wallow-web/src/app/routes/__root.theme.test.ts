@@ -20,7 +20,7 @@ import { describe, expect, it } from "vitest";
  *     hydration produces the flash of wrong theme this task exists to remove.
  *   - `ThemeProvider` wrapping the body content, so `ThemeToggle` anywhere in
  *     the tree reads and writes one source of truth.
- *   - Both fed `branding.defaultMode` — the fork's `api/branding.json` value,
+ *   - Both fed `branding.defaultMode` — the fork's `packages/styles/branding.json` value,
  *     which is the LAST resort in the resolution order (localStorage, then
  *     prefers-color-scheme, then this).
  *   - `<html className={branding.defaultMode}>` stays. It is the server's best

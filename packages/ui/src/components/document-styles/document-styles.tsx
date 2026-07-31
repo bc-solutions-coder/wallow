@@ -8,7 +8,7 @@ export interface DocumentStylesProps {
    * nor an app-local `../lib/branding` — the same props-only rule
    * `fork-attribution.tsx` follows. The string is a plain text child (React
    * escapes nothing into it and no markup is interpolated); it is generated
-   * from `api/branding.json` at build time, never from request input.
+   * from `packages/styles/branding.json` at build time, never from request input.
    */
   readonly themeCss: string;
   /**

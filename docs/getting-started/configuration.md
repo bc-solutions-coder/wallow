@@ -17,9 +17,9 @@ This section documents all configuration sections used by Wallow. See the "Quick
 
 ### Branding
 
-Branding controls the user-facing identity of the React apps -- auth screens (login, register, password reset), the dashboard shell, and the document head. It is **not** an `appsettings.json` section: it lives in its own file, **`api/branding.json`**.
+Branding controls the user-facing identity of the React apps -- auth screens (login, register, password reset), the dashboard shell, and the document head. It is **not** an `appsettings.json` section: it lives in its own file, **`packages/styles/branding.json`**.
 
-That file is the single source of fork identity. `packages/styles` (`@bc-solutions-coder/styles`, `src/branding.ts`) owns the canonical schema, imports `api/branding.json` statically at build time, and emits the color tokens as CSS custom properties. Both React apps (`apps/wallow-auth`, `apps/wallow-web`) consume it from there, so rebranding a fork needs no source changes -- just edit the JSON.
+That file is the single source of fork identity. `packages/styles` (`@bc-solutions-coder/styles`, `src/branding.ts`) owns the canonical schema, imports `packages/styles/branding.json` statically at build time, and emits the color tokens as CSS custom properties. Both React apps (`apps/wallow-auth`, `apps/wallow-web`) consume it from there, so rebranding a fork needs no source changes -- just edit the JSON.
 
 **Top-level keys:**
 
@@ -41,17 +41,17 @@ That file is the single source of fork identity. `packages/styles` (`@bc-solutio
 | `light` | `object` | Color tokens for light mode |
 | `dark` | `object` | Color tokens for dark mode |
 
-Each color set is a map of camelCase token names to CSS values. The tokens the shipped `api/branding.json` defines are:
+Each color set is a map of camelCase token names to CSS values. The tokens the shipped `packages/styles/branding.json` defines are:
 
 `background`, `foreground`, `card`, `cardForeground`, `popover`, `popoverForeground`, `primary`, `primaryForeground`, `secondary`, `secondaryForeground`, `muted`, `mutedForeground`, `accent`, `accentForeground`, `destructive`, `destructiveForeground`, `border`, `input`, `ring`, `sidebar`, `sidebarForeground`, `sidebarAccent`, `success`, `successForeground`, `radius`
 
 All except `radius` are OKLCH colors; `radius` is a CSS length (`0.5rem`). The map is open-ended -- unknown keys are passed through as CSS custom properties, so a fork can add its own tokens.
 
-The `sidebar*` and `success*` tokens were added after the original set, so they resolve through a two-level fallback (`--color-sidebar: var(--sidebar, var(--foreground))`) rather than the plain `var(--x)` the older tokens use. Because `api/branding.json` is `merge=ours` in `.gitattributes`, a fork whose copy predates these keys never receives them from an upstream merge -- the fallback lands it on a colour its palette already carries instead of on nothing. The `sidebar*` family is the theme's general inverted-surface family, not solely a dashboard sidebar.
+The `sidebar*` and `success*` tokens were added after the original set, so they resolve through a two-level fallback (`--color-sidebar: var(--sidebar, var(--foreground))`) rather than the plain `var(--x)` the older tokens use. Because `packages/styles/branding.json` is `merge=ours` in `.gitattributes`, a fork whose copy predates these keys never receives them from an upstream merge -- the fallback lands it on a colour its palette already carries instead of on nothing. The `sidebar*` family is the theme's general inverted-surface family, not solely a dashboard sidebar.
 
 **`defaultMode` is only the starting point.** It is the scheme applied when neither the visitor nor their OS states a preference; the frontends resolve the active scheme at load time as persisted choice, then OS `prefers-color-scheme`, then this value, and a visitor can change it at any time through the shared theme toggle. See [Dark Mode](../development/frontend-setup.md#dark-mode).
 
-**Example `api/branding.json`:**
+**Example `packages/styles/branding.json`:**
 
 ```json
 {
@@ -81,7 +81,7 @@ The `sidebar*` and `success*` tokens were added after the original set, so they 
 }
 ```
 
-Because `api/branding.json` is imported at build time rather than read at runtime, changing it requires rebuilding (or restarting the dev server for) the frontends. There is no environment-variable override for these values.
+Because `packages/styles/branding.json` is imported at build time rather than read at runtime, changing it requires rebuilding (or restarting the dev server for) the frontends. There is no environment-variable override for these values.
 
 Per-OAuth-client branding is a separate, runtime concern: the Branding module serves `GET /v1/identity/apps/{clientId}/branding`, and a client's display name, tagline, logo, and theme are overlaid on top of the fork's when a `client_id` is present.
 
