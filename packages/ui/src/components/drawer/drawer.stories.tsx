@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { type ReactElement, useState } from "react";
 import { expect, fn, screen, userEvent, waitFor } from "storybook/test";
 
+import { expectHeadingScale, HeadingScaleProbes } from "../../../.storybook/heading-scale";
 import { Drawer } from "./drawer";
 import type { DrawerSide } from "./drawer.styles";
 
@@ -361,10 +362,37 @@ export const PaintedByTheDesignTokens: Story = {
       "0px",
     );
 
-    // `text-lg font-semibold` on the title, against the <h2> defaults the reset
-    // flattens to the body size.
+    // `font-semibold` on the title, against the <h2> defaults the reset flattens
+    // to the body weight. The SIZE is asserted by HeadingScale below, which
+    // compares it against a probe rather than against a literal.
     const titleStyle = getComputedStyle(await screen.findByTestId("filter-title"));
-    await expect(titleStyle.fontSize).not.toBe("16px");
     await expect(Number(titleStyle.fontWeight)).toBeGreaterThan(400);
   },
+};
+
+/**
+ * The MEASURED pin on the catalog-wide heading standard (Wallow-io5f).
+ *
+ * `drawerTitleRecipe` hard-coded `text-lg` (18px) while `Text`'s `subheading`
+ * step — the other spelling of a surface heading — sat at `text-xl` (20px), so
+ * the same slot rendered at two sizes depending on which part a call site
+ * reached for. This bead settles all four surface-title recipes on 20px.
+ *
+ * No app renders a Drawer today, which is exactly why this needs a test rather
+ * than a note: unrendered is not never-rendered, and the first caller to open
+ * one would otherwise inherit an 18px title with nothing to catch it. See
+ * `.storybook/heading-scale.tsx` for why this is measured, and why here.
+ *
+ * The drawer's title stays COLOURLESS — this pins the size axis only, and must
+ * not be read as a licence to give the recipe a colour it deliberately omits.
+ */
+export const HeadingScale: Story = {
+  args: { defaultOpen: true, side: "right" },
+  render: (args) => (
+    <>
+      <FilterDrawer {...args} />
+      <HeadingScaleProbes />
+    </>
+  ),
+  play: expectHeadingScale("filter-title"),
 };

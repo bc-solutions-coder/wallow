@@ -426,8 +426,11 @@ describe("wallow-auth renders its copy through the catalog's Text", () => {
  * THE DEFECT. wallow-auth's sixteen screen headings used to render at two sizes
  * on the same card slot: nine at `Text`'s `subheading` step (`text-xl`, 20px)
  * and seven at `CardTitle`'s own `text-lg` literal (18px). The standard is now
- * `Text`'s `body` step at `semibold` — 16px — composed identically everywhere:
- * `<Text as="h2" variant="body" weight="semibold" color="onCard">`.
+ * that same `subheading` step — 20px, catalog-wide as of Wallow-io5f — composed
+ * identically everywhere: `<Text as="h2" variant="subheading" color="onCard">`.
+ * Wallow-lrlm.13's interim 16px spelling (`variant="body" weight="semibold"`)
+ * is gone: `text-base` is the browser's default body size, so it computed the
+ * same size as the copy beneath it.
  *
  * WHY THE SOURCE, GIVEN `src/heading-scale.test.tsx` MEASURES IT. That file
  * mounts all sixteen screens and proves they PAINT one size. What it cannot
@@ -438,11 +441,10 @@ describe("wallow-auth renders its copy through the catalog's Text", () => {
  * the next screen is judged the day it lands rather than the day someone
  * remembers to add it to a list.
  *
- * WHY NOT `CardTitle`. Landing these sixteen on 16px through the catalog part
- * would mean retuning `cardTitleRecipe` in `packages/ui`, which also moves
- * wallow-web's six card headings and minimal-app's two. That is a separate,
- * cross-app decision, so wallow-auth composes `Text` directly instead and the
- * shared recipe is left alone.
+ * WHY STILL NOT `CardTitle`. As of Wallow-io5f `cardTitleRecipe` is `text-xl`
+ * too, so the two parts finally agree and either would render the right size.
+ * This app keeps composing `Text` directly so a screen has ONE spelling to copy
+ * — a card slot holding both parts is how the original split started.
  */
 describe("wallow-auth renders every screen heading at one scale", () => {
   it("finds a card heading on every screen known to carry one", () => {
@@ -453,30 +455,32 @@ describe("wallow-auth renders every screen heading at one scale", () => {
     expect(CARD_HEADING_FILES.length).toBeGreaterThanOrEqual(KNOWN_CARD_HEADINGS.length);
   });
 
-  it.each(CARD_HEADING_FILES)("puts %s's card heading on the body step", (file) => {
+  it.each(CARD_HEADING_FILES)("puts %s's card heading on the subheading step", (file) => {
     const headings: string[] = cardHeadingOpeners(code(file));
 
     expect(
-      headings.filter((attrs) => !/\bvariant="body"/u.test(attrs)),
-      `${file}'s card heading must take the app-wide card-heading scale`,
+      headings.filter((attrs) => !/\bvariant="subheading"/u.test(attrs)),
+      `${file}'s card heading must take the catalog-wide card-heading scale`,
     ).toEqual([]);
   });
 
-  it.each(CARD_HEADING_FILES)("keeps %s's card heading at semibold", (file) => {
-    // `body` carries no `font-*` of its own, so the weight is a second explicit
-    // argument rather than something the scale brings along: drop it and the
-    // heading reads at the same size as the copy underneath it.
+  it.each(CARD_HEADING_FILES)("takes %s's heading weight from the scale itself", (file) => {
+    // `subheading` is `text-xl font-semibold` — the weight rides along with the
+    // step, so a `weight` prop here is a second place the same decision gets
+    // made. This is the half that inverted with the standard: under the 16px
+    // spelling `body` carried no `font-*` and `weight="semibold"` was REQUIRED.
     const headings: string[] = cardHeadingOpeners(code(file));
 
     expect(
-      headings.filter((attrs) => !/\bweight="semibold"/u.test(attrs)),
-      `${file}'s card heading must stay distinguishable from body copy`,
+      headings.filter((attrs) => /\bweight="/u.test(attrs)),
+      `${file}'s card heading must not restate the weight its scale supplies`,
     ).toEqual([]);
   });
 
   it.each(SWEPT)("takes no card heading from CardTitle in %s", (file) => {
-    // `CardTitle` hard-codes `text-lg`, which is one of the two steps this app
-    // just left. Re-importing it anywhere here re-opens the split.
+    // Not about size any more — `cardTitleRecipe` is `text-xl` too now. This
+    // keeps ONE spelling in this app, which is what stops a card slot from
+    // holding both parts again.
     expect(code(file), `${file} must compose its heading from Text`).not.toContain("CardTitle");
   });
 });

@@ -58,7 +58,9 @@ describe("CreateOrganizationForm (restyle)", () => {
     const heading = byTestId("organization-create-heading");
     expectTag(heading, "h2");
     expect(heading.textContent).toBe("Create Organization");
-    expectClasses(heading, "text-lg font-semibold text-card-foreground");
+    // `text-xl` since Wallow-io5f made 20px the catalog-wide heading standard.
+    // Presence only — the computed size is measured in `src/heading-scale.test.tsx`.
+    expectClasses(heading, "text-xl font-semibold text-card-foreground");
   });
 
   it("renders the heading above the form", async () => {

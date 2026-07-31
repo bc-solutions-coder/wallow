@@ -211,7 +211,7 @@ function loginHref(token: string): string {
 function CardHeading() {
   return (
     <div className="text-center space-y-1">
-      <Text as="h2" variant="body" weight="semibold" color="onCard">
+      <Text as="h2" variant="subheading" color="onCard">
         You&apos;ve been invited
       </Text>
       <MutedText>Join {forkBranding.appName}</MutedText>

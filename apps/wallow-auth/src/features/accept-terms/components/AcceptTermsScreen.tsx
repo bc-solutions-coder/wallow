@@ -305,13 +305,7 @@ export function AcceptTermsScreen({
           target, so a second `<h1>` inside the card was an a11y defect the
           migration fixes rather than carries across.
         */}
-        <Text
-          as="h2"
-          variant="body"
-          weight="semibold"
-          color="onCard"
-          data-testid="accept-terms-heading"
-        >
+        <Text as="h2" variant="subheading" color="onCard" data-testid="accept-terms-heading">
           Almost there!
         </Text>
         <MutedText>Please accept our terms to create your account</MutedText>

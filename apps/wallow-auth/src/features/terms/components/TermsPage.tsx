@@ -67,7 +67,7 @@ const SECTIONS: readonly { readonly heading: string; readonly body: string }[] =
 function DocumentHeading() {
   return (
     <div className="px-0 pt-0 text-center space-y-1">
-      <Text as="h2" variant="body" weight="semibold" color="onCard" data-testid="terms-heading">
+      <Text as="h2" variant="subheading" color="onCard" data-testid="terms-heading">
         Terms of Service
       </Text>
       <MutedText>Last updated: {LAST_UPDATED}</MutedText>

@@ -251,7 +251,7 @@ interface VerifyResult {
 function CardHeading({ useBackupCode }: { readonly useBackupCode: boolean }) {
   return (
     <div className="space-y-1">
-      <Text as="h2" variant="body" weight="semibold" color="onCard">
+      <Text as="h2" variant="subheading" color="onCard">
         Two-factor authentication
       </Text>
       <MutedText>

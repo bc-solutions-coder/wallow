@@ -21,7 +21,7 @@ export const cardRecipe = cva("rounded-lg border border-border bg-card");
 export type CardRecipeProps = VariantProps<typeof cardRecipe>;
 
 /** The card heading — the `<h2>` rendered by `CardTitle`. */
-export const cardTitleRecipe = cva("text-lg font-semibold text-card-foreground");
+export const cardTitleRecipe = cva("text-xl font-semibold text-card-foreground");
 
 /** The heading recipe's variant props, mixed into `CardTitleProps`. */
 export type CardTitleRecipeProps = VariantProps<typeof cardTitleRecipe>;

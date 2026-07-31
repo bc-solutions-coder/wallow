@@ -29,8 +29,16 @@ const SURFACE_CLASSES = ["rounded-lg", "border", "border-border", "bg-card"];
 /** The default `spacing` value, unchanged by the refit. */
 const DEFAULT_SPACING = ["p-6", "space-y-6"];
 
-/** The heading recipe. */
-const TITLE_CLASSES = ["text-lg", "font-semibold", "text-card-foreground"];
+/**
+ * The heading recipe. `text-xl` is the catalog-wide heading standard adopted in
+ * Wallow-io5f — the same step `Text`'s `subheading` variant carries, so the two
+ * spellings of a card heading agree. It used to be `text-lg`.
+ *
+ * That the class is PRESENT is all this file can say: it runs in the `browser`
+ * project, which loads no Tailwind, so nothing here proves the element computes
+ * 20px. The measurement lives in `card.stories.tsx`'s `HeadingScale`.
+ */
+const TITLE_CLASSES = ["text-xl", "font-semibold", "text-card-foreground"];
 
 /** The element's classes as an order-free set, so tailwind-merge may reorder. */
 function classSet(element: Element): string[] {
@@ -130,11 +138,20 @@ describe("CardTitle", () => {
   });
 
   it("lets a caller className override the heading size", async () => {
-    const { container } = await render(<CardTitle className="text-2xl">Sign in</CardTitle>);
+    // The step the recipe itself carries, read off the recipe rather than
+    // written as a literal: pinned to `text-lg` this assertion went quietly
+    // vacuous the moment the standard moved to `text-xl`, since a class the
+    // recipe no longer emits is absent whether or not the override works.
+    const recipeSize: string | undefined = TITLE_CLASSES.find((utility) =>
+      /^text-(?:xs|sm|base|lg|\d*xl)$/u.test(utility),
+    );
+    expect(recipeSize, "the heading recipe must carry a type step").toBeDefined();
+
+    const { container } = await render(<CardTitle className="text-3xl">Sign in</CardTitle>);
 
     const heading = onlyHeading(container);
-    expect(heading.classList.contains("text-2xl")).toBe(true);
-    expect(heading.classList.contains("text-lg")).toBe(false);
+    expect(heading.classList.contains("text-3xl")).toBe(true);
+    expect(heading.classList.contains(recipeSize as string)).toBe(false);
     expect(heading.classList.contains("font-semibold")).toBe(true);
   });
 

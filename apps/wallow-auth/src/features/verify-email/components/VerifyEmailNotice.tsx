@@ -27,13 +27,7 @@ import { signInHref } from "../sign-in-href";
 function CardHeading() {
   return (
     <div className="space-y-1">
-      <Text
-        as="h2"
-        variant="body"
-        weight="semibold"
-        color="onCard"
-        data-testid="verify-email-heading"
-      >
+      <Text as="h2" variant="subheading" color="onCard" data-testid="verify-email-heading">
         Check your email
       </Text>
       <MutedText data-testid="verify-email-description">

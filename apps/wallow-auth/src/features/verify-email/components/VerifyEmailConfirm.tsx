@@ -102,7 +102,7 @@ function verifyFailureMessage(cause: unknown): string {
 /** The oracle's `BbCardHeader`. */
 function CardHeading() {
   return (
-    <Text as="h2" variant="body" weight="semibold" color="onCard">
+    <Text as="h2" variant="subheading" color="onCard">
       Email Verification
     </Text>
   );

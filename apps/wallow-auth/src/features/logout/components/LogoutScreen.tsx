@@ -124,13 +124,7 @@ function CardHeading({ signedOut }: { readonly signedOut: boolean }) {
       onto the heading itself — the span existed only to carry it, and it names
       exactly the same text.
     */
-    <Text
-      as="h2"
-      variant="body"
-      weight="semibold"
-      color="onCard"
-      data-testid="logout-confirm-heading"
-    >
+    <Text as="h2" variant="subheading" color="onCard" data-testid="logout-confirm-heading">
       {signedOut ? "Signed out" : "Sign out"}
     </Text>
   );

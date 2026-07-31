@@ -152,7 +152,7 @@ function SignedInBanner() {
 function CardHeading() {
   return (
     <div className="space-y-1 text-center">
-      <Text as="h2" variant="body" weight="semibold" color="onCard">
+      <Text as="h2" variant="subheading" color="onCard">
         Sign in to your account
       </Text>
       <MutedText>Enter your credentials to continue</MutedText>

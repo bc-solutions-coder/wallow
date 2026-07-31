@@ -137,7 +137,7 @@ function RequestResetForm(props: { readonly onSubmitted: () => void }) {
 function CardHeading() {
   return (
     <div className="space-y-1">
-      <Text as="h2" variant="body" weight="semibold" color="onCard">
+      <Text as="h2" variant="subheading" color="onCard">
         Forgot your password?
       </Text>
       <MutedText>Enter your email address and we&apos;ll send you a reset link.</MutedText>

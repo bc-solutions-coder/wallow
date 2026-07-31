@@ -249,7 +249,7 @@ const CONTENT_CLASSES = ["flex", "flex-col", "gap-2", "p-6"];
 /** Utilities `Drawer.Title` must render. COLOURLESS, following
  * `popoverTitleRecipe` rather than `dialogTitleRecipe`: the popup already
  * establishes `text-popover-foreground`. */
-const TITLE_CLASSES = ["text-lg", "font-semibold"];
+const TITLE_CLASSES = ["text-xl", "font-semibold"];
 
 /** Utilities `Drawer.Description` must render. */
 const DESCRIPTION_CLASSES = ["mt-1", "text-sm", "text-muted-foreground"];

@@ -139,7 +139,7 @@ const POPUP_CLASSES = [
 ];
 
 /** Utilities `Dialog.Title` must render. */
-const TITLE_CLASSES = ["text-lg", "font-semibold", "text-foreground"];
+const TITLE_CLASSES = ["text-xl", "font-semibold", "text-foreground"];
 
 /** Utilities `Dialog.Description` must render. */
 const DESCRIPTION_CLASSES = ["mt-2", "text-sm", "text-muted-foreground"];

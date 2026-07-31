@@ -156,7 +156,7 @@ function ConsentHeading({ info }: { readonly info: ConsentPrompt }) {
   const name: string = info.displayName ?? info.clientId;
 
   return (
-    <Text as="h2" variant="body" weight="semibold" color="onCard" data-testid="consent-heading">
+    <Text as="h2" variant="subheading" color="onCard" data-testid="consent-heading">
       {name} is requesting access
     </Text>
   );

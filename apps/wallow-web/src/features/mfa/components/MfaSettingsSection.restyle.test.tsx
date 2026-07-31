@@ -120,7 +120,9 @@ describe("MfaSettingsSection (restyle)", () => {
 
     const title = within(card, "h2");
     expect(title.textContent).toBe("Multi-Factor Authentication");
-    expectClasses(title, "text-lg font-semibold text-card-foreground");
+    // `text-xl` since Wallow-io5f made 20px the catalog-wide heading standard.
+    // Presence only — the computed size is measured in `src/heading-scale.test.tsx`.
+    expectClasses(title, "text-xl font-semibold text-card-foreground");
   });
 
   it("captions the status field and renders Disabled as a chip", async () => {

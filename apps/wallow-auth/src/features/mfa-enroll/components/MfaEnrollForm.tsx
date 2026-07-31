@@ -242,7 +242,7 @@ function confirmFailureMessage(cause: unknown): string {
 function CardHeading() {
   return (
     <div className="space-y-1 text-center">
-      <Text as="h2" variant="body" weight="semibold" color="onCard">
+      <Text as="h2" variant="subheading" color="onCard">
         Set up two-factor authentication
       </Text>
       <MutedText>

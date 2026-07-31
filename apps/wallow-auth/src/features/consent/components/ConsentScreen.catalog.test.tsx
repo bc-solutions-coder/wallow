@@ -1,7 +1,7 @@
 import { computedColor, isTransparent, type Rgba } from "@bc-solutions-coder/testing/contrast";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import type { SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { createAuthHarness } from "@shared/testing/harness";
@@ -81,9 +81,48 @@ function StyleProbes() {
 
 let harness: SdkHarness;
 
-beforeEach(() => {
+/**
+ * Move the real pointer to a corner nothing below renders into, BEFORE the
+ * fixture mounts.
+ *
+ * Every claim in this file is about how the consent card paints AT REST, and
+ * `buttonRecipe` gives both answers a hover arm over its own surface
+ * (`hover:bg-primary/90` on approve, `hover:bg-accent` on deny) with a
+ * `motion-safe:transition-colors` base. The Playwright pointer position
+ * persists across spec FILES in this page, so whichever file ran before this
+ * one leaves the cursor at a coordinate this fixture has no control over — and
+ * the browser re-evaluates `:hover` when new content is inserted underneath it.
+ * A rest-state colour read then returns a hover colour, or that hover
+ * transition caught partway (measured: `rgba(210,157,0,0.98)` against the
+ * resting `rgb(207,155,0)`, i.e. the fade toward alpha 0.9 about a fifth of the
+ * way through). Wallow-io5f surfaced it by raising the heading 16px -> 20px,
+ * which pushed the approve button down ~5px onto exactly such a stale
+ * coordinate — the size change was the trigger, not the defect.
+ *
+ * Parking BEFORE the render is what makes this deterministic rather than lucky:
+ * the buttons are never under the cursor at any point in their lifetime, so no
+ * hover arm ever applies and no transition ever starts, whatever ran first. The
+ * park element is `fixed` to a corner and removed once the pointer has moved —
+ * it is the POSITION that persists, not the node. See `packages/ui/CLAUDE.md`
+ * ("the mouse position persists across specs in a file"); the hazard reaches
+ * the apps' `browser` project too.
+ */
+async function parkPointer(): Promise<void> {
+  const park: HTMLDivElement = document.createElement("div");
+  park.style.cssText = "position:fixed;bottom:0;right:0;width:4px;height:4px";
+  document.body.append(park);
+
+  try {
+    await userEvent.hover(park);
+  } finally {
+    park.remove();
+  }
+}
+
+beforeEach(async () => {
   harness = createAuthHarness();
   harness.resolveJson(consentInfo());
+  await parkPointer();
 });
 
 /** Render the consent prompt and wait for it to resolve, probes alongside. */
@@ -127,21 +166,22 @@ describe("the consent card's heading takes its scale from Text", () => {
     expect(steps).toHaveProperty("size", 3);
   });
 
-  it("renders the heading at the app-wide card-heading step", async () => {
+  it("renders the heading at the catalog-wide card-heading step", async () => {
     await renderPrompt();
 
-    expect(computed("consent-heading", "font-size")).toBe(computed("probe-base", "font-size"));
+    expect(computed("consent-heading", "font-size")).toBe(computed("probe-xl", "font-size"));
   });
 
-  it("leaves the two steps this app's headings used to split across", async () => {
-    // The regression, stated as an absence: `text-xl` is where this screen's own
-    // heading sat, and `text-lg` is where its seven `CardTitle` siblings sat.
+  it("leaves the two steps this screen's heading used to sit on", async () => {
+    // The regression, stated as an absence: `text-lg` is where this screen's
+    // seven `CardTitle` siblings sat before Wallow-lrlm.13, and `text-base` is
+    // where all sixteen sat between that bead and Wallow-io5f.
     await renderPrompt();
 
     const heading: string = computed("consent-heading", "font-size");
 
     expect(heading).not.toBe(computed("probe-lg", "font-size"));
-    expect(heading).not.toBe(computed("probe-xl", "font-size"));
+    expect(heading).not.toBe(computed("probe-base", "font-size"));
   });
 
   it("keeps the heading on the card's foreground colour", async () => {
@@ -179,17 +219,22 @@ describe("the consent actions are the catalog's Button", () => {
   it("paints approve on the primary surface", async () => {
     await renderPrompt();
 
-    const approve: Rgba = computedColor(
-      page.getByTestId("consent-approve").element(),
-      "background-color",
-    );
     const probe: Rgba = computedColor(
       page.getByTestId("probe-primary").element(),
       "background-color",
     );
 
     expect(isTransparent(probe), "the fork theme resolved --color-primary").toBe(false);
-    expect(approve).toEqual(probe);
+
+    // Read through a BOUNDED POLL rather than once. `parkPointer` is what makes
+    // the button at rest at all; this is a second, independent guard on the one
+    // axis that is a transition rather than a static value. It cannot let a
+    // wrong surface through — the poll's only exit is this exact equality
+    // against the `bg-primary` probe, so a button painting anything else still
+    // fails, a second later instead of instantly.
+    await expect
+      .poll(() => computedColor(page.getByTestId("consent-approve").element(), "background-color"))
+      .toEqual(probe);
   });
 
   it("draws deny as an outline — a border and no surface of its own", async () => {

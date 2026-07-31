@@ -169,7 +169,7 @@ export type DrawerContentRecipeProps = VariantProps<typeof drawerContentRecipe>;
  * and restating a page-level colour here would break a caller who recolours the
  * panel.
  */
-export const drawerTitleRecipe = cva("text-lg font-semibold");
+export const drawerTitleRecipe = cva("text-xl font-semibold");
 
 /** The title recipe's variant props, mixed into `DrawerTitleProps`. */
 export type DrawerTitleRecipeProps = VariantProps<typeof drawerTitleRecipe>;

@@ -273,7 +273,7 @@ interface RegisterRequest {
 function CardHeading() {
   return (
     <div className="space-y-1 text-center">
-      <Text as="h2" variant="body" weight="semibold" color="onCard">
+      <Text as="h2" variant="subheading" color="onCard">
         Create an account
       </Text>
       <MutedText>Enter your details to get started</MutedText>

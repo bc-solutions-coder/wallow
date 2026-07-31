@@ -227,7 +227,7 @@ function ResetForm({ email, token }: ResetPasswordFormProps) {
 function CardHeading() {
   return (
     <div className="space-y-1">
-      <Text as="h2" variant="body" weight="semibold" color="onCard">
+      <Text as="h2" variant="subheading" color="onCard">
         Reset your password
       </Text>
       <MutedText>Enter your new password below.</MutedText>

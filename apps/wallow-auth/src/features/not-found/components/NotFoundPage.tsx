@@ -34,7 +34,7 @@ import { toAppHref } from "@shared/lib/base-path";
  */
 function NotFoundHeading() {
   return (
-    <Text as="h2" variant="body" weight="semibold" color="onCard" data-testid="not-found-heading">
+    <Text as="h2" variant="subheading" color="onCard" data-testid="not-found-heading">
       Page not found
     </Text>
   );

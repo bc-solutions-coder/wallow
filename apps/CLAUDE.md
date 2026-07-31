@@ -68,14 +68,22 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
   stays invisible to `packages/sdk`'s guardrail test (which copies the ROOT config to a temp
   dir). Extending the same gate to `wallow-auth` is open work — write app code as if it applied
   there, but do not assume parity.
-- **`wallow-auth` card headings are one 16px scale, and that standard is app-scoped.** All 16
-  screens compose `<Text as="h2" variant="body" weight="semibold" color="onCard">`;
-  `heading-scale.test.tsx` measures the computed font-size across every screen in a real
-  browser and `catalog-adoption.test.ts` sweeps the feature directories off disk, so a new
-  screen cannot skip it. The two shared `packages/ui` recipes were deliberately **not** retuned
-  — `cardTitleRecipe` is still `text-lg` (18px) and `Text`'s `subheading` step is still
-  `text-xl` (20px) — because moving either would also move `wallow-web` and `minimal-app`
-  headings, a cross-app decision left open. Do not describe 16px as a catalog-wide standard.
+- **A card heading is 20px (`text-xl`), catalog-wide.** That is `Text`'s `subheading` step,
+  which already sat there, plus the four `packages/ui` "names the surface" title recipes moved
+  onto it — `cardTitleRecipe`, `dialogTitleRecipe`, `alertDialogTitleRecipe` and
+  `drawerTitleRecipe`, all previously `text-lg` (18px). 16px is the browser's default body
+  size, so a 16px heading computes the same size as the copy beneath it and the hierarchy rests
+  entirely on weight and colour; 20px keeps a heading one real step above body text. The two
+  `text-sm` title recipes are deliberately NOT in this standard: `toastTitleRecipe` and
+  `popoverTitleRecipe` are transient chrome, not surface headings. All 16 `wallow-auth` screens
+  compose `<Text as="h2" variant="subheading" color="onCard">` — no `weight` prop, the step
+  carries `font-semibold` itself. `heading-scale.test.tsx` measures the computed font-size
+  across every screen in a real browser and `catalog-adoption.test.ts` sweeps the feature
+  directories off disk, so a new screen cannot skip it; in `packages/ui` the recipe-level pin is
+  a measured `HeadingScale` story per title-bearing component (`.storybook/heading-scale.tsx`),
+  because only the `storybook` project there loads Tailwind. Assert the computed size, never the
+  class string — `cn()` merges a caller's `className` over the recipe, so `text-xl` can be
+  present while the element paints something else.
 - **The theme class belongs on `document.documentElement`.** Each app's `__root.tsx` stamps
   `className={branding.defaultMode}` on `<html>`, runs `<ThemeScript/>` blocking in `<head>`,
   and wraps the body in `<ThemeProvider/>`. A `<div className="dark">` wrapper anywhere renders

@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import type { ReactElement } from "react";
+import { expect } from "storybook/test";
 
 import { expectScheme } from "../../../.storybook/scheme-assertions";
 import { darkScheme, lightScheme } from "../../../.storybook/scheme-decorators";
@@ -228,3 +229,90 @@ export const OverriddenColour: Story = {
   play: expectScheme("light"),
   args: { color: "muted", className: "text-destructive", children: "That code has expired." },
 };
+
+/**
+ * The MEASURED pin on `subheading` (Wallow-io5f).
+ *
+ * WHY THIS EXISTS. `subheading` is the catalog-wide card-heading standard —
+ * 20px, the `text-xl` step. That bead moved `cardTitleRecipe` and wallow-auth's
+ * sixteen screens UP to meet this variant precisely because it was already
+ * there, so `subheading` holding still is a premise of the change rather than a
+ * detail of it. Nothing pinned that premise before: `TypeScale` above renders
+ * every step but asserts only the scheme it paints, so an edit dragging
+ * `subheading` to another step would have moved the standard underneath every
+ * consumer without failing anything.
+ *
+ * WHAT IS ASSERTED. That `subheading` is the `text-xl` step, and that it is a
+ * real step above `body` — the relation, not the number, so a fork that retunes
+ * its scale keeps a meaningful spec instead of a stale literal. The probes
+ * double as the vacuity guard: with no stylesheet every one of them computes the
+ * same inherited size and each equality below would pass for the wrong reason.
+ *
+ * WHY A STORY. Only the `storybook` Vitest project has the Tailwind pipeline and
+ * the fork theme attached; the `browser` project loads no CSS, so a computed
+ * font-size cannot be read in `text.test.tsx` at all.
+ */
+export const SubheadingStandard: Story = {
+  decorators: [lightScheme],
+  render: () => (
+    <div className="flex flex-col gap-3">
+      <Text as="h2" variant="subheading" data-testid="standard-subheading">
+        Account settings
+      </Text>
+      <Text variant="body" data-testid="standard-body">
+        Body copy a heading has to outrank.
+      </Text>
+      <div data-testid="standard-probe-lg" className="text-lg">
+        probe
+      </div>
+      <div data-testid="standard-probe-xl" className="text-xl">
+        probe
+      </div>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const lg: string = fontSize(canvasElement, "standard-probe-lg");
+    const xl: string = fontSize(canvasElement, "standard-probe-xl");
+    const body: string = fontSize(canvasElement, "standard-body");
+
+    await expect(
+      new Set([lg, xl, body]),
+      "the Tailwind pipeline resolved the steps in play",
+    ).toHaveProperty("size", 3);
+
+    const subheading: string = fontSize(canvasElement, "standard-subheading");
+
+    await expect(subheading, "subheading is the text-xl step").toBe(xl);
+    await expect(subheading, "subheading is not the step CardTitle used to sit on").not.toBe(lg);
+    await expect(
+      px(subheading),
+      `subheading at ${subheading} does not outrank body copy at ${body}`,
+    ).toBeGreaterThan(px(body));
+  },
+};
+
+/**
+ * The computed `font-size` of the element carrying `testId`, which throws rather
+ * than measuring `null` if the story did not render it.
+ */
+function fontSize(canvasElement: HTMLElement, testId: string): string {
+  const element: HTMLElement | null = canvasElement.querySelector<HTMLElement>(
+    `[data-testid="${testId}"]`,
+  );
+
+  if (element === null) {
+    throw new Error(`the story did not render [data-testid="${testId}"]`);
+  }
+
+  return globalThis.getComputedStyle(element).getPropertyValue("font-size");
+}
+
+/**
+ * A computed CSS length as a number, for the one claim above that is an ORDERING
+ * rather than an equality. The unit is stripped rather than parsed off: `Number`
+ * on a `"20px"` string is `NaN`, which would fail the comparison for the wrong
+ * reason.
+ */
+function px(length: string): number {
+  return Number(length.replace("px", ""));
+}

@@ -75,7 +75,7 @@ export const dialogPopupRecipe = cva(
 export type DialogPopupRecipeProps = VariantProps<typeof dialogPopupRecipe>;
 
 /** The heading that names the dialog — Base UI's `Dialog.Title`, an `<h2>`. */
-export const dialogTitleRecipe = cva("text-lg font-semibold text-foreground");
+export const dialogTitleRecipe = cva("text-xl font-semibold text-foreground");
 
 /** The title recipe's variant props, mixed into `DialogTitleProps`. */
 export type DialogTitleRecipeProps = VariantProps<typeof dialogTitleRecipe>;

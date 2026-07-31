@@ -28,9 +28,18 @@ import { createAuthHarness } from "@shared/testing/harness";
  * at two different sizes in the same card slot: nine went through `Text`'s
  * `subheading` step (`text-xl`, 20px) and seven through `CardTitle`'s own
  * `text-lg` literal (18px), so the login screen's title and the consent screen's
- * title differed by a step one navigation apart. The standard is now `Text`'s
- * `body` step at `semibold` — 16px — and every screen composes it identically:
- * `<Text as="h2" variant="body" weight="semibold" color="onCard">`.
+ * title differed by a step one navigation apart.
+ *
+ * THE STANDARD, AND WHY IT MOVED TWICE. Wallow-lrlm.13 first landed all sixteen
+ * on `Text`'s `body` step at `semibold` (16px) because that could be composed
+ * from existing catalog API without retuning a shared recipe. Wallow-io5f makes
+ * 20px the catalog-wide standard instead and retunes `cardTitleRecipe` to match,
+ * so these sixteen move up to `<Text as="h2" variant="subheading" color="onCard">`.
+ * 16px was the wrong resting place: it is the browser's default body size, so a
+ * heading there computes the SAME size as the copy beneath it and the hierarchy
+ * rests entirely on weight. `AuthLayout` owns the page `<h1>` at the `heading`
+ * step (24px), so 24 > 20 > 16 body > 14 muted is the ladder these screens now
+ * read on.
  *
  * ALL SIXTEEN ARE MEASURED HERE, which is the point: the acceptance is that the
  * screens AGREE, and agreement is not a property any one screen's own spec can
@@ -76,13 +85,14 @@ const SEEDED_SCREENS = 9;
 const ALL_SCREENS = INERT_SCREENS + SEEDED_SCREENS;
 
 /**
- * The three type steps this bead decided between, rendered beside the screens.
+ * The three type steps this app's headings have sat on, rendered beside the
+ * screens.
  *
- * `text-base` is `Text`'s `body` step and the standard; `text-lg` is the step
- * `CardTitle` hard-codes and seven of these screens used to wear; `text-xl` is
- * `Text`'s `subheading` step the other nine used to wear. All three are rendered
- * so the spec can prove they are DISTINGUISHABLE before claiming a heading
- * matches one of them.
+ * `text-xl` is `Text`'s `subheading` step and the standard as of Wallow-io5f;
+ * `text-base` is the `body` step these sixteen were briefly standardised onto;
+ * `text-lg` is the step `CardTitle` used to hard-code. All three are rendered so
+ * the spec can prove they are DISTINGUISHABLE before claiming a heading matches
+ * one of them.
  */
 function ScaleProbes() {
   return (
@@ -263,28 +273,58 @@ describe("wallow-auth's screen headings share one type scale", () => {
     expect(ALL_SCREENS).toBe(16);
   });
 
-  it("renders every screen that paints on mount at the body step", async () => {
+  it("renders every screen that paints on mount at the subheading step", async () => {
     await renderInertScreens();
 
-    expect(headingFontSizes()).toEqual(Array.from({ length: INERT_SCREENS }, () => steps().base));
+    expect(headingFontSizes()).toEqual(Array.from({ length: INERT_SCREENS }, () => steps().xl));
   });
 
-  it("renders every screen that waits on a lookup at the body step", async () => {
+  it("renders every screen that waits on a lookup at the subheading step", async () => {
     await renderSeededScreens();
 
-    expect(headingFontSizes()).toEqual(Array.from({ length: SEEDED_SCREENS }, () => steps().base));
+    expect(headingFontSizes()).toEqual(Array.from({ length: SEEDED_SCREENS }, () => steps().xl));
   });
 
-  it("leaves both of the steps these screens used to split across", async () => {
+  it("leaves both of the steps these screens used to sit on", async () => {
     // Stated as an explicit absence because it is the regression, not a
-    // restatement: `text-lg` is where the seven `CardTitle` screens sat and
-    // `text-xl` is where the nine `Text` screens sat.
+    // restatement: `text-lg` is where the seven `CardTitle` screens sat before
+    // Wallow-lrlm.13, and `text-base` is where all sixteen sat after it.
     await renderSeededScreens();
 
     const sizes: Set<string> = new Set(headingFontSizes());
-    const { lg, xl } = steps();
+    const { base, lg } = steps();
 
     expect(sizes.has(lg), "no heading left at text-lg").toBe(false);
-    expect(sizes.has(xl), "no heading left at text-xl").toBe(false);
+    expect(sizes.has(base), "no heading left at text-base").toBe(false);
+  });
+
+  it("keeps every heading a real step above the body copy beside it", async () => {
+    // The reason the standard is 20px and not 16px, asserted rather than
+    // asserted-about-in-a-comment: `text-base` IS the browser's default body
+    // size, so a heading standardised there computes the same size as the copy
+    // under it and the hierarchy survives on weight alone. This fails for the
+    // 16px standard and passes for the 20px one.
+    await renderInertScreens();
+
+    const { base } = steps();
+    const headings: string[] = headingFontSizes();
+
+    expect(headings.length, "the bundle rendered its headings").toBe(INERT_SCREENS);
+    for (const heading of headings) {
+      expect(
+        px(heading),
+        `a card heading at ${heading} does not outrank body copy at ${base}`,
+      ).toBeGreaterThan(px(base));
+    }
   });
 });
+
+/**
+ * A computed CSS length as a number, for the one claim that is an ORDERING
+ * rather than an equality. The unit is stripped rather than parsed off: `Number`
+ * on a `"16px"` string is `NaN`, which would make every comparison above fail
+ * for the wrong reason.
+ */
+function px(length: string): number {
+  return Number(length.replace("px", ""));
+}

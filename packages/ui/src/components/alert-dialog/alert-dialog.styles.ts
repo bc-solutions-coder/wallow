@@ -97,7 +97,7 @@ export const alertDialogPopupRecipe = cva(
 export type AlertDialogPopupRecipeProps = VariantProps<typeof alertDialogPopupRecipe>;
 
 /** The heading that names the alert — `AlertDialog.Title`, an `<h2>`. */
-export const alertDialogTitleRecipe = cva("text-lg font-semibold text-foreground");
+export const alertDialogTitleRecipe = cva("text-xl font-semibold text-foreground");
 
 /** The title recipe's variant props, mixed into `AlertDialogTitleProps`. */
 export type AlertDialogTitleRecipeProps = VariantProps<typeof alertDialogTitleRecipe>;
