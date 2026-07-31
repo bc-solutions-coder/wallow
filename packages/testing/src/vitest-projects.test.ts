@@ -2,7 +2,7 @@ import { configDefaults } from "vitest/config";
 import { describe, expect, it } from "vitest";
 
 import { browserOptimizeDepsBaseline } from "./browser-optimize-deps";
-import { createVitestProjects } from "./vitest-projects";
+import { createVitestProjects, ssrSpecGlob } from "./vitest-projects";
 
 // Unit guard for Wallow-0q2s.1.2: createVitestProjects emits the shared node +
 // real-Chromium browser project pair that apps/wallow-auth/vitest.config.ts and
@@ -66,28 +66,30 @@ describe("createVitestProjects — default (no options)", () => {
 });
 
 describe("createVitestProjects — nodeTsxSpecs routing", () => {
-  const nodeTsxSpecs = [
-    "src/routes/index.test.tsx",
-    "src/routes/__root.test.tsx",
-    "src/router.test.tsx",
-  ];
+  // The convention IS the default, so the routing contract is asserted on a
+  // caller that passes nothing — the shape every consumer now uses. Both apps
+  // used to hand-list their SSR specs here and in their own configs.
+  it("routes the *.ssr.test.tsx convention onto node by default", () => {
+    const { node, browser } = createVitestProjects();
 
-  it("includes the node-tsx specs in the node project alongside the .test.ts glob", () => {
-    const { node } = createVitestProjects({ nodeTsxSpecs });
+    expect(node.test.include).toContain(ssrSpecGlob);
+    expect(browser.test.exclude).toContain(ssrSpecGlob);
+    expect(browser.test.include).not.toContain(ssrSpecGlob);
+  });
+
+  it("still honours an explicit nodeTsxSpecs list", () => {
+    const nodeTsxSpecs = ["src/routes/__root.test.tsx", "src/router.test.tsx"];
+    const { node, browser } = createVitestProjects({ nodeTsxSpecs });
 
     expect(node.test.include).toContain("src/**/*.test.ts");
     for (const spec of nodeTsxSpecs) {
       expect(node.test.include).toContain(spec);
-    }
-  });
-
-  it("excludes the node-tsx specs from the browser project", () => {
-    const { browser } = createVitestProjects({ nodeTsxSpecs });
-
-    for (const spec of nodeTsxSpecs) {
       expect(browser.test.exclude).toContain(spec);
       expect(browser.test.include).not.toContain(spec);
     }
+    // An explicit list REPLACES the convention rather than adding to it, so a
+    // caller who opts out is not silently still matching `*.ssr.test.tsx`.
+    expect(node.test.include).not.toContain(ssrSpecGlob);
     // The default vitest excludes are still layered in alongside the node specs.
     for (const excluded of configDefaults.exclude) {
       expect(browser.test.exclude).toContain(excluded);
@@ -95,11 +97,18 @@ describe("createVitestProjects — nodeTsxSpecs routing", () => {
   });
 
   it("keeps the browser include glob unchanged regardless of node-tsx specs", () => {
-    const { browser } = createVitestProjects({ nodeTsxSpecs });
+    const { browser } = createVitestProjects({ nodeTsxSpecs: ["src/router.test.tsx"] });
 
     expect(browser.test.include).toContain("src/**/*.test.tsx");
   });
 });
+
+// `browserPlugins` / `browserSetupFiles` get no spec here on purpose. They are
+// pass-throughs, and breaking one is LOUD rather than silent: with no stylesheet
+// a ui control measures 0x0 and every spec that clicks it hangs to Playwright's
+// actionability timeout. The two apps' `shared/testing/browser-styles-wiring.test.ts`
+// already name the wiring at the consumer end, where a failure can say which half
+// went missing.
 
 describe("createVitestProjects — extraBrowserOptimizeDeps", () => {
   it("appends app-specific optimizeDeps onto the shared baseline", () => {

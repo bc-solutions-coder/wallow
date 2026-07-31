@@ -29,7 +29,7 @@ describe("browser project styling wiring", () => {
     const config: string = readAppFile("vitest.config.ts");
 
     expect(config).toContain("wallowStyles()");
-    expect(config).toContain('setupFiles: ["./vitest.setup.ts"]');
+    expect(config).toContain('browserSetupFiles: ["./vitest.setup.ts"]');
   });
 
   it("loads the Tailwind utilities and the fork theme from the setup file", () => {

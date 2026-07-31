@@ -4,6 +4,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
+import vitestConfig from "../vitest.config";
+
 /**
  * "Who is signed in" has exactly ONE definition in this workspace, and it is not
  * in this app: it is `@bc-solutions-coder/auth` (Wallow-x4qn.9.2).
@@ -156,17 +158,24 @@ async function importLinked(name: string): Promise<Record<string, unknown>> {
 }
 
 /**
- * `extraBrowserOptimizeDeps` as `vitest.config.ts` spells it, read as text: that
- * config is a module the Vitest config loader consumes, and importing it here
- * would boot a second browser provider just to read a list of strings.
+ * The browser project's `optimizeDeps.include`, read off the CONFIG OBJECT.
+ *
+ * This used to regex `vitest.config.ts` for a `const extraBrowserOptimizeDeps =
+ * [...]` declaration, on the stated grounds that importing the config would boot
+ * a second browser provider. It does not: `playwright()` returns a descriptor and
+ * nothing launches until vitest runs the project — `src/browser-deps.test.ts` has
+ * imported the same config from the same node project all along. Reading the value
+ * asserts what Vite actually receives rather than how the file happens to be
+ * written, so inlining the list into the `createVitestProjects` call no longer
+ * moves the goalposts.
  */
-function extraBrowserOptimizeDeps(): readonly string[] {
-  const block: string =
-    readFileSync(join(appDir, "vitest.config.ts"), "utf8").match(
-      /extraBrowserOptimizeDeps[^=]*=\s*\[([^\]]*)\]/su,
-    )?.[1] ?? "";
+function browserPreBundleList(): readonly string[] {
+  const projects = (vitestConfig.test?.projects ?? []) as readonly {
+    optimizeDeps?: { include?: readonly string[] };
+    test?: { name?: string };
+  }[];
 
-  return [...block.matchAll(/"([^"]+)"/gu)].map((entry): string => entry[1] as string);
+  return projects.find((project) => project.test?.name === "browser")?.optimizeDeps?.include ?? [];
 }
 
 describe("the invitation route's hand-rolled current-user probe", () => {
@@ -278,7 +287,7 @@ describe("browser-mode pre-bundling covers the auth package", () => {
       "su",
     ).test(config);
 
-    expect(inlinedForSsr || extraBrowserOptimizeDeps().includes(AUTH)).toBe(true);
+    expect(inlinedForSsr || browserPreBundleList().includes(AUTH)).toBe(true);
   });
 });
 

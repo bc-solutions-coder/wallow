@@ -11,9 +11,12 @@ import { defineConfig } from "vitest/config";
  * preset — exactly like apps/wallow-auth/vitest.config.ts — and adds a third
  * `storybook` project on top.
  *
- * There are no pure-logic/SSR `*.test.tsx` specs today, so `nodeTsxSpecs` is
- * empty: every `*.test.ts` (e.g. the on-disk scaffold guard) runs on node and
- * every `*.test.tsx` component spec runs in the browser project.
+ * There are no render-nothing `*.test.tsx` specs today, so the preset's
+ * `*.ssr.test.tsx` convention matches nothing: every `*.test.ts` (e.g. the
+ * on-disk scaffold guard) runs on node and every `*.test.tsx` component spec
+ * runs in the browser project. This package also takes no `browserPlugins` —
+ * the `browser` project deliberately loads no Tailwind (see CLAUDE.md), and the
+ * `storybook` project below gets the real pipeline from Storybook itself.
  */
 
 /**

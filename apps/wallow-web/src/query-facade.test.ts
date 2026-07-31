@@ -4,6 +4,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
+import vitestConfig from "../vitest.config";
+
 /**
  * wallow-web reaches TanStack Query through ONE door: `@bc-solutions-coder/query`,
  * the workspace facade. This spec is that door's lock (Wallow-x4qn.8).
@@ -161,7 +163,7 @@ describe("the vitest harness resolves the facade explicitly", () => {
     // are imported from browser-project specs (a component reading a query; the
     // home-gate spec reading the current-user query). Unnamed, Vite discovers
     // them mid-run and reloads.
-    const extras: readonly string[] = extraBrowserOptimizeDeps();
+    const extras: readonly string[] = browserPreBundleList();
 
     expect(extras).toContain(FACADE);
     expect(extras).toContain(AUTH);
@@ -243,17 +245,25 @@ async function importLinked(name: string): Promise<Record<string, unknown>> {
   return (await import(pathToFileURL(entryPath).href)) as Record<string, unknown>;
 }
 
-/** The `extraBrowserOptimizeDeps` list `vitest.config.ts` hands the preset. */
-function extraBrowserOptimizeDeps(): readonly string[] {
-  const declaration: RegExpMatchArray | null = read("vitest.config.ts").match(
-    /extraBrowserOptimizeDeps[^=]*=\s*\[(.*?)\]/su,
-  );
+/**
+ * The browser project's `optimizeDeps.include`, read off the CONFIG OBJECT.
+ *
+ * This used to regex `vitest.config.ts` for a `const extraBrowserOptimizeDeps =
+ * [...]` declaration, on the stated grounds that importing the config would boot
+ * a second browser provider. It does not: `playwright()` returns a descriptor and
+ * nothing launches until vitest runs the project — `src/browser-deps.test.ts` has
+ * imported the same config from the same node project all along. Reading the value
+ * asserts what Vite actually receives rather than how the file happens to be
+ * written, so inlining the list into the `createVitestProjects` call no longer
+ * moves the goalposts.
+ */
+function browserPreBundleList(): readonly string[] {
+  const projects = (vitestConfig.test?.projects ?? []) as readonly {
+    optimizeDeps?: { include?: readonly string[] };
+    test?: { name?: string };
+  }[];
 
-  expect(declaration, "vitest.config.ts declares no extraBrowserOptimizeDeps list").not.toBeNull();
-
-  return [...(declaration?.[1] ?? "").matchAll(/"([^"]+)"/gu)].map(
-    (match: RegExpMatchArray) => match[1] as string,
-  );
+  return projects.find((project) => project.test?.name === "browser")?.optimizeDeps?.include ?? [];
 }
 
 /**

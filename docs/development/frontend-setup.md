@@ -270,23 +270,27 @@ store-backed Base UI part throws "Invalid hook call" during SSR.
 
 ### 4. Vitest config via the testing preset (`vitest.config.ts`)
 
-`createVitestProjects` returns the node + headless-Chromium two-project split.
-A simple app supplies only its `nodeTsxSpecs` (the `*.test.tsx` specs that render
-via `react-dom/server` and never mount a live DOM, so they stay on the node
-project); everything else defaults from the preset:
+`createVitestProjects` returns the node + headless-Chromium two-project split. A
+simple app supplies nothing at all — a `*.test.tsx` spec that renders via
+`react-dom/server` and never mounts a live DOM is named `*.ssr.test.tsx` and the
+preset routes it onto the node project by convention:
 
 ```ts
 import { createVitestProjects } from "@bc-solutions-coder/testing";
 import { defineConfig } from "vitest/config";
 
-const { node, browser } = createVitestProjects({ nodeTsxSpecs: [] });
+const { node, browser } = createVitestProjects();
 
 export default defineConfig({ test: { projects: [node, browser] } });
 ```
 
-`createVitestProjects` also accepts `extraBrowserOptimizeDeps` and
-`nodeProjectOverrides` for apps that need them (see `apps/wallow-web/vitest.config.ts`,
-which inlines the SDK and aliases `openid-client` for its BFF specs).
+`createVitestProjects` also accepts `extraBrowserOptimizeDeps` (packages a linked
+workspace dependency drags in, which Vite does not pre-bundle by default), the
+`browserPlugins` / `browserSetupFiles` pass-throughs an app uses to give the
+browser project real CSS, and `nodeProjectOverrides` for anything else the node
+project needs. `apps/wallow-web/vitest.config.ts` is the fullest example: it
+states `resolve` and `ssr.noExternal` once at the config root, pulls them into
+both projects with `extends: true`, and adds a browser-only alias on top.
 
 ### 5. Server routes (`src/routes/**`), not host files
 

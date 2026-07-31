@@ -5,13 +5,19 @@ import { defineConfig } from "vitest/config";
 /**
  * Vitest harness for @bc-solutions-coder/forms. This package's specs render real
  * @bc-solutions-coder/ui components driven by TanStack Form state, so it adopts
- * the shared two-project (node + headless Chromium) split from
- * `@bc-solutions-coder/testing`'s `createVitestProjects` preset — exactly like
- * apps/wallow-auth/vitest.config.ts and packages/ui.
+ * the shared node + headless-Chromium split from `createVitestProjects` — the
+ * same shape apps/wallow-auth and packages/ui use.
  *
- * There are no pure-logic/SSR `*.test.tsx` specs, so `nodeTsxSpecs` is left
- * empty: every `*.test.ts` (e.g. the on-disk scaffold guard) runs on node and
- * every `*.test.tsx` catalog spec runs in the browser project.
+ * There are no render-nothing `*.test.tsx` specs here, so the preset's
+ * `*.ssr.test.tsx` convention matches nothing: every `*.test.ts` (e.g. the
+ * on-disk scaffold guard) runs on node and every `*.test.tsx` catalog spec runs
+ * in the browser project.
+ *
+ * `wallowStyles()` + ./vitest.setup.ts are not cosmetic. A ui control gets its
+ * BOX from a Tailwind utility in its recipe, so with no stylesheet
+ * `Checkbox.Root`'s `<span role="checkbox">` measures 0x0 and a spec that clicks
+ * it hangs until Playwright's actionability timeout. Every catalog spec drives
+ * real controls, so they all need real CSS.
  */
 
 /**
@@ -50,26 +56,11 @@ const formRuntime = [
   "tailwind-merge",
 ];
 
-const { node, browser: unstyledBrowser } = createVitestProjects({
+const { node, browser } = createVitestProjects({
   extraBrowserOptimizeDeps: [...baseUi, ...formRuntime],
+  browserPlugins: wallowStyles(),
+  browserSetupFiles: ["./vitest.setup.ts"],
 });
-
-/**
- * The preset's browser project, plus the styling it deliberately leaves to each
- * consumer: `wallowStyles()` (the `@tailwindcss/vite` + brand-assets pair every
- * app and packages/ui's Storybook use) compiles ./vitest-styles.css, and
- * ./vitest.setup.ts loads it along with the fork theme into the Chromium page.
- *
- * This is not cosmetic. A ui control gets its BOX from a Tailwind utility in its
- * recipe, so with no stylesheet `Checkbox.Root`'s `<span role="checkbox">`
- * measures 0x0 and a spec that clicks it hangs until Playwright's actionability
- * timeout. Every catalog spec drives real controls, so they all need real CSS.
- */
-const browser = {
-  ...unstyledBrowser,
-  plugins: wallowStyles(),
-  test: { ...unstyledBrowser.test, setupFiles: ["./vitest.setup.ts"] },
-};
 
 export default defineConfig({
   test: {

@@ -6,10 +6,11 @@ import { defineConfig } from "vitest/config";
  * in `@bc-solutions-coder/testing`'s `createVitestProjects` preset. This config
  * only supplies the app-specific knobs.
  *
- * This app has no pure-logic `*.test.tsx` specs (every `*.test.tsx` mounts a live
- * DOM), so `nodeTsxSpecs` is empty and everything defaults from the preset.
+ * This app has no render-nothing `*.test.tsx` specs (every `*.test.tsx` mounts a
+ * live DOM), so the preset's `*.ssr.test.tsx` convention matches nothing and
+ * every option defaults.
  */
-const { node, browser } = createVitestProjects({ nodeTsxSpecs: [] });
+const { node, browser } = createVitestProjects();
 
 export default defineConfig({
   test: {

@@ -10,6 +10,7 @@
 export { browserOptimizeDepsBaseline, mergeOptimizeDeps } from "./browser-optimize-deps";
 export {
   createVitestProjects,
+  ssrSpecGlob,
   type VitestBrowserConfig,
   type VitestBrowserInstance,
   type VitestBrowserProject,

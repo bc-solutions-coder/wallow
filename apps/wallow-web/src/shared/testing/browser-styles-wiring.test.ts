@@ -30,7 +30,7 @@ describe("browser project styling wiring", () => {
     // The plugin pair that compiles ./vitest-styles.css AND serves the virtual
     // fork theme; without it neither import in the setup file resolves.
     expect(config).toContain("wallowStyles()");
-    expect(config).toContain('setupFiles: ["./vitest.setup.ts"]');
+    expect(config).toContain('browserSetupFiles: ["./vitest.setup.ts"]');
   });
 
   it("loads the Tailwind utilities and the fork theme from the setup file", () => {

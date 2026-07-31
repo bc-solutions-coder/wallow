@@ -59,19 +59,22 @@ Four files move together, plus a fifth when new Base UI surface is involved:
 4. `src/index.test.ts` — add the runtime name to `PUBLIC_RUNTIME_EXPORTS` **and** the props type to
    the `PublicTypeExports` tuple at the bottom of the same file. (One file carries both here,
    unlike `packages/ui`'s three.) Growing one alone turns the other red.
-5. `vitest.config.ts` — append any new `@base-ui/react/<part>` subpath to `baseUiSubpaths`, and any
-   new runtime to `formRuntime`. Not an optimisation: undiscovered, Vite pre-bundles a second copy
-   of React and specs die on `Cannot read properties of null (reading 'useRef')`.
+5. `vitest.config.ts` — append any new **runtime** to `formRuntime`. Not an optimisation: left
+   undiscovered, Vite pre-bundles a second copy of React and specs die on a null-hook read.
+   Base UI needs nothing: `baseUi` is the single glob `@base-ui/react/*`, which Vite expands
+   against that package's own `exports` keys, so a field wrapping a new part is already covered.
 
 ## Test model
 
 `vitest.config.ts` takes the shared node + headless-Chromium split from
-`@bc-solutions-coder/testing`'s `createVitestProjects`, then re-adds styling to the browser project
-(`wallowStyles()` compiling `vitest-styles.css` via `vitest.setup.ts`).
+`@bc-solutions-coder/testing`'s `createVitestProjects`, handing it styling through the preset's
+`browserPlugins` / `browserSetupFiles` pass-throughs (`wallowStyles()` compiling
+`vitest-styles.css` via `vitest.setup.ts`).
 
 - `*.test.ts` → **node** project (barrel pin, testid/error-split helpers, the on-disk scaffold
-  guard). `*.test.tsx` → **browser** project. `nodeTsxSpecs` is empty: there are no render-nothing
-  `.tsx` specs.
+  guard). `*.test.tsx` → **browser** project. The preset's `*.ssr.test.tsx` convention — which
+  routes a render-nothing `.tsx` spec onto node — matches nothing here, and nothing in this
+  package should be named that way.
 - **Real CSS is required, not cosmetic.** A ui control gets its box from a recipe utility; without
   the stylesheet `Checkbox.Root` measures 0×0 and a spec that clicks it hangs until Playwright's
   actionability timeout.

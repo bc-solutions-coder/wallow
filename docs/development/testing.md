@@ -154,8 +154,8 @@ preset in `packages/testing` and wired up by each app's `vitest.config.ts`:
 
 | Project | Includes | Runtime |
 |---------|----------|---------|
-| **node** | `src/**/*.test.ts`, plus a per-app `nodeTsxSpecs` list of render-nothing `*.test.tsx` specs | Node |
-| **browser** | `src/**/*.test.tsx` minus `nodeTsxSpecs` | Headless Chromium |
+| **node** | `src/**/*.test.ts`, plus every `src/**/*.ssr.test.tsx` | Node |
+| **browser** | `src/**/*.test.tsx` minus the `*.ssr.test.tsx` specs | Headless Chromium |
 
 The browser project uses the Vitest `playwright()` factory provider from
 `@vitest/browser-playwright` with `headless: true` and a single `chromium` instance;
@@ -167,9 +167,13 @@ rendering a component, reading layout, focus, or computed styles — runs in a r
 Do not add a `// @vitest-environment jsdom` pragma or a jsdom/happy-dom dependency; either one
 regresses the suite off real-browser fidelity.
 
-The `nodeTsxSpecs` escape hatch exists for specs that render through `react-dom/server`
-(`renderToString`) and never mount a live DOM — SSR route specs, for example. Routing those
-into Chromium buys nothing and costs real per-test browser overhead.
+The `*.ssr.test.tsx` suffix exists for specs that render through `react-dom/server`
+(`renderToString`) or assert a route's `beforeLoad` redirect, and never mount a live DOM.
+Routing those into Chromium buys nothing and costs real per-test browser overhead. It is a
+naming convention rather than a per-app list precisely so a new SSR spec lands on the node
+project the moment it is created — the config needs no edit. (`createVitestProjects` still
+accepts an explicit `nodeTsxSpecs` array, which replaces the convention; no package in this
+repo uses it.)
 
 Playwright E2E specs are deliberately kept out of Vitest: the Vitest `include` globs are
 scoped to `src/**`, while Playwright specs live only in `e2e/` (or wallow-web's

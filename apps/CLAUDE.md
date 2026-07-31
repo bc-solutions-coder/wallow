@@ -92,6 +92,10 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
   `docs/development/frontend-setup.md#dark-mode`.
 - **Tests**: `test` is vitest with the two-project node/browser split from
   `@bc-solutions-coder/testing`; component specs run in real headless Chromium, never jsdom.
+  A `.tsx` spec that renders through `react-dom/server` or asserts a `beforeLoad` redirect — and
+  so never mounts a DOM — is named **`*.ssr.test.tsx`**, which is how the preset routes it onto
+  the node project; there is no per-app list to append to. Shared `resolve`/`ssr` settings are
+  stated once at the config root and pulled into each project with `extends: true`.
   See `.claude/rules/TESTING.md`.
 - **E2E**: `test:e2e` (Playwright, per-app `e2e/`) and, for wallow-web only,
   `test:e2e:cross-app` (`e2e-cross-app/`, needs an externally supplied three-origin stack).
