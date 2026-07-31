@@ -53,6 +53,7 @@ apply cleanly to a fresh database.
 | `packages/auth/`    | `@bc-solutions-coder/auth` — shared authn/authz layer (current-user query + hook, `beforeLoad` primer, role/permission helpers, re-exported SDK guards)                     |
 | `packages/testing/` | `@bc-solutions-coder/testing` — shared vitest preset + browser-mode test utilities                                                                                          |
 | `packages/config/` | `@bc-solutions-coder/config` — the Vite presets every workspace member builds with; never built, never published; see `packages/config/CLAUDE.md`                            |
+| `packages/lint/`   | `@bc-solutions-coder/lint` — Wallow's own oxlint JS-plugin rules (`wallow/*`), registered by the two apps' nested configs; see `packages/lint/CLAUDE.md`                     |
 | `apps/wallow-web/`  | TanStack Start + BFF OIDC reference frontend (dashboard) that consumes the SDK                                                                                              |
 | `apps/wallow-auth/` | TanStack Start auth frontend (login/signup/MFA screens) on port 3002                                                                                                        |
 | `apps/examples/`    | Example apps (`minimal-app`)                                                                                                                                                |
@@ -99,6 +100,12 @@ files and exits 0, which is why `scripts/lint-tests.sh` prints its count and fai
 deliberately passes no `-c`, which would disable nested-config lookup and drop `packages/ui`'s and
 `packages/forms`' test relaxations. Rule severities for both passes live in `.oxlintrc.json`; the
 vitest rules this repo opts out of sit in its `**/*.test.*` override.
+
+Wallow's own rules — the `wallow/*` ones, for things no native rule can say — live in
+**`packages/lint`** as a real oxlint JS plugin, loaded by `apps/wallow-web/.oxlintrc.json` and
+`apps/wallow-auth/.oxlintrc.json`. They must NOT be registered from the root config, and a rule
+is only the right tool for a judgement about **one file at a time**; both constraints, with the
+measurements behind them, are in `packages/lint/CLAUDE.md`. Read it before adding a rule.
 
 - **`packages/sdk`** — server-side **BFF** tunnel so the browser never holds a token, with
   four entries: browser (`.`), Node BFF (`./server`), pure reverse proxy

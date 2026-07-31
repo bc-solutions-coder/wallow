@@ -68,7 +68,6 @@ apps/wallow-auth/
 │   │   │   └── ready-indicator.tsx # Stamps data-app-ready='true' after hydration
 │   │   ├── lib/api-passthrough.server.ts  # createApiPassthrough() wrapper the splat routes call
 │   │   └── testing/                # Spec harnesses
-│   └── zone-dag.test.ts            # Enforces the import DAG below
 ├── tsconfig.json                   # The zone alias map (`paths`); vite + vitest read it
 ├── vite.config.ts                  # tanstackStart + react + nitro + wallowStyles
 ├── playwright.config.ts            # E2E config (data-testid selectors, port 3002)
@@ -114,8 +113,7 @@ Three things follow that are easy to get wrong:
   reachable from everywhere by definition.
 - **A feature is reachable only through its `index.ts` barrel** — `@features/apps` is the
   contract, `@features/apps/components/AppList` reaches around it.
-- **`shared/` is not a junk drawer.** Its top-level subdirectories are an allowlist
-  (`components`, `hooks`, `lib`, `stores`, `testing`, `types`), and promotion into it is a
+- **`shared/` is not a junk drawer.** Promotion into it is a
   decision: when two features need the same *behaviour*, the first answer is that the route
   composes both features. Promote only genuinely presentational, feature-agnostic pieces, and
   never at the cost of widening a prop from a feature type to `unknown` — duplication is
@@ -123,11 +121,11 @@ Three things follow that are easy to get wrong:
 
 The alias map is declared once per app, in `tsconfig.json` `paths`, and nowhere else. Vite
 resolves against it natively (`resolve.tsconfigPaths: true`), vitest repeats that option
-inside each `test.projects` entry — a root-level `resolve` is not inherited — and
-`src/zone-dag.test.ts` reads the same file to derive the zone list it polices. Adding a zone
-is that one edit, and the DAG guard picks it up immediately. The DAG itself is enforced by a
-spec rather than convention: `src/zone-dag.test.ts` resolves every specifier — static,
-side-effect and dynamic
+inside each `test.projects` entry — a root-level `resolve` is not inherited — and the
+`wallow/zone-dag` lint rule reads the same file to derive the zone list it polices. Adding a
+zone is that one edit, and the DAG guard picks it up immediately. The DAG itself is enforced by
+a lint rule rather than convention: `wallow/zone-dag` (from `@bc-solutions-coder/lint`, switched
+on in each app's `.oxlintrc.json`) resolves every specifier — static, side-effect and dynamic
 `import("…")` alike — against its importer's real directory and judges the resulting edge.
 The DAG constrains the *product* graph, not the test graph: a spec may import
 `@app/routes/<name>` and mount the real route, because the component's contract is the

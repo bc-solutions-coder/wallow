@@ -9,8 +9,8 @@
     "types": ["node"],
     // The SINGLE declaration site for this app's zone aliases. Vite reads it via
     // `resolve.tsconfigPaths` (vite.config.ts), vitest reads it per project
-    // (vitest.config.ts), and `src/zone-dag.test.ts` reads it to derive which
-    // prefixes it polices. Adding a zone is this edit and nothing else.
+    // (vitest.config.ts), and the `wallow/zone-dag` lint rule reads it to derive
+    // which prefixes it polices. Adding a zone is this edit and nothing else.
     // `moduleResolution: "Bundler"` resolves these relative to THIS file, so no
     // `baseUrl` — and `paths` must NOT move to `tsconfig.base.json`, which would
     // resolve them against the repo root.

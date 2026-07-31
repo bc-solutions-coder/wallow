@@ -36,7 +36,8 @@ there).
 **No specifier form rescues that** — measured on oxlint 1.74.0, not assumed. A `jsPlugins`
 specifier resolves from the **config file's own directory**, whichever form it takes:
 
-- **Relative**: the temp-dir copy looks for `<tmp>/tools/...` and reports `Cannot find module`.
+- **Relative**: the temp-dir copy resolves the path against `<tmp>/` rather than the repo and
+  reports `Cannot find module`.
 - **Bare**: `jsPlugins: ["oxfmt"]` resolves from a config at the repo root — where
   `node_modules/oxfmt` is reachable — and reports `Cannot find module 'oxfmt'` from a config in a
   temp directory, with the cwd at the repo root either way. (`["oxlint"]` resolves from anywhere,

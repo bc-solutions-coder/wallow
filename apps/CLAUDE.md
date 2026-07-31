@@ -30,14 +30,14 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
 - **`wallow-web` and `wallow-auth` are zoned; `examples/minimal-app` is deliberately not.**
   In the two zoned apps `src/` is `app/` (routes, router, entries, server-only modules),
   `features/<name>/` (one directory per screen or vertical, reachable only through its
-  `index.ts` barrel) and `shared/` (limited to `components`, `hooks`, `lib`, `stores`,
-  `testing`, `types`). Cross-zone imports are spelled as aliases — `@app/*`,
+  `index.ts` barrel) and `shared/` (what more than one feature genuinely needs).
+  Cross-zone imports are spelled as aliases — `@app/*`,
   `@features/<name>`, `@shared/*` — declared **once**, in the app's `tsconfig.json` `paths`.
   Vite reads it natively (`resolve.tsconfigPaths: true`), vitest reads it inside each
-  `test.projects` entry, and `src/zone-dag.test.ts` reads it to derive which prefixes it
-  polices — so adding a zone is that one edit. Relative specifiers stay correct
-  _within_ a zone. The DAG itself is enforced by a spec, not convention:
-  `src/zone-dag.test.ts` resolves every specifier against its importer's real directory and
+  `test.projects` entry, and the `wallow/zone-dag` lint rule reads it to derive which prefixes
+  it polices — so adding a zone is that one edit. Relative specifiers stay correct
+  _within_ a zone. The DAG itself is enforced by a lint rule, not convention:
+  `wallow/zone-dag` resolves every specifier against its importer's real directory and
   judges the edge. Two consequences worth knowing before you move a file: server-only modules
   belong in `app/` (that is what keeps `node:crypto`/`openid-client` out of the client graph),
   and `srcDirectory: "src/app"` in `vite.config.ts` must be paired with
@@ -61,16 +61,18 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
   `apps/wallow-web/.oxlintrc.json` and `apps/wallow-auth/.oxlintrc.json` (the root config carries
   none of these rules) add `react/forbid-elements` for raw `p`, `span`, `legend`, `code` and
   `h1`–`h6`, pointing each at `Text`/`PageHeader` so the catalog owns the type scale once, plus
-  three custom rules from `tools/oxlint/wallow-lint-plugin.js`:
+  custom rules from the `@bc-solutions-coder/lint` plugin (`packages/lint`):
   `wallow/no-sidebar-inversion` (bans the `bg-foreground`/`text-background` inversion hack in
   favour of the recipes' `surface="sidebar"` axis), `wallow/no-tinted-text` (bans
   `text-<token>/<alpha>` — muted copy is `text-muted-foreground`; a translucent _surface_ such as
-  the drawer scrim's `bg-foreground/40` stays legal), and `wallow/text-heading-variant`
+  the drawer scrim's `bg-foreground/40` stays legal), `wallow/text-heading-variant`
   (wallow-auth only: every `<Text as="h_">` must name its `variant`, an `h2` must be
-  `subheading` and carry no `weight`, and no file but `auth-layout.tsx` may open an `h1`). All
-  are off for `*.test.*` and `*.stories.tsx`. The scoping is deliberate: `packages/ui`
+  `subheading` and carry no `weight`, and no file but `auth-layout.tsx` may open an `h1`), and
+  `wallow/zone-dag` (the import graph above). The first three are off for `*.test.*` and
+  `*.stories.tsx`; `zone-dag` deliberately is NOT, because it judges a spec's edges too — its
+  one spec exemption (`@app/*`) is inside the rule. The scoping is deliberate: `packages/ui`
   legitimately paints a `bg-foreground` backdrop, so the gate must never reach it, and the plugin
-  is loaded by a relative specifier from the nested configs so it stays invisible to
+  is registered from the nested configs only so it stays invisible to
   `packages/sdk`'s guardrail test (which copies the ROOT config to a temp dir). The two apps are
   NOT identical — wallow-auth also forbids raw `<button>`, which wallow-web cannot because
   `bff-demo` deliberately ships four un-catalogued ones. These rules replaced ~1,400 lines of
@@ -87,7 +89,7 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
   `"off"` for `src/features/*/api.ts` and its co-located `api.test.ts` — oxlint has no
   `excludedFiles`, so ORDER is the mechanism, and an override's `no-restricted-imports` entry
   REPLACES the base one rather than merging, which is why that override restates every root ban
-  it still wants. `wallow/no-hand-rolled-mutation` (the fourth plugin rule) reports any
+  it still wants. `wallow/no-hand-rolled-mutation` (wallow-auth's fifth plugin rule) reports any
   `mutationFn` property, so a write goes through the generated `{operation}Mutation()` factory.
   Together they replaced the table-driven halves of `generated-mutations.test.ts` and
   `features-api-seam.test.ts` (~950 lines down to ~290); what those two still hold is runtime
