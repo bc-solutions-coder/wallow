@@ -9,76 +9,25 @@ import { Route as resetPasswordRoute } from "@app/routes/reset-password";
 import { ResetPasswordForm } from "./ResetPasswordForm";
 
 /**
- * Component spec for the ResetPassword screen (Wallow-vec7.3.2).
+ * ResetPassword screen and /reset-password route.
  *
- * Testids come verbatim from the oracle (scout inventory on Wallow-vec7.3):
- * `reset-password-error`, `reset-password-new-password`, `reset-password-confirm`,
- * `reset-password-submit`.
- *
- * TEST SEAM: `@bc-solutions-coder/testing/sdk-harness` (Wallow-pu6a.5.1). The SDK
- * is the REAL one and only its `fetch` is faked, so the screen's whole pipeline —
- * request-scoped SDK -> generated operation -> CSRF interceptor -> serialization
- * -> error shaping -> React Query — runs here, and the assertions below read the
- * outgoing REQUEST (`harness.last`) rather than a spy on a stand-in double.
- * `renderWithWallow` supplies the router context the screen reads its SDK off,
- * and `createAuthHarness()` pins the harness origin to this app's root-mounted
- * API surface — which is why every recorded `path` below is the bare endpoint
- * path, with no `/api` prefix (Wallow-pu6a.5.5).
- *
- * The `useNavigate` mock stays: navigation is a ROUTER seam, not an SDK one, and
- * the screen's success criterion is the location it asks the router for.
- *
- * ── THE ERROR-BRANCH FINDING (verified against the source, not assumed) ───────
- *
- * The oracle switches its message on `result.Error`:
- *
- *     "invalid_token" => "This reset link is invalid or has expired..."
- *     _               => "Failed to reset password. Please try again."
- *
- * That switch CANNOT be ported as written. `AccountController.ResetPassword`
- * (api/.../Controllers/AccountController.cs:771-794) returns its failures as
- * **`BadRequest(new { succeeded = false, error = "invalid_token" })`** — a 400
- * whose body is a bare anon object, NOT RFC 7807 problem details — and the
- * reason string does not survive the SDK seam as anything the screen reads:
- * `toWallowError()` (packages/sdk/src/auth-client.ts) builds `title`/`detail`
- * from problem-details members this body does not carry, so the screen receives
- * `WallowError{ code: "invalid_token", title: "Unknown error" }` and has no
- * human-readable reason to render (bd memory `wallow-auth-auth-client-ts-
- * wallowerror-code-loss`).
- *
- * What survives is the HTTP status — and that is enough here, because this
- * endpoint has exactly two failure returns and BOTH are
- * `400 + error: "invalid_token"` (unknown email, and a rejected
- * `ResetPasswordAsync`). A 400 from this endpoint therefore *means*
- * invalid_token, and the oracle's two branches map cleanly onto status:
- *
- *     400          -> "This reset link is invalid or has expired..."
- *     anything else -> "Failed to reset password. Please try again."
- *
- * The screen must narrow on `status` STRUCTURALLY (`error.status === 400`)
- * rather than with `instanceof WallowError`: screens may not import the SDK.
- *
- * Consequently the rejection FIXTURES below are wire bodies, not error objects:
- * the spec programs exactly what the controller writes and lets the real SDK
- * decide what the screen ends up holding. `{}` at a status is the deliberately
- * least-informative failure — it proves the port is not secretly relying on a
- * reason the seam never delivers.
+ * Real SDK over a faked fetch (sdk-harness), so assertions read the recorded
+ * request; `useNavigate` is mocked because navigation is a router seam. Failures
+ * arrive as a bare `{ error }` body, not problem details, so no reason string
+ * survives — the screen narrows on `status === 400`, this endpoint's only 400.
  */
 
 const EMAIL = "ada@example.com";
 const TOKEN = "reset-token-abc";
 const PASSWORD = "N3w-Passw0rd!";
 
-/** The endpoint the screen must reach (packages/sdk/src/generated/sdk.gen.ts). */
+/** The endpoint the screen must reach. */
 const ENDPOINT = "/v1/identity/auth/reset-password";
 
 /** The 200 body: `AccountOperationResponse` — `{ succeeded: true }`, nothing more. */
 const SUCCESS_BODY = { succeeded: true };
 
-/**
- * The real 400 body: a bare anon object, NOT problem details. Both of this
- * endpoint's failure returns write exactly this.
- */
+/** The real 400 body: both of this endpoint's failure returns write exactly this. */
 const INVALID_TOKEN_BODY = { succeeded: false, error: "invalid_token" };
 
 const BAD_REQUEST = 400;
@@ -107,6 +56,25 @@ function renderForm(props: Partial<{ email?: string; token?: string }> = {}) {
   return renderWithClient(<ResetPasswordForm email={EMAIL} token={TOKEN} {...props} />);
 }
 
+function newPasswordInput(): HTMLInputElement {
+  return page.getByTestId("reset-password-new-password").element() as HTMLInputElement;
+}
+
+function confirmInput(): HTMLInputElement {
+  return page.getByTestId("reset-password-confirm").element() as HTMLInputElement;
+}
+
+/**
+ * The ids a control points its `aria-describedby` at. Split rather than compared
+ * whole: Base UI appends the error to whatever else already describes the
+ * control, so the claim is that the message is AMONG them, not that it is alone.
+ */
+function describedByIds(control: HTMLElement): readonly string[] {
+  const value = control.getAttribute("aria-describedby") ?? "";
+
+  return value.split(" ").filter((id: string) => id !== "");
+}
+
 /** Type both password fields and submit — the whole happy interaction. */
 async function submitPasswords(
   user: ReturnType<typeof userEvent.setup>,
@@ -129,18 +97,18 @@ beforeEach(() => {
 });
 
 describe("ResetPasswordForm", () => {
-  it("renders the oracle's fields, and no error before submit", async () => {
+  it("renders both fields and the idle submit label, and no error before submit", async () => {
     renderForm();
 
     await expect.element(page.getByTestId("reset-password-new-password")).toBeInTheDocument();
     await expect.element(page.getByTestId("reset-password-confirm")).toBeInTheDocument();
-    await expect.element(page.getByTestId("reset-password-submit")).toBeInTheDocument();
+    await expect
+      .element(page.getByTestId("reset-password-submit"))
+      .toHaveTextContent("Reset password");
     expect(page.getByTestId("reset-password-error").query()).toBeNull();
   });
 
   it("masks both password fields", async () => {
-    // Oracle: both inputs are `type="password"`. A reset form that echoed the
-    // new password in plain text would be a real regression, so it is pinned.
     renderForm();
 
     await expect
@@ -152,9 +120,7 @@ describe("ResetPasswordForm", () => {
   });
 
   it("links back to sign in", async () => {
-    // The card footer. It has no testid and the scout's inventory forbids
-    // inventing one for an element that shipped without one, so this asserts the
-    // link by role + href instead.
+    // No testid on this footer link, so it is asserted by role + href.
     renderForm();
 
     await expect
@@ -163,10 +129,7 @@ describe("ResetPasswordForm", () => {
   });
 
   it("sends the query's email and token with the typed password", async () => {
-    // The threading criterion: the reset link's identity comes from the URL, the
-    // secret from the form. Oracle: `new ResetPasswordRequest(Email, Token, _newPassword)`.
-    // Read off the RECORDED REQUEST, so the assertion covers the serialization
-    // the old facade spy skipped.
+    // The reset link's identity comes from the URL, the secret from the form.
     const user = userEvent.setup();
     renderForm();
 
@@ -184,10 +147,8 @@ describe("ResetPasswordForm", () => {
   });
 
   it("redirects to the login page with the password_reset notice on success", async () => {
-    // Oracle: `Navigation.NavigateTo("/login?message=password_reset")`. `href` (a
-    // raw location) rather than `to` + `search`: /login's `validateSearch` is
-    // owned by the in-flight Login task, and this screen must not couple to it
-    // (bd memory tanstack-router-redirect-to-an-unregistered-route-use-href-not-to).
+    // `href` (a raw location) rather than `to` + `search`: this screen must not
+    // couple itself to /login's own `validateSearch`.
     const user = userEvent.setup();
     renderForm();
 
@@ -199,8 +160,6 @@ describe("ResetPasswordForm", () => {
   });
 
   it("rejects a mismatched confirmation without calling the endpoint", async () => {
-    // Oracle: `if (_newPassword != _confirmPassword) { _error = "Passwords do not
-    // match."; return; }` — the guard is client-side and short-circuits.
     const user = userEvent.setup();
     renderForm();
 
@@ -209,12 +168,33 @@ describe("ResetPasswordForm", () => {
     await expect
       .element(page.getByTestId("reset-password-error"))
       .toHaveTextContent(/passwords do not match/iu);
+    // The mismatch is a form-level banner: the confirmation field carries no
+    // validator of its own and must render no message under the control.
+    expect(page.getByTestId("reset-password-confirm-error").query()).toBeNull();
     expect(harness.calls).toHaveLength(0);
     expect(mocks.navigate).not.toHaveBeenCalled();
   });
 
+  it("clears the mismatch banner once the confirmation matches", async () => {
+    // The mismatch guard sits BEFORE the request, so a screen that only clears
+    // the banner in the mutation's own path leaves "Passwords do not match."
+    // sitting above a reset that actually succeeded.
+    const user = userEvent.setup();
+    renderForm();
+
+    await submitPasswords(user, PASSWORD, "something-else");
+    await expect.element(page.getByTestId("reset-password-error")).toBeInTheDocument();
+
+    await user.fill(page.getByTestId("reset-password-confirm"), PASSWORD);
+    await user.click(page.getByTestId("reset-password-submit"));
+
+    await vi.waitFor(() => {
+      expect(mocks.navigate).toHaveBeenCalledWith({ href: "/login?message=password_reset" });
+    });
+    expect(page.getByTestId("reset-password-error").query()).toBeNull();
+  });
+
   it("refuses to submit a link with no token", async () => {
-    // Oracle: `if (string.IsNullOrEmpty(Token) || string.IsNullOrEmpty(Email))`.
     const user = userEvent.setup();
     renderForm({ token: undefined });
 
@@ -224,6 +204,10 @@ describe("ResetPasswordForm", () => {
       .element(page.getByTestId("reset-password-error"))
       .toHaveTextContent(/invalid reset link/iu);
     expect(harness.calls).toHaveLength(0);
+    // An early return out of the submit callback still RESOLVES the form's
+    // internal mutation, so a naive screen fires `onSuccess` and sends the user
+    // to the login banner as though the reset had gone through.
+    expect(mocks.navigate).not.toHaveBeenCalled();
   });
 
   it("refuses to submit a link with no email", async () => {
@@ -239,7 +223,6 @@ describe("ResetPasswordForm", () => {
   });
 
   it("treats an empty-string token as a missing one", async () => {
-    // `IsNullOrEmpty`, not `is null` — `?token=` must not reach the endpoint.
     const user = userEvent.setup();
     renderForm({ token: "" });
 
@@ -252,26 +235,26 @@ describe("ResetPasswordForm", () => {
   });
 
   it("requires a new password before calling the endpoint", async () => {
-    // DELIBERATE local required-field check, flagged on the bead. Without it, an
-    // empty password would POST, the server fails `ResetPasswordAsync` and
-    // returns 400 invalid_token — so the user is
-    // told their *link* expired when in fact they typed nothing. That message is
-    // actively misleading. A required check keeps the empty case local and
-    // matches the field-error convention the sibling ForgotPassword port set.
+    // The check is deliberately local: an empty password that POSTed would come
+    // back 400 invalid_token, telling the user their *link* expired when in fact
+    // they typed nothing.
     const user = userEvent.setup();
     renderForm();
 
     await user.click(page.getByTestId("reset-password-submit"));
 
     expect(harness.calls).toHaveLength(0);
-    await expect.element(page.getByTestId("reset-password-new-password-error")).toBeInTheDocument();
+    const message = page.getByTestId("reset-password-new-password-error");
+    await expect.element(message).toHaveTextContent("New password is required");
+
+    // Associated with the input, not merely rendered beside it.
+    const messageId: string = message.element().id;
+    expect(messageId).not.toBe("");
+    expect(describedByIds(newPasswordInput())).toContain(messageId);
+    expect(newPasswordInput().getAttribute("aria-invalid")).toBe("true");
   });
 
   it("explains an expired or invalid reset link when the endpoint rejects it", async () => {
-    // The oracle's `"invalid_token" =>` branch, reached via HTTP status because
-    // the reason string does not survive as renderable copy — see the file
-    // header. This endpoint's only 400 IS invalid_token, and the body below is
-    // byte-for-byte what the controller writes.
     harness.rejectJson(INVALID_TOKEN_BODY, BAD_REQUEST);
     const user = userEvent.setup();
     renderForm();
@@ -285,9 +268,8 @@ describe("ResetPasswordForm", () => {
   });
 
   it("falls back to the generic message for a non-400 failure", async () => {
-    // The oracle's `_ =>` branch. A 500 is not a bad link and must not be
-    // reported as one. An empty body is deliberate: a server fault carries no
-    // problem details of its own.
+    // The empty body is deliberate: a server fault carries no problem details of
+    // its own, so nothing but the status is available to narrow on.
     harness.rejectJson({}, SERVER_ERROR);
     const user = userEvent.setup();
     renderForm();
@@ -300,9 +282,8 @@ describe("ResetPasswordForm", () => {
   });
 
   it("shows the generic message when the request fails without a status", async () => {
-    // A network-level rejection has no status anywhere — the transport itself
-    // throws before a response exists. Structural narrowing must not throw on
-    // it, and must not claim the link is bad.
+    // A network-level rejection has no status anywhere: the transport throws
+    // before a response exists, so the narrowing must not assume one.
     harness.respond(() => {
       throw new TypeError("Failed to fetch");
     });
@@ -317,9 +298,8 @@ describe("ResetPasswordForm", () => {
   });
 
   it("never leaks the raw rejection into the page", async () => {
-    // The seam hands the screen `title: "Unknown error"` for a body that carries
-    // no problem details. Rendering that verbatim would be the lazy port and
-    // tells the user nothing actionable — nor may the machine token leak.
+    // The seam hands the screen `title: "Unknown error"` for a body with no
+    // problem details; neither that nor the machine token may reach the page.
     harness.rejectJson(INVALID_TOKEN_BODY, BAD_REQUEST);
     const user = userEvent.setup();
     renderForm();
@@ -332,8 +312,6 @@ describe("ResetPasswordForm", () => {
   });
 
   it("clears a previous error when the next attempt succeeds", async () => {
-    // Oracle: `_error = null;` immediately before the call. A stale "link
-    // expired" banner sitting above a successful reset would be a lie.
     let attempts = 0;
     harness.respond(() => {
       attempts += 1;
@@ -355,8 +333,9 @@ describe("ResetPasswordForm", () => {
     expect(page.getByTestId("reset-password-error").query()).toBeNull();
   });
 
-  it("disables submit while the request is in flight", async () => {
-    // Oracle: `Disabled="_loading"` — one click, one reset attempt.
+  it("disables submit and both password inputs while the request is in flight", async () => {
+    // One click, one reset attempt — and leaving the inputs live would let an
+    // edit race the request the values were already read into.
     let release: () => void = () => {};
     harness.respond(
       async () =>
@@ -372,9 +351,8 @@ describe("ResetPasswordForm", () => {
     await submitPasswords(user);
 
     // Wait for the request to REACH the transport before releasing it: the
-    // submit button goes disabled the moment the form starts submitting, which
-    // is a tick or two before `fetch` is called, and releasing into that gap
-    // would leave the never-settling responder installed forever.
+    // submit button goes disabled a tick or two before `fetch` is called, and
+    // releasing into that gap leaves the never-settling responder installed.
     await vi.waitFor(() => {
       expect(harness.calls).toHaveLength(1);
     });
@@ -382,6 +360,8 @@ describe("ResetPasswordForm", () => {
     await expect
       .element(page.getByTestId("reset-password-submit"))
       .toHaveTextContent(/resetting/iu);
+    await expect.poll(() => newPasswordInput().disabled).toBe(true);
+    await expect.poll(() => confirmInput().disabled).toBe(true);
 
     release();
     await vi.waitFor(() => {
@@ -392,10 +372,9 @@ describe("ResetPasswordForm", () => {
 
 /**
  * Route-level spec. Rendered through a real memory router rather than by poking
- * at `Route.options.component`, because the criterion under test — "email+token
- * read from the query string" — only exists once a URL is parsed by a router.
- * The root here is a throwaway: the app's real `__root.tsx` renders `<html>`,
- * and `src/router.tsx` is off-limits to this task (Wallow-vec7.3.16).
+ * at `Route.options.component`, because the criterion under test — email+token
+ * read from the query string — only exists once a URL is parsed by a router. The
+ * root here is a throwaway: the app's real `__root.tsx` renders `<html>`.
  */
 function renderRouteAt(url: string) {
   return renderWithWallow(null, {
@@ -407,9 +386,6 @@ function renderRouteAt(url: string) {
 
 describe("/reset-password route", () => {
   it("renders the real screen in place of the pre-registration placeholder", async () => {
-    // Wallow-vec7.3.16 registered this path against a placeholder component;
-    // this task's job is to replace it. The path is the contract and is not this
-    // task's to change.
     renderRouteAt(`/reset-password?email=${encodeURIComponent(EMAIL)}&token=${TOKEN}`);
 
     await expect.element(page.getByTestId("reset-password-new-password")).toBeInTheDocument();
@@ -434,7 +410,6 @@ describe("/reset-password route", () => {
   });
 
   it("renders without throwing when the link carries no query at all", async () => {
-    // A bare /reset-password must still render its form and refuse on submit —
     // `validateSearch` has to treat both params as optional rather than throw.
     const user = userEvent.setup();
     renderRouteAt("/reset-password");
