@@ -147,3 +147,50 @@ export const HoverTreatment: Story = {
     await expect(button).toBeVisible();
   },
 };
+
+/**
+ * The `surface` axis (Wallow-lrlm.6.4) — which surface the button is composed
+ * ONTO, in the one place it can be judged: on an actual `bg-sidebar` rail.
+ *
+ * Left column is `surface="page"`, the default every existing call site gets;
+ * right is `surface="sidebar"`. The pair reads as one picture — the page arm's
+ * chips sit on the rail as blocks of the wrong palette, while the sidebar arm's
+ * take the rail's own rest/hover treatment. `secondary` is the row that matters
+ * most: `ThemeToggle` hard-codes it, so that is the button the dashboard rail
+ * actually renders.
+ */
+export const SurfaceOnSidebar: Story = {
+  render: (args) => (
+    <div className="flex flex-col gap-3 bg-sidebar p-6">
+      {VARIANTS.map((variant) => (
+        <div key={variant} className="flex items-center gap-3">
+          <Button {...args} variant={variant} width="auto">
+            {variant}/page
+          </Button>
+          <Button {...args} variant={variant} surface="sidebar" width="auto">
+            {variant}/sidebar
+          </Button>
+        </div>
+      ))}
+    </div>
+  ),
+};
+
+/** The sidebar arm's hover state, driven rather than described. */
+export const SurfaceOnSidebarHover: Story = {
+  args: { variant: "secondary", surface: "sidebar", width: "auto", children: "System" },
+  decorators: [
+    (Story) => (
+      <div className="bg-sidebar p-6">
+        <Story />
+      </div>
+    ),
+  ],
+  play: async ({ canvas }) => {
+    const button = canvas.getByRole("button");
+
+    await userEvent.hover(button);
+
+    await expect(button).toBeVisible();
+  },
+};

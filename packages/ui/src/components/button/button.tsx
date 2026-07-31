@@ -12,8 +12,8 @@ export type ButtonSize = NonNullable<ButtonRecipeProps["size"]>;
 
 /**
  * Every Base UI `Button` prop (`render`, `nativeButton`, `disabled` and the
- * native button attributes) plus the recipe's `variant`, `size`, `width` and
- * `shape`.
+ * native button attributes) plus the recipe's `variant`, `size`, `width`,
+ * `shape` and `surface`.
  *
  * `className` is deliberately narrowed back to `string`: Base UI widens it to
  * `string | ((state) => string | undefined)`, and the callback form cannot be
@@ -35,6 +35,7 @@ export function Button({
   size,
   width,
   shape,
+  surface,
   className,
   ...rest
 }: ButtonProps): ReactElement {
@@ -43,7 +44,7 @@ export function Button({
   // of in the class list.
   return (
     <BaseButton
-      className={cn(buttonRecipe({ variant, size, width, shape }), className)}
+      className={cn(buttonRecipe({ variant, size, width, shape, surface }), className)}
       {...rest}
     />
   );

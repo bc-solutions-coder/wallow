@@ -57,6 +57,27 @@ export const buttonRecipe = cva(
         rounded: "rounded-md",
         pill: "rounded-full",
       },
+      // WHICH SURFACE the button is composed ONTO, which the `variant` axis
+      // cannot express: `variant` says what KIND of button this is, and every
+      // arm of it paints from the PAGE palette. Dropped onto the inverted
+      // sidebar surface, a `secondary` button is a light chip on a dark rail.
+      //
+      // Declared LAST so its utilities land after `variant`'s in the cva output
+      // and `cn()`'s tailwind-merge collapses the pair in this axis's favour —
+      // that ordering is the whole mechanism, so it must not be reshuffled.
+      //
+      // The `sidebar` arm restates every colour dimension a `variant` arm can
+      // set (rest surface, rest text, border, hover surface, hover text), since
+      // tailwind-merge only drops the class a caller CONFLICTS with: a dimension
+      // left unnamed here is a page colour that survives onto the rail. It is
+      // the same rest/hover shape the rail's rows wear — no surface at rest, the
+      // one `sidebar-accent` on hover — so a button reads as part of the rail
+      // rather than as a chip dropped onto it.
+      surface: {
+        page: "",
+        sidebar:
+          "border-sidebar-accent bg-sidebar text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground",
+      },
     },
     compoundVariants: [
       // `width` defaults to `full` for the 11 pre-existing call sites' sake, so
@@ -64,7 +85,13 @@ export const buttonRecipe = cva(
       // The pair collapses through tailwind-merge, leaving `w-auto`.
       { size: "icon", width: "full", class: "w-auto" },
     ],
-    defaultVariants: { variant: "primary", size: "md", width: "full", shape: "rounded" },
+    defaultVariants: {
+      variant: "primary",
+      size: "md",
+      width: "full",
+      shape: "rounded",
+      surface: "page",
+    },
   },
 );
 

@@ -198,9 +198,18 @@ function NavigationMenuContent({ className, ...rest }: NavigationMenuContentProp
   );
 }
 
-function NavigationMenuLink({ className, ...rest }: NavigationMenuLinkProps): ReactElement {
+function NavigationMenuLink({
+  surface,
+  className,
+  ...rest
+}: NavigationMenuLinkProps): ReactElement {
+  // `surface` is destructured, never spread: it is a recipe axis, not an
+  // attribute, and a forgotten one lands in the markup as `surface="sidebar"`.
   return (
-    <BaseNavigationMenu.Link className={cn(navigationMenuLinkRecipe(), className)} {...rest} />
+    <BaseNavigationMenu.Link
+      className={cn(navigationMenuLinkRecipe({ surface }), className)}
+      {...rest}
+    />
   );
 }
 

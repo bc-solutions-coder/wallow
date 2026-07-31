@@ -35,3 +35,23 @@ export const LongMessage: Story = {
 export const RoomyPadding: Story = {
   args: { className: "p-6" },
 };
+
+/**
+ * The `surface` axis (Wallow-lrlm.6.4). The default 10% tint is a page-surface
+ * idea: over the inverted rail it composites to within 1.1:1 of the rail itself,
+ * so the one message a reader must not miss becomes the least visible thing on
+ * it. The sidebar arm takes the destructive token at full strength instead.
+ *
+ * Both arms render on the rail here, which is the only comparison that says
+ * anything — the page arm looks correct anywhere else.
+ */
+export const OnTheSidebarSurface: Story = {
+  render: (args) => (
+    <div className="flex flex-col gap-3 bg-sidebar p-6">
+      <ErrorBanner {...args}>Sign out failed (surface=&quot;page&quot;).</ErrorBanner>
+      <ErrorBanner {...args} surface="sidebar">
+        Sign out failed (surface=&quot;sidebar&quot;).
+      </ErrorBanner>
+    </div>
+  ),
+};

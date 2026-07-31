@@ -82,18 +82,28 @@ const destinations: readonly NavDestination[] = [
  * that token's value exactly. The active row stays legible against an idle one
  * because it alone carries a surface at rest.
  *
- * `hover:text-sidebar-foreground` is NOT redundant with the rest state. A row is
- * a `NavigationMenu.Link`, so what renders is `twMerge(navigationMenuLinkRecipe(),
- * itemClass)` and the recipe contributes `hover:text-accent-foreground`. twMerge
- * only drops a class the caller CONFLICTS with — variant included — so an
- * unmodified `text-sidebar-foreground` leaves the recipe's hover colour standing
- * and the label drops to ~1.3:1 against `sidebar-accent` in light mode. This
- * class is the suppression; `DashboardNav.restyle.test.tsx` asserts the merged
- * output, not this string.
+ * WHO OWNS A ROW'S COLOUR (Wallow-lrlm.6.4). Not this file, for the three rows
+ * that are catalog components. A destination is a `NavigationMenu.Link`, so what
+ * rendered was `twMerge(navigationMenuLinkRecipe(), itemClass)` and the recipe
+ * painted from the PAGE palette — which left this file naming one class per
+ * recipe colour purely to out-rank it. twMerge only drops a class the caller
+ * CONFLICTS with, variant included, so the day the list lost its
+ * `hover:text-sidebar-foreground` entry the recipe's `hover:text-accent-
+ * foreground` stood back up and hovered labels fell to 1.27:1 in light mode,
+ * with the suite still green. A list you can silently drop an entry from is not
+ * a mechanism. The catalog now takes `surface="sidebar"` and paints its own
+ * inverted rest/hover/active states, so `itemClass` is GEOMETRY ONLY and
+ * `dashboard-nav-suppression.test.ts` holds it there.
  */
 const itemClass =
-  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground no-underline";
+  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap no-underline";
 const iconOnlyItemClass = `${itemClass} justify-center`;
+/**
+ * Sign Out's row colour, which no recipe supplies: it is a `<button>` calling the
+ * BFF logout rather than a `NavigationMenu.Link`, so it is the one row that has
+ * to state the rail's rest/hover pair itself to sit flush with the four above it.
+ */
+const logoutRowClass = "text-sidebar-foreground hover:bg-sidebar-accent";
 /** Active-route styling handed to `Link`'s `activeProps`, so both modes share it. */
 const activeItemClass = "bg-sidebar-accent text-sidebar-foreground";
 const iconClass = "size-5 shrink-0";
@@ -106,12 +116,16 @@ const iconClass = "size-5 shrink-0";
  * The routing still belongs to TanStack: `render` hands the anchor over to the
  * router `Link`, so `to` resolves and `activeProps` supplies active-route
  * styling exactly as before, while the catalog contributes the list semantics
- * and its own link recipe underneath our sidebar palette.
+ * and the row's own inverted palette.
  *
  * The accessible name always comes from `navIconLabels`, whether or not the
  * label is also rendered, which is what makes "same icon, same name in all three
  * modes" structural rather than hand-maintained. The icon is decorative
  * (`aria-hidden`) precisely because the name is on the item.
+ *
+ * `surface="sidebar"` is what tells the catalog it is being composed onto the
+ * inverted rail. Nothing in the DOM could say so on its own, which is why it is
+ * a prop and not something the recipe sniffs.
  */
 function NavItem(props: {
   destination: NavDestination;
@@ -126,6 +140,7 @@ function NavItem(props: {
         render={<Link to={props.destination.to} activeProps={{ className: activeItemClass }} />}
         data-testid={props.destination.testid}
         aria-label={label}
+        surface="sidebar"
         className={props.showLabel ? itemClass : iconOnlyItemClass}
         onClick={props.onNavigate}
       >
@@ -176,12 +191,17 @@ function NavDestinationList(props: {
  * The catalog control always renders its state as text ("Light"/"Dark"/
  * "System"), so the icon rail gets a smaller box rather than the label-stripping
  * `showLabel` treatment the destinations get: there is no icon to fall back to.
+ *
+ * `surface="sidebar"` reaches `buttonRecipe` through `ThemeToggle`'s passthrough.
+ * Without it the toggle wears the button's hard-coded `variant="secondary"`,
+ * which in light mode is an L 0.92 chip glued to an L 0.22 rail.
  */
 function NavThemeToggle(props: { showLabel: boolean }) {
   return (
     <div className="px-4 pt-4">
       <ThemeToggle
         data-testid="theme-toggle"
+        surface="sidebar"
         className={props.showLabel ? "w-full" : "w-full px-1 text-xs"}
       />
     </div>
@@ -213,7 +233,7 @@ function NavLogout(props: { showLabel: boolean }) {
         type="button"
         data-testid="dashboard-logout-link"
         aria-label={label}
-        className={`${props.showLabel ? itemClass : iconOnlyItemClass} w-full text-left`}
+        className={`${props.showLabel ? itemClass : iconOnlyItemClass} ${logoutRowClass} w-full text-left`}
         onClick={() => {
           void signOut();
         }}
@@ -222,7 +242,9 @@ function NavLogout(props: { showLabel: boolean }) {
         {props.showLabel ? label : null}
       </button>
       {error === null ? null : (
-        <ErrorBanner data-testid="dashboard-logout-error">{error}</ErrorBanner>
+        <ErrorBanner surface="sidebar" data-testid="dashboard-logout-error">
+          {error}
+        </ErrorBanner>
       )}
     </div>
   );

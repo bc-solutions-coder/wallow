@@ -11,15 +11,19 @@ import { cva, type VariantProps } from "class-variance-authority";
  * renders just the structural container Base UI appends to `<body>` (see
  * navigation-menu.tsx).
  *
- * No recipe takes a cva VARIANT, for the reason the whole Base UI catalog
- * settled on: open/closed, active, disabled and the entering/exiting transition
- * phases are all STATES, and Base UI publishes states as `data-*` attributes, so
- * they belong in the base string as `data-[popup-open]:` / `data-[active]:` /
+ * No STATE is a cva variant, for the reason the whole Base UI catalog settled
+ * on: open/closed, active, disabled and the entering/exiting transition phases
+ * are all states, and Base UI publishes states as `data-*` attributes, so they
+ * belong in the base string as `data-[popup-open]:` / `data-[active]:` /
  * `data-[starting-style]:` / `data-[ending-style]:` modifiers rather than as cva
  * variants nobody would pass by hand. The disabled state is the one exception to
  * the `data-*` habit: measured, a disabled `NavigationMenu.Trigger` renders
  * `aria-disabled="true"` and stays focusable — it gets no `data-disabled` at all
  * — so its recipe keys off `aria-disabled:`.
+ *
+ * `surface` on the link recipe is the one cva variant here, and it is not a
+ * state: nothing in the DOM says which surface a caller composed the row onto,
+ * so it cannot be a `data-*` modifier and has to be passed. See the recipe.
  *
  * The expanded-vs-icon-rail axis the Phase-4 sidebar needs is NOT a variant
  * either, and that is a deliberate call rather than an omission. A rail is a
@@ -109,7 +113,36 @@ export type NavigationMenuContentRecipeProps = VariantProps<typeof navigationMen
  * current-page treatment is a `data-[active]:` modifier.
  */
 export const navigationMenuLinkRecipe = cva(
-  "flex min-w-0 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap text-foreground no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground data-[active]:bg-accent data-[active]:text-accent-foreground",
+  "flex min-w-0 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap no-underline outline-none transition-colors",
+  {
+    variants: {
+      /*
+       * WHICH SURFACE the row is composed ONTO — the one axis of a nav row that
+       * is not a Base UI state, so it is a cva variant rather than a `data-*`
+       * modifier. A rail is an INVERTED surface, and a row that paints from the
+       * page palette on it is either illegible or forces its consumer to
+       * out-merge the recipe class by class (which is how a 1.27:1 hover
+       * contrast defect shipped through a green suite).
+       *
+       * Every colour this recipe contributes therefore belongs to one arm or
+       * the other, and none to the base string: an arm can only override what
+       * tailwind-merge sees as the SAME utility at the SAME variant, so a colour
+       * left in the base is a colour the sidebar arm cannot take back.
+       *
+       * The two arms are the SAME three states — rest, hover, current page —
+       * spelled in the two palettes. On the rail all three collapse onto the one
+       * `sidebar-accent` the theme ships, because that is the only surface the
+       * inverted family names; the row still tells its states apart, since a
+       * row at rest carries no surface at all.
+       */
+      surface: {
+        page: "text-foreground hover:bg-accent hover:text-accent-foreground data-[active]:bg-accent data-[active]:text-accent-foreground",
+        sidebar:
+          "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground data-[active]:bg-sidebar-accent data-[active]:text-sidebar-foreground",
+      },
+    },
+    defaultVariants: { surface: "page" },
+  },
 );
 
 /** The link recipe's variant props, mixed into `NavigationMenuLinkProps`. */

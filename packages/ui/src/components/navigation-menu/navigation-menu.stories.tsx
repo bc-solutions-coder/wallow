@@ -497,3 +497,73 @@ export const PaintedByTheDesignTokens: Story = {
     await expect(arrowStyle.borderTopWidth).not.toBe("0px");
   },
 };
+
+/**
+ * The `surface` axis on `NavigationMenu.Link` (Wallow-lrlm.6.4) — which surface
+ * the row is composed ONTO, which is the one thing about a row that no `data-*`
+ * attribute can say, because only the caller knows it.
+ *
+ * Both arms render on a real `bg-sidebar` rail, because the page arm looks
+ * correct anywhere else: `text-foreground` on the inverted surface is the defect,
+ * and it is only visible next to the arm that fixes it.
+ *
+ * The `play` measures rather than describes. This project is the only one with
+ * the real Tailwind pipeline and the fork theme attached, so it is the only place
+ * that can tell "the row names a sidebar token" (which the recipe unit spec
+ * already proves) from "the row is legible on the rail", which is the criterion
+ * the bead was actually filed for.
+ */
+export const SidebarSurface: Story = {
+  render: function SurfaceComparison() {
+    return (
+      <div data-testid="surface-rail" className="flex w-64 flex-col gap-1 bg-sidebar p-4">
+        <NavigationMenu.Root className="flex-col">
+          <NavigationMenu.List className="flex-col">
+            <NavigationMenu.Item>
+              <NavigationMenu.Link data-testid="surface-page" href="#page">
+                Page arm
+              </NavigationMenu.Link>
+            </NavigationMenu.Item>
+            <NavigationMenu.Item>
+              <NavigationMenu.Link data-testid="surface-sidebar" surface="sidebar" href="#sidebar">
+                Sidebar arm
+              </NavigationMenu.Link>
+            </NavigationMenu.Item>
+            <NavigationMenu.Item>
+              <NavigationMenu.Link
+                data-testid="surface-sidebar-active"
+                surface="sidebar"
+                href="#current"
+                active
+              >
+                Sidebar arm, current page
+              </NavigationMenu.Link>
+            </NavigationMenu.Item>
+          </NavigationMenu.List>
+        </NavigationMenu.Root>
+      </div>
+    );
+  },
+  play: async ({ canvas }) => {
+    const rail = getComputedStyle(canvas.getByTestId("surface-rail")).backgroundColor;
+    const pageRow = getComputedStyle(canvas.getByTestId("surface-page")).color;
+    const sidebarRow = getComputedStyle(canvas.getByTestId("surface-sidebar"));
+
+    // The rail paints, so nothing below can pass by measuring an unstyled page.
+    await expect(rail).not.toBe("rgba(0, 0, 0, 0)");
+
+    // The two arms are genuinely different paint, not two spellings of one.
+    await expect(sidebarRow.color).not.toBe(pageRow);
+
+    // At rest the sidebar row carries no surface of its own — that is what keeps
+    // the current-page row below distinguishable from the three idle ones.
+    await expect(sidebarRow.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+
+    // Base UI stamps `data-active` from its own `active` prop, so the recipe's
+    // `data-[active]:` treatment is reachable here and nowhere else in the suite.
+    const active = canvas.getByTestId("surface-sidebar-active");
+    await expect(active).toHaveAttribute("data-active");
+    await expect(getComputedStyle(active).backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+    await expect(getComputedStyle(active).backgroundColor).not.toBe(rail);
+  },
+};

@@ -15,9 +15,20 @@ import { ThemeToggle } from "./theme-toggle";
  * Every story renders the toggle CONTROLLED (`preference` + `mode` supplied), so
  * no story touches `document.documentElement`, `localStorage`, or a real
  * `ThemeProvider`. Stories share one document; a story that stamped the real
- * theme class would leak into every story after it. The `.dark` wrapper below
- * scopes the dark scheme to the story's own subtree instead — the token blocks
- * `renderThemeStyle` emits are class-scoped, so a wrapper is enough.
+ * theme class would leak into every story after it. The wrappers below scope a
+ * scheme to the story's own subtree instead.
+ *
+ * What a wrapper CANNOT do, and no story here may assert (Wallow-lrlm.6.4): repaint
+ * the `--color-*` tokens. `renderThemeStyle` emits `:root` / `.dark` / `.light`
+ * blocks carrying the RAW `--sidebar`-style variables, while `@theme` declares
+ * `--color-sidebar: var(--sidebar, …)` on `:root` alone — and a `var()` inside a
+ * custom property is substituted at computed-value time on the DECLARING element.
+ * A `.dark` wrapper rebinds the raw variable for its descendants; the token was
+ * already computed at `:root` from the light one, so every utility keeps painting
+ * light. These wrappers set the story's `mode` PROP context and its own
+ * `bg-background`, and are honest about nothing more. A scheme comparison that has
+ * to be measured belongs where a mode can be stamped on the document element and
+ * cleared again — `DashboardNav.sidebar-surface.test.tsx` in wallow-web does that.
  *
  * Callback spies come from `fn()` in `storybook/test` (never `vi.fn()`, which
  * the Interactions panel cannot display).
@@ -114,5 +125,48 @@ export const Cycling: Story = {
 
     await userEvent.click(toggle);
     await expect(toggle.getAttribute("data-theme-preference")).toBe("light");
+  },
+};
+
+/**
+ * The toggle on an inverted rail (Wallow-lrlm.6.4).
+ *
+ * The control hard-codes `variant="secondary"`, so on `bg-sidebar` it was a page
+ * chip glued to the rail — L 0.92 on L 0.22 in light mode. `surface` is not one
+ * of the props this component owns; it rides `ButtonProps` through the
+ * passthrough down to `buttonRecipe`, and that is the whole point of the story:
+ * the axis has to survive a component that never mentions it.
+ *
+ * ONE scheme, deliberately. This story previously rendered a `.dark` column beside
+ * a `.light` one and asserted both — but per the header, a wrapper cannot move a
+ * `--color-*` token, so the two columns painted the same palette and the dark half
+ * re-measured light while claiming otherwise. The dark half of this criterion is
+ * measured in wallow-web's `DashboardNav.sidebar-surface.test.tsx`, which stamps
+ * the mode on the document element where the tokens can actually see it.
+ *
+ * Top is the untouched default, bottom is `surface="sidebar"`.
+ */
+export const OnTheSidebarSurface: Story = {
+  args: { preference: "system", mode: "light" },
+  decorators: [lightScheme],
+  render: function ToggleOnRail(args) {
+    return (
+      <div className="flex w-40 flex-col gap-3 bg-sidebar p-4">
+        <ThemeToggle {...args} data-testid="toggle-page" />
+        <ThemeToggle {...args} data-testid="toggle-sidebar" surface="sidebar" />
+      </div>
+    );
+  },
+  play: async ({ canvas }) => {
+    const pageChip = canvas.getByTestId("toggle-page");
+    const sidebarChip = canvas.getByTestId("toggle-sidebar");
+
+    // The default really is a page chip here, so the comparison below is not
+    // two spellings of one colour.
+    await expect(getComputedStyle(pageChip).backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+    await expect(getComputedStyle(sidebarChip).backgroundColor).not.toBe(
+      getComputedStyle(pageChip).backgroundColor,
+    );
+    await expect(getComputedStyle(sidebarChip).color).not.toBe(getComputedStyle(pageChip).color);
   },
 };
