@@ -12,23 +12,14 @@ import { CreateInquiryForm } from "./CreateInquiryForm";
 let harness: SdkHarness;
 
 /**
- * Component spec for the create-inquiry form (Wallow-8w1h.7.3). Copies the
- * CANONICAL CreateOrganizationForm.test.tsx shape (Wallow-8w1h.4.3): the form
- * builds its mutation from the generated `inquiriesSubmitMutation({ client })`
- * (re-exported by api.ts), so the network seam is the `fetch` of the
- * request-scoped client this spec's own `createSdkHarness()` builds
- * (Wallow-pu6a.5.5 — there is no shared module-global client left to install a
- * mock onto). The submitted body is asserted via the recorded outgoing request
- * (`harness.last`); invalidation on success is observed by spying on the live
- * client's `invalidateQueries` and matching it against the generated
- * `inquiriesGetAllQueryKey()` rather than a literal; a server ProblemDetails is
- * driven with `harness.rejectJson`.
+ * Behaviour spec for the create-inquiry form: the field set, the
+ * submitted body, the list sweep, required-field parity with the
+ * server, and the RFC 7807 banner.
  *
- * Testids mirror the C# E2E `InquiryPage` page object verbatim: `inquiry-name`,
- * `inquiry-email`, `inquiry-phone`, `inquiry-company`, `inquiry-project-type`,
- * `inquiry-budget-range`, `inquiry-timeline`, `inquiry-message`,
- * `inquiry-submit`, `inquiry-success` / `inquiry-error`. Field-validation
- * messages use `{field}-error` (`inquiry-name-error`, etc.).
+ * Runs the real SDK over a faked fetch (sdk-harness), so the submitted
+ * body is read off the recorded request rather than a spy.
+ *
+ * The testids match the C# E2E `InquiryPage` page object verbatim.
  */
 
 // The full SubmitInquiryBody the form must POST when every field is filled.
@@ -44,13 +35,11 @@ const FULL_BODY = {
 };
 
 /**
- * Per-field fill actions keyed by testid, so a test can fill the whole valid
- * form except a single field (`fillAllExcept`) to isolate that field's
- * required-validation behavior. `phone`/`company` are text inputs; the three
- * project selects are catalog `Select`s (Wallow-m5aq.5.3) and are driven by
- * their option's accessible LABEL through `chooseOption` —
- * `userEvent.selectOptions` only drives a native `HTMLSelectElement`, which
- * these no longer are.
+ * Per-field fill actions keyed by testid, so a test can leave a single field
+ * blank (`fillAllExcept`) to isolate its required-validation behavior. The
+ * three project selects are catalog `Select`s, driven by their option's
+ * accessible LABEL through `chooseOption` — `userEvent.selectOptions` only
+ * drives a native `HTMLSelectElement`.
  */
 const FIELD_FILLERS: Record<string, () => Promise<void>> = {
   "inquiry-name": () => userEvent.type(page.getByTestId("inquiry-name"), FULL_BODY.name),
@@ -80,10 +69,8 @@ async function fillAllExcept(skipTestId: string) {
 
 /**
  * The fields `SubmitInquiryValidator.cs` marks `.NotEmpty()` beyond the core
- * name/email/message trio — phone plus the three project selects. Company is the
- * ONLY server-nullable field (`SubmitInquiryCommand.Company` is `string?`), so it
- * is deliberately excluded here. Each row is one required field + its
- * `{field}-error` testid.
+ * name/email/message trio — phone plus the three project selects. Company is
+ * the ONLY server-nullable field, so it is excluded here.
  */
 const SERVER_REQUIRED_SELECT_FIELDS = [
   { skipTestId: "inquiry-phone", errorTestId: "inquiry-phone-error" },
@@ -100,6 +87,9 @@ describe("CreateInquiryForm", () => {
   it("renders every inquiry field, select, and the submit button", async () => {
     renderWithWallow(<CreateInquiryForm />, { harness });
 
+    await expect
+      .element(page.getByTestId("inquiry-create-heading"))
+      .toHaveTextContent("Submit an Inquiry");
     await expect.element(page.getByTestId("inquiry-name")).toBeInTheDocument();
     await expect.element(page.getByTestId("inquiry-email")).toBeInTheDocument();
     await expect.element(page.getByTestId("inquiry-phone")).toBeInTheDocument();
@@ -111,11 +101,6 @@ describe("CreateInquiryForm", () => {
     await expect.element(page.getByTestId("inquiry-submit")).toBeInTheDocument();
   });
 
-  // The per-select OPTION SET is asserted in CreateInquiryForm.catalog.test.tsx
-  // ("lists every option, by label, for each opened select"): a catalog `Select`
-  // renders no native `<option>`, so reading the set means opening the popup —
-  // catalog-Select mechanics, which live in that spec. The wire VALUES stay
-  // pinned here, by the FULL_BODY assertion in the submit case below.
   it("submits, POSTing the full SubmitInquiryBody to the inquiries endpoint", async () => {
     renderWithWallow(<CreateInquiryForm />, { harness });
 
@@ -145,14 +130,16 @@ describe("CreateInquiryForm", () => {
     await fillFullForm();
     await userEvent.click(page.getByTestId("inquiry-submit"));
 
-    await expect.element(page.getByTestId("inquiry-success")).toBeInTheDocument();
+    const success = page.getByTestId("inquiry-success");
+    await expect.element(success).toBeInTheDocument();
+    // The submitter's only confirmation, so the wording is pinned here.
+    await expect.element(success).toHaveTextContent("🐷");
+    await expect.element(success).toHaveTextContent("Thank you — your inquiry has been submitted.");
   });
 
   it("blocks submit and flags EVERY server-required field when the form is empty", async () => {
-    // SubmitInquiryValidator.cs requires name, email, phone, projectType,
-    // budgetRange, timeline, and message (all `.NotEmpty()`). Company is the only
-    // nullable field. The client must mirror that contract so a user is never
-    // told their submission is valid when the server will reject it.
+    // The client mirrors the server's `.NotEmpty()` set so a user is never told
+    // their submission is valid when the server will reject it.
     renderWithWallow(<CreateInquiryForm />, { harness });
 
     await userEvent.click(page.getByTestId("inquiry-submit"));

@@ -6,11 +6,9 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { InquiryList } from "./InquiryList";
 
 /**
- * Query error-state spec for the inquiries list (Wallow-lrlm.4.2). The list is
- * the one surface in this vertical still missing the branch its own sibling
- * `InquiryDetail` established: `data ?? []` renders "No inquiries yet." for a
- * failed `inquiriesGetAllOptions()` read, which reads as "nothing has arrived"
- * rather than "we could not ask".
+ * The inquiries list's query error state. A failed `inquiriesGetAllOptions()`
+ * read must not fall through `data ?? []` and render "No inquiries yet." —
+ * that reads as "nothing has arrived" rather than "we could not ask".
  */
 
 /** An RFC 7807 body the SDK's error interceptor brands as a `WallowError`. */

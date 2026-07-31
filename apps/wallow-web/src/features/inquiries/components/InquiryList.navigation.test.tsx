@@ -14,17 +14,8 @@ import {
 import { InquiryList } from "./InquiryList";
 
 /**
- * Navigation spec for the inquiries list (Wallow-lrlm.4.1), the twin of
- * `OrganizationList.navigation.test.tsx` — see that file for why the row is the
- * anchor rather than something wrapped around one.
- *
- * SCOPE NOTE. The bead names "organizations, apps", but its acceptance criterion
- * is written generally: every list page whose items have a corresponding detail
- * route. `/dashboard/inquiries/$inquiryId` exists and `inquiry-item` rows are
- * the same dead-looking-clickable shape, so inquiries is covered here.
- * `/dashboard/apps/$id` does NOT exist in the route tree at all, so `app-item`
- * rows are deliberately left inert — wiring them would mean inventing a route,
- * which this bug-fix-only feature does not do.
+ * Row navigation on the inquiries list: the row is itself the anchor to
+ * `/dashboard/inquiries/$inquiryId`, not a cell wrapped around one.
  */
 
 const INQUIRIES = [

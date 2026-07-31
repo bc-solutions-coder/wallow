@@ -11,63 +11,14 @@ import { failsWith, neverSettles, routeHarness } from "@shared/testing/harness-r
 import { InquiryDetail } from "./InquiryDetail";
 
 /**
- * The ADD-COMMENT form ON `@bc-solutions-coder/forms` (Wallow-lrlm.5.5).
+ * The add-comment form as built on `@bc-solutions-coder/forms`: the shell, the
+ * required rule, in-flight disabling, server-error routing, and the
+ * post-success reset.
  *
- * WHY A NEW FILE. The four specs already beside this one are the screen's frozen
- * oracles and the migration's acceptance criterion is that all four pass
- * UNCHANGED, so none of them is edited here: `InquiryDetail.test.tsx` pins both
- * comment payloads, the comments-operation sweep and the RFC 7807 `detail`
- * banner, `InquiryDetail.catalog.test.tsx` pins the internal flag as a catalog
- * `Checkbox` that reports its own state, `InquiryDetail.a11y.test.tsx` pins the
- * textarea's accessible name, and `InquiryDetail.restyle.test.tsx` pins the
- * form's rhythm and the control's frame. What none of them can say, because all
- * four predate the package, is anything about the shell the form is built ON.
- *
- * DELIBERATELY NOT RESTATED HERE: the two POST bodies, the sweep and the
- * form-level `detail` banner. All four are pinned by `InquiryDetail.test.tsx`,
- * and a second copy would only create something to keep in sync. The banner in
- * particular changes MECHANISM in this migration — `mutation.isError` +
- * `errorText` becomes `FormError` + `splitServerError` — but not OUTCOME, and the
- * oracle asserts the outcome.
- *
- * THE ONE TESTID THAT DOES NOT DERIVE. Under `testIdPrefix="inquiry-comment"` the
- * catalog derives a field's id from its NAME, so a boolean field called
- * `isInternal` would render `inquiry-comment-is-internal` — not the
- * `inquiry-comment-internal` that `InquiryDetail.test.tsx` clicks and
- * `InquiryDetail.catalog.test.tsx` inspects. The last case below is the guard on
- * exactly that, because the trap is silent: a form that forgot the override still
- * renders, still submits, and simply stops being findable.
- *
- * WHAT THE MIGRATION ADDS (these fail against the hand-rolled form):
- *
- *   1. The `<form>` is the package's `AppForm`, so it is `noValidate`.
- *   2. There is a required rule on the comment at all. Today an empty submit
- *      POSTs `{ content: "", isInternal: false }` and lets the API reject it —
- *      the round trip the oracle's own "Comment must not be empty." fixture is a
- *      recording of.
- *   3. That message is genuinely ASSOCIATED with the textarea (`aria-invalid` +
- *      `aria-describedby`), which the sibling `ErrorBanner` never was.
- *   4. The textarea, the internal flag and the submit disable themselves while
- *      the add is in flight, so a second click cannot post the comment twice into
- *      a thread that has no way to undo it.
- *   5. A validation failure's per-property message lands NEXT TO the control.
- *      Today `errors` is dropped on the floor and only `detail` reaches the
- *      screen, so an API that named the offending property says nothing about it.
- *   6. A server field error must not WEDGE the form.
- *
- * WHAT THE MIGRATION MUST NOT DROP (regression guards):
- *
- *   7. Both controls reset after a successful add. That is a per-call `mutate`
- *      `onSuccess` today and becomes the hook's `onSuccess` + `form.reset()`, and
- *      no oracle asserts it — a thread would otherwise keep the last comment in
- *      the box and the internal flag stuck on, which is how a private note gets
- *      posted publicly next time.
- *   8. The internal flag keeps `inquiry-comment-internal`, per the derivation
- *      note above.
- *
- * Same seam as the oracles: the REAL SDK with only its `fetch` faked, real router
- * context via `renderWithWallow`, real headless Chromium. The screen fires the
- * detail and comments reads together, so `routeHarness` answers each by URL.
+ * Runs the real SDK over a faked fetch (sdk-harness). The screen fires the
+ * detail and comments reads together, so `routeHarness` answers each by URL,
+ * and `addCalls()` filters the POSTs out of a `harness.calls` that also holds
+ * those reads and every post-success refetch.
  */
 
 const inquiry = {
@@ -100,20 +51,15 @@ function seedLoaded(addResponse: unknown = {}): void {
 }
 
 /**
- * Wait for the detail read to paint before driving a control. The screen's
- * controls do not exist at first paint: the reads go over the wire rather than
- * out of a pre-seeded cache.
+ * Wait for the detail read to paint: the reads go over the wire rather than out
+ * of a pre-seeded cache, so the controls do not exist at first paint.
  */
 async function awaitLoaded(): Promise<void> {
   await expect.element(page.getByTestId("inquiry-detail-heading")).toBeInTheDocument();
   await expect.element(page.getByTestId("inquiry-comment-content")).toBeInTheDocument();
 }
 
-/**
- * Only the add POSTs. `harness.calls` also holds the two reads and every
- * post-success refetch, so "the endpoint was not reached" has to be said about
- * this operation rather than about the transport as a whole.
- */
+/** Only the add POSTs, so "the endpoint was not reached" is said about them. */
 function addCalls(): readonly SdkCall[] {
   return harness.calls.filter(
     (call: SdkCall) => call.method === "POST" && call.path.endsWith(COMMENTS_PATH),
@@ -129,10 +75,9 @@ function contentTextarea(): HTMLTextAreaElement {
 }
 
 /**
- * The internal flag is Base UI's `Checkbox.Root`, which is NOT a native button —
- * so it is typed as a plain `HTMLElement` and its disabled state is read off
- * `aria-disabled` / `data-disabled` rather than the `.disabled` property, which
- * exists only on the sibling hidden `<input>`.
+ * The internal flag is Base UI's `Checkbox.Root`, NOT a native button — so its
+ * disabled state is read off `aria-disabled` / `data-disabled` rather than the
+ * `.disabled` property, which exists only on the sibling hidden `<input>`.
  */
 function internalFlag(): HTMLElement {
   return page.getByTestId("inquiry-comment-internal").element() as HTMLElement;
@@ -185,8 +130,7 @@ describe("InquiryDetail add-comment form on @bc-solutions-coder/forms", () => {
 
   it("keeps the comment control a real textarea", async () => {
     // A catalog field that resolved to an `<input>` would turn a multi-paragraph
-    // comment box into a single-line one, and no oracle would notice: the a11y
-    // spec asserts the NAME and the restyle spec asserts the frame.
+    // comment box into a single-line one.
     seedLoaded();
 
     renderWithWallow(<InquiryDetail inquiryId="i1" />, { harness });
@@ -194,19 +138,15 @@ describe("InquiryDetail add-comment form on @bc-solutions-coder/forms", () => {
 
     const content: HTMLTextAreaElement = contentTextarea();
     expect(content.tagName).toBe("TEXTAREA");
-    // `tagName` alone is satisfied by a hand-rolled `<textarea>` too, and
-    // `InquiryDetail.restyle.test.tsx`'s class pin was narrowed to the
-    // input/textarea OVERLAP in this same task — so these two utilities, which
-    // ONLY `textareaRecipe` adds, are what still says "the CATALOG control".
+    // `tagName` alone is satisfied by a hand-rolled `<textarea>` too. These two
+    // utilities are the only ones `textareaRecipe` adds, so they are what says
+    // "the CATALOG control".
     for (const utility of ["min-h-20", "resize-y"]) {
       expect(content.classList.contains(utility), utility).toBe(true);
     }
   });
 
   it("associates a required-comment message with the textarea instead of posting an empty body", async () => {
-    // Today an empty submit posts `{ content: "" }` and waits for the API to say
-    // no — the round trip the oracle's "Comment must not be empty." fixture is a
-    // recording of.
     seedLoaded();
 
     renderWithWallow(<InquiryDetail inquiryId="i1" />, { harness });
@@ -227,7 +167,7 @@ describe("InquiryDetail add-comment form on @bc-solutions-coder/forms", () => {
 
   it("rejects a whitespace-only comment without reaching the endpoint", async () => {
     // `.trim()` in the schema is what makes `"   "` fail the `min(1)`; a bare
-    // `min(1)` would post three spaces into the thread.
+    // `min(1)` posts three spaces into the thread.
     seedLoaded();
 
     renderWithWallow(<InquiryDetail inquiryId="i1" />, { harness });
@@ -256,8 +196,8 @@ describe("InquiryDetail add-comment form on @bc-solutions-coder/forms", () => {
       expect(addCalls()).toHaveLength(1);
     });
     await expect.poll(() => contentTextarea().disabled).toBe(true);
-    // A second click would post the same comment twice into a thread with no undo.
-    // The flag is a non-native button, so this is where its disabled state lives.
+    // A second click would post the same comment twice into a thread with no
+    // undo. The flag is a non-native button, so this is where its state lives.
     expect(internalFlag().getAttribute("aria-disabled")).toBe("true");
     expect(Object.hasOwn(internalFlag().dataset, "disabled")).toBe(true);
     expect(submitButton().disabled).toBe(true);
@@ -318,9 +258,8 @@ describe("InquiryDetail add-comment form on @bc-solutions-coder/forms", () => {
   });
 
   it("still resets both the comment and the internal flag after a successful add", async () => {
-    // REGRESSION GUARD, and one no oracle makes. Leaving the flag stuck on is how
-    // the NEXT comment gets posted internal by accident — or, the other way
-    // round, how a private note ends up public.
+    // Leaving the flag stuck on is how the NEXT comment gets posted internal by
+    // accident — or, the other way round, how a private note ends up public.
     seedLoaded();
 
     renderWithWallow(<InquiryDetail inquiryId="i1" />, { harness });
@@ -338,10 +277,10 @@ describe("InquiryDetail add-comment form on @bc-solutions-coder/forms", () => {
   });
 
   it("keeps the internal flag on inquiry-comment-internal, not the derived id", async () => {
-    // REGRESSION GUARD on the derivation trap. A boolean field named `isInternal`
-    // under `testIdPrefix="inquiry-comment"` derives `inquiry-comment-is-internal`;
-    // two closed specs drive the flag by `inquiry-comment-internal`, so the field
-    // must carry the explicit override.
+    // The derivation trap, and it is silent: a boolean field named `isInternal`
+    // under `testIdPrefix="inquiry-comment"` derives
+    // `inquiry-comment-is-internal`, so a form missing the explicit override
+    // still renders, still submits, and simply stops being findable.
     seedLoaded();
 
     renderWithWallow(<InquiryDetail inquiryId="i1" />, { harness });

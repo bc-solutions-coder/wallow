@@ -7,25 +7,13 @@ import { routeHarness } from "@shared/testing/harness-routes";
 import { InquiryDetail } from "./InquiryDetail";
 
 /**
- * Accessible-name spec for the inquiry-detail page (Wallow-lrlm.4.4).
+ * Accessible names on the inquiry-detail page: the add-comment textarea and the
+ * status select.
  *
- * The add-comment control is the BARE `<textarea>` the bead names: it carries a
- * `data-testid` and a copy of the `Input` recipe's classes, but no `Label`, no
- * wrapping `Field`, and no `aria-label` — so it reaches the accessibility tree
- * with NO accessible name at all. A screen reader announces it as an unlabelled
- * multi-line edit field, and the only clue to what it collects is the "Add
- * comment" button underneath it, which names the SUBMIT, not the control.
- *
- * The fix is the association the sibling MFA screens already ship
- * (`features/mfa/components/MfaEnrollFlow.tsx`'s `<Label htmlFor>` + `<Input
- * id>` inside a `Field`) or the equivalent `aria-label`; this spec pins the
- * OUTCOME — a non-empty accessible name — rather than either mechanism, so the
- * implementation is free to pick whichever the catalog makes cleanest.
- *
- * `toHaveAccessibleName()` with no argument is the AC's exact claim ("a
- * non-empty accessible name"), computed off the real accessibility tree in
- * headless Chromium rather than off the markup, so a `Label` that is present but
- * NOT associated still fails.
+ * `toHaveAccessibleName()` is computed off the real accessibility tree in
+ * headless Chromium, not off the markup, so a `Label` that is present but NOT
+ * associated still fails. These cases pin the OUTCOME, leaving the
+ * implementation free to name the control however the catalog makes cleanest.
  */
 
 const inquiry = {
@@ -63,8 +51,8 @@ describe("InquiryDetail — accessible names", () => {
 
     renderWithWallow(<InquiryDetail inquiryId="i1" />, { harness });
 
-    // The heading settles first: the form only exists once the detail read
-    // resolves, so asserting on the control before that would race the render.
+    // The form only exists once the detail read resolves, so the heading has to
+    // settle first or the assertion races the render.
     await expect.element(page.getByTestId("inquiry-detail-heading")).toBeInTheDocument();
     await expect.element(page.getByTestId("inquiry-comment-content")).toHaveAccessibleName();
   });
@@ -75,9 +63,8 @@ describe("InquiryDetail — accessible names", () => {
     renderWithWallow(<InquiryDetail inquiryId="i1" />, { harness });
     await expect.element(page.getByTestId("inquiry-detail-heading")).toBeInTheDocument();
 
-    // The complement of the assertion above, from the USER's side: whatever
-    // names the control must also make it findable by that name, which is what
-    // an accessible name is for. `textbox` is the role a `textarea` maps to.
+    // The same claim from the USER's side: whatever names the control must also
+    // make it findable by that name. `textbox` is the role a `textarea` maps to.
     const named = page.getByTestId("inquiry-comment-content").element();
     const byRole = page.getByRole("textbox", { name: /comment/i }).elements();
 
@@ -90,15 +77,10 @@ describe("InquiryDetail — accessible names", () => {
     renderWithWallow(<InquiryDetail inquiryId="i1" />, { harness });
     await expect.element(page.getByTestId("inquiry-detail-heading")).toBeInTheDocument();
 
-    // The select trigger is UNNAMED today, not merely vaguely named. It renders
-    // as `<button role="combobox">New</button>`, and `combobox` does not take
-    // its name from its contents — the chosen option is the control's VALUE, and
-    // an author-supplied name (`aria-label`/`aria-labelledby`/a label element) is
-    // the only thing that names it. So the trigger reaches the accessibility
-    // tree with no name at all. The sibling
-    // `organization-detail-register-client-type` trigger has the identical gap:
-    // both come from `shared/components/SelectControl.tsx`, which accepts no
-    // accessible-name prop.
+    // The trigger renders as `<button role="combobox">New</button>`, and
+    // `combobox` does not take its name from its contents — the chosen option is
+    // the control's VALUE. An author-supplied name (`aria-label`,
+    // `aria-labelledby`, or a label element) is the only thing that names it.
     await expect.element(page.getByTestId("inquiry-status-select")).toHaveAccessibleName(/status/i);
   });
 });

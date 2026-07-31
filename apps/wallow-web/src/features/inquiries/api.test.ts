@@ -1,18 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 /**
- * Inquiries feature `api.ts` — a THIN RE-EXPORT SEAM over
- * `@bc-solutions-coder/sdk/query`. Everything behind it is GENERATED as of
- * Wallow-pu6a.5.5: the mutations no longer carry an `onSuccess`, so the
- * invalidation model (create sweeps the list, add-comment sweeps that inquiry's
- * comments, set-status sweeps its detail) now lives at the call sites, where the
- * component specs assert it against the rendered screen.
+ * The inquiries `api.ts` seam: a re-export of the generated
+ * `@bc-solutions-coder/sdk/query` surface, plus which curated
+ * predicate reaches which queries.
  *
- * What is still this seam's own decision — and what this spec pins — is which
- * curated predicate reaches which queries. The per-inquiry sweeps go through
- * `queriesForOperation`, NOT the `Inquiries` tag: the tag spans list, detail and
- * comments together, so using it would refetch the whole feature after every
- * comment. Both the reach and that narrowness are asserted here.
+ * The per-inquiry sweeps go through `queriesForOperation`, NOT the
+ * `Inquiries` tag — the tag spans list, detail and comments together,
+ * so using it would refetch the whole feature after every comment.
  */
 
 import * as query from "@bc-solutions-coder/sdk/query";

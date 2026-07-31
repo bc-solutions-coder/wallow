@@ -7,17 +7,10 @@ import { waitForTestId } from "@shared/testing/style-contract";
 import { InquiryList } from "./InquiryList";
 
 /**
- * Accessible-name REGRESSION GUARD for the inquiry rows (Wallow-lrlm.4.4) — the
- * sibling of `organizations/components/OrganizationList.a11y.test.tsx`, kept
- * beside the component it guards rather than shared, because the two lists carry
- * different cells.
- *
- * Wallow-lrlm.4.1 made each row an `<a>`, so the row's cells now compose a
- * LINK's accessible name. The inquiry row leads with the contact's name, so that
- * name is non-empty and identifies the row; this pins it against a later
- * restyle that reduces a cell to an icon.
- *
- * Like its sibling, this file asserts a property the app ALREADY has.
+ * Accessible names on the inquiry rows. Each row is an `<a>`, so its cells
+ * compose a LINK's accessible name; the row leads with the contact's name,
+ * which is what identifies it. Pinned against a later restyle that reduces a
+ * cell to an icon.
  */
 
 const INQUIRIES = [

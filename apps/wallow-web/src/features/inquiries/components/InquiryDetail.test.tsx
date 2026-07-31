@@ -14,38 +14,16 @@ import { InquiryDetail } from "./InquiryDetail";
 let harness: SdkHarness;
 
 /**
- * Component spec for the inquiry-detail page body (Wallow-8w1h.7.4). Data flows
- * through the GENERATED query surface (`inquiriesGetByIdOptions`/
- * `inquiriesGetCommentsOptions` + `inquiriesUpdateStatusMutation`/
- * `inquiriesAddCommentMutation`), so the network seam is the SDK instance the
- * render puts on the router context, backed by `createSdkHarness()`
- * (Wallow-pu6a.5.5). The detail + comment states are driven by ANSWERING those
- * two requests (`routeHarness`) rather than seeding a cache key; mutations are
- * asserted via the recorded outgoing request (`harness.calls`) and, for the
- * post-success sweep, by running the filter handed to `invalidateQueries`
- * against the real generated key (`expectSwept`). Error and pending branches are
- * scoped to ONE operation (`failsWith` / `neverSettles`), because the reads
- * behind the failing control still have to succeed for it to be on screen.
+ * Behaviour spec for the inquiry-detail page body: the inquiry fields, the
+ * status change, the comment thread, and adding a comment.
  *
- * Testids follow `{page}-{element}` kebab-case. Per the scout's CRITICAL 7.4
- * reconciliation there is NO C# `InquiryPage` oracle for the
- * detail/comments/status flow (the page object only covers the public submit
- * form: inquiry-name/email/phone/company/project-type/budget-range/timeline/
- * message/submit/success/error), so these testids are invented following the
- * Organizations `OrganizationDetail`/`MemberList` convention:
- * `inquiry-detail-heading`, `inquiry-detail-back-link`, `inquiry-detail-not-found`,
- * `inquiry-detail-error`, `inquiry-detail-status`, `inquiry-status-select` +
- * `inquiry-status-submit` + `inquiry-status-error`,
- * `inquiry-comments-table` + `inquiry-comment-item`,
- * `inquiry-comments-loading` / `inquiry-comments-empty`, `inquiry-comment-content` +
- * `inquiry-comment-internal` + `inquiry-comment-submit`, `inquiry-comment-error`.
+ * Every state is driven by ANSWERING the detail and comments reads
+ * (`routeHarness`), not by seeding a cache key. Error and pending branches are
+ * scoped to ONE operation (`failsWith` / `neverSettles`) — the reads behind the
+ * failing control still have to succeed for it to be on screen.
  *
- * The status control is the catalog `Select` (Wallow-m5aq.5.3), not a native
- * `<select>`, so picking a status goes through `chooseOption` — open the
- * combobox trigger, click the named option out of the portalled listbox —
- * rather than `userEvent.selectOptions`, which only drives an
- * `HTMLSelectElement`. The testid `inquiry-status-select` is unchanged; it now
- * names the trigger.
+ * The status control is a catalog `Select`, so picking a status goes through
+ * `chooseOption`; `userEvent.selectOptions` drives only an `HTMLSelectElement`.
  */
 
 /** JSON `Response` body for a path-aware `harness.respond` handler. */
@@ -101,10 +79,9 @@ function seedLoaded(comments: unknown = twoComments, extraRoutes: Record<string,
 }
 
 /**
- * Wait for the detail read to paint before driving a control. The screen's
- * controls no longer exist at first paint: the reads go over the wire rather
- * than out of a pre-seeded cache, so every interaction spec has to settle the
- * detail query first.
+ * Wait for the detail read to paint before driving a control: the reads go over
+ * the wire rather than out of a pre-seeded cache, so the screen's controls do
+ * not exist at first paint.
  */
 async function awaitLoaded(): Promise<void> {
   await expect.element(page.getByTestId("inquiry-detail-heading")).toBeInTheDocument();
@@ -123,8 +100,13 @@ describe("InquiryDetail — inquiry fields", () => {
     await expect
       .element(page.getByTestId("inquiry-detail-heading"))
       .toHaveTextContent("Ada Lovelace");
-    await expect.element(page.getByTestId("inquiry-detail-back-link")).toBeInTheDocument();
-    await expect.element(page.getByText("ada@example.com")).toBeInTheDocument();
+    const backLink = page.getByTestId("inquiry-detail-back-link");
+    await expect.element(backLink).toBeInTheDocument();
+    expect(backLink.element().getAttribute("href")).toBe("/dashboard/inquiries");
+    expect(backLink.element().textContent?.trim()).toBe("Back to inquiries");
+    await expect
+      .element(page.getByTestId("inquiry-detail-email"))
+      .toHaveTextContent("ada@example.com");
     await expect.element(page.getByTestId("inquiry-detail-status")).toHaveTextContent("New");
   });
 
@@ -145,8 +127,8 @@ describe("InquiryDetail — inquiry fields", () => {
   });
 
   it("surfaces the RFC 7807 ProblemDetails detail when the detail query errors", async () => {
-    // Detail query errors (404); the comments query still resolves to an empty
-    // array so its list render never sees a non-array body.
+    // Only the detail query errors; the comments query still resolves to an
+    // empty array so its list render never sees a non-array body.
     harness.respond((call) =>
       call.path.endsWith("/comments")
         ? jsonBody([])
@@ -199,11 +181,9 @@ describe("InquiryDetail — status change", () => {
 
   it("surfaces the RFC 7807 ProblemDetails detail when a rejected status change fails", async () => {
     // The domain only allows sequential transitions
-    // (New -> Reviewed -> Contacted -> Closed); Inquiry.cs `IsValidTransition`
-    // rejects everything else with a 422 RFC 7807 ProblemDetails. The status
-    // offers all four statuses unconditionally, so a user viewing a "New"
-    // inquiry can pick "Closed" directly and MUST see the rejection surfaced —
-    // mirroring the inquiry-comment-error / inquiry-detail-error pattern.
+    // (New -> Reviewed -> Contacted -> Closed) and rejects the rest with a 422.
+    // The control offers all four statuses unconditionally, so a user viewing a
+    // "New" inquiry can pick "Closed" and must see the rejection surfaced.
     seedLoaded(twoComments, {
       "PATCH /v1/inquiries/i1/status": failsWith(
         { status: 422, detail: "Cannot transition from New to Closed." },
@@ -238,6 +218,17 @@ describe("InquiryDetail — comment thread", () => {
     await expect.element(page.getByTestId("inquiry-comments-table")).toBeInTheDocument();
     await expect.element(page.getByText("First contact made.")).toBeInTheDocument();
     await expect.element(page.getByText("Internal note.")).toBeInTheDocument();
+    expect(
+      page
+        .getByTestId("inquiry-comment-author")
+        .elements()
+        .map((el) => el.textContent),
+    ).toEqual(["Grace", "Alan"]);
+    // Only the internal comment is marked, and `-internal-flag` is that marker —
+    // `inquiry-comment-internal` is the add-form's checkbox.
+    const flags = page.getByTestId("inquiry-comment-internal-flag").elements();
+    expect(flags).toHaveLength(1);
+    expect(flags[0]?.textContent).toBe("(internal)");
   });
 
   it("renders the empty state and no rows when there are no comments", async () => {
@@ -246,6 +237,9 @@ describe("InquiryDetail — comment thread", () => {
     renderWithWallow(<InquiryDetail inquiryId="i1" />, { harness });
 
     await expect.element(page.getByTestId("inquiry-comments-empty")).toBeInTheDocument();
+    expect(page.getByTestId("inquiry-comments-empty").element().textContent).toBe(
+      "No comments yet.",
+    );
     expect(page.getByTestId("inquiry-comment-item").elements()).toHaveLength(0);
   });
 

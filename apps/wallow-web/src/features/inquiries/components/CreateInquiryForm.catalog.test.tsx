@@ -11,16 +11,14 @@ import { CreateInquiryForm } from "./CreateInquiryForm";
 let harness: SdkHarness;
 
 /**
- * Catalog-migration spec for the create-inquiry form (Wallow-m5aq.5.3). The form
- * renders THREE selects through one shared `SelectField`, so all three migrate
- * together: `inquiry-project-type`, `inquiry-budget-range`, `inquiry-timeline`.
- * Every testid is preserved and now names the catalog `Select`'s trigger.
+ * The three catalog `Select`s on the create-inquiry form —
+ * `inquiry-project-type`, `inquiry-budget-range`, `inquiry-timeline` — each
+ * testid naming the trigger.
  *
- * The wire values are cosmetic-to-display pairs (`web-app` -> "Web Application"),
- * which is the reason these cases assert the visible LABEL is what a user picks
- * while `CreateInquiryForm.test.tsx` keeps asserting the VALUE that reaches the
- * submitted body. A migration that dropped the label mapping would pass one and
- * fail the other.
+ * Wire values and display labels differ (`web-app` -> "Web Application"), so
+ * these cases assert the LABEL a user picks while `CreateInquiryForm.test.tsx`
+ * asserts the VALUE that reaches the submitted body. Dropping the label mapping
+ * would pass one and fail the other.
  */
 
 /** Each migrated select with one of its options, by the label a user reads. */
@@ -51,9 +49,8 @@ describe("CreateInquiryForm selects (catalog Select)", () => {
   it("offers each select's options only once it is opened", async () => {
     await renderForm();
 
-    // Nothing of the list exists up front — the catalog Select portals its popup
-    // and mounts it on demand, so an unopened select contributes no options to
-    // the page at all.
+    // The popup is portalled and mounted on demand, so an unopened select
+    // contributes no options to the page at all.
     await expect.element(page.getByRole("option")).not.toBeInTheDocument();
 
     await userEvent.click(byTestId("inquiry-project-type"));
@@ -64,12 +61,9 @@ describe("CreateInquiryForm selects (catalog Select)", () => {
   });
 
   /**
-   * The full option set, per select. This replaces the pre-migration
-   * `querySelectorAll("option")` case in `CreateInquiryForm.test.tsx`, which no
-   * conforming implementation could satisfy: the catalog `Select` renders
-   * `role="option"` divs portalled to `<body>` and only while open, never a
-   * native `<option>`. The wire values behind these labels stay covered by that
-   * spec's submitted-body assertion.
+   * The full option set, per select. Reading it means opening the popup: the
+   * catalog `Select` renders `role="option"` divs portalled to `<body>` and
+   * only while open, never a native `<option>`.
    */
   const OPTION_LABELS: ReadonlyArray<readonly [testId: string, labels: readonly string[]]> = [
     [
