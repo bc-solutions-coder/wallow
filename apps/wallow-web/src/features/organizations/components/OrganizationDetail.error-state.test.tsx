@@ -6,19 +6,12 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { OrganizationDetail } from "./OrganizationDetail";
 
 /**
- * Query error-state spec for the organization detail page (Wallow-lrlm.4.2).
+ * The org-detail page's two query error surfaces.
  *
- * This page carries the worst instance of the gap: `org === null` is reached BY
- * an errored query as much as by a resolved-empty one, so a genuine 500 renders
- * the flatly wrong "Organization not found." card — the user is told the org was
- * archived when the server merely fell over. `InquiryDetail` already splits the
- * two (`isError` first, not-found second); this spec pins that split here, and
- * keeps the resolved-null path rendering the not-found card so the fix is a
- * split rather than a replacement.
- *
- * Its inner `ClientsSection` reads a SECOND query (`clientsGetByTenantOptions`)
- * with no error handling at all, so it gets its own surface: a failed clients
- * read must not render as an empty bound-clients table.
+ * `org === null` is reached by an errored read as much as by a resolved-empty
+ * one, so the error branch has to be checked FIRST — otherwise a 500 renders
+ * the flatly wrong "Organization not found." card. The inner clients section
+ * reads a second query and carries its own surface.
  */
 
 const ORG_ID = "o1";
@@ -61,8 +54,6 @@ describe("OrganizationDetail — query error state", () => {
   });
 
   it("does not render the not-found card when the org query errors", async () => {
-    // The bug this pins: today an errored read falls into the `org === null`
-    // branch and claims the organization does not exist.
     harness.rejectJson(DETAIL_PROBLEM, 500);
 
     renderWithWallow(<OrganizationDetail orgId={ORG_ID} />, { harness });
@@ -73,8 +64,8 @@ describe("OrganizationDetail — query error state", () => {
   });
 
   it("still renders the not-found card when the org query resolves empty", async () => {
-    // The other half of the split — a REGRESSION guard, not a new behaviour:
-    // adding the error branch must not swallow the resolved-null case.
+    // The other half of the split: the error branch must not swallow the
+    // resolved-null case.
     harness.resolveJson(null);
 
     renderWithWallow(<OrganizationDetail orgId={ORG_ID} />, { harness });

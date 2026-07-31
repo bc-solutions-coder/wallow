@@ -6,57 +6,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CreateOrganizationForm } from "./CreateOrganizationForm";
 
 /**
- * The create-organization form ON `@bc-solutions-coder/forms` (Wallow-ov6w.4.1).
+ * The create-organization form as built on `@bc-solutions-coder/forms`: the
+ * `AppForm` shell, the labelled field, validation messages associated with the
+ * input, in-flight disabling, and the RFC 7807 field/banner split.
  *
- * WHY THIS IS A SECOND FILE. `CreateOrganizationForm.test.tsx` is the form's
- * frozen behaviour oracle — the `{ name, domain: null }` payload, the
- * Organizations tag sweep, the reset-on-success the cross-app journey leans on,
- * and the RFC 7807 banner — and the migration's acceptance criterion is that it
- * passes UNCHANGED, so it is not edited here. `.restyle.test.tsx` owns the
- * chrome (card, heading, `space-y-6` rhythm) and is likewise untouched. What
- * neither can say, because both predate the package, is anything about the shell
- * the form is built ON. This file says that, and only that.
- *
- * WHAT THE MIGRATION ADDS (these fail against the hand-rolled form):
- *
- *   1. The `<form>` is the package's `AppForm`, so it is `noValidate` — the zod
- *      schema owns validation and the browser must not double-validate and pop a
- *      native bubble over the field message. The hand-rolled form has no such
- *      attribute.
- *   2. The name input has a real, associated `<label>`. Today it has none at
- *      all: a screen reader hears an unnamed textbox. The catalog `TextField`
- *      renders the ui `Field` row that fixes it.
- *   3. The required-field message is genuinely ASSOCIATED with the input
- *      (`aria-invalid` + `aria-describedby`), which the hand-rolled
- *      `ErrorBanner` sibling never was.
- *   4. The input and the submit disable themselves while the create is in
- *      flight, so a second click cannot fire a second create and an edit cannot
- *      race the request it was typed into. Today neither disables.
- *   5. A validation failure's per-property messages land NEXT TO the input
- *      rather than in the form-level banner — `splitServerError` routes the
- *      RFC 7807 `errors` member onto the fields the form actually has. Today
- *      `errors` is dropped on the floor and the banner shows the generic
- *      fallback. That server message must also not WEDGE the form: the shell
- *      clears it on the way into the next submit, or every later submit would
- *      fail the validity gate silently.
- *
- * WHAT THE MIGRATION MUST NOT DROP (these pass today — regression guards aimed
- * at the two things that move house during the migration):
- *
- *   6. The required message keeps its exact wording. It moves from a hand-written
- *      `value.trim() ? undefined : "Name is required"` validator into the zod
- *      schema, and the oracle only asserts that the message element appears.
- *   7. A whitespace-only name is still rejected. That is what the hand-written
- *      validator's `.trim()` did, and a zod schema only keeps it if the trim is
- *      part of the schema.
- *
- * The payload, the tag sweep and the reset-on-success are deliberately NOT
- * restated here — the oracle pins all three, and a second copy would only create
- * something to keep in sync.
- *
- * Same seam as the oracle: the REAL SDK with only its `fetch` faked
- * (`@bc-solutions-coder/testing/sdk-harness`), real router context via
- * `renderWithWallow`, real headless Chromium.
+ * Runs the real SDK over a faked fetch (`createSdkHarness`) mounted on the
+ * router context.
  */
 
 /** The transport backing each render, rebuilt per test. */
@@ -71,9 +26,9 @@ function submitButton(): HTMLButtonElement {
 }
 
 /**
- * The ids `control` points its `aria-describedby` at. Split rather than compared
- * whole: Base UI appends the message to whatever else already describes the
- * control, so the claim is that it is AMONG them, not that it is alone.
+ * The ids `control` points its `aria-describedby` at. Split rather than
+ * compared whole: Base UI appends the message to whatever else already
+ * describes the control, so the claim is that it is AMONG them, not alone.
  */
 function describedByIds(control: HTMLElement): readonly string[] {
   return (control.getAttribute("aria-describedby") ?? "")
@@ -94,11 +49,11 @@ describe("CreateOrganizationForm on @bc-solutions-coder/forms", () => {
 
     const element = form.element() as HTMLFormElement;
     expect(element.tagName).toBe("FORM");
-    // The shell's `noValidate`: the zod schema is the only validator, so the
-    // browser must not also refuse the submit with a native bubble.
+    // The zod schema is the only validator, so the browser must not also
+    // refuse the submit with a native bubble.
     expect(element.noValidate).toBe(true);
-    // The field and the submit must live under that same shell, or the form
-    // element is present but is not the thing the ids come from.
+    // A form element that is not the one the field and submit sit under would
+    // satisfy the check above while owning none of the ids.
     expect(nameInput().closest("form")).toBe(element);
     expect(submitButton().closest("form")).toBe(element);
   });
@@ -128,8 +83,6 @@ describe("CreateOrganizationForm on @bc-solutions-coder/forms", () => {
   });
 
   it("words the required-field message exactly as the validator always has", async () => {
-    // The string moves from a hand-written validator into the zod schema during
-    // the migration, and the oracle asserts only that the element appears.
     renderWithWallow(<CreateOrganizationForm />, { harness });
 
     await userEvent.click(page.getByTestId("organization-create-submit"));
@@ -140,8 +93,8 @@ describe("CreateOrganizationForm on @bc-solutions-coder/forms", () => {
   });
 
   it("rejects a whitespace-only name without reaching the endpoint", async () => {
-    // The hand-written validator trimmed before testing for emptiness; a zod
-    // schema only keeps that behaviour if the trim is part of the schema.
+    // `.trim()` in the schema is what makes `"   "` fail the `min(1)`; a bare
+    // `min(1)` would let three spaces through.
     renderWithWallow(<CreateOrganizationForm />, { harness });
 
     await userEvent.type(page.getByTestId("organization-name"), "   ");

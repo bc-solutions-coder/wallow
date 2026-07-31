@@ -8,22 +8,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OrganizationDetail } from "./OrganizationDetail";
 
 /**
- * Component spec for the org-detail page body (Wallow-8w1h.4.4). Data flows
- * through the generated `organizationsGetByIdOptions()` +
- * `organizationsArchiveMutation`/`organizationsReactivateMutation`, so the
- * network seam is the `fetch` of the request-scoped client this spec's own
- * `createSdkHarness()` builds (Wallow-pu6a.5.5 — there is no shared
- * module-global client left to install a mock onto). Detail state is driven
- * from the transport, not the cache: the page fires several requests at once,
- * so `routeHarness` answers each by URL rather than in call order.
- * Archive/reactivate are asserted via the recorded outgoing request
- * (`harness.calls`).
+ * The org-detail page body: loaded and not-found states, the mounted member
+ * list, and the archive/reactivate actions.
  *
- * Testids: `organization-detail-back-link`,
- * `organization-detail-heading`, `organization-detail-not-found`, plus the new
- * lifecycle actions `organization-detail-archive` / `organization-detail-
- * reactivate`. It also mounts `MemberList`, surfacing
- * `organization-detail-members-table`.
+ * Runs the real SDK over a faked fetch (`createSdkHarness`) mounted on the
+ * router context. The page fires several reads at once, so `routeHarness`
+ * answers each by URL rather than in call order.
  */
 
 const org = { id: "o1", name: "Acme", domain: "acme.io", memberCount: "2" };
@@ -45,9 +35,8 @@ function seedActiveOrg() {
 describe("OrganizationDetail", () => {
   beforeEach(() => {
     harness = createSdkHarness();
-    // Unseeded queries (the bound-clients list, member refetches after a
-    // lifecycle mutation) resolve to an empty array so their list renders never
-    // see a non-array body.
+    // Unseeded queries (bound clients, post-mutation member refetches) resolve
+    // to an empty array so no list render sees a non-array body.
     harness.resolveJson([]);
   });
 
@@ -57,7 +46,17 @@ describe("OrganizationDetail", () => {
     renderWithWallow(<OrganizationDetail orgId="o1" />, { harness });
 
     await expect.element(page.getByTestId("organization-detail-heading")).toHaveTextContent("Acme");
-    await expect.element(page.getByTestId("organization-detail-back-link")).toBeInTheDocument();
+
+    const backLink = page.getByTestId("organization-detail-back-link");
+    await expect.element(backLink).toHaveTextContent("Back to organizations");
+    await expect.element(backLink).toHaveAttribute("href", "/dashboard/organizations");
+
+    await expect
+      .element(page.getByTestId("organization-detail-clients-heading"))
+      .toHaveTextContent("Bound Clients");
+    await expect
+      .element(page.getByTestId("organization-detail-register-submit"))
+      .toHaveTextContent("Register client");
   });
 
   it("renders the not-found state when the org is missing", async () => {
@@ -65,7 +64,13 @@ describe("OrganizationDetail", () => {
 
     renderWithWallow(<OrganizationDetail orgId="o1" />, { harness });
 
-    await expect.element(page.getByTestId("organization-detail-not-found")).toBeInTheDocument();
+    const notFound = page.getByTestId("organization-detail-not-found");
+    await expect.element(notFound).toHaveTextContent("Organization not found.");
+    await expect
+      .element(notFound)
+      .toHaveTextContent(
+        "It may have been archived, or the link may point somewhere that no longer exists.",
+      );
     await expect.element(page.getByTestId("organization-detail-heading")).not.toBeInTheDocument();
   });
 

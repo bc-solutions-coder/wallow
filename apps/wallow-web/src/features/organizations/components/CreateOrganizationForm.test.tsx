@@ -8,23 +8,12 @@ import { organizationsGetAllQueryKey } from "../api";
 import { CreateOrganizationForm } from "./CreateOrganizationForm";
 
 /**
- * Component spec for the CANONICAL create-form (Wallow-8w1h.4.3). This is the
- * TanStack Form + mutation template Phases 4-6 copy, so it is the spec of
- * record for that shape.
+ * The create-organization form: render, submit, success sweep, error surface.
  *
- * The form builds its mutation from the GENERATED `organizationsCreateMutation({
- * client })` re-exported by api.ts (Wallow-pu6a.5.5), so the network seam is the
- * SDK instance the render puts on the router context, backed by
- * `createSdkHarness()`. The create request is asserted via the recorded outgoing
- * request (`harness.last`); the success sweep is checked by running the filter
- * the mutation passed `invalidateQueries` against the real
- * `organizationsGetAllQueryKey()` (`expectSwept`); a server ProblemDetails is
- * driven with `harness.rejectJson`.
- *
- * Testids follow `{page}-{element}` kebab-case: `organization-name` (input,
- * bead-mandated), `organization-create-submit` (submit button),
- * `organization-name-error` (required-field validation message),
- * `organization-create-error` (server RFC 7807 ProblemDetails surface).
+ * Runs the real SDK over a faked fetch (`createSdkHarness`) mounted on the
+ * router context, so assertions read the recorded outgoing request
+ * (`harness.last`), not a spy. The sweep runs the filter the mutation handed
+ * `invalidateQueries` against the real `organizationsGetAllQueryKey()`.
  */
 
 /** The transport backing each render, rebuilt per test. */
@@ -38,6 +27,9 @@ describe("CreateOrganizationForm", () => {
   it("renders the name input and submit button", async () => {
     renderWithWallow(<CreateOrganizationForm />, { harness });
 
+    await expect
+      .element(page.getByTestId("organization-create-heading"))
+      .toHaveTextContent("Create Organization");
     await expect.element(page.getByTestId("organization-name")).toBeInTheDocument();
     await expect.element(page.getByTestId("organization-create-submit")).toBeInTheDocument();
   });

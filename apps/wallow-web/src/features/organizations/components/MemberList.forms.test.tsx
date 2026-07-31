@@ -11,56 +11,12 @@ import { failsWith, neverSettles, routeHarness } from "@shared/testing/harness-r
 import { MemberList } from "./MemberList";
 
 /**
- * The ADD-MEMBER form ON `@bc-solutions-coder/forms` (Wallow-lrlm.5.5).
+ * The add-member form as built on `@bc-solutions-coder/forms`: the `AppForm`
+ * shell, validation messages, in-flight disabling, and the failure surface.
  *
- * WHY A NEW FILE. The three specs already beside this one are the section's
- * frozen oracles and the migration's acceptance criterion is that all three pass
- * UNCHANGED, so none of them is edited here: `MemberList.test.tsx` pins the
- * roster, the add/remove payloads and the members-operation sweep,
- * `MemberList.error-state.test.tsx` pins the READ's failure surface, and
- * `MemberList.restyle.test.tsx` pins the form row's `flex items-end gap-3 mb-4`
- * and the submit's `w-auto` override. What none of them can say, because all
- * three predate the package, is anything about the shell the form is built ON.
- *
- * THE ONE TESTID THAT DOES NOT DERIVE. Under `testIdPrefix="organization-member-add"`
- * the catalog derives a field's id from its NAME, so a field called `userId`
- * would render `organization-member-add-user-id` — not the
- * `organization-member-userid` the oracle, the a11y spec and the restyle spec
- * all select by. The field therefore carries an explicit `testId`, which the
- * catalog also suffixes for its message (`organization-member-userid-error`).
- * The last case below is the guard on exactly that, because the derivation trap
- * is silent: a form that forgot the override still renders, still submits, and
- * simply stops being findable.
- *
- * WHAT THE MIGRATION ADDS (these fail against the hand-rolled form):
- *
- *   1. The `<form>` is the package's `AppForm`, so it is `noValidate`.
- *   2. An empty submit SAYS something. Today the handler's `if (userId.trim() ===
- *      "") return;` swallows it: the button appears dead, with no message and no
- *      request, and nothing on screen explains why.
- *   3. That message is genuinely ASSOCIATED with the input (`aria-invalid` +
- *      `aria-describedby`).
- *   4. The control and the submit disable themselves while the add is in flight.
- *   5. A FAILED ADD IS VISIBLE AT ALL. This is the sharpest gap on the screen:
- *      the form renders no error surface whatsoever, so a rejected add — a bad
- *      id, a duplicate member, a 403 — is completely silent. The user sees an
- *      unchanged roster and an input that did not clear, and has no way to tell
- *      that from a slow refetch.
- *   6. A validation failure's per-property message lands next to the control:
- *      `UserId` is the only property this one-field body can be rejected on, so
- *      the split has exactly one interesting case and it is the common one.
- *   7. A server field error must not WEDGE the form.
- *
- * WHAT THE MIGRATION MUST NOT DROP (regression guards):
- *
- *   8. The POST body and the input clearing after a success. The oracle pins the
- *      body; the CLEAR moves house — it is a `mutate` per-call `onSuccess` today
- *      and becomes the hook's `onSuccess` + `form.reset()` — so it is restated
- *      here.
- *   9. The `organization-member-userid` testid, per the derivation note above.
- *
- * Same seam as the oracles: the REAL SDK with only its `fetch` faked, real
- * router context via `renderWithWallow`, real headless Chromium.
+ * The catalog derives a field's testid from its NAME, so `userId` would render
+ * `organization-member-add-user-id`; an explicit `testId` holds it on
+ * `organization-member-userid`, and dropping it fails silently.
  */
 
 /** The members endpoint this section reads and writes. */
@@ -164,8 +120,6 @@ describe("MemberList add-member form on @bc-solutions-coder/forms", () => {
   });
 
   it("says why an empty submit did nothing instead of swallowing it", async () => {
-    // Today the handler returns early on an empty value: no message, no request,
-    // and a button that looks broken.
     seedRoster();
 
     renderWithWallow(<MemberList orgId="o1" />, { harness });
@@ -185,8 +139,8 @@ describe("MemberList add-member form on @bc-solutions-coder/forms", () => {
   });
 
   it("rejects a whitespace-only user id without reaching the endpoint", async () => {
-    // The early return already trimmed; a zod schema only keeps that behaviour if
-    // the trim is part of the schema — but the MESSAGE is new either way.
+    // `.trim()` in the schema is what makes `"   "` fail the `min(1)`; a bare
+    // `min(1)` would let three spaces through.
     seedRoster();
 
     renderWithWallow(<MemberList orgId="o1" />, { harness });
@@ -219,8 +173,6 @@ describe("MemberList add-member form on @bc-solutions-coder/forms", () => {
   });
 
   it("surfaces a failed add instead of failing silently", async () => {
-    // The form has NO error surface today, so this is the whole of what the user
-    // currently learns about a rejected add: nothing.
     seedRoster(
       failsWith(
         {
@@ -299,9 +251,6 @@ describe("MemberList add-member form on @bc-solutions-coder/forms", () => {
   });
 
   it("still posts the user id and still clears the input after a successful add", async () => {
-    // REGRESSION GUARD. The oracle pins the body; the CLEAR moves house — it is a
-    // per-call `mutate` `onSuccess` today and becomes the hook's `onSuccess` plus
-    // `form.reset()` — so it is restated here rather than assumed.
     seedRoster();
 
     renderWithWallow(<MemberList orgId="o1" />, { harness });
@@ -318,11 +267,8 @@ describe("MemberList add-member form on @bc-solutions-coder/forms", () => {
   });
 
   it("keeps the user-id control on organization-member-userid, not the derived id", async () => {
-    // REGRESSION GUARD on the derivation trap. A field named `userId` under
-    // `testIdPrefix="organization-member-add"` derives
-    // `organization-member-add-user-id`; three closed specs select the control by
-    // `organization-member-userid`, so the field must carry the explicit
-    // override — and the message must follow it.
+    // The trap is silent: a form that dropped the `testId` override still
+    // renders and still submits, and simply stops being findable.
     seedRoster();
 
     renderWithWallow(<MemberList orgId="o1" />, { harness });

@@ -6,24 +6,12 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { OrganizationList } from "./OrganizationList";
 
 /**
- * Query error-state spec for the CANONICAL list page (Wallow-lrlm.4.2).
+ * The organizations list's query error surface.
  *
- * `OrganizationList` reads `organizationsGetAllOptions()` but collapses `data ??
- * []` on every non-pending render, so a failed read is indistinguishable from a
- * genuinely empty tenant: the user is told "No organizations yet." when the API
- * actually answered 500. The fix is the branch
- * `features/inquiries/components/InquiryDetail.tsx` already ships — error only
- * when there is NO data to fall back on — with the sentence produced by
- * `errorText()` from `@shared/lib/error-text`, never a raw ProblemDetails cast.
- *
- * The two halves are tested separately because they are separate claims:
- *   1. errored with nothing cached  -> `organizations-error`, no empty state.
- *   2. errored WITH data cached (a failed background refetch) -> rows stay, and
- *      NO error banner appears. This is the half a bare `isError` check breaks.
- *
- * Error text comes off the wire, not a literal: `rejectJson` sends a real RFC
- * 7807 body, the SDK's error interceptor brands it, and `errorText` reads its
- * `detail` — the same path the app takes in production.
+ * A failed BACKGROUND refetch is the half a bare `isError` check breaks: React
+ * Query retains the last resolved data, so the rows stay and no banner appears
+ * — the banner is for an error with NO data to fall back on. Error text comes
+ * off a real RFC 7807 body over the wire, so `errorText()` runs its real path.
  */
 
 /** An RFC 7807 body the SDK's error interceptor brands as a `WallowError`. */
@@ -68,8 +56,6 @@ describe("OrganizationList — query error state", () => {
     harness.rejectJson(PROBLEM, 500);
     await queryClient.refetchQueries();
 
-    // React Query retains the last resolved data across a failed refetch, so the
-    // screen must NOT blank: `isError` alone would replace the list with a banner.
     await expect.element(page.getByTestId("organization-item").first()).toBeInTheDocument();
     expect(page.getByTestId("organizations-error").elements()).toHaveLength(0);
   });

@@ -13,14 +13,9 @@ import { OrganizationDetail } from "./OrganizationDetail";
 let harness: SdkHarness;
 
 /**
- * Catalog-migration spec for the org-detail register-client form
- * (Wallow-m5aq.5.3). Its one hand-rolled primitive is the public/confidential
- * client-type `<select>`, which becomes the catalog `Select`; the testid
- * `organization-detail-register-client-type` is preserved and now names the
- * trigger.
- *
- * The register-client form's own behaviour (the submitted body, the one-time
- * secret reveal) stays pinned by `OrganizationDetail.clients.test.tsx`.
+ * The org-detail client-type control: it is the catalog `Select`, so
+ * `organization-detail-register-client-type` names a trigger button rather
+ * than a native `<select>`, and the options are a real listbox.
  */
 
 const org = { id: "o1", name: "Acme", domain: "acme.io", memberCount: "2" };

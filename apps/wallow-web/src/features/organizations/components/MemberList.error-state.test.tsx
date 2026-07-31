@@ -6,13 +6,11 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { MemberList } from "./MemberList";
 
 /**
- * Query error-state spec for the organization member list (Wallow-lrlm.4.2).
+ * The member list's query error surface.
  *
- * `MemberList` renders `members={data ?? []}`, so a failed
- * `organizationsGetMembersOptions()` read shows "No members yet." — actively
- * misleading on a page whose whole job is membership. The error replaces the
- * TABLE only: the heading and the add-member form are not query-backed, so they
- * stay reachable and the user can still act.
+ * The error replaces the TABLE only — the heading and the add-member form are
+ * not query-backed, so they stay reachable and the user can still act. A
+ * collapsed `data ?? []` would instead show "No members yet." for a 500.
  */
 
 const ORG_ID = "o1";

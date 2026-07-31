@@ -11,69 +11,12 @@ import { failsWith, neverSettles, routeHarness } from "@shared/testing/harness-r
 import { OrganizationDetail } from "./OrganizationDetail";
 
 /**
- * The org-detail REGISTER-CLIENT form ON `@bc-solutions-coder/forms`
- * (Wallow-lrlm.5.5).
+ * The org-detail register-client form on `@bc-solutions-coder/forms`: shell,
+ * labels, validation, disabling, the RFC 7807 split, body, secret reveal.
  *
- * WHY A NEW FILE. The four specs already beside this one are the screen's frozen
- * oracles and the migration's acceptance criterion is that all four pass
- * UNCHANGED, so none of them is edited here: `OrganizationDetail.test.tsx` pins
- * the org heading + lifecycle actions, `OrganizationDetail.clients.test.tsx`
- * pins that the bound-clients table and the four register controls are REACHABLE
- * from the detail page, `OrganizationDetail.catalog.test.tsx` pins the
- * client-type `Select`, and `OrganizationDetail.restyle.test.tsx` pins the card
- * surface and the form's own rhythm. What none of them can say, because all four
- * predate the package, is anything about the shell the form is built ON — nor
- * about the register POST itself, which today has NO oracle at all. This file
- * says both.
- *
- * WHAT THE MIGRATION ADDS (these fail against the hand-rolled form):
- *
- *   1. The `<form>` is the package's `AppForm`, so it is `noValidate` — the zod
- *      schema owns validation and the browser must not double-validate and pop a
- *      native bubble over the field message. The hand-rolled form has no such
- *      attribute.
- *   2. There is a required rule on the display name at all. Today the form has
- *      NO validation whatsoever: submitting an empty form posts `{ name: "" }`
- *      and lets the API reject it, so the user pays a round trip to learn what
- *      the form already knew.
- *   3. That message is genuinely ASSOCIATED with the input (`aria-invalid` +
- *      `aria-describedby`), which is only reachable through the catalog field.
- *   4. The controls and the submit disable themselves while the registration is
- *      in flight. Today nothing disables — and this is a form where a double
- *      submit costs real money: each success mints a client secret that is shown
- *      exactly once, so the second registration's secret is simply lost.
- *   5. A validation failure's per-property messages land NEXT TO the control
- *      they belong to. Today `ClientsSection` renders a HARDCODED "Failed to
- *      register client." for every failure, so the API's own sentence — which
- *      says what was actually wrong — never reaches the screen.
- *   6. A property the form has no field for still reaches the banner rather than
- *      being dropped. The form's field is `displayName`; the wire name is
- *      `name`, so `Name` is exactly that case.
- *   7. A server field error must not WEDGE the form: the shell clears it on the
- *      way into the next submit, or every later submit would fail the validity
- *      gate silently and never reach the endpoint again.
- *
- * WHAT THE MIGRATION MUST NOT DROP (these pass today — regression guards aimed
- * squarely at the parts that move house). The register POST and the one-time
- * reveal are BOTH restated here rather than left to an oracle, because there is
- * no oracle: `OrganizationDetail.clients.test.tsx` asserts the controls exist and
- * stops there.
- *
- *   8. The submitted body still remaps `displayName` to `name`, still splits the
- *      redirect URIs on newlines with blanks dropped, still sends an empty
- *      `postLogoutRedirectUris`, and still carries the org as `tenantId`.
- *   9. `clientType` still never reaches the wire. The endpoint infers public vs
- *      confidential from the secret it issues, so the field is the form's own
- *      switch — and `useAppForm`'s DEFAULT `toVariables` would post the whole
- *      values object, quietly inventing a wire field.
- *  10. The one-time client-id/secret reveal survives. The gate moves off
- *      `register.isSuccess` (the raw mutation is owned by `useAppForm` after the
- *      migration) onto state captured in the hook's `onSuccess`.
- *
- * Same seam as the oracles: the REAL SDK with only its `fetch` faked
- * (`@bc-solutions-coder/testing/sdk-harness`), real router context via
- * `renderWithWallow`, real headless Chromium. The screen fires three reads at
- * once, so `routeHarness` answers each by URL rather than in call order.
+ * The form's field is `displayName` but the wire name is `name`, and
+ * `clientType` never reaches the wire — the endpoint infers public vs
+ * confidential from the secret, and the default `toVariables` would post it.
  */
 
 const org = { id: "o1", name: "Acme", domain: "acme.io", memberCount: "2" };
@@ -175,9 +118,9 @@ function accessibleName(control: HTMLElement): string {
 }
 
 /**
- * The ids `control` points its `aria-describedby` at. Split rather than compared
- * whole: Base UI appends the message to whatever else already describes the
- * control, so the claim is that it is AMONG them, not that it is alone.
+ * The ids `control` points its `aria-describedby` at. Split rather than
+ * compared whole: Base UI appends the message to whatever else already
+ * describes the control, so the claim is that it is AMONG them, not alone.
  */
 function describedByIds(control: HTMLElement): readonly string[] {
   return (control.getAttribute("aria-describedby") ?? "")
@@ -199,15 +142,15 @@ describe("OrganizationDetail register-client form on @bc-solutions-coder/forms",
 
     const element: HTMLFormElement = formElement();
     expect(element.tagName).toBe("FORM");
-    // The shell's `noValidate`: the zod schema is the only validator, so the
-    // browser must not also refuse the submit with a native bubble.
+    // The zod schema is the only validator, so the browser must not also
+    // refuse the submit with a native bubble.
     expect(element.noValidate).toBe(true);
   });
 
   it("keeps every control under that one shell", async () => {
-    // The client-type select is the one at risk: it is the only control the form
-    // reaches through a nested component today, and a catalog field left outside
-    // the shell would silently stop being part of the submitted values.
+    // The client-type select is the one at risk: the form reaches it through a
+    // nested component, and a catalog field left outside the shell silently
+    // stops being part of the submitted values.
     seedLoadedOrg();
 
     renderWithWallow(<OrganizationDetail orgId="o1" />, { harness });
@@ -250,17 +193,15 @@ describe("OrganizationDetail register-client form on @bc-solutions-coder/forms",
 
     const redirectUris: HTMLTextAreaElement = redirectUrisTextarea();
     expect(redirectUris.tagName).toBe("TEXTAREA");
-    // `tagName` alone is satisfied by a hand-rolled `<textarea>` too, and no spec
-    // in this tree pins this control's classes at all — so these two utilities,
-    // which ONLY `textareaRecipe` adds, are what says "the CATALOG control".
+    // `tagName` alone is satisfied by a hand-rolled `<textarea>` too; these two
+    // utilities, which only `textareaRecipe` adds, are what says "the catalog
+    // control".
     for (const utility of ["min-h-20", "resize-y"]) {
       expect(redirectUris.classList.contains(utility), utility).toBe(true);
     }
   });
 
   it("associates a required-display-name message with the input instead of posting an empty name", async () => {
-    // Today there is no validation at all: an empty submit posts `{ name: "" }`
-    // and waits for the API to say no.
     seedLoadedOrg();
 
     renderWithWallow(<OrganizationDetail orgId="o1" />, { harness });
@@ -354,11 +295,8 @@ describe("OrganizationDetail register-client form on @bc-solutions-coder/forms",
   });
 
   it("keeps a message for a property the form has no field for in the banner", async () => {
-    // The wire name is `name`; the form's field is `displayName`. The remap
-    // means this message has nowhere to land — and today it is dropped on the
-    // floor in favour of a hardcoded "Failed to register client.", leaving the
-    // user staring at a generic sentence while the API had said exactly what was
-    // wrong.
+    // The remap means a `Name` message has no field to land on; without the
+    // banner fallback the API's own sentence never reaches the screen.
     seedLoadedOrg(
       failsWith(
         {
@@ -450,12 +388,7 @@ describe("OrganizationDetail register-client form on @bc-solutions-coder/forms",
   });
 
   it("still posts the remapped body, and still keeps clientType off the wire", async () => {
-    // REGRESSION GUARD, and the only statement of the register contract anywhere:
-    // `displayName` becomes `name`, the textarea becomes a trimmed newline-split
-    // array with blanks dropped, `postLogoutRedirectUris` is sent empty, and the
-    // org rides along as `tenantId`. `useAppForm`'s DEFAULT `toVariables` would
-    // post the values object whole and invent a `clientType` wire field the
-    // endpoint does not have.
+    // The only statement of the register wire contract anywhere.
     seedLoadedOrg();
 
     renderWithWallow(<OrganizationDetail orgId="o1" />, { harness });
@@ -483,10 +416,8 @@ describe("OrganizationDetail register-client form on @bc-solutions-coder/forms",
   });
 
   it("still reveals the one-time client id and secret after a successful registration", async () => {
-    // REGRESSION GUARD. The gate moves off `register.isSuccess` — the raw
-    // mutation belongs to `useAppForm` after the migration — onto state captured
-    // in the hook's `onSuccess`. A gate that never fired would lose a secret that
-    // is issued exactly once and can never be re-fetched.
+    // The secret is issued exactly once and can never be re-fetched, so a
+    // reveal gate that never fires loses it outright.
     seedLoadedOrg();
 
     renderWithWallow(<OrganizationDetail orgId="o1" />, { harness });

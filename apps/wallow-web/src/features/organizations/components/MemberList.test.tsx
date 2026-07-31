@@ -8,21 +8,12 @@ import { organizationsGetMembersQueryKey } from "../api";
 import { MemberList } from "./MemberList";
 
 /**
- * Component spec for the org-detail member list + management (Wallow-8w1h.4.4).
- * Data flows through the GENERATED query surface
- * (`organizationsGetMembersOptions` + `organizationsAddMemberMutation` /
- * `organizationsRemoveMemberMutation`), so the network seam is the SDK instance
- * the render puts on the router context, backed by `createSdkHarness()`
- * (Wallow-pu6a.5.5). Seeded/empty states come off the wire rather than a
- * pre-primed cache, loading from a never-settling request (`harness.pending()`),
- * and add/remove are asserted via the recorded outgoing request
- * (`harness.calls`) and the render's own `invalidateQueries`.
+ * The org-detail member list: roster, empty and loading states, and the
+ * add/remove mutations.
  *
- * Testids: `organization-detail-members-table` + `organization-detail-member-item`
- * (table), `organization-members-empty`/`organization-members-loading`
- * (states), `organization-member-userid` + `organization-member-add-submit`
- * (add form), `organization-member-remove` (per-row remove) — all
- * `{page}-{element}` kebab-case.
+ * Runs the real SDK over a faked fetch (`createSdkHarness`) mounted on the
+ * router context. Every state comes off the wire rather than a primed cache:
+ * loading is a request that never settles (`harness.pending()`).
  */
 
 const twoMembers = [
@@ -57,6 +48,9 @@ describe("MemberList", () => {
 
     renderWithWallow(<MemberList orgId="o1" />, { harness });
 
+    await expect
+      .element(page.getByTestId("organization-members-heading"))
+      .toHaveTextContent("Members");
     await expect.element(page.getByTestId("organization-detail-members-table")).toBeInTheDocument();
     expect(page.getByTestId("organization-detail-member-item").elements()).toHaveLength(2);
     await expect.element(page.getByText("ada@acme.io")).toBeInTheDocument();
@@ -68,7 +62,9 @@ describe("MemberList", () => {
 
     renderWithWallow(<MemberList orgId="o1" />, { harness });
 
-    await expect.element(page.getByTestId("organization-members-empty")).toBeInTheDocument();
+    await expect
+      .element(page.getByTestId("organization-members-empty"))
+      .toHaveTextContent("No members yet.");
     expect(page.getByTestId("organization-detail-member-item").elements()).toHaveLength(0);
   });
 
@@ -77,7 +73,9 @@ describe("MemberList", () => {
 
     renderWithWallow(<MemberList orgId="o1" />, { harness });
 
-    await expect.element(page.getByTestId("organization-members-loading")).toBeInTheDocument();
+    await expect
+      .element(page.getByTestId("organization-members-loading"))
+      .toHaveTextContent("Loading members…");
   });
 
   it("adds a member: POSTs the userId to the org's members endpoint", async () => {
@@ -119,9 +117,8 @@ describe("MemberList", () => {
   });
 
   it("removes a member: DELETEs the org member by user id", async () => {
-    // The DELETE and the post-success members refetch share one responder, so it
-    // answers by method: the list read keeps returning members (the row has to
-    // still be there to click), the delete returns an empty 204-ish body.
+    // The DELETE and the post-success members refetch share one responder;
+    // answer by method so the row is still there to click.
     harness.respond((call) =>
       call.method === "GET"
         ? new Response(JSON.stringify(twoMembers), {
@@ -134,7 +131,7 @@ describe("MemberList", () => {
     renderWithWallow(<MemberList orgId="o1" />, { harness });
 
     const removeButtons = page.getByTestId("organization-member-remove");
-    await expect.element(removeButtons.first()).toBeInTheDocument();
+    await expect.element(removeButtons.first()).toHaveTextContent("Remove");
     await userEvent.click(removeButtons.first());
 
     await vi.waitFor(() => {

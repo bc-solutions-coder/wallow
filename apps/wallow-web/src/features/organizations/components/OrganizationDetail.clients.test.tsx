@@ -10,18 +10,12 @@ import { clientsGetByTenantQueryKey, organizationsGetMembersQueryKey } from "../
 import { OrganizationDetail } from "./OrganizationDetail";
 
 /**
- * Org-detail bound-clients + register-client reachability spec
- * (Wallow-ffpq.3.6). Once an org loads, the detail page must surface the
- * org's bound clients (`organization-detail-clients-table`) and a
- * register-client form (display-name / client-type / redirect-uris / submit),
- * reachable straight from the org detail page.
+ * The org-detail bound-clients table and register-client form: both reachable
+ * once the org loads, and the sweep a successful registration issues.
  *
- * Data flows through the generated query options, so the network seam is the
- * `fetch` of the request-scoped client this spec's own `createSdkHarness()`
- * builds (Wallow-pu6a.5.5 — there is no shared module-global client left to
- * install a mock onto). The org / members / clients state is driven from the
- * transport rather than the cache: those three requests are in flight together,
- * so `routeHarness` answers each by URL rather than in call order.
+ * Runs the real SDK over a faked fetch (`createSdkHarness`) mounted on the
+ * router context. The org / members / clients reads are in flight together, so
+ * `routeHarness` answers each by URL rather than in call order.
  */
 
 const org = { id: "o1", name: "Acme", domain: "acme.io", memberCount: "2" };
@@ -51,9 +45,6 @@ function seedLoadedOrg(): void {
 }
 
 describe("OrganizationDetail bound clients + register-client", () => {
-  // Installed so the seeded queries resolve through the mocked client rather
-  // than the real network if any refetch fires.
-
   beforeEach(() => {
     harness = createSdkHarness();
     harness.resolveJson([]);
@@ -89,9 +80,9 @@ describe("OrganizationDetail bound clients + register-client", () => {
   });
 
   it("sweeps the bound-clients query after a successful registration", async () => {
-    // The row a registration creates only appears if the list this section reads
-    // is invalidated — without this case the sweep in `RegisterClientFormFields`'
-    // `onSuccess` can be deleted and the suite stays green (Wallow-lrlm.6.7).
+    // The row a registration creates only appears if the list this section
+    // reads is invalidated; without this case the sweep can be deleted and the
+    // suite stays green.
     seedLoadedOrg();
 
     const { queryClient } = renderWithWallow(<OrganizationDetail orgId="o1" />, { harness });
@@ -114,7 +105,7 @@ describe("OrganizationDetail bound clients + register-client", () => {
     await expectSwept(invalidateSpy, clientsGetByTenantQueryKey({ path: { tenantId: "o1" } }));
 
     // And it is that operation the sweep names, not a blanket pass over the
-    // cache: the members list on the same screen must be left alone.
+    // cache: the members list on the same screen is left alone.
     const membersKey = organizationsGetMembersQueryKey({ path: { id: "o1" } });
     expect(invalidateSpy.mock.calls.some((call) => sweeps(call[0], membersKey))).toBe(false);
   });

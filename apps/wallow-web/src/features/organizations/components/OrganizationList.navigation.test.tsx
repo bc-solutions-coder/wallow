@@ -14,26 +14,12 @@ import {
 import { OrganizationList } from "./OrganizationList";
 
 /**
- * Navigation spec for the organizations list (Wallow-lrlm.4.1). The rows have
- * always LOOKED clickable — a hover tint on a full-width row — while going
- * nowhere; this pins them to the detail route they imply.
+ * The organizations list's outgoing navigation: every row IS the link.
  *
- * The row is composed through the catalog `ListRow`'s `render` prop
- * (Wallow-lrlm.3.5), NOT a raw anchor wrapped around or nested inside the `li`.
- * `render` SUBSTITUTES the element rather than wrapping it, so a composed row IS
- * the anchor: `<ul>` gets `<a data-testid="organization-item">` children and the
- * whole row — not an inner name cell — is the navigation target. That is the
- * property the "rows are the anchors" case below asserts, and it is what keeps
- * the shipped E2E selector `organization-item` resolving to the clickable thing.
- *
- * Navigation is asserted twice, deliberately: the `href` proves the link is
- * addressable (middle-click, copy-link, crawlers), and the click proves the
- * router — not a full page load — takes the navigation.
- *
- * `renderWithWallow` mounts a throwaway root that matches every location, so the
- * detail ROUTE itself is not registered here; this spec is about the list's
- * outgoing edge, and `/dashboard/organizations/$orgId` is separately pinned by
- * `app/routes/dashboard/organizations/$orgId` and its own specs.
+ * `ListRow`'s `render` prop SUBSTITUTES the element rather than wrapping it, so
+ * the `<ul>` gets `<a>` children and the whole row, not an inner cell, is the
+ * target — which keeps the E2E selector `organization-item` on the clickable
+ * thing. The `href` proves it addressable; the click proves the router takes it.
  */
 
 const ORGS = [
@@ -78,8 +64,6 @@ describe("OrganizationList row navigation", () => {
     await renderList();
     const list = byTestId("organizations-table");
 
-    // `render` substitutes the `li`, so the anchors are the list's OWN children
-    // and no second anchor is nested inside a row.
     for (const row of allByTestId("organization-item")) {
       expect(parentOf(row)).toBe(list);
       expect(row.querySelector("a")).toBeNull();
@@ -98,8 +82,7 @@ describe("OrganizationList row navigation", () => {
     expect(
       first.querySelector('[data-testid="organization-item-members"]')?.textContent?.trim(),
     ).toBe("3");
-    // The optional domain cell stays conditional — a link is not a licence to
-    // start rendering an empty cell for an org that has no domain.
+    // The domain cell stays conditional: an org without a domain renders none.
     expect(second.querySelector('[data-testid="organization-item-domain"]')).toBeNull();
   });
 

@@ -7,21 +7,11 @@ import { waitForTestId } from "@shared/testing/style-contract";
 import { OrganizationList } from "./OrganizationList";
 
 /**
- * Accessible-name REGRESSION GUARD for the list rows (Wallow-lrlm.4.4).
+ * Accessible names of the list rows.
  *
- * Wallow-lrlm.4.1 turned every row from an inert `<li>` into an `<a>` (the
- * catalog `ListRow`'s `render` substitutes the element). That promoted the row's
- * cells from loose text into a LINK's accessible name, which is computed from
- * its contents — so a row with no text, or one whose only text is an icon, would
- * have become an unnamed link.
- *
- * It did not: each row still renders the org name (plus an optional domain and
- * the member-count badge), so the name is non-empty and leads with the thing the
- * link is about. These cases exist so that stays true — a later restyle that
- * swaps a cell for an icon has to notice.
- *
- * Unlike the sibling `*.a11y.test.tsx` specs in this feature, this file asserts
- * a property the app ALREADY has.
+ * Each row is an `<a>`, so its accessible name is computed from its contents.
+ * A row whose cells became an icon would announce as an unnamed link; these
+ * cases exist so a later restyle has to notice.
  */
 
 const ORGS = [
@@ -51,9 +41,7 @@ describe("OrganizationList — row accessible names", () => {
     renderWithWallow(<OrganizationList />, { harness });
     await waitForTestId("organizations-table");
 
-    // A row that navigates to one org must be distinguishable from the row
-    // beside it by name alone — "link, link" is what an icon-only row would
-    // announce.
+    // Each row must be distinguishable from the one beside it by name alone.
     await expect
       .element(page.getByTestId("organization-item").first())
       .toHaveAccessibleName(/Acme/);

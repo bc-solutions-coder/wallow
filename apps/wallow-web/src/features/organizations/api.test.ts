@@ -1,18 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 /**
- * Organizations feature `api.ts` — a THIN RE-EXPORT SEAM over
- * `@bc-solutions-coder/sdk/query`. Everything behind it is GENERATED as of
- * Wallow-pu6a.5.5, so the per-mutation `onSuccess` sweeps this spec used to pin
- * moved to the call sites, where the component specs assert them against the
- * rendered screen.
- *
- * Two seam-level decisions survive here, both invisible from a call site:
- *  - the `Organizations` tag covers the org list, detail and members together,
- *    which is what makes it the right sweep after create/archive/reactivate;
- *  - an org's CLIENTS are NOT in it. `clientsGetByTenant` is tagged `Clients`,
- *    so registering a client sweeps by that tag (or by operation) — reaching for
- *    `Organizations` there would refetch everything except the list that changed.
+ * Organizations feature `api.ts` — a thin re-export seam over
+ * `@bc-solutions-coder/sdk/query`. Everything behind it is generated, so what
+ * is testable here is the seam itself: identity of the re-exports, and which
+ * queries each invalidation predicate reaches. The per-mutation sweeps live at
+ * the call sites, where the component specs assert them against the screen.
  */
 
 import * as query from "@bc-solutions-coder/sdk/query";
