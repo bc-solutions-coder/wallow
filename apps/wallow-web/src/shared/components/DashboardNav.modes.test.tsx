@@ -8,19 +8,16 @@ import { useUiStore } from "../stores/ui-store";
 
 /**
  * The nav's two DESKTOP states: the expanded rail (icon + label) and the
- * collapsed icon rail (icon only). The mobile drawer is a different axis.
- *
- * Every case sets a viewport because Vitest browser mode defaults to 414x896 —
- * below Tailwind's `md` breakpoint, i.e. a phone — and the rail exists only at
- * desktop widths, so a desktop spec that does not say so is a mobile spec.
+ * collapsed icon rail (icon only). Every case sets a viewport because Vitest
+ * browser mode defaults to 414x896 — a phone — so a desktop spec that does not
+ * say so is a mobile spec.
  *
  * The collapsed rail must carry NO text node: "deliberate icon rail" is only
  * distinguishable from "label clipped by the rail" if the item renders no text
  * at all and takes its accessible name from `aria-label`.
  */
 
-// Which route the stubbed router considers active. Mutable so a case can point
-// it at one item and assert only that item is highlighted.
+// Which route the stubbed router considers active.
 const routerState = vi.hoisted(() => ({ activePath: "" }));
 
 type LinkStubProps = {
@@ -31,10 +28,8 @@ type LinkStubProps = {
   onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
 } & Record<string, unknown>;
 
-// Stub TanStack `Link` to a plain anchor, with two additions this spec needs: it
-// applies `activeProps.className` when `to` matches `routerState.activePath`
-// (that is how TanStack styles the active link, and the nav must supply it in
-// BOTH desktop modes), and it suppresses the anchor's default navigation.
+// The stub applies `activeProps.className` on the active route — TanStack's
+// active-link styling, which the nav must supply in BOTH desktop modes.
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ to, children, className, activeProps, onClick, ...rest }: LinkStubProps) => (
     <a
@@ -103,9 +98,8 @@ describe("DashboardNav expanded rail (desktop)", () => {
     await render(<DashboardNav />);
     await expect.element(page.getByTestId("dashboard-nav-settings")).toBeInTheDocument();
 
-    // The nav must hand `Link` active-link styling, so the active item's classes
-    // differ from an inactive sibling's. Asserting "differs" rather than an exact
-    // Tailwind string keeps this about the behaviour, not the palette.
+    // "Differs from an inactive sibling" rather than an exact Tailwind string
+    // keeps this about the behaviour, not the palette.
     const active: string = page.getByTestId("dashboard-nav-settings").element().className;
     const inactive: string = page.getByTestId("dashboard-nav-apps").element().className;
     expect(active).not.toBe(inactive);
@@ -137,8 +131,7 @@ describe("DashboardNav collapsed icon rail (desktop)", () => {
   it("renders no text node for any nav item", async () => {
     await render(<DashboardNav />);
 
-    // A collapsed rail that keeps full-size labels clips them into "Settin" /
-    // "Inquir" / "Sign O", which is what having no text node at all prevents.
+    // A collapsed rail that keeps full-size labels clips them into "Settin".
     for (const [testid] of navItems) {
       await expect.element(page.getByTestId(testid)).toBeInTheDocument();
       expect(page.getByTestId(testid).element().textContent?.trim()).toBe("");

@@ -20,12 +20,10 @@ import { useUiStore } from "../stores/ui-store";
  * `twMerge(navigationMenuLinkRecipe(), itemClass)`, and twMerge drops a class
  * only where the caller conflicts AT THE SAME VARIANT — the recipe's hover
  * colour survives an unmodified `text-sidebar-foreground` and can drop a hovered
- * label to 1.27:1 with the whole suite green. Reading colours needs the fork
- * theme; without it every token reads `rgba(0, 0, 0, 0)` and this passes.
+ * label to 1.27:1 with the whole suite green.
  */
 
-// Which route the stubbed router considers active — the active-row treatment
-// reaches the DOM only through `activeProps`, so the stub has to apply it.
+// The active-row treatment reaches the DOM only through `activeProps`.
 const routerState = vi.hoisted(() => ({ activePath: "" }));
 
 type LinkStubProps = {
@@ -62,8 +60,7 @@ const AA_TEXT = 4.5;
 
 /**
  * Move the cursor off the nav entirely. Playwright's mouse position PERSISTS
- * across tests in a file, so a case that left it on a row would hand the next
- * case a hovered "rest" state.
+ * across tests in a file, so a row left hovered becomes the next case's "rest".
  */
 async function parkMouse(): Promise<void> {
   await userEvent.hover(page.getByTestId("dashboard-nav-park").element());
@@ -76,10 +73,9 @@ function paintedText(element: Element): Rgba {
 
 /**
  * Assert a label is legible on the surface it is painted against, and that the
- * measurement is a real one. `surfaceRoot` is the element that MUST carry a fill
- * (the rail, the drawer): on a theme-less page every ancestor is transparent,
- * `effectiveBackground` walks past them to its white page-canvas fallback, and
- * inherited black text on that white scores 21:1.
+ * measurement is a real one. `surfaceRoot` is the element that MUST carry a fill:
+ * on a theme-less page every ancestor is transparent, `effectiveBackground` walks
+ * past them to its white page-canvas fallback, and black text on white is 21:1.
  */
 function expectLegible(element: Element, surfaceRoot: Element, label: string): number {
   expect(
@@ -108,10 +104,9 @@ beforeEach(() => {
 });
 
 /**
- * The nav plus a parking target for {@link parkMouse}. The target is pinned
- * top-right above everything: the rail and drawer occupy the left, the drawer's
- * backdrop covers the whole viewport, and Playwright's actionability check
- * retries to timeout on a covered element.
+ * The nav plus a parking target for {@link parkMouse}, pinned top-right above
+ * everything: the drawer's backdrop covers the whole viewport, and Playwright's
+ * actionability check retries to timeout on a covered element.
  */
 function NavUnderTest() {
   return (
@@ -135,7 +130,7 @@ describe("dashboard rail contrast (measured, not asserted by class name)", () =>
 
     expect(isTransparent(railFill)).toBe(false);
     // ...and it is the SIDEBAR surface, not a page background inherited from a
-    // parent. The two differ in this fork, so differing says the token resolved.
+    // parent. The two differ in this fork.
     expect(railFill).not.toEqual(effectiveBackground(document.body));
   });
 
@@ -158,8 +153,8 @@ describe("dashboard rail contrast (measured, not asserted by class name)", () =>
     const idleRatio: number = expectLegible(row, rail, "row before hover");
 
     await userEvent.hover(row);
-    // The hovered row takes `bg-sidebar-accent`, so its surface must actually
-    // change — otherwise this case is re-measuring the rest state.
+    // The hovered row takes `bg-sidebar-accent`, so its surface must change —
+    // otherwise this case is re-measuring the rest state.
     await expect
       .poll(() => effectiveBackground(row).a === 1 && computedColor(row, "background-color").a > 0)
       .toBe(true);

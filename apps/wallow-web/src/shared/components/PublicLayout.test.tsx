@@ -64,7 +64,7 @@ describe("PublicLayout", () => {
   it("renders a footer with the MIT license notice and GitHub/Docs links", async () => {
     await render(<PublicLayout />);
     const footer = page.getByTestId("public-footer");
-    await expect.element(footer).toHaveTextContent(/MIT/iu);
+    await expect.element(footer).toHaveTextContent("MIT Licensed");
     await expect.element(page.getByTestId("public-footer-github")).toBeInTheDocument();
     await expect.element(page.getByTestId("public-footer-docs")).toBeInTheDocument();
   });

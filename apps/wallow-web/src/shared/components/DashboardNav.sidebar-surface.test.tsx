@@ -117,16 +117,14 @@ beforeEach(async () => {
   await page.viewport(...DESKTOP_VIEWPORT);
 });
 
-// The document is shared by every case, so a stamped mode has to be handed back
-// or the last `dark` case silently repaints whatever runs next.
+// The document is shared, so a stamped mode has to be handed back.
 afterEach(() => {
   document.documentElement.classList.remove("dark", "light");
 });
 
 describe("the mode axis itself", () => {
   it("repaints the tokens, so a dark-mode case is not light mode measured twice", async () => {
-    // The tripwire for every `describe.each(MODES)` below: a mode selected on a
-    // wrapper `<div>` measures the light palette under both labels and passes.
+    // The tripwire for every `describe.each(MODES)` below.
     applyMode("light");
     await render(<NavUnderTest />);
     const lightRail: Rgba = expectThemed(probe("probe-sidebar"), "bg-sidebar in light mode");
@@ -161,8 +159,7 @@ describe.each(MODES)("the theme toggle on the rail — %s mode", (mode: string) 
       "the toggle's rendered surface",
     );
 
-    // `variant="secondary"` is a page-palette chip, which in light mode is
-    // L 0.92 sitting on an L 0.22 rail.
+    // `variant="secondary"` in light mode is L 0.92 on an L 0.22 rail.
     expect(painted, "the toggle still paints the page's secondary surface").not.toEqual(secondary);
   });
 
@@ -200,8 +197,7 @@ describe.each(MODES)("the theme toggle on the rail — %s mode", (mode: string) 
 /**
  * The theme's PAGE-surface colour tokens. None may reach a row on the rail — not
  * at rest, not behind a `hover:`, not behind a `data-[active]:`. `destructive`
- * is absent on purpose: the sign-out banner is an error wherever it renders, so
- * it may keep naming that token, and its legibility is measured above.
+ * is absent on purpose: the sign-out banner is an error wherever it renders.
  */
 const PAGE_SURFACE_TOKENS: ReadonlySet<string> = new Set([
   "background",
@@ -223,12 +219,10 @@ const PAGE_SURFACE_TOKENS: ReadonlySet<string> = new Set([
 /** The utility prefixes that name a colour. `text-sm` is excluded by its TOKEN. */
 const COLOUR_PREFIXES: readonly string[] = ["bg", "text", "border", "ring", "outline", "fill"];
 
-/** Every class in `classes` that paints from the page palette. */
 function pageSurfaceColorUtilities(classes: readonly string[]): readonly string[] {
   return classes.filter((cls: string): boolean => {
-    // Strip every variant prefix and judge the utility underneath: a page colour
-    // behind `data-[active]:` is still a page colour, and that is precisely where
-    // the link recipe's inert pair hides.
+    // Judge the utility under every variant prefix: a page colour behind
+    // `data-[active]:` is still a page colour, and that is where it hides.
     const utility: string = cls.split(":").at(-1) ?? "";
 
     return COLOUR_PREFIXES.some((prefix: string): boolean => {
@@ -258,13 +252,11 @@ describe("the nav rows' merged class attribute", () => {
    * A class string rather than a colour, because an inert class paints nothing
    * to measure. `twMerge` drops a recipe class only when the caller conflicts
    * AT THE SAME VARIANT, so `data-[active]:bg-accent` rides along on all four
-   * rows: Base UI sets `data-active` only from its own `active` prop, which the
-   * app never passes (TanStack's `activeProps` is a className merge). It is a
-   * light block latent on a dark rail, waiting for a state that reveals it.
+   * rows — a light block latent on a dark rail, waiting for a state that Base
+   * UI sets from its own `active` prop, which the app never passes.
    */
   it("flags a page colour behind any variant prefix", () => {
-    // A detector that matched nothing would make the case below pass on any
-    // markup at all. `text-sm` and `text-sidebar-foreground` are the traps.
+    // `text-sm` and `text-sidebar-foreground` are the traps.
     expect(
       pageSurfaceColorUtilities([
         "text-foreground",
@@ -321,7 +313,7 @@ describe.each(MODES)("the sign-out error banner on the rail — %s mode", (mode:
     );
 
     // `textContrast` composites both sides, so a `/10` fill is measured as what
-    // the eye sees over the rail rather than as its authored colour.
+    // the eye sees rather than as its authored colour.
     const ratio: number = textContrast(message as Element);
 
     expect(ratio, `the banner's message measured ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(
@@ -338,9 +330,7 @@ describe.each(MODES)("the sign-out error banner on the rail — %s mode", (mode:
       "the rail",
     );
 
-    // A banner may announce itself with a fill OR an edge, but with one of them:
-    // a 10% tint and a border both within 3:1 of the rail is a message the
-    // reader's eye never lands on.
+    // A banner may announce itself with a fill OR an edge, but with one of them.
     const fill: number = contrastRatio(effectiveBackground(banner), rail);
     const edge: number = contrastRatio(over(computedColor(banner, "border-top-color"), rail), rail);
 

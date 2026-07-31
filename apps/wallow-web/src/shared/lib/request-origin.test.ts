@@ -36,8 +36,7 @@ describe("resolveRequestOrigin", () => {
   });
 
   it("leaves the origin unchanged when no proxy reported a scheme", () => {
-    // Direct-to-app deployments and local `pnpm dev` reach the app on the
-    // scheme the browser used, so there is nothing to correct.
+    // Direct-to-app deployments reach it on the scheme the browser used.
     expect(resolveRequestOrigin(requestWith("http://wallow.dev/x"))).toBe("http://wallow.dev");
   });
 
@@ -98,10 +97,8 @@ describe("resolveRequestOrigin", () => {
   });
 
   describe("untrusted header values", () => {
-    // Nothing strips this header on a deployment whose ingress does not
-    // overwrite it, so its value is attacker-supplied. It reaches the SDK's
-    // `baseUrl` and every generated query key built from it, so an unrecognized
-    // scheme must be inert rather than merely unhelpful.
+    // An ingress that does not overwrite this header leaves its value
+    // attacker-supplied, and it reaches the SDK's `baseUrl`.
     it.each([
       ["a scheme this app is never served over", "ftp"],
       ["a scheme that would execute if fetched", "javascript"],
@@ -117,8 +114,7 @@ describe("resolveRequestOrigin", () => {
 });
 
 describe("src/app/start.ts wiring", () => {
-  // `start.ts` is app-zone (it is the host entry) and this helper is
-  // shared-zone, hence the hop out of `shared/lib/` and into `app/`.
+  // `start.ts` is app-zone and this helper is shared-zone, hence the hop.
   const source: string = readFileSync(resolve(libDir, "..", "..", "app", "start.ts"), "utf8");
 
   it("derives the per-request SDK's origin through the helper", () => {
@@ -131,8 +127,7 @@ describe("src/app/start.ts wiring", () => {
   });
 
   it("still mounts the BFF proxy prefix onto that origin", () => {
-    // `/api` is what makes this app's baseUrl the BFF token tunnel rather than
-    // the bare origin, so deriving the scheme must not drop it.
+    // `/api` is what makes this baseUrl the BFF tunnel rather than the origin.
     expect(source).toMatch(/baseUrl:\s*`\$\{requestOrigin\}\$\{API_MOUNT\}`/u);
   });
 });
@@ -143,8 +138,8 @@ describe("the copy in every other Start app", () => {
   const canonical: string = readFileSync(resolve(libDir, "request-origin.ts"), "utf8");
 
   it.each([
-    // wallow-auth is zoned like this app, so its copy is `shared/lib`;
-    // minimal-app is not, so its copy is still directly under `src/lib`.
+    // wallow-auth is zoned like this app; minimal-app is not, so its copy is
+    // directly under `src/lib`.
     ["apps/wallow-auth", "wallow-auth/src/shared/lib/request-origin.ts"],
     ["apps/examples/minimal-app", "examples/minimal-app/src/lib/request-origin.ts"],
   ])("is byte-identical in %s", (_label: string, relativePath: string) => {

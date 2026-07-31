@@ -10,12 +10,9 @@ import { useUiStore } from "../stores/ui-store";
  * Destination parity: every nav destination stays reachable, stays named, stays
  * admin-gated and still signs out, in ALL THREE nav modes.
  *
- * The rail and the drawer share one destination list and one logout today, so
- * the gate and the logout are structurally the same in both; these cases keep
- * that true if the two renderings are ever pulled apart. Every case runs the
- * same assertions against a mode fixture rather than being written per mode — a
- * destination reachable only in the mode whose spec remembered to check it is
- * the regression this file catches.
+ * Every case runs the same assertions against a mode fixture rather than being
+ * written per mode — a destination reachable only in the mode whose spec
+ * remembered to check it is the regression this file catches.
  */
 
 type LinkStubProps = {
@@ -25,10 +22,8 @@ type LinkStubProps = {
   onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
 } & Record<string, unknown>;
 
-// Stub TanStack `Link` to a plain anchor, with the anchor's default navigation
-// suppressed so a click cannot move the test iframe. `activeProps` is
-// destructured away rather than spread: no case here asserts the active
-// highlight, and a router-only prop on an `<a>` earns an unknown-prop warning.
+// `activeProps` is destructured away rather than spread: a router-only prop on
+// an `<a>` earns an unknown-prop warning.
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ to, children, activeProps: _activeProps, onClick, ...rest }: LinkStubProps) => (
     <a
@@ -107,9 +102,8 @@ describe.each(modes)("DashboardNav destinations — $name", (mode: NavMode) => {
   it("reaches every destination by its accessible name", async () => {
     await render(<DashboardNav />);
 
-    // By ROLE + NAME, not by testid: this is the assertion a screen-reader user's
-    // experience actually rests on, and in the collapsed rail the name is the
-    // only thing there is.
+    // By ROLE + NAME, not by testid: in the collapsed rail the name is the only
+    // thing there is.
     await expect.element(page.getByRole("link", { name: "Organizations" })).toBeInTheDocument();
     await expect.element(page.getByRole("link", { name: "Apps" })).toBeInTheDocument();
     await expect.element(page.getByRole("link", { name: "Settings" })).toBeInTheDocument();
@@ -120,9 +114,8 @@ describe.each(modes)("DashboardNav destinations — $name", (mode: NavMode) => {
   it("names every item from the shared icon-label map", async () => {
     await render(<DashboardNav />);
 
-    // The same label in every mode is what makes "same item" true across a
-    // resize; a mode that dropped `aria-label` would still pass a text-content
-    // assertion wherever the label is also rendered.
+    // A mode that dropped `aria-label` still passes a text-content assertion
+    // wherever the label is also rendered.
     for (const [testid, label] of navItems) {
       await expect.element(page.getByTestId(testid)).toHaveAttribute("aria-label", label);
     }

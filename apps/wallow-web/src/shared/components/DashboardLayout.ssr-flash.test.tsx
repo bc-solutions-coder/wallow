@@ -14,8 +14,7 @@ import { useUiStore } from "../stores/ui-store";
  * `getSnapshot` — real `matchMedia`, correct on the first render. The flash
  * lives in the markup the server emits, so `renderToString`'s bytes go into the
  * live document at a real viewport and `checkVisibility()` measures what
- * Chromium would show. The assertions are mechanism-agnostic: omitting the
- * chrome and hiding it behind `hidden md:flex` both satisfy them.
+ * Chromium would show — omitting the chrome and hiding it both satisfy that.
  */
 
 type LinkStubProps = {
@@ -25,8 +24,7 @@ type LinkStubProps = {
   onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
 } & Record<string, unknown>;
 
-// Stub the router primitives the shell composes; `renderToString` has no router
-// context to offer either.
+// `renderToString` has no router context to offer these.
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ to, children, activeProps: _activeProps, onClick, ...rest }: LinkStubProps) => (
     <a
@@ -47,11 +45,7 @@ vi.mock("@tanstack/react-router", () => ({
 const DESKTOP_VIEWPORT = [1280, 800] as const;
 const MOBILE_VIEWPORT = [390, 844] as const;
 
-/**
- * The nav chrome that is specific to ONE viewport — the persistent desktop rail
- * and its collapse toggle, and the mobile menu button that summons the drawer.
- * Each is a lie at the other width, so each is a candidate flash.
- */
+/** Nav chrome specific to ONE viewport, so a lie — a flash — at the other. */
 const VIEWPORT_SPECIFIC_CHROME = [
   "dashboard-nav",
   "dashboard-nav-toggle",
@@ -64,7 +58,7 @@ let root: Root | null = null;
 /**
  * Put the server's own HTML into the live document — the paint a visitor gets
  * before any JavaScript has run. Parsed and adopted rather than assigned through
- * `innerHTML`: the same DOM by a route that is not a sink for a string.
+ * `innerHTML`, which is a sink for a string.
  */
 function paintServerMarkup(): void {
   const html: string = renderToString(<DashboardLayout />);
@@ -88,9 +82,8 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
-  // `hydrateRoot` schedules its work rather than doing it inline, and unmounting
-  // over an unflushed root makes React abandon hydration — an unhandled error
-  // that fails the run from the teardown of a passing case.
+  // `hydrateRoot` schedules its work, and unmounting over an unflushed root
+  // makes React abandon hydration — an unhandled error from a passing case.
   await new Promise((resolve) => {
     setTimeout(resolve, 0);
   });
@@ -102,10 +95,9 @@ afterEach(async () => {
 
 describe("the visibility instrument these cases measure with", () => {
   it("reads Tailwind's own utilities, so a hidden element reads as hidden", () => {
-    // Every assertion below distinguishes "painted" from "not painted" through
-    // computed style, which is meaningful only while the browser project's
-    // stylesheet is attached. Without it every element reads visible, and chrome
-    // hidden by `hidden md:flex` is reported as a flash it is not.
+    // Every assertion below reads computed style, which is meaningful only while
+    // the browser project's stylesheet is attached. Without it every element
+    // reads visible and `hidden md:flex` is reported as a flash it is not.
     const probe: HTMLDivElement = document.createElement("div");
     probe.className = "hidden";
     document.body.append(probe);
@@ -123,8 +115,8 @@ describe("dashboard shell pre-hydration paint", () => {
 
     paintServerMarkup();
 
-    // A server that guesses desktop makes a phone's first paint the full sidebar
-    // rail, yanked away a frame later once hydration reads matchMedia.
+    // A server that guesses desktop paints a phone the full rail, yanked away a
+    // frame later once hydration reads `matchMedia`.
     expect(paintedChrome()).not.toContain("dashboard-nav");
   });
 
@@ -133,7 +125,6 @@ describe("dashboard shell pre-hydration paint", () => {
 
     paintServerMarkup();
 
-    // Below `md` there is no rail to collapse, so the button means nothing.
     expect(paintedChrome()).not.toContain("dashboard-nav-toggle");
   });
 
@@ -142,8 +133,8 @@ describe("dashboard shell pre-hydration paint", () => {
 
     paintServerMarkup();
 
-    // Answering the server snapshot `false` rather than `true` passes both cases
-    // above while only relocating the flash.
+    // Answering the server snapshot `false` passes both cases above while only
+    // relocating the flash.
     expect(paintedChrome()).not.toContain("dashboard-nav-mobile-menu");
   });
 });
