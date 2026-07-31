@@ -3,6 +3,8 @@ import type { ReactElement } from "react";
 import { expect } from "storybook/test";
 
 import { ListCard } from "../list-card/list-card";
+import { expectScheme } from "../../../.storybook/scheme-assertions";
+import { darkScheme, lightScheme } from "../../../.storybook/scheme-decorators";
 import { ListRow } from "./list-row";
 
 /*
@@ -19,21 +21,12 @@ import { ListRow } from "./list-row";
  * static screenshot cannot reach, and it is the state that matters most here —
  * F4.T1 turns these rows into TanStack Router `Link`s, and a keyboard user has
  * to see which row they are on.
+ *
+ * The scheme comes from the shared `lightScheme`/`darkScheme` decorators, which
+ * stamp the class on `document.documentElement` and remove it again on unmount.
+ * A wrapper `<div className="dark">` cannot select a scheme at all — see
+ * `.storybook/scheme-decorators.tsx` for why, and never reintroduce one.
  */
-
-/** Renders the story inside the fork's light scheme, scoped to this subtree. */
-const lightScheme: Decorator = (Story) => (
-  <div className="light bg-background text-foreground p-6">
-    <Story />
-  </div>
-);
-
-/** Renders the story inside the fork's dark scheme, scoped to this subtree. */
-const darkScheme: Decorator = (Story) => (
-  <div className="dark bg-background text-foreground p-6">
-    <Story />
-  </div>
-);
 
 /** Frames the row in the surface it belongs to — a card-wrapped `<ul>`. */
 const inListCard: Decorator = (Story) => (
@@ -70,10 +63,10 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /** The shipped row: a full-bleed cell with its content pushed to both edges. */
-export const Default: Story = { decorators: [lightScheme] };
+export const Default: Story = { decorators: [lightScheme], play: expectScheme("light") };
 
 /** The same row in the dark scheme. */
-export const Dark: Story = { decorators: [darkScheme] };
+export const Dark: Story = { decorators: [darkScheme], play: expectScheme("dark") };
 
 /**
  * The row composed onto an anchor — what F4.T1 does with a router `Link`. The
@@ -93,11 +86,13 @@ export const AsLink: Story = {
 /** The composed row in the dark scheme. */
 export const AsLinkDark: Story = {
   decorators: [darkScheme],
+  play: expectScheme("dark"),
   args: { render: <a href="#acme" /> },
 };
 
 /** A caller tightening the row's rhythm — `className` wins over the recipe. */
 export const CompactPadding: Story = {
   decorators: [lightScheme],
+  play: expectScheme("light"),
   args: { className: "py-2" },
 };

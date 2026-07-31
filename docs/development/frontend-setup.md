@@ -736,6 +736,12 @@ So a spec or a story that needs to render or assert a scheme must stamp the clas
 `document.documentElement` and clean up after itself — a shared document means leakage between cases
 is the thing to design around. There is no wrapper-scoped shortcut.
 
+The worked example is the component catalog's `packages/ui/.storybook/scheme-decorators.tsx`: a
+`lightScheme`/`darkScheme` Storybook decorator pair that adds the class in a layout effect and
+removes it on unmount, with each scheme-scoped story asserting the palette it actually paints. That
+second half is the part worth copying — a scheme is invisible in a class string, so only a measured
+colour can tell a working scope from a vacuous one.
+
 ## Authentication
 
 Wallow uses OpenIddict as its OIDC provider, hosted in `Wallow.Api` (wired up in

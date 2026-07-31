@@ -1,6 +1,8 @@
-import type { Decorator, Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 import type { ReactElement } from "react";
 
+import { expectScheme } from "../../../.storybook/scheme-assertions";
+import { darkScheme, lightScheme } from "../../../.storybook/scheme-decorators";
 import { Text, type TextAs, type TextProps } from "./text";
 
 /*
@@ -12,29 +14,16 @@ import { Text, type TextAs, type TextProps } from "./text";
  * and the only place dark-mode colour correctness is checkable. Every axis is
  * therefore rendered TWICE, once per scheme.
  *
- * Text is not interactive, so no story carries a `play`. The assertions about
- * markup and class strings that a screenshot cannot make live in `text.test.tsx`.
+ * Text is not interactive beyond its scheme, so the only `play` a story carries
+ * is `expectScheme`, which measures that the scheme it claims is the scheme it
+ * paints. The assertions about markup and class strings that a screenshot cannot
+ * make live in `text.test.tsx`.
  *
- * The `.dark`/`.light` wrappers scope a scheme to the story's own subtree rather
- * than stamping `document.documentElement`: stories share one document, so a
- * story that flipped the real root class would leak into every story after it.
- * The token blocks `renderThemeStyle` emits are class-scoped, so a wrapper is
- * enough.
+ * The scheme comes from the shared `lightScheme`/`darkScheme` decorators, which
+ * stamp the class on `document.documentElement` and remove it again on unmount.
+ * A wrapper `<div className="dark">` cannot select a scheme at all — see
+ * `.storybook/scheme-decorators.tsx` for why, and never reintroduce one.
  */
-
-/** Renders the story inside the fork's light scheme, scoped to this subtree. */
-const lightScheme: Decorator = (Story) => (
-  <div className="light bg-background text-foreground p-6">
-    <Story />
-  </div>
-);
-
-/** Renders the story inside the fork's dark scheme, scoped to this subtree. */
-const darkScheme: Decorator = (Story) => (
-  <div className="dark bg-background text-foreground p-6">
-    <Story />
-  </div>
-);
 
 /** Every type scale, with the sample text naming the scale it renders. */
 const VARIANTS: NonNullable<TextProps["variant"]>[] = [
@@ -129,26 +118,29 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /** The bare default: a `<p>` at the body scale in the foreground colour. */
-export const Default: Story = { decorators: [lightScheme] };
+export const Default: Story = { decorators: [lightScheme], play: expectScheme("light") };
 
 /** The same default in the dark scheme. */
-export const DefaultDark: Story = { decorators: [darkScheme] };
+export const DefaultDark: Story = { decorators: [darkScheme], play: expectScheme("dark") };
 
 /** Every type scale, top to bottom. */
 export const TypeScale: Story = {
   decorators: [lightScheme],
+  play: expectScheme("light"),
   render: () => <TypeScaleSheet />,
 };
 
 /** Every type scale in the dark scheme — the scales must not shift. */
 export const TypeScaleDark: Story = {
   decorators: [darkScheme],
+  play: expectScheme("dark"),
   render: () => <TypeScaleSheet />,
 };
 
 /** Every semantic colour on the surface it is named for. */
 export const Colours: Story = {
   decorators: [lightScheme],
+  play: expectScheme("light"),
   render: () => <ColourSheet />,
 };
 
@@ -159,30 +151,35 @@ export const Colours: Story = {
  */
 export const ColoursDark: Story = {
   decorators: [darkScheme],
+  play: expectScheme("dark"),
   render: () => <ColourSheet />,
 };
 
 /** The as-derived defaults: `as` alone picks both the element and its scale. */
 export const SemanticElements: Story = {
   decorators: [lightScheme],
+  play: expectScheme("light"),
   render: () => <ElementSheet />,
 };
 
 /** The as-derived defaults in the dark scheme. */
 export const SemanticElementsDark: Story = {
   decorators: [darkScheme],
+  play: expectScheme("dark"),
   render: () => <ElementSheet />,
 };
 
 /** A heading level decoupled from its visual weight — the `variant` override. */
 export const HeadingAsBodyCopy: Story = {
   decorators: [lightScheme],
+  play: expectScheme("light"),
   args: { as: "h2", variant: "body", children: "An <h2> that reads as body copy." },
 };
 
 /** The optional weight override, applied over the display scale. */
 export const WeightOverrides: Story = {
   decorators: [lightScheme],
+  play: expectScheme("light"),
   render: () => (
     <div className="flex flex-col gap-2">
       <Text variant="display" weight="normal">
@@ -204,6 +201,7 @@ export const WeightOverrides: Story = {
 /** The optional alignment prop. */
 export const Alignments: Story = {
   decorators: [lightScheme],
+  play: expectScheme("light"),
   render: () => (
     <div className="flex w-96 flex-col gap-2">
       <Text align="left">left</Text>
@@ -220,11 +218,13 @@ export const Alignments: Story = {
  */
 export const Overline: Story = {
   decorators: [lightScheme],
+  play: expectScheme("light"),
   args: { as: "span", variant: "overline", color: "muted", children: "Email address" },
 };
 
 /** A caller className overriding the recipe's colour — `cn()` at work. */
 export const OverriddenColour: Story = {
   decorators: [lightScheme],
+  play: expectScheme("light"),
   args: { color: "muted", className: "text-destructive", children: "That code has expired." },
 };

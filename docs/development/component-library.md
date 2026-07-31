@@ -201,12 +201,18 @@ scheme currently painted. They are different values on purpose: `"system"` is th
 state a control must be able to return to, which is why `ThemeToggle` cycles through three states
 rather than toggling two and carries no `aria-pressed`. Its current state is exposed to tests as
 `data-theme-preference`. Passing both `preference` and `onPreferenceChange` makes it fully
-controlled, which is how a story renders one face without touching the real document.
+controlled, which is how a story renders one face of the control without a real `ThemeProvider` or
+a `localStorage` round-trip.
 
 > **The mode class must be on `document.documentElement`.** Wrapping a subtree in
 > `<div className="dark">` compiles, renders, and paints the **light** palette — see
 > [Scoping dark mode](frontend-setup.md#scoping-dark-mode) for why. Anything that needs to render or
-> assert against a scheme has to stamp the class on the document element itself.
+> assert against a scheme has to stamp the class on the document element itself and clean up after
+> itself, since every story and every spec in a file shares one document. The catalog's reference
+> implementation is `packages/ui/.storybook/scheme-decorators.tsx` — a `lightScheme`/`darkScheme`
+> decorator pair that stamps the class in a layout effect and removes it on unmount — paired with
+> `expectScheme` from `.storybook/scheme-assertions.ts`, which measures that a scheme-scoped story
+> paints the palette it claims. Copy that pair rather than inventing a wrapper.
 
 ## Adding a component
 

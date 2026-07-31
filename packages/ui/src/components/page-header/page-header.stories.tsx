@@ -1,6 +1,8 @@
-import type { Decorator, Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 import type { ReactElement } from "react";
 
+import { expectScheme } from "../../../.storybook/scheme-assertions";
+import { darkScheme, lightScheme } from "../../../.storybook/scheme-decorators";
 import { PageHeader } from "./page-header";
 
 /*
@@ -12,28 +14,16 @@ import { PageHeader } from "./page-header";
  * layout can actually be seen — and the only place dark-mode correctness is
  * checkable.
  *
- * PageHeader is not interactive, so no story carries a `play`. The assertions
- * about markup and class strings that a screenshot cannot make live in
- * `page-header.test.tsx`.
+ * PageHeader is not interactive beyond its scheme, so the only `play` a story
+ * carries is `expectScheme`, which measures that the scheme it claims is the
+ * scheme it paints. The assertions about markup and class strings that a
+ * screenshot cannot make live in `page-header.test.tsx`.
  *
- * The `.dark`/`.light` wrappers scope a scheme to the story's own subtree rather
- * than stamping `document.documentElement`: stories share one document, so a
- * story that flipped the real root class would leak into every story after it.
+ * The scheme comes from the shared `lightScheme`/`darkScheme` decorators, which
+ * stamp the class on `document.documentElement` and remove it again on unmount.
+ * A wrapper `<div className="dark">` cannot select a scheme at all — see
+ * `.storybook/scheme-decorators.tsx` for why, and never reintroduce one.
  */
-
-/** Renders the story inside the fork's light scheme, scoped to this subtree. */
-const lightScheme: Decorator = (Story) => (
-  <div className="light bg-background text-foreground p-6">
-    <Story />
-  </div>
-);
-
-/** Renders the story inside the fork's dark scheme, scoped to this subtree. */
-const darkScheme: Decorator = (Story) => (
-  <div className="dark bg-background text-foreground p-6">
-    <Story />
-  </div>
-);
 
 /**
  * The wallow-web apps route's CTA, spelled with the tokens it already uses. A
@@ -62,32 +52,36 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /** Title only — the bare heading block. */
-export const TitleOnly: Story = { decorators: [lightScheme] };
+export const TitleOnly: Story = { decorators: [lightScheme], play: expectScheme("light") };
 
 /** Title only, dark scheme. */
-export const TitleOnlyDark: Story = { decorators: [darkScheme] };
+export const TitleOnlyDark: Story = { decorators: [darkScheme], play: expectScheme("dark") };
 
 /** Title plus the muted supporting line under it. */
 export const WithDescription: Story = {
   decorators: [lightScheme],
+  play: expectScheme("light"),
   args: { description: "Every application you have registered with this tenant." },
 };
 
 /** Title plus description, dark scheme — the description must stay legible. */
 export const WithDescriptionDark: Story = {
   decorators: [darkScheme],
+  play: expectScheme("dark"),
   args: { description: "Every application you have registered with this tenant." },
 };
 
 /** Title plus a trailing-edge action — the wallow-web apps route's shape today. */
 export const WithActions: Story = {
   decorators: [lightScheme],
+  play: expectScheme("light"),
   args: { actions: <RegisterAppLink /> },
 };
 
 /** All three parts at once: title, description and the trailing action. */
 export const WithDescriptionAndActions: Story = {
   decorators: [lightScheme],
+  play: expectScheme("light"),
   args: {
     description: "Every application you have registered with this tenant.",
     actions: <RegisterAppLink />,
@@ -97,6 +91,7 @@ export const WithDescriptionAndActions: Story = {
 /** All three parts in the dark scheme. */
 export const WithDescriptionAndActionsDark: Story = {
   decorators: [darkScheme],
+  play: expectScheme("dark"),
   args: {
     description: "Every application you have registered with this tenant.",
     actions: <RegisterAppLink />,
@@ -109,6 +104,7 @@ export const WithDescriptionAndActionsDark: Story = {
  */
 export const LongTitle: Story = {
   decorators: [lightScheme],
+  play: expectScheme("light"),
   args: {
     title: "Organizations you administer across every region",
     description: "Membership, roles and billing contacts for each one.",

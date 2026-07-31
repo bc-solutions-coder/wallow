@@ -138,10 +138,16 @@ real Tailwind pipeline and the fork's real theme attached).
   — and that value is what inherits down. Measured: `bg-sidebar` is `rgb(40,21,12)` under a
   `.dark` wrapper AND under a `.light` one, `rgb(35,17,8)` only with `.dark` on the document
   element. A story or spec that must show or assert a scheme stamps `documentElement` and
-  cleans up (one shared document — design around leakage). Six story files (`empty-state`,
-  `list-card`, `list-row`, `page-header`, `text`, `theme-toggle`) still carry the wrapper
-  anti-pattern and a comment claiming a wrapper suffices; do not copy any of them, and correct
-  that sentence wherever it appears.
+  cleans up (one shared document — design around leakage). **The reference implementation is
+  `.storybook/scheme-decorators.tsx`**: a `lightScheme`/`darkScheme` decorator pair that adds
+  the class in a layout effect and removes it on unmount. The six story files that once
+  wrapped instead (`empty-state`, `list-card`, `list-row`, `page-header`, `text`,
+  `theme-toggle`) now import that pair and are the pattern to copy — every scheme-scoped story
+  among them carries `expectScheme` from `.storybook/scheme-assertions.ts`, which paints
+  `--color-background` / `--background` onto a probe and measures that the palette is the right
+  way up for the scheme claimed. That measurement is what makes the fix permanent: a wrapper
+  coming back, or a decorator that stops cleaning up, turns a story red. Nothing here may
+  assert a scheme from a class string — the markup is byte-identical either way.
 - **`Button` supplies `role="link"` itself for composed anchors — never pass a `role`.**
   Base UI's `useButton` merges `role="button"` onto every non-native element it composes onto,
   so a `render`-composed anchor announced a navigation as an action (WCAG 2.2 SC 4.1.2). The

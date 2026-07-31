@@ -1,6 +1,8 @@
-import type { Decorator, Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 
 import { Button } from "../button";
+import { expectScheme } from "../../../.storybook/scheme-assertions";
+import { darkScheme, lightScheme } from "../../../.storybook/scheme-decorators";
 import { EmptyState } from "./empty-state";
 
 /*
@@ -14,27 +16,15 @@ import { EmptyState } from "./empty-state";
  *
  * The three shapes the bead names — message only, message + icon, message + icon
  * + action — are each rendered TWICE, once per scheme. EmptyState is not
- * interactive, so no story carries a `play`; the markup and class-string
- * assertions live in `empty-state.test.tsx`.
+ * interactive beyond its scheme, so the only `play` a story carries is
+ * `expectScheme`, which measures that the scheme it claims is the scheme it
+ * paints; the markup and class-string assertions live in `empty-state.test.tsx`.
  *
- * The `.dark`/`.light` wrappers scope a scheme to the story's own subtree rather
- * than stamping `document.documentElement`: stories share one document, so a
- * story that flipped the real root class would leak into every story after it.
+ * The scheme comes from the shared `lightScheme`/`darkScheme` decorators, which
+ * stamp the class on `document.documentElement` and remove it again on unmount.
+ * A wrapper `<div className="dark">` cannot select a scheme at all — see
+ * `.storybook/scheme-decorators.tsx` for why, and never reintroduce one.
  */
-
-/** Renders the story inside the fork's light scheme, scoped to this subtree. */
-const lightScheme: Decorator = (Story) => (
-  <div className="light bg-background text-foreground p-6">
-    <Story />
-  </div>
-);
-
-/** Renders the story inside the fork's dark scheme, scoped to this subtree. */
-const darkScheme: Decorator = (Story) => (
-  <div className="dark bg-background text-foreground p-6">
-    <Story />
-  </div>
-);
 
 const meta = {
   title: "Components/EmptyState",
@@ -47,10 +37,10 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /** The bare minimum: one sentence saying what is missing. */
-export const MessageOnly: Story = { decorators: [lightScheme] };
+export const MessageOnly: Story = { decorators: [lightScheme], play: expectScheme("light") };
 
 /** The same, in the dark scheme. */
-export const MessageOnlyDark: Story = { decorators: [darkScheme] };
+export const MessageOnlyDark: Story = { decorators: [darkScheme], play: expectScheme("dark") };
 
 /**
  * Message plus supporting copy — the second sentence rendered through `Text`'s
@@ -58,12 +48,14 @@ export const MessageOnlyDark: Story = { decorators: [darkScheme] };
  */
 export const WithDescription: Story = {
   decorators: [lightScheme],
+  play: expectScheme("light"),
   args: { description: "Nothing belongs here yet. Get started by creating your first one." },
 };
 
 /** The organizations empty state as wallow-web ships it today, icon and all. */
 export const WithIcon: Story = {
   decorators: [lightScheme],
+  play: expectScheme("light"),
   args: {
     icon: "🏢",
     description: "Nothing belongs here yet. Get started by creating your first organization.",
@@ -73,6 +65,7 @@ export const WithIcon: Story = {
 /** The same block in the dark scheme — the card must stay legible on `bg-background`. */
 export const WithIconDark: Story = {
   decorators: [darkScheme],
+  play: expectScheme("dark"),
   args: {
     icon: "🏢",
     description: "Nothing belongs here yet. Get started by creating your first organization.",
@@ -82,6 +75,7 @@ export const WithIconDark: Story = {
 /** The full shape: icon, message, description and the call to action under them. */
 export const WithAction: Story = {
   decorators: [lightScheme],
+  play: expectScheme("light"),
   args: {
     icon: "🐷",
     message: "No apps yet.",
@@ -93,6 +87,7 @@ export const WithAction: Story = {
 /** The full shape in the dark scheme. */
 export const WithActionDark: Story = {
   decorators: [darkScheme],
+  play: expectScheme("dark"),
   args: {
     icon: "🐷",
     message: "No apps yet.",

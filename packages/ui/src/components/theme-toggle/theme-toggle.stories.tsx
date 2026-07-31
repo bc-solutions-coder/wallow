@@ -1,8 +1,10 @@
-import type { Decorator, Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, fn, userEvent } from "storybook/test";
 import { useState } from "react";
 
 import type { ThemePreference } from "../theme-provider";
+import { expectScheme } from "../../../.storybook/scheme-assertions";
+import { darkScheme, lightScheme } from "../../../.storybook/scheme-decorators";
 import { ThemeToggle } from "./theme-toggle";
 
 /*
@@ -13,40 +15,28 @@ import { ThemeToggle } from "./theme-toggle";
  * can actually be seen — in BOTH schemes.
  *
  * Every story renders the toggle CONTROLLED (`preference` + `mode` supplied), so
- * no story touches `document.documentElement`, `localStorage`, or a real
- * `ThemeProvider`. Stories share one document; a story that stamped the real
- * theme class would leak into every story after it. The wrappers below scope a
- * scheme to the story's own subtree instead.
+ * no story reaches for `localStorage` or a real `ThemeProvider`: the `mode` prop
+ * says what the control should show, and the decorator independently puts the
+ * page in that scheme.
  *
- * What a wrapper CANNOT do, and no story here may assert (Wallow-lrlm.6.4): repaint
- * the `--color-*` tokens. `renderThemeStyle` emits `:root` / `.dark` / `.light`
- * blocks carrying the RAW `--sidebar`-style variables, while `@theme` declares
+ * What a WRAPPER cannot do, and why the decorators do not use one
+ * (Wallow-lrlm.6.4, fixed in Wallow-lrlm.11): repaint the `--color-*` tokens.
+ * `renderThemeStyle` emits `:root` / `.dark` / `.light` blocks carrying the RAW
+ * `--sidebar`-style variables, while `@theme` declares
  * `--color-sidebar: var(--sidebar, …)` on `:root` alone — and a `var()` inside a
  * custom property is substituted at computed-value time on the DECLARING element.
  * A `.dark` wrapper rebinds the raw variable for its descendants; the token was
  * already computed at `:root` from the light one, so every utility keeps painting
- * light. These wrappers set the story's `mode` PROP context and its own
- * `bg-background`, and are honest about nothing more. A scheme comparison that has
- * to be measured belongs where a mode can be stamped on the document element and
- * cleared again — `DashboardNav.sidebar-surface.test.tsx` in wallow-web does that.
+ * light. The shared `lightScheme`/`darkScheme` decorators therefore stamp the
+ * class on `document.documentElement`, where both blocks meet, and remove it on
+ * unmount — stories share one document, so the cleanup is what keeps a scheme
+ * inside the story that asked for it. Each scheme-scoped story then MEASURES the
+ * palette it paints through `expectScheme`, so a wrapper coming back, or a
+ * decorator that stopped cleaning up, turns a story red.
  *
  * Callback spies come from `fn()` in `storybook/test` (never `vi.fn()`, which
  * the Interactions panel cannot display).
  */
-
-/** Renders the story inside the fork's dark scheme, scoped to this subtree. */
-const darkScheme: Decorator = (Story) => (
-  <div className="dark bg-background text-foreground p-6">
-    <Story />
-  </div>
-);
-
-/** Renders the story inside the fork's light scheme, scoped to this subtree. */
-const lightScheme: Decorator = (Story) => (
-  <div className="light bg-background text-foreground p-6">
-    <Story />
-  </div>
-);
 
 const meta = {
   title: "Components/ThemeToggle",
@@ -62,12 +52,14 @@ type Story = StoryObj<typeof meta>;
 export const Light: Story = {
   args: { preference: "light", mode: "light" },
   decorators: [lightScheme],
+  play: expectScheme("light"),
 };
 
 /** The visitor explicitly chose dark. */
 export const Dark: Story = {
   args: { preference: "dark", mode: "dark" },
   decorators: [darkScheme],
+  play: expectScheme("dark"),
 };
 
 /**
@@ -78,18 +70,21 @@ export const Dark: Story = {
 export const SystemLight: Story = {
   args: { preference: "system", mode: "light" },
   decorators: [lightScheme],
+  play: expectScheme("light"),
 };
 
 /** The same `system` preference, resolving the other way. */
 export const SystemDark: Story = {
   args: { preference: "system", mode: "dark" },
   decorators: [darkScheme],
+  play: expectScheme("dark"),
 };
 
 /** Disabled, so the fork can suppress the control without hiding it. */
 export const Disabled: Story = {
   args: { preference: "light", mode: "light", disabled: true },
   decorators: [lightScheme],
+  play: expectScheme("light"),
 };
 
 /**
