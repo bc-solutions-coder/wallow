@@ -49,11 +49,17 @@ public class WallowWebDeletionTests
         "src",
         "bff-surface.test.ts");
 
-    private static readonly string _bffHostPath = Path.Combine(_reactWebAppDir, "src", "lib", "bff.ts");
+    private static readonly string _bffHostPath = Path.Combine(
+        _reactWebAppDir,
+        "src",
+        "app",
+        "lib",
+        "bff.server.ts");
 
     private static readonly string _bffRoutePath = Path.Combine(
         _reactWebAppDir,
         "src",
+        "app",
         "routes",
         "bff",
         "$.ts");
@@ -61,6 +67,7 @@ public class WallowWebDeletionTests
     private static readonly string _apiProxyRoutePath = Path.Combine(
         _reactWebAppDir,
         "src",
+        "app",
         "routes",
         "api",
         "$.ts");
@@ -187,15 +194,15 @@ public class WallowWebDeletionTests
     public void ReactWebApp_ShouldRouteBffTraffic_ThroughTheStartHost()
     {
         File.Exists(_bffHostPath).Should().BeTrue(
-            "apps/wallow-web/src/lib/bff.ts is the post-migration BFF host and must exist for the " +
-            "deletion of the h3 host above to mean anything");
+            "apps/wallow-web/src/app/lib/bff.server.ts is the post-migration BFF host and must exist " +
+            "for the deletion of the h3 host above to mean anything");
 
         File.ReadAllText(_bffRoutePath).Should().Contain(
-            "../../lib/bff",
-            "the /bff/** Start server route must reach the BFF host through src/lib/bff.ts");
+            "../../lib/bff.server",
+            "the /bff/** Start server route must reach the BFF host through src/app/lib/bff.server.ts");
         File.ReadAllText(_apiProxyRoutePath).Should().Contain(
-            "../../lib/bff",
-            "the /api/** Start server route must reach the BFF proxy through src/lib/bff.ts");
+            "../../lib/bff.server",
+            "the /api/** Start server route must reach the BFF proxy through src/app/lib/bff.server.ts");
     }
 
     private static string FindApiRoot()
