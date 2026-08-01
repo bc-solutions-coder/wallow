@@ -756,13 +756,10 @@ public sealed partial class AccountController(
             return BadRequest(new { succeeded = false, error });
         }
 
-        // Assign default "user" role so the token includes role claims for permission expansion
-        IdentityResult roleResult = await signInManager.UserManager.AddToRoleAsync(user, "user");
-        if (!roleResult.Succeeded)
-        {
-            LogRoleAssignmentFailed(user.Email!, string.Join(", ", roleResult.Errors.Select(e => e.Description)));
-        }
-
+        // No role is granted here. Registration is anonymous, and roles now live on a membership,
+        // so a role write from this endpoint would be a self-service grant of authority in
+        // whichever organization the request resolved to.
+        //
         // Add user as a member of the resolved organization
         if (tenantInfo is not null && tenantInfo.TenantId != Guid.Empty)
         {
@@ -1115,9 +1112,6 @@ public sealed partial class AccountController(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "External login failed for provider {Provider}: {Reason}")]
     private partial void LogExternalLoginFailed(string provider, string reason);
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to assign default role to user {Email}: {Errors}")]
-    private partial void LogRoleAssignmentFailed(string email, string errors);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "OIDC login attempt for {Email}")]
     private partial void LogLoginAttempt(string email);

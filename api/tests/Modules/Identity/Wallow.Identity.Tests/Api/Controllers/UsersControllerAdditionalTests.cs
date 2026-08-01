@@ -202,7 +202,7 @@ public class UsersControllerAdditionalTests
         ActionResult result = await _controller.AssignRole(userId, request, CancellationToken.None);
 
         result.Should().BeOfType<NotFoundResult>();
-        await _userManagement.DidNotReceive().AssignRoleAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _userManagement.DidNotReceive().AssignRoleAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -216,7 +216,7 @@ public class UsersControllerAdditionalTests
         ActionResult result = await _controller.AssignRole(userId, request, CancellationToken.None);
 
         result.Should().BeOfType<NoContentResult>();
-        await _userManagement.Received(1).AssignRoleAsync(userId, "manager", Arg.Any<CancellationToken>());
+        await _userManagement.Received(1).AssignRoleAsync(userId, _tenantGuid, "manager", Arg.Any<CancellationToken>());
     }
 
     #endregion
@@ -233,7 +233,7 @@ public class UsersControllerAdditionalTests
         ActionResult result = await _controller.RemoveRole(userId, "admin", CancellationToken.None);
 
         result.Should().BeOfType<NotFoundResult>();
-        await _userManagement.DidNotReceive().RemoveRoleAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _userManagement.DidNotReceive().RemoveRoleAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -246,7 +246,7 @@ public class UsersControllerAdditionalTests
         ActionResult result = await _controller.RemoveRole(userId, "editor", CancellationToken.None);
 
         result.Should().BeOfType<NoContentResult>();
-        await _userManagement.Received(1).RemoveRoleAsync(userId, "editor", Arg.Any<CancellationToken>());
+        await _userManagement.Received(1).RemoveRoleAsync(userId, _tenantGuid, "editor", Arg.Any<CancellationToken>());
     }
 
     #endregion

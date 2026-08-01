@@ -35,17 +35,17 @@ public sealed class FakeUserManagementService : IUserManagementService
         return Task.CompletedTask;
     }
 
-    public Task AssignRoleAsync(Guid userId, string roleName, CancellationToken ct = default)
+    public Task AssignRoleAsync(Guid userId, Guid organizationId, string roleName, CancellationToken ct = default)
     {
         return Task.CompletedTask;
     }
 
-    public Task RemoveRoleAsync(Guid userId, string roleName, CancellationToken ct = default)
+    public Task RemoveRoleAsync(Guid userId, Guid organizationId, string roleName, CancellationToken ct = default)
     {
         return Task.CompletedTask;
     }
 
-    public Task<IReadOnlyList<string>> GetUserRolesAsync(Guid userId, CancellationToken ct = default)
+    public Task<IReadOnlyList<string>> GetUserRolesAsync(Guid userId, Guid organizationId, CancellationToken ct = default)
     {
         return Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>());
     }

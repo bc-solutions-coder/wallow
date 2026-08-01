@@ -95,6 +95,7 @@ public sealed class UsersControllerGlobalAdminTests
 
         await _userManagement.DidNotReceive().AssignRoleAsync(
             Arg.Any<Guid>(),
+            Arg.Any<Guid>(),
             Arg.Any<string>(),
             Arg.Any<CancellationToken>());
     }
@@ -114,6 +115,7 @@ public sealed class UsersControllerGlobalAdminTests
             "tenant-scoped roles stay assignable; only the reserved global-admin name is blocked");
         await _userManagement.Received(1).AssignRoleAsync(
             _targetUserId,
+            Arg.Any<Guid>(),
             roleName,
             Arg.Any<CancellationToken>());
     }

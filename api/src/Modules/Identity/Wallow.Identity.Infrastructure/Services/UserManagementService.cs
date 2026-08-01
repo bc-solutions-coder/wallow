@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Shared.Contracts.Identity.Events;
 using Wallow.Shared.Kernel.MultiTenancy;
@@ -15,11 +16,14 @@ public sealed partial class UserManagementService(
     UserManager<WallowUser> userManager,
     RoleManager<WallowRole> roleManager,
     IdentityDbContext dbContext,
+    IMembershipRepository membershipRepository,
     IMessageBus messageBus,
     ITenantContext tenantContext,
     TimeProvider timeProvider,
     ILogger<UserManagementService> logger) : IUserManagementService
 {
+    private const string DefaultRoleName = "user";
+
     public async Task<Guid> CreateUserAsync(
         string email,
         string firstName,
@@ -46,7 +50,20 @@ public sealed partial class UserManagementService(
             throw new InvalidOperationException($"Failed to create user: {errors}");
         }
 
-        await AssignRoleAsync(user.Id, "user", ct);
+        // An administrator creating a user creates them INTO the organization being administered:
+        // the membership is what carries the default role, and without one the new account
+        // resolves no roles anywhere.
+        Guid organizationId = tenantContext.TenantId.Value;
+        if (organizationId != Guid.Empty)
+        {
+            membershipRepository.Add(Membership.Enroll(
+                user.Id,
+                OrganizationId.Create(organizationId),
+                await ResolveRoleIdAsync(DefaultRoleName, ct),
+                timeProvider));
+
+            await membershipRepository.SaveChangesAsync(ct);
+        }
 
         await messageBus.PublishAsync(new UserRegisteredEvent
         {
@@ -199,7 +216,7 @@ public sealed partial class UserManagementService(
         LogUserActivated(userId);
     }
 
-    public async Task AssignRoleAsync(Guid userId, string roleName, CancellationToken ct = default)
+    public async Task AssignRoleAsync(Guid userId, Guid organizationId, string roleName, CancellationToken ct = default)
     {
         LogAssigningRole(roleName, userId);
 
@@ -215,20 +232,17 @@ public sealed partial class UserManagementService(
             throw new InvalidOperationException($"User '{userId}' not found");
         }
 
-        IList<string> currentRoles = await userManager.GetRolesAsync(user);
+        Membership membership = await RequiredMembershipAsync(userId, organizationId, ct);
+        IReadOnlyList<string> currentRoles = await RoleNamesAsync(membership, ct);
         string oldRole = currentRoles.FirstOrDefault(r => r != roleName) ?? "none";
 
-        IdentityResult result = await userManager.AddToRoleAsync(user, roleName);
-        if (!result.Succeeded)
-        {
-            string errors = string.Join(", ", result.Errors.Select(e => e.Description));
-            throw new InvalidOperationException($"Failed to assign role: {errors}");
-        }
+        membership.AssignRole(await ResolveRoleIdAsync(roleName, ct), userId, timeProvider);
+        await membershipRepository.SaveChangesAsync(ct);
 
         await messageBus.PublishAsync(new UserRoleChangedEvent
         {
             UserId = userId,
-            TenantId = tenantContext.TenantId.Value,
+            TenantId = organizationId,
             Email = user.Email ?? string.Empty,
             OldRole = oldRole,
             NewRole = roleName
@@ -237,7 +251,7 @@ public sealed partial class UserManagementService(
         LogRoleAssigned(roleName, userId);
     }
 
-    public async Task RemoveRoleAsync(Guid userId, string roleName, CancellationToken ct = default)
+    public async Task RemoveRoleAsync(Guid userId, Guid organizationId, string roleName, CancellationToken ct = default)
     {
         LogRemovingRole(roleName, userId);
 
@@ -247,20 +261,18 @@ public sealed partial class UserManagementService(
             throw new InvalidOperationException($"User '{userId}' not found");
         }
 
-        IdentityResult result = await userManager.RemoveFromRoleAsync(user, roleName);
-        if (!result.Succeeded)
-        {
-            string errors = string.Join(", ", result.Errors.Select(e => e.Description));
-            throw new InvalidOperationException($"Failed to remove role: {errors}");
-        }
+        Membership membership = await RequiredMembershipAsync(userId, organizationId, ct);
 
-        IList<string> currentRoles = await userManager.GetRolesAsync(user);
+        membership.RemoveRole(await ResolveRoleIdAsync(roleName, ct), userId, timeProvider);
+        await membershipRepository.SaveChangesAsync(ct);
+
+        IReadOnlyList<string> currentRoles = await RoleNamesAsync(membership, ct);
         string newRole = currentRoles.Count > 0 ? currentRoles[0] : "none";
 
         await messageBus.PublishAsync(new UserRoleChangedEvent
         {
             UserId = userId,
-            TenantId = tenantContext.TenantId.Value,
+            TenantId = organizationId,
             Email = user.Email ?? string.Empty,
             OldRole = roleName,
             NewRole = newRole
@@ -269,16 +281,11 @@ public sealed partial class UserManagementService(
         LogRoleRemoved(roleName, userId);
     }
 
-    public async Task<IReadOnlyList<string>> GetUserRolesAsync(Guid userId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<string>> GetUserRolesAsync(Guid userId, Guid organizationId, CancellationToken ct = default)
     {
-        WallowUser? user = await userManager.FindByIdAsync(userId.ToString());
-        if (user is null)
-        {
-            return [];
-        }
+        Membership? membership = await membershipRepository.GetAsync(userId, organizationId, ct);
 
-        IList<string> roles = await userManager.GetRolesAsync(user);
-        return roles.ToList().AsReadOnly();
+        return membership is null ? [] : await RoleNamesAsync(membership, ct);
     }
 
     public async Task DeleteUserAsync(Guid userId, CancellationToken ct = default)
@@ -299,6 +306,50 @@ public sealed partial class UserManagementService(
         }
 
         LogUserDeleted(userId);
+    }
+
+    /// <summary>
+    /// The membership the role write lands on. Absent it there is nowhere to record the grant,
+    /// and inventing one here would let a role assignment double as an enrollment, bypassing the
+    /// organization's own enrollment policy.
+    /// </summary>
+    private async Task<Membership> RequiredMembershipAsync(Guid userId, Guid organizationId, CancellationToken ct)
+    {
+        Membership? membership = await membershipRepository.GetAsync(userId, organizationId, ct);
+
+        return membership
+            ?? throw new InvalidOperationException(
+                $"User '{userId}' is not a member of organization '{organizationId}'");
+    }
+
+    private async Task<IReadOnlyList<string>> RoleNamesAsync(Membership membership, CancellationToken ct)
+    {
+        List<Guid> roleIds = [.. membership.RoleIds];
+        if (roleIds.Count == 0)
+        {
+            return [];
+        }
+
+        // The role catalog is global: roles are seeded with an empty tenant id and addressed by
+        // id, so no tenant scoping applies to the lookup.
+        return await dbContext.Roles
+            .IgnoreQueryFilters()
+            .Where(r => roleIds.Contains(r.Id) && r.Name != null)
+            .Select(r => r.Name!)
+            .ToListAsync(ct);
+    }
+
+    private async Task<Guid> ResolveRoleIdAsync(string roleName, CancellationToken ct)
+    {
+        // Identity's default normalizer upper-cases invariantly, so this matches what
+        // RoleManager wrote without paying for a case-insensitive collation scan.
+        string normalizedName = roleName.ToUpperInvariant();
+
+        WallowRole? role = await dbContext.Roles
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(r => r.NormalizedName == normalizedName, ct);
+
+        return role?.Id ?? throw new InvalidOperationException($"Role '{roleName}' not found");
     }
 }
 

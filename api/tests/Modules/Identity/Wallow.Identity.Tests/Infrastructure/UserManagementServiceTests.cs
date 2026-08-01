@@ -4,7 +4,9 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using Wallow.Identity.Application.DTOs;
+using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Identity.Infrastructure.Services;
 using Wallow.Shared.Contracts.Identity.Events;
@@ -22,7 +24,9 @@ public sealed class UserManagementServiceTests : IDisposable
     private readonly ITenantContext _tenantContext;
     private readonly FakeTimeProvider _timeProvider;
     private readonly IdentityDbContext _dbContext;
+    private readonly IMembershipRepository _membershipRepository;
     private readonly UserManagementService _sut;
+    private readonly Guid _organizationId;
 
     public UserManagementServiceTests()
     {
@@ -36,8 +40,10 @@ public sealed class UserManagementServiceTests : IDisposable
 
         _messageBus = Substitute.For<IMessageBus>();
         _tenantContext = Substitute.For<ITenantContext>();
-        _tenantContext.TenantId.Returns(new TenantId(Guid.NewGuid()));
+        _organizationId = Guid.NewGuid();
+        _tenantContext.TenantId.Returns(new TenantId(_organizationId));
         _timeProvider = new FakeTimeProvider(DateTimeOffset.UtcNow);
+        _membershipRepository = Substitute.For<IMembershipRepository>();
 
         DbContextOptions<IdentityDbContext> dbOptions = new DbContextOptionsBuilder<IdentityDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
@@ -48,10 +54,42 @@ public sealed class UserManagementServiceTests : IDisposable
             _userManager,
             _roleManager,
             _dbContext,
+            _membershipRepository,
             _messageBus,
             _tenantContext,
             _timeProvider,
             NullLoggerFactory.Instance.CreateLogger<UserManagementService>());
+    }
+
+    /// <summary>
+    /// Role ids are resolved out of the catalog by normalized name, so a role a test wants to
+    /// grant has to exist as a row before the grant is attempted.
+    /// </summary>
+    private async Task<Guid> SeedRoleAsync(string name)
+    {
+        WallowRole role = new()
+        {
+            Id = Guid.NewGuid(),
+            Name = name,
+            NormalizedName = name.ToUpperInvariant(),
+            TenantId = Guid.Empty
+        };
+
+        _dbContext.Roles.Add(role);
+        await _dbContext.SaveChangesAsync();
+
+        return role.Id;
+    }
+
+    private Membership SeedMembership(Guid userId, Guid organizationId, Guid defaultRoleId)
+    {
+        Membership membership = Membership.Enroll(
+            userId, OrganizationId.Create(organizationId), defaultRoleId, _timeProvider);
+
+        _membershipRepository.GetAsync(userId, organizationId, Arg.Any<CancellationToken>())
+            .Returns(membership);
+
+        return membership;
     }
 
     public void Dispose()
@@ -64,19 +102,9 @@ public sealed class UserManagementServiceTests : IDisposable
     [Fact]
     public async Task CreateUserAsync_WithPassword_CreatesUserAndPublishesEvent()
     {
+        await SeedRoleAsync("user");
         _userManager.CreateAsync(Arg.Any<WallowUser>(), Arg.Any<string>())
             .Returns(IdentityResult.Success);
-        _roleManager.RoleExistsAsync("user").Returns(true);
-        _userManager.FindByIdAsync(Arg.Any<string>()).Returns(ci =>
-        {
-            WallowUser user = WallowUser.Create(
-                _tenantContext.TenantId.Value, "John", "Doe", "john@test.com", _timeProvider);
-            return user;
-        });
-        _userManager.AddToRoleAsync(Arg.Any<WallowUser>(), "user")
-            .Returns(IdentityResult.Success);
-        _userManager.GetRolesAsync(Arg.Any<WallowUser>())
-            .Returns(new List<string>());
 
         Guid result = await _sut.CreateUserAsync("john@test.com", "John", "Doe", "Password123!");
 
@@ -86,21 +114,27 @@ public sealed class UserManagementServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task CreateUserAsync_EnrollsTheNewUserInTheAdministeredOrganization()
+    {
+        Guid userRoleId = await SeedRoleAsync("user");
+        _userManager.CreateAsync(Arg.Any<WallowUser>(), Arg.Any<string>())
+            .Returns(IdentityResult.Success);
+
+        Guid userId = await _sut.CreateUserAsync("john@test.com", "John", "Doe", "Password123!");
+
+        _membershipRepository.Received(1).Add(Arg.Is<Membership>(m =>
+            m.UserId == userId
+            && m.OrganizationId.Value == _organizationId
+            && m.IsActive
+            && m.RoleIds.Contains(userRoleId)));
+    }
+
+    [Fact]
     public async Task CreateUserAsync_WithoutPassword_CreatesUserWithoutPassword()
     {
+        await SeedRoleAsync("user");
         _userManager.CreateAsync(Arg.Any<WallowUser>())
             .Returns(IdentityResult.Success);
-        _roleManager.RoleExistsAsync("user").Returns(true);
-        _userManager.FindByIdAsync(Arg.Any<string>()).Returns(ci =>
-        {
-            WallowUser user = WallowUser.Create(
-                _tenantContext.TenantId.Value, "John", "Doe", "john@test.com", _timeProvider);
-            return user;
-        });
-        _userManager.AddToRoleAsync(Arg.Any<WallowUser>(), "user")
-            .Returns(IdentityResult.Success);
-        _userManager.GetRolesAsync(Arg.Any<WallowUser>())
-            .Returns(new List<string>());
 
         Guid result = await _sut.CreateUserAsync("john@test.com", "John", "Doe");
 
@@ -230,14 +264,15 @@ public sealed class UserManagementServiceTests : IDisposable
         Guid userId = Guid.NewGuid();
         WallowUser user = WallowUser.Create(
             _tenantContext.TenantId.Value, "John", "Doe", "john@test.com", _timeProvider);
+        Guid userRoleId = await SeedRoleAsync("user");
+        Guid adminRoleId = await SeedRoleAsync("admin");
         _roleManager.RoleExistsAsync("admin").Returns(true);
         _userManager.FindByIdAsync(userId.ToString()).Returns(user);
-        _userManager.GetRolesAsync(user).Returns(new List<string> { "user" });
-        _userManager.AddToRoleAsync(user, "admin").Returns(IdentityResult.Success);
+        Membership membership = SeedMembership(userId, _organizationId, userRoleId);
 
-        await _sut.AssignRoleAsync(userId, "admin");
+        await _sut.AssignRoleAsync(userId, _organizationId, "admin");
 
-        await _userManager.Received(1).AddToRoleAsync(user, "admin");
+        membership.RoleIds.Should().Contain(adminRoleId);
         await _messageBus.Received(1).PublishAsync(Arg.Is<UserRoleChangedEvent>(e =>
             e.UserId == userId && e.NewRole == "admin" && e.OldRole == "user"));
     }
@@ -247,10 +282,27 @@ public sealed class UserManagementServiceTests : IDisposable
     {
         _roleManager.RoleExistsAsync("nonexistent").Returns(false);
 
-        Func<Task> act = () => _sut.AssignRoleAsync(Guid.NewGuid(), "nonexistent");
+        Func<Task> act = () => _sut.AssignRoleAsync(Guid.NewGuid(), _organizationId, "nonexistent");
 
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*not found*");
+    }
+
+    [Fact]
+    public async Task AssignRoleAsync_WhenTheUserIsNotAMemberOfTheOrganization_Throws()
+    {
+        Guid userId = Guid.NewGuid();
+        WallowUser user = WallowUser.Create(
+            _tenantContext.TenantId.Value, "John", "Doe", "john@test.com", _timeProvider);
+        await SeedRoleAsync("admin");
+        _roleManager.RoleExistsAsync("admin").Returns(true);
+        _userManager.FindByIdAsync(userId.ToString()).Returns(user);
+
+        // A grant may not double as an enrollment.
+        Func<Task> act = () => _sut.AssignRoleAsync(userId, _organizationId, "admin");
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*not a member*");
     }
 
     [Fact]
@@ -259,13 +311,15 @@ public sealed class UserManagementServiceTests : IDisposable
         Guid userId = Guid.NewGuid();
         WallowUser user = WallowUser.Create(
             _tenantContext.TenantId.Value, "John", "Doe", "john@test.com", _timeProvider);
+        Guid userRoleId = await SeedRoleAsync("user");
+        Guid adminRoleId = await SeedRoleAsync("admin");
         _userManager.FindByIdAsync(userId.ToString()).Returns(user);
-        _userManager.RemoveFromRoleAsync(user, "admin").Returns(IdentityResult.Success);
-        _userManager.GetRolesAsync(user).Returns(new List<string> { "user" });
+        Membership membership = SeedMembership(userId, _organizationId, userRoleId);
+        membership.AssignRole(adminRoleId, userId, _timeProvider);
 
-        await _sut.RemoveRoleAsync(userId, "admin");
+        await _sut.RemoveRoleAsync(userId, _organizationId, "admin");
 
-        await _userManager.Received(1).RemoveFromRoleAsync(user, "admin");
+        membership.RoleIds.Should().NotContain(adminRoleId);
         await _messageBus.Received(1).PublishAsync(Arg.Is<UserRoleChangedEvent>(e =>
             e.OldRole == "admin" && e.NewRole == "user"));
     }
@@ -275,7 +329,7 @@ public sealed class UserManagementServiceTests : IDisposable
     {
         _userManager.FindByIdAsync(Arg.Any<string>()).Returns((WallowUser?)null);
 
-        Func<Task> act = () => _sut.RemoveRoleAsync(Guid.NewGuid(), "admin");
+        Func<Task> act = () => _sut.RemoveRoleAsync(Guid.NewGuid(), _organizationId, "admin");
 
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*not found*");
@@ -285,12 +339,12 @@ public sealed class UserManagementServiceTests : IDisposable
     public async Task GetUserRolesAsync_WhenUserExists_ReturnsRoles()
     {
         Guid userId = Guid.NewGuid();
-        WallowUser user = WallowUser.Create(
-            _tenantContext.TenantId.Value, "John", "Doe", "john@test.com", _timeProvider);
-        _userManager.FindByIdAsync(userId.ToString()).Returns(user);
-        _userManager.GetRolesAsync(user).Returns(new List<string> { "admin", "user" });
+        Guid userRoleId = await SeedRoleAsync("user");
+        Guid adminRoleId = await SeedRoleAsync("admin");
+        Membership membership = SeedMembership(userId, _organizationId, userRoleId);
+        membership.AssignRole(adminRoleId, userId, _timeProvider);
 
-        IReadOnlyList<string> result = await _sut.GetUserRolesAsync(userId);
+        IReadOnlyList<string> result = await _sut.GetUserRolesAsync(userId, _organizationId);
 
         result.Should().HaveCount(2);
         result.Should().Contain("admin");
@@ -298,11 +352,9 @@ public sealed class UserManagementServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetUserRolesAsync_WhenUserNotFound_ReturnsEmpty()
+    public async Task GetUserRolesAsync_WithoutAMembership_ReturnsEmpty()
     {
-        _userManager.FindByIdAsync(Arg.Any<string>()).Returns((WallowUser?)null);
-
-        IReadOnlyList<string> result = await _sut.GetUserRolesAsync(Guid.NewGuid());
+        IReadOnlyList<string> result = await _sut.GetUserRolesAsync(Guid.NewGuid(), _organizationId);
 
         result.Should().BeEmpty();
     }

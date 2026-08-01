@@ -10,8 +10,17 @@ public interface IUserManagementService
     Task<IReadOnlyList<UserDto>> GetUsersAsync(string? search = null, int first = 0, int max = 20, CancellationToken ct = default);
     Task DeactivateUserAsync(Guid userId, CancellationToken ct = default);
     Task ActivateUserAsync(Guid userId, CancellationToken ct = default);
-    Task AssignRoleAsync(Guid userId, string roleName, CancellationToken ct = default);
-    Task RemoveRoleAsync(Guid userId, string roleName, CancellationToken ct = default);
-    Task<IReadOnlyList<string>> GetUserRolesAsync(Guid userId, CancellationToken ct = default);
+    /// <summary>
+    /// Roles are held per <c>(user, organization)</c>, so every one of these takes the
+    /// organization it acts in. A role granted in one organization confers nothing in another,
+    /// and a revocation that named no organization could only revoke everywhere or nowhere.
+    /// </summary>
+    Task AssignRoleAsync(Guid userId, Guid organizationId, string roleName, CancellationToken ct = default);
+
+    /// <inheritdoc cref="AssignRoleAsync"/>
+    Task RemoveRoleAsync(Guid userId, Guid organizationId, string roleName, CancellationToken ct = default);
+
+    /// <inheritdoc cref="AssignRoleAsync"/>
+    Task<IReadOnlyList<string>> GetUserRolesAsync(Guid userId, Guid organizationId, CancellationToken ct = default);
     Task DeleteUserAsync(Guid userId, CancellationToken ct = default);
 }

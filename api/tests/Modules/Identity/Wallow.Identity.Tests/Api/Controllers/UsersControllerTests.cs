@@ -255,7 +255,7 @@ public class UsersControllerTests
         ActionResult result = await _controller.AssignRole(userId, request, CancellationToken.None);
 
         result.Should().BeOfType<NoContentResult>();
-        await _userManagement.Received(1).AssignRoleAsync(userId, "admin", Arg.Any<CancellationToken>());
+        await _userManagement.Received(1).AssignRoleAsync(userId, _testTenantGuid, "admin", Arg.Any<CancellationToken>());
     }
 
     #endregion
@@ -272,7 +272,7 @@ public class UsersControllerTests
         ActionResult result = await _controller.RemoveRole(userId, "admin", CancellationToken.None);
 
         result.Should().BeOfType<NoContentResult>();
-        await _userManagement.Received(1).RemoveRoleAsync(userId, "admin", Arg.Any<CancellationToken>());
+        await _userManagement.Received(1).RemoveRoleAsync(userId, _testTenantGuid, "admin", Arg.Any<CancellationToken>());
     }
 
     #endregion
