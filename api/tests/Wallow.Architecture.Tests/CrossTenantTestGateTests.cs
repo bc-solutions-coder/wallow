@@ -50,6 +50,7 @@ public class CrossTenantTestGateTests
     /// </summary>
     private static readonly string[] _crossTenantTestFiles =
     [
+        "api/tests/Modules/Identity/Wallow.Identity.IntegrationTests/OAuth2/CrossOrgRoleIsolationTests.cs",
         "api/tests/Modules/Identity/Wallow.Identity.Tests/Api/Controllers/OrganizationsControllerCrossTenantTests.cs",
         "api/tests/Modules/Identity/Wallow.Identity.Tests/Integration/ServiceAccountRepositoryTests.cs",
         "api/tests/Modules/Storage/Wallow.Storage.Tests/Integration/CompiledQueryTenantFilterTests.cs",
