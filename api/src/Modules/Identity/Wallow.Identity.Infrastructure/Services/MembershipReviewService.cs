@@ -119,6 +119,31 @@ public sealed partial class MembershipReviewService(
         LogMembershipReinstated(userId, organizationId, actorId);
     }
 
+    public async Task LeaveAsync(Guid organizationId, Guid userId, CancellationToken ct = default)
+    {
+        Membership membership = await RequireMembershipAsync(organizationId, userId, ct);
+        string email = await GetEmailAsync(userId, ct);
+
+        // Deleted, not marked: nobody reviewed this, so there is no decision worth keeping, and a
+        // leftover row would read as a refusal the next time they ask to join.
+        memberships.Remove(membership);
+        await memberships.SaveChangesAsync(ct);
+
+        await accessRevoker.RevokeAsync(userId, organizationId, ct);
+
+        // The same event removal by an administrator raises: from every other module's side of the
+        // boundary, why the person stopped being a member is not a distinction that changes anything.
+        await messageBus.PublishAsync(new OrganizationMemberRemovedEvent
+        {
+            OrganizationId = organizationId,
+            TenantId = organizationId,
+            UserId = userId,
+            Email = email
+        });
+
+        LogMembershipLeft(userId, organizationId);
+    }
+
     private async Task<Membership> RequireMembershipAsync(
         Guid organizationId, Guid userId, CancellationToken ct)
     {
@@ -146,4 +171,7 @@ public sealed partial class MembershipReviewService(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Membership reinstated: userId={UserId}, organizationId={OrganizationId}, by={ActorId}")]
     private partial void LogMembershipReinstated(Guid userId, Guid organizationId, Guid actorId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Membership left: userId={UserId}, organizationId={OrganizationId}")]
+    private partial void LogMembershipLeft(Guid userId, Guid organizationId);
 }

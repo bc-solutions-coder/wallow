@@ -95,6 +95,13 @@ public sealed class OrganizationsControllerCrossTenantTests
         ["UpdateSettings"] = PermissionType.OrganizationsUpdate,
     };
 
+    /// <summary>
+    /// Organization-scoped by URL but deliberately outside the gate: the caller is deciding about
+    /// their own membership, so the permission a reviewer needs would only shut them out of every
+    /// organization their token is not scoped to.
+    /// </summary>
+    private static readonly string[] _selfServiceEndpoints = ["Leave"];
+
     public static TheoryData<string> OrganizationScopedEndpoints => new(_endpointPermissions.Keys);
 
     public static TheoryData<string> EndpointsBeyondRead => new(_endpointPermissions
@@ -118,7 +125,8 @@ public sealed class OrganizationsControllerCrossTenantTests
     /// <summary>
     /// An organization-scoped action is one whose first parameter is the organization id, which is
     /// exactly the shape CanAddressOrganizationAsync guards. Reflection asks the controller rather
-    /// than the author, so a new endpoint joins every theory here the moment it compiles.
+    /// than the author, so a new endpoint joins every theory here the moment it compiles — and one
+    /// that belongs outside the gate has to be named as such, never merely omitted.
     /// </summary>
     [Fact]
     public void EveryOrganizationScopedEndpoint_AppearsInTheInventory()
@@ -130,7 +138,21 @@ public sealed class OrganizationsControllerCrossTenantTests
                 && first.ParameterType == typeof(Guid))
             .Select(method => method.Name);
 
-        declared.Should().BeEquivalentTo(_endpointPermissions.Keys);
+        declared.Should().BeEquivalentTo([.. _endpointPermissions.Keys, .. _selfServiceEndpoints]);
+    }
+
+    [Fact]
+    public async Task Leave_ForeignOrganization_IsNotGatedAtAll()
+    {
+        OrganizationsController controller = CreateController();
+
+        ActionResult result = await controller.Leave(_otherTenantOrgId, CancellationToken.None);
+
+        result.Should().BeOfType<NoContentResult>();
+        await _membershipReview.Received(1).LeaveAsync(
+            _otherTenantOrgId, _userId, Arg.Any<CancellationToken>());
+        await _accessPolicy.DidNotReceive().HasPermissionInOrganizationAsync(
+            Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Theory]

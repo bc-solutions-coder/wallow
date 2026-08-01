@@ -307,6 +307,16 @@ public class OrganizationsControllerTests
             _tenantOrgId, memberId, _userId, Arg.Any<CancellationToken>());
     }
 
+    [Fact]
+    public async Task Leave_TakesTheCallerFromTheirTokenAndNothingElse()
+    {
+        ActionResult result = await _controller.Leave(_tenantOrgId, CancellationToken.None);
+
+        result.Should().BeOfType<NoContentResult>();
+        await _membershipReview.Received(1).LeaveAsync(
+            _tenantOrgId, _userId, Arg.Any<CancellationToken>());
+    }
+
     #endregion
 
     #region GetMyOrganizations

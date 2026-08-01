@@ -18,11 +18,11 @@ using Wolverine;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// The four answers a reviewer gives about somebody else's membership, and the pending queue they
-/// work through.
+/// The four answers a reviewer gives about somebody else's membership, the pending queue they work
+/// through, and the one decision a member makes about their own: leaving.
 ///
-/// The two that END access are the ones with a second obligation: a status decides only the NEXT
-/// sign-in, so anything already issued has to be revoked separately. Denial is the exception —
+/// The transitions that END access are the ones with a second obligation: a status decides only the
+/// NEXT sign-in, so anything already issued has to be revoked separately. Denial is the exception —
 /// only a Pending membership can be denied and a Pending membership never authenticated, so there
 /// is nothing outstanding to take away.
 /// </summary>
@@ -199,11 +199,53 @@ public sealed class MembershipReviewServiceTests : IDisposable
         await reinstate.Should().ThrowAsync<BusinessRuleException>();
     }
 
+    [Fact]
+    public async Task LeaveAsync_EndsWhatTheMemberHeldAndTellsTheOtherModules()
+    {
+        WallowUser member = await GivenUserAsync("ada@acme.test");
+        await GivenActiveMembershipAsync(member.Id);
+
+        await _sut.LeaveAsync(_orgId, member.Id);
+
+        await _accessRevoker.Received(1).RevokeAsync(member.Id, _orgId, Arg.Any<CancellationToken>());
+        await _messageBus.Received(1).PublishAsync(Arg.Is<OrganizationMemberRemovedEvent>(e =>
+            e.OrganizationId == _orgId && e.UserId == member.Id && e.Email == "ada@acme.test"));
+    }
+
+    [Fact]
+    public async Task LeaveAsync_DeletesTheRowSoTheyMayAskToJoinAgain()
+    {
+        WallowUser member = await GivenUserAsync("ada@acme.test");
+        await GivenActiveMembershipAsync(member.Id);
+
+        await _sut.LeaveAsync(_orgId, member.Id);
+
+        bool remains = await _dbContext.Memberships
+            .IgnoreQueryFilters()
+            .AnyAsync(m => m.UserId == member.Id);
+        remains.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task LeaveAsync_WithdrawsARequestNobodyHasAnsweredYet()
+    {
+        WallowUser requester = await GivenUserAsync("ada@acme.test");
+        await GivenPendingRequestAsync(requester.Id);
+
+        await _sut.LeaveAsync(_orgId, requester.Id);
+
+        bool remains = await _dbContext.Memberships
+            .IgnoreQueryFilters()
+            .AnyAsync(m => m.UserId == requester.Id);
+        remains.Should().BeFalse();
+    }
+
     [Theory]
     [InlineData("approve")]
     [InlineData("deny")]
     [InlineData("suspend")]
     [InlineData("reinstate")]
+    [InlineData("leave")]
     public async Task EveryDecision_AboutSomebodyWhoIsNotAMemberHere_IsRefused(string decision)
     {
         Guid stranger = Guid.NewGuid();
@@ -213,6 +255,7 @@ public sealed class MembershipReviewServiceTests : IDisposable
             "approve" => _sut.ApproveAsync(_orgId, stranger, _actorId),
             "deny" => _sut.DenyAsync(_orgId, stranger, _actorId),
             "suspend" => _sut.SuspendAsync(_orgId, stranger, _actorId),
+            "leave" => _sut.LeaveAsync(_orgId, stranger),
             _ => _sut.ReinstateAsync(_orgId, stranger, _actorId),
         };
 

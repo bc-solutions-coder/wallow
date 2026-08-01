@@ -240,6 +240,24 @@ public class OrganizationsController(
     }
 
     /// <summary>
+    /// Give up your own membership of an organization.
+    /// </summary>
+    /// <remarks>
+    /// Asks for no permission and consults no access policy: the caller is deciding about
+    /// themselves, and requiring one would shut out members of every organization that is not the
+    /// one their token is scoped to — which is most of them. Membership itself is the authority
+    /// here, so a caller who has none gets the same refusal a stranger does.
+    /// </remarks>
+    [HttpPost("{id:guid}/leave")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult> Leave(Guid id, CancellationToken ct)
+    {
+        await membershipReview.LeaveAsync(id, ActorId(), ct);
+        return NoContent();
+    }
+
+    /// <summary>
     /// Get all organizations that the current user belongs to.
     /// </summary>
     [HttpGet("mine")]

@@ -3,13 +3,14 @@ using Wallow.Identity.Application.DTOs;
 namespace Wallow.Identity.Application.Interfaces;
 
 /// <summary>
-/// The four decisions somebody makes about another person's membership: let them in, turn them
-/// away, take their access away, give it back.
+/// Every decision that changes where somebody stands in an organization: a reviewer's four — let
+/// them in, turn them away, take their access away, give it back — and the member's own one,
+/// leaving.
 ///
-/// One seam rather than four scattered methods, because they share a precondition nothing else
-/// does — the actor must be allowed to manage this organization's members — and because each
-/// transition that ends access has to revoke what the member already holds, which is the step
-/// that gets forgotten when the transitions live apart.
+/// One seam rather than five scattered methods, because each transition that ends access has to
+/// revoke what the member already holds, and that is the step that gets forgotten when the
+/// transitions live apart. Leaving belongs here for exactly that reason, even though it is the
+/// only one the caller makes about themselves and so asks for no permission.
 /// </summary>
 public interface IMembershipReviewService
 {
@@ -32,4 +33,11 @@ public interface IMembershipReviewService
     Task SuspendAsync(Guid organizationId, Guid userId, Guid actorId, CancellationToken ct = default);
 
     Task ReinstateAsync(Guid organizationId, Guid userId, Guid actorId, CancellationToken ct = default);
+
+    /// <summary>
+    /// The caller gives up their own membership. The row is deleted rather than marked, so nothing
+    /// stands in the way of them asking to join again — and their access to this organization ends
+    /// with it.
+    /// </summary>
+    Task LeaveAsync(Guid organizationId, Guid userId, CancellationToken ct = default);
 }
