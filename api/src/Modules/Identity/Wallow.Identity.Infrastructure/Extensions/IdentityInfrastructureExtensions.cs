@@ -397,6 +397,7 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<ISetupStatusChecker, SetupStatusChecker>();
         services.AddScoped<ISetupStatusProvider, SetupStatusProvider>();
         services.AddScoped<PreRegisteredClientSyncService>();
+        services.AddScoped<OpenIddictScopeSyncService>();
         services.AddScoped<DefaultRoleSeeder>();
 
         services.AddScoped<IServiceAccountService, OpenIddictServiceAccountService>();

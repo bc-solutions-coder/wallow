@@ -78,6 +78,7 @@ builder.Services.AddScoped<IMembershipRoleResolver, MembershipRoleResolver>();
 builder.Services.AddScoped<IOrganizationService, OrganizationService>();
 builder.Services.AddMembershipAccessRevocation();
 builder.Services.AddScoped<PreRegisteredClientSyncService>();
+builder.Services.AddScoped<OpenIddictScopeSyncService>();
 builder.Services.AddScoped<IBootstrapAdminService, BootstrapAdminService>();
 builder.Services.AddScoped<ISetupStatusChecker, SetupStatusChecker>();
 builder.Services.AddScoped<DefaultRoleSeeder>();

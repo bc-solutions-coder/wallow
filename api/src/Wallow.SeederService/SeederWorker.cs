@@ -27,6 +27,7 @@ public sealed partial class SeederWorker(
 
             await SeedRolesAsync(sp);
             await SeedApiScopesAsync(sp, stoppingToken);
+            await SyncOpenIddictScopesAsync(sp, stoppingToken);
             await BootstrapAdminAsync(sp, stoppingToken);
             await SyncClientsAsync(sp, stoppingToken);
 
@@ -105,6 +106,20 @@ public sealed partial class SeederWorker(
         }
 
         LogStepCompleted("Seed API Scopes");
+    }
+
+    /// <summary>
+    /// After the catalog, because it mirrors it: a scope seeded this run must reach the consent
+    /// screen this run, not the next one.
+    /// </summary>
+    private async Task SyncOpenIddictScopesAsync(IServiceProvider sp, CancellationToken ct)
+    {
+        LogStepStarted("Sync OpenIddict Scopes");
+
+        OpenIddictScopeSyncService scopeSync = sp.GetRequiredService<OpenIddictScopeSyncService>();
+        await scopeSync.SyncAsync(ct);
+
+        LogStepCompleted("Sync OpenIddict Scopes");
     }
 
     internal async Task BootstrapAdminAsync(IServiceProvider sp, CancellationToken ct)
