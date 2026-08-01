@@ -33,7 +33,6 @@ public sealed class IdentityDbContext : AspNetIdentityDbContext, ITenantAwareCon
     public DbSet<TenantSettingEntity> TenantSettings => Set<TenantSettingEntity>();
     public DbSet<UserSettingEntity> UserSettings => Set<UserSettingEntity>();
     public DbSet<Organization> Organizations => Set<Organization>();
-    public DbSet<OrganizationMember> OrganizationMembers => Set<OrganizationMember>();
     public DbSet<Membership> Memberships => Set<Membership>();
     public DbSet<Invitation> Invitations => Set<Invitation>();
     public DbSet<OrganizationSettings> OrganizationSettings => Set<OrganizationSettings>();

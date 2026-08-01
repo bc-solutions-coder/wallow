@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
-using Wallow.Identity.Domain.Enums;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Shared.Kernel.Identity;
 
@@ -17,25 +16,23 @@ public sealed partial class TestSupportService(
         Guid userId, bool requireMfa, int gracePeriodDays, CancellationToken ct = default)
     {
         string orgName = $"test-org-{Guid.NewGuid():N}";
-        TenantId tenantId = new(Guid.NewGuid());
 
-        // Create the isolated org with its own tenant
-        Organization org = Organization.Create(tenantId, orgName, orgName, userId, timeProvider);
+        // The org mints its own tenant id from its org id, so the tenant to act as afterwards
+        // has to be read back off the aggregate rather than chosen here.
+        Organization org = Organization.Create(default, orgName, orgName, userId, timeProvider);
         dbContext.Organizations.Add(org);
         await dbContext.SaveChangesAsync(ct);
 
+        TenantId tenantId = org.TenantId;
+
         LogIsolatedOrgCreated(org.Id.Value, userId);
 
-        // Add the user as a member of the new org
         dbContext.ChangeTracker.Clear();
         dbContext.SetTenant(tenantId);
 
-        Organization trackedOrg = await dbContext.Organizations
-            .AsTracking()
-            .Include(o => o.Members)
-            .FirstAsync(o => o.Id == org.Id, ct);
-
-        trackedOrg.AddMember(userId, OrgMemberRole.Admin, userId, timeProvider);
+        Guid adminRoleId = await ResolveAdminRoleIdAsync(ct);
+        dbContext.Memberships.Add(
+            Membership.Enroll(userId, org.Id, adminRoleId, timeProvider));
         await dbContext.SaveChangesAsync(ct);
 
         // Move the user's TenantId to the new org (keep user in shared org for OIDC tenant resolution)
@@ -69,6 +66,17 @@ public sealed partial class TestSupportService(
         LogIsolatedOrgConfigured(org.Id.Value, requireMfa, gracePeriodDays);
 
         return org.Id.Value;
+    }
+
+    private async Task<Guid> ResolveAdminRoleIdAsync(CancellationToken ct)
+    {
+        WallowRole? role = await dbContext.Roles
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(r => r.NormalizedName == "ADMIN", ct);
+
+        return role is null
+            ? throw new InvalidOperationException("The admin role is not seeded.")
+            : role.Id;
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Created isolated test org {OrgId} for user {UserId}")]

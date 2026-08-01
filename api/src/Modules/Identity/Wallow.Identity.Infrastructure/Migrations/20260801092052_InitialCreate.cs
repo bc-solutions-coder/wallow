@@ -347,27 +347,6 @@ namespace Wallow.Identity.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "organization_members",
-                schema: "identity",
-                columns: table => new
-                {
-                    user_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    organization_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    role = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_organization_members", x => new { x.organization_id, x.user_id });
-                    table.ForeignKey(
-                        name: "FK_organization_members_organizations_organization_id",
-                        column: x => x.organization_id,
-                        principalSchema: "identity",
-                        principalTable: "organizations",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "organization_settings",
                 schema: "identity",
                 columns: table => new
@@ -704,18 +683,6 @@ namespace Wallow.Identity.Infrastructure.Migrations
                 column: "tenant_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_organization_members_organization_id_user_id",
-                schema: "identity",
-                table: "organization_members",
-                columns: new[] { "organization_id", "user_id" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_organization_members_user_id",
-                schema: "identity",
-                table: "organization_members",
-                column: "user_id");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_organization_settings_organization_id",
                 schema: "identity",
                 table: "organization_settings",
@@ -866,10 +833,6 @@ namespace Wallow.Identity.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "organization_branding",
-                schema: "identity");
-
-            migrationBuilder.DropTable(
-                name: "organization_members",
                 schema: "identity");
 
             migrationBuilder.DropTable(

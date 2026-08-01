@@ -12,7 +12,7 @@ using Wallow.Identity.Infrastructure.Persistence;
 namespace Wallow.Identity.Infrastructure.Migrations
 {
     [DbContext(typeof(IdentityDbContext))]
-    [Migration("20260801051407_InitialCreate")]
+    [Migration("20260801092052_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -709,30 +709,6 @@ namespace Wallow.Identity.Infrastructure.Migrations
                     b.ToTable("organization_branding", "identity");
                 });
 
-            modelBuilder.Entity("Wallow.Identity.Domain.Entities.OrganizationMember", b =>
-                {
-                    b.Property<Guid>("organization_id")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("user_id");
-
-                    b.Property<string>("Role")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("role");
-
-                    b.HasKey("organization_id", "UserId");
-
-                    b.HasIndex("UserId");
-
-                    b.HasIndex("organization_id", "UserId");
-
-                    b.ToTable("organization_members", "identity");
-                });
-
             modelBuilder.Entity("Wallow.Identity.Domain.Entities.OrganizationSettings", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1235,7 +1211,7 @@ namespace Wallow.Identity.Infrastructure.Migrations
 
             modelBuilder.Entity("Wallow.Identity.Domain.Entities.Membership", b =>
                 {
-                    b.OwnsMany("Wallow.Identity.Domain.Entities.MembershipRole", "_roles", b1 =>
+                    b.OwnsMany("Wallow.Identity.Domain.Entities.MembershipRole", "Roles", b1 =>
                         {
                             b1.Property<Guid>("MembershipId")
                                 .HasColumnType("uuid")
@@ -1261,7 +1237,7 @@ namespace Wallow.Identity.Infrastructure.Migrations
                                 .IsRequired();
                         });
 
-                    b.Navigation("_roles");
+                    b.Navigation("Roles");
                 });
 
             modelBuilder.Entity("Wallow.Identity.Domain.Entities.OrganizationBranding", b =>
@@ -1269,15 +1245,6 @@ namespace Wallow.Identity.Infrastructure.Migrations
                     b.HasOne("Wallow.Identity.Domain.Entities.Organization", null)
                         .WithOne()
                         .HasForeignKey("Wallow.Identity.Domain.Entities.OrganizationBranding", "OrganizationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Wallow.Identity.Domain.Entities.OrganizationMember", b =>
-                {
-                    b.HasOne("Wallow.Identity.Domain.Entities.Organization", null)
-                        .WithMany("Members")
-                        .HasForeignKey("organization_id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -1301,11 +1268,6 @@ namespace Wallow.Identity.Infrastructure.Migrations
             modelBuilder.Entity("OpenIddict.EntityFrameworkCore.Models.OpenIddictEntityFrameworkCoreAuthorization<System.Guid>", b =>
                 {
                     b.Navigation("Tokens");
-                });
-
-            modelBuilder.Entity("Wallow.Identity.Domain.Entities.Organization", b =>
-                {
-                    b.Navigation("Members");
                 });
 #pragma warning restore 612, 618
         }

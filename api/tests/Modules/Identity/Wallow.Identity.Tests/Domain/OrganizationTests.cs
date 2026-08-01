@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Time.Testing;
 using Wallow.Identity.Domain.Entities;
-using Wallow.Identity.Domain.Enums;
 using Wallow.Shared.Kernel.Domain;
 using Wallow.Shared.Kernel.Identity;
 
@@ -10,7 +9,6 @@ public class OrganizationTests
 {
     private static readonly TenantId _tenantId = TenantId.Create(Guid.NewGuid());
     private static readonly Guid _testUserId = Guid.NewGuid();
-    private static readonly Guid _memberUserId = Guid.NewGuid();
     private readonly FakeTimeProvider _timeProvider = new(new DateTimeOffset(2025, 6, 1, 12, 0, 0, TimeSpan.Zero));
 
     [Fact]
@@ -23,7 +21,6 @@ public class OrganizationTests
         org.Name.Should().Be("Acme Corp");
         org.Slug.Should().Be("acme-corp");
         org.IsActive.Should().BeTrue();
-        org.Members.Should().BeEmpty();
     }
 
     [Fact]
@@ -32,8 +29,8 @@ public class OrganizationTests
         Organization org = Organization.Create(
             _tenantId, "Acme Corp", "acme-corp", _testUserId, TimeProvider.System);
 
-        // T5.1 invariant: Organization.Create is the only place a tenant id is minted,
-        // so the org IS the tenant (org.Id == TenantId by construction).
+        // Organization.Create is the only place a tenant id is minted, and it mints it from
+        // the freshly generated org id.
         org.TenantId.Value.Should().Be(org.Id.Value);
     }
 
@@ -70,52 +67,6 @@ public class OrganizationTests
 
         act.Should().Throw<BusinessRuleException>()
             .WithMessage("*slug*");
-    }
-
-    [Fact]
-    public void AddMember_WithValidUser_AddsMemberToList()
-    {
-        Organization org = CreateOrganization();
-
-        org.AddMember(_memberUserId, OrgMemberRole.Member, _testUserId, TimeProvider.System);
-
-        org.Members.Should().HaveCount(1);
-        org.Members[0].UserId.Should().Be(_memberUserId);
-        org.Members[0].Role.Should().Be(OrgMemberRole.Member);
-    }
-
-    [Fact]
-    public void AddMember_DuplicateUser_ThrowsBusinessRuleException()
-    {
-        Organization org = CreateOrganization();
-        org.AddMember(_memberUserId, OrgMemberRole.Member, _testUserId, TimeProvider.System);
-
-        Action act = () => org.AddMember(_memberUserId, OrgMemberRole.Admin, _testUserId, TimeProvider.System);
-
-        act.Should().Throw<BusinessRuleException>()
-            .WithMessage("*already a member*");
-    }
-
-    [Fact]
-    public void RemoveMember_ExistingUser_RemovesMemberFromList()
-    {
-        Organization org = CreateOrganization();
-        org.AddMember(_memberUserId, OrgMemberRole.Member, _testUserId, TimeProvider.System);
-
-        org.RemoveMember(_memberUserId, _testUserId, TimeProvider.System);
-
-        org.Members.Should().BeEmpty();
-    }
-
-    [Fact]
-    public void RemoveMember_NonExistentUser_ThrowsBusinessRuleException()
-    {
-        Organization org = CreateOrganization();
-
-        Action act = () => org.RemoveMember(Guid.NewGuid(), _testUserId, TimeProvider.System);
-
-        act.Should().Throw<BusinessRuleException>()
-            .WithMessage("*not a member*");
     }
 
     [Fact]
@@ -257,47 +208,6 @@ public class OrganizationTests
 
         act.Should().Throw<BusinessRuleException>()
             .WithMessage("*slug*");
-    }
-
-    [Fact]
-    public void AddMember_SetsAuditFields()
-    {
-        Organization org = Organization.Create(
-            _tenantId, "Acme Corp", "acme-corp", _testUserId, _timeProvider);
-        _timeProvider.Advance(TimeSpan.FromHours(1));
-
-        org.AddMember(_memberUserId, OrgMemberRole.Member, _testUserId, _timeProvider);
-
-        org.UpdatedAt.Should().Be(_timeProvider.GetUtcNow().UtcDateTime);
-        org.UpdatedBy.Should().Be(_testUserId);
-    }
-
-    [Fact]
-    public void RemoveMember_SetsAuditFields()
-    {
-        Organization org = Organization.Create(
-            _tenantId, "Acme Corp", "acme-corp", _testUserId, _timeProvider);
-        org.AddMember(_memberUserId, OrgMemberRole.Member, _testUserId, _timeProvider);
-        _timeProvider.Advance(TimeSpan.FromHours(1));
-
-        org.RemoveMember(_memberUserId, _testUserId, _timeProvider);
-
-        org.UpdatedAt.Should().Be(_timeProvider.GetUtcNow().UtcDateTime);
-        org.UpdatedBy.Should().Be(_testUserId);
-    }
-
-    [Fact]
-    public void AddMember_MultipleMembers_AllPresent()
-    {
-        Organization org = CreateOrganization();
-        Guid secondMember = Guid.NewGuid();
-
-        org.AddMember(_memberUserId, OrgMemberRole.Member, _testUserId, TimeProvider.System);
-        org.AddMember(secondMember, OrgMemberRole.Admin, _testUserId, TimeProvider.System);
-
-        org.Members.Should().HaveCount(2);
-        org.Members.Should().Contain(m => m.UserId == _memberUserId);
-        org.Members.Should().Contain(m => m.UserId == secondMember);
     }
 
     [Fact]

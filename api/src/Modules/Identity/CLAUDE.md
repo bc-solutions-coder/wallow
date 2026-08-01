@@ -13,7 +13,7 @@ first-run setup/bootstrap-admin.
 
 | Area | Path |
 |------|------|
-| Aggregates/entities | `Wallow.Identity.Domain/Entities/` (WallowUser, WallowRole, Organization, OrganizationMember, Invitation, ActiveSession, ApiScope, ServiceAccountMetadata) |
+| Aggregates/entities | `Wallow.Identity.Domain/Entities/` (WallowUser, WallowRole, Organization, Membership, Invitation, ActiveSession, ApiScope, ServiceAccountMetadata) |
 | Controllers | `Wallow.Identity.Api/Controllers/` (Account, Authorization, Token, Userinfo, Logout, Mfa, Users, Roles, Scopes, Organizations, Invitations, Session, Clients, Apps, Setup, IdentitySettings, TestSupport) |
 | Services (most logic) | `Wallow.Identity.Infrastructure/Services/` (UserService, MfaService, PasswordlessService, SessionService, OrganizationService, InvitationService, BootstrapAdminService, PreRegisteredClientSyncService, …) |
 | Commands/Queries | `Wallow.Identity.Application/Commands/`, `Queries/` (service accounts, bootstrap admin, setup status) |

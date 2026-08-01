@@ -56,10 +56,5 @@ public sealed class OrganizationConfiguration : IEntityTypeConfiguration<Organiz
             .HasColumnType("xid")
             .ValueGeneratedOnAddOrUpdate()
             .IsConcurrencyToken();
-
-        builder.HasMany(e => e.Members)
-            .WithOne()
-            .HasForeignKey("organization_id")
-            .OnDelete(DeleteBehavior.Cascade);
     }
 }

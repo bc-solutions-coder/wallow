@@ -80,11 +80,12 @@ public sealed class OrganizationMfaPolicyServiceTests : IDisposable
     [Fact]
     public async Task CheckAsync_OrgDoesNotRequireMfa_ReturnsNotRequired()
     {
-        WallowUser user = WallowUser.Create(_tenantId, "No", "Mfa", "nomfa@t.com", TimeProvider.System);
+        Organization org = Organization.Create(
+            TenantId.Create(_tenantId), "Test Org", "test-org", Guid.NewGuid(), TimeProvider.System);
+
+        WallowUser user = WallowUser.Create(org.Id.Value, "No", "Mfa", "nomfa@t.com", TimeProvider.System);
         _userManager.FindByIdAsync(user.Id.ToString()).Returns(user);
 
-        Organization org = Organization.Create(
-            TenantId.Create(_tenantId), "Test Org", "test-org", user.Id, TimeProvider.System);
         _dbContext.Organizations.Add(org);
 
         OrganizationSettings settings = OrganizationSettings.Create(
@@ -94,8 +95,7 @@ public sealed class OrganizationMfaPolicyServiceTests : IDisposable
         _dbContext.OrganizationSettings.Add(settings);
         await _dbContext.SaveChangesAsync();
 
-        // Add membership via the organization's Members collection
-        org.AddMember(user.Id, OrgMemberRole.Member, user.Id, TimeProvider.System);
+        Enroll(org, user.Id, MembershipStatus.Active);
         await _dbContext.SaveChangesAsync();
 
         OrgMfaPolicyResult result = await _sut.CheckAsync(user.Id, CancellationToken.None);
@@ -106,8 +106,6 @@ public sealed class OrganizationMfaPolicyServiceTests : IDisposable
     [Fact]
     public async Task CheckAsync_OrgRequiresMfa_UserNoGrace_ReturnsRequiredNotInGrace()
     {
-        // org IS the tenant: the service matches the org by o.TenantId == user.TenantId,
-        // so the user's home tenant must be org.Id (minted by Organization.Create).
         Organization org = Organization.Create(
             TenantId.Create(_tenantId), "MFA Org", "mfa-org", Guid.NewGuid(), TimeProvider.System);
 
@@ -122,7 +120,7 @@ public sealed class OrganizationMfaPolicyServiceTests : IDisposable
             user.Id, TimeProvider.System);
         _dbContext.OrganizationSettings.Add(settings);
 
-        org.AddMember(user.Id, OrgMemberRole.Member, user.Id, TimeProvider.System);
+        Enroll(org, user.Id, MembershipStatus.Active);
         await _dbContext.SaveChangesAsync();
 
         OrgMfaPolicyResult result = await _sut.CheckAsync(user.Id, CancellationToken.None);
@@ -134,8 +132,6 @@ public sealed class OrganizationMfaPolicyServiceTests : IDisposable
     [Fact]
     public async Task CheckAsync_OrgRequiresMfa_UserInGrace_ReturnsRequiredAndInGrace()
     {
-        // org IS the tenant: the service matches the org by o.TenantId == user.TenantId,
-        // so the user's home tenant must be org.Id (minted by Organization.Create).
         Organization org = Organization.Create(
             TenantId.Create(_tenantId), "Grace Org", "grace-org", Guid.NewGuid(), TimeProvider.System);
 
@@ -151,12 +147,46 @@ public sealed class OrganizationMfaPolicyServiceTests : IDisposable
             user.Id, TimeProvider.System);
         _dbContext.OrganizationSettings.Add(settings);
 
-        org.AddMember(user.Id, OrgMemberRole.Member, user.Id, TimeProvider.System);
+        Enroll(org, user.Id, MembershipStatus.Active);
         await _dbContext.SaveChangesAsync();
 
         OrgMfaPolicyResult result = await _sut.CheckAsync(user.Id, CancellationToken.None);
 
         result.RequiresMfa.Should().BeTrue();
         result.IsInGracePeriod.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CheckAsync_PendingMembership_ReturnsNotRequired()
+    {
+        Organization org = Organization.Create(
+            TenantId.Create(_tenantId), "Pending Org", "pending-org", Guid.NewGuid(), TimeProvider.System);
+
+        WallowUser user = WallowUser.Create(org.Id.Value, "Not", "Yet", "pending@t.com", TimeProvider.System);
+        _userManager.FindByIdAsync(user.Id.ToString()).Returns(user);
+
+        _dbContext.Organizations.Add(org);
+
+        OrganizationSettings settings = OrganizationSettings.Create(
+            org.Id, TenantId.Create(_tenantId), requireMfa: true,
+            allowPasswordlessLogin: false, mfaGracePeriodDays: 0,
+            user.Id, TimeProvider.System);
+        _dbContext.OrganizationSettings.Add(settings);
+
+        Enroll(org, user.Id, MembershipStatus.Pending);
+        await _dbContext.SaveChangesAsync();
+
+        OrgMfaPolicyResult result = await _sut.CheckAsync(user.Id, CancellationToken.None);
+
+        result.RequiresMfa.Should().BeFalse();
+    }
+
+    private void Enroll(Organization org, Guid userId, MembershipStatus status)
+    {
+        Membership membership = status == MembershipStatus.Active
+            ? Membership.Enroll(userId, org.Id, Guid.NewGuid(), TimeProvider.System)
+            : Membership.RequestAccess(userId, org.Id, TimeProvider.System);
+
+        _dbContext.Memberships.Add(membership);
     }
 }

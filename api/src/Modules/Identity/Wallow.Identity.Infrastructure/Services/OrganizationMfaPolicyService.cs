@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Enums;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Shared.Kernel.Identity;
 
@@ -30,13 +31,17 @@ public sealed partial class OrganizationMfaPolicyService(
         }
 
         // IgnoreQueryFilters: this runs during login when tenant context is not yet set.
-        // Prefer the org matching the user's TenantId (the user may be in multiple orgs).
+        // The user may belong to several organizations; the policy that applies is the one the
+        // user is signing in under, and an inactive membership carries no policy at all.
         Organization? organization = await dbContext.Organizations
             .IgnoreQueryFilters()
-            .Include(o => o.Members)
-            .FirstOrDefaultAsync(
-                o => o.TenantId == new TenantId(user.TenantId)
-                     && o.Members.Any(m => m.UserId == userId), ct);
+            .Where(o => o.TenantId == new TenantId(user.TenantId))
+            .Where(o => dbContext.Memberships
+                .IgnoreQueryFilters()
+                .Any(m => m.OrganizationId == o.Id
+                          && m.UserId == userId
+                          && m.Status == MembershipStatus.Active))
+            .FirstOrDefaultAsync(ct);
 
         if (organization is null)
         {
