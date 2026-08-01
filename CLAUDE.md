@@ -296,22 +296,35 @@ bd close <id>                               # Complete work
 
 ### Beads sync across machines
 
-Beads live in a Dolt database under `.beads/dolt/`, which is gitignored and never committed. They
+Beads live in an **embedded** Dolt database under `.beads/embeddeddolt/Wallow/` (database name
+`Wallow`, per `.beads/metadata.json`). All of `.beads/` is gitignored and never committed. Beads
 travel through the **same GitHub repo** via Dolt's git-backed remote: the data sits on
 `refs/dolt/data`, with a `__dolt_remote_info__` branch pointing at it. `.beads/config.yaml` records
-`sync.remote: git+https://github.com/bc-solutions-coder/wallow.git`.
+`sync.remote: git+ssh://git@github.com/bc-solutions-coder/wallow.git` — so beads sync over your
+**SSH key**, not a token.
 
-- **Push** — `bd dolt push`. The installed `pre-push` git hook runs it too, so `git push` carries
-  beads along; session completion still runs it explicitly.
+- **Push — `bd dolt push`, and you MUST run it explicitly.** `git push` does *not* carry beads
+  along: the `pre-push` hook exits 0 without touching `refs/dolt/data` (verified by watching the
+  remote ref — a bead created, then `git push`, leaves the ref unmoved; `bd dolt push` moves it).
+  Skip this and your beads stay on one machine.
 - **Pull** — `bd dolt pull`. Run it before starting work on a machine you haven't used lately —
-  `git pull` does NOT bring beads over.
+  `git pull` does NOT bring beads over either.
 - **A new machine** — clone the repo, then `bd bootstrap --yes`: it finds `refs/dolt/data` on git
-  origin and rebuilds the whole database, with no `.beads/` needing to exist first. Follow with
-  `bd hooks install`, since git hooks live in `.git/` and are not cloned.
+  origin and rebuilds the whole database, with no `.beads/` needing to exist first. Then
+  `pnpm install` for the git hooks — see below.
 
-`bd dolt remote list` prints `(none)` here even though the remote is configured — it inspects the
-data-dir root instead of the `beads_foundry` database inside it. Verify with `dolt remote -v` from
-`.beads/dolt/beads_foundry`, and do not "fix" the empty listing by adding a second remote.
+**Do not run `bd hooks install` in this repo.** Git hooks here are owned by **husky**: `prepare:
+husky` (root `package.json`) sets `core.hooksPath=.husky/_` on every `pnpm install`, and the
+tracked `.husky/*` hooks already contain the beads bridge block, so bd integration works with no
+extra step (`bd hooks list` confirms it). `bd hooks install` fights husky for the same git config —
+it repoints `core.hooksPath` at `.beads/hooks`, *copies* the husky hook bodies there and appends a
+second bridge block, so every hook runs bd twice, `.husky/` edits silently stop taking effect, and
+the next `pnpm install` flips ownership back. If hooks ever look wrong: `bd hooks uninstall`
+(this clears `core.hooksPath` entirely, leaving **no** hooks) followed by `pnpm exec husky`.
+
+Diagnostics: `bd dolt remote list` correctly prints the configured remote. The standalone `dolt`
+CLI is not installed — bd embeds the engine — so `dolt` commands are unavailable, and `bd doctor`
+reports "not yet supported in embedded mode".
 
 ### Memory discipline
 
@@ -326,5 +339,8 @@ Work is NOT complete until `git push` succeeds.
 1. File issues for remaining work
 2. Run quality gates (if code changed)
 3. Close finished issues, update in-progress items
-4. `git pull --rebase && bd dolt push && git push`
-5. Verify `git status` shows "up to date with origin"
+4. `git pull --rebase && bd dolt push && git push` — `bd dolt push` is not optional and is not
+   done for you by `git push`; it is the only thing that moves beads off this machine
+5. Verify `git status` shows "up to date with origin". That says nothing about beads — confirm
+   those separately with `git ls-remote origin refs/dolt/data` (the hash must change after a
+   session that touched beads)
