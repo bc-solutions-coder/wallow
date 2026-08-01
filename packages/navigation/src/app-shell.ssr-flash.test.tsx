@@ -4,17 +4,20 @@ import { renderToString } from "react-dom/server";
 import { page } from "vitest/browser";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DashboardLayout } from "./DashboardLayout";
-import { useUiStore } from "../stores/ui-store";
+import { useNavStore } from "./nav-store";
+import { ShellFixture } from "./shell.fixtures";
 
 /**
- * The dashboard shell's PRE-HYDRATION paint.
+ * The shell's PRE-HYDRATION paint — and the only proof that it renders on a
+ * server at all. Failure here is SILENT in every other spec: a shell that throws
+ * under `renderToString` still mounts perfectly in the browser, and a consuming
+ * app finds out as an empty document.
  *
- * A spec that mounts the shell cannot see this: a mount reads `useIsDesktop`'s
- * `getSnapshot` — real `matchMedia`, correct on the first render. The flash
- * lives in the markup the server emits, so `renderToString`'s bytes go into the
- * live document at a real viewport and `checkVisibility()` measures what
- * Chromium would show — omitting the chrome and hiding it both satisfy that.
+ * A spec that mounts the shell cannot see the flash either: a mount reads
+ * `useIsDesktop`'s `getSnapshot` — real `matchMedia`, correct on the first
+ * render. It lives in the markup the server emits, so `renderToString`'s bytes
+ * go into the live document at a real viewport and `checkVisibility()` measures
+ * what Chromium would show — omitting the chrome and hiding it both satisfy that.
  */
 
 type LinkStubProps = {
@@ -38,7 +41,6 @@ vi.mock("@tanstack/react-router", () => ({
       {children}
     </a>
   ),
-  Outlet: () => <div data-testid="dashboard-outlet-stub" />,
 }));
 
 /** Widths on either side of the `md` (48rem) breakpoint the nav switches on. */
@@ -61,7 +63,7 @@ let root: Root | null = null;
  * `innerHTML`, which is a sink for a string.
  */
 function paintServerMarkup(): void {
-  const html: string = renderToString(<DashboardLayout />);
+  const html: string = renderToString(<ShellFixture />);
   const parsed: Document = new DOMParser().parseFromString(html, "text/html");
   const element: HTMLDivElement = document.createElement("div");
   element.append(...parsed.body.childNodes);
@@ -78,7 +80,7 @@ function paintedChrome(): string[] {
 }
 
 beforeEach(() => {
-  useUiStore.setState({ isNavCollapsed: false, isMobileNavOpen: false });
+  useNavStore.setState({ isNavCollapsed: false, isMobileNavOpen: false });
 });
 
 afterEach(async () => {
@@ -109,7 +111,13 @@ describe("the visibility instrument these cases measure with", () => {
   });
 });
 
-describe("dashboard shell pre-hydration paint", () => {
+describe("shell pre-hydration paint", () => {
+  it("renders to a string at all, rather than throwing on the server", () => {
+    // The one failure mode no mounting spec can see. A shell reaching for
+    // `window`, `document` or a browser-only ui part dies here.
+    expect(renderToString(<ShellFixture />)).toContain('data-testid="dashboard-shell"');
+  });
+
   it("paints no desktop rail on a phone", async () => {
     await page.viewport(...MOBILE_VIEWPORT);
 
@@ -139,12 +147,12 @@ describe("dashboard shell pre-hydration paint", () => {
   });
 });
 
-describe("dashboard shell hydration of the server markup", () => {
+describe("shell hydration of the server markup", () => {
   it("settles on the mobile treatment on a phone", async () => {
     await page.viewport(...MOBILE_VIEWPORT);
     paintServerMarkup();
 
-    root = hydrateRoot(container!, <DashboardLayout />);
+    root = hydrateRoot(container!, <ShellFixture />);
 
     // Not painting the wrong chrome must not mean never painting the right one.
     await expect.element(page.getByTestId("dashboard-nav-mobile-menu")).toBeVisible();
@@ -156,7 +164,7 @@ describe("dashboard shell hydration of the server markup", () => {
     await page.viewport(...DESKTOP_VIEWPORT);
     paintServerMarkup();
 
-    root = hydrateRoot(container!, <DashboardLayout />);
+    root = hydrateRoot(container!, <ShellFixture />);
 
     await expect.element(page.getByTestId("dashboard-nav")).toBeVisible();
     await expect.element(page.getByTestId("dashboard-nav-toggle")).toBeVisible();

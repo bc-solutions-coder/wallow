@@ -1,0 +1,7 @@
+{
+  // Declaration-only build config. Emit settings, rootDir/outDir and the shared
+  // exclude list come from ../../tsconfig.build.base.json; the entry list below
+  // is what is local to this package.
+  "extends": ["./tsconfig.json", "../../tsconfig.build.base.json"],
+  "include": ["src/index.ts"]
+}

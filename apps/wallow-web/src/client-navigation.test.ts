@@ -5,13 +5,13 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * In-app navigation is CLIENT-SIDE (Wallow-lrlm.4.3).
+ * In-app navigation is CLIENT-SIDE.
  *
  * A raw `<a href="/dashboard/…">` inside a mounted screen is a full document
  * load: the router tears down, every query cache is thrown away, and the visitor
  * watches a white flash on a navigation the app could have taken in place. The
- * app already knows how to do it properly — `DashboardNav`, `OrganizationList`
- * and `InquiryList` all route through TanStack `Link` — so the remaining raw
+ * app already knows how to do it properly — `OrganizationList` and `InquiryList`
+ * route through TanStack `Link`, as does the nav shell — so the remaining raw
  * anchors are either a bug or a documented exception, and this spec is where the
  * difference is written down.
  *
@@ -105,7 +105,7 @@ const LOCATION_NAVIGATION =
 
 /**
  * Shipped markup only. Specs render their own throwaway anchors as router stubs
- * (every `DashboardNav` spec does), and `routeTree.gen.ts` is written by the
+ * (every spec that mounts the nav does), and `routeTree.gen.ts` is written by the
  * Start plugin — neither is a navigation decision anyone made.
  */
 function isProductFile(path: string): boolean {

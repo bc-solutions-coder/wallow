@@ -1,0 +1,21 @@
+/*
+ * Tailwind entry for the browser project's Chromium page.
+ *
+ * The shell's specs assert RENDERED COLOUR — the rail's inverted palette, the
+ * contrast of a hovered row against it, the scrim's translucency — so they need
+ * the same CSS the app serves, not an approximation. With no stylesheet a
+ * `bg-sidebar` element paints `rgba(0, 0, 0, 0)` and every one of those
+ * assertions passes vacuously.
+ *
+ * Tailwind v4 resolves `@source` relative to the declaring stylesheet, which is
+ * why this file sits at the package root beside vitest.config.ts and scans
+ * `./src` from there.
+ *
+ * Nothing under src/ may import this — it is loaded only by ./vitest.setup.ts,
+ * which is why `@bc-solutions-coder/styles` is a devDependency here and never a
+ * runtime one.
+ */
+@import "@bc-solutions-coder/styles/styles.css";
+@import "@bc-solutions-coder/ui/source.css";
+
+@source "./src";

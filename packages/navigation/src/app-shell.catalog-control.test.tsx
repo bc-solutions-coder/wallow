@@ -7,18 +7,17 @@ import {
   type Rgba,
 } from "@bc-solutions-coder/testing/contrast";
 import { buttonRecipe } from "@bc-solutions-coder/ui/button";
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { waitForTestId } from "@shared/testing/locators";
-import { DashboardLayout } from "./DashboardLayout";
-import { navIconLabels } from "./nav-icons";
-import { useUiStore } from "../stores/ui-store";
+import { useNavStore } from "./nav-store";
+import { defaultNavControlLabels } from "./nav-icons";
+import { ShellFixture } from "./shell.fixtures";
 
 /**
- * The two dashboard nav controls are the catalog's outline button.
+ * The shell's two nav controls are the catalog's outline button.
  *
  * The load-bearing assertion is the negative one: what reaches the DOM is
  * `twMerge(recipe, className)`, so a hand-rolled leftover survives beside the
@@ -29,7 +28,8 @@ import { useUiStore } from "../stores/ui-store";
  */
 
 // `activeProps` is pulled out and dropped: letting it reach the anchor would put
-// an object on a DOM attribute.
+// an object on a DOM attribute. The default navigation is suppressed so no stray
+// click moves the test iframe.
 vi.mock("@tanstack/react-router", () => ({
   Link: ({
     to,
@@ -41,11 +41,16 @@ vi.mock("@tanstack/react-router", () => ({
     children?: ReactNode;
     activeProps?: { className?: string };
   } & Record<string, unknown>) => (
-    <a href={to} {...rest}>
+    <a
+      href={to}
+      onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+        event.preventDefault();
+      }}
+      {...rest}
+    >
       {children}
     </a>
   ),
-  Outlet: () => <div data-testid="dashboard-outlet-stub" />,
 }));
 
 const DESKTOP_VIEWPORT = [1280, 800] as const;
@@ -105,17 +110,28 @@ function handRolledSurfaceUtilities(classes: readonly string[]): readonly string
 }
 
 /**
+ * Wait for `testId` to commit, then return it — `render()` returns before React
+ * has painted, so every case gates on the control before measuring it.
+ */
+async function waitForTestId(testId: string): Promise<HTMLElement> {
+  await expect.element(page.getByTestId(testId)).toBeInTheDocument();
+  const elements = page.getByTestId(testId).elements();
+  expect(elements, `expected exactly one [data-testid="${testId}"]`).toHaveLength(1);
+  return elements[0] as HTMLElement;
+}
+
+/**
  * The shell, a parking target for the mouse, and one probe per token needing a
  * REFERENCE colour. The parking target is pinned above everything because
  * Playwright's actionability check retries to timeout on a covered element.
  */
-function LayoutUnderTest() {
+function ShellUnderTest() {
   return (
     <div>
       <div data-testid="control-park" className="fixed top-0 right-0 z-50 size-8" />
       <div data-testid="probe-background" className="bg-background size-4" />
       <div data-testid="probe-accent" className="bg-accent size-4" />
-      <DashboardLayout />
+      <ShellFixture />
     </div>
   );
 }
@@ -163,7 +179,7 @@ async function surfaceAfterTransition(
 }
 
 beforeEach(() => {
-  useUiStore.setState({ isNavCollapsed: false, isMobileNavOpen: false });
+  useNavStore.setState({ isNavCollapsed: false, isMobileNavOpen: false });
 });
 
 // The document is shared, so a stamped mode has to be handed back.
@@ -176,7 +192,7 @@ describe("the mode axis itself", () => {
     // The tripwire for every `describe.each(MODES)` below.
     await page.viewport(...DESKTOP_VIEWPORT);
     applyMode("light");
-    await render(<LayoutUnderTest />);
+    await render(<ShellUnderTest />);
     const lightBackground: Rgba = expectThemed(probe("probe-background"), "bg-background, light");
     const lightAccent: Rgba = expectThemed(probe("probe-accent"), "bg-accent, light");
 
@@ -243,7 +259,7 @@ describe.each(CONTROLS)("%s as a catalog Button", (testId: string, viewport) => 
   });
 
   it("draws the border that separates the outline arm from ghost", async () => {
-    await render(<LayoutUnderTest />);
+    await render(<ShellUnderTest />);
     const control: Element = await waitForTestId(testId);
 
     // The border is the whole difference: `outline` and `ghost` agree on every
@@ -255,7 +271,7 @@ describe.each(CONTROLS)("%s as a catalog Button", (testId: string, viewport) => 
   });
 
   it("carries no button-surface utility the recipe cannot emit", async () => {
-    await render(<LayoutUnderTest />);
+    await render(<ShellUnderTest />);
     const control: Element = await waitForTestId(testId);
 
     expect(
@@ -265,7 +281,7 @@ describe.each(CONTROLS)("%s as a catalog Button", (testId: string, viewport) => 
   });
 
   it("keeps its element, type and a11y wiring", async () => {
-    await render(<LayoutUnderTest />);
+    await render(<ShellUnderTest />);
     const control: Element = await waitForTestId(testId);
     // The two controls report DIFFERENT things through `aria-expanded`: the rail
     // toggle whether the rail is expanded, the mobile button whether the drawer is.
@@ -274,12 +290,12 @@ describe.each(CONTROLS)("%s as a catalog Button", (testId: string, viewport) => 
         ? {
             "aria-controls": "dashboard-nav",
             "aria-expanded": "true",
-            "aria-label": navIconLabels.navToggle,
+            "aria-label": defaultNavControlLabels.navToggle,
           }
         : {
             "aria-controls": "dashboard-nav-drawer",
             "aria-expanded": "false",
-            "aria-label": navIconLabels.mobileMenu,
+            "aria-label": defaultNavControlLabels.mobileMenu,
           };
 
     // Base UI can SUBSTITUTE the element through `render` and need not keep a
@@ -299,7 +315,7 @@ describe.each(MODES)("the desktop control's glyph — %s mode", (mode: string) =
   });
 
   it("stays legible at rest against the page it sits on", async () => {
-    await render(<LayoutUnderTest />);
+    await render(<ShellUnderTest />);
     const control: Element = await waitForTestId("dashboard-nav-toggle");
     await parkMouse();
 
@@ -320,7 +336,7 @@ describe.each(MODES)("the desktop control's glyph — %s mode", (mode: string) =
   });
 
   it("stays legible under the cursor, on whatever the recipe fills with", async () => {
-    await render(<LayoutUnderTest />);
+    await render(<ShellUnderTest />);
     const control: Element = await waitForTestId("dashboard-nav-toggle");
     const background: Rgba = expectThemed(probe("probe-background"), "bg-background");
 

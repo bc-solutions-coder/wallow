@@ -1,16 +1,18 @@
 # apps — Frontend Applications Agent Guide
 
 Every app here is a **TanStack Start** frontend consuming the `@bc-solutions-coder` workspace
-packages (`sdk`, `styles`, `ui`, `forms`, `query`, `auth`, `utils`, `env`, `testing`, `config`)
-via `workspace:*`. `forms` and `auth` are the optional ones — `examples/minimal-app` renders no
-form and has no signed-in user, so it omits both. `config` is the odd one: a build-time-only
-dependency supplying `wallowAppConfig()` to `vite.config.ts`, never imported by app code.
+packages (`sdk`, `styles`, `ui`, `forms`, `navigation`, `query`, `auth`, `utils`, `env`,
+`testing`, `config`) via `workspace:*`. `forms`, `auth` and `navigation` are the optional ones —
+`examples/minimal-app` renders no form, has no signed-in user and has no shell, so it omits all
+three. `wallow-auth`'s screens sit in its own `auth-layout.tsx`, which leaves `wallow-web` as
+`navigation`'s one consumer today. `config` is the odd one: a build-time-only dependency supplying
+`wallowAppConfig()` to `vite.config.ts`, never imported by app code.
 
-| App                     | Port | What it is                                                                    |
-| ----------------------- | ---- | ----------------------------------------------------------------------------- |
-| `wallow-web/`           | 3000 | Reference dashboard demonstrating the full same-origin BFF OIDC flow.         |
-| `wallow-auth/`          | 3002 | Auth frontend — login / signup / MFA screens.                                 |
-| `examples/minimal-app/` | 3010 | Smallest app wiring the five core shared packages into a TanStack Start host. |
+| App                     | Port | What it is                                                               |
+| ----------------------- | ---- | ------------------------------------------------------------------------ |
+| `wallow-web/`           | 3000 | Reference dashboard demonstrating the full same-origin BFF OIDC flow.    |
+| `wallow-auth/`          | 3002 | Auth frontend — login / signup / MFA screens.                            |
+| `examples/minimal-app/` | 3010 | Smallest app wiring the core shared packages into a TanStack Start host. |
 
 **Build the SDK before touching an app** — apps typecheck against `packages/sdk/dist/`:
 `pnpm --filter @bc-solutions-coder/sdk build`.

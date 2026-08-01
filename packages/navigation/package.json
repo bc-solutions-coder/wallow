@@ -1,0 +1,62 @@
+{
+  "name": "@bc-solutions-coder/navigation",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Wallow shared application shell — collapsible rail, mobile drawer, and the nav store behind them",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "vite build && tsc -p tsconfig.build.json",
+    "test": "vitest run --configLoader runner",
+    "test:watch": "vitest --configLoader runner",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@bc-solutions-coder/ui": "workspace:*",
+    "lucide-react": "^1.27.0"
+  },
+  "devDependencies": {
+    "@bc-solutions-coder/config": "workspace:*",
+    "@bc-solutions-coder/styles": "workspace:*",
+    "@bc-solutions-coder/testing": "workspace:*",
+    "@tanstack/react-router": "^1.170.18",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "class-variance-authority": "^0.7.1",
+    "react": "catalog:react",
+    "react-dom": "catalog:react",
+    "tailwind-merge": "^3.6.0",
+    "typescript": "catalog:tooling",
+    "vite": "^8.1.4",
+    "vitest": "^4.1.10",
+    "vitest-browser-react": "^2.2.0",
+    "zustand": "catalog:react"
+  },
+  "peerDependencies": {
+    "@tanstack/react-router": "^1.170.18",
+    "react": "catalog:react",
+    "react-dom": "catalog:react",
+    "zustand": "catalog:react"
+  }
+}

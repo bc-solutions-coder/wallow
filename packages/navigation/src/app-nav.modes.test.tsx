@@ -3,8 +3,8 @@ import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DashboardNav } from "./DashboardNav";
-import { useUiStore } from "../stores/ui-store";
+import { useNavStore } from "./nav-store";
+import { ShellFixture } from "./shell.fixtures";
 
 /**
  * The nav's two DESKTOP states: the expanded rail (icon + label) and the
@@ -48,7 +48,7 @@ vi.mock("@tanstack/react-router", () => ({
   ),
 }));
 
-/** Every nav item the rail renders, with the label it must be reachable by. */
+/** Every row the rail renders, with the label it must be reachable by. */
 const navItems: ReadonlyArray<readonly [testid: string, label: string]> = [
   ["dashboard-nav-organizations", "Organizations"],
   ["dashboard-nav-apps", "Apps"],
@@ -62,13 +62,13 @@ const DESKTOP_VIEWPORT = [1280, 800] as const;
 
 beforeEach(async () => {
   routerState.activePath = "";
-  useUiStore.setState({ isNavCollapsed: false, isMobileNavOpen: false });
+  useNavStore.setState({ isNavCollapsed: false, isMobileNavOpen: false });
   await page.viewport(...DESKTOP_VIEWPORT);
 });
 
-describe("DashboardNav expanded rail (desktop)", () => {
+describe("AppNav expanded rail (desktop)", () => {
   it("reports itself expanded", async () => {
-    await render(<DashboardNav />);
+    await render(<ShellFixture />);
 
     await expect
       .element(page.getByTestId("dashboard-nav"))
@@ -76,7 +76,7 @@ describe("DashboardNav expanded rail (desktop)", () => {
   });
 
   it("renders an icon for every nav item", async () => {
-    await render(<DashboardNav />);
+    await render(<ShellFixture />);
 
     for (const [testid] of navItems) {
       await expect.element(page.getByTestId(testid)).toBeInTheDocument();
@@ -85,7 +85,7 @@ describe("DashboardNav expanded rail (desktop)", () => {
   });
 
   it("renders the visible label alongside every icon", async () => {
-    await render(<DashboardNav />);
+    await render(<ShellFixture />);
 
     for (const [testid, label] of navItems) {
       await expect.element(page.getByTestId(testid)).toHaveTextContent(label);
@@ -95,7 +95,7 @@ describe("DashboardNav expanded rail (desktop)", () => {
   it("highlights the active route", async () => {
     routerState.activePath = "/dashboard/settings";
 
-    await render(<DashboardNav />);
+    await render(<ShellFixture />);
     await expect.element(page.getByTestId("dashboard-nav-settings")).toBeInTheDocument();
 
     // "Differs from an inactive sibling" rather than an exact Tailwind string
@@ -106,13 +106,13 @@ describe("DashboardNav expanded rail (desktop)", () => {
   });
 });
 
-describe("DashboardNav collapsed icon rail (desktop)", () => {
+describe("AppNav collapsed icon rail (desktop)", () => {
   beforeEach(() => {
-    useUiStore.setState({ isNavCollapsed: true });
+    useNavStore.setState({ isNavCollapsed: true });
   });
 
   it("reports itself collapsed", async () => {
-    await render(<DashboardNav />);
+    await render(<ShellFixture />);
 
     await expect
       .element(page.getByTestId("dashboard-nav"))
@@ -120,7 +120,7 @@ describe("DashboardNav collapsed icon rail (desktop)", () => {
   });
 
   it("renders an icon for every nav item", async () => {
-    await render(<DashboardNav />);
+    await render(<ShellFixture />);
 
     for (const [testid] of navItems) {
       await expect.element(page.getByTestId(testid)).toBeInTheDocument();
@@ -129,7 +129,7 @@ describe("DashboardNav collapsed icon rail (desktop)", () => {
   });
 
   it("renders no text node for any nav item", async () => {
-    await render(<DashboardNav />);
+    await render(<ShellFixture />);
 
     // A collapsed rail that keeps full-size labels clips them into "Settin".
     for (const [testid] of navItems) {
@@ -139,7 +139,7 @@ describe("DashboardNav collapsed icon rail (desktop)", () => {
   });
 
   it("names every icon-only nav item with an aria-label", async () => {
-    await render(<DashboardNav />);
+    await render(<ShellFixture />);
 
     for (const [testid, label] of navItems) {
       await expect.element(page.getByTestId(testid)).toHaveAttribute("aria-label", label);
@@ -147,7 +147,7 @@ describe("DashboardNav collapsed icon rail (desktop)", () => {
   });
 
   it("keeps every nav destination reachable by its accessible name", async () => {
-    await render(<DashboardNav />);
+    await render(<ShellFixture />);
 
     await expect.element(page.getByRole("link", { name: "Organizations" })).toBeInTheDocument();
     await expect.element(page.getByRole("link", { name: "Apps" })).toBeInTheDocument();
@@ -159,7 +159,7 @@ describe("DashboardNav collapsed icon rail (desktop)", () => {
   it("highlights the active route", async () => {
     routerState.activePath = "/dashboard/settings";
 
-    await render(<DashboardNav />);
+    await render(<ShellFixture />);
     await expect.element(page.getByTestId("dashboard-nav-settings")).toBeInTheDocument();
 
     const active: string = page.getByTestId("dashboard-nav-settings").element().className;
@@ -168,28 +168,28 @@ describe("DashboardNav collapsed icon rail (desktop)", () => {
   });
 });
 
-describe("DashboardNav desktop toggle", () => {
+describe("AppNav desktop toggle", () => {
   it("drops the labels when the rail collapses and restores them when it expands", async () => {
-    await render(<DashboardNav />);
+    await render(<ShellFixture />);
     await expect.element(page.getByTestId("dashboard-nav-settings")).toHaveTextContent("Settings");
 
-    useUiStore.getState().toggleNavCollapsed();
+    useNavStore.getState().toggleNavCollapsed();
 
     await expect
       .element(page.getByTestId("dashboard-nav"))
       .toHaveAttribute("data-nav-open", "false");
     expect(page.getByTestId("dashboard-nav-settings").element().textContent?.trim()).toBe("");
 
-    useUiStore.getState().toggleNavCollapsed();
+    useNavStore.getState().toggleNavCollapsed();
 
     await expect.element(page.getByTestId("dashboard-nav-settings")).toHaveTextContent("Settings");
   });
 
   it("keeps the rail mounted in both states so the toggle's aria-controls target survives", async () => {
-    await render(<DashboardNav />);
+    await render(<ShellFixture />);
     await expect.element(page.getByTestId("dashboard-nav")).toHaveAttribute("id", "dashboard-nav");
 
-    useUiStore.getState().toggleNavCollapsed();
+    useNavStore.getState().toggleNavCollapsed();
 
     await expect.element(page.getByTestId("dashboard-nav")).toHaveAttribute("id", "dashboard-nav");
   });

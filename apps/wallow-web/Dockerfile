@@ -25,6 +25,7 @@ WORKDIR /repo
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc tsconfig.base.json ./
 COPY packages/auth/package.json packages/auth/
 COPY packages/forms/package.json packages/forms/
+COPY packages/navigation/package.json packages/navigation/
 COPY packages/query/package.json packages/query/
 COPY packages/sdk/package.json packages/sdk/
 COPY packages/styles/package.json packages/styles/
@@ -51,6 +52,7 @@ RUN pnpm install --frozen-lockfile
 # fails there rather than minutes into an image build.
 COPY packages/auth packages/auth
 COPY packages/forms packages/forms
+COPY packages/navigation packages/navigation
 COPY packages/query packages/query
 COPY packages/sdk packages/sdk
 COPY packages/styles packages/styles

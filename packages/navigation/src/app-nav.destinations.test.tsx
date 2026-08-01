@@ -1,14 +1,15 @@
 import type { MouseEvent, ReactNode } from "react";
-import { page, userEvent } from "vitest/browser";
+import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DashboardNav } from "./DashboardNav";
-import { useUiStore } from "../stores/ui-store";
+import { AppShell } from "./app-shell";
+import { useNavStore } from "./nav-store";
+import { fixtureDestinations, ShellFixture } from "./shell.fixtures";
 
 /**
- * Destination parity: every nav destination stays reachable, stays named, stays
- * admin-gated and still signs out, in ALL THREE nav modes.
+ * Destination parity: every destination stays reachable, stays named and stays
+ * gated in ALL THREE nav modes, and the footer slot rides along with them.
  *
  * Every case runs the same assertions against a mode fixture rather than being
  * written per mode — a destination reachable only in the mode whose spec
@@ -38,14 +39,6 @@ vi.mock("@tanstack/react-router", () => ({
     </a>
   ),
 }));
-
-const logoutMock = vi.hoisted(() => vi.fn());
-
-// Spy on the SDK's `logout` (a real browser nav to `/bff/logout` in prod).
-vi.mock("@bc-solutions-coder/sdk", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@bc-solutions-coder/sdk")>();
-  return { ...actual, logout: logoutMock };
-});
 
 /** Widths on either side of the `md` (48rem) breakpoint the nav switches on. */
 const DESKTOP_VIEWPORT = [1280, 800] as const;
@@ -80,7 +73,7 @@ const modes: readonly NavMode[] = [
   },
 ];
 
-/** Every nav item, with the accessible name it must answer to in every mode. */
+/** Every nav row, with the accessible name it must answer to in every mode. */
 const navItems: ReadonlyArray<readonly [testid: string, label: string]> = [
   ["dashboard-nav-organizations", "Organizations"],
   ["dashboard-nav-apps", "Apps"],
@@ -89,10 +82,9 @@ const navItems: ReadonlyArray<readonly [testid: string, label: string]> = [
   ["dashboard-logout-link", "Sign Out"],
 ];
 
-describe.each(modes)("DashboardNav destinations — $name", (mode: NavMode) => {
+describe.each(modes)("AppNav destinations — $name", (mode: NavMode) => {
   beforeEach(async () => {
-    vi.clearAllMocks();
-    useUiStore.setState({
+    useNavStore.setState({
       isNavCollapsed: mode.isNavCollapsed,
       isMobileNavOpen: mode.isMobileNavOpen,
     });
@@ -100,7 +92,7 @@ describe.each(modes)("DashboardNav destinations — $name", (mode: NavMode) => {
   });
 
   it("reaches every destination by its accessible name", async () => {
-    await render(<DashboardNav />);
+    await render(<ShellFixture />);
 
     // By ROLE + NAME, not by testid: in the collapsed rail the name is the only
     // thing there is.
@@ -111,8 +103,8 @@ describe.each(modes)("DashboardNav destinations — $name", (mode: NavMode) => {
     await expect.element(page.getByRole("button", { name: "Sign Out" })).toBeInTheDocument();
   });
 
-  it("names every item from the shared icon-label map", async () => {
-    await render(<DashboardNav />);
+  it("names every row from the manifest entry that supplied it", async () => {
+    await render(<ShellFixture />);
 
     // A mode that dropped `aria-label` still passes a text-content assertion
     // wherever the label is also rendered.
@@ -121,8 +113,8 @@ describe.each(modes)("DashboardNav destinations — $name", (mode: NavMode) => {
     }
   });
 
-  it("hides Organizations from a non-admin without touching the other items", async () => {
-    await render(<DashboardNav isAdmin={false} />);
+  it("drops a gated destination without touching the other rows", async () => {
+    await render(<ShellFixture isAdmin={false} />);
     await expect.element(page.getByTestId("dashboard-nav-apps")).toBeInTheDocument();
 
     await expect.element(page.getByTestId("dashboard-nav-organizations")).not.toBeInTheDocument();
@@ -130,12 +122,21 @@ describe.each(modes)("DashboardNav destinations — $name", (mode: NavMode) => {
     await expect.element(page.getByRole("link", { name: "Inquiries" })).toBeInTheDocument();
     await expect.element(page.getByRole("button", { name: "Sign Out" })).toBeInTheDocument();
   });
+});
 
-  it("calls the BFF logout from the Sign Out control", async () => {
-    await render(<DashboardNav />);
+describe("AppNav with no gate supplied", () => {
+  beforeEach(async () => {
+    useNavStore.setState({ isNavCollapsed: false, isMobileNavOpen: false });
+    await page.viewport(...DESKTOP_VIEWPORT);
+  });
 
-    await userEvent.click(page.getByTestId("dashboard-logout-link"));
+  it("renders every destination, including the ones carrying a requirement", async () => {
+    // `can` is optional, and its absence must mean "everything is visible" —
+    // not "no requirement is satisfied", which would empty the rail for any
+    // consumer that has not wired an auth layer yet.
+    await render(<AppShell destinations={fixtureDestinations} />);
 
-    expect(logoutMock).toHaveBeenCalled();
+    await expect.element(page.getByTestId("dashboard-nav-organizations")).toBeInTheDocument();
+    await expect.element(page.getByTestId("dashboard-nav-apps")).toBeInTheDocument();
   });
 });

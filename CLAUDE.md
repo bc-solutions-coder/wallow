@@ -49,6 +49,7 @@ apply cleanly to a fresh database.
 | `packages/styles/`  | `@bc-solutions-coder/styles` — shared Tailwind v4 CSS entry + theme tokens emitted from `packages/styles/branding.json`                                                                 |
 | `packages/ui/`      | `@bc-solutions-coder/ui` — shared browser-only React component catalog (Base UI + CVA); see `packages/ui/CLAUDE.md`                                                         |
 | `packages/forms/`   | `@bc-solutions-coder/forms` — shared form-authoring layer (TanStack Form catalog + zod + RFC 7807 errors) bound to `@bc-solutions-coder/ui`; see `packages/forms/CLAUDE.md` |
+| `packages/navigation/` | `@bc-solutions-coder/navigation` — the application shell: collapsible desktop rail, mobile drawer, their controls, and the `useNavStore` singleton; see `packages/navigation/CLAUDE.md` |
 | `packages/query/`   | `@bc-solutions-coder/query` — the shared TanStack Query facade: re-exports react-query plus `createQueryClient`; see `packages/query/CLAUDE.md`                             |
 | `packages/auth/`    | `@bc-solutions-coder/auth` — shared authn/authz layer (current-user query + hook, `beforeLoad` primer, role/permission helpers, re-exported SDK guards)                     |
 | `packages/testing/` | `@bc-solutions-coder/testing` — shared vitest preset + browser-mode test utilities                                                                                          |
@@ -122,6 +123,13 @@ measurements behind them, are in `packages/lint/CLAUDE.md`. Read it before addin
   pre-bound field catalog, with every `data-testid` DERIVED from the shell's `testIdPrefix`.
   It consumes `@bc-solutions-coder/ui`; `ui` must never import it. Guide:
   `docs/development/forms.md`; contributor detail: **`packages/forms/CLAUDE.md`**.
+- **`packages/navigation`** — the app shell every signed-in screen sits inside. An app supplies
+  only what it alone can answer: `destinations` (the nav manifest), `can` (who may see each),
+  and the `header`/`footer` slots — which is what keeps the package free of an `sdk` or `auth`
+  edge, and why wallow-web's `DashboardLayout` is 36 lines. `useNavStore` is a zustand
+  singleton exported from exactly ONE entry; a second copy is a second store. Contributor
+  detail, including the `use-sync-external-store/shim` aliases a fork needs and why the testids
+  are a cross-package contract: **`packages/navigation/CLAUDE.md`**.
 - **`apps/wallow-web`** — runnable TanStack Start reference frontend demonstrating the
   full same-origin BFF flow. `pnpm --filter @bc-solutions-coder/wallow-web dev` (SSR + BFF)
   or `... start` (`node .output/server/index.mjs`, the Nitro bundle the E2E container runs).

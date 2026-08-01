@@ -1,10 +1,10 @@
 import { useSyncExternalStore } from "react";
 
 /**
- * `useIsDesktop` (Wallow-0byr.2) — whether the viewport is at or above Tailwind's
- * `md` breakpoint, subscribed at RUNTIME rather than expressed as a `md:` class.
+ * `useIsDesktop` — whether the viewport is at or above Tailwind's `md`
+ * breakpoint, subscribed at RUNTIME rather than expressed as a `md:` class.
  *
- * The dashboard nav does not merely restyle across the breakpoint, it renders
+ * The shell's nav does not merely restyle across the breakpoint, it renders
  * different things: at desktop widths a persistent rail, below them no rail at
  * all and an overlay drawer instead. A `hidden md:flex` cannot express that —
  * the rail would still be in the DOM (and in the tab order, and in the
@@ -15,17 +15,17 @@ import { useSyncExternalStore } from "react";
  * breakpoints, so this string and the `md:` prefix stay the same boundary.
  *
  * SSR: there is no viewport on the server, so the server snapshot answers
- * `undefined` — "no viewport has been observed yet" (Wallow-lrlm.6.3). It used
- * to claim desktop, which made every phone paint the desktop rail and then have
- * it yanked away a frame later; claiming mobile instead would only move that
- * flash onto laptops. Neither guess can be right, so the hook does not guess.
+ * `undefined` — "no viewport has been observed yet". It used to claim desktop,
+ * which made every phone paint the desktop rail and then have it yanked away a
+ * frame later; claiming mobile instead would only move that flash onto laptops.
+ * Neither guess can be right, so the hook does not guess.
  *
  * `useSyncExternalStore` consults `getServerSnapshot` during `renderToString`
  * AND for React's first hydration render, then re-reads the real query — so
  * `undefined` is exactly the window in which the client has not yet corrected
  * anything, and a consumer that sees it must render chrome that is honest at
- * either width (the dashboard shell hands that decision to a `md:` media query,
- * which resolves at first paint; JavaScript cannot). A fresh client mount never
+ * either width (the shell hands that decision to a `md:` media query, which
+ * resolves at first paint; JavaScript cannot). A fresh client mount never
  * observes `undefined`: it takes `getSnapshot` on its very first render.
  */
 const DESKTOP_QUERY = "(min-width: 48rem)";

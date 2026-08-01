@@ -3,11 +3,11 @@ import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DashboardNav } from "./DashboardNav";
-import { useUiStore } from "../stores/ui-store";
+import { useNavStore } from "./nav-store";
+import { ShellFixture } from "./shell.fixtures";
 
 /**
- * The dashboard sidebar's LIST semantics, in all three nav modes.
+ * The nav's LIST semantics, in all three modes.
  *
  * Four anchors dropped into a `<nav>` announce as four loose links, with no
  * count and no "3 of 4" position; a navigation menu announces one list of four
@@ -110,29 +110,29 @@ function expectListInNavigationLandmark(): void {
 }
 
 beforeEach(() => {
-  useUiStore.setState({ isNavCollapsed: false, isMobileNavOpen: false });
+  useNavStore.setState({ isNavCollapsed: false, isMobileNavOpen: false });
 });
 
-describe("DashboardNav expanded rail (catalog NavigationMenu)", () => {
+describe("AppNav expanded rail (catalog NavigationMenu)", () => {
   beforeEach(async () => {
     await page.viewport(...DESKTOP_VIEWPORT);
   });
 
   it("gathers every destination into one navigation list", async () => {
-    await render(<DashboardNav />);
+    await render(<ShellFixture />);
 
     await expectOneNavigationList();
   });
 
   it("keeps that list inside a navigation landmark", async () => {
-    await render(<DashboardNav />);
+    await render(<ShellFixture />);
     await expect.element(page.getByTestId("dashboard-nav-apps")).toBeInTheDocument();
 
     expectListInNavigationLandmark();
   });
 
-  it("drops the admin-gated destination from the list rather than emptying its item", async () => {
-    await render(<DashboardNav isAdmin={false} />);
+  it("drops a gated destination from the list rather than emptying its item", async () => {
+    await render(<ShellFixture isAdmin={false} />);
     await expect.element(page.getByTestId("dashboard-nav-apps")).toBeInTheDocument();
 
     // Gating removes a destination; the list must shrink with it, or a screen
@@ -146,20 +146,20 @@ describe("DashboardNav expanded rail (catalog NavigationMenu)", () => {
   });
 });
 
-describe("DashboardNav collapsed icon rail (catalog NavigationMenu)", () => {
+describe("AppNav collapsed icon rail (catalog NavigationMenu)", () => {
   beforeEach(async () => {
     await page.viewport(...DESKTOP_VIEWPORT);
-    useUiStore.setState({ isNavCollapsed: true });
+    useNavStore.setState({ isNavCollapsed: true });
   });
 
   it("gathers every destination into one navigation list", async () => {
-    await render(<DashboardNav />);
+    await render(<ShellFixture />);
 
     await expectOneNavigationList();
   });
 
   it("keeps the list semantics while the labels are gone", async () => {
-    await render(<DashboardNav />);
+    await render(<ShellFixture />);
     await expectOneNavigationList();
 
     // The icon rail renders no text and takes its names from `aria-label`;
@@ -171,21 +171,21 @@ describe("DashboardNav collapsed icon rail (catalog NavigationMenu)", () => {
   });
 });
 
-describe("DashboardNav mobile drawer (catalog NavigationMenu)", () => {
+describe("AppNav mobile drawer (catalog NavigationMenu)", () => {
   beforeEach(async () => {
     await page.viewport(...MOBILE_VIEWPORT);
-    useUiStore.setState({ isMobileNavOpen: true });
+    useNavStore.setState({ isMobileNavOpen: true });
   });
 
   it("gathers every destination into one navigation list", async () => {
-    await render(<DashboardNav />);
+    await render(<ShellFixture />);
     await expect.element(page.getByTestId("dashboard-nav-drawer")).toBeInTheDocument();
 
     await expectOneNavigationList();
   });
 
   it("keeps that list inside a navigation landmark", async () => {
-    await render(<DashboardNav />);
+    await render(<ShellFixture />);
     await expect.element(page.getByTestId("dashboard-nav-drawer")).toBeInTheDocument();
 
     expectListInNavigationLandmark();

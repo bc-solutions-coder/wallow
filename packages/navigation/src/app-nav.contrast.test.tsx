@@ -11,13 +11,13 @@ import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DashboardNav } from "./DashboardNav";
-import { useUiStore } from "../stores/ui-store";
+import { useNavStore } from "./nav-store";
+import { ShellFixture } from "./shell.fixtures";
 
 /**
- * MEASURED contrast for the dashboard sidebar, because a class string is blind
- * to what the browser paints. A row is a `NavigationMenu.Link`, so the DOM gets
- * `twMerge(navigationMenuLinkRecipe(), itemClass)`, and twMerge drops a class
+ * MEASURED contrast for the rail, because a class string is blind to what the
+ * browser paints. A row is a `NavigationMenu.Link`, so the DOM gets
+ * `twMerge(navigationMenuLinkRecipe(), navRowClass)`, and twMerge drops a class
  * only where the caller conflicts AT THE SAME VARIANT — the recipe's hover
  * colour survives an unmodified `text-sidebar-foreground` and can drop a hovered
  * label to 1.27:1 with the whole suite green.
@@ -63,7 +63,7 @@ const AA_TEXT = 4.5;
  * across tests in a file, so a row left hovered becomes the next case's "rest".
  */
 async function parkMouse(): Promise<void> {
-  await userEvent.hover(page.getByTestId("dashboard-nav-park").element());
+  await userEvent.hover(page.getByTestId("nav-park").element());
 }
 
 /** The rendered text colour of `element`, composited over the surface it sits on. */
@@ -100,24 +100,24 @@ function expectLegible(element: Element, surfaceRoot: Element, label: string): n
 
 beforeEach(() => {
   routerState.activePath = "";
-  useUiStore.setState({ isNavCollapsed: false, isMobileNavOpen: false });
+  useNavStore.setState({ isNavCollapsed: false, isMobileNavOpen: false });
 });
 
 /**
- * The nav plus a parking target for {@link parkMouse}, pinned top-right above
+ * The shell plus a parking target for {@link parkMouse}, pinned top-right above
  * everything: the drawer's backdrop covers the whole viewport, and Playwright's
  * actionability check retries to timeout on a covered element.
  */
 function NavUnderTest() {
   return (
     <>
-      <div data-testid="dashboard-nav-park" className="fixed top-0 right-0 z-50 size-8" />
-      <DashboardNav />
+      <div data-testid="nav-park" className="fixed top-0 right-0 z-50 size-8" />
+      <ShellFixture />
     </>
   );
 }
 
-describe("dashboard rail contrast (measured, not asserted by class name)", () => {
+describe("rail contrast (measured, not asserted by class name)", () => {
   beforeEach(async () => {
     await page.viewport(...DESKTOP_VIEWPORT);
   });
@@ -182,10 +182,10 @@ describe("dashboard rail contrast (measured, not asserted by class name)", () =>
   });
 });
 
-describe("dashboard drawer contrast", () => {
+describe("drawer contrast", () => {
   beforeEach(async () => {
     await page.viewport(...MOBILE_VIEWPORT);
-    useUiStore.setState({ isMobileNavOpen: true });
+    useNavStore.setState({ isMobileNavOpen: true });
   });
 
   it("paints the drawer on a real surface and keeps its labels legible", async () => {

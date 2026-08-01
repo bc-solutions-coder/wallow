@@ -84,7 +84,7 @@ apps/wallow-web/
 │   │   ├── lib/bff.server.ts       # createWallowBffServer() host the server routes call
 │   │   └── start.ts, router.tsx, styles.css, routeTree.gen.ts
 │   ├── features/<name>/            # organizations, apps, settings, mfa, inquiries
-│   └── shared/                     # components/, lib/, stores/, testing/
+│   └── shared/                     # components/, lib/, testing/
 ├── tsconfig.json
 ├── vite.config.ts
 ├── playwright.config.ts            # E2E config (data-testid selectors, port 3000)
@@ -162,12 +162,15 @@ and silently stops checking `features/` and `shared/`.
 | `@bc-solutions-coder/testing`   | no (`private`) | `.`, `./render`                                    | The `createVitestProjects` node + browser preset (`.`); the browser-mode `render` helper (`./render`)                                                                                                                                                                                                                                                                                                                                        |
 | `@bc-solutions-coder/query`      | no (`private`) | `.`                                                | The TanStack Query facade — every react-query symbol an app uses (`useQuery`, `useMutation`, `QueryClientProvider`, …) re-exported by reference, plus `createQueryClient`, the shared client factory. Only this package depends on `@tanstack/react-query`; apps never import it directly. See [Frontend State](frontend-state.md)                                                                                                            |
 | `@bc-solutions-coder/auth`       | no (`private`) | `.`                                                | The shared authn/authz layer — the canonical current-user query, `useCurrentUser`, the `ensureCurrentUser` `beforeLoad` primer, `hasRole`/`hasPermission`, and the SDK's route guards and claim helpers re-exported so an app's auth imports come from one package                                                                                                                                                                            |
+| `@bc-solutions-coder/navigation` | no (`private`) | `.`                                                | The application shell — `AppShell` (collapsible desktop rail, mobile drawer, and the controls that drive them) plus the `useNavStore` singleton. An app supplies only its `destinations` manifest, a `can` visibility predicate, and the `header`/`footer` slots. One entry, never a per-component catalog: a second export path for the store would be a second store                                                                        |
 
-`wallow-auth` and `wallow-web` both depend on all six as `workspace:*` runtime
+`wallow-auth` and `wallow-web` both depend on the first six as `workspace:*` runtime
 `dependencies` (no per-app `@tailwindcss/vite`, `tailwindcss`, or `vitest` preset
 of their own), plus `@bc-solutions-coder/forms` — see [Forms](forms.md) — which an app
 adds once it renders a form. Only the first five are core: `examples/minimal-app`
 renders no form and has no signed-in user, so it takes neither `forms` nor `auth`.
+`navigation` is narrower still — `wallow-auth`'s screens sit in its own `auth-layout.tsx`,
+so `wallow-web` is its only consumer today.
 Bootstrapping a new app is these steps.
 
 ### 1. Depend on the five core packages

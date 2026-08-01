@@ -1,28 +1,26 @@
 import {
   computedColor,
-  contrastRatio,
   effectiveBackground,
   isTransparent,
-  over,
   textContrast,
   type Rgba,
 } from "@bc-solutions-coder/testing/contrast";
 import type { MouseEvent, ReactNode } from "react";
-import { page, userEvent } from "vitest/browser";
+import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DashboardNav } from "./DashboardNav";
-import { useUiStore } from "../stores/ui-store";
+import { useNavStore } from "./nav-store";
+import { ShellFixture } from "./shell.fixtures";
 
 /**
- * What the three CATALOG components inside the dashboard rail actually paint.
+ * What the CATALOG components inside the rail actually paint.
  *
- * `ThemeToggle`, `NavigationMenu.Link` and `ErrorBanner` render inside a rail
- * that is dark in BOTH modes, and each defaults to the PAGE palette. Measuring
- * is the point — a class string cannot see what `twMerge` produced. The mode is
- * stamped on `document.documentElement`, since `@theme` declares each token on
- * `:root` alone and a wrapper element measures light mode twice.
+ * `ThemeToggle` and `NavigationMenu.Link` render inside a rail that is dark in
+ * BOTH modes, and each defaults to the PAGE palette. Measuring is the point — a
+ * class string cannot see what `twMerge` produced. The mode is stamped on
+ * `document.documentElement`, since `@theme` declares each token on `:root`
+ * alone and a wrapper element measures light mode twice.
  */
 
 const routerState = vi.hoisted(() => ({ activePath: "" }));
@@ -54,26 +52,15 @@ vi.mock("@tanstack/react-router", () => ({
   ),
 }));
 
-const logoutMock = vi.hoisted(() => vi.fn());
-
-// Rejecting `logout()` is the only way to render the in-rail ErrorBanner.
-vi.mock("@bc-solutions-coder/sdk", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@bc-solutions-coder/sdk")>();
-  return { ...actual, logout: logoutMock };
-});
-
 const DESKTOP_VIEWPORT = [1280, 800] as const;
 
 /** WCAG 2.1 AA for body-sized text — every subject here is `text-sm` or larger. */
 const AA_TEXT = 4.5;
 
-/** WCAG 2.1 AA for a non-text boundary: the banner's edge against the rail. */
-const AA_NON_TEXT = 3;
-
 const MODES: readonly string[] = ["light", "dark"];
 
 /**
- * The nav, a parking target for the mouse, and one probe per token needing a
+ * The shell, a parking target for the mouse, and one probe per token needing a
  * REFERENCE colour, so nothing here hard-codes a hex. The parking target is
  * pinned above everything because Playwright retries to timeout on a covered
  * element.
@@ -81,11 +68,11 @@ const MODES: readonly string[] = ["light", "dark"];
 function NavUnderTest() {
   return (
     <div>
-      <div data-testid="dashboard-nav-park" className="fixed top-0 right-0 z-50 size-8" />
+      <div data-testid="nav-park" className="fixed top-0 right-0 z-50 size-8" />
       <div data-testid="probe-secondary" className="bg-secondary size-4" />
       <div data-testid="probe-sidebar" className="bg-sidebar size-4" />
       <div data-testid="probe-sidebar-accent" className="bg-sidebar-accent size-4" />
-      <DashboardNav />
+      <ShellFixture />
     </div>
   );
 }
@@ -112,8 +99,7 @@ function expectThemed(color: Rgba, label: string): Rgba {
 
 beforeEach(async () => {
   routerState.activePath = "";
-  logoutMock.mockReset();
-  useUiStore.setState({ isNavCollapsed: false, isMobileNavOpen: false });
+  useNavStore.setState({ isNavCollapsed: false, isMobileNavOpen: false });
   await page.viewport(...DESKTOP_VIEWPORT);
 });
 
@@ -197,7 +183,7 @@ describe.each(MODES)("the theme toggle on the rail — %s mode", (mode: string) 
 /**
  * The theme's PAGE-surface colour tokens. None may reach a row on the rail — not
  * at rest, not behind a `hover:`, not behind a `data-[active]:`. `destructive`
- * is absent on purpose: the sign-out banner is an error wherever it renders.
+ * is absent on purpose: an error is an error wherever it renders.
  */
 const PAGE_SURFACE_TOKENS: ReadonlySet<string> = new Set([
   "background",
@@ -235,7 +221,7 @@ function pageSurfaceColorUtilities(classes: readonly string[]): readonly string[
   });
 }
 
-/** The four destination rows, which share one class string through `itemClass`. */
+/** The four destination rows, which share one class string through `navRowClass`. */
 const NAV_ROWS: readonly string[] = [
   "dashboard-nav-organizations",
   "dashboard-nav-apps",
@@ -253,7 +239,7 @@ describe("the nav rows' merged class attribute", () => {
    * to measure. `twMerge` drops a recipe class only when the caller conflicts
    * AT THE SAME VARIANT, so `data-[active]:bg-accent` rides along on all four
    * rows — a light block latent on a dark rail, waiting for a state that Base
-   * UI sets from its own `active` prop, which the app never passes.
+   * UI sets from its own `active` prop, which no consumer passes.
    */
   it("flags a page colour behind any variant prefix", () => {
     // `text-sm` and `text-sidebar-foreground` are the traps.
@@ -282,61 +268,5 @@ describe("the nav rows' merged class attribute", () => {
         `${testId} carries page-surface colour the consumer must out-merge by name`,
       ).toEqual([]);
     }
-  });
-});
-
-describe.each(MODES)("the sign-out error banner on the rail — %s mode", (mode: string) => {
-  beforeEach(() => {
-    applyMode(mode);
-  });
-
-  /** Render the rail and drive Sign Out into its failure state. */
-  async function failSignOut(): Promise<void> {
-    logoutMock.mockRejectedValue(new Error("sign out refused"));
-
-    await render(<NavUnderTest />);
-    await userEvent.click(page.getByTestId("dashboard-logout-link").element());
-    await expect.element(page.getByTestId("dashboard-logout-error")).toBeInTheDocument();
-    await userEvent.hover(page.getByTestId("dashboard-nav-park").element());
-  }
-
-  it("keeps its message legible against the rail", async () => {
-    await failSignOut();
-
-    const banner: Element = page.getByTestId("dashboard-logout-error").element();
-    const message: Element | null = banner.querySelector("p");
-
-    expect(message, "the banner rendered no message paragraph").not.toBeNull();
-    expectThemed(
-      computedColor(page.getByTestId("dashboard-nav").element(), "background-color"),
-      "the rail",
-    );
-
-    // `textContrast` composites both sides, so a `/10` fill is measured as what
-    // the eye sees rather than as its authored colour.
-    const ratio: number = textContrast(message as Element);
-
-    expect(ratio, `the banner's message measured ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(
-      AA_TEXT,
-    );
-  });
-
-  it("is visually delineated from the rail it sits on", async () => {
-    await failSignOut();
-
-    const banner: Element = page.getByTestId("dashboard-logout-error").element();
-    const rail: Rgba = expectThemed(
-      computedColor(page.getByTestId("dashboard-nav").element(), "background-color"),
-      "the rail",
-    );
-
-    // A banner may announce itself with a fill OR an edge, but with one of them.
-    const fill: number = contrastRatio(effectiveBackground(banner), rail);
-    const edge: number = contrastRatio(over(computedColor(banner, "border-top-color"), rail), rail);
-
-    expect(
-      Math.max(fill, edge),
-      `the banner's fill measured ${fill.toFixed(2)}:1 and its edge ${edge.toFixed(2)}:1`,
-    ).toBeGreaterThanOrEqual(AA_NON_TEXT);
   });
 });
