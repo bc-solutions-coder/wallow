@@ -269,14 +269,12 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
 
     /// <summary>
     /// Creates a user who can complete a password sign-in. Confirming the email is not optional:
-    /// the sign-in manager refuses an unconfirmed account outright. Any roles named must already
-    /// exist; they decide which scopes the authorize endpoint is willing to grant.
+    /// the sign-in manager refuses an unconfirmed account outright.
     /// </summary>
     public static async Task<Guid> CreateUserAsync(
         IServiceProvider services,
         string email,
-        string password,
-        IEnumerable<string>? roles = null)
+        string password)
     {
         ArgumentNullException.ThrowIfNull(services);
 
@@ -292,18 +290,26 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
                 $"Failed to create '{email}': {string.Join("; ", result.Errors.Select(e => e.Description))}");
         }
 
-        foreach (string role in roles ?? [])
-        {
-            IdentityResult assignment = await users.AddToRoleAsync(user, role);
-            if (!assignment.Succeeded)
-            {
-                throw new InvalidOperationException(
-                    $"Failed to grant '{email}' the '{role}' role: "
-                    + string.Join("; ", assignment.Errors.Select(e => e.Description)));
-            }
-        }
-
         return user.Id;
+    }
+
+    /// <summary>
+    /// Enrolls a user in an organization under a named role. This membership, not the global role
+    /// store, decides which scopes the authorize endpoint will grant: the org's creator is already
+    /// enrolled as an admin, so a test that needs a plain member has to give the org someone else
+    /// to own it.
+    /// </summary>
+    public static async Task EnrollMemberAsync(
+        IServiceProvider services,
+        Guid organizationId,
+        Guid userId,
+        string roleName,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        IOrganizationService organizations = services.GetRequiredService<IOrganizationService>();
+        await organizations.AddMemberAsync(organizationId, userId, roleName, ct);
     }
 
     /// <summary>Returns every value a JWT carries for the given claim, flattening array claims.</summary>

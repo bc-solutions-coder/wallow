@@ -112,21 +112,35 @@ public sealed class ScopeNarrowingTests(WallowApiFactory factory)
             .SelectMany(value => value.Split(' ', StringSplitOptions.RemoveEmptyEntries))
             .ToList();
 
+    /// <summary>
+    /// The caller must be a plain member, so a second user owns the organization: creating one
+    /// enrolls its creator as an admin, and an admin reaches every scope under test.
+    /// </summary>
     private async Task<(string Email, string ClientId)> SeedAsync()
     {
         string suffix = Guid.NewGuid().ToString("N");
         string email = $"narrowing-{suffix}@wallow.dev";
 
-        Guid userId = await AuthorizationCodeFlowHarness.CreateUserAsync(
+        Guid ownerId = await AuthorizationCodeFlowHarness.CreateUserAsync(
             ScopedServices,
-            email,
-            Password,
-            ["user"]);
+            $"narrowing-owner-{suffix}@wallow.dev",
+            Password);
 
         Guid organizationId = await AuthorizationCodeFlowHarness.CreateOrganizationAsync(
             ScopedServices,
             $"Narrowing Org {suffix}",
-            userId);
+            ownerId);
+
+        Guid userId = await AuthorizationCodeFlowHarness.CreateUserAsync(
+            ScopedServices,
+            email,
+            Password);
+
+        await AuthorizationCodeFlowHarness.EnrollMemberAsync(
+            ScopedServices,
+            organizationId,
+            userId,
+            "user");
 
         string clientId = $"wallow-narrowing-{suffix}";
         await AuthorizationCodeFlowHarness.RegisterClientAsync(

@@ -30,6 +30,7 @@ public sealed partial class AuthorizationController(
     IScopeSubsetValidator scopeSubsetValidator,
     IClientTenantResolver clientTenantResolver,
     IOrganizationService organizationService,
+    IMembershipRoleResolver membershipRoleResolver,
     ILogger<AuthorizationController> logger) : Controller
 {
     private const string FirstPartyClientPrefix = "wallow-";
@@ -93,13 +94,45 @@ public sealed partial class AuthorizationController(
 
         LogApplicationResolved(clientId, isFirstParty);
 
+        // The organization has to be settled before anything else, because everything after it
+        // is org-scoped: which roles the caller holds, which scopes those roles reach, and
+        // whether they may sign in here at all. It also means a non-member is told so before
+        // being walked through a consent screen for an app they cannot use.
+        ClientTenantInfo? tenantInfo = request.ClientId is null
+            ? null
+            : await clientTenantResolver.ResolveAsync(request.ClientId);
+
+        // A client bound to no organization would otherwise yield an org-free token, and a
+        // principal naming no organization is exactly what PermissionExpansionMiddleware treats
+        // as cross-tenant — so the token would carry scopes with nowhere to spend them, until
+        // some downstream tenant resolution supplied a home for them.
+        if (tenantInfo is null || tenantInfo.TenantId == Guid.Empty)
+        {
+            LogClientHasNoOrganization(clientId);
+            return Redirect($"{GetRequiredAuthUrl()}/error?reason=client_not_bound_to_organization");
+        }
+
+        IReadOnlyList<OrganizationDto> userOrgs = await organizationService.GetUserOrganizationsAsync(Guid.Parse(userId));
+        bool isMember = userOrgs.Any(o => o.Id == tenantInfo.TenantId);
+        LogTenantMembershipCheck(userId, tenantInfo.TenantId, isMember);
+        if (!isMember)
+        {
+            return Redirect($"{GetRequiredAuthUrl()}/error?reason=not_a_member");
+        }
+
+        // Roles are granted by an organization and carry no authority outside it, so this is the
+        // only role set that may decide anything here: the scopes granted below and the role
+        // claims stamped into the token both read it.
+        IReadOnlyList<string> roles =
+            await membershipRoleResolver.GetRoleNamesAsync(Guid.Parse(userId), tenantInfo.TenantId);
+
         // Two independent scope gates, both before any ticket is issued or authorization
         // persisted. Without them a signed-in user can append privileged scopes to their own
         // authorize request and PermissionExpansionMiddleware expands them into permissions.
         // Everything downstream — consent, the stored authorization, the token — runs on the
         // granted set, never on what was asked for.
         (IActionResult? scopeRejection, ImmutableArray<string> grantedScopes) =
-            await ResolveGrantedScopesAsync(request, user, userId, clientId);
+            await ResolveGrantedScopesAsync(request, roles, userId, clientId);
         if (scopeRejection is not null)
         {
             return scopeRejection;
@@ -186,27 +219,7 @@ public sealed partial class AuthorizationController(
             }
         }
 
-        // Resolve tenant from client_id for org-scoped claims
-        ClientTenantInfo? tenantInfo = null;
-        if (request.ClientId is not null)
-        {
-            tenantInfo = await clientTenantResolver.ResolveAsync(request.ClientId);
-        }
-
-        // Verify user is a member of the resolved tenant before issuing tokens
-        if (tenantInfo is not null)
-        {
-            IReadOnlyList<OrganizationDto> userOrgs = await organizationService.GetUserOrganizationsAsync(Guid.Parse(userId));
-            bool isMember = userOrgs.Any(o => o.Id == tenantInfo.TenantId);
-            LogTenantMembershipCheck(userId, tenantInfo.TenantId, isMember);
-            if (!isMember)
-            {
-                string authUrl = GetRequiredAuthUrl();
-                return Redirect($"{authUrl}/error?reason=not_a_member");
-            }
-        }
-
-        ClaimsIdentity identity = await BuildClaimsIdentityAsync(user, userId, grantedScopes, tenantInfo);
+        ClaimsIdentity identity = await BuildClaimsIdentityAsync(user, userId, roles, grantedScopes, tenantInfo);
 
         string allScopes = string.Join(" ", grantedScopes);
         LogIssuingAuthorizationCode(userId, clientId, allScopes);
@@ -237,7 +250,11 @@ public sealed partial class AuthorizationController(
     }
 
     private async Task<ClaimsIdentity> BuildClaimsIdentityAsync(
-        WallowUser user, string userId, ImmutableArray<string> grantedScopes, ClientTenantInfo? tenantInfo)
+        WallowUser user,
+        string userId,
+        IReadOnlyList<string> roles,
+        ImmutableArray<string> grantedScopes,
+        ClientTenantInfo tenantInfo)
     {
         ClaimsIdentity identity = new(OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
 
@@ -255,7 +272,6 @@ public sealed partial class AuthorizationController(
             identity.AddClaim(Claims.Email, email);
         }
 
-        IList<string> roles = await userManager.GetRolesAsync(user);
         foreach (string role in roles)
         {
             identity.AddClaim(Claims.Role, role);
@@ -275,13 +291,10 @@ public sealed partial class AuthorizationController(
             identity.AddClaim(familyName);
         }
 
-        if (tenantInfo is not null)
+        identity.AddClaim("org_id", tenantInfo.TenantId.ToString());
+        if (tenantInfo.TenantName is not null)
         {
-            identity.AddClaim("org_id", tenantInfo.TenantId.ToString());
-            if (tenantInfo.TenantName is not null)
-            {
-                identity.AddClaim("org_name", tenantInfo.TenantName);
-            }
+            identity.AddClaim("org_name", tenantInfo.TenantName);
         }
 
         identity.SetScopes(grantedScopes);
@@ -303,11 +316,11 @@ public sealed partial class AuthorizationController(
     /// this one refuses the whole request loudly rather than quietly dropping the scope.
     /// </para>
     /// <para>
-    /// Gate two asks whether the caller's own roles carry each scope's permission, and narrows
-    /// instead of refusing: OAuth already lets a server issue fewer scopes than were asked for,
-    /// and an app requesting the superset it supports for any user must still work for the users
-    /// who only qualify for part of it. Scopes that map to no permission (openid, profile, email,
-    /// offline_access, roles) are never role-gated.
+    /// Gate two asks whether the roles the caller holds IN THIS ORGANIZATION carry each scope's
+    /// permission, and narrows instead of refusing: OAuth already lets a server issue fewer
+    /// scopes than were asked for, and an app requesting the superset it supports for any user
+    /// must still work for the users who only qualify for part of it. Scopes that map to no
+    /// permission (openid, profile, email, offline_access, roles) are never role-gated.
     /// </para>
     /// </summary>
     /// <returns>
@@ -315,7 +328,7 @@ public sealed partial class AuthorizationController(
     /// set of scopes, which is what every downstream consumer must use in place of the request's.
     /// </returns>
     private async Task<(IActionResult? Rejection, ImmutableArray<string> GrantedScopes)> ResolveGrantedScopesAsync(
-        OpenIddictRequest request, WallowUser user, string userId, string? clientId)
+        OpenIddictRequest request, IReadOnlyList<string> roles, string userId, string? clientId)
     {
         ImmutableArray<string> requestedScopes = request.GetScopes();
 
@@ -330,7 +343,6 @@ public sealed partial class AuthorizationController(
                 []);
         }
 
-        IList<string> roles = await userManager.GetRolesAsync(user);
         HashSet<string> grantedPermissions =
             new(RolePermissionMapping.GetPermissions(roles), StringComparer.OrdinalIgnoreCase);
 
@@ -405,6 +417,9 @@ public sealed partial class AuthorizationController(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "OIDC rejected scopes not registered for client {ClientId}: {Reason}")]
     private partial void LogScopesNotRegisteredForClient(string? clientId, string? reason);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "OIDC refused authorize for client {ClientId}: the client is bound to no organization")]
+    private partial void LogClientHasNoOrganization(string? clientId);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "OIDC narrowed scopes beyond caller role: userId={UserId}, clientId={ClientId}, dropped={DroppedScopes}, granted={GrantedScopes}")]
     private partial void LogScopesNarrowed(string userId, string? clientId, string droppedScopes, string grantedScopes);

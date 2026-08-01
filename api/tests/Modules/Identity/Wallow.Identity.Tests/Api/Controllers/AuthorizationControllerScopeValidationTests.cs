@@ -7,6 +7,7 @@ using OpenIddict.Abstractions;
 using OpenIddict.Server;
 using OpenIddict.Server.AspNetCore;
 using Wallow.Identity.Api.Controllers;
+using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Shared.Contracts.Identity;
@@ -24,11 +25,13 @@ namespace Wallow.Identity.Tests.Api.Controllers;
 /// will faithfully expand those scopes into permissions — a straight privilege escalation.
 /// The two gates fail differently: a scope the OIDC client is not registered for
 /// (<see cref="IScopeSubsetValidator"/>) refuses the request, while a scope the caller's role
-/// does not cover is dropped from the grant and the rest is issued.
+/// does not cover is dropped from the grant and the rest is issued. The roles in question are
+/// the ones the client's own organization grants, never the caller's global role rows.
 /// </summary>
 public sealed class AuthorizationControllerScopeValidationTests : IDisposable
 {
     private static readonly string _testUserId = Guid.NewGuid().ToString();
+    private static readonly Guid _testOrganizationId = Guid.NewGuid();
     private const string FirstPartyClientId = "wallow-web";
     private const string ThirdPartyClientId = "partner-portal";
     private const string ApplicationId = "app-id-123";
@@ -39,6 +42,7 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
     private readonly IScopeSubsetValidator _scopeSubsetValidator;
     private readonly IClientTenantResolver _clientTenantResolver;
     private readonly IOrganizationService _organizationService;
+    private readonly IMembershipRoleResolver _membershipRoleResolver;
     private readonly AuthorizationController _controller;
 
     public AuthorizationControllerScopeValidationTests()
@@ -54,6 +58,7 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
         _authorizationManager = Substitute.For<IOpenIddictAuthorizationManager>();
         _clientTenantResolver = Substitute.For<IClientTenantResolver>();
         _organizationService = Substitute.For<IOrganizationService>();
+        _membershipRoleResolver = Substitute.For<IMembershipRoleResolver>();
 
         // Default: the client is registered for whatever it asks for, so each test
         // exercises only the gate it is about.
@@ -70,6 +75,7 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
             _scopeSubsetValidator,
             _clientTenantResolver,
             _organizationService,
+            _membershipRoleResolver,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<AuthorizationController>.Instance);
     }
 
@@ -262,7 +268,6 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
         _userManager.FindByIdAsync(_testUserId).Returns(wallowUser);
         _userManager.GetUserNameAsync(wallowUser).Returns("testuser");
         _userManager.GetEmailAsync(wallowUser).Returns("test@example.com");
-        _userManager.GetRolesAsync(wallowUser).Returns(roles);
         _userManager.GetClaimsAsync(wallowUser).Returns(new List<Claim>());
 
         object application = new();
@@ -277,7 +282,18 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
             .Returns(Empty());
 
         _clientTenantResolver.ResolveAsync(clientId, Arg.Any<CancellationToken>())
-            .Returns((ClientTenantInfo?)null);
+            .Returns(new ClientTenantInfo(_testOrganizationId, "Test Org"));
+
+        _organizationService.GetUserOrganizationsAsync(
+                Guid.Parse(_testUserId), Arg.Any<CancellationToken>())
+            .Returns<IReadOnlyList<OrganizationDto>>(
+                [new OrganizationDto(_testOrganizationId, "Test Org", null, 1)]);
+
+        // The only roles that decide anything here are the ones this organization grants;
+        // whatever AspNetUserRoles holds globally is not consulted.
+        _membershipRoleResolver.GetRoleNamesAsync(
+                Guid.Parse(_testUserId), _testOrganizationId, Arg.Any<CancellationToken>())
+            .Returns<IReadOnlyList<string>>([.. roles]);
     }
 
     private static async IAsyncEnumerable<object> Empty()
