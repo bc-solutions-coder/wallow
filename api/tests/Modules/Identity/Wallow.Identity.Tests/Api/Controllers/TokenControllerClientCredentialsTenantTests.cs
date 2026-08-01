@@ -10,6 +10,7 @@ using OpenIddict.Abstractions;
 using OpenIddict.Server;
 using OpenIddict.Server.AspNetCore;
 using Wallow.Identity.Api.Controllers;
+using Wallow.Identity.Application.Helpers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using static OpenIddict.Abstractions.OpenIddictConstants;
@@ -25,10 +26,10 @@ namespace Wallow.Identity.Tests.Api.Controllers;
 public sealed class TokenControllerClientCredentialsTenantTests : IDisposable
 {
     /// <summary>
-    /// The OpenIddict application property the tenant must come from — the sibling of
-    /// <c>wallow:is_operator</c>, which the same handler already resolves this way.
+    /// The OpenIddict application property the tenant must come from, taken from the class that
+    /// also writes it: a second spelling here would assert a key nothing ever sets.
     /// </summary>
-    private const string TenantPropertyName = "wallow:tenant_id";
+    private const string TenantPropertyName = ClientApplicationProperties.TenantId;
 
     /// <summary>
     /// The one spelling <c>ClaimsPrincipalExtensions.GetTenantId</c> reads, and therefore the one

@@ -21,7 +21,6 @@ public sealed class OrganizationServiceTests : IDisposable
     private readonly MembershipRepository _membershipRepository;
     private readonly IdentityDbContext _dbContext;
     private readonly IMessageBus _messageBus;
-    private readonly ITenantContext _tenantContext;
     private readonly OrganizationService _sut;
     private readonly Guid _tenantId = Guid.NewGuid();
     private readonly TenantContext _tenantContextInstance;
@@ -30,7 +29,6 @@ public sealed class OrganizationServiceTests : IDisposable
     {
         _tenantContextInstance = new TenantContext();
         _tenantContextInstance.SetTenant(new TenantId(_tenantId));
-        _tenantContext = _tenantContextInstance;
 
         DbContextOptions<IdentityDbContext> options = new DbContextOptionsBuilder<IdentityDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
@@ -51,7 +49,6 @@ public sealed class OrganizationServiceTests : IDisposable
             _membershipRepository,
             _dbContext,
             _messageBus,
-            _tenantContext,
             TimeProvider.System,
             NullLogger<OrganizationService>.Instance);
     }
@@ -103,7 +100,7 @@ public sealed class OrganizationServiceTests : IDisposable
             e.Name == "Test Org" &&
             e.Domain == "test.com" &&
             e.CreatorEmail == "admin@test.com" &&
-            e.TenantId == _tenantId));
+            e.TenantId == result));
     }
 
     [Fact]
@@ -220,7 +217,7 @@ public sealed class OrganizationServiceTests : IDisposable
         await _messageBus.Received(1).PublishAsync(Arg.Is<OrganizationMemberAddedEvent>(e =>
             e.OrganizationId == orgId &&
             e.UserId == userId &&
-            e.TenantId == _tenantId));
+            e.TenantId == orgId));
     }
 
     [Fact]
@@ -256,7 +253,7 @@ public sealed class OrganizationServiceTests : IDisposable
         await _messageBus.Received(1).PublishAsync(Arg.Is<OrganizationMemberRemovedEvent>(e =>
             e.OrganizationId == orgId &&
             e.UserId == userId &&
-            e.TenantId == _tenantId));
+            e.TenantId == orgId));
     }
 
     [Fact]

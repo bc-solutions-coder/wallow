@@ -49,7 +49,12 @@ public sealed class Invitation : AggregateRoot<InvitationId>, ITenantScoped
                 "Invitation email cannot be empty");
         }
 
-        return new Invitation(tenantId, email, expiresAt, createdByUserId, timeProvider);
+        return new Invitation(
+            TenantScope.Require(tenantId, nameof(Invitation)),
+            email,
+            expiresAt,
+            createdByUserId,
+            timeProvider);
     }
 
     public void Accept(Guid userId, TimeProvider timeProvider)

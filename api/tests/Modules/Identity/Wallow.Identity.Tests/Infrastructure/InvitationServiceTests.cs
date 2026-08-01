@@ -35,7 +35,7 @@ public sealed class InvitationServiceTests : IDisposable
         IDataProtectionProvider dp = DataProtectionProvider.Create("test");
         _dbContext = new IdentityDbContext(opts, dp);
         _dbContext.SetTenant(new TenantId(_tenantId));
-        _sut = new InvitationService(_invRepo, _messageBus, tc, _tp, _dbContext);
+        _sut = new InvitationService(_invRepo, _messageBus, _tp, _dbContext);
     }
 
     public void Dispose() { _dbContext.Dispose(); }

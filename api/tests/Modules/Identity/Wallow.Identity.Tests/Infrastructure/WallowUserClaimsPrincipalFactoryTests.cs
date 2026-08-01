@@ -7,9 +7,9 @@ using Wallow.Identity.Infrastructure.Services;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// What the auth cookie is allowed to carry. A role is granted by an organization and the cookie
-/// names none, so whatever AspNetUserRoles holds must not reach the principal: the cookie feeds
-/// the exchange-ticket flow, and a role claim on it becomes authority in every organization.
+/// What the auth cookie is allowed to carry: a person, and nothing organization-scoped. The cookie
+/// feeds the exchange-ticket flow, so a role claim or an org_id on it becomes authority in an
+/// organization nobody chose. Both are resolved per organization when a token is issued.
 /// </summary>
 public sealed class WallowUserClaimsPrincipalFactoryTests
 {
@@ -44,20 +44,9 @@ public sealed class WallowUserClaimsPrincipalFactoryTests
     }
 
     [Fact]
-    public async Task CreateAsync_ForAUserWithAnOrganization_StampsOrgId()
+    public async Task CreateAsync_ForAUserWithAnOrganization_StampsNoOrgId()
     {
-        Guid organizationId = Guid.NewGuid();
-        WallowUser user = ArrangeUser(organizationId);
-
-        ClaimsPrincipal principal = await _sut.CreateAsync(user);
-
-        principal.FindFirst("org_id")?.Value.Should().Be(organizationId.ToString());
-    }
-
-    [Fact]
-    public async Task CreateAsync_ForAUserWithNoOrganization_StampsNoOrgId()
-    {
-        WallowUser user = ArrangeUser(Guid.Empty);
+        WallowUser user = ArrangeUser(Guid.NewGuid());
 
         ClaimsPrincipal principal = await _sut.CreateAsync(user);
 

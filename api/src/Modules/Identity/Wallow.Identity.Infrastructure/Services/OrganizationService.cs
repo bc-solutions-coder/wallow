@@ -8,7 +8,7 @@ using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Shared.Contracts.Identity.Events;
 using Wallow.Shared.Kernel.Domain;
-using Wallow.Shared.Kernel.MultiTenancy;
+using Wallow.Shared.Kernel.Identity;
 using Wolverine;
 
 namespace Wallow.Identity.Infrastructure.Services;
@@ -18,7 +18,6 @@ public sealed partial class OrganizationService(
     IMembershipRepository membershipRepository,
     IdentityDbContext dbContext,
     IMessageBus messageBus,
-    ITenantContext tenantContext,
     TimeProvider timeProvider,
     ILogger<OrganizationService> logger) : IOrganizationService
 {
@@ -38,7 +37,7 @@ public sealed partial class OrganizationService(
         Guid createdByUserId = creatorUserId ?? Guid.Empty;
 
         Organization organization = Organization.Create(
-            tenantContext.TenantId,
+            default,
             name,
             slug,
             createdByUserId,
@@ -59,9 +58,11 @@ public sealed partial class OrganizationService(
         await organizationRepository.SaveChangesAsync(ct);
         await membershipRepository.SaveChangesAsync(ct);
 
+        // The settings belong to the new organization, which is its own tenant. Reading the
+        // caller's ambient tenant here stamped them onto whoever happened to be creating it.
         OrganizationSettings defaultSettings = OrganizationSettings.Create(
             organization.Id,
-            tenantContext.TenantId,
+            organization.TenantId,
             requireMfa: false,
             allowPasswordlessLogin: true,
             mfaGracePeriodDays: 7,
@@ -74,7 +75,7 @@ public sealed partial class OrganizationService(
         await messageBus.PublishAsync(new OrganizationCreatedEvent
         {
             OrganizationId = organization.Id.Value,
-            TenantId = tenantContext.TenantId.Value,
+            TenantId = organization.TenantId.Value,
             Name = name,
             Domain = domain,
             CreatorEmail = creatorEmail ?? string.Empty
@@ -145,7 +146,7 @@ public sealed partial class OrganizationService(
         await messageBus.PublishAsync(new OrganizationMemberAddedEvent
         {
             OrganizationId = orgId,
-            TenantId = tenantContext.TenantId.Value,
+            TenantId = orgId,
             UserId = userId,
             Email = email
         });
@@ -182,7 +183,7 @@ public sealed partial class OrganizationService(
         await messageBus.PublishAsync(new OrganizationMemberRemovedEvent
         {
             OrganizationId = orgId,
-            TenantId = tenantContext.TenantId.Value,
+            TenantId = orgId,
             UserId = userId,
             Email = email
         });
@@ -262,7 +263,7 @@ public sealed partial class OrganizationService(
         await messageBus.PublishAsync(new OrganizationArchivedEvent
         {
             OrganizationId = organizationId,
-            TenantId = tenantContext.TenantId.Value,
+            TenantId = organizationId,
             ArchivedBy = actorId
         });
 
@@ -287,7 +288,7 @@ public sealed partial class OrganizationService(
         await messageBus.PublishAsync(new OrganizationReactivatedEvent
         {
             OrganizationId = organizationId,
-            TenantId = tenantContext.TenantId.Value,
+            TenantId = organizationId,
             ReactivatedBy = actorId
         });
 
@@ -326,7 +327,7 @@ public sealed partial class OrganizationService(
         await messageBus.PublishAsync(new OrganizationDeletedEvent
         {
             OrganizationId = organizationId,
-            TenantId = tenantContext.TenantId.Value,
+            TenantId = organizationId,
             Name = orgName
         });
 
@@ -355,8 +356,8 @@ public sealed partial class OrganizationService(
     {
         OrganizationId orgId = OrganizationId.Create(organizationId);
 
-        // Use IgnoreQueryFilters to bypass tenant filter — settings may exist from org creation
-        // under a different tenant context, and the unique constraint on organization_id is global.
+        // The unique constraint on organization_id is global, so the lookup has to see rows the
+        // tenant filter would hide or the insert below races it.
         // AsTracking ensures EF Core detects mutations even though the DbContext defaults to NoTracking.
         OrganizationSettings? settings = await dbContext.OrganizationSettings
             .AsTracking()
@@ -367,7 +368,7 @@ public sealed partial class OrganizationService(
         {
             settings = OrganizationSettings.Create(
                 orgId,
-                tenantContext.TenantId,
+                TenantId.Create(organizationId),
                 requireMfa,
                 allowPasswordlessLogin,
                 mfaGracePeriodDays,
@@ -412,7 +413,7 @@ public sealed partial class OrganizationService(
         await messageBus.PublishAsync(new OrganizationSettingsUpdatedEvent
         {
             OrganizationId = organizationId,
-            TenantId = tenantContext.TenantId.Value,
+            TenantId = organizationId,
             RequireMfa = requireMfa,
             AllowPasswordlessLogin = allowPasswordlessLogin,
             MfaGracePeriodDays = mfaGracePeriodDays
@@ -450,7 +451,7 @@ public sealed partial class OrganizationService(
         {
             branding = OrganizationBranding.Create(
                 orgId,
-                tenantContext.TenantId,
+                TenantId.Create(organizationId),
                 logoUrl,
                 primaryColor,
                 null,

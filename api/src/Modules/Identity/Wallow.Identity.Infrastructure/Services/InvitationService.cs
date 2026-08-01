@@ -6,7 +6,7 @@ using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Shared.Contracts.Identity.Events;
 using Wallow.Shared.Kernel.Domain;
-using Wallow.Shared.Kernel.MultiTenancy;
+using Wallow.Shared.Kernel.Identity;
 using Wolverine;
 
 namespace Wallow.Identity.Infrastructure.Services;
@@ -14,7 +14,6 @@ namespace Wallow.Identity.Infrastructure.Services;
 public sealed class InvitationService(
     IInvitationRepository invitationRepository,
     IMessageBus messageBus,
-    ITenantContext tenantContext,
     TimeProvider timeProvider,
     IdentityDbContext dbContext) : IInvitationService
 {
@@ -23,7 +22,7 @@ public sealed class InvitationService(
         DateTimeOffset expiresAt = timeProvider.GetUtcNow().AddDays(7);
 
         Invitation invitation = Invitation.Create(
-            tenantContext.TenantId,
+            TenantId.Create(tenantId),
             email,
             expiresAt,
             createdByUserId,
@@ -35,7 +34,7 @@ public sealed class InvitationService(
         await messageBus.PublishAsync(new InvitationCreatedEvent
         {
             InvitationId = invitation.Id.Value,
-            TenantId = tenantContext.TenantId.Value,
+            TenantId = invitation.TenantId.Value,
             Email = email,
             Token = invitation.Token,
             ExpiresAt = expiresAt

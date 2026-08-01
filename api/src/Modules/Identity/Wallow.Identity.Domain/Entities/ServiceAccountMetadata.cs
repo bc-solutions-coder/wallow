@@ -93,7 +93,7 @@ public sealed class ServiceAccountMetadata : AuditableEntity<ServiceAccountMetad
         }
 
         return new ServiceAccountMetadata(
-            tenantId,
+            TenantScope.Require(tenantId, nameof(ServiceAccountMetadata)),
             clientId,
             name,
             description,

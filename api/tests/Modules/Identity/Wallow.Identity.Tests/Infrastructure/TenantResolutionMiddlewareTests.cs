@@ -62,9 +62,7 @@ public class TenantResolutionMiddlewareTests
         Guid overrideId = Guid.NewGuid();
 
         // The gate is the non-assignable global-admin claim, not the "admin" role: the role is
-        // handed out inside a tenant, so trusting it would let a tenant admin reach other
-        // tenants (Wallow-pu6a.1.7). TenantResolutionMiddlewareGlobalAdminTests covers the
-        // rejection side.
+        // handed out inside a tenant, so trusting it would let a tenant admin reach other tenants.
         DefaultHttpContext context = CreateAuthenticatedContext(
             new Claim("org_id", orgId.ToString()),
             new Claim(ClaimsPrincipalExtensions.GlobalAdminClaimType, "true"));

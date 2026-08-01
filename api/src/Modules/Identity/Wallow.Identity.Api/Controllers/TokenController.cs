@@ -11,10 +11,10 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Logging;
 using OpenIddict.Abstractions;
 using OpenIddict.Server.AspNetCore;
+using Wallow.Identity.Application.Helpers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using static OpenIddict.Abstractions.OpenIddictConstants;
-
 // Aliased rather than imported: the namespace's GetScopes extension collides with OpenIddict's.
 using WallowClaims = Wallow.Shared.Kernel.Extensions.ClaimsPrincipalExtensions;
 
@@ -31,20 +31,6 @@ public sealed partial class TokenController(
     IMembershipRoleResolver membershipRoleResolver,
     ILogger<TokenController> logger) : Controller
 {
-    /// <summary>
-    /// OpenIddict application property marking a client as a platform operator. It is set on the
-    /// application record itself, never derived from the client_id, so a tenant cannot grant itself
-    /// cross-tenant access by choosing a service account name.
-    /// </summary>
-    private const string OperatorPropertyName = "wallow:is_operator";
-
-    /// <summary>
-    /// OpenIddict application property naming the tenant a service-account client belongs to.
-    /// Read for the same reason as <see cref="OperatorPropertyName"/>: the client_id is chosen by
-    /// whoever registered the account, so it cannot be an authorization input.
-    /// </summary>
-    private const string TenantPropertyName = "wallow:tenant_id";
-
     /// <summary>
     /// The resource every issued access token is restricted to; OpenIddict turns the principal's
     /// resources into the token's aud claim. Deliberately spelled out here and again in the
@@ -188,7 +174,7 @@ public sealed partial class TokenController(
         {
             ImmutableDictionary<string, JsonElement> properties = await GetApplicationPropertiesAsync(clientId);
 
-            if (properties.TryGetValue(TenantPropertyName, out JsonElement tenant)
+            if (properties.TryGetValue(ClientApplicationProperties.TenantId, out JsonElement tenant)
                 && tenant.ValueKind == JsonValueKind.String
                 && tenant.GetString() is { Length: > 0 } tenantId)
             {
@@ -197,7 +183,7 @@ public sealed partial class TokenController(
                 identity.SetClaim("org_id", tenantId);
             }
 
-            if (properties.TryGetValue(OperatorPropertyName, out JsonElement isOperator)
+            if (properties.TryGetValue(ClientApplicationProperties.IsOperator, out JsonElement isOperator)
                 && isOperator.ValueKind == JsonValueKind.True)
             {
                 identity.SetClaim(WallowClaims.OperatorClaimType, "true");

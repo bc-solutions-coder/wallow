@@ -45,7 +45,7 @@ public sealed class OrganizationBranding : AuditableEntity<OrganizationBrandingI
     {
         return new OrganizationBranding(
             organizationId,
-            tenantId,
+            TenantScope.Require(tenantId, nameof(OrganizationBranding)),
             logoUrl,
             primaryColor,
             accentColor,
