@@ -73,7 +73,6 @@ public class AccountControllerAdditionalTests
             _authSchemeProvider,
             _messageBus,
             _clientTenantResolver,
-            Substitute.For<IOrganizationService>(),
             _passwordlessService,
             Substitute.For<IMfaExemptionChecker>(),
             Substitute.For<IMfaService>(),

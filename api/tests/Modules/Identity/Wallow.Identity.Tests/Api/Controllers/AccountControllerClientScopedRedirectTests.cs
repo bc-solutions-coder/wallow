@@ -83,7 +83,6 @@ public class AccountControllerClientScopedRedirectTests
             _authSchemeProvider,
             _messageBus,
             _clientTenantResolver,
-            Substitute.For<IOrganizationService>(),
             Substitute.For<IPasswordlessService>(),
             Substitute.For<IMfaExemptionChecker>(),
             Substitute.For<IMfaService>(),

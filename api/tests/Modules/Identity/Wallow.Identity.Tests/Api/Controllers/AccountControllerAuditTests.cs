@@ -72,7 +72,6 @@ public class AccountControllerAuditTests
             Substitute.For<IAuthenticationSchemeProvider>(),
             _messageBus,
             Substitute.For<IClientTenantResolver>(),
-            Substitute.For<IOrganizationService>(),
             Substitute.For<IPasswordlessService>(),
             _mfaExemptionChecker,
             _mfaService,

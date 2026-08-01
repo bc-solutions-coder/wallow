@@ -67,7 +67,6 @@ public class AccountControllerExternalLoginTests
             _authSchemeProvider,
             _messageBus,
             Substitute.For<IClientTenantResolver>(),
-            Substitute.For<IOrganizationService>(),
             Substitute.For<IPasswordlessService>(),
             _mfaExemptionChecker,
             Substitute.For<IMfaService>(),

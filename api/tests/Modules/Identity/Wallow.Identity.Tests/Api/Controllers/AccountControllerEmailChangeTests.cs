@@ -62,7 +62,6 @@ public class AccountControllerEmailChangeTests
             Substitute.For<IAuthenticationSchemeProvider>(),
             _messageBus,
             Substitute.For<IClientTenantResolver>(),
-            Substitute.For<IOrganizationService>(),
             Substitute.For<IPasswordlessService>(),
             Substitute.For<IMfaExemptionChecker>(),
             Substitute.For<IMfaService>(),

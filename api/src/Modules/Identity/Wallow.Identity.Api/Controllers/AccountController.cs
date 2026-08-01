@@ -38,7 +38,6 @@ public sealed partial class AccountController(
     IAuthenticationSchemeProvider authSchemeProvider,
     IMessageBus messageBus,
     IClientTenantResolver clientTenantResolver,
-    IOrganizationService organizationService,
     IPasswordlessService passwordlessService,
     IMfaExemptionChecker mfaExemptionChecker,
     IMfaService mfaService,
@@ -705,15 +704,12 @@ public sealed partial class AccountController(
             return BadRequest(new { succeeded = false, error = "passwords_do_not_match" });
         }
 
-        // Resolve tenant from client ID if provided
-        ClientTenantInfo? tenantInfo = null;
-        if (!string.IsNullOrEmpty(request.ClientId))
+        // A client id that names no organization is a broken sign-up link, and saying so beats
+        // creating an identity that belongs nowhere.
+        if (!string.IsNullOrEmpty(request.ClientId)
+            && await clientTenantResolver.ResolveAsync(request.ClientId) is null)
         {
-            tenantInfo = await clientTenantResolver.ResolveAsync(request.ClientId);
-            if (tenantInfo is null)
-            {
-                return BadRequest(new { succeeded = false, error = "invalid_client_id" });
-            }
+            return BadRequest(new { succeeded = false, error = "invalid_client_id" });
         }
 
         // Self-registration uses placeholder names; users update their profile after onboarding
@@ -744,15 +740,10 @@ public sealed partial class AccountController(
             return BadRequest(new { succeeded = false, error });
         }
 
-        // No role is granted here. Registration is anonymous, and roles now live on a membership,
-        // so a role write from this endpoint would be a self-service grant of authority in
-        // whichever organization the request resolved to.
-        //
-        // Add user as a member of the resolved organization
-        if (tenantInfo is not null && tenantInfo.TenantId != Guid.Empty)
-        {
-            await organizationService.AddMemberAsync(tenantInfo.TenantId, user.Id, "user");
-        }
+        // Neither a role nor a membership is granted here. This endpoint is anonymous, so a
+        // membership written from it would bypass the organization's enrollment policy outright
+        // and InviteOnly would mean nothing. The membership is minted when the person proves the
+        // address is theirs and signs in, by the enrollment service the authorize endpoint runs.
 
         string token = await signInManager.UserManager.GenerateEmailConfirmationTokenAsync(user);
         string authUrl = GetRequiredAuthUrl();

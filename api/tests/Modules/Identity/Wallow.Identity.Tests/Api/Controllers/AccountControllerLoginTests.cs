@@ -48,7 +48,6 @@ public class AccountControllerLoginTests
         IAuthenticationSchemeProvider authSchemeProvider = Substitute.For<IAuthenticationSchemeProvider>();
         IMessageBus messageBus = Substitute.For<IMessageBus>();
         IClientTenantResolver clientTenantResolver = Substitute.For<IClientTenantResolver>();
-        IOrganizationService organizationService = Substitute.For<IOrganizationService>();
         IPasswordlessService passwordlessService = Substitute.For<IPasswordlessService>();
         _mfaExemptionChecker = Substitute.For<IMfaExemptionChecker>();
         _mfaService = Substitute.For<IMfaService>();
@@ -65,7 +64,6 @@ public class AccountControllerLoginTests
             authSchemeProvider,
             messageBus,
             clientTenantResolver,
-            organizationService,
             passwordlessService,
             _mfaExemptionChecker,
             _mfaService,

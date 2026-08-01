@@ -103,7 +103,6 @@ public class AccountControllerExternalLoginClientIdFlowTests
             _authSchemeProvider,
             Substitute.For<IMessageBus>(),
             Substitute.For<IClientTenantResolver>(),
-            Substitute.For<IOrganizationService>(),
             Substitute.For<IPasswordlessService>(),
             _mfaExemptionChecker,
             Substitute.For<IMfaService>(),

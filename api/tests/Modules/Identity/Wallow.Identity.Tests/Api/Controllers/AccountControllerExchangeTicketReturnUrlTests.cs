@@ -72,7 +72,6 @@ public class AccountControllerExchangeTicketReturnUrlTests
             Substitute.For<IAuthenticationSchemeProvider>(),
             Substitute.For<IMessageBus>(),
             Substitute.For<IClientTenantResolver>(),
-            Substitute.For<IOrganizationService>(),
             Substitute.For<IPasswordlessService>(),
             Substitute.For<IMfaExemptionChecker>(),
             Substitute.For<IMfaService>(),

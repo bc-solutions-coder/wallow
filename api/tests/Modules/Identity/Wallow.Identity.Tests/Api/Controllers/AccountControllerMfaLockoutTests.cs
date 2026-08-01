@@ -58,7 +58,6 @@ public class AccountControllerMfaLockoutTests
             Substitute.For<IAuthenticationSchemeProvider>(),
             _messageBus,
             Substitute.For<IClientTenantResolver>(),
-            Substitute.For<IOrganizationService>(),
             Substitute.For<IPasswordlessService>(),
             Substitute.For<IMfaExemptionChecker>(),
             _mfaService,
