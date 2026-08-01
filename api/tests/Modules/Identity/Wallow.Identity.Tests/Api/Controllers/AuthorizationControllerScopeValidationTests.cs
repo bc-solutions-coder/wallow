@@ -22,14 +22,15 @@ namespace Wallow.Identity.Tests.Api.Controllers;
 /// "roles.write users.manage" to their own authorize request and
 /// <see cref="Wallow.Identity.Infrastructure.Authorization.PermissionExpansionMiddleware"/>
 /// will faithfully expand those scopes into permissions — a straight privilege escalation.
-/// Two independent gates are asserted here: the requested scopes must be registered for the
-/// OIDC client (via <see cref="IScopeSubsetValidator"/>) AND must be covered by the caller's
-/// own role permissions.
+/// The two gates fail differently: a scope the OIDC client is not registered for
+/// (<see cref="IScopeSubsetValidator"/>) refuses the request, while a scope the caller's role
+/// does not cover is dropped from the grant and the rest is issued.
 /// </summary>
 public sealed class AuthorizationControllerScopeValidationTests : IDisposable
 {
     private static readonly string _testUserId = Guid.NewGuid().ToString();
     private const string FirstPartyClientId = "wallow-web";
+    private const string ThirdPartyClientId = "partner-portal";
     private const string ApplicationId = "app-id-123";
 
     private readonly UserManager<WallowUser> _userManager;
@@ -79,7 +80,7 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
     }
 
     [Fact]
-    public async Task Authorize_PlainUserRequestingScopesBeyondTheirRole_IsRejectedWithInvalidScope()
+    public async Task Authorize_PlainUserRequestingScopesBeyondTheirRole_IssuesOnlyWhatTheRoleCovers()
     {
         // Arrange - "user" grants storage and organization reads, never roles.write or
         // users.manage. Asking for them anyway is the escalation attempt.
@@ -89,48 +90,36 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
         IActionResult result = await _controller.Authorize();
 
         // Assert
-        ForbidResult forbid = result.Should().BeOfType<ForbidResult>().Subject;
-        forbid.AuthenticationSchemes.Should().Contain(OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
-        forbid.Properties!.Items[OpenIddictServerAspNetCoreConstants.Properties.Error]
-            .Should().Be(Errors.InvalidScope);
+        Microsoft.AspNetCore.Mvc.SignInResult signIn =
+            result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>().Subject;
+        signIn.Principal.GetScopes().Should().BeEquivalentTo("openid", "profile");
     }
 
     [Fact]
-    public async Task Authorize_PlainUserRequestingScopesBeyondTheirRole_NamesTheOffendingScopes()
+    public async Task Authorize_ConsentGrantedForScopesBeyondTheCallersRole_PersistsOnlyTheGranted()
     {
-        // Arrange - the error description is what the caller sees, so it has to say which
-        // scopes were refused rather than failing the whole request opaquely.
-        ArrangeFlow("openid profile roles.write users.manage", roles: ["user"]);
+        // Arrange - a stored authorization outlives the request that created it, so a refused
+        // scope recorded here is an escalation the caller can redeem on any later request.
+        ArrangeFlow(
+            "openid profile roles.write",
+            roles: ["user"],
+            clientId: ThirdPartyClientId,
+            consentGranted: true);
 
         // Act
-        IActionResult result = await _controller.Authorize();
+        await _controller.Authorize();
 
         // Assert
-        ForbidResult forbid = result.Should().BeOfType<ForbidResult>().Subject;
-        string? description =
-            forbid.Properties!.Items[OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription];
-        description.Should().Contain("roles.write");
-        description.Should().Contain("users.manage");
+        await _authorizationManager.Received().CreateAsync(
+            Arg.Is<OpenIddictAuthorizationDescriptor>(descriptor =>
+                descriptor.Scopes.Contains("openid")
+                && descriptor.Scopes.Contains("profile")
+                && !descriptor.Scopes.Contains("roles.write")),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Authorize_PlainUserRequestingScopesBeyondTheirRole_IssuesNoAuthorizationCode()
-    {
-        // Arrange - rejection has to happen before the sign-in ticket and before any
-        // permanent authorization is persisted, or the escalation just happens later.
-        ArrangeFlow("openid roles.write", roles: ["user"]);
-
-        // Act
-        IActionResult result = await _controller.Authorize();
-
-        // Assert
-        result.Should().NotBeOfType<Microsoft.AspNetCore.Mvc.SignInResult>();
-        await _authorizationManager.DidNotReceive().CreateAsync(
-            Arg.Any<OpenIddictAuthorizationDescriptor>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Authorize_UserWithNoRolesRequestingPrivilegedScope_IsRejected()
+    public async Task Authorize_UserWithNoRolesRequestingPrivilegedScope_IsNarrowedToNothing()
     {
         // Arrange - a token with no role claims expands to no permissions, so every
         // permission-bearing scope is over-broad. This is the exact hole
@@ -141,7 +130,9 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
         IActionResult result = await _controller.Authorize();
 
         // Assert
-        result.Should().BeOfType<ForbidResult>();
+        Microsoft.AspNetCore.Mvc.SignInResult signIn =
+            result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>().Subject;
+        signIn.Principal.GetScopes().Should().BeEquivalentTo("openid");
     }
 
     [Fact]
@@ -226,16 +217,26 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
     }
 
     /// <summary>
-    /// Wires an authenticated authorize request for a first-party client, which skips the
-    /// consent branch entirely so each test observes only the scope gates.
+    /// Wires an authenticated authorize request. A first-party client skips the consent branch
+    /// entirely, so each test observes only the scope gates; naming a third-party client with
+    /// consent already granted is how a test reaches the stored-authorization branch instead.
     /// </summary>
-    private void ArrangeFlow(string scope, IList<string> roles)
+    private void ArrangeFlow(
+        string scope,
+        IList<string> roles,
+        string clientId = FirstPartyClientId,
+        bool consentGranted = false)
     {
         OpenIddictRequest request = new()
         {
-            ClientId = FirstPartyClientId,
+            ClientId = clientId,
             Scope = scope
         };
+
+        if (consentGranted)
+        {
+            request.SetParameter("consent_granted", "true");
+        }
 
         ClaimsPrincipal user = new(new ClaimsIdentity(
         [
@@ -246,7 +247,7 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
         OpenIddictServerTransaction transaction = new() { Request = request };
         httpContext.Features.Set(new OpenIddictServerAspNetCoreFeature { Transaction = transaction });
         httpContext.Request.Path = "/connect/authorize";
-        httpContext.Request.QueryString = new QueryString("?client_id=" + FirstPartyClientId);
+        httpContext.Request.QueryString = new QueryString("?client_id=" + clientId);
 
         _controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
 
@@ -265,14 +266,23 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
         _userManager.GetClaimsAsync(wallowUser).Returns(new List<Claim>());
 
         object application = new();
-        _applicationManager.FindByClientIdAsync(FirstPartyClientId, Arg.Any<CancellationToken>())
+        _applicationManager.FindByClientIdAsync(clientId, Arg.Any<CancellationToken>())
             .Returns(ValueTask.FromResult<object?>(application));
         _applicationManager.GetClientIdAsync(application, Arg.Any<CancellationToken>())
-            .Returns(ValueTask.FromResult<string?>(FirstPartyClientId));
+            .Returns(ValueTask.FromResult<string?>(clientId));
         _applicationManager.GetIdAsync(application, Arg.Any<CancellationToken>())
             .Returns(ValueTask.FromResult<string?>(ApplicationId));
 
-        _clientTenantResolver.ResolveAsync(FirstPartyClientId, Arg.Any<CancellationToken>())
+        _authorizationManager.FindBySubjectAsync(_testUserId, Arg.Any<CancellationToken>())
+            .Returns(Empty());
+
+        _clientTenantResolver.ResolveAsync(clientId, Arg.Any<CancellationToken>())
             .Returns((ClientTenantInfo?)null);
+    }
+
+    private static async IAsyncEnumerable<object> Empty()
+    {
+        await Task.CompletedTask;
+        yield break;
     }
 }

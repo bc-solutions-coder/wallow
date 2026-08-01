@@ -96,7 +96,10 @@ public sealed partial class AuthorizationController(
         // Two independent scope gates, both before any ticket is issued or authorization
         // persisted. Without them a signed-in user can append privileged scopes to their own
         // authorize request and PermissionExpansionMiddleware expands them into permissions.
-        IActionResult? scopeRejection = await ValidateRequestedScopesAsync(request, user, userId, clientId);
+        // Everything downstream — consent, the stored authorization, the token — runs on the
+        // granted set, never on what was asked for.
+        (IActionResult? scopeRejection, ImmutableArray<string> grantedScopes) =
+            await ResolveGrantedScopesAsync(request, user, userId, clientId);
         if (scopeRejection is not null)
         {
             return scopeRejection;
@@ -104,7 +107,6 @@ public sealed partial class AuthorizationController(
 
         if (!isFirstParty)
         {
-            ImmutableArray<string> requestedScopes = request.GetScopes();
             string applicationId = (await applicationManager.GetIdAsync(application))!;
 
             // Check for an existing valid authorization for this user+client+scopes combination
@@ -123,7 +125,7 @@ public sealed partial class AuthorizationController(
                 }
 
                 ImmutableArray<string> authorizedScopes = await authorizationManager.GetScopesAsync(authorization);
-                if (requestedScopes.All(s => authorizedScopes.Contains(s)))
+                if (grantedScopes.All(s => authorizedScopes.Contains(s)))
                 {
                     hasValidAuthorization = true;
                     break;
@@ -157,7 +159,7 @@ public sealed partial class AuthorizationController(
                     Type = AuthorizationTypes.Permanent
                 };
 
-                foreach (string scope in requestedScopes)
+                foreach (string scope in grantedScopes)
                 {
                     descriptor.Scopes.Add(scope);
                 }
@@ -170,12 +172,13 @@ public sealed partial class AuthorizationController(
             {
                 // No existing consent — redirect to consent screen.
                 // The consent UI will POST back to accept/deny.
-                // The requested scopes ride along space-delimited (OAuth's own
+                // The granted scopes ride along space-delimited (OAuth's own
                 // delimiter, and what the consent-info endpoint splits on): they are
-                // the substance of the decision the screen asks the user to make.
+                // the substance of the decision the screen asks the user to make, and
+                // asking to consent to a scope that will never be issued is a lie.
                 string authUrl = GetRequiredAuthUrl();
                 string returnUrl = Request.PathBase + Request.Path + Request.QueryString;
-                string consentScopes = string.Join(" ", requestedScopes);
+                string consentScopes = string.Join(" ", grantedScopes);
                 LogRedirectingToConsent(clientId, returnUrl);
                 return Redirect($"{authUrl}/consent?returnUrl={Uri.EscapeDataString(returnUrl)}" +
                     $"&client_id={Uri.EscapeDataString(clientId ?? string.Empty)}" +
@@ -203,9 +206,9 @@ public sealed partial class AuthorizationController(
             }
         }
 
-        ClaimsIdentity identity = await BuildClaimsIdentityAsync(user, userId, request, tenantInfo);
+        ClaimsIdentity identity = await BuildClaimsIdentityAsync(user, userId, grantedScopes, tenantInfo);
 
-        string allScopes = string.Join(" ", request.GetScopes());
+        string allScopes = string.Join(" ", grantedScopes);
         LogIssuingAuthorizationCode(userId, clientId, allScopes);
 
         if (!isFirstParty && !hasValidAuthorization)
@@ -222,7 +225,7 @@ public sealed partial class AuthorizationController(
                 Type = AuthorizationTypes.Permanent
             };
 
-            foreach (string scope in request.GetScopes())
+            foreach (string scope in grantedScopes)
             {
                 authorizationDescriptor.Scopes.Add(scope);
             }
@@ -234,7 +237,7 @@ public sealed partial class AuthorizationController(
     }
 
     private async Task<ClaimsIdentity> BuildClaimsIdentityAsync(
-        WallowUser user, string userId, OpenIddictRequest request, ClientTenantInfo? tenantInfo)
+        WallowUser user, string userId, ImmutableArray<string> grantedScopes, ClientTenantInfo? tenantInfo)
     {
         ClaimsIdentity identity = new(OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
 
@@ -281,7 +284,7 @@ public sealed partial class AuthorizationController(
             }
         }
 
-        identity.SetScopes(request.GetScopes());
+        identity.SetScopes(grantedScopes);
 
         foreach (Claim claim in identity.Claims)
         {
@@ -292,13 +295,26 @@ public sealed partial class AuthorizationController(
     }
 
     /// <summary>
-    /// Returns a rejection result when the requested scopes are not permitted, or null when
-    /// the request may proceed. Gate one: the scopes must be registered for the OIDC client.
-    /// Gate two: every scope that carries a permission must be covered by the caller's own
-    /// role. Scopes that map to no permission (openid, profile, email, offline_access, roles)
-    /// are never role-gated.
+    /// Resolves the scopes this caller may actually be granted. The two gates answer different
+    /// questions and so fail differently.
+    /// <para>
+    /// Gate one asks whether the scopes are registered for the OIDC client. A scope the client
+    /// was never configured for is a client misconfiguration, not a user-privilege question, so
+    /// this one refuses the whole request loudly rather than quietly dropping the scope.
+    /// </para>
+    /// <para>
+    /// Gate two asks whether the caller's own roles carry each scope's permission, and narrows
+    /// instead of refusing: OAuth already lets a server issue fewer scopes than were asked for,
+    /// and an app requesting the superset it supports for any user must still work for the users
+    /// who only qualify for part of it. Scopes that map to no permission (openid, profile, email,
+    /// offline_access, roles) are never role-gated.
+    /// </para>
     /// </summary>
-    private async Task<IActionResult?> ValidateRequestedScopesAsync(
+    /// <returns>
+    /// A rejection result and an empty set when gate one fails; otherwise null and the narrowed
+    /// set of scopes, which is what every downstream consumer must use in place of the request's.
+    /// </returns>
+    private async Task<(IActionResult? Rejection, ImmutableArray<string> GrantedScopes)> ResolveGrantedScopesAsync(
         OpenIddictRequest request, WallowUser user, string userId, string? clientId)
     {
         ImmutableArray<string> requestedScopes = request.GetScopes();
@@ -309,7 +325,9 @@ public sealed partial class AuthorizationController(
         if (!clientScopes.IsSuccess)
         {
             LogScopesNotRegisteredForClient(clientId, clientScopes.ErrorMessage);
-            return InvalidScope(clientScopes.ErrorMessage ?? "The requested scopes are not permitted for this client.");
+            return (
+                InvalidScope(clientScopes.ErrorMessage ?? "The requested scopes are not permitted for this client."),
+                []);
         }
 
         IList<string> roles = await userManager.GetRolesAsync(user);
@@ -317,24 +335,25 @@ public sealed partial class AuthorizationController(
             new(RolePermissionMapping.GetPermissions(roles), StringComparer.OrdinalIgnoreCase);
 
         List<string> refusedScopes = [];
+        List<string> granted = [];
         foreach (string scope in requestedScopes)
         {
             string? requiredPermission = ScopePermissionMapper.MapScopeToPermission(scope);
             if (requiredPermission is not null && !grantedPermissions.Contains(requiredPermission))
             {
                 refusedScopes.Add(scope);
+                continue;
             }
+
+            granted.Add(scope);
         }
 
         if (refusedScopes.Count > 0)
         {
-            string refused = string.Join(", ", refusedScopes);
-            LogScopesBeyondCallerRole(userId, clientId, refused);
-            return InvalidScope(
-                $"The following scopes exceed the permissions granted by the caller's roles: {refused}");
+            LogScopesNarrowed(userId, clientId, string.Join(", ", refusedScopes), string.Join(", ", granted));
         }
 
-        return null;
+        return (null, [.. granted]);
     }
 
     private ForbidResult InvalidScope(string description) =>
@@ -387,8 +406,8 @@ public sealed partial class AuthorizationController(
     [LoggerMessage(Level = LogLevel.Warning, Message = "OIDC rejected scopes not registered for client {ClientId}: {Reason}")]
     private partial void LogScopesNotRegisteredForClient(string? clientId, string? reason);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "OIDC rejected scopes beyond caller role: userId={UserId}, clientId={ClientId}, scopes={Scopes}")]
-    private partial void LogScopesBeyondCallerRole(string userId, string? clientId, string scopes);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "OIDC narrowed scopes beyond caller role: userId={UserId}, clientId={ClientId}, dropped={DroppedScopes}, granted={GrantedScopes}")]
+    private partial void LogScopesNarrowed(string userId, string? clientId, string droppedScopes, string grantedScopes);
 
     private static ImmutableArray<string> GetDestinations(Claim claim)
     {

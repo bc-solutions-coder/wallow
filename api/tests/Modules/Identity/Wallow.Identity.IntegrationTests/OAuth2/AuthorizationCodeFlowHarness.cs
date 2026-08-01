@@ -269,12 +269,14 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
 
     /// <summary>
     /// Creates a user who can complete a password sign-in. Confirming the email is not optional:
-    /// the sign-in manager refuses an unconfirmed account outright.
+    /// the sign-in manager refuses an unconfirmed account outright. Any roles named must already
+    /// exist; they decide which scopes the authorize endpoint is willing to grant.
     /// </summary>
     public static async Task<Guid> CreateUserAsync(
         IServiceProvider services,
         string email,
-        string password)
+        string password,
+        IEnumerable<string>? roles = null)
     {
         ArgumentNullException.ThrowIfNull(services);
 
@@ -288,6 +290,17 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
         {
             throw new InvalidOperationException(
                 $"Failed to create '{email}': {string.Join("; ", result.Errors.Select(e => e.Description))}");
+        }
+
+        foreach (string role in roles ?? [])
+        {
+            IdentityResult assignment = await users.AddToRoleAsync(user, role);
+            if (!assignment.Succeeded)
+            {
+                throw new InvalidOperationException(
+                    $"Failed to grant '{email}' the '{role}' role: "
+                    + string.Join("; ", assignment.Errors.Select(e => e.Description)));
+            }
         }
 
         return user.Id;
