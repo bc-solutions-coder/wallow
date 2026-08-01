@@ -10,6 +10,7 @@ using OpenIddict.Abstractions;
 using OpenIddict.Server;
 using OpenIddict.Server.AspNetCore;
 using Wallow.Identity.Api.Controllers;
+using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
@@ -50,6 +51,7 @@ public sealed class TokenControllerClientCredentialsTenantTests : IDisposable
         _controller = new TokenController(
             _userManager,
             _applicationManager,
+            Substitute.For<IMembershipRoleResolver>(),
             NullLogger<TokenController>.Instance);
     }
 

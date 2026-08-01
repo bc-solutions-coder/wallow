@@ -6,12 +6,61 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.OAuth2;
 
 /// <summary>
-/// Tests OAuth2 token acquisition via OpenIddict's token endpoint.
-/// Validates client credentials flow and token structure.
+/// Covers OAuth2 token acquisition at OpenIddict's token endpoint: the client-credentials grant,
+/// and the refresh grant's rebuilding of the identity — which resolves roles afresh rather than
+/// carrying the incoming principal's forward, so a role held in one organization cannot ride a
+/// refresh into a token issued for another.
 /// </summary>
 [Trait("Category", "Integration")]
 public class TokenAcquisitionTests(WallowApiFactory factory) : IdentityIntegrationTestBase(factory)
 {
+    private const string Password = "Harness1234!";
+    private const string RefreshClientSecret = "refresh-client-secret";
+
+    [Fact]
+    public async Task Refresh_ForAUserWhoIsAdminElsewhere_ReissuesOnlyThisOrganizationsRoles()
+    {
+        string suffix = Guid.NewGuid().ToString("N");
+        string email = $"refresh-{suffix}@wallow.dev";
+
+        // Creating an organization enrolls its creator as an admin, so owning A is how this user
+        // comes to hold a role that must not reach a token issued for B.
+        Guid userId = await AuthorizationCodeFlowHarness.CreateUserAsync(ScopedServices, email, Password);
+        await AuthorizationCodeFlowHarness.CreateOrganizationAsync(
+            ScopedServices, $"Refresh Org A {suffix}", userId);
+
+        Guid outsiderId = await AuthorizationCodeFlowHarness.CreateUserAsync(
+            ScopedServices, $"refresh-owner-{suffix}@wallow.dev", Password);
+        Guid organizationB = await AuthorizationCodeFlowHarness.CreateOrganizationAsync(
+            ScopedServices, $"Refresh Org B {suffix}", outsiderId);
+        await AuthorizationCodeFlowHarness.EnrollMemberAsync(
+            ScopedServices, organizationB, userId, "user");
+
+        string clientId = $"wallow-refresh-{suffix}";
+        await AuthorizationCodeFlowHarness.RegisterClientAsync(
+            ScopedServices,
+            clientId,
+            RefreshClientSecret,
+            organizationB,
+            ["openid", "profile", "email", "roles", "offline_access"]);
+
+        using AuthorizationCodeFlowHarness harness = new(Factory);
+        await harness.SignInAsync(email, Password);
+
+        TokenOutcome issued = await harness.AcquireTokensAsync(
+            clientId, RefreshClientSecret, "openid profile email roles offline_access");
+        issued.RefreshToken.Should().NotBeNull(issued.Body);
+
+        TokenOutcome refreshed = await harness.RefreshAsync(
+            clientId, RefreshClientSecret, issued.RefreshToken!);
+        refreshed.StatusCode.Should().Be(HttpStatusCode.OK, refreshed.Body);
+
+        IReadOnlyList<string> roles = AuthorizationCodeFlowHarness.ReadClaimValues(
+            refreshed.RequireAccessToken(), "role");
+        roles.Should().Contain("user");
+        roles.Should().NotContain("admin");
+    }
+
     [Fact]
     public async Task Should_Acquire_Token_With_Client_Credentials()
     {

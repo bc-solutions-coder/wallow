@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Logging;
 using OpenIddict.Abstractions;
 using OpenIddict.Server.AspNetCore;
+using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
@@ -27,6 +28,7 @@ namespace Wallow.Identity.Api.Controllers;
 public sealed partial class TokenController(
     UserManager<WallowUser> userManager,
     IOpenIddictApplicationManager applicationManager,
+    IMembershipRoleResolver membershipRoleResolver,
     ILogger<TokenController> logger) : Controller
 {
     /// <summary>
@@ -117,10 +119,26 @@ public sealed partial class TokenController(
         identity.SetClaim(Claims.GivenName, user.FirstName);
         identity.SetClaim(Claims.FamilyName, user.LastName);
 
-        IList<string> roles = await userManager.GetRolesAsync(user);
-        foreach (string role in roles)
+        // Carry forward tenant claims from the original principal. The organization has to be
+        // settled before the roles, because it is what decides them.
+        string? orgId = principal.GetClaim("org_id");
+        if (orgId is not null)
         {
-            identity.AddClaim(Claims.Role, role);
+            identity.SetClaim("org_id", orgId);
+        }
+
+        // Re-resolved from the membership rather than carried forward, for the same reason the
+        // global-admin flag below is: a refresh token must not keep a role alive after the
+        // organization has taken it away. A token naming no organization earns no roles at all.
+        if (orgId is not null && Guid.TryParse(orgId, out Guid organizationId))
+        {
+            IReadOnlyList<string> roles =
+                await membershipRoleResolver.GetRoleNamesAsync(user.Id, organizationId);
+
+            foreach (string role in roles)
+            {
+                identity.AddClaim(Claims.Role, role);
+            }
         }
 
         // Read from the user's own claim store rather than carrying the flag forward from the
@@ -129,13 +147,6 @@ public sealed partial class TokenController(
         if (await IsGlobalAdminUserAsync(user))
         {
             identity.SetClaim(WallowClaims.GlobalAdminClaimType, "true");
-        }
-
-        // Carry forward tenant claims from the original principal
-        string? orgId = principal.GetClaim("org_id");
-        if (orgId is not null)
-        {
-            identity.SetClaim("org_id", orgId);
         }
 
         string? orgName = principal.GetClaim("org_name");
