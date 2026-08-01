@@ -78,6 +78,7 @@ builder.Services.AddScoped<IMembershipRoleResolver, MembershipRoleResolver>();
 builder.Services.AddScoped<IOrganizationService, OrganizationService>();
 builder.Services.AddMembershipAccessRevocation();
 builder.Services.AddScoped<PreRegisteredClientSyncService>();
+builder.Services.AddScoped<OrganizationSeedSyncService>();
 builder.Services.AddScoped<OpenIddictScopeSyncService>();
 builder.Services.AddScoped<IBootstrapAdminService, BootstrapAdminService>();
 builder.Services.AddScoped<ISetupStatusChecker, SetupStatusChecker>();
@@ -99,6 +100,19 @@ builder.Services.Configure<PreRegisteredClientOptions>(opts =>
         foreach (PreRegisteredClientDefinition client in seed.Clients)
         {
             opts.Clients.Add(client);
+        }
+    }
+});
+
+// Map SeedOptions.Organizations into SeedOrganizationOptions
+builder.Services.Configure<SeedOrganizationOptions>(opts =>
+{
+    SeedOptions? seed = builder.Configuration.Get<SeedOptions>();
+    if (seed?.Organizations is not null)
+    {
+        foreach (SeedOrganizationDefinition organization in seed.Organizations)
+        {
+            opts.Organizations.Add(organization);
         }
     }
 });

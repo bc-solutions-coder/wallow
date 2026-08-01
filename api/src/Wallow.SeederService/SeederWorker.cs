@@ -29,6 +29,7 @@ public sealed partial class SeederWorker(
             await SeedApiScopesAsync(sp, stoppingToken);
             await SyncOpenIddictScopesAsync(sp, stoppingToken);
             await BootstrapAdminAsync(sp, stoppingToken);
+            await SyncOrganizationsAsync(sp, stoppingToken);
             await SyncClientsAsync(sp, stoppingToken);
 
             LogSeederCompleted();
@@ -168,6 +169,21 @@ public sealed partial class SeederWorker(
         LogAdminBootstrapped(admin.Email);
 
         LogStepCompleted("Bootstrap Admin");
+    }
+
+    /// <summary>
+    /// Before the clients, because a client binds to an organization by name: the organization it
+    /// finds must already admit people on the configured terms, not on the InviteOnly default a
+    /// client-created one would carry until the next run.
+    /// </summary>
+    private async Task SyncOrganizationsAsync(IServiceProvider sp, CancellationToken ct)
+    {
+        LogStepStarted("Sync Organizations");
+
+        OrganizationSeedSyncService organizationSync = sp.GetRequiredService<OrganizationSeedSyncService>();
+        await organizationSync.SyncAsync(ct);
+
+        LogStepCompleted("Sync Organizations");
     }
 
     private async Task SyncClientsAsync(IServiceProvider sp, CancellationToken ct)

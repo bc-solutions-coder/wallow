@@ -179,6 +179,13 @@
     "lastName": "User",
     "isGlobalAdmin": true
   },
+  "organizations": [
+    {
+      "name": "Wallow",
+      "enrollmentPolicy": "RequestApproval",
+      "accessRequestEmail": "admin@wallow.dev"
+    }
+  ],
   "clients": [
     {
       "clientId": "wallow-web-client",

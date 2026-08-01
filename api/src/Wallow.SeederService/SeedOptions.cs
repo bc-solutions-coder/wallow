@@ -11,6 +11,8 @@ public sealed class SeedOptions
 
     public AdminBootstrapOptions? Admin { get; set; }
 
+    public Collection<SeedOrganizationDefinition> Organizations { get; set; } = [];
+
     public Collection<PreRegisteredClientDefinition> Clients { get; set; } = [];
 }
 
