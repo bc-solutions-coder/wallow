@@ -52,23 +52,6 @@ namespace Wallow.Identity.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "initial_access_tokens",
-                schema: "identity",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    token_hash = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
-                    display_name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    expires_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    is_revoked = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false),
-                    xmin = table.Column<uint>(type: "xid", rowVersion: true, nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_initial_access_tokens", x => x.id);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "invitations",
                 schema: "identity",
                 columns: table => new
@@ -91,16 +74,20 @@ namespace Wallow.Identity.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "membership_requests",
+                name: "memberships",
                 schema: "identity",
                 columns: table => new
                 {
                     id = table.Column<Guid>(type: "uuid", nullable: false),
-                    tenant_id = table.Column<Guid>(type: "uuid", nullable: false),
                     user_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    email_domain = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    organization_id = table.Column<Guid>(type: "uuid", nullable: false),
                     status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    resolved_organization_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    is_owner = table.Column<bool>(type: "boolean", nullable: false),
+                    requested_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    joined_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    reviewed_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    reviewed_by = table.Column<Guid>(type: "uuid", nullable: true),
+                    xmin = table.Column<uint>(type: "xid", rowVersion: true, nullable: false),
                     created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     created_by = table.Column<Guid>(type: "uuid", nullable: true),
@@ -108,7 +95,7 @@ namespace Wallow.Identity.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_membership_requests", x => x.id);
+                    table.PrimaryKey("PK_memberships", x => x.id);
                 });
 
             migrationBuilder.CreateTable(
@@ -159,27 +146,6 @@ namespace Wallow.Identity.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "organization_domains",
-                schema: "identity",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    organization_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    tenant_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    domain = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
-                    is_verified = table.Column<bool>(type: "boolean", nullable: false),
-                    verification_token = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
-                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    created_by = table.Column<Guid>(type: "uuid", nullable: true),
-                    updated_by = table.Column<Guid>(type: "uuid", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_organization_domains", x => x.id);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "organizations",
                 schema: "identity",
                 columns: table => new
@@ -219,57 +185,6 @@ namespace Wallow.Identity.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "scim_configurations",
-                schema: "identity",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    tenant_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    is_enabled = table.Column<bool>(type: "boolean", nullable: false),
-                    bearer_token = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
-                    token_prefix = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
-                    token_expires_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    last_sync_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    auto_activate_users = table.Column<bool>(type: "boolean", nullable: false),
-                    default_role = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    deprovision_on_delete = table.Column<bool>(type: "boolean", nullable: false),
-                    xmin = table.Column<uint>(type: "xid", rowVersion: true, nullable: false),
-                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    created_by = table.Column<Guid>(type: "uuid", nullable: true),
-                    updated_by = table.Column<Guid>(type: "uuid", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_scim_configurations", x => x.id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "scim_sync_logs",
-                schema: "identity",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    tenant_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    operation = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
-                    resource_type = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
-                    external_id = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    internal_id = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
-                    success = table.Column<bool>(type: "boolean", nullable: false),
-                    error_message = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: true),
-                    request_body = table.Column<string>(type: "text", nullable: true),
-                    timestamp = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    CreatedBy = table.Column<Guid>(type: "uuid", nullable: true),
-                    UpdatedBy = table.Column<Guid>(type: "uuid", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_scim_sync_logs", x => x.id);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "service_account_metadata",
                 schema: "identity",
                 columns: table => new
@@ -291,45 +206,6 @@ namespace Wallow.Identity.Infrastructure.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_service_account_metadata", x => x.id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "sso_configurations",
-                schema: "identity",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    tenant_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    display_name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    protocol = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    saml_entity_id = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
-                    saml_sso_url = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
-                    saml_slo_url = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
-                    saml_certificate = table.Column<string>(type: "character varying(4000)", maxLength: 4000, nullable: true),
-                    saml_name_id_format = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
-                    oidc_issuer = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
-                    oidc_client_id = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
-                    oidc_client_secret = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: true),
-                    oidc_scopes = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
-                    email_attribute = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    first_name_attribute = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    last_name_attribute = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    groups_attribute = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    enforce_for_all_users = table.Column<bool>(type: "boolean", nullable: false),
-                    auto_provision_users = table.Column<bool>(type: "boolean", nullable: false),
-                    default_role = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    sync_groups_as_roles = table.Column<bool>(type: "boolean", nullable: false),
-                    idp_alias = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
-                    xmin = table.Column<uint>(type: "xid", rowVersion: true, nullable: false),
-                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    created_by = table.Column<Guid>(type: "uuid", nullable: true),
-                    updated_by = table.Column<Guid>(type: "uuid", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_sso_configurations", x => x.id);
                 });
 
             migrationBuilder.CreateTable(
@@ -477,7 +353,7 @@ namespace Wallow.Identity.Infrastructure.Migrations
                 {
                     user_id = table.Column<Guid>(type: "uuid", nullable: false),
                     organization_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    role = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false)
+                    role = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -515,6 +391,33 @@ namespace Wallow.Identity.Infrastructure.Migrations
                         column: x => x.organization_id,
                         principalSchema: "identity",
                         principalTable: "organizations",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "membership_roles",
+                schema: "identity",
+                columns: table => new
+                {
+                    membership_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    role_id = table.Column<Guid>(type: "uuid", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_membership_roles", x => new { x.membership_id, x.role_id });
+                    table.ForeignKey(
+                        name: "FK_membership_roles_memberships_membership_id",
+                        column: x => x.membership_id,
+                        principalSchema: "identity",
+                        principalTable: "memberships",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_membership_roles_roles_role_id",
+                        column: x => x.role_id,
+                        principalSchema: "identity",
+                        principalTable: "roles",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -699,13 +602,6 @@ namespace Wallow.Identity.Infrastructure.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_initial_access_tokens_token_hash",
-                schema: "identity",
-                table: "initial_access_tokens",
-                column: "token_hash",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
                 name: "IX_invitations_email",
                 schema: "identity",
                 table: "invitations",
@@ -725,16 +621,23 @@ namespace Wallow.Identity.Infrastructure.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_membership_requests_tenant_id",
+                name: "IX_membership_roles_role_id",
                 schema: "identity",
-                table: "membership_requests",
-                column: "tenant_id");
+                table: "membership_roles",
+                column: "role_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_membership_requests_user_id",
+                name: "IX_memberships_organization_id",
                 schema: "identity",
-                table: "membership_requests",
-                column: "user_id");
+                table: "memberships",
+                column: "organization_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_memberships_user_id_organization_id",
+                schema: "identity",
+                table: "memberships",
+                columns: new[] { "user_id", "organization_id" },
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_OpenIddictApplications_ClientId",
@@ -801,25 +704,6 @@ namespace Wallow.Identity.Infrastructure.Migrations
                 column: "tenant_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_organization_domains_domain",
-                schema: "identity",
-                table: "organization_domains",
-                column: "domain",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_organization_domains_organization_id",
-                schema: "identity",
-                table: "organization_domains",
-                column: "organization_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_organization_domains_tenant_id",
-                schema: "identity",
-                table: "organization_domains",
-                column: "tenant_id");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_organization_members_organization_id_user_id",
                 schema: "identity",
                 table: "organization_members",
@@ -877,31 +761,6 @@ namespace Wallow.Identity.Infrastructure.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_scim_configurations_tenant_id",
-                schema: "identity",
-                table: "scim_configurations",
-                column: "tenant_id",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_scim_sync_logs_tenant_id",
-                schema: "identity",
-                table: "scim_sync_logs",
-                column: "tenant_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_scim_sync_logs_tenant_id_timestamp",
-                schema: "identity",
-                table: "scim_sync_logs",
-                columns: new[] { "tenant_id", "timestamp" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_scim_sync_logs_timestamp",
-                schema: "identity",
-                table: "scim_sync_logs",
-                column: "timestamp");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_service_account_metadata_client_id",
                 schema: "identity",
                 table: "service_account_metadata",
@@ -912,20 +771,6 @@ namespace Wallow.Identity.Infrastructure.Migrations
                 name: "IX_service_account_metadata_tenant_id",
                 schema: "identity",
                 table: "service_account_metadata",
-                column: "tenant_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_sso_configurations_idp_alias",
-                schema: "identity",
-                table: "sso_configurations",
-                column: "idp_alias",
-                unique: true,
-                filter: "idp_alias IS NOT NULL");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_sso_configurations_tenant_id",
-                schema: "identity",
-                table: "sso_configurations",
                 column: "tenant_id");
 
             migrationBuilder.CreateIndex(
@@ -1004,15 +849,11 @@ namespace Wallow.Identity.Infrastructure.Migrations
                 schema: "identity");
 
             migrationBuilder.DropTable(
-                name: "initial_access_tokens",
-                schema: "identity");
-
-            migrationBuilder.DropTable(
                 name: "invitations",
                 schema: "identity");
 
             migrationBuilder.DropTable(
-                name: "membership_requests",
+                name: "membership_roles",
                 schema: "identity");
 
             migrationBuilder.DropTable(
@@ -1028,10 +869,6 @@ namespace Wallow.Identity.Infrastructure.Migrations
                 schema: "identity");
 
             migrationBuilder.DropTable(
-                name: "organization_domains",
-                schema: "identity");
-
-            migrationBuilder.DropTable(
                 name: "organization_members",
                 schema: "identity");
 
@@ -1044,19 +881,7 @@ namespace Wallow.Identity.Infrastructure.Migrations
                 schema: "identity");
 
             migrationBuilder.DropTable(
-                name: "scim_configurations",
-                schema: "identity");
-
-            migrationBuilder.DropTable(
-                name: "scim_sync_logs",
-                schema: "identity");
-
-            migrationBuilder.DropTable(
                 name: "service_account_metadata",
-                schema: "identity");
-
-            migrationBuilder.DropTable(
-                name: "sso_configurations",
                 schema: "identity");
 
             migrationBuilder.DropTable(
@@ -1081,6 +906,10 @@ namespace Wallow.Identity.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "user_tokens",
+                schema: "identity");
+
+            migrationBuilder.DropTable(
+                name: "memberships",
                 schema: "identity");
 
             migrationBuilder.DropTable(

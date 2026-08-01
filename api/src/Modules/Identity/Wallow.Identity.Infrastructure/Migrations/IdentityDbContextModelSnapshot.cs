@@ -513,6 +513,78 @@ namespace Wallow.Identity.Infrastructure.Migrations
                     b.ToTable("invitations", "identity");
                 });
 
+            modelBuilder.Entity("Wallow.Identity.Domain.Entities.Membership", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<bool>("IsOwner")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_owner");
+
+                    b.Property<DateTimeOffset?>("JoinedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("joined_at");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("organization_id");
+
+                    b.Property<DateTimeOffset?>("RequestedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("requested_at");
+
+                    b.Property<DateTimeOffset?>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reviewed_at");
+
+                    b.Property<Guid?>("ReviewedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reviewed_by");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("UserId", "OrganizationId")
+                        .IsUnique();
+
+                    b.ToTable("memberships", "identity");
+                });
+
             modelBuilder.Entity("Wallow.Identity.Domain.Entities.Organization", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1156,6 +1228,37 @@ namespace Wallow.Identity.Infrastructure.Migrations
                     b.Navigation("Application");
 
                     b.Navigation("Authorization");
+                });
+
+            modelBuilder.Entity("Wallow.Identity.Domain.Entities.Membership", b =>
+                {
+                    b.OwnsMany("Wallow.Identity.Domain.Entities.MembershipRole", "_roles", b1 =>
+                        {
+                            b1.Property<Guid>("MembershipId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("membership_id");
+
+                            b1.Property<Guid>("RoleId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("role_id");
+
+                            b1.HasKey("MembershipId", "RoleId");
+
+                            b1.HasIndex("RoleId");
+
+                            b1.ToTable("membership_roles", "identity");
+
+                            b1.WithOwner()
+                                .HasForeignKey("MembershipId");
+
+                            b1.HasOne("Wallow.Identity.Domain.Entities.WallowRole", null)
+                                .WithMany()
+                                .HasForeignKey("RoleId")
+                                .OnDelete(DeleteBehavior.Cascade)
+                                .IsRequired();
+                        });
+
+                    b.Navigation("_roles");
                 });
 
             modelBuilder.Entity("Wallow.Identity.Domain.Entities.OrganizationBranding", b =>

@@ -12,8 +12,8 @@ using Wallow.Identity.Infrastructure.Persistence;
 namespace Wallow.Identity.Infrastructure.Migrations
 {
     [DbContext(typeof(IdentityDbContext))]
-    [Migration("20260722194304_ChangeOrgMemberRoleToEnum")]
-    partial class ChangeOrgMemberRoleToEnum
+    [Migration("20260801051407_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -452,48 +452,6 @@ namespace Wallow.Identity.Infrastructure.Migrations
                     b.ToTable("api_scopes", "identity");
                 });
 
-            modelBuilder.Entity("Wallow.Identity.Domain.Entities.InitialAccessToken", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<string>("DisplayName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("display_name");
-
-                    b.Property<DateTimeOffset?>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("expires_at");
-
-                    b.Property<bool>("IsRevoked")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_revoked");
-
-                    b.Property<string>("TokenHash")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("token_hash");
-
-                    b.Property<uint>("xmin")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TokenHash")
-                        .IsUnique();
-
-                    b.ToTable("initial_access_tokens", "identity");
-                });
-
             modelBuilder.Entity("Wallow.Identity.Domain.Entities.Invitation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -558,7 +516,7 @@ namespace Wallow.Identity.Infrastructure.Migrations
                     b.ToTable("invitations", "identity");
                 });
 
-            modelBuilder.Entity("Wallow.Identity.Domain.Entities.MembershipRequest", b =>
+            modelBuilder.Entity("Wallow.Identity.Domain.Entities.Membership", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")
@@ -572,25 +530,35 @@ namespace Wallow.Identity.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("created_by");
 
-                    b.Property<string>("EmailDomain")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("email_domain");
+                    b.Property<bool>("IsOwner")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_owner");
 
-                    b.Property<Guid?>("ResolvedOrganizationId")
+                    b.Property<DateTimeOffset?>("JoinedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("joined_at");
+
+                    b.Property<Guid>("OrganizationId")
                         .HasColumnType("uuid")
-                        .HasColumnName("resolved_organization_id");
+                        .HasColumnName("organization_id");
+
+                    b.Property<DateTimeOffset?>("RequestedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("requested_at");
+
+                    b.Property<DateTimeOffset?>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reviewed_at");
+
+                    b.Property<Guid?>("ReviewedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reviewed_by");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasColumnName("status");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("tenant_id");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -604,13 +572,20 @@ namespace Wallow.Identity.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId");
+                    b.HasIndex("OrganizationId");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId", "OrganizationId")
+                        .IsUnique();
 
-                    b.ToTable("membership_requests", "identity");
+                    b.ToTable("memberships", "identity");
                 });
 
             modelBuilder.Entity("Wallow.Identity.Domain.Entities.Organization", b =>
@@ -734,64 +709,6 @@ namespace Wallow.Identity.Infrastructure.Migrations
                     b.ToTable("organization_branding", "identity");
                 });
 
-            modelBuilder.Entity("Wallow.Identity.Domain.Entities.OrganizationDomain", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by");
-
-                    b.Property<string>("Domain")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("domain");
-
-                    b.Property<bool>("IsVerified")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_verified");
-
-                    b.Property<Guid>("OrganizationId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("organization_id");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("tenant_id");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("updated_by");
-
-                    b.Property<string>("VerificationToken")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("verification_token");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Domain")
-                        .IsUnique();
-
-                    b.HasIndex("OrganizationId");
-
-                    b.HasIndex("TenantId");
-
-                    b.ToTable("organization_domains", "identity");
-                });
-
             modelBuilder.Entity("Wallow.Identity.Domain.Entities.OrganizationMember", b =>
                 {
                     b.Property<Guid>("organization_id")
@@ -868,156 +785,6 @@ namespace Wallow.Identity.Infrastructure.Migrations
                     b.ToTable("organization_settings", "identity");
                 });
 
-            modelBuilder.Entity("Wallow.Identity.Domain.Entities.ScimConfiguration", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<bool>("AutoActivateUsers")
-                        .HasColumnType("boolean")
-                        .HasColumnName("auto_activate_users");
-
-                    b.Property<string>("BearerToken")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("bearer_token");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by");
-
-                    b.Property<string>("DefaultRole")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("default_role");
-
-                    b.Property<bool>("DeprovisionOnDelete")
-                        .HasColumnType("boolean")
-                        .HasColumnName("deprovision_on_delete");
-
-                    b.Property<bool>("IsEnabled")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_enabled");
-
-                    b.Property<DateTime?>("LastSyncAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("last_sync_at");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("tenant_id");
-
-                    b.Property<DateTime>("TokenExpiresAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("token_expires_at");
-
-                    b.Property<string>("TokenPrefix")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("token_prefix");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("updated_by");
-
-                    b.Property<uint>("xmin")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId")
-                        .IsUnique();
-
-                    b.ToTable("scim_configurations", "identity");
-                });
-
-            modelBuilder.Entity("Wallow.Identity.Domain.Entities.ScimSyncLog", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ErrorMessage")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("error_message");
-
-                    b.Property<string>("ExternalId")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("external_id");
-
-                    b.Property<string>("InternalId")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("internal_id");
-
-                    b.Property<string>("Operation")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("operation");
-
-                    b.Property<string>("RequestBody")
-                        .HasColumnType("text")
-                        .HasColumnName("request_body");
-
-                    b.Property<string>("ResourceType")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("resource_type");
-
-                    b.Property<bool>("Success")
-                        .HasColumnType("boolean")
-                        .HasColumnName("success");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("tenant_id");
-
-                    b.Property<DateTime>("Timestamp")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("timestamp");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId");
-
-                    b.HasIndex("Timestamp");
-
-                    b.HasIndex("TenantId", "Timestamp");
-
-                    b.ToTable("scim_sync_logs", "identity");
-                });
-
             modelBuilder.Entity("Wallow.Identity.Domain.Entities.ServiceAccountMetadata", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1090,157 +857,6 @@ namespace Wallow.Identity.Infrastructure.Migrations
                     b.HasIndex("TenantId");
 
                     b.ToTable("service_account_metadata", "identity");
-                });
-
-            modelBuilder.Entity("Wallow.Identity.Domain.Entities.SsoConfiguration", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<bool>("AutoProvisionUsers")
-                        .HasColumnType("boolean")
-                        .HasColumnName("auto_provision_users");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by");
-
-                    b.Property<string>("DefaultRole")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("default_role");
-
-                    b.Property<string>("DisplayName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("display_name");
-
-                    b.Property<string>("EmailAttribute")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("email_attribute");
-
-                    b.Property<bool>("EnforceForAllUsers")
-                        .HasColumnType("boolean")
-                        .HasColumnName("enforce_for_all_users");
-
-                    b.Property<string>("FirstNameAttribute")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("first_name_attribute");
-
-                    b.Property<string>("GroupsAttribute")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("groups_attribute");
-
-                    b.Property<string>("IdpAlias")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("idp_alias");
-
-                    b.Property<string>("LastNameAttribute")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("last_name_attribute");
-
-                    b.Property<string>("OidcClientId")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("oidc_client_id");
-
-                    b.Property<string>("OidcClientSecret")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("oidc_client_secret");
-
-                    b.Property<string>("OidcIssuer")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("oidc_issuer");
-
-                    b.Property<string>("OidcScopes")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("oidc_scopes");
-
-                    b.Property<string>("Protocol")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("protocol");
-
-                    b.Property<string>("SamlCertificate")
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)")
-                        .HasColumnName("saml_certificate");
-
-                    b.Property<string>("SamlEntityId")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("saml_entity_id");
-
-                    b.Property<string>("SamlNameIdFormat")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("saml_name_id_format");
-
-                    b.Property<string>("SamlSloUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("saml_slo_url");
-
-                    b.Property<string>("SamlSsoUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("saml_sso_url");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("status");
-
-                    b.Property<bool>("SyncGroupsAsRoles")
-                        .HasColumnType("boolean")
-                        .HasColumnName("sync_groups_as_roles");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("tenant_id");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("updated_by");
-
-                    b.Property<uint>("xmin")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IdpAlias")
-                        .IsUnique()
-                        .HasFilter("idp_alias IS NOT NULL");
-
-                    b.HasIndex("TenantId");
-
-                    b.ToTable("sso_configurations", "identity");
                 });
 
             modelBuilder.Entity("Wallow.Identity.Domain.Entities.WallowRole", b =>
@@ -1615,6 +1231,37 @@ namespace Wallow.Identity.Infrastructure.Migrations
                     b.Navigation("Application");
 
                     b.Navigation("Authorization");
+                });
+
+            modelBuilder.Entity("Wallow.Identity.Domain.Entities.Membership", b =>
+                {
+                    b.OwnsMany("Wallow.Identity.Domain.Entities.MembershipRole", "_roles", b1 =>
+                        {
+                            b1.Property<Guid>("MembershipId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("membership_id");
+
+                            b1.Property<Guid>("RoleId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("role_id");
+
+                            b1.HasKey("MembershipId", "RoleId");
+
+                            b1.HasIndex("RoleId");
+
+                            b1.ToTable("membership_roles", "identity");
+
+                            b1.WithOwner()
+                                .HasForeignKey("MembershipId");
+
+                            b1.HasOne("Wallow.Identity.Domain.Entities.WallowRole", null)
+                                .WithMany()
+                                .HasForeignKey("RoleId")
+                                .OnDelete(DeleteBehavior.Cascade)
+                                .IsRequired();
+                        });
+
+                    b.Navigation("_roles");
                 });
 
             modelBuilder.Entity("Wallow.Identity.Domain.Entities.OrganizationBranding", b =>
