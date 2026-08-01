@@ -472,6 +472,12 @@ services:
       # (container-to-container). The app is a pure reverse proxy — no session,
       # no Redis; it reads only PORT and HOST (the Nitro server bundle) plus this.
       WALLOW_API_INTERNAL_URL: http://wallow-api:8080
+      # OpenTelemetry — see wallow-web below for why this is 4318 and not 4317.
+      # Without it the /logs route still accepts batches and answers 204, but the
+      # records go to this container's stdout instead of the collector. There is no
+      # OTEL_SERVICE_NAME beside it on purpose: the ingest handler stamps the record's
+      # service itself (log-ingest.server.ts), so the env var would name nothing.
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4318
       # The fork's outbound links, rendered into the page (footer attribution
       # here, nav/footer in wallow-web). Optional: unset falls back to
       # packages/styles/branding.json, so a fork that edited that file need set
@@ -536,9 +542,13 @@ services:
       COOKIE_PASSWORD: ${BFF_COOKIE_PASSWORD:?BFF_COOKIE_PASSWORD is required (32+ char secret; see .env.production.example)}
       # Server-side sessions in Valkey so logout truly revokes tokens
       REDIS_URL: "redis://:${VALKEY_PASSWORD}@valkey:6379"
-      # OpenTelemetry
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4317
-      OTEL_SERVICE_NAME: wallow-web
+      # OpenTelemetry — 4318, not 4317. @bc-solutions-coder/logger POSTs OTLP/JSON
+      # over HTTP and has no gRPC transport; 4317 is Alloy's gRPC receiver and the
+      # POST just fails there, silently (a valid batch answers 204 either way).
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4318
+      # No OTEL_SERVICE_NAME: see wallow-auth above. Nothing in the Node path reads
+      # it — the ingest handler stamps the record's service from its own constant —
+      # so naming one here would only read as if it were load-bearing.
       # See the wallow-auth service above — same two optional links.
       WALLOW_REPOSITORY_URL: ${WALLOW_REPOSITORY_URL:-}
       WALLOW_DOCS_URL: ${WALLOW_DOCS_URL:-}

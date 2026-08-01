@@ -87,7 +87,7 @@ local debugging — the `caddy` ingress is the only externally reachable contain
 
 | Service | Purpose |
 |---------|---------|
-| `alloy` | Grafana Alloy OTLP collector on the compose network (`http://alloy:4317`) |
+| `alloy` | Grafana Alloy OTLP collector on the compose network — gRPC `http://alloy:4317` (the .NET API), HTTP `http://alloy:4318` (the Node apps' logger) |
 | `grafana-lgtm` | `grafana/otel-lgtm` dashboards, published on `127.0.0.1:3001` only |
 
 ```bash

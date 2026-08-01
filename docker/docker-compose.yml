@@ -65,14 +65,22 @@ services:
   # ============================================
   # OBSERVABILITY
   # ============================================
-  # The Wallow API (run via dotnet run, not in Docker) needs these
-  # environment variables to export telemetry to the OTLP collector:
+  # Two exporters reach Alloy, and they do NOT share a port. Both read
+  # OTEL_EXPORTER_OTLP_ENDPOINT, so the value depends on which one is exporting:
   #
-  #   OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
-  #   OTEL_SERVICE_NAME=wallow-api
+  #   The .NET API (dotnet run, not in Docker) — OpenTelemetry .NET, OTLP/gRPC:
+  #     OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+  #     OTEL_SERVICE_NAME=wallow-api
   #
-  # OTEL_EXPORTER_OTLP_ENDPOINT — gRPC endpoint exposed by Alloy collector
-  # OTEL_SERVICE_NAME           — logical service name shown in traces/metrics
+  #   The Node apps (wallow-web, wallow-auth) — @bc-solutions-coder/logger, which
+  #   POSTs OTLP/JSON over HTTP and has no gRPC transport at all:
+  #     OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+  #     OTEL_SERVICE_NAME=wallow-web
+  #
+  # 4317 is gRPC, 4318 is HTTP; Alloy receives on both (alloy/config.alloy). Giving
+  # the Node logger 4317 does not fall back to HTTP — the POST fails, and because a
+  # valid batch answers 204 regardless of collector health, nothing surfaces the loss.
+  # OTEL_SERVICE_NAME — logical service name shown in traces/metrics/logs
   # ============================================
   # ============================================
   # OTLP COLLECTOR (Grafana Alloy)

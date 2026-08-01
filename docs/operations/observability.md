@@ -452,8 +452,11 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4317
 OTEL_SERVICE_NAME=wallow-api
 ```
 
-`docker/docker-compose.production.yml` sets exactly these for the API and web containers, pointing at
-the bundled Alloy collector.
+`docker/docker-compose.production.yml` sets exactly these for the API container, pointing at the
+bundled Alloy collector. The two Node containers (`wallow-auth`, `wallow-web`) also set
+`OTEL_EXPORTER_OTLP_ENDPOINT`, but at **`http://alloy:4318`** — `@bc-solutions-coder/logger` POSTs
+OTLP/JSON over HTTP and has no gRPC transport. Same variable, different port, and 4317 there fails
+silently.
 
 **Logs** are shipped by Serilog, gated on the `OpenTelemetry` configuration section:
 

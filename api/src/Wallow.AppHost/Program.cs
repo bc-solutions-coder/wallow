@@ -66,6 +66,28 @@ IResourceBuilder<ProjectResource> api = builder.AddProject<Projects.Wallow_Api>(
 // port launchSettings owns, and would bake localhost into every deployment target.
 EndpointReference apiEndpoint = api.GetEndpoint("http");
 
+// Where the Node apps' log-ingest routes forward their batches.
+//
+// Aspire already injects OTEL_EXPORTER_OTLP_ENDPOINT into every managed resource, pointing at the
+// dashboard's OTLP endpoint (DOTNET_DASHBOARD_OTLP_ENDPOINT_URL in launchSettings, HTTPS gRPC).
+// That value is wrong twice over for @bc-solutions-coder/logger: it POSTs OTLP/JSON over HTTP and
+// has no gRPC transport, and Aspire configures no certificate trust for JavaScript apps (see the
+// Valkey note above), so even the HTTPS handshake would fail. Both failures are silent — a valid
+// batch answers 204 regardless of collector health — so the override has to be explicit. It is
+// registered after AddJavaScriptApp, which is what makes it win over Aspire's own value.
+//
+// This is one of the literals the comment above allows: it must equal a value another file already
+// fixed. Alloy is not an Aspire resource, so there is no endpoint to reference. It comes from the
+// dev infrastructure stack (pnpm backend:infra), which publishes the OTLP HTTP receiver on
+// 127.0.0.1:4318 (docker/docker-compose.yml). With that stack down the POST fails and the batch is
+// dropped with a console warning, which is what Aspire's own value already did, only reachably.
+//
+// OTEL_EXPORTER_OTLP_PROTOCOL goes with it. The logger never reads it, but Aspire sets it to "grpc"
+// beside the endpoint, and leaving "grpc" naming an HTTP port is the same trap this override exists
+// to close: the next thing to read the pair would believe it.
+const string otlpHttpEndpoint = "http://localhost:4318";
+const string otlpHttpProtocol = "http/json";
+
 // Auth and Web wait for API to be fully ready.
 // Auth is the TanStack Start app (apps/wallow-auth), run via its pnpm dev script (vite dev) on port 3002.
 // WithReference(api) injects Aspire service-discovery vars, which the Node host never reads, so
@@ -77,6 +99,8 @@ builder.AddJavaScriptApp("wallow-auth", wallowAuthDir, "dev")
     .WithReference(valkey, connectionName: "Redis")
     .WithReference(api)
     .WithEnvironment("WALLOW_API_INTERNAL_URL", apiEndpoint)
+    .WithEnvironment("OTEL_EXPORTER_OTLP_ENDPOINT", otlpHttpEndpoint)
+    .WithEnvironment("OTEL_EXPORTER_OTLP_PROTOCOL", otlpHttpProtocol)
     .WaitFor(api)
     .WaitFor(valkey);
 
@@ -117,6 +141,8 @@ builder.AddJavaScriptApp("wallow-web", wallowWebDir, "dev")
     // this the store silently degrades to stateless cookie sessions here while both compose
     // stacks use Valkey. UriExpression renders redis://[:{password}@]{host}:{port}.
     .WithEnvironment("REDIS_URL", valkey.Resource.UriExpression)
+    .WithEnvironment("OTEL_EXPORTER_OTLP_ENDPOINT", otlpHttpEndpoint)
+    .WithEnvironment("OTEL_EXPORTER_OTLP_PROTOCOL", otlpHttpProtocol)
     .WaitFor(api)
     .WaitFor(valkey);
 
