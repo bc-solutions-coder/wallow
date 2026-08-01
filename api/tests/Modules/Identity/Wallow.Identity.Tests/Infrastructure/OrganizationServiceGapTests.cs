@@ -4,11 +4,13 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Enums;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Identity.Infrastructure.Repositories;
 using Wallow.Identity.Infrastructure.Services;
 using Wallow.Shared.Contracts.Identity.Events;
+using Wallow.Shared.Kernel.Domain;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wolverine;
@@ -127,6 +129,53 @@ public sealed class OrganizationServiceGapTests : IDisposable
         Guid actorId = Guid.NewGuid();
         await _sut.UpdateSettingsAsync(oid, true, false, 7, actorId);
         await _messageBus.Received(1).PublishAsync(Arg.Is<OrganizationSettingsUpdatedEvent>(e => e.RequireMfa && e.MfaGracePeriodDays == 7));
+    }
+
+    [Fact]
+    public async Task UpdateEnrollment_Updates()
+    {
+        Guid oid = Guid.NewGuid();
+        OrganizationSettings s = OrganizationSettings.Create(OrganizationId.Create(oid), new TenantId(_tenantId), false, true, 7, Guid.Empty, TimeProvider.System);
+        _dbContext.OrganizationSettings.Add(s); await _dbContext.SaveChangesAsync();
+
+        await _sut.UpdateEnrollmentAsync(oid, EnrollmentPolicy.Open, "join@acme.test", null, Guid.NewGuid());
+
+        OrganizationSettingsDto? r = await _sut.GetSettingsAsync(oid);
+        r!.EnrollmentPolicy.Should().Be(EnrollmentPolicy.Open);
+        r.AccessRequestEmail.Should().Be("join@acme.test");
+        r.AllowPasswordlessLogin.Should().BeTrue();
+    }
+
+    // The organization IS the tenant, so a settings row this call mints carries the org id as its
+    // tenant id — read it back under any other id and the tenant filter hides it.
+    [Fact]
+    public async Task UpdateEnrollment_None_CreatesSettings()
+    {
+        await _sut.UpdateEnrollmentAsync(_tenantId, EnrollmentPolicy.RequestApproval, null, null, Guid.NewGuid());
+
+        OrganizationSettingsDto? r = await _sut.GetSettingsAsync(_tenantId);
+        r!.EnrollmentPolicy.Should().Be(EnrollmentPolicy.RequestApproval);
+    }
+
+    [Fact]
+    public async Task UpdateEnrollment_WithKnownRole_StoresIt()
+    {
+        Guid oid = _tenantId;
+        Guid roleId = Guid.NewGuid();
+        _dbContext.Roles.Add(new WallowRole { Id = roleId, Name = "member", NormalizedName = "MEMBER" });
+        await _dbContext.SaveChangesAsync();
+
+        await _sut.UpdateEnrollmentAsync(oid, EnrollmentPolicy.Open, null, roleId, Guid.NewGuid());
+
+        (await _sut.GetSettingsAsync(oid))!.DefaultRoleId.Should().Be(roleId);
+    }
+
+    [Fact]
+    public async Task UpdateEnrollment_WithUnknownRole_Throws()
+    {
+        Func<Task> act = () => _sut.UpdateEnrollmentAsync(Guid.NewGuid(), EnrollmentPolicy.Open, null, Guid.NewGuid(), Guid.NewGuid());
+
+        await act.Should().ThrowAsync<BusinessRuleException>();
     }
 
     [Fact]

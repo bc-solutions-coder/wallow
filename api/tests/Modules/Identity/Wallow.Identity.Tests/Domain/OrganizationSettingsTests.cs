@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Time.Testing;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Enums;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Shared.Kernel.Identity;
 
@@ -110,5 +111,61 @@ public class OrganizationSettingsTests
         settings.Update(false, false, -1, _userId, _timeProvider);
 
         settings.MfaGracePeriodDays.Should().Be(-1);
+    }
+
+    [Fact]
+    public void Create_LeavesTheOrganizationClosedToEveryoneUninvited()
+    {
+        OrganizationSettings settings = OrganizationSettings.Create(
+            _orgId, _tenantId, false, false, 0, _userId, _timeProvider);
+
+        settings.EnrollmentPolicy.Should().Be(EnrollmentPolicy.InviteOnly);
+        settings.AccessRequestEmail.Should().BeNull();
+        settings.DefaultRoleId.Should().BeNull();
+    }
+
+    [Fact]
+    public void UpdateEnrollment_SetsThePolicyAndItsSupportingFields()
+    {
+        OrganizationSettings settings = OrganizationSettings.Create(
+            _orgId, _tenantId, false, false, 0, _userId, _timeProvider);
+        Guid roleId = Guid.NewGuid();
+        Guid updaterUserId = Guid.NewGuid();
+        _timeProvider.Advance(TimeSpan.FromHours(1));
+
+        settings.UpdateEnrollment(
+            EnrollmentPolicy.RequestApproval, "access@acme.test", roleId, updaterUserId, _timeProvider);
+
+        settings.EnrollmentPolicy.Should().Be(EnrollmentPolicy.RequestApproval);
+        settings.AccessRequestEmail.Should().Be("access@acme.test");
+        settings.DefaultRoleId.Should().Be(roleId);
+        settings.UpdatedBy.Should().Be(updaterUserId);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void UpdateEnrollment_WithABlankAddress_StoresNoAddressAtAll(string address)
+    {
+        OrganizationSettings settings = OrganizationSettings.Create(
+            _orgId, _tenantId, false, false, 0, _userId, _timeProvider);
+
+        settings.UpdateEnrollment(EnrollmentPolicy.Open, address, null, _userId, _timeProvider);
+
+        // Null is what the recipient resolver reads as "ask the people who can approve"; a blank
+        // string is an address it would try to send to.
+        settings.AccessRequestEmail.Should().BeNull();
+    }
+
+    [Fact]
+    public void UpdateEnrollment_DoesNotDisturbTheMfaSettings()
+    {
+        OrganizationSettings settings = OrganizationSettings.Create(
+            _orgId, _tenantId, true, false, 14, _userId, _timeProvider);
+
+        settings.UpdateEnrollment(EnrollmentPolicy.Open, null, null, _userId, _timeProvider);
+
+        settings.RequireMfa.Should().BeTrue();
+        settings.MfaGracePeriodDays.Should().Be(14);
     }
 }

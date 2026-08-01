@@ -12,7 +12,7 @@ using Wallow.Identity.Infrastructure.Persistence;
 namespace Wallow.Identity.Infrastructure.Migrations
 {
     [DbContext(typeof(IdentityDbContext))]
-    [Migration("20260801104036_InitialCreate")]
+    [Migration("20260801163611_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -715,6 +715,11 @@ namespace Wallow.Identity.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("AccessRequestEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("access_request_email");
+
                     b.Property<bool>("AllowPasswordlessLogin")
                         .HasColumnType("boolean")
                         .HasColumnName("allow_passwordless_login");
@@ -726,6 +731,16 @@ namespace Wallow.Identity.Infrastructure.Migrations
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("uuid")
                         .HasColumnName("created_by");
+
+                    b.Property<Guid?>("DefaultRoleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("default_role_id");
+
+                    b.Property<string>("EnrollmentPolicy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("enrollment_policy");
 
                     b.Property<int>("MfaGracePeriodDays")
                         .HasColumnType("integer")

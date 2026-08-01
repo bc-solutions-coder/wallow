@@ -1,4 +1,5 @@
 using Wallow.Identity.Application.DTOs;
+using Wallow.Identity.Domain.Enums;
 
 namespace Wallow.Identity.Application.Interfaces;
 
@@ -29,6 +30,11 @@ public interface IOrganizationService
     Task DeleteAsync(Guid organizationId, string confirmedName, CancellationToken ct = default);
     Task<OrganizationSettingsDto?> GetSettingsAsync(Guid organizationId, CancellationToken ct = default);
     Task UpdateSettingsAsync(Guid organizationId, bool requireMfa, bool allowPasswordlessLogin, int mfaGracePeriodDays, Guid actorId, CancellationToken ct = default);
+
+    // Separate from UpdateSettingsAsync because these three decide who belongs to the organization,
+    // and are therefore gated on OrganizationsManageMembers rather than OrganizationsUpdate. One
+    // method spanning both permissions could only either write part of a request or refuse all of it.
+    Task UpdateEnrollmentAsync(Guid organizationId, EnrollmentPolicy enrollmentPolicy, string? accessRequestEmail, Guid? defaultRoleId, Guid actorId, CancellationToken ct = default);
     Task<OrganizationBrandingDto?> GetBrandingAsync(Guid organizationId, CancellationToken ct = default);
     Task<OrganizationBrandingDto> UpdateBrandingAsync(Guid organizationId, string? displayName, string? logoUrl, string? primaryColor, Guid actorId, CancellationToken ct = default);
     Task<string> UploadBrandingLogoAsync(Guid organizationId, Stream logoStream, string fileName, string contentType, Guid actorId, CancellationToken ct = default);

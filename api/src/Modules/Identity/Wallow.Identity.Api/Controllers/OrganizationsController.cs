@@ -315,4 +315,30 @@ public class OrganizationsController(
         await orgService.UpdateSettingsAsync(id, request.RequireMfa ?? false, false, request.MfaGracePeriodDays ?? 0, actorId, ct);
         return NoContent();
     }
+
+    /// <summary>
+    /// Set who may join this organization and the role they join with.
+    /// </summary>
+    /// <remarks>
+    /// Separate from the settings route above, and gated on managing members rather than on editing
+    /// settings: these three fields decide the organization's membership.
+    /// </remarks>
+    [HttpPut("{id:guid}/enrollment")]
+    [HasPermission(PermissionType.OrganizationsManageMembers)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult> UpdateEnrollment(Guid id, UpdateOrganizationEnrollmentRequest request, CancellationToken ct)
+    {
+        if (!await CanAddressOrganizationAsync(id, PermissionType.OrganizationsManageMembers, ct))
+        {
+            return NotFound();
+        }
+
+        Guid actorId = Guid.Parse(User.GetUserId()!);
+        await orgService.UpdateEnrollmentAsync(
+            id, request.EnrollmentPolicy, request.AccessRequestEmail, request.DefaultRoleId, actorId, ct);
+
+        return NoContent();
+    }
 }

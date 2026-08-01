@@ -373,37 +373,94 @@ public sealed partial class OrganizationService(
             organizationId,
             settings.RequireMfa,
             settings.AllowPasswordlessLogin,
-            settings.MfaGracePeriodDays);
+            settings.MfaGracePeriodDays,
+            settings.EnrollmentPolicy,
+            settings.AccessRequestEmail,
+            settings.DefaultRoleId);
     }
 
-    public async Task UpdateSettingsAsync(Guid organizationId, bool requireMfa, bool allowPasswordlessLogin, int mfaGracePeriodDays, Guid actorId, CancellationToken ct = default)
+    /// <summary>
+    /// Changes who may join this organization. A settings row is created on demand so that an
+    /// organization which has never had its settings touched can still be opened up.
+    /// </summary>
+    public async Task UpdateEnrollmentAsync(
+        Guid organizationId,
+        EnrollmentPolicy enrollmentPolicy,
+        string? accessRequestEmail,
+        Guid? defaultRoleId,
+        Guid actorId,
+        CancellationToken ct = default)
+    {
+        await GuardRoleExistsAsync(defaultRoleId, ct);
+
+        OrganizationSettings settings = await GetOrCreateSettingsAsync(organizationId, actorId, ct);
+        settings.UpdateEnrollment(enrollmentPolicy, accessRequestEmail, defaultRoleId, actorId, timeProvider);
+
+        await dbContext.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// A default role that does not exist is a policy that admits nobody: every join under it fails
+    /// at the moment of enrollment, far from the setting that caused it.
+    /// </summary>
+    private async Task GuardRoleExistsAsync(Guid? roleId, CancellationToken ct)
+    {
+        if (roleId is null)
+        {
+            return;
+        }
+
+        bool exists = await dbContext.Roles
+            .IgnoreQueryFilters()
+            .AnyAsync(r => r.Id == roleId.Value, ct);
+
+        if (!exists)
+        {
+            throw new BusinessRuleException(
+                "Identity.RoleNotFound",
+                "The requested default role does not exist");
+        }
+    }
+
+    /// <summary>
+    /// The unique constraint on organization_id is global, so the lookup has to see rows the tenant
+    /// filter would hide or the insert races it. AsTracking because the DbContext defaults to
+    /// NoTracking and mutations would otherwise go unnoticed.
+    /// </summary>
+    private async Task<OrganizationSettings> GetOrCreateSettingsAsync(
+        Guid organizationId, Guid actorId, CancellationToken ct)
     {
         OrganizationId orgId = OrganizationId.Create(organizationId);
 
-        // The unique constraint on organization_id is global, so the lookup has to see rows the
-        // tenant filter would hide or the insert below races it.
-        // AsTracking ensures EF Core detects mutations even though the DbContext defaults to NoTracking.
         OrganizationSettings? settings = await dbContext.OrganizationSettings
             .AsTracking()
             .IgnoreQueryFilters()
             .FirstOrDefaultAsync(s => s.OrganizationId == orgId, ct);
 
-        if (settings is null)
+        if (settings is not null)
         {
-            settings = OrganizationSettings.Create(
-                orgId,
-                TenantId.Create(organizationId),
-                requireMfa,
-                allowPasswordlessLogin,
-                mfaGracePeriodDays,
-                actorId,
-                timeProvider);
-            dbContext.OrganizationSettings.Add(settings);
+            return settings;
         }
-        else
-        {
-            settings.Update(requireMfa, allowPasswordlessLogin, mfaGracePeriodDays, actorId, timeProvider);
-        }
+
+        settings = OrganizationSettings.Create(
+            orgId,
+            TenantId.Create(organizationId),
+            requireMfa: false,
+            allowPasswordlessLogin: false,
+            mfaGracePeriodDays: 0,
+            actorId,
+            timeProvider);
+
+        dbContext.OrganizationSettings.Add(settings);
+
+        return settings;
+    }
+
+    public async Task UpdateSettingsAsync(Guid organizationId, bool requireMfa, bool allowPasswordlessLogin, int mfaGracePeriodDays, Guid actorId, CancellationToken ct = default)
+    {
+        OrganizationSettings settings = await GetOrCreateSettingsAsync(organizationId, actorId, ct);
+        settings.Update(requireMfa, allowPasswordlessLogin, mfaGracePeriodDays, actorId, timeProvider);
+
         await dbContext.SaveChangesAsync(ct);
 
         // When enabling MFA with a grace period, set MfaGraceDeadline on unenrolled members

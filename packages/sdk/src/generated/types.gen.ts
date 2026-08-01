@@ -326,6 +326,13 @@ export type DeviceRegistrationResponse = {
     registeredAt: string;
 };
 
+/**
+ * How an organization admits someone who is not already a member. Invitation acceptance is not
+ * governed by this — being invited by a member holding `OrganizationsManageMembers` is itself
+ * the authorization.
+ */
+export type EnrollmentPolicy = number;
+
 export type FileMetadataResponse = {
     id: string;
     bucketId: string;
@@ -496,6 +503,9 @@ export type OrganizationSettingsDto = {
     requireMfa: boolean;
     allowPasswordlessLogin: boolean;
     mfaGracePeriodDays: number | string;
+    enrollmentPolicy: EnrollmentPolicy;
+    accessRequestEmail: null | string;
+    defaultRoleId: null | string;
 };
 
 export type PagedNotificationResponse = {
@@ -753,6 +763,17 @@ export type UpdateOrganizationBrandingRequest = {
     displayName: null | string;
     logoUrl: null | string;
     primaryColor: null | string;
+};
+
+/**
+ * Who may join an organization and on what terms. Separate from
+ * UpdateOrganizationSettingsRequest because these fields are gated on the right to
+ * manage members, not the right to edit settings.
+ */
+export type UpdateOrganizationEnrollmentRequest = {
+    enrollmentPolicy: EnrollmentPolicy;
+    accessRequestEmail: null | string;
+    defaultRoleId: null | string;
 };
 
 export type UpdateOrganizationSettingsRequest = {
@@ -2711,6 +2732,35 @@ export type OrganizationsUpdateSettingsErrors = {
 export type OrganizationsUpdateSettingsError = OrganizationsUpdateSettingsErrors[keyof OrganizationsUpdateSettingsErrors];
 
 export type OrganizationsUpdateSettingsResponses = {
+    /**
+     * No Content
+     */
+    204: unknown;
+};
+
+export type OrganizationsUpdateEnrollmentData = {
+    body: UpdateOrganizationEnrollmentRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/v1/identity/organizations/{id}/enrollment';
+};
+
+export type OrganizationsUpdateEnrollmentErrors = {
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Unprocessable Entity
+     */
+    422: ProblemDetails;
+};
+
+export type OrganizationsUpdateEnrollmentError = OrganizationsUpdateEnrollmentErrors[keyof OrganizationsUpdateEnrollmentErrors];
+
+export type OrganizationsUpdateEnrollmentResponses = {
     /**
      * No Content
      */

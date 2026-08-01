@@ -28,6 +28,20 @@ public class RolePermissionMappingTests
     }
 
     [Fact]
+    public void GetPermissions_UserRole_WithholdsAdministrativeOrganizationRights()
+    {
+        IEnumerable<string> roles = new[] { "user" };
+
+        List<string> result = RolePermissionMapping.GetPermissions(roles).ToList();
+
+        // The per-organization roles exist to withhold exactly this. A default grant here reinstates
+        // the escalation whichever way the membership model is written.
+        result.Should().NotContain(PermissionType.OrganizationsUpdate);
+        result.Should().NotContain(PermissionType.OrganizationsCreate);
+        result.Should().NotContain(PermissionType.OrganizationsManageMembers);
+    }
+
+    [Fact]
     public void GetPermissions_ManagerRole_ReturnsManagerPermissions()
     {
         IEnumerable<string> roles = new[] { "manager" };

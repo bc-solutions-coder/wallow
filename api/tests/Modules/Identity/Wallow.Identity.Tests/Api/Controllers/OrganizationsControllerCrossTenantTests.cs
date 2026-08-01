@@ -5,6 +5,7 @@ using Wallow.Identity.Api.Contracts.Requests;
 using Wallow.Identity.Api.Controllers;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
+using Wallow.Identity.Domain.Enums;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
@@ -49,7 +50,8 @@ public sealed class OrganizationsControllerCrossTenantTests
         _orgService.GetBrandingAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(callInfo => new OrganizationBrandingDto(callInfo.Arg<Guid>(), "Victim", null, null, null));
         _orgService.GetSettingsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
-            .Returns(callInfo => new OrganizationSettingsDto(callInfo.Arg<Guid>(), true, false, 7));
+            .Returns(callInfo => new OrganizationSettingsDto(
+                callInfo.Arg<Guid>(), true, false, 7, EnrollmentPolicy.InviteOnly, null, null));
         _orgService.GetMembersAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(new List<UserDto> { new(Guid.NewGuid(), "victim@other.test", "Victim", "User", true, ["user"]) });
         _orgService.UpdateBrandingAsync(
@@ -75,6 +77,7 @@ public sealed class OrganizationsControllerCrossTenantTests
     [InlineData("UploadBrandingLogo")]
     [InlineData("GetSettings")]
     [InlineData("UpdateSettings")]
+    [InlineData("UpdateEnrollment")]
     public async Task TenantAdminRole_ForeignOrganization_IsRejected(string endpoint)
     {
         OrganizationsController controller = CreateController(
@@ -99,6 +102,7 @@ public sealed class OrganizationsControllerCrossTenantTests
     [InlineData("UploadBrandingLogo")]
     [InlineData("GetSettings")]
     [InlineData("UpdateSettings")]
+    [InlineData("UpdateEnrollment")]
     public async Task TenantAdminRole_ForeignOrganization_NeverReachesTheOrganizationService(string endpoint)
     {
         OrganizationsController controller = CreateController(
@@ -123,6 +127,7 @@ public sealed class OrganizationsControllerCrossTenantTests
     [InlineData("UploadBrandingLogo")]
     [InlineData("GetSettings")]
     [InlineData("UpdateSettings")]
+    [InlineData("UpdateEnrollment")]
     public async Task GlobalAdminClaim_ForeignOrganization_StillReachesTheOrganizationService(string endpoint)
     {
         OrganizationsController controller = CreateController(
@@ -147,6 +152,7 @@ public sealed class OrganizationsControllerCrossTenantTests
     [InlineData("UploadBrandingLogo")]
     [InlineData("GetSettings")]
     [InlineData("UpdateSettings")]
+    [InlineData("UpdateEnrollment")]
     public async Task TenantAdminRole_OwnOrganization_StillReachesTheOrganizationService(string endpoint)
     {
         OrganizationsController controller = CreateController(
@@ -220,6 +226,7 @@ public sealed class OrganizationsControllerCrossTenantTests
     [InlineData("UploadBrandingLogo")]
     [InlineData("GetSettings")]
     [InlineData("UpdateSettings")]
+    [InlineData("UpdateEnrollment")]
     public async Task PermittedMember_ThatOrganization_ReachesTheOrganizationService(string endpoint)
     {
         // Creating an organization mints a NEW tenant id, so the creator's own tenant id can never
@@ -270,6 +277,7 @@ public sealed class OrganizationsControllerCrossTenantTests
     [InlineData("UpdateBranding", PermissionType.OrganizationsUpdate)]
     [InlineData("UploadBrandingLogo", PermissionType.OrganizationsUpdate)]
     [InlineData("UpdateSettings", PermissionType.OrganizationsUpdate)]
+    [InlineData("UpdateEnrollment", PermissionType.OrganizationsManageMembers)]
     public async Task ForeignOrganization_AsksForTheEndpointsOwnPermission(string endpoint, string permission)
     {
         OrganizationsController controller = CreateController(new Claim(ClaimTypes.Role, "admin"));
@@ -284,6 +292,7 @@ public sealed class OrganizationsControllerCrossTenantTests
     [InlineData("Delete")]
     [InlineData("Archive")]
     [InlineData("UpdateSettings")]
+    [InlineData("UpdateEnrollment")]
     [InlineData("AddMember")]
     public async Task ForeignOrganization_ReadOnlyMember_ReachesNoWriteEndpoint(string endpoint)
     {
@@ -321,6 +330,8 @@ public sealed class OrganizationsControllerCrossTenantTests
             "GetSettings" => (await controller.GetSettings(orgId, ct)).Result,
             "UpdateSettings" => await controller.UpdateSettings(
                 orgId, new UpdateOrganizationSettingsRequest(false, 0, null, null), ct),
+            "UpdateEnrollment" => await controller.UpdateEnrollment(
+                orgId, new UpdateOrganizationEnrollmentRequest(EnrollmentPolicy.Open, null, null), ct),
             _ => throw new ArgumentOutOfRangeException(
                 nameof(endpoint), endpoint, "Unknown organization-scoped endpoint."),
         };

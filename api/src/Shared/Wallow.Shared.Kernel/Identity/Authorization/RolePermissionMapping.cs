@@ -60,11 +60,14 @@ public static class RolePermissionMapping
             PermissionType.ConfigurationManage,
             PermissionType.InquiriesRead,
         ],
+        // Read-only on organizations. A plain member holding OrganizationsUpdate can rewrite the
+        // settings of any organization they belong to, and holding OrganizationsCreate can mint one
+        // they own outright; granting either by default hands every member the administrative
+        // surface the per-organization roles exist to withhold. Self-service organization creation,
+        // if a fork wants it, is a deliberate grant on a role of its own.
         ["user"] =
         [
             PermissionType.OrganizationsRead,
-            PermissionType.OrganizationsCreate,
-            PermissionType.OrganizationsUpdate,
             PermissionType.NotificationRead,
             PermissionType.EmailPreferenceManage,
             PermissionType.AnnouncementRead,

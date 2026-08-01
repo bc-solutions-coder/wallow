@@ -3822,6 +3822,70 @@
         }
       }
     },
+    "/v1/identity/organizations/{id}/enrollment": {
+      "put": {
+        "tags": [
+          "Organizations"
+        ],
+        "summary": "Set who may join this organization and the role they join with.",
+        "description": "Separate from the settings route above, and gated on managing members rather than on editing\nsettings: these three fields decide the organization's membership.",
+        "operationId": "OrganizationsUpdateEnrollment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrganizationEnrollmentRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrganizationEnrollmentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "content": {
+              "application/json": { }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/identity/roles": {
       "get": {
         "tags": [
@@ -7200,6 +7264,10 @@
           }
         }
       },
+      "EnrollmentPolicy": {
+        "type": "integer",
+        "description": "How an organization admits someone who is not already a member. Invitation acceptance is not\ngoverned by this — being invited by a member holding `OrganizationsManageMembers` is itself\nthe authorization."
+      },
       "FileMetadataResponse": {
         "required": [
           "id",
@@ -7733,7 +7801,10 @@
           "organizationId",
           "requireMfa",
           "allowPasswordlessLogin",
-          "mfaGracePeriodDays"
+          "mfaGracePeriodDays",
+          "enrollmentPolicy",
+          "accessRequestEmail",
+          "defaultRoleId"
         ],
         "type": "object",
         "properties": {
@@ -7754,6 +7825,22 @@
               "string"
             ],
             "format": "int32"
+          },
+          "enrollmentPolicy": {
+            "$ref": "#/components/schemas/EnrollmentPolicy"
+          },
+          "accessRequestEmail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "defaultRoleId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },
@@ -8753,6 +8840,34 @@
             ]
           }
         }
+      },
+      "UpdateOrganizationEnrollmentRequest": {
+        "required": [
+          "enrollmentPolicy",
+          "accessRequestEmail",
+          "defaultRoleId"
+        ],
+        "type": "object",
+        "properties": {
+          "enrollmentPolicy": {
+            "$ref": "#/components/schemas/EnrollmentPolicy"
+          },
+          "accessRequestEmail": {
+            "maxLength": 256,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "defaultRoleId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        },
+        "description": "Who may join an organization and on what terms. Separate from\nUpdateOrganizationSettingsRequest because these fields are gated on the right to\nmanage members, not the right to edit settings."
       },
       "UpdateOrganizationSettingsRequest": {
         "required": [

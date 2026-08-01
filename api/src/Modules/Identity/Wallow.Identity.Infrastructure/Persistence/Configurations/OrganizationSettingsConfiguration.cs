@@ -45,6 +45,19 @@ public sealed class OrganizationSettingsConfiguration : IEntityTypeConfiguration
             .HasColumnName("mfa_grace_period_days")
             .IsRequired();
 
+        builder.Property(e => e.EnrollmentPolicy)
+            .HasColumnName("enrollment_policy")
+            .HasConversion<string>()
+            .HasMaxLength(50)
+            .IsRequired();
+
+        builder.Property(e => e.AccessRequestEmail)
+            .HasColumnName("access_request_email")
+            .HasMaxLength(256);
+
+        builder.Property(e => e.DefaultRoleId)
+            .HasColumnName("default_role_id");
+
         builder.Property(e => e.CreatedAt).HasColumnName("created_at");
         builder.Property(e => e.UpdatedAt).HasColumnName("updated_at");
         builder.Property(e => e.CreatedBy).HasColumnName("created_by");
