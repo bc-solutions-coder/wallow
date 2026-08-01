@@ -294,6 +294,25 @@ bd update <id> --status in_progress         # Claim work
 bd close <id>                               # Complete work
 ```
 
+### Beads sync across machines
+
+Beads live in a Dolt database under `.beads/dolt/`, which is gitignored and never committed. They
+travel through the **same GitHub repo** via Dolt's git-backed remote: the data sits on
+`refs/dolt/data`, with a `__dolt_remote_info__` branch pointing at it. `.beads/config.yaml` records
+`sync.remote: git+https://github.com/bc-solutions-coder/wallow.git`.
+
+- **Push** — `bd dolt push`. The installed `pre-push` git hook runs it too, so `git push` carries
+  beads along; session completion still runs it explicitly.
+- **Pull** — `bd dolt pull`. Run it before starting work on a machine you haven't used lately —
+  `git pull` does NOT bring beads over.
+- **A new machine** — clone the repo, then `bd bootstrap --yes`: it finds `refs/dolt/data` on git
+  origin and rebuilds the whole database, with no `.beads/` needing to exist first. Follow with
+  `bd hooks install`, since git hooks live in `.git/` and are not cloned.
+
+`bd dolt remote list` prints `(none)` here even though the remote is configured — it inspects the
+data-dir root instead of the `beads_foundry` database inside it. Verify with `dolt remote -v` from
+`.beads/dolt/beads_foundry`, and do not "fix" the empty listing by adding a second remote.
+
 ### Memory discipline
 
 `bd remember` is ONLY for timeless, repo-wide facts a fresh clone can't rediscover.
