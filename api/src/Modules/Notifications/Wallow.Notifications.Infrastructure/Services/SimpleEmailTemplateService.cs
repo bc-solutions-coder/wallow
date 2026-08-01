@@ -239,6 +239,20 @@ public sealed partial class SimpleEmailTemplateService(
                 "View Invitation",
                 "{{InvitationUrl}}"),
 
+            "accessrequest" => WrapInLayout(
+                "Someone Wants to Join",
+                """
+                <tr>
+                    <td style="padding: 30px 40px; font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.6; color: #333333;">
+                        <p style="margin: 0 0 16px;"><strong>{{RequesterName}}</strong> ({{RequesterEmail}}) has asked to join <strong>{{OrganizationName}}</strong> on {{AppName}}.</p>
+                        <p style="margin: 0 0 16px;">They cannot sign in to the organization until someone approves the request.</p>
+                        <p style="margin: 0 0 24px;">Review the request to approve or deny it.</p>
+                    </td>
+                </tr>
+                """,
+                "Review Request",
+                "{{ReviewUrl}}"),
+
             "magiclink" => WrapInLayout(
                 "Your Magic Link",
                 """

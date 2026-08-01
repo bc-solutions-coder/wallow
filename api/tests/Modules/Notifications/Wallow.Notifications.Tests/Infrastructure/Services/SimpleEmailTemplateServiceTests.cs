@@ -40,6 +40,36 @@ public class SimpleEmailTemplateServiceTests
     }
 
     [Fact]
+    public async Task RenderAsync_AccessRequestTemplate_ContainsRequesterAndReviewUrl()
+    {
+        object model = new
+        {
+            OrganizationName = "Contoso",
+            RequesterName = "New Bie",
+            RequesterEmail = "newbie@test.com",
+            ReviewUrl = "https://app.test/dashboard/organizations/abc"
+        };
+
+        string result = await _service.RenderAsync("accessrequest", model);
+
+        result.Should().Contain("Contoso");
+        result.Should().Contain("New Bie");
+        result.Should().Contain("newbie@test.com");
+        result.Should().Contain("https://app.test/dashboard/organizations/abc");
+        result.Should().Contain("Review Request");
+    }
+
+    [Fact]
+    public async Task RenderAsync_HyphenatedAccessRequestKey_FallsThroughToTheDefaultArm()
+    {
+        // The switch lowercases the key but does not strip hyphens, so "access-request" would
+        // send the generic notification body with none of the model rendered into it.
+        string result = await _service.RenderAsync("access-request", new { OrganizationName = "Contoso" });
+
+        result.Should().NotContain("Contoso");
+    }
+
+    [Fact]
     public async Task RenderAsync_UnknownTemplate_ReturnsDefaultTemplate()
     {
         object model = new { Message = "Custom message" };
