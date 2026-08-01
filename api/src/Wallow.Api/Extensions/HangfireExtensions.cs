@@ -37,9 +37,12 @@ internal static class HangfireExtensions
     public static WebApplication UseHangfireDashboard(
         this WebApplication app)
     {
+        bool allowAnonymous = app.Configuration.GetValue<bool>(
+            HangfireDashboardAuthFilter.AllowAnonymousConfigurationKey);
+
         app.UseHangfireDashboard("/hangfire", new DashboardOptions
         {
-            Authorization = [new HangfireDashboardAuthFilter(app.Environment)],
+            Authorization = [new HangfireDashboardAuthFilter(allowAnonymous)],
             DashboardTitle = "Wallow Jobs"
         });
 

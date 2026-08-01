@@ -1,31 +1,28 @@
 using System.Security.Claims;
 using Hangfire;
 using Hangfire.Dashboard;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Wallow.Api.Middleware;
+using Wallow.Shared.Kernel.Identity.Authorization;
 
 namespace Wallow.Api.Tests.Middleware;
 
+/// <summary>
+/// Who reaches the Hangfire dashboard. The decision is a permission, not a role claim: roles are
+/// granted per organization and the dashboard belongs to none, so the only claim that can answer
+/// here is the one permission expansion has already minted from those roles.
+/// </summary>
 public class HangfireDashboardAuthFilterTests
 {
-    private readonly IWebHostEnvironment _environment = Substitute.For<IWebHostEnvironment>();
-    private readonly HangfireDashboardAuthFilter _sut;
-
-    public HangfireDashboardAuthFilterTests()
-    {
-        _environment.EnvironmentName.Returns("Production");
-        _sut = new HangfireDashboardAuthFilter(_environment);
-    }
+    private readonly HangfireDashboardAuthFilter _sut = new(allowAnonymous: false);
 
     [Fact]
-    public void Authorize_InDevelopmentEnvironment_ReturnsTrueRegardlessOfAuth()
+    public void Authorize_WhenAnonymousAccessIsConfigured_ReturnsTrueRegardlessOfAuth()
     {
-        _environment.EnvironmentName.Returns("Development");
-        HangfireDashboardAuthFilter devFilter = new(_environment);
+        HangfireDashboardAuthFilter open = new(allowAnonymous: true);
         DashboardContext context = CreateDashboardContext(authenticated: false);
 
-        bool result = devFilter.Authorize(context);
+        bool result = open.Authorize(context);
 
         result.Should().BeTrue();
     }
@@ -41,9 +38,10 @@ public class HangfireDashboardAuthFilterTests
     }
 
     [Fact]
-    public void Authorize_AuthenticatedNonAdminUser_ReturnsFalse()
+    public void Authorize_AuthenticatedUserWithoutAdminAccess_ReturnsFalse()
     {
-        DashboardContext context = CreateDashboardContext(authenticated: true, role: "User");
+        DashboardContext context = CreateDashboardContext(
+            authenticated: true, permission: PermissionType.UsersRead);
 
         bool result = _sut.Authorize(context);
 
@@ -51,31 +49,56 @@ public class HangfireDashboardAuthFilterTests
     }
 
     [Fact]
-    public void Authorize_AuthenticatedAdminUser_ReturnsTrue()
+    public void Authorize_AuthenticatedUserWithAdminAccess_ReturnsTrue()
     {
-        DashboardContext context = CreateDashboardContext(authenticated: true, role: "Admin");
+        DashboardContext context = CreateDashboardContext(
+            authenticated: true, permission: PermissionType.AdminAccess);
 
         bool result = _sut.Authorize(context);
 
         result.Should().BeTrue();
     }
 
-    private static AspNetCoreDashboardContext CreateDashboardContext(bool authenticated, string? role = null)
+    [Fact]
+    public void Authorize_AuthenticatedUserCarryingOnlyAnAdminRoleClaim_ReturnsFalse()
     {
-        DefaultHttpContext httpContext = new();
-        httpContext.RequestServices = Substitute.For<IServiceProvider>();
+        DefaultHttpContext httpContext = new()
+        {
+            RequestServices = Substitute.For<IServiceProvider>(),
+            User = new ClaimsPrincipal(new ClaimsIdentity(
+                [new Claim(ClaimTypes.Name, "test-user"), new Claim(ClaimTypes.Role, "admin")],
+                "TestAuth")),
+        };
+
+        bool result = _sut.Authorize(CreateDashboardContext(httpContext));
+
+        result.Should().BeFalse();
+    }
+
+    private static AspNetCoreDashboardContext CreateDashboardContext(
+        bool authenticated, string? permission = null)
+    {
+        DefaultHttpContext httpContext = new()
+        {
+            RequestServices = Substitute.For<IServiceProvider>(),
+        };
 
         if (authenticated)
         {
             List<Claim> claims = [new Claim(ClaimTypes.Name, "test-user")];
-            if (role is not null)
+            if (permission is not null)
             {
-                claims.Add(new Claim(ClaimTypes.Role, role));
+                claims.Add(new Claim("permission", permission));
             }
-            ClaimsIdentity identity = new(claims, "TestAuth");
-            httpContext.User = new ClaimsPrincipal(identity);
+
+            httpContext.User = new ClaimsPrincipal(new ClaimsIdentity(claims, "TestAuth"));
         }
 
+        return CreateDashboardContext(httpContext);
+    }
+
+    private static AspNetCoreDashboardContext CreateDashboardContext(HttpContext httpContext)
+    {
         JobStorage storage = Substitute.For<JobStorage>();
         DashboardOptions options = new();
         return new AspNetCoreDashboardContext(storage, options, httpContext);
