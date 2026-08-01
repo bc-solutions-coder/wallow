@@ -21,6 +21,7 @@ public sealed partial class PreRegisteredClientSyncService(
 {
     private const string SourcePropertyKey = "source";
     private const string SourcePropertyValue = "config";
+    private const string DefaultSeedMemberRole = "user";
 
     public async Task SyncAsync(CancellationToken ct)
     {
@@ -240,9 +241,18 @@ public sealed partial class PreRegisteredClientSyncService(
                 continue;
             }
 
-            await organizationService.AddMemberAsync(orgId, user.Id, "user", ct);
-            LogSeedMemberAdded(client.ClientId, email);
+            string roleName = ResolveSeedMemberRole(client, email);
+            await organizationService.AddMemberAsync(orgId, user.Id, roleName, ct);
+            LogSeedMemberAdded(client.ClientId, email, roleName);
         }
+    }
+
+    private static string ResolveSeedMemberRole(PreRegisteredClientDefinition client, string email)
+    {
+        return client.SeedMemberRoles.TryGetValue(email, out string? configured)
+            && !string.IsNullOrWhiteSpace(configured)
+                ? configured
+                : DefaultSeedMemberRole;
     }
 
     private static bool IsServiceAccount(string clientId)
@@ -317,8 +327,8 @@ public sealed partial class PreRegisteredClientSyncService(
     [LoggerMessage(Level = LogLevel.Information, Message = "Auto-created organization '{TenantName}' for pre-registered client: {ClientId}")]
     private partial void LogTenantCreated(string clientId, string tenantName);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Added seed member '{Email}' to organization for client: {ClientId}")]
-    private partial void LogSeedMemberAdded(string clientId, string email);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Added seed member '{Email}' as '{RoleName}' to organization for client: {ClientId}")]
+    private partial void LogSeedMemberAdded(string clientId, string email, string roleName);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Seed member '{Email}' not found for client: {ClientId}")]
     private partial void LogSeedMemberNotFound(string clientId, string email);

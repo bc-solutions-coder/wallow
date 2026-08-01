@@ -22,6 +22,13 @@ public sealed record PreRegisteredClientDefinition
 
     public Collection<string> SeedMembers { get; init; } = [];
 
+    /// <summary>
+    /// Role name granted to each seed member BY this client's organization, keyed by email.
+    /// A seed member absent from the map is enrolled with <c>user</c>: roles are per
+    /// (user, organization), so an unnamed one has to mean the baseline, never admin.
+    /// </summary>
+    public Dictionary<string, string> SeedMemberRoles { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+
     // Explicit public-client declaration, bound from the "public" key. A client registered
     // without a secret MUST declare this true; the absence of a secret never implies public.
     public bool? Public { get; init; }

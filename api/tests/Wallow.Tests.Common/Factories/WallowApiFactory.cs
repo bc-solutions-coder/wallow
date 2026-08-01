@@ -3,6 +3,7 @@ using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
@@ -14,6 +15,8 @@ using Testcontainers.Redis;
 using Wallow.Identity.Application.Commands.BootstrapAdmin;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Application.Queries.IsSetupRequired;
+using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Data;
 using Wallow.Shared.Contracts.ApiKeys;
 using Wallow.Shared.Contracts.Identity;
@@ -275,8 +278,43 @@ public class WallowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                             cancellationToken);
                         await bootstrapAdminService.AssignRoleAsync(userId, "admin", cancellationToken);
                     }
+
+                    await EnrollTestAdminAsync(sp, cancellationToken);
                 }
             }
+        }
+
+        /// <summary>
+        /// Enrols the identity <see cref="TestAuthHandler"/> authenticates as — user
+        /// <see cref="TestConstants.AdminUserId"/> in organization <see cref="TestConstants.TestOrgId"/>
+        /// — as an administrator. Authorization reads memberships, so without this every request
+        /// through the pipeline meets SetupMiddleware's 503 and no test reaches its endpoint.
+        /// The bootstrapped user above is a different, freshly minted id: it exists so a real user
+        /// row is present, not so a test can authenticate as it.
+        /// </summary>
+        private static async Task EnrollTestAdminAsync(IServiceProvider sp, CancellationToken ct)
+        {
+            RoleManager<WallowRole> roleManager = sp.GetRequiredService<RoleManager<WallowRole>>();
+            WallowRole? adminRole = await roleManager.FindByNameAsync("admin");
+            if (adminRole is null)
+            {
+                return;
+            }
+
+            IMembershipRepository memberships = sp.GetRequiredService<IMembershipRepository>();
+            Membership? existing = await memberships.GetAsync(TestConstants.AdminUserId, TestConstants.TestOrgId, ct);
+            if (existing is not null)
+            {
+                return;
+            }
+
+            memberships.Add(Membership.Enroll(
+                TestConstants.AdminUserId,
+                OrganizationId.Create(TestConstants.TestOrgId),
+                adminRole.Id,
+                sp.GetRequiredService<TimeProvider>()));
+
+            await memberships.SaveChangesAsync(ct);
         }
 
         public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;

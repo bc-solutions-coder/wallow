@@ -185,6 +185,7 @@
       "displayName": "Wallow Web",
       "tenantName": "Wallow",
       "seedMembers": ["admin@wallow.dev"],
+      "seedMemberRoles": { "admin@wallow.dev": "admin" },
       "public": false,
       "secret": "wallow-web-secret",
       "redirectUris": ["http://localhost:3000/bff/callback"],
@@ -206,7 +207,7 @@
       "displayName": "BCOrdes BFF Service Account",
       "public": false,
       "secret": "bcordes-bff-secret",
-      "tenantName": "Dev",
+      "tenantName": "Wallow",
       "scopes": ["inquiries.read", "inquiries.write", "notifications.read", "notifications.write"]
     },
     {
@@ -215,8 +216,8 @@
       "tenantName": "Wallow",
       "public": false,
       "secret": "bcordes-bff-secret",
-      "redirectUris": ["http://localhost:3000/bff/callback"],
-      "postLogoutRedirectUris": ["http://localhost:3000/"],
+      "redirectUris": ["http://localhost:3003/bff/callback"],
+      "postLogoutRedirectUris": ["http://localhost:3003/"],
       "scopes": [
         "openid",
         "email",

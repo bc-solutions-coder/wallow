@@ -1,22 +1,50 @@
-using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Wallow.Identity.Application.Queries.IsSetupRequired;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Enums;
+using Wallow.Identity.Infrastructure.Persistence;
+using Wallow.Shared.Kernel.Identity.Authorization;
 
 namespace Wallow.Identity.Infrastructure.Services;
 
-public sealed class SetupStatusChecker(
-    RoleManager<WallowRole> roleManager,
-    UserManager<WallowUser> userManager) : ISetupStatusChecker
+/// <summary>
+/// Decides whether the <c>[AllowAnonymous]</c> setup endpoints stay open. "An administrator
+/// exists" means an Active membership holding a role that grants <see cref="PermissionType.AdminAccess"/>
+/// — the same thing authorization now reads. AspNetUserRoles is still written (ASP.NET Identity
+/// and the seeder's global-admin bootstrap both keep writing it) but nothing reads it to decide
+/// authorization, so counting rows there would leave this gate open on an instance that already
+/// has a working administrator, or shut on one that does not.
+/// </summary>
+public sealed class SetupStatusChecker(IdentityDbContext context) : ISetupStatusChecker
 {
     public async Task<bool> IsSetupRequiredAsync(CancellationToken ct = default)
     {
-        WallowRole? adminRole = await roleManager.FindByNameAsync("admin");
-        if (adminRole is null)
+        // Roles are a global catalog seeded outside any tenant, and this runs unauthenticated
+        // with no ambient tenant resolved, so both reads bypass the tenant filters.
+        List<WallowRole> roles = await context.Roles
+            .IgnoreQueryFilters()
+            .Where(r => r.Name != null)
+            .ToListAsync(ct);
+
+        List<Guid> adminRoleIds =
+        [
+            .. roles
+                .Where(r => RolePermissionMapping.GetPermissions([r.Name!])
+                    .Contains(PermissionType.AdminAccess, StringComparer.Ordinal))
+                .Select(r => r.Id)
+        ];
+
+        if (adminRoleIds.Count == 0)
         {
             return true;
         }
 
-        IList<WallowUser> admins = await userManager.GetUsersInRoleAsync("admin");
-        return admins.Count == 0;
+        bool administratorExists = await context.Memberships
+            .IgnoreQueryFilters()
+            .Where(m => m.Status == MembershipStatus.Active)
+            .SelectMany(m => m.Roles)
+            .AnyAsync(r => adminRoleIds.Contains(r.RoleId), ct);
+
+        return !administratorExists;
     }
 }

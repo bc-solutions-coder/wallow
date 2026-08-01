@@ -35,6 +35,12 @@ public sealed class Membership : AggregateRoot<MembershipId>
 
     private readonly List<MembershipRole> _roles = [];
 
+    /// <summary>
+    /// The mapped navigation onto membership_roles. Callers want <see cref="RoleIds"/>; this
+    /// exists so a query can reach the assignments without materializing memberships.
+    /// </summary>
+    public IReadOnlyCollection<MembershipRole> Roles => _roles;
+
     public IReadOnlyList<Guid> RoleIds => _roles.Select(r => r.RoleId).ToList().AsReadOnly();
 
     public bool IsActive => Status == MembershipStatus.Active;

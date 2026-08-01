@@ -61,7 +61,7 @@ public sealed class MembershipConfiguration : IEntityTypeConfiguration<Membershi
             .ValueGeneratedOnAddOrUpdate()
             .IsConcurrencyToken();
 
-        builder.OwnsMany<MembershipRole>("_roles", role =>
+        builder.OwnsMany(e => e.Roles, role =>
         {
             role.ToTable("membership_roles");
             role.WithOwner().HasForeignKey(r => r.MembershipId);

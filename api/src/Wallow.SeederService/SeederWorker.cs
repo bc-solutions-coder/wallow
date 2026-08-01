@@ -111,8 +111,12 @@ public sealed partial class SeederWorker(
     {
         LogStepStarted("Bootstrap Admin");
 
-        // Deliberately independent of ISetupStatusChecker: setup counts as done once ANY user holds
-        // the admin role, which would silently suppress the configured seed admin (Wallow-wd6n).
+        // Deliberately independent of ISetupStatusChecker: setup counts as done once any Active
+        // membership grants admin, which on a re-seed would silently suppress the configured seed
+        // admin (Wallow-wd6n). AssignRoleAsync below still writes AspNetUserRoles — ASP.NET
+        // Identity owns that table and nothing here drops it — but no authorization decision reads
+        // it. What makes this user an administrator is the membership PreRegisteredClientSyncService
+        // creates from the client's seedMemberRoles map, in the client-sync step that follows.
         if (seedOptions.Value.Admin is not { IsConfigured: true } admin)
         {
             LogSeedAdminNotConfigured();

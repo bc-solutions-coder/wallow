@@ -603,16 +603,19 @@ middleware and `getRouter()` lifts it into the router context.
 ## Local development: the seeded `bcordes-bff` client
 
 The repository's `seed.json` ships a ready-to-use confidential client for local
-BFF development so you do not have to register one by hand. After running the
+BFF development so you do not have to register one by hand. It is the *external
+site* reference client — a second application signing users in through Wallow —
+so it sits on its own port; `wallow-web-client` is the one `apps/wallow-web` uses
+on port 3000. After running the
 [seeder](../getting-started/developer-guide.md), the following client exists in
-the `Wallow` tenant:
+the `Wallow` organization:
 
 | Setting                  | Value                                                                                                             |
 | ------------------------ | ----------------------------------------------------------------------------------------------------------------- |
 | `clientId`               | `bcordes-bff`                                                                                                     |
 | `clientSecret`           | `bcordes-bff-secret`                                                                                              |
-| Redirect URI             | `http://localhost:3000/bff/callback`                                                                              |
-| Post-logout redirect URI | `http://localhost:3000/`                                                                                          |
+| Redirect URI             | `http://localhost:3003/bff/callback`                                                                              |
+| Post-logout redirect URI | `http://localhost:3003/`                                                                                          |
 | Scopes                   | `openid email profile roles offline_access inquiries.read inquiries.write notifications.read notifications.write` |
 
 Point your BFF at it with a local `.env` (adjust the API/issuer origins to your
@@ -622,14 +625,14 @@ running stack):
 OIDC_ISSUER=http://localhost:5001
 OIDC_CLIENT_ID=bcordes-bff
 OIDC_CLIENT_SECRET=bcordes-bff-secret
-OIDC_REDIRECT_URI=http://localhost:3000/bff/callback
-OIDC_POST_LOGOUT_REDIRECT_URI=http://localhost:3000/
+OIDC_REDIRECT_URI=http://localhost:3003/bff/callback
+OIDC_POST_LOGOUT_REDIRECT_URI=http://localhost:3003/
 BFF_API_BASE_URL=http://localhost:5001
 COOKIE_PASSWORD=dev-only-change-me-to-a-long-random-string
 ```
 
 The redirect and post-logout URIs must match the seeded client exactly, so keep
-your BFF on port `3000` locally (or update `seed.json` and re-seed).
+your BFF on port `3003` locally (or update `seed.json` and re-seed).
 
 > **Development secret:** `bcordes-bff-secret` and the sample `COOKIE_PASSWORD`
 > are for local development only. Provision distinct, high-entropy values for

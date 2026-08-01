@@ -197,9 +197,9 @@ try
         //     location is the correct behavior here: inlining a fresh 'new TenantContext()'
         //     would hand handlers an empty tenant instead of the instance the HTTP
         //     tenant-resolution middleware populated for the request.
-        //   - ISetupStatusChecker (behind IsSetupRequiredHandler) depends on ASP.NET
-        //     Identity's UserManager/RoleManager, whose framework factory registrations
-        //     the codegen cannot see through.
+        //   - ISetupStatusChecker (behind IsSetupRequiredHandler) reaches IdentityDbContext,
+        //     registered by AddDbContext's framework factory, which the codegen cannot see
+        //     through.
         // See https://wolverinefx.net/guide/codegen.html.
         opts.ServiceLocationPolicy = ServiceLocationPolicy.NotAllowed;
         opts.CodeGeneration.AlwaysUseServiceLocationFor<ITenantContext>();
