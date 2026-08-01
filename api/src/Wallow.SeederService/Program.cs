@@ -73,6 +73,7 @@ builder.Services.AddScoped<ITenantContextSetter>(sp => sp.GetRequiredService<Ten
 // Identity services needed by seeders
 builder.Services.AddScoped<IOrganizationRepository, OrganizationRepository>();
 builder.Services.AddScoped<IMembershipRepository, MembershipRepository>();
+builder.Services.AddScoped<IMembershipRoleResolver, MembershipRoleResolver>();
 builder.Services.AddScoped<IOrganizationService, OrganizationService>();
 builder.Services.AddScoped<PreRegisteredClientSyncService>();
 builder.Services.AddScoped<IBootstrapAdminService, BootstrapAdminService>();

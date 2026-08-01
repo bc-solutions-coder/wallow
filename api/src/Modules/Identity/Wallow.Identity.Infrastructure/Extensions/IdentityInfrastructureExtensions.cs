@@ -260,6 +260,7 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
         services.AddScoped<IInvitationRepository, InvitationRepository>();
         services.AddScoped<IMembershipRepository, MembershipRepository>();
+        services.AddScoped<IMembershipRoleResolver, MembershipRoleResolver>();
     }
 
     private static void AddIdentityAuthorization(this IServiceCollection services, IConfiguration configuration)
