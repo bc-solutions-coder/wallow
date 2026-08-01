@@ -89,7 +89,7 @@ public class AccountControllerTests
     [Fact]
     public async Task Login_WithValidCredentials_ReturnsOkWithTicket()
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         _userManager.FindByEmailAsync("test@test.com").Returns(user);
         _signInManager.CheckPasswordSignInAsync(user, "password", true)
             .Returns(Microsoft.AspNetCore.Identity.SignInResult.Success);
@@ -111,7 +111,7 @@ public class AccountControllerTests
     [Fact]
     public async Task Login_WithLockedOutUser_Returns423()
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "locked@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "locked@test.com", TimeProvider.System);
         _userManager.FindByEmailAsync("locked@test.com").Returns(user);
         _signInManager.CheckPasswordSignInAsync(user, "password", true)
             .Returns(Microsoft.AspNetCore.Identity.SignInResult.LockedOut);
@@ -125,7 +125,7 @@ public class AccountControllerTests
     [Fact]
     public async Task Login_WithNotAllowedUser_Returns403()
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "unconfirmed@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "unconfirmed@test.com", TimeProvider.System);
         _userManager.FindByEmailAsync("unconfirmed@test.com").Returns(user);
         _signInManager.CheckPasswordSignInAsync(user, "password", true)
             .Returns(Microsoft.AspNetCore.Identity.SignInResult.NotAllowed);
@@ -139,7 +139,7 @@ public class AccountControllerTests
     [Fact]
     public async Task Login_WithWrongPassword_ReturnsUnauthorized()
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         _userManager.FindByEmailAsync("test@test.com").Returns(user);
         _signInManager.CheckPasswordSignInAsync(user, "wrong", true)
             .Returns(Microsoft.AspNetCore.Identity.SignInResult.Failed);
@@ -214,7 +214,7 @@ public class AccountControllerTests
     [Fact]
     public async Task ForgotPassword_WithValidEmail_ReturnsOk()
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         _userManager.FindByEmailAsync("test@test.com").Returns(user);
         _userManager.IsEmailConfirmedAsync(user).Returns(true);
         _userManager.GeneratePasswordResetTokenAsync(user).Returns("reset-token");
@@ -245,7 +245,7 @@ public class AccountControllerTests
     [Fact]
     public async Task ResetPassword_WithInvalidToken_ReturnsBadRequest()
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         _userManager.FindByEmailAsync("test@test.com").Returns(user);
         _userManager.ResetPasswordAsync(user, "bad-token", "NewPassword1!")
             .Returns(IdentityResult.Failed(new IdentityError { Code = "InvalidToken" }));
@@ -259,7 +259,7 @@ public class AccountControllerTests
     [Fact]
     public async Task ResetPassword_WithValidToken_ReturnsOk()
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         _userManager.FindByEmailAsync("test@test.com").Returns(user);
         _userManager.ResetPasswordAsync(user, "valid-token", "NewPassword1!")
             .Returns(IdentityResult.Success);
@@ -287,7 +287,7 @@ public class AccountControllerTests
     [Fact]
     public async Task VerifyEmail_WithInvalidToken_ReturnsBadRequest()
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         _userManager.FindByEmailAsync("test@test.com").Returns(user);
         _userManager.ConfirmEmailAsync(user, "bad-token")
             .Returns(IdentityResult.Failed(new IdentityError { Code = "InvalidToken" }));
@@ -300,7 +300,7 @@ public class AccountControllerTests
     [Fact]
     public async Task VerifyEmail_WithValidToken_ReturnsOk()
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         _userManager.FindByEmailAsync("test@test.com").Returns(user);
         _userManager.ConfirmEmailAsync(user, "valid-token")
             .Returns(IdentityResult.Success);

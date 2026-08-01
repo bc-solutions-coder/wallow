@@ -8,5 +8,5 @@ namespace Wallow.Shared.Contracts.Identity.Events;
 public sealed record UserMfaBackupCodesRegeneratedEvent : IntegrationEvent
 {
     public required Guid UserId { get; init; }
-    public required Guid TenantId { get; init; }
+    public Guid? TenantId { get; init; }
 }

@@ -255,7 +255,6 @@ namespace Wallow.Identity.Infrastructure.Migrations
                 columns: table => new
                 {
                     id = table.Column<Guid>(type: "uuid", nullable: false),
-                    tenant_id = table.Column<Guid>(type: "uuid", nullable: false),
                     first_name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
                     last_name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
                     is_active = table.Column<bool>(type: "boolean", nullable: false),
@@ -777,24 +776,6 @@ namespace Wallow.Identity.Infrastructure.Migrations
                 schema: "identity",
                 table: "users",
                 column: "normalized_email");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_users_tenant_id_id",
-                schema: "identity",
-                table: "users",
-                columns: new[] { "tenant_id", "id" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_users_tenant_id_is_active",
-                schema: "identity",
-                table: "users",
-                columns: new[] { "tenant_id", "is_active" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_users_tenant_id_normalized_email",
-                schema: "identity",
-                table: "users",
-                columns: new[] { "tenant_id", "normalized_email" });
 
             migrationBuilder.CreateIndex(
                 name: "UserNameIndex",

@@ -313,7 +313,7 @@ public sealed class MfaServiceAdditionalGapTests
     [Fact]
     public async Task ValidateBackupCodeAsync_ValidCode_ReturnsTrueAndRemovesCode()
     {
-        WallowUser user = WallowUser.Create(Guid.NewGuid(), "Test", "User", "u@t.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "u@t.com", TimeProvider.System);
 
         // Compute the hash of "test-code" the same way the service does (SHA256 hex)
         byte[] hash = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes("test-code"));
@@ -357,7 +357,7 @@ public sealed class MfaExemptionCheckerTests : IDisposable
     [Fact]
     public async Task IsExemptAsync_UserWithNoMembership_ReturnsFalse()
     {
-        WallowUser user = WallowUser.Create(_tenantId, "No", "Membership", "nm@t.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("No", "Membership", "nm@t.com", TimeProvider.System);
 
         bool result = await _sut.IsExemptAsync(user, CancellationToken.None);
 
@@ -367,7 +367,7 @@ public sealed class MfaExemptionCheckerTests : IDisposable
     [Fact]
     public async Task IsExemptAsync_GraceDeadlineWithoutAMembership_ReturnsFalse()
     {
-        WallowUser user = WallowUser.Create(_tenantId, "Grace", "User", "grace@t.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Grace", "User", "grace@t.com", TimeProvider.System);
         user.SetMfaGraceDeadline(DateTimeOffset.UtcNow.AddDays(3));
 
         // The deadline is granted BY an organization, so it excuses nothing on its own.
@@ -522,7 +522,7 @@ public sealed class PasswordlessServiceAdditionalGapTests
             MagicLinkTtl = TimeSpan.FromMinutes(10),
             OtpTtl = TimeSpan.FromMinutes(5)
         };
-        _sut = new PasswordlessService(mux, _messageBus, _userManager, tc, dp, Options.Create(opts), NullLogger<PasswordlessService>.Instance);
+        _sut = new PasswordlessService(mux, _messageBus, _userManager, dp, Options.Create(opts), NullLogger<PasswordlessService>.Instance);
     }
 
     [Fact]
@@ -560,7 +560,7 @@ public sealed class PasswordlessServiceAdditionalGapTests
     {
         // Generate a valid signed token by sending a magic link first
         _redis.StringIncrementAsync(Arg.Any<RedisKey>(), Arg.Any<long>(), Arg.Any<CommandFlags>()).Returns(1L);
-        WallowUser user = WallowUser.Create(_tenantId, "A", "B", "valid@t.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("A", "B", "valid@t.com", TimeProvider.System);
         _userManager.FindByEmailAsync("valid@t.com").Returns(user);
 
         string? capturedToken = null;

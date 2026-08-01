@@ -280,7 +280,7 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
 
         UserManager<WallowUser> users = services.GetRequiredService<UserManager<WallowUser>>();
 
-        WallowUser user = WallowUser.Create(Guid.Empty, "Harness", "User", email, TimeProvider.System);
+        WallowUser user = WallowUser.Create("Harness", "User", email, TimeProvider.System);
         user.EmailConfirmed = true;
 
         IdentityResult result = await users.CreateAsync(user, password);

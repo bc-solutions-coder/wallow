@@ -86,7 +86,7 @@ public class AccountControllerEmailChangeTests
     private WallowUser CreateTestUser(string? email = null, Guid? id = null)
     {
         Guid userId = id ?? _userId;
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", email ?? TestEmail, TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", email ?? TestEmail, TimeProvider.System);
         // Set Id via reflection since WallowUser inherits from IdentityUser<Guid>
         typeof(IdentityUser<Guid>).GetProperty(nameof(IdentityUser<Guid>.Id))!.SetValue(user, userId);
         return user;

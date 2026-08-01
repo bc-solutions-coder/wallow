@@ -191,7 +191,7 @@ public class MfaPartialAuthServiceTests
     [Fact]
     public async Task UpgradeToFullAuthAsync_CallsSignInManagerSignInAsyncExactlyOnce()
     {
-        WallowUser user = WallowUser.Create(Guid.NewGuid(), "Test", "User", "test@example.com", _timeProvider);
+        WallowUser user = WallowUser.Create("Test", "User", "test@example.com", _timeProvider);
 
         _signInManager.UserManager.FindByIdAsync("user-upgrade").Returns(user);
 
@@ -206,7 +206,7 @@ public class MfaPartialAuthServiceTests
     [Fact]
     public async Task UpgradeToFullAuthAsync_WithNonPersistent_PassesCorrectIsPersistent()
     {
-        WallowUser user = WallowUser.Create(Guid.NewGuid(), "Test", "User2", "test2@example.com", _timeProvider);
+        WallowUser user = WallowUser.Create("Test", "User2", "test2@example.com", _timeProvider);
 
         _signInManager.UserManager.FindByIdAsync("user-upgrade-2").Returns(user);
 
@@ -221,7 +221,7 @@ public class MfaPartialAuthServiceTests
     [Fact]
     public async Task UpgradeToFullAuthAsync_DeletesPartialCookieAfterSignIn()
     {
-        WallowUser user = WallowUser.Create(Guid.NewGuid(), "Test", "User3", "test3@example.com", _timeProvider);
+        WallowUser user = WallowUser.Create("Test", "User3", "test3@example.com", _timeProvider);
 
         _signInManager.UserManager.FindByIdAsync("user-upgrade-3").Returns(user);
 

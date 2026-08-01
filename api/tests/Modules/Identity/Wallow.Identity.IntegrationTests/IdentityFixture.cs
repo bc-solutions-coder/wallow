@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using OpenIddict.Abstractions;
 using Wallow.Identity.Domain.Entities;
-using Wallow.Tests.Common.Helpers;
 
 namespace Wallow.Identity.IntegrationTests;
 
@@ -58,7 +57,6 @@ public sealed class IdentityFixture
         if (existingAdmin is null)
         {
             WallowUser adminUser = WallowUser.Create(
-                Guid.Empty,
                 "Admin",
                 "User",
                 AdminUserEmail,
@@ -83,7 +81,6 @@ public sealed class IdentityFixture
         }
 
         WallowUser user = WallowUser.Create(
-            TestConstants.TestTenantId,
             TestUserFirstName,
             TestUserLastName,
             TestUserEmail,

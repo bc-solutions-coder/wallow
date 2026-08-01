@@ -78,7 +78,7 @@ public class AccountControllerMfaLockoutTests
     private WallowUser CreateTestUser(string? userId = null, bool lockedOut = false)
     {
         Guid id = userId is not null ? Guid.Parse(userId) : Guid.NewGuid();
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", TestEmail, TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", TestEmail, TimeProvider.System);
         // Set the Id via reflection since it's set during Create
         typeof(WallowUser).GetProperty("Id")!.SetValue(user, id);
         typeof(WallowUser).GetProperty("TotpSecretEncrypted")!.SetValue(user, "encrypted-secret");

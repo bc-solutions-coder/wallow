@@ -57,7 +57,7 @@ public sealed class OrganizationMfaPolicyServiceTests : IDisposable
     [Fact]
     public async Task CheckAsync_UserAlreadyHasMfaEnabled_ReturnsNotRequired()
     {
-        WallowUser user = WallowUser.Create(_tenantId, "Mfa", "Enabled", "mfa@t.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Mfa", "Enabled", "mfa@t.com", TimeProvider.System);
         user.EnableMfa("totp", "encrypted-secret");
         _userManager.FindByIdAsync(user.Id.ToString()).Returns(user);
 
@@ -69,7 +69,7 @@ public sealed class OrganizationMfaPolicyServiceTests : IDisposable
     [Fact]
     public async Task CheckAsync_UserNotInOrg_ReturnsNotRequired()
     {
-        WallowUser user = WallowUser.Create(_tenantId, "No", "Org", "noorg@t.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("No", "Org", "noorg@t.com", TimeProvider.System);
         _userManager.FindByIdAsync(user.Id.ToString()).Returns(user);
 
         OrgMfaPolicyResult result = await _sut.CheckAsync(user.Id, CancellationToken.None);
@@ -83,7 +83,7 @@ public sealed class OrganizationMfaPolicyServiceTests : IDisposable
         Organization org = Organization.Create(
             TenantId.Create(_tenantId), "Test Org", "test-org", Guid.NewGuid(), TimeProvider.System);
 
-        WallowUser user = WallowUser.Create(org.Id.Value, "No", "Mfa", "nomfa@t.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("No", "Mfa", "nomfa@t.com", TimeProvider.System);
         _userManager.FindByIdAsync(user.Id.ToString()).Returns(user);
 
         _dbContext.Organizations.Add(org);
@@ -109,7 +109,7 @@ public sealed class OrganizationMfaPolicyServiceTests : IDisposable
         Organization org = Organization.Create(
             TenantId.Create(_tenantId), "MFA Org", "mfa-org", Guid.NewGuid(), TimeProvider.System);
 
-        WallowUser user = WallowUser.Create(org.Id.Value, "Need", "Mfa", "needmfa@t.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Need", "Mfa", "needmfa@t.com", TimeProvider.System);
         _userManager.FindByIdAsync(user.Id.ToString()).Returns(user);
 
         _dbContext.Organizations.Add(org);
@@ -135,7 +135,7 @@ public sealed class OrganizationMfaPolicyServiceTests : IDisposable
         Organization org = Organization.Create(
             TenantId.Create(_tenantId), "Grace Org", "grace-org", Guid.NewGuid(), TimeProvider.System);
 
-        WallowUser user = WallowUser.Create(org.Id.Value, "Grace", "Period", "grace@t.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Grace", "Period", "grace@t.com", TimeProvider.System);
         user.SetMfaGraceDeadline(DateTimeOffset.UtcNow.AddDays(7));
         _userManager.FindByIdAsync(user.Id.ToString()).Returns(user);
 
@@ -162,7 +162,7 @@ public sealed class OrganizationMfaPolicyServiceTests : IDisposable
         Organization org = Organization.Create(
             TenantId.Create(_tenantId), "Pending Org", "pending-org", Guid.NewGuid(), TimeProvider.System);
 
-        WallowUser user = WallowUser.Create(org.Id.Value, "Not", "Yet", "pending@t.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Not", "Yet", "pending@t.com", TimeProvider.System);
         _userManager.FindByIdAsync(user.Id.ToString()).Returns(user);
 
         _dbContext.Organizations.Add(org);

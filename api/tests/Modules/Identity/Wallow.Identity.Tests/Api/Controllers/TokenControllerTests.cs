@@ -40,7 +40,7 @@ public sealed class TokenControllerTests : IDisposable
             userStore, null, null, null, null, null, null, null, null);
 
         _user = WallowUser.Create(
-            Guid.NewGuid(), "Test", "User", "test@example.com", TimeProvider.System);
+            "Test", "User", "test@example.com", TimeProvider.System);
 
         _userManager.FindByIdAsync(Arg.Any<string>()).Returns(_user);
 

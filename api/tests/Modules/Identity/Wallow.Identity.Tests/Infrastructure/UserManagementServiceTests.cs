@@ -159,7 +159,7 @@ public sealed class UserManagementServiceTests : IDisposable
     {
         Guid userId = Guid.NewGuid();
         WallowUser user = WallowUser.Create(
-            _tenantContext.TenantId.Value, "John", "Doe", "john@test.com", _timeProvider);
+            "John", "Doe", "john@test.com", _timeProvider);
         _userManager.FindByIdAsync(userId.ToString()).Returns(user);
 
         WallowRole adminRole = new() { Id = Guid.NewGuid(), Name = "admin", NormalizedName = "ADMIN", TenantId = _tenantContext.TenantId.Value };
@@ -190,7 +190,7 @@ public sealed class UserManagementServiceTests : IDisposable
     public async Task GetUserByEmailAsync_WhenUserExists_ReturnsUserDto()
     {
         WallowUser user = WallowUser.Create(
-            _tenantContext.TenantId.Value, "Jane", "Doe", "jane@test.com", _timeProvider);
+            "Jane", "Doe", "jane@test.com", _timeProvider);
         _userManager.FindByEmailAsync("jane@test.com").Returns(user);
 
         WallowRole userRole = new() { Id = Guid.NewGuid(), Name = "user", NormalizedName = "USER", TenantId = _tenantContext.TenantId.Value };
@@ -220,7 +220,7 @@ public sealed class UserManagementServiceTests : IDisposable
     {
         Guid userId = Guid.NewGuid();
         WallowUser user = WallowUser.Create(
-            _tenantContext.TenantId.Value, "John", "Doe", "john@test.com", _timeProvider);
+            "John", "Doe", "john@test.com", _timeProvider);
         _userManager.FindByIdAsync(userId.ToString()).Returns(user);
         _userManager.SetLockoutEnabledAsync(user, true).Returns(IdentityResult.Success);
         _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue).Returns(IdentityResult.Success);
@@ -247,7 +247,7 @@ public sealed class UserManagementServiceTests : IDisposable
     {
         Guid userId = Guid.NewGuid();
         WallowUser user = WallowUser.Create(
-            _tenantContext.TenantId.Value, "John", "Doe", "john@test.com", _timeProvider);
+            "John", "Doe", "john@test.com", _timeProvider);
         _userManager.FindByIdAsync(userId.ToString()).Returns(user);
         _userManager.SetLockoutEnabledAsync(user, false).Returns(IdentityResult.Success);
         _userManager.SetLockoutEndDateAsync(user, null).Returns(IdentityResult.Success);
@@ -263,7 +263,7 @@ public sealed class UserManagementServiceTests : IDisposable
     {
         Guid userId = Guid.NewGuid();
         WallowUser user = WallowUser.Create(
-            _tenantContext.TenantId.Value, "John", "Doe", "john@test.com", _timeProvider);
+            "John", "Doe", "john@test.com", _timeProvider);
         Guid userRoleId = await SeedRoleAsync("user");
         Guid adminRoleId = await SeedRoleAsync("admin");
         _roleManager.RoleExistsAsync("admin").Returns(true);
@@ -293,7 +293,7 @@ public sealed class UserManagementServiceTests : IDisposable
     {
         Guid userId = Guid.NewGuid();
         WallowUser user = WallowUser.Create(
-            _tenantContext.TenantId.Value, "John", "Doe", "john@test.com", _timeProvider);
+            "John", "Doe", "john@test.com", _timeProvider);
         await SeedRoleAsync("admin");
         _roleManager.RoleExistsAsync("admin").Returns(true);
         _userManager.FindByIdAsync(userId.ToString()).Returns(user);
@@ -310,7 +310,7 @@ public sealed class UserManagementServiceTests : IDisposable
     {
         Guid userId = Guid.NewGuid();
         WallowUser user = WallowUser.Create(
-            _tenantContext.TenantId.Value, "John", "Doe", "john@test.com", _timeProvider);
+            "John", "Doe", "john@test.com", _timeProvider);
         Guid userRoleId = await SeedRoleAsync("user");
         Guid adminRoleId = await SeedRoleAsync("admin");
         _userManager.FindByIdAsync(userId.ToString()).Returns(user);
@@ -364,7 +364,7 @@ public sealed class UserManagementServiceTests : IDisposable
     {
         Guid userId = Guid.NewGuid();
         WallowUser user = WallowUser.Create(
-            _tenantContext.TenantId.Value, "John", "Doe", "john@test.com", _timeProvider);
+            "John", "Doe", "john@test.com", _timeProvider);
         _userManager.FindByIdAsync(userId.ToString()).Returns(user);
         _userManager.DeleteAsync(user).Returns(IdentityResult.Success);
 
@@ -389,7 +389,7 @@ public sealed class UserManagementServiceTests : IDisposable
     {
         Guid userId = Guid.NewGuid();
         WallowUser user = WallowUser.Create(
-            _tenantContext.TenantId.Value, "John", "Doe", "john@test.com", _timeProvider);
+            "John", "Doe", "john@test.com", _timeProvider);
         _userManager.FindByIdAsync(userId.ToString()).Returns(user);
         _userManager.DeleteAsync(user).Returns(
             IdentityResult.Failed(new IdentityError { Description = "Cannot delete" }));

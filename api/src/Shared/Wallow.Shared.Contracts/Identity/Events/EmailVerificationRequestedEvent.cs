@@ -8,7 +8,7 @@ namespace Wallow.Shared.Contracts.Identity.Events;
 public sealed record EmailVerificationRequestedEvent : IntegrationEvent
 {
     public required Guid UserId { get; init; }
-    public required Guid TenantId { get; init; }
+    public Guid? TenantId { get; init; }
     public required string Email { get; init; }
     public required string FirstName { get; init; }
     public required string VerifyUrl { get; init; }

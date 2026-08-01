@@ -262,7 +262,7 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
         _controller.Url = urlHelper;
 
         WallowUser wallowUser = WallowUser.Create(
-            Guid.NewGuid(), "Test", "User", "test@example.com", TimeProvider.System);
+            "Test", "User", "test@example.com", TimeProvider.System);
 
         _userManager.GetUserId(Arg.Any<ClaimsPrincipal>()).Returns(_testUserId);
         _userManager.FindByIdAsync(_testUserId).Returns(wallowUser);

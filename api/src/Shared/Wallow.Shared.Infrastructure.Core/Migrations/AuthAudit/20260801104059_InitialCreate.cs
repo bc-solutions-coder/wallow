@@ -22,7 +22,7 @@ namespace Wallow.Shared.Infrastructure.Core.Migrations.AuthAudit
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     EventType = table.Column<string>(type: "text", nullable: false),
                     UserId = table.Column<Guid>(type: "uuid", nullable: false),
-                    TenantId = table.Column<Guid>(type: "uuid", nullable: false),
+                    TenantId = table.Column<Guid>(type: "uuid", nullable: true),
                     IpAddress = table.Column<string>(type: "text", nullable: true),
                     UserAgent = table.Column<string>(type: "text", nullable: true),
                     OccurredAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false, defaultValueSql: "now()")

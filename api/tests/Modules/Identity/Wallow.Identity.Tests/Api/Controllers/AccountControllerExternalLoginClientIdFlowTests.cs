@@ -200,7 +200,7 @@ public class AccountControllerExternalLoginClientIdFlowTests
 
     private static WallowUser CreateUser(bool mfaEnabled)
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", TestEmail, TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", TestEmail, TimeProvider.System);
 
         if (mfaEnabled)
         {

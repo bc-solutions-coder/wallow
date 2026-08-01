@@ -90,10 +90,13 @@ public sealed partial class AccountController(
         if (user is null)
         {
             LogLoginUserNotFound(request.Email);
+
+            // Every auth audit event this controller publishes leaves TenantId unset. Signing in is
+            // something a person does, not something they do inside an organization: which one they
+            // act in is settled later, by the membership the token is issued against.
             await messageBus.PublishAsync(new UserLoginFailedEvent
             {
                 UserId = Guid.Empty,
-                TenantId = Guid.Empty,
                 IpAddress = ipAddress,
                 Reason = "account_not_found"
             });
@@ -128,7 +131,6 @@ public sealed partial class AccountController(
                     await messageBus.PublishAsync(new UserLoginSucceededEvent
                     {
                         UserId = user.Id,
-                        TenantId = user.TenantId,
                         IpAddress = ipAddress
                     });
                     string graceTicket = CreateSignInTicket(user.Email!, request.RememberMe);
@@ -147,7 +149,6 @@ public sealed partial class AccountController(
             await messageBus.PublishAsync(new UserLoginSucceededEvent
             {
                 UserId = user.Id,
-                TenantId = user.TenantId,
                 IpAddress = ipAddress
             });
             string ticket = CreateSignInTicket(user.Email!, request.RememberMe);
@@ -160,7 +161,6 @@ public sealed partial class AccountController(
             await messageBus.PublishAsync(new UserAccountLockedOutEvent
             {
                 UserId = user.Id,
-                TenantId = user.TenantId,
                 IpAddress = ipAddress
             });
             return StatusCode(423, new { succeeded = false, error = "locked_out" });
@@ -174,7 +174,6 @@ public sealed partial class AccountController(
         await messageBus.PublishAsync(new UserLoginFailedEvent
         {
             UserId = user.Id,
-            TenantId = user.TenantId,
             IpAddress = ipAddress,
             Reason = "invalid_credentials"
         });
@@ -206,7 +205,6 @@ public sealed partial class AccountController(
             await messageBus.PublishAsync(new UserMfaLockedOutEvent
             {
                 UserId = user.Id,
-                TenantId = user.TenantId,
                 LockoutCount = user.MfaLockoutCount
             });
             return StatusCode(423, new { succeeded = false, error = "mfa_locked_out" });
@@ -224,7 +222,6 @@ public sealed partial class AccountController(
                 await messageBus.PublishAsync(new UserMfaLockedOutEvent
                 {
                     UserId = user.Id,
-                    TenantId = user.TenantId,
                     LockoutCount = lockoutResult.LockoutCount
                 });
                 return StatusCode(423, new { succeeded = false, error = "mfa_locked_out" });
@@ -233,7 +230,6 @@ public sealed partial class AccountController(
             await messageBus.PublishAsync(new UserLoginFailedEvent
             {
                 UserId = user.Id,
-                TenantId = user.TenantId,
                 IpAddress = mfaIpAddress,
                 Reason = "invalid_mfa_code"
             });
@@ -246,7 +242,6 @@ public sealed partial class AccountController(
         await messageBus.PublishAsync(new UserLoginSucceededEvent
         {
             UserId = user.Id,
-            TenantId = user.TenantId,
             IpAddress = mfaIpAddress
         });
 
@@ -515,7 +510,6 @@ public sealed partial class AccountController(
         }
 
         WallowUser user = WallowUser.Create(
-            tenantId: Guid.Empty,
             firstName: firstName,
             lastName: lastName,
             email: email,
@@ -548,7 +542,6 @@ public sealed partial class AccountController(
         await messageBus.PublishAsync(new UserRegisteredEvent
         {
             UserId = user.Id,
-            TenantId = user.TenantId,
             Email = user.Email!,
             FirstName = user.FirstName,
             LastName = user.LastName,
@@ -560,7 +553,6 @@ public sealed partial class AccountController(
             await messageBus.PublishAsync(new EmailVerifiedEvent
             {
                 UserId = user.Id,
-                TenantId = user.TenantId,
                 Email = user.Email!,
                 FirstName = user.FirstName,
                 LastName = user.LastName
@@ -581,7 +573,6 @@ public sealed partial class AccountController(
             await messageBus.PublishAsync(new EmailVerificationRequestedEvent
             {
                 UserId = user.Id,
-                TenantId = user.TenantId,
                 Email = user.Email!,
                 FirstName = user.FirstName,
                 VerifyUrl = verifyUrl
@@ -725,11 +716,8 @@ public sealed partial class AccountController(
             }
         }
 
-        Guid tenantId = tenantInfo?.TenantId ?? Guid.Empty;
-
         // Self-registration uses placeholder names; users update their profile after onboarding
         WallowUser user = WallowUser.Create(
-            tenantId: tenantId,
             firstName: "New",
             lastName: "User",
             email: request.Email,
@@ -781,7 +769,6 @@ public sealed partial class AccountController(
         await messageBus.PublishAsync(new EmailVerificationRequestedEvent
         {
             UserId = user.Id,
-            TenantId = user.TenantId,
             Email = user.Email!,
             FirstName = user.FirstName,
             VerifyUrl = verifyUrl
@@ -822,7 +809,6 @@ public sealed partial class AccountController(
             await messageBus.PublishAsync(new PasswordResetRequestedEvent
             {
                 UserId = user.Id,
-                TenantId = user.TenantId,
                 Email = user.Email!,
                 ResetToken = token,
                 ResetUrl = resetUrl
@@ -852,7 +838,6 @@ public sealed partial class AccountController(
         await messageBus.PublishAsync(new PasswordChangedEvent
         {
             UserId = user.Id,
-            TenantId = user.TenantId,
             Email = user.Email!,
             FirstName = user.FirstName
         });
@@ -880,7 +865,6 @@ public sealed partial class AccountController(
         await messageBus.PublishAsync(new EmailVerifiedEvent
         {
             UserId = user.Id,
-            TenantId = user.TenantId,
             Email = user.Email!,
             FirstName = user.FirstName,
             LastName = user.LastName
@@ -996,7 +980,6 @@ public sealed partial class AccountController(
         await messageBus.PublishAsync(new UserEmailChangeRequestedEvent
         {
             UserId = user.Id,
-            TenantId = user.TenantId,
             NewEmail = request.NewEmail,
             ConfirmationUrl = confirmUrl,
             ExpiresAt = expiry
@@ -1041,7 +1024,6 @@ public sealed partial class AccountController(
         await messageBus.PublishAsync(new UserEmailChangedEvent
         {
             UserId = user.Id,
-            TenantId = user.TenantId,
             OldEmail = oldEmail,
             NewEmail = newEmail
         });

@@ -43,7 +43,7 @@ public sealed partial class MfaLockoutService(
 
         if (user is null)
         {
-            user = WallowUser.Create(Guid.Empty, "MFA", "User", $"{userId}@mfa.internal", timeProvider);
+            user = WallowUser.Create("MFA", "User", $"{userId}@mfa.internal", timeProvider);
             // Override the auto-generated Id with the requested userId
             dbContext.Entry(user).Property(u => u.Id).CurrentValue = userId;
             dbContext.Users.Add(user);

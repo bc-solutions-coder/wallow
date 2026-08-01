@@ -31,7 +31,7 @@ public class MfaServiceGapTests
     [Fact]
     public async Task ValidateBackupCode_NoBackupCodes_False()
     {
-        WallowUser user = WallowUser.Create(Guid.NewGuid(), "T", "U", "u@t.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("T", "U", "u@t.com", TimeProvider.System);
         _userManager.FindByIdAsync("u1").Returns(user);
         bool r = await _sut.ValidateBackupCodeAsync("u1", "code", CancellationToken.None);
         r.Should().BeFalse();
@@ -40,7 +40,7 @@ public class MfaServiceGapTests
     [Fact]
     public async Task ValidateBackupCode_WrongCode_False()
     {
-        WallowUser user = WallowUser.Create(Guid.NewGuid(), "T", "U", "u@t.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("T", "U", "u@t.com", TimeProvider.System);
         user.SetBackupCodes(JsonSerializer.Serialize(new List<string> { "aaa", "bbb" }));
         _userManager.FindByIdAsync("u1").Returns(user);
         bool r = await _sut.ValidateBackupCodeAsync("u1", "wrong", CancellationToken.None);

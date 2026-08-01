@@ -8,7 +8,6 @@ using Wallow.Identity.Api.Controllers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Shared.Contracts.Identity.Events;
-using Wallow.Shared.Kernel.MultiTenancy;
 using Wolverine;
 
 namespace Wallow.Identity.Tests.Api.Controllers;
@@ -20,10 +19,8 @@ public class MfaControllerTests
     private readonly IMfaLockoutService _mfaLockoutService;
     private readonly UserManager<WallowUser> _userManager;
     private readonly IMessageBus _messageBus;
-    private readonly ITenantContext _tenantContext;
     private readonly MfaController _controller;
     private const string TestUserId = "550e8400-e29b-41d4-a716-446655440000";
-    private static readonly Guid _testTenantId = Guid.Parse("660e8400-e29b-41d4-a716-446655440000");
 
     public MfaControllerTests()
     {
@@ -32,15 +29,13 @@ public class MfaControllerTests
         _userManager = Substitute.For<UserManager<WallowUser>>(
             Substitute.For<IUserStore<WallowUser>>(), null, null, null, null, null, null, null, null);
         _messageBus = Substitute.For<IMessageBus>();
-        _tenantContext = Substitute.For<ITenantContext>();
-        _tenantContext.TenantId.Returns(new Wallow.Shared.Kernel.Identity.TenantId(_testTenantId));
 
         _mfaService.SerializeBackupCodesForStorage(Arg.Any<IReadOnlyList<string>>())
             .Returns("[]");
 
         IDataProtectionProvider dataProtectionProvider = Substitute.For<IDataProtectionProvider>();
         ILogger<MfaController> logger = Substitute.For<ILogger<MfaController>>();
-        _controller = new MfaController(_mfaService, _mfaPartialAuthService, _mfaLockoutService, _userManager, _messageBus, _tenantContext, dataProtectionProvider, logger);
+        _controller = new MfaController(_mfaService, _mfaPartialAuthService, _mfaLockoutService, _userManager, _messageBus, dataProtectionProvider, logger);
 
         ClaimsIdentity identity = new(
             [new Claim(ClaimTypes.NameIdentifier, TestUserId)],
@@ -108,7 +103,7 @@ public class MfaControllerTests
     {
         _mfaService.ValidateTotpAsync("secret", "123456", Arg.Any<CancellationToken>())
             .Returns(true);
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         _userManager.FindByIdAsync(TestUserId).Returns(user);
         _mfaService.GenerateBackupCodesAsync(Arg.Any<CancellationToken>())
             .Returns(new List<string> { "code1", "code2" });
@@ -128,7 +123,7 @@ public class MfaControllerTests
     {
         _mfaService.ValidateTotpAsync("secret", "123456", Arg.Any<CancellationToken>())
             .Returns(true);
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         _userManager.FindByIdAsync(TestUserId).Returns(user);
         List<string> backupCodes = ["code1", "code2", "code3"];
         _mfaService.GenerateBackupCodesAsync(Arg.Any<CancellationToken>())
@@ -170,7 +165,7 @@ public class MfaControllerTests
     [Fact]
     public async Task Disable_WithWrongPassword_ReturnsBadRequest()
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         user.EnableMfa("totp", "encrypted-secret");
         _userManager.FindByIdAsync(TestUserId).Returns(user);
         _userManager.CheckPasswordAsync(user, "wrong-password").Returns(false);
@@ -186,7 +181,7 @@ public class MfaControllerTests
     [Fact]
     public async Task Disable_WhenMfaNotEnabled_ReturnsBadRequest()
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         _userManager.FindByIdAsync(TestUserId).Returns(user);
         _userManager.CheckPasswordAsync(user, "correct-password").Returns(true);
 
@@ -201,7 +196,7 @@ public class MfaControllerTests
     [Fact]
     public async Task Disable_WithValidPassword_ReturnsOkWithSucceeded()
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         user.EnableMfa("totp", "encrypted-secret");
         _userManager.FindByIdAsync(TestUserId).Returns(user);
         _userManager.CheckPasswordAsync(user, "correct-password").Returns(true);
@@ -222,7 +217,7 @@ public class MfaControllerTests
     [Fact]
     public async Task RegenerateBackupCodes_WithWrongPassword_ReturnsBadRequest()
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         _userManager.FindByIdAsync(TestUserId).Returns(user);
         _userManager.CheckPasswordAsync(user, "wrong-password").Returns(false);
 
@@ -237,7 +232,7 @@ public class MfaControllerTests
     [Fact]
     public async Task RegenerateBackupCodes_WithValidPassword_ReturnsNewCodes()
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         user.EnableMfa("totp", "encrypted-secret");
         _userManager.FindByIdAsync(TestUserId).Returns(user);
         _userManager.CheckPasswordAsync(user, "correct-password").Returns(true);
@@ -271,7 +266,7 @@ public class MfaControllerTests
     [Fact]
     public async Task AdminDisableMfa_WhenUserFound_ReturnsOk()
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         user.EnableMfa("totp", "encrypted-secret");
         string targetUserId = user.Id.ToString();
         _userManager.FindByIdAsync(targetUserId).Returns(user);
@@ -291,7 +286,7 @@ public class MfaControllerTests
     [Fact]
     public async Task AdminClearLockout_WhenUserFound_ReturnsOk()
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         string targetUserId = user.Id.ToString();
         _userManager.FindByIdAsync(targetUserId).Returns(user);
         _userManager.SetLockoutEndDateAsync(user, null).Returns(IdentityResult.Success);
@@ -307,7 +302,7 @@ public class MfaControllerTests
     [Fact]
     public async Task AdminClearLockout_WhenUserFound_CallsMfaLockoutResetAsync()
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         string targetUserId = user.Id.ToString();
         _userManager.FindByIdAsync(targetUserId).Returns(user);
         _userManager.SetLockoutEndDateAsync(user, null).Returns(IdentityResult.Success);
@@ -322,7 +317,7 @@ public class MfaControllerTests
     public async Task AdminClearLockout_WhenUserHasNoActiveLockout_StillCallsMfaLockoutResetAsync()
     {
         // Idempotent: ResetAsync is called even when user has no active MFA lockout
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         string targetUserId = user.Id.ToString();
         _userManager.FindByIdAsync(targetUserId).Returns(user);
         _userManager.SetLockoutEndDateAsync(user, null).Returns(IdentityResult.Success);
@@ -355,7 +350,7 @@ public class MfaControllerTests
     {
         _mfaService.ValidateTotpAsync("secret", "123456", Arg.Any<CancellationToken>())
             .Returns(true);
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         _userManager.FindByIdAsync(TestUserId).Returns(user);
         _mfaService.GenerateBackupCodesAsync(Arg.Any<CancellationToken>())
             .Returns(new List<string> { "code1", "code2" });
@@ -367,13 +362,13 @@ public class MfaControllerTests
         await _messageBus.Received(1).PublishAsync(
             Arg.Is<UserMfaEnabledEvent>(e =>
                 e.UserId == Guid.Parse(TestUserId) &&
-                e.TenantId == _testTenantId));
+                e.TenantId == null));
     }
 
     [Fact]
     public async Task Disable_OnSuccess_PublishesUserMfaDisabledEvent()
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         user.EnableMfa("totp", "encrypted-secret");
         _userManager.FindByIdAsync(TestUserId).Returns(user);
         _userManager.CheckPasswordAsync(user, "correct-password").Returns(true);
@@ -385,13 +380,13 @@ public class MfaControllerTests
         await _messageBus.Received(1).PublishAsync(
             Arg.Is<UserMfaDisabledEvent>(e =>
                 e.UserId == Guid.Parse(TestUserId) &&
-                e.TenantId == _testTenantId));
+                e.TenantId == null));
     }
 
     [Fact]
     public async Task Disable_WithWrongPassword_DoesNotPublishEvent()
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         user.EnableMfa("totp", "encrypted-secret");
         _userManager.FindByIdAsync(TestUserId).Returns(user);
         _userManager.CheckPasswordAsync(user, "wrong-password").Returns(false);
@@ -406,7 +401,7 @@ public class MfaControllerTests
     [Fact]
     public async Task AdminClearLockout_OnSuccess_PublishesUserMfaLockoutClearedEvent()
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         string targetUserId = user.Id.ToString();
         _userManager.FindByIdAsync(targetUserId).Returns(user);
         _userManager.SetLockoutEndDateAsync(user, null).Returns(IdentityResult.Success);
@@ -417,14 +412,14 @@ public class MfaControllerTests
         await _messageBus.Received(1).PublishAsync(
             Arg.Is<UserMfaLockoutClearedEvent>(e =>
                 e.UserId == user.Id &&
-                e.TenantId == _testTenantId &&
+                e.TenantId == null &&
                 e.ClearedByUserId == Guid.Parse(TestUserId)));
     }
 
     [Fact]
     public async Task RegenerateBackupCodes_OnSuccess_PublishesUserMfaBackupCodesRegeneratedEvent()
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         user.EnableMfa("totp", "encrypted-secret");
         _userManager.FindByIdAsync(TestUserId).Returns(user);
         _userManager.CheckPasswordAsync(user, "correct-password").Returns(true);
@@ -438,7 +433,7 @@ public class MfaControllerTests
         await _messageBus.Received(1).PublishAsync(
             Arg.Is<UserMfaBackupCodesRegeneratedEvent>(e =>
                 e.UserId == Guid.Parse(TestUserId) &&
-                e.TenantId == _testTenantId));
+                e.TenantId == null));
     }
 
     #endregion

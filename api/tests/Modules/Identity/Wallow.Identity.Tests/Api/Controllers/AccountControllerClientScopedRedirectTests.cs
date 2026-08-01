@@ -157,7 +157,7 @@ public class AccountControllerClientScopedRedirectTests
     /// <summary>Mints a real sign-in ticket the way the password login path does.</summary>
     private async Task<string> CreateTicketViaLogin()
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", TestEmail, TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", TestEmail, TimeProvider.System);
         _userManager.FindByEmailAsync(TestEmail).Returns(user);
         _signInManager.CheckPasswordSignInAsync(user, TestPassword, true)
             .Returns(Microsoft.AspNetCore.Identity.SignInResult.Success);

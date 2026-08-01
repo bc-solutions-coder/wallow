@@ -83,7 +83,6 @@ public sealed class IdentityDbContext : AspNetIdentityDbContext, ITenantAwareCon
         modelBuilder.Entity<WallowUser>(b =>
         {
             b.ToTable("users");
-            b.Property(u => u.TenantId).HasColumnName("tenant_id");
             b.Property(u => u.FirstName).HasColumnName("first_name").HasMaxLength(256);
             b.Property(u => u.LastName).HasColumnName("last_name").HasMaxLength(256);
             b.Property(u => u.IsActive).HasColumnName("is_active");
@@ -108,10 +107,6 @@ public sealed class IdentityDbContext : AspNetIdentityDbContext, ITenantAwareCon
             b.Property(u => u.LockoutEnd).HasColumnName("lockout_end");
             b.Property(u => u.LockoutEnabled).HasColumnName("lockout_enabled");
             b.Property(u => u.AccessFailedCount).HasColumnName("access_failed_count");
-
-            b.HasIndex(u => new { u.TenantId, u.NormalizedEmail });
-            b.HasIndex(u => new { u.TenantId, u.IsActive });
-            b.HasIndex(u => new { u.TenantId, u.Id });
         });
 
         modelBuilder.Entity<WallowRole>(b =>

@@ -3,10 +3,12 @@ using Wallow.Shared.Kernel.Domain;
 
 namespace Wallow.Identity.Domain.Entities;
 
+/// <summary>
+/// A person. Deliberately carries no organization: which one a request acts in is decided by the
+/// membership the token was issued against, and a person may hold several.
+/// </summary>
 public sealed class WallowUser : IdentityUser<Guid>
 {
-    public Guid TenantId { get; set; }
-
     public string FirstName { get; private set; } = string.Empty;
 
     public string LastName { get; private set; } = string.Empty;
@@ -42,7 +44,6 @@ public sealed class WallowUser : IdentityUser<Guid>
     private WallowUser() { } // EF Core
 
     public static WallowUser Create(
-        Guid tenantId,
         string firstName,
         string lastName,
         string email,
@@ -72,7 +73,6 @@ public sealed class WallowUser : IdentityUser<Guid>
         WallowUser user = new()
         {
             Id = Guid.NewGuid(),
-            TenantId = tenantId,
             UserName = email,
             Email = email,
             FirstName = firstName,

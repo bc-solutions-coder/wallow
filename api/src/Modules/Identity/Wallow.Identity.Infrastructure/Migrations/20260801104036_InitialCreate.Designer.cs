@@ -12,7 +12,7 @@ using Wallow.Identity.Infrastructure.Persistence;
 namespace Wallow.Identity.Infrastructure.Migrations
 {
     [DbContext(typeof(IdentityDbContext))]
-    [Migration("20260801092052_InitialCreate")]
+    [Migration("20260801104036_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -990,10 +990,6 @@ namespace Wallow.Identity.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("security_stamp");
 
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("tenant_id");
-
                     b.Property<string>("TotpSecretEncrypted")
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)")
@@ -1016,12 +1012,6 @@ namespace Wallow.Identity.Infrastructure.Migrations
                     b.HasIndex("NormalizedUserName")
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex");
-
-                    b.HasIndex("TenantId", "Id");
-
-                    b.HasIndex("TenantId", "IsActive");
-
-                    b.HasIndex("TenantId", "NormalizedEmail");
 
                     b.ToTable("users", "identity");
                 });

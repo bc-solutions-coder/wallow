@@ -110,7 +110,7 @@ public class RoleAssignmentTests(WallowApiFactory factory) : IdentityIntegration
     {
         UserManager<WallowUser> userManager = ScopedServices.GetRequiredService<UserManager<WallowUser>>();
         WallowUser user = WallowUser.Create(
-            Guid.NewGuid(), "Role", "Subject", $"role-{Guid.NewGuid():N}@wallow.dev", TimeProvider.System);
+            "Role", "Subject", $"role-{Guid.NewGuid():N}@wallow.dev", TimeProvider.System);
 
         IdentityResult result = await userManager.CreateAsync(user);
         result.Succeeded.Should().BeTrue();

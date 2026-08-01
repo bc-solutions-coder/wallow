@@ -152,5 +152,5 @@ public class WallowUserMfaLockoutTests
     }
 
     private WallowUser CreateUser() =>
-        WallowUser.Create(Guid.NewGuid(), "John", "Doe", "john@example.com", _timeProvider);
+        WallowUser.Create("John", "Doe", "john@example.com", _timeProvider);
 }

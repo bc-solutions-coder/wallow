@@ -27,8 +27,7 @@ public sealed class BootstrapAdminService(
 
     public async Task<Guid> CreateUserAsync(string email, string password, string firstName, string lastName, CancellationToken ct = default)
     {
-        // Bootstrap admin uses Guid.Empty as tenant — the admin exists outside tenant boundaries
-        WallowUser user = WallowUser.Create(Guid.Empty, firstName, lastName, email, timeProvider);
+        WallowUser user = WallowUser.Create(firstName, lastName, email, timeProvider);
         user.EmailConfirmed = true;
 
         IdentityResult result = await userManager.CreateAsync(user, password);

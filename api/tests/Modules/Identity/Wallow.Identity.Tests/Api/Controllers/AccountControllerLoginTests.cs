@@ -84,7 +84,7 @@ public class AccountControllerLoginTests
 
     private WallowUser CreateTestUser(bool mfaEnabled = false, DateTimeOffset? mfaGraceDeadline = null)
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", TestEmail, TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", TestEmail, TimeProvider.System);
         if (mfaEnabled)
         {
             // MfaEnabled is a private setter — use reflection or the domain method
@@ -226,7 +226,7 @@ public class AccountControllerLoginTests
         _mfaPartialAuthService.ValidatePartialCookieAsync(Arg.Any<CancellationToken>())
             .Returns(payload);
 
-        WallowUser user = WallowUser.Create(Guid.Parse(userId), "Test", "User", TestEmail, TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", TestEmail, TimeProvider.System);
         typeof(WallowUser).GetProperty("TotpSecretEncrypted")!.SetValue(user, "encrypted-secret");
         _signInManager.UserManager.FindByIdAsync(userId).Returns(user);
 

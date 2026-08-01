@@ -155,7 +155,7 @@ public class AccountControllerAdditionalTests
     [Fact]
     public async Task ForgotPassword_WithUnconfirmedEmail_ReturnsOkWithoutGeneratingToken()
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         _userManager.FindByEmailAsync("test@test.com").Returns(user);
         _userManager.IsEmailConfirmedAsync(user).Returns(false);
 
@@ -174,7 +174,7 @@ public class AccountControllerAdditionalTests
     public async Task ExchangeTicket_WithValidTicketAndLocalReturnUrl_RedirectsToReturnUrl()
     {
         // Use the real EphemeralDataProtectionProvider to create a valid ticket via Login
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         _userManager.FindByEmailAsync("test@test.com").Returns(user);
         _signInManager.CheckPasswordSignInAsync(user, "password", true)
             .Returns(Microsoft.AspNetCore.Identity.SignInResult.Success);
@@ -195,7 +195,7 @@ public class AccountControllerAdditionalTests
     [Fact]
     public async Task ExchangeTicket_WithValidTicketAndNoReturnUrl_RedirectsToAuthUrl()
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         _userManager.FindByEmailAsync("test@test.com").Returns(user);
         _signInManager.CheckPasswordSignInAsync(user, "password", true)
             .Returns(Microsoft.AspNetCore.Identity.SignInResult.Success);
@@ -216,7 +216,7 @@ public class AccountControllerAdditionalTests
     [Fact]
     public async Task ExchangeTicket_WithValidTicketButUserNotFound_ReturnsBadRequest()
     {
-        WallowUser loginUser = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser loginUser = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         _userManager.FindByEmailAsync("test@test.com").Returns(loginUser);
         _signInManager.CheckPasswordSignInAsync(loginUser, "password", true)
             .Returns(Microsoft.AspNetCore.Identity.SignInResult.Success);
@@ -239,7 +239,7 @@ public class AccountControllerAdditionalTests
     [Fact]
     public async Task ExchangeTicket_WithNonLocalReturnUrl_RedirectsToAuthUrl()
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         _userManager.FindByEmailAsync("test@test.com").Returns(user);
         _signInManager.CheckPasswordSignInAsync(user, "password", true)
             .Returns(Microsoft.AspNetCore.Identity.SignInResult.Success);
@@ -361,7 +361,7 @@ public class AccountControllerAdditionalTests
         _redirectUriValidator.IsAllowedAsync("http://app.test.com", Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
-        WallowUser existingUser = WallowUser.Create(Guid.Empty, "Test", "User", "existing@test.com", TimeProvider.System);
+        WallowUser existingUser = WallowUser.Create("Test", "User", "existing@test.com", TimeProvider.System);
         _userManager.FindByEmailAsync("existing@test.com").Returns(existingUser);
         _userManager.AddLoginAsync(existingUser, loginInfo).Returns(IdentityResult.Success);
 
@@ -384,7 +384,7 @@ public class AccountControllerAdditionalTests
         _signInManager.ExternalLoginSignInAsync("Google", "key-123", false, true)
             .Returns(Microsoft.AspNetCore.Identity.SignInResult.Failed);
 
-        WallowUser existingUser = WallowUser.Create(Guid.Empty, "Test", "User", "existing@test.com", TimeProvider.System);
+        WallowUser existingUser = WallowUser.Create("Test", "User", "existing@test.com", TimeProvider.System);
         _userManager.FindByEmailAsync("existing@test.com").Returns(existingUser);
         _userManager.AddLoginAsync(existingUser, loginInfo)
             .Returns(IdentityResult.Failed(new IdentityError { Code = "Error" }));
@@ -531,7 +531,7 @@ public class AccountControllerAdditionalTests
         _redirectUriValidator.IsAllowedAsync("http://app.test.com", Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
-        WallowUser existingUser = WallowUser.Create(Guid.Empty, "Jane", "Doe", "existing@test.com", TimeProvider.System);
+        WallowUser existingUser = WallowUser.Create("Jane", "Doe", "existing@test.com", TimeProvider.System);
         _userManager.FindByEmailAsync("existing@test.com").Returns(existingUser);
         _userManager.AddLoginAsync(existingUser, Arg.Any<UserLoginInfo>()).Returns(IdentityResult.Success);
 
@@ -691,7 +691,7 @@ public class AccountControllerAdditionalTests
     [Fact]
     public async Task ForgotPassword_UserFoundWithConfirmedEmail_PublishesPasswordResetEvent()
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "confirmed@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "confirmed@test.com", TimeProvider.System);
         _userManager.FindByEmailAsync("confirmed@test.com").Returns(user);
         _userManager.IsEmailConfirmedAsync(user).Returns(true);
         _userManager.GeneratePasswordResetTokenAsync(user).Returns("reset-token-123");
@@ -728,7 +728,7 @@ public class AccountControllerAdditionalTests
     [Fact]
     public async Task ResetPassword_InvalidToken_ReturnsBadRequestAndDoesNotPublish()
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         _userManager.FindByEmailAsync("test@test.com").Returns(user);
         _userManager.ResetPasswordAsync(user, "bad-token", "NewPass1!")
             .Returns(IdentityResult.Failed(new IdentityError { Code = "InvalidToken" }));
@@ -743,7 +743,7 @@ public class AccountControllerAdditionalTests
     [Fact]
     public async Task ResetPassword_Success_PublishesPasswordChangedEvent()
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         _userManager.FindByEmailAsync("test@test.com").Returns(user);
         _userManager.ResetPasswordAsync(user, "valid-token", "NewPass1!")
             .Returns(IdentityResult.Success);
@@ -778,7 +778,7 @@ public class AccountControllerAdditionalTests
     [Fact]
     public async Task VerifyEmail_InvalidToken_ReturnsBadRequestAndDoesNotPublish()
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         _userManager.FindByEmailAsync("test@test.com").Returns(user);
         _userManager.ConfirmEmailAsync(user, "bad-token")
             .Returns(IdentityResult.Failed(new IdentityError { Code = "InvalidToken" }));
@@ -792,7 +792,7 @@ public class AccountControllerAdditionalTests
     [Fact]
     public async Task VerifyEmail_Success_PublishesEmailVerifiedEvent()
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         _userManager.FindByEmailAsync("test@test.com").Returns(user);
         _userManager.ConfirmEmailAsync(user, "valid-token")
             .Returns(IdentityResult.Success);

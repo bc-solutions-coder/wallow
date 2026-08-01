@@ -16,8 +16,8 @@ public static partial class EmailChangeHandlers
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Email change requested for user {UserId} in tenant {TenantId} to {NewEmail}")]
-    private static partial void LogEmailChangeRequested(ILogger logger, Guid userId, Guid tenantId, string newEmail);
+    private static partial void LogEmailChangeRequested(ILogger logger, Guid userId, Guid? tenantId, string newEmail);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Email changed for user {UserId} in tenant {TenantId} from {OldEmail} to {NewEmail}")]
-    private static partial void LogEmailChanged(ILogger logger, Guid userId, Guid tenantId, string oldEmail, string newEmail);
+    private static partial void LogEmailChanged(ILogger logger, Guid userId, Guid? tenantId, string oldEmail, string newEmail);
 }

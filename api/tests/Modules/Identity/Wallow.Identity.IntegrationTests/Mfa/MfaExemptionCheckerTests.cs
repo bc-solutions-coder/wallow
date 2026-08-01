@@ -155,7 +155,7 @@ public class MfaExemptionCheckerTests(WallowApiFactory factory) : IdentityIntegr
     private static WallowUser NewUser()
     {
         return WallowUser.Create(
-            Guid.NewGuid(), "Mfa", "Subject", $"mfa-{Guid.NewGuid():N}@wallow.dev", TimeProvider.System);
+            "Mfa", "Subject", $"mfa-{Guid.NewGuid():N}@wallow.dev", TimeProvider.System);
     }
 
     private static WallowUser PasswordlessUser()

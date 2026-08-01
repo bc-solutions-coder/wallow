@@ -34,7 +34,6 @@ public sealed partial class UserManagementService(
         LogCreatingUser(email);
 
         WallowUser user = WallowUser.Create(
-            tenantContext.TenantId.Value,
             firstName,
             lastName,
             email,

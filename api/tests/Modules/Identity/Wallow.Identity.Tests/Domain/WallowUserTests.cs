@@ -11,15 +11,13 @@ public class WallowUserTests
     [Fact]
     public void Create_WithValidData_ReturnsUserWithCorrectProperties()
     {
-        Guid tenantId = Guid.NewGuid();
         string firstName = "John";
         string lastName = "Doe";
         string email = "john.doe@example.com";
 
-        WallowUser user = WallowUser.Create(tenantId, firstName, lastName, email, _timeProvider);
+        WallowUser user = WallowUser.Create(firstName, lastName, email, _timeProvider);
 
         user.Id.Should().NotBe(Guid.Empty);
-        user.TenantId.Should().Be(tenantId);
         user.FirstName.Should().Be(firstName);
         user.LastName.Should().Be(lastName);
         user.Email.Should().Be(email);
@@ -35,7 +33,7 @@ public class WallowUserTests
     [InlineData(null)]
     public void Create_WithBlankFirstName_ThrowsBusinessRuleException(string? firstName)
     {
-        Func<WallowUser> act = () => WallowUser.Create(Guid.NewGuid(), firstName!, "Doe", "test@example.com", _timeProvider);
+        Func<WallowUser> act = () => WallowUser.Create(firstName!, "Doe", "test@example.com", _timeProvider);
 
         act.Should().Throw<BusinessRuleException>()
             .WithMessage("*first name*");
@@ -47,7 +45,7 @@ public class WallowUserTests
     [InlineData(null)]
     public void Create_WithBlankLastName_ThrowsBusinessRuleException(string? lastName)
     {
-        Func<WallowUser> act = () => WallowUser.Create(Guid.NewGuid(), "John", lastName!, "test@example.com", _timeProvider);
+        Func<WallowUser> act = () => WallowUser.Create("John", lastName!, "test@example.com", _timeProvider);
 
         act.Should().Throw<BusinessRuleException>()
             .WithMessage("*last name*");
@@ -56,7 +54,7 @@ public class WallowUserTests
     [Fact]
     public void Create_IsActiveDefaultsToTrue()
     {
-        WallowUser user = WallowUser.Create(Guid.NewGuid(), "Jane", "Smith", "jane@example.com", _timeProvider);
+        WallowUser user = WallowUser.Create("Jane", "Smith", "jane@example.com", _timeProvider);
 
         user.IsActive.Should().BeTrue();
     }
@@ -67,7 +65,7 @@ public class WallowUserTests
     [InlineData(null)]
     public void Create_WithBlankEmail_ThrowsBusinessRuleException(string? email)
     {
-        Func<WallowUser> act = () => WallowUser.Create(Guid.NewGuid(), "John", "Doe", email!, _timeProvider);
+        Func<WallowUser> act = () => WallowUser.Create("John", "Doe", email!, _timeProvider);
 
         act.Should().Throw<BusinessRuleException>()
             .WithMessage("*Email*");
@@ -76,7 +74,7 @@ public class WallowUserTests
     [Fact]
     public void Create_HasPasswordDefaultsToTrue()
     {
-        WallowUser user = WallowUser.Create(Guid.NewGuid(), "Jane", "Smith", "jane@example.com", _timeProvider);
+        WallowUser user = WallowUser.Create("Jane", "Smith", "jane@example.com", _timeProvider);
 
         user.HasPassword.Should().BeTrue();
     }
@@ -84,7 +82,7 @@ public class WallowUserTests
     [Fact]
     public void Create_MfaDefaultsToDisabled()
     {
-        WallowUser user = WallowUser.Create(Guid.NewGuid(), "Jane", "Smith", "jane@example.com", _timeProvider);
+        WallowUser user = WallowUser.Create("Jane", "Smith", "jane@example.com", _timeProvider);
 
         user.MfaEnabled.Should().BeFalse();
         user.MfaMethod.Should().BeNull();
@@ -244,8 +242,8 @@ public class WallowUserTests
     [Fact]
     public void Create_CalledTwice_GeneratesUniqueIds()
     {
-        WallowUser user1 = WallowUser.Create(Guid.NewGuid(), "John", "Doe", "john@example.com", _timeProvider);
-        WallowUser user2 = WallowUser.Create(Guid.NewGuid(), "Jane", "Smith", "jane@example.com", _timeProvider);
+        WallowUser user1 = WallowUser.Create("John", "Doe", "john@example.com", _timeProvider);
+        WallowUser user2 = WallowUser.Create("Jane", "Smith", "jane@example.com", _timeProvider);
 
         user1.Id.Should().NotBe(user2.Id);
     }
@@ -339,5 +337,5 @@ public class WallowUserTests
     }
 
     private WallowUser CreateUser() =>
-        WallowUser.Create(Guid.NewGuid(), "John", "Doe", "john@example.com", _timeProvider);
+        WallowUser.Create("John", "Doe", "john@example.com", _timeProvider);
 }

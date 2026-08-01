@@ -18,6 +18,11 @@ using MfaVerifyRequest = Wallow.Identity.Api.Contracts.Requests.MfaVerifyRequest
 
 namespace Wallow.Identity.Tests.Api.Controllers;
 
+/// <summary>
+/// The auth audit events the controller publishes, and what they carry. Signing in happens outside
+/// every organization, so each event's TenantId is null: which organization the person acts in is
+/// settled later, by the token they are issued.
+/// </summary>
 public class AccountControllerAuditTests
 {
     private readonly SignInManager<WallowUser> _signInManager;
@@ -85,7 +90,7 @@ public class AccountControllerAuditTests
 
     private WallowUser CreateTestUser()
     {
-        return WallowUser.Create(Guid.NewGuid(), "Test", "User", TestEmail, TimeProvider.System);
+        return WallowUser.Create("Test", "User", TestEmail, TimeProvider.System);
     }
 
     #region Login - Success audit event
@@ -104,7 +109,7 @@ public class AccountControllerAuditTests
 
         await _messageBus.Received(1).PublishAsync(Arg.Is<UserLoginSucceededEvent>(e =>
             e.UserId == user.Id &&
-            e.TenantId == user.TenantId &&
+            e.TenantId == null &&
             e.IpAddress == TestIpAddress));
     }
 
@@ -139,7 +144,7 @@ public class AccountControllerAuditTests
 
         await _messageBus.Received(1).PublishAsync(Arg.Is<UserLoginFailedEvent>(e =>
             e.UserId == user.Id &&
-            e.TenantId == user.TenantId &&
+            e.TenantId == null &&
             e.IpAddress == TestIpAddress &&
             e.Reason == "invalid_credentials"));
     }
@@ -172,7 +177,7 @@ public class AccountControllerAuditTests
 
         await _messageBus.Received(1).PublishAsync(Arg.Is<UserAccountLockedOutEvent>(e =>
             e.UserId == user.Id &&
-            e.TenantId == user.TenantId &&
+            e.TenantId == null &&
             e.IpAddress == TestIpAddress));
     }
 
@@ -187,7 +192,7 @@ public class AccountControllerAuditTests
         MfaPartialAuthPayload payload = new(userId, TestEmail, "password", false, DateTimeOffset.UtcNow);
         _mfaPartialAuthService.ValidatePartialCookieAsync(Arg.Any<CancellationToken>()).Returns(payload);
 
-        WallowUser user = WallowUser.Create(Guid.Parse(userId), "Test", "User", TestEmail, TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", TestEmail, TimeProvider.System);
         typeof(WallowUser).GetProperty("TotpSecretEncrypted")!.SetValue(user, "encrypted-secret");
         _signInManager.UserManager.FindByIdAsync(userId).Returns(user);
 
@@ -197,7 +202,7 @@ public class AccountControllerAuditTests
 
         await _messageBus.Received(1).PublishAsync(Arg.Is<UserLoginSucceededEvent>(e =>
             e.UserId == user.Id &&
-            e.TenantId == user.TenantId &&
+            e.TenantId == null &&
             e.IpAddress == TestIpAddress));
     }
 
@@ -212,7 +217,7 @@ public class AccountControllerAuditTests
         MfaPartialAuthPayload payload = new(userId, TestEmail, "password", false, DateTimeOffset.UtcNow);
         _mfaPartialAuthService.ValidatePartialCookieAsync(Arg.Any<CancellationToken>()).Returns(payload);
 
-        WallowUser user = WallowUser.Create(Guid.Parse(userId), "Test", "User", TestEmail, TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", TestEmail, TimeProvider.System);
         typeof(WallowUser).GetProperty("TotpSecretEncrypted")!.SetValue(user, "encrypted-secret");
         _signInManager.UserManager.FindByIdAsync(userId).Returns(user);
 

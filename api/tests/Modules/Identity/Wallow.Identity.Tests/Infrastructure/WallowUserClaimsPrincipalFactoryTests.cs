@@ -34,7 +34,7 @@ public sealed class WallowUserClaimsPrincipalFactoryTests
     [Fact]
     public async Task CreateAsync_ForAUserHoldingGlobalRoles_StampsNoRoleClaim()
     {
-        WallowUser user = ArrangeUser(Guid.NewGuid());
+        WallowUser user = ArrangeUser();
         _userManager.GetRolesAsync(user).Returns<IList<string>>(["admin", "user"]);
 
         ClaimsPrincipal principal = await _sut.CreateAsync(user);
@@ -44,19 +44,19 @@ public sealed class WallowUserClaimsPrincipalFactoryTests
     }
 
     [Fact]
-    public async Task CreateAsync_ForAUserWithAnOrganization_StampsNoOrgId()
+    public async Task CreateAsync_ForAnyUser_StampsNoOrgId()
     {
-        WallowUser user = ArrangeUser(Guid.NewGuid());
+        WallowUser user = ArrangeUser();
 
         ClaimsPrincipal principal = await _sut.CreateAsync(user);
 
         principal.FindFirst("org_id").Should().BeNull();
     }
 
-    private WallowUser ArrangeUser(Guid organizationId)
+    private WallowUser ArrangeUser()
     {
         WallowUser user = WallowUser.Create(
-            organizationId, "Test", "User", "cookie@wallow.dev", TimeProvider.System);
+            "Test", "User", "cookie@wallow.dev", TimeProvider.System);
 
         _userManager.GetUserIdAsync(user).Returns(user.Id.ToString());
         _userManager.GetUserNameAsync(user).Returns(user.Email);

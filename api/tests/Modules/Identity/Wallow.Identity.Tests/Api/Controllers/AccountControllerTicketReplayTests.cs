@@ -78,7 +78,7 @@ public class AccountControllerTicketReplayTests
 
     private async Task<string> CreateTicketViaLogin()
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", TestEmail, TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", TestEmail, TimeProvider.System);
         _userManager.FindByEmailAsync(TestEmail).Returns(user);
         _signInManager.CheckPasswordSignInAsync(user, TestPassword, true)
             .Returns(Microsoft.AspNetCore.Identity.SignInResult.Success);

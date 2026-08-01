@@ -8,6 +8,6 @@ namespace Wallow.Shared.Contracts.Identity.Events;
 public sealed record UserMfaLockoutClearedEvent : IntegrationEvent
 {
     public required Guid UserId { get; init; }
-    public required Guid TenantId { get; init; }
+    public Guid? TenantId { get; init; }
     public required Guid ClearedByUserId { get; init; }
 }

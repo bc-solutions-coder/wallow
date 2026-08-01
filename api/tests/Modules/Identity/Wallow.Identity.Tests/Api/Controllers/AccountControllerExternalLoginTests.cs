@@ -97,7 +97,7 @@ public class AccountControllerExternalLoginTests
 
     private WallowUser CreateTestUser(bool mfaEnabled = false)
     {
-        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@example.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("Test", "User", "test@example.com", TimeProvider.System);
         if (mfaEnabled)
         {
             typeof(WallowUser).GetProperty(nameof(WallowUser.MfaEnabled))!

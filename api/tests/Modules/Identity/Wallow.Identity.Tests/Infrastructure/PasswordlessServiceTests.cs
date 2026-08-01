@@ -33,7 +33,7 @@ public sealed class PasswordlessServiceTests
         TenantContext tc = new(); tc.SetTenant(new TenantId(_tenantId));
         IDataProtectionProvider dp = DataProtectionProvider.Create("test");
         PasswordlessOptions opts = new() { RateLimitMaxRequests = 3, RateLimitWindow = TimeSpan.FromMinutes(15), MagicLinkTtl = TimeSpan.FromMinutes(10), OtpTtl = TimeSpan.FromMinutes(5) };
-        _sut = new PasswordlessService(mux, _messageBus, _userManager, tc, dp, Options.Create(opts), NullLogger<PasswordlessService>.Instance);
+        _sut = new PasswordlessService(mux, _messageBus, _userManager, dp, Options.Create(opts), NullLogger<PasswordlessService>.Instance);
     }
 
     [Fact]
@@ -58,7 +58,7 @@ public sealed class PasswordlessServiceTests
     public async Task SendMagicLink_UserExists_Sends()
     {
         _redis.StringIncrementAsync(Arg.Any<RedisKey>(), Arg.Any<long>(), Arg.Any<CommandFlags>()).Returns(1L);
-        WallowUser user = WallowUser.Create(_tenantId, "A", "B", "f@t.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("A", "B", "f@t.com", TimeProvider.System);
         _userManager.FindByEmailAsync("f@t.com").Returns(user);
         PasswordlessResult r = await _sut.SendMagicLinkAsync("f@t.com", CancellationToken.None);
         r.Succeeded.Should().BeTrue();
@@ -102,7 +102,7 @@ public sealed class PasswordlessServiceTests
     public async Task SendOtp_UserExists_Sends()
     {
         _redis.StringIncrementAsync(Arg.Any<RedisKey>(), Arg.Any<long>(), Arg.Any<CommandFlags>()).Returns(1L);
-        WallowUser user = WallowUser.Create(_tenantId, "A", "B", "o@t.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("A", "B", "o@t.com", TimeProvider.System);
         _userManager.FindByEmailAsync("o@t.com").Returns(user);
         PasswordlessResult r = await _sut.SendOtpAsync("o@t.com", CancellationToken.None);
         r.Succeeded.Should().BeTrue();
@@ -154,7 +154,7 @@ public sealed class PasswordlessServiceTests
         MagicLinkRequestedEvent? published = null;
         await sendBus.PublishAsync(Arg.Do<MagicLinkRequestedEvent>(e => published = e));
 
-        WallowUser user = WallowUser.Create(_tenantId, "A", "B", "scoped@t.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("A", "B", "scoped@t.com", TimeProvider.System);
 
         PasswordlessService sendScope = CreateService(sharedProvider, redis, sendBus, user);
         PasswordlessResult sendResult = await sendScope.SendMagicLinkAsync("scoped@t.com", CancellationToken.None);
@@ -182,6 +182,6 @@ public sealed class PasswordlessServiceTests
         TenantContext tc = new();
         tc.SetTenant(new TenantId(_tenantId));
         PasswordlessOptions opts = new() { RateLimitMaxRequests = 3, RateLimitWindow = TimeSpan.FromMinutes(15), MagicLinkTtl = TimeSpan.FromMinutes(10), OtpTtl = TimeSpan.FromMinutes(5) };
-        return new PasswordlessService(mux, messageBus, userManager, tc, dataProtectionProvider, Options.Create(opts), NullLogger<PasswordlessService>.Instance);
+        return new PasswordlessService(mux, messageBus, userManager, dataProtectionProvider, Options.Create(opts), NullLogger<PasswordlessService>.Instance);
     }
 }

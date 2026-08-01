@@ -174,7 +174,7 @@ public sealed class OrganizationServiceGapTests : IDisposable
     public async Task GetMembers_WithMembers_ReturnsDtos()
     {
         Guid uid = Guid.NewGuid();
-        WallowUser user = WallowUser.Create(_tenantId, "T", "M", "m@t.com", TimeProvider.System);
+        WallowUser user = WallowUser.Create("T", "M", "m@t.com", TimeProvider.System);
         typeof(WallowUser).GetProperty("Id")!.SetValue(user, uid);
         _dbContext.Users.Add(user); await _dbContext.SaveChangesAsync();
         Organization org = Organization.Create(new TenantId(_tenantId), "MO", "mo", Guid.NewGuid(), TimeProvider.System);

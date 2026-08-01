@@ -40,7 +40,7 @@ public sealed class PreRegisteredClientSeedMemberRoleTests
         _orgService.GetMembersAsync(_orgId, Arg.Any<CancellationToken>())
             .Returns([]);
 
-        WallowUser seedUser = WallowUser.Create(Guid.NewGuid(), "Admin", "User", SeedEmail, TimeProvider.System);
+        WallowUser seedUser = WallowUser.Create("Admin", "User", SeedEmail, TimeProvider.System);
         _userId = seedUser.Id;
         _userManager.FindByEmailAsync(SeedEmail).Returns(seedUser);
 

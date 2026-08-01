@@ -12,7 +12,6 @@ using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Shared.Contracts.Identity.Events;
 using Wallow.Shared.Kernel.Extensions;
-using Wallow.Shared.Kernel.MultiTenancy;
 using Wolverine;
 
 namespace Wallow.Identity.Api.Controllers;
@@ -27,7 +26,6 @@ public sealed partial class MfaController(
     IMfaLockoutService mfaLockoutService,
     UserManager<WallowUser> userManager,
     IMessageBus messageBus,
-    ITenantContext tenantContext,
     IDataProtectionProvider dataProtectionProvider,
     ILogger<MfaController> logger) : ControllerBase
 {
@@ -110,8 +108,7 @@ public sealed partial class MfaController(
 
         await messageBus.PublishAsync(new UserMfaEnabledEvent
         {
-            UserId = Guid.Parse(userId),
-            TenantId = tenantContext.TenantId.Value
+            UserId = Guid.Parse(userId)
         });
 
         // Upgrade partial auth to full auth when enrollment was triggered by the MFA enrollment flow
@@ -152,8 +149,7 @@ public sealed partial class MfaController(
 
         await messageBus.PublishAsync(new UserMfaDisabledEvent
         {
-            UserId = Guid.Parse(currentUserId),
-            TenantId = tenantContext.TenantId.Value
+            UserId = Guid.Parse(currentUserId)
         });
 
         return Ok(new { succeeded = true });
@@ -184,8 +180,7 @@ public sealed partial class MfaController(
 
         await messageBus.PublishAsync(new UserMfaBackupCodesRegeneratedEvent
         {
-            UserId = Guid.Parse(currentUserId),
-            TenantId = tenantContext.TenantId.Value
+            UserId = Guid.Parse(currentUserId)
         });
 
         return Ok(new { codes });
@@ -225,7 +220,6 @@ public sealed partial class MfaController(
         await messageBus.PublishAsync(new UserMfaLockoutClearedEvent
         {
             UserId = user.Id,
-            TenantId = tenantContext.TenantId.Value,
             ClearedByUserId = Guid.Parse(currentUserId)
         });
 

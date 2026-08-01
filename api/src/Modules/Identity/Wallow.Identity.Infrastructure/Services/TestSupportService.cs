@@ -35,20 +35,16 @@ public sealed partial class TestSupportService(
             Membership.Enroll(userId, org.Id, adminRoleId, timeProvider));
         await dbContext.SaveChangesAsync(ct);
 
-        // Move the user's TenantId to the new org (keep user in shared org for OIDC tenant resolution)
-        WallowUser user = await dbContext.Users
-            .IgnoreQueryFilters()
-            .AsTracking()
-            .FirstAsync(u => u.Id == userId, ct);
-
-        user.TenantId = tenantId.Value;
-
         if (gracePeriodDays > 0)
         {
-            user.SetMfaGraceDeadline(DateTimeOffset.UtcNow.AddDays(gracePeriodDays));
-        }
+            WallowUser user = await dbContext.Users
+                .IgnoreQueryFilters()
+                .AsTracking()
+                .FirstAsync(u => u.Id == userId, ct);
 
-        await dbContext.SaveChangesAsync(ct);
+            user.SetMfaGraceDeadline(DateTimeOffset.UtcNow.AddDays(gracePeriodDays));
+            await dbContext.SaveChangesAsync(ct);
+        }
 
         // Create org settings with the requested MFA policy
         OrganizationSettings settings = OrganizationSettings.Create(

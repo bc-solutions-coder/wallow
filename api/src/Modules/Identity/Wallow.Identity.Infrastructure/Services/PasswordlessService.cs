@@ -10,7 +10,6 @@ using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Infrastructure.Options;
 using Wallow.Shared.Contracts.Identity.Events;
-using Wallow.Shared.Kernel.MultiTenancy;
 using Wolverine;
 
 namespace Wallow.Identity.Infrastructure.Services;
@@ -25,7 +24,6 @@ public sealed partial class PasswordlessService : IPasswordlessService
     private readonly IDatabase _redis;
     private readonly IMessageBus _messageBus;
     private readonly UserManager<WallowUser> _userManager;
-    private readonly ITenantContext _tenantContext;
     private readonly IDataProtector _protector;
     private readonly PasswordlessOptions _options;
     private readonly ILogger<PasswordlessService> _logger;
@@ -34,7 +32,6 @@ public sealed partial class PasswordlessService : IPasswordlessService
         IConnectionMultiplexer connectionMultiplexer,
         IMessageBus messageBus,
         UserManager<WallowUser> userManager,
-        ITenantContext tenantContext,
         IDataProtectionProvider dataProtectionProvider,
         IOptions<PasswordlessOptions> options,
         ILogger<PasswordlessService> logger)
@@ -42,7 +39,6 @@ public sealed partial class PasswordlessService : IPasswordlessService
         _redis = connectionMultiplexer.GetDatabase();
         _messageBus = messageBus;
         _userManager = userManager;
-        _tenantContext = tenantContext;
         _options = options.Value;
         _logger = logger;
 
@@ -79,7 +75,6 @@ public sealed partial class PasswordlessService : IPasswordlessService
         await _messageBus.PublishAsync(new MagicLinkRequestedEvent
         {
             UserId = user.Id,
-            TenantId = _tenantContext.TenantId.Value,
             Email = email,
             Token = signedToken,
             ReturnUrl = returnUrl,
@@ -164,7 +159,6 @@ public sealed partial class PasswordlessService : IPasswordlessService
         await _messageBus.PublishAsync(new OtpCodeRequestedEvent
         {
             UserId = user.Id,
-            TenantId = _tenantContext.TenantId.Value,
             Email = email,
             Code = code
         });
