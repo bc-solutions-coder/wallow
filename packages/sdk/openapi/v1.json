@@ -8853,7 +8853,6 @@
             "$ref": "#/components/schemas/EnrollmentPolicy"
           },
           "accessRequestEmail": {
-            "maxLength": 256,
             "type": [
               "null",
               "string"

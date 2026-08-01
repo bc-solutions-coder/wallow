@@ -9,6 +9,6 @@ namespace Wallow.Identity.Api.Contracts.Requests;
 /// manage members, not the right to edit settings.
 /// </summary>
 public record UpdateOrganizationEnrollmentRequest(
-    [property: Required] EnrollmentPolicy EnrollmentPolicy,
-    [property: EmailAddress][property: MaxLength(256)] string? AccessRequestEmail,
+    [Required] EnrollmentPolicy EnrollmentPolicy,
+    [EmailAddress][MaxLength(256)] string? AccessRequestEmail,
     Guid? DefaultRoleId);
