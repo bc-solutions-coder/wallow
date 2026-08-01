@@ -9,10 +9,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using OpenIddict.Abstractions;
 using OpenIddict.Server.AspNetCore;
+using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Helpers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
-using Wallow.Identity.Domain.Enums;
 using Wallow.Shared.Contracts.Identity;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using static OpenIddict.Abstractions.OpenIddictConstants;
@@ -30,7 +30,7 @@ public sealed partial class AuthorizationController(
     IOpenIddictAuthorizationManager authorizationManager,
     IScopeSubsetValidator scopeSubsetValidator,
     IClientTenantResolver clientTenantResolver,
-    IMembershipRepository memberships,
+    IUserEnrollmentService enrollment,
     IMembershipRoleResolver membershipRoleResolver,
     ILogger<AuthorizationController> logger) : Controller
 {
@@ -113,19 +113,36 @@ public sealed partial class AuthorizationController(
             return Redirect($"{GetRequiredAuthUrl()}/error?reason=client_not_bound_to_organization");
         }
 
-        // A membership row is not permission to sign in here; only an Active one is. Pending has
-        // not been reviewed yet, and Suspended and Denied have been reviewed and refused — each
-        // of the three sends the person somewhere different, because what they can do about it
-        // differs. Global admin governs across organizations, so it is not gated by a membership
-        // at all: it is the one authority an organization does not grant.
-        Membership? membership = await memberships.GetAsync(Guid.Parse(userId), tenantInfo.TenantId);
+        // A membership row is not permission to sign in here; only an Active one is. Whether one
+        // can be minted on the spot is the organization's enrollment policy to answer, and that
+        // answer — along with the email-verification precondition and the three refusal reasons —
+        // lives in the enrollment service, because AccountController has to reach the same one.
+        // Global admin governs across organizations, so it is not gated by a membership at all:
+        // it is the one authority an organization does not grant.
         bool isGlobalAdmin = GlobalAdminClaims.IsGranted(await userManager.GetClaimsAsync(user));
-        string membershipStatus = membership is null ? "none" : membership.Status.ToString();
-        LogMembershipCheck(userId, tenantInfo.TenantId, membershipStatus, isGlobalAdmin);
 
-        if (!isGlobalAdmin && membership is not { Status: MembershipStatus.Active })
+        if (!isGlobalAdmin)
         {
-            return Redirect($"{GetRequiredAuthUrl()}/error?reason={RefusalReason(membership?.Status)}");
+            EnrollmentOutcome outcome = await enrollment.EnrollAsync(Guid.Parse(userId), tenantInfo.TenantId);
+            LogEnrollmentOutcome(userId, tenantInfo.TenantId, outcome.GetType().Name);
+
+            switch (outcome)
+            {
+                case Enrolled:
+                    break;
+
+                // Until the request-submitted screen ships, the error page is where a pending
+                // request is explained.
+                case PendingApproval:
+                    return Redirect($"{GetRequiredAuthUrl()}/error?reason=access_requested");
+
+                case Rejected rejected:
+                    return Redirect($"{GetRequiredAuthUrl()}/error?reason={rejected.Reason}");
+
+                default:
+                    throw new InvalidOperationException(
+                        $"Unhandled enrollment outcome '{outcome.GetType().Name}'.");
+            }
         }
 
         // Roles are granted by an organization and carry no authority outside it, so this is the
@@ -386,19 +403,6 @@ public sealed partial class AuthorizationController(
                     [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] = description
                 }));
 
-    /// <summary>
-    /// The error-screen reason a refused membership routes on. A pending request is waiting on
-    /// somebody else and a suspended one is reversible, so neither is told the same thing as a
-    /// person who was denied or never asked.
-    /// </summary>
-    private static string RefusalReason(MembershipStatus? status) => status switch
-    {
-        MembershipStatus.Pending => "access_requested",
-        MembershipStatus.Suspended => "membership_suspended",
-        MembershipStatus.Denied => "membership_denied",
-        _ => "not_a_member"
-    };
-
     private string GetRequiredAuthUrl() =>
         configuration["AuthUrl"] ?? throw new InvalidOperationException(
             "AuthUrl must be configured in appsettings.json. " +
@@ -430,8 +434,8 @@ public sealed partial class AuthorizationController(
     [LoggerMessage(Level = LogLevel.Information, Message = "OIDC redirecting to consent: clientId={ClientId}, returnUrl={ReturnUrl}")]
     private partial void LogRedirectingToConsent(string? clientId, string returnUrl);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "OIDC membership check: userId={UserId}, organizationId={OrganizationId}, status={Status}, isGlobalAdmin={IsGlobalAdmin}")]
-    private partial void LogMembershipCheck(string userId, Guid organizationId, string status, bool isGlobalAdmin);
+    [LoggerMessage(Level = LogLevel.Information, Message = "OIDC enrollment outcome: userId={UserId}, organizationId={OrganizationId}, outcome={Outcome}")]
+    private partial void LogEnrollmentOutcome(string userId, Guid organizationId, string outcome);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "OIDC issuing authorization code: userId={UserId}, clientId={ClientId}, scopes={Scopes}")]
     private partial void LogIssuingAuthorizationCode(string userId, string? clientId, string scopes);

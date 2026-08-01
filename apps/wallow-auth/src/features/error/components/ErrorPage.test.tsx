@@ -36,6 +36,7 @@ const REASONS: readonly { readonly reason: string; readonly matches: RegExp }[] 
   { reason: "access_requested", matches: /waiting for an administrator to review/iu },
   { reason: "membership_suspended", matches: /has been suspended/iu },
   { reason: "membership_denied", matches: /was not approved/iu },
+  { reason: "email_unverified", matches: /verify your email address/iu },
   { reason: "invalid_redirect_uri", matches: /redirect destination is not permitted/iu },
   { reason: "access_denied", matches: /access was denied/iu },
   { reason: "invalid_request", matches: /request was invalid/iu },
@@ -106,11 +107,12 @@ describe("ErrorPage — the membership escape hatch", () => {
     },
   );
 
-  it.each(["invalid_redirect_uri", "access_denied", "invalid_request", "wat"])(
+  it.each(["invalid_redirect_uri", "access_denied", "invalid_request", "email_unverified", "wat"])(
     "withholds the sign-out link for %s",
     async (reason) => {
       // The gate is the point: signing the user out of a working session because
-      // a redirect_uri was malformed would be a hostile non-sequitur.
+      // a redirect_uri was malformed would be a hostile non-sequitur, and an
+      // unverified address is fixed from the inbox, not by becoming somebody else.
       render(<ErrorPage reason={reason} />);
 
       await expect.element(page.getByTestId("error-message")).toBeInTheDocument();

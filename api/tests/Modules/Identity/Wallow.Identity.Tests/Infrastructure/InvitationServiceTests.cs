@@ -45,7 +45,10 @@ public sealed class InvitationServiceTests : IDisposable
         _invRepo.When(r => r.SaveChangesAsync(Arg.Any<CancellationToken>()))
             .Do(_ => _dbContext.SaveChanges());
 
-        _sut = new InvitationService(_invRepo, _memberships, _messageBus, _tp, tc, _dbContext);
+        // The real resolver rather than a substitute: the role a new member starts with is the
+        // thing several of these tests assert, and it is the seeded baseline role that answers.
+        _sut = new InvitationService(
+            _invRepo, _memberships, _messageBus, _tp, tc, new DefaultMemberRoleResolver(_dbContext), _dbContext);
     }
 
     public void Dispose() { _dbContext.Dispose(); }

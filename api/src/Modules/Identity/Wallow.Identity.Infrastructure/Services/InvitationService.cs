@@ -17,9 +17,9 @@ public sealed class InvitationService(
     IMessageBus messageBus,
     TimeProvider timeProvider,
     ITenantContext tenantContext,
+    IDefaultMemberRoleResolver defaultRoleResolver,
     IdentityDbContext dbContext) : IInvitationService
 {
-    private const string MemberRoleName = "user";
 
     /// <summary>
     /// Invites an address into the caller's organization, or re-sends the invitation already
@@ -171,7 +171,7 @@ public sealed class InvitationService(
     {
         if (membership is null)
         {
-            Guid roleId = await ResolveRoleIdAsync(MemberRoleName, ct);
+            Guid roleId = await defaultRoleResolver.ResolveAsync(organizationId, ct);
             membershipRepository.Add(Membership.Enroll(
                 userId, OrganizationId.Create(organizationId), roleId, timeProvider));
             return true;
@@ -182,7 +182,7 @@ public sealed class InvitationService(
             // An access request the invitation supersedes. Leaving it Pending would strand a row
             // that blocks the next legitimate request and outlives a later denial.
             case MembershipStatus.Pending:
-                membership.Approve(await ResolveRoleIdAsync(MemberRoleName, ct), userId, timeProvider);
+                membership.Approve(await defaultRoleResolver.ResolveAsync(organizationId, ct), userId, timeProvider);
                 return true;
 
             case MembershipStatus.Active:
@@ -223,28 +223,6 @@ public sealed class InvitationService(
                 "Identity.InvitationEmailMismatch",
                 "This invitation was issued to a different email address");
         }
-    }
-
-    /// <summary>
-    /// The role an invited member starts with. Task 4.2 replaces this with the organization's
-    /// configured default.
-    /// </summary>
-    private async Task<Guid> ResolveRoleIdAsync(string roleName, CancellationToken ct)
-    {
-        string normalizedName = roleName.ToUpperInvariant();
-
-        WallowRole? role = await dbContext.Roles
-            .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(r => r.NormalizedName == normalizedName, ct);
-
-        if (role is null)
-        {
-            throw new BusinessRuleException(
-                "Identity.RoleNotFound",
-                $"Role '{roleName}' does not exist");
-        }
-
-        return role.Id;
     }
 
     public async Task CleanupExpiredAsync(CancellationToken ct = default)

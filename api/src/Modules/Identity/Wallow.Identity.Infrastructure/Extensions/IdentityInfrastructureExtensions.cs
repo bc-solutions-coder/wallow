@@ -410,6 +410,9 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IUserQueryService, UserQueryService>();
         services.AddScoped<IInvitationService, InvitationService>();
+        services.AddScoped<IDefaultMemberRoleResolver, DefaultMemberRoleResolver>();
+        services.AddScoped<IAccessRequestRecipientResolver, AccessRequestRecipientResolver>();
+        services.AddScoped<IUserEnrollmentService, UserEnrollmentService>();
         services.AddMembershipAccessRevocation();
 
         // Fork extension points — TryAddScoped allows forks to register their own implementations

@@ -51,6 +51,10 @@ const REASON_MESSAGES: ReadonlyMap<string, string> = new Map([
   ["access_requested", "Your request to join is waiting for an administrator to review it."],
   ["membership_suspended", "Your access to this application has been suspended."],
   ["membership_denied", "Your request to join was not approved."],
+  [
+    "email_unverified",
+    "Verify your email address before joining another organization. Check your inbox for the verification link.",
+  ],
   ["invalid_redirect_uri", "The redirect destination is not permitted."],
   ["access_denied", "Access was denied. Please try again or contact support."],
   ["invalid_request", "The request was invalid. Please try again."],

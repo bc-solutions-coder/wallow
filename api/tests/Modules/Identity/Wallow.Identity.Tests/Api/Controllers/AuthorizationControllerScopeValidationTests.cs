@@ -7,9 +7,9 @@ using OpenIddict.Abstractions;
 using OpenIddict.Server;
 using OpenIddict.Server.AspNetCore;
 using Wallow.Identity.Api.Controllers;
+using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
-using Wallow.Identity.Domain.Identity;
 using Wallow.Shared.Contracts.Identity;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
@@ -41,7 +41,7 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
     private readonly IOpenIddictAuthorizationManager _authorizationManager;
     private readonly IScopeSubsetValidator _scopeSubsetValidator;
     private readonly IClientTenantResolver _clientTenantResolver;
-    private readonly IMembershipRepository _memberships;
+    private readonly IUserEnrollmentService _enrollment;
     private readonly IMembershipRoleResolver _membershipRoleResolver;
     private readonly AuthorizationController _controller;
 
@@ -57,7 +57,7 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
         _applicationManager = Substitute.For<IOpenIddictApplicationManager>();
         _authorizationManager = Substitute.For<IOpenIddictAuthorizationManager>();
         _clientTenantResolver = Substitute.For<IClientTenantResolver>();
-        _memberships = Substitute.For<IMembershipRepository>();
+        _enrollment = Substitute.For<IUserEnrollmentService>();
         _membershipRoleResolver = Substitute.For<IMembershipRoleResolver>();
 
         // Default: the client is registered for whatever it asks for, so each test
@@ -74,7 +74,7 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
             _authorizationManager,
             _scopeSubsetValidator,
             _clientTenantResolver,
-            _memberships,
+            _enrollment,
             _membershipRoleResolver,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<AuthorizationController>.Instance);
     }
@@ -284,13 +284,9 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
         _clientTenantResolver.ResolveAsync(clientId, Arg.Any<CancellationToken>())
             .Returns(new ClientTenantInfo(_testOrganizationId, "Test Org"));
 
-        _memberships.GetAsync(
+        _enrollment.EnrollAsync(
                 Guid.Parse(_testUserId), _testOrganizationId, Arg.Any<CancellationToken>())
-            .Returns(Membership.Enroll(
-                Guid.Parse(_testUserId),
-                new OrganizationId(_testOrganizationId),
-                Guid.NewGuid(),
-                TimeProvider.System));
+            .Returns(new Enrolled());
 
         // The only roles that decide anything here are the ones this organization grants;
         // whatever AspNetUserRoles holds globally is not consulted.
