@@ -1,8 +1,7 @@
-import { Button, PageHeader } from "@bc-solutions-coder/ui";
+import { Button, PageContainer, PageHeader } from "@bc-solutions-coder/ui";
 import { createFileRoute, Link } from "@tanstack/react-router";
 
 import { AppList, appsGetUserAppsOptions } from "@features/apps";
-import { PAGE_CONTAINER } from "@shared/lib/page-container";
 
 /**
  * The dashboard apps index route (Wallow-8w1h.5.2) — copies the CANONICAL
@@ -56,15 +55,15 @@ const registerCta = (
  * The page title block is the catalog `PageHeader` (Wallow-lrlm.5.1), which owns
  * the row layout, the heading element and its type scale; the page names the
  * header once and the inner testids (`apps-header-title`, `apps-header-actions`)
- * derive from it. The content width is the shared `PAGE_CONTAINER` rule rather
- * than a width written into this page.
+ * derive from it. The content width is the catalog `PageContainer`, not a width
+ * written into this page.
  */
 function AppsIndexPage() {
   return (
-    <div data-testid="dashboard-apps" className={PAGE_CONTAINER}>
+    <PageContainer data-testid="dashboard-apps">
       <PageHeader data-testid="apps-header" title="My Apps" actions={registerCta} />
       <AppList />
-    </div>
+    </PageContainer>
   );
 }
 

@@ -12,7 +12,7 @@
 // directions.
 
 export { withForm } from "./core/form-hook";
-export { splitServerError, type SplitServerError } from "./core/server-error";
+export { errorText, splitServerError, type SplitServerError } from "./core/server-error";
 export { fieldErrorTestId, fieldTestId } from "./core/test-id";
 export { AppForm, type AppFormInstance, type AppFormProps } from "./form/app-form";
 export type { AppFormContextValue } from "./form/app-form-context";

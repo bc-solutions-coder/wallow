@@ -3,8 +3,11 @@ import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { describe, expect, it, vi } from "vitest";
 
+import { forkDocsUrl, forkRepositoryUrl } from "@bc-solutions-coder/styles";
+
+import { getStartedHref } from "@shared/lib/site-links";
+
 import { PublicLayout } from "./PublicLayout";
-import { docsUrl, getStartedHref, repositoryUrl } from "@shared/lib/site-links";
 
 // Stub TanStack `Link` to a plain anchor (`to` passed through as `href`) so the
 // nav renders without a router. Every other export passes through untouched.
@@ -57,7 +60,6 @@ describe("PublicLayout", () => {
     const cta = page.getByTestId("public-nav-get-started");
     await expect.element(cta).toBeInTheDocument();
     expect(cta.element().getAttribute("href") ?? "").toContain("/bff/login");
-    // The CTA target is owned by `site-links`, not by a layout-local constant.
     await expect.element(cta).toHaveAttribute("href", getStartedHref);
   });
 
@@ -71,10 +73,9 @@ describe("PublicLayout", () => {
 });
 
 /**
- * The chrome's GitHub/Docs targets come from `site-links`, the single source
- * reading the fork's configured `repositoryUrl`/`docsUrl`, so nav and footer
- * cannot drift apart or point at the upstream repository. Nothing here mocks
- * `@bc-solutions-coder/styles`, so these run against the real branding values.
+ * The chrome's GitHub/Docs targets come from `@bc-solutions-coder/styles`, so
+ * nav and footer cannot drift apart or point at the upstream repository.
+ * Nothing here mocks the package, so these run against the real branding values.
  */
 describe("PublicLayout link targets", () => {
   it("points the Features nav link at the landing page's features section", async () => {
@@ -86,25 +87,27 @@ describe("PublicLayout link targets", () => {
 
   it("points both Docs links at the fork's docs site", async () => {
     await render(<PublicLayout />);
-    await expect.element(page.getByTestId("public-nav-docs")).toHaveAttribute("href", docsUrl);
-    await expect.element(page.getByTestId("public-footer-docs")).toHaveAttribute("href", docsUrl);
+    await expect.element(page.getByTestId("public-nav-docs")).toHaveAttribute("href", forkDocsUrl);
+    await expect
+      .element(page.getByTestId("public-footer-docs"))
+      .toHaveAttribute("href", forkDocsUrl);
   });
 
   it("points both GitHub links at the fork's repository", async () => {
     await render(<PublicLayout />);
     await expect
       .element(page.getByTestId("public-nav-github"))
-      .toHaveAttribute("href", repositoryUrl);
+      .toHaveAttribute("href", forkRepositoryUrl);
     await expect
       .element(page.getByTestId("public-footer-github"))
-      .toHaveAttribute("href", repositoryUrl);
+      .toHaveAttribute("href", forkRepositoryUrl);
   });
 
   it("exposes absolute link targets, with the docs site independent of the repository", () => {
-    expect(repositoryUrl).toMatch(/^https:\/\/\S+/u);
-    expect(docsUrl).toMatch(/^https:\/\/\S+/u);
+    expect(forkRepositoryUrl).toMatch(/^https:\/\/\S+/u);
+    expect(forkDocsUrl).toMatch(/^https:\/\/\S+/u);
     // The docs site is its own address, not a path derived from the repository.
-    expect(docsUrl).not.toBe(`${repositoryUrl}/tree/main/docs`);
+    expect(forkDocsUrl).not.toBe(`${forkRepositoryUrl}/tree/main/docs`);
     expect(getStartedHref).toContain("/bff/login");
   });
 });

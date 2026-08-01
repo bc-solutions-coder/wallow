@@ -1,4 +1,4 @@
-import { PageHeader } from "@bc-solutions-coder/ui";
+import { PageContainer, PageHeader } from "@bc-solutions-coder/ui";
 import { createFileRoute } from "@tanstack/react-router";
 
 import {
@@ -6,7 +6,6 @@ import {
   organizationsGetAllOptions,
   OrganizationList,
 } from "@features/organizations";
-import { PAGE_CONTAINER } from "@shared/lib/page-container";
 
 /**
  * The dashboard organizations index route (Wallow-8w1h.4.2) — the CANONICAL
@@ -30,11 +29,11 @@ import { PAGE_CONTAINER } from "@shared/lib/page-container";
  */
 function OrganizationsIndexPage() {
   return (
-    <div data-testid="dashboard-organizations" className={PAGE_CONTAINER}>
+    <PageContainer data-testid="dashboard-organizations">
       <PageHeader data-testid="organizations-header" title="Organizations" />
       <OrganizationList />
       <CreateOrganizationForm />
-    </div>
+    </PageContainer>
   );
 }
 

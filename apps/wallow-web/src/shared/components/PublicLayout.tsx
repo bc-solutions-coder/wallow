@@ -1,9 +1,14 @@
 import type { ReactNode } from "react";
 
-import { appIconUrl, forkBranding } from "@bc-solutions-coder/styles";
+import {
+  appIconUrl,
+  forkBranding,
+  forkDocsUrl,
+  forkRepositoryUrl,
+} from "@bc-solutions-coder/styles";
 import { Text } from "@bc-solutions-coder/ui";
 
-import { docsUrl, getStartedHref, repositoryUrl } from "@shared/lib/site-links";
+import { getStartedHref } from "@shared/lib/site-links";
 
 /**
  * PublicLayout (Wallow-ffpq.3.6) — the chrome wrapped around the public
@@ -47,7 +52,7 @@ function NavLinks() {
         Features
       </a>
       <a
-        href={docsUrl}
+        href={forkDocsUrl}
         target="_blank"
         rel="noreferrer"
         data-testid="public-nav-docs"
@@ -56,7 +61,7 @@ function NavLinks() {
         Docs
       </a>
       <a
-        href={repositoryUrl}
+        href={forkRepositoryUrl}
         target="_blank"
         rel="noreferrer"
         data-testid="public-nav-github"
@@ -86,7 +91,7 @@ function FooterLinks() {
   return (
     <div className="flex items-center gap-6">
       <a
-        href={repositoryUrl}
+        href={forkRepositoryUrl}
         target="_blank"
         rel="noreferrer"
         data-testid="public-footer-github"
@@ -95,7 +100,7 @@ function FooterLinks() {
         GitHub
       </a>
       <a
-        href={docsUrl}
+        href={forkDocsUrl}
         target="_blank"
         rel="noreferrer"
         data-testid="public-footer-docs"

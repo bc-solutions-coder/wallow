@@ -18,6 +18,8 @@ export {
   type CssVars,
   forkBranding,
   type ForkBranding,
+  forkDocsUrl,
+  forkRepositoryUrl,
   forkResolvedBranding,
   type ForkTheme,
   mergeClientBranding,

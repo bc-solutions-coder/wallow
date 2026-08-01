@@ -1,6 +1,6 @@
 # packages/ui — @bc-solutions-coder/ui Agent Guide
 
-The shared **browser-only** React component library: 56 component folders under
+The shared **browser-only** React component library: 58 component folders under
 `src/components/`, each a **Base UI** (`@base-ui/react` ^1.6.0) headless part wrapped in a
 **CVA** recipe built from `@bc-solutions-coder/styles` semantic tokens. Private (never
 published), consumed by `apps/wallow-auth` and `apps/wallow-web` as `workspace:*`.
@@ -22,7 +22,12 @@ app-wiring folders — `ReadyIndicator`, `FocusOnNavigate`, `DocumentStyles`,
 convenience: `Label` is literally `Field.Label`, `label/index.ts` re-exports Field's recipe,
 and `AlertDialog`/`ContextMenu`/`Autocomplete` reuse the already-wrapped parts of
 `Dialog`/`Menu`/`Combobox` (Base UI re-exports those runtimes verbatim — re-wrapping them
-would fork the behaviour).
+would fork the behaviour). `SimpleSelect` is the same idea one level up: the whole labelled
+select — `Field` + `Label` + `Select`'s seven-part portal tree — as one component, because every
+app needs the identical tree and spelling it out per call site blows `react/jsx-max-depth`.
+`Select` stays the composable API for a call site that needs groups, separators or a trigger
+that is not a `Field`; a folder that composes rather than wraps declares no recipe of its own,
+which is why it has no `.styles.ts`.
 
 ## Component folder anatomy
 

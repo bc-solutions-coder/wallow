@@ -40,6 +40,7 @@
  */
 import {
   AppForm,
+  errorText,
   type AppFormApi,
   FormError,
   type SelectFieldOption,
@@ -53,7 +54,6 @@ import { useState } from "react";
 import { z } from "zod";
 import type { AppRegistrationResponse } from "@bc-solutions-coder/sdk";
 
-import { errorText } from "@shared/lib/error-text";
 import { appsRegisterMutation, clientBrandingUpsertBrandingMutation, queriesWithTag } from "../api";
 
 /**

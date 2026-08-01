@@ -6,8 +6,8 @@
  * quick-start band.
  *
  * The Razor original's hardcoded hex palette is replaced by the shared theme
- * tokens (`packages/styles`), and every outbound href comes from
- * `lib/site-links` so it cannot drift from `PublicLayout`'s.
+ * tokens (`packages/styles`), which also owns the outbound fork URLs so they
+ * cannot drift from `PublicLayout`'s.
  *
  * Like `PublicLayout`, it stays router-free — plain anchors only, never a
  * TanStack `Link` — so the `/` route still server-renders standalone. The
@@ -15,10 +15,10 @@
  * the repo's `jsx-max-depth` budget.
  */
 
-import { appIconUrl, forkBranding } from "@bc-solutions-coder/styles";
+import { appIconUrl, forkBranding, forkRepositoryUrl } from "@bc-solutions-coder/styles";
 import { MutedText, Text } from "@bc-solutions-coder/ui";
 
-import { getStartedHref, repositoryUrl } from "@shared/lib/site-links";
+import { getStartedHref } from "@shared/lib/site-links";
 
 interface Feature {
   emoji: string;
@@ -116,7 +116,7 @@ function Hero() {
           Get Started
         </a>
         <a
-          href={repositoryUrl}
+          href={forkRepositoryUrl}
           target="_blank"
           rel="noreferrer"
           data-testid="home-github-link"

@@ -14,6 +14,7 @@
  */
 import {
   AppForm,
+  errorText,
   FormError,
   type SelectFieldOption,
   SubmitButton,
@@ -34,7 +35,6 @@ import { useState } from "react";
 import { useRouteContext } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { errorText } from "@shared/lib/error-text";
 import {
   clientsCreateMutation,
   clientsGetByTenantOptions,

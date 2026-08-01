@@ -4,6 +4,7 @@
  * and renders four states: loading, errored, empty, and a list of `inquiry-item`
  * rows, each showing the inquiry's status via `inquiry-item-status`.
  */
+import { errorText } from "@bc-solutions-coder/forms";
 import { useQuery } from "@bc-solutions-coder/query";
 import type { InquiryResponse } from "@bc-solutions-coder/sdk";
 import {
@@ -17,7 +18,6 @@ import {
 } from "@bc-solutions-coder/ui";
 import { Link, useRouteContext } from "@tanstack/react-router";
 
-import { errorText } from "@shared/lib/error-text";
 import { inquiriesGetAllOptions } from "../api";
 
 /**

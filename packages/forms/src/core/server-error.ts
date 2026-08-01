@@ -28,6 +28,24 @@ export interface SplitServerError {
 }
 
 /**
+ * The human-readable sentence for `error`: the API's ProblemDetails `detail`
+ * when it sent one, else the error's own message, else `fallback`.
+ *
+ * The split's counterpart for everywhere a failed call has no fields to
+ * distribute messages across — a failed read, or a write whose failure is shown
+ * outside a form. The `isWallowError` brand check is the gate: anything that did
+ * not come through the SDK's error interceptor contributes no copy of its own,
+ * so an arbitrary object cannot dictate user-facing text by merely carrying a
+ * `detail` member.
+ */
+export function errorText(error: unknown, fallback: string): string {
+  if (isWallowError(error)) {
+    return error.detail ?? error.message;
+  }
+  return error instanceof Error && error.message !== "" ? error.message : fallback;
+}
+
+/**
  * The API's property name folded onto the form's. Only the first character
  * differs between `ValidationProblemDetails`' `"Name"` and a form's `"name"`;
  * lowercasing the whole key would break `"emailAddress"`.

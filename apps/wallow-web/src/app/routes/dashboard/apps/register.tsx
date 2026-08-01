@@ -1,8 +1,7 @@
-import { PageHeader } from "@bc-solutions-coder/ui";
+import { PageContainer, PageHeader } from "@bc-solutions-coder/ui";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { RegisterAppForm } from "@features/apps";
-import { PAGE_CONTAINER } from "@shared/lib/page-container";
 
 /**
  * The dashboard register-app route (Wallow-ffpq.3.5) — the intended mount point
@@ -21,17 +20,16 @@ import { PAGE_CONTAINER } from "@shared/lib/page-container";
  * `/dashboard/apps/register`.
  */
 /**
- * The title block is the catalog `PageHeader` (Wallow-lrlm.5.1) and the width is
- * the shared `PAGE_CONTAINER` rule — this page used to run narrower than the
- * list pages; F5.T1 collapses that split onto one container. The `mb-8` the
- * hand-rolled heading carried is the header row's now.
+ * The title block is the catalog `PageHeader` and the width is the catalog
+ * `PageContainer`, so a write-only page sits in the same column as the list
+ * pages. The `mb-8` rhythm under the heading is the header row's own.
  */
 function RegisterAppPage() {
   return (
-    <div data-testid="dashboard-apps-register" className={PAGE_CONTAINER}>
+    <PageContainer data-testid="dashboard-apps-register">
       <PageHeader data-testid="apps-register-header" title="Register New App" />
       <RegisterAppForm />
-    </div>
+    </PageContainer>
   );
 }
 

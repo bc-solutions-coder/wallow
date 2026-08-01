@@ -256,6 +256,7 @@ export {
   type OTPFieldRootProps,
   type OTPFieldSeparatorProps,
 } from "./components/otp-field";
+export { PageContainer, type PageContainerProps } from "./components/page-container";
 export { PageHeader, type PageHeaderProps } from "./components/page-header";
 export {
   Popover,
@@ -330,6 +331,11 @@ export {
   type SelectValueProps,
 } from "./components/select";
 export { Separator, type SeparatorProps } from "./components/separator";
+export {
+  SimpleSelect,
+  type SimpleSelectOption,
+  type SimpleSelectProps,
+} from "./components/simple-select";
 export {
   Slider,
   type SliderControlProps,

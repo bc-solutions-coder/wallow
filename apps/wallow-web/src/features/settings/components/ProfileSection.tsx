@@ -13,12 +13,12 @@
  * optional in the OpenAPI document, which is what the "Not set" fallbacks below
  * cover.
  */
+import { errorText } from "@bc-solutions-coder/forms";
 import { useQuery } from "@bc-solutions-coder/query";
 import { Badge, Card, CardTitle, ErrorBanner, MutedText, Text } from "@bc-solutions-coder/ui";
 import { useRouteContext } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
-import { errorText } from "@shared/lib/error-text";
 import { usersGetCurrentUserOptions } from "../api";
 
 /** A captioned read-only field row (extracted to keep the card's JSX shallow). */

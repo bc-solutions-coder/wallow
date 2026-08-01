@@ -4,6 +4,7 @@
  * copies. It drives `useQuery(organizationsGetAllOptions({ client }))` and renders
  * four states: loading, errored, empty, and a list of `organization-item` rows.
  */
+import { errorText } from "@bc-solutions-coder/forms";
 import { useQuery } from "@bc-solutions-coder/query";
 import type { OrganizationDto } from "@bc-solutions-coder/sdk";
 import {
@@ -17,7 +18,6 @@ import {
 } from "@bc-solutions-coder/ui";
 import { Link, useRouteContext } from "@tanstack/react-router";
 
-import { errorText } from "@shared/lib/error-text";
 import { organizationsGetAllOptions } from "../api";
 
 /**

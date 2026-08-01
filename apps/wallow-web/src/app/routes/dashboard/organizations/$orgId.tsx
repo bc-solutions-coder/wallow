@@ -1,3 +1,4 @@
+import { PageContainer } from "@bc-solutions-coder/ui";
 import { createFileRoute } from "@tanstack/react-router";
 
 import {
@@ -5,7 +6,6 @@ import {
   organizationsGetByIdOptions,
   organizationsGetMembersOptions,
 } from "@features/organizations";
-import { PAGE_CONTAINER } from "@shared/lib/page-container";
 
 /**
  * The dashboard organization-detail route (Wallow-8w1h.4.4). Mirrors the list
@@ -20,9 +20,9 @@ import { PAGE_CONTAINER } from "@shared/lib/page-container";
 function OrganizationDetailPage() {
   const { orgId } = Route.useParams();
   return (
-    <div data-testid="dashboard-organization-detail" className={PAGE_CONTAINER}>
+    <PageContainer data-testid="dashboard-organization-detail">
       <OrganizationDetail orgId={orgId} />
-    </div>
+    </PageContainer>
   );
 }
 

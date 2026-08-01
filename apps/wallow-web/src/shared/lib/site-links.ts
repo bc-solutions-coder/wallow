@@ -1,22 +1,10 @@
 /**
- * The single source for wallow-web's outbound site links (Wallow-urec.2.1).
+ * The one outbound link wallow-web owns.
  *
- * `PublicLayout` used to define its own repository/docs constants and DERIVE the
- * docs URL from the repository URL, which diverged from the canonical
- * `docsUrl` that `packages/styles/branding.json` now supplies. Every rendered GitHub/Docs
- * link reads from here instead.
- *
+ * The fork's repository and docs URLs are `@bc-solutions-coder/styles`'
+ * `forkRepositoryUrl` / `forkDocsUrl` — fork identity, resolved from
+ * `branding.json`. This one is not: it is a path into THIS app's BFF.
  */
-
-import { forkBranding } from "@bc-solutions-coder/styles";
-
-/** The fork's repository, from `forkBranding.repositoryUrl`. */
-export const repositoryUrl: string =
-  forkBranding.repositoryUrl ?? "https://github.com/bc-solutions-coder/wallow";
-
-/** The fork's documentation site, from `forkBranding.docsUrl`. */
-export const docsUrl: string =
-  forkBranding.docsUrl ?? "https://bc-solutions-coder.github.io/wallow/";
 
 /**
  * The "Get Started" CTA target: the BFF login flow, returning to the dashboard.

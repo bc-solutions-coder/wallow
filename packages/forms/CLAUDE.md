@@ -44,6 +44,11 @@ have to sit together. Fields import `core/contexts` and `form/app-form-context`,
 - **`createFormHookContexts()` is called once** (`core/contexts.ts`) and **`createFormHook()` is
   called once** (`core/form-hook.tsx`). A second call anywhere produces a parallel binding whose
   fields read a context no `AppForm` publishes.
+- **The RFC 7807 readers are public, both of them.** `splitServerError` is what a form needs;
+  `errorText(error, fallback)` is the one-line reader for a failure with no fields to distribute
+  across — a failed READ, or a write rendered outside a form — so a screen never hand-rolls the
+  `detail`/`title`/`message` walk. It lives here rather than in an app because the shape it walks
+  is the same one `splitServerError` walks.
 - `src/index.ts` is the contract. `src/index.test.ts` pins it in **both** directions:
   `PUBLIC_RUNTIME_EXPORTS` as an exact set, and `INTERNAL_EXPORTS` (the TanStack contexts, the
   shell's own React context, the field-part helpers) asserted absent.

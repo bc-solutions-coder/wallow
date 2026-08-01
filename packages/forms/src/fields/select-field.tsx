@@ -13,8 +13,8 @@
  *     `Select.Value` renders the raw value, so a `web-app` / "Web application"
  *     pair would show the wire value to the user.
  *
- * The tree is split into one component per nesting level for the same reason
- * wallow-web's `SelectControl` is: spelled out inline it blows the repo's
+ * The tree is split into one component per nesting level for the same reason the
+ * catalog's `SimpleSelect` is: spelled out inline it blows the repo's
  * `react/jsx-max-depth` budget.
  */
 

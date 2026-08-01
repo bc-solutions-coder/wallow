@@ -4,6 +4,7 @@
  * `useQuery(appsGetUserAppsOptions({ client }))` and renders four states:
  * loading, errored, empty, and a list of `app-item` rows.
  */
+import { errorText } from "@bc-solutions-coder/forms";
 import { useQuery } from "@bc-solutions-coder/query";
 import type { DeveloperAppResponse } from "@bc-solutions-coder/sdk";
 import {
@@ -17,7 +18,6 @@ import {
 } from "@bc-solutions-coder/ui";
 import { useRouteContext } from "@tanstack/react-router";
 
-import { errorText } from "@shared/lib/error-text";
 import { appsGetUserAppsOptions } from "../api";
 
 /**

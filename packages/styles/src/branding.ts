@@ -290,3 +290,25 @@ export const forkResolvedBranding: ResolvedBranding = resolveForkBranding();
  * at the origin root. Under a URL prefix, call {@link toAppIconUrl} instead.
  */
 export const appIconUrl: string = toAppIconUrl();
+
+/**
+ * Where the two outbound identity links point when a fork's `branding.json`
+ * omits them.
+ *
+ * The package needs its own copy rather than reading the JSON's values as
+ * defaults: `branding.json` is `merge=ours` in `.gitattributes`, so a fork
+ * REPLACES it wholesale and an omitted field arrives as `undefined` rather than
+ * as this repo's value.
+ */
+const UPSTREAM_REPOSITORY_URL: string = "https://github.com/bc-solutions-coder/wallow";
+const UPSTREAM_DOCS_URL: string = "https://bc-solutions-coder.github.io/wallow/";
+
+/**
+ * The fork's repository — every rendered "source" link reads this rather than
+ * deriving one URL from another, which is how a docs link drifts off the
+ * canonical one.
+ */
+export const forkRepositoryUrl: string = forkBranding.repositoryUrl ?? UPSTREAM_REPOSITORY_URL;
+
+/** The fork's documentation site. */
+export const forkDocsUrl: string = forkBranding.docsUrl ?? UPSTREAM_DOCS_URL;

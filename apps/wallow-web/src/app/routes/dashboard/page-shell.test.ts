@@ -3,13 +3,11 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-import { PAGE_CONTAINER } from "@shared/lib/page-container";
-
 /**
- * The cross-page invariants no single page's spec can see: exactly one
- * container-width rule (`PAGE_CONTAINER`) imported by every dashboard route
- * page, and every page title rendered by `PageHeader` rather than a hand-rolled
- * `<h1>` or `justify-between mb-8` row.
+ * The cross-page invariants no single page's spec can see: every dashboard route
+ * page wraps its body in the catalog `PageContainer`, and every page title is
+ * rendered by `PageHeader` rather than a hand-rolled `<h1>` or
+ * `justify-between mb-8` row.
  *
  * Read from source, not the DOM, because the rule being pinned is "the width is
  * declared in one place" — a fact about the source.
@@ -53,7 +51,7 @@ const TITLED_PAGE_FILES: readonly string[] = [
 const ROUTE_FILES: readonly string[] = [...PAGE_FILES, "route.tsx"];
 
 const IMPORTS_PAGE_CONTAINER =
-  /import\s*\{[^}]*\bPAGE_CONTAINER\b[^}]*\}\s*from\s*"@shared\/lib\/page-container"/u;
+  /import\s*\{[^}]*\bPageContainer\b[^}]*\}\s*from\s*"@bc-solutions-coder\/ui"/u;
 
 const IMPORTS_PAGE_HEADER =
   /import\s*\{[^}]*\bPageHeader\b[^}]*\}\s*from\s*"@bc-solutions-coder\/ui"/u;
@@ -65,19 +63,16 @@ const LITERAL_MAX_WIDTH = /\bmax-w-[\w[\]./-]+/u;
 const HAND_ROLLED_HEADER_ROW = /justify-between mb-8/u;
 
 describe("dashboard pages share one container-width rule", () => {
-  it("declares the rule as a wide, centered column", () => {
-    // `5xl` is the width the list pages need; a `2xl` column does not fit a table.
-    expect(PAGE_CONTAINER).toBe("max-w-5xl mx-auto");
-  });
-
-  it.each(PAGE_FILES)("takes %s's width from the shared rule", (file) => {
+  it.each(PAGE_FILES)("takes %s's width from the catalog container", (file) => {
     expect(source(file)).toMatch(IMPORTS_PAGE_CONTAINER);
   });
 
   it.each(PAGE_FILES)("leaves no hand-written width in %s", (file) => {
+    // The width itself is `pageContainerRecipe`'s, pinned in packages/ui. What
+    // this app owes is that no page decides one of its own.
     const found = source(file).match(LITERAL_MAX_WIDTH);
 
-    expect(found?.[0] ?? null, "width belongs to PAGE_CONTAINER alone").toBeNull();
+    expect(found?.[0] ?? null, "width belongs to PageContainer alone").toBeNull();
   });
 });
 

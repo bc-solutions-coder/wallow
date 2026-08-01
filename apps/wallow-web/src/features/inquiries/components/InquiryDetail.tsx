@@ -25,7 +25,7 @@
  * they can co-render, so a spec asserting one must be able to say which failure
  * it saw.
  */
-import { AppForm, FormError, SubmitButton, useAppForm } from "@bc-solutions-coder/forms";
+import { AppForm, errorText, FormError, SubmitButton, useAppForm } from "@bc-solutions-coder/forms";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@bc-solutions-coder/query";
 import type { InquiryCommentResponse, WallowSdk } from "@bc-solutions-coder/sdk";
 import {
@@ -36,14 +36,14 @@ import {
   ListCard,
   ListRow,
   MutedText,
+  SimpleSelect,
+  type SimpleSelectOption,
   Text,
 } from "@bc-solutions-coder/ui";
 import { useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
 import { z } from "zod";
 
-import { SelectControl, type SelectControlOption } from "@shared/components/SelectControl";
-import { errorText } from "@shared/lib/error-text";
 import {
   inquiriesAddCommentMutation,
   inquiriesGetByIdOptions,
@@ -71,7 +71,7 @@ const SUB_LIST_ROW = "justify-start gap-3 px-4 py-3";
  * The domain's statuses as catalog-`Select` options. Value and label are the
  * same string here — the status IS the display text — so no mapping is lost.
  */
-const STATUS_OPTIONS: readonly SelectControlOption[] = INQUIRY_STATUSES.map((status: string) => ({
+const STATUS_OPTIONS: readonly SimpleSelectOption[] = INQUIRY_STATUSES.map((status: string) => ({
   value: status,
   label: status,
 }));
@@ -163,7 +163,7 @@ function StatusControl(props: {
 
   return (
     <>
-      <SelectControl
+      <SimpleSelect
         testId="inquiry-status-select"
         label="Status"
         value={status}

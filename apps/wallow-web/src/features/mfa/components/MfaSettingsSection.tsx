@@ -20,6 +20,7 @@
  *
  * Testids mirror the C# E2E page object `SettingsMfaSection`.
  */
+import { errorText } from "@bc-solutions-coder/forms";
 import { useMutation, useQuery, useQueryClient } from "@bc-solutions-coder/query";
 import {
   Badge,
@@ -36,7 +37,6 @@ import {
 import { useRouteContext } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 
-import { errorText } from "@shared/lib/error-text";
 import {
   mfaDisableMutation,
   mfaGetStatusOptions,

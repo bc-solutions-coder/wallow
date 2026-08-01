@@ -6,12 +6,12 @@ theme CSS custom properties at render time.
 
 ## Four exports
 
-| Entry                | Runs in | What it is                                                                                                                                                                                                                                                                            |
-| -------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `.` (`src/index.ts`) | Browser | Branding types (`ForkBranding`, `ClientBranding`, `ResolvedBranding`, `ThemeColors`) plus `renderThemeStyle` / `toCssVars` / `mergeClientBranding` and the asset-URL surface (`toRootRelativeAssetUrl`, `toAppIconUrl`, `resolveForkBranding`, `appIconUrl`, `forkResolvedBranding`). |
-| `./styles.css`       | CSS     | The shared Tailwind v4 entry — maps Tailwind tokens onto the plain custom properties the theme emits.                                                                                                                                                                                 |
-| `./assets`           | Node    | `brandAssetsDir` — the directory a consuming app's build copies to its served root.                                                                                                                                                                                                   |
-| `./vite`             | Node    | `wallowStyles()` — one call in an app's Vite `plugins` array wires `@tailwindcss/vite` + brand assets + the `virtual:wallow-theme.css` module.                                                                                                                                        |
+| Entry                | Runs in | What it is                                                                                                                                                                                                                                                                                                                                                |
+| -------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.` (`src/index.ts`) | Browser | Branding types (`ForkBranding`, `ClientBranding`, `ResolvedBranding`, `ThemeColors`) plus `renderThemeStyle` / `toCssVars` / `mergeClientBranding`, the asset-URL surface (`toRootRelativeAssetUrl`, `toAppIconUrl`, `resolveForkBranding`, `appIconUrl`, `forkResolvedBranding`) and the fork's two outbound links (`forkRepositoryUrl`, `forkDocsUrl`). |
+| `./styles.css`       | CSS     | The shared Tailwind v4 entry — maps Tailwind tokens onto the plain custom properties the theme emits.                                                                                                                                                                                                                                                     |
+| `./assets`           | Node    | `brandAssetsDir` — the directory a consuming app's build copies to its served root.                                                                                                                                                                                                                                                                       |
+| `./vite`             | Node    | `wallowStyles()` — one call in an app's Vite `plugins` array wires `@tailwindcss/vite` + brand assets + the `virtual:wallow-theme.css` module.                                                                                                                                                                                                            |
 
 - **A consuming app must declare its own `@source` scan.** Tailwind v4 resolves `@source`
   relative to the declaring stylesheet, so a scan declared here would see _this_ package's
@@ -34,5 +34,9 @@ theme CSS custom properties at render time.
   correct only for an app served at the origin root. `toRootRelativeAssetUrl` normalises
   whatever shape the base path arrives in (`/`, `/auth`, `/auth/`, `auth`), so an app can hand
   over Vite's raw `import.meta.env.BASE_URL`.
+- **`forkRepositoryUrl` / `forkDocsUrl` are fork identity, so they live here rather than in an
+  app.** Both fall back to an upstream constant when `branding.json` names neither, which is what
+  makes them safe: `branding.json` is `merge=ours`, so a fork replaces the file wholesale and a
+  missing key must still resolve to something.
 - `pnpm --filter @bc-solutions-coder/styles build` (Vite lib mode + `tsc -p tsconfig.build.json`);
   `test` / `typecheck` are the other scripts. Tests are node-environment vitest — no DOM here.

@@ -1,17 +1,17 @@
-import { forkBranding } from "@bc-solutions-coder/styles";
+import { forkBranding, forkRepositoryUrl } from "@bc-solutions-coder/styles";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { describe, expect, it } from "vitest";
 
 import { LandingPage } from "./LandingPage";
-import { getStartedHref, repositoryUrl } from "@shared/lib/site-links";
+import { getStartedHref } from "@shared/lib/site-links";
 
 /**
  * LandingPage — the marketing body.
  *
  * Everything a FORK owns is asserted against data, never a literal baked into
  * the test: the heading against `forkBranding.tagline`, the hero icon against
- * the branding filename, the two CTAs against the `lib/site-links` constants.
+ * the branding filename, the two CTAs against the constants they render.
  * The copy the PLATFORM owns — tech badges, feature titles, quick-start steps
  * — is pinned literally and in order; that ordering is the content contract.
  */
@@ -74,7 +74,7 @@ describe("LandingPage", () => {
       .toHaveAttribute("href", getStartedHref);
     await expect
       .element(page.getByTestId("home-github-link"))
-      .toHaveAttribute("href", repositoryUrl);
+      .toHaveAttribute("href", forkRepositoryUrl);
   });
 
   it("lists the platform's six tech badges in order", async () => {

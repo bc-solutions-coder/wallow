@@ -1,3 +1,4 @@
+import { PageContainer } from "@bc-solutions-coder/ui";
 import { createFileRoute } from "@tanstack/react-router";
 
 import {
@@ -5,7 +6,6 @@ import {
   inquiriesGetByIdOptions,
   inquiriesGetCommentsOptions,
 } from "@features/inquiries";
-import { PAGE_CONTAINER } from "@shared/lib/page-container";
 
 /**
  * The dashboard inquiry-detail route (Wallow-8w1h.7.4). Mirrors the canonical
@@ -19,9 +19,9 @@ import { PAGE_CONTAINER } from "@shared/lib/page-container";
 function InquiryDetailPage() {
   const { inquiryId } = Route.useParams();
   return (
-    <div data-testid="dashboard-inquiry-detail" className={PAGE_CONTAINER}>
+    <PageContainer data-testid="dashboard-inquiry-detail">
       <InquiryDetail inquiryId={inquiryId} />
-    </div>
+    </PageContainer>
   );
 }
 

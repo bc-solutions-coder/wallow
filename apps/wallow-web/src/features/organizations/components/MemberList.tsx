@@ -19,7 +19,7 @@
  * `organization-member-remove` (per-row remove).
  */
 import { asString } from "@bc-solutions-coder/utils/guards";
-import { AppForm, FormError, SubmitButton, useAppForm } from "@bc-solutions-coder/forms";
+import { AppForm, errorText, FormError, SubmitButton, useAppForm } from "@bc-solutions-coder/forms";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@bc-solutions-coder/query";
 import type { UserDto, WallowSdk } from "@bc-solutions-coder/sdk";
 import {
@@ -37,7 +37,6 @@ import { useRouteContext } from "@tanstack/react-router";
 import { useMemo, useState, type ReactNode } from "react";
 import { z } from "zod";
 
-import { errorText } from "@shared/lib/error-text";
 import {
   organizationsAddMemberMutation,
   organizationsGetMembersOptions,

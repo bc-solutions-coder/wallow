@@ -290,6 +290,7 @@ const COMPONENT_FOLDERS = [
   "navigation-menu",
   "number-field",
   "otp-field",
+  "page-container",
   "page-header",
   "popover",
   "preview-card",
@@ -300,6 +301,7 @@ const COMPONENT_FOLDERS = [
   "scroll-area",
   "select",
   "separator",
+  "simple-select",
   "slider",
   "switch",
   "tabs",
@@ -488,7 +490,7 @@ describe("packages/ui subpath exports", () => {
     const pkg = readPackageJson();
     const exportsMap = pkg.exports as Record<string, unknown>;
 
-    // One wildcard entry instead of 56 hand-maintained subpaths: adding a
+    // One wildcard entry instead of 58 hand-maintained subpaths: adding a
     // component never edits package.json. The TARGETS are deliberately not
     // asserted — where a subpath resolves to is the build's business, and
     // `dist-structure.test.ts` proves the wildcard actually resolves by
