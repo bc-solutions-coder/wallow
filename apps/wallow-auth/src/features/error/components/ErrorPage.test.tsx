@@ -17,14 +17,25 @@ import { ErrorPage } from "./ErrorPage";
  *
  * This screen is a contract, not a leaf. Every other screen's open-redirect
  * refusal lands here via `/error?reason=invalid_redirect_uri`, and the OIDC
- * flows route here with `not_a_member` / `access_denied` / `invalid_request`.
- * Every one of those reasons has a caller elsewhere in the app, so the mapping
- * is pinned exhaustively rather than by sampling.
+ * flows route here with a membership refusal or with `access_denied` /
+ * `invalid_request`. Every one of those reasons has a caller elsewhere, so the
+ * mapping is pinned exhaustively rather than by sampling.
  */
+
+/** The refusals that mean the signed-in person is the wrong person. */
+const MEMBERSHIP_REASONS = [
+  "not_a_member",
+  "access_requested",
+  "membership_suspended",
+  "membership_denied",
+] as const;
 
 /** Every reason the app routes here with. */
 const REASONS: readonly { readonly reason: string; readonly matches: RegExp }[] = [
   { reason: "not_a_member", matches: /don't have access to this application/iu },
+  { reason: "access_requested", matches: /waiting for an administrator to review/iu },
+  { reason: "membership_suspended", matches: /has been suspended/iu },
+  { reason: "membership_denied", matches: /was not approved/iu },
   { reason: "invalid_redirect_uri", matches: /redirect destination is not permitted/iu },
   { reason: "access_denied", matches: /access was denied/iu },
   { reason: "invalid_request", matches: /request was invalid/iu },
@@ -80,17 +91,20 @@ describe("ErrorPage", () => {
   });
 });
 
-describe("ErrorPage — the not_a_member escape hatch", () => {
-  it("offers to sign out and try another account", async () => {
-    // `not_a_member` means "you are signed in, as the wrong person" — the only
-    // case where the fix is to sign out, and the one case where a back-to-home
-    // link alone would loop the user straight back into the same error.
-    render(<ErrorPage reason="not_a_member" />);
+describe("ErrorPage — the membership escape hatch", () => {
+  it.each(MEMBERSHIP_REASONS)(
+    "offers %s a way to sign out and try another account",
+    async (reason) => {
+      // A membership refusal means "you are signed in, as the wrong person" — the
+      // only case where the fix is to sign out, and the one case where a
+      // back-to-home link alone would loop the user into the same error.
+      render(<ErrorPage reason={reason} />);
 
-    await expect
-      .element(page.getByTestId("error-sign-out-link"))
-      .toHaveAttribute("href", "/logout");
-  });
+      await expect
+        .element(page.getByTestId("error-sign-out-link"))
+        .toHaveAttribute("href", "/logout");
+    },
+  );
 
   it.each(["invalid_redirect_uri", "access_denied", "invalid_request", "wat"])(
     "withholds the sign-out link for %s",
@@ -146,10 +160,10 @@ describe("/error route", () => {
 
     await expect.element(page.getByTestId("error-heading")).toBeInTheDocument();
     expect(page.getByTestId("route-placeholder").query()).toBeNull();
-    // `not_a_member` is the one reason that earns a sign-out link, so asserting
-    // it here proves the query string threaded through `validateSearch` into
-    // the screen. A route that dropped `reason` would render the generic
-    // message and still pass a bare-render check.
+    // `not_a_member` earns a sign-out link, so asserting it here proves the
+    // query string threaded through `validateSearch` into the screen. A route
+    // that dropped `reason` would render the generic message and still pass a
+    // bare-render check.
     await expect.element(page.getByTestId("error-sign-out-link")).toBeInTheDocument();
     await expect
       .element(page.getByTestId("error-message"))

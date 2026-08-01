@@ -7,9 +7,10 @@ import { toAppHref } from "@shared/lib/base-path";
  *
  * This screen is the destination of every other screen's open-redirect refusal
  * (`/error?reason=invalid_redirect_uri`, per bd memory
- * `returnurl-guard-refuse-dont-sanitize`), and of the OIDC flows' `not_a_member`
- * / `access_denied` / `invalid_request` bail-outs. Its `reason` mapping is
- * therefore a contract other beads depend on, not a private detail.
+ * `returnurl-guard-refuse-dont-sanitize`), of the four membership refusals the
+ * authorize endpoint routes here, and of the OIDC flows' `access_denied` /
+ * `invalid_request` bail-outs. Its `reason` mapping is therefore a contract
+ * other beads depend on, not a private detail.
  *
  * `reason` arrives as a prop rather than being read from the router here: the
  * route owns the query string (the oracle's `[SupplyParameterFromQuery]`) and
@@ -20,8 +21,18 @@ import { toAppHref } from "@shared/lib/base-path";
  * `error-heading`, `error-message`, `error-sign-out-link`, `error-back-link`.
  */
 
-/** The one reason that means "you are signed in, as the wrong person". */
-const NOT_A_MEMBER = "not_a_member";
+/**
+ * The reasons that mean "you are signed in, as the wrong person": the organization
+ * behind this client admits nobody by that name, or admits them and will not let
+ * them in today. Each is a different thing to tell the user, but the way out of
+ * all four is the same — come back as somebody else.
+ */
+const MEMBERSHIP_REASONS: ReadonlySet<string> = new Set([
+  "not_a_member",
+  "access_requested",
+  "membership_suspended",
+  "membership_denied",
+]);
 
 /** The oracle's `_` arm: the message for anything this page has not heard of. */
 const GENERIC_MESSAGE = "An unexpected error occurred. Please try again.";
@@ -36,7 +47,10 @@ const GENERIC_MESSAGE = "An unexpected error occurred. Please try again.";
  * to the renderer. `Map.get` only ever sees the keys put here.
  */
 const REASON_MESSAGES: ReadonlyMap<string, string> = new Map([
-  [NOT_A_MEMBER, "You don't have access to this application."],
+  ["not_a_member", "You don't have access to this application."],
+  ["access_requested", "Your request to join is waiting for an administrator to review it."],
+  ["membership_suspended", "Your access to this application has been suspended."],
+  ["membership_denied", "Your request to join was not approved."],
   ["invalid_redirect_uri", "The redirect destination is not permitted."],
   ["access_denied", "Access was denied. Please try again or contact support."],
   ["invalid_request", "The request was invalid. Please try again."],
@@ -73,13 +87,13 @@ function ErrorMessageAlert({ reason }: { readonly reason?: string }) {
 }
 
 /**
- * The oracle's `reason == "not_a_member"`-gated escape hatch.
+ * The membership-gated escape hatch.
  *
- * Gated because `not_a_member` is the only case whose fix is to sign out — the
- * user is authenticated as somebody without access, so a home link alone would
- * loop them straight back into this same error. Signing a user out of a working
- * session because a redirect_uri was malformed would be a hostile non-sequitur,
- * so every other reason gets the home link only.
+ * Gated because a membership refusal is the only case whose fix is to sign out —
+ * the user is authenticated as somebody without access, so a home link alone
+ * would loop them straight back into this same error. Signing a user out of a
+ * working session because a redirect_uri was malformed would be a hostile
+ * non-sequitur, so every other reason gets the home link only.
  */
 function SignOutLink() {
   return (
@@ -97,7 +111,7 @@ function SignOutLink() {
 function ErrorFooter({ reason }: { readonly reason?: string }) {
   return (
     <div className="flex flex-col items-center gap-2 w-full">
-      {reason === NOT_A_MEMBER ? <SignOutLink /> : null}
+      {reason !== undefined && MEMBERSHIP_REASONS.has(reason) ? <SignOutLink /> : null}
       <a
         href={toAppHref("/")}
         data-testid="error-back-link"

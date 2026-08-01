@@ -203,22 +203,8 @@ public sealed partial class TokenController(
             OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
     }
 
-    private async Task<bool> IsGlobalAdminUserAsync(WallowUser user)
-    {
-        IList<Claim> claims = await userManager.GetClaimsAsync(user);
-
-        foreach (Claim claim in claims)
-        {
-            if (string.Equals(claim.Type, WallowClaims.GlobalAdminClaimType, StringComparison.Ordinal)
-                && bool.TryParse(claim.Value, out bool isGlobalAdmin)
-                && isGlobalAdmin)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
+    private async Task<bool> IsGlobalAdminUserAsync(WallowUser user) =>
+        GlobalAdminClaims.IsGranted(await userManager.GetClaimsAsync(user));
 
     private async Task<ImmutableDictionary<string, JsonElement>> GetApplicationPropertiesAsync(string clientId)
     {

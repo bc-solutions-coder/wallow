@@ -10,9 +10,9 @@ using OpenIddict.Abstractions;
 using OpenIddict.Server;
 using OpenIddict.Server.AspNetCore;
 using Wallow.Identity.Api.Controllers;
-using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Identity;
 using Wallow.Shared.Contracts.Identity;
 
 #pragma warning disable CA2012 // Use ValueTasks correctly - NSubstitute requires ValueTask in Returns()
@@ -33,7 +33,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     private readonly IOpenIddictAuthorizationManager _authorizationManager;
     private readonly IScopeSubsetValidator _scopeSubsetValidator;
     private readonly IClientTenantResolver _clientTenantResolver;
-    private readonly IOrganizationService _organizationService;
+    private readonly IMembershipRepository _memberships;
     private readonly IMembershipRoleResolver _membershipRoleResolver;
     private readonly AuthorizationController _controller;
 
@@ -49,7 +49,7 @@ public sealed class AuthorizationControllerTests : IDisposable
         _applicationManager = Substitute.For<IOpenIddictApplicationManager>();
         _authorizationManager = Substitute.For<IOpenIddictAuthorizationManager>();
         _clientTenantResolver = Substitute.For<IClientTenantResolver>();
-        _organizationService = Substitute.For<IOrganizationService>();
+        _memberships = Substitute.For<IMembershipRepository>();
         _membershipRoleResolver = Substitute.For<IMembershipRoleResolver>();
 
         // These tests are about consent, not scope gating: let every requested scope through.
@@ -65,7 +65,7 @@ public sealed class AuthorizationControllerTests : IDisposable
             _authorizationManager,
             _scopeSubsetValidator,
             _clientTenantResolver,
-            _organizationService,
+            _memberships,
             _membershipRoleResolver,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<AuthorizationController>.Instance);
     }
@@ -147,9 +147,9 @@ public sealed class AuthorizationControllerTests : IDisposable
     }
 
     /// <summary>
-    /// Binds the client to an organization the signed-in user belongs to. Both halves are
-    /// required: authorize refuses a client bound to no organization, and refuses a caller who
-    /// is not a member of the one it is bound to, so a consent test never reaches consent
+    /// Binds the client to an organization the signed-in user is actively a member of. Both halves
+    /// are required: authorize refuses a client bound to no organization, and refuses a caller
+    /// whose membership in it is anything but Active, so a consent test never reaches consent
     /// without them.
     /// </summary>
     private void SetupClientTenantResolver(string clientId)
@@ -157,10 +157,13 @@ public sealed class AuthorizationControllerTests : IDisposable
         _clientTenantResolver.ResolveAsync(clientId, Arg.Any<CancellationToken>())
             .Returns(new ClientTenantInfo(_testOrganizationId, "Test Org"));
 
-        _organizationService.GetUserOrganizationsAsync(
-                Guid.Parse(_testUserId), Arg.Any<CancellationToken>())
-            .Returns<IReadOnlyList<OrganizationDto>>(
-                [new OrganizationDto(_testOrganizationId, "Test Org", null, 1)]);
+        _memberships.GetAsync(
+                Guid.Parse(_testUserId), _testOrganizationId, Arg.Any<CancellationToken>())
+            .Returns(Membership.Enroll(
+                Guid.Parse(_testUserId),
+                new OrganizationId(_testOrganizationId),
+                Guid.NewGuid(),
+                TimeProvider.System));
 
         _membershipRoleResolver.GetRoleNamesAsync(
                 Guid.Parse(_testUserId), _testOrganizationId, Arg.Any<CancellationToken>())
