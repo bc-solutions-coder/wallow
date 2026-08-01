@@ -28,15 +28,19 @@ A runnable host lives in [`apps/wallow-web/`](../../apps/wallow-web).
 ## Install
 
 The package is published to GitHub Packages, so point the `@bc-solutions-coder`
-scope at that registry in your project's `.npmrc` and authenticate with a token
-that has `read:packages`:
+scope at that registry in your project's `.npmrc`:
 
 ```ini
 @bc-solutions-coder:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
 ```
 
+Then authenticate with a token that has `read:packages`. It goes in your
+**user-level** config — pnpm will not expand `${GITHUB_TOKEN}` out of a
+committed project `.npmrc`, since such a file could be edited to redirect the
+registry and leak the token:
+
 ```bash
+pnpm config set "//npm.pkg.github.com/:_authToken" "$GITHUB_TOKEN"
 pnpm add @bc-solutions-coder/sdk
 ```
 

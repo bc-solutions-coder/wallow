@@ -75,7 +75,9 @@ line; archive completed plans out of the repo (`~/Documents/wallow-plans-archive
 pnpm workspace (`pnpm-workspace.yaml` → `apps/*`, `apps/examples/*`, `packages/*`). Node **24** (`.nvmrc`),
 pnpm **10.20.0** (`packageManager`). Formatter/linter is the **oxc** toolchain
 (`oxfmt` + `oxlint`), not prettier/eslint. `@bc-solutions-coder` is scoped to GitHub
-Packages (`.npmrc`, needs `NODE_AUTH_TOKEN`).
+Packages (`.npmrc`), but `pnpm install` here needs no token — every scoped dependency is
+`workspace:*`. A registry credential belongs in `~/.npmrc` or `pnpm config set`, never in the
+committed `.npmrc`, which pnpm refuses to expand env vars out of.
 
 ```bash
 pnpm install                 # install workspace deps (--frozen-lockfile in CI)

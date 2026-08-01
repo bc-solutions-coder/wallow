@@ -59,18 +59,30 @@ scope. Because it is not on the public npm registry, configure npm to resolve
 the `@bc-solutions-coder` scope from GitHub Packages and authenticate with a token that has
 the `read:packages` permission.
 
-Create a `.npmrc` at your project root:
+Put the scope mapping in a `.npmrc` at your project root, where it can be
+committed:
 
 ```ini
 @bc-solutions-coder:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
 ```
 
+Keep the credential out of that file and in your **user-level** config instead:
+
+```bash
+npm config set "//npm.pkg.github.com/:_authToken" "$GITHUB_TOKEN"   # or: pnpm config set …
+```
+
+> **Why not a token line in the project `.npmrc`?** A committed `.npmrc` could
+> be edited to redirect the registry, which would hand your token to whoever
+> controls it — so pnpm refuses to expand `${GITHUB_TOKEN}` from a project file
+> and warns instead. The `pnpm config set` above writes to `~/.npmrc`, which
+> both npm and pnpm honour. In CI, use `actions/setup-node` with
+> `registry-url: https://npm.pkg.github.com` and a `NODE_AUTH_TOKEN` env var; it
+> writes a user-level `.npmrc` for you.
+
 > **Scope note:** GitHub Packages resolves scoped packages against the
-> publishing organization. Point the `@bc-solutions-coder` scope at
-> `https://npm.pkg.github.com` and export a `GITHUB_TOKEN` (a personal access
-> token or CI token with `read:packages`). Never commit the token — reference it
-> via an environment variable as shown above.
+> publishing organization, so the token — a personal access token or CI token —
+> needs `read:packages` on that organization.
 
 Then install:
 
@@ -663,7 +675,7 @@ your BFF on port `3000` locally (or update `seed.json` and re-seed).
 | `401` from `/api/**` after login                        | Session missing or refresh token unavailable           | Ensure `offline_access` is in the requested scopes so a refresh token is issued                                                         |
 | `403` with code `CSRF_INVALID` on POST/PUT/PATCH/DELETE | The `x-csrf-token` header is missing or stale          | Echo the `wallow_bff-csrf` cookie (or `/bff/user`'s `csrfToken`) in the `x-csrf-token` header — see [CSRF protection](#csrf-protection) |
 | Session cookie not set over plain HTTP locally          | Cookies carry `Secure` by default                      | Set `COOKIE_SECURE=false` in local development only                                                                                     |
-| `npm install` `401 Unauthorized`                        | GitHub Packages token missing or lacks `read:packages` | Set `GITHUB_TOKEN` and the `@bc-solutions-coder:registry` line in `.npmrc`                                                              |
+| `npm install` `401 Unauthorized`                        | GitHub Packages token missing or lacks `read:packages` | Add the `@bc-solutions-coder:registry` line to the project `.npmrc` and set the token with `npm config set` (see [Installation](#installation)) |
 
 ---
 

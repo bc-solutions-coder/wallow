@@ -30,15 +30,18 @@ registry in a project `.npmrc`:
 
 ```ini
 @bc-solutions-coder:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
 ```
 
+The credential goes in your **user-level** config, not that file — pnpm will not expand
+`${GITHUB_TOKEN}` out of a committed project `.npmrc`, because such a file could be edited to
+redirect the registry:
+
 ```bash
+npm config set "//npm.pkg.github.com/:_authToken" "$GITHUB_TOKEN"   # or: pnpm config set …
 npm install @bc-solutions-coder/sdk @bc-solutions-coder/styles
 ```
 
-`GITHUB_TOKEN` needs only `read:packages`. Never commit it — reference it through the
-environment as shown. The SDK carries no host-framework dependency: its server handlers are
+The token needs only `read:packages`. The SDK carries no host-framework dependency: its server handlers are
 web-standard `(Request) => Promise<Response>` functions, so they mount on TanStack Start,
 Nitro, Hono, or a bare Fetch handler alike.
 
