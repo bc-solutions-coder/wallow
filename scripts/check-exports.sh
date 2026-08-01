@@ -32,13 +32,26 @@
 #   styles' './styles.css'
 #                        a raw stylesheet passthrough, not a JS/TS entrypoint;
 #                        there is nothing for attw to resolve types for.
+#
+# The two ignored resolutions are filtered out of a PASSING run's output. attw
+# has no flag to drop a resolution row, and under this profile it reports node10
+# and node16-from-CJS as `(ignored)` — they cannot fail the check, so printing
+# them per entrypoint per package buries the two resolutions that can. The filter
+# keys on the `(ignored)` marker rather than the resolution name, so widening
+# --profile makes those rows reappear instead of staying silently hidden. A
+# FAILING run prints attw's output whole, unfiltered.
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
 packages=(packages/auth packages/env packages/logger packages/navigation packages/query packages/sdk packages/styles packages/testing packages/utils)
-attw_common=(--profile esm-only --ignore-rules internal-resolution-error --no-summary)
+# --format ascii is pinned rather than left to `auto`: auto renders a bordered
+# table on a TTY, and dropping rows out of that would leave the borders malformed.
+attw_common=(--profile esm-only --ignore-rules internal-resolution-error --no-summary --format ascii)
+
+# Rows attw prints but has already ruled out — see the header comment.
+ignored_resolutions='^node(10|16 \(from CJS\)): \(ignored\)'
 
 tarball_dir="$(mktemp -d)"
 trap 'rm -rf "$tarball_dir"' EXIT
@@ -54,5 +67,12 @@ for package in "${packages[@]}"; do
   if [ "$package" = "packages/styles" ]; then
     attw_args+=(--exclude-entrypoints ./styles.css)
   fi
-  pnpm exec attw "$tarball" "${attw_args[@]}"
+  # Captured rather than piped: a pipeline's grep would decide the exit status,
+  # and a filter that matched nothing would read as a failed check.
+  if attw_output="$(pnpm exec attw "$tarball" "${attw_args[@]}" 2>&1)"; then
+    printf '%s\n' "$attw_output" | grep -Ev "$ignored_resolutions" || true
+  else
+    printf '%s\n' "$attw_output"
+    exit 1
+  fi
 done
