@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Wallow.ApiKeys.Infrastructure.Authorization;
 using Wallow.Shared.Contracts.ApiKeys;
+using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.ApiKeys.Tests.Infrastructure;
@@ -117,7 +118,7 @@ public class ApiKeyAuthenticationMiddlewareGapTests
 
         await middleware.InvokeAsync(context, _apiKeyService, tenantContext);
 
-        context.User.FindFirst("organization")!.Value.Should().Be(tenantId.ToString());
+        context.User.GetTenantId().Should().Be(tenantId.ToString());
     }
 
     [Fact]

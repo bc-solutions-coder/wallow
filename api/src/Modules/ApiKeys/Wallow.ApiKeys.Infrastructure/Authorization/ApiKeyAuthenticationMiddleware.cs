@@ -65,7 +65,7 @@ public sealed partial class ApiKeyAuthenticationMiddleware(RequestDelegate next,
             new("sub", result.UserId!.Value.ToString()),
             new("api_key_id", result.KeyId!),
             new("auth_method", "api_key"),
-            new("organization", result.TenantId!.Value.ToString())
+            new("org_id", result.TenantId!.Value.ToString())
         ];
 
         // Add scope claims (or all permissions if no scopes specified)

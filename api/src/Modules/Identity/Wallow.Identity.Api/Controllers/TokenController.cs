@@ -181,7 +181,9 @@ public sealed partial class TokenController(
                 && tenant.ValueKind == JsonValueKind.String
                 && tenant.GetString() is { Length: > 0 } tenantId)
             {
-                identity.SetClaim("tenant_id", tenantId);
+                // "org_id" is the one spelling ClaimsPrincipalExtensions.GetTenantId reads, so
+                // it is the one spelling that makes a service account resolve to a tenant.
+                identity.SetClaim("org_id", tenantId);
             }
 
             if (properties.TryGetValue(OperatorPropertyName, out JsonElement isOperator)
@@ -269,7 +271,7 @@ public sealed partial class TokenController(
                 when claim.Subject?.HasScope(Scopes.Roles) is true
                 => [Destinations.AccessToken, Destinations.IdentityToken],
 
-            "tenant_id" or "org_id" or "org_name" => [Destinations.AccessToken, Destinations.IdentityToken],
+            "org_id" or "org_name" => [Destinations.AccessToken, Destinations.IdentityToken],
 
             _ => [Destinations.AccessToken]
         };

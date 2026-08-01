@@ -16,23 +16,10 @@ using static OpenIddict.Abstractions.OpenIddictConstants;
 namespace Wallow.Identity.Tests.Api.Controllers;
 
 /// <summary>
-/// client_credentials tenant resolution (bead Wallow-pu6a.6.5, closing finding F14 of the SDK
-/// review: "client_credentials tenant_id parsed from the client_id string, truncated; currently
-/// inert").
-///
-/// <para><see cref="TokenController"/>'s client-credentials handler splits the client id on
-/// <c>'-'</c> and puts segment 1 into the <c>tenant_id</c> claim. A tenant id is a Guid, which
-/// itself contains dashes, so the claim is the first eight hex characters of the Guid — never a
-/// tenant id. Worse than truncated: the value is chosen by whoever named the service account, so
-/// a naming convention is doing an authorization decision's job. The claim is inert only because
-/// nothing downstream reads it yet; the fix must land before something does.</para>
-///
-/// <para>The remedy mirrors the operator flag the same handler already resolves correctly: read
-/// the tenant off the OpenIddict application record (property <c>wallow:tenant_id</c>, alongside
-/// <c>wallow:is_operator</c>), and emit no tenant claim at all when the record does not carry
-/// one. The XML comment on <c>TokenController.OperatorPropertyName</c> already states the rule
-/// this finding violates — "set on the application record itself, never derived from the
-/// client_id".</para>
+/// Where a client-credentials token gets its tenant. Only the OpenIddict application record may
+/// name it: a client id is chosen by whoever registered the service account, so deriving a tenant
+/// from it hands an authorization input to the caller. A record that names no tenant yields no
+/// tenant claim, and permission expansion then grants that principal nothing.
 /// </summary>
 public sealed class TokenControllerClientCredentialsTenantTests : IDisposable
 {
@@ -42,7 +29,11 @@ public sealed class TokenControllerClientCredentialsTenantTests : IDisposable
     /// </summary>
     private const string TenantPropertyName = "wallow:tenant_id";
 
-    private const string TenantClaimType = "tenant_id";
+    /// <summary>
+    /// The one spelling <c>ClaimsPrincipalExtensions.GetTenantId</c> reads, and therefore the one
+    /// spelling that resolves a tenant for permission expansion.
+    /// </summary>
+    private const string TenantClaimType = "org_id";
 
     private readonly UserManager<WallowUser> _userManager;
     private readonly IOpenIddictApplicationManager _applicationManager;
@@ -97,9 +88,8 @@ public sealed class TokenControllerClientCredentialsTenantTests : IDisposable
         {
             Guid.TryParse(tenantClaim.Value, out _).Should().BeTrue(
                 "a tenant id is a Guid, and a Guid contains dashes — so splitting the client id " +
-                "on '-' returns only the Guid's first block. '{0}' is what the current code emits " +
-                "for client id 'sa-{1}-worker': a value that resolves to no tenant and matches no " +
-                "row, which is why the finding calls it truncated",
+                "on '-' returns only the Guid's first block. '{0}' for client id 'sa-{1}-worker' " +
+                "resolves to no tenant and matches no row",
                 tenantClaim.Value,
                 tenantId);
         }

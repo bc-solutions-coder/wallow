@@ -42,7 +42,7 @@ public sealed class RealtimeHubTests : IDisposable
     {
         ClaimsIdentity identity = new("test");
         identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, userId));
-        identity.AddClaim(new Claim("organization", _tenantGuid.ToString()));
+        identity.AddClaim(new Claim("org_id", _tenantGuid.ToString()));
         ClaimsPrincipal principal = new(identity);
         _context.User.Returns(principal);
         _context.ConnectionId.Returns($"conn-{userId}");
@@ -61,7 +61,7 @@ public sealed class RealtimeHubTests : IDisposable
     {
         ClaimsIdentity identity = new("test");
         identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, userId));
-        identity.AddClaim(new Claim("organization", _tenantGuid.ToString()));
+        identity.AddClaim(new Claim("org_id", _tenantGuid.ToString()));
         identity.AddClaim(new Claim(ClaimTypes.Role, role));
         ClaimsPrincipal principal = new(identity);
         _context.User.Returns(principal);

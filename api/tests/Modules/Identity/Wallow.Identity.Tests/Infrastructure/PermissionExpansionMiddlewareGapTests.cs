@@ -7,11 +7,18 @@ namespace Wallow.Identity.Tests.Infrastructure;
 
 public class PermissionExpansionMiddlewareGapTests
 {
+    /// <summary>
+    /// The organization the principal names. Expansion is refused for a principal that
+    /// names none, so every fixture asserting a mapping has to carry one.
+    /// </summary>
+    private const string TenantId = "0f3a1c2e-5b8d-4a71-9c62-7e4d0a1b3f56";
+
     [Fact]
     public async Task InvokeAsync_ApiKeyAuthMethod_ExpandsScopesToPermissions()
     {
         Claim[] claims =
         [
+            new("org_id", TenantId),
             new("auth_method", "api_key"),
             new("scope", "storage.read users.read")
         ];
@@ -36,6 +43,7 @@ public class PermissionExpansionMiddlewareGapTests
     {
         Claim[] claims =
         [
+            new("org_id", TenantId),
             new("azp", "web-client"),
             new("sub", Guid.NewGuid().ToString())
         ];
@@ -58,6 +66,7 @@ public class PermissionExpansionMiddlewareGapTests
     {
         Claim[] claims =
         [
+            new("org_id", TenantId),
             new("client_id", "wallow-web-client"),
             new("sub", Guid.NewGuid().ToString()),
             new("scope", "notifications.read inquiries.write")
@@ -83,6 +92,7 @@ public class PermissionExpansionMiddlewareGapTests
     {
         Claim[] claims =
         [
+            new("org_id", TenantId),
             new("azp", "sa-test-empty")
         ];
 
@@ -104,6 +114,7 @@ public class PermissionExpansionMiddlewareGapTests
     {
         Claim[] claims =
         [
+            new("org_id", TenantId),
             new("azp", "sa-test-unknown"),
             new("scope", "unknown.one unknown.two")
         ];
@@ -143,6 +154,7 @@ public class PermissionExpansionMiddlewareGapTests
     {
         Claim[] claims =
         [
+            new("org_id", TenantId),
             new("azp", "sa-test"),
             new("scope", "invoices.read")
         ];
@@ -193,6 +205,7 @@ public class PermissionExpansionMiddlewareGapTests
     {
         Claim[] claims =
         [
+            new("org_id", TenantId),
             new("azp", "sa-test-scope"),
             new("scope", scope)
         ];

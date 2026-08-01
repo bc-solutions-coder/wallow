@@ -7,6 +7,12 @@ namespace Wallow.Identity.Tests.Infrastructure;
 
 public class PermissionExpansionMiddlewareTests
 {
+    /// <summary>
+    /// The organization the principal names. Expansion is refused for a principal that
+    /// names none, so every fixture asserting a mapping has to carry one.
+    /// </summary>
+    private const string TenantId = "0f3a1c2e-5b8d-4a71-9c62-7e4d0a1b3f56";
+
     [Fact]
     public async Task InvokeAsync_WithUnauthenticatedUser_DoesNotAddPermissions()
     {
@@ -37,6 +43,7 @@ public class PermissionExpansionMiddlewareTests
         // Arrange
         Claim[] claims = new[]
         {
+            new Claim("org_id", TenantId),
             new Claim("azp", "sa-tenant123-test"),
             new Claim("scope", "storage.read storage.write")
         };
@@ -64,6 +71,7 @@ public class PermissionExpansionMiddlewareTests
         // Arrange
         Claim[] claims = new[]
         {
+            new Claim("org_id", TenantId),
             new Claim("azp", "sa-test"),
             new Claim("scope", "storage.read"),
             new Claim("scope", "inquiries.write")
@@ -92,6 +100,7 @@ public class PermissionExpansionMiddlewareTests
         // Arrange
         Claim[] claims = new[]
         {
+            new Claim("org_id", TenantId),
             new Claim("azp", "sa-test"),
             new Claim("scope", "unknown.scope storage.read invalid.scope")
         };
@@ -119,6 +128,7 @@ public class PermissionExpansionMiddlewareTests
         // Arrange
         Claim[] claims = new[]
         {
+            new Claim("org_id", TenantId),
             new Claim("azp", "sa-test"),
             new Claim("scope", "announcements.read announcements.manage changelog.manage notifications.read notifications.write")
         };
@@ -149,6 +159,7 @@ public class PermissionExpansionMiddlewareTests
         // Arrange
         Claim[] claims = new[]
         {
+            new Claim("org_id", TenantId),
             new Claim("azp", "sa-test"),
             new Claim("scope", "users.read users.write")
         };
@@ -176,6 +187,7 @@ public class PermissionExpansionMiddlewareTests
         // Arrange
         Claim[] claims = new[]
         {
+            new Claim("org_id", TenantId),
             new Claim("azp", "sa-test"),
             new Claim("scope", "notifications.read notifications.write")
         };
@@ -203,6 +215,7 @@ public class PermissionExpansionMiddlewareTests
         // Arrange
         Claim[] claims = new[]
         {
+            new Claim("org_id", TenantId),
             new Claim("azp", "sa-test"),
             new Claim("scope", "webhooks.manage")
         };
@@ -229,6 +242,7 @@ public class PermissionExpansionMiddlewareTests
         // Arrange
         Claim[] claims = new[]
         {
+            new Claim("org_id", TenantId),
             new Claim("azp", "web-client"), // Not a service account
             new Claim(ClaimTypes.Role, "admin")
         };
@@ -255,6 +269,7 @@ public class PermissionExpansionMiddlewareTests
         // Arrange
         Claim[] claims = new[]
         {
+            new Claim("org_id", TenantId),
             new Claim(ClaimTypes.Role, "user")
         };
 

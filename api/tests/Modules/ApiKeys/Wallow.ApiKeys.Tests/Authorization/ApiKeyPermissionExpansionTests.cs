@@ -8,11 +8,18 @@ namespace Wallow.ApiKeys.Tests.Authorization;
 
 public class ApiKeyPermissionExpansionTests
 {
+    /// <summary>
+    /// The organization the principal names. Expansion is refused for a principal that
+    /// names none, so every fixture asserting a mapping has to carry one.
+    /// </summary>
+    private const string TenantId = "0f3a1c2e-5b8d-4a71-9c62-7e4d0a1b3f56";
+
     [Fact]
     public async Task InvokeAsync_WithApiKeyAuthMethod_ExpandsScopesToPermissions()
     {
         Claim[] claims = new[]
         {
+            new Claim("org_id", TenantId),
             new Claim("auth_method", "api_key"),
             new Claim("scope", "storage.read storage.write")
         };
@@ -37,6 +44,7 @@ public class ApiKeyPermissionExpansionTests
     {
         Claim[] claims = new[]
         {
+            new Claim("org_id", TenantId),
             new Claim("auth_method", "api_key"),
             new Claim("scope", "unknown.scope storage.read bogus.permission")
         };
@@ -61,6 +69,7 @@ public class ApiKeyPermissionExpansionTests
     {
         Claim[] claims = new[]
         {
+            new Claim("org_id", TenantId),
             new Claim("auth_method", "api_key"),
             new Claim("scope", "storage.read inquiries.write users.read notifications.write webhooks.manage")
         };

@@ -7,10 +7,11 @@ using Wallow.Shared.Kernel.Identity.Authorization;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// AdminAccess and SystemSettings are tenant-scoped for an ordinary admin: the role grants
-/// them inside the caller's own tenant only, so a request resolved onto a DIFFERENT tenant
-/// must not carry them. The non-assignable global-admin claim is the single cross-tenant
-/// escape hatch and grants them on its own, in every tenant, without any role.
+/// Which tenant a permission expands in. Roles, user scopes and service-account scopes are each
+/// granted by one organization, so a request resolved onto a different one — or a principal that
+/// names no organization at all — expands nothing. The non-assignable global-admin claim is the
+/// single cross-tenant escape hatch and grants AdminAccess and SystemSettings on its own, in
+/// every tenant, without any role.
 ///
 /// TenantResolutionMiddleware runs before this middleware (Wallow.Api/Program.cs) and stamps
 /// the resolved tenant onto HttpContext.Items["TenantId"]; the caller's own tenant is the
@@ -116,6 +117,58 @@ public sealed class PermissionExpansionMiddlewareGlobalAdminTests
         PermissionsOf(context).Should().NotContain(
             PermissionType.AdminAccess,
             "the claim value must be honoured, not merely its presence");
+    }
+
+    [Fact]
+    public async Task InvokeAsync_UserScopesOnAnotherTenant_GrantNoPermissions()
+    {
+        DefaultHttpContext context = CreateContext(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            new Claim("scope", "storage.read users.read"));
+
+        await InvokeAsync(context);
+
+        PermissionsOf(context).Should().BeEmpty(
+            "a scope is granted by one tenant just as a role is, so scope expansion cannot be " +
+            "the way around the guard the role path already carries");
+    }
+
+    [Fact]
+    public async Task InvokeAsync_ServiceAccountOnAnotherTenant_GetsNoPermissions()
+    {
+        DefaultHttpContext context = CreateContext(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            new Claim("azp", "sa-worker"),
+            new Claim("scope", "storage.read"));
+
+        await InvokeAsync(context);
+
+        PermissionsOf(context).Should().BeEmpty(
+            "a service account is issued against one organization and governs no other");
+    }
+
+    [Fact]
+    public async Task InvokeAsync_PrincipalNamingNoTenant_GetsNoPermissions()
+    {
+        DefaultHttpContext context = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity(
+                [
+                    new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()),
+                    new Claim("role", "admin"),
+                    new Claim("scope", "storage.read")
+                ],
+                "test")),
+        };
+        context.Items[TenantItemKey] = Guid.NewGuid().ToString();
+
+        await InvokeAsync(context);
+
+        PermissionsOf(context).Should().BeEmpty(
+            "a permission is always held somewhere, so a principal that states no organization " +
+            "holds none — no tenant is not the same tenant");
     }
 
     private static async Task InvokeAsync(DefaultHttpContext context)

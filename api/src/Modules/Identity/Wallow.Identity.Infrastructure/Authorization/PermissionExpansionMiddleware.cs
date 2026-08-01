@@ -88,6 +88,13 @@ public class PermissionExpansionMiddleware(RequestDelegate next)
     /// </summary>
     private static void ExpandUserScopes(HttpContext context, ClaimsIdentity? identity)
     {
+        // A scope is granted by one tenant just as a role is. Without this the scope path is
+        // simply the way around the guard on the role path.
+        if (IsCrossTenantRequest(context))
+        {
+            return;
+        }
+
         // Collect permissions already granted by role expansion to avoid duplicates
         HashSet<string> existingPermissions = new(context.User.GetPermissions(), StringComparer.Ordinal);
 
@@ -128,12 +135,18 @@ public class PermissionExpansionMiddleware(RequestDelegate next)
         }
     }
 
+    /// <summary>
+    /// Whether this request is asking for a tenant the caller's own token does not name. A caller
+    /// that names NO tenant counts as cross-tenant: a permission is always held somewhere, so a
+    /// principal that states no organization holds none, and treating "no tenant" as "same tenant"
+    /// would expand everything for a token that was scoped to nothing.
+    /// </summary>
     private static bool IsCrossTenantRequest(HttpContext context)
     {
         string? ownTenantId = context.User.GetTenantId();
         if (string.IsNullOrEmpty(ownTenantId))
         {
-            return false;
+            return true;
         }
 
         string? resolvedTenantId = context.Items.TryGetValue(ResolvedTenantItemKey, out object? resolved)
@@ -146,6 +159,14 @@ public class PermissionExpansionMiddleware(RequestDelegate next)
 
     private static void ExpandServiceAccountScopes(HttpContext context, ClaimsIdentity? identity)
     {
+        // A service account and an API key are each issued against one organization, so they get
+        // the same guard a human does. Without it a machine credential is the widest hole in the
+        // model: it expands every scope it carries into every tenant it asks for.
+        if (IsCrossTenantRequest(context))
+        {
+            return;
+        }
+
         // Extract scopes from token - can be space-separated in a single claim
         List<string> scopes = context.User.GetScopes().ToList();
 

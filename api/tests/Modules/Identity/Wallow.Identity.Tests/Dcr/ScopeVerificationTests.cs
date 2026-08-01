@@ -11,6 +11,12 @@ namespace Wallow.Identity.Tests.Dcr;
 /// </summary>
 public class ScopeVerificationTests
 {
+    /// <summary>
+    /// The organization the principal names. Expansion is refused for a principal that names
+    /// none, so every fixture asserting a mapping has to carry one.
+    /// </summary>
+    private const string TenantId = "0f3a1c2e-5b8d-4a71-9c62-7e4d0a1b3f56";
+
     [Theory]
     [InlineData("inquiries.read", PermissionType.InquiriesRead)]
     [InlineData("inquiries.write", PermissionType.InquiriesWrite)]
@@ -113,6 +119,7 @@ public class ScopeVerificationTests
         List<Claim> claims =
         [
             new Claim("azp", "frontend-app"),
+            new Claim("org_id", TenantId),
             new Claim("scope", "inquiries.read inquiries.write")
         ];
         ClaimsIdentity identity = new(claims, "Bearer");
@@ -150,6 +157,7 @@ public class ScopeVerificationTests
         List<Claim> claims =
         [
             new Claim("azp", clientId),
+            new Claim("org_id", TenantId),
             new Claim("scope", scopes)
         ];
         ClaimsIdentity identity = new(claims, "Bearer");
