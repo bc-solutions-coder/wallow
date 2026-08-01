@@ -23,17 +23,11 @@ import { ErrorPage } from "./ErrorPage";
  */
 
 /** The refusals that mean the signed-in person is the wrong person. */
-const MEMBERSHIP_REASONS = [
-  "not_a_member",
-  "access_requested",
-  "membership_suspended",
-  "membership_denied",
-] as const;
+const MEMBERSHIP_REASONS = ["not_a_member", "membership_suspended", "membership_denied"] as const;
 
 /** Every reason the app routes here with. */
 const REASONS: readonly { readonly reason: string; readonly matches: RegExp }[] = [
   { reason: "not_a_member", matches: /don't have access to this application/iu },
-  { reason: "access_requested", matches: /waiting for an administrator to review/iu },
   { reason: "membership_suspended", matches: /has been suspended/iu },
   { reason: "membership_denied", matches: /was not approved/iu },
   { reason: "email_unverified", matches: /verify your email address/iu },

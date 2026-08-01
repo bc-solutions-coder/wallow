@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AcceptTermsRouteImport } from './routes/accept-terms'
+import { Route as AccessRequestRouteImport } from './routes/access-request'
 import { Route as ConsentRouteImport } from './routes/consent'
 import { Route as ErrorRouteImport } from './routes/error'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
@@ -39,6 +40,11 @@ const IndexRoute = IndexRouteImport.update({
 const AcceptTermsRoute = AcceptTermsRouteImport.update({
   id: '/accept-terms',
   path: '/accept-terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccessRequestRoute = AccessRequestRouteImport.update({
+  id: '/access-request',
+  path: '/access-request',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConsentRoute = ConsentRouteImport.update({
@@ -140,6 +146,7 @@ const VerifyEmailConfirmRoute = VerifyEmailConfirmRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/accept-terms': typeof AcceptTermsRoute
+  '/access-request': typeof AccessRequestRoute
   '/consent': typeof ConsentRoute
   '/error': typeof ErrorRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -163,6 +170,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/accept-terms': typeof AcceptTermsRoute
+  '/access-request': typeof AccessRequestRoute
   '/consent': typeof ConsentRoute
   '/error': typeof ErrorRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -187,6 +195,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/accept-terms': typeof AcceptTermsRoute
+  '/access-request': typeof AccessRequestRoute
   '/consent': typeof ConsentRoute
   '/error': typeof ErrorRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -212,6 +221,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/accept-terms'
+    | '/access-request'
     | '/consent'
     | '/error'
     | '/forgot-password'
@@ -235,6 +245,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/accept-terms'
+    | '/access-request'
     | '/consent'
     | '/error'
     | '/forgot-password'
@@ -258,6 +269,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/accept-terms'
+    | '/access-request'
     | '/consent'
     | '/error'
     | '/forgot-password'
@@ -282,6 +294,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AcceptTermsRoute: typeof AcceptTermsRoute
+  AccessRequestRoute: typeof AccessRequestRoute
   ConsentRoute: typeof ConsentRoute
   ErrorRoute: typeof ErrorRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
@@ -317,6 +330,13 @@ declare module '@tanstack/react-router' {
       path: '/accept-terms'
       fullPath: '/accept-terms'
       preLoaderRoute: typeof AcceptTermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/access-request': {
+      id: '/access-request'
+      path: '/access-request'
+      fullPath: '/access-request'
+      preLoaderRoute: typeof AccessRequestRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/consent': {
@@ -458,6 +478,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AcceptTermsRoute: AcceptTermsRoute,
+  AccessRequestRoute: AccessRequestRoute,
   ConsentRoute: ConsentRoute,
   ErrorRoute: ErrorRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,

@@ -12,9 +12,10 @@ namespace Wallow.Identity.IntegrationTests.OAuth2;
 
 /// <summary>
 /// What a membership status is worth at the authorize endpoint, and again at every refresh. Only
-/// Active signs a person in, and Pending, Suspended and Denied each refuse under their own reason
-/// so the auth app can say what happened rather than only that access was refused. Global admin is
-/// an authority no organization grants, so it passes the gate holding no membership at all.
+/// Active signs a person in. Suspended and Denied refuse under their own reason so the auth app can
+/// say what happened rather than only that access was refused; Pending is not a refusal at all and
+/// goes to the request-submitted screen. Global admin is an authority no organization grants, so it
+/// passes the gate holding no membership at all.
 ///
 /// Suspending also reaches backwards: a token already in someone's hands stops working on the next
 /// request, which is what the token-entry validation on the resource server buys.
@@ -61,7 +62,11 @@ public sealed class MembershipStatusGateTests(WallowApiFactory factory)
         AuthorizeOutcome authorize = await AuthorizeAsync(seed);
 
         authorize.Code.Should().BeNull(authorize.Location?.ToString());
-        authorize.Error.Should().Be("access_requested");
+
+        // A pending request is the one non-Active outcome that is not a refusal, so it lands on
+        // its own screen and carries no reason for the error page to render.
+        authorize.Location?.ToString().Should().EndWith("/access-request");
+        authorize.Error.Should().BeNull();
     }
 
     [Fact]

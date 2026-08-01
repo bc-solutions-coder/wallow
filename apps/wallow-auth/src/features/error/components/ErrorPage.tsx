@@ -25,11 +25,13 @@ import { toAppHref } from "@shared/lib/base-path";
  * The reasons that mean "you are signed in, as the wrong person": the organization
  * behind this client admits nobody by that name, or admits them and will not let
  * them in today. Each is a different thing to tell the user, but the way out of
- * all four is the same — come back as somebody else.
+ * all three is the same — come back as somebody else.
+ *
+ * A pending request is not one of them. It is not a failure, and `/access-request`
+ * is the screen that says so.
  */
 const MEMBERSHIP_REASONS: ReadonlySet<string> = new Set([
   "not_a_member",
-  "access_requested",
   "membership_suspended",
   "membership_denied",
 ]);
@@ -48,7 +50,6 @@ const GENERIC_MESSAGE = "An unexpected error occurred. Please try again.";
  */
 const REASON_MESSAGES: ReadonlyMap<string, string> = new Map([
   ["not_a_member", "You don't have access to this application."],
-  ["access_requested", "Your request to join is waiting for an administrator to review it."],
   ["membership_suspended", "Your access to this application has been suspended."],
   ["membership_denied", "Your request to join was not approved."],
   [

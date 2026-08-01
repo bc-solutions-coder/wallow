@@ -131,10 +131,10 @@ public sealed partial class AuthorizationController(
                 case Enrolled:
                     break;
 
-                // Until the request-submitted screen ships, the error page is where a pending
-                // request is explained.
+                // Not a refusal: the request was accepted and the pending membership recorded,
+                // so this goes to the screen that says so rather than to the error page.
                 case PendingApproval:
-                    return Redirect($"{GetRequiredAuthUrl()}/error?reason=access_requested");
+                    return Redirect($"{GetRequiredAuthUrl()}/access-request");
 
                 case Rejected rejected:
                     return Redirect($"{GetRequiredAuthUrl()}/error?reason={rejected.Reason}");

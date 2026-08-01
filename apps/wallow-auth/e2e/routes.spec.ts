@@ -24,6 +24,7 @@ const routes: string[] = [
   "/privacy",
   "/terms",
   "/error",
+  "/access-request",
 ];
 
 const FIRST_ERROR_STATUS = 400;
