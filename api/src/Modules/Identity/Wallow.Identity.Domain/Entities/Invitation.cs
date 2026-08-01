@@ -57,6 +57,11 @@ public sealed class Invitation : AggregateRoot<InvitationId>, ITenantScoped
             timeProvider);
     }
 
+    /// <summary>
+    /// Settles the invitation onto the accepting user. Expiry is checked here rather than left to
+    /// the sweep: between an invitation lapsing and the next sweep run, Pending is not the same
+    /// thing as live, and the window is as long as the job's interval.
+    /// </summary>
     public void Accept(Guid userId, TimeProvider timeProvider)
     {
         if (Status != InvitationStatus.Pending)
@@ -64,6 +69,15 @@ public sealed class Invitation : AggregateRoot<InvitationId>, ITenantScoped
             throw new BusinessRuleException(
                 "Identity.InvitationNotPending",
                 $"Cannot accept invitation with status '{Status}'");
+        }
+
+        if (timeProvider.GetUtcNow() >= ExpiresAt)
+        {
+            Status = InvitationStatus.Expired;
+
+            throw new BusinessRuleException(
+                "Identity.InvitationExpired",
+                "This invitation has expired");
         }
 
         Status = InvitationStatus.Accepted;

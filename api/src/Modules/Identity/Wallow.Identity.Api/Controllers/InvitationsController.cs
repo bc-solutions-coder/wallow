@@ -79,10 +79,15 @@ public class InvitationsController(
         return Ok(MapToResponse(invitation));
     }
 
+    /// <summary>
+    /// Joins the caller to the inviting organization. Refused unless the caller's own verified
+    /// email is the one the invitation names, so a forwarded token grants nothing.
+    /// </summary>
     [HttpPost("{token}/accept")]
     [Authorize]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<ActionResult> Accept(string token, CancellationToken ct)
     {
         Guid userId = Guid.Parse(User.GetUserId()!);
