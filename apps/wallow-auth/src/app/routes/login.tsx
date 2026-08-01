@@ -4,6 +4,7 @@ import {
   type ResolvedBranding,
 } from "@bc-solutions-coder/styles";
 import { useQuery } from "@bc-solutions-coder/query";
+import { scalarToString } from "@bc-solutions-coder/utils/guards";
 import { createFileRoute, useRouteContext } from "@tanstack/react-router";
 
 import { AuthLayout } from "@shared/components/auth-layout";
@@ -66,30 +67,6 @@ interface LoginSearch {
 }
 
 /**
- * TanStack's default search parser JSON-parses EVERY query value before
- * `validateSearch` sees it, so `?error=true` arrives as the BOOLEAN `true` and
- * `?error=1` as a NUMBER (bd memory
- * `tanstack-router-default-search-parser-json-parses-values`). `error` is compared
- * against literal tokens, so a scalar is re-stringified rather than dropped: the
- * common `typeof x === "string" ? x : undefined` idiom would silently swallow an
- * error hand-back and show the user a clean login form after a failure.
- *
- * Non-scalars (`?error=[1,2]`) have no literal they could match and read as absent
- * — a junk link must still render a usable form, not a validation error.
- */
-function readScalar(value: unknown): string | undefined {
-  if (typeof value === "string") {
-    return value;
-  }
-
-  if (typeof value === "number" || typeof value === "boolean") {
-    return String(value);
-  }
-
-  return undefined;
-}
-
-/**
  * Every param is OPTIONAL and an unsafe `returnUrl` is NOT rejected here,
  * deliberately: `/` redirects to a bare `/login`, and refusing at the
  * search-validation layer would throw before the screen mounts, whereas the
@@ -109,12 +86,12 @@ function validateSearch(search: Record<string, unknown>): LoginSearch {
   return {
     returnUrl: typeof search.returnUrl === "string" ? search.returnUrl : undefined,
     client_id: typeof search.client_id === "string" ? search.client_id : undefined,
-    error: readScalar(search.error),
+    error: scalarToString(search.error),
     magicLinkToken: typeof search.magicLinkToken === "string" ? search.magicLinkToken : undefined,
     // Like `error`, `message` is matched against a literal token, so a scalar the
     // parser turned into a boolean/number is re-stringified before the known-token
     // check — and only the recognised value survives, never a raw attacker string.
-    message: isPasswordResetMessage(readScalar(search.message))
+    message: isPasswordResetMessage(scalarToString(search.message))
       ? PASSWORD_RESET_MESSAGE
       : undefined,
   };

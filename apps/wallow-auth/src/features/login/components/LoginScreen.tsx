@@ -1,3 +1,4 @@
+import { formatLongDate } from "@bc-solutions-coder/utils/format";
 import { buildExchangeTicketUrl, isSafeReturnUrl } from "@bc-solutions-coder/sdk";
 import { Card, ErrorBanner, MutedText, Tabs, Text } from "@bc-solutions-coder/ui";
 import { useNavigate } from "@tanstack/react-router";
@@ -74,18 +75,6 @@ import { BASE_PATH, toAppHref } from "@shared/lib/base-path";
  */
 const SAME_ORIGIN_BASE: string = BASE_PATH;
 
-/** The oracle's `MfaEnrollmentBanner` description (Shared/MfaEnrollmentBanner.razor). */
-function formatGraceDeadline(deadline: string): string {
-  // The oracle's `ToString("MMMM d, yyyy")`. The locale is PINNED rather than
-  // left to the host: an ambient locale would render a different date to a user
-  // than the one the copy was written and reviewed against.
-  return new Date(deadline).toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
 /**
  * The oracle's `<MfaEnrollmentBanner Visible=… GraceDeadline=… />`, shown when the
  * user's org requires MFA but their grace period has not expired.
@@ -105,7 +94,7 @@ function MfaEnrollmentBanner({ deadline }: { readonly deadline: string }) {
       </Text>
       <MutedText>
         Your organization requires two-factor authentication. Please set it up before{" "}
-        {formatGraceDeadline(deadline)}.
+        {formatLongDate(deadline)}.
       </MutedText>
       <a className="inline-block text-sm font-medium text-primary" href={toAppHref("/mfa/enroll")}>
         Set up now

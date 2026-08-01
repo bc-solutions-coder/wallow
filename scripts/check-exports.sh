@@ -37,7 +37,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
-packages=(packages/auth packages/query packages/sdk packages/styles packages/testing)
+packages=(packages/auth packages/query packages/sdk packages/styles packages/testing packages/utils)
 attw_common=(--profile esm-only --ignore-rules internal-resolution-error --no-summary)
 
 tarball_dir="$(mktemp -d)"

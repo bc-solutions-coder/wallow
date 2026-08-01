@@ -1,0 +1,22 @@
+{
+  // The typecheck config for the SHIPPED source, and the first of this package's
+  // charter guards.
+  //
+  // `lib` drops DOM and `types` drops every ambient @types package, so a `window`,
+  // a `document`, a `process` or a `node:*` import does not compile here. That is
+  // what makes "runs anywhere" a compiler fact rather than a promise in a README:
+  // this package is imported from client bundles, from SSR, and from build-time
+  // scripts, and none of those three agree on a global.
+  //
+  // Specs are excluded because they read this file and package.json off disk to
+  // assert the charter, which is inherently a Node job. They are typechecked by
+  // tsconfig.node.json, which `pnpm typecheck` also runs. Nothing excluded here
+  // is published: `exports` names only the three modules below.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ESNext"],
+    "types": []
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts"]
+}

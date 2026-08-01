@@ -1,3 +1,4 @@
+import { asString } from "@bc-solutions-coder/utils/guards";
 /**
  * The login screen's RESULT LAYER (Wallow-vec7.3.11 / 2.8a): everything that
  * turns an untyped `auth.*` response into a decision, with no React and no SDK
@@ -135,9 +136,7 @@ export function isServerUnreachable(cause: unknown): boolean {
 
 /** A member that is only meaningful as a string; anything else reads as absent. */
 function readString(value: unknown, name: string): string | undefined {
-  const member: unknown = readMember(value, name);
-
-  return typeof member === "string" ? member : undefined;
+  return asString(readMember(value, name));
 }
 
 /**

@@ -18,6 +18,7 @@
  * `organization-member-userid` + `organization-member-add-submit` (add form),
  * `organization-member-remove` (per-row remove).
  */
+import { asString } from "@bc-solutions-coder/utils/guards";
 import { AppForm, FormError, SubmitButton, useAppForm } from "@bc-solutions-coder/forms";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@bc-solutions-coder/query";
 import type { UserDto, WallowSdk } from "@bc-solutions-coder/sdk";
@@ -283,8 +284,7 @@ function fieldErrorMessage(errors: readonly unknown[]): string | undefined {
     return undefined;
   }
 
-  const message: unknown = first.message;
-  return typeof message === "string" ? message : undefined;
+  return asString(first.message);
 }
 
 /**

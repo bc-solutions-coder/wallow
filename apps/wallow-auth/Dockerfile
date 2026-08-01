@@ -30,6 +30,7 @@ COPY packages/sdk/package.json packages/sdk/
 COPY packages/styles/package.json packages/styles/
 COPY packages/testing/package.json packages/testing/
 COPY packages/ui/package.json packages/ui/
+COPY packages/utils/package.json packages/utils/
 COPY apps/wallow-auth/package.json apps/wallow-auth/
 
 RUN pnpm install --frozen-lockfile
@@ -54,6 +55,7 @@ COPY packages/sdk packages/sdk
 COPY packages/styles packages/styles
 COPY packages/testing packages/testing
 COPY packages/ui packages/ui
+COPY packages/utils packages/utils
 COPY apps/wallow-auth apps/wallow-auth
 
 # The URL prefix this image serves under, empty by default (root-mounted, the

@@ -91,25 +91,42 @@ function overridesTouchingTheRule(): OxlintOverride[] {
   );
 }
 
+/** Every override that RE-DECLARES the rule (a `[severity, options]` array). */
+function overridesRedeclaringTheRule(): OxlintOverride[] {
+  return overridesTouchingTheRule().filter((override: OxlintOverride): boolean =>
+    Array.isArray(override.rules?.["no-restricted-imports"]),
+  );
+}
+
+/** The globs the facade exemption covers: the facade package and its four SDK peers. */
+const FACADE_EXEMPTION_FILES: readonly string[] = [
+  "packages/query/**",
+  "packages/sdk/src/generated-query-surface.test.ts",
+  "packages/sdk/src/query/invalidations.ts",
+  "packages/sdk/src/route-context.test.ts",
+  "packages/sdk/src/route-context.ts",
+];
+
+/** The glob `packages/utils`' charter override covers. */
+const UTILS_CHARTER_FILES: readonly string[] = ["packages/utils/src/**/*.ts"];
+
 /**
- * The single override that RE-DECLARES the rule (a `[severity, options]` array)
- * instead of switching it off — the facade exemption.
+ * The override that RE-DECLARES the rule for the facade and its four SDK peers,
+ * instead of switching it off.
  *
- * oxlint has no per-name partial disable, so the only way to let the facade and
- * the SDK's four react-query peers import the real package while every other ban
- * survives is to copy the rule minus one entry. Selecting the exemption by SHAPE
- * (re-declared, not `"off"`) rather than by its `files` is what makes the
- * assertions below fail loudly if someone "fixes" a lint error by reaching for
- * `"no-restricted-imports": "off"` over a wider glob.
+ * oxlint has no per-name partial disable, so the only way to let those five
+ * import the real package while every other ban survives is to copy the rule
+ * minus one entry.
  */
 function facadeExemption(): [OxlintOverride, RestrictedImportsOptions] {
-  const redeclared: OxlintOverride[] = overridesTouchingTheRule().filter(
-    (override: OxlintOverride): boolean => Array.isArray(override.rules?.["no-restricted-imports"]),
+  const match: OxlintOverride | undefined = overridesRedeclaringTheRule().find(
+    (override: OxlintOverride): boolean =>
+      (override.files ?? []).includes(FACADE_EXEMPTION_FILES[0] ?? ""),
   );
 
-  expect(redeclared, "no override re-declares no-restricted-imports").toHaveLength(1);
+  expect(match, "no override re-declares no-restricted-imports for the facade").toBeDefined();
 
-  const override: OxlintOverride = redeclared[0] ?? {};
+  const override: OxlintOverride = match ?? {};
   const [, options] = (override.rules?.["no-restricted-imports"] ?? ["error", {}]) as [
     string,
     RestrictedImportsOptions,
@@ -617,20 +634,25 @@ describe("the root config states the facade convention", () => {
 });
 
 describe("the facade exemption is narrow by construction", () => {
+  it("re-declares the rule in exactly two places, both named here", () => {
+    // Re-declaring is the only way to change what the rule bans for a subtree,
+    // and it REPLACES the root options rather than merging — so an unlisted
+    // re-declaration silently unbans everything it forgot to restate. The
+    // legitimate two are the facade exemption (drops one ban) and
+    // packages/utils' charter (adds three); anything else is a regression.
+    expect(
+      overridesRedeclaringTheRule().map(
+        (override: OxlintOverride): Set<string> => new Set(override.files),
+      ),
+    ).toEqual([new Set(FACADE_EXEMPTION_FILES), new Set(UTILS_CHARTER_FILES)]);
+  });
+
   it("covers the facade package and exactly the four SDK peers", () => {
     const [override] = facadeExemption();
 
     // Compared as a set, and exactly — a sixth glob here is how the exemption
     // grows from "the facade plus its four peers" into "whatever was failing".
-    expect(new Set(override.files)).toEqual(
-      new Set([
-        "packages/query/**",
-        "packages/sdk/src/generated-query-surface.test.ts",
-        "packages/sdk/src/query/invalidations.ts",
-        "packages/sdk/src/route-context.test.ts",
-        "packages/sdk/src/route-context.ts",
-      ]),
-    );
+    expect(new Set(override.files)).toEqual(new Set(FACADE_EXEMPTION_FILES));
   });
 
   it("omits @tanstack/react-query from its re-declared paths", () => {

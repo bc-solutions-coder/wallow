@@ -1,0 +1,13 @@
+{
+  // The Node-flavoured half of `pnpm typecheck`: the build configs and the specs.
+  //
+  // These are the files tsconfig.json deliberately cannot cover — `vite.config.ts`
+  // reaches @bc-solutions-coder/config, which imports `node:url`, and the specs
+  // read the manifest off disk. Both are development-time only and neither is in
+  // `exports`, so letting them see Node costs the charter nothing.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["src/**/*.test.ts", "vite.config.ts", "vitest.config.ts"]
+}

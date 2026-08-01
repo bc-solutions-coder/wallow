@@ -30,6 +30,7 @@ COPY packages/sdk/package.json packages/sdk/
 COPY packages/styles/package.json packages/styles/
 COPY packages/testing/package.json packages/testing/
 COPY packages/ui/package.json packages/ui/
+COPY packages/utils/package.json packages/utils/
 COPY apps/wallow-web/package.json apps/wallow-web/
 
 RUN pnpm install --frozen-lockfile
@@ -55,6 +56,7 @@ COPY packages/sdk packages/sdk
 COPY packages/styles packages/styles
 COPY packages/testing packages/testing
 COPY packages/ui packages/ui
+COPY packages/utils packages/utils
 COPY apps/wallow-web apps/wallow-web
 
 # Build all packages first (`pnpm --filter './packages/*' build` runs them in

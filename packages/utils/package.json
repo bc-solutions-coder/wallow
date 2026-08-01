@@ -1,0 +1,52 @@
+{
+  "name": "@bc-solutions-coder/utils",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Wallow shared dependency-free TypeScript utilities",
+  "type": "module",
+  "exports": {
+    "./format": {
+      "types": "./src/format.ts",
+      "import": "./src/format.ts"
+    },
+    "./guards": {
+      "types": "./src/guards.ts",
+      "import": "./src/guards.ts"
+    },
+    "./string": {
+      "types": "./src/string.ts",
+      "import": "./src/string.ts"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      "./format": {
+        "types": "./dist/format.d.ts",
+        "import": "./dist/format.js"
+      },
+      "./guards": {
+        "types": "./dist/guards.d.ts",
+        "import": "./dist/guards.js"
+      },
+      "./string": {
+        "types": "./dist/string.d.ts",
+        "import": "./dist/string.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "vite build && tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@bc-solutions-coder/config": "workspace:*",
+    "@types/node": "^24.0.0",
+    "typescript": "catalog:tooling",
+    "vite": "^8.1.4",
+    "vitest": "^4.1.10"
+  },
+  "peerDependencies": {}
+}

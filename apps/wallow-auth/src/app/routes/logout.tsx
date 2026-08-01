@@ -1,3 +1,4 @@
+import { asString, scalarToString } from "@bc-solutions-coder/utils/guards";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { AuthLayout } from "@shared/components/auth-layout";
@@ -30,38 +31,14 @@ interface LogoutSearch {
   /**
    * The `signed_out` query parameter, kept as the raw STRING the oracle compares
    * (`SignedOut == "true"`) rather than parsed to a boolean here.
+   *
+   * `scalarToString` is what restores it: rejecting non-strings outright would
+   * send every real OpenIddict post-logout callback — which spells the parameter
+   * exactly `signed_out=true`, and so reaches `validateSearch` as the BOOLEAN
+   * `true` — to the confirm step, telling a user who just signed out to sign out
+   * again.
    */
   readonly signed_out?: string;
-}
-
-/**
- * Restore `signed_out` to the STRING the wire actually carried.
- *
- * The wire delivers `signed_out` as a raw query string, so the intended
- * comparison is `signed_out === "true"` against a string. TanStack
- * Router does not: its default search parser JSON-parses each value, so
- * `?signed_out=true` reaches `validateSearch` as the BOOLEAN `true` and
- * `?signed_out=1` as the NUMBER `1`. Rejecting non-strings outright would send
- * every real OpenIddict post-logout callback — which spells the parameter exactly
- * `signed_out=true` — to the confirm step, telling a user who just signed out to
- * sign out again.
- *
- * So any scalar is re-stringified back to what the URL said, and the oracle's
- * exact-match then runs against that. Arrays and objects are NOT scalars and stay
- * absent: `?signed_out[]=true` parses to an array, where the oracle's string
- * comparison would simply be false. The port must reach that same answer without
- * throwing, because throwing would turn a junk link into a blank page.
- */
-function scalarToWireString(value: unknown): string | undefined {
-  if (typeof value === "string") {
-    return value;
-  }
-
-  if (typeof value === "boolean" || typeof value === "number") {
-    return String(value);
-  }
-
-  return undefined;
 }
 
 /**
@@ -77,11 +54,8 @@ function scalarToWireString(value: unknown): string | undefined {
  */
 function validateSearch(search: Record<string, unknown>): LogoutSearch {
   return {
-    post_logout_redirect_uri:
-      typeof search.post_logout_redirect_uri === "string"
-        ? search.post_logout_redirect_uri
-        : undefined,
-    signed_out: scalarToWireString(search.signed_out),
+    post_logout_redirect_uri: asString(search.post_logout_redirect_uri),
+    signed_out: scalarToString(search.signed_out),
   };
 }
 

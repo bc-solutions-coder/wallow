@@ -1,3 +1,4 @@
+import { toSlug } from "@bc-solutions-coder/utils/string";
 import { Button, Text } from "@bc-solutions-coder/ui";
 import { useQuery } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
@@ -92,12 +93,7 @@ function externalLoginHref(provider: string, returnUrl: string): string {
 
 /** Display names are prose ("Microsoft Entra ID"), so the testid cannot be the raw name. */
 function providerTestId(provider: string): string {
-  const slug: string = provider
-    .toLowerCase()
-    .replaceAll(/[^a-z0-9]+/gu, "-")
-    .replaceAll(/^-+|-+$/gu, "");
-
-  return `login-external-${slug}`;
+  return `login-external-${toSlug(provider)}`;
 }
 
 /** The oracle's `BbSeparator` + "Or continue with" caption. */
