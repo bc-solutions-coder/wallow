@@ -14,7 +14,14 @@
  *     (`StringComparer.OrdinalIgnoreCase`, first spelling wins);
  *   - `is_operator` and `is_global_admin` are BOOLEAN claims, not roles, and
  *     only a literal true grants them — the browser mirror of `bool.TryParse`,
- *     so `"1"`/`"yes"`/absent never do.
+ *     so `"1"`/`"yes"`/absent never do;
+ *   - `org_id`/`org_name` name the organization this token was issued for
+ *     (`GetTenantId()`/`GetTenantName()`).
+ *
+ * Role names are SCOPED TO THAT ORGANIZATION. A user who belongs to several
+ * organizations gets one token per organization, each carrying only the roles
+ * that membership grants, so `hasRole(user, "admin")` answers "admin of
+ * `getOrgId(user)`" and never "admin anywhere".
  *
  * These are read-only conveniences over a claim bag the browser was handed;
  * they are NOT an authorization decision. The API re-checks every claim on
@@ -32,6 +39,12 @@ const OPERATOR_CLAIM = "is_operator";
 /** The API's global-administrator claim (`ClaimsPrincipalExtensions.GlobalAdminClaimType`). */
 const GLOBAL_ADMIN_CLAIM = "is_global_admin";
 
+/** The organization the token was issued for (`GetTenantId()`). */
+const ORG_ID_CLAIM = "org_id";
+
+/** That organization's display name (`GetTenantName()`). */
+const ORG_NAME_CLAIM = "org_name";
+
 /**
  * Read a boolean claim the way `bool.TryParse` reads it: the literal boolean
  * `true`, or a string that trims to `"true"` in any casing. Everything else —
@@ -45,6 +58,21 @@ function readBooleanClaim(user: WallowUser | null | undefined, claim: string): b
   }
 
   return typeof value === "string" && value.trim().toLowerCase() === "true";
+}
+
+/**
+ * Read a claim that must be a non-blank string, trimmed. Anything else — a
+ * number, an array, a blank string, an absent claim — reads as `null`.
+ */
+function readStringClaim(user: WallowUser | null | undefined, claim: string): string | null {
+  const value: unknown = user?.[claim];
+
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed: string = value.trim();
+  return trimmed === "" ? null : trimmed;
 }
 
 /**
@@ -143,4 +171,34 @@ export function isOperator(user: WallowUser | null | undefined): boolean {
  */
 export function isGlobalAdmin(user: WallowUser | null | undefined): boolean {
   return readBooleanClaim(user, GLOBAL_ADMIN_CLAIM);
+}
+
+/**
+ * The id of the organization this session belongs to (`org_id`).
+ *
+ * A user in several organizations signs in to one at a time, so this is the
+ * organization every other claim on the bag — roles above all — describes. Use
+ * it to key per-organization UI state, never as an authorization decision: the
+ * API resolves the tenant from the token it validates, not from anything the
+ * browser sends.
+ *
+ * @param user The user, or `null`/`undefined` when unauthenticated.
+ * @returns The organization id, or `null` when the claim is absent or blank.
+ */
+export function getOrgId(user: WallowUser | null | undefined): string | null {
+  return readStringClaim(user, ORG_ID_CLAIM);
+}
+
+/**
+ * The display name of the organization this session belongs to (`org_name`).
+ *
+ * The API omits this claim when the resolved organization has no name, so a
+ * screen that shows it needs a fallback — {@link getOrgId} is always present
+ * where this is.
+ *
+ * @param user The user, or `null`/`undefined` when unauthenticated.
+ * @returns The organization name, or `null` when the claim is absent or blank.
+ */
+export function getOrgName(user: WallowUser | null | undefined): string | null {
+  return readStringClaim(user, ORG_NAME_CLAIM);
 }

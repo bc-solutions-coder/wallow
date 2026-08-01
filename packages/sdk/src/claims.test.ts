@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import type { WallowUser } from "./auth";
-import { getRoles, hasRole, isAdmin, isGlobalAdmin, isOperator } from "./claims";
+import {
+  getOrgId,
+  getOrgName,
+  getRoles,
+  hasRole,
+  isAdmin,
+  isGlobalAdmin,
+  isOperator,
+} from "./claims";
 import * as browserEntry from "./index";
 
 /**
@@ -19,7 +27,9 @@ import * as browserEntry from "./index";
  *       `bool.TryParse` parses them — a literal true only;
  *   (c) global admin is NOT a role and never leaks into `isAdmin()`; the API
  *       keeps the two checks separate on purpose, and conflating them here
- *       would re-create the role/claim confusion that was removed server-side.
+ *       would re-create the role/claim confusion that was removed server-side;
+ *   (d) `org_id`/`org_name` name the organization the token was issued for, and
+ *       are the scope the role claims above are relative to.
  */
 
 /** Build a user claim bag; `sub` is the only claim the SDK's type requires. */
@@ -188,14 +198,60 @@ describe("isOperator / isGlobalAdmin (boolean claims)", () => {
   });
 });
 
+describe.each([
+  { name: "getOrgId", claim: "org_id", read: getOrgId },
+  { name: "getOrgName", claim: "org_name", read: getOrgName },
+])("$name", ({ claim, read }) => {
+  it("reads the claim, trimmed", () => {
+    expect(read(user({ [claim]: "  Contoso  " }))).toBe("Contoso");
+  });
+
+  it("is null when the claim is absent, blank or unauthenticated", () => {
+    expect(read(user({}))).toBeNull();
+    expect(read(user({ [claim]: "   " }))).toBeNull();
+    expect(read(null)).toBeNull();
+    expect(read(undefined)).toBeNull();
+  });
+
+  it("is null for a non-string claim", () => {
+    // The API emits both as single string claims; an array or number here means
+    // the bag is not what it says it is, and a caller keying UI state off it
+    // must get nothing rather than `"[object Object]"`.
+    for (const value of [42, true, {}, ["a"], null]) {
+      expect(read(user({ [claim]: value }))).toBeNull();
+    }
+  });
+});
+
+describe("organization scoping", () => {
+  it("does not confuse the org claims with each other", () => {
+    expect(getOrgId(user({ org_name: "Contoso" }))).toBeNull();
+    expect(getOrgName(user({ org_id: "org-1" }))).toBeNull();
+  });
+
+  it("reports roles alongside the organization that granted them", () => {
+    // One token per organization: the roles on this bag are the roles the user
+    // holds in `org_id`, not everywhere.
+    const member: WallowUser = user({ org_id: "org-1", roles: ["admin"] });
+
+    expect(getOrgId(member)).toBe("org-1");
+    expect(isAdmin(member)).toBe(true);
+  });
+});
+
 describe("browser entry surface", () => {
-  it.each(["getRoles", "hasRole", "isAdmin", "isOperator", "isGlobalAdmin"])(
-    "exports %s from the package root",
-    (name: string) => {
-      // The AC is "exported from the SDK browser entry": apps import these from
-      // `@bc-solutions-coder/sdk`, never from a deep internal path.
-      expect(Object.keys(browserEntry)).toContain(name);
-      expect((browserEntry as unknown as Record<string, unknown>)[name]).toBeDefined();
-    },
-  );
+  it.each([
+    "getRoles",
+    "hasRole",
+    "isAdmin",
+    "isOperator",
+    "isGlobalAdmin",
+    "getOrgId",
+    "getOrgName",
+  ])("exports %s from the package root", (name: string) => {
+    // The AC is "exported from the SDK browser entry": apps import these from
+    // `@bc-solutions-coder/sdk`, never from a deep internal path.
+    expect(Object.keys(browserEntry)).toContain(name);
+    expect((browserEntry as unknown as Record<string, unknown>)[name]).toBeDefined();
+  });
 });
