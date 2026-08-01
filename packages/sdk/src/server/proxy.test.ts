@@ -4,19 +4,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { isValidRequestId, MAX_REQUEST_ID_LENGTH, REQUEST_ID_HEADER } from "../request-id";
 import type { BffConfig } from "./config";
+import { csrfTokenMatches, CSRF_HEADER, CSRF_INVALID_CODE, isStateChangingMethod } from "./csrf";
 import { WallowError } from "./errors";
 import { CLIENT_IP_HEADER } from "./forwarded";
 import { discover, refreshTokens, type DiscoveryDoc, type TokenResponse } from "./oidc";
 import {
   createApiProxy,
-  csrfTokenMatches,
-  CSRF_HEADER,
-  CSRF_INVALID_CODE,
   ensureFreshSession,
   forceRefreshSession,
   forwardWithResilience,
   FORWARD_TIMEOUT_MS,
-  isStateChangingMethod,
   MAX_RETRY_AFTER_MS,
   NETWORK_ERROR_CODE,
   NETWORK_TIMEOUT_CODE,

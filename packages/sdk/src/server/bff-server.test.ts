@@ -7,7 +7,7 @@ import {
   type WallowBffServer,
 } from "./bff-server";
 import { type BffConfig } from "./config";
-import { CSRF_HEADER } from "./proxy";
+import { CSRF_HEADER } from "./csrf";
 import { type BffSession } from "./session";
 import { CookieSessionStore } from "./store/cookie";
 import { type NodeRedisClient } from "./store/redis-adapter";

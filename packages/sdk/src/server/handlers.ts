@@ -27,7 +27,7 @@ import {
   type DiscoveryDoc,
   type TokenResponse,
 } from "./oidc";
-import { csrfTokenMatches, CSRF_HEADER, CSRF_INVALID_CODE } from "./proxy";
+import { csrfTokenMatches, CSRF_HEADER, CSRF_INVALID_CODE } from "./csrf";
 import { type BffSession } from "./session";
 import { CookieSessionStore } from "./store/cookie";
 import type { SessionStore } from "./store/types";

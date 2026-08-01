@@ -105,6 +105,16 @@ deliberately passes no `-c`, which would disable nested-config lookup and drop `
 `packages/forms`' test relaxations. Rule severities for both passes live in `.oxlintrc.json`; the
 vitest rules this repo opts out of sit in its `**/*.test.*` override.
 
+**Import cycles are a lint error, not a review question.** The root config enables oxlint's
+built-in `import` plugin for one rule, `import/no-cycle`, which has to be named explicitly because
+it sits in no category and is therefore off by default. Turning the plugin on also switches on its
+category rules, and ~7,500 of those diagnostics are rules this repo deliberately contradicts —
+named-export-only (`no-named-export`, `prefer-default-export`, `group-exports`, `exports-last`),
+`node:crypto` in the SDK's server entry (`no-nodejs-modules`), and the namespace imports the seam
+specs use to assert absence (`no-namespace`, `namespace`). Both passes run `--deny-warnings`, so
+each of those is switched **off** by name alongside `no-cycle`. Do not switch them on to "tidy up"
+the config; do not delete them to shorten it.
+
 Wallow's own rules — the `wallow/*` ones, for things no native rule can say — live in
 **`packages/lint`** as a real oxlint JS plugin, loaded by `apps/wallow-web/.oxlintrc.json` and
 `apps/wallow-auth/.oxlintrc.json`. They must NOT be registered from the root config, and a rule

@@ -26,11 +26,9 @@ export {
   type BffUserResponse,
 } from "./handlers";
 export { CLIENT_IP_HEADER } from "./forwarded";
+export { CSRF_HEADER, CSRF_INVALID_CODE, csrfTokenMatches } from "./csrf";
 export {
   createApiProxy,
-  CSRF_HEADER,
-  CSRF_INVALID_CODE,
-  csrfTokenMatches,
   ensureFreshSession,
   forceRefreshSession,
   forwardWithResilience,

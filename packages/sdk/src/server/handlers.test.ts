@@ -10,7 +10,7 @@ import {
   type BffHandler,
 } from "./handlers";
 import type { DiscoveryDoc } from "./oidc";
-import { CSRF_HEADER, CSRF_INVALID_CODE } from "./proxy";
+import { CSRF_HEADER, CSRF_INVALID_CODE } from "./csrf";
 import { sealSession, type BffSession } from "./session";
 import { CookieSessionStore } from "./store/cookie";
 import type { SessionStore } from "./store/types";

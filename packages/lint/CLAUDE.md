@@ -47,6 +47,11 @@ So the temp copy cannot load **any** form — relative or bare, loose file or wo
 resolves from a directory with no `node_modules` in it at all. Keeping the entry in the nested
 configs keeps it out of the file that gets copied.
 
+**This constrains `jsPlugins` only, not `plugins`.** The root config's `plugins` array names
+oxlint's **built-in Rust** plugins (`typescript`, `unicorn`, `oxc`, `react`, `import`) — they are
+compiled into the binary and resolve nothing off disk, so the temp-dir copy loads them fine. Only
+`jsPlugins`, whose entries are real module specifiers, breaks that copy.
+
 The nesting is load-bearing a second time: `packages/ui` legitimately paints an animated backdrop
 with a bare `bg-foreground`, so `no-sidebar-inversion` must never reach the catalog. Living under
 `apps/<app>/` makes that structural rather than a per-glob exemption that can rot.

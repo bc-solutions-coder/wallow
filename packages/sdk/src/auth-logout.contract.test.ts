@@ -4,7 +4,7 @@ import { logout } from "./auth";
 import { setCsrfToken } from "./csrf";
 import type { BffConfig } from "./server/config";
 import { createBffHandlers, type BffHandlers } from "./server/handlers";
-import { CSRF_HEADER } from "./server/proxy";
+import { CSRF_HEADER } from "./server/csrf";
 import { sealSession, type BffSession } from "./server/session";
 import { CookieSessionStore } from "./server/store/cookie";
 import type { SessionStore } from "./server/store/types";
