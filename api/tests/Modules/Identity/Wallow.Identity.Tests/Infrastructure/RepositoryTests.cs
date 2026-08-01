@@ -162,6 +162,27 @@ public sealed class RepositoryTests : IDisposable
         result!.Token.Should().Be(invitation.Token);
     }
 
+    /// <summary>
+    /// The two callers that resolve a token are an anonymous verification, where no tenant resolves,
+    /// and acceptance by the invited person, whose ambient tenant is some organization other than the
+    /// inviting one. Both would come up empty if the token lookup honoured the filter.
+    /// </summary>
+    [Fact]
+    public async Task InvitationRepository_GetByTokenAsync_ResolvesAnInvitationFromAnotherTenant()
+    {
+        Invitation invitation = CreateInvitation();
+        _dbContext.Invitations.Add(invitation);
+        await _dbContext.SaveChangesAsync();
+
+        _dbContext.SetTenant(new TenantId(Guid.NewGuid()));
+
+        InvitationRepository repo = new(_dbContext);
+        Invitation? result = await repo.GetByTokenAsync(invitation.Token);
+
+        result.Should().NotBeNull();
+        result!.TenantId.Value.Should().Be(_tenantId);
+    }
+
     [Fact]
     public async Task InvitationRepository_GetByTokenAsync_WhenNotExists_ReturnsNull()
     {

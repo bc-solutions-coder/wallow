@@ -71,8 +71,11 @@ public sealed class InvitationService(
     {
         DateTimeOffset now = timeProvider.GetUtcNow();
 
+        // The sweep runs from a background job, where no tenant is resolved and the filter would
+        // therefore match nothing. It is deliberately every tenant's expired invitations.
         List<Invitation> expiredInvitations = await dbContext.Invitations
             .AsTracking()
+            .IgnoreQueryFilters()
             .Where(i => i.Status == InvitationStatus.Pending && i.ExpiresAt <= now)
             .ToListAsync(ct);
 

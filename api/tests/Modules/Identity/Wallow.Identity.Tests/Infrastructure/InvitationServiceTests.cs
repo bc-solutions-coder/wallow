@@ -103,6 +103,24 @@ public sealed class InvitationServiceTests : IDisposable
         r!.Status.Should().Be(InvitationStatus.Expired);
     }
 
+    /// <summary>
+    /// The sweep is a background job, so nothing has resolved a tenant for it. An unresolved tenant
+    /// matches no row, which would make the job a silent no-op rather than a failure.
+    /// </summary>
+    [Fact]
+    public async Task CleanupExpired_MarksExpired_WhenNoTenantIsResolved()
+    {
+        Invitation expired = Invitation.Create(new TenantId(_tenantId), "e@t.com", _tp.GetUtcNow().AddDays(-1), Guid.NewGuid(), _tp);
+        _dbContext.Invitations.Add(expired); await _dbContext.SaveChangesAsync();
+
+        _dbContext.SetTenant(default);
+        await _sut.CleanupExpiredAsync();
+
+        _dbContext.SetTenant(new TenantId(_tenantId));
+        Invitation? r = await _dbContext.Invitations.AsTracking().FirstOrDefaultAsync(i => i.Id == expired.Id);
+        r!.Status.Should().Be(InvitationStatus.Expired);
+    }
+
     [Fact]
     public async Task CleanupExpired_DoesNotMarkValid()
     {

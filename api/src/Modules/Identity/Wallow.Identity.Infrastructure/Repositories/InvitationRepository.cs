@@ -15,10 +15,18 @@ public sealed class InvitationRepository(IdentityDbContext context) : IInvitatio
             .FirstOrDefaultAsync(i => i.Id == id, ct);
     }
 
+    /// <summary>
+    /// Resolves an invitation by its token, bypassing tenant query filters (IgnoreQueryFilters).
+    /// Neither caller can supply the tenant the invitation belongs to: verification is anonymous, so
+    /// no tenant resolves at all, and acceptance runs as the invited person, whose ambient tenant is
+    /// by definition an organization other than the one inviting them. The token is 32 bytes of
+    /// cryptographic randomness and is itself the selector.
+    /// </summary>
     public Task<Invitation?> GetByTokenAsync(string token, CancellationToken ct = default)
     {
         return context.Invitations
             .AsTracking()
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(i => i.Token == token, ct);
     }
 
