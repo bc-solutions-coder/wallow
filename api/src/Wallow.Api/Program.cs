@@ -324,6 +324,11 @@ try
     builder.Services.AddSingleton<ISseDispatcher, RedisSseDispatcher>();
     builder.Services.AddHostedService<SseRedisSubscriber>();
 
+    // This host owns the open connections, so it owns the only implementation that can close
+    // them; the identity module registers a no-op default for hosts that serve none.
+    builder.Services.AddSingleton<RealtimeConnectionRegistry>();
+    builder.Services.AddSingleton<IRealtimeAccessRevoker, RealtimeAccessRevoker>();
+
     // SignalR with Redis backplane — reuses the singleton IConnectionMultiplexer registered above
     builder.Services.AddSingleton<IUserIdProvider, SubClaimUserIdProvider>();
     builder.Services.AddSignalR()

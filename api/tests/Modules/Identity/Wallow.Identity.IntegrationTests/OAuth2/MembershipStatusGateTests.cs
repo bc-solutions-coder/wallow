@@ -15,6 +15,9 @@ namespace Wallow.Identity.IntegrationTests.OAuth2;
 /// Active signs a person in, and Pending, Suspended and Denied each refuse under their own reason
 /// so the auth app can say what happened rather than only that access was refused. Global admin is
 /// an authority no organization grants, so it passes the gate holding no membership at all.
+///
+/// Suspending also reaches backwards: a token already in someone's hands stops working on the next
+/// request, which is what the token-entry validation on the resource server buys.
 /// </summary>
 public sealed class MembershipStatusGateTests(WallowApiFactory factory)
     : IdentityIntegrationTestBase(factory)
@@ -25,6 +28,13 @@ public sealed class MembershipStatusGateTests(WallowApiFactory factory)
 
     private static readonly string[] _clientScopes =
         ["openid", "profile", "email", "roles", "offline_access"];
+
+    // The test host authenticates every other route through TestAuthHandler, which never consults
+    // OpenIddict. Userinfo authenticates against the OpenIddict server scheme itself, so it is where
+    // an issued access token is actually validated in-process. The absolute address matters: the
+    // issuer is stamped from the host a token was minted through, and the harness signs in over
+    // https://localhost.
+    private static readonly Uri _userinfo = new("https://localhost/connect/userinfo");
 
     [Fact]
     public async Task Authorize_ForAnActiveMembership_IssuesAToken()
@@ -125,6 +135,31 @@ public sealed class MembershipStatusGateTests(WallowApiFactory factory)
 
         refreshed.AccessToken.Should().BeNull(refreshed.Body);
         refreshed.Error.Should().Be("invalid_grant");
+    }
+
+    [Fact]
+    public async Task Suspending_RejectsAnAccessTokenIssuedBeforeIt()
+    {
+        Seed seed = await SeedAsync();
+        await AuthorizationCodeFlowHarness.EnrollMemberAsync(
+            ScopedServices, seed.OrganizationId, seed.UserId, "user");
+
+        using AuthorizationCodeFlowHarness harness = new(Factory);
+        await harness.SignInAsync(seed.Email, Password);
+
+        TokenOutcome tokens = await harness.AcquireTokensAsync(seed.ClientId, ClientSecret, Scope);
+        tokens.AccessToken.Should().NotBeNullOrEmpty(tokens.Body);
+
+        harness.Client.DefaultRequestHeaders.Add("Authorization", $"Bearer {tokens.AccessToken}");
+
+        HttpResponseMessage before = await harness.Client.GetAsync(_userinfo);
+        before.StatusCode.Should().Be(HttpStatusCode.OK, await before.Content.ReadAsStringAsync());
+
+        IOrganizationService organizations = ScopedServices.GetRequiredService<IOrganizationService>();
+        await organizations.SuspendMemberAsync(seed.OrganizationId, seed.UserId, seed.OwnerId);
+
+        HttpResponseMessage after = await harness.Client.GetAsync(_userinfo);
+        after.StatusCode.Should().Be(HttpStatusCode.Unauthorized, await after.Content.ReadAsStringAsync());
     }
 
     private async Task SuspendAsync(Seed seed)

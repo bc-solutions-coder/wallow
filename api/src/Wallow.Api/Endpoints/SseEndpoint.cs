@@ -19,9 +19,9 @@ public static partial class SseEndpoint
         CancellationToken cancellationToken)
     {
         // Link to application stopping so SSE connections close promptly on shutdown
-        using CancellationTokenSource linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+        using CancellationTokenSource shutdownCts = CancellationTokenSource.CreateLinkedTokenSource(
             cancellationToken, lifetime.ApplicationStopping);
-        cancellationToken = linkedCts.Token;
+        cancellationToken = shutdownCts.Token;
         if (!tenantContext.IsResolved)
         {
             bool isAuthenticated = httpContext.User.Identity?.IsAuthenticated == true;
@@ -50,6 +50,14 @@ public static partial class SseEndpoint
         string moduleList = string.Join(",", modules);
         LogSseConnectionRegistered(logger, userId, tenantId, connectionId, moduleList);
         connectionManager.AddConnection(connectionId, userId, tenantId, modules, permissions, roles);
+
+        // The connection's own token ends this stream when the person's access to the tenant is
+        // revoked. Without it the loop below runs to the client's own disconnect, still holding
+        // the roles and permissions read off the token at connect time.
+        CancellationToken revocationToken = connectionManager.GetCancellationToken(connectionId);
+        using CancellationTokenSource linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken, revocationToken);
+        cancellationToken = linkedCts.Token;
 
         try
         {

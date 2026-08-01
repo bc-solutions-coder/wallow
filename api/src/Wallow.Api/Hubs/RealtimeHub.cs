@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Wallow.Api.Services;
 using Wallow.Shared.Contracts.Realtime;
 using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.MultiTenancy;
@@ -11,6 +12,7 @@ internal sealed partial class RealtimeHub(
     IPresenceService presenceService,
     IRealtimeDispatcher dispatcher,
     ITenantContext tenantContext,
+    RealtimeConnectionRegistry connectionRegistry,
     ILogger<RealtimeHub> logger) : Hub
 {
     private static readonly string[] _allowedGroupPrefixes = ["tenant:", "user:", "page:"];
@@ -24,6 +26,7 @@ internal sealed partial class RealtimeHub(
         }
 
         await presenceService.TrackConnectionAsync(tenantContext.TenantId.Value, userId, Context.ConnectionId);
+        connectionRegistry.Register(Context.ConnectionId, userId, tenantContext.TenantId.Value, Context);
         LogUserConnected(userId, Context.ConnectionId);
 
         string tenantGroup = $"tenant:{tenantContext.TenantId.Value}";
@@ -44,6 +47,7 @@ internal sealed partial class RealtimeHub(
     {
         string? userId = await presenceService.GetUserIdByConnectionAsync(Context.ConnectionId);
         await presenceService.RemoveConnectionAsync(Context.ConnectionId);
+        connectionRegistry.Unregister(Context.ConnectionId);
 
         if (userId is not null)
         {

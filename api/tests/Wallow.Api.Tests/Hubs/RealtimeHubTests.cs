@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging.Abstractions;
 using Wallow.Api.Hubs;
+using Wallow.Api.Services;
 using Wallow.Shared.Contracts.Realtime;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
@@ -14,6 +15,7 @@ public sealed class RealtimeHubTests : IDisposable
     private readonly IPresenceService _presenceService = Substitute.For<IPresenceService>();
     private readonly IRealtimeDispatcher _dispatcher = Substitute.For<IRealtimeDispatcher>();
     private readonly ITenantContext _tenantContext = Substitute.For<ITenantContext>();
+    private readonly RealtimeConnectionRegistry _connectionRegistry = Substitute.For<RealtimeConnectionRegistry>();
     private readonly RealtimeHub _hub;
 
     private readonly IHubCallerClients _clients = Substitute.For<IHubCallerClients>();
@@ -30,6 +32,7 @@ public sealed class RealtimeHubTests : IDisposable
             _presenceService,
             _dispatcher,
             _tenantContext,
+            _connectionRegistry,
             NullLogger<RealtimeHub>.Instance)
         {
             Clients = _clients,

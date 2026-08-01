@@ -17,6 +17,7 @@ public sealed partial class OrganizationService(
     IOrganizationRepository organizationRepository,
     IMembershipRepository membershipRepository,
     IdentityDbContext dbContext,
+    IMembershipAccessRevoker accessRevoker,
     IMessageBus messageBus,
     TimeProvider timeProvider,
     ILogger<OrganizationService> logger) : IOrganizationService
@@ -180,6 +181,8 @@ public sealed partial class OrganizationService(
         membershipRepository.Remove(membership);
         await membershipRepository.SaveChangesAsync(ct);
 
+        await accessRevoker.RevokeAsync(userId, orgId, ct);
+
         await messageBus.PublishAsync(new OrganizationMemberRemovedEvent
         {
             OrganizationId = orgId,
@@ -189,6 +192,27 @@ public sealed partial class OrganizationService(
         });
 
         LogMemberRemoved(userId, orgId);
+    }
+
+    public async Task SuspendMemberAsync(Guid orgId, Guid userId, Guid actorId, CancellationToken ct = default)
+    {
+        Membership? membership = await membershipRepository.GetAsync(userId, orgId, ct);
+
+        if (membership is null)
+        {
+            throw new BusinessRuleException(
+                "Identity.MemberNotFound",
+                "User is not a member of this organization");
+        }
+
+        membership.Suspend(actorId, timeProvider);
+        await membershipRepository.SaveChangesAsync(ct);
+
+        // The status alone only decides the NEXT sign-in. Everything already issued off the
+        // membership — tokens, open streams — outlives it unless it is taken away here.
+        await accessRevoker.RevokeAsync(userId, orgId, ct);
+
+        LogMemberSuspended(userId, orgId);
     }
 
     public async Task<IReadOnlyList<UserDto>> GetMembersAsync(Guid orgId, CancellationToken ct = default)
@@ -594,6 +618,9 @@ public sealed partial class OrganizationService
 
     [LoggerMessage(Level = LogLevel.Information, Message = "User {UserId} removed from organization {OrgId}")]
     private partial void LogMemberRemoved(Guid userId, Guid orgId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "User {UserId} suspended in organization {OrgId}")]
+    private partial void LogMemberSuspended(Guid userId, Guid orgId);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Archiving organization {OrgId}")]
     private partial void LogArchivingOrganization(Guid orgId);

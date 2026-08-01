@@ -25,6 +25,7 @@ using Wallow.Identity.Infrastructure.Repositories;
 using Wallow.Identity.Infrastructure.Services;
 using Wallow.Identity.Infrastructure.Services.ExtensionPoints;
 using Wallow.Shared.Contracts.Identity;
+using Wallow.Shared.Contracts.Realtime;
 using Wallow.Shared.Contracts.Setup;
 using Wallow.Shared.Infrastructure.Core.Extensions;
 using Wallow.Shared.Infrastructure.Settings;
@@ -163,6 +164,14 @@ public static class IdentityInfrastructureExtensions
                 // are a contract, and sharing a symbol would let them agree without the value ever
                 // reaching a token.
                 options.AddAudiences("wallow-api");
+
+                // Without this, a signature-valid access token is accepted until it expires and
+                // revoking it changes nothing: the handler never consults the token entry. An
+                // organization that suspends a member has to be able to end that member's access
+                // now, not at the end of the token's lifetime, so every request pays one lookup
+                // against the token table. Tokens stay self-contained JWTs — revocation in
+                // OpenIddict is a property of token storage, not of the token format.
+                options.EnableTokenEntryValidation();
 
                 options.UseAspNetCore();
             });
@@ -360,6 +369,22 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<ITenantContextSetter>(sp => sp.GetRequiredService<TenantContext>());
     }
 
+    /// <summary>
+    /// Registers what it takes to end a member's access to one organization. Public because
+    /// <see cref="OrganizationService"/> depends on it, and the seeder builds that service by hand
+    /// rather than through <c>AddIdentityModule</c>.
+    /// </summary>
+    public static IServiceCollection AddMembershipAccessRevocation(this IServiceCollection services)
+    {
+        services.AddScoped<IMembershipAccessRevoker, MembershipAccessRevoker>();
+
+        // The host that actually serves realtime traffic registers the implementation that can
+        // close a connection; TryAdd leaves it in place and covers the hosts that serve none.
+        services.TryAddSingleton<IRealtimeAccessRevoker, NoOpRealtimeAccessRevoker>();
+
+        return services;
+    }
+
     private static void AddIdentityServices(this IServiceCollection services, IConfiguration configuration)
     {
         services.Configure<PreRegisteredClientOptions>(configuration.GetSection(PreRegisteredClientOptions.SectionName));
@@ -385,6 +410,7 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IUserQueryService, UserQueryService>();
         services.AddScoped<IInvitationService, InvitationService>();
+        services.AddMembershipAccessRevocation();
 
         // Fork extension points — TryAddScoped allows forks to register their own implementations
         // before calling AddIdentityModule, which will skip these defaults.

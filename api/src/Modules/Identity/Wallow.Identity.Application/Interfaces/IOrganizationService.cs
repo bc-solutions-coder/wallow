@@ -17,6 +17,11 @@ public interface IOrganizationService
     // caller is the cross-org escalation surface this model exists to close.
     Task AddMemberAsync(Guid orgId, Guid userId, string roleName, CancellationToken ct = default);
     Task RemoveMemberAsync(Guid orgId, Guid userId, CancellationToken ct = default);
+
+    // Suspending keeps the membership row so it can be reinstated, and takes away everything the
+    // member already holds here: their tokens for this organization and their open realtime
+    // connections to it.
+    Task SuspendMemberAsync(Guid orgId, Guid userId, Guid actorId, CancellationToken ct = default);
     Task<IReadOnlyList<UserDto>> GetMembersAsync(Guid orgId, CancellationToken ct = default);
     Task<IReadOnlyList<OrganizationDto>> GetUserOrganizationsAsync(Guid userId, CancellationToken ct = default);
     Task ArchiveAsync(Guid organizationId, Guid actorId, CancellationToken ct = default);
