@@ -42,14 +42,14 @@ const FULL_BODY = {
  * drives a native `HTMLSelectElement`.
  */
 const FIELD_FILLERS: Record<string, () => Promise<void>> = {
-  "inquiry-name": () => userEvent.type(page.getByTestId("inquiry-name"), FULL_BODY.name),
-  "inquiry-email": () => userEvent.type(page.getByTestId("inquiry-email"), FULL_BODY.email),
-  "inquiry-phone": () => userEvent.type(page.getByTestId("inquiry-phone"), FULL_BODY.phone),
-  "inquiry-company": () => userEvent.type(page.getByTestId("inquiry-company"), FULL_BODY.company),
+  "inquiry-name": () => userEvent.fill(page.getByTestId("inquiry-name"), FULL_BODY.name),
+  "inquiry-email": () => userEvent.fill(page.getByTestId("inquiry-email"), FULL_BODY.email),
+  "inquiry-phone": () => userEvent.fill(page.getByTestId("inquiry-phone"), FULL_BODY.phone),
+  "inquiry-company": () => userEvent.fill(page.getByTestId("inquiry-company"), FULL_BODY.company),
   "inquiry-project-type": () => chooseOption("inquiry-project-type", "Web Application"),
   "inquiry-budget-range": () => chooseOption("inquiry-budget-range", "$15,000 - $50,000"),
   "inquiry-timeline": () => chooseOption("inquiry-timeline", "1 - 3 months"),
-  "inquiry-message": () => userEvent.type(page.getByTestId("inquiry-message"), FULL_BODY.message),
+  "inquiry-message": () => userEvent.fill(page.getByTestId("inquiry-message"), FULL_BODY.message),
 };
 
 async function fillFullForm() {

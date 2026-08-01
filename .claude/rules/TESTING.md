@@ -93,6 +93,14 @@ Each of these cost a debugging session and is invisible from the code:
   and a screen assigning `globalThis.location.href` navigates the iframe and tears the runner down.
   Observe a full-page hand-off at the Navigation API `navigate` event: read `event.destination.url`
   and `preventDefault()` so the runner stays put.
+- **Fill a field with `userEvent.fill`, not `userEvent.type`.** `type` costs one CDP round trip PER
+  CHARACTER, and under a full `pnpm test` — where every package's browser project drives its own
+  Chromium at once — it is the round-trip COUNT that amplifies. A form helper typing 80 characters to
+  set up one assertion failed 2 of 6 gate runs against the 15s browser `testTimeout` (worst 20647ms);
+  the same specs on `fill` (80 round trips down to 5) stopped failing. Unloaded the difference is a
+  forgettable ~24%, so this only ever shows up as an intermittent CI timeout. Reach for `type` only
+  when the spec needs keyboard syntax (`{Shift}`, `{Backspace}`) or appends to an existing value —
+  `fill` REPLACES, so converting a two-call sequence that builds one string silently changes it.
 - **`createSdkHarness()` records a call BEFORE its responder runs.** The earliest non-racy point at
   which "the request is in flight" is a fact is `await vi.waitFor(() => expect(harness.calls).toHaveLength(n))`
   — not the click, and not the settle helper, which resolves only after the response is parsed. Every

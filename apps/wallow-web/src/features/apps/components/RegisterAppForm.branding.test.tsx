@@ -65,7 +65,7 @@ function programHarness(brandingStatus: number, brandingBody: unknown): void {
 
 /** Fill the register form's own required field, so only branding is under test. */
 async function fillRegistrationBasics(): Promise<void> {
-  await userEvent.type(page.getByTestId("app-display-name"), "My App");
+  await userEvent.fill(page.getByTestId("app-display-name"), "My App");
 }
 
 describe("RegisterAppForm branding/logo upsert", () => {
@@ -93,8 +93,8 @@ describe("RegisterAppForm branding/logo upsert", () => {
     renderWithWallow(<RegisterAppForm />, { harness });
 
     await fillRegistrationBasics();
-    await userEvent.type(page.getByTestId("app-branding-display-name"), "Wallow Console");
-    await userEvent.type(page.getByTestId("app-branding-tagline"), "Ship faster");
+    await userEvent.fill(page.getByTestId("app-branding-display-name"), "Wallow Console");
+    await userEvent.fill(page.getByTestId("app-branding-tagline"), "Ship faster");
     await userEvent.click(page.getByTestId("app-register-submit"));
 
     await vi.waitFor(() => {
@@ -118,7 +118,7 @@ describe("RegisterAppForm branding/logo upsert", () => {
     renderWithWallow(<RegisterAppForm />, { harness });
 
     await fillRegistrationBasics();
-    await userEvent.type(page.getByTestId("app-branding-display-name"), "Wallow Console");
+    await userEvent.fill(page.getByTestId("app-branding-display-name"), "Wallow Console");
     await userEvent.upload(
       page.getByTestId("app-logo-input"),
       new File(["png-bytes"], "logo.png", { type: "image/png" }),
@@ -156,8 +156,8 @@ describe("RegisterAppForm branding/logo upsert", () => {
     renderWithWallow(<RegisterAppForm />, { harness });
 
     await fillRegistrationBasics();
-    await userEvent.type(page.getByTestId("app-branding-display-name"), "   ");
-    await userEvent.type(page.getByTestId("app-branding-tagline"), "  ");
+    await userEvent.fill(page.getByTestId("app-branding-display-name"), "   ");
+    await userEvent.fill(page.getByTestId("app-branding-tagline"), "  ");
     await userEvent.click(page.getByTestId("app-register-submit"));
 
     await expect.element(page.getByTestId("app-register-success")).toBeInTheDocument();
@@ -172,7 +172,7 @@ describe("RegisterAppForm branding/logo upsert", () => {
     renderWithWallow(<RegisterAppForm />, { harness });
 
     await fillRegistrationBasics();
-    await userEvent.type(page.getByTestId("app-branding-display-name"), "Wallow Console");
+    await userEvent.fill(page.getByTestId("app-branding-display-name"), "Wallow Console");
     await userEvent.click(page.getByTestId("app-register-submit"));
 
     await expect.element(page.getByTestId("app-client-secret")).toHaveTextContent("secret-xyz");
@@ -189,7 +189,7 @@ describe("RegisterAppForm branding/logo upsert", () => {
     renderWithWallow(<RegisterAppForm />, { harness });
 
     await fillRegistrationBasics();
-    await userEvent.type(page.getByTestId("app-branding-display-name"), "Wallow Console");
+    await userEvent.fill(page.getByTestId("app-branding-display-name"), "Wallow Console");
     await userEvent.click(page.getByTestId("app-register-submit"));
 
     await expect.element(page.getByTestId("app-branding-error")).toBeInTheDocument();

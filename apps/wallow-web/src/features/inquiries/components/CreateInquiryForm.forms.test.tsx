@@ -21,16 +21,16 @@ import { CreateInquiryForm } from "./CreateInquiryForm";
 
 /** A valid value for every field, keyed by testid. */
 const FIELD_FILLERS: Record<string, () => Promise<void>> = {
-  "inquiry-name": () => userEvent.type(page.getByTestId("inquiry-name"), "Ada Lovelace"),
-  "inquiry-email": () => userEvent.type(page.getByTestId("inquiry-email"), "ada@example.com"),
-  "inquiry-phone": () => userEvent.type(page.getByTestId("inquiry-phone"), "555-0100"),
+  "inquiry-name": () => userEvent.fill(page.getByTestId("inquiry-name"), "Ada Lovelace"),
+  "inquiry-email": () => userEvent.fill(page.getByTestId("inquiry-email"), "ada@example.com"),
+  "inquiry-phone": () => userEvent.fill(page.getByTestId("inquiry-phone"), "555-0100"),
   "inquiry-company": () =>
-    userEvent.type(page.getByTestId("inquiry-company"), "Analytical Engines"),
+    userEvent.fill(page.getByTestId("inquiry-company"), "Analytical Engines"),
   "inquiry-project-type": () => chooseOption("inquiry-project-type", "Web Application"),
   "inquiry-budget-range": () => chooseOption("inquiry-budget-range", "$15,000 - $50,000"),
   "inquiry-timeline": () => chooseOption("inquiry-timeline", "1 - 3 months"),
   "inquiry-message": () =>
-    userEvent.type(page.getByTestId("inquiry-message"), "We need a project dashboard."),
+    userEvent.fill(page.getByTestId("inquiry-message"), "We need a project dashboard."),
 };
 
 /** The seven fields `SubmitInquiryValidator.cs` marks `.NotEmpty()`, and their messages. */
@@ -222,7 +222,7 @@ describe("CreateInquiryForm on @bc-solutions-coder/forms", () => {
     renderWithWallow(<CreateInquiryForm />, { harness });
 
     await fillEveryFieldExcept("inquiry-name");
-    await userEvent.type(page.getByTestId("inquiry-name"), "   ");
+    await userEvent.fill(page.getByTestId("inquiry-name"), "   ");
     await userEvent.click(page.getByTestId("inquiry-submit"));
 
     await expect
@@ -278,7 +278,7 @@ describe("CreateInquiryForm on @bc-solutions-coder/forms", () => {
     renderWithWallow(<CreateInquiryForm />, { harness });
 
     await fillEveryFieldExcept("inquiry-name");
-    await userEvent.type(page.getByTestId("inquiry-name"), "  Ada Lovelace  ");
+    await userEvent.fill(page.getByTestId("inquiry-name"), "  Ada Lovelace  ");
     await userEvent.click(page.getByTestId("inquiry-submit"));
 
     await vi.waitFor(() => {
