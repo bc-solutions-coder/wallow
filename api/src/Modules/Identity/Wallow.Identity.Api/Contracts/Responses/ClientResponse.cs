@@ -8,4 +8,5 @@ public record ClientResponse
     public string? ClientSecret { get; init; }
     public required IReadOnlyList<string> RedirectUris { get; init; }
     public required IReadOnlyList<string> PostLogoutRedirectUris { get; init; }
+    public required IReadOnlyList<string> Scopes { get; init; }
 }

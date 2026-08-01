@@ -195,6 +195,7 @@ export type ClientResponse = {
     clientSecret?: null | string;
     redirectUris: Array<string>;
     postLogoutRedirectUris: Array<string>;
+    scopes: Array<string>;
 };
 
 /**
@@ -262,11 +263,16 @@ export type CreateChangelogEntryRequest = {
     releasedAt: string;
 };
 
+/**
+ * Scopes is what the client may ever request at the authorize endpoint. Omitting it grants the
+ * OIDC sign-in baseline; API scopes are opt-in.
+ */
 export type CreateClientRequest = {
     name: string;
     redirectUris: Array<string>;
     postLogoutRedirectUris: Array<string>;
     tenantId?: null | string;
+    scopes?: null | Array<string>;
 };
 
 export type CreateInvitationRequest = {

@@ -10,6 +10,7 @@ using Wallow.Identity.Api.Extensions;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Identity;
+using Wallow.Shared.Contracts.Identity;
 using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using static OpenIddict.Abstractions.OpenIddictConstants;
@@ -29,6 +30,24 @@ public class ClientsController(
     IOrganizationService organizationService,
     IServiceAccountService serviceAccountService) : ControllerBase
 {
+    /// <summary>
+    /// Enough to sign a user in and keep them signed in, which is what a relying party registered
+    /// through this endpoint exists to do. API scopes stay opt-in.
+    /// </summary>
+    private static readonly string[] _defaultScopes =
+        [Scopes.OpenId, Scopes.Profile, Scopes.Email, Scopes.Roles, Scopes.OfflineAccess];
+
+    /// <summary>
+    /// What an administrator may grant a client. <c>roles</c> sits outside
+    /// <see cref="ApiScopes.LoginScopes"/> because self-service app registration does not hand a
+    /// developer's app the user's role list; an administrator registering a first-party relying
+    /// party may.
+    /// </summary>
+    private static readonly HashSet<string> _grantableScopes =
+        new(
+            [.. ApiScopes.LoginScopes, .. ApiScopes.ValidScopes, Scopes.Roles],
+            StringComparer.Ordinal);
+
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<ClientResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<ClientResponse>>> GetAll(CancellationToken ct)
@@ -49,7 +68,8 @@ public class ClientsController(
                 Name = descriptor.DisplayName ?? string.Empty,
                 ClientId = clientId ?? string.Empty,
                 RedirectUris = descriptor.RedirectUris.Select(u => u.ToString()).ToList(),
-                PostLogoutRedirectUris = descriptor.PostLogoutRedirectUris.Select(u => u.ToString()).ToList()
+                PostLogoutRedirectUris = descriptor.PostLogoutRedirectUris.Select(u => u.ToString()).ToList(),
+                Scopes = ScopesOf(descriptor)
             });
         }
 
@@ -78,7 +98,8 @@ public class ClientsController(
             Name = descriptor.DisplayName ?? string.Empty,
             ClientId = clientId ?? string.Empty,
             RedirectUris = descriptor.RedirectUris.Select(u => u.ToString()).ToList(),
-            PostLogoutRedirectUris = descriptor.PostLogoutRedirectUris.Select(u => u.ToString()).ToList()
+            PostLogoutRedirectUris = descriptor.PostLogoutRedirectUris.Select(u => u.ToString()).ToList(),
+            Scopes = ScopesOf(descriptor)
         });
     }
 
@@ -115,7 +136,8 @@ public class ClientsController(
                 Name = descriptor.DisplayName ?? string.Empty,
                 ClientId = clientId ?? string.Empty,
                 RedirectUris = descriptor.RedirectUris.Select(u => u.ToString()).ToList(),
-                PostLogoutRedirectUris = descriptor.PostLogoutRedirectUris.Select(u => u.ToString()).ToList()
+                PostLogoutRedirectUris = descriptor.PostLogoutRedirectUris.Select(u => u.ToString()).ToList(),
+                Scopes = ScopesOf(descriptor)
             });
         }
 
@@ -138,6 +160,17 @@ public class ClientsController(
             }
         }
 
+        IReadOnlyList<string> scopes = request.Scopes is { Count: > 0 } ? request.Scopes : _defaultScopes;
+
+        List<string> ungrantableScopes = scopes.Where(s => !_grantableScopes.Contains(s)).ToList();
+        if (ungrantableScopes.Count > 0)
+        {
+            ModelState.AddModelError(
+                nameof(request.Scopes),
+                $"Unknown scopes: {string.Join(", ", ungrantableScopes)}.");
+            return ValidationProblem(ModelState);
+        }
+
         string clientSecret = GenerateClientSecret();
 
         OpenIddictApplicationDescriptor descriptor = new()
@@ -156,6 +189,13 @@ public class ClientsController(
                 Permissions.ResponseTypes.Code
             }
         };
+
+        // Without these the client is refused every scope it asks for on its first authorize:
+        // OpenIddict grants only what the application's own permissions list allows.
+        foreach (string scope in scopes)
+        {
+            descriptor.Permissions.Add(Permissions.Prefixes.Scope + scope);
+        }
 
         if (request.TenantId.HasValue)
         {
@@ -182,7 +222,8 @@ public class ClientsController(
             ClientId = descriptor.ClientId,
             ClientSecret = clientSecret,
             RedirectUris = request.RedirectUris,
-            PostLogoutRedirectUris = request.PostLogoutRedirectUris
+            PostLogoutRedirectUris = request.PostLogoutRedirectUris,
+            Scopes = scopes
         };
 
         return CreatedAtAction(nameof(GetById), new { id }, response);
@@ -229,7 +270,8 @@ public class ClientsController(
             Name = request.Name,
             ClientId = clientId ?? string.Empty,
             RedirectUris = request.RedirectUris,
-            PostLogoutRedirectUris = request.PostLogoutRedirectUris
+            PostLogoutRedirectUris = request.PostLogoutRedirectUris,
+            Scopes = ScopesOf(descriptor)
         });
     }
 
@@ -275,7 +317,8 @@ public class ClientsController(
             ClientId = clientId ?? string.Empty,
             ClientSecret = newSecret,
             RedirectUris = descriptor.RedirectUris.Select(u => u.ToString()).ToList(),
-            PostLogoutRedirectUris = descriptor.PostLogoutRedirectUris.Select(u => u.ToString()).ToList()
+            PostLogoutRedirectUris = descriptor.PostLogoutRedirectUris.Select(u => u.ToString()).ToList(),
+            Scopes = ScopesOf(descriptor)
         });
     }
 
@@ -388,6 +431,12 @@ public class ClientsController(
         IReadOnlyList<OrganizationDto> userOrgs = await organizationService.GetUserOrganizationsAsync(userId, ct);
         return userOrgs.Any(o => o.Id == orgId);
     }
+
+    private static List<string> ScopesOf(OpenIddictApplicationDescriptor descriptor) =>
+        descriptor.Permissions
+            .Where(p => p.StartsWith(Permissions.Prefixes.Scope, StringComparison.Ordinal))
+            .Select(p => p[Permissions.Prefixes.Scope.Length..])
+            .ToList();
 
     private static string GenerateClientSecret()
     {

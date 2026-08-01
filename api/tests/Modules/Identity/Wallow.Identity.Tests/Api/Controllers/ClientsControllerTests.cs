@@ -138,6 +138,31 @@ public class ClientsControllerTests
     }
 
     [Fact]
+    public async Task GetById_ReportsTheScopesTheClientMayRequest()
+    {
+        object app = new object();
+        _applicationManager.FindByIdAsync("id-1", Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult<object?>(app));
+        _applicationManager.GetClientIdAsync(app, Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult<string?>("client-1"));
+        _applicationManager.PopulateAsync(Arg.Any<OpenIddictApplicationDescriptor>(), app, Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                OpenIddictApplicationDescriptor descriptor = callInfo.ArgAt<OpenIddictApplicationDescriptor>(0);
+                descriptor.Permissions.Add(OpenIddictConstants.Permissions.Endpoints.Token);
+                descriptor.Permissions.Add("scp:openid");
+                descriptor.Permissions.Add("scp:storage.read");
+                return ValueTask.CompletedTask;
+            });
+
+        ActionResult<ClientResponse> result = await _controller.GetById("id-1", CancellationToken.None);
+
+        OkObjectResult ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        ClientResponse client = ok.Value.Should().BeOfType<ClientResponse>().Subject;
+        client.Scopes.Should().BeEquivalentTo("openid", "storage.read");
+    }
+
+    [Fact]
     public async Task GetById_WhenNotFound_ReturnsNotFound()
     {
         _applicationManager.FindByIdAsync("missing", Arg.Any<CancellationToken>())
@@ -227,6 +252,61 @@ public class ClientsControllerTests
         ActionResult<ClientResponse> result = await _controller.Create(request, CancellationToken.None);
 
         result.Result.Should().BeOfType<ForbidResult>();
+        await _applicationManager.DidNotReceive()
+            .CreateAsync(Arg.Any<OpenIddictApplicationDescriptor>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Create_WithNoScopesRequested_PermitsTheSignInBaseline()
+    {
+        List<OpenIddictApplicationDescriptor> captured = StubCreate();
+
+        CreateClientRequest request = new(
+            "My App",
+            ["https://example.com/callback"],
+            ["https://example.com/logout"]);
+
+        ActionResult<ClientResponse> result = await _controller.Create(request, CancellationToken.None);
+
+        ClientResponse client = result.Result.Should().BeOfType<CreatedAtActionResult>()
+            .Which.Value.Should().BeOfType<ClientResponse>().Subject;
+        client.Scopes.Should().BeEquivalentTo("openid", "profile", "email", "roles", "offline_access");
+        ScopePermissionsOf(captured.Single()).Should().BeEquivalentTo(
+            "scp:openid", "scp:profile", "scp:email", "scp:roles", "scp:offline_access");
+    }
+
+    [Fact]
+    public async Task Create_WithScopesRequested_PermitsExactlyThose()
+    {
+        List<OpenIddictApplicationDescriptor> captured = StubCreate();
+
+        CreateClientRequest request = new(
+            "My App",
+            ["https://example.com/callback"],
+            ["https://example.com/logout"],
+            Scopes: ["openid", "storage.read"]);
+
+        ActionResult<ClientResponse> result = await _controller.Create(request, CancellationToken.None);
+
+        ClientResponse client = result.Result.Should().BeOfType<CreatedAtActionResult>()
+            .Which.Value.Should().BeOfType<ClientResponse>().Subject;
+        client.Scopes.Should().BeEquivalentTo("openid", "storage.read");
+        ScopePermissionsOf(captured.Single()).Should().BeEquivalentTo("scp:openid", "scp:storage.read");
+    }
+
+    [Fact]
+    public async Task Create_WithAScopeTheServerDoesNotIssue_ReturnsValidationProblem()
+    {
+        CreateClientRequest request = new(
+            "My App",
+            ["https://example.com/callback"],
+            ["https://example.com/logout"],
+            Scopes: ["openid", "billing.read"]);
+
+        ActionResult<ClientResponse> result = await _controller.Create(request, CancellationToken.None);
+
+        result.Result.Should().BeOfType<ObjectResult>()
+            .Which.Value.Should().BeOfType<ValidationProblemDetails>();
         await _applicationManager.DidNotReceive()
             .CreateAsync(Arg.Any<OpenIddictApplicationDescriptor>(), Arg.Any<CancellationToken>());
     }
@@ -549,6 +629,27 @@ public class ClientsControllerTests
     #endregion
 
     #region Helpers
+
+    private static IEnumerable<string> ScopePermissionsOf(OpenIddictApplicationDescriptor descriptor) =>
+        descriptor.Permissions.Where(p =>
+            p.StartsWith(OpenIddictConstants.Permissions.Prefixes.Scope, StringComparison.Ordinal));
+
+    private List<OpenIddictApplicationDescriptor> StubCreate()
+    {
+        List<OpenIddictApplicationDescriptor> captured = [];
+        object createdApp = new object();
+
+        _applicationManager.CreateAsync(Arg.Any<OpenIddictApplicationDescriptor>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                captured.Add(callInfo.ArgAt<OpenIddictApplicationDescriptor>(0));
+                return ValueTask.FromResult(createdApp);
+            });
+        _applicationManager.GetIdAsync(createdApp, Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult<string?>("new-id"));
+
+        return captured;
+    }
 
     private static async IAsyncEnumerable<object> ToAsyncEnumerable(params object[] items)
     {

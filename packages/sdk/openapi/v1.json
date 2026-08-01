@@ -6738,7 +6738,8 @@
           "name",
           "clientId",
           "redirectUris",
-          "postLogoutRedirectUris"
+          "postLogoutRedirectUris",
+          "scopes"
         ],
         "type": "object",
         "properties": {
@@ -6764,6 +6765,12 @@
             }
           },
           "postLogoutRedirectUris": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "scopes": {
             "type": "array",
             "items": {
               "type": "string"
@@ -7053,8 +7060,18 @@
               "string"
             ],
             "format": "uuid"
+          },
+          "scopes": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
           }
-        }
+        },
+        "description": "Scopes is what the client may ever request at the authorize endpoint. Omitting it grants the\nOIDC sign-in baseline; API scopes are opt-in."
       },
       "CreateInvitationRequest": {
         "required": [
