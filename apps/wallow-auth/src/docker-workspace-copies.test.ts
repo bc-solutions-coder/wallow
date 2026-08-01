@@ -37,13 +37,24 @@ const SCOPE: string = "@bc-solutions-coder/";
 
 const dockerfile: string = readFileSync(resolve(appDir, "Dockerfile"), "utf8");
 
-/** The workspace packages this app declares — the list the Dockerfile mirrors. */
+/**
+ * The workspace packages this app declares — the list the Dockerfile mirrors.
+ *
+ * DEV dependencies count. `@bc-solutions-coder/config` is one, and every
+ * package's own vite.config.ts imports it, so leaving it out of the image breaks
+ * the *package* build step with an ERR_MODULE_NOT_FOUND naming a `.vite-temp`
+ * config stub — a failure that names neither the app nor a COPY line.
+ */
 function declaredWorkspacePackages(): string[] {
-  const manifest: { dependencies?: Record<string, string> } = JSON.parse(
-    readFileSync(resolve(appDir, "package.json"), "utf8"),
-  ) as { dependencies?: Record<string, string> };
+  const manifest: {
+    dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
+  } = JSON.parse(readFileSync(resolve(appDir, "package.json"), "utf8")) as {
+    dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
+  };
 
-  return Object.entries(manifest.dependencies ?? {})
+  return Object.entries({ ...manifest.dependencies, ...manifest.devDependencies })
     .filter(([name, range]) => name.startsWith(SCOPE) && range.startsWith("workspace:"))
     .map(([name]) => name.slice(SCOPE.length))
     .toSorted();
@@ -62,8 +73,10 @@ const buildIndex: number = dockerfile.search(/^RUN pnpm --filter/mu);
 describe("the Dockerfile mirrors this app's workspace dependencies", () => {
   it("declares at least the packages an app cannot run without", () => {
     // A guard on the guard: if the manifest read silently yielded nothing, every
-    // case below would pass vacuously.
-    expect(packages).toEqual(expect.arrayContaining(["sdk", "styles", "ui"]));
+    // case below would pass vacuously. `config` is in the list because it is a
+    // devDependency — reading `dependencies` alone drops it and takes the whole
+    // package-build hazard with it.
+    expect(packages).toEqual(expect.arrayContaining(["config", "sdk", "styles", "ui"]));
   });
 
   it("has the install and build steps this spec positions the COPY lines against", () => {

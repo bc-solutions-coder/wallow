@@ -22,9 +22,12 @@ WORKDIR /repo
 # dependency changes rather than on every source edit. .npmrc is copied for the
 # @bc-solutions-coder scoped-registry config; the workspace dep is resolved
 # locally so no NODE_AUTH_TOKEN is needed at build time.
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc tsconfig.base.json ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc tsconfig.base.json tsconfig.build.base.json ./
 COPY packages/auth/package.json packages/auth/
+COPY packages/config/package.json packages/config/
+COPY packages/env/package.json packages/env/
 COPY packages/forms/package.json packages/forms/
+COPY packages/lint/package.json packages/lint/
 COPY packages/navigation/package.json packages/navigation/
 COPY packages/query/package.json packages/query/
 COPY packages/sdk/package.json packages/sdk/
@@ -43,15 +46,22 @@ RUN pnpm install --frozen-lockfile
 # `COPY packages/styles packages/styles` below brings it in.
 
 # Copy every workspace package plus the app sources, then build all package
-# dist output the app imports (@bc-solutions-coder/{auth,forms,query,sdk,styles,
-# testing,ui}) followed by the app's own Start build. The app declares all seven
-# packages as `workspace:*` dependencies and its vite.config.ts imports
-# @bc-solutions-coder/styles/vite, so every package dir must be present and
-# built or `vite build` fails with UNRESOLVED_IMPORT. This list is mirrored from
-# the manifest by src/docker-workspace-copies.test.ts, so a new workspace dep
-# fails there rather than minutes into an image build.
+# dist output the app imports followed by the app's own Start build. Every
+# package dir must be present and built or `vite build` fails with
+# UNRESOLVED_IMPORT.
+#
+# `workspace:*` DEV dependencies are copied too, and one of them is load-bearing:
+# every package's own vite.config.ts imports @bc-solutions-coder/config, so
+# omitting packages/config fails the package build below — not the app's — with
+# ERR_MODULE_NOT_FOUND out of a .vite-temp config stub, which reads nothing like
+# a missing COPY. This list is mirrored from the manifest by
+# src/docker-workspace-copies.test.ts, so a new workspace dep fails there rather
+# than minutes into an image build.
 COPY packages/auth packages/auth
+COPY packages/config packages/config
+COPY packages/env packages/env
 COPY packages/forms packages/forms
+COPY packages/lint packages/lint
 COPY packages/navigation packages/navigation
 COPY packages/query packages/query
 COPY packages/sdk packages/sdk
