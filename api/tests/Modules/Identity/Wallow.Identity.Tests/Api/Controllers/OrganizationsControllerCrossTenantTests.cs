@@ -6,14 +6,15 @@ using Wallow.Identity.Api.Controllers;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Shared.Kernel.Identity;
+using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
 using WallowClaims = Wallow.Shared.Kernel.Extensions.ClaimsPrincipalExtensions;
 
 namespace Wallow.Identity.Tests.Api.Controllers;
 
 /// <summary>
-/// OrganizationsController.IsCurrentTenantOrg gates every organization-scoped endpoint in the
-/// controller. The ordinary "admin" role is tenant-assignable through UsersController.AssignRole,
+/// OrganizationsController.CanAddressOrganizationAsync gates every organization-scoped endpoint in
+/// the controller. The ordinary "admin" role is tenant-assignable through UsersController.AssignRole,
 /// so honouring it as a cross-tenant escape hatch hands any tenant admin full governance
 /// (read, membership, branding, settings, archive, delete) over every other tenant's organization
 /// by guessing its GUID -- the same F5 hole TenantResolutionMiddleware.HasRealmAdminRole was
@@ -26,9 +27,9 @@ public sealed class OrganizationsControllerCrossTenantTests
     private readonly IOrganizationService _orgService = Substitute.For<IOrganizationService>();
     private readonly ITenantContext _tenantContext = Substitute.For<ITenantContext>();
 
-    // Ownership is the only non-blanket path past the tenant check. It answers a single question
-    // -- is this caller an admin member of THIS org -- and defaults to false here, so every
-    // rejection assertion below is a rejection of a caller with no ownership relationship.
+    // Membership is the only non-blanket path past the tenant check. It answers one question per
+    // endpoint -- does this caller hold THAT endpoint's permission in THIS org -- and defaults to
+    // false here, so every rejection assertion below is a rejection of an unrelated caller.
     private readonly IOrganizationAccessPolicy _accessPolicy = Substitute.For<IOrganizationAccessPolicy>();
     private readonly Guid _tenantOrgId = Guid.NewGuid();
     private readonly Guid _otherTenantOrgId = Guid.NewGuid();
@@ -219,12 +220,13 @@ public sealed class OrganizationsControllerCrossTenantTests
     [InlineData("UploadBrandingLogo")]
     [InlineData("GetSettings")]
     [InlineData("UpdateSettings")]
-    public async Task OrganizationAdminMember_ThatOrganization_ReachesTheOrganizationService(string endpoint)
+    public async Task PermittedMember_ThatOrganization_ReachesTheOrganizationService(string endpoint)
     {
         // Creating an organization mints a NEW tenant id, so the creator's own tenant id can never
-        // equal it; admin membership of that org -- recorded at creation and not assignable through
-        // any endpoint -- is what keeps the creator able to address what they just created.
-        _accessPolicy.IsOrganizationAdminAsync(_otherTenantOrgId, _userId, Arg.Any<CancellationToken>())
+        // equal it; the membership that creation records is what keeps the creator able to address
+        // what they just created.
+        _accessPolicy.HasPermissionInOrganizationAsync(
+                _otherTenantOrgId, _userId, Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
         OrganizationsController controller = CreateController();
@@ -232,17 +234,18 @@ public sealed class OrganizationsControllerCrossTenantTests
         await InvokeAsync(controller, endpoint, _otherTenantOrgId);
 
         _orgService.ReceivedCalls().Should().NotBeEmpty(
-            "an organization's own admin member must be able to address it without any role bypass");
+            "a member holding the endpoint's permission must reach it without any role bypass");
     }
 
     [Theory]
     [InlineData("GetById")]
     [InlineData("Delete")]
     [InlineData("UpdateSettings")]
-    public async Task OrganizationAdminMember_ADifferentOrganization_IsRejected(string endpoint)
+    public async Task PermittedMember_ADifferentOrganization_IsRejected(string endpoint)
     {
         Guid unrelatedOrgId = Guid.NewGuid();
-        _accessPolicy.IsOrganizationAdminAsync(_otherTenantOrgId, _userId, Arg.Any<CancellationToken>())
+        _accessPolicy.HasPermissionInOrganizationAsync(
+                _otherTenantOrgId, _userId, Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
         OrganizationsController controller = CreateController(new Claim(ClaimTypes.Role, "admin"));
@@ -250,19 +253,51 @@ public sealed class OrganizationsControllerCrossTenantTests
         ActionResult? result = await InvokeAsync(controller, endpoint, unrelatedOrgId);
 
         result.Should().BeOfType<NotFoundResult>(
-            "ownership is per-organization; owning one org grants nothing over any other");
+            "a grant is per-organization; holding one org's permission grants nothing over any other");
         _orgService.ReceivedCalls().Should().BeEmpty();
     }
 
-    [Fact]
-    public async Task ForeignOrganization_AsksOwnershipOnlyForTheCallerAndTheRequestedOrganization()
+    [Theory]
+    [InlineData("GetById", PermissionType.OrganizationsRead)]
+    [InlineData("GetMembers", PermissionType.OrganizationsRead)]
+    [InlineData("GetBranding", PermissionType.OrganizationsRead)]
+    [InlineData("GetSettings", PermissionType.OrganizationsRead)]
+    [InlineData("AddMember", PermissionType.OrganizationsManageMembers)]
+    [InlineData("RemoveMember", PermissionType.OrganizationsManageMembers)]
+    [InlineData("Archive", PermissionType.OrganizationsUpdate)]
+    [InlineData("Reactivate", PermissionType.OrganizationsUpdate)]
+    [InlineData("Delete", PermissionType.OrganizationsUpdate)]
+    [InlineData("UpdateBranding", PermissionType.OrganizationsUpdate)]
+    [InlineData("UploadBrandingLogo", PermissionType.OrganizationsUpdate)]
+    [InlineData("UpdateSettings", PermissionType.OrganizationsUpdate)]
+    public async Task ForeignOrganization_AsksForTheEndpointsOwnPermission(string endpoint, string permission)
     {
         OrganizationsController controller = CreateController(new Claim(ClaimTypes.Role, "admin"));
 
-        await InvokeAsync(controller, "GetById", _otherTenantOrgId);
+        await InvokeAsync(controller, endpoint, _otherTenantOrgId);
 
-        await _accessPolicy.Received(1).IsOrganizationAdminAsync(
-            _otherTenantOrgId, _userId, Arg.Any<CancellationToken>());
+        await _accessPolicy.Received(1).HasPermissionInOrganizationAsync(
+            _otherTenantOrgId, _userId, permission, Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData("Delete")]
+    [InlineData("Archive")]
+    [InlineData("UpdateSettings")]
+    [InlineData("AddMember")]
+    public async Task ForeignOrganization_ReadOnlyMember_ReachesNoWriteEndpoint(string endpoint)
+    {
+        _accessPolicy.HasPermissionInOrganizationAsync(
+                _otherTenantOrgId, _userId, PermissionType.OrganizationsRead, Arg.Any<CancellationToken>())
+            .Returns(true);
+
+        OrganizationsController controller = CreateController(new Claim(ClaimTypes.Role, "admin"));
+
+        ActionResult? result = await InvokeAsync(controller, endpoint, _otherTenantOrgId);
+
+        result.Should().BeOfType<NotFoundResult>(
+            "read reach and write reach are separate grants, so one predicate must not answer both");
+        _orgService.ReceivedCalls().Should().BeEmpty();
     }
 
     private static async Task<ActionResult?> InvokeAsync(

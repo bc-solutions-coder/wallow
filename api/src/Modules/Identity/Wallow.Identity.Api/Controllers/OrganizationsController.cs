@@ -30,11 +30,11 @@ public class OrganizationsController(
     // TenantResolutionMiddleware and PermissionExpansionMiddleware; no role string grants it,
     // otherwise any tenant-assignable "admin" could reach other tenants' orgs by guessing GUIDs.
     //
-    // Creating an org mints a new tenant id that never equals the creator's own, so ownership is
-    // the second, NARROW path: the caller holds the admin role IN this one organization. That
-    // grant lives on the membership, so it widens reach only to organizations that have already
-    // granted this caller admin.
-    private async Task<bool> CanAddressOrganizationAsync(Guid orgId, CancellationToken ct)
+    // Creating an org mints a new tenant id that never equals the creator's own, so membership is
+    // the second, NARROW path — narrow because the permission travels with it. Each endpoint passes
+    // the permission it already demands, so a foreign member who may read this org still cannot
+    // delete it, and a member the org granted no role reaches nothing at all.
+    private async Task<bool> CanAddressOrganizationAsync(Guid orgId, string requiredPermission, CancellationToken ct)
     {
         if (orgId == tenantContext.TenantId.Value || User.IsGlobalAdmin())
         {
@@ -42,7 +42,7 @@ public class OrganizationsController(
         }
 
         return Guid.TryParse(User.GetUserId(), out Guid callerId)
-            && await accessPolicy.IsOrganizationAdminAsync(orgId, callerId, ct);
+            && await accessPolicy.HasPermissionInOrganizationAsync(orgId, callerId, requiredPermission, ct);
     }
 
     /// <summary>
@@ -82,7 +82,7 @@ public class OrganizationsController(
     [HasPermission(PermissionType.OrganizationsRead)]
     public async Task<ActionResult<OrganizationDto>> GetById(Guid id, CancellationToken ct)
     {
-        if (!await CanAddressOrganizationAsync(id, ct))
+        if (!await CanAddressOrganizationAsync(id, PermissionType.OrganizationsRead, ct))
         {
             return NotFound();
         }
@@ -98,7 +98,7 @@ public class OrganizationsController(
     [HasPermission(PermissionType.OrganizationsRead)]
     public async Task<ActionResult<IReadOnlyList<UserDto>>> GetMembers(Guid id, CancellationToken ct)
     {
-        if (!await CanAddressOrganizationAsync(id, ct))
+        if (!await CanAddressOrganizationAsync(id, PermissionType.OrganizationsRead, ct))
         {
             return NotFound();
         }
@@ -115,7 +115,7 @@ public class OrganizationsController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> AddMember(Guid id, AddMemberRequest request, CancellationToken ct)
     {
-        if (!await CanAddressOrganizationAsync(id, ct))
+        if (!await CanAddressOrganizationAsync(id, PermissionType.OrganizationsManageMembers, ct))
         {
             return NotFound();
         }
@@ -133,7 +133,7 @@ public class OrganizationsController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> RemoveMember(Guid id, Guid userId, CancellationToken ct)
     {
-        if (!await CanAddressOrganizationAsync(id, ct))
+        if (!await CanAddressOrganizationAsync(id, PermissionType.OrganizationsManageMembers, ct))
         {
             return NotFound();
         }
@@ -161,7 +161,7 @@ public class OrganizationsController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> Archive(Guid id, CancellationToken ct)
     {
-        if (!await CanAddressOrganizationAsync(id, ct))
+        if (!await CanAddressOrganizationAsync(id, PermissionType.OrganizationsUpdate, ct))
         {
             return NotFound();
         }
@@ -180,7 +180,7 @@ public class OrganizationsController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> Reactivate(Guid id, CancellationToken ct)
     {
-        if (!await CanAddressOrganizationAsync(id, ct))
+        if (!await CanAddressOrganizationAsync(id, PermissionType.OrganizationsUpdate, ct))
         {
             return NotFound();
         }
@@ -199,7 +199,7 @@ public class OrganizationsController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> Delete(Guid id, DeleteOrganizationRequest request, CancellationToken ct)
     {
-        if (!await CanAddressOrganizationAsync(id, ct))
+        if (!await CanAddressOrganizationAsync(id, PermissionType.OrganizationsUpdate, ct))
         {
             return NotFound();
         }
@@ -215,7 +215,7 @@ public class OrganizationsController(
     [HasPermission(PermissionType.OrganizationsRead)]
     public async Task<ActionResult<OrganizationBrandingResponse>> GetBranding(Guid id, CancellationToken ct)
     {
-        if (!await CanAddressOrganizationAsync(id, ct))
+        if (!await CanAddressOrganizationAsync(id, PermissionType.OrganizationsRead, ct))
         {
             return NotFound();
         }
@@ -241,7 +241,7 @@ public class OrganizationsController(
     public async Task<ActionResult<OrganizationBrandingResponse>> UpdateBranding(
         Guid id, UpdateOrganizationBrandingRequest request, CancellationToken ct)
     {
-        if (!await CanAddressOrganizationAsync(id, ct))
+        if (!await CanAddressOrganizationAsync(id, PermissionType.OrganizationsUpdate, ct))
         {
             return NotFound();
         }
@@ -268,7 +268,7 @@ public class OrganizationsController(
     public async Task<ActionResult<object>> UploadBrandingLogo(
         Guid id, IFormFile file, CancellationToken ct)
     {
-        if (!await CanAddressOrganizationAsync(id, ct))
+        if (!await CanAddressOrganizationAsync(id, PermissionType.OrganizationsUpdate, ct))
         {
             return NotFound();
         }
@@ -288,7 +288,7 @@ public class OrganizationsController(
     [HasPermission(PermissionType.OrganizationsRead)]
     public async Task<ActionResult<OrganizationSettingsDto>> GetSettings(Guid id, CancellationToken ct)
     {
-        if (!await CanAddressOrganizationAsync(id, ct))
+        if (!await CanAddressOrganizationAsync(id, PermissionType.OrganizationsRead, ct))
         {
             return NotFound();
         }
@@ -306,7 +306,7 @@ public class OrganizationsController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> UpdateSettings(Guid id, UpdateOrganizationSettingsRequest request, CancellationToken ct)
     {
-        if (!await CanAddressOrganizationAsync(id, ct))
+        if (!await CanAddressOrganizationAsync(id, PermissionType.OrganizationsUpdate, ct))
         {
             return NotFound();
         }
