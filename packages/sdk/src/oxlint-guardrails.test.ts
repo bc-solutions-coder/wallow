@@ -110,6 +110,7 @@ const FACADE_EXEMPTION_FILES: readonly string[] = [
 /** The globs the zero-dependency packages' shared charter override covers. */
 const ZERO_DEP_CHARTER_FILES: readonly string[] = [
   "packages/env/src/**/*.ts",
+  "packages/logger/src/**/*.ts",
   "packages/utils/src/**/*.ts",
 ];
 

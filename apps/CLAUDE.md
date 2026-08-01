@@ -1,12 +1,13 @@
 # apps — Frontend Applications Agent Guide
 
 Every app here is a **TanStack Start** frontend consuming the `@bc-solutions-coder` workspace
-packages (`sdk`, `styles`, `ui`, `forms`, `navigation`, `query`, `auth`, `utils`, `env`,
-`testing`, `config`) via `workspace:*`. `forms`, `auth` and `navigation` are the optional ones —
-`examples/minimal-app` renders no form, has no signed-in user and has no shell, so it omits all
-three. `wallow-auth`'s screens sit in its own `auth-layout.tsx`, which leaves `wallow-web` as
-`navigation`'s one consumer today. `config` is the odd one: a build-time-only dependency supplying
-`wallowAppConfig()` to `vite.config.ts`, never imported by app code.
+packages (`sdk`, `styles`, `ui`, `forms`, `navigation`, `query`, `auth`, `utils`, `env`, `logger`,
+`testing`, `config`) via `workspace:*`. `forms`, `auth`, `navigation` and `logger` are the
+optional ones — `examples/minimal-app` renders no form, has no signed-in user, has no shell and
+records nothing, so it omits all four. `wallow-auth`'s screens sit in its own `auth-layout.tsx`,
+which leaves `wallow-web` as `navigation`'s one consumer today. `config` is the odd one: a
+build-time-only dependency supplying `wallowAppConfig()` to `vite.config.ts`, never imported by
+app code.
 
 | App                     | Port | What it is                                                               |
 | ----------------------- | ---- | ------------------------------------------------------------------------ |
@@ -118,6 +119,19 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
   and wraps the body in `<ThemeProvider/>`. A `<div className="dark">` wrapper anywhere renders
   the LIGHT palette — a browser spec that needs a scheme must stamp `documentElement`. See
   `docs/development/frontend-setup.md#dark-mode`.
+- **Both zoned apps log through `@bc-solutions-coder/logger`, not `console`.** Each holds one
+  browser singleton at `src/shared/lib/log.ts` posting to a same-origin ingest route it mounts
+  itself — `/bff/logs` in wallow-web (CSRF-gated, because of where the route lives) and `/logs`
+  in wallow-auth (no session, so no token to check). Both mount the SAME handler and neither
+  reimplements a guard; the load-bearing one is an origin allowlist resolved per request to
+  `resolveRequestOrigin(request)`, which is why there is no logging environment variable beyond
+  the standard `OTEL_EXPORTER_OTLP_ENDPOINT`. Server-side code uses `createServerLogger`
+  (wallow-web's is `src/app/lib/log.server.ts`, deliberately split out of `log-ingest.server.ts`
+  to keep `bff.server.ts` off an import cycle); wallow-auth has none, because nothing in its
+  server code records anything yet. Events are NAMES, not prose (`bff.logout.failed`), and
+  `@bc-solutions-coder/logger/server` is in both apps' `SERVER_ONLY_SPECIFIERS` — it would bundle
+  cleanly, so only the `*.server.*` filename keeps it out of a page. Guide:
+  `docs/development/logging.md`; contributor detail: `packages/logger/CLAUDE.md`.
 - **Tests**: `test` is vitest with the two-project node/browser split from
   `@bc-solutions-coder/testing`; component specs run in real headless Chromium, never jsdom.
   A `.tsx` spec that renders through `react-dom/server` or asserts a `beforeLoad` redirect — and

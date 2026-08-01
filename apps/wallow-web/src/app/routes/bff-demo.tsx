@@ -9,6 +9,7 @@ import {
   type WallowUser,
 } from "@bc-solutions-coder/sdk";
 import { Text } from "@bc-solutions-coder/ui";
+import { log } from "@shared/lib/log";
 import { createFileRoute, useRouteContext } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
@@ -67,7 +68,9 @@ async function handleLogout(): Promise<void> {
   try {
     await logout();
   } catch (error: unknown) {
-    console.error("BFF logout failed; the session may still be active", error);
+    // The session may still be live, so this is the record that explains a user
+    // who "logged out" and is still signed in on the next page.
+    log.error("bff.logout.failed", {}, error);
   }
 }
 

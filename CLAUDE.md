@@ -57,6 +57,7 @@ apply cleanly to a fresh database.
 | `packages/lint/`   | `@bc-solutions-coder/lint` — Wallow's own oxlint JS-plugin rules (`wallow/*`), registered by the two apps' nested configs; see `packages/lint/CLAUDE.md`                     |
 | `packages/utils/`  | `@bc-solutions-coder/utils` — the bottom of the graph: pure functions, zero dependencies, no host API; subpath-only (`./format`, `./guards`, `./string`); see `packages/utils/CLAUDE.md` |
 | `packages/env/`    | `@bc-solutions-coder/env` — deployment-derived addressing for Start apps, zero dependencies, reads no environment of its own; subpath-only (`./request-origin`, `./internal-origin`, `./base-path`); see `packages/env/CLAUDE.md` |
+| `packages/logger/` | `@bc-solutions-coder/logger` — structured logging, both ends: the browser core (`.`) that buffers and posts, and the app-server ingest handler (`./server`) that guards, stamps and forwards to OTLP; zero dependencies; see `packages/logger/CLAUDE.md` |
 | `apps/wallow-web/`  | TanStack Start + BFF OIDC reference frontend (dashboard) that consumes the SDK                                                                                              |
 | `apps/wallow-auth/` | TanStack Start auth frontend (login/signup/MFA screens) on port 3002                                                                                                        |
 | `apps/examples/`    | Example apps (`minimal-app`)                                                                                                                                                |
@@ -235,7 +236,7 @@ SDK) `sdk-v*` triggers a separate npm publish.
 - **Fork guide:** `docs/getting-started/fork-guide.md`
 - **Configuration:** `docs/getting-started/configuration.md`
 - **Developer guide:** `docs/getting-started/developer-guide.md`
-- **Frontend setup:** `docs/development/frontend-setup.md` · **Component library:** `docs/development/component-library.md` · **Forms:** `docs/development/forms.md`
+- **Frontend setup:** `docs/development/frontend-setup.md` · **Component library:** `docs/development/component-library.md` · **Forms:** `docs/development/forms.md` · **Logging:** `docs/development/logging.md`
 - **Module creation:** `docs/architecture/module-creation.md`
 - **BFF pattern / TS SDK:** `docs/integrations/bff-pattern.md`, `docs/integrations/typescript-sdk.md`
 - **Deployment & CI/CD:** `docs/operations/deployment.md` · **Versioning:** `docs/operations/versioning.md`

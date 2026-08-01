@@ -30,6 +30,7 @@ export {
   createApiProxy,
   CSRF_HEADER,
   CSRF_INVALID_CODE,
+  csrfTokenMatches,
   ensureFreshSession,
   forceRefreshSession,
   forwardWithResilience,

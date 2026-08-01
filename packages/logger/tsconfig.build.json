@@ -1,0 +1,7 @@
+{
+  // Both entries listed explicitly. The shared modules they import
+  // (`log-event.ts`, `otlp.ts`, `rate-limit.ts`) are pulled in transitively and
+  // emit their own declarations beside them.
+  "extends": ["./tsconfig.json", "../../tsconfig.build.base.json"],
+  "include": ["src/index.ts", "src/server.ts"]
+}

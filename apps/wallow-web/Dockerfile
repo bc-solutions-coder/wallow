@@ -28,6 +28,7 @@ COPY packages/config/package.json packages/config/
 COPY packages/env/package.json packages/env/
 COPY packages/forms/package.json packages/forms/
 COPY packages/lint/package.json packages/lint/
+COPY packages/logger/package.json packages/logger/
 COPY packages/navigation/package.json packages/navigation/
 COPY packages/query/package.json packages/query/
 COPY packages/sdk/package.json packages/sdk/
@@ -62,6 +63,7 @@ COPY packages/config packages/config
 COPY packages/env packages/env
 COPY packages/forms packages/forms
 COPY packages/lint packages/lint
+COPY packages/logger packages/logger
 COPY packages/navigation packages/navigation
 COPY packages/query packages/query
 COPY packages/sdk packages/sdk

@@ -150,6 +150,9 @@ importers:
       '@bc-solutions-coder/forms':
         specifier: workspace:*
         version: link:../../packages/forms
+      '@bc-solutions-coder/logger':
+        specifier: workspace:*
+        version: link:../../packages/logger
       '@bc-solutions-coder/query':
         specifier: workspace:*
         version: link:../../packages/query
@@ -247,6 +250,9 @@ importers:
       '@bc-solutions-coder/forms':
         specifier: workspace:*
         version: link:../../packages/forms
+      '@bc-solutions-coder/logger':
+        specifier: workspace:*
+        version: link:../../packages/logger
       '@bc-solutions-coder/navigation':
         specifier: workspace:*
         version: link:../../packages/navigation
@@ -480,6 +486,30 @@ importers:
       typescript:
         specifier: catalog:tooling
         version: 7.0.2
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@24.13.3)(@vitest/browser-playwright@4.1.10)(jsdom@29.1.1)(vite@8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))
+
+  packages/logger:
+    devDependencies:
+      '@bc-solutions-coder/config':
+        specifier: workspace:*
+        version: link:../config
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.13.3
+      '@vitest/browser-playwright':
+        specifier: ^4.1.10
+        version: 4.1.10(playwright@1.61.1)(vite@8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))(vitest@4.1.10)
+      playwright:
+        specifier: ^1.61.1
+        version: 1.61.1
+      typescript:
+        specifier: catalog:tooling
+        version: 7.0.2
+      vite:
+        specifier: ^8.1.4
+        version: 8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)
       vitest:
         specifier: ^4.1.10
         version: 4.1.10(@types/node@24.13.3)(@vitest/browser-playwright@4.1.10)(jsdom@29.1.1)(vite@8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))

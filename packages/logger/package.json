@@ -1,0 +1,46 @@
+{
+  "name": "@bc-solutions-coder/logger",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Wallow shared structured logging: a browser core that buffers and posts, and the app-server ingest handler that guards, stamps and forwards to OTLP",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
+    },
+    "./server": {
+      "types": "./src/server.ts",
+      "import": "./src/server.ts"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      },
+      "./server": {
+        "types": "./dist/server.d.ts",
+        "import": "./dist/server.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "vite build && tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@bc-solutions-coder/config": "workspace:*",
+    "@types/node": "^24.0.0",
+    "@vitest/browser-playwright": "^4.1.10",
+    "playwright": "^1.61.1",
+    "typescript": "catalog:tooling",
+    "vite": "^8.1.4",
+    "vitest": "^4.1.10"
+  },
+  "peerDependencies": {}
+}

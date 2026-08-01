@@ -18,6 +18,7 @@ import { Route as HealthRouteImport } from './routes/health'
 import { Route as InvitationRouteImport } from './routes/invitation'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LogoutRouteImport } from './routes/logout'
+import { Route as LogsRouteImport } from './routes/logs'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
@@ -73,6 +74,11 @@ const LoginRoute = LoginRouteImport.update({
 const LogoutRoute = LogoutRouteImport.update({
   id: '/logout',
   path: '/logout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LogsRoute = LogsRouteImport.update({
+  id: '/logs',
+  path: '/logs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -141,6 +147,7 @@ export interface FileRoutesByFullPath {
   '/invitation': typeof InvitationRoute
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
+  '/logs': typeof LogsRoute
   '/privacy': typeof PrivacyRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -163,6 +170,7 @@ export interface FileRoutesByTo {
   '/invitation': typeof InvitationRoute
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
+  '/logs': typeof LogsRoute
   '/privacy': typeof PrivacyRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -186,6 +194,7 @@ export interface FileRoutesById {
   '/invitation': typeof InvitationRoute
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
+  '/logs': typeof LogsRoute
   '/privacy': typeof PrivacyRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -210,6 +219,7 @@ export interface FileRouteTypes {
     | '/invitation'
     | '/login'
     | '/logout'
+    | '/logs'
     | '/privacy'
     | '/register'
     | '/reset-password'
@@ -232,6 +242,7 @@ export interface FileRouteTypes {
     | '/invitation'
     | '/login'
     | '/logout'
+    | '/logs'
     | '/privacy'
     | '/register'
     | '/reset-password'
@@ -254,6 +265,7 @@ export interface FileRouteTypes {
     | '/invitation'
     | '/login'
     | '/logout'
+    | '/logs'
     | '/privacy'
     | '/register'
     | '/reset-password'
@@ -277,6 +289,7 @@ export interface RootRouteChildren {
   InvitationRoute: typeof InvitationRoute
   LoginRoute: typeof LoginRoute
   LogoutRoute: typeof LogoutRoute
+  LogsRoute: typeof LogsRoute
   PrivacyRoute: typeof PrivacyRoute
   RegisterRoute: typeof RegisterRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
@@ -353,6 +366,13 @@ declare module '@tanstack/react-router' {
       path: '/logout'
       fullPath: '/logout'
       preLoaderRoute: typeof LogoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/logs': {
+      id: '/logs'
+      path: '/logs'
+      fullPath: '/logs'
+      preLoaderRoute: typeof LogsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -445,6 +465,7 @@ const rootRouteChildren: RootRouteChildren = {
   InvitationRoute: InvitationRoute,
   LoginRoute: LoginRoute,
   LogoutRoute: LogoutRoute,
+  LogsRoute: LogsRoute,
   PrivacyRoute: PrivacyRoute,
   RegisterRoute: RegisterRoute,
   ResetPasswordRoute: ResetPasswordRoute,

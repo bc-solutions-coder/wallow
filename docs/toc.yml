@@ -50,6 +50,8 @@
       href: development/component-library.md
     - name: Forms
       href: development/forms.md
+    - name: Logging
+      href: development/logging.md
 - name: Operations
   items:
     - name: Deployment

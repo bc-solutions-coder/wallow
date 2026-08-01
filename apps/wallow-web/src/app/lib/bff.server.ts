@@ -29,6 +29,8 @@ import {
 } from "@bc-solutions-coder/sdk/server";
 import { createClient, type RedisClientType } from "redis";
 
+import { serverLog } from "./log.server";
+
 /**
  * The inbound request as srvx hands it to a Start server route. A WHATWG
  * `Request` has no socket, so the peer address arrives on this extra `ip`
@@ -80,7 +82,7 @@ async function connectRedisClient(): Promise<NodeRedisClient | undefined> {
 
   const redisClient: RedisClientType = createClient({ url: redisUrl });
   redisClient.on("error", (error: unknown): void => {
-    console.error("redis client error", error);
+    serverLog.error("bff.redis.error", {}, error);
   });
   await redisClient.connect();
   return adaptRedisClient(redisClient);
@@ -96,16 +98,22 @@ async function connectRedisClient(): Promise<NodeRedisClient | undefined> {
  */
 async function buildBffServer(): Promise<WallowBffServer> {
   const redisClient: NodeRedisClient | undefined = await connectRedisClient();
-  console.info(
-    redisClient === undefined
-      ? "BFF session store: cookie (stateless) — REDIS_URL is unset"
-      : "BFF session store: redis/valkey (server-side)",
-  );
+  serverLog.info("bff.session_store.selected", {
+    store: redisClient === undefined ? "cookie" : "redis",
+    stateless: redisClient === undefined,
+  });
   return createWallowBffServer(redisClient === undefined ? {} : { redisClient });
 }
 
-/** The app's one BFF server, built on first use and shared by every route below it. */
-function getBffServer(): Promise<WallowBffServer> {
+/**
+ * The app's one BFF server, built on first use and shared by every route below it.
+ *
+ * Exported because the log ingest route needs the SAME config and store to read
+ * the session behind a batch: a second `createWallowBffServer` would be a second
+ * Redis connection answering from the same data, and a drifted cookie name would
+ * make it answer `null` for a signed-in user.
+ */
+export function getBffServer(): Promise<WallowBffServer> {
   pending ??= buildBffServer().catch((error: unknown) => {
     // Do not cache the failure: the next request rebuilds, so a Redis that was
     // not up yet is recoverable without restarting the host.

@@ -1,0 +1,17 @@
+{
+  // The shipped source. `types: []` is the line that keeps the two entries
+  // honest: `.` lands in a CLIENT bundle and `./server` in an app server, and
+  // NEITHER may reach `process`, `Buffer` or `node:*` — the OTLP target, the
+  // allowed origins and the CSRF verifier all arrive as arguments, so the app
+  // does its own environment read.
+  //
+  // `lib` is the base config's (DOM included) rather than the `["ESNext"]`
+  // packages/utils narrows to: the browser core drives `fetch`, `navigator` and
+  // the page-lifecycle events, and the server entry takes a WHATWG `Request`.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": []
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
+}

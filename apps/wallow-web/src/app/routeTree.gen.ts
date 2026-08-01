@@ -15,6 +15,7 @@ import { Route as DashboardRouteRouteImport } from './routes/dashboard/route'
 import { Route as HealthRouteImport } from './routes/health'
 import { Route as ApiSplatRouteImport } from './routes/api/$'
 import { Route as BffSplatRouteImport } from './routes/bff/$'
+import { Route as BffLogsRouteImport } from './routes/bff/logs'
 import { Route as DashboardSettingsRouteImport } from './routes/dashboard/settings'
 import { Route as DashboardAppsIndexRouteImport } from './routes/dashboard/apps/index'
 import { Route as DashboardAppsRegisterRouteImport } from './routes/dashboard/apps/register'
@@ -51,6 +52,11 @@ const ApiSplatRoute = ApiSplatRouteImport.update({
 const BffSplatRoute = BffSplatRouteImport.update({
   id: '/bff/$',
   path: '/bff/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BffLogsRoute = BffLogsRouteImport.update({
+  id: '/bff/logs',
+  path: '/bff/logs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
@@ -99,6 +105,7 @@ export interface FileRoutesByFullPath {
   '/health': typeof HealthRoute
   '/api/$': typeof ApiSplatRoute
   '/bff/$': typeof BffSplatRoute
+  '/bff/logs': typeof BffLogsRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/apps/register': typeof DashboardAppsRegisterRoute
   '/dashboard/inquiries/$inquiryId': typeof DashboardInquiriesInquiryIdRoute
@@ -114,6 +121,7 @@ export interface FileRoutesByTo {
   '/health': typeof HealthRoute
   '/api/$': typeof ApiSplatRoute
   '/bff/$': typeof BffSplatRoute
+  '/bff/logs': typeof BffLogsRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/apps/register': typeof DashboardAppsRegisterRoute
   '/dashboard/inquiries/$inquiryId': typeof DashboardInquiriesInquiryIdRoute
@@ -130,6 +138,7 @@ export interface FileRoutesById {
   '/health': typeof HealthRoute
   '/api/$': typeof ApiSplatRoute
   '/bff/$': typeof BffSplatRoute
+  '/bff/logs': typeof BffLogsRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/apps/register': typeof DashboardAppsRegisterRoute
   '/dashboard/inquiries/$inquiryId': typeof DashboardInquiriesInquiryIdRoute
@@ -147,6 +156,7 @@ export interface FileRouteTypes {
     | '/health'
     | '/api/$'
     | '/bff/$'
+    | '/bff/logs'
     | '/dashboard/settings'
     | '/dashboard/apps/register'
     | '/dashboard/inquiries/$inquiryId'
@@ -162,6 +172,7 @@ export interface FileRouteTypes {
     | '/health'
     | '/api/$'
     | '/bff/$'
+    | '/bff/logs'
     | '/dashboard/settings'
     | '/dashboard/apps/register'
     | '/dashboard/inquiries/$inquiryId'
@@ -177,6 +188,7 @@ export interface FileRouteTypes {
     | '/health'
     | '/api/$'
     | '/bff/$'
+    | '/bff/logs'
     | '/dashboard/settings'
     | '/dashboard/apps/register'
     | '/dashboard/inquiries/$inquiryId'
@@ -193,6 +205,7 @@ export interface RootRouteChildren {
   HealthRoute: typeof HealthRoute
   ApiSplatRoute: typeof ApiSplatRoute
   BffSplatRoute: typeof BffSplatRoute
+  BffLogsRoute: typeof BffLogsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -237,6 +250,13 @@ declare module '@tanstack/react-router' {
       path: '/bff/$'
       fullPath: '/bff/$'
       preLoaderRoute: typeof BffSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bff/logs': {
+      id: '/bff/logs'
+      path: '/bff/logs'
+      fullPath: '/bff/logs'
+      preLoaderRoute: typeof BffLogsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard/settings': {
@@ -322,6 +342,7 @@ const rootRouteChildren: RootRouteChildren = {
   HealthRoute: HealthRoute,
   ApiSplatRoute: ApiSplatRoute,
   BffSplatRoute: BffSplatRoute,
+  BffLogsRoute: BffLogsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -46,6 +46,13 @@ const SERVER_ONLY_SPECIFIERS: readonly string[] = [
   "redis",
   "openid-client",
   "@bc-solutions-coder/sdk/server",
+  // The one entry that would BUNDLE cleanly: the logger's server entry declares
+  // no dependency and names no node builtin, so nothing stops it reaching a
+  // browser. It still must not — it is the ingest route's guard chain, which is
+  // dead weight in a page and a map of the checks a page has to pass — and the
+  // app modules that hold it read `process.env` beside it. Listing it here is
+  // what makes the filename convention cover it.
+  "@bc-solutions-coder/logger/server",
 ];
 
 /** Static `from "x"` and dynamic `import("x")` specifiers, in source order. */

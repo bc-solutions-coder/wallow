@@ -25,6 +25,10 @@ const ROUTES: ReadonlyArray<{ readonly file: string; readonly path: string }> = 
   // directory would be read as a route-path separator.
   { file: "[.]well-known/$.ts", path: "/.well-known/$" },
   { file: "health.ts", path: "/health" },
+  // Not a passthrough: the browser logger's ingest route, answered here rather
+  // than forwarded. It is in this list because it is part of the same contract —
+  // a set of paths this origin answers itself.
+  { file: "logs.ts", path: "/logs" },
 ];
 
 describe("the wallow-auth passthrough routes", () => {

@@ -20,6 +20,9 @@ const routesDir: string = dirname(fileURLToPath(import.meta.url));
 /** Route files, and the route path each one must claim. */
 const ROUTES: ReadonlyArray<{ readonly file: string; readonly path: string }> = [
   { file: "bff/$.ts", path: "/bff/$" },
+  // A static sibling of the splat, so it out-ranks it: the browser logger's
+  // ingest route, held to the same CSRF contract as every other write under /bff.
+  { file: "bff/logs.ts", path: "/bff/logs" },
   { file: "api/$.ts", path: "/api/$" },
   { file: "health.ts", path: "/health" },
 ];
