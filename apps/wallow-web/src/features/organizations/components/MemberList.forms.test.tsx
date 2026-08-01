@@ -264,7 +264,7 @@ describe("MemberList add-member form on @bc-solutions-coder/forms", () => {
     await vi.waitFor(() => {
       expect(addCalls()).toHaveLength(1);
     });
-    expect(addCalls()[0]?.body).toEqual({ userId: "u9" });
+    expect(addCalls()[0]?.body).toEqual({ userId: "u9", role: "user" });
     await expect.poll(() => userIdInput().value).toBe("");
   });
 

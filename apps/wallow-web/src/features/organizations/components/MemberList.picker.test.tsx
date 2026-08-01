@@ -185,7 +185,7 @@ describe("MemberList add-member user picker", () => {
     await vi.waitFor(() => {
       expect(addCalls()).toHaveLength(1);
     });
-    expect(addCalls()[0]?.body).toEqual({ userId: CAROL_ID });
+    expect(addCalls()[0]?.body).toEqual({ userId: CAROL_ID, role: "user" });
   });
 
   it("still posts a user id typed in by hand, with nothing picked from the list", async () => {
@@ -200,6 +200,6 @@ describe("MemberList add-member user picker", () => {
     await vi.waitFor(() => {
       expect(addCalls()).toHaveLength(1);
     });
-    expect(addCalls()[0]?.body).toEqual({ userId: "u9" });
+    expect(addCalls()[0]?.body).toEqual({ userId: "u9", role: "user" });
   });
 });

@@ -766,7 +766,7 @@ public sealed partial class AccountController(
         // Add user as a member of the resolved organization
         if (tenantInfo is not null && tenantInfo.TenantId != Guid.Empty)
         {
-            await organizationService.AddMemberAsync(tenantInfo.TenantId, user.Id);
+            await organizationService.AddMemberAsync(tenantInfo.TenantId, user.Id, "user");
         }
 
         string token = await signInManager.UserManager.GenerateEmailConfirmationTokenAsync(user);

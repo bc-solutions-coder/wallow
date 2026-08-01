@@ -21,6 +21,14 @@ public interface IMembershipRepository
         MembershipStatus? status = null,
         CancellationToken ct = default);
 
+    /// <summary>
+    /// Active-membership counts keyed by organization id, for the roster count a listing shows.
+    /// Organizations with no active member are absent from the result rather than zero.
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, int>> CountActiveByOrganizationAsync(
+        IReadOnlyCollection<Guid> organizationIds,
+        CancellationToken ct = default);
+
     void Add(Membership membership);
 
     void Remove(Membership membership);

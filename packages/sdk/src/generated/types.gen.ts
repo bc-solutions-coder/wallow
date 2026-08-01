@@ -57,8 +57,14 @@ export type AddInquiryCommentRequest = {
     isInternal: boolean;
 };
 
+/**
+ * Role is the name of the role this organization grants the member ("admin", "manager",
+ * "user"). It is required: roles are per (user, organization), so there is no default to fall
+ * back on.
+ */
 export type AddMemberRequest = {
     userId: string;
+    role: string;
 };
 
 export type AnnouncementResponse = {

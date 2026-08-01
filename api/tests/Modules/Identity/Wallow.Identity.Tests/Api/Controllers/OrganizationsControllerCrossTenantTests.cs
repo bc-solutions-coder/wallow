@@ -274,7 +274,7 @@ public sealed class OrganizationsControllerCrossTenantTests
         {
             "GetById" => (await controller.GetById(orgId, ct)).Result,
             "GetMembers" => (await controller.GetMembers(orgId, ct)).Result,
-            "AddMember" => await controller.AddMember(orgId, new AddMemberRequest(Guid.NewGuid()), ct),
+            "AddMember" => await controller.AddMember(orgId, new AddMemberRequest(Guid.NewGuid(), "user"), ct),
             "RemoveMember" => await controller.RemoveMember(orgId, Guid.NewGuid(), ct),
             "Archive" => await controller.Archive(orgId, ct),
             "Reactivate" => await controller.Reactivate(orgId, ct),

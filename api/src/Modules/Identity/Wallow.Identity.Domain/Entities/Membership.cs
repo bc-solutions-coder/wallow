@@ -151,6 +151,24 @@ public sealed class Membership : AggregateRoot<MembershipId>
         SetUpdated(timeProvider.GetUtcNow(), reinstatedByUserId);
     }
 
+    /// <summary>
+    /// An administrator directly grants this membership a role. Unlike <see cref="Approve"/>
+    /// this is not the review of a request: it activates the membership from whatever status
+    /// it held, which is what "add this user to the organization" has to mean when a denied or
+    /// suspended membership already exists.
+    /// </summary>
+    public void Grant(Guid roleId, Guid grantedByUserId, TimeProvider timeProvider)
+    {
+        if (Status != MembershipStatus.Active)
+        {
+            Status = MembershipStatus.Active;
+            JoinedAt ??= timeProvider.GetUtcNow();
+        }
+
+        AssignRole(roleId, grantedByUserId, timeProvider);
+        SetUpdated(timeProvider.GetUtcNow(), grantedByUserId);
+    }
+
     public void AssignRole(Guid roleId, Guid updatedByUserId, TimeProvider timeProvider)
     {
         if (_roles.Exists(r => r.RoleId == roleId))

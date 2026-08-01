@@ -187,24 +187,25 @@ public class OrganizationsControllerTests
     public async Task AddMember_ReturnsNoContent()
     {
         Guid memberId = Guid.NewGuid();
-        AddMemberRequest request = new(memberId);
+        AddMemberRequest request = new(memberId, "manager");
 
         ActionResult result = await _controller.AddMember(_tenantOrgId, request, CancellationToken.None);
 
         result.Should().BeOfType<NoContentResult>();
-        await _orgService.Received(1).AddMemberAsync(_tenantOrgId, memberId, Arg.Any<CancellationToken>());
+        await _orgService.Received(1).AddMemberAsync(_tenantOrgId, memberId, "manager", Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task AddMember_WhenOrgIsNotCurrentTenant_ReturnsNotFound()
     {
         Guid otherOrgId = Guid.NewGuid();
-        AddMemberRequest request = new(Guid.NewGuid());
+        AddMemberRequest request = new(Guid.NewGuid(), "user");
 
         ActionResult result = await _controller.AddMember(otherOrgId, request, CancellationToken.None);
 
         result.Should().BeOfType<NotFoundResult>();
-        await _orgService.DidNotReceive().AddMemberAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await _orgService.DidNotReceive().AddMemberAsync(
+            Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     #endregion

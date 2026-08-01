@@ -52,6 +52,28 @@ public sealed class MembershipRepository(IdentityDbContext context) : IMembershi
         return await query.ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyDictionary<Guid, int>> CountActiveByOrganizationAsync(
+        IReadOnlyCollection<Guid> organizationIds,
+        CancellationToken ct = default)
+    {
+        if (organizationIds.Count == 0)
+        {
+            return new Dictionary<Guid, int>();
+        }
+
+        List<OrganizationId> typedIds = [.. organizationIds.Select(OrganizationId.Create)];
+
+        List<OrganizationId> active = await context.Memberships
+            .IgnoreQueryFilters()
+            .Where(m => typedIds.Contains(m.OrganizationId) && m.Status == MembershipStatus.Active)
+            .Select(m => m.OrganizationId)
+            .ToListAsync(ct);
+
+        return active
+            .GroupBy(id => id.Value)
+            .ToDictionary(g => g.Key, g => g.Count());
+    }
+
     public void Add(Membership membership)
     {
         context.Memberships.Add(membership);

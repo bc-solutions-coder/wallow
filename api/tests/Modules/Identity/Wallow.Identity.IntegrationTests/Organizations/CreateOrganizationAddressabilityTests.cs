@@ -7,16 +7,10 @@ using Wallow.Tests.Common.Helpers;
 namespace Wallow.Identity.IntegrationTests.Organizations;
 
 /// <summary>
-/// T5.2 (Wallow-w6s6.5.2): POST /v1/identity/organizations must create a fully addressable
-/// tenant. The orphaned-org bug is that a realm-admin who creates an org gets back an org id
-/// that never matches their own <c>tenant_id</c> claim, so every other OrganizationsController
-/// action — which gates on <c>orgId == tenantContext.TenantId</c>
-/// (OrganizationsController.cs:25,53) — returns NotFound for the freshly created org.
-///
-/// These tests exercise the acceptance criterion directly: the caller REMAINS in their own
-/// (realm-admin) tenant context — they do NOT re-scope themselves to the new org — and must
-/// still be able to read, add-member, and update the org via the returned id. They fail today
-/// because the controller/service/repository are all scoped to the caller's ambient tenant.
+/// POST /v1/identity/organizations creates a fully addressable tenant. Creating an org mints a
+/// NEW tenant id that never equals the creator's own <c>tenant_id</c> claim, so what re-grants
+/// access is the creator's admin membership of that one org — not their ambient tenant. The
+/// caller here REMAINS in their own realm-admin tenant context throughout.
 ///
 /// Backend-dependent: requires the WallowApiFactory stack (Postgres + seeded identity data).
 /// </summary>
@@ -39,8 +33,7 @@ public class CreateOrganizationAddressabilityTests(WallowApiFactory factory) : I
     }
 
     /// <summary>
-    /// Read leg: GET /v1/identity/organizations/{id} returns the created org. Fails today
-    /// (NotFound) because the returned id does not equal the caller's tenant_id claim.
+    /// Read leg: GET /v1/identity/organizations/{id} returns the created org.
     /// </summary>
     [Fact]
     public async Task PostOrganization_ThenGetById_ViaReturnedId_Succeeds()
@@ -57,8 +50,7 @@ public class CreateOrganizationAddressabilityTests(WallowApiFactory factory) : I
 
     /// <summary>
     /// Add-member leg: POST .../{id}/members then GET .../{id}/members reflects the new member.
-    /// Fails today (NotFound) for the same reason. Uses the seeded real test user so it
-    /// materializes in the member listing.
+    /// Uses the seeded real test user so it materializes in the member listing.
     /// </summary>
     [Fact]
     public async Task PostOrganization_ThenAddAndListMember_ViaReturnedId_Succeeds()
@@ -66,7 +58,7 @@ public class CreateOrganizationAddressabilityTests(WallowApiFactory factory) : I
         Guid orgId = await CreateOrganizationAsRealmAdminAsync("Addressable Member Org");
         Guid memberId = IdentityFixture.TestUserId;
 
-        object addMemberRequest = new { userId = memberId };
+        object addMemberRequest = new { userId = memberId, role = "user" };
         HttpResponseMessage addMemberResponse =
             await Client.PostAsJsonAsync($"/identity/organizations/{orgId}/members", addMemberRequest);
         addMemberResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
@@ -79,8 +71,7 @@ public class CreateOrganizationAddressabilityTests(WallowApiFactory factory) : I
     }
 
     /// <summary>
-    /// Update leg: PUT .../{id}/settings updates the created org. Fails today (NotFound) for the
-    /// same reason.
+    /// Update leg: PUT .../{id}/settings updates the created org.
     /// </summary>
     [Fact]
     public async Task PostOrganization_ThenUpdateSettings_ViaReturnedId_Succeeds()

@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Wallow.Identity.Domain.Entities;
-using Wallow.Identity.Domain.Enums;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Identity.Infrastructure.Repositories;
 using Wallow.Shared.Kernel.Identity;
@@ -9,12 +8,10 @@ using Wallow.Shared.Kernel.Identity;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// T5.3 (Wallow-w6s6.5.3): membership authorization reads must resolve from
-/// <c>Organization._members</c> (the org membership list), NOT from a user's
-/// <c>WallowUser.TenantId</c> (which remains only the user's home tenant, set at
-/// registration). This pins that <see cref="OrganizationRepository.GetByUserIdAsync"/> —
-/// the source feeding the AuthorizationController membership gate — keys off org membership
-/// and is independent of any tenant-equality on the caller.
+/// <see cref="OrganizationRepository.GetByUserIdAsync"/> — the source feeding the
+/// AuthorizationController membership gate — resolves from Membership rows, not from a user's
+/// <c>WallowUser.TenantId</c> (the home tenant set at registration) and not from any
+/// tenant-equality on the caller.
 /// </summary>
 public sealed class MembershipReadModelTests : IDisposable
 {
@@ -37,13 +34,12 @@ public sealed class MembershipReadModelTests : IDisposable
     }
 
     [Fact]
-    public async Task GetByUserIdAsync_ResolvesMembershipFromOrgMembers_NotFromCallerTenant()
+    public async Task GetByUserIdAsync_ResolvesFromMemberships_NotFromCallerTenant()
     {
         Guid userId = Guid.NewGuid();
 
         Organization memberOrg = Organization.Create(
             TenantId.Create(Guid.NewGuid()), "Member Org", "member-org", Guid.NewGuid(), TimeProvider.System);
-        memberOrg.AddMember(userId, OrgMemberRole.Member, Guid.NewGuid(), TimeProvider.System);
 
         Organization otherOrg = Organization.Create(
             TenantId.Create(Guid.NewGuid()), "Other Org", "other-org", Guid.NewGuid(), TimeProvider.System);
@@ -51,6 +47,7 @@ public sealed class MembershipReadModelTests : IDisposable
         // Ambient tenant is an unrelated value — membership must NOT depend on tenant equality.
         _dbContext.SetTenant(new TenantId(Guid.NewGuid()));
         _dbContext.Organizations.AddRange(memberOrg, otherOrg);
+        _dbContext.Memberships.Add(Membership.Enroll(userId, memberOrg.Id, Guid.NewGuid(), TimeProvider.System));
         await _dbContext.SaveChangesAsync();
 
         OrganizationRepository repo = new(_dbContext);
@@ -61,7 +58,7 @@ public sealed class MembershipReadModelTests : IDisposable
     }
 
     [Fact]
-    public async Task GetByUserIdAsync_ReturnsEmpty_WhenUserIsNotInAnyOrgMembers()
+    public async Task GetByUserIdAsync_ReturnsEmpty_WhenUserHasNoMembership()
     {
         Organization org = Organization.Create(
             TenantId.Create(Guid.NewGuid()), "Org", "org", Guid.NewGuid(), TimeProvider.System);

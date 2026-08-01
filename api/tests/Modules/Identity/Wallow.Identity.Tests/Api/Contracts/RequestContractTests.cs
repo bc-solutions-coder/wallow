@@ -55,12 +55,13 @@ public class RequestContractTests
     #region AddMemberRequest
 
     [Fact]
-    public void AddMemberRequest_WithUserId_CreatesInstance()
+    public void AddMemberRequest_WithUserIdAndRole_CreatesInstance()
     {
         Guid userId = Guid.NewGuid();
-        AddMemberRequest request = new(userId);
+        AddMemberRequest request = new(userId, "user");
 
         request.UserId.Should().Be(userId);
+        request.Role.Should().Be("user");
     }
 
     #endregion

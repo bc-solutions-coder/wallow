@@ -4,13 +4,18 @@ namespace Wallow.Identity.Application.Interfaces;
 
 public interface IOrganizationService
 {
-    // creatorUserId: the authenticated user creating the organization. When provided, the creator is
-    // added as an admin member and stamped as the audit "created by" user. Leave null for
-    // system-initiated creation (e.g. SCIM sync, pre-registered client provisioning).
+    // creatorUserId: the authenticated user creating the organization. When provided, the creator
+    // gets an Active owner membership carrying the admin role, and is stamped as the audit
+    // "created by" user. Leave null for system-initiated creation (e.g. SCIM sync,
+    // pre-registered client provisioning).
     Task<Guid> CreateOrganizationAsync(string name, string? domain = null, string? creatorEmail = null, Guid? creatorUserId = null, CancellationToken ct = default);
     Task<OrganizationDto?> GetOrganizationByIdAsync(Guid orgId, CancellationToken ct = default);
     Task<IReadOnlyList<OrganizationDto>> GetOrganizationsAsync(string? search = null, int first = 0, int max = 20, CancellationToken ct = default);
-    Task AddMemberAsync(Guid orgId, Guid userId, CancellationToken ct = default);
+
+    // roleName names the role this organization grants the member. Roles are per (user,
+    // organization), so there is no implicit default: an add-path that picks a role for the
+    // caller is the cross-org escalation surface this model exists to close.
+    Task AddMemberAsync(Guid orgId, Guid userId, string roleName, CancellationToken ct = default);
     Task RemoveMemberAsync(Guid orgId, Guid userId, CancellationToken ct = default);
     Task<IReadOnlyList<UserDto>> GetMembersAsync(Guid orgId, CancellationToken ct = default);
     Task<IReadOnlyList<OrganizationDto>> GetUserOrganizationsAsync(Guid userId, CancellationToken ct = default);

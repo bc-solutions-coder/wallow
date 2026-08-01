@@ -149,4 +149,34 @@ public class MembershipTests
         membership.IsOwner.Should().BeTrue();
         membership.RoleIds.Should().ContainSingle();
     }
+
+    [Fact]
+    public void Grant_ActivatesADeniedMembership_SoAnAdministratorCanStillAddTheUser()
+    {
+        Guid roleId = Guid.NewGuid();
+        Membership membership = Membership.RequestAccess(_userId, _orgId, _timeProvider);
+        membership.Deny(_actorId, _timeProvider);
+
+        membership.Grant(roleId, _actorId, _timeProvider);
+
+        membership.Status.Should().Be(MembershipStatus.Active);
+        membership.RoleIds.Should().BeEquivalentTo([roleId]);
+        membership.JoinedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void Grant_AddsARole_WithoutDisturbingAnAlreadyActiveMembership()
+    {
+        Guid firstRoleId = Guid.NewGuid();
+        Guid secondRoleId = Guid.NewGuid();
+        Membership membership = Membership.Enroll(_userId, _orgId, firstRoleId, _timeProvider);
+        DateTimeOffset? joinedAt = membership.JoinedAt;
+
+        _timeProvider.Advance(TimeSpan.FromHours(1));
+        membership.Grant(secondRoleId, _actorId, _timeProvider);
+
+        membership.Status.Should().Be(MembershipStatus.Active);
+        membership.JoinedAt.Should().Be(joinedAt);
+        membership.RoleIds.Should().BeEquivalentTo([firstRoleId, secondRoleId]);
+    }
 }

@@ -31,10 +31,9 @@ public class OrganizationsController(
     // otherwise any tenant-assignable "admin" could reach other tenants' orgs by guessing GUIDs.
     //
     // Creating an org mints a new tenant id that never equals the creator's own, so ownership is
-    // the second, NARROW path: the caller is an admin member of this one organization. Admin
-    // membership is minted only by creating the org, is per-organization, and is not assignable
-    // through any endpoint (AddMember always adds OrgMemberRole.Member), so it grants no reach
-    // beyond the orgs the caller created.
+    // the second, NARROW path: the caller holds the admin role IN this one organization. That
+    // grant lives on the membership, so it widens reach only to organizations that have already
+    // granted this caller admin.
     private async Task<bool> CanAddressOrganizationAsync(Guid orgId, CancellationToken ct)
     {
         if (orgId == tenantContext.TenantId.Value || User.IsGlobalAdmin())
@@ -121,7 +120,7 @@ public class OrganizationsController(
             return NotFound();
         }
 
-        await orgService.AddMemberAsync(id, request.UserId, ct);
+        await orgService.AddMemberAsync(id, request.UserId, request.Role, ct);
         return NoContent();
     }
 

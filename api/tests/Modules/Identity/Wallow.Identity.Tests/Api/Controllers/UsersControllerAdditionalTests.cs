@@ -344,7 +344,7 @@ public class UsersControllerAdditionalTests
 
         await _controller.CreateUser(request, CancellationToken.None);
 
-        await _organizationService.Received(1).AddMemberAsync(_tenantGuid, newUserId, Arg.Any<CancellationToken>());
+        await _organizationService.Received(1).AddMemberAsync(_tenantGuid, newUserId, "user", Arg.Any<CancellationToken>());
     }
 
     #endregion

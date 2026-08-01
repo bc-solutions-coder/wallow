@@ -218,8 +218,13 @@ function AddMemberForm(props: {
     // so nothing here has to be destructured or cast.
     mutation: organizationsAddMemberMutation({ client }),
     // The operation carries a path parameter, so the default `{ body: values }`
-    // would post to the wrong URL. The body itself stays `{ userId }`.
-    toVariables: (values) => ({ path: { id: orgId }, body: { userId: values.userId } }),
+    // would post to the wrong URL. `role` names what this organization grants the
+    // member; the endpoint has no default, and this screen grants the baseline
+    // `user` role — choosing a role belongs to the member-role management screen.
+    toVariables: (values) => ({
+      path: { id: orgId },
+      body: { userId: values.userId, role: "user" },
+    }),
     onSuccess: () => {
       void queryClient.invalidateQueries(membersOfOperation(client, orgId));
       // TanStack's own `reset` (the form's values), NOT `form.wallow.reset` (the

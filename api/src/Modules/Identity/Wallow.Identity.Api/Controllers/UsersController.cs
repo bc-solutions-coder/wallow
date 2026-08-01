@@ -99,7 +99,7 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
             ct);
 
         Guid tenantId = tenantContext.TenantId.Value;
-        await organizationService.AddMemberAsync(tenantId, userId, ct);
+        await organizationService.AddMemberAsync(tenantId, userId, "user", ct);
 
         UserDto? user = await userManagement.GetUserByIdAsync(userId, ct);
         return CreatedAtAction(nameof(GetUserById), new { id = userId }, user);

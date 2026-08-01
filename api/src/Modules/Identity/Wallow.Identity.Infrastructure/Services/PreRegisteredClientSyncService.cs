@@ -240,7 +240,7 @@ public sealed partial class PreRegisteredClientSyncService(
                 continue;
             }
 
-            await organizationService.AddMemberAsync(orgId, user.Id, ct);
+            await organizationService.AddMemberAsync(orgId, user.Id, "user", ct);
             LogSeedMemberAdded(client.ClientId, email);
         }
     }

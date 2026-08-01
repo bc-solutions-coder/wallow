@@ -100,7 +100,7 @@ describe("MemberList", () => {
         (c) => c.method === "POST" && c.path === "/api/v1/identity/organizations/o1/members",
       );
       expect(addCall).toBeDefined();
-      expect(addCall?.body).toEqual({ userId: "u9" });
+      expect(addCall?.body).toEqual({ userId: "u9", role: "user" });
     });
   });
 

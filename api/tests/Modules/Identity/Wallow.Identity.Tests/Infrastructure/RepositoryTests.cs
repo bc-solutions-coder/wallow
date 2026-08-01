@@ -355,11 +355,11 @@ public sealed class RepositoryTests : IDisposable
     {
         Guid userId = Guid.NewGuid();
         Organization org1 = CreateOrganization("Org A", "org-a");
-        org1.AddMember(userId, OrgMemberRole.Admin, Guid.NewGuid(), TimeProvider.System);
         Organization org2 = CreateOrganization("Org B", "org-b");
         // org IS the tenant: set the ambient tenant to the org whose membership we query.
         _dbContext.SetTenant(new TenantId(org1.Id.Value));
         _dbContext.Organizations.AddRange(org1, org2);
+        _dbContext.Memberships.Add(Membership.Enroll(userId, org1.Id, Guid.NewGuid(), TimeProvider.System));
         await _dbContext.SaveChangesAsync();
 
         OrganizationRepository repo = new(_dbContext);

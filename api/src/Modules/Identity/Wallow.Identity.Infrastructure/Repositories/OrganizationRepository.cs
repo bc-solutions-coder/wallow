@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Enums;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Persistence;
 
@@ -17,15 +18,13 @@ public sealed class OrganizationRepository(IdentityDbContext context) : IOrganiz
         return context.Organizations
             .AsTracking()
             .IgnoreQueryFilters()
-            .Include(o => o.Members)
             .FirstOrDefaultAsync(o => o.Id == id, ct);
     }
 
     public Task<List<Organization>> GetAllAsync(string? search = null, int skip = 0, int take = 20, CancellationToken ct = default)
     {
         IQueryable<Organization> query = context.Organizations
-            .IgnoreQueryFilters()
-            .Include(o => o.Members);
+            .IgnoreQueryFilters();
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -39,12 +38,18 @@ public sealed class OrganizationRepository(IdentityDbContext context) : IOrganiz
             .ToListAsync(ct);
     }
 
+    // "Organizations this user belongs to" is a membership question, not an organization one:
+    // only an Active membership counts, so a pending request or a suspension hides the org.
     public Task<List<Organization>> GetByUserIdAsync(Guid userId, CancellationToken ct = default)
     {
+        IQueryable<OrganizationId> activeOrganizationIds = context.Memberships
+            .IgnoreQueryFilters()
+            .Where(m => m.UserId == userId && m.Status == MembershipStatus.Active)
+            .Select(m => m.OrganizationId);
+
         return context.Organizations
             .IgnoreQueryFilters()
-            .Include(o => o.Members)
-            .Where(o => o.Members.Any(m => m.UserId == userId))
+            .Where(o => activeOrganizationIds.Contains(o.Id))
             .OrderBy(o => o.Name)
             .ToListAsync(ct);
     }

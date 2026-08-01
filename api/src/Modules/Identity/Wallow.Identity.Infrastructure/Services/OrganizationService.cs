@@ -7,6 +7,7 @@ using Wallow.Identity.Domain.Enums;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Shared.Contracts.Identity.Events;
+using Wallow.Shared.Kernel.Domain;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wolverine;
 
@@ -14,12 +15,19 @@ namespace Wallow.Identity.Infrastructure.Services;
 
 public sealed partial class OrganizationService(
     IOrganizationRepository organizationRepository,
+    IMembershipRepository membershipRepository,
     IdentityDbContext dbContext,
     IMessageBus messageBus,
     ITenantContext tenantContext,
     TimeProvider timeProvider,
     ILogger<OrganizationService> logger) : IOrganizationService
 {
+    /// <summary>
+    /// The role a creator is granted in the organization they create, and the role every
+    /// membership-carrying seed path starts from.
+    /// </summary>
+    private const string AdminRoleName = "admin";
+
     public async Task<Guid> CreateOrganizationAsync(string name, string? domain = null, string? creatorEmail = null, Guid? creatorUserId = null, CancellationToken ct = default)
     {
         LogCreatingOrganization(name);
@@ -38,11 +46,18 @@ public sealed partial class OrganizationService(
 
         if (creatorUserId.HasValue)
         {
-            organization.AddMember(creatorUserId.Value, OrgMemberRole.Admin, creatorUserId.Value, timeProvider);
+            Guid adminRoleId = await ResolveRoleIdAsync(AdminRoleName, ct);
+
+            Membership ownerMembership = Membership.Enroll(
+                creatorUserId.Value, organization.Id, adminRoleId, timeProvider);
+            ownerMembership.MarkOwner(true, creatorUserId.Value, timeProvider);
+
+            membershipRepository.Add(ownerMembership);
         }
 
         organizationRepository.Add(organization);
         await organizationRepository.SaveChangesAsync(ct);
+        await membershipRepository.SaveChangesAsync(ct);
 
         OrganizationSettings defaultSettings = OrganizationSettings.Create(
             organization.Id,
@@ -86,7 +101,7 @@ public sealed partial class OrganizationService(
             return null;
         }
 
-        return MapToDto(organization);
+        return await MapToDtoAsync(organization, ct);
     }
 
     public async Task<IReadOnlyList<OrganizationDto>> GetOrganizationsAsync(
@@ -96,10 +111,10 @@ public sealed partial class OrganizationService(
         CancellationToken ct = default)
     {
         List<Organization> organizations = await organizationRepository.GetAllAsync(search, first, max, ct);
-        return organizations.Select(MapToDto).ToList();
+        return await MapToDtosAsync(organizations, ct);
     }
 
-    public async Task AddMemberAsync(Guid orgId, Guid userId, CancellationToken ct = default)
+    public async Task AddMemberAsync(Guid orgId, Guid userId, string roleName, CancellationToken ct = default)
     {
         LogAddingMember(userId, orgId);
 
@@ -111,8 +126,19 @@ public sealed partial class OrganizationService(
             throw new InvalidOperationException($"Organization {orgId} not found");
         }
 
-        organization.AddMember(userId, OrgMemberRole.Member, Guid.Empty, timeProvider);
-        await organizationRepository.SaveChangesAsync(ct);
+        Guid roleId = await ResolveRoleIdAsync(roleName, ct);
+        Membership? membership = await membershipRepository.GetAsync(userId, orgId, ct);
+
+        if (membership is null)
+        {
+            membershipRepository.Add(Membership.Enroll(userId, id, roleId, timeProvider));
+        }
+        else
+        {
+            membership.Grant(roleId, userId, timeProvider);
+        }
+
+        await membershipRepository.SaveChangesAsync(ct);
 
         string email = await GetUserEmailAsync(userId, ct);
 
@@ -141,8 +167,17 @@ public sealed partial class OrganizationService(
 
         string email = await GetUserEmailAsync(userId, ct);
 
-        organization.RemoveMember(userId, Guid.Empty, timeProvider);
-        await organizationRepository.SaveChangesAsync(ct);
+        Membership? membership = await membershipRepository.GetAsync(userId, orgId, ct);
+
+        if (membership is null)
+        {
+            throw new BusinessRuleException(
+                "Identity.MemberNotFound",
+                "User is not a member of this organization");
+        }
+
+        membershipRepository.Remove(membership);
+        await membershipRepository.SaveChangesAsync(ct);
 
         await messageBus.PublishAsync(new OrganizationMemberRemovedEvent
         {
@@ -165,7 +200,10 @@ public sealed partial class OrganizationService(
             return [];
         }
 
-        List<Guid> memberUserIds = organization.Members.Select(m => m.UserId).ToList();
+        IReadOnlyList<Membership> memberships = await membershipRepository.GetForOrganizationAsync(
+            orgId, MembershipStatus.Active, ct);
+
+        List<Guid> memberUserIds = [.. memberships.Select(m => m.UserId)];
         if (memberUserIds.Count == 0)
         {
             return [];
@@ -176,11 +214,13 @@ public sealed partial class OrganizationService(
             .ToListAsync(ct);
 
         Dictionary<Guid, WallowUser> userLookup = users.ToDictionary(u => u.Id);
+        Dictionary<Guid, string> roleNames = await GetRoleNameLookupAsync(
+            [.. memberships.SelectMany(m => m.RoleIds).Distinct()], ct);
 
-        List<UserDto> result = new(organization.Members.Count);
-        foreach (OrganizationMember member in organization.Members)
+        List<UserDto> result = new(memberships.Count);
+        foreach (Membership membership in memberships)
         {
-            if (userLookup.TryGetValue(member.UserId, out WallowUser? user))
+            if (userLookup.TryGetValue(membership.UserId, out WallowUser? user))
             {
                 result.Add(new UserDto(
                     user.Id,
@@ -188,7 +228,10 @@ public sealed partial class OrganizationService(
                     user.FirstName,
                     user.LastName,
                     user.IsActive,
-                    [member.Role.ToString()]));
+                    [.. membership.RoleIds
+                        .Where(roleNames.ContainsKey)
+                        .Select(roleId => roleNames[roleId])
+                        .Order(StringComparer.Ordinal)]));
             }
         }
 
@@ -198,7 +241,7 @@ public sealed partial class OrganizationService(
     public async Task<IReadOnlyList<OrganizationDto>> GetUserOrganizationsAsync(Guid userId, CancellationToken ct = default)
     {
         List<Organization> organizations = await organizationRepository.GetByUserIdAsync(userId, ct);
-        return organizations.Select(MapToDto).ToList();
+        return await MapToDtosAsync(organizations, ct);
     }
 
     public async Task ArchiveAsync(Guid organizationId, Guid actorId, CancellationToken ct = default)
@@ -266,6 +309,17 @@ public sealed partial class OrganizationService(
         Organization.ConfirmNameForDeletion(organization, confirmedName);
 
         string orgName = organization.Name;
+
+        // Membership carries no foreign key to Organization (OrganizationId is the scope, not a
+        // navigation), so nothing cascades — the rows have to go explicitly or they outlive the org.
+        IReadOnlyList<Membership> memberships = await membershipRepository.GetForOrganizationAsync(
+            organizationId, null, ct);
+
+        foreach (Membership membership in memberships)
+        {
+            membershipRepository.Remove(membership);
+        }
+
         dbContext.Organizations.Remove(organization);
         await dbContext.SaveChangesAsync(ct);
 
@@ -333,30 +387,25 @@ public sealed partial class OrganizationService(
         {
             DateTimeOffset graceDeadline = timeProvider.GetUtcNow().AddDays(mfaGracePeriodDays);
 
-            Organization? org = await dbContext.Organizations
+            IReadOnlyList<Membership> memberships = await membershipRepository.GetForOrganizationAsync(
+                organizationId, MembershipStatus.Active, ct);
+
+            List<Guid> memberUserIds = [.. memberships.Select(m => m.UserId)];
+
+            List<WallowUser> unenrolledMembers = await dbContext.Users
+                .AsTracking()
                 .IgnoreQueryFilters()
-                .Include(o => o.Members)
-                .FirstOrDefaultAsync(o => o.Id == orgId, ct);
+                .Where(u => memberUserIds.Contains(u.Id) && !u.MfaEnabled)
+                .ToListAsync(ct);
 
-            if (org is not null)
+            foreach (WallowUser member in unenrolledMembers)
             {
-                List<Guid> memberUserIds = org.Members.Select(m => m.UserId).ToList();
+                member.SetMfaGraceDeadline(graceDeadline);
+            }
 
-                List<WallowUser> unenrolledMembers = await dbContext.Users
-                    .AsTracking()
-                    .IgnoreQueryFilters()
-                    .Where(u => memberUserIds.Contains(u.Id) && !u.MfaEnabled)
-                    .ToListAsync(ct);
-
-                foreach (WallowUser member in unenrolledMembers)
-                {
-                    member.SetMfaGraceDeadline(graceDeadline);
-                }
-
-                if (unenrolledMembers.Count > 0)
-                {
-                    await dbContext.SaveChangesAsync(ct);
-                }
+            if (unenrolledMembers.Count > 0)
+            {
+                await dbContext.SaveChangesAsync(ct);
             }
         }
 
@@ -440,13 +489,74 @@ public sealed partial class OrganizationService(
         return user?.Email ?? string.Empty;
     }
 
-    private static OrganizationDto MapToDto(Organization organization)
+    /// <summary>
+    /// Resolves one role name to its id. Roles are a global catalog addressed by name everywhere
+    /// authorization is expressed (<c>RolePermissionMapping</c>), so a name that is not in the
+    /// catalog is a caller error rather than an empty grant.
+    /// </summary>
+    private async Task<Guid> ResolveRoleIdAsync(string roleName, CancellationToken ct)
     {
-        return new OrganizationDto(
-            organization.Id.Value,
-            organization.Name,
-            null,
-            organization.Members.Count);
+        // Identity's default normalizer upper-cases invariantly, so this matches what
+        // RoleManager wrote without paying for a case-insensitive collation scan.
+        string normalizedName = roleName.ToUpperInvariant();
+
+        WallowRole? role = await dbContext.Roles
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(r => r.NormalizedName == normalizedName, ct);
+
+        if (role is null)
+        {
+            throw new BusinessRuleException(
+                "Identity.RoleNotFound",
+                $"Role '{roleName}' does not exist");
+        }
+
+        return role.Id;
+    }
+
+    private async Task<Dictionary<Guid, string>> GetRoleNameLookupAsync(
+        List<Guid> roleIds,
+        CancellationToken ct)
+    {
+        if (roleIds.Count == 0)
+        {
+            return [];
+        }
+
+        List<WallowRole> roles = await dbContext.Roles
+            .IgnoreQueryFilters()
+            .Where(r => roleIds.Contains(r.Id) && r.Name != null)
+            .ToListAsync(ct);
+
+        return roles.ToDictionary(r => r.Id, r => r.Name!);
+    }
+
+    private async Task<OrganizationDto> MapToDtoAsync(Organization organization, CancellationToken ct)
+    {
+        IReadOnlyList<OrganizationDto> mapped = await MapToDtosAsync([organization], ct);
+        return mapped[0];
+    }
+
+    private async Task<IReadOnlyList<OrganizationDto>> MapToDtosAsync(
+        List<Organization> organizations,
+        CancellationToken ct)
+    {
+        if (organizations.Count == 0)
+        {
+            return [];
+        }
+
+        IReadOnlyDictionary<Guid, int> memberCounts = await membershipRepository
+            .CountActiveByOrganizationAsync([.. organizations.Select(o => o.Id.Value)], ct);
+
+        return
+        [
+            .. organizations.Select(o => new OrganizationDto(
+                o.Id.Value,
+                o.Name,
+                null,
+                memberCounts.TryGetValue(o.Id.Value, out int count) ? count : 0))
+        ];
     }
 
     private static string GenerateSlug(string name)

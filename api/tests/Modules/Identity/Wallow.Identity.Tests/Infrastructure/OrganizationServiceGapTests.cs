@@ -4,9 +4,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
-using Wallow.Identity.Domain.Enums;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Persistence;
+using Wallow.Identity.Infrastructure.Repositories;
 using Wallow.Identity.Infrastructure.Services;
 using Wallow.Shared.Contracts.Identity.Events;
 using Wallow.Shared.Kernel.Identity;
@@ -33,7 +33,7 @@ public sealed class OrganizationServiceGapTests : IDisposable
         _dbContext.SetTenant(new TenantId(_tenantId));
         _orgRepo = Substitute.For<IOrganizationRepository>();
         _messageBus = Substitute.For<IMessageBus>();
-        _sut = new OrganizationService(_orgRepo, _dbContext, _messageBus, tc, TimeProvider.System, NullLogger<OrganizationService>.Instance);
+        _sut = new OrganizationService(_orgRepo, new MembershipRepository(_dbContext), _dbContext, _messageBus, tc, TimeProvider.System, NullLogger<OrganizationService>.Instance);
     }
 
     public void Dispose() { _dbContext.Dispose(); }
@@ -178,9 +178,10 @@ public sealed class OrganizationServiceGapTests : IDisposable
         typeof(WallowUser).GetProperty("Id")!.SetValue(user, uid);
         _dbContext.Users.Add(user); await _dbContext.SaveChangesAsync();
         Organization org = Organization.Create(new TenantId(_tenantId), "MO", "mo", Guid.NewGuid(), TimeProvider.System);
-        org.AddMember(uid, OrgMemberRole.Member, Guid.Empty, TimeProvider.System);
+        _dbContext.Memberships.Add(Membership.Enroll(uid, org.Id, Guid.NewGuid(), TimeProvider.System));
+        await _dbContext.SaveChangesAsync();
         _orgRepo.GetByIdAsync(Arg.Any<OrganizationId>(), Arg.Any<CancellationToken>()).Returns(org);
-        IReadOnlyList<UserDto> r = await _sut.GetMembersAsync(Guid.NewGuid());
+        IReadOnlyList<UserDto> r = await _sut.GetMembersAsync(org.Id.Value);
         r.Should().HaveCount(1); r[0].Email.Should().Be("m@t.com");
     }
 }

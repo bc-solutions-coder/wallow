@@ -4,9 +4,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
-using Wallow.Identity.Domain.Enums;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Persistence;
+using Wallow.Identity.Infrastructure.Repositories;
 using Wallow.Identity.Infrastructure.Services;
 using Wallow.Shared.Contracts.Identity.Events;
 using Wallow.Shared.Kernel.Identity;
@@ -18,6 +18,7 @@ namespace Wallow.Identity.Tests.Infrastructure;
 public sealed class OrganizationServiceTests : IDisposable
 {
     private readonly IOrganizationRepository _organizationRepository;
+    private readonly MembershipRepository _membershipRepository;
     private readonly IdentityDbContext _dbContext;
     private readonly IMessageBus _messageBus;
     private readonly ITenantContext _tenantContext;
@@ -40,10 +41,14 @@ public sealed class OrganizationServiceTests : IDisposable
         _dbContext.SetTenant(new TenantId(_tenantId));
 
         _organizationRepository = Substitute.For<IOrganizationRepository>();
+        _membershipRepository = new MembershipRepository(_dbContext);
         _messageBus = Substitute.For<IMessageBus>();
+
+        SeedRoleCatalog();
 
         _sut = new OrganizationService(
             _organizationRepository,
+            _membershipRepository,
             _dbContext,
             _messageBus,
             _tenantContext,
@@ -55,6 +60,32 @@ public sealed class OrganizationServiceTests : IDisposable
     {
         _dbContext.Dispose();
     }
+
+    // Roles are a global catalog addressed by name; the service resolves a name to an id before it
+    // can grant anything, so an unseeded catalog fails every membership write.
+    private void SeedRoleCatalog()
+    {
+        foreach (string roleName in new[] { "admin", "manager", "user" })
+        {
+            _dbContext.Roles.Add(new WallowRole
+            {
+                Id = Guid.NewGuid(),
+                Name = roleName,
+                NormalizedName = roleName.ToUpperInvariant()
+            });
+        }
+
+        _dbContext.SaveChanges();
+    }
+
+    private Guid RoleId(string roleName)
+    {
+        string normalized = roleName.ToUpperInvariant();
+        return _dbContext.Roles.IgnoreQueryFilters().Single(r => r.NormalizedName == normalized).Id;
+    }
+
+    private Task<Membership?> MembershipFor(Guid userId, Guid orgId)
+        => _membershipRepository.GetAsync(userId, orgId);
 
     [Fact]
     public async Task CreateOrganizationAsync_WithValidName_CreatesAndPublishesEvent()
@@ -97,8 +128,13 @@ public sealed class OrganizationServiceTests : IDisposable
 
         result.Should().NotBe(Guid.Empty);
         capturedOrganization.Should().NotBeNull();
-        capturedOrganization!.Members.Should().ContainSingle(m => m.UserId == creatorUserId && m.Role == OrgMemberRole.Admin);
-        capturedOrganization.CreatedBy.Should().Be(creatorUserId);
+        capturedOrganization!.CreatedBy.Should().Be(creatorUserId);
+
+        Membership? membership = await MembershipFor(creatorUserId, result);
+        membership.Should().NotBeNull();
+        membership!.IsActive.Should().BeTrue();
+        membership.IsOwner.Should().BeTrue();
+        membership.RoleIds.Should().BeEquivalentTo([RoleId("admin")]);
     }
 
     [Fact]
@@ -112,8 +148,8 @@ public sealed class OrganizationServiceTests : IDisposable
         await _sut.CreateOrganizationAsync("Test Org");
 
         capturedOrganization.Should().NotBeNull();
-        capturedOrganization!.Members.Should().BeEmpty();
-        capturedOrganization.CreatedBy.Should().Be(Guid.Empty);
+        capturedOrganization!.CreatedBy.Should().Be(Guid.Empty);
+        _dbContext.Memberships.IgnoreQueryFilters().Should().BeEmpty();
     }
 
     [Fact]
@@ -174,11 +210,13 @@ public sealed class OrganizationServiceTests : IDisposable
         _organizationRepository.GetByIdAsync(Arg.Any<OrganizationId>(), Arg.Any<CancellationToken>())
             .Returns(organization);
 
-        await _sut.AddMemberAsync(orgId, userId);
+        await _sut.AddMemberAsync(orgId, userId, "user");
 
-        organization.Members.Should().HaveCount(1);
-        organization.Members[0].UserId.Should().Be(userId);
-        await _organizationRepository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+        Membership? membership = await MembershipFor(userId, orgId);
+        membership.Should().NotBeNull();
+        membership!.IsActive.Should().BeTrue();
+        membership.IsOwner.Should().BeFalse();
+        membership.RoleIds.Should().BeEquivalentTo([RoleId("user")]);
         await _messageBus.Received(1).PublishAsync(Arg.Is<OrganizationMemberAddedEvent>(e =>
             e.OrganizationId == orgId &&
             e.UserId == userId &&
@@ -191,7 +229,7 @@ public sealed class OrganizationServiceTests : IDisposable
         _organizationRepository.GetByIdAsync(Arg.Any<OrganizationId>(), Arg.Any<CancellationToken>())
             .Returns((Organization?)null);
 
-        Func<Task> act = () => _sut.AddMemberAsync(Guid.NewGuid(), Guid.NewGuid());
+        Func<Task> act = () => _sut.AddMemberAsync(Guid.NewGuid(), Guid.NewGuid(), "user");
 
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("Organization * not found");
@@ -204,15 +242,17 @@ public sealed class OrganizationServiceTests : IDisposable
         Guid userId = Guid.NewGuid();
         Organization organization = Organization.Create(
             new TenantId(_tenantId), "Test Org", "test-org", Guid.NewGuid(), TimeProvider.System);
-        organization.AddMember(userId, OrgMemberRole.Member, Guid.NewGuid(), TimeProvider.System);
+
+        _membershipRepository.Add(Membership.Enroll(
+            userId, OrganizationId.Create(orgId), RoleId("user"), TimeProvider.System));
+        await _membershipRepository.SaveChangesAsync();
 
         _organizationRepository.GetByIdAsync(Arg.Any<OrganizationId>(), Arg.Any<CancellationToken>())
             .Returns(organization);
 
         await _sut.RemoveMemberAsync(orgId, userId);
 
-        organization.Members.Should().BeEmpty();
-        await _organizationRepository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+        (await MembershipFor(userId, orgId)).Should().BeNull();
         await _messageBus.Received(1).PublishAsync(Arg.Is<OrganizationMemberRemovedEvent>(e =>
             e.OrganizationId == orgId &&
             e.UserId == userId &&
