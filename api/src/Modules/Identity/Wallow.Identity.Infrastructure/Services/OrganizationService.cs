@@ -18,6 +18,7 @@ public sealed partial class OrganizationService(
     IMembershipRepository membershipRepository,
     IdentityDbContext dbContext,
     IMembershipAccessRevoker accessRevoker,
+    ILastOwnerGuard lastOwnerGuard,
     IMessageBus messageBus,
     TimeProvider timeProvider,
     ILogger<OrganizationService> logger) : IOrganizationService
@@ -178,8 +179,11 @@ public sealed partial class OrganizationService(
                 "User is not a member of this organization");
         }
 
-        membershipRepository.Remove(membership);
-        await membershipRepository.SaveChangesAsync(ct);
+        await lastOwnerGuard.ExecuteDepartureAsync(orgId, userId, async token =>
+        {
+            membershipRepository.Remove(membership);
+            await membershipRepository.SaveChangesAsync(token);
+        }, ct);
 
         await accessRevoker.RevokeAsync(userId, orgId, ct);
 

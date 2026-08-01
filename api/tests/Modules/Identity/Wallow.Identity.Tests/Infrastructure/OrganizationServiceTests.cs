@@ -51,6 +51,7 @@ public sealed class OrganizationServiceTests : IDisposable
             _membershipRepository,
             _dbContext,
             _accessRevoker,
+            new UnguardedLastOwnerGuard(),
             _messageBus,
             TimeProvider.System,
             NullLogger<OrganizationService>.Instance);

@@ -21,6 +21,7 @@ public sealed partial class MembershipReviewService(
     IdentityDbContext dbContext,
     IDefaultMemberRoleResolver defaultRoleResolver,
     IMembershipAccessRevoker accessRevoker,
+    ILastOwnerGuard lastOwnerGuard,
     IMessageBus messageBus,
     TimeProvider timeProvider,
     ILogger<MembershipReviewService> logger) : IMembershipReviewService
@@ -98,8 +99,13 @@ public sealed partial class MembershipReviewService(
     {
         Membership membership = await RequireMembershipAsync(organizationId, userId, ct);
 
-        membership.Suspend(actorId, timeProvider);
-        await memberships.SaveChangesAsync(ct);
+        // Suspension ends an active membership, so it is a departure as far as ownership is
+        // concerned: an organization whose only owner is suspended has no owner.
+        await lastOwnerGuard.ExecuteDepartureAsync(organizationId, userId, async token =>
+        {
+            membership.Suspend(actorId, timeProvider);
+            await memberships.SaveChangesAsync(token);
+        }, ct);
 
         // The status alone only decides the NEXT sign-in. Everything already issued off the
         // membership — tokens, open streams — outlives it unless it is taken away here.
@@ -126,8 +132,11 @@ public sealed partial class MembershipReviewService(
 
         // Deleted, not marked: nobody reviewed this, so there is no decision worth keeping, and a
         // leftover row would read as a refusal the next time they ask to join.
-        memberships.Remove(membership);
-        await memberships.SaveChangesAsync(ct);
+        await lastOwnerGuard.ExecuteDepartureAsync(organizationId, userId, async token =>
+        {
+            memberships.Remove(membership);
+            await memberships.SaveChangesAsync(token);
+        }, ct);
 
         await accessRevoker.RevokeAsync(userId, organizationId, ct);
 

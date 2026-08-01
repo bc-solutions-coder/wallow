@@ -32,6 +32,7 @@ public sealed class MembershipReviewServiceTests : IDisposable
     private readonly IMessageBus _messageBus = Substitute.For<IMessageBus>();
     private readonly IDefaultMemberRoleResolver _roleResolver = Substitute.For<IDefaultMemberRoleResolver>();
     private readonly IMembershipAccessRevoker _accessRevoker = Substitute.For<IMembershipAccessRevoker>();
+    private readonly UnguardedLastOwnerGuard _lastOwnerGuard = new();
     private readonly FakeTimeProvider _time = new(DateTimeOffset.Parse("2026-03-01T09:00:00Z", null));
     private readonly MembershipReviewService _sut;
     private readonly Organization _organization;
@@ -61,6 +62,7 @@ public sealed class MembershipReviewServiceTests : IDisposable
             _dbContext,
             _roleResolver,
             _accessRevoker,
+            _lastOwnerGuard,
             _messageBus,
             _time,
             NullLogger<MembershipReviewService>.Instance);

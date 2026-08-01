@@ -35,7 +35,7 @@ public sealed class OrganizationServiceGapTests : IDisposable
         _dbContext.SetTenant(new TenantId(_tenantId));
         _orgRepo = Substitute.For<IOrganizationRepository>();
         _messageBus = Substitute.For<IMessageBus>();
-        _sut = new OrganizationService(_orgRepo, new MembershipRepository(_dbContext), _dbContext, Substitute.For<IMembershipAccessRevoker>(), _messageBus, TimeProvider.System, NullLogger<OrganizationService>.Instance);
+        _sut = new OrganizationService(_orgRepo, new MembershipRepository(_dbContext), _dbContext, Substitute.For<IMembershipAccessRevoker>(), new UnguardedLastOwnerGuard(), _messageBus, TimeProvider.System, NullLogger<OrganizationService>.Instance);
     }
 
     public void Dispose() { _dbContext.Dispose(); }

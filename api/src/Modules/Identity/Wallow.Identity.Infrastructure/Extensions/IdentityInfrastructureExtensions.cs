@@ -415,6 +415,7 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<IAccessRequestRecipientResolver, AccessRequestRecipientResolver>();
         services.AddScoped<IUserEnrollmentService, UserEnrollmentService>();
         services.AddScoped<IMembershipReviewService, MembershipReviewService>();
+        services.AddScoped<ILastOwnerGuard, LastOwnerGuard>();
         services.AddMembershipAccessRevocation();
 
         // Fork extension points — TryAddScoped allows forks to register their own implementations
