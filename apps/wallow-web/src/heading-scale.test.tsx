@@ -118,6 +118,11 @@ function ScaleProbes() {
  * One tree rather than one render per section because the claim is that the
  * headings AGREE: measured in a single layout, "they all match the probe" and
  * "they all match each other" are the same assertion.
+ *
+ * Settling waits on a marker each section renders only AFTER its query lands,
+ * because two of the three hide their heading behind a loading branch. The
+ * form's own testid is not enough — it needs no data, so it paints while the
+ * other two are still loading and every measurement below sees one heading.
  */
 async function renderSections(): Promise<void> {
   harness.respond((call) => Response.json(call.path.includes("mfa") ? MFA_STATUS : PROFILE));
@@ -132,6 +137,8 @@ async function renderSections(): Promise<void> {
     { harness },
   );
 
+  await expect.element(page.getByTestId("settings-profile-name")).toBeInTheDocument();
+  await expect.element(page.getByTestId("settings-mfa-status")).toBeInTheDocument();
   await expect.element(page.getByTestId("organization-create-form")).toBeInTheDocument();
 }
 
@@ -235,6 +242,11 @@ describe("wallow-web's card headings take the catalog-wide scale", () => {
  * heading, and — with both collections seeded empty — the two `EmptyState`
  * headings, which are the indirect route to `subheading` this app takes five
  * times. `CreateInquiryForm` adds the last direct call site.
+ *
+ * Settling waits on the organization heading and the members empty state — the
+ * markers the two queries feeding this tree's headings put on screen. The
+ * inquiry form's heading needs no data, so waiting on it alone measures a tree
+ * still showing `organization-detail-loading`.
  */
 async function renderSubheadingPath(): Promise<void> {
   routeHarness(
@@ -257,6 +269,8 @@ async function renderSubheadingPath(): Promise<void> {
     { harness },
   );
 
+  await expect.element(page.getByTestId("organization-detail-heading")).toBeInTheDocument();
+  await expect.element(page.getByTestId("organization-members-empty")).toBeInTheDocument();
   await expect.element(page.getByTestId("inquiry-create-heading")).toBeInTheDocument();
 }
 
