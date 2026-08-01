@@ -24,6 +24,14 @@ public interface IOrganizationService
     // revoke what the member already holds.
     Task<IReadOnlyList<UserDto>> GetMembersAsync(Guid orgId, CancellationToken ct = default);
     Task<IReadOnlyList<OrganizationDto>> GetUserOrganizationsAsync(Guid userId, CancellationToken ct = default);
+
+    /// <summary>
+    /// The doors this person may walk through, for the app that can only open one of them.
+    /// Active memberships of organizations that are themselves active, and nothing else: a
+    /// pending request is not an answer yet, and an archived organization is not a door.
+    /// </summary>
+    Task<IReadOnlyList<MyOrganizationDto>> GetMyOrganizationsAsync(Guid userId, CancellationToken ct = default);
+
     Task ArchiveAsync(Guid organizationId, Guid actorId, CancellationToken ct = default);
     Task ReactivateAsync(Guid organizationId, Guid actorId, CancellationToken ct = default);
     Task DeleteAsync(Guid organizationId, string confirmedName, CancellationToken ct = default);

@@ -277,16 +277,6 @@ public class OrganizationsController(
     }
 
     /// <summary>
-    /// Get all organizations that the current user belongs to.
-    /// </summary>
-    [HttpGet("mine")]
-    public async Task<ActionResult<IReadOnlyList<OrganizationDto>>> GetMyOrganizations(CancellationToken ct)
-    {
-        Guid userId = Guid.Parse(User.GetUserId()!);
-        return Ok(await orgService.GetUserOrganizationsAsync(userId, ct));
-    }
-
-    /// <summary>
     /// Archive an organization.
     /// </summary>
     [HttpPost("{id:guid}/archive")]

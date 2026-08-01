@@ -314,4 +314,64 @@ public sealed class OrganizationServiceTests : IDisposable
         result.Should().HaveCount(1);
         result[0].Name.Should().Be("Org A");
     }
+
+    [Fact]
+    public async Task GetMyOrganizationsAsync_NamesEachDoorAndTheStandingHeldBehindIt()
+    {
+        Guid userId = Guid.NewGuid();
+        Organization owned = GivenOrganization("Org A", "org-a");
+        Organization joined = GivenOrganization("Org B", "org-b");
+        GivenMembership(userId, owned, isOwner: true);
+        GivenMembership(userId, joined, isOwner: false);
+        await _dbContext.SaveChangesAsync();
+        _organizationRepository.GetByUserIdAsync(userId, Arg.Any<CancellationToken>())
+            .Returns([owned, joined]);
+
+        IReadOnlyList<MyOrganizationDto> result = await _sut.GetMyOrganizationsAsync(userId);
+
+        result.Should().BeEquivalentTo(
+        [
+            new MyOrganizationDto(owned.Id.Value, "Org A", "org-a", true),
+            new MyOrganizationDto(joined.Id.Value, "Org B", "org-b", false)
+        ]);
+    }
+
+    /// <summary>
+    /// Neither is a door: one has not been answered yet, and the other has closed. Both reach the
+    /// mapping, because the organization read alone cannot tell them from a membership in good
+    /// standing.
+    /// </summary>
+    [Fact]
+    public async Task GetMyOrganizationsAsync_LeavesOutAPendingRequestAndAnArchivedOrganization()
+    {
+        Guid userId = Guid.NewGuid();
+        Organization asked = GivenOrganization("Asked", "asked");
+        Organization archived = GivenOrganization("Archived", "archived");
+        _dbContext.Memberships.Add(Membership.RequestAccess(userId, asked.Id, TimeProvider.System));
+        GivenMembership(userId, archived, isOwner: false);
+        archived.Archive(Guid.NewGuid(), TimeProvider.System);
+        await _dbContext.SaveChangesAsync();
+        _organizationRepository.GetByUserIdAsync(userId, Arg.Any<CancellationToken>())
+            .Returns([asked, archived]);
+
+        IReadOnlyList<MyOrganizationDto> result = await _sut.GetMyOrganizationsAsync(userId);
+
+        result.Should().BeEmpty();
+    }
+
+    private Organization GivenOrganization(string name, string slug)
+    {
+        Organization organization = Organization.Create(
+            new TenantId(_tenantId), name, slug, Guid.NewGuid(), TimeProvider.System);
+        _dbContext.Organizations.Add(organization);
+        return organization;
+    }
+
+    private void GivenMembership(Guid userId, Organization organization, bool isOwner)
+    {
+        Guid roleId = _dbContext.Roles.IgnoreQueryFilters().Select(r => r.Id).First();
+        Membership membership = Membership.Enroll(userId, organization.Id, roleId, TimeProvider.System);
+        membership.MarkOwner(isOwner, userId, TimeProvider.System);
+        _dbContext.Memberships.Add(membership);
+    }
 }

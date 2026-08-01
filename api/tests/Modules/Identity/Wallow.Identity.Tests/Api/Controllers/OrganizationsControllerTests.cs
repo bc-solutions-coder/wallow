@@ -331,35 +331,4 @@ public class OrganizationsControllerTests
 
     #endregion
 
-    #region GetMyOrganizations
-
-    [Fact]
-    public async Task GetMyOrganizations_ReturnsOkWithCurrentUserOrgs()
-    {
-        List<OrganizationDto> orgs =
-        [
-            new OrganizationDto(Guid.NewGuid(), "My Org", null, 5)
-        ];
-        _orgService.GetUserOrganizationsAsync(_userId, Arg.Any<CancellationToken>())
-            .Returns(orgs);
-
-        ActionResult<IReadOnlyList<OrganizationDto>> result = await _controller.GetMyOrganizations(CancellationToken.None);
-
-        OkObjectResult ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
-        IReadOnlyList<OrganizationDto> response = ok.Value.Should().BeAssignableTo<IReadOnlyList<OrganizationDto>>().Subject;
-        response.Should().HaveCount(1);
-    }
-
-    [Fact]
-    public async Task GetMyOrganizations_UsesCurrentUserIdFromClaims()
-    {
-        _orgService.GetUserOrganizationsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
-            .Returns([]);
-
-        await _controller.GetMyOrganizations(CancellationToken.None);
-
-        await _orgService.Received(1).GetUserOrganizationsAsync(_userId, Arg.Any<CancellationToken>());
-    }
-
-    #endregion
 }

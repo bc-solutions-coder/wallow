@@ -252,6 +252,33 @@ public sealed partial class OrganizationService(
         return await MapToDtosAsync(organizations, ct);
     }
 
+    public async Task<IReadOnlyList<MyOrganizationDto>> GetMyOrganizationsAsync(
+        Guid userId, CancellationToken ct = default)
+    {
+        IReadOnlyList<Membership> memberships = await membershipRepository.GetForUserAsync(userId, ct);
+        Dictionary<Guid, Membership> active = memberships
+            .Where(m => m.Status == MembershipStatus.Active)
+            .ToDictionary(m => m.OrganizationId.Value);
+
+        if (active.Count == 0)
+        {
+            return [];
+        }
+
+        List<Organization> organizations = await organizationRepository.GetByUserIdAsync(userId, ct);
+
+        return
+        [
+            .. organizations
+                .Where(o => o.IsActive && active.ContainsKey(o.Id.Value))
+                .Select(o => new MyOrganizationDto(
+                    o.Id.Value,
+                    o.Name,
+                    o.Slug,
+                    active[o.Id.Value].IsOwner))
+        ];
+    }
+
     public async Task ArchiveAsync(Guid organizationId, Guid actorId, CancellationToken ct = default)
     {
         LogArchivingOrganization(organizationId);
