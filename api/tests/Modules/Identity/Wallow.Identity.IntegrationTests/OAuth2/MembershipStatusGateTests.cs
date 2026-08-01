@@ -11,10 +11,10 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.OAuth2;
 
 /// <summary>
-/// What a membership status is worth at the authorize endpoint. Only Active signs a person in, and
-/// Pending, Suspended and Denied each refuse under their own reason so the auth app can say what
-/// happened rather than only that access was refused. Global admin is an authority no organization
-/// grants, so it passes the gate holding no membership at all.
+/// What a membership status is worth at the authorize endpoint, and again at every refresh. Only
+/// Active signs a person in, and Pending, Suspended and Denied each refuse under their own reason
+/// so the auth app can say what happened rather than only that access was refused. Global admin is
+/// an authority no organization grants, so it passes the gate holding no membership at all.
 /// </summary>
 public sealed class MembershipStatusGateTests(WallowApiFactory factory)
     : IdentityIntegrationTestBase(factory)
@@ -23,7 +23,8 @@ public sealed class MembershipStatusGateTests(WallowApiFactory factory)
     private const string ClientSecret = "membership-gate-client-secret";
     private const string Scope = "openid profile email roles";
 
-    private static readonly string[] _clientScopes = ["openid", "profile", "email", "roles"];
+    private static readonly string[] _clientScopes =
+        ["openid", "profile", "email", "roles", "offline_access"];
 
     [Fact]
     public async Task Authorize_ForAnActiveMembership_IssuesAToken()
@@ -60,11 +61,7 @@ public sealed class MembershipStatusGateTests(WallowApiFactory factory)
         await AuthorizationCodeFlowHarness.EnrollMemberAsync(
             ScopedServices, seed.OrganizationId, seed.UserId, "user");
 
-        IMembershipRepository memberships = ScopedServices.GetRequiredService<IMembershipRepository>();
-        Membership membership = await memberships.GetAsync(seed.UserId, seed.OrganizationId)
-            ?? throw new InvalidOperationException("Enrolling the member wrote no membership.");
-        membership.Suspend(seed.OwnerId, TimeProvider.System);
-        await memberships.SaveChangesAsync();
+        await SuspendAsync(seed);
 
         AuthorizeOutcome authorize = await AuthorizeAsync(seed);
 
@@ -105,6 +102,39 @@ public sealed class MembershipStatusGateTests(WallowApiFactory factory)
         TokenOutcome tokens = await harness.AcquireTokensAsync(seed.ClientId, ClientSecret, Scope);
 
         tokens.StatusCode.Should().Be(HttpStatusCode.OK, tokens.Body);
+    }
+
+    [Fact]
+    public async Task Refresh_AfterTheMembershipIsSuspended_IsRefused()
+    {
+        Seed seed = await SeedAsync();
+        await AuthorizationCodeFlowHarness.EnrollMemberAsync(
+            ScopedServices, seed.OrganizationId, seed.UserId, "user");
+
+        using AuthorizationCodeFlowHarness harness = new(Factory);
+        await harness.SignInAsync(seed.Email, Password);
+
+        TokenOutcome tokens = await harness.AcquireTokensAsync(
+            seed.ClientId, ClientSecret, $"{Scope} offline_access");
+        tokens.RefreshToken.Should().NotBeNullOrEmpty(tokens.Body);
+
+        await SuspendAsync(seed);
+
+        TokenOutcome refreshed = await harness.RefreshAsync(
+            seed.ClientId, ClientSecret, tokens.RefreshToken!);
+
+        refreshed.AccessToken.Should().BeNull(refreshed.Body);
+        refreshed.Error.Should().Be("invalid_grant");
+    }
+
+    private async Task SuspendAsync(Seed seed)
+    {
+        IMembershipRepository memberships = ScopedServices.GetRequiredService<IMembershipRepository>();
+        Membership membership = await memberships.GetAsync(seed.UserId, seed.OrganizationId)
+            ?? throw new InvalidOperationException("Enrolling the member wrote no membership.");
+
+        membership.Suspend(seed.OwnerId, TimeProvider.System);
+        await memberships.SaveChangesAsync();
     }
 
     private async Task<AuthorizeOutcome> AuthorizeAsync(Seed seed)

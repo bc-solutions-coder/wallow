@@ -52,6 +52,7 @@ public sealed class TokenControllerClientCredentialsTenantTests : IDisposable
         _controller = new TokenController(
             _userManager,
             _applicationManager,
+            Substitute.For<IMembershipRepository>(),
             Substitute.For<IMembershipRoleResolver>(),
             NullLogger<TokenController>.Instance);
     }

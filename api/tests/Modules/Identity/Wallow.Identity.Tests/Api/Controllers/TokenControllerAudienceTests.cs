@@ -12,6 +12,7 @@ using OpenIddict.Server.AspNetCore;
 using Wallow.Identity.Api.Controllers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Identity;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace Wallow.Identity.Tests.Api.Controllers;
@@ -62,9 +63,19 @@ public sealed class TokenControllerAudienceTests : IDisposable
             .GetRoleNamesAsync(_user.Id, Guid.Parse(OrgId), Arg.Any<CancellationToken>())
             .Returns<IReadOnlyList<string>>(["Admin"]);
 
+        IMembershipRepository memberships = Substitute.For<IMembershipRepository>();
+        memberships
+            .GetAsync(_user.Id, Guid.Parse(OrgId), Arg.Any<CancellationToken>())
+            .Returns(Membership.Enroll(
+                _user.Id,
+                OrganizationId.Create(Guid.Parse(OrgId)),
+                Guid.NewGuid(),
+                TimeProvider.System));
+
         _controller = new TokenController(
             _userManager,
             Substitute.For<IOpenIddictApplicationManager>(),
+            memberships,
             membershipRoleResolver,
             NullLogger<TokenController>.Instance);
     }

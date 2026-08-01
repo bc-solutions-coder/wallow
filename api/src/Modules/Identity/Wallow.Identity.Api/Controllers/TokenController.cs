@@ -14,6 +14,7 @@ using OpenIddict.Server.AspNetCore;
 using Wallow.Identity.Application.Helpers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Enums;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 // Aliased rather than imported: the namespace's GetScopes extension collides with OpenIddict's.
 using WallowClaims = Wallow.Shared.Kernel.Extensions.ClaimsPrincipalExtensions;
@@ -28,6 +29,7 @@ namespace Wallow.Identity.Api.Controllers;
 public sealed partial class TokenController(
     UserManager<WallowUser> userManager,
     IOpenIddictApplicationManager applicationManager,
+    IMembershipRepository memberships,
     IMembershipRoleResolver membershipRoleResolver,
     ILogger<TokenController> logger) : Controller
 {
@@ -105,6 +107,15 @@ public sealed partial class TokenController(
         identity.SetClaim(Claims.GivenName, user.FirstName);
         identity.SetClaim(Claims.FamilyName, user.LastName);
 
+        // Read from the user's own claim store rather than carrying the flag forward from the
+        // incoming principal: a refresh token must never be able to keep a revoked global admin
+        // alive, and nothing a tenant controls may introduce it.
+        bool isGlobalAdmin = GlobalAdminClaims.IsGranted(await userManager.GetClaimsAsync(user));
+        if (isGlobalAdmin)
+        {
+            identity.SetClaim(WallowClaims.GlobalAdminClaimType, "true");
+        }
+
         // Carry forward tenant claims from the original principal. The organization has to be
         // settled before the roles, because it is what decides them.
         string? orgId = principal.GetClaim("org_id");
@@ -113,26 +124,45 @@ public sealed partial class TokenController(
             identity.SetClaim("org_id", orgId);
         }
 
-        // Re-resolved from the membership rather than carried forward, for the same reason the
-        // global-admin flag below is: a refresh token must not keep a role alive after the
-        // organization has taken it away. A token naming no organization earns no roles at all.
-        if (orgId is not null && Guid.TryParse(orgId, out Guid organizationId))
+        Guid? organizationId = orgId is not null && Guid.TryParse(orgId, out Guid parsedOrganizationId)
+            ? parsedOrganizationId
+            : null;
+
+        // The membership is re-read, never trusted from the incoming principal: a refresh token
+        // must not outlive the organization's decision about the person holding it. Global admin
+        // governs across organizations, so no organization gates it.
+        if (!isGlobalAdmin && organizationId is not null)
+        {
+            Membership? membership = await memberships.GetAsync(
+                user.Id, organizationId.Value, HttpContext.RequestAborted);
+
+            if (membership is not { Status: MembershipStatus.Active })
+            {
+                string membershipStatus = membership is null ? "none" : membership.Status.ToString();
+                LogMembershipNotActive(subject, organizationId.Value, membershipStatus);
+
+                return Forbid(
+                    authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme,
+                    properties: new AuthenticationProperties(new Dictionary<string, string?>
+                    {
+                        [OpenIddictServerAspNetCoreConstants.Properties.Error] = Errors.InvalidGrant,
+                        [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] = "The user is no longer an active member of this organization."
+                    }));
+            }
+        }
+
+        // Re-resolved from the membership rather than carried forward, for the same reason: a
+        // refresh token must not keep a role alive after the organization has taken it away. A
+        // token naming no organization earns no roles at all.
+        if (organizationId is not null)
         {
             IReadOnlyList<string> roles =
-                await membershipRoleResolver.GetRoleNamesAsync(user.Id, organizationId);
+                await membershipRoleResolver.GetRoleNamesAsync(user.Id, organizationId.Value);
 
             foreach (string role in roles)
             {
                 identity.AddClaim(Claims.Role, role);
             }
-        }
-
-        // Read from the user's own claim store rather than carrying the flag forward from the
-        // incoming principal: a refresh token must never be able to keep a revoked global admin
-        // alive, and nothing a tenant controls may introduce it.
-        if (await IsGlobalAdminUserAsync(user))
-        {
-            identity.SetClaim(WallowClaims.GlobalAdminClaimType, "true");
         }
 
         string? orgName = principal.GetClaim("org_name");
@@ -203,9 +233,6 @@ public sealed partial class TokenController(
             OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
     }
 
-    private async Task<bool> IsGlobalAdminUserAsync(WallowUser user) =>
-        GlobalAdminClaims.IsGranted(await userManager.GetClaimsAsync(user));
-
     private async Task<ImmutableDictionary<string, JsonElement>> GetApplicationPropertiesAsync(string clientId)
     {
         object? application = await applicationManager.FindByClientIdAsync(clientId, HttpContext.RequestAborted);
@@ -228,6 +255,9 @@ public sealed partial class TokenController(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "OIDC token user not found for subject={Subject}")]
     private partial void LogTokenUserNotFound(string? subject);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "OIDC token refused for subject={Subject}: membership in organizationId={OrganizationId} is {Status}")]
+    private partial void LogMembershipNotActive(string? subject, Guid organizationId, string status);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "OIDC token issued for subject={Subject}, scopes={Scopes}")]
     private partial void LogTokenIssued(string? subject, string scopes);
