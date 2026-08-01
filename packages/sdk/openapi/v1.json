@@ -2793,6 +2793,7 @@
         "tags": [
           "Invitations"
         ],
+        "summary": "Joins the caller to the inviting organization. Refused unless the caller's own verified\nemail is the one the invitation names, so a forwarded token grants nothing.",
         "operationId": "InvitationsAccept",
         "parameters": [
           {
@@ -2813,6 +2814,16 @@
           },
           "404": {
             "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
             "content": {
               "application/json": {
                 "schema": {

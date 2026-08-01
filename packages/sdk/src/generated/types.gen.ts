@@ -2230,6 +2230,10 @@ export type InvitationsAcceptErrors = {
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Unprocessable Entity
+     */
+    422: ProblemDetails;
 };
 
 export type InvitationsAcceptError = InvitationsAcceptErrors[keyof InvitationsAcceptErrors];

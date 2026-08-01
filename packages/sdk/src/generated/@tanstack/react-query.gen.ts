@@ -842,6 +842,10 @@ export const invitationsVerifyOptions = (options: Options<InvitationsVerifyData>
     queryKey: invitationsVerifyQueryKey(options)
 });
 
+/**
+ * Joins the caller to the inviting organization. Refused unless the caller's own verified
+ * email is the one the invitation names, so a forwarded token grants nothing.
+ */
 export const invitationsAcceptMutation = (options?: Partial<Options<InvitationsAcceptData>>): UseMutationOptions<unknown, InvitationsAcceptError, Options<InvitationsAcceptData>> => {
     const mutationOptions: UseMutationOptions<unknown, InvitationsAcceptError, Options<InvitationsAcceptData>> = {
         mutationFn: async (fnOptions) => await invitationsAccept({

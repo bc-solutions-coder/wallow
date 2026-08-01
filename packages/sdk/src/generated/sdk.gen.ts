@@ -621,6 +621,10 @@ export const invitationsVerify = <ThrowOnError extends boolean = true>(options: 
     ...options
 });
 
+/**
+ * Joins the caller to the inviting organization. Refused unless the caller's own verified
+ * email is the one the invitation names, so a forwarded token grants nothing.
+ */
 export const invitationsAccept = <ThrowOnError extends boolean = true>(options: Options<InvitationsAcceptData, ThrowOnError>): RequestResult<InvitationsAcceptResponses, InvitationsAcceptErrors, ThrowOnError, 'data'> => (options.client ?? client).post<InvitationsAcceptResponses, InvitationsAcceptErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
