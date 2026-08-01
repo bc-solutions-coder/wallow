@@ -94,6 +94,25 @@ public sealed partial class MembershipReviewService(
         LogMembershipDenied(userId, organizationId, actorId);
     }
 
+    public async Task ClearDenialAsync(
+        Guid organizationId, Guid userId, Guid actorId, CancellationToken ct = default)
+    {
+        Membership membership = await RequireMembershipAsync(organizationId, userId, ct);
+
+        if (membership.Status != MembershipStatus.Denied)
+        {
+            throw new BusinessRuleException(
+                "Identity.MembershipNotDenied",
+                "Only a denied membership can have its denial cleared");
+        }
+
+        // Nothing to revoke and nothing to announce: a denied membership never authenticated here.
+        memberships.Remove(membership);
+        await memberships.SaveChangesAsync(ct);
+
+        LogDenialCleared(userId, organizationId, actorId);
+    }
+
     public async Task SuspendAsync(
         Guid organizationId, Guid userId, Guid actorId, CancellationToken ct = default)
     {
@@ -174,6 +193,9 @@ public sealed partial class MembershipReviewService(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Membership denied: userId={UserId}, organizationId={OrganizationId}, by={ActorId}")]
     private partial void LogMembershipDenied(Guid userId, Guid organizationId, Guid actorId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Membership denial cleared: userId={UserId}, organizationId={OrganizationId}, by={ActorId}")]
+    private partial void LogDenialCleared(Guid userId, Guid organizationId, Guid actorId);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Membership suspended: userId={UserId}, organizationId={OrganizationId}, by={ActorId}")]
     private partial void LogMembershipSuspended(Guid userId, Guid organizationId, Guid actorId);

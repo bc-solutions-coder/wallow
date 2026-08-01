@@ -179,4 +179,80 @@ public class MembershipTests
         membership.JoinedAt.Should().Be(joinedAt);
         membership.RoleIds.Should().BeEquivalentTo([firstRoleId, secondRoleId]);
     }
+
+    [Fact]
+    public void Deny_StandsForTheCooldownAndNoLonger()
+    {
+        Membership membership = Denied();
+
+        membership.DeniedUntil.Should().Be(_timeProvider.GetUtcNow() + Membership.DenialCooldown);
+        membership.IsWithinDenialCooldown(_timeProvider).Should().BeTrue();
+
+        _timeProvider.Advance(Membership.DenialCooldown);
+
+        membership.IsWithinDenialCooldown(_timeProvider).Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void AskingAgainDuringTheCooldown_IsRefused(bool withoutReview)
+    {
+        Membership membership = Denied();
+        Action askAgain = withoutReview
+            ? () => membership.RequestAgain(_timeProvider)
+            : () => membership.EnrollAgain(Guid.NewGuid(), _timeProvider);
+
+        askAgain.Should().Throw<BusinessRuleException>()
+            .Which.Code.Should().Be("Identity.DenialCooldown");
+        membership.Status.Should().Be(MembershipStatus.Denied);
+    }
+
+    [Fact]
+    public void RequestAgain_AfterTheCooldown_PutsThemBackInTheQueueWithNoStandingAnswer()
+    {
+        Membership membership = Denied();
+        _timeProvider.Advance(Membership.DenialCooldown);
+
+        membership.RequestAgain(_timeProvider);
+
+        membership.Status.Should().Be(MembershipStatus.Pending);
+        membership.RequestedAt.Should().Be(_timeProvider.GetUtcNow());
+        membership.ReviewedAt.Should().BeNull();
+        membership.ReviewedBy.Should().BeNull();
+        membership.DeniedUntil.Should().BeNull();
+    }
+
+    [Fact]
+    public void EnrollAgain_AfterTheCooldown_AdmitsThemWithTheDefaultRole()
+    {
+        Guid roleId = Guid.NewGuid();
+        Membership membership = Denied();
+        _timeProvider.Advance(Membership.DenialCooldown);
+
+        membership.EnrollAgain(roleId, _timeProvider);
+
+        membership.Status.Should().Be(MembershipStatus.Active);
+        membership.RoleIds.Should().BeEquivalentTo([roleId]);
+        membership.JoinedAt.Should().Be(_timeProvider.GetUtcNow());
+        membership.ReviewedBy.Should().BeNull();
+    }
+
+    [Fact]
+    public void AskingAgain_WhenNothingWasDenied_IsRefused()
+    {
+        Membership membership = Membership.RequestAccess(_userId, _orgId, _timeProvider);
+
+        Action askAgain = () => membership.RequestAgain(_timeProvider);
+
+        askAgain.Should().Throw<BusinessRuleException>()
+            .Which.Code.Should().Be("Identity.MembershipNotDenied");
+    }
+
+    private Membership Denied()
+    {
+        Membership membership = Membership.RequestAccess(_userId, _orgId, _timeProvider);
+        membership.Deny(_actorId, _timeProvider);
+        return membership;
+    }
 }

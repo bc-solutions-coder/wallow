@@ -284,6 +284,18 @@ public class OrganizationsControllerTests
     }
 
     [Fact]
+    public async Task ClearDenial_RecordsTheSignedInReviewerAsTheActor()
+    {
+        Guid memberId = Guid.NewGuid();
+
+        ActionResult result = await _controller.ClearDenial(_tenantOrgId, memberId, CancellationToken.None);
+
+        result.Should().BeOfType<NoContentResult>();
+        await _membershipReview.Received(1).ClearDenialAsync(
+            _tenantOrgId, memberId, _userId, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task SuspendMember_RecordsTheSignedInReviewerAsTheActor()
     {
         Guid memberId = Guid.NewGuid();

@@ -36,7 +36,15 @@ public sealed partial class UserEnrollmentService(
         // authorize idempotent: a second Pending row would outlive the first one's denial and
         // hand the person a fresh request every time they retried.
         Membership? existing = await memberships.GetAsync(userId, organizationId, ct);
-        if (existing is not null)
+
+        // A denial that has run its course stops being the organization's answer. What replaces it
+        // is not a second chance of its own: the current policy decides, exactly as for a stranger.
+        Membership? spentDenial = existing is { Status: MembershipStatus.Denied }
+            && !existing.IsWithinDenialCooldown(timeProvider)
+                ? existing
+                : null;
+
+        if (existing is not null && spentDenial is null)
         {
             return FromExisting(existing.Status);
         }
@@ -74,10 +82,10 @@ public sealed partial class UserEnrollmentService(
         switch (policy)
         {
             case EnrollmentPolicy.Open:
-                return await EnrollDirectlyAsync(user, organization, ct);
+                return await EnrollDirectlyAsync(user, organization, spentDenial, ct);
 
             case EnrollmentPolicy.RequestApproval:
-                return await RecordRequestAsync(user, organization, ct);
+                return await RecordRequestAsync(user, organization, spentDenial, ct);
 
             // InviteOnly, and any policy a fork adds without deciding what it means here.
             default:
@@ -86,7 +94,7 @@ public sealed partial class UserEnrollmentService(
     }
 
     private async Task<EnrollmentOutcome> EnrollDirectlyAsync(
-        WallowUser user, Organization organization, CancellationToken ct)
+        WallowUser user, Organization organization, Membership? spentDenial, CancellationToken ct)
     {
         Guid organizationId = organization.Id.Value;
 
@@ -94,7 +102,15 @@ public sealed partial class UserEnrollmentService(
         // roles are granted by an organization and carry no authority outside it.
         Guid roleId = await defaultRoleResolver.ResolveAsync(organizationId, ct);
 
-        memberships.Add(Membership.Enroll(user.Id, organization.Id, roleId, timeProvider));
+        if (spentDenial is null)
+        {
+            memberships.Add(Membership.Enroll(user.Id, organization.Id, roleId, timeProvider));
+        }
+        else
+        {
+            spentDenial.EnrollAgain(roleId, timeProvider);
+        }
+
         await memberships.SaveChangesAsync(ct);
 
         await messageBus.PublishAsync(new OrganizationMemberAddedEvent
@@ -110,11 +126,19 @@ public sealed partial class UserEnrollmentService(
     }
 
     private async Task<EnrollmentOutcome> RecordRequestAsync(
-        WallowUser user, Organization organization, CancellationToken ct)
+        WallowUser user, Organization organization, Membership? spentDenial, CancellationToken ct)
     {
         Guid organizationId = organization.Id.Value;
 
-        memberships.Add(Membership.RequestAccess(user.Id, organization.Id, timeProvider));
+        if (spentDenial is null)
+        {
+            memberships.Add(Membership.RequestAccess(user.Id, organization.Id, timeProvider));
+        }
+        else
+        {
+            spentDenial.RequestAgain(timeProvider);
+        }
+
         await memberships.SaveChangesAsync(ct);
 
         IReadOnlyList<string> recipients = await recipientResolver.ResolveAsync(organizationId, ct);

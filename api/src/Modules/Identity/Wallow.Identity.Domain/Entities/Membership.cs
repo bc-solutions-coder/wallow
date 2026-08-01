@@ -17,6 +17,13 @@ namespace Wallow.Identity.Domain.Entities;
 /// </remarks>
 public sealed class Membership : AggregateRoot<MembershipId>
 {
+    /// <summary>
+    /// How long a denial stands before the same person may ask this organization again. A denial
+    /// is an answer to one request, not a ban: left permanent, the only way back is an
+    /// administrator noticing a row that appears on no list.
+    /// </summary>
+    public static readonly TimeSpan DenialCooldown = TimeSpan.FromDays(30);
+
     public Guid UserId { get; private set; }
     public OrganizationId OrganizationId { get; private set; }
     public MembershipStatus Status { get; private set; }
@@ -44,6 +51,16 @@ public sealed class Membership : AggregateRoot<MembershipId>
     public IReadOnlyList<Guid> RoleIds => _roles.Select(r => r.RoleId).ToList().AsReadOnly();
 
     public bool IsActive => Status == MembershipStatus.Active;
+
+    /// <summary>
+    /// When a standing denial stops being an answer. Null unless the membership is denied — and
+    /// null for a denial with no review timestamp, which resolves the unanswerable case in the
+    /// direction that lets someone ask rather than the one that silently bars them forever.
+    /// </summary>
+    public DateTimeOffset? DeniedUntil =>
+        Status == MembershipStatus.Denied && ReviewedAt is { } reviewedAt
+            ? reviewedAt + DenialCooldown
+            : null;
 
     // ReSharper disable once UnusedMember.Local
     private Membership() { } // EF Core
@@ -131,6 +148,44 @@ public sealed class Membership : AggregateRoot<MembershipId>
         SetUpdated(timeProvider.GetUtcNow(), deniedByUserId);
     }
 
+    /// <summary>
+    /// Whether a denial is still the organization's answer.
+    /// </summary>
+    public bool IsWithinDenialCooldown(TimeProvider timeProvider) =>
+        DeniedUntil is { } until && timeProvider.GetUtcNow() < until;
+
+    /// <summary>
+    /// The person asks again once a denial has run its course, and waits for a review as any
+    /// requester would.
+    /// </summary>
+    /// <remarks>
+    /// The row is reused rather than replaced: (UserId, OrganizationId) is unique, so deleting one
+    /// and inserting another in the same save would race the index for no gain.
+    /// </remarks>
+    public void RequestAgain(TimeProvider timeProvider)
+    {
+        RequireDenialSpent(timeProvider);
+
+        Status = MembershipStatus.Pending;
+        RequestedAt = timeProvider.GetUtcNow();
+        ClearReview();
+        SetUpdated(timeProvider.GetUtcNow(), UserId);
+    }
+
+    /// <summary>
+    /// The same second chance in an organization that admits anyone: there is no review to wait for.
+    /// </summary>
+    public void EnrollAgain(Guid defaultRoleId, TimeProvider timeProvider)
+    {
+        RequireDenialSpent(timeProvider);
+
+        Status = MembershipStatus.Active;
+        JoinedAt = timeProvider.GetUtcNow();
+        ClearReview();
+        AssignRole(defaultRoleId, UserId, timeProvider);
+        SetUpdated(timeProvider.GetUtcNow(), UserId);
+    }
+
     public void Suspend(Guid suspendedByUserId, TimeProvider timeProvider)
     {
         if (Status != MembershipStatus.Active)
@@ -198,5 +253,28 @@ public sealed class Membership : AggregateRoot<MembershipId>
     {
         IsOwner = isOwner;
         SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
+    }
+
+    private void RequireDenialSpent(TimeProvider timeProvider)
+    {
+        if (Status != MembershipStatus.Denied)
+        {
+            throw new BusinessRuleException(
+                "Identity.MembershipNotDenied",
+                "Only a denied membership can be asked for again");
+        }
+
+        if (IsWithinDenialCooldown(timeProvider))
+        {
+            throw new BusinessRuleException(
+                "Identity.DenialCooldown",
+                "A recent request to this organization was denied; it may be asked again later");
+        }
+    }
+
+    private void ClearReview()
+    {
+        ReviewedAt = null;
+        ReviewedBy = null;
     }
 }

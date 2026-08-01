@@ -201,6 +201,25 @@ public class OrganizationsController(
     }
 
     /// <summary>
+    /// Let a denied requester ask again now, instead of waiting out the denial.
+    /// </summary>
+    [HttpDelete("{id:guid}/members/{userId:guid}/denial")]
+    [HasPermission(PermissionType.OrganizationsManageMembers)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult> ClearDenial(Guid id, Guid userId, CancellationToken ct)
+    {
+        if (!await CanAddressOrganizationAsync(id, PermissionType.OrganizationsManageMembers, ct))
+        {
+            return NotFound();
+        }
+
+        await membershipReview.ClearDenialAsync(id, userId, ActorId(), ct);
+        return NoContent();
+    }
+
+    /// <summary>
     /// Take an active member's access to this organization away, keeping the membership so it can
     /// be reinstated.
     /// </summary>

@@ -84,6 +84,7 @@ public sealed class OrganizationsControllerCrossTenantTests
         ["GetPendingMembers"] = PermissionType.OrganizationsManageMembers,
         ["ApproveMember"] = PermissionType.OrganizationsManageMembers,
         ["DenyMember"] = PermissionType.OrganizationsManageMembers,
+        ["ClearDenial"] = PermissionType.OrganizationsManageMembers,
         ["SuspendMember"] = PermissionType.OrganizationsManageMembers,
         ["ReinstateMember"] = PermissionType.OrganizationsManageMembers,
         ["UpdateEnrollment"] = PermissionType.OrganizationsManageMembers,
@@ -350,6 +351,7 @@ public sealed class OrganizationsControllerCrossTenantTests
             "GetPendingMembers" => (await controller.GetPendingMembers(orgId, ct)).Result,
             "ApproveMember" => await controller.ApproveMember(orgId, Guid.NewGuid(), ct),
             "DenyMember" => await controller.DenyMember(orgId, Guid.NewGuid(), ct),
+            "ClearDenial" => await controller.ClearDenial(orgId, Guid.NewGuid(), ct),
             "SuspendMember" => await controller.SuspendMember(orgId, Guid.NewGuid(), ct),
             "ReinstateMember" => await controller.ReinstateMember(orgId, Guid.NewGuid(), ct),
             _ => throw new ArgumentOutOfRangeException(
