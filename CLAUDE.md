@@ -296,8 +296,10 @@ bd close <id>                               # Complete work
 
 ### Beads sync across machines
 
-Beads live in an **embedded** Dolt database under `.beads/embeddeddolt/Wallow/` (database name
-`Wallow`, per `.beads/metadata.json`). All of `.beads/` is gitignored and never committed. Beads
+Beads live in an **embedded** Dolt database under `.beads/embeddeddolt/<db>/`, where `<db>` is
+`dolt_database` in `.beads/metadata.json`. **That name is per-machine, not repo-wide** — a machine
+that ran `bd init` here has `Wallow`; one set up with `bd bootstrap` gets `beads`. Nothing depends
+on it, so never hardcode the path. All of `.beads/` is gitignored and never committed. Beads
 travel through the **same GitHub repo** via Dolt's git-backed remote: the data sits on
 `refs/dolt/data`, with a `__dolt_remote_info__` branch pointing at it. `.beads/config.yaml` records
 `sync.remote: git+ssh://git@github.com/bc-solutions-coder/wallow.git` — so beads sync over your
@@ -310,8 +312,10 @@ travel through the **same GitHub repo** via Dolt's git-backed remote: the data s
 - **Pull** — `bd dolt pull`. Run it before starting work on a machine you haven't used lately —
   `git pull` does NOT bring beads over either.
 - **A new machine** — clone the repo, then `bd bootstrap --yes`: it finds `refs/dolt/data` on git
-  origin and rebuilds the whole database, with no `.beads/` needing to exist first. Then
-  `pnpm install` for the git hooks — see below.
+  origin and rebuilds the whole database, with no `.beads/` needing to exist first, and wires
+  `origin` for later push/pull (no manual `bd dolt remote add`). Verified end to end from a fresh
+  clone: identical issue counts, remote already configured. A clone leaves `core.hooksPath` empty,
+  so run `pnpm install` afterwards for the git hooks — see below.
 
 **Do not run `bd hooks install` in this repo.** Git hooks here are owned by **husky**: `prepare:
 husky` (root `package.json`) sets `core.hooksPath=.husky/_` on every `pnpm install`, and the
