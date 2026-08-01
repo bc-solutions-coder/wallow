@@ -160,8 +160,8 @@ public sealed class MembershipStatusGateTests(WallowApiFactory factory)
         HttpResponseMessage before = await harness.Client.GetAsync(_userinfo);
         before.StatusCode.Should().Be(HttpStatusCode.OK, await before.Content.ReadAsStringAsync());
 
-        IOrganizationService organizations = ScopedServices.GetRequiredService<IOrganizationService>();
-        await organizations.SuspendMemberAsync(seed.OrganizationId, seed.UserId, seed.OwnerId);
+        IMembershipReviewService review = ScopedServices.GetRequiredService<IMembershipReviewService>();
+        await review.SuspendAsync(seed.OrganizationId, seed.UserId, seed.OwnerId);
 
         HttpResponseMessage after = await harness.Client.GetAsync(_userinfo);
         after.StatusCode.Should().Be(HttpStatusCode.Unauthorized, await after.Content.ReadAsStringAsync());

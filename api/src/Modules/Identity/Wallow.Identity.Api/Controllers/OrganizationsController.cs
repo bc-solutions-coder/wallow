@@ -21,6 +21,7 @@ namespace Wallow.Identity.Api.Controllers;
 [Consumes("application/json")]
 public class OrganizationsController(
     IOrganizationService orgService,
+    IMembershipReviewService membershipReview,
     ITenantContext tenantContext,
     IOrganizationAccessPolicy accessPolicy) : ControllerBase
 {
@@ -44,6 +45,8 @@ public class OrganizationsController(
         return Guid.TryParse(User.GetUserId(), out Guid callerId)
             && await accessPolicy.HasPermissionInOrganizationAsync(orgId, callerId, requiredPermission, ct);
     }
+
+    private Guid ActorId() => Guid.Parse(User.GetUserId()!);
 
     /// <summary>
     /// Create a new organization.
@@ -139,6 +142,100 @@ public class OrganizationsController(
         }
 
         await orgService.RemoveMemberAsync(id, userId, ct);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// List the organization's outstanding access requests, oldest first.
+    /// </summary>
+    [HttpGet("{id:guid}/members/pending")]
+    [HasPermission(PermissionType.OrganizationsManageMembers)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IReadOnlyList<PendingMembershipDto>>> GetPendingMembers(
+        Guid id, CancellationToken ct)
+    {
+        if (!await CanAddressOrganizationAsync(id, PermissionType.OrganizationsManageMembers, ct))
+        {
+            return NotFound();
+        }
+
+        return Ok(await membershipReview.GetPendingAsync(id, ct));
+    }
+
+    /// <summary>
+    /// Admit a pending requester, granting them the organization's default role.
+    /// </summary>
+    [HttpPost("{id:guid}/members/{userId:guid}/approve")]
+    [HasPermission(PermissionType.OrganizationsManageMembers)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult> ApproveMember(Guid id, Guid userId, CancellationToken ct)
+    {
+        if (!await CanAddressOrganizationAsync(id, PermissionType.OrganizationsManageMembers, ct))
+        {
+            return NotFound();
+        }
+
+        await membershipReview.ApproveAsync(id, userId, ActorId(), ct);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Turn a pending requester away.
+    /// </summary>
+    [HttpPost("{id:guid}/members/{userId:guid}/deny")]
+    [HasPermission(PermissionType.OrganizationsManageMembers)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult> DenyMember(Guid id, Guid userId, CancellationToken ct)
+    {
+        if (!await CanAddressOrganizationAsync(id, PermissionType.OrganizationsManageMembers, ct))
+        {
+            return NotFound();
+        }
+
+        await membershipReview.DenyAsync(id, userId, ActorId(), ct);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Take an active member's access to this organization away, keeping the membership so it can
+    /// be reinstated.
+    /// </summary>
+    [HttpPost("{id:guid}/members/{userId:guid}/suspend")]
+    [HasPermission(PermissionType.OrganizationsManageMembers)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult> SuspendMember(Guid id, Guid userId, CancellationToken ct)
+    {
+        if (!await CanAddressOrganizationAsync(id, PermissionType.OrganizationsManageMembers, ct))
+        {
+            return NotFound();
+        }
+
+        await membershipReview.SuspendAsync(id, userId, ActorId(), ct);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Give a suspended member their access back.
+    /// </summary>
+    [HttpPost("{id:guid}/members/{userId:guid}/reinstate")]
+    [HasPermission(PermissionType.OrganizationsManageMembers)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult> ReinstateMember(Guid id, Guid userId, CancellationToken ct)
+    {
+        if (!await CanAddressOrganizationAsync(id, PermissionType.OrganizationsManageMembers, ct))
+        {
+            return NotFound();
+        }
+
+        await membershipReview.ReinstateAsync(id, userId, ActorId(), ct);
         return NoContent();
     }
 

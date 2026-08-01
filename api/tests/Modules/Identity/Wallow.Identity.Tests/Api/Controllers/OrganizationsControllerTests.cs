@@ -15,6 +15,7 @@ public class OrganizationsControllerTests
 {
     private static readonly string[] _userRole = ["user"];
     private readonly IOrganizationService _orgService;
+    private readonly IMembershipReviewService _membershipReview;
     private readonly ITenantContext _tenantContext;
     private readonly IOrganizationAccessPolicy _accessPolicy;
     private readonly OrganizationsController _controller;
@@ -24,10 +25,11 @@ public class OrganizationsControllerTests
     public OrganizationsControllerTests()
     {
         _orgService = Substitute.For<IOrganizationService>();
+        _membershipReview = Substitute.For<IMembershipReviewService>();
         _tenantContext = Substitute.For<ITenantContext>();
         _tenantContext.TenantId.Returns(TenantId.Create(_tenantOrgId));
         _accessPolicy = Substitute.For<IOrganizationAccessPolicy>();
-        _controller = new OrganizationsController(_orgService, _tenantContext, _accessPolicy);
+        _controller = new OrganizationsController(_orgService, _membershipReview, _tenantContext, _accessPolicy);
 
         ClaimsPrincipal user = new(new ClaimsIdentity(new[]
         {
@@ -233,6 +235,76 @@ public class OrganizationsControllerTests
 
         result.Should().BeOfType<NotFoundResult>();
         await _orgService.DidNotReceive().RemoveMemberAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    #endregion
+
+    #region MembershipReview
+
+    [Fact]
+    public async Task GetPendingMembers_ReturnsOkWithTheQueue()
+    {
+        List<PendingMembershipDto> queue =
+        [
+            new PendingMembershipDto(Guid.NewGuid(), "ada@test.com", "Ada", "Lovelace", DateTimeOffset.UtcNow)
+        ];
+        _membershipReview.GetPendingAsync(_tenantOrgId, Arg.Any<CancellationToken>()).Returns(queue);
+
+        ActionResult<IReadOnlyList<PendingMembershipDto>> result =
+            await _controller.GetPendingMembers(_tenantOrgId, CancellationToken.None);
+
+        OkObjectResult ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        ok.Value.Should().BeAssignableTo<IReadOnlyList<PendingMembershipDto>>().Which.Should().HaveCount(1);
+    }
+
+    // Who decided is part of the record every one of these writes, and the only trustworthy source
+    // for it is the caller's own token — never anything the request body could carry.
+    [Fact]
+    public async Task ApproveMember_RecordsTheSignedInReviewerAsTheActor()
+    {
+        Guid memberId = Guid.NewGuid();
+
+        ActionResult result = await _controller.ApproveMember(_tenantOrgId, memberId, CancellationToken.None);
+
+        result.Should().BeOfType<NoContentResult>();
+        await _membershipReview.Received(1).ApproveAsync(
+            _tenantOrgId, memberId, _userId, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task DenyMember_RecordsTheSignedInReviewerAsTheActor()
+    {
+        Guid memberId = Guid.NewGuid();
+
+        ActionResult result = await _controller.DenyMember(_tenantOrgId, memberId, CancellationToken.None);
+
+        result.Should().BeOfType<NoContentResult>();
+        await _membershipReview.Received(1).DenyAsync(
+            _tenantOrgId, memberId, _userId, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SuspendMember_RecordsTheSignedInReviewerAsTheActor()
+    {
+        Guid memberId = Guid.NewGuid();
+
+        ActionResult result = await _controller.SuspendMember(_tenantOrgId, memberId, CancellationToken.None);
+
+        result.Should().BeOfType<NoContentResult>();
+        await _membershipReview.Received(1).SuspendAsync(
+            _tenantOrgId, memberId, _userId, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ReinstateMember_RecordsTheSignedInReviewerAsTheActor()
+    {
+        Guid memberId = Guid.NewGuid();
+
+        ActionResult result = await _controller.ReinstateMember(_tenantOrgId, memberId, CancellationToken.None);
+
+        result.Should().BeOfType<NoContentResult>();
+        await _membershipReview.Received(1).ReinstateAsync(
+            _tenantOrgId, memberId, _userId, Arg.Any<CancellationToken>());
     }
 
     #endregion

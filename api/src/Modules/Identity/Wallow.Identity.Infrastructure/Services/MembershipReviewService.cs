@@ -1,0 +1,149 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Wallow.Identity.Application.DTOs;
+using Wallow.Identity.Application.Interfaces;
+using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Enums;
+using Wallow.Identity.Infrastructure.Persistence;
+using Wallow.Shared.Contracts.Identity.Events;
+using Wallow.Shared.Kernel.Domain;
+using Wolverine;
+
+namespace Wallow.Identity.Infrastructure.Services;
+
+/// <summary>
+/// Public because Wolverine's generated handlers construct their dependencies inline and
+/// <c>ServiceLocationPolicy.NotAllowed</c> turns a non-public concrete type into a codegen
+/// failure at the first message.
+/// </summary>
+public sealed partial class MembershipReviewService(
+    IMembershipRepository memberships,
+    IdentityDbContext dbContext,
+    IDefaultMemberRoleResolver defaultRoleResolver,
+    IMembershipAccessRevoker accessRevoker,
+    IMessageBus messageBus,
+    TimeProvider timeProvider,
+    ILogger<MembershipReviewService> logger) : IMembershipReviewService
+{
+    public async Task<IReadOnlyList<PendingMembershipDto>> GetPendingAsync(
+        Guid organizationId, CancellationToken ct = default)
+    {
+        IReadOnlyList<Membership> pending = await memberships.GetForOrganizationAsync(
+            organizationId, MembershipStatus.Pending, ct);
+
+        if (pending.Count == 0)
+        {
+            return [];
+        }
+
+        List<Guid> requesterIds = [.. pending.Select(m => m.UserId)];
+        Dictionary<Guid, WallowUser> users = await dbContext.Users
+            .Where(u => requesterIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, ct);
+
+        return
+        [
+            .. pending
+                .OrderBy(m => m.RequestedAt ?? DateTimeOffset.MaxValue)
+                .Where(m => users.ContainsKey(m.UserId))
+                .Select(m => new PendingMembershipDto(
+                    m.UserId,
+                    users[m.UserId].Email ?? string.Empty,
+                    users[m.UserId].FirstName,
+                    users[m.UserId].LastName,
+                    m.RequestedAt))
+        ];
+    }
+
+    public async Task ApproveAsync(
+        Guid organizationId, Guid userId, Guid actorId, CancellationToken ct = default)
+    {
+        Membership membership = await RequireMembershipAsync(organizationId, userId, ct);
+
+        // The organization's default, never a role the requester asked for or holds elsewhere:
+        // roles are granted by an organization and carry no authority outside it.
+        Guid roleId = await defaultRoleResolver.ResolveAsync(organizationId, ct);
+
+        membership.Approve(roleId, actorId, timeProvider);
+        await memberships.SaveChangesAsync(ct);
+
+        // The same event a directly-added member raises, so the welcome mail an approved requester
+        // gets is the one every new member gets.
+        await messageBus.PublishAsync(new OrganizationMemberAddedEvent
+        {
+            OrganizationId = organizationId,
+            TenantId = organizationId,
+            UserId = userId,
+            Email = await GetEmailAsync(userId, ct)
+        });
+
+        LogMembershipApproved(userId, organizationId, actorId);
+    }
+
+    public async Task DenyAsync(
+        Guid organizationId, Guid userId, Guid actorId, CancellationToken ct = default)
+    {
+        Membership membership = await RequireMembershipAsync(organizationId, userId, ct);
+
+        membership.Deny(actorId, timeProvider);
+        await memberships.SaveChangesAsync(ct);
+
+        // No revocation: only a Pending membership can be denied, and a Pending membership never
+        // authenticated, so there is nothing issued against this organization to take away.
+        LogMembershipDenied(userId, organizationId, actorId);
+    }
+
+    public async Task SuspendAsync(
+        Guid organizationId, Guid userId, Guid actorId, CancellationToken ct = default)
+    {
+        Membership membership = await RequireMembershipAsync(organizationId, userId, ct);
+
+        membership.Suspend(actorId, timeProvider);
+        await memberships.SaveChangesAsync(ct);
+
+        // The status alone only decides the NEXT sign-in. Everything already issued off the
+        // membership — tokens, open streams — outlives it unless it is taken away here.
+        await accessRevoker.RevokeAsync(userId, organizationId, ct);
+
+        LogMembershipSuspended(userId, organizationId, actorId);
+    }
+
+    public async Task ReinstateAsync(
+        Guid organizationId, Guid userId, Guid actorId, CancellationToken ct = default)
+    {
+        Membership membership = await RequireMembershipAsync(organizationId, userId, ct);
+
+        membership.Reinstate(actorId, timeProvider);
+        await memberships.SaveChangesAsync(ct);
+
+        LogMembershipReinstated(userId, organizationId, actorId);
+    }
+
+    private async Task<Membership> RequireMembershipAsync(
+        Guid organizationId, Guid userId, CancellationToken ct)
+    {
+        Membership? membership = await memberships.GetAsync(userId, organizationId, ct);
+
+        return membership ?? throw new BusinessRuleException(
+            "Identity.MemberNotFound",
+            "User is not a member of this organization");
+    }
+
+    private async Task<string> GetEmailAsync(Guid userId, CancellationToken ct)
+    {
+        WallowUser? user = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        return user?.Email ?? string.Empty;
+    }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Membership approved: userId={UserId}, organizationId={OrganizationId}, by={ActorId}")]
+    private partial void LogMembershipApproved(Guid userId, Guid organizationId, Guid actorId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Membership denied: userId={UserId}, organizationId={OrganizationId}, by={ActorId}")]
+    private partial void LogMembershipDenied(Guid userId, Guid organizationId, Guid actorId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Membership suspended: userId={UserId}, organizationId={OrganizationId}, by={ActorId}")]
+    private partial void LogMembershipSuspended(Guid userId, Guid organizationId, Guid actorId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Membership reinstated: userId={UserId}, organizationId={OrganizationId}, by={ActorId}")]
+    private partial void LogMembershipReinstated(Guid userId, Guid organizationId, Guid actorId);
+}

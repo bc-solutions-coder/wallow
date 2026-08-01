@@ -1,6 +1,8 @@
+using System.Reflection;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using NSubstitute.Core;
 using Wallow.Identity.Api.Contracts.Requests;
 using Wallow.Identity.Api.Controllers;
 using Wallow.Identity.Application.DTOs;
@@ -26,6 +28,7 @@ namespace Wallow.Identity.Tests.Api.Controllers;
 public sealed class OrganizationsControllerCrossTenantTests
 {
     private readonly IOrganizationService _orgService = Substitute.For<IOrganizationService>();
+    private readonly IMembershipReviewService _membershipReview = Substitute.For<IMembershipReviewService>();
     private readonly ITenantContext _tenantContext = Substitute.For<ITenantContext>();
 
     // Membership is the only non-blanket path past the tenant check. It answers one question per
@@ -64,20 +67,74 @@ public sealed class OrganizationsControllerCrossTenantTests
             .Returns("https://cdn.example.test/logo.png");
     }
 
+    /// <summary>
+    /// Every organization-scoped endpoint, and the permission it asks a non-tenant caller for.
+    /// This map is the inventory every theory below runs over, so an endpoint added to the
+    /// controller and not to this map is gated by nothing anyone here checks;
+    /// EveryOrganizationScopedEndpoint_AppearsInTheInventory refuses to let that happen quietly.
+    /// </summary>
+    private static readonly Dictionary<string, string> _endpointPermissions = new(StringComparer.Ordinal)
+    {
+        ["GetById"] = PermissionType.OrganizationsRead,
+        ["GetMembers"] = PermissionType.OrganizationsRead,
+        ["GetBranding"] = PermissionType.OrganizationsRead,
+        ["GetSettings"] = PermissionType.OrganizationsRead,
+        ["AddMember"] = PermissionType.OrganizationsManageMembers,
+        ["RemoveMember"] = PermissionType.OrganizationsManageMembers,
+        ["GetPendingMembers"] = PermissionType.OrganizationsManageMembers,
+        ["ApproveMember"] = PermissionType.OrganizationsManageMembers,
+        ["DenyMember"] = PermissionType.OrganizationsManageMembers,
+        ["SuspendMember"] = PermissionType.OrganizationsManageMembers,
+        ["ReinstateMember"] = PermissionType.OrganizationsManageMembers,
+        ["UpdateEnrollment"] = PermissionType.OrganizationsManageMembers,
+        ["Archive"] = PermissionType.OrganizationsUpdate,
+        ["Reactivate"] = PermissionType.OrganizationsUpdate,
+        ["Delete"] = PermissionType.OrganizationsUpdate,
+        ["UpdateBranding"] = PermissionType.OrganizationsUpdate,
+        ["UploadBrandingLogo"] = PermissionType.OrganizationsUpdate,
+        ["UpdateSettings"] = PermissionType.OrganizationsUpdate,
+    };
+
+    public static TheoryData<string> OrganizationScopedEndpoints => new(_endpointPermissions.Keys);
+
+    public static TheoryData<string> EndpointsBeyondRead => new(_endpointPermissions
+        .Where(pair => !string.Equals(pair.Value, PermissionType.OrganizationsRead, StringComparison.Ordinal))
+        .Select(pair => pair.Key));
+
+    public static TheoryData<string, string> EndpointPermissions
+    {
+        get
+        {
+            TheoryData<string, string> data = [];
+            foreach (KeyValuePair<string, string> pair in _endpointPermissions)
+            {
+                data.Add(pair.Key, pair.Value);
+            }
+
+            return data;
+        }
+    }
+
+    /// <summary>
+    /// An organization-scoped action is one whose first parameter is the organization id, which is
+    /// exactly the shape CanAddressOrganizationAsync guards. Reflection asks the controller rather
+    /// than the author, so a new endpoint joins every theory here the moment it compiles.
+    /// </summary>
+    [Fact]
+    public void EveryOrganizationScopedEndpoint_AppearsInTheInventory()
+    {
+        IEnumerable<string> declared = typeof(OrganizationsController)
+            .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .Where(method => !method.IsSpecialName)
+            .Where(method => method.GetParameters() is [{ Name: "id" } first, ..]
+                && first.ParameterType == typeof(Guid))
+            .Select(method => method.Name);
+
+        declared.Should().BeEquivalentTo(_endpointPermissions.Keys);
+    }
+
     [Theory]
-    [InlineData("GetById")]
-    [InlineData("GetMembers")]
-    [InlineData("AddMember")]
-    [InlineData("RemoveMember")]
-    [InlineData("Archive")]
-    [InlineData("Reactivate")]
-    [InlineData("Delete")]
-    [InlineData("GetBranding")]
-    [InlineData("UpdateBranding")]
-    [InlineData("UploadBrandingLogo")]
-    [InlineData("GetSettings")]
-    [InlineData("UpdateSettings")]
-    [InlineData("UpdateEnrollment")]
+    [MemberData(nameof(OrganizationScopedEndpoints))]
     public async Task TenantAdminRole_ForeignOrganization_IsRejected(string endpoint)
     {
         OrganizationsController controller = CreateController(
@@ -90,19 +147,7 @@ public sealed class OrganizationsControllerCrossTenantTests
     }
 
     [Theory]
-    [InlineData("GetById")]
-    [InlineData("GetMembers")]
-    [InlineData("AddMember")]
-    [InlineData("RemoveMember")]
-    [InlineData("Archive")]
-    [InlineData("Reactivate")]
-    [InlineData("Delete")]
-    [InlineData("GetBranding")]
-    [InlineData("UpdateBranding")]
-    [InlineData("UploadBrandingLogo")]
-    [InlineData("GetSettings")]
-    [InlineData("UpdateSettings")]
-    [InlineData("UpdateEnrollment")]
+    [MemberData(nameof(OrganizationScopedEndpoints))]
     public async Task TenantAdminRole_ForeignOrganization_NeverReachesTheOrganizationService(string endpoint)
     {
         OrganizationsController controller = CreateController(
@@ -110,24 +155,12 @@ public sealed class OrganizationsControllerCrossTenantTests
 
         await InvokeAsync(controller, endpoint, _otherTenantOrgId);
 
-        _orgService.ReceivedCalls().Should().BeEmpty(
+        ReceivedServiceCalls().Should().BeEmpty(
             "a rejected cross-tenant call must not touch another tenant's organization data");
     }
 
     [Theory]
-    [InlineData("GetById")]
-    [InlineData("GetMembers")]
-    [InlineData("AddMember")]
-    [InlineData("RemoveMember")]
-    [InlineData("Archive")]
-    [InlineData("Reactivate")]
-    [InlineData("Delete")]
-    [InlineData("GetBranding")]
-    [InlineData("UpdateBranding")]
-    [InlineData("UploadBrandingLogo")]
-    [InlineData("GetSettings")]
-    [InlineData("UpdateSettings")]
-    [InlineData("UpdateEnrollment")]
+    [MemberData(nameof(OrganizationScopedEndpoints))]
     public async Task GlobalAdminClaim_ForeignOrganization_StillReachesTheOrganizationService(string endpoint)
     {
         OrganizationsController controller = CreateController(
@@ -135,24 +168,12 @@ public sealed class OrganizationsControllerCrossTenantTests
 
         await InvokeAsync(controller, endpoint, _otherTenantOrgId);
 
-        _orgService.ReceivedCalls().Should().NotBeEmpty(
+        ReceivedServiceCalls().Should().NotBeEmpty(
             "the is_global_admin claim is the cross-tenant escape hatch and must not be locked out");
     }
 
     [Theory]
-    [InlineData("GetById")]
-    [InlineData("GetMembers")]
-    [InlineData("AddMember")]
-    [InlineData("RemoveMember")]
-    [InlineData("Archive")]
-    [InlineData("Reactivate")]
-    [InlineData("Delete")]
-    [InlineData("GetBranding")]
-    [InlineData("UpdateBranding")]
-    [InlineData("UploadBrandingLogo")]
-    [InlineData("GetSettings")]
-    [InlineData("UpdateSettings")]
-    [InlineData("UpdateEnrollment")]
+    [MemberData(nameof(OrganizationScopedEndpoints))]
     public async Task TenantAdminRole_OwnOrganization_StillReachesTheOrganizationService(string endpoint)
     {
         OrganizationsController controller = CreateController(
@@ -160,7 +181,7 @@ public sealed class OrganizationsControllerCrossTenantTests
 
         await InvokeAsync(controller, endpoint, _tenantOrgId);
 
-        _orgService.ReceivedCalls().Should().NotBeEmpty(
+        ReceivedServiceCalls().Should().NotBeEmpty(
             "same-tenant access is the legitimate path and must keep working");
     }
 
@@ -178,7 +199,7 @@ public sealed class OrganizationsControllerCrossTenantTests
 
         result.Should().BeOfType<NotFoundResult>(
             "only the literal value \"true\" on is_global_admin grants cross-tenant access");
-        _orgService.ReceivedCalls().Should().BeEmpty();
+        ReceivedServiceCalls().Should().BeEmpty();
     }
 
     [Theory]
@@ -195,7 +216,7 @@ public sealed class OrganizationsControllerCrossTenantTests
 
         result.Should().BeOfType<NotFoundResult>(
             "global admin is a claim, never a role; no role string may unlock another tenant");
-        _orgService.ReceivedCalls().Should().BeEmpty();
+        ReceivedServiceCalls().Should().BeEmpty();
     }
 
     [Theory]
@@ -210,23 +231,11 @@ public sealed class OrganizationsControllerCrossTenantTests
         ActionResult? result = await InvokeAsync(controller, "GetById", _otherTenantOrgId);
 
         result.Should().BeOfType<NotFoundResult>();
-        _orgService.ReceivedCalls().Should().BeEmpty();
+        ReceivedServiceCalls().Should().BeEmpty();
     }
 
     [Theory]
-    [InlineData("GetById")]
-    [InlineData("GetMembers")]
-    [InlineData("AddMember")]
-    [InlineData("RemoveMember")]
-    [InlineData("Archive")]
-    [InlineData("Reactivate")]
-    [InlineData("Delete")]
-    [InlineData("GetBranding")]
-    [InlineData("UpdateBranding")]
-    [InlineData("UploadBrandingLogo")]
-    [InlineData("GetSettings")]
-    [InlineData("UpdateSettings")]
-    [InlineData("UpdateEnrollment")]
+    [MemberData(nameof(OrganizationScopedEndpoints))]
     public async Task PermittedMember_ThatOrganization_ReachesTheOrganizationService(string endpoint)
     {
         // Creating an organization mints a NEW tenant id, so the creator's own tenant id can never
@@ -240,7 +249,7 @@ public sealed class OrganizationsControllerCrossTenantTests
 
         await InvokeAsync(controller, endpoint, _otherTenantOrgId);
 
-        _orgService.ReceivedCalls().Should().NotBeEmpty(
+        ReceivedServiceCalls().Should().NotBeEmpty(
             "a member holding the endpoint's permission must reach it without any role bypass");
     }
 
@@ -261,23 +270,11 @@ public sealed class OrganizationsControllerCrossTenantTests
 
         result.Should().BeOfType<NotFoundResult>(
             "a grant is per-organization; holding one org's permission grants nothing over any other");
-        _orgService.ReceivedCalls().Should().BeEmpty();
+        ReceivedServiceCalls().Should().BeEmpty();
     }
 
     [Theory]
-    [InlineData("GetById", PermissionType.OrganizationsRead)]
-    [InlineData("GetMembers", PermissionType.OrganizationsRead)]
-    [InlineData("GetBranding", PermissionType.OrganizationsRead)]
-    [InlineData("GetSettings", PermissionType.OrganizationsRead)]
-    [InlineData("AddMember", PermissionType.OrganizationsManageMembers)]
-    [InlineData("RemoveMember", PermissionType.OrganizationsManageMembers)]
-    [InlineData("Archive", PermissionType.OrganizationsUpdate)]
-    [InlineData("Reactivate", PermissionType.OrganizationsUpdate)]
-    [InlineData("Delete", PermissionType.OrganizationsUpdate)]
-    [InlineData("UpdateBranding", PermissionType.OrganizationsUpdate)]
-    [InlineData("UploadBrandingLogo", PermissionType.OrganizationsUpdate)]
-    [InlineData("UpdateSettings", PermissionType.OrganizationsUpdate)]
-    [InlineData("UpdateEnrollment", PermissionType.OrganizationsManageMembers)]
+    [MemberData(nameof(EndpointPermissions))]
     public async Task ForeignOrganization_AsksForTheEndpointsOwnPermission(string endpoint, string permission)
     {
         OrganizationsController controller = CreateController(new Claim(ClaimTypes.Role, "admin"));
@@ -289,12 +286,8 @@ public sealed class OrganizationsControllerCrossTenantTests
     }
 
     [Theory]
-    [InlineData("Delete")]
-    [InlineData("Archive")]
-    [InlineData("UpdateSettings")]
-    [InlineData("UpdateEnrollment")]
-    [InlineData("AddMember")]
-    public async Task ForeignOrganization_ReadOnlyMember_ReachesNoWriteEndpoint(string endpoint)
+    [MemberData(nameof(EndpointsBeyondRead))]
+    public async Task ForeignOrganization_ReadOnlyMember_ReachesNoEndpointBeyondRead(string endpoint)
     {
         _accessPolicy.HasPermissionInOrganizationAsync(
                 _otherTenantOrgId, _userId, PermissionType.OrganizationsRead, Arg.Any<CancellationToken>())
@@ -306,7 +299,7 @@ public sealed class OrganizationsControllerCrossTenantTests
 
         result.Should().BeOfType<NotFoundResult>(
             "read reach and write reach are separate grants, so one predicate must not answer both");
-        _orgService.ReceivedCalls().Should().BeEmpty();
+        ReceivedServiceCalls().Should().BeEmpty();
     }
 
     private static async Task<ActionResult?> InvokeAsync(
@@ -332,10 +325,22 @@ public sealed class OrganizationsControllerCrossTenantTests
                 orgId, new UpdateOrganizationSettingsRequest(false, 0, null, null), ct),
             "UpdateEnrollment" => await controller.UpdateEnrollment(
                 orgId, new UpdateOrganizationEnrollmentRequest(EnrollmentPolicy.Open, null, null), ct),
+            "GetPendingMembers" => (await controller.GetPendingMembers(orgId, ct)).Result,
+            "ApproveMember" => await controller.ApproveMember(orgId, Guid.NewGuid(), ct),
+            "DenyMember" => await controller.DenyMember(orgId, Guid.NewGuid(), ct),
+            "SuspendMember" => await controller.SuspendMember(orgId, Guid.NewGuid(), ct),
+            "ReinstateMember" => await controller.ReinstateMember(orgId, Guid.NewGuid(), ct),
             _ => throw new ArgumentOutOfRangeException(
                 nameof(endpoint), endpoint, "Unknown organization-scoped endpoint."),
         };
     }
+
+    /// <summary>
+    /// Both service seams the controller can reach past the gate. Asserting only one of them lets a
+    /// caller through the other unnoticed.
+    /// </summary>
+    private IEnumerable<ICall> ReceivedServiceCalls() =>
+        _orgService.ReceivedCalls().Concat(_membershipReview.ReceivedCalls());
 
     private static IFormFile CreateLogoFile()
     {
@@ -356,7 +361,7 @@ public sealed class OrganizationsControllerCrossTenantTests
             .. claims,
         ];
 
-        return new OrganizationsController(_orgService, _tenantContext, _accessPolicy)
+        return new OrganizationsController(_orgService, _membershipReview, _tenantContext, _accessPolicy)
         {
             ControllerContext = new ControllerContext
             {
