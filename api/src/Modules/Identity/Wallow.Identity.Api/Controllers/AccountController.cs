@@ -749,8 +749,16 @@ public sealed partial class AccountController(
         string authUrl = GetRequiredAuthUrl();
         string verifyUrl = $"{authUrl}/verify-email/confirm?token={Uri.EscapeDataString(token)}&email={Uri.EscapeDataString(user.Email!)}";
 
+        // A local returnUrl is admitted alongside an allow-listed absolute one, and that is what
+        // carries an invitation through registration: the invitation screen sends someone to
+        // /register with returnUrl=/invitation?token=…, and IRedirectUriValidator refuses any
+        // relative path outright, so validating on it alone silently dropped the token here and
+        // the verified user landed on the auth root with no invitation left to accept. The
+        // returnUrl is only ever cargo on the verification link — the browser resolves it against
+        // the auth app, and this endpoint redirects nowhere — so "local" is the whole test.
         if (!string.IsNullOrEmpty(request.ReturnUrl)
-            && await redirectUriValidator.IsAllowedAsync(request.ReturnUrl, request.ClientId))
+            && (Url.IsLocalUrl(request.ReturnUrl)
+                || await redirectUriValidator.IsAllowedAsync(request.ReturnUrl, request.ClientId)))
         {
             verifyUrl += $"&returnUrl={Uri.EscapeDataString(request.ReturnUrl)}";
         }
