@@ -275,11 +275,39 @@ Response:
   "email": "user@example.com",
   "given_name": "Jane",
   "family_name": "Smith",
-  "name": "Jane Smith"
+  "name": "Jane Smith",
+  "org_id": "org-guid",
+  "org_name": "Contoso",
+  "roles": ["admin"]
 }
 ```
 
 Store the relevant claims in the session alongside the tokens to avoid repeated userinfo calls.
+
+#### Which claims you get depends on the scopes you asked for
+
+Every claim past `sub` is scope-gated, and userinfo returns only what the granted scopes cover:
+
+| Scope     | Claims                                                        |
+| --------- | ------------------------------------------------------------- |
+| `profile` | `name`, `given_name`, `family_name`, `org_id`, `org_name`     |
+| `email`   | `email`                                                        |
+| `roles`   | `roles`                                                        |
+
+`org_id` is the organization this session belongs to, and `org_name` its display name — Wallow
+omits `org_name` when the resolved organization has none, so treat it as optional and fall back
+to `org_id`.
+
+#### Roles are scoped to `org_id`, not to the user
+
+A user can belong to several organizations. They sign in to **one at a time**, and the token
+carries only the roles that one membership grants. `roles: ["admin"]` therefore means "admin of
+`org_id`" and never "admin everywhere" — cache it under the organization, and re-read it rather
+than carrying it across a change of organization.
+
+If your BFF is built on `@bc-solutions-coder/sdk`, read these through the browser claim helpers
+(`getOrgId`, `getOrgName`, `getRoles`, `hasRole`, `isAdmin`) rather than indexing the claim bag:
+they mirror the API's own comparison rules, which are case-insensitive for role names.
 
 ---
 
@@ -354,6 +382,43 @@ GET {WALLOW_API_URL}/connect/logout
 Wallow terminates the user's Wallow session and redirects the browser to `post_logout_redirect_uri`.
 
 > **Tip:** Store the `id_token` alongside the access and refresh tokens in the session so you can provide the `id_token_hint`. Without it, Wallow may show an intermediate confirmation page before completing logout.
+
+### Logout is global, and Wallow does not notify the other applications
+
+`GET /connect/logout` signs the user out of **Wallow**, not just out of the application that
+sent them there. It clears the shared identity cookie, so every other relying party on the same
+Wallow instance loses its single-sign-on session at the same moment.
+
+This is deliberate. An SSO platform whose logout only ended one application's session would let
+a user who deliberately signed out stay signed in on the next tab — the surprise runs in the
+dangerous direction. Signing out means signing out.
+
+What it costs you is that the other applications are **not told**. Wallow implements
+RP-initiated logout only; it publishes no `frontchannel_logout_uri` or `backchannel_logout_uri`
+in its discovery document and sends no notification of any kind. So immediately after the
+logout:
+
+- the other BFF's own session cookie is still in the browser, and its session record still
+  exists in its store;
+- to that application the user still looks signed in, until its access token expires;
+- at that point its silent refresh is refused, because the refresh token depends on the Wallow
+  session that just ended.
+
+Handle the refusal, and it degrades to a re-login rather than a broken screen. A BFF built on
+`@bc-solutions-coder/sdk` already does: a refresh the identity server refuses makes
+`/api/*` answer `401`, and the SDK's `getCurrentUser` reads a `401` as "anonymous" rather than
+as an error, so the next navigation hits your login gate. A hand-rolled BFF must do the same
+thing explicitly — **on a failed refresh, delete the session record and the session cookie, then
+send the user to login.** Retrying the refresh, or treating the failure as a server error, is
+what turns a signed-out user into an error page.
+
+Two consequences worth designing for:
+
+- **The gap is as long as your access-token lifetime.** During it, an application can still call
+  the API with a token that is valid but belongs to a session the user has ended. Shorter access
+  tokens shrink the window; they do not close it.
+- **A user who signs out of one of your applications signs out of all of them.** If that is not
+  what you want, the applications need separate identity providers, not separate Wallow clients.
 
 ---
 
