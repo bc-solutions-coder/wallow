@@ -82,7 +82,8 @@
         "no-magic-numbers": "off",
         "react/forbid-elements": "off",
         "wallow/no-sidebar-inversion": "off",
-        "wallow/no-tinted-text": "off"
+        "wallow/no-tinted-text": "off",
+        "unicorn/prefer-number-coercion": "off"
       }
     }
   ]

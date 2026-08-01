@@ -3,7 +3,7 @@ import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow
 import { page } from "vitest/browser";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { waitForTestId } from "@shared/testing/style-contract";
+import { waitForTestId } from "@shared/testing/locators";
 import { OrganizationList } from "./OrganizationList";
 
 /**

@@ -4,7 +4,7 @@ import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { chooseOption, expectCatalogSelect } from "@shared/testing/catalog-select";
-import { byTestId, waitForTestId } from "@shared/testing/style-contract";
+import { byTestId, waitForTestId } from "@shared/testing/locators";
 import { CreateInquiryForm } from "./CreateInquiryForm";
 
 /** The transport backing each render, rebuilt per test. */

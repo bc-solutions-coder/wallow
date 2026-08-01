@@ -12,8 +12,7 @@ import { PAGE_CONTAINER } from "@shared/lib/page-container";
  * `<h1>` or `justify-between mb-8` row.
  *
  * Read from source, not the DOM, because the rule being pinned is "the width is
- * declared in one place" — a fact about the source. The rendered half of it is
- * `expectPageContainer`.
+ * declared in one place" — a fact about the source.
  */
 
 const dashboardDir: URL = new URL("./", import.meta.url);

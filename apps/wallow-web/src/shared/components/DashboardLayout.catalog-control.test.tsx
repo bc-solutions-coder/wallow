@@ -12,7 +12,7 @@ import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { expectClasses, waitForTestId } from "@shared/testing/style-contract";
+import { waitForTestId } from "@shared/testing/locators";
 import { DashboardLayout } from "./DashboardLayout";
 import { navIconLabels } from "./nav-icons";
 import { useUiStore } from "../stores/ui-store";
@@ -242,11 +242,16 @@ describe.each(CONTROLS)("%s as a catalog Button", (testId: string, viewport) => 
     applyMode("light");
   });
 
-  it("carries the recipe's outline arm on its merged class attribute", async () => {
+  it("draws the border that separates the outline arm from ghost", async () => {
     await render(<LayoutUnderTest />);
     const control: Element = await waitForTestId(testId);
 
-    expectClasses(control, OUTLINE_SURFACE);
+    // The border is the whole difference: `outline` and `ghost` agree on every
+    // other surface class. Measured rather than read off `classList`, because
+    // `cn()` merges a caller's `className` over the recipe — `border-border` can
+    // be present while the control paints no border at all.
+    expect(Number.parseFloat(getComputedStyle(control).borderTopWidth)).toBeGreaterThan(0);
+    expectThemed(computedColor(control, "border-top-color"), "the control's border colour");
   });
 
   it("carries no button-surface utility the recipe cannot emit", async () => {

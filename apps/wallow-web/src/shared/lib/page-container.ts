@@ -9,8 +9,7 @@
  *
  * The width lives here and nowhere else. A dashboard route page spreads this
  * constant onto its root element and writes no `max-w-*` utility of its own;
- * `page-shell.test.ts` pins both halves of that, and `style-contract`'s
- * `expectPageContainer` pins it again on the rendered DOM.
+ * `page-shell.test.ts` pins both halves of that.
  *
  * This is a class string, not a layout component: the outer shell (nav, main
  * column, padding) is already `DashboardLayout`'s, and F5.T1 deliberately does

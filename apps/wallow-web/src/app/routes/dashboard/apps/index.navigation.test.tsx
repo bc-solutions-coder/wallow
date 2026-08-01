@@ -1,10 +1,17 @@
+import {
+  computedColor,
+  effectiveBackground,
+  isTransparent,
+  textContrast,
+  type Rgba,
+} from "@bc-solutions-coder/testing/contrast";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import type { AnyRouter } from "@tanstack/react-router";
 import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { byTestId, expectClasses, expectTag, waitForTestId } from "@shared/testing/style-contract";
+import { byTestId, expectTag, waitForTestId } from "@shared/testing/locators";
 import { Route } from "./index";
 
 /**
@@ -30,17 +37,41 @@ let harness: SdkHarness;
 async function renderPage(): Promise<AnyRouter> {
   harness.resolveJson([]);
   const Page = Route.options.component!;
-  const { router } = renderWithWallow(<Page />, { harness });
+  const { router } = renderWithWallow(
+    <>
+      <div data-testid="cta-park" className="fixed top-0 right-0 z-50 size-8" />
+      <div data-testid="probe-primary" className="bg-primary size-4" />
+      <Page />
+    </>,
+    { harness },
+  );
   await waitForTestId("apps-register-link");
+  // The pointer persists across cases in a browser-mode file, and the browser
+  // re-evaluates `:hover` when new content mounts under it — so a case that
+  // clicked the CTA leaves the next one measuring `hover:bg-primary/90` as
+  // though it were the resting fill.
+  await parkMouse();
   return router;
 }
 
-/** None of `classes` is on `element` — the absence half of the style contract. */
-function expectNoClasses(element: Element, classes: string): void {
-  const present: string[] = classes
-    .split(/\s+/u)
-    .filter((cls) => cls !== "" && element.classList.contains(cls));
-  expect(present, `unexpected classes on <${element.tagName.toLowerCase()}>`).toEqual([]);
+/** Move the pointer off anything the cases below measure. */
+async function parkMouse(): Promise<void> {
+  await userEvent.hover(byTestId("cta-park"));
+}
+
+/** WCAG 2.1 AA for body-sized text; the CTA's label is `text-sm`. */
+const AA_TEXT = 4.5;
+
+/** Bounds the hover poll below. Tailwind's own duration is 150ms. */
+const TRANSITION_TIMEOUT = 2000;
+
+/** The reference colour `bg-primary` paints, failing loudly on a theme-less page. */
+function primarySurface(): Rgba {
+  const primary: Rgba = computedColor(byTestId("probe-primary"), "background-color");
+  expect(isTransparent(primary), "bg-primary paints nothing — is the fork theme loaded?").toBe(
+    false,
+  );
+  return primary;
 }
 
 /**
@@ -125,30 +156,68 @@ describe("routes/dashboard/apps register CTA navigation", () => {
     expect(cta.getAttribute("type")).toBeNull();
   });
 
-  it("keeps the gold pill look", async () => {
+  it("fills the CTA with the primary token and keeps its label legible on it", async () => {
     await renderPage();
+    const cta = byTestId("apps-register-link");
 
-    expectClasses(
-      byTestId("apps-register-link"),
-      "bg-primary text-primary-foreground font-medium rounded-full px-6 py-2.5 text-sm no-underline",
+    // Measured against a probe, not read off `classList`: `cn()` merges a
+    // caller's `className` over the recipe, so `bg-primary` can be present while
+    // the anchor paints something else — and the probe is what makes "gold" mean
+    // the primary token rather than any colour that happens not to be blank.
+    expect(effectiveBackground(cta)).toEqual(primarySurface());
+
+    const ratio: number = textContrast(cta);
+
+    expect(ratio, `the CTA's label measured ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(AA_TEXT);
+  });
+
+  it("renders the CTA as an undecorated pill", async () => {
+    await renderPage();
+    const cta = byTestId("apps-register-link");
+    const styles: CSSStyleDeclaration = getComputedStyle(cta);
+
+    // A pill's radius saturates at half its height; `rounded-md` measures ~6px.
+    expect(Number.parseFloat(styles.borderTopLeftRadius)).toBeGreaterThanOrEqual(
+      cta.getBoundingClientRect().height / 2,
     );
+    // The CTA is a real anchor, so the underline is the browser's default.
+    expect(styles.textDecorationLine).toBe("none");
   });
 
   it("does not stretch the CTA across the header row", async () => {
     await renderPage();
 
-    // `buttonRecipe`'s width defaults to `full` and its shape to `rounded`;
-    // both must be overridden for the pill to keep its shipped footprint.
-    expectNoClasses(byTestId("apps-register-link"), "w-full rounded-md");
+    // `buttonRecipe`'s width defaults to `full`, so the pill needs `width="auto"`
+    // to keep its shipped footprint.
+    expect(byTestId("apps-register-link").getBoundingClientRect().width).toBeLessThan(
+      byTestId("apps-header").getBoundingClientRect().width,
+    );
   });
 
-  it("carries the catalog Button's hover, focus-visible and motion treatment", async () => {
+  it("centres the CTA's label in a flex row", async () => {
     await renderPage();
+    const styles: CSSStyleDeclaration = getComputedStyle(byTestId("apps-register-link"));
 
-    expectClasses(
-      byTestId("apps-register-link"),
-      "inline-flex items-center justify-center outline-none motion-safe:transition-colors focus-visible:ring-2 focus-visible:ring-ring hover:bg-primary/90 data-[disabled]:opacity-50",
-    );
+    // `inline-flex` computes to `flex` here: the CTA is a flex item of the
+    // header's actions row, and a flex item's display is blockified.
+    expect(styles.display).toBe("flex");
+    expect(styles.alignItems).toBe("center");
+    expect(styles.justifyContent).toBe("center");
+  });
+
+  it("repaints the CTA under the cursor", async () => {
+    await renderPage();
+    const cta = byTestId("apps-register-link");
+    const resting: string = JSON.stringify(effectiveBackground(cta));
+
+    await userEvent.hover(cta);
+
+    // `buttonRecipe`'s base carries `motion-safe:transition-colors`, so a colour
+    // read the moment the cursor lands is the resting colour caught mid-transition
+    // — indistinguishable from "the hover fill never applied".
+    await expect
+      .poll(() => JSON.stringify(effectiveBackground(cta)), { timeout: TRANSITION_TIMEOUT })
+      .not.toBe(resting);
   });
 
   it("reaches the CTA by keyboard", async () => {
