@@ -355,17 +355,6 @@ public sealed class MfaExemptionCheckerTests : IDisposable
     public void Dispose() => _dbContext.Dispose();
 
     [Fact]
-    public async Task IsExemptAsync_UserWithFutureGraceDeadline_ReturnsTrue()
-    {
-        WallowUser user = WallowUser.Create(_tenantId, "Grace", "User", "grace@t.com", TimeProvider.System);
-        user.SetMfaGraceDeadline(DateTimeOffset.UtcNow.AddDays(3));
-
-        bool result = await _sut.IsExemptAsync(user, CancellationToken.None);
-
-        result.Should().BeTrue();
-    }
-
-    [Fact]
     public async Task IsExemptAsync_UserWithNoMembership_ReturnsFalse()
     {
         WallowUser user = WallowUser.Create(_tenantId, "No", "Membership", "nm@t.com", TimeProvider.System);
@@ -376,11 +365,12 @@ public sealed class MfaExemptionCheckerTests : IDisposable
     }
 
     [Fact]
-    public async Task IsExemptAsync_UserWithExpiredGraceAndNoMembership_ReturnsFalse()
+    public async Task IsExemptAsync_GraceDeadlineWithoutAMembership_ReturnsFalse()
     {
-        WallowUser user = WallowUser.Create(_tenantId, "Expired", "Grace", "eg@t.com", TimeProvider.System);
-        // MfaGraceDeadline is null, no membership
+        WallowUser user = WallowUser.Create(_tenantId, "Grace", "User", "grace@t.com", TimeProvider.System);
+        user.SetMfaGraceDeadline(DateTimeOffset.UtcNow.AddDays(3));
 
+        // The deadline is granted BY an organization, so it excuses nothing on its own.
         bool result = await _sut.IsExemptAsync(user, CancellationToken.None);
 
         result.Should().BeFalse();
