@@ -217,7 +217,7 @@
       }
     },
     {
-      "files": ["packages/utils/src/**/*.ts"],
+      "files": ["packages/env/src/**/*.ts", "packages/utils/src/**/*.ts"],
       "rules": {
         "no-restricted-imports": [
           "error",
@@ -293,7 +293,7 @@
                   "@bc-solutions-coder/*",
                   "@bc-solutions-coder/*/**"
                 ],
-                "message": "@bc-solutions-coder/utils is the bottom of the dependency graph: it declares no dependencies and no peers, so anything it imports would be an undeclared one resolved by hoisting. A helper that needs react, a store, or another workspace package belongs in that package, not here. packages/utils/src/charter.test.ts pins this."
+                "message": "@bc-solutions-coder/utils and @bc-solutions-coder/env sit at the bottom of the dependency graph: both declare no dependencies and no peers, so anything they import would be an undeclared one resolved by hoisting. A helper that needs react, a store, or another workspace package belongs in that package, not here. Each package's src/charter.test.ts pins this."
               }
             ]
           }

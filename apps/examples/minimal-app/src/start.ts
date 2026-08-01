@@ -1,7 +1,7 @@
+import { resolveInternalOrigin } from "@bc-solutions-coder/env/internal-origin";
+import { resolveRequestOrigin } from "@bc-solutions-coder/env/request-origin";
 import { createWallowSdk, type WallowSdk } from "@bc-solutions-coder/sdk";
 import { createMiddleware, createStart } from "@tanstack/react-start";
-
-import { resolveRequestOrigin } from "./lib/request-origin";
 
 /**
  * The Start instance — global request middleware that mints one SDK per request
@@ -15,18 +15,11 @@ import { resolveRequestOrigin } from "./lib/request-origin";
  *
  * Everything imported here lands in BOTH module graphs (Start aliases this file
  * as its entry for the client build too), so this file stays free of
- * `@bc-solutions-coder/sdk/server` and every other Node-only import. The one
- * `process.env` read sits inside the server callback, which the browser never
- * runs.
+ * `@bc-solutions-coder/sdk/server` and every other Node-only import. That is why
+ * the two origin helpers come from `@bc-solutions-coder/env`, whose subpaths
+ * declare no dependencies and read no environment of their own: the one
+ * `process.env` read is HERE, inside the server callback the browser never runs.
  */
-
-/** Origin the SSR pass reaches ITSELF on, when it differs from the browser-facing one. */
-const INTERNAL_ORIGIN_ENV_KEY = "WALLOW_WEB_INTERNAL_URL";
-
-/** Strip trailing slashes so the override composes with a path the same way an origin does. */
-function normalizeOrigin(value: string): string {
-  return value.replace(/\/+$/u, "");
-}
 
 const sdkMiddleware = createMiddleware().server(({ next, request }) => {
   // The browser-facing origin: this app proxies `/v1/**` at its own root, so the
@@ -34,12 +27,12 @@ const sdkMiddleware = createMiddleware().server(({ next, request }) => {
   // through the helper so an HTTPS-terminating ingress does not leave the SSR
   // pass building `http` query keys the hydrating browser never matches.
   const requestOrigin: string = resolveRequestOrigin(request);
-  const override: string | undefined = process.env[INTERNAL_ORIGIN_ENV_KEY];
 
   const sdk: WallowSdk = createWallowSdk({
     baseUrl: requestOrigin,
-    internalOrigin:
-      override === undefined || override === "" ? undefined : normalizeOrigin(override),
+    // No `requestOrigin` argument: the browser's origin is exactly the address a
+    // container publishing a different host port cannot reach itself on.
+    internalOrigin: resolveInternalOrigin(process.env),
     cookieHeader: request.headers.get("cookie") ?? undefined,
   });
 

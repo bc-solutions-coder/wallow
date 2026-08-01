@@ -4,8 +4,10 @@ import react from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
 
+import { normalizeBasePath, toViteBase } from "@bc-solutions-coder/env/base-path";
+
 import { wallowAppConfig } from "@bc-solutions-coder/config/vite/app";
-import { AUTH_BASE_PATH_ENV_KEY, normalizeBasePath, toViteBase } from "./src/shared/lib/base-path";
+import { AUTH_BASE_PATH_ENV_KEY } from "./src/shared/lib/base-path";
 
 /**
  * The one Vite config wallow-auth has: `vite dev` serves it and `vite build`

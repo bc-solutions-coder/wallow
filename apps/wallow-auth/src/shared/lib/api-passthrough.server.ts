@@ -16,13 +16,14 @@
  * at module load would run inside the Start server bundle's evaluation, where a
  * throw takes down far more than the API routes.
  */
+import { stripBasePath } from "@bc-solutions-coder/env/base-path";
 import {
   CLIENT_IP_HEADER,
   createApiPassthrough,
   type ApiPassthrough,
 } from "@bc-solutions-coder/sdk/server/passthrough";
 
-import { BASE_PATH, stripBasePath } from "./base-path";
+import { BASE_PATH } from "./base-path";
 
 /**
  * The inbound request as srvx hands it to a Start server route. A WHATWG

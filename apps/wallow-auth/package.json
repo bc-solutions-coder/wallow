@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@bc-solutions-coder/auth": "workspace:*",
+    "@bc-solutions-coder/env": "workspace:*",
     "@bc-solutions-coder/forms": "workspace:*",
     "@bc-solutions-coder/query": "workspace:*",
     "@bc-solutions-coder/sdk": "workspace:*",

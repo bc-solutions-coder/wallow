@@ -107,8 +107,11 @@ const FACADE_EXEMPTION_FILES: readonly string[] = [
   "packages/sdk/src/route-context.ts",
 ];
 
-/** The glob `packages/utils`' charter override covers. */
-const UTILS_CHARTER_FILES: readonly string[] = ["packages/utils/src/**/*.ts"];
+/** The globs the zero-dependency packages' shared charter override covers. */
+const ZERO_DEP_CHARTER_FILES: readonly string[] = [
+  "packages/env/src/**/*.ts",
+  "packages/utils/src/**/*.ts",
+];
 
 /**
  * The override that RE-DECLARES the rule for the facade and its four SDK peers,
@@ -638,13 +641,14 @@ describe("the facade exemption is narrow by construction", () => {
     // Re-declaring is the only way to change what the rule bans for a subtree,
     // and it REPLACES the root options rather than merging — so an unlisted
     // re-declaration silently unbans everything it forgot to restate. The
-    // legitimate two are the facade exemption (drops one ban) and
-    // packages/utils' charter (adds three); anything else is a regression.
+    // legitimate two are the facade exemption (drops one ban) and the
+    // zero-dependency packages' shared charter (adds three); anything else is a
+    // regression.
     expect(
       overridesRedeclaringTheRule().map(
         (override: OxlintOverride): Set<string> => new Set(override.files),
       ),
-    ).toEqual([new Set(FACADE_EXEMPTION_FILES), new Set(UTILS_CHARTER_FILES)]);
+    ).toEqual([new Set(FACADE_EXEMPTION_FILES), new Set(ZERO_DEP_CHARTER_FILES)]);
   });
 
   it("covers the facade package and exactly the four SDK peers", () => {

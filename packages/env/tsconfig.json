@@ -1,0 +1,15 @@
+{
+  // The shipped source. `types: []` is the charter: every module here lands in a
+  // CLIENT bundle as well as an SSR one, so `process`, `Buffer` and `node:*` must
+  // not compile. The env-reading helpers take an env record as an argument
+  // instead, and the caller does the `process.env` read.
+  //
+  // `lib` is deliberately NOT narrowed the way packages/utils narrows it: these
+  // modules take a WHATWG `Request` and read its `Headers`, which is lib.dom.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": []
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts"]
+}

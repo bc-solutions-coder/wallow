@@ -68,6 +68,9 @@ importers:
 
   apps/examples/minimal-app:
     dependencies:
+      '@bc-solutions-coder/env':
+        specifier: workspace:*
+        version: link:../../../packages/env
       '@bc-solutions-coder/query':
         specifier: workspace:*
         version: link:../../../packages/query
@@ -141,6 +144,9 @@ importers:
       '@bc-solutions-coder/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@bc-solutions-coder/env':
+        specifier: workspace:*
+        version: link:../../packages/env
       '@bc-solutions-coder/forms':
         specifier: workspace:*
         version: link:../../packages/forms
@@ -235,9 +241,15 @@ importers:
       '@bc-solutions-coder/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@bc-solutions-coder/env':
+        specifier: workspace:*
+        version: link:../../packages/env
       '@bc-solutions-coder/forms':
         specifier: workspace:*
         version: link:../../packages/forms
+      '@bc-solutions-coder/navigation':
+        specifier: workspace:*
+        version: link:../../packages/navigation
       '@bc-solutions-coder/query':
         specifier: workspace:*
         version: link:../../packages/query
@@ -374,6 +386,24 @@ importers:
         specifier: catalog:tooling
         version: 7.0.2
 
+  packages/env:
+    devDependencies:
+      '@bc-solutions-coder/config':
+        specifier: workspace:*
+        version: link:../config
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.13.3
+      typescript:
+        specifier: catalog:tooling
+        version: 7.0.2
+      vite:
+        specifier: ^8.1.4
+        version: 8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@24.13.3)(@vitest/browser-playwright@4.1.10)(jsdom@29.1.1)(vite@8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))
+
   packages/forms:
     dependencies:
       '@bc-solutions-coder/query':
@@ -453,6 +483,64 @@ importers:
       vitest:
         specifier: ^4.1.10
         version: 4.1.10(@types/node@24.13.3)(@vitest/browser-playwright@4.1.10)(jsdom@29.1.1)(vite@8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))
+
+  packages/navigation:
+    dependencies:
+      '@bc-solutions-coder/ui':
+        specifier: workspace:*
+        version: link:../ui
+      lucide-react:
+        specifier: ^1.27.0
+        version: 1.27.0(react@19.2.7)
+    devDependencies:
+      '@bc-solutions-coder/config':
+        specifier: workspace:*
+        version: link:../config
+      '@bc-solutions-coder/styles':
+        specifier: workspace:*
+        version: link:../styles
+      '@bc-solutions-coder/testing':
+        specifier: workspace:*
+        version: link:../testing
+      '@tanstack/react-router':
+        specifier: ^1.170.18
+        version: 1.170.18(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.13.3
+      '@types/react':
+        specifier: ^19.2.17
+        version: 19.2.17
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.17)
+      class-variance-authority:
+        specifier: ^0.7.1
+        version: 0.7.1
+      react:
+        specifier: catalog:react
+        version: 19.2.7
+      react-dom:
+        specifier: catalog:react
+        version: 19.2.7(react@19.2.7)
+      tailwind-merge:
+        specifier: ^3.6.0
+        version: 3.6.0
+      typescript:
+        specifier: catalog:tooling
+        version: 7.0.2
+      vite:
+        specifier: ^8.1.4
+        version: 8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@24.13.3)(@vitest/browser-playwright@4.1.10)(jsdom@29.1.1)(vite@8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))
+      vitest-browser-react:
+        specifier: ^2.2.0
+        version: 2.2.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(vitest@4.1.10)
+      zustand:
+        specifier: catalog:react
+        version: 5.0.14(@types/react@19.2.17)(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7))
 
   packages/query:
     dependencies:

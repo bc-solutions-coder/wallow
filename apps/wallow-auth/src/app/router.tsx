@@ -1,10 +1,11 @@
+import { withBasePath } from "@bc-solutions-coder/env/base-path";
 import { createQueryClient, type QueryClient } from "@bc-solutions-coder/query";
 import { createWallowSdk, type WallowSdk } from "@bc-solutions-coder/sdk";
 import { createRouter as createTanStackRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 import { getGlobalStartContext } from "@tanstack/react-start";
 
-import { BASE_PATH, withBasePath } from "@shared/lib/base-path";
+import { BASE_PATH } from "@shared/lib/base-path";
 import { routeTree } from "./routeTree.gen";
 
 /**

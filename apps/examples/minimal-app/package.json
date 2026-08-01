@@ -2,7 +2,7 @@
   "name": "@bc-solutions-coder/example-minimal-app",
   "version": "0.0.0",
   "private": true,
-  "description": "Minimal TanStack Start reference app wiring all five @bc-solutions-coder shared packages",
+  "description": "Minimal TanStack Start reference app wiring the core @bc-solutions-coder shared packages",
   "type": "module",
   "scripts": {
     "dev": "vite dev --configLoader runner",
@@ -13,6 +13,7 @@
     "test:watch": "vitest --configLoader runner"
   },
   "dependencies": {
+    "@bc-solutions-coder/env": "workspace:*",
     "@bc-solutions-coder/query": "workspace:*",
     "@bc-solutions-coder/sdk": "workspace:*",
     "@bc-solutions-coder/styles": "workspace:*",

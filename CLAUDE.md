@@ -55,6 +55,7 @@ apply cleanly to a fresh database.
 | `packages/config/` | `@bc-solutions-coder/config` — the Vite presets every workspace member builds with; never built, never published; see `packages/config/CLAUDE.md`                            |
 | `packages/lint/`   | `@bc-solutions-coder/lint` — Wallow's own oxlint JS-plugin rules (`wallow/*`), registered by the two apps' nested configs; see `packages/lint/CLAUDE.md`                     |
 | `packages/utils/`  | `@bc-solutions-coder/utils` — the bottom of the graph: pure functions, zero dependencies, no host API; subpath-only (`./format`, `./guards`, `./string`); see `packages/utils/CLAUDE.md` |
+| `packages/env/`    | `@bc-solutions-coder/env` — deployment-derived addressing for Start apps, zero dependencies, reads no environment of its own; subpath-only (`./request-origin`, `./internal-origin`, `./base-path`); see `packages/env/CLAUDE.md` |
 | `apps/wallow-web/`  | TanStack Start + BFF OIDC reference frontend (dashboard) that consumes the SDK                                                                                              |
 | `apps/wallow-auth/` | TanStack Start auth frontend (login/signup/MFA screens) on port 3002                                                                                                        |
 | `apps/examples/`    | Example apps (`minimal-app`)                                                                                                                                                |

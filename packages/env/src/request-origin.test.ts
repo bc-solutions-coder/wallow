@@ -1,7 +1,3 @@
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-
 import { describe, expect, it } from "vitest";
 
 import { resolveRequestOrigin } from "./request-origin";
@@ -12,12 +8,8 @@ import { resolveRequestOrigin } from "./request-origin";
  * Behind an HTTPS-terminating ingress the app is reached over plain HTTP, so an
  * SSR pass reading the request URL derives `http://…` while the browser derives
  * `https://…`. Generated query keys embed that `baseUrl` verbatim, so the two
- * never match and every SSR-prefetched query refetches on hydration. The helper
- * is a verbatim copy per Start app, so the drift guard lives here too.
+ * never match and every SSR-prefetched query refetches on hydration.
  */
-
-const libDir: string = dirname(fileURLToPath(import.meta.url));
-const appsDir: string = resolve(libDir, "..", "..", "..", "..");
 
 function requestWith(url: string, forwardedProto?: string): Request {
   const headers: Headers = new Headers();
@@ -41,10 +33,16 @@ describe("resolveRequestOrigin", () => {
   });
 
   it("keeps a non-default port, since the origin is host and not hostname", () => {
-    // `pnpm dev` and both compose stacks publish this app on an explicit port;
-    // dropping it would point the SDK at :80.
+    // `pnpm dev` and both compose stacks publish these apps on explicit ports;
+    // dropping one would point the SDK at :80.
     expect(resolveRequestOrigin(requestWith("http://localhost:3000/x", "https"))).toBe(
       "https://localhost:3000",
+    );
+  });
+
+  it("keeps a non-default port when no proxy reported a scheme either", () => {
+    expect(resolveRequestOrigin(requestWith("http://localhost:3002/login"))).toBe(
+      "http://localhost:3002",
     );
   });
 
@@ -110,39 +108,5 @@ describe("resolveRequestOrigin", () => {
         "http://wallow.dev",
       );
     });
-  });
-});
-
-describe("src/app/start.ts wiring", () => {
-  // `start.ts` is app-zone and this helper is shared-zone, hence the hop.
-  const source: string = readFileSync(resolve(libDir, "..", "..", "app", "start.ts"), "utf8");
-
-  it("derives the per-request SDK's origin through the helper", () => {
-    expect(source).toMatch(/from\s+"@shared\/lib\/request-origin"/u);
-    expect(source).toMatch(/resolveRequestOrigin\(request\)/u);
-  });
-
-  it("no longer reads the origin straight off the request URL", () => {
-    expect(source).not.toMatch(/new URL\(request\.url\)\.origin/u);
-  });
-
-  it("still mounts the BFF proxy prefix onto that origin", () => {
-    // `/api` is what makes this baseUrl the BFF tunnel rather than the origin.
-    expect(source).toMatch(/baseUrl:\s*`\$\{requestOrigin\}\$\{API_MOUNT\}`/u);
-  });
-});
-
-describe("the copy in every other Start app", () => {
-  // The helper is duplicated because `src/app/start.ts` lands in the client
-  // bundle and may not import a Node-only module; the copies must not drift.
-  const canonical: string = readFileSync(resolve(libDir, "request-origin.ts"), "utf8");
-
-  it.each([
-    // wallow-auth is zoned like this app; minimal-app is not, so its copy is
-    // directly under `src/lib`.
-    ["apps/wallow-auth", "wallow-auth/src/shared/lib/request-origin.ts"],
-    ["apps/examples/minimal-app", "examples/minimal-app/src/lib/request-origin.ts"],
-  ])("is byte-identical in %s", (_label: string, relativePath: string) => {
-    expect(readFileSync(resolve(appsDir, relativePath), "utf8")).toBe(canonical);
   });
 });

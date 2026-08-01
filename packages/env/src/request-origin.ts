@@ -1,6 +1,6 @@
 /**
  * The browser-facing origin of an inbound SSR request, honoring the scheme a
- * terminating reverse proxy reports in `X-Forwarded-Proto` (Wallow-vufu.4.3).
+ * terminating reverse proxy reports in `X-Forwarded-Proto`.
  *
  * Behind an HTTPS-terminating ingress the app itself is reached over plain HTTP,
  * so `new URL(request.url).origin` says `http` while the browser that will
@@ -12,13 +12,6 @@
  * deployment whose ingress does not overwrite it, and an unrecognized value
  * would otherwise travel into the SDK's `baseUrl` and into every query key built
  * from it; falling back to the request's own scheme keeps that input inert.
- *
- * Copied verbatim into all three Start apps — `apps/wallow-web`,
- * `apps/wallow-auth`, `apps/examples/minimal-app` — rather than shared, because
- * `src/start.ts` is compiled into the CLIENT bundle too and so may not import
- * the SDK's Node-only server entry where the rest of this wiring lives.
- * `apps/wallow-web/src/lib/request-origin.test.ts` guards the copies against
- * drift.
  */
 
 /** What a terminating proxy names the scheme the browser actually used. */
