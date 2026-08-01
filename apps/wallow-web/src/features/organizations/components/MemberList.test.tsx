@@ -3,7 +3,7 @@ import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow
 import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { expectSwept } from "@shared/testing/invalidation";
+import { expectSwept } from "@bc-solutions-coder/testing/invalidation";
 import { organizationsGetMembersQueryKey } from "../api";
 import { MemberList } from "./MemberList";
 

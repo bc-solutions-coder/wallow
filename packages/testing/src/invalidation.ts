@@ -1,17 +1,13 @@
 /**
- * Asserting on curated invalidation (Wallow-pu6a.5.5).
+ * Asserting on curated invalidation.
  *
- * The hand-written query layer's keys were hierarchical, so a spec could assert
- * a mutation swept its list with a literal:
- * `expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["apps"] })`.
- *
- * The generated keys are flat — one object segment carrying `_id` and the
+ * Generated query keys are flat — one object segment carrying `_id` and the
  * operation's OpenAPI `tags` — so a mutation invalidates through a PREDICATE
- * (`queriesWithTag` / `queriesForOperation`), and there is no literal key to
- * compare against. What a spec actually cares about is unchanged, though: "does
- * the sweep this mutation asked for reach the query this screen reads?" That is
- * what these answer — by running the real predicate against the real generated
- * key, so a mutation invalidating the wrong tag still fails the spec.
+ * (`queriesWithTag` / `queriesForOperation`) and there is no literal key to
+ * compare a spy call against. What a spec cares about is still "does the sweep
+ * this mutation asked for reach the query this screen reads?", which these
+ * answer by running the REAL predicate against the REAL generated key — so a
+ * mutation invalidating the wrong tag fails the spec.
  */
 import type { Query, QueryFilters } from "@bc-solutions-coder/query";
 import { expect, vi } from "vitest";

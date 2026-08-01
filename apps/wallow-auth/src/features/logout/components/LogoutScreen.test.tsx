@@ -1,10 +1,13 @@
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
-import { type SdkCall, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import {
+  createPassthroughHarness,
+  type SdkCall,
+  type SdkHarness,
+} from "@bc-solutions-coder/testing/sdk-harness";
 import type { ReactElement } from "react";
 import { page } from "vitest/browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createAuthHarness } from "@shared/testing/harness";
 import { Route as logoutRoute } from "@app/routes/logout";
 import { LogoutScreen } from "./LogoutScreen";
 
@@ -84,7 +87,7 @@ function renderWithClient(ui: ReactElement) {
 }
 
 beforeEach(() => {
-  harness = createAuthHarness();
+  harness = createPassthroughHarness();
   answerValidation(allowedBody(true));
 });
 

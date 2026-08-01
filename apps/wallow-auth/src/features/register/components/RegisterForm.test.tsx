@@ -1,10 +1,9 @@
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
-import type { SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { createPassthroughHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createAuthHarness } from "@shared/testing/harness";
 import { Route as registerRoute } from "@app/routes/register";
 import { RegisterForm } from "./RegisterForm";
 
@@ -162,7 +161,7 @@ async function fillAndSubmit(
 
 beforeEach(() => {
   vi.clearAllMocks();
-  harness = createAuthHarness();
+  harness = createPassthroughHarness();
   routes = {
     providers: ok([]),
     tenant: ok({ tenantId: "t-1", orgName: "Acme Inc" }),

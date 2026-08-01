@@ -13,5 +13,11 @@ export default defineLibraryConfig({
     "browser-deps": "src/browser-deps.ts",
     contrast: "src/contrast.ts",
     "render-with-wallow": "src/render-with-wallow.tsx",
+    locators: "src/locators.ts",
+    "catalog-select": "src/catalog-select.ts",
+    invalidation: "src/invalidation.ts",
+    "browser-styles-wiring": "src/browser-styles-wiring.ts",
+    "theme-wiring": "src/theme-wiring.tsx",
+    "node-async-hooks-browser-shim": "src/node-async-hooks-browser-shim.ts",
   },
 });

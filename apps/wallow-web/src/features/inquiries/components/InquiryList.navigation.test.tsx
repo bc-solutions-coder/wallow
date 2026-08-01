@@ -10,7 +10,7 @@ import {
   expectTag,
   parentOf,
   waitForTestId,
-} from "@shared/testing/locators";
+} from "@bc-solutions-coder/testing/locators";
 import { InquiryList } from "./InquiryList";
 
 /**

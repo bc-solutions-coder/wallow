@@ -205,3 +205,31 @@ export function createSdkHarness(options: SdkHarnessOptions = {}): SdkHarness {
     },
   };
 }
+
+/**
+ * Base URL for an app served by the PASSTHROUGH proxy rather than the BFF.
+ *
+ * `createApiPassthrough` mounts `/v1/**` and `/connect/**` at the site root, and
+ * such an app builds its SDK with `baseUrl: globalThis.location.origin` to match
+ * — so a harness on {@link DEFAULT_HARNESS_BASE_URL} would record `/api/v1/...`
+ * paths it never issues. Same fake origin, no path prefix.
+ */
+export const PASSTHROUGH_HARNESS_BASE_URL = "http://wallow.test";
+
+/** A harness whose recorded `call.path` matches a passthrough-hosted app's requests. */
+export function createPassthroughHarness(): SdkHarness {
+  return createSdkHarness({ baseUrl: PASSTHROUGH_HARNESS_BASE_URL });
+}
+
+/**
+ * Multi-route programming, re-exported so a spec reaches the whole harness
+ * through one specifier.
+ */
+export {
+  failsWith,
+  neverSettles,
+  routeHarness,
+  type HarnessRouteResponse,
+  type HarnessRoutes,
+  type RouteHarnessOptions,
+} from "./harness-routes";

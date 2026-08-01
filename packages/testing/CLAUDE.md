@@ -4,14 +4,34 @@ The shared **Vitest preset** and browser-mode test utilities. Every package with
 specs (all three apps plus `packages/ui`) gets its two-project node/browser split from here
 rather than hand-rolling one.
 
-## Four entries — the split is load-bearing
+## Subpath-per-entry — the split is load-bearing
 
-| Entry                                    | Imported at                         | What it is                                                                                                                                                                                |
-| ---------------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `.` (`src/index.ts`)                     | Vitest **config load** (plain Node) | `createVitestProjects()` → the `{ node, browser }` project pair for `defineConfig({ test: { projects } })`, plus `browserOptimizeDepsBaseline` / `mergeOptimizeDeps`.                     |
-| `./render` (`src/render.tsx`)            | Inside a **browser-mode spec**      | `render`, re-exported from `vitest-browser-react` — the single seam where shared providers/wrappers would be added.                                                                       |
-| `./contrast` (`src/contrast.ts`)         | Inside a **browser-mode spec**      | Measured-colour helpers: `parseColor` / `computedColor` / `effectiveBackground` / `contrastRatio` / `textContrast`. Reads what a component PAINTS, which a class-string assertion cannot. |
-| `./browser-deps` (`src/browser-deps.ts`) | Inside a **node-project spec**      | `describeBrowserPreBundleList()` — asserts every `optimizeDeps.include` entry in a consumer's browser project actually resolves. Spawns child processes; keep it off the barrel.          |
+Every helper gets its OWN entry rather than riding the barrel, because the barrel is loaded in a
+plain Node process at Vitest config time. One browser-only import on it breaks every config in the
+workspace.
+
+| Entry                                                                      | Imported at                         | What it is                                                                                                                                                                                  |
+| -------------------------------------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.` (`src/index.ts`)                                                       | Vitest **config load** (plain Node) | `createVitestProjects()` → the `{ node, browser }` project pair for `defineConfig({ test: { projects } })`, plus `browserOptimizeDepsBaseline` / `mergeOptimizeDeps`.                       |
+| `./render` (`src/render.tsx`)                                              | Inside a **browser-mode spec**      | `render`, re-exported from `vitest-browser-react` — the single seam where shared providers/wrappers would be added.                                                                         |
+| `./render-with-wallow` (`src/render-with-wallow.tsx`)                      | Inside a **browser-mode spec**      | `render` wrapped in the router + query providers a screen needs.                                                                                                                            |
+| `./contrast` (`src/contrast.ts`)                                           | Inside a **browser-mode spec**      | Measured-colour helpers: `parseColor` / `computedColor` / `effectiveBackground` / `contrastRatio` / `textContrast`. Reads what a component PAINTS, which a class-string assertion cannot.   |
+| `./locators` (`src/locators.ts`)                                           | Inside a **browser-mode spec**      | `byTestId` and friends — the one way a spec reaches an element.                                                                                                                             |
+| `./catalog-select` (`src/catalog-select.ts`)                               | Inside a **browser-mode spec**      | `chooseOption` / `expectCatalogSelect`. A catalog `Select` portals `role="option"` divs to `<body>` only while open, so `userEvent.selectOptions` cannot drive it.                          |
+| `./theme-wiring` (`src/theme-wiring.tsx`)                                  | Inside a **browser-mode spec**      | `assertThemeWiring({ tokens, probeClass })` — the consumer's whole spec file is one call.                                                                                                   |
+| `./sdk-harness` (`src/sdk-harness.ts`)                                     | **Any** project                     | `createSdkHarness` / `createPassthroughHarness`, plus the multi-route helpers (`routeHarness`, `failsWith`, `neverSettles`) re-exported so a spec needs one specifier. Imports no `vitest`. |
+| `./invalidation` (`src/invalidation.ts`)                                   | Inside a **spec**                   | Runs a real `invalidations` predicate against a real generated query key.                                                                                                                   |
+| `./browser-deps` (`src/browser-deps.ts`)                                   | Inside a **node-project spec**      | `describeBrowserPreBundleList()` — asserts every `optimizeDeps.include` entry in a consumer's browser project actually resolves. Spawns child processes; keep it off the barrel.            |
+| `./browser-styles-wiring` (`src/browser-styles-wiring.ts`)                 | Inside a **node-project spec**      | `assertBrowserStylesWiring({ appDir, extraSpecs })` — reads the consumer's config/setup/stylesheet off disk. Node-only.                                                                     |
+| `./node-async-hooks-browser-shim` (`src/node-async-hooks-browser-shim.ts`) | A browser-project `resolve.alias`   | Real in-browser `AsyncLocalStorage` answering "no scope", for apps whose router pulls `node:async_hooks`.                                                                                   |
+
+- **The two wiring guards are a PAIR, and each fails differently.** `./theme-wiring` measures what
+  the browser actually paints — that is the assertion that matters. `./browser-styles-wiring` names
+  the pieces on disk, so a removed one fails saying WHICH rather than as a pile of 15s actionability
+  timeouts (no utilities) or vacuously-passing transparent colours (no theme). A consumer's spec
+  files are one call each; the app supplies only what it alone can answer — its `appDir`, its theme
+  tokens, its probe class, and (wallow-auth only) the checkbox specs that must not regrow a
+  focus+Space workaround.
 
 - **Keep `render` off the barrel.** `vitest-browser-react` evaluates `vitest/browser` at import
   and throws outside browser mode; the barrel is loaded in a plain Node process at config time,

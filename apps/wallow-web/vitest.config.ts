@@ -1,5 +1,3 @@
-import { fileURLToPath } from "node:url";
-
 import { wallowStyles } from "@bc-solutions-coder/styles/vite";
 import { createVitestProjects } from "@bc-solutions-coder/testing";
 import { defineConfig } from "vitest/config";
@@ -36,9 +34,7 @@ import { defineConfig } from "vitest/config";
 // plugin and vitest externalises `node:async_hooks` to a throwing proxy, so every
 // spec importing the router died at import. Point it at a real in-browser
 // implementation instead; see the shim for why answering "no scope" is correct.
-const nodeAsyncHooksShim: string = fileURLToPath(
-  new URL("src/shared/testing/node-async-hooks-browser-shim.ts", import.meta.url),
-);
+const nodeAsyncHooksShim = "@bc-solutions-coder/testing/node-async-hooks-browser-shim";
 
 const { node, browser } = createVitestProjects({
   extraBrowserOptimizeDeps: [

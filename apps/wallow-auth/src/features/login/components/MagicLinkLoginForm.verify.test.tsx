@@ -1,5 +1,9 @@
 import type { QueryClient } from "@bc-solutions-coder/query";
-import type { SdkCall, SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import {
+  createPassthroughHarness,
+  type SdkCall,
+  type SdkHarness,
+} from "@bc-solutions-coder/testing/sdk-harness";
 import {
   createTestQueryClient,
   renderWithWallow,
@@ -8,7 +12,6 @@ import { type ReactNode, useState } from "react";
 import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 
-import { createAuthHarness } from "@shared/testing/harness";
 import { accountVerifyMagicLinkQueryKey } from "../api";
 import { MAGIC_LINK_EXPIRED_MESSAGE, MAGIC_LINK_VERIFY_FAILED_MESSAGE } from "../magic-link-result";
 import { MagicLinkLoginForm } from "./MagicLinkLoginForm";
@@ -53,7 +56,7 @@ let onAuthResult: Mock<(body: unknown) => void>;
 let onError: Mock<(message: string | null) => void>;
 
 beforeEach(() => {
-  harness = createAuthHarness();
+  harness = createPassthroughHarness();
   onAuthResult = vi.fn<(body: unknown) => void>();
   onError = vi.fn<(message: string | null) => void>();
   harness.resolveJson(VERIFIED_BODY);

@@ -1,12 +1,17 @@
-import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import {
+  createSdkHarness,
+  failsWith,
+  neverSettles,
+  routeHarness,
+  type SdkHarness,
+} from "@bc-solutions-coder/testing/sdk-harness";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 
-import { failsWith, neverSettles, routeHarness } from "@shared/testing/harness-routes";
 import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { chooseOption } from "@shared/testing/catalog-select";
-import { expectSwept } from "@shared/testing/invalidation";
+import { chooseOption } from "@bc-solutions-coder/testing/catalog-select";
+import { expectSwept } from "@bc-solutions-coder/testing/invalidation";
 import { inquiriesGetByIdQueryKey, inquiriesGetCommentsQueryKey } from "../api";
 import { InquiryDetail } from "./InquiryDetail";
 

@@ -11,7 +11,7 @@ import type { AnyRouter } from "@tanstack/react-router";
 import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { byTestId, expectTag, waitForTestId } from "@shared/testing/locators";
+import { byTestId, expectTag, waitForTestId } from "@bc-solutions-coder/testing/locators";
 import { Route } from "./index";
 
 /**

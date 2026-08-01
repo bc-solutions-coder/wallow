@@ -4,11 +4,14 @@ import {
   createTestQueryClient,
   renderWithWallow,
 } from "@bc-solutions-coder/testing/render-with-wallow";
-import type { SdkCall, SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import {
+  createPassthroughHarness,
+  type SdkCall,
+  type SdkHarness,
+} from "@bc-solutions-coder/testing/sdk-harness";
 import { page } from "vitest/browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createAuthHarness } from "@shared/testing/harness";
 import { Route as invitationRoute } from "./invitation";
 
 /**
@@ -17,7 +20,7 @@ import { Route as invitationRoute } from "./invitation";
  *
  * Runs the real SDK over a faked fetch (sdk-harness), so assertions read the
  * recorded request, not a spy. `renderWithWallow` supplies the router context
- * the route reads its SDK off, and `createAuthHarness()` pins the harness origin
+ * the route reads its SDK off, and `createPassthroughHarness()` pins the harness origin
  * to this app's root-mounted API surface — which is why every path below is
  * bare, with no `/api` prefix.
  */
@@ -96,7 +99,7 @@ beforeEach(() => {
   currentUserAnswer = () => Response.json(currentUserBody());
   verifyAnswer = () => Response.json(invitationBody());
 
-  harness = createAuthHarness();
+  harness = createPassthroughHarness();
   harness.respond((call: SdkCall) => {
     if (call.path === CURRENT_USER_PATH) {
       return currentUserAnswer();

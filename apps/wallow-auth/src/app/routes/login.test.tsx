@@ -1,10 +1,9 @@
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
-import type { SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { createPassthroughHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { forkBranding } from "@bc-solutions-coder/styles";
 import { page } from "vitest/browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createAuthHarness } from "@shared/testing/harness";
 import { Route as loginRoute } from "./login";
 
 /**
@@ -89,7 +88,7 @@ async function formRendered(): Promise<void> {
 }
 
 beforeEach(() => {
-  harness = createAuthHarness();
+  harness = createPassthroughHarness();
   brandingReply = () => Response.json(clientBranding());
   harness.respond((call) => {
     if (call.path === BRANDING_ENDPOINT) {

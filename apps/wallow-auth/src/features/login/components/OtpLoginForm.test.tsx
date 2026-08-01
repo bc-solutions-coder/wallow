@@ -1,10 +1,13 @@
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
-import { type SdkCall, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import {
+  createPassthroughHarness,
+  type SdkCall,
+  type SdkHarness,
+} from "@bc-solutions-coder/testing/sdk-harness";
 import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createAuthHarness } from "@shared/testing/harness";
 import { Route as loginRoute } from "@app/routes/login";
 import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
 
@@ -285,7 +288,7 @@ async function toggleCheckbox(
 
 beforeEach(() => {
   vi.clearAllMocks();
-  harness = createAuthHarness();
+  harness = createPassthroughHarness();
   harness.respond(defaultWire);
   handoffs = [];
   navigationApi.addEventListener("navigate", recordHandoff);

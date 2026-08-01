@@ -1,11 +1,14 @@
 import { isSafeReturnUrl } from "@bc-solutions-coder/sdk";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
-import { type SdkCall, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import {
+  createPassthroughHarness,
+  type SdkCall,
+  type SdkHarness,
+} from "@bc-solutions-coder/testing/sdk-harness";
 import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createAuthHarness } from "@shared/testing/harness";
 import { Route as invitationRoute } from "@app/routes/invitation";
 import { InvitationScreen } from "./InvitationScreen";
 
@@ -13,7 +16,7 @@ import { InvitationScreen } from "./InvitationScreen";
  * Invitation landing screen, and the `/invitation` route that feeds it.
  *
  * Runs the real SDK over a faked fetch (sdk-harness), so assertions read the
- * recorded request, not a spy. `createAuthHarness()` pins the harness origin to
+ * recorded request, not a spy. `createPassthroughHarness()` pins the harness origin to
  * this app's root-mounted API surface — hence bare paths, no `/api` prefix.
  *
  * Both endpoints fail with a bare status and no machine-readable code, so the
@@ -175,7 +178,7 @@ beforeEach(() => {
   // Only the route probes; the component takes `isAuthenticated` as a prop.
   currentUserAnswer = () => failure(UNAUTHORIZED);
 
-  harness = createAuthHarness();
+  harness = createPassthroughHarness();
   harness.respond((call: SdkCall) => {
     if (call.path.startsWith(VERIFY_PREFIX)) {
       return verifyAnswer();

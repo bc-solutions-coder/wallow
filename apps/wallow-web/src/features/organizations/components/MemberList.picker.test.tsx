@@ -1,5 +1,6 @@
 import {
   createSdkHarness,
+  routeHarness,
   type SdkCall,
   type SdkHarness,
 } from "@bc-solutions-coder/testing/sdk-harness";
@@ -7,7 +8,6 @@ import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow
 import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { routeHarness } from "@shared/testing/harness-routes";
 import { MemberList } from "./MemberList";
 
 /**

@@ -9,6 +9,12 @@
     "src/sdk-harness.ts",
     "src/browser-deps.ts",
     "src/render-with-wallow.tsx",
-    "src/contrast.ts"
+    "src/contrast.ts",
+    "src/locators.ts",
+    "src/catalog-select.ts",
+    "src/invalidation.ts",
+    "src/browser-styles-wiring.ts",
+    "src/theme-wiring.tsx",
+    "src/node-async-hooks-browser-shim.ts"
   ]
 }

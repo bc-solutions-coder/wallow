@@ -1,5 +1,9 @@
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
-import type { SdkCall, SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import {
+  createPassthroughHarness,
+  type SdkCall,
+  type SdkHarness,
+} from "@bc-solutions-coder/testing/sdk-harness";
 import type { ReactNode } from "react";
 import { page } from "vitest/browser";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -19,7 +23,6 @@ import { RegisterForm } from "@features/register";
 import { ResetPasswordForm } from "@features/reset-password";
 import { TermsPage } from "@features/terms";
 import { VerifyEmailConfirm, VerifyEmailNotice } from "@features/verify-email";
-import { createAuthHarness } from "@shared/testing/harness";
 
 /**
  * The MEASURED pin on wallow-auth's card-heading scale (Wallow-lrlm.13).
@@ -116,7 +119,7 @@ function ScaleProbes() {
 let harness: SdkHarness;
 
 beforeEach(() => {
-  harness = createAuthHarness();
+  harness = createPassthroughHarness();
 });
 
 /**

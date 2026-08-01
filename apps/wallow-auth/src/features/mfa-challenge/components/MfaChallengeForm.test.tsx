@@ -1,5 +1,6 @@
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import {
+  createPassthroughHarness,
   type SdkCall,
   type SdkHarness,
   type SdkResponder,
@@ -8,7 +9,6 @@ import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createAuthHarness } from "@shared/testing/harness";
 import { Route as mfaChallengeRoute } from "@app/routes/mfa/challenge";
 import { MfaChallengeForm, type MfaChallengeFormProps } from "./MfaChallengeForm";
 
@@ -270,7 +270,7 @@ beforeEach(() => {
   navigations = [];
   navigationApi()?.addEventListener("navigate", recordNavigation);
 
-  harness = createAuthHarness();
+  harness = createPassthroughHarness();
   verifyWith = () => verifiedResponse(TICKET);
   validateWith = allowListResponder;
   // ONE dispatcher, installed once: the tests reprogram the two endpoint responders above

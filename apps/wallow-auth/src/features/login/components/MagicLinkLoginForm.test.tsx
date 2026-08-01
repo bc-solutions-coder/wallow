@@ -1,10 +1,9 @@
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
-import type { SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { createPassthroughHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createAuthHarness } from "@shared/testing/harness";
 import { Route as loginRoute } from "@app/routes/login";
 import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
 
@@ -255,7 +254,7 @@ async function submitEmail(user: ReturnType<typeof userEvent.setup>, email: stri
 beforeEach(() => {
   vi.clearAllMocks();
   handoffs = captureHandoff();
-  harness = createAuthHarness();
+  harness = createPassthroughHarness();
   respondWithSend({ succeeded: true });
   respondWithVerify({ succeeded: true, email: EMAIL, signInTicket: TICKET });
   harness.respond((call) => {

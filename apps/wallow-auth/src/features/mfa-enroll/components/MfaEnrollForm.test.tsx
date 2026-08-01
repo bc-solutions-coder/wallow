@@ -1,10 +1,14 @@
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
-import { type SdkCall, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import {
+  createPassthroughHarness,
+  PASSTHROUGH_HARNESS_BASE_URL,
+  type SdkCall,
+  type SdkHarness,
+} from "@bc-solutions-coder/testing/sdk-harness";
 import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AUTH_HARNESS_ORIGIN, createAuthHarness } from "@shared/testing/harness";
 import { Route as mfaEnrollRoute } from "@app/routes/mfa/enroll";
 import { MfaEnrollForm } from "./MfaEnrollForm";
 
@@ -213,7 +217,7 @@ afterEach(() => {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  harness = createAuthHarness();
+  harness = createPassthroughHarness();
   program();
 });
 
@@ -229,7 +233,7 @@ describe("MfaEnrollForm — starting enrollment", () => {
     const enroll: SdkCall | undefined = callsTo(TOTP_ENDPOINT)[0];
     expect(enroll?.method).toBe("POST");
     expect(enroll?.body).toBeUndefined();
-    expect(enroll?.url).toBe(`${AUTH_HARNESS_ORIGIN}${TOTP_ENDPOINT}`);
+    expect(enroll?.url).toBe(`${PASSTHROUGH_HARNESS_BASE_URL}${TOTP_ENDPOINT}`);
   });
 
   it("shows the QR code keyed to the otpauth uri the API returned", async () => {

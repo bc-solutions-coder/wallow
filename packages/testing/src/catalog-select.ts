@@ -1,12 +1,12 @@
 /**
- * Driving the catalog `Select` from a spec (Wallow-m5aq.5.3).
+ * Driving the catalog `Select` from a spec.
  *
  * A `@bc-solutions-coder/ui` `Select` is not a native `<select>`: the trigger is
  * a `role="combobox"` button, and the options exist in the DOM — portalled onto
- * `<body>` — only while the popup is open. `userEvent.selectOptions`, which the
- * pre-migration specs used, needs a real `HTMLSelectElement` and cannot drive
- * it, so picking a value is two clicks with a settle in between. That sequence
- * lives here so every spec spells it the same way.
+ * `<body>` — only while the popup is open. `userEvent.selectOptions` needs a real
+ * `HTMLSelectElement` and cannot drive it, so picking a value is two clicks with
+ * a settle in between. That sequence lives here so every spec spells it the same
+ * way.
  *
  * Options are addressed by their ACCESSIBLE NAME rather than by a testid: the
  * name is what a user and a screen reader have to go on, and keying off it keeps
@@ -15,12 +15,7 @@
 import { page, userEvent } from "vitest/browser";
 import { expect } from "vitest";
 
-/** The trigger carrying `testId`; fails loudly when absent or duplicated. */
-export function triggerByTestId(testId: string): HTMLElement {
-  const elements = page.getByTestId(testId).elements();
-  expect(elements, `expected exactly one [data-testid="${testId}"]`).toHaveLength(1);
-  return elements[0] as HTMLElement;
-}
+import { byTestId } from "./locators";
 
 /**
  * Open the select identified by `triggerTestId` and choose the option with the
@@ -32,7 +27,7 @@ export function triggerByTestId(testId: string): HTMLElement {
  * value too early races the close.
  */
 export async function chooseOption(triggerTestId: string, optionName: string): Promise<void> {
-  const trigger: HTMLElement = triggerByTestId(triggerTestId);
+  const trigger: HTMLElement = byTestId(triggerTestId);
 
   await userEvent.click(trigger);
   await expect.poll(() => trigger.getAttribute("aria-expanded")).toBe("true");
@@ -51,7 +46,7 @@ export async function chooseOption(triggerTestId: string, optionName: string): P
  * genuinely absent (not merely hidden) until the trigger is activated.
  */
 export function expectCatalogSelect(testId: string): void {
-  const trigger: HTMLElement = triggerByTestId(testId);
+  const trigger: HTMLElement = byTestId(testId);
 
   expect(trigger.tagName, `[data-testid="${testId}"] should not be a native <select>`).not.toBe(
     "SELECT",

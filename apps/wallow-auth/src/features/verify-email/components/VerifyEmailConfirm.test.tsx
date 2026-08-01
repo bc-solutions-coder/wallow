@@ -1,10 +1,9 @@
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
-import type { SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { createPassthroughHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import type { ReactElement } from "react";
 import { page } from "vitest/browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createAuthHarness } from "@shared/testing/harness";
 import { Route as verifyEmailConfirmRoute } from "@app/routes/verify-email/confirm";
 import { VerifyEmailConfirm } from "./VerifyEmailConfirm";
 
@@ -68,7 +67,7 @@ async function expectOnlyState(state: "loading" | "success" | "error") {
 }
 
 beforeEach(() => {
-  harness = createAuthHarness();
+  harness = createPassthroughHarness();
   harness.resolveJson({ succeeded: true });
 });
 

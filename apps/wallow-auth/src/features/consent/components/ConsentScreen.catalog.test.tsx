@@ -1,10 +1,9 @@
 import { computedColor, isTransparent, type Rgba } from "@bc-solutions-coder/testing/contrast";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
-import type { SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { createPassthroughHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { createAuthHarness } from "@shared/testing/harness";
 import { ConsentScreen } from "./ConsentScreen";
 
 /**
@@ -89,7 +88,7 @@ async function parkPointer(): Promise<void> {
 }
 
 beforeEach(async () => {
-  harness = createAuthHarness();
+  harness = createPassthroughHarness();
   harness.resolveJson(consentInfo());
   await parkPointer();
 });

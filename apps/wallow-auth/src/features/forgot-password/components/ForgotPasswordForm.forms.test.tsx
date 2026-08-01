@@ -1,10 +1,9 @@
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
-import type { SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { createPassthroughHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createAuthHarness } from "@shared/testing/harness";
 import { ForgotPasswordForm } from "./ForgotPasswordForm";
 
 /**
@@ -43,7 +42,7 @@ function describedByIds(control: HTMLElement): readonly string[] {
 }
 
 beforeEach(() => {
-  harness = createAuthHarness();
+  harness = createPassthroughHarness();
   harness.resolveJson({});
 });
 

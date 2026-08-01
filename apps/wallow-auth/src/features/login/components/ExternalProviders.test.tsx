@@ -3,13 +3,12 @@ import {
   createTestQueryClient,
   renderWithWallow,
 } from "@bc-solutions-coder/testing/render-with-wallow";
-import type { SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { createPassthroughHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { QueryClient } from "@bc-solutions-coder/query";
 import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createAuthHarness } from "@shared/testing/harness";
 import { Route as loginRoute } from "@app/routes/login";
 import { accountGetExternalProvidersQueryKey } from "../api";
 import { ExternalProviders } from "./ExternalProviders";
@@ -136,7 +135,7 @@ function providerParamOf(link: HTMLElement): string | null {
 }
 
 beforeEach(() => {
-  harness = createAuthHarness();
+  harness = createPassthroughHarness();
   respondWithProviders(PROVIDERS);
   harness.respond((call) => {
     if (call.path === PROVIDERS_ENDPOINT) {

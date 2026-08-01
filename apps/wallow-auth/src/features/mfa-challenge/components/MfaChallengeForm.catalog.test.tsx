@@ -1,10 +1,9 @@
 import { computedColor, isTransparent } from "@bc-solutions-coder/testing/contrast";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
-import type { SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { createPassthroughHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { page } from "vitest/browser";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { createAuthHarness } from "@shared/testing/harness";
 import { MfaChallengeForm } from "./MfaChallengeForm";
 
 /**
@@ -22,7 +21,7 @@ const RETURN_URL = "/connect/authorize?client_id=wallow-web&scope=openid";
 let harness: SdkHarness;
 
 beforeEach(() => {
-  harness = createAuthHarness();
+  harness = createPassthroughHarness();
 });
 
 async function renderForm(): Promise<void> {

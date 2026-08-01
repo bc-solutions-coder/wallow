@@ -1,5 +1,9 @@
 import { CardTitle } from "@bc-solutions-coder/ui";
-import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import {
+  createSdkHarness,
+  routeHarness,
+  type SdkHarness,
+} from "@bc-solutions-coder/testing/sdk-harness";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import { page } from "vitest/browser";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -8,7 +12,6 @@ import { CreateOrganizationForm, OrganizationDetail } from "@features/organizati
 import { CreateInquiryForm } from "@features/inquiries";
 import { MfaSettingsSection } from "@features/mfa";
 import { ProfileSection } from "@features/settings";
-import { routeHarness } from "@shared/testing/harness-routes";
 
 /**
  * The MEASURED pin on wallow-web's card headings (Wallow-io5f).

@@ -11,7 +11,7 @@ import { describe, expect, it } from "vitest";
 
 import * as query from "@bc-solutions-coder/sdk/query";
 
-import { sweeps } from "@shared/testing/invalidation";
+import { sweeps } from "@bc-solutions-coder/testing/invalidation";
 import * as api from "./api";
 
 describe("api.ts re-exports the SDK apps query surface", () => {

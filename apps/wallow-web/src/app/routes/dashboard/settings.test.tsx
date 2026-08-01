@@ -1,10 +1,13 @@
-import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import {
+  createSdkHarness,
+  routeHarness,
+  type SdkHarness,
+} from "@bc-solutions-coder/testing/sdk-harness";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import { page } from "vitest/browser";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { getRouter } from "@app/router";
-import { routeHarness } from "@shared/testing/harness-routes";
 import { Route } from "./settings";
 
 /**

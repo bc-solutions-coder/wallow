@@ -48,6 +48,13 @@
   `pnpm --filter ./apps/<app> exec vitest run <paths>` does not, and without it vitest cannot resolve
   `packages/styles/src/assets` and dies with `ERR_MODULE_NOT_FOUND` before running a single test — which
   looks like a broken spec but is the missing flag.
+- **Spec helpers live in `@bc-solutions-coder/testing`, never in an app.** The SDK harness
+  (`./sdk-harness`, which also re-exports the multi-route helpers), testid locators (`./locators`),
+  catalog-control drivers (`./catalog-select`), invalidation assertions (`./invalidation`), colour
+  measurement (`./contrast`) and the two browser-project wiring guards
+  (`./browser-styles-wiring`, `./theme-wiring`) all come from there. A helper written under an app's
+  `src/shared/testing/` is a helper the other app cannot use — put it in the package instead. See
+  `packages/testing/CLAUDE.md` for which subpaths are node-safe and which are browser-only.
 
 ### Test comments
 
@@ -72,8 +79,8 @@ constraint that no longer exists makes the next reader route around a problem th
 A comment that cites a line number is wrong the moment either file moves.
 
 **A spec asserting that a migration happened is finished work, not coverage.** "The restyle landed",
-"this uses the catalog now" — delete it. So is any `it()` whose body only reads `element.classList`
-(the `shared/testing/style-contract.ts` helpers): a component can render the right classes and be
+"this uses the catalog now" — delete it. So is any `it()` whose body only reads `element.classList`:
+a component can render the right classes and be
 broken, or restyle correctly with different classes and fail. Assert the computed value, never the
 class string — `cn()` merges a caller's `className` over the recipe. Where one of the `wallow/*`
 lint rules already says it, the spec is redundant by construction.

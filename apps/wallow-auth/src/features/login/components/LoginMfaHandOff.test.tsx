@@ -1,10 +1,9 @@
 import { isSafeReturnUrl } from "@bc-solutions-coder/sdk";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
-import type { SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { createPassthroughHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { page, userEvent } from "vitest/browser";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createAuthHarness } from "@shared/testing/harness";
 import { Route as loginRoute } from "@app/routes/login";
 
 /**
@@ -139,7 +138,7 @@ function partsOf(href: string): { path: string; params: URLSearchParams } {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  harness = createAuthHarness();
+  harness = createPassthroughHarness();
   respondWithLogin({ succeeded: true });
   harness.respond((call) => {
     if (call.path === LOGIN_ENDPOINT) {

@@ -31,6 +31,30 @@
     "./render-with-wallow": {
       "types": "./src/render-with-wallow.tsx",
       "import": "./src/render-with-wallow.tsx"
+    },
+    "./locators": {
+      "types": "./src/locators.ts",
+      "import": "./src/locators.ts"
+    },
+    "./catalog-select": {
+      "types": "./src/catalog-select.ts",
+      "import": "./src/catalog-select.ts"
+    },
+    "./invalidation": {
+      "types": "./src/invalidation.ts",
+      "import": "./src/invalidation.ts"
+    },
+    "./browser-styles-wiring": {
+      "types": "./src/browser-styles-wiring.ts",
+      "import": "./src/browser-styles-wiring.ts"
+    },
+    "./theme-wiring": {
+      "types": "./src/theme-wiring.tsx",
+      "import": "./src/theme-wiring.tsx"
+    },
+    "./node-async-hooks-browser-shim": {
+      "types": "./src/node-async-hooks-browser-shim.ts",
+      "import": "./src/node-async-hooks-browser-shim.ts"
     }
   },
   "publishConfig": {
@@ -58,6 +82,30 @@
       "./render-with-wallow": {
         "types": "./dist/render-with-wallow.d.ts",
         "import": "./dist/render-with-wallow.js"
+      },
+      "./locators": {
+        "types": "./dist/locators.d.ts",
+        "import": "./dist/locators.js"
+      },
+      "./catalog-select": {
+        "types": "./dist/catalog-select.d.ts",
+        "import": "./dist/catalog-select.js"
+      },
+      "./invalidation": {
+        "types": "./dist/invalidation.d.ts",
+        "import": "./dist/invalidation.js"
+      },
+      "./browser-styles-wiring": {
+        "types": "./dist/browser-styles-wiring.d.ts",
+        "import": "./dist/browser-styles-wiring.js"
+      },
+      "./theme-wiring": {
+        "types": "./dist/theme-wiring.d.ts",
+        "import": "./dist/theme-wiring.js"
+      },
+      "./node-async-hooks-browser-shim": {
+        "types": "./dist/node-async-hooks-browser-shim.d.ts",
+        "import": "./dist/node-async-hooks-browser-shim.js"
       }
     }
   },

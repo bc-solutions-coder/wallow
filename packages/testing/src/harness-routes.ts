@@ -1,15 +1,13 @@
 /**
- * Path routing for the shared SDK harness (Wallow-pu6a.5.5).
+ * Path routing for the shared SDK harness.
  *
  * `createSdkHarness()` programs ONE responder at a time, which is all a spec
- * driving a single query needs. Several dashboard screens read two or three
- * operations at once (an organization plus its members plus its clients), and
- * before the hand-written query layer was deleted those specs pre-seeded each
- * one through `queryClient.setQueryData(['orgs', 'o1', 'members'], ...)` — a
- * hierarchical key that no longer exists, and a shortcut that skipped the
- * request pipeline entirely.
+ * driving a single query needs. A screen that reads two or three operations at
+ * once (an organization plus its members plus its clients) needs each answered
+ * differently, and the alternative — seeding the cache with
+ * `queryClient.setQueryData(...)` — is not available: generated keys are flat,
+ * and seeding skips the request pipeline the spec exists to exercise.
  *
- * This replaces that seeding with the thing it was standing in for: the wire.
  * Each entry is keyed `"<METHOD> <path>"` and matched against the request the
  * SDK actually issued, so the generated operation, the interceptors, the
  * response parsing and the React Query cache all run exactly as they do in the
