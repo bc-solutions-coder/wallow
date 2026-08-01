@@ -1,6 +1,8 @@
 # Authorization Guide
 
-Wallow uses role-based access control (RBAC) with permission expansion. ASP.NET Core Identity with OpenIddict manages authentication and assigns roles; the API expands roles into granular permissions at request time.
+Wallow uses role-based access control (RBAC) with permission expansion. ASP.NET Core Identity with OpenIddict manages authentication; the API expands roles into granular permissions at request time.
+
+**A role is granted by an organization, not by the platform.** One person has one identity and a membership in each organization they belong to, and their roles hang off that membership — so the same person can be `admin` in one organization and `user` in another. Which set applies is decided when a token is issued, from the organization the OIDC client is bound to; `IMembershipRoleResolver` resolves it and only an **active** membership counts.
 
 ---
 
@@ -22,9 +24,12 @@ JWT with role claims
 └─────────────────────────────┘
 ```
 
-1. User authenticates and receives a JWT containing roles (e.g., `admin`, `manager`, `user`)
-2. `PermissionExpansionMiddleware` reads the roles and adds permission claims to the request identity
-3. Controller actions decorated with `[HasPermission]` check for specific permissions
+1. User authenticates through an OIDC client, which is bound to one organization
+2. The token carries the roles that user holds **in that organization** (e.g., `admin`, `manager`, `user`), plus its `org_id`
+3. `PermissionExpansionMiddleware` reads the roles and adds permission claims to the request identity
+4. Controller actions decorated with `[HasPermission]` check for specific permissions
+
+A role earns nothing outside the organization that granted it: on a cross-tenant request (an admin override via `X-Tenant-Id`) the middleware expands no role and no scope, so the only grant that crosses an organization boundary is the seeded global-admin flag.
 
 ---
 
@@ -45,7 +50,7 @@ api/src/Shared/Wallow.Shared.Kernel/Identity/Authorization/PermissionType.cs
 Edit the role-to-permission mapping in:
 
 ```
-api/src/Modules/Identity/Wallow.Identity.Infrastructure/Authorization/RolePermissionMapping.cs
+api/src/Shared/Wallow.Shared.Kernel/Identity/Authorization/RolePermissionMapping.cs
 ```
 
 The mapping uses a `FrozenDictionary<string, string[]>` keyed by role name (case-insensitive). Each role maps to an explicit array of `PermissionType` constants.
@@ -90,9 +95,13 @@ Add the role through the Identity module's role management API or seed it in a d
 
 Add the role to `RolePermissionMapping.cs` with an explicit array of `PermissionType` constants.
 
-### Step 3: Assign Role to Users
+### Step 3: Assign the Role in an Organization
 
-Assign roles to users via the Identity module's user management API using `IUserManagementService`.
+Roles are assigned per membership, so an assignment names both the user and the organization:
+`IUserManagementService.AssignRoleAsync(userId, organizationId, roleName)` and its `RemoveRoleAsync`
+counterpart. The organization comes from the caller's own tenant context, so an admin grants roles
+only where they are an admin. A user with no active membership in that organization cannot be
+granted a role there.
 
 ---
 
@@ -119,11 +128,14 @@ For regular user tokens, the middleware first expands roles to permissions, then
 | Task | File |
 |------|------|
 | Add permission | `Shared/Wallow.Shared.Kernel/Identity/Authorization/PermissionType.cs` |
-| Map permission to role | `Identity.Infrastructure/Authorization/RolePermissionMapping.cs` |
+| Map permission to role | `Shared/Wallow.Shared.Kernel/Identity/Authorization/RolePermissionMapping.cs` |
 | Map scope to permission | `Shared/Wallow.Shared.Kernel/Identity/Authorization/ScopePermissionMapper.cs` |
 | Apply to route | Your controller with `[HasPermission(...)]` |
 
 ### Existing Roles
+
+Every role below is held **within one organization**. The same catalog is used everywhere; who
+holds which entry is a property of the membership, not of the user.
 
 | Role | Description |
 |------|-------------|
@@ -307,6 +319,8 @@ The authorization middleware must be registered in the correct order in `Program
 ## Troubleshooting
 
 **403 Forbidden but user has the role**
+- Check the user holds that role in the organization the token names — decode the token and compare its `role` claims against its `org_id`; a role held in another organization is invisible here
+- Check the membership is active; a pending one grants nothing
 - Check `RolePermissionMapping` includes the permission for that role
 - Verify the role name matches (comparison is case-insensitive)
 - Check the JWT contains the role claim (decode at jwt.io)
