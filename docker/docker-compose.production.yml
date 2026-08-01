@@ -472,6 +472,13 @@ services:
       # (container-to-container). The app is a pure reverse proxy — no session,
       # no Redis; it reads only PORT and HOST (the Nitro server bundle) plus this.
       WALLOW_API_INTERNAL_URL: http://wallow-api:8080
+      # The fork's outbound links, rendered into the page (footer attribution
+      # here, nav/footer in wallow-web). Optional: unset falls back to
+      # packages/styles/branding.json, so a fork that edited that file need set
+      # neither. Set them to point ONE deployment at its own repository/docs
+      # without rebuilding the image.
+      WALLOW_REPOSITORY_URL: ${WALLOW_REPOSITORY_URL:-}
+      WALLOW_DOCS_URL: ${WALLOW_DOCS_URL:-}
     depends_on:
       wallow-api:
         condition: service_healthy
@@ -532,6 +539,9 @@ services:
       # OpenTelemetry
       OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4317
       OTEL_SERVICE_NAME: wallow-web
+      # See the wallow-auth service above — same two optional links.
+      WALLOW_REPOSITORY_URL: ${WALLOW_REPOSITORY_URL:-}
+      WALLOW_DOCS_URL: ${WALLOW_DOCS_URL:-}
     depends_on:
       wallow-api:
         condition: service_healthy

@@ -1,5 +1,10 @@
 import type { WallowSdk } from "@bc-solutions-coder/sdk";
-import { renderThemeStyle, type ResolvedBranding } from "@bc-solutions-coder/styles";
+import {
+  type ForkLinks,
+  forkLinksScript,
+  renderThemeStyle,
+  type ResolvedBranding,
+} from "@bc-solutions-coder/styles";
 import {
   Card,
   DocumentStyles,
@@ -10,6 +15,7 @@ import {
 } from "@bc-solutions-coder/ui";
 import type { QueryClient } from "@bc-solutions-coder/query";
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
+import { getGlobalStartContext } from "@tanstack/react-start";
 import type { ReactElement, ReactNode } from "react";
 
 import { AuthLayout } from "@shared/components/auth-layout";
@@ -17,6 +23,7 @@ import { ReadyIndicator } from "@shared/components/ready-indicator";
 import { ErrorPage } from "@features/error";
 import { NotFoundPage } from "@features/not-found";
 import { appIconUrl, forkResolvedBranding } from "@shared/lib/branding";
+import { forkLinks } from "@shared/lib/fork-links";
 
 // Side-effect import, NOT `?url` + a head() link. Start builds two Vite
 // environments; a `?url` import resolved in the SSR graph yields a CSS hash the
@@ -38,6 +45,22 @@ const branding: ResolvedBranding = forkResolvedBranding;
 export interface RouterContext {
   readonly queryClient: QueryClient;
   readonly sdk: WallowSdk;
+}
+
+/**
+ * The links this REQUEST resolved, off Start's global context, or `undefined`
+ * with no request in scope. On the server `getGlobalStartContext()` THROWS
+ * rather than answering `undefined` when no Start context surrounds the call —
+ * a spec rendering the shell directly — and that is not an error here; in the
+ * browser there is no request at all, and the fallback below is the value this
+ * same script already published.
+ */
+function requestForkLinks(): ForkLinks | undefined {
+  try {
+    return getGlobalStartContext()?.forkLinks;
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -71,6 +94,7 @@ function RootDocument({ children }: { readonly children: ReactNode }): ReactElem
         <HeadContent />
         <DocumentStyles themeCss={renderThemeStyle(branding)} stylesheetHref={null} />
         <ThemeScript defaultMode={branding.defaultMode} />
+        <script>{forkLinksScript(requestForkLinks() ?? forkLinks())}</script>
       </head>
       <body>
         <FocusOnNavigate />

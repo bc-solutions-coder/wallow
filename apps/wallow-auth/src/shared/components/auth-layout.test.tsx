@@ -1,11 +1,12 @@
 import {
+  FORK_LINKS_GLOBAL_KEY,
   forkBranding,
   mergeClientBranding,
   type ResolvedBranding,
 } from "@bc-solutions-coder/styles";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { AuthLayout } from "./auth-layout";
 
@@ -118,5 +119,33 @@ describe("AuthLayout", () => {
       );
 
     expect(new Set(resolved)).toEqual(new Set([rootedAppIcon]));
+  });
+});
+
+/**
+ * A deployment that set `WALLOW_REPOSITORY_URL`. The shell's inline script
+ * writes exactly this global before hydration, which is how a server-resolved
+ * link reaches the attribution with no provider above the layout.
+ */
+describe("AuthLayout fork attribution under a deployment's own link", () => {
+  const deployed = {
+    repositoryUrl: "https://git.example.test/acme/app",
+    docsUrl: "https://docs.example.test/",
+  };
+
+  beforeEach(() => {
+    (globalThis as Record<string, unknown>)[FORK_LINKS_GLOBAL_KEY] = deployed;
+  });
+
+  afterEach(() => {
+    delete (globalThis as Record<string, unknown>)[FORK_LINKS_GLOBAL_KEY];
+  });
+
+  it("points the attribution at the repository this deployment names", async () => {
+    await render(<AuthLayout />);
+
+    await expect
+      .element(page.getByRole("link", { name: new RegExp(forkBranding.appName, "iu") }))
+      .toHaveAttribute("href", deployed.repositoryUrl);
   });
 });

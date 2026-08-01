@@ -2,6 +2,8 @@ import type { QueryClient } from "@bc-solutions-coder/query";
 import type { WallowSdk } from "@bc-solutions-coder/sdk";
 import {
   appIconUrl,
+  type ForkLinks,
+  forkLinksScript,
   forkResolvedBranding,
   renderThemeStyle,
   type ResolvedBranding,
@@ -16,10 +18,12 @@ import {
   ThemeScript,
 } from "@bc-solutions-coder/ui";
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
+import { getGlobalStartContext } from "@tanstack/react-start";
 import type { ReactElement, ReactNode } from "react";
 
 import { PublicLayout } from "@shared/components/PublicLayout";
 import { ReadyIndicator } from "@shared/components/ready-indicator";
+import { forkLinks } from "@shared/lib/fork-links";
 
 // Side-effect import, NOT `?url` + a head() link. Start builds two Vite
 // environments; a `?url` import resolved in the SSR graph yields a CSS hash the
@@ -47,6 +51,22 @@ export interface RouterContext {
 }
 
 /**
+ * The links this REQUEST resolved, off Start's global context, or `undefined`
+ * with no request in scope. On the server `getGlobalStartContext()` THROWS
+ * rather than answering `undefined` when no Start context surrounds the call —
+ * a spec rendering the shell directly — and that is not an error here; in the
+ * browser there is no request at all, and the fallback below is the value this
+ * same script already published.
+ */
+function requestForkLinks(): ForkLinks | undefined {
+  try {
+    return getGlobalStartContext()?.forkLinks;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * The document shell for wallow-web: the full `<html>/<head>/<body>` every page
  * renders into.
  *
@@ -68,6 +88,13 @@ export interface RouterContext {
  *
  * `<ReadyIndicator/>` sits at the root so *every* page emits the hydration
  * marker the Playwright suites wait on.
+ *
+ * The second script publishes this deployment's outbound fork links, resolved
+ * from the environment in `app/start.ts`. It is here for the same reason
+ * `<ThemeScript/>` is: the browser cannot re-derive the value (it has no
+ * environment to read) and an href that differs across hydration is a mismatch,
+ * so the server states the answer in the document and `forkLinks()` reads it
+ * back — no context, no provider, and nothing for React to re-render.
  */
 function RootDocument({ children }: { readonly children: ReactNode }): ReactElement {
   return (
@@ -76,6 +103,7 @@ function RootDocument({ children }: { readonly children: ReactNode }): ReactElem
         <HeadContent />
         <DocumentStyles themeCss={renderThemeStyle(branding)} stylesheetHref={null} />
         <ThemeScript defaultMode={branding.defaultMode} />
+        <script>{forkLinksScript(requestForkLinks() ?? forkLinks())}</script>
       </head>
       <body>
         <FocusOnNavigate />

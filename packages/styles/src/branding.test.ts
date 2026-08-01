@@ -1,16 +1,26 @@
+import { runInNewContext } from "node:vm";
+
 import { describe, expect, it } from "vitest";
 
 import {
   appIconUrl,
   type ClientBranding,
+  FORK_DOCS_URL_VAR,
+  FORK_LINKS_GLOBAL_KEY,
+  FORK_REPOSITORY_URL_VAR,
   type ForkBranding,
   forkBranding,
+  forkLinks,
+  forkLinksScript,
+  forkRepositoryUrl,
   forkResolvedBranding,
   mergeClientBranding,
   parseThemeCssVars,
+  readInjectedForkLinks,
   renderThemeStyle,
   type ResolvedBranding,
   resolveForkBranding,
+  resolveForkLinks,
   toAppIconUrl,
   toCssVarName,
 } from "./branding";
@@ -295,5 +305,97 @@ describe("resolveForkBranding", () => {
   it("is the module constant when there is no prefix", () => {
     expect(resolveForkBranding()).toEqual(forkResolvedBranding);
     expect(resolveForkBranding("/")).toEqual(forkResolvedBranding);
+  });
+});
+
+describe("resolveForkLinks", () => {
+  it("takes both links from the environment when it names them", () => {
+    const links = resolveForkLinks({
+      [FORK_REPOSITORY_URL_VAR]: "https://git.example.test/acme/app",
+      [FORK_DOCS_URL_VAR]: "https://docs.staging.example.test/",
+    });
+
+    expect(links.repositoryUrl).toBe("https://git.example.test/acme/app");
+    expect(links.docsUrl).toBe("https://docs.staging.example.test/");
+  });
+
+  it("resolves each link independently, so naming one keeps the other", () => {
+    const links = resolveForkLinks({ [FORK_DOCS_URL_VAR]: "https://docs.example.test/" });
+
+    expect(links.docsUrl).toBe("https://docs.example.test/");
+    expect(links.repositoryUrl).toBe(forkRepositoryUrl);
+  });
+
+  it("falls back to branding.json when the environment names neither", () => {
+    expect(resolveForkLinks({})).toEqual(forkLinks);
+    expect(resolveForkLinks()).toEqual(forkLinks);
+  });
+
+  // `WALLOW_DOCS_URL=` in a compose env file arrives as "", and an href of ""
+  // points at the current page — worse than the link the fork already had.
+  it("treats a blank value as unset rather than as an empty href", () => {
+    const links = resolveForkLinks({
+      [FORK_REPOSITORY_URL_VAR]: "",
+      [FORK_DOCS_URL_VAR]: "   ",
+    });
+
+    expect(links).toEqual(forkLinks);
+  });
+
+  it("trims a value that arrives with surrounding whitespace", () => {
+    expect(resolveForkLinks({ [FORK_DOCS_URL_VAR]: " https://docs.example.test/ " }).docsUrl).toBe(
+      "https://docs.example.test/",
+    );
+  });
+});
+
+describe("forkLinksScript / readInjectedForkLinks", () => {
+  const deployed = {
+    repositoryUrl: "https://git.example.test/acme/app",
+    docsUrl: "https://docs.example.test/",
+  };
+
+  /** The browser: run the emitted source, then read the global back. */
+  function roundTrip(links: { repositoryUrl: string; docsUrl: string }): unknown {
+    const scope: Record<string, unknown> = {};
+    runInNewContext(forkLinksScript(links), { window: scope });
+    return readInjectedForkLinks(scope);
+  }
+
+  it("round-trips one deployment's links through the document", () => {
+    expect(roundTrip(deployed)).toEqual(deployed);
+  });
+
+  // React does not escape a text child of `<script>`, so a raw `</script` in an
+  // href would end the element early and spill the rest into the page.
+  it("emits no literal `<`, whatever the href carries", () => {
+    const hostile = {
+      repositoryUrl: "https://example.test/</script><img src=x onerror=alert(1)>",
+      docsUrl: "https://docs.example.test/",
+    };
+
+    expect(forkLinksScript(hostile)).not.toContain("<");
+    expect(roundTrip(hostile)).toEqual(hostile);
+  });
+
+  it("publishes under the agreed global name", () => {
+    expect(forkLinksScript(deployed)).toContain(JSON.stringify(FORK_LINKS_GLOBAL_KEY));
+  });
+
+  it("reads nothing from a scope no script has written", () => {
+    expect(readInjectedForkLinks({})).toBeUndefined();
+    expect(readInjectedForkLinks(undefined)).toBeUndefined();
+  });
+
+  // A junk global costs the deployment's override, never the href: every caller
+  // has a usable pair to fall back to.
+  it("rejects a malformed global rather than half-reading it", () => {
+    expect(readInjectedForkLinks({ [FORK_LINKS_GLOBAL_KEY]: "nope" })).toBeUndefined();
+    expect(
+      readInjectedForkLinks({ [FORK_LINKS_GLOBAL_KEY]: { repositoryUrl: "x" } }),
+    ).toBeUndefined();
+    expect(
+      readInjectedForkLinks({ [FORK_LINKS_GLOBAL_KEY]: { repositoryUrl: " ", docsUrl: "x" } }),
+    ).toBeUndefined();
   });
 });

@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { forkDocsUrl, forkRepositoryUrl } from "@bc-solutions-coder/styles";
+import { FORK_LINKS_GLOBAL_KEY, forkDocsUrl, forkRepositoryUrl } from "@bc-solutions-coder/styles";
 
 import { getStartedHref } from "@shared/lib/site-links";
 
@@ -109,5 +109,42 @@ describe("PublicLayout link targets", () => {
     // The docs site is its own address, not a path derived from the repository.
     expect(forkDocsUrl).not.toBe(`${forkRepositoryUrl}/tree/main/docs`);
     expect(getStartedHref).toContain("/bff/login");
+  });
+});
+
+/**
+ * A deployment that set `WALLOW_REPOSITORY_URL` / `WALLOW_DOCS_URL`. The shell's
+ * inline script writes exactly this global before hydration, which is how a
+ * server-resolved link reaches the browser without a provider above the chrome.
+ */
+describe("PublicLayout under a deployment's own links", () => {
+  const deployed = {
+    repositoryUrl: "https://git.example.test/acme/app",
+    docsUrl: "https://docs.example.test/",
+  };
+
+  beforeEach(() => {
+    (globalThis as Record<string, unknown>)[FORK_LINKS_GLOBAL_KEY] = deployed;
+  });
+
+  afterEach(() => {
+    delete (globalThis as Record<string, unknown>)[FORK_LINKS_GLOBAL_KEY];
+  });
+
+  it("points every GitHub and Docs link at what the document published", async () => {
+    await render(<PublicLayout />);
+
+    await expect
+      .element(page.getByTestId("public-nav-github"))
+      .toHaveAttribute("href", deployed.repositoryUrl);
+    await expect
+      .element(page.getByTestId("public-footer-github"))
+      .toHaveAttribute("href", deployed.repositoryUrl);
+    await expect
+      .element(page.getByTestId("public-nav-docs"))
+      .toHaveAttribute("href", deployed.docsUrl);
+    await expect
+      .element(page.getByTestId("public-footer-docs"))
+      .toHaveAttribute("href", deployed.docsUrl);
   });
 });

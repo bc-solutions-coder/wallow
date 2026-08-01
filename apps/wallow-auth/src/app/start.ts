@@ -2,6 +2,7 @@ import { withBasePath } from "@bc-solutions-coder/env/base-path";
 import { resolveInternalOrigin } from "@bc-solutions-coder/env/internal-origin";
 import { resolveRequestOrigin } from "@bc-solutions-coder/env/request-origin";
 import { createWallowSdk, type WallowSdk } from "@bc-solutions-coder/sdk";
+import { type ForkLinks, resolveForkLinks } from "@bc-solutions-coder/styles";
 import { createMiddleware, createStart } from "@tanstack/react-start";
 
 import { BASE_PATH } from "@shared/lib/base-path";
@@ -43,7 +44,15 @@ const sdkMiddleware = createMiddleware().server(({ next, request }) => {
     cookieHeader: request.headers.get("cookie") ?? undefined,
   });
 
-  return next({ context: { sdk } });
+  // The fork's outbound links for THIS deployment. Same reason the origin
+  // helpers take `process.env` as an argument: `@bc-solutions-coder/styles`
+  // ships a prebuilt bundle, so a read inside it would answer with the library's
+  // build environment. `__root.tsx` states the result in the document, which is
+  // how the hydrating browser renders the same href — it has no environment of
+  // its own to re-read.
+  const forkLinks: ForkLinks = resolveForkLinks(process.env);
+
+  return next({ context: { sdk, forkLinks } });
 });
 
 export const startInstance = createStart(() => ({

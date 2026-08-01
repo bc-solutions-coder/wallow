@@ -1,13 +1,9 @@
 import type { ReactNode } from "react";
 
-import {
-  appIconUrl,
-  forkBranding,
-  forkDocsUrl,
-  forkRepositoryUrl,
-} from "@bc-solutions-coder/styles";
+import { appIconUrl, forkBranding, type ForkLinks } from "@bc-solutions-coder/styles";
 import { Text } from "@bc-solutions-coder/ui";
 
+import { forkLinks } from "@shared/lib/fork-links";
 import { getStartedHref } from "@shared/lib/site-links";
 
 /**
@@ -46,13 +42,15 @@ function HomeLink() {
 
 /** Features / Docs / GitHub nav links. */
 function NavLinks() {
+  const { repositoryUrl, docsUrl }: ForkLinks = forkLinks();
+
   return (
     <div className="flex items-center gap-6">
       <a href="/#features" data-testid="public-nav-features" className={navLinkClass}>
         Features
       </a>
       <a
-        href={forkDocsUrl}
+        href={docsUrl}
         target="_blank"
         rel="noreferrer"
         data-testid="public-nav-docs"
@@ -61,7 +59,7 @@ function NavLinks() {
         Docs
       </a>
       <a
-        href={forkRepositoryUrl}
+        href={repositoryUrl}
         target="_blank"
         rel="noreferrer"
         data-testid="public-nav-github"
@@ -88,10 +86,12 @@ function GetStartedCta() {
 
 /** Footer license notice + GitHub/Docs links. */
 function FooterLinks() {
+  const { repositoryUrl, docsUrl }: ForkLinks = forkLinks();
+
   return (
     <div className="flex items-center gap-6">
       <a
-        href={forkRepositoryUrl}
+        href={repositoryUrl}
         target="_blank"
         rel="noreferrer"
         data-testid="public-footer-github"
@@ -100,7 +100,7 @@ function FooterLinks() {
         GitHub
       </a>
       <a
-        href={forkDocsUrl}
+        href={docsUrl}
         target="_blank"
         rel="noreferrer"
         data-testid="public-footer-docs"

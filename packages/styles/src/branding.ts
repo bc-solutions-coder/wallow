@@ -312,3 +312,116 @@ export const forkRepositoryUrl: string = forkBranding.repositoryUrl ?? UPSTREAM_
 
 /** The fork's documentation site. */
 export const forkDocsUrl: string = forkBranding.docsUrl ?? UPSTREAM_DOCS_URL;
+
+/** The fork's two outbound identity links, resolved together. */
+export interface ForkLinks {
+  readonly repositoryUrl: string;
+  readonly docsUrl: string;
+}
+
+/** The environment variables {@link resolveForkLinks} reads, by name. */
+export const FORK_REPOSITORY_URL_VAR = "WALLOW_REPOSITORY_URL";
+export const FORK_DOCS_URL_VAR = "WALLOW_DOCS_URL";
+
+/** {@link forkRepositoryUrl} and {@link forkDocsUrl} as one object. */
+export const forkLinks: ForkLinks = {
+  repositoryUrl: forkRepositoryUrl,
+  docsUrl: forkDocsUrl,
+};
+
+/**
+ * The fork's links for ONE deployment: `WALLOW_REPOSITORY_URL` /
+ * `WALLOW_DOCS_URL` if the environment names them, else `branding.json`, else
+ * the upstream constants.
+ *
+ * The environment layer exists because `branding.json` is baked at BUILD time
+ * while one image is run in several environments — a staging docs site and a
+ * production one, a private mirror and the public repo — and rebuilding to move
+ * a link is not a deployment step anyone should need.
+ *
+ * The env record is a PARAMETER, exactly as a base path is (see the note on
+ * {@link toRootRelativeAssetUrl}): this package ships a prebuilt bundle, so any
+ * `process.env` or `import.meta.env` read inside it would answer with the
+ * LIBRARY's build environment rather than the running app's. The caller reads
+ * its own environment — for a Start app, in the server-only request middleware
+ * — and passes the record in.
+ *
+ * A variable set to the empty string is treated as unset: that is what an
+ * unsubstituted `WALLOW_DOCS_URL=` in a compose env file produces, and a link
+ * with no href is worse than the default one.
+ */
+export function resolveForkLinks(
+  env: Readonly<Record<string, string | undefined>> = {},
+): ForkLinks {
+  return {
+    repositoryUrl: firstNonEmpty(env[FORK_REPOSITORY_URL_VAR], forkRepositoryUrl),
+    docsUrl: firstNonEmpty(env[FORK_DOCS_URL_VAR], forkDocsUrl),
+  };
+}
+
+/** The first value that is a non-blank string, else the fallback. */
+function firstNonEmpty(value: string | undefined, fallback: string): string {
+  return value !== undefined && value.trim() !== "" ? value.trim() : fallback;
+}
+
+/**
+ * The global property a server-rendered document publishes {@link resolveForkLinks}'s
+ * answer on, so the browser can read back the same pair the SSR pass rendered.
+ *
+ * This is the whole crossing mechanism: the environment exists only on the
+ * server, and a link whose href differs between the server render and the
+ * hydrating one is a hydration mismatch. Only the BROWSER ever holds this
+ * property — the server renders it as text into the document and never assigns
+ * it, because a server global is shared by every concurrent request.
+ */
+/** `<` as a JavaScript string escape — the one character an inline script must not carry. */
+const LT_ESCAPE = String.raw`\u003c`;
+
+export const FORK_LINKS_GLOBAL_KEY = "__WALLOW_FORK_LINKS__";
+
+/**
+ * The source of the inline `<script>` that publishes one deployment's links,
+ * rendered in `<head>` so it runs before hydration.
+ *
+ * The returned source contains no `<`: React does not escape a text child of
+ * `<script>`, so an href containing `</script` would otherwise end the element
+ * early. Escaping it to its
+ * `\u003c` sequence keeps the JSON string literal valid and the element intact.
+ */
+export function forkLinksScript(links: ForkLinks): string {
+  const payload: string = JSON.stringify({
+    repositoryUrl: links.repositoryUrl,
+    docsUrl: links.docsUrl,
+  });
+  return `window[${JSON.stringify(FORK_LINKS_GLOBAL_KEY)}]=${payload.replaceAll("<", LT_ESCAPE)};`;
+}
+
+/**
+ * The links {@link forkLinksScript} published, read back off a scope —
+ * `globalThis` in a browser — or `undefined` when nothing published any.
+ *
+ * `undefined` is the answer for anything that is not two non-blank strings, junk
+ * included: the caller's fallback chain (the request's own resolution on the
+ * server, the build-time pair elsewhere) is always a usable pair, so a
+ * malformed global costs the deployment's override rather than the href.
+ */
+export function readInjectedForkLinks(scope: unknown): ForkLinks | undefined {
+  if (typeof scope !== "object" || scope === null) {
+    return undefined;
+  }
+
+  const injected: unknown = (scope as Record<string, unknown>)[FORK_LINKS_GLOBAL_KEY];
+  if (typeof injected !== "object" || injected === null) {
+    return undefined;
+  }
+
+  const { repositoryUrl, docsUrl } = injected as Record<string, unknown>;
+  if (typeof repositoryUrl !== "string" || typeof docsUrl !== "string") {
+    return undefined;
+  }
+  if (repositoryUrl.trim() === "" || docsUrl.trim() === "") {
+    return undefined;
+  }
+
+  return { repositoryUrl, docsUrl };
+}

@@ -28,6 +28,8 @@ That file is the single source of fork identity. `packages/styles` (`@bc-solutio
 | `appName` | `string` | Product name shown in page titles, headings, and the landing page |
 | `appIcon` | `string` | Brand asset reference. A bare filename (`"piggy-icon.svg"`) is resolved to a root-relative URL so it loads from any route depth |
 | `tagline` | `string` | Sub-heading shown under the app name |
+| `repositoryUrl` | `string` | Optional. The "GitHub"/fork-attribution link target. Falls back to the upstream Wallow repository |
+| `docsUrl` | `string` | Optional. The "Docs" link target. Falls back to the upstream documentation site |
 | `landingPage` | `object` | `{ "enabled": boolean }` -- see below |
 | `theme` | `object` | `defaultMode` plus the `light` and `dark` color sets |
 
@@ -81,7 +83,18 @@ The `sidebar*` and `success*` tokens were added after the original set, so they 
 }
 ```
 
-Because `packages/styles/branding.json` is imported at build time rather than read at runtime, changing it requires rebuilding (or restarting the dev server for) the frontends. There is no environment-variable override for these values.
+**The two outbound links can be overridden per deployment.** `repositoryUrl` and `docsUrl` are the only branding values a running container can change, because they are the only ones that legitimately differ between deployments of the same image -- a staging stack pointing at a staging docs site, a private mirror instead of the public repository. Both React apps resolve them per request:
+
+| Variable | Overrides |
+|-----|-----|
+| `WALLOW_REPOSITORY_URL` | `repositoryUrl` |
+| `WALLOW_DOCS_URL` | `docsUrl` |
+
+Resolution order for each link, independently: the environment variable, then `packages/styles/branding.json`, then the upstream URL. A variable set to an empty string counts as unset -- an unsubstituted `WALLOW_DOCS_URL=` in a compose file leaves the fork's own link in place rather than rendering a blank `href`. `docker/docker-compose.production.yml` already passes both through to `wallow-auth` and `wallow-web`; see `docker/.env.production.example`.
+
+The variables are read on the SERVER, in each app's request middleware, and the resolved pair is published into the document so the browser renders the same links after hydration. They are therefore **not** `VITE_*` variables and are never baked into a client bundle: the same image serves different links in different environments.
+
+Every other branding value is imported at build time rather than read at runtime, so changing it requires rebuilding (or restarting the dev server for) the frontends.
 
 Per-OAuth-client branding is a separate, runtime concern: the Branding module serves `GET /v1/identity/apps/{clientId}/branding`, and a client's display name, tagline, logo, and theme are overlaid on top of the fork's when a `client_id` is present.
 

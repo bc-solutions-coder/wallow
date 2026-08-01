@@ -10,6 +10,7 @@ import {
 } from "@bc-solutions-coder/ui";
 
 import { appIconUrl, forkResolvedBranding } from "../lib/branding";
+import { forkLinks } from "../lib/fork-links";
 
 /**
  * The footer rule plus the fork attribution beneath the page body. The
@@ -23,7 +24,7 @@ function ForkFooter() {
       <ForkAttribution
         appName={forkBranding.appName}
         iconUrl={appIconUrl}
-        repositoryUrl={forkBranding.repositoryUrl}
+        repositoryUrl={forkLinks().repositoryUrl}
       />
     </div>
   );

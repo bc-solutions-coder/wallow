@@ -114,6 +114,19 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
   because only the `storybook` project there loads Tailwind. Assert the computed size, never the
   class string — `cn()` merges a caller's `className` over the recipe, so `text-xl` can be
   present while the element paints something else.
+- **A per-deployment value reaches the browser through the document, not through context.**
+  `WALLOW_REPOSITORY_URL` / `WALLOW_DOCS_URL` are read once per request in `src/app/start.ts`
+  (`resolveForkLinks(process.env)`), stated in `<head>` as an inline script beside `ThemeScript`
+  (`forkLinksScript`), and read back by `src/shared/lib/fork-links.ts`'s plain `forkLinks()`
+  accessor — the pattern for anything else the environment decides. It is a function, not a hook
+  and not a provider: the value cannot change within a document, so there is nothing to subscribe
+  to, and a bare-mounted spec or a story keeps working because the accessor falls back to
+  `branding.json`'s pair. Router context is NOT the channel — it is rebuilt from nothing on the
+  client, so a link read from it would render the deployment's URL on the server and the fork's in
+  the browser, which is a hydration mismatch. The accessor deliberately imports no
+  `@tanstack/react-start`: the request-side read lives in `__root.tsx`, which is what keeps Start's
+  `node:async_hooks` storage out of every screen that renders a fork link (wallow-web's
+  `vitest.config.ts` shims that module for exactly this reason).
 - **The theme class belongs on `document.documentElement`.** Each app's `__root.tsx` stamps
   `className={branding.defaultMode}` on `<html>`, runs `<ThemeScript/>` blocking in `<head>`,
   and wraps the body in `<ThemeProvider/>`. A `<div className="dark">` wrapper anywhere renders

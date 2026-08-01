@@ -38,5 +38,16 @@ theme CSS custom properties at render time.
   app.** Both fall back to an upstream constant when `branding.json` names neither, which is what
   makes them safe: `branding.json` is `merge=ours`, so a fork replaces the file wholesale and a
   missing key must still resolve to something.
+- **They are also the one branding value a DEPLOYMENT can override**, through
+  `WALLOW_REPOSITORY_URL` / `WALLOW_DOCS_URL`. This package supplies three pure pieces and owns no
+  wiring: `resolveForkLinks(env)` (env → `branding.json` → upstream, blank counts as unset),
+  `forkLinksScript(links)` (the inline `<script>` source, `<` escaped because React does not escape
+  a `<script>` text child), and `readInjectedForkLinks(scope)` (the same value back off
+  `globalThis`, `undefined` for anything malformed). The env record is a PARAMETER for the same
+  reason a base path is — this package ships a prebuilt bundle, so a read here would answer with
+  the LIBRARY's build environment. Each app reads `process.env` in its server-only middleware,
+  states the result in `<head>` beside `ThemeScript`, and reads it back through a plain
+  `shared/lib/fork-links.ts` accessor: no context and no hook, because the value cannot change
+  within a document, and no hydration mismatch, because both renders read the same published pair.
 - `pnpm --filter @bc-solutions-coder/styles build` (Vite lib mode + `tsc -p tsconfig.build.json`);
   `test` / `typecheck` are the other scripts. Tests are node-environment vitest — no DOM here.
