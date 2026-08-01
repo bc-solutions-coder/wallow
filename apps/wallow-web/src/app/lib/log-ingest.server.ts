@@ -2,9 +2,10 @@
  * wallow-web's log ingest route and its server-side logger.
  *
  * The guards, the caps, the limiter, the stamping and the OTLP encoding all live
- * in `@bc-solutions-coder/logger/server`; what a HOST still owns is the three
- * things only it can answer — which origin its own pages are served from, whether
- * this request holds a valid session, and who that session belongs to.
+ * in `@bc-solutions-coder/logger/server`; what a HOST still owns is the four
+ * things only it can answer — which origin its own pages are served from, who the
+ * peer is, whether this request holds a valid session, and who that session
+ * belongs to.
  *
  * The handler is built ONCE at module scope, not per request: the rate limiter is
  * state that must live across requests, and a limiter constructed per call counts
@@ -21,6 +22,15 @@ import { csrfTokenMatches, readSession, type BffSession } from "@bc-solutions-co
 
 import { getBffServer } from "./bff.server";
 import { OTLP_ENDPOINT, SERVICE } from "./log.server";
+
+/**
+ * The inbound request as srvx hands it to a Start server route. A WHATWG
+ * `Request` has no socket, so the peer address arrives on this extra `ip`
+ * property (populated in `vite dev` and in the built Nitro server alike).
+ */
+interface PeerRequest extends Request {
+  readonly ip?: string | undefined;
+}
 
 /** The session behind this request, or `null` when there is none. */
 async function sessionFor(request: Request): Promise<BffSession | null> {
@@ -70,16 +80,22 @@ async function contextFor(request: Request): Promise<LogRequestContext> {
  * `allowedOrigins` resolves to the origin THIS request was addressed to, which
  * only a page actually served from this app can match — the Origin-versus-target
  * check, with no environment variable to get wrong in a fork.
+ *
+ * `clientAddress` answers with the address srvx read off the connection, and it
+ * is the ONLY source of the peer for both the rate-limit key and the stamped
+ * `clientIp`. Nothing inbound is consulted: this route is unauthenticated, so a
+ * header the caller writes would be a rate-limit bypass and a forged field.
  */
 const ingest: LogIngestHandler = createLogIngestHandler({
   service: SERVICE,
   allowedOrigins: (request: Request): string[] => [resolveRequestOrigin(request)],
+  clientAddress: (request: PeerRequest): string | undefined => request.ip,
   ...(OTLP_ENDPOINT === "" ? {} : { otlpEndpoint: OTLP_ENDPOINT }),
   authorize: authorizeLogBatch,
   context: contextFor,
 });
 
 /** Handle `POST /bff/logs` — one batch of browser records. */
-export function handleLogIngest(request: Request): Promise<Response> {
+export function handleLogIngest(request: PeerRequest): Promise<Response> {
   return ingest(request);
 }

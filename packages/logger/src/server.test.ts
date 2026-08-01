@@ -13,13 +13,24 @@ import { REDACTED, type LogEvent } from "./log-event";
  * The ingest handler's guard chain, the fields it stamps, and the server-side
  * logger.
  *
- * The route is unauthenticated by design, so the guards ARE the security model:
- * origin allowlist, payload caps, per-IP rate limit, and server-side stamping of
- * everything a page could otherwise assert about itself.
+ * The route is unauthenticated by design, so the guards ARE the security model.
+ * The client address is a guard input rather than a claim: it comes from the
+ * host's `clientAddress` seam, and an inbound header naming one is ignored.
  */
 
 const ORIGIN = "https://app.wallow.dev";
 const NOW_MS = 1_785_499_201_000;
+
+/** The header a caller could try to pass an address on. Nothing reads it. */
+const CLIENT_IP_HEADER = "x-wallow-client-ip";
+
+/**
+ * A host that knows its peer. A real one reads the socket; this one reads a
+ * header only so a spec can vary the address per request.
+ */
+function hostPeer(request: Request): string | undefined {
+  return request.headers.get("x-spec-peer") ?? undefined;
+}
 
 function event(overrides: Partial<LogEvent> = {}): LogEvent {
   return {
@@ -136,20 +147,52 @@ describe("the guard chain", () => {
     expect([accepted.status, refused.status]).toEqual([204, 403]);
   });
 
-  it("rate-limits per client address", async () => {
+  it("rate-limits per address the host supplies", async () => {
     const { handler } = handlerWith({
       rateLimit: { limit: 1, windowMs: 60_000, maxTrackedKeys: 10 },
+      clientAddress: hostPeer,
     });
-    const headers = { "x-wallow-client-ip": "203.0.113.7" };
+    const headers = { "x-spec-peer": "203.0.113.7" };
 
     await handler(request({ events: [event()] }, { headers }));
     const second = await handler(request({ events: [event()] }, { headers }));
     const other = await handler(
-      request({ events: [event()] }, { headers: { "x-wallow-client-ip": "203.0.113.8" } }),
+      request({ events: [event()] }, { headers: { "x-spec-peer": "203.0.113.8" } }),
     );
 
     expect(second.status).toBe(429);
     expect(other.status).toBe(204);
+  });
+
+  it("gives a caller rotating the client-IP header no fresh buckets", async () => {
+    // The key is the whole strength of an unauthenticated route's limiter. Read
+    // off the wire it is attacker-chosen, and a limit of one becomes no limit.
+    const { handler } = handlerWith({
+      rateLimit: { limit: 1, windowMs: 60_000, maxTrackedKeys: 10 },
+    });
+
+    await handler(
+      request({ events: [event()] }, { headers: { [CLIENT_IP_HEADER]: "203.0.113.7" } }),
+    );
+    const rotated = await handler(
+      request({ events: [event()] }, { headers: { [CLIENT_IP_HEADER]: "203.0.113.8" } }),
+    );
+
+    expect(rotated.status).toBe(429);
+  });
+
+  it("puts every caller in one bucket when the host supplies no address", async () => {
+    // Limiting too much is the right way to fail: a beacon flush sets no headers
+    // and a misconfigured host answers nothing, and neither may open a bypass.
+    const { handler } = handlerWith({
+      rateLimit: { limit: 1, windowMs: 60_000, maxTrackedKeys: 10 },
+      clientAddress: () => undefined,
+    });
+
+    await handler(request({ events: [event()] }));
+    const second = await handler(request({ events: [event()] }));
+
+    expect(second.status).toBe(429);
   });
 
   it("keeps its limiter across requests", async () => {
@@ -266,14 +309,46 @@ describe("what the server stamps", () => {
     });
   });
 
-  it("stamps the client address from the host header", async () => {
+  it("stamps the client address the host supplies", async () => {
+    const { handler, sink } = handlerWith({ clientAddress: hostPeer });
+
+    await handler(request({ events: [event()] }, { headers: { "x-spec-peer": "203.0.113.7" } }));
+
+    expect(recordsOf(sink)[0]?.clientIp).toBe("203.0.113.7");
+  });
+
+  it("ignores a client-IP header the caller sent", async () => {
+    // `client.address` reads as server-stamped in the collector, so anything
+    // able to produce a valid Origin — page script on a same-origin fetch —
+    // must not be able to write it.
     const { handler, sink } = handlerWith();
 
     await handler(
-      request({ events: [event()] }, { headers: { "x-wallow-client-ip": "203.0.113.7" } }),
+      request({ events: [event()] }, { headers: { [CLIENT_IP_HEADER]: "203.0.113.7" } }),
     );
 
-    expect(recordsOf(sink)[0]?.clientIp).toBe("203.0.113.7");
+    expect(recordsOf(sink)[0]?.clientIp).toBeUndefined();
+  });
+
+  it("prefers the host's address over a header claiming another", async () => {
+    const { handler, sink } = handlerWith({ clientAddress: hostPeer });
+
+    await handler(
+      request(
+        { events: [event()] },
+        { headers: { "x-spec-peer": "198.51.100.4", [CLIENT_IP_HEADER]: "203.0.113.7" } },
+      ),
+    );
+
+    expect(recordsOf(sink)[0]?.clientIp).toBe("198.51.100.4");
+  });
+
+  it("stamps no client address when the host answers with an empty string", async () => {
+    const { handler, sink } = handlerWith({ clientAddress: () => "" });
+
+    await handler(request({ events: [event()] }));
+
+    expect(recordsOf(sink)[0]?.clientIp).toBeUndefined();
   });
 
   it("falls back to the request's correlation header", async () => {

@@ -294,12 +294,8 @@ export function parseLogBatch(
  * `@bc-solutions-coder/sdk` for one string would drag a published package with
  * an OIDC client into every consumer's graph. The two constants are pinned to
  * each other by an app-side spec, in the one place that already depends on both.
+ *
+ * It is the only header this package reads a value out of. The client address
+ * deliberately is not one: see `clientAddress` on `LogIngestOptions`.
  */
 export const REQUEST_ID_HEADER: string = "x-request-id";
-
-/**
- * The header a host stamps the peer address onto, mirroring the SDK's
- * `CLIENT_IP_HEADER`. Same reasoning, and the ingest handler takes it as an
- * option so an app can hand in the SDK's constant by reference instead.
- */
-export const DEFAULT_CLIENT_IP_HEADER: string = "x-wallow-client-ip";

@@ -16,15 +16,17 @@
  *    `Origin` is a forbidden header name, so page script cannot forge it, and it
  *    survives the `sendBeacon` path where no other header can be set;
  *  - **payload caps**, rejecting rather than truncating;
- *  - a **per-IP rate limit**, because the route is unauthenticated by design;
+ *  - a **per-IP rate limit**, because the route is unauthenticated by design,
+ *    keyed on the address the HOST supplies rather than on anything inbound —
+ *    a caller who can choose the key can mint a fresh bucket per request;
  *  - **server-side stamping** of receipt time, client IP, service, correlation id
  *    and tenant/user — every field a page could otherwise assert about itself.
+ *    The client IP comes from `clientAddress`, never off the wire.
  *
  * A valid batch answers **204 whether or not the collector accepted it**. The
  * page's behaviour must not change because telemetry is down.
  */
 import {
-  DEFAULT_CLIENT_IP_HEADER,
   DEFAULT_INGEST_LIMITS,
   DEFAULT_REDACT_KEYS,
   isAtLeast,
@@ -46,7 +48,6 @@ import {
 } from "./rate-limit";
 
 export {
-  DEFAULT_CLIENT_IP_HEADER,
   DEFAULT_INGEST_LIMITS,
   DEFAULT_REDACT_KEYS,
   isValidEventName,
@@ -111,8 +112,21 @@ export interface LogIngestOptions {
   rateLimit?: RateLimitOptions;
   /** Attribute keys scrubbed server-side — the authoritative pass. */
   redact?: readonly string[];
-  /** Header the host stamps the peer address onto. Default {@link DEFAULT_CLIENT_IP_HEADER}. */
-  clientIpHeader?: string;
+  /**
+   * The peer address, supplied by the host. Never read off the wire.
+   *
+   * Both the rate-limit key and the stamped `clientIp` come from here, which is
+   * why it cannot be a header. The route is unauthenticated by design, so an
+   * inbound header is a value the caller chooses: rotating it would mint a fresh
+   * rate-limit bucket per request, and it would forge a field that reads as
+   * server-stamped. Only the host knows who the peer actually is.
+   *
+   * Absent, or answering `undefined`: every caller shares one `"unknown"` bucket
+   * and no `clientIp` is stamped. That is the correct failure direction — a
+   * misconfigured host limits too much and claims nothing, rather than the
+   * reverse.
+   */
+  clientAddress?: (request: Request) => string | undefined;
   /**
    * Whether this request may write logs, for apps that hold a session.
    *
@@ -142,7 +156,7 @@ const STATUS_METHOD_NOT_ALLOWED = 405;
 const STATUS_PAYLOAD_TOO_LARGE = 413;
 const STATUS_TOO_MANY_REQUESTS = 429;
 
-/** The address a rate-limit key falls back to when no client IP was stamped. */
+/** The rate-limit key every request shares when the host supplies no address. */
 const UNKNOWN_CLIENT = "unknown";
 
 /** UTF-8 byte length — `String.length` counts code units, and the cap is bytes. */
@@ -171,10 +185,14 @@ function originAllowed(request: Request, allowed: LogIngestOptions["allowedOrigi
   return list.includes(origin);
 }
 
-/** The rate-limit key: the stamped client address, or one shared bucket. */
-function clientKey(request: Request, header: string): string {
-  const value: string | null = request.headers.get(header);
-  return value === null || value === "" ? UNKNOWN_CLIENT : value;
+/** The host's answer for this request, with an empty string read as no answer. */
+function peerAddress(
+  request: Request,
+  resolve: LogIngestOptions["clientAddress"],
+): string | undefined {
+  const value: string | undefined = resolve?.(request);
+
+  return value === undefined || value === "" ? undefined : value;
 }
 
 /** The console fallback, used when no collector is configured. */
@@ -224,7 +242,6 @@ function toServerRecord(
 export function createLogIngestHandler(options: LogIngestOptions): LogIngestHandler {
   const limits: IngestLimits = options.limits ?? DEFAULT_INGEST_LIMITS;
   const redact: readonly string[] = options.redact ?? DEFAULT_REDACT_KEYS;
-  const clientIpHeader: string = options.clientIpHeader ?? DEFAULT_CLIENT_IP_HEADER;
   const now: () => number = options.now ?? Date.now;
   const limiter: RateLimiter = createRateLimiter(options.rateLimit ?? DEFAULT_RATE_LIMIT);
   const sink: LogSink =
@@ -253,7 +270,10 @@ export function createLogIngestHandler(options: LogIngestOptions): LogIngestHand
     if (!originAllowed(request, options.allowedOrigins)) {
       return reject(STATUS_FORBIDDEN, "origin not allowed");
     }
-    if (!limiter.allow(clientKey(request, clientIpHeader), now())) {
+    // Resolved once: the limiter key and the stamped field are the same fact,
+    // and a host that answered differently between them would be a bug.
+    const clientIp: string | undefined = peerAddress(request, options.clientAddress);
+    if (!limiter.allow(clientIp ?? UNKNOWN_CLIENT, now())) {
       return reject(STATUS_TOO_MANY_REQUESTS, "too many log batches");
     }
 
@@ -289,7 +309,6 @@ export function createLogIngestHandler(options: LogIngestOptions): LogIngestHand
     }
 
     const context: LogRequestContext = (await options.context?.(request)) ?? {};
-    const clientIp: string | null = request.headers.get(clientIpHeader);
     const nowIso: string = new Date(now()).toISOString();
     const records: ServerLogRecord[] = parsed.batch.events.map(
       (event: LogEvent): ServerLogRecord =>
@@ -298,7 +317,7 @@ export function createLogIngestHandler(options: LogIngestOptions): LogIngestHand
           nowIso,
           redact,
           fallbackCorrelationId: request.headers.get(REQUEST_ID_HEADER) ?? undefined,
-          clientIp: clientIp === null || clientIp === "" ? undefined : clientIp,
+          clientIp,
           context,
         }),
     );

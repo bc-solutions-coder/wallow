@@ -50,11 +50,22 @@ The controls that actually apply, in both apps:
 - **Payload caps**, which reject rather than truncate. `maxBodyBytes` defaults to 64 KiB —
   `sendBeacon`'s own quota, so a batch the browser would refuse to queue is a batch the server
   would refuse to read.
-- **A per-IP rate limit**, because the route is unauthenticated by design.
+- **A per-IP rate limit**, because the route is unauthenticated by design — keyed on the address
+  the HOST supplies, never on anything inbound.
 - **Server-side stamping** of receipt time, client IP, service, correlation id and tenant/user —
   every field a page could otherwise assert about itself. The browser core deliberately does
   **not** put its own `service` on the wire; `logger.test.ts` asserts the serialized batch does
   not contain it.
+
+**The client address arrives through a callback, not a header.** `clientAddress?: (request) =>
+string | undefined` is the only source of the peer for both the rate-limit key and the stamped
+`clientIp`. A header cannot be that source: on an unauthenticated route it is a value the caller
+chooses, so rotating it mints a fresh limiter bucket per request and forges a field that reads as
+server-stamped. Both apps answer with `request.ip` — srvx puts the connection's peer address
+there, the same seam `bff.server.ts` and `api-passthrough.server.ts` already use for the outbound
+`CLIENT_IP_HEADER` hop. Absent, or answering `undefined`, every caller shares the one `unknown`
+bucket and nothing is stamped: limiting too much and claiming nothing is the correct failure
+direction, and it is also what a `sendBeacon` flush gets in a host that cannot answer.
 
 `parseLogBatch` rebuilds each accepted event field by field rather than spreading the wire
 object, so a payload carrying an extra `service` or `userId` cannot smuggle it past validation
@@ -94,12 +105,12 @@ discard path that never fires `pagehide` at all); `pagehide` is the last call.
 
 ## It does not depend on the SDK
 
-Correlation rides the same `x-request-id` contract the SDK's proxy uses, but the header
-constants (`REQUEST_ID_HEADER`, `DEFAULT_CLIENT_IP_HEADER`) are **declared locally**. Importing
-them would drag an OIDC client into every consumer of a logging package. The drift that buys is
-pinned instead by an app-side spec asserting the two constants equal the SDK's `REQUEST_ID_HEADER`
-and `CLIENT_IP_HEADER` — the apps depend on both packages already, so that is the cheap place
-for the assertion to live.
+Correlation rides the same `x-request-id` contract the SDK's proxy uses, but `REQUEST_ID_HEADER`
+is **declared locally**. Importing it would drag an OIDC client into every consumer of a logging
+package. The drift that buys is pinned instead by an app-side spec asserting the constant equals
+the SDK's `REQUEST_ID_HEADER` — the apps depend on both packages already, so that is the cheap
+place for the assertion to live. It is the only header this package reads a value out of; there
+is deliberately no client-IP constant to mirror.
 
 ## Deviation from the bead's wording
 

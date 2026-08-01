@@ -69,7 +69,7 @@ nothing but adds everything a page could otherwise assert about itself:
 | `ts`                      | Server receipt time                                                   |
 | `clientTs`                | What the browser claimed, kept for clock-skew analysis                |
 | `service`                 | The handler's own configuration — **never** the payload               |
-| `clientIp`                | The `x-client-ip` header the host stamps                              |
+| `clientIp`                | The host's `clientAddress` callback — **never** an inbound header     |
 | `correlationId`           | The event's, or the request's `x-request-id`                          |
 | `userId`, `tenantId`      | The app's `context` callback, read from the session                   |
 
@@ -77,6 +77,12 @@ nothing but adds everything a page could otherwise assert about itself:
 service or its own user is a record any page can forge. The validator rebuilds each accepted event
 field by field rather than spreading the wire object, so a payload carrying an extra `service` key
 cannot smuggle it into a record.
+
+`clientIp` is the same argument one step further out. It comes from the `clientAddress` callback
+the app supplies — both apps answer with `request.ip`, the peer address off the connection — and
+the handler reads no inbound header for it. A header would arrive with the payload's validation
+bypassed and would let a caller both forge the field and, since the same value keys the rate
+limit, mint a fresh bucket per request.
 
 Correlation uses the same `x-request-id` header the SDK's proxy writes, so a browser record and
 the API records for the same request join on it. See
@@ -104,8 +110,13 @@ One environment variable, and it is the standard OpenTelemetry one:
 
 | Variable                      | Effect                                                          |
 | ----------------------------- | --------------------------------------------------------------- |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | Where records are POSTed as OTLP/HTTP JSON.                     |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Where records are POSTed as OTLP/HTTP JSON — the collector's **HTTP** port, 4318. |
 | _(unset)_                     | Records are written to stdout as JSON lines — what `docker logs` shows. |
+
+The port matters and the variable name hides it. The .NET API exports over OTLP/**gRPC** and reads
+the same variable pointed at **4317**; this package has no gRPC transport at all. Given 4317 the
+POST simply fails, and because a valid batch answers `204` regardless of collector health, nothing
+in the app surfaces the loss.
 
 There is no Wallow-specific logging variable to set, and no allowlist to configure: the ingest
 route derives the origin it accepts from the request it was handed (see below).
@@ -131,7 +142,8 @@ in both apps:
 - **Payload caps that reject rather than truncate.** The default is 64 KiB, which is
   `sendBeacon`'s own quota: a batch the browser would refuse to queue is a batch the server
   refuses to read.
-- **A per-IP rate limit**, because the route is unauthenticated by design.
+- **A per-IP rate limit**, because the route is unauthenticated by design. Its key is the address
+  the host supplies, never one off the wire — a caller who can choose the key has no limit.
 
 A valid batch answers `204` regardless of collector health. The guards still return real
 `405`/`403`/`413`/`429`/`400`; only a sink failure is swallowed.

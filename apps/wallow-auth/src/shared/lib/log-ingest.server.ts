@@ -18,6 +18,15 @@
 import { resolveRequestOrigin } from "@bc-solutions-coder/env/request-origin";
 import { createLogIngestHandler, type LogIngestHandler } from "@bc-solutions-coder/logger/server";
 
+/**
+ * The inbound request as srvx hands it to a Start server route. A WHATWG
+ * `Request` has no socket, so the peer address arrives on this extra `ip`
+ * property (populated in `vite dev` and in the built Nitro server alike).
+ */
+interface PeerRequest extends Request {
+  readonly ip?: string | undefined;
+}
+
 /** What this app calls itself in a record. Stamped server-side; the page never sends it. */
 const SERVICE = "wallow-auth";
 
@@ -31,10 +40,16 @@ const otlpEndpoint: string = (process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? "").tri
  * only a page actually served from this app can match — the Origin-versus-target
  * check. `resolveRequestOrigin` honours `x-forwarded-proto`, so the check still
  * holds behind the TLS-terminating proxy this app runs behind in production.
+ *
+ * `clientAddress` answers with the address srvx read off the connection, and it
+ * is the ONLY source of the peer for both the rate-limit key and the stamped
+ * `clientIp`. Nothing inbound is consulted: this route is unauthenticated, so a
+ * header the caller writes would be a rate-limit bypass and a forged field.
  */
 const ingest: LogIngestHandler = createLogIngestHandler({
   service: SERVICE,
   allowedOrigins: (request: Request): string[] => [resolveRequestOrigin(request)],
+  clientAddress: (request: PeerRequest): string | undefined => request.ip,
   ...(otlpEndpoint === "" ? {} : { otlpEndpoint }),
 });
 
@@ -45,6 +60,6 @@ const ingest: LogIngestHandler = createLogIngestHandler({
  * server code records anything today, and a logger with no caller is a seam that
  * rots. Add it here when the first server-side record appears.
  */
-export function handleLogIngest(request: Request): Promise<Response> {
+export function handleLogIngest(request: PeerRequest): Promise<Response> {
   return ingest(request);
 }
