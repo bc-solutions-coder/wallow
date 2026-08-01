@@ -1370,8 +1370,11 @@ export const usersActivateUserMutation = (options?: Partial<Options<UsersActivat
 };
 
 /**
- * Assign a role to a user. The reserved global-administrator name is rejected: global
- * admin is a seeded claim, never a role, so it cannot be granted from inside a tenant.
+ * Assign a role to a user IN THE CALLER'S OWN ORGANIZATION. The organization is the ambient
+ * tenant rather than a parameter, so this route can never grant a role somewhere the caller
+ * was not already authorized; the grant lands on the user's membership of that organization
+ * and confers nothing in any other. The reserved global-administrator name is rejected:
+ * global admin is a seeded claim, never a role, so it cannot be granted from inside a tenant.
  */
 export const usersAssignRoleMutation = (options?: Partial<Options<UsersAssignRoleData>>): UseMutationOptions<unknown, UsersAssignRoleError, Options<UsersAssignRoleData>> => {
     const mutationOptions: UseMutationOptions<unknown, UsersAssignRoleError, Options<UsersAssignRoleData>> = {
@@ -1385,7 +1388,8 @@ export const usersAssignRoleMutation = (options?: Partial<Options<UsersAssignRol
 };
 
 /**
- * Remove a role from a user.
+ * Remove a role from a user in the caller's own organization. Revocation is scoped the same
+ * way the grant was, so it cannot reach a role the user holds elsewhere.
  */
 export const usersRemoveRoleMutation = (options?: Partial<Options<UsersRemoveRoleData>>): UseMutationOptions<unknown, UsersRemoveRoleError, Options<UsersRemoveRoleData>> => {
     const mutationOptions: UseMutationOptions<unknown, UsersRemoveRoleError, Options<UsersRemoveRoleData>> = {

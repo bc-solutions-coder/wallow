@@ -1023,8 +1023,11 @@ export const usersActivateUser = <ThrowOnError extends boolean = true>(options: 
 });
 
 /**
- * Assign a role to a user. The reserved global-administrator name is rejected: global
- * admin is a seeded claim, never a role, so it cannot be granted from inside a tenant.
+ * Assign a role to a user IN THE CALLER'S OWN ORGANIZATION. The organization is the ambient
+ * tenant rather than a parameter, so this route can never grant a role somewhere the caller
+ * was not already authorized; the grant lands on the user's membership of that organization
+ * and confers nothing in any other. The reserved global-administrator name is rejected:
+ * global admin is a seeded claim, never a role, so it cannot be granted from inside a tenant.
  */
 export const usersAssignRole = <ThrowOnError extends boolean = true>(options: Options<UsersAssignRoleData, ThrowOnError>): RequestResult<unknown, UsersAssignRoleErrors, ThrowOnError, 'data'> => (options.client ?? client).post<unknown, UsersAssignRoleErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
@@ -1038,7 +1041,8 @@ export const usersAssignRole = <ThrowOnError extends boolean = true>(options: Op
 });
 
 /**
- * Remove a role from a user.
+ * Remove a role from a user in the caller's own organization. Revocation is scoped the same
+ * way the grant was, so it cannot reach a role the user holds elsewhere.
  */
 export const usersRemoveRole = <ThrowOnError extends boolean = true>(options: Options<UsersRemoveRoleData, ThrowOnError>): RequestResult<UsersRemoveRoleResponses, UsersRemoveRoleErrors, ThrowOnError, 'data'> => (options.client ?? client).delete<UsersRemoveRoleResponses, UsersRemoveRoleErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
