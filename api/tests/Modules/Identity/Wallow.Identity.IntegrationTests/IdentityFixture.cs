@@ -89,6 +89,10 @@ public sealed class IdentityFixture
             TestUserEmail,
             TimeProvider.System);
 
+        // The sign-in manager requires a confirmed email, so without this the seeded user can be
+        // authenticated by a fabricated principal but never by a password.
+        user.EmailConfirmed = true;
+
         IdentityResult result = await userManager.CreateAsync(user, TestUserPassword);
         if (!result.Succeeded)
         {

@@ -1,12 +1,20 @@
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 
 namespace Wallow.Tests.Common.Helpers;
 
+/// <summary>
+/// Stands in for the production "SmartScheme" policy scheme, and selects the same way it does:
+/// a bearer credential is honoured here, and everything else falls through to the real ASP.NET
+/// Identity cookie. The fall-through is what lets a test drive a browser flow — the authorize
+/// endpoint reads the cookie and never a bearer token — and it costs nothing when no cookie is
+/// present, because the cookie handler then authenticates nobody.
+/// </summary>
 public sealed class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
 {
     public TestAuthHandler(
@@ -15,22 +23,21 @@ public sealed class TestAuthHandler : AuthenticationHandler<AuthenticationScheme
         UrlEncoder encoder)
         : base(options, logger, encoder) { }
 
-    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
         // Allow tests to opt-out of authentication via header
         if (Request.Headers.TryGetValue("X-Test-Auth-Skip", out StringValues skipHeader) && skipHeader == "true")
         {
-            return Task.FromResult(AuthenticateResult.Fail("Authentication skipped by test"));
+            return AuthenticateResult.Fail("Authentication skipped by test");
         }
 
         // Check for Authorization header or SignalR access_token query param
         bool hasAuthHeader = Request.Headers.ContainsKey("Authorization");
         bool hasAccessToken = Request.Query.ContainsKey("access_token");
 
-        // If no auth credentials provided, fail authentication
         if (!hasAuthHeader && !hasAccessToken)
         {
-            return Task.FromResult(AuthenticateResult.Fail("No authorization token provided"));
+            return await Context.AuthenticateAsync(IdentityConstants.ApplicationScheme);
         }
 
         // Extract token from either Authorization header or query param
@@ -95,6 +102,6 @@ public sealed class TestAuthHandler : AuthenticationHandler<AuthenticationScheme
         ClaimsPrincipal principal = new ClaimsPrincipal(identity);
         AuthenticationTicket ticket = new AuthenticationTicket(principal, "Test");
 
-        return Task.FromResult(AuthenticateResult.Success(ticket));
+        return AuthenticateResult.Success(ticket);
     }
 }

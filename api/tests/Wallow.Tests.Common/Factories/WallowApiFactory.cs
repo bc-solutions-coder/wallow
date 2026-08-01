@@ -194,6 +194,10 @@ public class WallowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                 ["AdminBootstrap:Password"] = "Admin1234!",
                 ["AdminBootstrap:FirstName"] = "Test",
                 ["AdminBootstrap:LastName"] = "Admin",
+                // The shipped default scopes the auth cookie to .wallow.dev so sibling
+                // subdomains share it. The test host answers on localhost, where a cookie
+                // claiming that domain is discarded before it is ever sent back.
+                ["Authentication:CookieDomain"] = string.Empty,
             });
         });
 
