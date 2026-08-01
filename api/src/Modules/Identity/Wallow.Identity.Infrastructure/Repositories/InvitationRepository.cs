@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Enums;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Shared.Kernel.Identity;
@@ -47,6 +48,26 @@ public sealed class InvitationRepository(IdentityDbContext context) : IInvitatio
             .Skip(skip)
             .Take(take)
             .ToListAsync(ct);
+    }
+
+    public Task<Invitation?> GetPendingByEmailAsync(Guid tenantId, string email, CancellationToken ct = default)
+    {
+        TenantId scope = TenantId.Create(tenantId);
+        string normalized = email.ToUpperInvariant();
+
+        // ToUpper() here is an expression tree translated to SQL upper(); it never runs in .NET,
+        // so the culture analyzers do not apply. ILike would treat _ as a wildcard, and _ is legal
+        // in an email local part, so it would match addresses that are not this one.
+#pragma warning disable CA1304, CA1311, CA1862
+        return context.Invitations
+            .AsTracking()
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(
+                i => i.TenantId == scope
+                    && i.Status == InvitationStatus.Pending
+                    && i.Email.ToUpper() == normalized,
+                ct);
+#pragma warning restore CA1304, CA1311, CA1862
     }
 
     public void Add(Invitation invitation)

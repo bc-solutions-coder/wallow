@@ -85,6 +85,24 @@ public sealed class Invitation : AggregateRoot<InvitationId>, ITenantScoped
         SetUpdated(timeProvider.GetUtcNow(), userId);
     }
 
+    /// <summary>
+    /// Pushes the expiry out on the invitation already outstanding for this address. Re-inviting
+    /// refreshes the one live token rather than minting a second: <see cref="Revoke"/> acts on a
+    /// single invitation by id, so a second token is one the admin cannot see to revoke.
+    /// </summary>
+    public void Renew(DateTimeOffset expiresAt, Guid actorId, TimeProvider timeProvider)
+    {
+        if (Status != InvitationStatus.Pending)
+        {
+            throw new BusinessRuleException(
+                "Identity.InvitationNotPending",
+                $"Cannot renew invitation with status '{Status}'");
+        }
+
+        ExpiresAt = expiresAt;
+        SetUpdated(timeProvider.GetUtcNow(), actorId);
+    }
+
     public void Revoke(Guid actorId, TimeProvider timeProvider)
     {
         if (Status != InvitationStatus.Pending)

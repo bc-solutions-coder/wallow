@@ -21,32 +21,85 @@ public sealed class InvitationService(
 {
     private const string MemberRoleName = "user";
 
+    /// <summary>
+    /// Invites an address into the caller's organization, or re-sends the invitation already
+    /// outstanding for it. Re-inviting deliberately refreshes ONE token rather than minting a
+    /// second: <c>Revoke</c> acts on a single invitation by id, so every extra token is one the
+    /// admin cannot see in the list and cannot take back.
+    /// </summary>
     public async Task<Invitation> CreateInvitationAsync(string email, Guid createdByUserId, CancellationToken ct = default)
     {
+        Guid organizationId = tenantContext.TenantId.Value;
         DateTimeOffset expiresAt = timeProvider.GetUtcNow().AddDays(7);
 
-        // The save interceptor stamps TenantId from the ambient tenant regardless of what the
-        // entity carries, so the ambient tenant is the only tenant an invitation can land in.
-        Invitation invitation = Invitation.Create(
+        await GuardNotAlreadyAMemberAsync(organizationId, email, ct);
+
+        Invitation? outstanding = await invitationRepository.GetPendingByEmailAsync(organizationId, email, ct);
+        Invitation invitation = outstanding ?? NewInvitation(email, expiresAt, createdByUserId);
+
+        if (outstanding is not null)
+        {
+            outstanding.Renew(expiresAt, createdByUserId, timeProvider);
+        }
+        else
+        {
+            invitationRepository.Add(invitation);
+        }
+
+        await invitationRepository.SaveChangesAsync(ct);
+
+        // Published either way: clicking invite again usually means the first mail went astray,
+        // and the same token re-sent is the same live link.
+        await messageBus.PublishAsync(new InvitationCreatedEvent
+        {
+            InvitationId = invitation.Id.Value,
+            TenantId = invitation.TenantId.Value,
+            Email = invitation.Email,
+            Token = invitation.Token,
+            ExpiresAt = invitation.ExpiresAt
+        });
+
+        return invitation;
+    }
+
+    /// <summary>
+    /// The save interceptor stamps TenantId from the ambient tenant regardless of what the entity
+    /// carries, so the ambient tenant is the only tenant an invitation can land in.
+    /// </summary>
+    private Invitation NewInvitation(string email, DateTimeOffset expiresAt, Guid createdByUserId)
+    {
+        return Invitation.Create(
             tenantContext.TenantId,
             email,
             expiresAt,
             createdByUserId,
             timeProvider);
+    }
 
-        invitationRepository.Add(invitation);
-        await invitationRepository.SaveChangesAsync(ct);
+    /// <summary>
+    /// Refuses to invite someone who is already in. An invitation to a sitting member is at best
+    /// noise and at worst a live token for an address that no longer needs one.
+    /// </summary>
+    private async Task GuardNotAlreadyAMemberAsync(Guid organizationId, string email, CancellationToken ct)
+    {
+        string normalizedEmail = email.ToUpperInvariant();
 
-        await messageBus.PublishAsync(new InvitationCreatedEvent
+        WallowUser? user = await dbContext.Users
+            .FirstOrDefaultAsync(u => u.NormalizedEmail == normalizedEmail, ct);
+
+        if (user is null)
         {
-            InvitationId = invitation.Id.Value,
-            TenantId = invitation.TenantId.Value,
-            Email = email,
-            Token = invitation.Token,
-            ExpiresAt = expiresAt
-        });
+            return;
+        }
 
-        return invitation;
+        Membership? membership = await membershipRepository.GetAsync(user.Id, organizationId, ct);
+
+        if (membership?.Status == MembershipStatus.Active)
+        {
+            throw new BusinessRuleException(
+                "Identity.AlreadyAMember",
+                "That email address already belongs to this organization");
+        }
     }
 
     public async Task RevokeInvitationAsync(Guid invitationId, Guid actorId, CancellationToken ct = default)
