@@ -6,7 +6,7 @@ using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Shared.Contracts.Identity.Events;
 using Wallow.Shared.Kernel.Domain;
-using Wallow.Shared.Kernel.Identity;
+using Wallow.Shared.Kernel.MultiTenancy;
 using Wolverine;
 
 namespace Wallow.Identity.Infrastructure.Services;
@@ -16,16 +16,19 @@ public sealed class InvitationService(
     IMembershipRepository membershipRepository,
     IMessageBus messageBus,
     TimeProvider timeProvider,
+    ITenantContext tenantContext,
     IdentityDbContext dbContext) : IInvitationService
 {
     private const string MemberRoleName = "user";
 
-    public async Task<Invitation> CreateInvitationAsync(Guid tenantId, string email, Guid createdByUserId, CancellationToken ct = default)
+    public async Task<Invitation> CreateInvitationAsync(string email, Guid createdByUserId, CancellationToken ct = default)
     {
         DateTimeOffset expiresAt = timeProvider.GetUtcNow().AddDays(7);
 
+        // The save interceptor stamps TenantId from the ambient tenant regardless of what the
+        // entity carries, so the ambient tenant is the only tenant an invitation can land in.
         Invitation invitation = Invitation.Create(
-            TenantId.Create(tenantId),
+            tenantContext.TenantId,
             email,
             expiresAt,
             createdByUserId,

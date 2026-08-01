@@ -45,7 +45,7 @@ public sealed class InvitationServiceTests : IDisposable
         _invRepo.When(r => r.SaveChangesAsync(Arg.Any<CancellationToken>()))
             .Do(_ => _dbContext.SaveChanges());
 
-        _sut = new InvitationService(_invRepo, _memberships, _messageBus, _tp, _dbContext);
+        _sut = new InvitationService(_invRepo, _memberships, _messageBus, _tp, tc, _dbContext);
     }
 
     public void Dispose() { _dbContext.Dispose(); }
@@ -84,8 +84,9 @@ public sealed class InvitationServiceTests : IDisposable
     [Fact]
     public async Task CreateInvitation_PersistsAndPublishes()
     {
-        Invitation r = await _sut.CreateInvitationAsync(_tenantId, "i@t.com", Guid.NewGuid());
+        Invitation r = await _sut.CreateInvitationAsync("i@t.com", Guid.NewGuid());
         r.Email.Should().Be("i@t.com");
+        r.TenantId.Value.Should().Be(_tenantId);
         r.Token.Should().NotBeNullOrEmpty();
         _invRepo.Received(1).Add(Arg.Any<Invitation>());
         await _messageBus.Received(1).PublishAsync(Arg.Is<InvitationCreatedEvent>(e => e.Email == "i@t.com"));

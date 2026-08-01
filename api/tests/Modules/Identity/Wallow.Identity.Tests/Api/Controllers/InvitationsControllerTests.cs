@@ -51,7 +51,7 @@ public class InvitationsControllerTests
     public async Task Create_ReturnsCreatedAtAction_WithInvitationResponse()
     {
         Invitation invitation = CreateTestInvitation();
-        _invitationService.CreateInvitationAsync(_tenantId.Value, "test@example.com", _userId, Arg.Any<CancellationToken>())
+        _invitationService.CreateInvitationAsync("test@example.com", _userId, Arg.Any<CancellationToken>())
             .Returns(invitation);
 
         CreateInvitationRequest request = new("test@example.com");
@@ -68,7 +68,7 @@ public class InvitationsControllerTests
     public async Task Create_MapsAllResponseFields_Correctly()
     {
         Invitation invitation = CreateTestInvitation("mapped@example.com");
-        _invitationService.CreateInvitationAsync(_tenantId.Value, "mapped@example.com", _userId, Arg.Any<CancellationToken>())
+        _invitationService.CreateInvitationAsync("mapped@example.com", _userId, Arg.Any<CancellationToken>())
             .Returns(invitation);
 
         CreateInvitationRequest request = new("mapped@example.com");
@@ -89,7 +89,7 @@ public class InvitationsControllerTests
     public async Task Create_RouteValues_ContainToken()
     {
         Invitation invitation = CreateTestInvitation();
-        _invitationService.CreateInvitationAsync(_tenantId.Value, "test@example.com", _userId, Arg.Any<CancellationToken>())
+        _invitationService.CreateInvitationAsync("test@example.com", _userId, Arg.Any<CancellationToken>())
             .Returns(invitation);
 
         CreateInvitationRequest request = new("test@example.com");
@@ -106,7 +106,7 @@ public class InvitationsControllerTests
     {
         Invitation invitation = CreateTestInvitation("verify@example.com");
         _invitationService.CreateInvitationAsync(
-                Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+                Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(invitation);
 
         CreateInvitationRequest request = new("verify@example.com");
@@ -114,7 +114,7 @@ public class InvitationsControllerTests
         await _controller.Create(request, CancellationToken.None);
 
         await _invitationService.Received(1).CreateInvitationAsync(
-            _tenantId.Value, "verify@example.com", _userId, Arg.Any<CancellationToken>());
+            "verify@example.com", _userId, Arg.Any<CancellationToken>());
     }
 
     #endregion

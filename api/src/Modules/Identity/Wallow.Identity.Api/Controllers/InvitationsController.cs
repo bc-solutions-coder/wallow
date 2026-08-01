@@ -31,9 +31,8 @@ public class InvitationsController(
         CreateInvitationRequest request, CancellationToken ct)
     {
         Guid userId = Guid.Parse(User.GetUserId()!);
-        Guid tenantId = tenantContext.TenantId.Value;
 
-        Invitation invitation = await invitationService.CreateInvitationAsync(tenantId, request.Email, userId, ct);
+        Invitation invitation = await invitationService.CreateInvitationAsync(request.Email, userId, ct);
 
         InvitationResponse response = MapToResponse(invitation);
         return CreatedAtAction(nameof(Verify), new { token = invitation.Token }, response);

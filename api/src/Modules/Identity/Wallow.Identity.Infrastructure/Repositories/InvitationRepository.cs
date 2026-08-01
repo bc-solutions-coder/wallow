@@ -3,6 +3,7 @@ using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Persistence;
+using Wallow.Shared.Kernel.Identity;
 
 namespace Wallow.Identity.Infrastructure.Repositories;
 
@@ -30,9 +31,18 @@ public sealed class InvitationRepository(IdentityDbContext context) : IInvitatio
             .FirstOrDefaultAsync(i => i.Token == token, ct);
     }
 
+    /// <summary>
+    /// Lists one organization's invitations, scoped on the parameter rather than on the ambient
+    /// query filter. A method named for a tenant it does not filter by is one "cleanup" away from
+    /// returning every invited email address in the system.
+    /// </summary>
     public Task<List<Invitation>> GetPagedByTenantAsync(Guid tenantId, int skip = 0, int take = 20, CancellationToken ct = default)
     {
+        TenantId scope = TenantId.Create(tenantId);
+
         return context.Invitations
+            .IgnoreQueryFilters()
+            .Where(i => i.TenantId == scope)
             .OrderByDescending(i => i.CreatedAt)
             .Skip(skip)
             .Take(take)
