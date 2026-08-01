@@ -259,6 +259,7 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<IApiScopeRepository, ApiScopeRepository>();
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
         services.AddScoped<IInvitationRepository, InvitationRepository>();
+        services.AddScoped<IMembershipRepository, MembershipRepository>();
     }
 
     private static void AddIdentityAuthorization(this IServiceCollection services, IConfiguration configuration)
