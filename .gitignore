@@ -85,8 +85,8 @@ docker/.env.production
 # DocFX generated output
 .docfx/
 
-# Plans, specs, and superpowers docs (local only)
-docs/plans/
+# Specs and superpowers docs (local only). docs/plans/ IS tracked — beads cite
+# plan paths as their justification, and a fresh clone needs to be able to read them.
 docs/specs/
 docs/superpowers/
 docs/claude/

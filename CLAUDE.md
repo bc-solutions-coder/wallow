@@ -62,11 +62,14 @@ cleanly to a fresh database.
 | `docker/`           | Compose files for infra, production, and the e2e test stack                                                                                                                 |
 | `docs/`             | DocFX documentation site (`docfx.json` at root builds it)                                                                                                                   |
 | `scripts/`          | `run-tests.sh`, `e2e.sh` (backend-dependent E2E runner), docs/theme helpers                                                                                                 |
-| `docs/plans/`       | Session/design artifacts, local-only (gitignored) — NOT part of the docs site                                                                                               |
+| `docs/plans/`       | Session/design artifacts — tracked in git, but NOT part of the docs site                                                                                                    |
 
 New plans MUST be written to `docs/plans/<YYYY-MM-DD>/<HHmm>-<name>.md` (date folder =
 creation date, 24h HHmm prefix). Every plan starts with a `**status: active|completed|superseded**`
-line; archive completed plans out of the repo (`~/Documents/wallow-plans-archive/`).
+line. Plans are **committed**, because beads cite them by path as the justification for the work
+and a fresh clone must be able to read them — do not archive one out of the repo while an open
+bead still points at it. Mark a finished plan `completed` or `superseded` in place instead.
+`docfx.json` excludes `plans/**` from the site build, so a plan never ships as user-facing docs.
 
 ## JavaScript / TypeScript Monorepo
 
