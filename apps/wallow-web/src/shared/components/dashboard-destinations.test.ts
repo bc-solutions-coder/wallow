@@ -16,6 +16,7 @@ import { ADMIN_ROLE, dashboardDestinations } from "./dashboard-destinations";
 /** The manifest's entries in render order — the expected `id` set and iteration order. */
 const EXPECTED_IDS: readonly string[] = [
   "nav-organizations",
+  "nav-invitations",
   "nav-apps",
   "nav-settings",
   "nav-inquiries",
@@ -64,12 +65,17 @@ describe("the dashboard nav manifest", () => {
     expect(new Set(labels).size).toBe(dashboardDestinations.length);
   });
 
-  it("gates Organizations, and only Organizations, behind the admin role", () => {
-    const gated: string[] = dashboardDestinations
-      .filter((entry: NavDestination): boolean => entry.requires !== undefined)
-      .map((entry: NavDestination): string => entry.id);
+  it("gates Organizations and Invitations, and only those, behind the admin role", () => {
+    const gated: NavDestination[] = dashboardDestinations.filter(
+      (entry: NavDestination): boolean => entry.requires !== undefined,
+    );
 
-    expect(gated).toStrictEqual(["nav-organizations"]);
-    expect(dashboardDestinations[0]?.requires?.role).toBe(ADMIN_ROLE);
+    expect(gated.map((entry: NavDestination): string => entry.id)).toStrictEqual([
+      "nav-organizations",
+      "nav-invitations",
+    ]);
+    for (const entry of gated) {
+      expect(entry.requires?.role, `role for "${entry.id}"`).toBe(ADMIN_ROLE);
+    }
   });
 });

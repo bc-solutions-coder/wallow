@@ -32,7 +32,7 @@ import {
   Text,
 } from "@bc-solutions-coder/ui";
 import { useState } from "react";
-import { useRouteContext } from "@tanstack/react-router";
+import { Link, useRouteContext } from "@tanstack/react-router";
 import { z } from "zod";
 
 import {
@@ -268,6 +268,37 @@ function ClientsSection(props: { orgId: string }) {
 }
 
 /**
+ * Links to the two `$orgId`-scoped screens: pending requests and member roles.
+ * Neither reaches the global rail (it has no `orgId` to fill into a
+ * destination), so this page is their only way in.
+ */
+function ManageLinks(props: { orgId: string }) {
+  const { orgId } = props;
+  return (
+    <div className="flex gap-3">
+      <Button
+        render={<Link to="/dashboard/organizations/$orgId/requests" params={{ orgId }} />}
+        nativeButton={false}
+        variant="secondary"
+        className="w-auto no-underline"
+        data-testid="organization-detail-requests-link"
+      >
+        Pending requests
+      </Button>
+      <Button
+        render={<Link to="/dashboard/organizations/$orgId/members" params={{ orgId }} />}
+        nativeButton={false}
+        variant="secondary"
+        className="w-auto no-underline"
+        data-testid="organization-detail-members-link"
+      >
+        Manage roles
+      </Button>
+    </div>
+  );
+}
+
+/**
  * A plain anchor, not a router `Link`, so the component renders standalone under
  * a `QueryClientProvider` without a router context.
  */
@@ -387,6 +418,8 @@ export function OrganizationDetail(props: { orgId: string }) {
           Reactivate
         </Button>
       </div>
+
+      <ManageLinks orgId={orgId} />
 
       <MemberList orgId={orgId} />
 
