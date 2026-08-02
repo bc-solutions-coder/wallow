@@ -115,8 +115,16 @@ fi
 # its own `depends_on` (wallow-api, wallow-auth, valkey) pulls up the other two
 # origins that journey traverses. Like wallow-auth it carries a build block, so a
 # cold run without a prebuilt wallow-web-react:test image builds one here.
-log "Bringing up compose stack (services: $UP_SERVICE, wallow-web)"
-"${COMPOSE[@]}" up -d --wait "$UP_SERVICE" wallow-web
+#
+# bff-example is also always in the set: it stands in for a genuinely separate
+# "external origin" site the cross-app suite's external-origin-login.spec.ts
+# drives directly (Wallow-yp3e.4). Nothing `depends_on` it -- wallow-web's own
+# dependency chain doesn't reach it -- so unlike wallow-auth/valkey it must be
+# named explicitly here or it never starts and that spec fails with
+# ERR_CONNECTION_REFUSED against :3003. It carries a build block and a healthcheck
+# identical to wallow-web's (same image), so `--wait` blocks on it the same way.
+log "Bringing up compose stack (services: $UP_SERVICE, wallow-web, bff-example)"
+"${COMPOSE[@]}" up -d --wait "$UP_SERVICE" wallow-web bff-example
 
 # `--wait` returns once wallow-api is *running*, not necessarily once Kestrel is
 # listening. Poll OIDC discovery so the login spec never races the boot.

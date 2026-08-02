@@ -149,14 +149,22 @@ services:
       ServiceUrls__ApiUrl: "http://localhost:5050"
       # Fix OIDC issuer so browser-facing tokens match the authority clients expect (localhost)
       OpenIddict__Issuer: "http://localhost:5050"
-      # Treat the seeded BFF client as first-party so the OIDC flow skips the
-      # interactive consent screen. These overrides are POSITIONAL: appsettings
-      # declares an empty FirstPartyClients array, so they start at index 0 and
-      # must be renumbered whenever that array gains or loses an entry.
-      Identity__FirstPartyClients__0: "bcordes-bff"
-      # wallow-web is now a BFF too; treat its client as first-party so the OIDC
-      # flow skips the interactive consent screen during the dashboard login.
-      Identity__FirstPartyClients__1: "wallow-web-client"
+      # wallow-web is a BFF; treat its client as first-party so the OIDC flow
+      # skips the interactive consent screen during the dashboard login. This
+      # override is POSITIONAL: appsettings declares an empty FirstPartyClients
+      # array, so it starts at index 0 and must be renumbered whenever that
+      # array (or this override list) gains or loses an entry.
+      #
+      # bcordes-bff (the external-origin reference client, api/seed.json) is
+      # DELIBERATELY ABSENT here. It used to be listed too, to skip consent for
+      # it as well -- a workaround dating from when the consent screen was
+      # broken (design doc Sec 14.3). Plan Sec 5.5.1/5.5.2 fixed the screen
+      # (seeded scope descriptions, scp:* client permissions), and bcordes-bff
+      # exists specifically to exercise the THIRD-PARTY consent path
+      # (Wallow-yp3e.4, plan 5.5.6) -- treating it as first-party here made this
+      # stack the one place that path could never be verified, while the
+      # Aspire stack's FirstPartyClients: [] never had this override at all.
+      Identity__FirstPartyClients__0: "wallow-web-client"
     tmpfs:
       - /tmp
       - /app/App_Data
@@ -326,6 +334,12 @@ services:
       OIDC_CLIENT_SECRET: bcordes-bff-secret
       OIDC_REDIRECT_URI: "http://localhost:3003/bff/callback"
       OIDC_POST_LOGOUT_REDIRECT_URI: "http://localhost:3003/"
+      # bcordes-bff (api/seed.json:221-239) is provisioned for these scopes beyond the SDK's
+      # default openid/profile/email/offline_access -- request all of them so the consent
+      # screen this client exists to exercise actually renders their descriptions instead of
+      # silently falling back to the default set (AuthorizationController.cs only grants
+      # scopes that were both requested AND registered on the client).
+      OIDC_SCOPES: "openid profile email offline_access roles inquiries.read inquiries.write notifications.read notifications.write"
       # Downstream API for the /api proxy (container-to-container)
       BFF_API_BASE_URL: "http://wallow-api:8080"
       COOKIE_PASSWORD: "e2e-bff-cookie-seal-password-min-32-chars"
@@ -337,6 +351,20 @@ services:
       # tokens live in Valkey, so logout truly revokes. Without this the example
       # falls back to the stateless cookie store.
       REDIS_URL: "redis://:WallowTestValkey123!@valkey:6379"
+    # node:24-slim ships no curl/wget, so liveness is probed with node's own fetch.
+    # Same image/route surface as wallow-web, so the identical /health probe applies.
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
     depends_on:
       - wallow-api
       - wallow-auth
