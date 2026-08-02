@@ -1,5 +1,5 @@
 import type { NavDestination } from "@bc-solutions-coder/navigation";
-import { Building2, LayoutGrid, MailPlus, MessageSquare, Settings } from "lucide-react";
+import { Building, Building2, LayoutGrid, MailPlus, MessageSquare, Settings } from "lucide-react";
 
 /**
  * The dashboard's nav manifest — one entry per vertical, in render order.
@@ -11,15 +11,18 @@ import { Building2, LayoutGrid, MailPlus, MessageSquare, Settings } from "lucide
  *
  * `id` is the testid suffix. Under the shell's default `testIdPrefix` of
  * `"dashboard"` these produce `dashboard-nav-organizations`,
- * `dashboard-nav-invitations`, `dashboard-nav-apps`, `dashboard-nav-settings`
- * and `dashboard-nav-inquiries`.
+ * `dashboard-nav-invitations`, `dashboard-nav-my-organizations`,
+ * `dashboard-nav-apps`, `dashboard-nav-settings` and `dashboard-nav-inquiries`.
  *
  * `requires` is inert to the package — it is handed straight back to the `can`
  * predicate `DashboardLayout` supplies, which is what keeps
  * `@bc-solutions-coder/navigation` free of an auth dependency. Organizations and
  * Invitations are the admin-gated destinations; the invitations screen has no
  * `orgId` of its own to scope a non-admin's view by (it reads the caller's
- * ambient tenant), so it carries the same gate as Organizations.
+ * ambient tenant), so it carries the same gate as Organizations. My
+ * Organizations is deliberately UNGATED — `MeController.GetOrganizations` asks
+ * for no permission, so every signed-in member, not just an admin, needs a way
+ * to reach it.
  *
  * The icons come straight from `lucide-react` rather than through a keyed map:
  * the manifest already enforces one icon per destination, so a map would only
@@ -41,6 +44,12 @@ export const dashboardDestinations: readonly NavDestination[] = [
     label: "Invitations",
     icon: MailPlus,
     requires: { role: ADMIN_ROLE },
+  },
+  {
+    id: "nav-my-organizations",
+    to: "/dashboard/my-organizations",
+    label: "My Organizations",
+    icon: Building,
   },
   { id: "nav-apps", to: "/dashboard/apps", label: "Apps", icon: LayoutGrid },
   { id: "nav-settings", to: "/dashboard/settings", label: "Settings", icon: Settings },

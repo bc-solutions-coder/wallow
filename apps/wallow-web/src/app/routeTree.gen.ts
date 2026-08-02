@@ -16,6 +16,7 @@ import { Route as HealthRouteImport } from './routes/health'
 import { Route as ApiSplatRouteImport } from './routes/api/$'
 import { Route as BffSplatRouteImport } from './routes/bff/$'
 import { Route as BffLogsRouteImport } from './routes/bff/logs'
+import { Route as DashboardMyOrganizationsRouteImport } from './routes/dashboard/my-organizations'
 import { Route as DashboardSettingsRouteImport } from './routes/dashboard/settings'
 import { Route as DashboardAppsIndexRouteImport } from './routes/dashboard/apps/index'
 import { Route as DashboardAppsRegisterRouteImport } from './routes/dashboard/apps/register'
@@ -62,6 +63,12 @@ const BffLogsRoute = BffLogsRouteImport.update({
   path: '/bff/logs',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardMyOrganizationsRoute =
+  DashboardMyOrganizationsRouteImport.update({
+    id: '/my-organizations',
+    path: '/my-organizations',
+    getParentRoute: () => DashboardRouteRoute,
+  } as any)
 const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -127,6 +134,7 @@ export interface FileRoutesByFullPath {
   '/api/$': typeof ApiSplatRoute
   '/bff/$': typeof BffSplatRoute
   '/bff/logs': typeof BffLogsRoute
+  '/dashboard/my-organizations': typeof DashboardMyOrganizationsRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/apps/register': typeof DashboardAppsRegisterRoute
   '/dashboard/inquiries/$inquiryId': typeof DashboardInquiriesInquiryIdRoute
@@ -146,6 +154,7 @@ export interface FileRoutesByTo {
   '/api/$': typeof ApiSplatRoute
   '/bff/$': typeof BffSplatRoute
   '/bff/logs': typeof BffLogsRoute
+  '/dashboard/my-organizations': typeof DashboardMyOrganizationsRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/apps/register': typeof DashboardAppsRegisterRoute
   '/dashboard/inquiries/$inquiryId': typeof DashboardInquiriesInquiryIdRoute
@@ -166,6 +175,7 @@ export interface FileRoutesById {
   '/api/$': typeof ApiSplatRoute
   '/bff/$': typeof BffSplatRoute
   '/bff/logs': typeof BffLogsRoute
+  '/dashboard/my-organizations': typeof DashboardMyOrganizationsRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/apps/register': typeof DashboardAppsRegisterRoute
   '/dashboard/inquiries/$inquiryId': typeof DashboardInquiriesInquiryIdRoute
@@ -187,6 +197,7 @@ export interface FileRouteTypes {
     | '/api/$'
     | '/bff/$'
     | '/bff/logs'
+    | '/dashboard/my-organizations'
     | '/dashboard/settings'
     | '/dashboard/apps/register'
     | '/dashboard/inquiries/$inquiryId'
@@ -206,6 +217,7 @@ export interface FileRouteTypes {
     | '/api/$'
     | '/bff/$'
     | '/bff/logs'
+    | '/dashboard/my-organizations'
     | '/dashboard/settings'
     | '/dashboard/apps/register'
     | '/dashboard/inquiries/$inquiryId'
@@ -225,6 +237,7 @@ export interface FileRouteTypes {
     | '/api/$'
     | '/bff/$'
     | '/bff/logs'
+    | '/dashboard/my-organizations'
     | '/dashboard/settings'
     | '/dashboard/apps/register'
     | '/dashboard/inquiries/$inquiryId'
@@ -297,6 +310,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/bff/logs'
       preLoaderRoute: typeof BffLogsRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/my-organizations': {
+      id: '/dashboard/my-organizations'
+      path: '/my-organizations'
+      fullPath: '/dashboard/my-organizations'
+      preLoaderRoute: typeof DashboardMyOrganizationsRouteImport
+      parentRoute: typeof DashboardRouteRoute
     }
     '/dashboard/settings': {
       id: '/dashboard/settings'
@@ -372,6 +392,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface DashboardRouteRouteChildren {
+  DashboardMyOrganizationsRoute: typeof DashboardMyOrganizationsRoute
   DashboardSettingsRoute: typeof DashboardSettingsRoute
   DashboardAppsRegisterRoute: typeof DashboardAppsRegisterRoute
   DashboardInquiriesInquiryIdRoute: typeof DashboardInquiriesInquiryIdRoute
@@ -385,6 +406,7 @@ interface DashboardRouteRouteChildren {
 }
 
 const DashboardRouteRouteChildren: DashboardRouteRouteChildren = {
+  DashboardMyOrganizationsRoute: DashboardMyOrganizationsRoute,
   DashboardSettingsRoute: DashboardSettingsRoute,
   DashboardAppsRegisterRoute: DashboardAppsRegisterRoute,
   DashboardInquiriesInquiryIdRoute: DashboardInquiriesInquiryIdRoute,

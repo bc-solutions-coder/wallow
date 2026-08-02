@@ -100,9 +100,12 @@ describe.each(modes)("DashboardLayout — $name", (mode: NavMode) => {
     await render(<DashboardLayout />);
 
     // By ROLE + NAME, not by testid: in the collapsed rail the name is the only
-    // thing there is.
+    // thing there is. `exact: true` because role-name matching is substring by
+    // default, and "My Organizations" would otherwise also satisfy "Organizations".
     for (const [, label] of destinations) {
-      await expect.element(page.getByRole("link", { name: label })).toBeInTheDocument();
+      await expect
+        .element(page.getByRole("link", { name: label, exact: true }))
+        .toBeInTheDocument();
     }
     await expect.element(page.getByRole("button", { name: "Sign Out" })).toBeInTheDocument();
   });

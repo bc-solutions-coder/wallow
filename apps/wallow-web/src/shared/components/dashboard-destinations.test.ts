@@ -17,6 +17,7 @@ import { ADMIN_ROLE, dashboardDestinations } from "./dashboard-destinations";
 const EXPECTED_IDS: readonly string[] = [
   "nav-organizations",
   "nav-invitations",
+  "nav-my-organizations",
   "nav-apps",
   "nav-settings",
   "nav-inquiries",
