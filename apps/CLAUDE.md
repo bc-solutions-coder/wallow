@@ -98,17 +98,9 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
   `features-api-seam.test.ts` (~950 lines down to ~290); what those two still hold is runtime
   fact about the generated surface and the seam's _shape_, derived from disk rather than from a
   hand-kept list of screen paths.
-- **Backend data lives in TanStack Query, and every key is generated.** Read with
-  `{operation}Options()`, write with `{operation}Mutation()`, and take `{operation}QueryKey()`
-  when the key alone is wanted — all from `@bc-solutions-coder/sdk/query`. Never spell a key as
-  an inline literal or build one from a hand-rolled factory. Keys are flat
-  (`[{ _id, baseUrl, tags, ...args }]`) with no prefix to sweep by, so invalidation goes through
-  that entry's curated `invalidations` predicates, `queriesWithTag` and `queriesForOperation`.
-  Every react-query symbol comes from **`@bc-solutions-coder/query`**, the facade owning
-  `createQueryClient`, the pin, and the single `QueryClientProvider` context — a root
-  `no-restricted-imports` entry fails `pnpm lint` on a direct `@tanstack/react-query` import.
-  Zustand holds UI-only global state and never API data. See
-  `docs/development/frontend-state.md`.
+- **Backend data, react-query imports, and auth state each have exactly one source.** Stated in
+  full under "Frontend state boundary" at the bottom of this file — read it before adding a query,
+  a mutation, or a permission check.
 - **A card heading is 20px (`text-xl`), catalog-wide.** That is `Text`'s `subheading` step,
   which already sat there, plus the four `packages/ui` "names the surface" title recipes moved
   onto it — `cardTitleRecipe`, `dialogTitleRecipe`, `alertDialogTitleRecipe` and
@@ -168,3 +160,29 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
   Read `.claude/rules/E2E.md` before editing anything under `e2e/`.
 - `wallow-web` and `wallow-auth` each ship a `Dockerfile` whose build context is the **repo
   root** — the whole workspace is needed to resolve `workspace:*`.
+
+## Frontend state boundary
+
+TanStack Query is the only store for backend data. Every key comes from the **generated**
+per-operation artifacts in `@bc-solutions-coder/sdk/query` — `{operation}Options()` for a read,
+`{operation}Mutation()` for a write, `{operation}QueryKey()` when you need the key alone; no
+inline key literals, and never a hand-rolled factory. Those keys are flat
+(`[{ _id, baseUrl, tags, ...args }]`) with no prefix to sweep by, so invalidation goes through
+the curated `invalidations` predicates (`queriesWithTag`, `queriesForOperation`) from the same
+entry.
+
+react-query itself enters this workspace in exactly one place. Import `useQuery`,
+`useMutation`, `QueryClient`, `QueryClientProvider` and every other react-query symbol from
+**`@bc-solutions-coder/query`**, never `@tanstack/react-query` directly — the facade also owns
+`createQueryClient` and the pinned version, and it keeps one `QueryClientProvider` context
+across the workspace. This is lint-enforced, not a convention: a root `.oxlintrc.json`
+`no-restricted-imports` entry fails `pnpm lint` on a direct import, and only `packages/query`
+itself plus the few `packages/sdk` files that need react-query's types are exempt.
+
+Auth state comes from **`@bc-solutions-coder/auth`**, never from a per-app copy:
+`currentUserQuery` / `useCurrentUser` for the current user, `ensureCurrentUser` for a route's
+`beforeLoad` gate, and `hasRole` / `hasPermission` (plus the SDK's `requireAuth` / `isAdmin`,
+re-exported by reference) for role and permission checks.
+
+Zustand holds UI-only global state; it never stores API data.
+See `docs/development/frontend-state.md`.

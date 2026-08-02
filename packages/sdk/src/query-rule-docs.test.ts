@@ -15,7 +15,7 @@ import { describe, expect, it } from "vitest";
  * are flat `[{ _id, baseUrl, path, tags }]` objects. Leaving the old wording in
  * place would send a reader looking for a prefix builder that no longer exists,
  * so these are documentation contracts with the same standing as the code:
- * both the repo-root guardrail and the long-form guide must describe the
+ * both the apps guardrail and the long-form guide must describe the
  * generated surface, and must not describe the deleted one.
  *
  * Precedent for pinning prose from this package: `bff-pattern-docs.test.ts`.
@@ -71,9 +71,15 @@ function section(path: string, heading: string): string {
   return found ?? "";
 }
 
-/** The `### `-level section of the repo-root guardrail that states the rule. */
+/**
+ * The section of the apps guardrail that states the rule.
+ *
+ * It sits in `apps/CLAUDE.md` rather than the repo root because only an agent
+ * working under `apps/` needs it, and the root file is paid for by every session
+ * and every subagent. The pin follows the audience, not the path.
+ */
 function frontendStateBoundarySection(): string {
-  return section(rootGuardrailPath, "Frontend state boundary");
+  return section(appsGuardrailPath, "Frontend state boundary");
 }
 
 /**
@@ -119,7 +125,7 @@ const HIERARCHICAL_FACTORY_LANGUAGE: readonly RegExp[] = [
   /queryKeys\s*[.=]/u,
 ];
 
-describe("the repo-root guardrail states the generated-key rule", () => {
+describe("the apps guardrail states the generated-key rule", () => {
   it("no longer points at the hand-written queryKeys factory", () => {
     const section: string = frontendStateBoundarySection();
 
@@ -185,7 +191,7 @@ describe("docs/development/frontend-state.md describes the generated query layer
   });
 });
 
-describe("the repo-root guardrail states the query-facade rule", () => {
+describe("the apps guardrail states the query-facade rule", () => {
   it("names the facade as where react-query symbols come from", () => {
     const boundary: string = frontendStateBoundarySection();
 

@@ -101,7 +101,7 @@ placeholders. A spec that finds a real component awkward to drive is telling you
 spec is wrong, not that it needs a stub.
 
 The one legitimate exception in the tree is the apps' `__root*.test.tsx` SSR-isolation specs, which use
-`vi.mock(..., importOriginal)` to spread the real module and override *only*
+`vi.mock(..., importOriginal)` to spread the real module and override _only_
 `FocusOnNavigate`/`DocumentStyles` as render-nothing sentinels (`renderToString` has no router context)
 — a partial override for SSR isolation, not a replacement.
 
@@ -114,14 +114,14 @@ only where a single assertion is genuinely surprising — default to none.
 
 Delete on sight, in any spec you touch:
 
-| Category | Examples |
-| --- | --- |
-| Bead IDs / plan refs | `Wallow-vec7.3.11`, `(2.8a)`, `scout inventory on ...` |
-| History verbs | `used to`, `no longer`, `replaces`, `was previously`, `this file used to carry` |
-| Line citations into other files | `AccountController.cs:65-165`, `packages/sdk/src/auth-oidc.ts:42` |
-| Scope disclaimers | `deliberately says NOTHING about`, `out of scope for this spec` |
-| Restatement | any sentence paraphrasing the `it()` below it |
-| Decorative rules | `── SECTION ─────`, ASCII banners, box drawing |
+| Category                        | Examples                                                                        |
+| ------------------------------- | ------------------------------------------------------------------------------- |
+| Bead IDs / plan refs            | `Wallow-vec7.3.11`, `(2.8a)`, `scout inventory on ...`                          |
+| History verbs                   | `used to`, `no longer`, `replaces`, `was previously`, `this file used to carry` |
+| Line citations into other files | `AccountController.cs:65-165`, `packages/sdk/src/auth-oidc.ts:42`               |
+| Scope disclaimers               | `deliberately says NOTHING about`, `out of scope for this spec`                 |
+| Restatement                     | any sentence paraphrasing the `it()` below it                                   |
+| Decorative rules                | `── SECTION ─────`, ASCII banners, box drawing                                  |
 
 These are not style nits. Stale prose is load-bearing to whoever reads it next: a comment naming a
 constraint that no longer exists makes the next reader route around a problem the code does not have.
@@ -157,7 +157,7 @@ Each of these cost a debugging session and is invisible from the code:
 - **Ask the generated factory for a query key; never spell one as a literal.** The key carries the
   client's `baseUrl`, so a drifted literal makes `getQueryData`/`getQueryState` return `undefined`
   rather than fail — a no-op assertion every implementation passes. Keys are flat with no prefix to
-  sweep by, so assert an invalidation by *behaviour*: run the real predicate against the real
+  sweep by, so assert an invalidation by _behaviour_: run the real predicate against the real
   `{op}QueryKey()`.
 - **`getByText` matches by SUBSTRING.** Exact matching needs `{ exact: true }`. Two fixtures whose
   names overlap ("Globex" also matches "globex.io") make a spec pass for the wrong element.
@@ -178,7 +178,7 @@ Each of these cost a debugging session and is invisible from the code:
   content mounts under it — park the pointer before mounting anything whose rest-state colour you measure.
 - **An early `return` out of a `useAppForm` `onSubmit` RESOLVES the form's mutation**, so `onSuccess`
   fires and the user is navigated as though the write happened. A guard clause needs a test asserting
-  the navigation did *not* happen, not merely that no request went out.
+  the navigation did _not_ happen, not merely that no request went out.
 - **TanStack Router JSON-parses search values before `validateSearch`** — `?scope=123` arrives as a
   `number`. Route schemas must accept the parsed type.
 - **A screen may not import `WallowError`** (SDK `./server` entry only), so error narrowing in app code
