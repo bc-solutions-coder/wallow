@@ -86,6 +86,11 @@ effect:
 2. **Coverage genuinely lost is recorded here** rather than discovered later. `Wallow-succ` exists
    because a correct deletion had no successor and nobody wrote that down. See
    *Deliberate holes*.
+3. **A successor is a behaviour spec by default, and a computed-style read only when the property
+   is one a user can be harmed by.** The line is WCAG contrast, not appearance —
+   `packages/testing/src/contrast.ts` exists because a spec pinned a recipe, stayed green, and
+   shipped a 1.27:1 hover contrast defect. "Is this the right colour" is a screenshot, and this
+   repo already runs visual regression from `__screenshots__` directories in eleven places.
 
 ## Disposition
 
@@ -160,12 +165,12 @@ Ordering is a real dependency chain, not a preference.
 | Phase | Bead | Work | Why here |
 | --- | --- | --- | --- |
 | **0** | new | `.claude/rules/TESTING.md` rule + `wallow/no-source-tests` (registered, overrides in place) | Gate. Stops a seventeenth sweep landing mid-project — which is how this backlog grew in the first place. The rule will be red against the existing sweeps; that is expected and is what Phases 4a/4b clear. |
-| **1** | `Wallow-tkyq` | Fix the real navigation escaping into the vitest iframe from `app-shell.toggle.test.tsx` | `packages/navigation` browser runs must be trustworthy before Phase 3 adds a spec there. Today the leak tears down the runner and takes 4 sibling files (28 tests) with it. |
-| **2** | `Wallow-h9k1` | Export the before-mount pointer park from `@bc-solutions-coder/testing` on a browser-only subpath | Any computed-colour spec must park the pointer first, or it measures a hover state left by whichever file ran before it. Prerequisite for Phase 3. |
-| **3** | `Wallow-succ` | Nav scrim computed-colour spec in `packages/navigation` | Establishes the replacement technique for every deleted colour pin: render, locate by testid, `getComputedStyle`, normalise through a canvas 2d context, assert actual paint. Template for Phase 4b. |
+| **1** | `Wallow-tkyq` | Fix the real navigation escaping into the vitest iframe from `app-shell.toggle.test.tsx` | `packages/navigation` browser runs must be trustworthy before Phase 2 adds a spec there. Today the leak tears down the runner and takes 4 sibling files (28 tests) with it. |
+| **2** | `Wallow-succ` | Nav scrim spec in `packages/navigation` — **click the backdrop, assert the drawer closes** | Depends on Phase 1 only: it builds on `app-shell.toggle.test.tsx`'s router stub. Not a colour spec, so it does not wait on Phase 3. |
+| **3** | `Wallow-h9k1` | Make the existing colour specs name their pointer state per assertion; delete the seven parks | Independent of everything else, and no longer a prerequisite. Ordered here because it is cleanup, not a gate. |
 | **4a** | `Wallow-e6gz` | Write and register `wallow/module-imports`, with fixture specs, **while the sweeps still run** | Rules prove they fire before anything is deleted. Overlap is deliberate. |
 | **4b** | `Wallow-e6gz` | Delete Buckets A and B; thin the survivors to Bucket C | The sweep. |
-| **5** | `Wallow-uhef` | Decide the browser project's `testTimeout` on a quiet machine | **Last.** This is a measurement bead, and Phase 4b removes node specs while Phase 3 adds browser specs. Measuring before the suite settles measures a suite that will not exist. |
+| **5** | `Wallow-uhef` | Decide the browser project's `testTimeout` on a quiet machine | **Last.** This is a measurement bead, and Phase 4b removes node specs while Phase 2 adds a browser spec. Measuring before the suite settles measures a suite that will not exist. |
 
 ### Phase 1 lead
 
@@ -193,6 +198,30 @@ Recorded so these do not resurface as freshly-filed beads.
   meant someone improved the example.
 - **The shell hand-rolls no button colour / no hover text colour.** Partly covered by the shipped
   `wallow/no-tinted-text`; the residue is dropped rather than converted.
+- **The nav scrim's computed alpha.** Dropped. `Wallow-succ` was filed to assert it and now asserts
+  the drawer-dismissal behaviour instead. The bead's own stated risk was "an opaque scrim breaks the
+  drawer interaction" — an alpha read does not test that, and a click-and-assert does, at every
+  alpha. If the scrim's appearance regresses that is a screenshot.
+- **`PublicLayout`'s footer keeps `bg-sidebar`.** Dropped, and no longer folded into `Wallow-succ`.
+  It was only there so the two colour assertions would land in one commit; with the scrim reduced to
+  behaviour there is no shared commit left.
+
+### On the pointer park
+
+Worth recording because it looked like infrastructure and was not. Playwright's pointer position
+persists across spec *files* in a browser project, so a rest-state colour read can measure a hover
+left by a previous file. Six specs answered this with a `beforeEach` park — in two non-equivalent
+spellings, one of which hovers the component before parking — and a seventh renders a park it never
+hovers. The park compensates for pointer state the spec never names, which is exactly why the
+spellings drifted unnoticed.
+
+The fix is not a shared park. It is `await userEvent.unhover(el)` before the rest half of a contrast
+pair and `await userEvent.hover(el)` before the hover half: local, explicit, and loud when the
+pointer is not where the spec claims. `@bc-solutions-coder/testing` gains nothing.
+
+The scale matters to the judgement: only 6 specs call `getComputedStyle` at all. The hazard is
+downstream of choosing to write rest-state colour specs, not a property of browser mode — a
+behaviour spec never touches `:hover`.
 
 ## Bead impact
 
@@ -204,6 +233,13 @@ Recorded so these do not resurface as freshly-filed beads.
 - **`Wallow-xg9t`** (epic) — description still says the epic "starts empty by construction" and
   asks for reparenting as its first action. All five children are already parented. Update.
 - **Phase 0 needs a new bead** under `Wallow-xg9t`, blocking `Wallow-e6gz`.
+- **`Wallow-succ`** — rewritten. Was "assert the scrim's computed alpha is < 1", now "click the
+  backdrop, assert the drawer closes". The `PublicLayout` footer site is dropped from it. The
+  `Wallow-h9k1` blocking edge is **removed**; it is still blocked by `Wallow-tkyq` (the router stub
+  it builds on).
+- **`Wallow-h9k1`** — rewritten. Was "hoist the pointer park into `@bc-solutions-coder/testing`",
+  now "make colour specs name their pointer state per assertion; delete the seven parks". It adds
+  nothing to `packages/testing` and no longer gates anything.
 - **`Wallow-mlc3`** is closed and stays closed; it is cited here only as evidence for keeping the
   Bucket C lint-wiring assertions.
 
