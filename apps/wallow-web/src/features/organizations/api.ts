@@ -39,5 +39,8 @@ export {
   organizationsRemoveMemberMutation,
   queriesForOperation,
   queriesWithTag,
+  rolesGetRolesOptions,
+  usersAssignRoleMutation,
   usersGetUsersOptions,
+  usersRemoveRoleMutation,
 } from "@bc-solutions-coder/sdk/query";

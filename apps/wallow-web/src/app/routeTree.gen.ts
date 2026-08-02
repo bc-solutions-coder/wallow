@@ -24,6 +24,7 @@ import { Route as DashboardInquiriesInquiryIdRouteImport } from './routes/dashbo
 import { Route as DashboardOrganizationsIndexRouteImport } from './routes/dashboard/organizations/index'
 import { Route as DashboardOrganizationsInvitationsRouteImport } from './routes/dashboard/organizations/invitations'
 import { Route as DashboardOrganizationsOrgIdIndexRouteImport } from './routes/dashboard/organizations/$orgId/index'
+import { Route as DashboardOrganizationsOrgIdMembersRouteImport } from './routes/dashboard/organizations/$orgId/members'
 import { Route as DashboardOrganizationsOrgIdRequestsRouteImport } from './routes/dashboard/organizations/$orgId/requests'
 
 const IndexRoute = IndexRouteImport.update({
@@ -105,6 +106,12 @@ const DashboardOrganizationsOrgIdIndexRoute =
     path: '/organizations/$orgId/',
     getParentRoute: () => DashboardRouteRoute,
   } as any)
+const DashboardOrganizationsOrgIdMembersRoute =
+  DashboardOrganizationsOrgIdMembersRouteImport.update({
+    id: '/organizations/$orgId/members',
+    path: '/organizations/$orgId/members',
+    getParentRoute: () => DashboardRouteRoute,
+  } as any)
 const DashboardOrganizationsOrgIdRequestsRoute =
   DashboardOrganizationsOrgIdRequestsRouteImport.update({
     id: '/organizations/$orgId/requests',
@@ -127,6 +134,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/apps/': typeof DashboardAppsIndexRoute
   '/dashboard/inquiries/': typeof DashboardInquiriesIndexRoute
   '/dashboard/organizations/': typeof DashboardOrganizationsIndexRoute
+  '/dashboard/organizations/$orgId/members': typeof DashboardOrganizationsOrgIdMembersRoute
   '/dashboard/organizations/$orgId/requests': typeof DashboardOrganizationsOrgIdRequestsRoute
   '/dashboard/organizations/$orgId/': typeof DashboardOrganizationsOrgIdIndexRoute
 }
@@ -145,6 +153,7 @@ export interface FileRoutesByTo {
   '/dashboard/apps': typeof DashboardAppsIndexRoute
   '/dashboard/inquiries': typeof DashboardInquiriesIndexRoute
   '/dashboard/organizations': typeof DashboardOrganizationsIndexRoute
+  '/dashboard/organizations/$orgId/members': typeof DashboardOrganizationsOrgIdMembersRoute
   '/dashboard/organizations/$orgId/requests': typeof DashboardOrganizationsOrgIdRequestsRoute
   '/dashboard/organizations/$orgId': typeof DashboardOrganizationsOrgIdIndexRoute
 }
@@ -164,6 +173,7 @@ export interface FileRoutesById {
   '/dashboard/apps/': typeof DashboardAppsIndexRoute
   '/dashboard/inquiries/': typeof DashboardInquiriesIndexRoute
   '/dashboard/organizations/': typeof DashboardOrganizationsIndexRoute
+  '/dashboard/organizations/$orgId/members': typeof DashboardOrganizationsOrgIdMembersRoute
   '/dashboard/organizations/$orgId/requests': typeof DashboardOrganizationsOrgIdRequestsRoute
   '/dashboard/organizations/$orgId/': typeof DashboardOrganizationsOrgIdIndexRoute
 }
@@ -184,6 +194,7 @@ export interface FileRouteTypes {
     | '/dashboard/apps/'
     | '/dashboard/inquiries/'
     | '/dashboard/organizations/'
+    | '/dashboard/organizations/$orgId/members'
     | '/dashboard/organizations/$orgId/requests'
     | '/dashboard/organizations/$orgId/'
   fileRoutesByTo: FileRoutesByTo
@@ -202,6 +213,7 @@ export interface FileRouteTypes {
     | '/dashboard/apps'
     | '/dashboard/inquiries'
     | '/dashboard/organizations'
+    | '/dashboard/organizations/$orgId/members'
     | '/dashboard/organizations/$orgId/requests'
     | '/dashboard/organizations/$orgId'
   id:
@@ -220,6 +232,7 @@ export interface FileRouteTypes {
     | '/dashboard/apps/'
     | '/dashboard/inquiries/'
     | '/dashboard/organizations/'
+    | '/dashboard/organizations/$orgId/members'
     | '/dashboard/organizations/$orgId/requests'
     | '/dashboard/organizations/$orgId/'
   fileRoutesById: FileRoutesById
@@ -341,6 +354,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardOrganizationsOrgIdIndexRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
+    '/dashboard/organizations/$orgId/members': {
+      id: '/dashboard/organizations/$orgId/members'
+      path: '/organizations/$orgId/members'
+      fullPath: '/dashboard/organizations/$orgId/members'
+      preLoaderRoute: typeof DashboardOrganizationsOrgIdMembersRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
     '/dashboard/organizations/$orgId/requests': {
       id: '/dashboard/organizations/$orgId/requests'
       path: '/organizations/$orgId/requests'
@@ -359,6 +379,7 @@ interface DashboardRouteRouteChildren {
   DashboardAppsIndexRoute: typeof DashboardAppsIndexRoute
   DashboardInquiriesIndexRoute: typeof DashboardInquiriesIndexRoute
   DashboardOrganizationsIndexRoute: typeof DashboardOrganizationsIndexRoute
+  DashboardOrganizationsOrgIdMembersRoute: typeof DashboardOrganizationsOrgIdMembersRoute
   DashboardOrganizationsOrgIdRequestsRoute: typeof DashboardOrganizationsOrgIdRequestsRoute
   DashboardOrganizationsOrgIdIndexRoute: typeof DashboardOrganizationsOrgIdIndexRoute
 }
@@ -372,6 +393,8 @@ const DashboardRouteRouteChildren: DashboardRouteRouteChildren = {
   DashboardAppsIndexRoute: DashboardAppsIndexRoute,
   DashboardInquiriesIndexRoute: DashboardInquiriesIndexRoute,
   DashboardOrganizationsIndexRoute: DashboardOrganizationsIndexRoute,
+  DashboardOrganizationsOrgIdMembersRoute:
+    DashboardOrganizationsOrgIdMembersRoute,
   DashboardOrganizationsOrgIdRequestsRoute:
     DashboardOrganizationsOrgIdRequestsRoute,
   DashboardOrganizationsOrgIdIndexRoute: DashboardOrganizationsOrgIdIndexRoute,

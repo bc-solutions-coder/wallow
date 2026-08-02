@@ -30,6 +30,7 @@ const PAGE_FILES: readonly string[] = [
   "inquiries/$inquiryId.tsx",
   "inquiries/index.tsx",
   "organizations/$orgId/index.tsx",
+  "organizations/$orgId/members.tsx",
   "organizations/$orgId/requests.tsx",
   "organizations/index.tsx",
   "organizations/invitations.tsx",
