@@ -6,6 +6,7 @@ using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Inquiries.Infrastructure.Persistence;
 using Wallow.MigrationService;
 using Wallow.Notifications.Infrastructure.Persistence;
+using Wallow.ServiceDefaults;
 using Wallow.Shared.Infrastructure.Core.Auditing;
 using Wallow.Storage.Infrastructure.Persistence;
 
@@ -72,7 +73,14 @@ builder.Services.AddSingleton<FeatureMigrationRunners>(sp => new FeatureMigratio
     new DbContextMigrationRunner<InquiriesDbContext>(sp.GetRequiredService<IServiceScopeFactory>()),
 ]));
 
+builder.Services.AddSingleton<WorkerRunOutcome>();
 builder.Services.AddHostedService<MigrationWorker>();
 
 IHost host = builder.Build();
+
+// Resolve BEFORE RunAsync: RunAsync disposes the host in a finally.
+WorkerRunOutcome outcome = host.Services.GetRequiredService<WorkerRunOutcome>();
+
 await host.RunAsync();
+
+return outcome.ExitCode;

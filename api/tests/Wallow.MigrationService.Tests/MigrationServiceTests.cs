@@ -1,9 +1,8 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
-using NSubstitute;
-using Wallow.MigrationService;
+using Wallow.ServiceDefaults;
 
-namespace Wallow.Architecture.Tests;
+namespace Wallow.MigrationService.Tests;
 
 public sealed class MigrationServiceTests : IDisposable
 {
@@ -43,6 +42,7 @@ public sealed class MigrationServiceTests : IDisposable
             coreRunners,
             featureRunners,
             _lifetime,
+            new WorkerRunOutcome(),
             NullLogger<MigrationWorker>.Instance);
     }
 
