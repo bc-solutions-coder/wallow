@@ -22,7 +22,9 @@ import { Route as DashboardAppsRegisterRouteImport } from './routes/dashboard/ap
 import { Route as DashboardInquiriesIndexRouteImport } from './routes/dashboard/inquiries/index'
 import { Route as DashboardInquiriesInquiryIdRouteImport } from './routes/dashboard/inquiries/$inquiryId'
 import { Route as DashboardOrganizationsIndexRouteImport } from './routes/dashboard/organizations/index'
+import { Route as DashboardOrganizationsInvitationsRouteImport } from './routes/dashboard/organizations/invitations'
 import { Route as DashboardOrganizationsOrgIdIndexRouteImport } from './routes/dashboard/organizations/$orgId/index'
+import { Route as DashboardOrganizationsOrgIdRequestsRouteImport } from './routes/dashboard/organizations/$orgId/requests'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -91,10 +93,22 @@ const DashboardOrganizationsIndexRoute =
     path: '/organizations/',
     getParentRoute: () => DashboardRouteRoute,
   } as any)
+const DashboardOrganizationsInvitationsRoute =
+  DashboardOrganizationsInvitationsRouteImport.update({
+    id: '/organizations/invitations',
+    path: '/organizations/invitations',
+    getParentRoute: () => DashboardRouteRoute,
+  } as any)
 const DashboardOrganizationsOrgIdIndexRoute =
   DashboardOrganizationsOrgIdIndexRouteImport.update({
     id: '/organizations/$orgId/',
     path: '/organizations/$orgId/',
+    getParentRoute: () => DashboardRouteRoute,
+  } as any)
+const DashboardOrganizationsOrgIdRequestsRoute =
+  DashboardOrganizationsOrgIdRequestsRouteImport.update({
+    id: '/organizations/$orgId/requests',
+    path: '/organizations/$orgId/requests',
     getParentRoute: () => DashboardRouteRoute,
   } as any)
 
@@ -109,9 +123,11 @@ export interface FileRoutesByFullPath {
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/apps/register': typeof DashboardAppsRegisterRoute
   '/dashboard/inquiries/$inquiryId': typeof DashboardInquiriesInquiryIdRoute
+  '/dashboard/organizations/invitations': typeof DashboardOrganizationsInvitationsRoute
   '/dashboard/apps/': typeof DashboardAppsIndexRoute
   '/dashboard/inquiries/': typeof DashboardInquiriesIndexRoute
   '/dashboard/organizations/': typeof DashboardOrganizationsIndexRoute
+  '/dashboard/organizations/$orgId/requests': typeof DashboardOrganizationsOrgIdRequestsRoute
   '/dashboard/organizations/$orgId/': typeof DashboardOrganizationsOrgIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -125,9 +141,11 @@ export interface FileRoutesByTo {
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/apps/register': typeof DashboardAppsRegisterRoute
   '/dashboard/inquiries/$inquiryId': typeof DashboardInquiriesInquiryIdRoute
+  '/dashboard/organizations/invitations': typeof DashboardOrganizationsInvitationsRoute
   '/dashboard/apps': typeof DashboardAppsIndexRoute
   '/dashboard/inquiries': typeof DashboardInquiriesIndexRoute
   '/dashboard/organizations': typeof DashboardOrganizationsIndexRoute
+  '/dashboard/organizations/$orgId/requests': typeof DashboardOrganizationsOrgIdRequestsRoute
   '/dashboard/organizations/$orgId': typeof DashboardOrganizationsOrgIdIndexRoute
 }
 export interface FileRoutesById {
@@ -142,9 +160,11 @@ export interface FileRoutesById {
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/apps/register': typeof DashboardAppsRegisterRoute
   '/dashboard/inquiries/$inquiryId': typeof DashboardInquiriesInquiryIdRoute
+  '/dashboard/organizations/invitations': typeof DashboardOrganizationsInvitationsRoute
   '/dashboard/apps/': typeof DashboardAppsIndexRoute
   '/dashboard/inquiries/': typeof DashboardInquiriesIndexRoute
   '/dashboard/organizations/': typeof DashboardOrganizationsIndexRoute
+  '/dashboard/organizations/$orgId/requests': typeof DashboardOrganizationsOrgIdRequestsRoute
   '/dashboard/organizations/$orgId/': typeof DashboardOrganizationsOrgIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -160,9 +180,11 @@ export interface FileRouteTypes {
     | '/dashboard/settings'
     | '/dashboard/apps/register'
     | '/dashboard/inquiries/$inquiryId'
+    | '/dashboard/organizations/invitations'
     | '/dashboard/apps/'
     | '/dashboard/inquiries/'
     | '/dashboard/organizations/'
+    | '/dashboard/organizations/$orgId/requests'
     | '/dashboard/organizations/$orgId/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -176,9 +198,11 @@ export interface FileRouteTypes {
     | '/dashboard/settings'
     | '/dashboard/apps/register'
     | '/dashboard/inquiries/$inquiryId'
+    | '/dashboard/organizations/invitations'
     | '/dashboard/apps'
     | '/dashboard/inquiries'
     | '/dashboard/organizations'
+    | '/dashboard/organizations/$orgId/requests'
     | '/dashboard/organizations/$orgId'
   id:
     | '__root__'
@@ -192,9 +216,11 @@ export interface FileRouteTypes {
     | '/dashboard/settings'
     | '/dashboard/apps/register'
     | '/dashboard/inquiries/$inquiryId'
+    | '/dashboard/organizations/invitations'
     | '/dashboard/apps/'
     | '/dashboard/inquiries/'
     | '/dashboard/organizations/'
+    | '/dashboard/organizations/$orgId/requests'
     | '/dashboard/organizations/$orgId/'
   fileRoutesById: FileRoutesById
 }
@@ -301,11 +327,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardOrganizationsIndexRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
+    '/dashboard/organizations/invitations': {
+      id: '/dashboard/organizations/invitations'
+      path: '/organizations/invitations'
+      fullPath: '/dashboard/organizations/invitations'
+      preLoaderRoute: typeof DashboardOrganizationsInvitationsRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
     '/dashboard/organizations/$orgId/': {
       id: '/dashboard/organizations/$orgId/'
       path: '/organizations/$orgId'
       fullPath: '/dashboard/organizations/$orgId/'
       preLoaderRoute: typeof DashboardOrganizationsOrgIdIndexRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/organizations/$orgId/requests': {
+      id: '/dashboard/organizations/$orgId/requests'
+      path: '/organizations/$orgId/requests'
+      fullPath: '/dashboard/organizations/$orgId/requests'
+      preLoaderRoute: typeof DashboardOrganizationsOrgIdRequestsRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
   }
@@ -315,9 +355,11 @@ interface DashboardRouteRouteChildren {
   DashboardSettingsRoute: typeof DashboardSettingsRoute
   DashboardAppsRegisterRoute: typeof DashboardAppsRegisterRoute
   DashboardInquiriesInquiryIdRoute: typeof DashboardInquiriesInquiryIdRoute
+  DashboardOrganizationsInvitationsRoute: typeof DashboardOrganizationsInvitationsRoute
   DashboardAppsIndexRoute: typeof DashboardAppsIndexRoute
   DashboardInquiriesIndexRoute: typeof DashboardInquiriesIndexRoute
   DashboardOrganizationsIndexRoute: typeof DashboardOrganizationsIndexRoute
+  DashboardOrganizationsOrgIdRequestsRoute: typeof DashboardOrganizationsOrgIdRequestsRoute
   DashboardOrganizationsOrgIdIndexRoute: typeof DashboardOrganizationsOrgIdIndexRoute
 }
 
@@ -325,9 +367,13 @@ const DashboardRouteRouteChildren: DashboardRouteRouteChildren = {
   DashboardSettingsRoute: DashboardSettingsRoute,
   DashboardAppsRegisterRoute: DashboardAppsRegisterRoute,
   DashboardInquiriesInquiryIdRoute: DashboardInquiriesInquiryIdRoute,
+  DashboardOrganizationsInvitationsRoute:
+    DashboardOrganizationsInvitationsRoute,
   DashboardAppsIndexRoute: DashboardAppsIndexRoute,
   DashboardInquiriesIndexRoute: DashboardInquiriesIndexRoute,
   DashboardOrganizationsIndexRoute: DashboardOrganizationsIndexRoute,
+  DashboardOrganizationsOrgIdRequestsRoute:
+    DashboardOrganizationsOrgIdRequestsRoute,
   DashboardOrganizationsOrgIdIndexRoute: DashboardOrganizationsOrgIdIndexRoute,
 }
 

@@ -30,7 +30,9 @@ const PAGE_FILES: readonly string[] = [
   "inquiries/$inquiryId.tsx",
   "inquiries/index.tsx",
   "organizations/$orgId/index.tsx",
+  "organizations/$orgId/requests.tsx",
   "organizations/index.tsx",
+  "organizations/invitations.tsx",
   "settings.tsx",
 ];
 
@@ -44,6 +46,7 @@ const TITLED_PAGE_FILES: readonly string[] = [
   "apps/register.tsx",
   "inquiries/index.tsx",
   "organizations/index.tsx",
+  "organizations/invitations.tsx",
   "settings.tsx",
 ];
 
