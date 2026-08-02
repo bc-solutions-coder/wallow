@@ -5,6 +5,7 @@ using Wallow.Identity.Application.Commands.BootstrapAdmin;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Identity.Infrastructure.Services;
+using Wallow.ServiceDefaults;
 
 namespace Wallow.SeederService;
 
@@ -12,6 +13,7 @@ public sealed partial class SeederWorker(
     IServiceScopeFactory scopeFactory,
     IOptions<SeedOptions> seedOptions,
     IHostApplicationLifetime lifetime,
+    WorkerRunOutcome outcome,
     ILogger<SeederWorker> logger) : BackgroundService
 {
     private const string AdminRoleName = "admin";
@@ -36,6 +38,9 @@ public sealed partial class SeederWorker(
         }
         catch (Exception ex)
         {
+            // The host swallows this after logging it: RunAsync() still completes successfully and
+            // the process would exit 0. Program.cs reads this flag to exit non-zero instead.
+            outcome.MarkFailed();
             LogSeederFailed(ex);
             throw;
         }

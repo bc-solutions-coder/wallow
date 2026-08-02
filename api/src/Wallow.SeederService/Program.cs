@@ -1,4 +1,5 @@
 using Wallow.SeederService;
+using Wallow.ServiceDefaults;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 
@@ -26,7 +27,15 @@ string connectionString = builder.Configuration.GetConnectionString("DefaultConn
 
 builder.Services.AddSeederIdentityServices(builder.Configuration, connectionString);
 
+builder.Services.AddSingleton<WorkerRunOutcome>();
 builder.Services.AddHostedService<SeederWorker>();
 
 IHost host = builder.Build();
+
+// Resolve BEFORE RunAsync: RunAsync disposes the host in a finally, so resolving afterwards throws
+// ObjectDisposedException.
+WorkerRunOutcome outcome = host.Services.GetRequiredService<WorkerRunOutcome>();
+
 await host.RunAsync();
+
+return outcome.ExitCode;

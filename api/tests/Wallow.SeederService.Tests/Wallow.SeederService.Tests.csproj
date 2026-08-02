@@ -26,6 +26,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Wallow.SeederService\Wallow.SeederService.csproj" />
+    <ProjectReference Include="..\..\src\Wallow.ServiceDefaults\Wallow.ServiceDefaults.csproj" />
     <ProjectReference Include="..\..\src\Modules\Identity\Wallow.Identity.Application\Wallow.Identity.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Identity\Wallow.Identity.Infrastructure\Wallow.Identity.Infrastructure.csproj" />
   </ItemGroup>

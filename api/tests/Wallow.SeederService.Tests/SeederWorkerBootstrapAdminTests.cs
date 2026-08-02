@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using Wallow.Identity.Application.Commands.BootstrapAdmin;
 using Wallow.Identity.Application.Queries.IsSetupRequired;
 using Wallow.Identity.Infrastructure.Options;
+using Wallow.ServiceDefaults;
 
 namespace Wallow.SeederService.Tests;
 
@@ -195,7 +196,7 @@ public class SeederWorkerBootstrapAdminTests
     private SeederWorker CreateWorker(AdminBootstrapOptions? admin)
     {
         SeedOptions seedOptions = new() { Admin = admin };
-        return new SeederWorker(_scopeFactory, Options.Create(seedOptions), _lifetime, _logger);
+        return new SeederWorker(_scopeFactory, Options.Create(seedOptions), _lifetime, new WorkerRunOutcome(), _logger);
     }
 
     private ServiceProvider BuildServiceProvider()
