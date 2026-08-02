@@ -14,12 +14,17 @@ plugin-load time.
 
 ## Where this is registered — the load-bearing constraint
 
-Rules are registered in the **nested app configs only** — `apps/wallow-web/.oxlintrc.json` and
-`apps/wallow-auth/.oxlintrc.json`, the same configs that switch them on:
+Rules are registered in **five nested configs**, each of which is also the config that switches
+them on — `apps/wallow-web`, `apps/wallow-auth`, `packages/ui`, `packages/forms` and
+`packages/navigation`:
 
 ```json
 "jsPlugins": [{ "name": "wallow", "specifier": "@bc-solutions-coder/lint" }]
 ```
+
+Each of the five names `@bc-solutions-coder/lint` as a `workspace:*` devDependency, because a
+`jsPlugins` specifier resolves from the config file's own directory (see below) — a package that
+registers the plugin without depending on it cannot load it.
 
 **It is not registered from the repo-root `.oxlintrc.json`, and it must not be moved there.**
 
@@ -52,9 +57,18 @@ oxlint's **built-in Rust** plugins (`typescript`, `unicorn`, `oxc`, `react`, `im
 compiled into the binary and resolve nothing off disk, so the temp-dir copy loads them fine. Only
 `jsPlugins`, whose entries are real module specifiers, breaks that copy.
 
-The nesting is load-bearing a second time: `packages/ui` legitimately paints an animated backdrop
-with a bare `bg-foreground`, so `no-sidebar-inversion` must never reach the catalog. Living under
-`apps/<app>/` makes that structural rather than a per-glob exemption that can rot.
+**A config that does not register the plugin lints its subtree with every `wallow/*` rule
+vacuously passing, and nothing fails.** That is how the three package configs sat unprotected
+after the shell extraction moved the code these rules police out of `apps/wallow-web` and into
+`packages/navigation`: `pnpm lint`'s roots are `apps packages`, so their files WERE scanned, with
+the rules unloaded. Adding a nested config for a directory that renders UI means adding the
+`jsPlugins` entry and the devDependency with it.
+
+The reasons behind each registration and each scoped exemption are written as `//` comments in
+the config beside the entry — oxlint parses its config as **JSONC**. Two specs read a nested
+config back (`packages/sdk/src/oxlint-guardrails.test.ts`,
+`packages/forms/src/core/package-scaffold.test.ts`) and both strip line comments before
+`JSON.parse`; a third reader must do the same.
 
 ### The cost of nesting
 
@@ -83,6 +97,40 @@ SDK's server entry (`no-nodejs-modules`), and the namespace imports the seam spe
 absence (`no-namespace`, `namespace`). Both passes run `--deny-warnings`, so all seven are switched
 **off** by name beside `no-cycle`. Do not switch them on to tidy the config; do not delete them to
 shorten it.
+
+## Who enables what
+
+| Config                | Enables                                                                               |
+| --------------------- | ------------------------------------------------------------------------------------- |
+| `apps/wallow-web`     | `no-sidebar-inversion`, `no-tinted-text`, `zone-dag`                                  |
+| `apps/wallow-auth`    | `no-hand-rolled-mutation`, `no-sidebar-inversion`, `text-heading-variant`, `zone-dag` |
+| `packages/navigation` | all five                                                                              |
+| `packages/ui`         | all five, minus the drawer indent recipe (see below)                                  |
+| `packages/forms`      | all five, minus `use-app-form.ts` (see below)                                         |
+
+The three packages take **all five** because none of them has a reason to opt out of a rule
+wholesale — `zone-dag` is inert there (it derives its zones from a `tsconfig.json` `paths` map and
+a package declares none), and the other four apply to any file that renders. Where a package has a
+genuine counter-example it is a **scoped override naming the one file**, so everything around it
+stays judged:
+
+- **`packages/ui/src/components/drawer/drawer.styles.ts`** relaxes `no-sidebar-inversion`.
+  `drawerIndentBackgroundRecipe` fades a bare `bg-foreground` in behind the shrinking app UI
+  (`opacity-0` → `data-[active]:opacity-100`), and a fixed alpha baked into the utility is not
+  something a transition can animate from. It is the one bare `bg-foreground` in the repo that is
+  not the retired inversion.
+- **`packages/forms/src/form/use-app-form.ts`** relaxes `no-hand-rolled-mutation`. Its `mutationFn`
+  states no request — it is the stand-in for the no-mutation escape hatch, there so exactly one
+  `useMutation` runs on every path.
+
+`packages/ui`'s `text-heading-variant` names `h2: subheading` but no `h1` entry, unlike
+wallow-auth's `h1: false`: `PageHeader` is where the page's one level-1 heading legitimately
+lives. Every level still has to NAME a variant.
+
+`no-tinted-text` reaches `packages/ui` deliberately, and it found the `link` button variant's
+`hover:text-primary/80`. That was **fixed, not exempted** — `link`'s hover is now the underline
+alone. A recipe is the one place a colour decision gets written down, which is what makes a
+fork-unreachable colour matter more there than at a call site.
 
 ## Both apps are gated, not identically
 

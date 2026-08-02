@@ -1,8 +1,23 @@
 {
   "$schema": "../../node_modules/oxlint/configuration_schema.json",
   "extends": ["../../.oxlintrc.json"],
+  // Registered HERE rather than at the repo root, and that placement is
+  // load-bearing: `packages/sdk/src/oxlint-guardrails.test.ts` copies the ROOT
+  // config to a temp directory, and any `jsPlugins` entry makes that copy
+  // unloadable. See `packages/lint/CLAUDE.md`.
+  "jsPlugins": [{ "name": "wallow", "specifier": "@bc-solutions-coder/lint" }],
   "rules": {
-    "react/jsx-props-no-spreading": "off"
+    "react/jsx-props-no-spreading": "off",
+    // This package is the application shell — the rail, the drawer and the
+    // scrim these rules were written for moved HERE out of `apps/wallow-web`,
+    // so all five apply. `no-sidebar-inversion` in particular: the rail is
+    // painted with the named `sidebar-*` family, and `app-shell.tsx`'s
+    // `BACKDROP_SCRIM` is the alpha spelling the rule deliberately allows.
+    "wallow/no-hand-rolled-mutation": "error",
+    "wallow/no-sidebar-inversion": "error",
+    "wallow/no-tinted-text": "error",
+    "wallow/text-heading-variant": ["error", { "levels": { "h2": "subheading" } }],
+    "wallow/zone-dag": "error"
   },
   "overrides": [
     {
@@ -20,7 +35,17 @@
         "unicorn/prefer-query-selector": "off",
         "unicorn/error-message": "off",
         "func-name-matching": "off",
-        "react/jsx-max-depth": "off"
+        "react/jsx-max-depth": "off",
+        // The same four the two apps relax for specs. A spec's class strings are
+        // SUBJECTS, not decisions: `shell-source.test.ts` demonstrates its own
+        // matcher on a fixture string carrying `md:hover:text-accent-foreground/80`,
+        // and a rule that reported it would make the matcher undemonstrable.
+        // `wallow/zone-dag` is deliberately NOT in this list — it judges a spec's
+        // import edges exactly as it judges a product module's.
+        "wallow/no-hand-rolled-mutation": "off",
+        "wallow/no-sidebar-inversion": "off",
+        "wallow/no-tinted-text": "off",
+        "wallow/text-heading-variant": "off"
       }
     }
   ]

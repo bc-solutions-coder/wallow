@@ -36,10 +36,18 @@ export const buttonRecipe = cva(
         // The three quiet variants are told apart by what they DON'T draw at
         // rest: outline is a border with no surface, ghost is neither until
         // hover, link is underlined text with no box at all.
+        //
+        // `link`'s hover is the underline ALONE. The opacity suffix the solid
+        // variants use to darken their own surface has no text-side equivalent a
+        // fork can reach: a `hover:text-primary/80` is a colour `branding.json`
+        // cannot name, and two call sites reaching for the same alpha have agreed
+        // on a meaning nobody wrote down. That is what `wallow/no-tinted-text`
+        // bans, and the catalog is the one place the decision is made — so the
+        // affordance is the underline appearing, not the ink shifting.
         outline:
           "border border-border bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground",
         ghost: "text-foreground hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:text-primary/80 hover:underline",
+        link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
         sm: "px-2.5 py-1.5 text-xs",

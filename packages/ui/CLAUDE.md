@@ -173,6 +173,14 @@ of null (reading 'useRef')`. `src/core/browser-deps.test.ts` checks that every e
   in as a prop.
 - React, `react-dom`, and `@tanstack/react-router` are **peer** dependencies — keep them out
   of `dependencies`.
+- **`.oxlintrc.json` here registers the `wallow/*` plugin and enables all five rules.** The
+  catalog defines the primitives three of them police, which is why they are on here rather than
+  left to the consumers: a recipe is the one place a colour decision is written down. Two things
+  follow. `no-tinted-text` is why `link`'s hover is the underline alone — the `hover:text-primary/80`
+  it used to carry is a colour `branding.json` cannot reach. And `drawer.styles.ts` is the ONE file
+  with a scoped `no-sidebar-inversion` exemption, because `drawerIndentBackgroundRecipe` FADES a
+  bare `bg-foreground` in (`opacity-0` → `data-[active]:opacity-100`) and a baked-in alpha is not
+  something a transition can animate from. The exemption names that one file, not the folder.
 - **`.oxlintrc.json` here `extends` the root config, and its override globs must stay
   directory-relative.** oxlint reads the NEAREST config for a file and does not merge upward
   on its own, so dropping `extends` silently replaces the root's plugins, categories and

@@ -113,6 +113,19 @@ and `app-shell.tsx` for hand-rolled button utilities the `buttonRecipe` should e
 demonstrate their own matcher on a fixture string first, so a matcher that found nothing
 cannot turn the real case into a spec that cannot fail.
 
+## The lint layer is this package's, not the app's
+
+`.oxlintrc.json` here registers the `wallow/*` plugin and enables **all five** rules. That is not
+symmetry for its own sake: the rail, the drawer and the scrim those rules were written to police
+are what moved HERE out of `apps/wallow-web`, and until they were registered every one of them
+passed vacuously over this source — `pnpm lint`'s roots are `apps packages`, so the files were
+scanned with the rules unloaded. `app-shell.tsx`'s `BACKDROP_SCRIM` is the alpha spelling
+`no-sidebar-inversion` deliberately allows; turn it into a bare `bg-foreground` and `pnpm lint`
+fails. The four class-string rules are off for `*.test.*`/`*.stories.tsx` — a spec's class strings
+are subjects, not decisions, and `shell-source.test.ts` demonstrates its matcher on a fixture
+string carrying `md:hover:text-accent-foreground/80` — while `zone-dag` stays on, exactly as in
+the two apps.
+
 ## Not in scope
 
 `PublicLayout` stays in `apps/wallow-web` and `auth-layout.tsx` stays in `apps/wallow-auth`.

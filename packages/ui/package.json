@@ -51,6 +51,7 @@
   },
   "devDependencies": {
     "@bc-solutions-coder/config": "workspace:*",
+    "@bc-solutions-coder/lint": "workspace:*",
     "@bc-solutions-coder/styles": "workspace:*",
     "@bc-solutions-coder/testing": "workspace:*",
     "@storybook/addon-vitest": "^10.5.5",

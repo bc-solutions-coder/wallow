@@ -1,14 +1,47 @@
 {
   "$schema": "../../node_modules/oxlint/configuration_schema.json",
   "extends": ["../../.oxlintrc.json"],
+  // Registered HERE rather than at the repo root, and that placement is
+  // load-bearing: `packages/sdk/src/oxlint-guardrails.test.ts` copies the ROOT
+  // config to a temp directory, and any `jsPlugins` entry makes that copy
+  // unloadable. See `packages/lint/CLAUDE.md`.
+  "jsPlugins": [{ "name": "wallow", "specifier": "@bc-solutions-coder/lint" }],
   "rules": {
-    "react/jsx-props-no-spreading": "off"
+    "react/jsx-props-no-spreading": "off",
+    // The catalog DEFINES the primitives three of these rules police, so each is
+    // switched on here and narrowed by a scoped override below rather than left
+    // off wholesale — a recipe is the one place a colour decision is written
+    // down, which makes it the place a fork-unreachable colour matters most.
+    //
+    // `text-heading-variant` names `h2: subheading` (the catalog-wide 20px card
+    // heading) but no `h1` entry: `PageHeader` legitimately opens the page's one
+    // level-1 heading at `variant="title"`. Every level still has to NAME a
+    // variant, which is the check that matters here — `Text` derives a much
+    // larger step from `as` alone.
+    "wallow/no-hand-rolled-mutation": "error",
+    "wallow/no-sidebar-inversion": "error",
+    "wallow/no-tinted-text": "error",
+    "wallow/text-heading-variant": ["error", { "levels": { "h2": "subheading" } }],
+    "wallow/zone-dag": "error"
   },
   "overrides": [
     {
       "files": ["**/*.{ts,tsx}"],
       "rules": {
         "no-magic-numbers": ["warn", { "ignore": [0, 1] }]
+      }
+    },
+    {
+      "files": ["src/components/drawer/drawer.styles.ts"],
+      "rules": {
+        // `drawerIndentBackgroundRecipe` is the layer revealed behind the
+        // shrinking app UI, and it FADES: `bg-foreground opacity-0` →
+        // `data-[active]:opacity-100`. The alpha the rule allows elsewhere is a
+        // fixed value baked into the utility, which a transition cannot animate
+        // from — so this is the one bare `bg-foreground` in the repo that is not
+        // the retired inversion. Scoped to the single recipe file rather than the
+        // component folder so the drawer's other surfaces stay judged.
+        "wallow/no-sidebar-inversion": "off"
       }
     },
     {
@@ -20,7 +53,18 @@
         "unicorn/prefer-query-selector": "off",
         "unicorn/error-message": "off",
         "func-name-matching": "off",
-        "react/jsx-max-depth": "off"
+        "react/jsx-max-depth": "off",
+        // The same four the two apps relax for specs. Here the reason is sharper
+        // than in a consumer: these files are where the catalog PROVES its
+        // primitives, so the banned spellings are the subjects. `text.test.tsx`
+        // renders a bare `<Text as="h1">` to measure the scale it derives, and
+        // `drawer.test.tsx` asserts the recipe's own class strings.
+        // `wallow/zone-dag` is deliberately NOT in this list — it judges a spec's
+        // import edges exactly as it judges a product module's.
+        "wallow/no-hand-rolled-mutation": "off",
+        "wallow/no-sidebar-inversion": "off",
+        "wallow/no-tinted-text": "off",
+        "wallow/text-heading-variant": "off"
       }
     }
   ]

@@ -243,7 +243,9 @@ describe("packages/forms scaffold", () => {
 
     // Every catalog field forwards the caller's remaining props onto the ui
     // component it wraps; that spread is the point of the layer.
-    const oxlintrc = JSON.parse(readFileSync(oxlintrcPath, "utf8")) as {
+    // JSONC: the config's `jsPlugins` entry and its scoped `wallow/*` exemption
+    // carry their reasons as `//` comments, which `JSON.parse` rejects.
+    const oxlintrc = JSON.parse(stripLineComments(readFileSync(oxlintrcPath, "utf8"))) as {
       rules?: Record<string, unknown>;
     };
     expect(oxlintrc.rules?.["react/jsx-props-no-spreading"]).toBe("off");

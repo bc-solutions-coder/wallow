@@ -1,14 +1,42 @@
 {
   "$schema": "../../node_modules/oxlint/configuration_schema.json",
   "extends": ["../../.oxlintrc.json"],
+  // Registered HERE rather than at the repo root, and that placement is
+  // load-bearing: `packages/sdk/src/oxlint-guardrails.test.ts` copies the ROOT
+  // config to a temp directory, and any `jsPlugins` entry makes that copy
+  // unloadable. See `packages/lint/CLAUDE.md`.
+  "jsPlugins": [{ "name": "wallow", "specifier": "@bc-solutions-coder/lint" }],
   "rules": {
-    "react/jsx-props-no-spreading": "off"
+    "react/jsx-props-no-spreading": "off",
+    // `no-hand-rolled-mutation` matters more here than in either app: this is the
+    // layer that OWNS the `useMutation` call every form submits through, so a
+    // second hand-written `mutationFn` appearing in a field or the form shell
+    // would route a write around the generated factory for every consumer at
+    // once. The one legitimate `mutationFn` is exempted by path below.
+    "wallow/no-hand-rolled-mutation": "error",
+    "wallow/no-sidebar-inversion": "error",
+    "wallow/no-tinted-text": "error",
+    "wallow/text-heading-variant": ["error", { "levels": { "h2": "subheading" } }],
+    "wallow/zone-dag": "error"
   },
   "overrides": [
     {
       "files": ["**/*.{ts,tsx}"],
       "rules": {
         "no-magic-numbers": ["warn", { "ignore": [0, 1] }]
+      }
+    },
+    {
+      "files": ["src/form/use-app-form.ts"],
+      "rules": {
+        // The rule bans re-stating a request the generator already builds. The
+        // `mutationFn` here states no request at all: it is the stand-in for the
+        // no-mutation escape hatch, whose whole body is `await
+        // options.onSubmit?.(...)`. It exists so there is exactly one
+        // `useMutation` on every path (rules of hooks) and `pending` keeps
+        // working for a form with no SDK operation behind it. A caller's real
+        // operation arrives as `options.mutation`, passed WHOLE.
+        "wallow/no-hand-rolled-mutation": "off"
       }
     },
     {
@@ -20,7 +48,17 @@
         "unicorn/prefer-query-selector": "off",
         "unicorn/error-message": "off",
         "func-name-matching": "off",
-        "react/jsx-max-depth": "off"
+        "react/jsx-max-depth": "off",
+        // The same four the two apps relax for specs. `use-app-form`'s specs hand
+        // the hook a `{ mutationFn }` stand-in on purpose — it is how the submit
+        // pipeline is exercised without an SDK operation, and the sdk-mutation
+        // spec exists precisely to prove the generated factory is accepted WHOLE
+        // beside it. `wallow/zone-dag` is deliberately NOT in this list — it
+        // judges a spec's import edges exactly as it judges a product module's.
+        "wallow/no-hand-rolled-mutation": "off",
+        "wallow/no-sidebar-inversion": "off",
+        "wallow/no-tinted-text": "off",
+        "wallow/text-heading-variant": "off"
       }
     }
   ]

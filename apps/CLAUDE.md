@@ -73,10 +73,12 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
   `subheading` and carry no `weight`, and no file but `auth-layout.tsx` may open an `h1`), and
   `wallow/zone-dag` (the import graph above). The first three are off for `*.test.*` and
   `*.stories.tsx`; `zone-dag` deliberately is NOT, because it judges a spec's edges too — its
-  one spec exemption (`@app/*`) is inside the rule. The scoping is deliberate: `packages/ui`
-  legitimately paints a `bg-foreground` backdrop, so the gate must never reach it, and the plugin
-  is registered from the nested configs only so it stays invisible to
-  `packages/sdk`'s guardrail test (which copies the ROOT config to a temp dir). The two apps are
+  one spec exemption (`@app/*`) is inside the rule. The plugin is registered from the nested
+  configs only so it stays invisible to `packages/sdk`'s guardrail test (which copies the ROOT
+  config to a temp dir) — and the apps are not the only nested configs that register it:
+  `packages/navigation`, `packages/ui` and `packages/forms` do too, because the shell extraction
+  moved most of the UI these rules police out of `apps/wallow-web`. See
+  `packages/lint/CLAUDE.md` for which config enables which rule. The two apps are
   NOT identical — wallow-auth also forbids raw `<button>`, which wallow-web cannot because
   `bff-demo` deliberately ships four un-catalogued ones. These rules replaced ~1,400 lines of
   disk-sweeping guard specs (`catalog-adoption.test.ts`, both `typography.test.ts`,

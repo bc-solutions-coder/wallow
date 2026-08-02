@@ -52,7 +52,7 @@ cleanly to a fresh database.
 | `packages/auth/`    | `@bc-solutions-coder/auth` — shared authn/authz layer (current-user query + hook, `beforeLoad` primer, role/permission helpers)                     |
 | `packages/testing/` | `@bc-solutions-coder/testing` — shared vitest preset + browser-mode test utilities                                                                                          |
 | `packages/config/` | `@bc-solutions-coder/config` — the Vite presets every workspace member builds with; never built, never published                            |
-| `packages/lint/`   | `@bc-solutions-coder/lint` — Wallow's own oxlint JS-plugin rules (`wallow/*`), registered by the two apps' nested configs                     |
+| `packages/lint/`   | `@bc-solutions-coder/lint` — Wallow's own oxlint JS-plugin rules (`wallow/*`), registered by five nested configs (both apps, `ui`, `forms`, `navigation`) |
 | `packages/utils/`  | `@bc-solutions-coder/utils` — the bottom of the graph: pure functions, zero dependencies, subpath-only |
 | `packages/env/`    | `@bc-solutions-coder/env` — deployment-derived addressing for Start apps, zero dependencies, subpath-only |
 | `packages/logger/` | `@bc-solutions-coder/logger` — structured logging, both ends: browser core (`.`) and app-server ingest handler (`./server`) |

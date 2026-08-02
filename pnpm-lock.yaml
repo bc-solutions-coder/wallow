@@ -434,6 +434,9 @@ importers:
       '@bc-solutions-coder/config':
         specifier: workspace:*
         version: link:../config
+      '@bc-solutions-coder/lint':
+        specifier: workspace:*
+        version: link:../lint
       '@bc-solutions-coder/styles':
         specifier: workspace:*
         version: link:../styles
@@ -526,6 +529,9 @@ importers:
       '@bc-solutions-coder/config':
         specifier: workspace:*
         version: link:../config
+      '@bc-solutions-coder/lint':
+        specifier: workspace:*
+        version: link:../lint
       '@bc-solutions-coder/styles':
         specifier: workspace:*
         version: link:../styles
@@ -720,6 +726,9 @@ importers:
       '@bc-solutions-coder/config':
         specifier: workspace:*
         version: link:../config
+      '@bc-solutions-coder/lint':
+        specifier: workspace:*
+        version: link:../lint
       '@bc-solutions-coder/styles':
         specifier: workspace:*
         version: link:../styles

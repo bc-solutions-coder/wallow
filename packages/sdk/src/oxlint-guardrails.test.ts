@@ -742,8 +742,17 @@ interface NestedOxlintConfig extends OxlintConfig {
   plugins?: string[];
 }
 
+/**
+ * oxlint reads its config as JSONC, and the nested configs use that: each
+ * `jsPlugins` entry and each scoped `wallow/*` exemption carries the reason it
+ * exists as a `//` comment beside it, which is the only place a reader looking
+ * at the override will find it. `JSON.parse` rejects those, so strip line
+ * comments first — the same treatment `tsconfig.json` gets elsewhere.
+ */
 function readNestedConfig(configPath: string): NestedOxlintConfig {
-  return JSON.parse(readFileSync(configPath, "utf8")) as NestedOxlintConfig;
+  const text: string = readFileSync(configPath, "utf8").replaceAll(/^\s*\/\/.*$/gmu, "");
+
+  return JSON.parse(text) as NestedOxlintConfig;
 }
 
 describe("every nested oxlint config inherits the root", () => {
