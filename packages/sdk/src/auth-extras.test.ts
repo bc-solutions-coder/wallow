@@ -19,10 +19,6 @@
  * result — never about the wire.
  */
 
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -202,61 +198,7 @@ describe("the shaped arguments plug into the generated operations", () => {
   });
 });
 
-const srcDir: string = dirname(fileURLToPath(import.meta.url));
-
-/** Hand-written source files: everything under `src/` except the generated client and specs. */
-function handWrittenSources(): readonly string[] {
-  return readdirSync(srcDir, { recursive: true, encoding: "utf8" }).filter(
-    (entry: string): boolean =>
-      entry.endsWith(".ts") &&
-      !entry.startsWith("generated") &&
-      !entry.includes("generated/") &&
-      !entry.endsWith(".test.ts"),
-  );
-}
-
-/**
- * The five response interfaces `mfa-client.ts` hand-wrote because the MFA
- * operations used to resolve `200: unknown`. The regenerated client now emits a
- * real schema type for each, so a hand-written copy can only shadow it.
- */
-const HAND_WRITTEN_MFA_INTERFACES: readonly string[] = [
-  "MfaStatusResponse",
-  "MfaEnrollResponse",
-  "MfaConfirmResponse",
-  "MfaDisableResponse",
-  "MfaRegenerateBackupCodesResponse",
-];
-
 describe("the collapsed hand-written surface", () => {
-  it("deletes auth-client.ts", () => {
-    expect(existsSync(join(srcDir, "auth-client.ts"))).toBe(false);
-  });
-
-  it.each(HAND_WRITTEN_MFA_INTERFACES)(
-    "declares %s nowhere outside the generated client",
-    (name: string) => {
-      const declaration: RegExp = new RegExp(`(interface|type)\\s+${name}\\b`, "u");
-      const offenders: readonly string[] = handWrittenSources().filter((file: string): boolean =>
-        declaration.test(readFileSync(join(srcDir, file), "utf8")),
-      );
-
-      expect(offenders).toEqual([]);
-    },
-  );
-
-  it("drops the barrel's hand-written MFA type override and exports auth-extras", () => {
-    const barrel: string = readFileSync(join(srcDir, "index.ts"), "utf8");
-
-    expect(barrel).toMatch(/export \* from "\.\/auth-extras";/u);
-    expect(barrel).not.toContain("./auth-client");
-    // The override block existed only to beat the generated types; with the
-    // hand-written interfaces gone there is nothing left to beat.
-    for (const name of HAND_WRITTEN_MFA_INTERFACES) {
-      expect(barrel).not.toContain(name);
-    }
-  });
-
   it("resolves the barrel's MFA types to the GENERATED schema", () => {
     // `backupCodeCount` is `number | string` in the generated schema and was
     // `number` in the hand-written interface: assigning a string compiles only
@@ -264,19 +206,6 @@ describe("the collapsed hand-written surface", () => {
     const status: MfaStatusResponse = { enabled: true, method: null, backupCodeCount: "3" };
 
     expect(status.backupCodeCount).toBe("3");
-  });
-
-  it("keeps auth-extras to the three behaviors and nothing else", () => {
-    const source: string = readFileSync(join(srcDir, "auth-extras.ts"), "utf8");
-    const codeLines: readonly string[] = source
-      .split("\n")
-      .map((line: string): string => line.trim())
-      .filter(
-        (line: string): boolean =>
-          line !== "" && !line.startsWith("//") && !line.startsWith("/*") && !line.startsWith("*"),
-      );
-
-    expect(codeLines.length).toBeLessThanOrEqual(70);
   });
 
   it("exports exactly the three surviving behaviors", async () => {

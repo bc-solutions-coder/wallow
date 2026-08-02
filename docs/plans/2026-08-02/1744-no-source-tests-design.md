@@ -8,8 +8,15 @@ We are deleting the scanner's reason to exist instead.
 
 ## The problem
 
-Sixteen spec files read application source off disk as text and assert against the string. Every
-one of them strips comments first, and every one hand-rolls the same two-pass stripper:
+> **Scope note, recorded after the fact.** This document was written against an inventory of
+> **sixteen** files. On review the user extended the decision to **every** source-reading spec in
+> the repo — "we don't need any source tests at the moment so remove them all" — which made the
+> real count **77**, explicitly overriding the `CLAUDE.md` guidance that blessed some of them.
+> The analysis below is unchanged and still correct; the tables have been rewritten to the
+> delivered scope. What survived the sweep is stated in *What was kept*.
+
+Seventy-seven spec files read application source off disk as text and assert against the string.
+Every one of them strips comments first, and every one hand-rolls the same two-pass stripper:
 
 ```ts
 source.replaceAll(/\/\*[\s\S]*?\*\//gu, "").replaceAll(/\/\/[^\n]*/gu, "")
@@ -33,9 +40,10 @@ recovering it.
 
 ### Why the count keeps moving
 
-The inventory has been re-derived three times and landed on 23, then 18, then 16. Files leave
-when a sweep is deleted; files arrive because **nothing forbids writing a new one**. Two of the
-current sixteen — `packages/navigation/src/shell-source.test.ts` and
+The inventory has been re-derived three times and landed on 23, then 18, then 16 — each of those
+counting only the sweeps a bead had already flagged, which is why the true figure turned out to be
+77. Files leave when a sweep is deleted; files arrive because **nothing forbids writing a new
+one**. Two of the flagged sixteen — `packages/navigation/src/shell-source.test.ts` and
 `packages/logger/src/charter.test.ts` — landed *hours after* `Wallow-e6gz` was filed to fix them.
 
 There is no rule against source tests. `doctrine` and `shape pin` appear in zero markdown files
@@ -44,7 +52,7 @@ in this repo; the phrase exists only in bead prose. The nearest written guidance
 points the right way but constrains nothing.
 
 So the sweeps were never violating anything. That is the actual defect. Hoisting a better scanner
-would make sixteen unsound specs sound and leave the seventeenth free to be written next week.
+would make every one of them sound and leave the next one free to be written next week.
 
 ### Precedent
 
@@ -62,7 +70,7 @@ to the real oxlint binary), and the registration constraints are all in place.
 
 ## The rule
 
-To be added to `.claude/rules/TESTING.md`:
+Added to `.claude/rules/TESTING.md` (shipped text; read the file for the authority):
 
 > - **No source tests.** A test never reads application source, README prose, or directory layout
 >   off disk — no `readFileSync` over `src/`, no comment stripping, no assertions about file
@@ -70,19 +78,19 @@ To be added to `.claude/rules/TESTING.md`:
 >   `wallow/*` AST rule fires in the editor, names the offending line, and cannot be defeated by
 >   formatting (`packages/lint/CLAUDE.md`). A test calls a function or renders a component and
 >   asserts what happens. Most structural sweeps should not become rules either — a spec pinning
->   file counts or README wording makes the codebase rigid without making it correct; prefer
->   deleting the constraint to relocating it. `wallow/no-source-tests` enforces this. The single
->   exception is `@bc-solutions-coder/testing`'s `./browser-styles-wiring`, which reads a
->   consumer's build config to prove the browser project has a stylesheet attached — build wiring,
->   not application source, and it has no behavioural equivalent short of rendering everything and
->   noticing it is unstyled.
+>   file counts or README wording makes the codebase rigid without making it correct; **prefer
+>   deleting the constraint to relocating it.** `wallow/no-source-tests` enforces this by banning
+>   `node:fs` in a spec, and reaches every spec under the five trees that register the plugin.
+>   […] Parsing a committed data contract (`packages/sdk/openapi/v1.json`,
+>   `packages/styles/styles.css`) and checking it against the runtime modules generated from it is
+>   also fine: an artifact is not source.
 
 Two things follow that are worth stating outright, because they are the point rather than a side
 effect:
 
 1. **Deleting a constraint is the preferred outcome, not the fallback.** A sweep that mandates a
    five-file folder anatomy or forbids an example app from growing a query is rigidity without
-   correctness. Most of the sixteen die with nothing replacing them.
+   correctness. Most of the 77 died with nothing replacing them.
 2. **Coverage genuinely lost is recorded here** rather than discovered later. `Wallow-succ` exists
    because a correct deletion had no successor and nobody wrote that down. See
    *Deliberate holes*.
@@ -92,71 +100,69 @@ effect:
    shipped a 1.27:1 hover contrast defect. "Is this the right colour" is a screenshot, and this
    repo already runs visual regression from `__screenshots__` directories in eleven places.
 
-## Disposition
+## The boundary applied
 
-Every assertion across the sixteen files falls into one of three buckets.
+Every assertion in the 77 files was judged by one line.
 
-### Bucket A — delete, no successor
+**Deleted** — assertions about file existence, folder layout, manifest or config *text*, doc prose,
+or the *text* of a source file. This is the overwhelming majority, and most died with no successor
+at all. Representative losses:
 
-The constraint is not worth enforcing in any tool.
-
-| File | What goes |
+| Class | Examples |
 | --- | --- |
-| `apps/examples/minimal-app/src/sdk-wiring.test.ts` | **whole file.** Every `it` regex-matches a file it read. Its own header concedes "there is nothing left to unit-test". Includes two README assertions (`expect(readme).toMatch(/frontend-state\.md/u)` and a broken-link checker), an `existsSync(...) === false` pinning a file deleted in a past refactor, and "adds no live queries" — a spec that fails when a developer improves the example app. |
-| `packages/navigation/src/shell-source.test.ts` | **whole file.** Two of its seven `it`s test the spec's *own regex helpers* against inline string literals, asserting nothing about the app. Plus `/\bnavControlClass\b/` — a word-presence check — and "asks for the outline variant at both call sites". |
-| 5× `packages/ui/src/components/*/…composition.test.ts` | "ships the five-file catalog anatomy" (`existsSync` × 5 per component); the class-string pins ("hard-codes no layout or colour utility in its JSX", "carries no opacity-suffixed colour in its recipe", "derives the row's test id" via `toMatch(/-item/u)`). |
-| `apps/wallow-auth/src/features-api-seam.test.ts` | "owns a co-located `api.test.ts`", "names a surface". |
-| `apps/wallow-auth/src/shared-current-user.test.ts` | the archaeological half: "declares no `queryFn` of its own", "no second current-user probe survives anywhere under `src/`". |
-| 3× `features/*/api.test.ts` | "never adopts the generated mutation factory", "has no bare operation on the generated entry to prefer instead". |
-| all files | the vacuity meta-guards — "finds the features it is meant to cover", "finds seams to check at all", "is scanning a source tree that still has the route in it". They exist only to prove the sweep is not scanning an empty list, so they die with it. |
+| Folder anatomy | the ui catalog's five-file component shape (`existsSync` × 5 per component); `COMPONENT_FOLDERS`; `dist-structure.test.ts`'s built-tree walk |
+| Manifest sweeps | the `env`/`logger`/`utils` charters' dependency and `exports`-map diffs — pnpm's strict `node_modules` fails an undeclared import at build, and `pnpm check:exports` checks the packed tarball harder than a config diff did |
+| Doc prose | README link integrity, `docs-toc.test.ts`, `bff-pattern-docs.test.ts`, `query-rule-docs.test.ts`, `request-correlation-docs.test.ts` — documentation belongs to the docs build |
+| Source text | `h3-free.test.ts`'s grep for the string `h3`; the seam specs' feature-directory walks; `shell-source.test.ts`; `shared-env.test.ts`'s cross-app resolver sweep; `devtools-gating.test.ts` |
+| Vacuity meta-guards | "finds the features it is meant to cover", "finds seams to check at all" — they existed only to prove the sweep was not scanning an empty list, so they die with it |
 
-### Bucket B — delete, becomes a lint rule
+**Kept** — anything that imports a module and asserts behaviour or export identity. Specifically:
 
-| Rule | Absorbs |
-| --- | --- |
-| `wallow/module-imports` — options `{ allow, allowRelative, exportStar }` | `feature-barrels.test.ts` ×2 ("barrel is re-exports only", "reaches only its own modules"); `features-api-seam.test.ts` ("`api.ts` is a re-export and nothing else", "reaches only the SDK's entries"); `packages/env` charter's "imports nothing at all" (`allow: []`) |
-| `wallow/no-source-tests` | the enforcer — bans `readFileSync` / `readdirSync` / `existsSync` in `**/*.test.{ts,tsx}` |
+- **Identity re-exports** — `expect(api.forgotPassword).toBe(sdkForgotPassword)`. The one construct
+  a call site cannot observe: a hand-written look-alike carries the same name, shape and type,
+  passes every behavioural spec, and reaches an undocumented endpoint.
+- **Build configs read as OBJECTS.** Importing `vite.config.ts` and reading
+  `environments.client.build.copyPublicDir` is not a source read. Several specs were rewritten from
+  text-grep to object-read rather than deleted.
+- **Committed data contracts.** `packages/sdk/openapi/v1.json` and `packages/styles/styles.css` are
+  artifacts, not source; parsing one and checking it against the runtime modules generated from it
+  stays.
+- **The two specs that run the real oxlint binary** — `packages/lint/src/fixtures.test.ts` and
+  `packages/sdk/src/oxlint-guardrails.test.ts`. They assert a *tool's* diagnostics, which is
+  behaviour, and they are the only thing standing between us and a silently inert plugin.
+  `Wallow-mlc3` was exactly that failure.
 
-One options-driven rule rather than three narrow ones, following `text-heading-variant`'s
-precedent. `packages/env`'s "reads no environment of its own" does **not** get a rule: `process.env`
-already fails to typecheck under the `compilerOptions.types: []` the same charter asserts
-separately, and `import.meta.env` alone does not justify a rule. If it proves to matter, it is a
-five-line addition later.
+## The enforcement
 
-`wallow/no-source-tests` needs exactly two overrides, and **each must re-declare the root's
-options rather than extend them** — oxlint override entries *replace*:
+`wallow/no-source-tests` bans **the `node:fs` import** in a `*.test.*` file — not `readFileSync` by
+name. Keying on the call invites aliasing and misses `fs.readFileSync` member calls; the import is
+the chokepoint. It self-gates on `context.filename`, so a config enables it once at the top level
+and it stays inert over source.
 
-- `packages/lint/**` — rule specs shell out to the real oxlint binary and read fixture files.
-- `packages/testing/src/browser-styles-wiring.ts` — the sanctioned exception above.
+**No overrides were written.** The design originally prescribed two (`packages/lint/**` and
+`packages/testing/src/browser-styles-wiring.ts`); both are **unreachable** and would have been dead
+config. `wallow/module-imports`, the second rule this document proposed, was **not written** — the
+sweeps it was to absorb were deleted outright instead, which is the doctrine working as intended.
 
-### Bucket C — keep, already behaviour
+### Accept the holes
 
-- **Identity re-exports** — `expect(api.forgotPassword).toBe(sdkForgotPassword)` in the three
-  `features/*/api.test.ts`. Per `packages/testing/CLAUDE.md:186`, this is the one construct a call
-  site cannot observe: a hand-written look-alike carries the same name, shape and type, passes
-  every behavioural spec, and reaches an undocumented endpoint.
-- **Barrel dynamic imports** — the ui composition specs' `typeof barrel.listRowRecipe === "function"`.
-- **`shared-current-user.test.ts`'s async specs** — "hands this app the current-user hook", "holds a
-  resolved user long enough that a re-mounted probe is a cache read". Real behaviour.
-- **The `.oxlintrc.json` wiring assertions** in the `env` and `logger` charters — "keys an override
-  on this package's source", "restates every ban the root config makes", "bans every other
-  workspace package". These read *config*, not source, through `readJsonc` (line-comments-only,
-  JSONC), which never touches the defective stripper.
-
-That last group is the keystone and gets **more** load-bearing under this plan, not less. If lint
-becomes the primary guard, the specs verifying lint is actually wired on are the only thing
-standing between us and a silently inert plugin. `Wallow-mlc3` — closed 2026-08-02 — was exactly
-that failure: `wallow/*` rules inert over three packages, passing everything.
-
-The remaining charter assertions ("publishes the same subpaths it resolves from source", "gives
-every subpath a lib entry", "points the published conditions at the built files") are duplicates of
-`pnpm check:exports` (publint + `@arethetypeswrong/cli` over real `dist/`) and go with Bucket A.
+The plugin is registered by exactly five nested configs (both apps, `packages/ui`,
+`packages/forms`, `packages/navigation`) and **cannot** move to the repo root:
+`packages/sdk/src/oxlint-guardrails.test.ts` copies the root config to a temp directory, and any
+`jsPlugins` entry makes that copy unloadable — 0 tests run, an unrelated suite silently down
+(`packages/lint/CLAUDE.md` has the measurements). So the rule reaches specs under those five trees
+and nowhere else. Seven `node:fs` specs remain outside its reach, all deliberate: the two oxlint
+runners, `packages/query/src/index.test.ts`'s built-entry check, `packages/sdk`'s two generated-
+surface/regen checks, and `packages/styles`' two data-contract readers. The doctrine holds
+everywhere; it is enforced in five places. That was a decision, not an oversight.
 
 ### Net effect
 
-Two files deleted outright. Fourteen survive substantially thinner. Two new lint rules. `grep -rln
-"replaceAll(/\/\*" apps packages` over test files returns zero — by deletion, not by hoisting. No
-185-line scanner, no fixture tree, no thirteenth subpath export on `packages/testing`.
+Seventy-seven files touched: most deleted outright, the rest thinned to what they can assert by
+importing. One new lint rule. `grep -rln 'from "node:fs"' --include="*.test.ts" apps packages`
+returns **zero under `apps/`** and seven under `packages/`, every one of them named above — by
+deletion, not by hoisting. No 185-line scanner, no fixture tree, no thirteenth subpath export on
+`packages/testing`.
 
 ## Phases
 
@@ -164,13 +170,13 @@ Ordering is a real dependency chain, not a preference.
 
 | Phase | Bead | Work | Why here |
 | --- | --- | --- | --- |
-| **0** | new | `.claude/rules/TESTING.md` rule + `wallow/no-source-tests` (registered, overrides in place) | Gate. Stops a seventeenth sweep landing mid-project — which is how this backlog grew in the first place. The rule will be red against the existing sweeps; that is expected and is what Phases 4a/4b clear. |
+| **0** | `Wallow-xg9t.1` ✅ | `.claude/rules/TESTING.md` rule + `wallow/no-source-tests` + **the whole sweep** | Gate, and it absorbed Phase 4 outright. Once the scope became "remove them all" there was nothing left for a later phase to clear, so the rule shipped with zero violations and needed no grandfather overrides. |
 | **1** | `Wallow-tkyq` | Fix the real navigation escaping into the vitest iframe from `app-shell.toggle.test.tsx` | `packages/navigation` browser runs must be trustworthy before Phase 2 adds a spec there. Today the leak tears down the runner and takes 4 sibling files (28 tests) with it. |
 | **2** | `Wallow-succ` | Nav scrim spec in `packages/navigation` — **click the backdrop, assert the drawer closes** | Depends on Phase 1 only: it builds on `app-shell.toggle.test.tsx`'s router stub. Not a colour spec, so it does not wait on Phase 3. |
 | **3** | `Wallow-h9k1` | Make the existing colour specs name their pointer state per assertion; delete the seven parks | Independent of everything else, and no longer a prerequisite. Ordered here because it is cleanup, not a gate. |
-| **4a** | `Wallow-e6gz` | Write and register `wallow/module-imports`, with fixture specs, **while the sweeps still run** | Rules prove they fire before anything is deleted. Overlap is deliberate. |
-| **4b** | `Wallow-e6gz` | Delete Buckets A and B; thin the survivors to Bucket C | The sweep. |
-| **5** | `Wallow-uhef` | Decide the browser project's `testTimeout` on a quiet machine | **Last.** This is a measurement bead, and Phase 4b removes node specs while Phase 2 adds a browser spec. Measuring before the suite settles measures a suite that will not exist. |
+| ~~4a~~ | `Wallow-e6gz` | ~~Write and register `wallow/module-imports`~~ | **Dropped.** The sweeps it was to absorb are deleted, not converted. |
+| ~~4b~~ | `Wallow-e6gz` | ~~Delete the buckets~~ | **Absorbed into Phase 0.** |
+| **5** | `Wallow-uhef` | Decide the browser project's `testTimeout` on a quiet machine | **Last.** This is a measurement bead, and Phase 0 removed 44 node spec files outright while Phase 2 adds a browser spec. Measuring before the suite settles measures a suite that will not exist. |
 
 ### Phase 1 lead
 
@@ -206,6 +212,34 @@ Recorded so these do not resurface as freshly-filed beads.
   It was only there so the two colour assertions would land in one commit; with the scrim reduced to
   behaviour there is no shared commit left.
 
+Widening the sweep from 16 files to all 77 dropped more than the design originally scoped. These
+are the holes that opened in the second pass, listed so nobody re-derives them as regressions:
+
+- **The SDK's server-handler import isolation.** `packages/sdk/src/server/passthrough.test.ts` read
+  the handler sources and asserted no app-only import crossed into them. Nothing replaces the
+  sweep; the sibling `web-standard-handlers.test.ts` calls each handler with a real `Request`, which
+  proves the handlers run web-standard but says nothing about what they import.
+- **The base-path trio.** Specs pinned the `Dockerfile`'s base-path build arg, the nitro/`vite.config`
+  base wiring, and `router.basepath` against each other by reading all three files. That
+  cross-file agreement is now unpinned — a base-path change in one of the three is caught at run
+  time or not at all.
+- **Brand assets.** The spec grepped `importProtection.include` for the asset entry and `statSync`ed
+  a second copy of each asset to prove the two trees matched. Both halves are gone; a missing brand
+  asset now surfaces as a 404.
+- **The react-query single-copy pole, cross-package.** The root `no-restricted-imports` ban still
+  holds every *import*, in both lint passes, and pnpm's strict `node_modules` still fails a build
+  that imports an undeclared dependency. What is gone is the manifest sweep that read each
+  `package.json` and asserted only `packages/query` names `@tanstack/react-query` — so a second
+  *declaration* is no longer caught, only a second *import*.
+- **wallow-auth's internal-href sweep.** It read the route sources for hard-coded absolute hrefs
+  that should be router links. Not covered by a rule; review only.
+- **`packages/env`'s cross-app resolver sweep.** It read both apps' sources to prove neither
+  hand-built an origin the resolver already computes. Same status: review only.
+- **The hand-rolled-button-utility half of `shell-source.test.ts`.** `wallow/no-tinted-text` covers
+  the colour half. A control that paints itself instead of composing `buttonRecipe` is not covered.
+- **The devtools-gating sweep.** It read app sources to prove devtools mounts sit behind a `DEV`
+  guard. Shipping devtools into a production bundle is now a build-output question nothing asks.
+
 ### On the pointer park
 
 Worth recording because it looked like infrastructure and was not. Playwright's pointer position
@@ -225,14 +259,20 @@ behaviour spec never touches `:hover`.
 
 ## Bead impact
 
-- **`Wallow-e6gz`** — description and acceptance criteria need rewriting. Current criteria demand
+- **`Wallow-e6gz`** — needs re-scoping to near-empty, not rewriting. Its original criteria demanded
   "a single left-to-right comment scanner, recovered from `5641bcf2^` … exported from
-  `packages/testing` on a node-safe subpath", which this plan deliberately does not do. New
-  criterion: the grep returns zero by deletion; `wallow/module-imports` and `wallow/no-source-tests`
-  ship and are registered; Bucket C survives intact; `pnpm check` green.
+  `packages/testing` on a node-safe subpath", which this plan deliberately does not do; and its
+  remaining substance (Phase 4b's sweep) shipped inside `Wallow-xg9t.1`. `wallow/module-imports` was
+  never written, because the sweeps it would have absorbed were deleted rather than converted. Close
+  it, or reduce it to whatever is genuinely left after Phase 0.
 - **`Wallow-xg9t`** (epic) — description still says the epic "starts empty by construction" and
   asks for reparenting as its first action. All five children are already parented. Update.
-- **Phase 0 needs a new bead** under `Wallow-xg9t`, blocking `Wallow-e6gz`.
+- **`Wallow-xg9t.1`** is the Phase 0 bead. It shipped the `.claude/rules/TESTING.md` rule, the
+  `wallow/no-source-tests` rule with its three fixtures, registration in all five nested configs,
+  the sweep over 74 source-reading specs — 44 files deleted outright and 30 thinned in place, with
+  one of the deletions (`packages/sdk/src/server/h3-free.test.ts`) replaced by a behavioural spec —
+  and the CLAUDE.md/doc rewrites that cited them. Three of the 77 inventoried were kept unchanged:
+  the two oxlint-binary runners and `@bc-solutions-coder/testing`'s build-config reader.
 - **`Wallow-succ`** — rewritten. Was "assert the scrim's computed alpha is < 1", now "click the
   backdrop, assert the drawer closes". The `PublicLayout` footer site is dropped from it. The
   `Wallow-h9k1` blocking edge is **removed**; it is still blocked by `Wallow-tkyq` (the router stub
@@ -240,12 +280,13 @@ behaviour spec never touches `:hover`.
 - **`Wallow-h9k1`** — rewritten. Was "hoist the pointer park into `@bc-solutions-coder/testing`",
   now "make colour specs name their pointer state per assertion; delete the seven parks". It adds
   nothing to `packages/testing` and no longer gates anything.
-- **`Wallow-mlc3`** is closed and stays closed; it is cited here only as evidence for keeping the
-  Bucket C lint-wiring assertions.
+- **`Wallow-mlc3`** is closed and stays closed; it is cited here only as the evidence that lint
+  wiring can be silently absent — the argument the JSONC-reading guards in
+  `packages/sdk/src/oxlint-guardrails.test.ts` survived on.
 
 ## Quality gate
 
 `pnpm check` (format:check + lint + lint:tests + typecheck + test + build + check:exports) green at
-the end of every phase, not only at the end. Phase 0 is the exception: `wallow/no-source-tests`
-fires against the sweeps it exists to remove, so Phase 0 lands with the overrides that keep `pnpm
-check` green and Phase 4b removes them.
+the end of every phase, not only at the end. The exception the original plan anticipated —
+Phase 0 landing red against the sweeps and needing temporary overrides — did not arise: because
+Phase 0 deleted the sweeps in the same pass, the rule shipped green with no overrides at all.

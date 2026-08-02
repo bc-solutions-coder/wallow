@@ -22,10 +22,12 @@ React and `react-dom` are **peer** dependencies — keep them out of `dependenci
 repo — so `useAppForm`'s `useMutation` and the host's `QueryClientProvider` are guaranteed to be
 the same module instance (two copies means "No QueryClient set"), which a peer range could not
 guarantee. That applies to the specs too: a spec building its own `QueryClient` takes it from the
-facade. The guard is in two places, neither of them a disk sweep: the root `.oxlintrc.json`
-`no-restricted-imports` ban holds the imports (both lint passes run it, so specs are covered as
-well as sources), and `src/core/package-scaffold.test.ts` holds the manifest and the pre-bundle
-list. The `src/core/query-facade.test.ts` that used to restate the import half by regex is gone.
+facade. The guard is the root `.oxlintrc.json`'s `no-restricted-imports` ban, which holds the
+imports and is not a disk sweep — both lint passes run it, so specs are covered as well as
+sources. The two specs that used to restate it by regex, `src/core/query-facade.test.ts` and
+`src/core/package-scaffold.test.ts`, are both gone (`Wallow-xg9t.1`); pnpm's strict
+`node_modules` is what actually fails a build importing an undeclared dependency, so a manifest
+sweep was never the thing holding this.
 
 ## Internal layout — three layers plus the barrel
 
@@ -87,8 +89,10 @@ Four files move together, plus a fifth when new Base UI surface is involved:
   actionability timeout.
 - **Never mock `@bc-solutions-coder/ui`** — repo-wide rule (`.claude/rules/TESTING.md`). Never
   jsdom or happy-dom.
-- `src/index.test.ts`'s `dist/` assertions are `skipIf(distIsMissing)`, and `pnpm check` runs test
-  **before** build — rebuild after changing the barrel to arm them.
+- `src/index.test.ts` pins the barrel by IMPORTING it, in both directions (public set exact,
+  internals absent). It no longer reaches into `dist/` — the `skipIf(distIsMissing)` block went
+  with the source-reading guards (`Wallow-xg9t.1`). Consumers still resolve this package from
+  `dist/`, so the rebuild note below still applies; nothing asserts the artifact's shape.
 
 ## Gotchas
 
@@ -115,7 +119,7 @@ Four files move together, plus a fifth when new Base UI surface is involved:
 - **`react/jsx-max-depth` is 2** and `pnpm lint` runs `--deny-warnings`, which is why `SelectField`'s
   portal tree is split into one component per nesting level. `unicorn/catch-error-name` requires the
   catch parameter be named `error` outside tests.
-- **`.oxlintrc.json` here registers the `wallow/*` plugin and enables all five rules.**
+- **`.oxlintrc.json` here registers the `wallow/*` plugin and enables all six rules.**
   `no-hand-rolled-mutation` matters more here than in either app: this is the layer that owns the
   `useMutation` every form submits through, so a second hand-written `mutationFn` in a field or the
   shell would route a write around the generated factory for every consumer at once. The one

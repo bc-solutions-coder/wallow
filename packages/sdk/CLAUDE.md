@@ -14,7 +14,10 @@ the OIDC session and proxies API calls with a bearer attached.
 
 **The server entries are h3-free and must stay that way.** Every handler is a
 web-standard `(request: Request) => Promise<Response>`; the SDK declares no host
-framework and imports none. `src/server/h3-free.test.ts` pins this.
+framework and imports none. `src/server/web-standard-handlers.test.ts` pins it the
+way that matters — it CALLS each handler with a real `Request` and asserts a real
+`Response` comes back. The `h3-free.test.ts` it replaced grepped the source for the
+string `h3`, which a rename defeats and a behavioural test does not.
 
 ## Deleted surface — do not bring it back
 

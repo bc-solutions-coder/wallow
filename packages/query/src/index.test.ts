@@ -26,7 +26,7 @@
  * project (`vitest.config.ts` is node-only for this package).
  */
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -93,7 +93,6 @@ describe("@bc-solutions-coder/query built package", () => {
   // case: run `pnpm --filter @bc-solutions-coder/query build` to arm them.
   const distDir = join(packageDir, "dist");
   const distEntry = join(distDir, "index.js");
-  const distTypes = join(distDir, "index.d.ts");
   const distIsMissing = !existsSync(distEntry);
 
   it.skipIf(distIsMissing)(
@@ -121,36 +120,4 @@ describe("@bc-solutions-coder/query built package", () => {
       expect(typeof built.createQueryClient).toBe("function");
     },
   );
-
-  it.skipIf(distIsMissing)("declares the facade in the emitted types", () => {
-    // `vite build` and `tsc -p tsconfig.build.json` are two independent passes
-    // over the same barrel, so the .d.ts can lag the .js. Consumers typecheck
-    // against this file alone: it must carry both the react-query re-export and
-    // our own symbol.
-    const declarations = readFileSync(distTypes, "utf8");
-
-    expect(declarations).toMatch(/@tanstack\/react-query/u);
-    for (const name of FACADE_ADDITIONS) {
-      expect(declarations, name).toMatch(new RegExp(`\\b${name}\\b`, "u"));
-    }
-  });
-});
-
-describe("@bc-solutions-coder/query agent guide", () => {
-  // The facade rule only holds if the next contributor can find it. Pinned on
-  // disk because a rule documented nowhere gets re-litigated by every migration.
-  const guide = join(packageDir, "CLAUDE.md");
-
-  it("exists", () => {
-    expect(existsSync(guide)).toBe(true);
-  });
-
-  it("states the facade rule and what the package owns", () => {
-    const prose = readFileSync(guide, "utf8");
-
-    expect(prose).toMatch(/facade/iu);
-    expect(prose).toMatch(/@tanstack\/react-query/u);
-    expect(prose).toMatch(/createQueryClient/u);
-    expect(prose).toMatch(/devtools/iu);
-  });
 });

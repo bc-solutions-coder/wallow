@@ -2,6 +2,7 @@ import { definePlugin, eslintCompatPlugin } from "@oxlint/plugins";
 
 import { noHandRolledMutation } from "./rules/no-hand-rolled-mutation.ts";
 import { noSidebarInversion } from "./rules/no-sidebar-inversion.ts";
+import { noSourceTests } from "./rules/no-source-tests.ts";
 import { noTintedText } from "./rules/no-tinted-text.ts";
 import { textHeadingVariant } from "./rules/text-heading-variant.ts";
 import { zoneDag } from "./rules/zone-dag.ts";
@@ -25,6 +26,7 @@ export default eslintCompatPlugin(
     rules: {
       "no-hand-rolled-mutation": noHandRolledMutation,
       "no-sidebar-inversion": noSidebarInversion,
+      "no-source-tests": noSourceTests,
       "no-tinted-text": noTintedText,
       "text-heading-variant": textHeadingVariant,
       "zone-dag": zoneDag,

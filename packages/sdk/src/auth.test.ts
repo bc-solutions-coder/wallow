@@ -1,8 +1,5 @@
-import { readFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import { type AddressInfo } from "node:net";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -407,43 +404,5 @@ describe("login/logout under SSR (no browser globals)", () => {
     await logout();
     expect(fetchMock.mock.calls[0]?.[0]).toBe("/bff/logout");
     expect(location.href).toBe(END_SESSION_URL);
-  });
-});
-
-/**
- * Framework neutrality guard: the SSR fix must be a plain `typeof location`
- * check, never TanStack Start's `createIsomorphicFn`. The SDK must not gain a
- * dependency on `@tanstack/react-start` in any dependency bucket, and `auth.ts`
- * must not import it.
- */
-describe("SDK framework neutrality", () => {
-  // packages/sdk/src -> packages/sdk
-  const packageRoot: string = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-
-  interface PackageJson {
-    dependencies?: Record<string, string>;
-    devDependencies?: Record<string, string>;
-    peerDependencies?: Record<string, string>;
-  }
-
-  it("declares no dependency on @tanstack/react-start", () => {
-    const pkg: PackageJson = JSON.parse(
-      readFileSync(resolve(packageRoot, "package.json"), "utf8"),
-    ) as PackageJson;
-
-    const declared: string[] = [
-      ...Object.keys(pkg.dependencies ?? {}),
-      ...Object.keys(pkg.devDependencies ?? {}),
-      ...Object.keys(pkg.peerDependencies ?? {}),
-    ];
-
-    expect(declared).not.toContain("@tanstack/react-start");
-  });
-
-  it("does not import @tanstack/react-start or createIsomorphicFn in auth.ts", () => {
-    const source: string = readFileSync(resolve(packageRoot, "src/auth.ts"), "utf8");
-
-    expect(source).not.toContain("@tanstack/react-start");
-    expect(source).not.toContain("createIsomorphicFn");
   });
 });

@@ -20,6 +20,10 @@
     // larger step from `as` alone.
     "wallow/no-hand-rolled-mutation": "error",
     "wallow/no-sidebar-inversion": "error",
+    // The one rule here that applies ONLY to specs: it bans `node:fs` in a
+    // `*.test.*` file and self-gates on the filename, so it is stated once at this
+    // level and stays silent over source. See `.claude/rules/TESTING.md`.
+    "wallow/no-source-tests": "error",
     "wallow/no-tinted-text": "error",
     "wallow/text-heading-variant": ["error", { "levels": { "h2": "subheading" } }],
     "wallow/zone-dag": "error"
@@ -60,7 +64,9 @@
         // renders a bare `<Text as="h1">` to measure the scale it derives, and
         // `drawer.test.tsx` asserts the recipe's own class strings.
         // `wallow/zone-dag` is deliberately NOT in this list — it judges a spec's
-        // import edges exactly as it judges a product module's.
+        // import edges exactly as it judges a product module's. Neither is
+        // `wallow/no-source-tests`, which has nothing BUT specs to judge; turning it
+        // off here would turn it off everywhere.
         "wallow/no-hand-rolled-mutation": "off",
         "wallow/no-sidebar-inversion": "off",
         "wallow/no-tinted-text": "off",

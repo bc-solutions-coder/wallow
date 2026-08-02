@@ -49,8 +49,10 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
   only the importer SCOPE. What actually gets denied is the **filename**: Start's default
   client rule blocks an imported file matching `**/*.server.*` and knows nothing about
   `redis` or `node:crypto`, so every server-only module is named `*.server.*`
-  (`wallow-web/src/app/lib/bff.server.ts`, `wallow-auth/src/shared/lib/api-passthrough.server.ts`)
-  and `src/server-only-naming.test.ts` — byte-identical in both apps — keeps it that way.
+  (`wallow-web/src/app/lib/bff.server.ts`, `wallow-auth/src/shared/lib/api-passthrough.server.ts`).
+  Start's import protection is what enforces the naming — a client module reaching a `*.server.*`
+  file fails the BUILD. `src/server-only-naming.test.ts`, the byte-identical spec that used to
+  restate it by sweeping both apps' source, is deleted (`Wallow-xg9t.1`).
 - Every app spells out `server.port` in its `vite.config.ts` (`vite dev` binds 3000 when
   `PORT` is unset). `@tanstack/react-start`/`react-router`/`react-router-ssr-query` are still
   pinned exactly, but the pin now lives in the **`start` catalog** in `pnpm-workspace.yaml`:
@@ -70,10 +72,13 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
   `text-<token>/<alpha>` — muted copy is `text-muted-foreground`; a translucent _surface_ such as
   the drawer scrim's `bg-foreground/40` stays legal), `wallow/text-heading-variant`
   (wallow-auth only: every `<Text as="h_">` must name its `variant`, an `h2` must be
-  `subheading` and carry no `weight`, and no file but `auth-layout.tsx` may open an `h1`), and
-  `wallow/zone-dag` (the import graph above). The first three are off for `*.test.*` and
-  `*.stories.tsx`; `zone-dag` deliberately is NOT, because it judges a spec's edges too — its
-  one spec exemption (`@app/*`) is inside the rule. The plugin is registered from the nested
+  `subheading` and carry no `weight`, and no file but `auth-layout.tsx` may open an `h1`),
+  `wallow/zone-dag` (the import graph above), and `wallow/no-source-tests` (bans `node:fs` in a
+  `*.test.*` file — a spec asserts behaviour, not source text; see `.claude/rules/TESTING.md`).
+  The first three are off for `*.test.*` and `*.stories.tsx`. `zone-dag` deliberately is NOT,
+  because it judges a spec's edges too — its one spec exemption (`@app/*`) is inside the rule —
+  and neither is `no-source-tests`, which has nothing BUT specs to judge, so listing it in the
+  test override would switch it off everywhere. The plugin is registered from the nested
   configs only so it stays invisible to `packages/sdk`'s guardrail test (which copies the ROOT
   config to a temp dir) — and the apps are not the only nested configs that register it:
   `packages/navigation`, `packages/ui` and `packages/forms` do too, because the shell extraction
@@ -94,12 +99,15 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
   `"off"` for `src/features/*/api.ts` and its co-located `api.test.ts` — oxlint has no
   `excludedFiles`, so ORDER is the mechanism, and an override's `no-restricted-imports` entry
   REPLACES the base one rather than merging, which is why that override restates every root ban
-  it still wants. `wallow/no-hand-rolled-mutation` (wallow-auth's fifth plugin rule) reports any
-  `mutationFn` property, so a write goes through the generated `{operation}Mutation()` factory.
+  it still wants. `wallow/no-hand-rolled-mutation` reports any
+  `mutationFn` property, so a write goes through the generated `{operation}Mutation()` factory
+  (it is wallow-auth's, not wallow-web's).
   Together they replaced the table-driven halves of `generated-mutations.test.ts` and
-  `features-api-seam.test.ts` (~950 lines down to ~290); what those two still hold is runtime
-  fact about the generated surface and the seam's _shape_, derived from disk rather than from a
-  hand-kept list of screen paths.
+  `features-api-seam.test.ts`. The latter is now deleted outright and the per-feature
+  `api.test.ts` files are trimmed to what they can assert by IMPORTING the seam
+  (`Wallow-xg9t.1`) — the seam's _shape_, which they derived by walking each feature directory,
+  is held by the two lint overrides above rather than by a disk sweep. `generated-mutations.test.ts`
+  survives: it exercises the generated surface at runtime.
 - **Backend data, react-query imports, and auth state each have exactly one source.** Stated in
   full under "Frontend state boundary" at the bottom of this file — read it before adding a query,
   a mutation, or a permission check.

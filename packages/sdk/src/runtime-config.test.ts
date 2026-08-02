@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-
 import { describe, expect, it } from "vitest";
 
 import openApiConfig from "../openapi-ts.config";
@@ -62,16 +59,6 @@ describe("openapi-ts.config", () => {
 });
 
 describe("generated client", () => {
-  it("is constructed through createClientConfig", () => {
-    const source = readFileSync(
-      fileURLToPath(new URL("./generated/client.gen.ts", import.meta.url)),
-      "utf8",
-    );
-
-    expect(source).toMatch(/from ['"]\.\.\/runtime-config['"]/);
-    expect(source).toMatch(/createClient\(\s*createClientConfig\(/);
-  });
-
   it("starts out pointed at the BFF path with credentials included", () => {
     const config = generatedClient.getConfig();
 

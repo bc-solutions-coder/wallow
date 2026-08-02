@@ -1,7 +1,3 @@
-import { existsSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createWallowSdk, type CreateWallowSdkOptions, type WallowSdk } from "./create-sdk";
@@ -37,8 +33,6 @@ import { usersGetCurrentUser } from "./generated/sdk.gen";
  *       is what keeps an SSR-primed cache hydration-compatible with the browser;
  *   (f) lives in `server/internal-origin.test.ts`.
  */
-
-const repoRelativeSrc: string = dirname(fileURLToPath(import.meta.url));
 
 const BROWSER_BASE_URL = "https://app.test/api";
 const OTHER_BASE_URL = "https://other.test/api";
@@ -415,17 +409,4 @@ describe("(e) internalOrigin applies only inside the instance's fetch", () => {
 
     expect(JSON.stringify(sdk.client.getConfig())).not.toContain(INTERNAL_ORIGIN);
   });
-});
-
-describe("the singleton-configuration modules are gone", () => {
-  // The factory does not merely supersede the module-global configure-once model —
-  // Wallow-pu6a.5.5 deleted it. These modules carried a `@deprecated` marker during
-  // the transition; now their absence is the assertion, so nothing can quietly
-  // reintroduce a second, process-wide way to configure the SDK.
-  it.each(["client.ts", "ssr.ts", "facade.ts", "mfa-client.ts"])(
-    "no longer ships src/%s",
-    (file: string) => {
-      expect(existsSync(resolve(repoRelativeSrc, file))).toBe(false);
-    },
-  );
 });

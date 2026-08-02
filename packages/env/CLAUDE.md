@@ -36,9 +36,12 @@ read stays at the call site, inside the server-only middleware callback:
 internalOrigin: resolveInternalOrigin(process.env);
 ```
 
-`src/charter.test.ts` asserts this at the source level — no `process.env`, no
-`import.meta.env`, and no `import` statement at all, in every shipped module. The `types: []`
-compile guard `utils` leans on cannot do that job here, because `lib` is not narrowed.
+`src/charter.test.ts` used to assert this by reading every shipped module's source — no
+`process.env`, no `import.meta.env`, no `import` statement at all — and it went with the rest of
+the source-reading guards (`Wallow-xg9t.1`). Nothing enforces it now: the `types: []` compile
+guard `utils` leans on cannot do the job here, because `lib` is not narrowed. **The constraint is
+real even though it is unheld** — a `process.env` read at module scope here breaks a client build
+or leaks a server value into one, so treat the rule above as load-bearing on review.
 
 ## What a bundler-substituted value cannot be
 
@@ -61,9 +64,11 @@ substitutes belongs in the bundle being built, not in a library.
 drifts costs an SSR cache hit on one app and not the others — the SSR pass builds an `http` key
 the hydrating browser never matches.
 
-`apps/wallow-web/src/shared-env.test.ts` is the cross-app guard: it reaches into all three apps
-to assert the local copies are gone, both origin subpaths are imported, each app's own `baseUrl`
-composition is intact, and no module under any app's `src` re-declares either resolver.
+`apps/wallow-web/src/shared-env.test.ts` was the cross-app guard — it reached into all three
+apps' source to assert the local copies were gone and no module re-declared either resolver. It
+is deleted (`Wallow-xg9t.1`). A re-declared resolver is a duplicate, not a break: it would still
+compute the same origin, which is why the failure it watched for is drift over time rather than a
+regression a spec catches on the day it lands. Import the subpath.
 
 ## `x-forwarded-proto` is validated, not trusted
 

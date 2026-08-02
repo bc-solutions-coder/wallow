@@ -1,7 +1,3 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { BffConfig } from "./config";
@@ -506,51 +502,6 @@ describe("discover applies the plain-http gate", () => {
     await discover(config);
 
     expect(discoveryOptions()?.execute).toEqual([allowInsecureRequestsMock]);
-  });
-});
-
-describe("the bundled server surface reads no bundler-foldable environment signal", () => {
-  const serverDir: string = dirname(fileURLToPath(import.meta.url));
-
-  /**
-   * This spec necessarily names the very tokens it forbids (both in the pattern
-   * literals and in the `vi.stubEnv` calls above), so it is the one file the
-   * sweep skips.
-   */
-  const SELF: string = fileURLToPath(import.meta.url);
-
-  /**
-   * Signals Vite's bundler substitutes at BUILD time and then constant-folds. Any
-   * these in the server entry is a decision the built nitro bundle has already
-   * made before the process starts, and no runtime environment can change it.
-   */
-  const FOLDABLE_SIGNALS: ReadonlyArray<readonly [string, RegExp]> = [
-    ["NODE_ENV", /NODE_ENV/u],
-    ["import.meta.env", /import\.meta\.env/u],
-  ];
-
-  /** Every `.ts` module under the server entry, excluding specs. */
-  function serverModules(dir: string): string[] {
-    const found: string[] = [];
-    for (const entry of readdirSync(dir)) {
-      const full: string = join(dir, entry);
-      if (statSync(full).isDirectory()) {
-        found.push(...serverModules(full));
-      } else if (full.endsWith(".ts") && !full.endsWith(".test.ts") && full !== SELF) {
-        found.push(full);
-      }
-    }
-    return found;
-  }
-
-  it.each(FOLDABLE_SIGNALS)("no module under src/server reads %s", (_name, pattern: RegExp) => {
-    const offenders: string[] = serverModules(serverDir)
-      .filter((file: string): boolean => pattern.test(readFileSync(file, "utf8")))
-      .map((file: string): string => resolve(file));
-
-    // Doc comments count: a comment that still describes the gate as
-    // NODE_ENV-driven documents the bug rather than the fix.
-    expect(offenders).toEqual([]);
   });
 });
 

@@ -55,13 +55,13 @@ project):
   as a second copy) and `dist/index.d.ts` declares both react-query and `createQueryClient`.
   Run `pnpm --filter @bc-solutions-coder/query build` to arm those two.
 - `query-client.test.ts` — the `createQueryClient` policy.
-- `devtools-gating.test.ts` — the **repo-wide devtools sweep** lives here. It discovers every
-  app under `apps/` and asserts no `*-devtools` package sits in an app's `dependencies` and no
-  app module statically imports one (a dynamic `import()` behind a dev guard is the only
-  permitted form). Its detectors are proven against a fixture tree first, so a green sweep is
-  evidence of compliance rather than of a scanner that finds nothing. It binds all three apps,
-  so no single app owns it; it lives here because the panels it gates are this client's and
-  its router's. Keep exactly one copy.
+
+`devtools-gating.test.ts`, the repo-wide sweep that walked `apps/` asserting no app statically
+imported a `*-devtools` package, is **gone** (`Wallow-xg9t.1`) and is not to be recreated. The
+rule it enforced still stands — a devtools panel is reached by dynamic `import()` behind a dev
+guard, never a static import — but a spec reading three apps' source as text is not how it is
+held. A static import would ship the panel into every production bundle, which is a build-output
+fact; the sweep only ever restated it.
 
 Scripts: `pnpm --filter @bc-solutions-coder/query build` (Vite lib mode +
 `tsc -p tsconfig.build.json`), `test`, `test:watch`, `typecheck`.

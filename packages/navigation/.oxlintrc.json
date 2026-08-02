@@ -15,6 +15,10 @@
     // `BACKDROP_SCRIM` is the alpha spelling the rule deliberately allows.
     "wallow/no-hand-rolled-mutation": "error",
     "wallow/no-sidebar-inversion": "error",
+    // The one rule here that applies ONLY to specs: it bans `node:fs` in a
+    // `*.test.*` file and self-gates on the filename, so it is stated once at this
+    // level and stays silent over source. See `.claude/rules/TESTING.md`.
+    "wallow/no-source-tests": "error",
     "wallow/no-tinted-text": "error",
     "wallow/text-heading-variant": ["error", { "levels": { "h2": "subheading" } }],
     "wallow/zone-dag": "error"
@@ -37,11 +41,12 @@
         "func-name-matching": "off",
         "react/jsx-max-depth": "off",
         // The same four the two apps relax for specs. A spec's class strings are
-        // SUBJECTS, not decisions: `shell-source.test.ts` demonstrates its own
-        // matcher on a fixture string carrying `md:hover:text-accent-foreground/80`,
-        // and a rule that reported it would make the matcher undemonstrable.
+        // SUBJECTS, not decisions — a spec asserting what a recipe emits has to be
+        // able to write the spelling the recipe is banned from choosing.
         // `wallow/zone-dag` is deliberately NOT in this list — it judges a spec's
-        // import edges exactly as it judges a product module's.
+        // import edges exactly as it judges a product module's. Neither is
+        // `wallow/no-source-tests`, which has nothing BUT specs to judge; turning it
+        // off here would turn it off everywhere.
         "wallow/no-hand-rolled-mutation": "off",
         "wallow/no-sidebar-inversion": "off",
         "wallow/no-tinted-text": "off",

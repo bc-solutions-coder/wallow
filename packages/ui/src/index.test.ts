@@ -11,10 +11,12 @@
  *
  * It therefore PASSES BEFORE the migration as well as after (see the red-phase
  * note on the bead): it is an invariant guard, not a new-structure assertion.
- * The new-structure assertions that must fail first live in
- * `src/core/package-scaffold.test.ts`. A migration that silently drops an export
- * while rewriting the barrel — the single most likely way this "zero risk"
- * restructure actually breaks the apps — turns this file red.
+ * A migration that silently drops an export while rewriting the barrel — the
+ * single most likely way this "zero risk" restructure actually breaks the apps —
+ * turns this file red. It is now the ONLY pin on the catalog set:
+ * `core/package-scaffold.test.ts` and `core/dist-structure.test.ts` walked the
+ * folder tree and `dist/` off disk, and went with the source-reading guards
+ * (`Wallow-xg9t.1`).
  *
  * Two surfaces are pinned, because the barrel re-exports both:
  *   - runtime values (components + the two exported constants), checked here;
@@ -353,7 +355,8 @@ import type {
  * path; see Wallow-m5aq.1.2).
  *
  * Each Base UI wave grows this list once, at its gate, in lockstep with
- * `src/index.ts` and `COMPONENT_FOLDERS` in `core/package-scaffold.test.ts`.
+ * `src/index.ts` — the two are what the catalog is, now that nothing walks
+ * `src/components` off disk.
  * Components only: a component's CVA recipe is public on its own subpath
  * (`@bc-solutions-coder/ui/<name>`) and deliberately absent here.
  */

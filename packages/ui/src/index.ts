@@ -1,7 +1,7 @@
 // The root barrel re-exports every folder under src/components — and only
 // folders — one line per folder, ordered by folder name so it reads against
-// `ls src/components` (and against COMPONENT_FOLDERS in
-// src/core/package-scaffold.test.ts, which asserts exactly that).
+// `ls src/components`. PUBLIC_RUNTIME_EXPORTS in src/index.test.ts is the exact
+// set, in both directions; keep the two in lockstep.
 //
 // Components and their prop types only: each component's CVA recipe stays on
 // its own subpath (@bc-solutions-coder/ui/<name>), so styling internals do not

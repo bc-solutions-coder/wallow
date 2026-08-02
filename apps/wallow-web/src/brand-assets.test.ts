@@ -1,8 +1,6 @@
-import { readFileSync, statSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { forkBranding } from "@bc-solutions-coder/styles";
 import { wallowStyles } from "@bc-solutions-coder/styles/vite";
 import type { Plugin, UserConfig } from "vite";
 import { describe, expect, it } from "vitest";
@@ -23,13 +21,18 @@ import viteConfig from "../vite.config";
  * brand-assets plugin sets `publicDir` through its `config()` hook rather than
  * the app declaring a raw `publicDir` field — so this guard asserts the
  * behaviour through that seam.
+ *
+ * Two pins that were here are deliberately gone with the source-reading tests:
+ * "keeps no brand asset copy of its own" stat'd `public/`, and the
+ * import-protection pin grepped `vite.config.ts` for `importProtection.include`.
+ * Neither is observable from the constructed config — Start's plugin objects do
+ * not expose the options they were built with — so both are dropped rather than
+ * rewritten. A rebrand that silently misses a second icon copy is what `e2e/`
+ * loading the built app is for.
  */
 const brandAssetsDir: string = fileURLToPath(
   new URL("../../../packages/styles/assets/", import.meta.url),
 );
-
-/** This app's own root — the directory holding `vite.config.ts` and `public/`. */
-const appDir: string = fileURLToPath(new URL("../", import.meta.url));
 
 /** Resolve the `publicDir` the shared brand-assets plugin contributes via its
  * `config()` hook, or `undefined` if the plugin declares none. */
@@ -64,37 +67,6 @@ describe("the wallow-web client build", () => {
 
     expect(publicDir).toBeDefined();
     expect(resolve(String(publicDir))).toBe(resolve(brandAssetsDir));
-  });
-
-  it("keeps no brand asset copy of its own", () => {
-    // Two copies of the icon is two places a fork has to remember to rebrand,
-    // and the drift is silent.
-    const appPublicDir: string = join(appDir, "public");
-
-    // `statSync(..., { throwIfNoEntry: false })` answers `undefined` for a path
-    // that does not exist AND for a path whose PARENT does not exist, so a wrong
-    // `appPublicDir` would make the assertion below pass vacuously. Prove the
-    // shared copy is really there through the same call first: if this line
-    // resolves, the negative one below is measuring something.
-    expect(
-      statSync(join(brandAssetsDir, forkBranding.appIcon), { throwIfNoEntry: false }),
-    ).toBeDefined();
-    expect(statSync(join(appPublicDir, forkBranding.appIcon), { throwIfNoEntry: false })).toBe(
-      undefined,
-    );
-  });
-
-  it("keeps import protection covering every zone, not just src/app", () => {
-    // Regression guard for the `srcDirectory: "src/app"` narrowing: with no
-    // `include`, import protection falls back to srcDirectory as its importer
-    // scope, which would silently stop enforcing the server-only/client-bundle
-    // boundary for everything under `src/features/**` and `src/shared/**`.
-    // Nothing about that failure is visible until a `redis` import reaches a
-    // browser bundle, so it is asserted on the config text.
-    const text: string = readFileSync(join(appDir, "vite.config.ts"), "utf8");
-
-    expect(text).toMatch(/srcDirectory:\s*"src\/app"/u);
-    expect(text).toMatch(/importProtection:\s*\{\s*include:\s*\["src\/\*\*"\]\s*\}/u);
   });
 
   it("re-enables copyPublicDir on the client environment", () => {

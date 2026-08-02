@@ -1,7 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
-
 import type { ConfigEnv, ConfigPluginContext, Plugin, PluginOption, UserConfig } from "vite";
 import { describe, expect, it } from "vitest";
 
@@ -26,8 +22,6 @@ import { brandAssetsPlugin, forkThemePlugin, THEME_MODULE_ID, wallowStyles } fro
  * which a source-text read cannot see. Restating it here only meant a build
  * restructure had to be spelled two ways before it could be tried once.
  */
-const packageRoot: string = fileURLToPath(new URL("../", import.meta.url));
-
 /**
  * `tailwindcss()` returns a nested `PluginOption` (an array of Vite plugins), so
  * flatten the tree `wallowStyles()` produces down to the concrete plugin objects
@@ -133,16 +127,6 @@ describe("forkThemePlugin", () => {
     // block every `var()` is invalid-at-computed-value-time.
     expect(css).toContain(":root {");
     expect(css).toContain("--background:");
-  });
-
-  it("renders the theme per request rather than from a build artifact", () => {
-    // The root `pnpm check` runs `test` BEFORE `build`, so a generated theme.css
-    // on disk would be stale exactly when it matters. Two loads of a changed
-    // branding must not be able to disagree, which is why `load` calls
-    // `renderThemeStyle` itself instead of closing over a cached string.
-    const source: string = readFileSync(join(packageRoot, "src/vite.ts"), "utf8");
-
-    expect(source).toContain("renderThemeStyle(forkResolvedBranding)");
   });
 });
 

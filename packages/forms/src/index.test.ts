@@ -27,10 +27,6 @@
  * catalog fields nor the ui components they wrap touch the DOM at module scope.
  */
 
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
-
 import { describe, expect, it } from "vitest";
 
 import * as forms from "./index";
@@ -53,9 +49,6 @@ import type {
   UseAppFormOptions,
   WallowFormExtras,
 } from "./index";
-
-// This spec lives at src/, so ONE level up reaches the package root.
-const packageDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 /**
  * The complete runtime surface of `@bc-solutions-coder/forms`, sorted. Asserted
@@ -144,40 +137,6 @@ describe("@bc-solutions-coder/forms public API", () => {
     // makes the barrel's copy provably the same function the catalog uses.
     expect(forms.fieldTestId("inquiry", "projectType")).toBe("inquiry-project-type");
     expect(forms.fieldErrorTestId("inquiry", "projectType")).toBe("inquiry-project-type-error");
-  });
-});
-
-describe("@bc-solutions-coder/forms built package", () => {
-  // `dist/` is a build artifact and `pnpm check` runs `test` BEFORE `build`, so
-  // a fresh clone has none when these execute. Skipped rather than failed in
-  // that case: run `pnpm --filter @bc-solutions-coder/forms build` to arm them.
-  const distDir = join(packageDir, "dist");
-  const distEntry = join(distDir, "index.js");
-  const distTypes = join(distDir, "index.d.ts");
-  const distIsMissing = !existsSync(distEntry);
-
-  it.skipIf(distIsMissing)(
-    "emits a bundle whose runtime surface matches the source barrel",
-    async () => {
-      // Consumers import the BUILT entry the exports map names, never `src/`.
-      // Vite's library build re-exports through `preserveModules`, so a barrel
-      // line that resolves in TypeScript but not in the emitted graph shows up
-      // here and nowhere else.
-      const built = (await import(pathToFileURL(distEntry).href)) as Record<string, unknown>;
-
-      expect(Object.keys(built).toSorted()).toEqual(PUBLIC_RUNTIME_EXPORTS);
-    },
-  );
-
-  it.skipIf(distIsMissing)("declares every public name in the emitted types", () => {
-    // `vite build` and `tsc -p tsconfig.build.json` are two independent passes
-    // over the same barrel, so the .d.ts can lag the .js. Consumers typecheck
-    // against this file alone.
-    const declarations = readFileSync(distTypes, "utf8");
-
-    for (const name of PUBLIC_RUNTIME_EXPORTS) {
-      expect(declarations, name).toMatch(new RegExp(`\\b${name}\\b`, "u"));
-    }
   });
 });
 

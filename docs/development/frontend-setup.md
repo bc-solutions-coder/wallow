@@ -362,8 +362,9 @@ Two rules the reference apps encode:
   makes that a build error rather than a convention. Start's import protection denies an
   imported file matching `**/*.server.*` from the client graph; it does **not** know that
   `redis` or `node:crypto` are server-only, so a plainly-named wrapper around them builds
-  clean and ships to the browser. Name every server-only module `*.server.*`;
-  `src/server-only-naming.test.ts` in each zoned app enforces it.
+  clean and ships to the browser. Name every server-only module `*.server.*`. Start's own
+  import protection is what enforces it at build time — a client module reaching a
+  `*.server.*` file fails the build, not a spec.
 
 `src/start.ts` completes the picture: `createStart()` registers a global request
 middleware that mints one SDK **per request** (never per module — a module-global

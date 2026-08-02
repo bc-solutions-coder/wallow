@@ -65,10 +65,11 @@ the rules unloaded. Adding a nested config for a directory that renders UI means
 `jsPlugins` entry and the devDependency with it.
 
 The reasons behind each registration and each scoped exemption are written as `//` comments in
-the config beside the entry — oxlint parses its config as **JSONC**. Two specs read a nested
-config back (`packages/sdk/src/oxlint-guardrails.test.ts`,
-`packages/forms/src/core/package-scaffold.test.ts`) and both strip line comments before
-`JSON.parse`; a third reader must do the same.
+the config beside the entry — oxlint parses its config as **JSONC**. One spec reads these configs
+back — `packages/sdk/src/oxlint-guardrails.test.ts`, which walks every nested config and asserts
+each one `extends` the root and restates no `categories`/`plugins` — and it strips line comments
+before `JSON.parse`. (`packages/forms/src/core/package-scaffold.test.ts` was a second reader; it
+is gone with the source-reading guards.) A future reader must strip them the same way.
 
 ### The cost of nesting
 
@@ -100,19 +101,27 @@ shorten it.
 
 ## Who enables what
 
-| Config                | Enables                                                                               |
-| --------------------- | ------------------------------------------------------------------------------------- |
-| `apps/wallow-web`     | `no-sidebar-inversion`, `no-tinted-text`, `zone-dag`                                  |
-| `apps/wallow-auth`    | `no-hand-rolled-mutation`, `no-sidebar-inversion`, `text-heading-variant`, `zone-dag` |
-| `packages/navigation` | all five                                                                              |
-| `packages/ui`         | all five, minus the drawer indent recipe (see below)                                  |
-| `packages/forms`      | all five, minus `use-app-form.ts` (see below)                                         |
+| Config                | Enables                                                                                                  |
+| --------------------- | -------------------------------------------------------------------------------------------------------- |
+| `apps/wallow-web`     | `no-sidebar-inversion`, `no-source-tests`, `no-tinted-text`, `zone-dag`                                  |
+| `apps/wallow-auth`    | `no-hand-rolled-mutation`, `no-sidebar-inversion`, `no-source-tests`, `text-heading-variant`, `zone-dag` |
+| `packages/navigation` | all six                                                                                                  |
+| `packages/ui`         | all six, minus the drawer indent recipe (see below)                                                      |
+| `packages/forms`      | all six, minus `use-app-form.ts` (see below)                                                             |
 
-The three packages take **all five** because none of them has a reason to opt out of a rule
+**`no-source-tests` is enabled by all five and exempted by none**, which makes it the odd one in
+this table. It is the only rule here that applies exclusively to `*.test.*` files — it bans
+`node:fs` in a spec, and self-gates on `context.filename` — so it is the one `wallow/*` entry that
+must **not** appear in a config's `*.test.*` override block. Every config carries a comment saying
+so beside `zone-dag`'s, because the two are silent for opposite reasons and both look omittable.
+The doctrine it enforces is `.claude/rules/TESTING.md`'s: a spec asserts behaviour, and a
+constraint on how code is written is either a rule or (more often) nothing at all.
+
+The three packages take **all six** because none of them has a reason to opt out of a rule
 wholesale — `zone-dag` is inert there (it derives its zones from a `tsconfig.json` `paths` map and
-a package declares none), and the other four apply to any file that renders. Where a package has a
-genuine counter-example it is a **scoped override naming the one file**, so everything around it
-stays judged:
+a package declares none), and the rest apply to any file that renders or any spec that runs. Where
+a package has a genuine counter-example it is a **scoped override naming the one file**, so
+everything around it stays judged:
 
 - **`packages/ui/src/components/drawer/drawer.styles.ts`** relaxes `no-sidebar-inversion`.
   `drawerIndentBackgroundRecipe` fades a bare `bg-foreground` in behind the shrinking app UI
@@ -177,27 +186,34 @@ lines. `tsconfig.json` includes `src` only, for the same reason.
 
 A valid fixture that merely omits violations proves nothing about a rule's boundary. Include the
 cases the rule must **not** report: `no-tinted-text`'s `valid.tsx` carries `bg-foreground/40`, the
-drawer scrim, because a translucent surface is categorically not tinted text.
+drawer scrim, because a translucent surface is categorically not tinted text. Where a rule gates on
+the FILENAME, the valid side needs a file of the other kind — `no-source-tests`' fixture directory
+carries a plain `valid.ts` that imports `node:fs` and must draw nothing, which is the only thing
+that proves the gate exists.
 
 ## The rule-vs-test boundary
 
 > **A rule sees one JS/TS file at a time, and only files oxlint lints.**
 
-That is the whole test. Anything failing it stays a vitest spec: a relationship _between_ files, an
-**absence** (a missing barrel has no file to attach a diagnostic to), a non-JS input (Dockerfiles,
-markdown, the lint config itself), a computed style that only exists at runtime, or runtime/
-compile-time identity.
+That is the whole test, and it decides one thing only: whether a constraint **can** be a rule.
+Anything that fails it — a relationship _between_ files, an **absence** (a missing barrel has no
+file to attach a diagnostic to), a non-JS input (Dockerfiles, markdown, the lint config itself) —
+does **not** thereby become a vitest spec. It becomes a question: is the constraint worth keeping
+at all? Under `.claude/rules/TESTING.md` the answer is usually no, and the sweep is deleted rather
+than relocated. Seventy-seven source-reading specs went that way in one pass (`Wallow-xg9t.1`);
+what replaced most of them is nothing, because a real regression in what they policed fails a
+build, `pnpm check:exports`, or an `e2e/` run without their help.
+
+What genuinely stays a spec is behaviour a rule cannot see: a computed style that only exists at
+runtime, and runtime/compile-time identity. **`wallow/no-source-tests` now enforces the rest** — a
+spec cannot import `node:fs` under any of the five configured trees, so "convert it or delete it"
+is no longer advice.
 
 Type-awareness is not the boundary — oxlint has none, but nothing in this repo is blocked by that.
 
 **The corollary that bites:** `ignorePatterns` (`dist`, `generated`, `routeTree.gen.ts`, `.output`)
 makes a rule **silent** where a disk sweep is **loud**. When converting a sweep, confirm the paths
 it covered are paths oxlint actually lints — the difference between "exempt" and "silently
-unchecked" is invisible in a green run.
-
-Three further guard specs — `apps/*/src/server-only-naming.test.ts`, `feature-barrels.test.ts` and
-wallow-web's `client-navigation.test.ts` — pass that test and are convertible, but have not been
-converted. Each still carries a "why this is a spec and not an oxlint rule" header naming a reason
-that is true of the **built-in** `no-restricted-imports` and false for a custom rule: `context.filename`
-is an absolute path, and `createOnce` can read a `tsconfig.json` off disk once per process. Treat
-those headers as stale, not as a decision.
+unchecked" is invisible in a green run. This cuts the other way too, and it is why the doctrine
+above prefers deletion: a sweep that reads files oxlint never lints was reporting on code no rule
+can police, which is a reason to ask what it was worth, not a reason to keep it.

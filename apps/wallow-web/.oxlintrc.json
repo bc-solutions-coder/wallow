@@ -12,6 +12,10 @@
   ],
   "rules": {
     "wallow/no-sidebar-inversion": "error",
+    // The one rule here that applies ONLY to specs: it bans `node:fs` in a
+    // `*.test.*` file and self-gates on the filename, so it is stated once at this
+    // level and stays silent over source. See `.claude/rules/TESTING.md`.
+    "wallow/no-source-tests": "error",
     "wallow/no-tinted-text": "error",
     "wallow/zone-dag": "error",
     "react/forbid-elements": [
@@ -81,6 +85,10 @@
       "rules": {
         "no-magic-numbers": "off",
         "react/forbid-elements": "off",
+        // `wallow/zone-dag` and `wallow/no-source-tests` are deliberately NOT in
+        // this list. The first judges a spec's import edges exactly as it judges a
+        // product module's; the second has nothing BUT specs to judge, so turning it
+        // off here would turn it off everywhere.
         "wallow/no-sidebar-inversion": "off",
         "wallow/no-tinted-text": "off",
         "unicorn/prefer-number-coercion": "off"

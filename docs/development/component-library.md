@@ -245,13 +245,12 @@ The steps:
 5. **Write the stories**, covering every variant and state, with a `play()` function for interactive
    components. These are the component's test coverage.
 6. **Add `<name>.test.tsx`** only for what a story cannot assert.
-7. **Export it**: the folder's `index.ts`, then the three catalog files that must move together in
-   the same commit — `COMPONENT_FOLDERS` in `src/core/package-scaffold.test.ts`, the root barrel
-   `src/index.ts`, and `PUBLIC_RUNTIME_EXPORTS` + `PublicTypeExports` in `src/index.test.ts`.
-   Growing one alone turns another red.
+7. **Export it**: the folder's `index.ts`, then the two catalog files that must move together in
+   the same commit — the root barrel `src/index.ts`, and `PUBLIC_RUNTIME_EXPORTS` +
+   `PublicTypeExports` in `src/index.test.ts`. Growing one alone turns the other red.
 8. **Build, then test**: `pnpm --filter @bc-solutions-coder/ui build && pnpm --filter
-   @bc-solutions-coder/ui test`. The build matters — one guard asserts the shipped `dist/` layout, so
-   a stale build from a smaller catalog fails it.
+   @bc-solutions-coder/ui test`. Build first because the apps resolve this package from `dist/`,
+   so a stale build is what their suites will actually be testing.
 
 The subpath export needs no manifest edit: `package.json` maps `./*` to `dist/components/*/index.js`,
 so the folder you created is already importable as `@bc-solutions-coder/ui/<name>`.

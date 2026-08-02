@@ -1,8 +1,5 @@
-import { readFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { type AddressInfo } from "node:net";
-import { dirname, resolve as resolvePath } from "node:path";
-import { fileURLToPath } from "node:url";
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
@@ -507,28 +504,5 @@ describe("createApiPassthrough — API target resolution", () => {
     });
 
     expect(fromEnv.apiInternalUrl).toBe("http://wallow-api:8080");
-  });
-});
-
-/**
- * The passthrough subpath exists so a passthrough-only app never pulls
- * `openid-client` (and the whole BFF handler graph) into its server bundle.
- * That guarantee is a property of this module's import graph, not of the
- * bundler config, so it is asserted here.
- */
-describe("createApiPassthrough — dependency isolation", () => {
-  it("imports neither openid-client nor the BFF handler/proxy graph", () => {
-    const here: string = dirname(fileURLToPath(import.meta.url));
-    const modulePath: string = resolvePath(here, "passthrough.ts");
-    const source: string = readFileSync(modulePath, "utf8");
-    const imports: string[] = [...source.matchAll(/^import[^;]*from\s+"([^"]+)";/gmu)].map(
-      (match: RegExpMatchArray): string => match[1] as string,
-    );
-
-    expect(imports).not.toContain("openid-client");
-    expect(imports).not.toContain("./oidc");
-    expect(imports).not.toContain("./handlers");
-    expect(imports).not.toContain("./proxy");
-    expect(imports).not.toContain("./index");
   });
 });

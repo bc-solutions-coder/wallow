@@ -107,24 +107,25 @@ Every runtime a spec touches must be in `extraBrowserOptimizeDeps`, including tr
 package can only pre-bundle what it can **resolve**, which is why those two carry their own
 devDependency entries. Left undiscovered they land mid-run, Vite reloads, and the runner dies.
 
-`shell-source.test.ts` is the one disk-reading guard: it sweeps `app-nav.tsx` for
-`hover:text-*` colours (a hover text colour here exists only to out-merge a catalog recipe)
-and `app-shell.tsx` for hand-rolled button utilities the `buttonRecipe` should emit. Both
-demonstrate their own matcher on a fixture string first, so a matcher that found nothing
-cannot turn the real case into a spec that cannot fail.
+`shell-source.test.ts` was the one disk-reading guard — it swept `app-nav.tsx` for `hover:text-*`
+colours and `app-shell.tsx` for hand-rolled button utilities the `buttonRecipe` should emit. It is
+deleted (`Wallow-xg9t.1`), and `wallow/no-source-tests` now stops one being written here. The
+colour half is covered by `wallow/no-tinted-text`, which this config enables; the
+hand-rolled-utility half is not covered by anything, and a control that paints itself instead of
+composing `buttonRecipe` is now caught on review or not at all.
 
 ## The lint layer is this package's, not the app's
 
-`.oxlintrc.json` here registers the `wallow/*` plugin and enables **all five** rules. That is not
+`.oxlintrc.json` here registers the `wallow/*` plugin and enables **all six** rules. That is not
 symmetry for its own sake: the rail, the drawer and the scrim those rules were written to police
 are what moved HERE out of `apps/wallow-web`, and until they were registered every one of them
 passed vacuously over this source — `pnpm lint`'s roots are `apps packages`, so the files were
 scanned with the rules unloaded. `app-shell.tsx`'s `BACKDROP_SCRIM` is the alpha spelling
 `no-sidebar-inversion` deliberately allows; turn it into a bare `bg-foreground` and `pnpm lint`
 fails. The four class-string rules are off for `*.test.*`/`*.stories.tsx` — a spec's class strings
-are subjects, not decisions, and `shell-source.test.ts` demonstrates its matcher on a fixture
-string carrying `md:hover:text-accent-foreground/80` — while `zone-dag` stays on, exactly as in
-the two apps.
+are subjects, not decisions — while `zone-dag` stays on, exactly as in the two apps.
+`no-source-tests` stays on for the opposite reason: specs are the only thing it judges, so the
+test override is precisely where it must not appear.
 
 ## Not in scope
 

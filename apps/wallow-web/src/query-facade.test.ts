@@ -1,7 +1,12 @@
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
-
+import {
+  createQueryClient,
+  QueryClient,
+  QueryClientProvider,
+  queryOptions,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@bc-solutions-coder/query";
 import { describe, expect, it } from "vitest";
 
 import vitestConfig from "../vitest.config";
@@ -18,79 +23,26 @@ import vitestConfig from "../vitest.config";
  * "No QueryClient set" against a provider it does not recognise) gets into the
  * graph.
  *
- * THE IMPORT HALF OF THAT LOCK IS NOW LINT'S (Wallow-l5x2). The root
- * `.oxlintrc.json` restricts `@tanstack/react-query` outright, and since the lint
- * split (`pnpm lint` + `pnpm lint:tests`) the ban reaches specs as well as source.
- * This file used to re-state it as a regex sweep over every `.tsx` on disk plus a
- * hand-kept table of twelve screen paths — a table that had to be edited whenever a
- * component moved, and that reported nothing a linter does not report faster and at
- * the offending line.
+ * THE IMPORT HALF OF THAT LOCK IS LINT'S (Wallow-l5x2). The root `.oxlintrc.json`
+ * restricts `@tanstack/react-query` outright, and since the lint split
+ * (`pnpm lint` + `pnpm lint:tests`) the ban reaches specs as well as source.
  *
- * WHAT IS LEFT IS WHAT A RULE CANNOT READ: the manifest, what pnpm actually linked,
- * and what the vitest harness hands Vite.
+ * THE MANIFEST HALF IS PNPM'S. This file used to assert that `package.json`
+ * declares the facade and not react-query. It cannot be otherwise and still pass:
+ * under pnpm's strict `node_modules` a package resolves only what it declares, so
+ * the facade import at the top of this file IS the manifest entry, and a
+ * react-query entry that nothing imports changes no behaviour to assert.
  *
- *  1. MANIFEST — the app declares the facade (and the auth package that rides on
- *     it) and not react-query. Declaring both is exactly how a second library copy,
- *     and with it a second `QueryClientProvider` context, gets into the graph.
- *  2. HARNESS — the browser project pre-bundles the linked facade and the node
- *     project inlines it, neither of which happens by default for a workspace link.
- *  3. RUNTIME — the facade actually resolves *from this app's own `node_modules`*
- *     and hands back a working `createQueryClient` plus the react-query surface.
- *     Lint and grep alike would pass on a manifest edit pnpm never linked.
+ * WHAT IS LEFT IS WHAT NEITHER CAN SEE: what the vitest harness hands Vite, and
+ * what the facade actually gives this app at runtime.
  *
- * Node project: reads files, mounts nothing.
+ * Node project: mounts nothing.
  */
 
-const here: string = dirname(fileURLToPath(import.meta.url));
-const appRoot: string = resolve(here, "..");
-
-/** The two facade-era packages this app must consume. */
+/** The facade's specifier, for the harness assertions that name it as a string. */
 const FACADE = "@bc-solutions-coder/query";
+/** The auth package that rides on the facade, linked the same way. */
 const AUTH = "@bc-solutions-coder/auth";
-/** The door it must not use. */
-const REACT_QUERY = "@tanstack/react-query";
-
-const read = (relativePath: string): string => readFileSync(resolve(appRoot, relativePath), "utf8");
-
-interface PackageManifest {
-  readonly name?: string;
-  readonly dependencies?: Readonly<Record<string, string>>;
-  readonly devDependencies?: Readonly<Record<string, string>>;
-  readonly exports?: Readonly<Record<string, Readonly<Record<string, string>>>>;
-}
-
-const manifest = (): PackageManifest => JSON.parse(read("package.json")) as PackageManifest;
-
-const declaredDeps = (): Readonly<Record<string, string>> => {
-  const parsed: PackageManifest = manifest();
-
-  return { ...parsed.dependencies, ...parsed.devDependencies };
-};
-
-describe("wallow-web's dependency manifest", () => {
-  it("declares the query facade as a workspace dependency", () => {
-    expect(manifest().dependencies?.[FACADE]).toBe("workspace:*");
-  });
-
-  it("declares the shared auth package as a workspace dependency", () => {
-    // The facade's first consumer inside this app: the current-user query the
-    // route gates read now comes from here (see `shared-auth.test.ts`).
-    expect(manifest().dependencies?.[AUTH]).toBe("workspace:*");
-  });
-
-  it("does not declare react-query directly", () => {
-    // Not "also declares" — declaring both the facade and react-query is exactly
-    // how a second library copy (and a second `QueryClient` identity) gets in.
-    expect(Object.keys(declaredDeps())).not.toContain(REACT_QUERY);
-  });
-
-  it("keeps the workspace packages the app still consumes", () => {
-    // Dropping an entry must not take the rest of the workspace with it.
-    for (const pkg of ["forms", "sdk", "styles", "testing", "ui"]) {
-      expect(manifest().dependencies).toHaveProperty(`@bc-solutions-coder/${pkg}`);
-    }
-  });
-});
 
 describe("the vitest harness resolves the facade explicitly", () => {
   // There is deliberately no spec pinning a `@tanstack/react-query` entry in the
@@ -117,77 +69,35 @@ describe("the vitest harness resolves the facade explicitly", () => {
     // The node project runs the SSR-side route specs; without `ssr.noExternal`
     // the linked facade is externalized to a bare Node import instead of being
     // transformed. Same knob `packages/testing`'s own config carries.
-    expect(read("vitest.config.ts")).toMatch(
-      /noExternal:\s*\[[^\]]*"@bc-solutions-coder\/query"/su,
-    );
+    const noExternal = vitestConfig.ssr?.noExternal;
+
+    expect(Array.isArray(noExternal) ? noExternal : []).toContain(FACADE);
   });
 });
 
 describe("the facade as this app resolves it", () => {
-  it("is linked into the app's own node_modules", () => {
-    // pnpm links a package into an importer's node_modules only when that
-    // importer declares it, so this is the manifest edit having actually taken
-    // effect rather than merely being written down.
-    expect(existsSync(packageDir(FACADE)), `${FACADE} is not linked into wallow-web`).toBe(true);
-    expect(linkedManifest(FACADE).name).toBe(FACADE);
+  it("hands the app a QueryClient factory and the whole react-query surface", () => {
+    // Named imports, resolved through this app's own `node_modules` — the same
+    // link a component's import walks. A missing re-export is a load-time error
+    // here, not an assertion failure.
+    expect(typeof createQueryClient).toBe("function");
+    expect(typeof useQuery).toBe("function");
+    expect(typeof useMutation).toBe("function");
+    expect(typeof useQueryClient).toBe("function");
+    expect(typeof queryOptions).toBe("function");
+    expect(typeof QueryClientProvider).toBe("function");
+    expect(typeof QueryClient).toBe("function");
   });
 
-  it("hands the app a QueryClient factory and the whole react-query surface", async () => {
-    const facade: Record<string, unknown> = await importLinked(FACADE);
-
-    expect(typeof facade["createQueryClient"]).toBe("function");
-    expect(typeof facade["useQuery"]).toBe("function");
-    expect(typeof facade["useMutation"]).toBe("function");
-    expect(typeof facade["useQueryClient"]).toBe("function");
-    expect(typeof facade["queryOptions"]).toBe("function");
-    expect(typeof facade["QueryClientProvider"]).toBe("function");
-    expect(typeof facade["QueryClient"]).toBe("function");
-  });
-
-  it("gives the router a retry-disabled client of the facade's own QueryClient type", async () => {
-    const facade: Record<string, unknown> = await importLinked(FACADE);
-    const create = facade["createQueryClient"] as () => {
-      getDefaultOptions: () => { queries?: { retry?: unknown } };
-    };
-
-    const client = create();
+  it("gives the router a retry-disabled client of the facade's own QueryClient type", () => {
+    const client: QueryClient = createQueryClient();
 
     // One module instance, so `instanceof` holds — the symptom of two copies is
     // a runtime "No QueryClient set" from a provider the hook does not recognise.
-    expect(client).toBeInstanceOf(facade["QueryClient"] as new () => unknown);
+    expect(client).toBeInstanceOf(QueryClient);
     expect(client.getDefaultOptions().queries?.retry).toBe(false);
   });
 });
-
-/** Where pnpm links a workspace package for this importer. */
-function packageDir(name: string): string {
-  return resolve(appRoot, "node_modules", name);
-}
-
-function linkedManifest(name: string): PackageManifest {
-  const manifestPath: string = resolve(packageDir(name), "package.json");
-
-  expect(existsSync(manifestPath), `${name} is not linked into wallow-web`).toBe(true);
-
-  return JSON.parse(readFileSync(manifestPath, "utf8")) as PackageManifest;
-}
-
-/**
- * Import a package THROUGH the app's link, via the entry its own exports map
- * names — a computed specifier, so this spec resolves the package exactly the
- * way the app's bundler does instead of TypeScript resolving it at compile time.
- */
-async function importLinked(name: string): Promise<Record<string, unknown>> {
-  const entry: string | undefined = linkedManifest(name).exports?.["."]?.["import"];
-
-  expect(entry, `${name} declares no "." import entry`).toBeTruthy();
-
-  const entryPath: string = resolve(packageDir(name), entry as string);
-
-  expect(existsSync(entryPath), `${name} is not built (${entry} missing)`).toBe(true);
-
-  return (await import(pathToFileURL(entryPath).href)) as Record<string, unknown>;
-}
 
 /**
  * The browser project's `optimizeDeps.include`, read off the CONFIG OBJECT.

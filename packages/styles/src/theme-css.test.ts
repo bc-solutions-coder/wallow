@@ -256,20 +256,3 @@ describe("a fork whose packages/styles/branding.json predates these tokens", () 
     }
   });
 });
-
-describe("the package contract", () => {
-  const manifest: { exports: Record<string, unknown>; files: string[] } = JSON.parse(
-    read(new URL("package.json", packageRoot)),
-  );
-
-  it("exports the CSS entry at a subpath consumers can @import", () => {
-    expect(manifest.exports["./styles.css"]).toBe("./styles.css");
-  });
-
-  it("ships the CSS entry, which no build step produces", () => {
-    // styles.css is authored, not emitted: `vite build` only makes dist/, so an
-    // exports map pointing at a file outside `files` would publish a broken
-    // package.
-    expect(manifest.files).toContain("styles.css");
-  });
-});

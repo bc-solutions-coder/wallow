@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-
 import { createSdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { type AnyRedirect, isRedirect } from "@tanstack/react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -130,19 +127,5 @@ describe("routes/index (SSR-safe home gate)", () => {
 
     assertRedirect(thrown);
     expect(thrown.options.to).toBe("/dashboard/apps");
-  });
-
-  it("does not import the SDK's browser-only login helper", () => {
-    // `login()` assigns to the bare global `location`, so it must not be
-    // reachable from a hook that also runs server-side. The gate redirects
-    // through TanStack's `redirect()` instead, which works on SSR and CSR alike.
-    const source: string = readFileSync(
-      fileURLToPath(new URL("./index.tsx", import.meta.url)),
-      "utf8",
-    );
-    const importLines: string = (source.match(/^import .*$/gmu) ?? []).join("\n");
-
-    expect(importLines).not.toMatch(/\blogin\b/u);
-    expect(importLines).toMatch(/\bredirect\b/u);
   });
 });

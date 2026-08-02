@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-
 import { currentUserQuery } from "@bc-solutions-coder/auth";
 import { createSdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { type AnyRedirect, isRedirect } from "@tanstack/react-router";
@@ -128,33 +125,6 @@ describe("routes/dashboard/route (auth gate)", () => {
     const { result } = await runGate({ sub: "u1", roles: ["member"] });
 
     expect(result).toEqual({ isAdmin: false });
-  });
-
-  it("no longer imports the retired getWallowSdk facade", () => {
-    const source: string = readFileSync(
-      fileURLToPath(new URL("./route.tsx", import.meta.url)),
-      "utf8",
-    );
-
-    expect(source).not.toMatch(/getWallowSdk|lib\/wallow-sdk/u);
-    // Either spelling of the shared read: the query plus `ensureQueryData`, or
-    // the auth package's `ensureCurrentUser` primer that composes the pair.
-    expect(source).toMatch(/currentUserQuery|ensureCurrentUser/u);
-    expect(source).toMatch(/ensureQueryData|ensureCurrentUser/u);
-  });
-
-  it("does not import the SDK's browser-only login helper", () => {
-    // `login()` assigns to the bare global `location`, so it must not be
-    // reachable from a hook that also runs server-side. The gate redirects
-    // through TanStack's `redirect()` instead, which works on SSR and CSR alike.
-    const source: string = readFileSync(
-      fileURLToPath(new URL("./route.tsx", import.meta.url)),
-      "utf8",
-    );
-    const importLines: string = (source.match(/^import .*$/gmu) ?? []).join("\n");
-
-    expect(importLines).not.toMatch(/\blogin\b/u);
-    expect(importLines).toMatch(/\bredirect\b/u);
   });
 });
 

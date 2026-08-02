@@ -87,6 +87,9 @@ const DELETED_LEGACY_SYMBOLS: readonly string[] = [
   "createMfaClient",
   "getSsrRequestContext",
   "setSsrRequestContextResolver",
+  // The envelope-unwrapping layer the response interceptor superseded: every
+  // operation's failure path raises a WallowError, so nothing unwraps any more.
+  "unwrap",
   "wireSsrCookieInterceptor",
 ];
 

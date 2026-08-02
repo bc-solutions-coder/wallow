@@ -8,8 +8,9 @@ the page and finishes on the server produces two records a collector joins on
 
 Like `packages/utils` and `packages/env` this sits at the bottom of the graph: `dependencies`
 and `peerDependencies` are both `{}`, `tsconfig.json` sets `types: []`, and no shipped module
-names a `node:*` builtin, `process.env` or `import.meta.env`. `src/charter.test.ts` pins all of
-it.
+names a `node:*` builtin, `process.env` or `import.meta.env`. `src/charter.test.ts` pinned that
+by reading the manifest and every module off disk; it is gone (`Wallow-xg9t.1`). `types: []` is
+what still fails a build here — a `node:*` import or a `process` reference does not compile.
 
 ## Two entries
 

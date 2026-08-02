@@ -91,14 +91,15 @@ folder structure **is** the subpath structure: `.` → `dist/index.js`, `./*` �
   alone, so styling internals do not widen the headline surface. Mechanically: the barrel's
   block for a folder is exactly that folder's `index.ts` block from `<name>.tsx`, never the
   one from `<name>.styles.ts`.
-- **Three files encode the catalog as one exact set and must move together in one commit**
-  whenever a component is added: `COMPONENT_FOLDERS` in `src/core/package-scaffold.test.ts`,
-  `src/index.ts`, and `PUBLIC_RUNTIME_EXPORTS` + the `PublicTypeExports` tuple in
-  `src/index.test.ts`. Growing one alone turns another red.
-- `src/core/dist-structure.test.ts` is catalog-derived (reads `src/components` off disk), so
-  adding a component never edits it — but it asserts the **built** artifact, so a stale
-  `dist/` from a smaller catalog fails it. `pnpm check` runs test before build; rebuild after
-  adding a component.
+- **Two files encode the catalog as one exact set and must move together in one commit**
+  whenever a component is added: `src/index.ts`, and `PUBLIC_RUNTIME_EXPORTS` + the
+  `PublicTypeExports` tuple in `src/index.test.ts`. Growing one alone turns the other red.
+  `src/core/package-scaffold.test.ts`'s `COMPONENT_FOLDERS` used to be a third; it and
+  `src/core/dist-structure.test.ts` are gone with the rest of the source-reading guards
+  (`Wallow-xg9t.1`). Nothing replaced their `dist/` walk, and that is deliberate rather than an
+  oversight: this package is `private: true` so `scripts/check-exports.sh` skips it, and a
+  subpath that fails to build or fails to resolve takes both apps' suites down on the next run.
+  `src/index.test.ts` is where the catalog is still pinned exactly.
 
 ## Storybook and the test model
 
@@ -173,7 +174,7 @@ of null (reading 'useRef')`. `src/core/browser-deps.test.ts` checks that every e
   in as a prop.
 - React, `react-dom`, and `@tanstack/react-router` are **peer** dependencies — keep them out
   of `dependencies`.
-- **`.oxlintrc.json` here registers the `wallow/*` plugin and enables all five rules.** The
+- **`.oxlintrc.json` here registers the `wallow/*` plugin and enables all six rules.** The
   catalog defines the primitives three of them police, which is why they are on here rather than
   left to the consumers: a recipe is the one place a colour decision is written down. Two things
   follow. `no-tinted-text` is why `link`'s hover is the underline alone — the `hover:text-primary/80`

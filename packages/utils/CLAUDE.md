@@ -21,9 +21,10 @@ rather than extracted. Adding one later is additive.
 
 ## The charter, and why it is machine-enforced
 
-A generic utility package is only worth having while three things hold, and each is pinned by
-something that fails loudly — `src/charter.test.ts` asserts all four, and every guard has been
-verified to fail when violated:
+A generic utility package is only worth having while these hold. `src/charter.test.ts`, which
+asserted them by reading the manifest and every module's source off disk, is gone
+(`Wallow-xg9t.1`) — what is left is the machinery each point names, which fails a **build**
+rather than a spec:
 
 1. **It depends on nothing.** `dependencies` and `peerDependencies` are both `{}`.
 2. **It compiles against no host API.** `tsconfig.json` sets `"lib": ["ESNext"]` and
@@ -34,16 +35,17 @@ verified to fail when violated:
    bans `react`, `react-dom`, `zustand` and `@bc-solutions-coder/*`. It **restates every ban the
    root rule makes**, because an oxlint `overrides` entry REPLACES the rule's options rather
    than merging them — an override listing only the charter bans silently unbans the rest.
-4. **Every module on disk is reachable, and nothing else is.** The export-coverage spec diffs
-   the `exports` map, `publishConfig.exports`, `vite.config.ts`'s lib entries and
-   `tsconfig.build.json`'s `include` against `src/*.ts`. All four have to agree: a subpath with
-   no lib entry resolves, at publish time, to a file that was never written.
+4. **Every module on disk is reachable, and nothing else is.** The `exports` map,
+   `publishConfig.exports`, `vite.config.ts`'s lib entries and `tsconfig.build.json`'s `include`
+   all have to agree — a subpath with no lib entry resolves, at publish time, to a file that was
+   never written. `pnpm check:exports` (publint + `@arethetypeswrong/cli` over the packed
+   tarball) is what catches that now, against the real artifact rather than four config files.
 
 ## Two tsconfigs, on purpose
 
 `tsconfig.json` is the strict one above and covers the shipped source only. `tsconfig.node.json`
-covers the specs and the build configs — the specs read the manifest off disk and
-`vite.config.ts` reaches `@bc-solutions-coder/config`, which imports `node:url`. `pnpm typecheck`
+covers the specs and the build configs — `vite.config.ts` reaches
+`@bc-solutions-coder/config`, which imports `node:url`. `pnpm typecheck`
 runs **both**; neither of those files is in `exports`, so letting them see Node costs the charter
 nothing.
 
@@ -53,8 +55,9 @@ nothing.
   the call sites were rewired onto it in the same commit. A helper with no consumer is dead
   API that still has to be maintained.
 - A new module is a new subpath: add `src/<name>.ts`, an `exports` and `publishConfig.exports`
-  entry, a `vite.config.ts` lib entry and a `tsconfig.build.json` include. The charter spec
-  fails until all four agree.
+  entry, a `vite.config.ts` lib entry and a `tsconfig.build.json` include. All four, every time
+  — nothing in the test suite reminds you any more, and a missing lib entry only surfaces at
+  `pnpm check:exports`.
 - Keep every function **total** — answer `undefined` rather than throwing. The callers are
   reached by junk links and malformed payloads, where the required behaviour is a usable
   screen.

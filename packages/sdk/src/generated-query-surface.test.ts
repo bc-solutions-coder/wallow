@@ -21,31 +21,24 @@ import * as queryEntry from "./query";
  *      client, `responseStyle: "data"` on the sdk plugin, and the
  *      `@tanstack/react-query` plugin with `queryOptions`, `queryKeys.tags`
  *      and `mutationOptions` all on.
- *   2. `@tanstack/react-query` is an OPTIONAL peer — a fork that never renders
- *      React must be able to install the SDK without it.
- *   3. Coverage: EVERY operation in the committed snapshot has its generated
+ *   2. Coverage: EVERY operation in the committed snapshot has its generated
  *      artifact reachable from the `./query` entry — a query options factory
  *      and key builder for every GET, a mutation options factory for every
  *      write. This is an invariant over the generated output, so a backend that
  *      adds an endpoint keeps passing without editing this file, while a config
  *      regression that silently drops the plugin fails it.
- *   4. Those artifacts are RE-EXPORTED from `src/generated`, not re-implemented
- *      by hand, and the entry adds exactly one curated module on top:
- *      `invalidations.ts`.
- *   5. (D4) A server instance and a browser instance built with the same
+ *   3. (D4) A server instance and a browser instance built with the same
  *      `baseUrl` emit BYTE-IDENTICAL keys for the same operation — task 3.5(e)
  *      proved it for the client config and the pre-transport request URL; this
  *      proves it for the artifact that actually keys the cache, which is what
  *      makes an SSR-primed cache hydrate in the browser instead of refetching.
- *   6. `invalidations.ts` sweeps a subtree by matching on the flat key's `_id`
+ *   4. `invalidations.ts` sweeps a subtree by matching on the flat key's `_id`
  *      and `tags`, since hey-api generates no hierarchical prefix to sweep by.
  */
 
 // packages/sdk/src -> packages/sdk
 const packageRoot: string = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const snapshotPath: string = resolve(packageRoot, "openapi/v1.json");
-const queryEntryPath: string = resolve(packageRoot, "src/query/index.ts");
-const packageJsonPath: string = resolve(packageRoot, "package.json");
 
 const TANSTACK_PEER: string = "@tanstack/react-query";
 
@@ -135,16 +128,6 @@ function queryKeyBuilder(operationName: string): QueryKeyBuilder {
   return requireExport<QueryKeyBuilder>(`${operationName}QueryKey`);
 }
 
-function readFile(path: string): string {
-  return readFileSync(path, "utf8");
-}
-
-interface PackageJson {
-  devDependencies?: Record<string, string>;
-  peerDependencies?: Record<string, string>;
-  peerDependenciesMeta?: Record<string, { optional?: boolean }>;
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -204,24 +187,6 @@ describe("openapi-ts.config.ts asks for the full generated query surface", () =>
   });
 });
 
-describe(`${TANSTACK_PEER} is an optional peer dependency`, () => {
-  it("declares it as a peer that installs are allowed to omit", () => {
-    const pkg: PackageJson = JSON.parse(readFile(packageJsonPath)) as PackageJson;
-
-    expect(pkg.peerDependencies ?? {}).toHaveProperty(TANSTACK_PEER);
-    // A fork consuming only the browser or `./server` entry never renders React;
-    // a non-optional peer would make its install warn (or fail, under a strict
-    // resolver) for a subpath it does not import.
-    expect(pkg.peerDependenciesMeta?.[TANSTACK_PEER]?.optional).toBe(true);
-  });
-
-  it("still resolves it locally so the generator and these tests can run", () => {
-    const pkg: PackageJson = JSON.parse(readFile(packageJsonPath)) as PackageJson;
-
-    expect(pkg.devDependencies ?? {}).toHaveProperty(TANSTACK_PEER);
-  });
-});
-
 describe("the ./query entry exposes a generated artifact for every operation", () => {
   it("reads a non-trivial operation set out of the committed snapshot", () => {
     expect(operationsWithMethodIn(QUERY_METHODS).length).toBeGreaterThan(0);
@@ -238,18 +203,6 @@ describe("the ./query entry exposes a generated artifact for every operation", (
 
   it("exports a mutation options factory for every write operation", () => {
     expect(missingArtifacts(operationsWithMethodIn(MUTATION_METHODS), "Mutation")).toEqual([]);
-  });
-});
-
-describe("the ./query entry re-exports generated artifacts plus curated invalidations", () => {
-  it("re-exports the generated TanStack artifacts rather than hand-rolling them", () => {
-    // Path-agnostic on purpose: the plugin owns its output filename, this only
-    // pins that the artifacts come OUT of src/generated.
-    expect(readFile(queryEntryPath)).toMatch(/export \* from "\.\.\/generated\//u);
-  });
-
-  it("adds exactly one curated module on top of the generated surface", () => {
-    expect(readFile(queryEntryPath)).toMatch(/export \* from "\.\/invalidations"/u);
   });
 });
 

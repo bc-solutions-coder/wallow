@@ -20,15 +20,6 @@ const canonicalIcon: string = fileURLToPath(
   new URL("../../../assets/piggy-icon.svg", import.meta.url),
 );
 
-interface Manifest {
-  readonly files?: readonly string[];
-  readonly exports?: Readonly<Record<string, unknown>>;
-}
-
-const manifest: Manifest = JSON.parse(
-  readFileSync(join(packageRoot, "package.json"), "utf8"),
-) as Manifest;
-
 function isDirectory(path: string): boolean {
   try {
     return statSync(path).isDirectory();
@@ -68,30 +59,5 @@ describe("brandAssetsDir", () => {
     const shipped: Buffer = readFileSync(join(brandAssetsDir, forkBranding.appIcon));
 
     expect(shipped.equals(readFileSync(canonicalIcon))).toBe(true);
-  });
-});
-
-describe("the package manifest", () => {
-  it("publishes the assets directory", () => {
-    // Without this the assets resolve locally (where the whole repo is on disk)
-    // and vanish for anyone consuming the published package.
-    expect(manifest.files).toContain("assets");
-  });
-
-  it("exports the assets subpath separately from the main entry", () => {
-    // Separate because this module reads node:url. The main entry is bundled
-    // into consumers' browser builds and must not drag node: imports in with it.
-    //
-    // SEPARATION is the invariant, so that is what this asserts. It used to
-    // assert the entry equalled an exact `./dist/assets.{d.ts,js}` pair, which
-    // also pinned WHERE the entry resolves — and in-repo it now resolves to
-    // `src/`, with the dist map applied at publish time from
-    // `publishConfig.exports`. The resolved paths are publint/attw's job
-    // (`pnpm check:exports`), against the built package.
-    const assets = manifest.exports?.["./assets"];
-    const main = manifest.exports?.["."];
-
-    expect(assets).toBeDefined();
-    expect(assets).not.toEqual(main);
   });
 });

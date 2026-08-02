@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-
 import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
@@ -27,25 +24,5 @@ describe("routes/index (public home SSR)", () => {
     const html = renderToString(<Home />);
     // A non-empty <h1>..<h6> element must be present in the rendered shell.
     expect(html).toMatch(/<h[1-6][^>]*>[^<]*\S[^<]*<\/h[1-6]>/u);
-  });
-});
-
-/**
- * The home `beforeLoad` reads the user through the router-context QueryClient,
- * not through a module-global SDK facade.
- */
-describe("routes/index (cached current-user gate wiring)", () => {
-  it("no longer imports the retired getWallowSdk facade", () => {
-    const source: string = readFileSync(
-      fileURLToPath(new URL("./index.tsx", import.meta.url)),
-      "utf8",
-    );
-
-    expect(source).not.toMatch(/getWallowSdk|lib\/wallow-sdk/u);
-    // Either spelling of the shared read from `@bc-solutions-coder/auth`: the
-    // query plus `ensureQueryData`, or the `ensureCurrentUser` primer that
-    // composes the pair.
-    expect(source).toMatch(/currentUserQuery|ensureCurrentUser/u);
-    expect(source).toMatch(/ensureQueryData|ensureCurrentUser/u);
   });
 });
