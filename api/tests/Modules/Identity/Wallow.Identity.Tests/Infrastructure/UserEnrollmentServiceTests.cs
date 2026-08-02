@@ -215,6 +215,54 @@ public sealed class UserEnrollmentServiceTests : IDisposable
         (await LoadMembershipAsync(user.Id)).Status.Should().Be(MembershipStatus.Pending);
     }
 
+    /// <summary>
+    /// Self-service, so the actor and the subject are the same person. The audit trail records
+    /// that equality rather than leaving the actor blank, which would read as an unattributed
+    /// admission.
+    /// </summary>
+    [Fact]
+    public async Task EnrollAsync_UnderRequestApproval_AuditsTheRequestAgainstTheRequester()
+    {
+        WallowUser user = await GivenVerifiedUserAsync();
+        await GivenPolicyAsync(EnrollmentPolicy.RequestApproval);
+
+        await _sut.EnrollAsync(user.Id, _orgId);
+
+        await _messageBus.Received(1).PublishAsync(Arg.Is<MembershipTransitionedEvent>(e =>
+            e.Transition == MembershipTransition.AccessRequested
+            && e.UserId == user.Id
+            && e.ActorId == user.Id
+            && e.OrganizationId == _orgId
+            && e.TenantId == _orgId));
+    }
+
+    [Fact]
+    public async Task EnrollAsync_UnderOpenEnrollment_AuditsTheJoinAgainstTheJoiner()
+    {
+        WallowUser user = await GivenVerifiedUserAsync();
+        await GivenPolicyAsync(EnrollmentPolicy.Open);
+
+        await _sut.EnrollAsync(user.Id, _orgId);
+
+        await _messageBus.Received(1).PublishAsync(Arg.Is<MembershipTransitionedEvent>(e =>
+            e.Transition == MembershipTransition.Enrolled
+            && e.UserId == user.Id
+            && e.ActorId == user.Id
+            && e.OrganizationId == _orgId
+            && e.TenantId == _orgId));
+    }
+
+    [Fact]
+    public async Task EnrollAsync_UnderInviteOnly_AuditsNothing()
+    {
+        WallowUser user = await GivenVerifiedUserAsync();
+        await GivenPolicyAsync(EnrollmentPolicy.InviteOnly);
+
+        await _sut.EnrollAsync(user.Id, _orgId);
+
+        await _messageBus.DidNotReceive().PublishAsync(Arg.Any<MembershipTransitionedEvent>());
+    }
+
     private async Task<WallowUser> GivenVerifiedUserAsync() => await GivenUserAsync(emailConfirmed: true);
 
     private async Task<WallowUser> GivenUserAsync(bool emailConfirmed)

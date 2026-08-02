@@ -149,6 +149,48 @@ public sealed class AuthAuditServiceTests : IDisposable
         count.Should().Be(3);
     }
 
+    /// <summary>
+    /// Who did it has to reach the table, not just the record: an actor the service drops on the
+    /// floor makes every administrative entry indistinguishable from one the subject made alone.
+    /// </summary>
+    [Fact]
+    public async Task RecordAsync_PersistsTheActorAlongsideTheSubject()
+    {
+        (AuthAuditService sut, AuthAuditDbContext verifyContext) = CreateSut();
+
+        AuthAuditRecord record = new()
+        {
+            EventType = "MembershipApproved",
+            UserId = Guid.NewGuid(),
+            ActorId = Guid.NewGuid(),
+            TenantId = Guid.NewGuid(),
+            OccurredAt = DateTimeOffset.UtcNow
+        };
+
+        await sut.RecordAsync(record, CancellationToken.None);
+
+        AuthAuditEntry entry = await verifyContext.AuthAuditEntries.SingleAsync();
+        entry.ActorId.Should().Be(record.ActorId);
+        entry.UserId.Should().Be(record.UserId);
+    }
+
+    [Fact]
+    public async Task RecordAsync_WithoutAnActor_LeavesTheActorNull()
+    {
+        (AuthAuditService sut, AuthAuditDbContext verifyContext) = CreateSut();
+
+        await sut.RecordAsync(new AuthAuditRecord
+        {
+            EventType = "LoginSucceeded",
+            UserId = Guid.NewGuid(),
+            TenantId = Guid.NewGuid(),
+            OccurredAt = DateTimeOffset.UtcNow
+        }, CancellationToken.None);
+
+        AuthAuditEntry entry = await verifyContext.AuthAuditEntries.SingleAsync();
+        entry.ActorId.Should().BeNull();
+    }
+
     public void Dispose()
     {
         _connection.Dispose();

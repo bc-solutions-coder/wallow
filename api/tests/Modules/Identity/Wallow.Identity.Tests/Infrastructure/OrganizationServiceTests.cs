@@ -138,6 +138,25 @@ public sealed class OrganizationServiceTests : IDisposable
         membership.RoleIds.Should().BeEquivalentTo([RoleId("admin")]);
     }
 
+    /// <summary>
+    /// Creating an organization is the only way anyone becomes its owner, so it is the only place
+    /// the ownership grant can be recorded.
+    /// </summary>
+    [Fact]
+    public async Task CreateOrganizationAsync_WithCreatorUserId_AuditsTheOwnerMark()
+    {
+        Guid creatorUserId = Guid.NewGuid();
+
+        Guid result = await _sut.CreateOrganizationAsync("Test Org", creatorUserId: creatorUserId);
+
+        await _messageBus.Received(1).PublishAsync(Arg.Is<MembershipTransitionedEvent>(e =>
+            e.Transition == MembershipTransition.OwnerMarked &&
+            e.OrganizationId == result &&
+            e.TenantId == result &&
+            e.UserId == creatorUserId &&
+            e.ActorId == creatorUserId));
+    }
+
     [Fact]
     public async Task CreateOrganizationAsync_WithoutCreatorUserId_DoesNotAddMemberAndAuditFieldsFallBackToEmpty()
     {

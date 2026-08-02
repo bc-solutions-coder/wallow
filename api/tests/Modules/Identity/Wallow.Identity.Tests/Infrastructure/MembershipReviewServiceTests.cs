@@ -265,6 +265,99 @@ public sealed class MembershipReviewServiceTests : IDisposable
             .Where(e => e.Code == "Identity.MemberNotFound");
     }
 
+    [Fact]
+    public async Task ApproveAsync_AuditsWhoLetThePersonIn()
+    {
+        WallowUser requester = await GivenUserAsync("ada@acme.test");
+        await GivenPendingRequestAsync(requester.Id);
+
+        await _sut.ApproveAsync(_orgId, requester.Id, _actorId);
+
+        await ThenTransitionPublished(MembershipTransition.Approved, requester.Id, _actorId);
+    }
+
+    [Fact]
+    public async Task DenyAsync_AuditsWhoRefused()
+    {
+        WallowUser requester = await GivenUserAsync("ada@acme.test");
+        await GivenPendingRequestAsync(requester.Id);
+
+        await _sut.DenyAsync(_orgId, requester.Id, _actorId);
+
+        await ThenTransitionPublished(MembershipTransition.Denied, requester.Id, _actorId);
+    }
+
+    [Fact]
+    public async Task ClearDenialAsync_AuditsWhoTookTheRefusalBack()
+    {
+        WallowUser requester = await GivenUserAsync("ada@acme.test");
+        await GivenPendingRequestAsync(requester.Id);
+        await _sut.DenyAsync(_orgId, requester.Id, _actorId);
+
+        await _sut.ClearDenialAsync(_orgId, requester.Id, _actorId);
+
+        await ThenTransitionPublished(MembershipTransition.DenialCleared, requester.Id, _actorId);
+    }
+
+    [Fact]
+    public async Task SuspendAsync_AuditsWhoTookTheAccessAway()
+    {
+        WallowUser member = await GivenUserAsync("ada@acme.test");
+        await GivenActiveMembershipAsync(member.Id);
+
+        await _sut.SuspendAsync(_orgId, member.Id, _actorId);
+
+        await ThenTransitionPublished(MembershipTransition.Suspended, member.Id, _actorId);
+    }
+
+    [Fact]
+    public async Task ReinstateAsync_AuditsWhoGaveTheAccessBack()
+    {
+        WallowUser member = await GivenUserAsync("ada@acme.test");
+        await GivenActiveMembershipAsync(member.Id);
+        await _sut.SuspendAsync(_orgId, member.Id, _actorId);
+
+        await _sut.ReinstateAsync(_orgId, member.Id, _actorId);
+
+        await ThenTransitionPublished(MembershipTransition.Reinstated, member.Id, _actorId);
+    }
+
+    /// <summary>
+    /// Nobody acts on the leaver's behalf, so the actor and the subject are the same person. An
+    /// audit trail that left the actor blank here would read as an unattributed removal.
+    /// </summary>
+    [Fact]
+    public async Task LeaveAsync_AuditsTheLeaverAsTheirOwnActor()
+    {
+        WallowUser member = await GivenUserAsync("ada@acme.test");
+        await GivenActiveMembershipAsync(member.Id);
+
+        await _sut.LeaveAsync(_orgId, member.Id);
+
+        await ThenTransitionPublished(MembershipTransition.Left, member.Id, member.Id);
+    }
+
+    [Fact]
+    public async Task ApproveAsync_StampsTheAuditEventFromTheInjectedClock()
+    {
+        WallowUser requester = await GivenUserAsync("ada@acme.test");
+        await GivenPendingRequestAsync(requester.Id);
+
+        await _sut.ApproveAsync(_orgId, requester.Id, _actorId);
+
+        await _messageBus.Received(1).PublishAsync(Arg.Is<MembershipTransitionedEvent>(e =>
+            e.OccurredAt == _time.GetUtcNow().UtcDateTime));
+    }
+
+    private ValueTask ThenTransitionPublished(
+        MembershipTransition transition, Guid userId, Guid actorId) =>
+        _messageBus.Received(1).PublishAsync(Arg.Is<MembershipTransitionedEvent>(e =>
+            e.Transition == transition
+            && e.UserId == userId
+            && e.ActorId == actorId
+            && e.OrganizationId == _orgId
+            && e.TenantId == _orgId));
+
     private async Task<WallowUser> GivenUserAsync(
         string email, string firstName = "Ada", string lastName = "Lovelace")
     {

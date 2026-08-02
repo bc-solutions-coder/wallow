@@ -41,6 +41,18 @@ public static class AuthAuditEventHandlers
         }, CancellationToken.None);
     }
 
+    public static Task Handle(MembershipTransitionedEvent message, IAuthAuditService authAuditService)
+    {
+        // Scaffold: the transition mapping and the actor are the green phase's job.
+        return authAuditService.RecordAsync(new AuthAuditRecord
+        {
+            EventType = string.Empty,
+            UserId = message.UserId,
+            TenantId = message.TenantId,
+            OccurredAt = message.OccurredAt
+        }, CancellationToken.None);
+    }
+
     public static Task Handle(UserMfaLockedOutEvent message, IAuthAuditService authAuditService)
     {
         return authAuditService.RecordAsync(new AuthAuditRecord
