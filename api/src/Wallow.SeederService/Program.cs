@@ -1,18 +1,4 @@
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using Wallow.Identity.Application.Commands.BootstrapAdmin;
-using Wallow.Identity.Application.Interfaces;
-using Wallow.Identity.Application.Queries.IsSetupRequired;
-using Wallow.Identity.Domain.Entities;
-using Wallow.Identity.Infrastructure.Data;
-using Wallow.Identity.Infrastructure.Extensions;
-using Wallow.Identity.Infrastructure.Options;
-using Wallow.Identity.Infrastructure.Persistence;
-using Wallow.Identity.Infrastructure.Repositories;
-using Wallow.Identity.Infrastructure.Services;
 using Wallow.SeederService;
-using Wallow.Shared.Kernel.MultiTenancy;
-using Wolverine;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 
@@ -38,84 +24,7 @@ builder.Services.Configure<SeedOptions>(builder.Configuration);
 string connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
 
-// IdentityDbContext requires IDataProtectionProvider
-builder.Services.AddDataProtection();
-
-// Register IdentityDbContext
-builder.Services.AddDbContext<IdentityDbContext>(options =>
-    options.UseNpgsql(connectionString, npgsql =>
-        npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "identity")));
-
-// ASP.NET Identity
-builder.Services.AddIdentityCore<WallowUser>(opts =>
-    {
-        opts.Password.RequiredLength = 8;
-        opts.User.RequireUniqueEmail = true;
-        opts.SignIn.RequireConfirmedEmail = true;
-    })
-    .AddRoles<WallowRole>()
-    .AddEntityFrameworkStores<IdentityDbContext>()
-    .AddDefaultTokenProviders();
-
-// OpenIddict Core only (no Server — seeder just manages client/scope data)
-builder.Services.AddOpenIddict()
-    .AddCore(opts =>
-    {
-        opts.UseEntityFrameworkCore()
-            .UseDbContext<IdentityDbContext>()
-            .ReplaceDefaultEntities<Guid>();
-    });
-
-// Multi-tenancy
-builder.Services.AddScoped<TenantContext>();
-builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
-builder.Services.AddScoped<ITenantContextSetter>(sp => sp.GetRequiredService<TenantContext>());
-
-// Identity services needed by seeders
-builder.Services.AddScoped<IOrganizationRepository, OrganizationRepository>();
-builder.Services.AddScoped<IMembershipRepository, MembershipRepository>();
-builder.Services.AddScoped<IMembershipRoleResolver, MembershipRoleResolver>();
-builder.Services.AddScoped<IOrganizationService, OrganizationService>();
-builder.Services.AddMembershipAccessRevocation();
-builder.Services.AddScoped<PreRegisteredClientSyncService>();
-builder.Services.AddScoped<OrganizationSeedSyncService>();
-builder.Services.AddScoped<OpenIddictScopeSyncService>();
-builder.Services.AddScoped<IBootstrapAdminService, BootstrapAdminService>();
-builder.Services.AddScoped<ISetupStatusChecker, SetupStatusChecker>();
-builder.Services.AddScoped<DefaultRoleSeeder>();
-builder.Services.AddScoped<ApiScopeSeeder>();
-
-// TimeProvider
-builder.Services.AddSingleton(TimeProvider.System);
-
-// NullMessageBus — OrganizationService requires IMessageBus but the seeder never dispatches messages
-builder.Services.AddSingleton<IMessageBus>(new NullMessageBus());
-
-// Map SeedOptions.Clients into PreRegisteredClientOptions
-builder.Services.Configure<PreRegisteredClientOptions>(opts =>
-{
-    SeedOptions? seed = builder.Configuration.Get<SeedOptions>();
-    if (seed?.Clients is not null)
-    {
-        foreach (PreRegisteredClientDefinition client in seed.Clients)
-        {
-            opts.Clients.Add(client);
-        }
-    }
-});
-
-// Map SeedOptions.Organizations into SeedOrganizationOptions
-builder.Services.Configure<SeedOrganizationOptions>(opts =>
-{
-    SeedOptions? seed = builder.Configuration.Get<SeedOptions>();
-    if (seed?.Organizations is not null)
-    {
-        foreach (SeedOrganizationDefinition organization in seed.Organizations)
-        {
-            opts.Organizations.Add(organization);
-        }
-    }
-});
+builder.Services.AddSeederIdentityServices(builder.Configuration, connectionString);
 
 builder.Services.AddHostedService<SeederWorker>();
 

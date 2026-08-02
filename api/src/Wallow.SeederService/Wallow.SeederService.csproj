@@ -7,6 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Wallow.SeederService.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="..\..\seed.json" Link="seed.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
