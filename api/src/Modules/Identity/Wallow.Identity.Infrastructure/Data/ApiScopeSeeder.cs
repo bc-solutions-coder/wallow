@@ -90,16 +90,18 @@ public sealed partial class ApiScopeSeeder(ILogger<ApiScopeSeeder> logger)
         yield return ApiScope.Create("storage.write", "Write Storage", "Storage",
             "Access to upload and modify files");
 
-        // Communications scopes
-        yield return ApiScope.Create("announcements.read", "Read Announcements", "Communications",
+        // Announcements scopes (changelog is owned by the Announcements module)
+        yield return ApiScope.Create("announcements.read", "Read Announcements", "Announcements",
             "Access to read announcements", isDefault: true);
-        yield return ApiScope.Create("announcements.manage", "Manage Announcements", "Communications",
+        yield return ApiScope.Create("announcements.manage", "Manage Announcements", "Announcements",
             "Access to create, update, and delete announcements");
-        yield return ApiScope.Create("changelog.manage", "Manage Changelog", "Communications",
+        yield return ApiScope.Create("changelog.manage", "Manage Changelog", "Announcements",
             "Access to create, update, and delete changelog entries");
-        yield return ApiScope.Create("notifications.read", "Read Notifications", "Communications",
+
+        // Notifications scopes
+        yield return ApiScope.Create("notifications.read", "Read Notifications", "Notifications",
             "Access to read notifications");
-        yield return ApiScope.Create("notifications.write", "Send Notifications", "Communications",
+        yield return ApiScope.Create("notifications.write", "Send Notifications", "Notifications",
             "Access to send notifications");
 
         // Configuration scopes

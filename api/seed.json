@@ -112,32 +112,32 @@
     {
       "code": "announcements.read",
       "displayName": "Read Announcements",
-      "category": "Communications",
+      "category": "Announcements",
       "description": "Access to read announcements",
       "isDefault": true
     },
     {
       "code": "announcements.manage",
       "displayName": "Manage Announcements",
-      "category": "Communications",
+      "category": "Announcements",
       "description": "Access to create, update, and delete announcements"
     },
     {
       "code": "changelog.manage",
       "displayName": "Manage Changelog",
-      "category": "Communications",
+      "category": "Announcements",
       "description": "Access to create, update, and delete changelog entries"
     },
     {
       "code": "notifications.read",
       "displayName": "Read Notifications",
-      "category": "Communications",
+      "category": "Notifications",
       "description": "Access to read notifications"
     },
     {
       "code": "notifications.write",
       "displayName": "Send Notifications",
-      "category": "Communications",
+      "category": "Notifications",
       "description": "Access to send notifications"
     },
     {

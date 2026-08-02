@@ -3,7 +3,7 @@ namespace Wallow.Shared.Contracts.Identity.Events;
 
 /// <summary>
 /// Published when a user requests a password reset.
-/// Consumers: Email (password reset email)
+/// Consumers: Notifications (password reset email)
 /// </summary>
 public sealed record PasswordResetRequestedEvent : IntegrationEvent
 {

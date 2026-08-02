@@ -72,7 +72,7 @@ public sealed class ApiScopeSeederGapTests : IDisposable
             "Access to read files and storage data", isDefault: true));
         _dbContext.ApiScopes.Add(ApiScope.Create("users.read", "Read Users", "Identity",
             "Access to read user profiles and data", isDefault: true));
-        _dbContext.ApiScopes.Add(ApiScope.Create("notifications.read", "Read Notifications", "Communications",
+        _dbContext.ApiScopes.Add(ApiScope.Create("notifications.read", "Read Notifications", "Notifications",
             "Access to read notifications"));
         await _dbContext.SaveChangesAsync();
 
@@ -134,7 +134,9 @@ public sealed class ApiScopeSeederGapTests : IDisposable
             .Distinct()
             .ToListAsync();
 
-        categories.Should().BeEquivalentTo(["Identity", "Storage", "Communications", "Configuration", "Inquiries", "Platform"]);
+        categories.Should().BeEquivalentTo([
+            "Identity", "Storage", "Announcements", "Notifications", "Configuration", "Inquiries", "Platform"
+        ]);
     }
 
     [Fact]

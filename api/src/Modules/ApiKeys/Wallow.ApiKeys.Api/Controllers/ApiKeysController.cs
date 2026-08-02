@@ -37,7 +37,7 @@ public sealed class ApiKeysController(IApiKeyService apiKeyService, IScopeSubset
     /// ```json
     /// {
     ///   "name": "Production Backend",
-    ///   "scopes": ["billing:read", "billing:write"],
+    ///   "scopes": ["storage.read", "storage.write"],
     ///   "expiresAt": "2027-01-01T00:00:00Z"
     /// }
     /// ```

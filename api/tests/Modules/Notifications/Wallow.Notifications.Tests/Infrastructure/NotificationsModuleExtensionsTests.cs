@@ -13,7 +13,7 @@ using Wallow.Notifications.Infrastructure.Extensions;
 using Wallow.Notifications.Infrastructure.Jobs;
 using Wallow.Notifications.Infrastructure.Persistence;
 using Wallow.Notifications.Infrastructure.Services;
-using Wallow.Shared.Contracts.Communications.Email;
+using Wallow.Shared.Contracts.Notifications.Email;
 using Wallow.Shared.Contracts.Realtime;
 using Wallow.Shared.Kernel.MultiTenancy;
 

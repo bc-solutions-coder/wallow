@@ -18,7 +18,7 @@ using Wallow.Notifications.Infrastructure.Jobs;
 using Wallow.Notifications.Infrastructure.Persistence;
 using Wallow.Notifications.Infrastructure.Persistence.Repositories;
 using Wallow.Notifications.Infrastructure.Services;
-using Wallow.Shared.Contracts.Communications.Email;
+using Wallow.Shared.Contracts.Notifications.Email;
 using Wallow.Shared.Infrastructure.Core.Extensions;
 using Wallow.Shared.Infrastructure.Core.Resilience;
 using Wallow.Shared.Kernel.MultiTenancy;

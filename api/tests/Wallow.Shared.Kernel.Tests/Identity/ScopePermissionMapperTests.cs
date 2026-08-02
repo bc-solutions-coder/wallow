@@ -126,7 +126,7 @@ public class ScopePermissionMapperTests
         result.Should().Be(PermissionType.StorageWrite);
     }
 
-    // Communications
+    // Announcements and Notifications
 
     [Fact]
     public void MapScopeToPermission_AnnouncementsRead_ReturnsAnnouncementRead()

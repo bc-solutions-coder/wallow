@@ -24,7 +24,7 @@ The module provides:
 - **SignalR Support**: Query string token authentication for WebSocket connections
 
 ### Authorization
-- **Permission-Based RBAC**: Granular permissions across Users, Roles, Billing, Organizations, and Admin
+- **Permission-Based RBAC**: Granular permissions across Users, Roles, Organizations, API Keys, and Admin
 - **Role Expansion**: Roles expanded to permissions at request time via `PermissionExpansionMiddleware`
 - **Three Role Tiers**: `admin` (all permissions), `manager` (subset), `user` (basic access)
 - **RolePermissionLookup**: Single source of truth for role-to-permission expansion

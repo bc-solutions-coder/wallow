@@ -1,4 +1,4 @@
-namespace Wallow.Shared.Contracts.Communications.Email;
+namespace Wallow.Shared.Contracts.Notifications.Email;
 
 public interface IEmailService
 {

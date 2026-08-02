@@ -23,7 +23,7 @@ Domain-driven design primitives and cross-cutting concerns shared by all modules
 - `AuditableEntity<TId>`: Adds CreatedAt, UpdatedAt, CreatedBy, UpdatedBy
 - `AggregateRoot<TId>`: Aggregate boundary with domain event publishing
 
-**Strongly-Typed IDs**: `IStronglyTypedId<T>` marker interface prevents ID mix-ups across entities (e.g., `InvoiceId`, `TenantId`).
+**Strongly-Typed IDs**: `IStronglyTypedId<T>` marker interface prevents ID mix-ups across entities (e.g., `UserId`, `TenantId`).
 
 **Value Objects**: Immutable, equality-based domain concepts via `ValueObject` base class.
 
@@ -46,24 +46,20 @@ Cross-module communication contracts and abstractions. Intentionally dependency-
 
 ### Integration Events
 
-Events published by one module and consumed by others via Wolverine in-memory messaging. All events extend `IntegrationEvent` (which implements `IIntegrationEvent`).
+Events published by one module and consumed by others via Wolverine in-memory messaging. All events extend `IntegrationEvent` (which implements `IIntegrationEvent`). They are grouped below by contract namespace, which is not always a module name.
 
 **Identity**: `UserRegisteredEvent`, `OrganizationCreatedEvent`, `UserRoleChangedEvent`, `PasswordResetRequestedEvent`, `OrganizationMemberAddedEvent`, and others.
 
-**Billing**: `InvoiceCreatedEvent`, `InvoicePaidEvent`, `InvoiceOverdueEvent`, `PaymentReceivedEvent`.
+**Announcements**: `AnnouncementPublishedEvent`.
 
-**Delivery**: `EmailSentEvent`.
+**Inquiries**: `InquirySubmittedEvent`, `InquiryCommentAddedEvent`, `InquiryStatusChangedEvent`.
 
-**Notifications**: `NotificationCreatedEvent`.
-
-**Metering**: `QuotaThresholdReachedEvent`, `UsageFlushedEvent`.
+**Delivery** and **Notifications** (`EmailSentEvent`, `SmsSentEvent`, `PushSentEvent`, `NotificationCreatedEvent`) are contract namespaces, not modules. Their events are declared but nothing publishes or consumes them yet.
 
 ### Cross-Module Query Services
 
 Modules expose read-only interfaces implemented in their Infrastructure layer:
 - `IUserQueryService` (Identity)
-- `IInvoiceQueryService`, `ISubscriptionQueryService`, `IRevenueReportService` (Billing)
-- `IMeteringQueryService`, `IUsageReportService` (Metering)
 
 ### Real-time Abstractions
 
@@ -91,7 +87,6 @@ Settings framework and module coordination.
 - Wallow.Shared.Contracts
 - Wallow.Shared.Infrastructure.Core
 - Wallow.Shared.Infrastructure.BackgroundJobs
-- Wallow.Shared.Infrastructure.Workflows
 - Wallow.Shared.Infrastructure.Plugins
 - EF Core, Wolverine, Hangfire, Serilog
 

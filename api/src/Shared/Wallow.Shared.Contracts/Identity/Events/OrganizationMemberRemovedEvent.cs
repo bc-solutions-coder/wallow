@@ -2,7 +2,7 @@ namespace Wallow.Shared.Contracts.Identity.Events;
 
 /// <summary>
 /// Published when a user is removed from an organization.
-/// Consumers: Communications (access revoked notice)
+/// Consumers: Notifications (access revoked notice)
 /// </summary>
 public sealed record OrganizationMemberRemovedEvent : IntegrationEvent
 {

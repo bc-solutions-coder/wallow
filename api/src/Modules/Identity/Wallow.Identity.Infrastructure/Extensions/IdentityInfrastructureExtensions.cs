@@ -137,15 +137,11 @@ public static class IdentityInfrastructureExtensions
 
                 options.RegisterScopes(
                     "openid", "profile", "email", "roles", "offline_access",
-                    "invoices.read", "invoices.write",
-                    "payments.read", "payments.write",
-                    "subscriptions.read", "subscriptions.write",
                     "users.read", "users.write", "users.manage",
                     "roles.read", "roles.write", "roles.manage",
                     "organizations.read", "organizations.write", "organizations.manage",
                     "apikeys.read", "apikeys.write", "apikeys.manage",
                     "storage.read", "storage.write",
-                    "messaging.access",
                     "announcements.read", "announcements.manage",
                     "changelog.manage",
                     "notifications.read", "notifications.write",

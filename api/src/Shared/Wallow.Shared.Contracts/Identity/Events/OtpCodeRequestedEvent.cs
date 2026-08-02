@@ -3,7 +3,7 @@ namespace Wallow.Shared.Contracts.Identity.Events;
 
 /// <summary>
 /// Published when a user requests a one-time password for passwordless login.
-/// Consumers: Communications (OTP email)
+/// Consumers: Notifications (OTP email)
 /// </summary>
 public sealed record OtpCodeRequestedEvent : IntegrationEvent
 {

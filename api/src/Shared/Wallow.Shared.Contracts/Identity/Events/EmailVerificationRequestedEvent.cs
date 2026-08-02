@@ -3,7 +3,7 @@ namespace Wallow.Shared.Contracts.Identity.Events;
 
 /// <summary>
 /// Published when a user requests email verification.
-/// Consumers: Communications (verification email)
+/// Consumers: Notifications (verification email)
 /// </summary>
 public sealed record EmailVerificationRequestedEvent : IntegrationEvent
 {

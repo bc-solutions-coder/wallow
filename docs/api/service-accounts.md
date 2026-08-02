@@ -222,13 +222,18 @@ permission. The `category` query parameter is optional; omit it to list every sc
 | `storage.read` | Read files and storage data | Yes |
 | `storage.write` | Upload and modify files | No |
 
-### Communications
+### Announcements
 
 | Scope | Description | Default |
 |-------|-------------|---------|
 | `announcements.read` | Read announcements | Yes |
 | `announcements.manage` | Manage announcements | No |
 | `changelog.manage` | Manage changelog entries | No |
+
+### Notifications
+
+| Scope | Description | Default |
+|-------|-------------|---------|
 | `notifications.read` | Read notifications | No |
 | `notifications.write` | Send notifications | No |
 

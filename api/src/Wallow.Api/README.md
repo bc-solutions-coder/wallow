@@ -8,7 +8,7 @@ Wallow.Api is the main entry point and orchestration host for the Wallow modular
 
 ### Module Wiring
 
-Modules are registered through `WallowModules.cs`, which calls each module's extension method (e.g., `AddIdentityModule()`, `AddBillingModule()`). These methods encapsulate module-specific services, infrastructure, and event consumers.
+Modules are registered through `WallowModules.cs`, which calls each module's extension method (e.g., `AddIdentityModule()`, `AddNotificationsModule()`). These methods encapsulate module-specific services, infrastructure, and event consumers.
 
 ### CQRS via Wolverine
 

@@ -343,7 +343,8 @@ defined in `ApiScopes.ValidScopes`:
 | Identity — API Keys | `apikeys.read`, `apikeys.write`, `apikeys.manage` |
 | Identity — Service Accounts | `serviceaccounts.read`, `serviceaccounts.write`, `serviceaccounts.manage` |
 | Storage | `storage.read`, `storage.write` |
-| Communications | `announcements.read`, `announcements.manage`, `changelog.manage`, `notifications.read`, `notifications.write` |
+| Announcements | `announcements.read`, `announcements.manage`, `changelog.manage` |
+| Notifications | `notifications.read`, `notifications.write` |
 | Inquiries | `inquiries.read`, `inquiries.write` |
 | Configuration | `configuration.read`, `configuration.manage` |
 | Platform | `webhooks.manage` |

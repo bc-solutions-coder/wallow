@@ -10,17 +10,15 @@ Defines the inter-module communication boundary. Modules reference this package 
 
 All integration events implement `IIntegrationEvent` and extend the `IntegrationEvent` base record, which provides `EventId` (Guid) and `OccurredAt` (DateTime).
 
-### Events by Module
+### Events by Namespace
 
 **Identity**: `UserRegisteredEvent`, `UserRoleChangedEvent`, `OrganizationCreatedEvent`, `OrganizationMemberAddedEvent`, `OrganizationMemberRemovedEvent`, `PasswordResetRequestedEvent`, `EmailVerificationRequestedEvent`, `EmailVerifiedEvent`, `InvitationCreatedEvent`, `MagicLinkRequestedEvent`, `OtpCodeRequestedEvent`, and others.
-
-**Delivery**: `EmailSentEvent`, `PushSentEvent`, `SmsSentEvent`.
-
-**Notifications**: `NotificationCreatedEvent`.
 
 **Announcements**: `AnnouncementPublishedEvent`.
 
 **Inquiries**: `InquirySubmittedEvent`, `InquiryStatusChangedEvent`, `InquiryCommentAddedEvent`.
+
+**Delivery** (`EmailSentEvent`, `PushSentEvent`, `SmsSentEvent`) and **Notifications** (`NotificationCreatedEvent`) are contract namespaces, not modules. These events are declared but nothing publishes or consumes them yet.
 
 ## Cross-Module Query Services
 
@@ -36,7 +34,7 @@ Modules expose read-only interfaces implemented in their Infrastructure layer:
 
 ## Other Contracts
 
-Additional contract subdirectories exist for: Annotations, Announcements, ApiKeys, Communications, Delivery, Identity, Inquiries, Notifications, Realtime, Setup, and Storage.
+Additional contract subdirectories exist for: Annotations, Announcements, ApiKeys, Delivery, Identity, Inquiries, Notifications, Realtime, Setup, and Storage.
 
 ## Conventions
 

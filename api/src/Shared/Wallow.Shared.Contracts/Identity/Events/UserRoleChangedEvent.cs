@@ -3,7 +3,7 @@ namespace Wallow.Shared.Contracts.Identity.Events;
 
 /// <summary>
 /// Published when a user's role changes.
-/// Consumers: Communications (notify user of role change)
+/// Consumers: Notifications (notify user of role change)
 /// </summary>
 public sealed record UserRoleChangedEvent : IntegrationEvent
 {

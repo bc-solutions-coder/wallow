@@ -3,7 +3,7 @@ namespace Wallow.Shared.Contracts.Identity.Events;
 
 /// <summary>
 /// Published when a new invitation is created.
-/// Consumers: Communications (invitation email)
+/// Consumers: Notifications (invitation email)
 /// </summary>
 public sealed record InvitationCreatedEvent : IntegrationEvent
 {

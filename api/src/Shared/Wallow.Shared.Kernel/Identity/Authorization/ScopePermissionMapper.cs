@@ -30,7 +30,7 @@ public static class ScopePermissionMapper
             "storage.read" => PermissionType.StorageRead,
             "storage.write" => PermissionType.StorageWrite,
 
-            // Communications
+            // Announcements and Notifications
             "announcements.read" => PermissionType.AnnouncementRead,
             "announcements.manage" => PermissionType.AnnouncementManage,
             "changelog.manage" => PermissionType.ChangelogManage,

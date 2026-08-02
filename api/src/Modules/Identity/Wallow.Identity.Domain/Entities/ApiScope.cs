@@ -10,17 +10,17 @@ namespace Wallow.Identity.Domain.Entities;
 public sealed class ApiScope : Entity<ApiScopeId>
 {
     /// <summary>
-    /// Unique scope code (e.g., "invoices.read", "payments.write").
+    /// Unique scope code (e.g., "users.read", "storage.write").
     /// </summary>
     public string Code { get; private set; } = string.Empty;
 
     /// <summary>
-    /// Human-readable display name (e.g., "Read Invoices").
+    /// Human-readable display name (e.g., "Read Users").
     /// </summary>
     public string DisplayName { get; private set; } = string.Empty;
 
     /// <summary>
-    /// Category for grouping scopes in UI (e.g., "Billing", "Identity").
+    /// Category for grouping scopes in UI (e.g., "Identity", "Storage").
     /// </summary>
     public string Category { get; private set; } = string.Empty;
 

@@ -57,8 +57,8 @@ src/Modules/Notifications/
 
 | Enum | Values |
 |------|--------|
-| `NotificationType` | TaskAssigned, TaskCompleted, TaskComment, SystemAlert, BillingInvoice, Mention, Announcement, SystemNotification, InquirySubmitted, InquiryComment |
-| `ChannelType` | Email, Sms, InApp, Push, Webhook |
+| `NotificationType` | TaskAssigned, TaskCompleted, TaskComment, SystemAlert, Mention, Announcement, SystemNotification, InquirySubmitted, InquiryComment |
+| `ChannelType` | Email, Sms, InApp, Push |
 | `EmailStatus` | Pending, Sent, Failed |
 | `SmsStatus` | Pending, Sent, Failed |
 | `PushStatus` | Pending, Delivered, Failed |
@@ -70,11 +70,9 @@ This module handles events from other modules via Wolverine. All event types are
 
 | Source Module | Events |
 |---------------|--------|
-| Identity | `EmailVerificationRequestedEvent`, `EmailVerifiedEvent`, `UserRegisteredEvent`, `PasswordChangedEvent`, `PasswordResetEvent`, `UserRoleChangedEvent`, `OrganizationCreatedEvent`, `OrganizationMemberAddedEvent`, `OrganizationMemberRemovedEvent` |
-| Billing | `InvoicePaidEvent`, `InvoiceOverdueEvent`, `PaymentReceivedEvent` |
+| Identity | `EmailVerificationRequestedEvent`, `EmailVerifiedEvent`, `UserRegisteredEvent`, `PasswordChangedEvent`, `PasswordResetRequestedEvent`, `UserRoleChangedEvent`, `OrganizationCreatedEvent`, `OrganizationMemberAddedEvent`, `OrganizationMemberRemovedEvent`, `InvitationCreatedEvent`, `MagicLinkRequestedEvent`, `OtpCodeRequestedEvent`, `AccessRequestedEvent` |
 | Announcements | `AnnouncementPublishedEvent` |
 | Inquiries | `InquirySubmittedEvent`, `InquiryCommentAddedEvent`, `InquiryStatusChangedEvent` |
-| Messaging | `MessageSentEvent` |
 
 ## API Endpoints
 

@@ -4,7 +4,7 @@ using Wallow.Notifications.Application.Channels.Email.Interfaces;
 using Wallow.Notifications.Application.Preferences.Interfaces;
 using Wallow.Notifications.Domain.Channels.Email.Entities;
 using Wallow.Notifications.Domain.Preferences;
-using Wallow.Shared.Contracts.Communications.Email;
+using Wallow.Shared.Contracts.Notifications.Email;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Results;

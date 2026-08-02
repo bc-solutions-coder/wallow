@@ -3,7 +3,7 @@ namespace Wallow.Shared.Contracts.Identity.Events;
 
 /// <summary>
 /// Published when a new organization is created.
-/// Consumers: Billing (setup org billing), Communications (org setup)
+/// Consumers: Notifications (org setup)
 /// </summary>
 public sealed record OrganizationCreatedEvent : IntegrationEvent
 {

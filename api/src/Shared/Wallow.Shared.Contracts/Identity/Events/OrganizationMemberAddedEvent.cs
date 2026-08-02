@@ -3,7 +3,7 @@ namespace Wallow.Shared.Contracts.Identity.Events;
 
 /// <summary>
 /// Published when a user is added to an organization.
-/// Consumers: Communications (member welcome)
+/// Consumers: Notifications (member welcome)
 /// </summary>
 public sealed record OrganizationMemberAddedEvent : IntegrationEvent
 {

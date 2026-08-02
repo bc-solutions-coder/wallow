@@ -3,7 +3,7 @@ namespace Wallow.Shared.Contracts.Identity.Events;
 
 /// <summary>
 /// Published when a new user registers.
-/// Consumers: Communications (welcome email, setup)
+/// Consumers: Notifications (welcome email, setup)
 /// </summary>
 public sealed record UserRegisteredEvent : IntegrationEvent
 {

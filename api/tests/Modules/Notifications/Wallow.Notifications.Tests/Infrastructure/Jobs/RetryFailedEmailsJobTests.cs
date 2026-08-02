@@ -4,7 +4,7 @@ using Wallow.Notifications.Domain.Channels.Email.Entities;
 using Wallow.Notifications.Domain.Channels.Email.Enums;
 using Wallow.Notifications.Domain.Channels.Email.ValueObjects;
 using Wallow.Notifications.Infrastructure.Jobs;
-using Wallow.Shared.Contracts.Communications.Email;
+using Wallow.Shared.Contracts.Notifications.Email;
 using Wallow.Shared.Kernel.Identity;
 
 namespace Wallow.Notifications.Tests.Infrastructure.Jobs;
