@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 
-namespace Wallow.SeederService.Tests;
+namespace Wallow.Tests.Common;
 
 /// <summary>
 /// Captures log entries as they are written. The [LoggerMessage] source generator used here
@@ -8,7 +8,7 @@ namespace Wallow.SeederService.Tests;
 /// <see cref="ILogger.Log{TState}"/> returns, so a recorded-call inspection (e.g. NSubstitute)
 /// sees emptied tags. Formatting must happen inside the call, which is what this logger does.
 /// </summary>
-internal sealed class RecordingLogger<T> : ILogger<T>
+public sealed class RecordingLogger<T> : ILogger<T>
 {
     private readonly List<LogEntry> _entries = [];
 
@@ -31,4 +31,4 @@ internal sealed class RecordingLogger<T> : ILogger<T>
     }
 }
 
-internal sealed record LogEntry(LogLevel Level, EventId EventId, string Message);
+public sealed record LogEntry(LogLevel Level, EventId EventId, string Message);

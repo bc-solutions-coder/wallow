@@ -29,6 +29,7 @@
     <ProjectReference Include="..\..\src\Wallow.ServiceDefaults\Wallow.ServiceDefaults.csproj" />
     <ProjectReference Include="..\..\src\Modules\Identity\Wallow.Identity.Application\Wallow.Identity.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Identity\Wallow.Identity.Infrastructure\Wallow.Identity.Infrastructure.csproj" />
+    <ProjectReference Include="..\Wallow.Tests.Common\Wallow.Tests.Common.csproj" />
   </ItemGroup>
 
 </Project>

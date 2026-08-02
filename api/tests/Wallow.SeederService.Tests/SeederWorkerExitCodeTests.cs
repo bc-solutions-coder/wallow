@@ -3,6 +3,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Wallow.ServiceDefaults;
+using Wallow.Tests.Common;
 
 namespace Wallow.SeederService.Tests;
 

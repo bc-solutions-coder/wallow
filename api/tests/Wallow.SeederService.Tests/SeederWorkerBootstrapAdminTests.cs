@@ -6,6 +6,7 @@ using Wallow.Identity.Application.Commands.BootstrapAdmin;
 using Wallow.Identity.Application.Queries.IsSetupRequired;
 using Wallow.Identity.Infrastructure.Options;
 using Wallow.ServiceDefaults;
+using Wallow.Tests.Common;
 
 namespace Wallow.SeederService.Tests;
 
