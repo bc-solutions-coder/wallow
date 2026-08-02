@@ -8,10 +8,8 @@ import {
 } from "@features/organizations";
 
 /**
- * The dashboard organization-detail route (Wallow-8w1h.4.4). Mirrors the list
- * route's authored file-route style (`createFileRoute('/dashboard/organizations/
- * $orgId')`); `src/router.tsx` binds it under the root via
- * `.update({ id, path, getParentRoute })` (no dashboard layout route yet).
+ * The dashboard organization-detail route. Directory form (no `route.tsx`),
+ * so it contributes no layout and nests `$orgId`-scoped siblings under it.
  *
  * The `loader` prefetches both the org detail and its members via
  * `context.queryClient.ensureQueryData(...)`; the page reads the `orgId` route
@@ -26,7 +24,7 @@ function OrganizationDetailPage() {
   );
 }
 
-export const Route = createFileRoute("/dashboard/organizations/$orgId")({
+export const Route = createFileRoute("/dashboard/organizations/$orgId/")({
   loader: ({ context, params }) =>
     Promise.all([
       context.queryClient.ensureQueryData(

@@ -22,7 +22,7 @@ import { Route as DashboardAppsRegisterRouteImport } from './routes/dashboard/ap
 import { Route as DashboardInquiriesIndexRouteImport } from './routes/dashboard/inquiries/index'
 import { Route as DashboardInquiriesInquiryIdRouteImport } from './routes/dashboard/inquiries/$inquiryId'
 import { Route as DashboardOrganizationsIndexRouteImport } from './routes/dashboard/organizations/index'
-import { Route as DashboardOrganizationsOrgIdRouteImport } from './routes/dashboard/organizations/$orgId'
+import { Route as DashboardOrganizationsOrgIdIndexRouteImport } from './routes/dashboard/organizations/$orgId/index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -91,10 +91,10 @@ const DashboardOrganizationsIndexRoute =
     path: '/organizations/',
     getParentRoute: () => DashboardRouteRoute,
   } as any)
-const DashboardOrganizationsOrgIdRoute =
-  DashboardOrganizationsOrgIdRouteImport.update({
-    id: '/organizations/$orgId',
-    path: '/organizations/$orgId',
+const DashboardOrganizationsOrgIdIndexRoute =
+  DashboardOrganizationsOrgIdIndexRouteImport.update({
+    id: '/organizations/$orgId/',
+    path: '/organizations/$orgId/',
     getParentRoute: () => DashboardRouteRoute,
   } as any)
 
@@ -109,10 +109,10 @@ export interface FileRoutesByFullPath {
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/apps/register': typeof DashboardAppsRegisterRoute
   '/dashboard/inquiries/$inquiryId': typeof DashboardInquiriesInquiryIdRoute
-  '/dashboard/organizations/$orgId': typeof DashboardOrganizationsOrgIdRoute
   '/dashboard/apps/': typeof DashboardAppsIndexRoute
   '/dashboard/inquiries/': typeof DashboardInquiriesIndexRoute
   '/dashboard/organizations/': typeof DashboardOrganizationsIndexRoute
+  '/dashboard/organizations/$orgId/': typeof DashboardOrganizationsOrgIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -125,10 +125,10 @@ export interface FileRoutesByTo {
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/apps/register': typeof DashboardAppsRegisterRoute
   '/dashboard/inquiries/$inquiryId': typeof DashboardInquiriesInquiryIdRoute
-  '/dashboard/organizations/$orgId': typeof DashboardOrganizationsOrgIdRoute
   '/dashboard/apps': typeof DashboardAppsIndexRoute
   '/dashboard/inquiries': typeof DashboardInquiriesIndexRoute
   '/dashboard/organizations': typeof DashboardOrganizationsIndexRoute
+  '/dashboard/organizations/$orgId': typeof DashboardOrganizationsOrgIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -142,10 +142,10 @@ export interface FileRoutesById {
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/apps/register': typeof DashboardAppsRegisterRoute
   '/dashboard/inquiries/$inquiryId': typeof DashboardInquiriesInquiryIdRoute
-  '/dashboard/organizations/$orgId': typeof DashboardOrganizationsOrgIdRoute
   '/dashboard/apps/': typeof DashboardAppsIndexRoute
   '/dashboard/inquiries/': typeof DashboardInquiriesIndexRoute
   '/dashboard/organizations/': typeof DashboardOrganizationsIndexRoute
+  '/dashboard/organizations/$orgId/': typeof DashboardOrganizationsOrgIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -160,10 +160,10 @@ export interface FileRouteTypes {
     | '/dashboard/settings'
     | '/dashboard/apps/register'
     | '/dashboard/inquiries/$inquiryId'
-    | '/dashboard/organizations/$orgId'
     | '/dashboard/apps/'
     | '/dashboard/inquiries/'
     | '/dashboard/organizations/'
+    | '/dashboard/organizations/$orgId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -176,10 +176,10 @@ export interface FileRouteTypes {
     | '/dashboard/settings'
     | '/dashboard/apps/register'
     | '/dashboard/inquiries/$inquiryId'
-    | '/dashboard/organizations/$orgId'
     | '/dashboard/apps'
     | '/dashboard/inquiries'
     | '/dashboard/organizations'
+    | '/dashboard/organizations/$orgId'
   id:
     | '__root__'
     | '/'
@@ -192,10 +192,10 @@ export interface FileRouteTypes {
     | '/dashboard/settings'
     | '/dashboard/apps/register'
     | '/dashboard/inquiries/$inquiryId'
-    | '/dashboard/organizations/$orgId'
     | '/dashboard/apps/'
     | '/dashboard/inquiries/'
     | '/dashboard/organizations/'
+    | '/dashboard/organizations/$orgId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -301,11 +301,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardOrganizationsIndexRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
-    '/dashboard/organizations/$orgId': {
-      id: '/dashboard/organizations/$orgId'
+    '/dashboard/organizations/$orgId/': {
+      id: '/dashboard/organizations/$orgId/'
       path: '/organizations/$orgId'
-      fullPath: '/dashboard/organizations/$orgId'
-      preLoaderRoute: typeof DashboardOrganizationsOrgIdRouteImport
+      fullPath: '/dashboard/organizations/$orgId/'
+      preLoaderRoute: typeof DashboardOrganizationsOrgIdIndexRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
   }
@@ -315,20 +315,20 @@ interface DashboardRouteRouteChildren {
   DashboardSettingsRoute: typeof DashboardSettingsRoute
   DashboardAppsRegisterRoute: typeof DashboardAppsRegisterRoute
   DashboardInquiriesInquiryIdRoute: typeof DashboardInquiriesInquiryIdRoute
-  DashboardOrganizationsOrgIdRoute: typeof DashboardOrganizationsOrgIdRoute
   DashboardAppsIndexRoute: typeof DashboardAppsIndexRoute
   DashboardInquiriesIndexRoute: typeof DashboardInquiriesIndexRoute
   DashboardOrganizationsIndexRoute: typeof DashboardOrganizationsIndexRoute
+  DashboardOrganizationsOrgIdIndexRoute: typeof DashboardOrganizationsOrgIdIndexRoute
 }
 
 const DashboardRouteRouteChildren: DashboardRouteRouteChildren = {
   DashboardSettingsRoute: DashboardSettingsRoute,
   DashboardAppsRegisterRoute: DashboardAppsRegisterRoute,
   DashboardInquiriesInquiryIdRoute: DashboardInquiriesInquiryIdRoute,
-  DashboardOrganizationsOrgIdRoute: DashboardOrganizationsOrgIdRoute,
   DashboardAppsIndexRoute: DashboardAppsIndexRoute,
   DashboardInquiriesIndexRoute: DashboardInquiriesIndexRoute,
   DashboardOrganizationsIndexRoute: DashboardOrganizationsIndexRoute,
+  DashboardOrganizationsOrgIdIndexRoute: DashboardOrganizationsOrgIdIndexRoute,
 }
 
 const DashboardRouteRouteWithChildren = DashboardRouteRoute._addFileChildren(
