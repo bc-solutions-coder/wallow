@@ -472,33 +472,6 @@ namespace Wallow.Identity.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "user_roles",
-                schema: "identity",
-                columns: table => new
-                {
-                    user_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    role_id = table.Column<Guid>(type: "uuid", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_user_roles", x => new { x.user_id, x.role_id });
-                    table.ForeignKey(
-                        name: "FK_user_roles_roles_role_id",
-                        column: x => x.role_id,
-                        principalSchema: "identity",
-                        principalTable: "roles",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_user_roles_users_user_id",
-                        column: x => x.user_id,
-                        principalSchema: "identity",
-                        principalTable: "users",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "user_tokens",
                 schema: "identity",
                 columns: table => new
@@ -762,12 +735,6 @@ namespace Wallow.Identity.Infrastructure.Migrations
                 column: "user_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_user_roles_role_id",
-                schema: "identity",
-                table: "user_roles",
-                column: "role_id");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_user_settings_tenant_id_user_id_module_key_setting_key",
                 schema: "identity",
                 table: "user_settings",
@@ -841,10 +808,6 @@ namespace Wallow.Identity.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "user_logins",
-                schema: "identity");
-
-            migrationBuilder.DropTable(
-                name: "user_roles",
                 schema: "identity");
 
             migrationBuilder.DropTable(

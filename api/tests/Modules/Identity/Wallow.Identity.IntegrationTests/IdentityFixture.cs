@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using OpenIddict.Abstractions;
+using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 
 namespace Wallow.Identity.IntegrationTests;
@@ -24,6 +25,8 @@ public sealed class IdentityFixture
 
     public const string ApiClientId = "wallow-api";
     public const string ApiClientSecret = "wallow-api-secret";
+
+    private const string AdminOrganizationName = "Wallow Test Organization";
 
     public Guid TestUserId { get; private set; }
 
@@ -70,7 +73,17 @@ public sealed class IdentityFixture
                 throw new InvalidOperationException($"Failed to seed admin user: {errors}");
             }
 
-            await userManager.AddToRoleAsync(adminUser, "admin");
+            // SetupMiddleware reads authorization's own directory: an Active membership holding a
+            // role that grants AdminAccess. Creating the organization with this user as its
+            // creator is what mints that membership — there is no global role directory to add to.
+            IOrganizationService organizationService =
+                services.GetRequiredService<IOrganizationService>();
+
+            await organizationService.CreateOrganizationAsync(
+                AdminOrganizationName,
+                domain: null,
+                creatorEmail: AdminUserEmail,
+                creatorUserId: adminUser.Id);
         }
 
         WallowUser? existing = await userManager.FindByEmailAsync(TestUserEmail);

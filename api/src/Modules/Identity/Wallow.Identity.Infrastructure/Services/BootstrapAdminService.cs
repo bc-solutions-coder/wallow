@@ -40,30 +40,6 @@ public sealed class BootstrapAdminService(
         return user.Id;
     }
 
-    /// <summary>
-    /// Writes ASP.NET Identity's own user-role directory. It grants no authorization: roles are
-    /// resolved from a membership of a specific organization, and bootstrap runs before any
-    /// organization exists. What makes the seeded administrator an administrator is the
-    /// membership client sync creates, or the global-admin claim <see cref="GrantGlobalAdminAsync"/>
-    /// writes. The first administrator created through the setup wizard therefore still holds no
-    /// permission anywhere; which organization they should belong to is an open product question.
-    /// </summary>
-    public async Task AssignRoleAsync(Guid userId, string roleName, CancellationToken ct = default)
-    {
-        WallowUser? user = await userManager.FindByIdAsync(userId.ToString());
-        if (user is null)
-        {
-            throw new InvalidOperationException($"User with ID '{userId}' not found.");
-        }
-
-        IdentityResult result = await userManager.AddToRoleAsync(user, roleName);
-        if (!result.Succeeded)
-        {
-            throw new InvalidOperationException(
-                $"Failed to assign role '{roleName}' to user '{userId}': {string.Join(", ", result.Errors.Select(e => e.Description))}");
-        }
-    }
-
     public async Task GrantGlobalAdminAsync(Guid userId, CancellationToken ct = default)
     {
         WallowUser? user = await userManager.FindByIdAsync(userId.ToString());

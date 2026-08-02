@@ -16,6 +16,9 @@ public sealed class BootstrapAdminValidator : AbstractValidator<BootstrapAdminCo
         RuleFor(x => x.FirstName)
             .NotEmpty().WithMessage("First name is required");
 
+        RuleFor(x => x.OrganizationName)
+            .NotEmpty().WithMessage("Organization name is required");
+
         RuleFor(x => x.LastName)
             .NotEmpty().WithMessage("Last name is required");
     }

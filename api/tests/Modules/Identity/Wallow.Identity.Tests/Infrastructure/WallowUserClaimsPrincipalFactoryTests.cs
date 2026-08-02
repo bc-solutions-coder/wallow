@@ -23,24 +23,31 @@ public sealed class WallowUserClaimsPrincipalFactoryTests
             userStore, null, null, null, null, null, null, null, null);
         _userManager.SupportsUserRole.Returns(true);
 
-        IRoleStore<WallowRole> roleStore = Substitute.For<IRoleStore<WallowRole>>();
-        RoleManager<WallowRole> roleManager = Substitute.For<RoleManager<WallowRole>>(
-            roleStore, null, null, null, null);
-
         _sut = new WallowUserClaimsPrincipalFactory(
-            _userManager, roleManager, Options.Create(new IdentityOptions()));
+            _userManager, Options.Create(new IdentityOptions()));
     }
 
     [Fact]
-    public async Task CreateAsync_ForAUserHoldingGlobalRoles_StampsNoRoleClaim()
+    public async Task CreateAsync_ForAnyUser_StampsNoRoleClaim()
     {
         WallowUser user = ArrangeUser();
-        _userManager.GetRolesAsync(user).Returns<IList<string>>(["admin", "user"]);
 
         ClaimsPrincipal principal = await _sut.CreateAsync(user);
 
         principal.FindAll(ClaimTypes.Role).Should().BeEmpty();
         principal.IsInRole("admin").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task CreateAsync_ForAnyUser_NeverAsksForRoles()
+    {
+        WallowUser user = ArrangeUser();
+
+        await _sut.CreateAsync(user);
+
+        // There is no global role directory to ask. Asking would throw once the ASP.NET Identity
+        // user-role join left the model, which is why the factory is the user-only one.
+        await _userManager.DidNotReceive().GetRolesAsync(Arg.Any<WallowUser>());
     }
 
     [Fact]
@@ -60,7 +67,6 @@ public sealed class WallowUserClaimsPrincipalFactoryTests
 
         _userManager.GetUserIdAsync(user).Returns(user.Id.ToString());
         _userManager.GetUserNameAsync(user).Returns(user.Email);
-        _userManager.GetRolesAsync(user).Returns<IList<string>>([]);
 
         return user;
     }

@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using Wallow.Identity.Domain.Entities;
@@ -12,31 +11,22 @@ namespace Wallow.Identity.Infrastructure.Services;
 /// organization the OIDC client is bound to.
 /// </summary>
 /// <remarks>
+/// <para>
+/// It derives from the USER-ONLY factory on purpose. The role-aware
+/// <c>UserClaimsPrincipalFactory&lt;TUser, TRole&gt;</c> stamps role claims from ASP.NET Identity's
+/// user-role join — a directory this schema does not have, because roles hang off a membership of
+/// one organization. Stripping those claims after the fact worked only while the join still
+/// existed; not asking for them is the version that survives its removal.
+/// </para>
+/// <para>
 /// A cookie-authenticated request therefore resolves no tenant, and the endpoints it can still
 /// reach are the ones that need none — sign-in, the authorize handshake, MFA step-up, logout and
 /// account self-service. Everything tenant-scoped is permission-gated, and permissions come from
 /// roles the cookie does not carry. A tenant-scoped row cannot be written without one either:
 /// <see cref="Wallow.Shared.Kernel.MultiTenancy.TenantScope.Require"/> refuses at construction.
+/// </para>
 /// </remarks>
 public sealed class WallowUserClaimsPrincipalFactory(
     UserManager<WallowUser> userManager,
-    RoleManager<WallowRole> roleManager,
     IOptions<IdentityOptions> optionsAccessor)
-    : UserClaimsPrincipalFactory<WallowUser, WallowRole>(userManager, roleManager, optionsAccessor)
-{
-    protected override async Task<ClaimsIdentity> GenerateClaimsAsync(WallowUser user)
-    {
-        ClaimsIdentity identity = await base.GenerateClaimsAsync(user);
-
-        // A role is granted by an organization and means nothing outside it. The cookie names no
-        // organization, so the role claims the base factory stamps from AspNetUserRoles would be
-        // authority with no scope — and they ride the exchange-ticket flow into token issuance.
-        // Roles are resolved per organization when a token is issued, never carried in here.
-        foreach (Claim roleClaim in identity.FindAll(identity.RoleClaimType).ToList())
-        {
-            identity.RemoveClaim(roleClaim);
-        }
-
-        return identity;
-    }
-}
+    : UserClaimsPrincipalFactory<WallowUser>(userManager, optionsAccessor);

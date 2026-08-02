@@ -45,7 +45,8 @@ public class SetupController(IMessageBus messageBus) : ControllerBase
             request.Email,
             request.Password,
             request.FirstName,
-            request.LastName);
+            request.LastName,
+            request.OrganizationName);
 
         Result result = await messageBus.InvokeAsync<Result>(command, ct);
 

@@ -139,7 +139,7 @@ export const apiKeysListApiKeys = <ThrowOnError extends boolean = true>(options?
  * ```json
  * {
  * "name": "Production Backend",
- * "scopes": ["billing:read", "billing:write"],
+ * "scopes": ["storage.read", "storage.write"],
  * "expiresAt": "2027-01-01T00:00:00Z"
  * }
  * ```

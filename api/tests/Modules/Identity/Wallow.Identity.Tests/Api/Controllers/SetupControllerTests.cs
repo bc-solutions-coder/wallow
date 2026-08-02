@@ -58,7 +58,7 @@ public class SetupControllerTests
         _messageBus.InvokeAsync<bool>(Arg.Any<IsSetupRequiredQuery>(), Arg.Any<CancellationToken>())
             .Returns(false);
 
-        CreateAdminRequest request = new("admin@test.com", "P@ssword1", "Admin", "User");
+        CreateAdminRequest request = new("admin@test.com", "P@ssword1", "Admin", "User", "Acme Inc");
 
         IActionResult result = await _controller.CreateAdmin(request, CancellationToken.None);
 
@@ -74,11 +74,30 @@ public class SetupControllerTests
         _messageBus.InvokeAsync<Result>(Arg.Any<BootstrapAdminCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success());
 
-        CreateAdminRequest request = new("admin@test.com", "P@ssword1", "Admin", "User");
+        CreateAdminRequest request = new("admin@test.com", "P@ssword1", "Admin", "User", "Acme Inc");
 
         IActionResult result = await _controller.CreateAdmin(request, CancellationToken.None);
 
         result.Should().BeOfType<NoContentResult>();
+    }
+
+    [Fact]
+    public async Task CreateAdmin_ForwardsTheOrganizationNameToTheCommand()
+    {
+        _messageBus.InvokeAsync<bool>(Arg.Any<IsSetupRequiredQuery>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+        _messageBus.InvokeAsync<Result>(Arg.Any<BootstrapAdminCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+
+        CreateAdminRequest request = new("admin@test.com", "P@ssword1", "Admin", "User", "Contoso");
+
+        await _controller.CreateAdmin(request, CancellationToken.None);
+
+        // Dropping it here would recreate the dead end this endpoint had: an administrator with
+        // no organization holds no permission anywhere and never closes the setup gate.
+        await _messageBus.Received(1).InvokeAsync<Result>(
+            Arg.Is<BootstrapAdminCommand>(c => c.OrganizationName == "Contoso"),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -89,7 +108,7 @@ public class SetupControllerTests
         _messageBus.InvokeAsync<Result>(Arg.Any<BootstrapAdminCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure(new Error("Admin.Exists", "Admin already exists")));
 
-        CreateAdminRequest request = new("admin@test.com", "P@ssword1", "Admin", "User");
+        CreateAdminRequest request = new("admin@test.com", "P@ssword1", "Admin", "User", "Acme Inc");
 
         IActionResult result = await _controller.CreateAdmin(request, CancellationToken.None);
 

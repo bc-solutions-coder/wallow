@@ -23,6 +23,8 @@ using Wallow.Api.Logging;
 using Wallow.Api.Middleware;
 using Wallow.Api.Services;
 using Wallow.ApiKeys.Infrastructure.Authorization;
+using Wallow.Identity.Application.Commands.BootstrapAdmin;
+using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Application.Queries.IsSetupRequired;
 using Wallow.Identity.Infrastructure.Authorization;
 using Wallow.Identity.Infrastructure.Jobs;
@@ -200,11 +202,16 @@ try
         //   - ISetupStatusChecker (behind IsSetupRequiredHandler) reaches IdentityDbContext,
         //     registered by AddDbContext's framework factory, which the codegen cannot see
         //     through.
+        //   - IBootstrapAdminService and IOrganizationService (behind BootstrapAdminHandler) reach
+        //     ASP.NET Identity's UserManager and OpenIddict's managers, both registered as opaque
+        //     lambda factories the codegen cannot see through either.
         // See https://wolverinefx.net/guide/codegen.html.
         opts.ServiceLocationPolicy = ServiceLocationPolicy.NotAllowed;
         opts.CodeGeneration.AlwaysUseServiceLocationFor<ITenantContext>();
         opts.CodeGeneration.AlwaysUseServiceLocationFor<ITenantContextSetter>();
         opts.CodeGeneration.AlwaysUseServiceLocationFor<ISetupStatusChecker>();
+        opts.CodeGeneration.AlwaysUseServiceLocationFor<IBootstrapAdminService>();
+        opts.CodeGeneration.AlwaysUseServiceLocationFor<IOrganizationService>();
 
         // Discover handlers in all Wallow assemblies
         foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies()

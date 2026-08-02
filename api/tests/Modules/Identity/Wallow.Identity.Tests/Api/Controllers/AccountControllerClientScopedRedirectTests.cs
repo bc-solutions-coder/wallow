@@ -367,7 +367,6 @@ public class AccountControllerClientScopedRedirectTests
         _clientTenantResolver.ResolveAsync(ClientId, Arg.Any<CancellationToken>())
             .Returns(new ClientTenantInfo(Guid.Empty, "Client A Org"));
         _userManager.CreateAsync(Arg.Any<WallowUser>(), TestPassword).Returns(IdentityResult.Success);
-        _userManager.AddToRoleAsync(Arg.Any<WallowUser>(), "user").Returns(IdentityResult.Success);
         _userManager.GenerateEmailConfirmationTokenAsync(Arg.Any<WallowUser>()).Returns("token123");
     }
 

@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Enums;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Shared.Contracts.Identity.Events;
@@ -159,29 +160,43 @@ public sealed partial class UserManagementService(
         return result;
     }
 
+    /// <summary>
+    /// Batch role lookup for display. Roles are granted BY an organization, so this answers for
+    /// the one being administered and no other — a role held elsewhere confers nothing here and
+    /// showing it would misdescribe the account. Active memberships only, matching what
+    /// <see cref="IMembershipRoleResolver"/> resolves for authorization.
+    /// </summary>
     private async Task<Dictionary<Guid, List<string>>> GetRolesByUserIdsAsync(
         List<Guid> userIds,
         CancellationToken ct)
     {
-        List<UserRoleMapping> userRoleMappings = await dbContext.UserRoles
-            .Where(ur => userIds.Contains(ur.UserId))
-            .Join(
-                dbContext.Roles,
-                ur => ur.RoleId,
-                r => r.Id,
-                (ur, r) => new UserRoleMapping(ur.UserId, r.Name!))
+        OrganizationId scope = OrganizationId.Create(tenantContext.TenantId.Value);
+
+        // Owned role rows come back with their membership, so this is one round trip and never
+        // more than one page's worth of members.
+        List<Membership> memberships = await dbContext.Memberships
+            .Where(m => m.OrganizationId == scope
+                && m.Status == MembershipStatus.Active
+                && userIds.Contains(m.UserId))
             .ToListAsync(ct);
 
-        Dictionary<Guid, List<string>> rolesByUserId = userRoleMappings
-            .GroupBy(x => x.UserId)
-            .ToDictionary(
-                g => g.Key,
-                g => g.Select(x => x.RoleName).ToList());
+        List<Guid> roleIds = [.. memberships.SelectMany(m => m.Roles).Select(r => r.RoleId).Distinct()];
 
-        return rolesByUserId;
+        // The role catalog is global — seeded with an empty tenant id and addressed by id — so
+        // naming them bypasses the tenant filters.
+        Dictionary<Guid, string> roleNamesById = await dbContext.Roles
+            .IgnoreQueryFilters()
+            .Where(r => roleIds.Contains(r.Id) && r.Name != null)
+            .ToDictionaryAsync(r => r.Id, r => r.Name!, ct);
+
+        return memberships.ToDictionary(
+            m => m.UserId,
+            m => m.Roles
+                .Select(r => roleNamesById.GetValueOrDefault(r.RoleId))
+                .Where(name => name is not null)
+                .Select(name => name!)
+                .ToList());
     }
-
-    private sealed record UserRoleMapping(Guid UserId, string RoleName);
 
     public async Task DeactivateUserAsync(Guid userId, CancellationToken ct = default)
     {

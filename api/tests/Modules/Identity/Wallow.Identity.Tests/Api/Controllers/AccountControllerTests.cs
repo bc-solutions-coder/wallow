@@ -182,8 +182,6 @@ public class AccountControllerTests
     {
         _userManager.CreateAsync(Arg.Any<WallowUser>(), "Password1!")
             .Returns(IdentityResult.Success);
-        _userManager.AddToRoleAsync(Arg.Any<WallowUser>(), "user")
-            .Returns(IdentityResult.Success);
         _userManager.GenerateEmailConfirmationTokenAsync(Arg.Any<WallowUser>())
             .Returns("token123");
 

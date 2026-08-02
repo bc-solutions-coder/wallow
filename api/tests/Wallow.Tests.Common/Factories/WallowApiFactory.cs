@@ -274,13 +274,12 @@ public class WallowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                     bool userExists = await bootstrapAdminService.UserExistsAsync(email, cancellationToken);
                     if (!userExists)
                     {
-                        Guid userId = await bootstrapAdminService.CreateUserAsync(
+                        await bootstrapAdminService.CreateUserAsync(
                             email,
                             password,
                             firstName ?? string.Empty,
                             lastName ?? string.Empty,
                             cancellationToken);
-                        await bootstrapAdminService.AssignRoleAsync(userId, "admin", cancellationToken);
                     }
 
                     await EnrollTestAdminAsync(sp, cancellationToken);

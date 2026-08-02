@@ -48,8 +48,12 @@ public class SeederWorkerBootstrapAdminTests
             .EnsureRoleExistsAsync("admin", Arg.Any<CancellationToken>());
         await _bootstrapAdminService.Received(1)
             .CreateUserAsync(SeedAdminEmail, SeedAdminPassword, SeedAdminFirstName, SeedAdminLastName, Arg.Any<CancellationToken>());
-        await _bootstrapAdminService.Received(1)
-            .AssignRoleAsync(createdUserId, "admin", Arg.Any<CancellationToken>());
+
+        // The step stops at the account: nothing here grants authority. A role is granted by an
+        // organization, and the membership that makes this user an administrator is minted later,
+        // in the client-sync step, from the client's seedMemberRoles map.
+        await _bootstrapAdminService.DidNotReceive()
+            .GrantGlobalAdminAsync(createdUserId, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -116,7 +120,7 @@ public class SeederWorkerBootstrapAdminTests
         await _bootstrapAdminService.DidNotReceive()
             .CreateUserAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
         await _bootstrapAdminService.DidNotReceive()
-            .AssignRoleAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .GrantGlobalAdminAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -182,8 +186,8 @@ public class SeederWorkerBootstrapAdminTests
             .EnsureRoleExistsAsync("admin", Arg.Any<CancellationToken>());
         await _bootstrapAdminService.Received(1)
             .CreateUserAsync(SeedAdminEmail, SeedAdminPassword, SeedAdminFirstName, SeedAdminLastName, Arg.Any<CancellationToken>());
-        await _bootstrapAdminService.Received(1)
-            .AssignRoleAsync(createdUserId, "admin", Arg.Any<CancellationToken>());
+        await _bootstrapAdminService.DidNotReceive()
+            .GrantGlobalAdminAsync(createdUserId, Arg.Any<CancellationToken>());
     }
 
     private static AdminBootstrapOptions ConfiguredAdmin() => new()

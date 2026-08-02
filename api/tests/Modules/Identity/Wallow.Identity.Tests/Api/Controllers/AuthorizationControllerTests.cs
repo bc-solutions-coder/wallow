@@ -112,7 +112,6 @@ public sealed class AuthorizationControllerTests : IDisposable
         _userManager.FindByIdAsync(_testUserId).Returns(wallowUser);
         _userManager.GetUserNameAsync(wallowUser).Returns("testuser");
         _userManager.GetEmailAsync(wallowUser).Returns("test@example.com");
-        _userManager.GetRolesAsync(wallowUser).Returns(new List<string>());
         _userManager.GetClaimsAsync(wallowUser).Returns(new List<Claim>());
     }
 

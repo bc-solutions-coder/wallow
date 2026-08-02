@@ -509,7 +509,7 @@
           "ApiKeys"
         ],
         "summary": "Create a new API key for the current user.",
-        "description": "Creates an API key that can be used for service-to-service authentication.\nThe full API key is only returned once in this response - store it securely!\n\nThe key will be scoped to the current user's tenant.\n\nExample request:\n```json\n{\n  \"name\": \"Production Backend\",\n  \"scopes\": [\"billing:read\", \"billing:write\"],\n  \"expiresAt\": \"2027-01-01T00:00:00Z\"\n}\n```",
+        "description": "Creates an API key that can be used for service-to-service authentication.\nThe full API key is only returned once in this response - store it securely!\n\nThe key will be scoped to the current user's tenant.\n\nExample request:\n```json\n{\n  \"name\": \"Production Backend\",\n  \"scopes\": [\"storage.read\", \"storage.write\"],\n  \"expiresAt\": \"2027-01-01T00:00:00Z\"\n}\n```",
         "operationId": "ApiKeysCreateApiKey",
         "requestBody": {
           "content": {
@@ -7256,7 +7256,8 @@
           "email",
           "password",
           "firstName",
-          "lastName"
+          "lastName",
+          "organizationName"
         ],
         "type": "object",
         "properties": {
@@ -7271,8 +7272,12 @@
           },
           "lastName": {
             "type": "string"
+          },
+          "organizationName": {
+            "type": "string"
           }
-        }
+        },
+        "description": "First-run wizard input. The organization is part of it because roles are granted per\norganization: without one the new administrator would hold no permission anywhere."
       },
       "CreateAnnouncementRequest": {
         "required": [

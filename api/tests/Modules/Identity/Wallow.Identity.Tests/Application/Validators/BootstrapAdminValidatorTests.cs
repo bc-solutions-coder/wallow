@@ -10,7 +10,7 @@ public class BootstrapAdminValidatorTests
     [Fact]
     public void Validate_WithValidCommand_ShouldPass()
     {
-        BootstrapAdminCommand command = new("admin@example.com", "P@ssw0rd!", "Admin", "User");
+        BootstrapAdminCommand command = new("admin@example.com", "P@ssw0rd!", "Admin", "User", "Acme Inc");
 
         TestValidationResult<BootstrapAdminCommand> result = _validator.TestValidate(command);
 
@@ -20,7 +20,7 @@ public class BootstrapAdminValidatorTests
     [Fact]
     public void Validate_WithEmptyEmail_ShouldFail()
     {
-        BootstrapAdminCommand command = new("", "P@ssw0rd!", "Admin", "User");
+        BootstrapAdminCommand command = new("", "P@ssw0rd!", "Admin", "User", "Acme Inc");
 
         TestValidationResult<BootstrapAdminCommand> result = _validator.TestValidate(command);
 
@@ -31,7 +31,7 @@ public class BootstrapAdminValidatorTests
     [Fact]
     public void Validate_WithInvalidEmail_ShouldFail()
     {
-        BootstrapAdminCommand command = new("not-an-email", "P@ssw0rd!", "Admin", "User");
+        BootstrapAdminCommand command = new("not-an-email", "P@ssw0rd!", "Admin", "User", "Acme Inc");
 
         TestValidationResult<BootstrapAdminCommand> result = _validator.TestValidate(command);
 
@@ -42,7 +42,7 @@ public class BootstrapAdminValidatorTests
     [Fact]
     public void Validate_WithEmptyPassword_ShouldFail()
     {
-        BootstrapAdminCommand command = new("admin@example.com", "", "Admin", "User");
+        BootstrapAdminCommand command = new("admin@example.com", "", "Admin", "User", "Acme Inc");
 
         TestValidationResult<BootstrapAdminCommand> result = _validator.TestValidate(command);
 
@@ -53,7 +53,7 @@ public class BootstrapAdminValidatorTests
     [Fact]
     public void Validate_WithEmptyFirstName_ShouldFail()
     {
-        BootstrapAdminCommand command = new("admin@example.com", "P@ssw0rd!", "", "User");
+        BootstrapAdminCommand command = new("admin@example.com", "P@ssw0rd!", "", "User", "Acme Inc");
 
         TestValidationResult<BootstrapAdminCommand> result = _validator.TestValidate(command);
 
@@ -64,7 +64,7 @@ public class BootstrapAdminValidatorTests
     [Fact]
     public void Validate_WithEmptyLastName_ShouldFail()
     {
-        BootstrapAdminCommand command = new("admin@example.com", "P@ssw0rd!", "Admin", "");
+        BootstrapAdminCommand command = new("admin@example.com", "P@ssw0rd!", "Admin", "", "Acme Inc");
 
         TestValidationResult<BootstrapAdminCommand> result = _validator.TestValidate(command);
 
@@ -75,7 +75,7 @@ public class BootstrapAdminValidatorTests
     [Fact]
     public void Validate_WithWhitespaceOnlyEmail_ShouldFail()
     {
-        BootstrapAdminCommand command = new("   ", "P@ssw0rd!", "Admin", "User");
+        BootstrapAdminCommand command = new("   ", "P@ssw0rd!", "Admin", "User", "Acme Inc");
 
         TestValidationResult<BootstrapAdminCommand> result = _validator.TestValidate(command);
 
@@ -85,7 +85,7 @@ public class BootstrapAdminValidatorTests
     [Fact]
     public void Validate_WithWhitespaceOnlyPassword_ShouldFail()
     {
-        BootstrapAdminCommand command = new("admin@example.com", "   ", "Admin", "User");
+        BootstrapAdminCommand command = new("admin@example.com", "   ", "Admin", "User", "Acme Inc");
 
         TestValidationResult<BootstrapAdminCommand> result = _validator.TestValidate(command);
 
@@ -95,7 +95,7 @@ public class BootstrapAdminValidatorTests
     [Fact]
     public void Validate_WithWhitespaceOnlyFirstName_ShouldFail()
     {
-        BootstrapAdminCommand command = new("admin@example.com", "P@ssw0rd!", "   ", "User");
+        BootstrapAdminCommand command = new("admin@example.com", "P@ssw0rd!", "   ", "User", "Acme Inc");
 
         TestValidationResult<BootstrapAdminCommand> result = _validator.TestValidate(command);
 
@@ -105,7 +105,7 @@ public class BootstrapAdminValidatorTests
     [Fact]
     public void Validate_WithWhitespaceOnlyLastName_ShouldFail()
     {
-        BootstrapAdminCommand command = new("admin@example.com", "P@ssw0rd!", "Admin", "   ");
+        BootstrapAdminCommand command = new("admin@example.com", "P@ssw0rd!", "Admin", "   ", "Acme Inc");
 
         TestValidationResult<BootstrapAdminCommand> result = _validator.TestValidate(command);
 
@@ -113,9 +113,40 @@ public class BootstrapAdminValidatorTests
     }
 
     [Fact]
+    public void Validate_WithEmptyOrganizationName_ShouldFail()
+    {
+        BootstrapAdminCommand command = new("admin@example.com", "P@ssw0rd!", "Admin", "User", "");
+
+        TestValidationResult<BootstrapAdminCommand> result = _validator.TestValidate(command);
+
+        result.ShouldHaveValidationErrorFor(x => x.OrganizationName)
+            .WithErrorMessage("Organization name is required");
+    }
+
+    [Fact]
+    public void Validate_WithWhitespaceOnlyOrganizationName_ShouldFail()
+    {
+        BootstrapAdminCommand command = new("admin@example.com", "P@ssw0rd!", "Admin", "User", "   ");
+
+        TestValidationResult<BootstrapAdminCommand> result = _validator.TestValidate(command);
+
+        result.ShouldHaveValidationErrorFor(x => x.OrganizationName);
+    }
+
+    [Fact]
+    public void Validate_WithNullOrganizationName_ShouldFail()
+    {
+        BootstrapAdminCommand command = new("admin@example.com", "P@ssw0rd!", "Admin", "User", null!);
+
+        TestValidationResult<BootstrapAdminCommand> result = _validator.TestValidate(command);
+
+        result.ShouldHaveValidationErrorFor(x => x.OrganizationName);
+    }
+
+    [Fact]
     public void Validate_WithAllFieldsEmpty_ShouldHaveMultipleErrors()
     {
-        BootstrapAdminCommand command = new("", "", "", "");
+        BootstrapAdminCommand command = new("", "", "", "", "");
 
         TestValidationResult<BootstrapAdminCommand> result = _validator.TestValidate(command);
 
@@ -123,12 +154,13 @@ public class BootstrapAdminValidatorTests
         result.ShouldHaveValidationErrorFor(x => x.Password);
         result.ShouldHaveValidationErrorFor(x => x.FirstName);
         result.ShouldHaveValidationErrorFor(x => x.LastName);
+        result.ShouldHaveValidationErrorFor(x => x.OrganizationName);
     }
 
     [Fact]
     public void Validate_WithNullEmail_ShouldFail()
     {
-        BootstrapAdminCommand command = new(null!, "P@ssw0rd!", "Admin", "User");
+        BootstrapAdminCommand command = new(null!, "P@ssw0rd!", "Admin", "User", "Acme Inc");
 
         TestValidationResult<BootstrapAdminCommand> result = _validator.TestValidate(command);
 
@@ -138,7 +170,7 @@ public class BootstrapAdminValidatorTests
     [Fact]
     public void Validate_WithNullPassword_ShouldFail()
     {
-        BootstrapAdminCommand command = new("admin@example.com", null!, "Admin", "User");
+        BootstrapAdminCommand command = new("admin@example.com", null!, "Admin", "User", "Acme Inc");
 
         TestValidationResult<BootstrapAdminCommand> result = _validator.TestValidate(command);
 
@@ -148,7 +180,7 @@ public class BootstrapAdminValidatorTests
     [Fact]
     public void Validate_WithNullFirstName_ShouldFail()
     {
-        BootstrapAdminCommand command = new("admin@example.com", "P@ssw0rd!", null!, "User");
+        BootstrapAdminCommand command = new("admin@example.com", "P@ssw0rd!", null!, "User", "Acme Inc");
 
         TestValidationResult<BootstrapAdminCommand> result = _validator.TestValidate(command);
 
@@ -158,7 +190,7 @@ public class BootstrapAdminValidatorTests
     [Fact]
     public void Validate_WithNullLastName_ShouldFail()
     {
-        BootstrapAdminCommand command = new("admin@example.com", "P@ssw0rd!", "Admin", null!);
+        BootstrapAdminCommand command = new("admin@example.com", "P@ssw0rd!", "Admin", null!, "Acme Inc");
 
         TestValidationResult<BootstrapAdminCommand> result = _validator.TestValidate(command);
 
@@ -171,7 +203,7 @@ public class BootstrapAdminValidatorTests
     [InlineData("a@b.co")]
     public void Validate_WithVariousValidEmails_ShouldPass(string email)
     {
-        BootstrapAdminCommand command = new(email, "P@ssw0rd!", "Admin", "User");
+        BootstrapAdminCommand command = new(email, "P@ssw0rd!", "Admin", "User", "Acme Inc");
 
         TestValidationResult<BootstrapAdminCommand> result = _validator.TestValidate(command);
 
@@ -183,7 +215,7 @@ public class BootstrapAdminValidatorTests
     [InlineData("@no-local-part.com")]
     public void Validate_WithVariousInvalidEmails_ShouldFail(string email)
     {
-        BootstrapAdminCommand command = new(email, "P@ssw0rd!", "Admin", "User");
+        BootstrapAdminCommand command = new(email, "P@ssw0rd!", "Admin", "User", "Acme Inc");
 
         TestValidationResult<BootstrapAdminCommand> result = _validator.TestValidate(command);
 

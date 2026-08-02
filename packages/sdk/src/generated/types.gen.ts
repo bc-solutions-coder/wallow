@@ -214,11 +214,16 @@ export type ConsentInfoResponse = {
     requestedScopes: Array<ScopeInfo>;
 };
 
+/**
+ * First-run wizard input. The organization is part of it because roles are granted per
+ * organization: without one the new administrator would hold no permission anywhere.
+ */
 export type CreateAdminRequest = {
     email: string;
     password: string;
     firstName: string;
     lastName: string;
+    organizationName: string;
 };
 
 export type CreateAnnouncementRequest = {

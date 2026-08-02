@@ -92,6 +92,22 @@ public sealed class UserManagementServiceTests : IDisposable
         return membership;
     }
 
+    /// <summary>
+    /// The batch role reader queries memberships directly rather than through the repository,
+    /// because a user list resolves many users in one round trip. Tests that exercise it need a
+    /// real row, not a stubbed repository answer.
+    /// </summary>
+    private async Task<Membership> PersistMembershipAsync(Guid userId, Guid organizationId, Guid roleId)
+    {
+        Membership membership = Membership.Enroll(
+            userId, OrganizationId.Create(organizationId), roleId, _timeProvider);
+
+        _dbContext.Memberships.Add(membership);
+        await _dbContext.SaveChangesAsync();
+
+        return membership;
+    }
+
     public void Dispose()
     {
         _dbContext.Dispose();
@@ -162,10 +178,8 @@ public sealed class UserManagementServiceTests : IDisposable
             "John", "Doe", "john@test.com", _timeProvider);
         _userManager.FindByIdAsync(userId.ToString()).Returns(user);
 
-        WallowRole adminRole = new() { Id = Guid.NewGuid(), Name = "admin", NormalizedName = "ADMIN", TenantId = _tenantContext.TenantId.Value };
-        _dbContext.Roles.Add(adminRole);
-        _dbContext.UserRoles.Add(new Microsoft.AspNetCore.Identity.IdentityUserRole<Guid> { UserId = user.Id, RoleId = adminRole.Id });
-        await _dbContext.SaveChangesAsync();
+        Guid adminRoleId = await SeedRoleAsync("admin");
+        await PersistMembershipAsync(user.Id, _organizationId, adminRoleId);
 
         UserDto? result = await _sut.GetUserByIdAsync(userId);
 
@@ -174,6 +188,43 @@ public sealed class UserManagementServiceTests : IDisposable
         result.FirstName.Should().Be("John");
         result.LastName.Should().Be("Doe");
         result.Roles.Should().Contain("admin");
+    }
+
+    [Fact]
+    public async Task GetUserByIdAsync_DoesNotReportRolesGrantedByAnotherOrganization()
+    {
+        Guid userId = Guid.NewGuid();
+        WallowUser user = WallowUser.Create("John", "Doe", "john@test.com", _timeProvider);
+        _userManager.FindByIdAsync(userId.ToString()).Returns(user);
+
+        Guid adminRoleId = await SeedRoleAsync("admin");
+        await PersistMembershipAsync(user.Id, Guid.NewGuid(), adminRoleId);
+
+        UserDto? result = await _sut.GetUserByIdAsync(userId);
+
+        // A role is granted BY an organization. Showing it while administering a different one
+        // claims an authority this user does not hold here.
+        result.Should().NotBeNull();
+        result!.Roles.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetUserByIdAsync_DoesNotReportRolesFromAMembershipThatIsNotActive()
+    {
+        Guid userId = Guid.NewGuid();
+        WallowUser user = WallowUser.Create("John", "Doe", "john@test.com", _timeProvider);
+        _userManager.FindByIdAsync(userId.ToString()).Returns(user);
+
+        Guid adminRoleId = await SeedRoleAsync("admin");
+        Membership membership = await PersistMembershipAsync(user.Id, _organizationId, adminRoleId);
+        membership.Suspend(Guid.NewGuid(), _timeProvider);
+        await _dbContext.SaveChangesAsync();
+
+        UserDto? result = await _sut.GetUserByIdAsync(userId);
+
+        // Same rule the authorization resolver applies: only an Active membership resolves roles.
+        result.Should().NotBeNull();
+        result!.Roles.Should().BeEmpty();
     }
 
     [Fact]
@@ -193,10 +244,8 @@ public sealed class UserManagementServiceTests : IDisposable
             "Jane", "Doe", "jane@test.com", _timeProvider);
         _userManager.FindByEmailAsync("jane@test.com").Returns(user);
 
-        WallowRole userRole = new() { Id = Guid.NewGuid(), Name = "user", NormalizedName = "USER", TenantId = _tenantContext.TenantId.Value };
-        _dbContext.Roles.Add(userRole);
-        _dbContext.UserRoles.Add(new Microsoft.AspNetCore.Identity.IdentityUserRole<Guid> { UserId = user.Id, RoleId = userRole.Id });
-        await _dbContext.SaveChangesAsync();
+        Guid userRoleId = await SeedRoleAsync("user");
+        await PersistMembershipAsync(user.Id, _organizationId, userRoleId);
 
         UserDto? result = await _sut.GetUserByEmailAsync("jane@test.com");
 

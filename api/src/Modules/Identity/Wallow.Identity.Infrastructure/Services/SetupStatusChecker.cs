@@ -10,10 +10,7 @@ namespace Wallow.Identity.Infrastructure.Services;
 /// <summary>
 /// Decides whether the <c>[AllowAnonymous]</c> setup endpoints stay open. "An administrator
 /// exists" means an Active membership holding a role that grants <see cref="PermissionType.AdminAccess"/>
-/// — the same thing authorization now reads. AspNetUserRoles is still written (ASP.NET Identity
-/// and the seeder's global-admin bootstrap both keep writing it) but nothing reads it to decide
-/// authorization, so counting rows there would leave this gate open on an instance that already
-/// has a working administrator, or shut on one that does not.
+/// — the same thing authorization reads, and the only role directory this schema has.
 /// </summary>
 public sealed class SetupStatusChecker(IdentityDbContext context) : ISetupStatusChecker
 {
