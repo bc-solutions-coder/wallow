@@ -6,6 +6,7 @@ using Wallow.Identity.Api.Contracts.Responses;
 using Wallow.Identity.Api.Controllers;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
+using Wallow.Identity.Domain.Enums;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 
@@ -255,6 +256,42 @@ public class OrganizationsControllerTests
 
         OkObjectResult ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
         ok.Value.Should().BeAssignableTo<IReadOnlyList<PendingMembershipDto>>().Which.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task GetSuspendedMembers_ReturnsOkWithTheSuspensions()
+    {
+        List<ReviewedMembershipDto> suspended =
+        [
+            new ReviewedMembershipDto(
+                Guid.NewGuid(), "ada@test.com", "Ada", "Lovelace",
+                MembershipStatus.Suspended, DateTimeOffset.UtcNow)
+        ];
+        _membershipReview.GetSuspendedAsync(_tenantOrgId, Arg.Any<CancellationToken>()).Returns(suspended);
+
+        ActionResult<IReadOnlyList<ReviewedMembershipDto>> result =
+            await _controller.GetSuspendedMembers(_tenantOrgId, CancellationToken.None);
+
+        OkObjectResult ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        ok.Value.Should().BeAssignableTo<IReadOnlyList<ReviewedMembershipDto>>().Which.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task GetDeniedMembers_ReturnsOkWithTheStandingDenials()
+    {
+        List<ReviewedMembershipDto> denied =
+        [
+            new ReviewedMembershipDto(
+                Guid.NewGuid(), "ada@test.com", "Ada", "Lovelace",
+                MembershipStatus.Denied, DateTimeOffset.UtcNow)
+        ];
+        _membershipReview.GetDeniedAsync(_tenantOrgId, Arg.Any<CancellationToken>()).Returns(denied);
+
+        ActionResult<IReadOnlyList<ReviewedMembershipDto>> result =
+            await _controller.GetDeniedMembers(_tenantOrgId, CancellationToken.None);
+
+        OkObjectResult ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        ok.Value.Should().BeAssignableTo<IReadOnlyList<ReviewedMembershipDto>>().Which.Should().HaveCount(1);
     }
 
     // Who decided is part of the record every one of these writes, and the only trustworthy source

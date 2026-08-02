@@ -18,8 +18,11 @@ using Wolverine;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// The four answers a reviewer gives about somebody else's membership, the pending queue they work
-/// through, and the one decision a member makes about their own: leaving.
+/// The four answers a reviewer gives about somebody else's membership, the three listings they work
+/// from — waiting, suspended, refused — and the one decision a member makes about their own: leaving.
+///
+/// A status reaches exactly one listing: a membership no listing claims can only be acted on by
+/// somebody who already knows it exists.
 ///
 /// The transitions that END access are the ones with a second obligation: a status decides only the
 /// NEXT sign-in, so anything already issued has to be revoked separately. Denial is the exception —
@@ -110,6 +113,130 @@ public sealed class MembershipReviewServiceTests : IDisposable
         IReadOnlyList<PendingMembershipDto> pending = await _sut.GetPendingAsync(_orgId);
 
         pending.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetSuspendedAsync_ReturnsWhoIsSuspendedAndWhenTheirAccessEnded()
+    {
+        WallowUser member = await GivenUserAsync("ada@acme.test", "Ada", "Lovelace");
+        await GivenActiveMembershipAsync(member.Id);
+        _time.Advance(TimeSpan.FromDays(2));
+        await _sut.SuspendAsync(_orgId, member.Id, _actorId);
+
+        IReadOnlyList<ReviewedMembershipDto> suspended = await _sut.GetSuspendedAsync(_orgId);
+
+        ReviewedMembershipDto row = suspended.Should().ContainSingle().Subject;
+        row.UserId.Should().Be(member.Id);
+        row.Email.Should().Be("ada@acme.test");
+        row.FirstName.Should().Be("Ada");
+        row.LastName.Should().Be("Lovelace");
+        row.Status.Should().Be(MembershipStatus.Suspended);
+        row.StatusChangedAt.Should().Be(_time.GetUtcNow());
+    }
+
+    [Fact]
+    public async Task GetSuspendedAsync_PutsTheMostRecentlySuspendedFirst()
+    {
+        WallowUser earlier = await GivenUserAsync("bob@acme.test", "Bob", "Earlier");
+        WallowUser later = await GivenUserAsync("cara@acme.test", "Cara", "Later");
+        await GivenActiveMembershipAsync(earlier.Id);
+        await GivenActiveMembershipAsync(later.Id);
+        await _sut.SuspendAsync(_orgId, earlier.Id, _actorId);
+        _time.Advance(TimeSpan.FromDays(3));
+        await _sut.SuspendAsync(_orgId, later.Id, _actorId);
+
+        IReadOnlyList<ReviewedMembershipDto> suspended = await _sut.GetSuspendedAsync(_orgId);
+
+        suspended.Select(s => s.UserId).Should().ContainInOrder(later.Id, earlier.Id);
+    }
+
+    [Fact]
+    public async Task GetSuspendedAsync_LeavesOutEveryStatusThatIsNotSuspended()
+    {
+        WallowUser member = await GivenUserAsync("ada@acme.test");
+        WallowUser waiting = await GivenUserAsync("bob@acme.test");
+        WallowUser refused = await GivenUserAsync("cara@acme.test");
+        await GivenActiveMembershipAsync(member.Id);
+        await GivenPendingRequestAsync(waiting.Id);
+        await GivenPendingRequestAsync(refused.Id);
+        await _sut.DenyAsync(_orgId, refused.Id, _actorId);
+
+        IReadOnlyList<ReviewedMembershipDto> suspended = await _sut.GetSuspendedAsync(_orgId);
+
+        suspended.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetSuspendedAsync_LeavesOutAnotherOrganizationsSuspensions()
+    {
+        WallowUser member = await GivenUserAsync("ada@acme.test");
+        await GivenSuspendedMembershipElsewhereAsync(member.Id);
+
+        IReadOnlyList<ReviewedMembershipDto> suspended = await _sut.GetSuspendedAsync(_orgId);
+
+        suspended.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetDeniedAsync_ReturnsWhoWasRefusedAndWhenTheyWereRefused()
+    {
+        WallowUser requester = await GivenUserAsync("ada@acme.test", "Ada", "Lovelace");
+        await GivenPendingRequestAsync(requester.Id);
+        _time.Advance(TimeSpan.FromDays(2));
+        await _sut.DenyAsync(_orgId, requester.Id, _actorId);
+
+        IReadOnlyList<ReviewedMembershipDto> denied = await _sut.GetDeniedAsync(_orgId);
+
+        ReviewedMembershipDto row = denied.Should().ContainSingle().Subject;
+        row.UserId.Should().Be(requester.Id);
+        row.Email.Should().Be("ada@acme.test");
+        row.FirstName.Should().Be("Ada");
+        row.LastName.Should().Be("Lovelace");
+        row.Status.Should().Be(MembershipStatus.Denied);
+        row.StatusChangedAt.Should().Be(_time.GetUtcNow());
+    }
+
+    [Fact]
+    public async Task GetDeniedAsync_PutsTheMostRecentlyRefusedFirst()
+    {
+        WallowUser earlier = await GivenUserAsync("bob@acme.test", "Bob", "Earlier");
+        WallowUser later = await GivenUserAsync("cara@acme.test", "Cara", "Later");
+        await GivenPendingRequestAsync(earlier.Id);
+        await GivenPendingRequestAsync(later.Id);
+        await _sut.DenyAsync(_orgId, earlier.Id, _actorId);
+        _time.Advance(TimeSpan.FromDays(3));
+        await _sut.DenyAsync(_orgId, later.Id, _actorId);
+
+        IReadOnlyList<ReviewedMembershipDto> denied = await _sut.GetDeniedAsync(_orgId);
+
+        denied.Select(d => d.UserId).Should().ContainInOrder(later.Id, earlier.Id);
+    }
+
+    [Fact]
+    public async Task GetDeniedAsync_LeavesOutEveryStatusThatIsNotDenied()
+    {
+        WallowUser member = await GivenUserAsync("ada@acme.test");
+        WallowUser waiting = await GivenUserAsync("bob@acme.test");
+        WallowUser suspendedMember = await GivenUserAsync("cara@acme.test");
+        await GivenActiveMembershipAsync(member.Id);
+        await GivenPendingRequestAsync(waiting.Id);
+        await GivenActiveMembershipAsync(suspendedMember.Id);
+        await _sut.SuspendAsync(_orgId, suspendedMember.Id, _actorId);
+
+        IReadOnlyList<ReviewedMembershipDto> denied = await _sut.GetDeniedAsync(_orgId);
+
+        denied.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetDeniedAsync_LeavesOutAnotherOrganizationsDenials()
+    {
+        WallowUser requester = await GivenUserAsync("ada@acme.test");
+        await GivenDeniedRequestElsewhereAsync(requester.Id);
+
+        IReadOnlyList<ReviewedMembershipDto> denied = await _sut.GetDeniedAsync(_orgId);
+
+        denied.Should().BeEmpty();
     }
 
     [Fact]
@@ -379,6 +506,24 @@ public sealed class MembershipReviewServiceTests : IDisposable
     {
         _dbContext.Memberships.Add(Membership.Enroll(
             userId, _organization.Id, _defaultRoleId, _time));
+        await _dbContext.SaveChangesAsync();
+    }
+
+    private async Task GivenSuspendedMembershipElsewhereAsync(Guid userId)
+    {
+        Membership membership = Membership.Enroll(
+            userId, OrganizationId.Create(Guid.NewGuid()), _defaultRoleId, _time);
+        membership.Suspend(_actorId, _time);
+        _dbContext.Memberships.Add(membership);
+        await _dbContext.SaveChangesAsync();
+    }
+
+    private async Task GivenDeniedRequestElsewhereAsync(Guid userId)
+    {
+        Membership membership = Membership.RequestAccess(
+            userId, OrganizationId.Create(Guid.NewGuid()), _time);
+        membership.Deny(_actorId, _time);
+        _dbContext.Memberships.Add(membership);
         await _dbContext.SaveChangesAsync();
     }
 

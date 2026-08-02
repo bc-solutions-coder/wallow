@@ -2835,6 +2835,31 @@
         }
       }
     },
+    "/v1/identity/me/organizations": {
+      "get": {
+        "tags": [
+          "Me"
+        ],
+        "summary": "The organizations the caller belongs to.",
+        "description": "A client is bound to one organization, so this is not a switcher: an app cannot open\nanother organization's door with the token it holds. It can link to it, which is the\nonly honest thing to offer someone who belongs to three.\n\nAsks for no permission — the answer is about the caller, and demanding one would hide\nevery organization but the one their token is scoped to, which is the question.",
+        "operationId": "MeGetOrganizations",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MyOrganizationDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/identity/mfa/status": {
       "get": {
         "tags": [
@@ -3505,23 +3530,419 @@
         }
       }
     },
-    "/v1/identity/organizations/mine": {
+    "/v1/identity/organizations/{id}/members/pending": {
       "get": {
         "tags": [
           "Organizations"
         ],
-        "summary": "Get all organizations that the current user belongs to.",
-        "operationId": "OrganizationsGetMyOrganizations",
+        "summary": "List the organization's outstanding access requests, oldest first.",
+        "operationId": "OrganizationsGetPendingMembers",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
-          "200": {
-            "description": "OK",
+          "404": {
+            "description": "Not Found",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/OrganizationDto"
-                  }
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/identity/organizations/{id}/members/suspended": {
+      "get": {
+        "tags": [
+          "Organizations"
+        ],
+        "summary": "List the members whose access is currently taken away, most recently suspended first.",
+        "operationId": "OrganizationsGetSuspendedMembers",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/identity/organizations/{id}/members/denied": {
+      "get": {
+        "tags": [
+          "Organizations"
+        ],
+        "summary": "List the requests this organization turned away and has not taken back, most recently\nrefused first.",
+        "operationId": "OrganizationsGetDeniedMembers",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/identity/organizations/{id}/members/{userId}/approve": {
+      "post": {
+        "tags": [
+          "Organizations"
+        ],
+        "summary": "Admit a pending requester, granting them the organization's default role.",
+        "operationId": "OrganizationsApproveMember",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "content": {
+              "application/json": { }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/identity/organizations/{id}/members/{userId}/deny": {
+      "post": {
+        "tags": [
+          "Organizations"
+        ],
+        "summary": "Turn a pending requester away.",
+        "operationId": "OrganizationsDenyMember",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "content": {
+              "application/json": { }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/identity/organizations/{id}/members/{userId}/denial": {
+      "delete": {
+        "tags": [
+          "Organizations"
+        ],
+        "summary": "Let a denied requester ask again now, instead of waiting out the denial.",
+        "operationId": "OrganizationsClearDenial",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "content": {
+              "application/json": { }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/identity/organizations/{id}/members/{userId}/suspend": {
+      "post": {
+        "tags": [
+          "Organizations"
+        ],
+        "summary": "Take an active member's access to this organization away, keeping the membership so it can\nbe reinstated.",
+        "operationId": "OrganizationsSuspendMember",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "content": {
+              "application/json": { }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/identity/organizations/{id}/members/{userId}/reinstate": {
+      "post": {
+        "tags": [
+          "Organizations"
+        ],
+        "summary": "Give a suspended member their access back.",
+        "operationId": "OrganizationsReinstateMember",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "content": {
+              "application/json": { }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/identity/organizations/{id}/leave": {
+      "post": {
+        "tags": [
+          "Organizations"
+        ],
+        "summary": "Give up your own membership of an organization.",
+        "description": "Asks for no permission and consults no access policy: the caller is deciding about\nthemselves, and requiring one would shut out members of every organization that is not the\none their token is scoped to — which is most of them. Membership itself is the authority\nhere, so a caller who has none gets the same refusal a stranger does.",
+        "operationId": "OrganizationsLeave",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "content": {
+              "application/json": { }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -7673,6 +8094,31 @@
           }
         }
       },
+      "MyOrganizationDto": {
+        "required": [
+          "organizationId",
+          "name",
+          "slug",
+          "isOwner"
+        ],
+        "type": "object",
+        "properties": {
+          "organizationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "isOwner": {
+            "type": "boolean"
+          }
+        },
+        "description": "One organization the caller may sign in to. A client is bound to a single organization, so\nan app can only ever link to the others — the slug is what it links with, and the name is\nwhat it shows."
+      },
       "NotificationResponse": {
         "required": [
           "id",
@@ -9111,6 +9557,9 @@
     },
     {
       "name": "Invitations"
+    },
+    {
+      "name": "Me"
     },
     {
       "name": "Mfa"

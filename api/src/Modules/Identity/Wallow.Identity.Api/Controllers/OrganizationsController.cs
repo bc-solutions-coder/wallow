@@ -163,6 +163,41 @@ public class OrganizationsController(
     }
 
     /// <summary>
+    /// List the members whose access is currently taken away, most recently suspended first.
+    /// </summary>
+    [HttpGet("{id:guid}/members/suspended")]
+    [HasPermission(PermissionType.OrganizationsManageMembers)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IReadOnlyList<ReviewedMembershipDto>>> GetSuspendedMembers(
+        Guid id, CancellationToken ct)
+    {
+        if (!await CanAddressOrganizationAsync(id, PermissionType.OrganizationsManageMembers, ct))
+        {
+            return NotFound();
+        }
+
+        return Ok(await membershipReview.GetSuspendedAsync(id, ct));
+    }
+
+    /// <summary>
+    /// List the requests this organization turned away and has not taken back, most recently
+    /// refused first.
+    /// </summary>
+    [HttpGet("{id:guid}/members/denied")]
+    [HasPermission(PermissionType.OrganizationsManageMembers)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IReadOnlyList<ReviewedMembershipDto>>> GetDeniedMembers(
+        Guid id, CancellationToken ct)
+    {
+        if (!await CanAddressOrganizationAsync(id, PermissionType.OrganizationsManageMembers, ct))
+        {
+            return NotFound();
+        }
+
+        return Ok(await membershipReview.GetDeniedAsync(id, ct));
+    }
+
+    /// <summary>
     /// Admit a pending requester, granting them the organization's default role.
     /// </summary>
     [HttpPost("{id:guid}/members/{userId:guid}/approve")]

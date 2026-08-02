@@ -57,6 +57,18 @@ public sealed class OrganizationsControllerCrossTenantTests
                 callInfo.Arg<Guid>(), true, false, 7, EnrollmentPolicy.InviteOnly, null, null));
         _orgService.GetMembersAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(new List<UserDto> { new(Guid.NewGuid(), "victim@other.test", "Victim", "User", true, ["user"]) });
+        _membershipReview.GetSuspendedAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(new List<ReviewedMembershipDto>
+            {
+                new(Guid.NewGuid(), "victim@other.test", "Victim", "User",
+                    MembershipStatus.Suspended, DateTimeOffset.UtcNow)
+            });
+        _membershipReview.GetDeniedAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(new List<ReviewedMembershipDto>
+            {
+                new(Guid.NewGuid(), "victim@other.test", "Victim", "User",
+                    MembershipStatus.Denied, DateTimeOffset.UtcNow)
+            });
         _orgService.UpdateBrandingAsync(
                 Arg.Any<Guid>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>(),
                 Arg.Any<Guid>(), Arg.Any<CancellationToken>())
@@ -82,6 +94,8 @@ public sealed class OrganizationsControllerCrossTenantTests
         ["AddMember"] = PermissionType.OrganizationsManageMembers,
         ["RemoveMember"] = PermissionType.OrganizationsManageMembers,
         ["GetPendingMembers"] = PermissionType.OrganizationsManageMembers,
+        ["GetSuspendedMembers"] = PermissionType.OrganizationsManageMembers,
+        ["GetDeniedMembers"] = PermissionType.OrganizationsManageMembers,
         ["ApproveMember"] = PermissionType.OrganizationsManageMembers,
         ["DenyMember"] = PermissionType.OrganizationsManageMembers,
         ["ClearDenial"] = PermissionType.OrganizationsManageMembers,
@@ -140,6 +154,25 @@ public sealed class OrganizationsControllerCrossTenantTests
             .Select(method => method.Name);
 
         declared.Should().BeEquivalentTo([.. _endpointPermissions.Keys, .. _selfServiceEndpoints]);
+    }
+
+    /// <summary>
+    /// The inventory names the permission a foreign caller is asked for; this asserts the same
+    /// permission gates the ordinary same-tenant caller, whom CanAddressOrganizationAsync waves
+    /// through on the tenant id alone. Only the [HasPermission] policy stands between them and the
+    /// endpoint, so an endpoint carrying the wrong one — or none — is open to every signed-in
+    /// member of the organization.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(EndpointPermissions))]
+    public void EveryOrganizationScopedEndpoint_DemandsItsInventoriedPermission(
+        string endpoint, string permission)
+    {
+        MethodInfo action = typeof(OrganizationsController).GetMethod(endpoint)!;
+
+        action.GetCustomAttributes<HasPermissionAttribute>(inherit: false)
+            .Select(attribute => attribute.Policy)
+            .Should().ContainSingle().Which.Should().Be(permission);
     }
 
     [Fact]
@@ -349,6 +382,8 @@ public sealed class OrganizationsControllerCrossTenantTests
             "UpdateEnrollment" => await controller.UpdateEnrollment(
                 orgId, new UpdateOrganizationEnrollmentRequest(EnrollmentPolicy.Open, null, null), ct),
             "GetPendingMembers" => (await controller.GetPendingMembers(orgId, ct)).Result,
+            "GetSuspendedMembers" => (await controller.GetSuspendedMembers(orgId, ct)).Result,
+            "GetDeniedMembers" => (await controller.GetDeniedMembers(orgId, ct)).Result,
             "ApproveMember" => await controller.ApproveMember(orgId, Guid.NewGuid(), ct),
             "DenyMember" => await controller.DenyMember(orgId, Guid.NewGuid(), ct),
             "ClearDenial" => await controller.ClearDenial(orgId, Guid.NewGuid(), ct),

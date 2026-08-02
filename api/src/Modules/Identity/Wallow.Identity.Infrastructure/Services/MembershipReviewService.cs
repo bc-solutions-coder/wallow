@@ -56,6 +56,16 @@ public sealed partial class MembershipReviewService(
         ];
     }
 
+    public Task<IReadOnlyList<ReviewedMembershipDto>> GetSuspendedAsync(
+        Guid organizationId, CancellationToken ct = default) =>
+        // Suspend() writes no timestamp of its own, so the audit stamp is the only record of when
+        // the access ended.
+        ListReviewedAsync(organizationId, MembershipStatus.Suspended, SuspendedAt, ct);
+
+    public Task<IReadOnlyList<ReviewedMembershipDto>> GetDeniedAsync(
+        Guid organizationId, CancellationToken ct = default) =>
+        ListReviewedAsync(organizationId, MembershipStatus.Denied, m => m.ReviewedAt, ct);
+
     public async Task ApproveAsync(
         Guid organizationId, Guid userId, Guid actorId, CancellationToken ct = default)
     {
@@ -185,6 +195,49 @@ public sealed partial class MembershipReviewService(
 
         LogMembershipLeft(userId, organizationId);
     }
+
+    /// <summary>
+    /// Both reviewed listings read the same way; only the status they claim and the field that
+    /// records when it was set differ.
+    /// </summary>
+    private async Task<IReadOnlyList<ReviewedMembershipDto>> ListReviewedAsync(
+        Guid organizationId,
+        MembershipStatus status,
+        Func<Membership, DateTimeOffset?> statusChangedAt,
+        CancellationToken ct)
+    {
+        IReadOnlyList<Membership> reviewed = await memberships.GetForOrganizationAsync(
+            organizationId, status, ct);
+
+        if (reviewed.Count == 0)
+        {
+            return [];
+        }
+
+        List<Guid> reviewedIds = [.. reviewed.Select(m => m.UserId)];
+        Dictionary<Guid, WallowUser> users = await dbContext.Users
+            .Where(u => reviewedIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, ct);
+
+        return
+        [
+            .. reviewed
+                .OrderByDescending(m => statusChangedAt(m) ?? DateTimeOffset.MinValue)
+                .Where(m => users.ContainsKey(m.UserId))
+                .Select(m => new ReviewedMembershipDto(
+                    m.UserId,
+                    users[m.UserId].Email ?? string.Empty,
+                    users[m.UserId].FirstName,
+                    users[m.UserId].LastName,
+                    m.Status,
+                    statusChangedAt(m)))
+        ];
+    }
+
+    private static DateTimeOffset? SuspendedAt(Membership membership) =>
+        membership.UpdatedAt is { } updatedAt
+            ? new DateTimeOffset(DateTime.SpecifyKind(updatedAt, DateTimeKind.Utc))
+            : null;
 
     private ValueTask PublishTransitionAsync(
         MembershipTransition transition, Guid organizationId, Guid userId, Guid actorId) =>

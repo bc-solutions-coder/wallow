@@ -470,6 +470,18 @@ export type MfaVerifyRequest = {
     useBackupCode?: boolean;
 };
 
+/**
+ * One organization the caller may sign in to. A client is bound to a single organization, so
+ * an app can only ever link to the others — the slug is what it links with, and the name is
+ * what it shows.
+ */
+export type MyOrganizationDto = {
+    organizationId: string;
+    name: string;
+    slug: string;
+    isOwner: boolean;
+};
+
 export type NotificationResponse = {
     id: string;
     userId: string;
@@ -2272,6 +2284,22 @@ export type InvitationsAcceptResponses = {
     204: unknown;
 };
 
+export type MeGetOrganizationsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/identity/me/organizations';
+};
+
+export type MeGetOrganizationsResponses = {
+    /**
+     * OK
+     */
+    200: Array<MyOrganizationDto>;
+};
+
+export type MeGetOrganizationsResponse = MeGetOrganizationsResponses[keyof MeGetOrganizationsResponses];
+
 export type MfaGetStatusData = {
     body?: never;
     path?: never;
@@ -2570,21 +2598,234 @@ export type OrganizationsRemoveMemberResponses = {
     204: unknown;
 };
 
-export type OrganizationsGetMyOrganizationsData = {
+export type OrganizationsGetPendingMembersData = {
     body?: never;
-    path?: never;
+    path: {
+        id: string;
+    };
     query?: never;
-    url: '/v1/identity/organizations/mine';
+    url: '/v1/identity/organizations/{id}/members/pending';
 };
 
-export type OrganizationsGetMyOrganizationsResponses = {
+export type OrganizationsGetPendingMembersErrors = {
     /**
-     * OK
+     * Not Found
      */
-    200: Array<OrganizationDto>;
+    404: ProblemDetails;
 };
 
-export type OrganizationsGetMyOrganizationsResponse = OrganizationsGetMyOrganizationsResponses[keyof OrganizationsGetMyOrganizationsResponses];
+export type OrganizationsGetPendingMembersError = OrganizationsGetPendingMembersErrors[keyof OrganizationsGetPendingMembersErrors];
+
+export type OrganizationsGetSuspendedMembersData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/v1/identity/organizations/{id}/members/suspended';
+};
+
+export type OrganizationsGetSuspendedMembersErrors = {
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+};
+
+export type OrganizationsGetSuspendedMembersError = OrganizationsGetSuspendedMembersErrors[keyof OrganizationsGetSuspendedMembersErrors];
+
+export type OrganizationsGetDeniedMembersData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/v1/identity/organizations/{id}/members/denied';
+};
+
+export type OrganizationsGetDeniedMembersErrors = {
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+};
+
+export type OrganizationsGetDeniedMembersError = OrganizationsGetDeniedMembersErrors[keyof OrganizationsGetDeniedMembersErrors];
+
+export type OrganizationsApproveMemberData = {
+    body?: never;
+    path: {
+        id: string;
+        userId: string;
+    };
+    query?: never;
+    url: '/v1/identity/organizations/{id}/members/{userId}/approve';
+};
+
+export type OrganizationsApproveMemberErrors = {
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Unprocessable Entity
+     */
+    422: ProblemDetails;
+};
+
+export type OrganizationsApproveMemberError = OrganizationsApproveMemberErrors[keyof OrganizationsApproveMemberErrors];
+
+export type OrganizationsApproveMemberResponses = {
+    /**
+     * No Content
+     */
+    204: unknown;
+};
+
+export type OrganizationsDenyMemberData = {
+    body?: never;
+    path: {
+        id: string;
+        userId: string;
+    };
+    query?: never;
+    url: '/v1/identity/organizations/{id}/members/{userId}/deny';
+};
+
+export type OrganizationsDenyMemberErrors = {
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Unprocessable Entity
+     */
+    422: ProblemDetails;
+};
+
+export type OrganizationsDenyMemberError = OrganizationsDenyMemberErrors[keyof OrganizationsDenyMemberErrors];
+
+export type OrganizationsDenyMemberResponses = {
+    /**
+     * No Content
+     */
+    204: unknown;
+};
+
+export type OrganizationsClearDenialData = {
+    body?: never;
+    path: {
+        id: string;
+        userId: string;
+    };
+    query?: never;
+    url: '/v1/identity/organizations/{id}/members/{userId}/denial';
+};
+
+export type OrganizationsClearDenialErrors = {
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Unprocessable Entity
+     */
+    422: ProblemDetails;
+};
+
+export type OrganizationsClearDenialError = OrganizationsClearDenialErrors[keyof OrganizationsClearDenialErrors];
+
+export type OrganizationsClearDenialResponses = {
+    /**
+     * No Content
+     */
+    204: unknown;
+};
+
+export type OrganizationsSuspendMemberData = {
+    body?: never;
+    path: {
+        id: string;
+        userId: string;
+    };
+    query?: never;
+    url: '/v1/identity/organizations/{id}/members/{userId}/suspend';
+};
+
+export type OrganizationsSuspendMemberErrors = {
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Unprocessable Entity
+     */
+    422: ProblemDetails;
+};
+
+export type OrganizationsSuspendMemberError = OrganizationsSuspendMemberErrors[keyof OrganizationsSuspendMemberErrors];
+
+export type OrganizationsSuspendMemberResponses = {
+    /**
+     * No Content
+     */
+    204: unknown;
+};
+
+export type OrganizationsReinstateMemberData = {
+    body?: never;
+    path: {
+        id: string;
+        userId: string;
+    };
+    query?: never;
+    url: '/v1/identity/organizations/{id}/members/{userId}/reinstate';
+};
+
+export type OrganizationsReinstateMemberErrors = {
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Unprocessable Entity
+     */
+    422: ProblemDetails;
+};
+
+export type OrganizationsReinstateMemberError = OrganizationsReinstateMemberErrors[keyof OrganizationsReinstateMemberErrors];
+
+export type OrganizationsReinstateMemberResponses = {
+    /**
+     * No Content
+     */
+    204: unknown;
+};
+
+export type OrganizationsLeaveData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/v1/identity/organizations/{id}/leave';
+};
+
+export type OrganizationsLeaveErrors = {
+    /**
+     * Unprocessable Entity
+     */
+    422: ProblemDetails;
+};
+
+export type OrganizationsLeaveError = OrganizationsLeaveErrors[keyof OrganizationsLeaveErrors];
+
+export type OrganizationsLeaveResponses = {
+    /**
+     * No Content
+     */
+    204: unknown;
+};
 
 export type OrganizationsArchiveData = {
     body?: never;

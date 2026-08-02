@@ -21,6 +21,21 @@ public interface IMembershipReviewService
     Task<IReadOnlyList<PendingMembershipDto>> GetPendingAsync(
         Guid organizationId, CancellationToken ct = default);
 
+    /// <summary>
+    /// The memberships whose access is currently taken away, most recently suspended first. The
+    /// list reinstatement is driven from: a suspended member appears on no other roster, so without
+    /// it the decision can only be undone by somebody who already knows it was made.
+    /// </summary>
+    Task<IReadOnlyList<ReviewedMembershipDto>> GetSuspendedAsync(
+        Guid organizationId, CancellationToken ct = default);
+
+    /// <summary>
+    /// The requests this organization turned away and has not taken back, most recently refused
+    /// first. The list clearing a denial is driven from.
+    /// </summary>
+    Task<IReadOnlyList<ReviewedMembershipDto>> GetDeniedAsync(
+        Guid organizationId, CancellationToken ct = default);
+
     Task ApproveAsync(Guid organizationId, Guid userId, Guid actorId, CancellationToken ct = default);
 
     Task DenyAsync(Guid organizationId, Guid userId, Guid actorId, CancellationToken ct = default);
