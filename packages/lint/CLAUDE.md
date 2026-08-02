@@ -64,6 +64,26 @@ root's `ignorePatterns` — their repo-rooted prefixes match nothing once matchi
 `apps/<app>/`. A future edit to a root app block therefore silently stops applying to that app.
 **Do not delete the restatement.**
 
+## The root config around it
+
+**Two passes cover the tree exactly once.** `pnpm lint` takes source, excluding `**/*.test.*` and
+`**/*.stories.tsx`; `pnpm lint:tests` takes exactly those with oxlint's **vitest plugin** on. Lint by
+hand after touching a rule's own specs and you need both. The test pass enumerates its file list
+rather than globbing — oxlint expands no globs in path arguments and `ignorePatterns` has no `!`
+negation, so a wrong list lints **zero** files and exits 0, which is why `scripts/lint-tests.sh`
+prints its count and fails on zero. Neither pass may pass `-c`: an explicit config file disables
+nested-config lookup, dropping the app configs that register this plugin along with `packages/ui`'s
+and `packages/forms`' test relaxations.
+
+**`import/no-cycle` is named explicitly** in the root config because it belongs to no category and is
+off by default. Enabling the built-in `import` plugin for it also switches on its category rules, and
+~7,500 of those diagnostics land on things this repo does deliberately: named-export-only
+(`no-named-export`, `prefer-default-export`, `group-exports`, `exports-last`), `node:crypto` in the
+SDK's server entry (`no-nodejs-modules`), and the namespace imports the seam specs use to assert
+absence (`no-namespace`, `namespace`). Both passes run `--deny-warnings`, so all seven are switched
+**off** by name beside `no-cycle`. Do not switch them on to tidy the config; do not delete them to
+shorten it.
+
 ## Both apps are gated, not identically
 
 `apps/wallow-auth/.oxlintrc.json` carries the same rules plus `button` on the `react/forbid-elements`

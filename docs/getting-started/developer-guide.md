@@ -128,6 +128,59 @@ cd docker && docker compose down -v && docker compose up -d
 
 ---
 
+## Issue Tracking with Beads
+
+Wallow tracks work with **bd** (beads), a lightweight issue tracker whose database is embedded directly in the repository rather than hosted separately:
+
+```bash
+bd ready                                    # Find available work
+bd show <id>                                # View issue details
+bd update <id> --status in_progress         # Claim work
+bd close <id>                               # Complete work
+```
+
+### Where the data lives
+
+Beads live in an embedded [Dolt](https://www.dolthub.com/) database under `.beads/embeddeddolt/<db>/`, where `<db>` is the name of the Dolt database itself. That name is **per-machine, not repo-wide**: a machine where `bd init` created the database gets `Wallow`, while a machine set up with `bd bootstrap` (see below) gets `beads`. Nothing in the tooling depends on this name, so never hardcode the path in a script or doc.
+
+All of `.beads/` is gitignored -- none of it is committed to the repository. Instead, beads data travels through the **same GitHub repository** using Dolt's own git-backed remote: issue history sits on `refs/dolt/data`, with a `__dolt_remote_info__` branch pointing at it. `.beads/config.yaml` records `sync.remote: git+ssh://git@github.com/bc-solutions-coder/wallow.git`, so beads sync over your **SSH key**, not a GitHub token or `.npmrc` credential.
+
+### Pushing and pulling
+
+Because beads data does not live in the normal git history, ordinary `git push` and `git pull` do not move it. You must sync it explicitly:
+
+- **`bd dolt push`** -- pushes local issue changes to `refs/dolt/data` on the remote. You must run this **explicitly**; a plain `git push` does *not* carry beads along, because the `pre-push` hook exits 0 without touching `refs/dolt/data`. Skip this step and any issues you created or updated stay stranded on your machine.
+- **`bd dolt pull`** -- pulls issue changes from the remote before you start work on a machine you have not used in a while. Like the push side, `git pull` does **not** bring beads over.
+
+### Setting up a new machine
+
+On a fresh clone, run:
+
+```bash
+bd bootstrap --yes
+```
+
+This finds `refs/dolt/data` on the git origin and rebuilds the whole beads database from it -- no `.beads/` directory needs to exist beforehand -- and wires up `origin` as the sync remote for later `bd dolt push`/`bd dolt pull`, so there is no manual `bd dolt remote add` step.
+
+### Do not run `bd hooks install`
+
+Wallow's git hooks are owned by **husky**, not by beads. Every `pnpm install` runs the `prepare: husky` script, which sets `core.hooksPath=.husky/_`, and the tracked `.husky/*` hook files already contain the bridge block that keeps bd in sync on commit/push. This means beads integration works out of the box with no extra setup (`bd hooks list` will confirm it).
+
+Running `bd hooks install` fights husky for the same git configuration: it repoints `core.hooksPath` at `.beads/hooks`, copies the husky hook bodies into that new location, and appends a second bridge block on top. The result is that every hook runs its beads logic twice, edits to `.husky/` silently stop taking effect because git is no longer looking there, and the next `pnpm install` flips `core.hooksPath` back to husky's directory -- leaving the repo in an inconsistent state either way.
+
+If hooks ever look wrong, recover with:
+
+```bash
+bd hooks uninstall   # clears core.hooksPath entirely, leaving no hooks configured
+pnpm exec husky       # re-installs husky's hooks and restores core.hooksPath=.husky/_
+```
+
+### Diagnostics
+
+`bd dolt remote list` prints the configured remote and is useful for confirming sync is wired up correctly. Note that the standalone `dolt` CLI is not installed in this environment -- `bd` embeds the Dolt engine itself -- so raw `dolt` commands are unavailable, and `bd doctor` will report that diagnostics are "not yet supported in embedded mode".
+
+---
+
 ## Architecture Overview
 
 Wallow is a modular monolith. Each module is an autonomous bounded context that follows Clean Architecture internally and communicates with other modules exclusively through integration events over Wolverine. Modules never reference each other directly.

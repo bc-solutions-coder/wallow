@@ -6,9 +6,12 @@ same-origin OIDC frontends. Teams fork this repo and extend it.
 
 This repo is a **polyglot monorepo** with two toolchains:
 
-- **`api/`** — the .NET backend (solution `api/Wallow.slnx`). See **`api/CLAUDE.md`** for
-  backend architecture, modules, and commands.
-- **`apps/` + `packages/`** — a pnpm workspace (TypeScript). See the JavaScript section below.
+- **`api/`** — the .NET backend (solution `api/Wallow.slnx`). See **`api/CLAUDE.md`**.
+- **`apps/` + `packages/`** — a pnpm workspace (TypeScript). See **`apps/CLAUDE.md`** and each
+  package's own `CLAUDE.md`.
+
+**Nested `CLAUDE.md` files load only when you touch their directory.** Keep directory-specific
+knowledge in them, not here — this file is paid for by every session and every subagent.
 
 ## Deployment Status — pre-release, no users
 
@@ -19,26 +22,21 @@ section is removed or amended.
 Consequences for how work is done here:
 
 - **Prefer the correct design over the compatible one.** Breaking changes to `main` are
-  acceptable and expected. Do not carry a worse design forward because changing it would break
-  something already on `main`.
+  acceptable and expected.
 - **Schema changes do not need staged migrations.** No expand/contract, no dual-write windows,
-  no read-old-write-new phases, no deprecation periods. Reshape the schema, regenerate or
-  replace the migration, and re-seed. Local databases are disposable — `bd`-tracked data and
-  `api/seed.json` are the only state that matters.
-- **No backfills for the sake of existing rows.** If a model change would strand data, the
-  answer is to drop and re-seed, not to write a data migration.
-- **API and contract changes are free.** The OpenAPI snapshot, the SDK's public surface,
-  integration event shapes, and claim contents can all change in one commit. Regenerate
-  `packages/sdk/openapi/v1.json` and the SDK client rather than versioning around a change.
-- **No feature flags or compatibility shims** whose only purpose is protecting an existing
-  rollout. Flags for genuine product optionality are still fine.
-- **Do not spend effort on rollout edge cases** — coordinating releases, communicating
-  permission changes to affected users, keeping old columns readable for a release. None of
-  that applies.
+  no deprecation periods. Reshape the schema, replace the migration, re-seed. Local databases
+  are disposable — `bd`-tracked data and `api/seed.json` are the only state that matters.
+- **No backfills.** If a model change would strand data, drop and re-seed.
+- **API and contract changes are free.** Regenerate `packages/sdk/openapi/v1.json` and the SDK
+  client rather than versioning around a change.
+- **No feature flags or compatibility shims** whose only purpose is protecting a rollout. Flags
+  for genuine product optionality are still fine.
+- **Do not spend effort on rollout edge cases** — release coordination, communicating permission
+  changes, keeping old columns readable.
 
-Still required, because these are about correctness rather than compatibility: quality gates
-(`pnpm check`, `./scripts/run-tests.sh`), conventional commits, and migrations that actually
-apply cleanly to a fresh database.
+Still required, because these are correctness rather than compatibility: quality gates
+(`pnpm check`, `./scripts/run-tests.sh`), conventional commits, and migrations that apply
+cleanly to a fresh database.
 
 ## Repository Layout
 
@@ -47,17 +45,17 @@ apply cleanly to a fresh database.
 | `api/`              | .NET 10 solution (`Wallow.slnx`), central build/package props, `.editorconfig`, `stylecop.json`, `seed.json`                                                                |
 | `packages/sdk/`     | `@bc-solutions-coder/sdk` — TypeScript BFF auth SDK + generated OpenAPI client                                                                                              |
 | `packages/styles/`  | `@bc-solutions-coder/styles` — shared Tailwind v4 CSS entry + theme tokens emitted from `packages/styles/branding.json`                                                                 |
-| `packages/ui/`      | `@bc-solutions-coder/ui` — shared browser-only React component catalog (Base UI + CVA); see `packages/ui/CLAUDE.md`                                                         |
-| `packages/forms/`   | `@bc-solutions-coder/forms` — shared form-authoring layer (TanStack Form catalog + zod + RFC 7807 errors) bound to `@bc-solutions-coder/ui`; see `packages/forms/CLAUDE.md` |
-| `packages/navigation/` | `@bc-solutions-coder/navigation` — the application shell: collapsible desktop rail, mobile drawer, their controls, and the `useNavStore` singleton; see `packages/navigation/CLAUDE.md` |
-| `packages/query/`   | `@bc-solutions-coder/query` — the shared TanStack Query facade: re-exports react-query plus `createQueryClient`; see `packages/query/CLAUDE.md`                             |
-| `packages/auth/`    | `@bc-solutions-coder/auth` — shared authn/authz layer (current-user query + hook, `beforeLoad` primer, role/permission helpers, re-exported SDK guards)                     |
+| `packages/ui/`      | `@bc-solutions-coder/ui` — shared browser-only React component catalog (Base UI + CVA)                                                         |
+| `packages/forms/`   | `@bc-solutions-coder/forms` — form-authoring layer (TanStack Form catalog + zod + RFC 7807 errors) bound to `@bc-solutions-coder/ui` |
+| `packages/navigation/` | `@bc-solutions-coder/navigation` — the application shell: desktop rail, mobile drawer, and the `useNavStore` singleton |
+| `packages/query/`   | `@bc-solutions-coder/query` — the shared TanStack Query facade: re-exports react-query plus `createQueryClient`                             |
+| `packages/auth/`    | `@bc-solutions-coder/auth` — shared authn/authz layer (current-user query + hook, `beforeLoad` primer, role/permission helpers)                     |
 | `packages/testing/` | `@bc-solutions-coder/testing` — shared vitest preset + browser-mode test utilities                                                                                          |
-| `packages/config/` | `@bc-solutions-coder/config` — the Vite presets every workspace member builds with; never built, never published; see `packages/config/CLAUDE.md`                            |
-| `packages/lint/`   | `@bc-solutions-coder/lint` — Wallow's own oxlint JS-plugin rules (`wallow/*`), registered by the two apps' nested configs; see `packages/lint/CLAUDE.md`                     |
-| `packages/utils/`  | `@bc-solutions-coder/utils` — the bottom of the graph: pure functions, zero dependencies, no host API; subpath-only (`./format`, `./guards`, `./string`); see `packages/utils/CLAUDE.md` |
-| `packages/env/`    | `@bc-solutions-coder/env` — deployment-derived addressing for Start apps, zero dependencies, reads no environment of its own; subpath-only (`./request-origin`, `./internal-origin`, `./base-path`); see `packages/env/CLAUDE.md` |
-| `packages/logger/` | `@bc-solutions-coder/logger` — structured logging, both ends: the browser core (`.`) that buffers and posts, and the app-server ingest handler (`./server`) that guards, stamps and forwards to OTLP; zero dependencies; see `packages/logger/CLAUDE.md` |
+| `packages/config/` | `@bc-solutions-coder/config` — the Vite presets every workspace member builds with; never built, never published                            |
+| `packages/lint/`   | `@bc-solutions-coder/lint` — Wallow's own oxlint JS-plugin rules (`wallow/*`), registered by the two apps' nested configs                     |
+| `packages/utils/`  | `@bc-solutions-coder/utils` — the bottom of the graph: pure functions, zero dependencies, subpath-only |
+| `packages/env/`    | `@bc-solutions-coder/env` — deployment-derived addressing for Start apps, zero dependencies, subpath-only |
+| `packages/logger/` | `@bc-solutions-coder/logger` — structured logging, both ends: browser core (`.`) and app-server ingest handler (`./server`) |
 | `apps/wallow-web/`  | TanStack Start + BFF OIDC reference frontend (dashboard) that consumes the SDK                                                                                              |
 | `apps/wallow-auth/` | TanStack Start auth frontend (login/signup/MFA screens) on port 3002                                                                                                        |
 | `apps/examples/`    | Example apps (`minimal-app`)                                                                                                                                                |
@@ -96,85 +94,9 @@ pnpm check:exports           # publint + @arethetypeswrong/cli over the built pa
 pnpm check                   # format:check + lint + lint:tests + typecheck + test + build + check:exports — the one-command quality gate
 ```
 
-**Linting runs as two passes over one partition.** `pnpm lint` lints source, excluding
-`**/*.test.*` and `**/*.stories.tsx`; `pnpm lint:tests` lints exactly those excluded files with
-oxlint's **vitest plugin** additionally enabled. Together they cover every file exactly once, and
-`pnpm check` (and CI) runs both — running only `pnpm lint` leaves every spec unlinted. The test
-pass has to enumerate its file list rather than take a glob, because oxlint does not expand globs
-in path arguments and `ignorePatterns` has no `!` negation: get it wrong and oxlint lints **zero**
-files and exits 0, which is why `scripts/lint-tests.sh` prints its count and fails on zero. It
-deliberately passes no `-c`, which would disable nested-config lookup and drop `packages/ui`'s and
-`packages/forms`' test relaxations. Rule severities for both passes live in `.oxlintrc.json`; the
-vitest rules this repo opts out of sit in its `**/*.test.*` override.
-
-**Import cycles are a lint error, not a review question.** The root config enables oxlint's
-built-in `import` plugin for one rule, `import/no-cycle`, which has to be named explicitly because
-it sits in no category and is therefore off by default. Turning the plugin on also switches on its
-category rules, and ~7,500 of those diagnostics are rules this repo deliberately contradicts —
-named-export-only (`no-named-export`, `prefer-default-export`, `group-exports`, `exports-last`),
-`node:crypto` in the SDK's server entry (`no-nodejs-modules`), and the namespace imports the seam
-specs use to assert absence (`no-namespace`, `namespace`). Both passes run `--deny-warnings`, so
-each of those is switched **off** by name alongside `no-cycle`. Do not switch them on to "tidy up"
-the config; do not delete them to shorten it.
-
-Wallow's own rules — the `wallow/*` ones, for things no native rule can say — live in
-**`packages/lint`** as a real oxlint JS plugin, loaded by `apps/wallow-web/.oxlintrc.json` and
-`apps/wallow-auth/.oxlintrc.json`. They must NOT be registered from the root config, and a rule
-is only the right tool for a judgement about **one file at a time**; both constraints, with the
-measurements behind them, are in `packages/lint/CLAUDE.md`. Read it before adding a rule.
-
-- **`packages/sdk`** — server-side **BFF** tunnel so the browser never holds a token, with
-  four entries: browser (`.`), Node BFF (`./server`), pure reverse proxy
-  (`./server/passthrough`), TanStack Query layer (`./query`). Its server handlers are
-  web-standard `Request` → `Response` functions with no host-framework dependency. The
-  OpenAPI client is **generated** from the committed snapshot `packages/sdk/openapi/v1.json`
-  (CI fails on drift), and the SDK ships independently via `sdk-v*` tags. Full detail —
-  entries, session/CSRF model, regen command, build/publish, test layout — lives in
-  **`packages/sdk/CLAUDE.md`**; read it before touching the SDK.
-- **`packages/forms`** — the one way a form is written: `useAppForm` (zod schema + generated
-  `{operation}Mutation` + RFC 7807 error split) rendered through the `AppForm` shell and its
-  pre-bound field catalog, with every `data-testid` DERIVED from the shell's `testIdPrefix`.
-  It consumes `@bc-solutions-coder/ui`; `ui` must never import it. Guide:
-  `docs/development/forms.md`; contributor detail: **`packages/forms/CLAUDE.md`**.
-- **`packages/navigation`** — the app shell every signed-in screen sits inside. An app supplies
-  only what it alone can answer: `destinations` (the nav manifest), `can` (who may see each),
-  and the `header`/`footer` slots — which is what keeps the package free of an `sdk` or `auth`
-  edge, and why wallow-web's `DashboardLayout` is 36 lines. `useNavStore` is a zustand
-  singleton exported from exactly ONE entry; a second copy is a second store. Contributor
-  detail, including the `use-sync-external-store/shim` aliases a fork needs and why the testids
-  are a cross-package contract: **`packages/navigation/CLAUDE.md`**.
-- **`apps/wallow-web`** — runnable TanStack Start reference frontend demonstrating the
-  full same-origin BFF flow. `pnpm --filter @bc-solutions-coder/wallow-web dev` (SSR + BFF)
-  or `... start` (`node .output/server/index.mjs`, the Nitro bundle the E2E container runs).
-  Has a Dockerfile whose build context is the **repo root** (needs the whole workspace to
-  resolve `workspace:*`). Every app hosts itself through TanStack Start server routes —
-  there is no shared host runtime.
-
-### Frontend state boundary
-
-TanStack Query is the only store for backend data. Every key comes from the **generated**
-per-operation artifacts in `@bc-solutions-coder/sdk/query` — `{operation}Options()` for a read,
-`{operation}Mutation()` for a write, `{operation}QueryKey()` when you need the key alone; no
-inline key literals, and never a hand-rolled factory. Those keys are flat
-(`[{ _id, baseUrl, tags, ...args }]`) with no prefix to sweep by, so invalidation goes through
-the curated `invalidations` predicates (`queriesWithTag`, `queriesForOperation`) from the same
-entry.
-
-react-query itself enters this workspace in exactly one place. Import `useQuery`,
-`useMutation`, `QueryClient`, `QueryClientProvider` and every other react-query symbol from
-**`@bc-solutions-coder/query`**, never `@tanstack/react-query` directly — the facade also owns
-`createQueryClient` and the pinned version, and it keeps one `QueryClientProvider` context
-across the workspace. This is lint-enforced, not a convention: a root `.oxlintrc.json`
-`no-restricted-imports` entry fails `pnpm lint` on a direct import, and only `packages/query`
-itself plus the few `packages/sdk` files that need react-query's types are exempt.
-
-Auth state comes from **`@bc-solutions-coder/auth`**, never from a per-app copy:
-`currentUserQuery` / `useCurrentUser` for the current user, `ensureCurrentUser` for a route's
-`beforeLoad` gate, and `hasRole` / `hasPermission` (plus the SDK's `requireAuth` / `isAdmin`,
-re-exported by reference) for role and permission checks.
-
-Zustand holds UI-only global state; it never stores API data.
-See `docs/development/frontend-state.md`.
+Linting runs as **two passes over one partition** — `pnpm lint` and `pnpm lint:tests` together
+cover every file exactly once, and `pnpm check` runs both. Config detail lives in
+`packages/lint/CLAUDE.md`; read it before editing any `.oxlintrc.json`.
 
 ## Backend (summary — full detail in `api/CLAUDE.md`)
 
@@ -182,27 +104,10 @@ See `docs/development/frontend-state.md`.
 - Modules communicate only via Wolverine in-memory integration events through
   `Shared.Contracts` — never direct references. Each owns a separate Postgres schema.
 - Clean Architecture per module: Domain → Application → Infrastructure → Api.
-- The API is **headless**: the React apps (`apps/wallow-auth`, `apps/wallow-web`) are the only
-  UIs. The Blazor `Wallow.Auth`/`Wallow.Web` apps are deleted (readable in git history).
-- **`Wallow.AppHost`** is the .NET Aspire host that orchestrates everything (`pnpm backend`),
-  including the React apps as Node resources.
+- The API is **headless**: the React apps are the only UIs.
+- **`Wallow.AppHost`** is the .NET Aspire host that orchestrates everything (`pnpm backend`).
 
 Backend commands (run/seed/format/test) live in `api/CLAUDE.md` — use those, not from memory.
-
-## Docker & Infrastructure
-
-Run from `docker/` (copy `.env.example` → `.env` first; `GF_ADMIN_PASSWORD` is required).
-
-```bash
-cd docker && docker compose up -d                 # Postgres, Valkey, GarageHQ (S3), Mailpit, Grafana, Docs
-cd docker && docker compose --profile clamav up -d # + ClamAV virus scanning
-# Full production stack (copy .env.production.example → .env.production first):
-cd docker && docker compose -f docker-compose.production.yml --env-file .env.production up --build
-```
-
-E2E tests are per-app `@playwright/test` suites (`apps/wallow-auth/e2e/`,
-`apps/wallow-web/e2e/`); `./scripts/e2e.sh` is the one-command backend-dependent runner — see
-`.claude/rules/E2E.md`. `docker-compose.test.yml` provides the containerised stack.
 
 ## Local Development
 
@@ -212,17 +117,13 @@ E2E tests are per-app `@playwright/test` suites (`apps/wallow-auth/e2e/`,
 | Docs            | http://localhost:5004 | DocFX site                               |
 | Web (TanStack)  | http://localhost:3000 | `apps/wallow-web`; override with `PORT`  |
 | Auth (TanStack) | http://localhost:3002 | `apps/wallow-auth`; override with `PORT` |
-| GarageHQ (S3)   | http://localhost:3900 | admin 3903; creds in `docker/.env`       |
-| Mailpit         | http://localhost:8025 | SMTP 1025                                |
-| Grafana         | http://localhost:3001 | otel-lgtm stack                          |
 
-## Fork-First Configuration
+Infra service ports (GarageHQ, Mailpit, Grafana) and Compose commands:
+`docs/getting-started/developer-guide.md` and `docker/CLAUDE.md`.
 
-- **`packages/styles/branding.json`** — canonical fork branding (name, icon, tagline, theme colors);
-  `packages/styles` owns the canonical branding types and emits theme CSS from it. No
-  source changes are needed to rebrand.
-- `.gitattributes` marks `appsettings*.json`, `branding.json`, `docker/.env`,
-  `docker/.env.example`, and `seed.json` as `merge=ours` so upstream merges preserve fork config.
+**Fork branding** is `packages/styles/branding.json` — no source changes are needed to rebrand.
+`.gitattributes` protects fork-owned config on upstream merges; see
+`docs/getting-started/fork-guide.md`.
 
 ## Versioning
 
@@ -231,30 +132,19 @@ Automated semver via [Conventional Commits](https://www.conventionalcommits.org/
 
 **Commit format:** `<type>[optional scope][!]: <description>` (lowercase, imperative, no
 trailing period, first line < 72 chars). Use the module name as scope when relevant
-(e.g. `feat(inquiries): add form validation`).
-
-| Prefix                                                               | Bump       |
-| -------------------------------------------------------------------- | ---------- |
-| `fix:`                                                               | Patch      |
-| `feat:`                                                              | Minor      |
-| `feat!:` / `BREAKING CHANGE:`                                        | Major      |
-| `chore:` `refactor:` `docs:` `test:` `ci:` `style:` `perf:` `build:` | No release |
-
-Merges to `main` update a **Release PR**; merging it tags `v*`, publishes images, and (for the
-SDK) `sdk-v*` triggers a separate npm publish.
+(e.g. `feat(inquiries): add form validation`). `feat:` is a minor bump, `fix:` a patch,
+`feat!:`/`BREAKING CHANGE:` a major; `chore` `refactor` `docs` `test` `ci` `style` `perf`
+`build` do not release.
 
 ## Documentation
 
-- **Fork guide:** `docs/getting-started/fork-guide.md`
-- **Configuration:** `docs/getting-started/configuration.md`
-- **Developer guide:** `docs/getting-started/developer-guide.md`
-- **Frontend setup:** `docs/development/frontend-setup.md` · **Component library:** `docs/development/component-library.md` · **Forms:** `docs/development/forms.md` · **Logging:** `docs/development/logging.md`
+- **Fork guide:** `docs/getting-started/fork-guide.md` · **Configuration:** `docs/getting-started/configuration.md` · **Developer guide:** `docs/getting-started/developer-guide.md`
+- **Frontend setup:** `docs/development/frontend-setup.md` · **Component library:** `docs/development/component-library.md` · **Forms:** `docs/development/forms.md` · **Logging:** `docs/development/logging.md` · **Frontend state:** `docs/development/frontend-state.md`
 - **Module creation:** `docs/architecture/module-creation.md`
 - **BFF pattern / TS SDK:** `docs/integrations/bff-pattern.md`, `docs/integrations/typescript-sdk.md`
 - **Deployment & CI/CD:** `docs/operations/deployment.md` · **Versioning:** `docs/operations/versioning.md`
 
-Docs rules live in `docs/CLAUDE.md` (site content only; lowercase-kebab filenames; add new
-guides to `docs/toc.yml`).
+Docs rules live in `docs/CLAUDE.md`; read it before adding a guide.
 
 ### External library docs — use ref.tools, not memory
 
@@ -264,24 +154,13 @@ DocFX, release-please). **Look the API up before writing against it** — do not
 recalled signatures.
 
 - `mcp__ref-context__ref_search_documentation` — search official docs for a library/framework/API.
-  Query with the library name plus the specific symbol or task
-  (e.g. "Wolverine in-memory integration event subscriber", "TanStack Form useAppForm field API").
+  Query with the library name plus the specific symbol or task.
 - `mcp__ref-context__ref_read_url` — read a search hit (or any known doc URL) in full.
 
-Prefer these over `WebSearch`/`WebFetch` for library documentation; ref.tools returns the versioned
-official docs rather than blog-post drift. Reach for ref.tools whenever you're about to use an
-unfamiliar API, a config key, or a CLI flag — and *always* when a build/test error names a
-third-party type or option. Repo-internal questions still go to the local docs and
-`.claude/rules/` files above, not to ref.tools.
-
-## Conventions & Rules
-
-Detailed, enforced rules live in `.claude/rules/` — read the relevant file before touching its area:
-
-- **`CONVENTIONS.md`** — C# coding rules; read before any backend change.
-- **`TESTING.md`** — how to run backend and frontend tests; read before running or writing tests.
-- **`E2E.md`** — Playwright suite layout and selectors; read before touching anything under `e2e/`.
-- **`TEAMS.md`** — multi-agent session lifecycle; read when coordinating teammate agents.
+Prefer these over `WebSearch`/`WebFetch` for library documentation. Reach for ref.tools whenever
+you're about to use an unfamiliar API, a config key, or a CLI flag — and *always* when a
+build/test error names a third-party type or option. Repo-internal questions go to the local docs
+and `.claude/rules/` files, not to ref.tools.
 
 ## Agent Instructions
 
@@ -294,47 +173,15 @@ bd update <id> --status in_progress         # Claim work
 bd close <id>                               # Complete work
 ```
 
-### Beads sync across machines
-
-Beads live in an **embedded** Dolt database under `.beads/embeddeddolt/<db>/`, where `<db>` is
-`dolt_database` in `.beads/metadata.json`. **That name is per-machine, not repo-wide** — a machine
-that ran `bd init` here has `Wallow`; one set up with `bd bootstrap` gets `beads`. Nothing depends
-on it, so never hardcode the path. All of `.beads/` is gitignored and never committed. Beads
-travel through the **same GitHub repo** via Dolt's git-backed remote: the data sits on
-`refs/dolt/data`, with a `__dolt_remote_info__` branch pointing at it. `.beads/config.yaml` records
-`sync.remote: git+ssh://git@github.com/bc-solutions-coder/wallow.git` — so beads sync over your
-**SSH key**, not a token.
-
-- **Push — `bd dolt push`, and you MUST run it explicitly.** `git push` does *not* carry beads
-  along: the `pre-push` hook exits 0 without touching `refs/dolt/data` (verified by watching the
-  remote ref — a bead created, then `git push`, leaves the ref unmoved; `bd dolt push` moves it).
-  Skip this and your beads stay on one machine.
-- **Pull** — `bd dolt pull`. Run it before starting work on a machine you haven't used lately —
-  `git pull` does NOT bring beads over either.
-- **A new machine** — clone the repo, then `bd bootstrap --yes`: it finds `refs/dolt/data` on git
-  origin and rebuilds the whole database, with no `.beads/` needing to exist first, and wires
-  `origin` for later push/pull (no manual `bd dolt remote add`). Verified end to end from a fresh
-  clone: identical issue counts, remote already configured. A clone leaves `core.hooksPath` empty,
-  so run `pnpm install` afterwards for the git hooks — see below.
-
-**Do not run `bd hooks install` in this repo.** Git hooks here are owned by **husky**: `prepare:
-husky` (root `package.json`) sets `core.hooksPath=.husky/_` on every `pnpm install`, and the
-tracked `.husky/*` hooks already contain the beads bridge block, so bd integration works with no
-extra step (`bd hooks list` confirms it). `bd hooks install` fights husky for the same git config —
-it repoints `core.hooksPath` at `.beads/hooks`, *copies* the husky hook bodies there and appends a
-second bridge block, so every hook runs bd twice, `.husky/` edits silently stop taking effect, and
-the next `pnpm install` flips ownership back. If hooks ever look wrong: `bd hooks uninstall`
-(this clears `core.hooksPath` entirely, leaving **no** hooks) followed by `pnpm exec husky`.
-
-Diagnostics: `bd dolt remote list` correctly prints the configured remote. The standalone `dolt`
-CLI is not installed — bd embeds the engine — so `dolt` commands are unavailable, and `bd doctor`
-reports "not yet supported in embedded mode".
+Beads sync over SSH through this same GitHub repo, on `refs/dolt/data` — **`git push` does not
+carry them**. Setup, sync mechanics, and the husky/`bd hooks install` conflict are documented in
+`docs/getting-started/developer-guide.md`.
 
 ### Memory discipline
 
-`bd remember` is ONLY for timeless, repo-wide facts a fresh clone can't rediscover.
-Bead-scoped findings go on the bead (`bd note <id>`). Never store dates, bead IDs,
-plan references, or exact line numbers in a memory.
+`bd remember` is ONLY for timeless, repo-wide facts a fresh clone can't rediscover **and that no
+`CLAUDE.md` already states**. Bead-scoped findings go on the bead (`bd note <id>`). Never store
+dates, bead IDs, plan references, or exact line numbers in a memory.
 
 ### Session Completion
 

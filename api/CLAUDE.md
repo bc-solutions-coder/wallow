@@ -89,9 +89,35 @@ is a 4-project Clean Architecture stack `Wallow.{Module}.{Domain,Application,Inf
   `TransitionTo()`) — never set `Status` directly. Domain events raised in aggregates are
   bridged to integration events in Application event handlers.
 - **EF Core for writes, Dapper for complex reads.**
+- **Enum properties persist as strings, never ints** — every entity configuration pairs
+  `.HasConversion<string>()` with an explicit `.HasMaxLength(50)` (20 for short status enums), so
+  adding or reordering an enum member never silently reinterprets stored rows.
 - **Controllers are `partial`** to host `[LoggerMessage]` source-gen and source-generated regex.
-- **C# conventions** (JWT-claim access, `[LoggerMessage]` logging, no `var`, XML-comment rules):
-  see `.claude/rules/CONVENTIONS.md` — the single source for these.
+
+## C# Conventions
+
+Analyzers run on every non-test project (`Directory.Build.targets` gates them on
+`IsTestProject`), and `AnalysisMode=All` + `TreatWarningsAsErrors=true` turns each rule below into
+a build error — these are enforced, not advisory.
+
+- **Always write the explicit type, never `var`** — `.editorconfig` sets all three
+  `csharp_style_var_*` options to `false:warning` with `EnforceCodeStyleInBuild`.
+- **Read JWT claims through `ClaimsPrincipalExtensions`** (`Wallow.Shared.Kernel.Extensions`),
+  never raw `FindFirst`/`FindFirstValue`/`FindAll` on a `ClaimsPrincipal`:
+  - Single-value: `GetUserId()`, `GetClientId()`, `GetTenantId()`, `GetTenantName()`, `GetEmail()`,
+    `GetDisplayName()`, `GetFirstName()`, `GetLastName()`, `GetAuthMethod()`, `GetTenantRegion()`,
+    `GetPlan()`. Predicates: `IsOperator()`, `IsGlobalAdmin()`.
+  - Multi-value: `GetRoles()`, `GetPermissions()`, `GetScopes()` — each returns `IReadOnlyList<string>`.
+  - A claim with no helper gets a new helper on `ClaimsPrincipalExtensions`, not a raw `FindFirst`.
+- **Log through the `[LoggerMessage]` source generator**, never `logger.LogInformation(...)` or any
+  other `ILogger` extension method (CA1848/CA1873). Mark the class `partial`, inject `ILogger<T>`
+  via the primary constructor, add `using Microsoft.Extensions.Logging;`, and put `private partial
+  void` declarations at the bottom of the class:
+
+```csharp
+[LoggerMessage(Level = LogLevel.Information, Message = "Something happened for {EntityId} by user {UserId}")]
+private partial void LogSomethingHappened(Guid entityId, string? userId);
+```
 
 ## Central Build Config (`api/`)
 
@@ -104,9 +130,10 @@ is a 4-project Clean Architecture stack `Wallow.{Module}.{Domain,Application,Inf
 | `stylecop.json`, `.editorconfig` | Style rulesets driving `EnforceCodeStyleInBuild`. |
 | `seed.json` | Seeder input. (Fork branding is NOT here — no backend code reads it; it lives at `packages/styles/branding.json`.) |
 
-Warnings-as-errors + StyleCop/Meziantou/Roslynator run on every non-test project, so
-`dotnet format api/Wallow.slnx` before committing. No `--` inside XML comments in
-`.csproj`/`.props`/`.targets` (`.claude/rules/CONVENTIONS.md`).
+Warnings-as-errors + StyleCop/Meziantou/Roslynator run on every non-test project, so run
+`dotnet format api/Wallow.slnx` before every commit and stage the formatting changes it makes —
+never commit unformatted code. No `--` inside XML comments in `.csproj`/`.props`/`.targets`
+(`.claude/rules/CONVENTIONS.md`).
 
 ## Tests (`api/tests/`)
 

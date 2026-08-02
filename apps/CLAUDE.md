@@ -98,6 +98,17 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
   `features-api-seam.test.ts` (~950 lines down to ~290); what those two still hold is runtime
   fact about the generated surface and the seam's _shape_, derived from disk rather than from a
   hand-kept list of screen paths.
+- **Backend data lives in TanStack Query, and every key is generated.** Read with
+  `{operation}Options()`, write with `{operation}Mutation()`, and take `{operation}QueryKey()`
+  when the key alone is wanted — all from `@bc-solutions-coder/sdk/query`. Never spell a key as
+  an inline literal or build one from a hand-rolled factory. Keys are flat
+  (`[{ _id, baseUrl, tags, ...args }]`) with no prefix to sweep by, so invalidation goes through
+  that entry's curated `invalidations` predicates, `queriesWithTag` and `queriesForOperation`.
+  Every react-query symbol comes from **`@bc-solutions-coder/query`**, the facade owning
+  `createQueryClient`, the pin, and the single `QueryClientProvider` context — a root
+  `no-restricted-imports` entry fails `pnpm lint` on a direct `@tanstack/react-query` import.
+  Zustand holds UI-only global state and never API data. See
+  `docs/development/frontend-state.md`.
 - **A card heading is 20px (`text-xl`), catalog-wide.** That is `Text`'s `subheading` step,
   which already sat there, plus the four `packages/ui` "names the surface" title recipes moved
   onto it — `cardTitleRecipe`, `dialogTitleRecipe`, `alertDialogTitleRecipe` and

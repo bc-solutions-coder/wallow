@@ -17,7 +17,7 @@ docker compose -f docker-compose.production.yml --env-file .env.production up --
 
 - **Image build contexts**: app Dockerfiles live with their apps (`apps/wallow-*/Dockerfile`)
   and build from the **repo root** context so `workspace:*` deps resolve. Only the docs site
-  (`docs/Dockerfile`) and the Garage images are built from here.
+  (`docker/docs/Dockerfile`) and the Garage images (`docker/images/`) are built from here.
 - **Ingress (production stack only)** — the `caddy` service owns `:80`/`:443` and is the sole
   externally reachable container; the three app services publish on `127.0.0.1` for debugging
   only. Routing lives in `caddy/Caddyfile.example` (copy it and point `CADDYFILE_HOST_PATH` at
