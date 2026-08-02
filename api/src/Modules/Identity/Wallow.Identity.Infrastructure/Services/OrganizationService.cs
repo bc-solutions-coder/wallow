@@ -85,6 +85,14 @@ public sealed partial class OrganizationService(
 
         if (creatorUserId.HasValue)
         {
+            // Creating the organization is the only way anyone becomes its owner, so it is the
+            // only place the grant can be recorded.
+            await PublishTransitionAsync(
+                MembershipTransition.OwnerMarked,
+                organization.Id.Value,
+                creatorUserId.Value,
+                creatorUserId.Value);
+
             LogCreatorAddedAsAdmin(creatorUserId.Value, organization.Id.Value);
         }
 
@@ -157,6 +165,8 @@ public sealed partial class OrganizationService(
             Email = email
         });
 
+        await PublishTransitionAsync(MembershipTransition.Added, orgId, userId, actorId);
+
         LogMemberAdded(userId, orgId);
     }
 
@@ -199,8 +209,22 @@ public sealed partial class OrganizationService(
             Email = email
         });
 
+        await PublishTransitionAsync(MembershipTransition.Removed, orgId, userId, actorId);
+
         LogMemberRemoved(userId, orgId);
     }
+
+    private ValueTask PublishTransitionAsync(
+        MembershipTransition transition, Guid organizationId, Guid userId, Guid actorId) =>
+        messageBus.PublishAsync(new MembershipTransitionedEvent
+        {
+            Transition = transition,
+            OrganizationId = organizationId,
+            TenantId = organizationId,
+            UserId = userId,
+            ActorId = actorId,
+            OccurredAt = timeProvider.GetUtcNow().UtcDateTime
+        });
 
     public async Task<IReadOnlyList<UserDto>> GetMembersAsync(Guid orgId, CancellationToken ct = default)
     {

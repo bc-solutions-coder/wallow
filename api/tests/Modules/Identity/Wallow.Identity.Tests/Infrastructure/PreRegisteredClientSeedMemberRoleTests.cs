@@ -102,4 +102,19 @@ public sealed class PreRegisteredClientSeedMemberRoleTests
 
         await _orgService.Received().AddMemberAsync(_orgId, _userId, "admin", Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
+
+    /// <summary>
+    /// Seeding has no human behind it, so the audit actor is the system sentinel rather than the
+    /// member being enrolled. Passing the member would make every seeded enrollment read as
+    /// self-granted.
+    /// </summary>
+    [Fact]
+    public async Task SyncAsync_EnrollsWithTheSystemActorNotTheMember()
+    {
+        AddClient(new Dictionary<string, string>(StringComparer.Ordinal) { [SeedEmail] = "admin" });
+
+        await _sut.SyncAsync(CancellationToken.None);
+
+        await _orgService.Received().AddMemberAsync(_orgId, _userId, "admin", Guid.Empty, Arg.Any<CancellationToken>());
+    }
 }

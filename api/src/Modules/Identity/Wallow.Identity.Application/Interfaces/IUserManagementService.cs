@@ -14,9 +14,11 @@ public interface IUserManagementService
     /// Roles are held per <c>(user, organization)</c>, so every one of these takes the
     /// organization it acts in. A role granted in one organization confers nothing in another,
     /// and a revocation that named no organization could only revoke everywhere or nowhere.
+    /// <para>
+    /// <c>actorId</c> is who granted or revoked it. The subject cannot stand in for the actor here:
+    /// a role somebody was given and a role somebody took for themselves are different events.
+    /// </para>
     /// </summary>
-    // actorId is the user changing the role, which is not the user whose role changes. Passing
-    // userId here would record the subject as their own grantor.
     Task AssignRoleAsync(Guid userId, Guid organizationId, string roleName, Guid actorId, CancellationToken ct = default);
 
     /// <inheritdoc cref="AssignRoleAsync"/>

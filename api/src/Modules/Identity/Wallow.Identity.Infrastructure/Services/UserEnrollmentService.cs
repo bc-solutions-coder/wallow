@@ -121,6 +121,8 @@ public sealed partial class UserEnrollmentService(
             Email = user.Email ?? string.Empty
         });
 
+        await PublishTransitionAsync(MembershipTransition.Enrolled, organizationId, user.Id);
+
         LogEnrolled(user.Id, organizationId);
         return new Enrolled();
     }
@@ -159,9 +161,27 @@ public sealed partial class UserEnrollmentService(
             RecipientEmails = recipients
         });
 
+        await PublishTransitionAsync(MembershipTransition.AccessRequested, organizationId, user.Id);
+
         LogAccessRequested(user.Id, organizationId, recipients.Count);
         return new PendingApproval();
     }
+
+    /// <summary>
+    /// Enrolment is self-service, so the actor and the subject are the same person. Recording that
+    /// equality is the point: a blank actor would read as an unattributed admission.
+    /// </summary>
+    private ValueTask PublishTransitionAsync(
+        MembershipTransition transition, Guid organizationId, Guid userId) =>
+        messageBus.PublishAsync(new MembershipTransitionedEvent
+        {
+            Transition = transition,
+            OrganizationId = organizationId,
+            TenantId = organizationId,
+            UserId = userId,
+            ActorId = userId,
+            OccurredAt = timeProvider.GetUtcNow().UtcDateTime
+        });
 
     /// <summary>
     /// An organization that has never been configured admits nobody: a policy nobody has chosen

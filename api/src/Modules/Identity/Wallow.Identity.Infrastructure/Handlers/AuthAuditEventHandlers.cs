@@ -1,8 +1,15 @@
 using Wallow.Shared.Contracts.Identity.Events;
 using Wallow.Shared.Kernel.Auditing;
+using Wolverine.Attributes;
 
 namespace Wallow.Identity.Infrastructure.Handlers;
 
+/// <summary>
+/// The attribute is load-bearing. Wolverine's conventional discovery matches a type name ending in
+/// "Handler" or "Consumer" and reads instance methods; a static class named "...Handlers" satisfies
+/// neither, so without it every method here is silently unreachable and nothing is ever audited.
+/// </summary>
+[WolverineHandler]
 public static class AuthAuditEventHandlers
 {
     public static Task Handle(UserLoginSucceededEvent message, IAuthAuditService authAuditService)
@@ -41,13 +48,17 @@ public static class AuthAuditEventHandlers
         }, CancellationToken.None);
     }
 
+    /// <summary>
+    /// The transition is spelled into the event type rather than kept in a column of its own, so a
+    /// membership decision is queried the same way every other audited event is.
+    /// </summary>
     public static Task Handle(MembershipTransitionedEvent message, IAuthAuditService authAuditService)
     {
-        // Scaffold: the transition mapping and the actor are the green phase's job.
         return authAuditService.RecordAsync(new AuthAuditRecord
         {
-            EventType = string.Empty,
+            EventType = $"Membership{message.Transition}",
             UserId = message.UserId,
+            ActorId = message.ActorId,
             TenantId = message.TenantId,
             OccurredAt = message.OccurredAt
         }, CancellationToken.None);

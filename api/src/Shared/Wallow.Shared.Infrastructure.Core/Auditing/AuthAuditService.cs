@@ -19,6 +19,7 @@ public sealed partial class AuthAuditService(
                 Id = Guid.NewGuid(),
                 EventType = record.EventType,
                 UserId = record.UserId,
+                ActorId = record.ActorId,
                 TenantId = record.TenantId,
                 IpAddress = record.IpAddress,
                 UserAgent = record.UserAgent,

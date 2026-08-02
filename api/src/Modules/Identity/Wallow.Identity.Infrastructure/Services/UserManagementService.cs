@@ -247,6 +247,9 @@ public sealed partial class UserManagementService(
             NewRole = roleName
         });
 
+        await PublishTransitionAsync(
+            MembershipTransition.RoleAssigned, organizationId, userId, actorId, roleName);
+
         LogRoleAssigned(roleName, userId);
     }
 
@@ -277,8 +280,24 @@ public sealed partial class UserManagementService(
             NewRole = newRole
         });
 
+        await PublishTransitionAsync(
+            MembershipTransition.RoleRemoved, organizationId, userId, actorId, roleName);
+
         LogRoleRemoved(roleName, userId);
     }
+
+    private ValueTask PublishTransitionAsync(
+        MembershipTransition transition, Guid organizationId, Guid userId, Guid actorId, string roleName) =>
+        messageBus.PublishAsync(new MembershipTransitionedEvent
+        {
+            Transition = transition,
+            OrganizationId = organizationId,
+            TenantId = organizationId,
+            UserId = userId,
+            ActorId = actorId,
+            RoleName = roleName,
+            OccurredAt = timeProvider.GetUtcNow().UtcDateTime
+        });
 
     public async Task<IReadOnlyList<string>> GetUserRolesAsync(Guid userId, Guid organizationId, CancellationToken ct = default)
     {

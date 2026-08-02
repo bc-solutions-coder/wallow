@@ -78,6 +78,8 @@ public sealed partial class MembershipReviewService(
             Email = await GetEmailAsync(userId, ct)
         });
 
+        await PublishTransitionAsync(MembershipTransition.Approved, organizationId, userId, actorId);
+
         LogMembershipApproved(userId, organizationId, actorId);
     }
 
@@ -91,6 +93,8 @@ public sealed partial class MembershipReviewService(
 
         // No revocation: only a Pending membership can be denied, and a Pending membership never
         // authenticated, so there is nothing issued against this organization to take away.
+        await PublishTransitionAsync(MembershipTransition.Denied, organizationId, userId, actorId);
+
         LogMembershipDenied(userId, organizationId, actorId);
     }
 
@@ -109,6 +113,8 @@ public sealed partial class MembershipReviewService(
         // Nothing to revoke and nothing to announce: a denied membership never authenticated here.
         memberships.Remove(membership);
         await memberships.SaveChangesAsync(ct);
+
+        await PublishTransitionAsync(MembershipTransition.DenialCleared, organizationId, userId, actorId);
 
         LogDenialCleared(userId, organizationId, actorId);
     }
@@ -130,6 +136,8 @@ public sealed partial class MembershipReviewService(
         // membership — tokens, open streams — outlives it unless it is taken away here.
         await accessRevoker.RevokeAsync(userId, organizationId, ct);
 
+        await PublishTransitionAsync(MembershipTransition.Suspended, organizationId, userId, actorId);
+
         LogMembershipSuspended(userId, organizationId, actorId);
     }
 
@@ -140,6 +148,8 @@ public sealed partial class MembershipReviewService(
 
         membership.Reinstate(actorId, timeProvider);
         await memberships.SaveChangesAsync(ct);
+
+        await PublishTransitionAsync(MembershipTransition.Reinstated, organizationId, userId, actorId);
 
         LogMembershipReinstated(userId, organizationId, actorId);
     }
@@ -169,8 +179,24 @@ public sealed partial class MembershipReviewService(
             Email = email
         });
 
+        // Nobody acted on the leaver's behalf, so the actor is the leaver. Left blank it would read
+        // as a removal whose author was lost.
+        await PublishTransitionAsync(MembershipTransition.Left, organizationId, userId, userId);
+
         LogMembershipLeft(userId, organizationId);
     }
+
+    private ValueTask PublishTransitionAsync(
+        MembershipTransition transition, Guid organizationId, Guid userId, Guid actorId) =>
+        messageBus.PublishAsync(new MembershipTransitionedEvent
+        {
+            Transition = transition,
+            OrganizationId = organizationId,
+            TenantId = organizationId,
+            UserId = userId,
+            ActorId = actorId,
+            OccurredAt = timeProvider.GetUtcNow().UtcDateTime
+        });
 
     private async Task<Membership> RequireMembershipAsync(
         Guid organizationId, Guid userId, CancellationToken ct)

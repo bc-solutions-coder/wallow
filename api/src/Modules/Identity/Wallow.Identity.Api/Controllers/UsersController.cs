@@ -23,6 +23,7 @@ namespace Wallow.Identity.Api.Controllers;
 [Consumes("application/json")]
 public class UsersController(IUserManagementService userManagement, IOrganizationService organizationService, IUserQueryService userQueryService, ITenantContext tenantContext) : ControllerBase
 {
+    private Guid ActorId() => Guid.Parse(User.GetUserId()!);
 
     /// <summary>
     /// Get a paginated list of users with optional search filtering.
@@ -99,7 +100,7 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
             ct);
 
         Guid tenantId = tenantContext.TenantId.Value;
-        await organizationService.AddMemberAsync(tenantId, userId, "user", Guid.Parse(User.GetUserId()!), ct);
+        await organizationService.AddMemberAsync(tenantId, userId, "user", ActorId(), ct);
 
         UserDto? user = await userManagement.GetUserByIdAsync(userId, ct);
         return CreatedAtAction(nameof(GetUserById), new { id = userId }, user);
@@ -176,7 +177,7 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
             return NotFound();
         }
 
-        await userManagement.AssignRoleAsync(userId, tenantContext.TenantId.Value, request.RoleName, Guid.Parse(User.GetUserId()!), ct);
+        await userManagement.AssignRoleAsync(userId, tenantContext.TenantId.Value, request.RoleName, ActorId(), ct);
         return NoContent();
     }
 
@@ -195,7 +196,7 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
             return NotFound();
         }
 
-        await userManagement.RemoveRoleAsync(userId, tenantContext.TenantId.Value, roleName, Guid.Parse(User.GetUserId()!), ct);
+        await userManagement.RemoveRoleAsync(userId, tenantContext.TenantId.Value, roleName, ActorId(), ct);
         return NoContent();
     }
 
