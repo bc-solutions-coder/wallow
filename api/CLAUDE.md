@@ -105,8 +105,8 @@ a build error — these are enforced, not advisory.
 - **Read JWT claims through `ClaimsPrincipalExtensions`** (`Wallow.Shared.Kernel.Extensions`),
   never raw `FindFirst`/`FindFirstValue`/`FindAll` on a `ClaimsPrincipal`:
   - Single-value: `GetUserId()`, `GetClientId()`, `GetTenantId()`, `GetTenantName()`, `GetEmail()`,
-    `GetDisplayName()`, `GetFirstName()`, `GetLastName()`, `GetAuthMethod()`, `GetTenantRegion()`,
-    `GetPlan()`. Predicates: `IsOperator()`, `IsGlobalAdmin()`.
+    `GetDisplayName()`, `GetFirstName()`, `GetLastName()`, `GetAuthMethod()`, `GetTenantRegion()`.
+    Predicates: `IsOperator()`, `IsGlobalAdmin()`.
   - Multi-value: `GetRoles()`, `GetPermissions()`, `GetScopes()` — each returns `IReadOnlyList<string>`.
   - A claim with no helper gets a new helper on `ClaimsPrincipalExtensions`, not a raw `FindFirst`.
 - **Log through the `[LoggerMessage]` source generator**, never `logger.LogInformation(...)` or any

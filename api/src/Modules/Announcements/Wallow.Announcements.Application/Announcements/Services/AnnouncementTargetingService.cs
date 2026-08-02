@@ -22,7 +22,6 @@ public interface IAnnouncementTargetingService
 public sealed record UserContext(
     UserId UserId,
     TenantId TenantId,
-    string? PlanName,
     IReadOnlyList<string> Roles);
 
 public sealed class AnnouncementTargetingService(
@@ -83,7 +82,6 @@ public sealed class AnnouncementTargetingService(
         {
             AnnouncementTarget.All => true,
             AnnouncementTarget.Tenant => MatchesTenant(announcement, userContext),
-            AnnouncementTarget.Plan => MatchesPlan(announcement, userContext),
             AnnouncementTarget.Role => MatchesRole(announcement, userContext),
             _ => false
         };
@@ -98,16 +96,6 @@ public sealed class AnnouncementTargetingService(
 
         return Guid.TryParse(announcement.TargetValue, out Guid targetTenantId)
                && targetTenantId == userContext.TenantId.Value;
-    }
-
-    private static bool MatchesPlan(Announcement announcement, UserContext userContext)
-    {
-        if (string.IsNullOrEmpty(announcement.TargetValue) || string.IsNullOrEmpty(userContext.PlanName))
-        {
-            return false;
-        }
-
-        return announcement.TargetValue.Equals(userContext.PlanName, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool MatchesRole(Announcement announcement, UserContext userContext)

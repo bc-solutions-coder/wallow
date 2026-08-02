@@ -37,13 +37,11 @@ public class AnnouncementTargetingServiceTests
 
     private static UserContext CreateUserContext(
         TenantId? tenantId = null,
-        string? planName = null,
         IReadOnlyList<string>? roles = null)
     {
         return new UserContext(
             UserId.New(),
             tenantId ?? _testTenantId,
-            planName,
             roles ?? []);
     }
 
@@ -88,7 +86,7 @@ public class AnnouncementTargetingServiceTests
         _dismissalRepository.GetByUserIdAsync(Arg.Any<UserId>(), Arg.Any<CancellationToken>())
             .Returns(new List<AnnouncementDismissal> { dismissal });
 
-        UserContext userContext = new(userId, _testTenantId, null, []);
+        UserContext userContext = new(userId, _testTenantId, []);
         IReadOnlyList<AnnouncementDto> result = await _service.GetActiveAnnouncementsForUserAsync(userContext);
 
         result.Should().BeEmpty();
@@ -106,7 +104,7 @@ public class AnnouncementTargetingServiceTests
         _dismissalRepository.GetByUserIdAsync(Arg.Any<UserId>(), Arg.Any<CancellationToken>())
             .Returns(new List<AnnouncementDismissal> { dismissal });
 
-        UserContext userContext = new(userId, _testTenantId, null, []);
+        UserContext userContext = new(userId, _testTenantId, []);
         IReadOnlyList<AnnouncementDto> result = await _service.GetActiveAnnouncementsForUserAsync(userContext);
 
         result.Should().HaveCount(1);
@@ -157,54 +155,6 @@ public class AnnouncementTargetingServiceTests
 
         IReadOnlyList<AnnouncementDto> result = await _service.GetActiveAnnouncementsForUserAsync(
             CreateUserContext(tenantId: TenantId.New()));
-
-        result.Should().BeEmpty();
-    }
-
-    [Fact]
-    public async Task GetActiveAnnouncementsForUserAsync_TargetPlan_MatchesByPlanName()
-    {
-        Announcement planTarget = CreatePublishedAnnouncement(
-            target: AnnouncementTarget.Plan, targetValue: "pro");
-        _announcementRepository.GetPublishedAsync(Arg.Any<CancellationToken>())
-            .Returns(new List<Announcement> { planTarget });
-        _dismissalRepository.GetByUserIdAsync(Arg.Any<UserId>(), Arg.Any<CancellationToken>())
-            .Returns(new List<AnnouncementDismissal>());
-
-        IReadOnlyList<AnnouncementDto> result = await _service.GetActiveAnnouncementsForUserAsync(
-            CreateUserContext(planName: "pro"));
-
-        result.Should().HaveCount(1);
-    }
-
-    [Fact]
-    public async Task GetActiveAnnouncementsForUserAsync_TargetPlan_IsCaseInsensitive()
-    {
-        Announcement planTarget = CreatePublishedAnnouncement(
-            target: AnnouncementTarget.Plan, targetValue: "Pro");
-        _announcementRepository.GetPublishedAsync(Arg.Any<CancellationToken>())
-            .Returns(new List<Announcement> { planTarget });
-        _dismissalRepository.GetByUserIdAsync(Arg.Any<UserId>(), Arg.Any<CancellationToken>())
-            .Returns(new List<AnnouncementDismissal>());
-
-        IReadOnlyList<AnnouncementDto> result = await _service.GetActiveAnnouncementsForUserAsync(
-            CreateUserContext(planName: "pro"));
-
-        result.Should().HaveCount(1);
-    }
-
-    [Fact]
-    public async Task GetActiveAnnouncementsForUserAsync_TargetPlan_ExcludesDifferentPlan()
-    {
-        Announcement planTarget = CreatePublishedAnnouncement(
-            target: AnnouncementTarget.Plan, targetValue: "enterprise");
-        _announcementRepository.GetPublishedAsync(Arg.Any<CancellationToken>())
-            .Returns(new List<Announcement> { planTarget });
-        _dismissalRepository.GetByUserIdAsync(Arg.Any<UserId>(), Arg.Any<CancellationToken>())
-            .Returns(new List<AnnouncementDismissal>());
-
-        IReadOnlyList<AnnouncementDto> result = await _service.GetActiveAnnouncementsForUserAsync(
-            CreateUserContext(planName: "pro"));
 
         result.Should().BeEmpty();
     }
@@ -281,34 +231,6 @@ public class AnnouncementTargetingServiceTests
             .Returns(new List<AnnouncementDismissal>());
 
         IReadOnlyList<AnnouncementDto> result = await _service.GetActiveAnnouncementsForUserAsync(CreateUserContext());
-
-        result.Should().BeEmpty();
-    }
-
-    [Fact]
-    public async Task GetActiveAnnouncementsForUserAsync_TargetPlan_WithNullTargetValue_ExcludesAnnouncement()
-    {
-        Announcement planTarget = CreatePublishedAnnouncement(target: AnnouncementTarget.Plan, targetValue: null);
-        _announcementRepository.GetPublishedAsync(Arg.Any<CancellationToken>())
-            .Returns(new List<Announcement> { planTarget });
-        _dismissalRepository.GetByUserIdAsync(Arg.Any<UserId>(), Arg.Any<CancellationToken>())
-            .Returns(new List<AnnouncementDismissal>());
-
-        IReadOnlyList<AnnouncementDto> result = await _service.GetActiveAnnouncementsForUserAsync(CreateUserContext(planName: "pro"));
-
-        result.Should().BeEmpty();
-    }
-
-    [Fact]
-    public async Task GetActiveAnnouncementsForUserAsync_TargetPlan_WithNullUserPlan_ExcludesAnnouncement()
-    {
-        Announcement planTarget = CreatePublishedAnnouncement(target: AnnouncementTarget.Plan, targetValue: "pro");
-        _announcementRepository.GetPublishedAsync(Arg.Any<CancellationToken>())
-            .Returns(new List<Announcement> { planTarget });
-        _dismissalRepository.GetByUserIdAsync(Arg.Any<UserId>(), Arg.Any<CancellationToken>())
-            .Returns(new List<AnnouncementDismissal>());
-
-        IReadOnlyList<AnnouncementDto> result = await _service.GetActiveAnnouncementsForUserAsync(CreateUserContext(planName: null));
 
         result.Should().BeEmpty();
     }

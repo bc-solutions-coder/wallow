@@ -8,7 +8,6 @@ namespace Wallow.Announcements.Application.Announcements.Queries.GetActiveAnnoun
 public sealed record GetActiveAnnouncementsQuery(
     Guid UserId,
     Guid TenantId,
-    string? PlanName,
     IReadOnlyList<string> Roles);
 
 public sealed class GetActiveAnnouncementsHandler(IAnnouncementTargetingService targetingService)
@@ -20,7 +19,6 @@ public sealed class GetActiveAnnouncementsHandler(IAnnouncementTargetingService 
         UserContext userContext = new(
             UserId.Create(query.UserId),
             TenantId.Create(query.TenantId),
-            query.PlanName,
             query.Roles);
 
         IReadOnlyList<AnnouncementDto> announcements = await targetingService.GetActiveAnnouncementsForUserAsync(userContext, ct);

@@ -81,12 +81,6 @@ public static class ClaimsPrincipalExtensions
         principal?.FindFirst(ClaimTypes.Surname)?.Value;
 
     /// <summary>
-    /// Resolves the user's subscription plan from the "plan" claim.
-    /// </summary>
-    public static string? GetPlan(this ClaimsPrincipal? principal) =>
-        principal?.FindFirst("plan")?.Value;
-
-    /// <summary>
     /// Indicates whether the caller carries the explicit platform operator flag, granting
     /// cross-tenant privileges such as the X-Tenant-Id override. Only the literal value
     /// "true" on the "is_operator" claim grants it; absence or any other value does not.

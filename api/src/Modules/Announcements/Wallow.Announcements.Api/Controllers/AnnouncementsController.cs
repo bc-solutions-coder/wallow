@@ -38,13 +38,11 @@ public class AnnouncementsController(IMessageBus bus, ITenantContext tenantConte
         }
 
         IReadOnlyList<string> roles = GetUserRoles();
-        string? planName = GetUserPlan();
 
         Result<IReadOnlyList<AnnouncementDto>> result = await bus.InvokeAsync<Result<IReadOnlyList<AnnouncementDto>>>(
             new GetActiveAnnouncementsQuery(
                 userId.Value,
                 tenantContext.TenantId.Value,
-                planName,
                 roles),
             ct);
 
@@ -77,11 +75,6 @@ public class AnnouncementsController(IMessageBus bus, ITenantContext tenantConte
     private List<string> GetUserRoles()
     {
         return User.GetRoles().ToList();
-    }
-
-    private string? GetUserPlan()
-    {
-        return User.GetPlan();
     }
 
     private static AnnouncementResponse MapToResponse(AnnouncementDto dto)

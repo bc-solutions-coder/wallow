@@ -173,19 +173,10 @@ public class GetActiveAnnouncementsQueryTests
         Guid tenantId = Guid.NewGuid();
         List<string> roles = new() { "admin", "user" };
 
-        GetActiveAnnouncementsQuery query = new(userId, tenantId, "pro", roles);
+        GetActiveAnnouncementsQuery query = new(userId, tenantId, roles);
 
         query.UserId.Should().Be(userId);
         query.TenantId.Should().Be(tenantId);
-        query.PlanName.Should().Be("pro");
         query.Roles.Should().BeEquivalentTo(roles);
-    }
-
-    [Fact]
-    public void GetActiveAnnouncementsQuery_WithNullPlan_StoresNull()
-    {
-        GetActiveAnnouncementsQuery query = new(Guid.NewGuid(), Guid.NewGuid(), null, []);
-
-        query.PlanName.Should().BeNull();
     }
 }
