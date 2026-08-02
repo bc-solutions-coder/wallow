@@ -97,6 +97,7 @@ public sealed class UsersControllerGlobalAdminTests
             Arg.Any<Guid>(),
             Arg.Any<Guid>(),
             Arg.Any<string>(),
+            Arg.Any<Guid>(),
             Arg.Any<CancellationToken>());
     }
 
@@ -117,6 +118,7 @@ public sealed class UsersControllerGlobalAdminTests
             _targetUserId,
             Arg.Any<Guid>(),
             roleName,
+            Arg.Any<Guid>(),
             Arg.Any<CancellationToken>());
     }
 }

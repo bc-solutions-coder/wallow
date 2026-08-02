@@ -242,7 +242,9 @@ public sealed partial class PreRegisteredClientSyncService(
             }
 
             string roleName = ResolveSeedMemberRole(client, email);
-            await organizationService.AddMemberAsync(orgId, user.Id, roleName, ct);
+            // Seeding from client config has no human actor, so the audit actor falls back to
+            // Guid.Empty the same way CreateOrganizationAsync treats system-initiated creation.
+            await organizationService.AddMemberAsync(orgId, user.Id, roleName, Guid.Empty, ct);
             LogSeedMemberAdded(client.ClientId, email, roleName);
         }
     }

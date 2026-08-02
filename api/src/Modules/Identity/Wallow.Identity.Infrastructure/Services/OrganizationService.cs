@@ -117,7 +117,7 @@ public sealed partial class OrganizationService(
         return await MapToDtosAsync(organizations, ct);
     }
 
-    public async Task AddMemberAsync(Guid orgId, Guid userId, string roleName, CancellationToken ct = default)
+    public async Task AddMemberAsync(Guid orgId, Guid userId, string roleName, Guid actorId, CancellationToken ct = default)
     {
         LogAddingMember(userId, orgId);
 
@@ -134,11 +134,15 @@ public sealed partial class OrganizationService(
 
         if (membership is null)
         {
-            membershipRepository.Add(Membership.Enroll(userId, id, roleId, timeProvider));
+            // Enroll models someone joining under their own steam and stamps no actor. An admin
+            // adding a member is a different act, so grant on top of it to record who did it.
+            Membership added = Membership.Enroll(userId, id, roleId, timeProvider);
+            added.Grant(roleId, actorId, timeProvider);
+            membershipRepository.Add(added);
         }
         else
         {
-            membership.Grant(roleId, userId, timeProvider);
+            membership.Grant(roleId, actorId, timeProvider);
         }
 
         await membershipRepository.SaveChangesAsync(ct);
@@ -156,7 +160,7 @@ public sealed partial class OrganizationService(
         LogMemberAdded(userId, orgId);
     }
 
-    public async Task RemoveMemberAsync(Guid orgId, Guid userId, CancellationToken ct = default)
+    public async Task RemoveMemberAsync(Guid orgId, Guid userId, Guid actorId, CancellationToken ct = default)
     {
         LogRemovingMember(userId, orgId);
 

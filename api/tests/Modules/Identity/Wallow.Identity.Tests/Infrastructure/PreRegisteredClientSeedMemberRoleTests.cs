@@ -80,7 +80,7 @@ public sealed class PreRegisteredClientSeedMemberRoleTests
 
         await _sut.SyncAsync(CancellationToken.None);
 
-        await _orgService.Received().AddMemberAsync(_orgId, _userId, "admin", Arg.Any<CancellationToken>());
+        await _orgService.Received().AddMemberAsync(_orgId, _userId, "admin", Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -90,7 +90,7 @@ public sealed class PreRegisteredClientSeedMemberRoleTests
 
         await _sut.SyncAsync(CancellationToken.None);
 
-        await _orgService.Received().AddMemberAsync(_orgId, _userId, "user", Arg.Any<CancellationToken>());
+        await _orgService.Received().AddMemberAsync(_orgId, _userId, "user", Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -100,6 +100,6 @@ public sealed class PreRegisteredClientSeedMemberRoleTests
 
         await _sut.SyncAsync(CancellationToken.None);
 
-        await _orgService.Received().AddMemberAsync(_orgId, _userId, "admin", Arg.Any<CancellationToken>());
+        await _orgService.Received().AddMemberAsync(_orgId, _userId, "admin", Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 }

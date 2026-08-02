@@ -230,7 +230,7 @@ public sealed class OrganizationServiceTests : IDisposable
         _organizationRepository.GetByIdAsync(Arg.Any<OrganizationId>(), Arg.Any<CancellationToken>())
             .Returns(organization);
 
-        await _sut.AddMemberAsync(orgId, userId, "user");
+        await _sut.AddMemberAsync(orgId, userId, "user", Guid.NewGuid());
 
         Membership? membership = await MembershipFor(userId, orgId);
         membership.Should().NotBeNull();
@@ -243,13 +243,37 @@ public sealed class OrganizationServiceTests : IDisposable
             e.TenantId == orgId));
     }
 
+    /// <summary>
+    /// The member does not add themselves - a reviewer or admin does. Stamping the membership with
+    /// the subject hides who granted the access, which is the one thing the audit trail exists to
+    /// answer.
+    /// </summary>
+    [Fact]
+    public async Task AddMemberAsync_StampsTheMembershipWithTheActorNotTheSubject()
+    {
+        Guid orgId = Guid.NewGuid();
+        Guid userId = Guid.NewGuid();
+        Guid actorId = Guid.NewGuid();
+        Organization organization = Organization.Create(
+            new TenantId(_tenantId), "Test Org", "test-org", Guid.NewGuid(), TimeProvider.System);
+
+        _organizationRepository.GetByIdAsync(Arg.Any<OrganizationId>(), Arg.Any<CancellationToken>())
+            .Returns(organization);
+
+        await _sut.AddMemberAsync(orgId, userId, "user", actorId);
+
+        Membership? membership = await MembershipFor(userId, orgId);
+        membership.Should().NotBeNull();
+        membership!.UpdatedBy.Should().Be(actorId);
+    }
+
     [Fact]
     public async Task AddMemberAsync_WhenOrgNotFound_ThrowsInvalidOperationException()
     {
         _organizationRepository.GetByIdAsync(Arg.Any<OrganizationId>(), Arg.Any<CancellationToken>())
             .Returns((Organization?)null);
 
-        Func<Task> act = () => _sut.AddMemberAsync(Guid.NewGuid(), Guid.NewGuid(), "user");
+        Func<Task> act = () => _sut.AddMemberAsync(Guid.NewGuid(), Guid.NewGuid(), "user", Guid.NewGuid());
 
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("Organization * not found");
@@ -270,7 +294,7 @@ public sealed class OrganizationServiceTests : IDisposable
         _organizationRepository.GetByIdAsync(Arg.Any<OrganizationId>(), Arg.Any<CancellationToken>())
             .Returns(organization);
 
-        await _sut.RemoveMemberAsync(orgId, userId);
+        await _sut.RemoveMemberAsync(orgId, userId, Guid.NewGuid());
 
         (await MembershipFor(userId, orgId)).Should().BeNull();
         await _messageBus.Received(1).PublishAsync(Arg.Is<OrganizationMemberRemovedEvent>(e =>
@@ -285,7 +309,7 @@ public sealed class OrganizationServiceTests : IDisposable
         _organizationRepository.GetByIdAsync(Arg.Any<OrganizationId>(), Arg.Any<CancellationToken>())
             .Returns((Organization?)null);
 
-        Func<Task> act = () => _sut.RemoveMemberAsync(Guid.NewGuid(), Guid.NewGuid());
+        Func<Task> act = () => _sut.RemoveMemberAsync(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
 
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("Organization * not found");

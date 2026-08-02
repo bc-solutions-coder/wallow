@@ -16,8 +16,11 @@ public interface IOrganizationService
     // roleName names the role this organization grants the member. Roles are per (user,
     // organization), so there is no implicit default: an add-path that picks a role for the
     // caller is the cross-org escalation surface this model exists to close.
-    Task AddMemberAsync(Guid orgId, Guid userId, string roleName, CancellationToken ct = default);
-    Task RemoveMemberAsync(Guid orgId, Guid userId, CancellationToken ct = default);
+    // actorId is the user performing the change, which is never the member being added or removed.
+    // Stamping the membership with userId instead erases who granted the access - the one question
+    // the audit trail exists to answer.
+    Task AddMemberAsync(Guid orgId, Guid userId, string roleName, Guid actorId, CancellationToken ct = default);
+    Task RemoveMemberAsync(Guid orgId, Guid userId, Guid actorId, CancellationToken ct = default);
 
     // Suspending, reinstating, approving and denying live on IMembershipReviewService: they are
     // one reviewer's four answers to the same question, and each one that ends access has to

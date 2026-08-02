@@ -36,7 +36,7 @@ public class RoleAssignmentTests(WallowApiFactory factory) : IdentityIntegration
         await EnrollAsync(userId, orgA);
         await EnrollAsync(userId, orgB);
 
-        await UserManagement.AssignRoleAsync(userId, orgA, "admin", CancellationToken.None);
+        await UserManagement.AssignRoleAsync(userId, orgA, "admin", Guid.NewGuid(), CancellationToken.None);
 
         IReadOnlyList<string> inA = await Resolver.GetRoleNamesAsync(userId, orgA, CancellationToken.None);
         IReadOnlyList<string> inB = await Resolver.GetRoleNamesAsync(userId, orgB, CancellationToken.None);
@@ -52,9 +52,9 @@ public class RoleAssignmentTests(WallowApiFactory factory) : IdentityIntegration
         Guid userId = await UserAsync();
         Guid organizationId = Guid.NewGuid();
         await EnrollAsync(userId, organizationId);
-        await UserManagement.AssignRoleAsync(userId, organizationId, "admin", CancellationToken.None);
+        await UserManagement.AssignRoleAsync(userId, organizationId, "admin", Guid.NewGuid(), CancellationToken.None);
 
-        await UserManagement.RemoveRoleAsync(userId, organizationId, "admin", CancellationToken.None);
+        await UserManagement.RemoveRoleAsync(userId, organizationId, "admin", Guid.NewGuid(), CancellationToken.None);
 
         IReadOnlyList<string> roles = await Resolver.GetRoleNamesAsync(userId, organizationId, CancellationToken.None);
 
@@ -70,10 +70,10 @@ public class RoleAssignmentTests(WallowApiFactory factory) : IdentityIntegration
         Guid orgB = Guid.NewGuid();
         await EnrollAsync(userId, orgA);
         await EnrollAsync(userId, orgB);
-        await UserManagement.AssignRoleAsync(userId, orgA, "admin", CancellationToken.None);
-        await UserManagement.AssignRoleAsync(userId, orgB, "admin", CancellationToken.None);
+        await UserManagement.AssignRoleAsync(userId, orgA, "admin", Guid.NewGuid(), CancellationToken.None);
+        await UserManagement.AssignRoleAsync(userId, orgB, "admin", Guid.NewGuid(), CancellationToken.None);
 
-        await UserManagement.RemoveRoleAsync(userId, orgA, "admin", CancellationToken.None);
+        await UserManagement.RemoveRoleAsync(userId, orgA, "admin", Guid.NewGuid(), CancellationToken.None);
 
         IReadOnlyList<string> inA = await Resolver.GetRoleNamesAsync(userId, orgA, CancellationToken.None);
         IReadOnlyList<string> inB = await Resolver.GetRoleNamesAsync(userId, orgB, CancellationToken.None);
@@ -88,7 +88,7 @@ public class RoleAssignmentTests(WallowApiFactory factory) : IdentityIntegration
         Guid userId = await UserAsync();
 
         Func<Task> act = () => UserManagement.AssignRoleAsync(
-            userId, Guid.NewGuid(), "admin", CancellationToken.None);
+            userId, Guid.NewGuid(), "admin", Guid.NewGuid(), CancellationToken.None);
 
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*not a member*");

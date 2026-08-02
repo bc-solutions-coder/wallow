@@ -270,11 +270,49 @@ public sealed class UserManagementServiceTests : IDisposable
         _userManager.FindByIdAsync(userId.ToString()).Returns(user);
         Membership membership = SeedMembership(userId, _organizationId, userRoleId);
 
-        await _sut.AssignRoleAsync(userId, _organizationId, "admin");
+        await _sut.AssignRoleAsync(userId, _organizationId, "admin", Guid.NewGuid());
 
         membership.RoleIds.Should().Contain(adminRoleId);
         await _messageBus.Received(1).PublishAsync(Arg.Is<UserRoleChangedEvent>(e =>
             e.UserId == userId && e.NewRole == "admin" && e.OldRole == "user"));
+    }
+
+    /// <summary>
+    /// A user does not grant themselves a role - an admin does. Stamping the membership with the
+    /// subject would name the person who gained the access as the person who approved it.
+    /// </summary>
+    [Fact]
+    public async Task AssignRoleAsync_StampsTheMembershipWithTheActorNotTheSubject()
+    {
+        Guid userId = Guid.NewGuid();
+        Guid actorId = Guid.NewGuid();
+        WallowUser user = WallowUser.Create("John", "Doe", "john@test.com", _timeProvider);
+        Guid userRoleId = await SeedRoleAsync("user");
+        await SeedRoleAsync("admin");
+        _roleManager.RoleExistsAsync("admin").Returns(true);
+        _userManager.FindByIdAsync(userId.ToString()).Returns(user);
+        Membership membership = SeedMembership(userId, _organizationId, userRoleId);
+
+        await _sut.AssignRoleAsync(userId, _organizationId, "admin", actorId);
+
+        membership.UpdatedBy.Should().Be(actorId);
+    }
+
+    /// <inheritdoc cref="AssignRoleAsync_StampsTheMembershipWithTheActorNotTheSubject"/>
+    [Fact]
+    public async Task RemoveRoleAsync_StampsTheMembershipWithTheActorNotTheSubject()
+    {
+        Guid userId = Guid.NewGuid();
+        Guid actorId = Guid.NewGuid();
+        WallowUser user = WallowUser.Create("John", "Doe", "john@test.com", _timeProvider);
+        Guid adminRoleId = await SeedRoleAsync("admin");
+        _roleManager.RoleExistsAsync("admin").Returns(true);
+        _userManager.FindByIdAsync(userId.ToString()).Returns(user);
+        Membership membership = SeedMembership(userId, _organizationId, adminRoleId);
+
+        await _sut.RemoveRoleAsync(userId, _organizationId, "admin", actorId);
+
+        membership.UpdatedBy.Should().Be(actorId);
     }
 
     [Fact]
@@ -282,7 +320,7 @@ public sealed class UserManagementServiceTests : IDisposable
     {
         _roleManager.RoleExistsAsync("nonexistent").Returns(false);
 
-        Func<Task> act = () => _sut.AssignRoleAsync(Guid.NewGuid(), _organizationId, "nonexistent");
+        Func<Task> act = () => _sut.AssignRoleAsync(Guid.NewGuid(), _organizationId, "nonexistent", Guid.NewGuid());
 
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*not found*");
@@ -299,7 +337,7 @@ public sealed class UserManagementServiceTests : IDisposable
         _userManager.FindByIdAsync(userId.ToString()).Returns(user);
 
         // A grant may not double as an enrollment.
-        Func<Task> act = () => _sut.AssignRoleAsync(userId, _organizationId, "admin");
+        Func<Task> act = () => _sut.AssignRoleAsync(userId, _organizationId, "admin", Guid.NewGuid());
 
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*not a member*");
@@ -317,7 +355,7 @@ public sealed class UserManagementServiceTests : IDisposable
         Membership membership = SeedMembership(userId, _organizationId, userRoleId);
         membership.AssignRole(adminRoleId, userId, _timeProvider);
 
-        await _sut.RemoveRoleAsync(userId, _organizationId, "admin");
+        await _sut.RemoveRoleAsync(userId, _organizationId, "admin", Guid.NewGuid());
 
         membership.RoleIds.Should().NotContain(adminRoleId);
         await _messageBus.Received(1).PublishAsync(Arg.Is<UserRoleChangedEvent>(e =>
@@ -329,7 +367,7 @@ public sealed class UserManagementServiceTests : IDisposable
     {
         _userManager.FindByIdAsync(Arg.Any<string>()).Returns((WallowUser?)null);
 
-        Func<Task> act = () => _sut.RemoveRoleAsync(Guid.NewGuid(), _organizationId, "admin");
+        Func<Task> act = () => _sut.RemoveRoleAsync(Guid.NewGuid(), _organizationId, "admin", Guid.NewGuid());
 
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*not found*");

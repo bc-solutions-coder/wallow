@@ -15,10 +15,12 @@ public interface IUserManagementService
     /// organization it acts in. A role granted in one organization confers nothing in another,
     /// and a revocation that named no organization could only revoke everywhere or nowhere.
     /// </summary>
-    Task AssignRoleAsync(Guid userId, Guid organizationId, string roleName, CancellationToken ct = default);
+    // actorId is the user changing the role, which is not the user whose role changes. Passing
+    // userId here would record the subject as their own grantor.
+    Task AssignRoleAsync(Guid userId, Guid organizationId, string roleName, Guid actorId, CancellationToken ct = default);
 
     /// <inheritdoc cref="AssignRoleAsync"/>
-    Task RemoveRoleAsync(Guid userId, Guid organizationId, string roleName, CancellationToken ct = default);
+    Task RemoveRoleAsync(Guid userId, Guid organizationId, string roleName, Guid actorId, CancellationToken ct = default);
 
     /// <inheritdoc cref="AssignRoleAsync"/>
     Task<IReadOnlyList<string>> GetUserRolesAsync(Guid userId, Guid organizationId, CancellationToken ct = default);

@@ -102,7 +102,7 @@ public sealed class LastOwnerGuardedDeparturesTests : IDisposable
             TimeProvider.System,
             NullLogger<OrganizationService>.Instance);
 
-        Func<Task> remove = () => organizationService.RemoveMemberAsync(_orgId, _ownerId);
+        Func<Task> remove = () => organizationService.RemoveMemberAsync(_orgId, _ownerId, Guid.NewGuid());
 
         await remove.Should().ThrowAsync<BusinessRuleException>()
             .Where(e => e.Code == "Identity.LastOwner");

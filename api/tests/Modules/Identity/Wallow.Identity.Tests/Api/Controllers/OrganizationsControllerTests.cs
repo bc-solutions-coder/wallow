@@ -194,7 +194,7 @@ public class OrganizationsControllerTests
         ActionResult result = await _controller.AddMember(_tenantOrgId, request, CancellationToken.None);
 
         result.Should().BeOfType<NoContentResult>();
-        await _orgService.Received(1).AddMemberAsync(_tenantOrgId, memberId, "manager", Arg.Any<CancellationToken>());
+        await _orgService.Received(1).AddMemberAsync(_tenantOrgId, memberId, "manager", Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -207,7 +207,7 @@ public class OrganizationsControllerTests
 
         result.Should().BeOfType<NotFoundResult>();
         await _orgService.DidNotReceive().AddMemberAsync(
-            Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
     #endregion
@@ -222,7 +222,7 @@ public class OrganizationsControllerTests
         ActionResult result = await _controller.RemoveMember(_tenantOrgId, memberId, CancellationToken.None);
 
         result.Should().BeOfType<NoContentResult>();
-        await _orgService.Received(1).RemoveMemberAsync(_tenantOrgId, memberId, Arg.Any<CancellationToken>());
+        await _orgService.Received(1).RemoveMemberAsync(_tenantOrgId, memberId, Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -234,7 +234,7 @@ public class OrganizationsControllerTests
         ActionResult result = await _controller.RemoveMember(otherOrgId, memberId, CancellationToken.None);
 
         result.Should().BeOfType<NotFoundResult>();
-        await _orgService.DidNotReceive().RemoveMemberAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await _orgService.DidNotReceive().RemoveMemberAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
     #endregion

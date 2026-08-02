@@ -99,7 +99,7 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
             ct);
 
         Guid tenantId = tenantContext.TenantId.Value;
-        await organizationService.AddMemberAsync(tenantId, userId, "user", ct);
+        await organizationService.AddMemberAsync(tenantId, userId, "user", Guid.Parse(User.GetUserId()!), ct);
 
         UserDto? user = await userManagement.GetUserByIdAsync(userId, ct);
         return CreatedAtAction(nameof(GetUserById), new { id = userId }, user);
@@ -176,7 +176,7 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
             return NotFound();
         }
 
-        await userManagement.AssignRoleAsync(userId, tenantContext.TenantId.Value, request.RoleName, ct);
+        await userManagement.AssignRoleAsync(userId, tenantContext.TenantId.Value, request.RoleName, Guid.Parse(User.GetUserId()!), ct);
         return NoContent();
     }
 
@@ -195,7 +195,7 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
             return NotFound();
         }
 
-        await userManagement.RemoveRoleAsync(userId, tenantContext.TenantId.Value, roleName, ct);
+        await userManagement.RemoveRoleAsync(userId, tenantContext.TenantId.Value, roleName, Guid.Parse(User.GetUserId()!), ct);
         return NoContent();
     }
 

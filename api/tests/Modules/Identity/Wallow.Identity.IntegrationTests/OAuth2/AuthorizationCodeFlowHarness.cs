@@ -309,7 +309,7 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
         ArgumentNullException.ThrowIfNull(services);
 
         IOrganizationService organizations = services.GetRequiredService<IOrganizationService>();
-        await organizations.AddMemberAsync(organizationId, userId, roleName, ct);
+        await organizations.AddMemberAsync(organizationId, userId, roleName, Guid.NewGuid(), ct);
     }
 
     /// <summary>Returns every value a JWT carries for the given claim, flattening array claims.</summary>

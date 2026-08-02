@@ -215,7 +215,7 @@ public sealed partial class UserManagementService(
         LogUserActivated(userId);
     }
 
-    public async Task AssignRoleAsync(Guid userId, Guid organizationId, string roleName, CancellationToken ct = default)
+    public async Task AssignRoleAsync(Guid userId, Guid organizationId, string roleName, Guid actorId, CancellationToken ct = default)
     {
         LogAssigningRole(roleName, userId);
 
@@ -235,7 +235,7 @@ public sealed partial class UserManagementService(
         IReadOnlyList<string> currentRoles = await RoleNamesAsync(membership, ct);
         string oldRole = currentRoles.FirstOrDefault(r => r != roleName) ?? "none";
 
-        membership.AssignRole(await ResolveRoleIdAsync(roleName, ct), userId, timeProvider);
+        membership.AssignRole(await ResolveRoleIdAsync(roleName, ct), actorId, timeProvider);
         await membershipRepository.SaveChangesAsync(ct);
 
         await messageBus.PublishAsync(new UserRoleChangedEvent
@@ -250,7 +250,7 @@ public sealed partial class UserManagementService(
         LogRoleAssigned(roleName, userId);
     }
 
-    public async Task RemoveRoleAsync(Guid userId, Guid organizationId, string roleName, CancellationToken ct = default)
+    public async Task RemoveRoleAsync(Guid userId, Guid organizationId, string roleName, Guid actorId, CancellationToken ct = default)
     {
         LogRemovingRole(roleName, userId);
 
@@ -262,7 +262,7 @@ public sealed partial class UserManagementService(
 
         Membership membership = await RequiredMembershipAsync(userId, organizationId, ct);
 
-        membership.RemoveRole(await ResolveRoleIdAsync(roleName, ct), userId, timeProvider);
+        membership.RemoveRole(await ResolveRoleIdAsync(roleName, ct), actorId, timeProvider);
         await membershipRepository.SaveChangesAsync(ct);
 
         IReadOnlyList<string> currentRoles = await RoleNamesAsync(membership, ct);

@@ -123,7 +123,7 @@ public class OrganizationsController(
             return NotFound();
         }
 
-        await orgService.AddMemberAsync(id, request.UserId, request.Role, ct);
+        await orgService.AddMemberAsync(id, request.UserId, request.Role, ActorId(), ct);
         return NoContent();
     }
 
@@ -141,7 +141,7 @@ public class OrganizationsController(
             return NotFound();
         }
 
-        await orgService.RemoveMemberAsync(id, userId, ct);
+        await orgService.RemoveMemberAsync(id, userId, ActorId(), ct);
         return NoContent();
     }
 
