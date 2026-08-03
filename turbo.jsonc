@@ -18,6 +18,28 @@
   // different keys for identical inputs and defeat the shared remote cache. CI
   // is in turbo's built-in passthrough set, so tasks still see it.
   "globalEnv": ["NODE_ENV"],
+  "futureFlags": {
+    // Reject a TURBO_REMOTE_CACHE_SIGNATURE_KEY shorter than 32 bytes outright,
+    // instead of silently accepting a weakened HMAC-SHA256. Verified not to
+    // affect the task hash, so turning it on does not cost a full rebuild.
+    "longerSignatureKey": true,
+  },
+  // INERT until TURBO_TOKEN is set in the environment: with no token, turbo
+  // never contacts the server, so an unreachable apiUrl cannot break a build.
+  // Verified by building the whole workspace against an unresolvable host with
+  // the credentials unset - FULL TURBO, no warning.
+  //
+  // REPLACE <your-zone> before exporting TURBO_TOKEN. The hostname is created
+  // in the Cloudflare Zero Trust dashboard; the compose stack that backs it is
+  // docker/turbo-cache/docker-compose.yml.
+  "remoteCache": {
+    "apiUrl": "https://turbo-cache.<your-zone>",
+    // Integrity, not access control: catches truncated or corrupted artifacts.
+    // It does nothing against someone who already holds TURBO_TOKEN.
+    "signature": true,
+    "timeout": 60,
+    "uploadTimeout": 120,
+  },
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
