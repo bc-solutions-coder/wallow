@@ -1,20 +1,23 @@
-import { buildExchangeTicketUrl } from "@bc-solutions-coder/sdk";
 import {
-  Button,
-  Card,
-  ErrorBanner,
-  Field,
-  Input,
-  Label,
-  MutedText,
-  Text,
-} from "@bc-solutions-coder/ui";
+  AppForm,
+  type AppFormApi,
+  FormError,
+  SubmitButton,
+  useAppForm,
+} from "@bc-solutions-coder/forms";
+import { buildExchangeTicketUrl } from "@bc-solutions-coder/sdk";
+import { Button, Card, MutedText, Text } from "@bc-solutions-coder/ui";
 import { useMutation } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
-import { type ReactNode, useState } from "react";
+import { type ReactElement, type ReactNode, useState } from "react";
+import { z } from "zod";
 import { accountVerifyMfaChallengeMutation } from "../api";
+import {
+  challengeGuardMessage,
+  type ChallengeValues,
+  verifyFailureMessage,
+} from "../challenge-result";
 import { BASE_PATH, toAppHref } from "@shared/lib/base-path";
-import { readErrorCode, readMember } from "@shared/lib/error-code";
 import { useRedirectVerdict } from "../hooks/use-redirect-verdict";
 
 /**
@@ -35,38 +38,24 @@ import { useRedirectVerdict } from "../hooks/use-redirect-verdict";
  * context (`useRouteContext({ from: "__root__" })`). The OIDC URL builders are
  * pure and imported directly. There is no app-level facade (Wallow-pu6a.5.5).
  *
- * ── THE ERROR BRANCHES ────────────────────────────────────────────────────────
+ * The blank-input guard and the rejection→copy mapping live in
+ * `../challenge-result`, which documents the endpoint's three failures, the
+ * token-versus-status narrowing and the divergences from the oracle.
  *
- * `AccountController.VerifyMfaChallenge` (api/.../Controllers/AccountController.cs:167-236)
- * fails in exactly three ways, each a non-2xx with a bare `{ succeeded, error }`
- * body (NOT problem details):
+ * ── WHY THIS SCREEN RUNS THE FORMS PACKAGE "SIDEWAYS" ────────────────────────
  *
- *     401 error "no_mfa_session"   partial-auth cookie missing or expired
- *     401 error "invalid_code"     no user / no TOTP secret / code rejected
- *     423 error "mfa_locked_out"   already locked, or locked by this attempt
+ * It takes the plain-`onSubmit` escape hatch rather than handing `useAppForm`
+ * the generated mutation, for two reasons that are this endpoint's own:
+ * `splitServerError` reads RFC 7807 members and `mfa/verify` answers with a bare
+ * `{ succeeded, error }` body, so only `verifyFailureMessage` can tell its three
+ * rejections apart; and the blank-code guard shares that one banner, which a zod
+ * rule could not do — it would abort `handleSubmit` before the callback ran. The
+ * schema below is therefore rule-free, and the banner text is this screen's own
+ * `useState` handed to the shell as an EXPLICIT `serverError` prop.
  *
- * `unwrap()` throws on all three, and `toWallowError()` recovers the token: as of
- * Wallow-vec7.7 `readCode` probes `extensions.code > code > error`, so the `error`
- * member of that anon body reaches this screen as `WallowError.code`. (Before
- * that it did not, and this screen narrowed on HTTP status alone — which could
- * not tell `no_mfa_session` from `invalid_code`, since they share a 401.)
- *
- * The oracle's own switch is only partly worth porting:
- *
- *   - Its `"expired_challenge"` branch is DEAD CODE — this endpoint never emits
- *     that string. The expired-cookie case is `no_mfa_session`, which the oracle
- *     drops into its `_` tail. `SESSION_EXPIRED_MESSAGE` says what that dead
- *     branch was reaching for, keyed on the token the API actually sends.
- *   - The API's error tail can render `result.Error` RAW, exposing the literal
- *     "no_mfa_session". `code` is a machine token and is never rendered
- *     here: it is matched against KNOWN values, and anything else — including a
- *     401 carrying an unrecognised code — falls to the generic message rather
- *     than guessing.
- *
- * Narrowing is STRUCTURAL rather than `instanceof WallowError`, because that
- * class is exported from the SDK's `./server` entry and screens may not import
- * the SDK at all. A network-level rejection carries neither `code` nor `status`
- * and must fall through to the generic message rather than throw.
+ * The MODE (`useBackupCode`) is screen state rather than a form value, because
+ * the card heading above the form branches on it too. It reaches the submit
+ * through the callback's closure, which is fresh on every render.
  *
  * ── THE ORIGIN DIVERGENCE (inherited from Wallow-vec7.3.4) ────────────────────
  *
@@ -85,59 +74,15 @@ import { useRedirectVerdict } from "../hooks/use-redirect-verdict";
  */
 const SAME_ORIGIN_BASE: string = BASE_PATH;
 
-/** The oracle's blank-input guards, mode-sensitive as the oracle's are. */
-const BLANK_CODE_MESSAGE = "Please enter the verification code.";
-const BLANK_BACKUP_CODE_MESSAGE = "Please enter a backup code.";
-
-/** The oracle's `"invalid_code" =>` branch, both halves of it. */
-const INVALID_CODE_MESSAGE = "Invalid verification code. Please try again.";
-const INVALID_BACKUP_CODE_MESSAGE = "Invalid backup code. Please try again.";
-
 /**
- * `no_mfa_session`: the challenge session is gone, so nothing the user types
- * here can work. The message is about the SESSION, not the input — telling a
- * user their valid code was rejected would send them round a loop that burns
- * their five attempts against a cookie that no longer exists.
+ * RULE-FREE on purpose. `revalidateLogic` runs this on submit and aborts
+ * `handleSubmit` on any failure, which would preempt the banner
+ * `challengeGuardMessage` shares with the rejection copy — see the header note.
+ * It is here for the value type alone.
  */
-const SESSION_EXPIRED_MESSAGE = "Your verification session has expired. Please sign in again.";
+const challengeSchema = z.object({ code: z.string() });
 
-/** `mfa_locked_out`: the oracle printed the raw token here. */
-const LOCKED_OUT_MESSAGE =
-  "Too many failed attempts. Your account is temporarily locked. Please try again later.";
-
-/** The oracle's `_ =>` tail, minus its raw-string leak. */
-const GENERIC_FAILURE_MESSAGE = "Verification failed. Please try again.";
-
-/** The API's machine tokens for this endpoint. Matched against, never rendered. */
-const INVALID_CODE = "invalid_code";
-const NO_MFA_SESSION = "no_mfa_session";
-const MFA_LOCKED_OUT = "mfa_locked_out";
-
-/**
- * Retained as a status-level fallback alongside the `mfa_locked_out` token: 423
- * identifies this failure on its own, and the cost of missing it — a locked user
- * retyping codes that cannot work, re-locking themselves — is worth the extra rule.
- */
-const LOCKED_OUT_STATUS = 423;
-
-/** Map a rejection onto user-facing copy — see the error-branch note above. */
-function verifyFailureMessage(cause: unknown, useBackupCode: boolean): string {
-  const code: string | undefined = readErrorCode(cause);
-
-  if (code === INVALID_CODE) {
-    return useBackupCode ? INVALID_BACKUP_CODE_MESSAGE : INVALID_CODE_MESSAGE;
-  }
-
-  if (code === NO_MFA_SESSION) {
-    return SESSION_EXPIRED_MESSAGE;
-  }
-
-  if (code === MFA_LOCKED_OUT || readMember(cause, "status") === LOCKED_OUT_STATUS) {
-    return LOCKED_OUT_MESSAGE;
-  }
-
-  return GENERIC_FAILURE_MESSAGE;
-}
+const EMPTY_VALUES: ChallengeValues = { code: "" };
 
 /** What a verified challenge resolves to. Both fields are absent on a direct sign-in. */
 interface VerifyResult {
@@ -171,35 +116,6 @@ function SuccessBanner() {
         Verification successful. Redirecting...
       </Text>
     </div>
-  );
-}
-
-/**
- * The single code field. The two testids are mutually exclusive branches of the
- * oracle's one `if (_useBackupCode)` — two visible code boxes would be a
- * genuinely confusing form.
- */
-function CodeField(props: {
-  readonly useBackupCode: boolean;
-  readonly value: string;
-  readonly onChange: (value: string) => void;
-}) {
-  const { useBackupCode, value, onChange } = props;
-
-  return (
-    <Field>
-      <Label htmlFor="code">{useBackupCode ? "Backup code" : "Verification code"}</Label>
-      <Input
-        id="code"
-        type="text"
-        placeholder={useBackupCode ? "Enter backup code" : "Enter 6-digit code"}
-        data-testid={useBackupCode ? "mfa-challenge-backup-code" : "mfa-challenge-code"}
-        value={value}
-        onChange={(e) => {
-          onChange(e.target.value);
-        }}
-      />
-    </Field>
   );
 }
 
@@ -242,39 +158,40 @@ function BackToSignIn() {
   );
 }
 
-/** The oracle's `<form>`: the code field, the submit, and the mode toggle. */
+/**
+ * The oracle's `<form>`: the code field, the submit, and the mode toggle.
+ *
+ * The one field PINS its testid rather than deriving `mfa-challenge-code` from
+ * its name, because the two ids are mutually exclusive branches of the oracle's
+ * single `if (_useBackupCode)` — two visible code boxes would be a genuinely
+ * confusing form.
+ */
 function ChallengeFields(props: {
+  readonly form: AppFormApi<ChallengeValues>;
   readonly useBackupCode: boolean;
-  readonly code: string;
-  readonly pending: boolean;
-  readonly onCodeChange: (value: string) => void;
+  readonly error: string | null;
   readonly onToggle: () => void;
-  readonly onSubmit: () => void;
-}) {
-  const { useBackupCode, code, pending, onCodeChange, onToggle, onSubmit } = props;
+}): ReactElement {
+  const { form, useBackupCode, error, onToggle } = props;
 
   return (
-    <form
-      className="space-y-4"
-      onSubmit={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        onSubmit();
-      }}
-    >
-      <CodeField useBackupCode={useBackupCode} value={code} onChange={onCodeChange} />
-      <Button
-        type="submit"
-        // The oracle's `Disabled="_isSubmitting"` — one click, one attempt. This
-        // screen is rate-limited into a 5-strike lockout, so a double submit can
-        // cost the user two of their five.
-        disabled={pending}
-        data-testid="mfa-challenge-submit"
-      >
-        {pending ? "Verifying..." : "Verify"}
-      </Button>
+    <AppForm form={form} testIdPrefix="mfa-challenge" serverError={error} className="space-y-4">
+      <FormError />
+      <form.AppField name="code">
+        {(field) => (
+          <field.TextField
+            label={useBackupCode ? "Backup code" : "Verification code"}
+            placeholder={useBackupCode ? "Enter backup code" : "Enter 6-digit code"}
+            testId={useBackupCode ? "mfa-challenge-backup-code" : "mfa-challenge-code"}
+          />
+        )}
+      </form.AppField>
+      {/* The oracle's `Disabled="_isSubmitting"`, now the shell's — one click,
+          one attempt. This screen is rate-limited into a 5-strike lockout, so a
+          double submit can cost the user two of their five. */}
+      <SubmitButton pendingLabel="Verifying...">Verify</SubmitButton>
       <ToggleBackupCode useBackupCode={useBackupCode} onToggle={onToggle} />
-    </form>
+    </AppForm>
   );
 }
 
@@ -292,9 +209,8 @@ export interface MfaChallengeFormProps {
 
 export function MfaChallengeForm({ returnUrl, clientId }: MfaChallengeFormProps): ReactNode {
   const { sdk } = useRouteContext({ from: "__root__" });
-  const [code, setCode] = useState("");
   const [useBackupCode, setUseBackupCode] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [verified, setVerified] = useState(false);
 
   // A present-but-blank `client_id` is not a client, and an unknown client fails
@@ -349,48 +265,54 @@ export function MfaChallengeForm({ returnUrl, clientId }: MfaChallengeFormProps)
         : buildExchangeTicketUrl(SAME_ORIGIN_BASE, ticket, handOff, scopedClientId);
   };
 
+  // Annotated rather than inferred: the toggle and `onSubmit` below read `form`
+  // back, and an unannotated `const` referenced inside its own initializer is a
+  // circular inference TypeScript refuses.
+  const form: AppFormApi<ChallengeValues> = useAppForm<ChallengeValues>({
+    schema: challengeSchema,
+    defaultValues: EMPTY_VALUES,
+    onSubmit: async (values: ChallengeValues): Promise<void> => {
+      const guardMessage: string | null = challengeGuardMessage(values, useBackupCode);
+
+      if (guardMessage !== null) {
+        setFormError(guardMessage);
+        return;
+      }
+
+      // The oracle's `_errorMessage = null;` at the top of `HandleVerify`: a stale
+      // "invalid code" banner above a successful verification would be a lie.
+      setFormError(null);
+
+      let result: VerifyResult;
+
+      try {
+        // The generated artifact's REQUEST object, not a bare body. The same API op
+        // carries `useBackupCode: true/false` — crossing them would send a recovery
+        // code to the TOTP validator.
+        result = await mutation.mutateAsync({ body: { code: values.code, useBackupCode } });
+      } catch (error: unknown) {
+        // The form deliberately stays up: the user has attempts left and no way to
+        // spend them if it is gone.
+        setFormError(verifyFailureMessage(error, useBackupCode));
+        return;
+      }
+
+      // Reached only on a RESOLVED call, which is always a success: every failure
+      // this endpoint has is non-2xx, so `unwrap()` has already thrown above.
+      setVerified(true);
+      redirect(result.signInTicket);
+    },
+  });
+
   const handleToggle = (): void => {
     setUseBackupCode(!useBackupCode);
     // The oracle's `_code = string.Empty;` — a TOTP code left sitting in the
     // backup-code box would be submitted to the wrong branch and burn one of the
     // user's five attempts.
-    setCode("");
+    form.setFieldValue("code", "");
     // The oracle's `_errorMessage = null;` — "Invalid verification code" hanging
     // over a freshly-opened backup-code box is a lie.
-    setError(null);
-  };
-
-  const handleSubmit = (): void => {
-    // The oracle's `if (string.IsNullOrWhiteSpace(_code))`. A blank submit cannot
-    // succeed and costs a lockout attempt, so it never reaches `mfa/verify`.
-    if (code.trim() === "") {
-      setError(useBackupCode ? BLANK_BACKUP_CODE_MESSAGE : BLANK_CODE_MESSAGE);
-      return;
-    }
-
-    // The oracle's `_errorMessage = null;` at the top of `HandleVerify`: a stale
-    // "invalid code" banner above a successful verification would be a lie.
-    setError(null);
-
-    mutation.mutate(
-      // The generated artifact's REQUEST object, not a bare body. The same API op
-      // carries `useBackupCode: true/false` — crossing them would send a recovery
-      // code to the TOTP validator.
-      { body: { code, useBackupCode } },
-      {
-        // Resolution IS success: every failure this endpoint has is non-2xx, so
-        // `unwrap()` has already thrown by the time this runs.
-        onSuccess: (result: VerifyResult) => {
-          setVerified(true);
-          redirect(result.signInTicket);
-        },
-        onError: (cause: unknown) => {
-          // The form deliberately stays up: the user has attempts left and no way
-          // to spend them if it is gone.
-          setError(verifyFailureMessage(cause, useBackupCode));
-        },
-      },
-    );
+    setFormError(null);
   };
 
   if (guard.verdict !== "accept") {
@@ -404,17 +326,14 @@ export function MfaChallengeForm({ returnUrl, clientId }: MfaChallengeFormProps)
   return (
     <Card>
       <CardHeading useBackupCode={useBackupCode} />
-      {error === null ? null : <ErrorBanner data-testid="mfa-challenge-error">{error}</ErrorBanner>}
       {verified ? (
         <SuccessBanner />
       ) : (
         <ChallengeFields
+          form={form}
           useBackupCode={useBackupCode}
-          code={code}
-          pending={mutation.isPending}
-          onCodeChange={setCode}
+          error={formError}
           onToggle={handleToggle}
-          onSubmit={handleSubmit}
         />
       )}
       <BackToSignIn />
