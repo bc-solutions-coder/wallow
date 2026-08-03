@@ -1,6 +1,6 @@
 # App wiring test consolidation
 
-**status: active**
+**status: completed**
 
 Consolidate the policy specs at the top of `apps/wallow-web/src/` and `apps/wallow-auth/src/`
 into one node spec and one browser spec per app, delete the assertions another tool already

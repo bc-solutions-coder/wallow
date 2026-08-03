@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**status: active**
+**status: completed**
 
 **Goal:** Collapse 21 policy specs (~1,700 lines) at the top of the two apps' `src/` into one node
 spec and one browser spec per app (~350 lines), deleting every assertion another tool already owns.
