@@ -19,6 +19,7 @@ import {
   accountRegisterMutation,
 } from "../api";
 import { BASE_PATH, toAppHref } from "@shared/lib/base-path";
+import { readErrorCode } from "@shared/lib/error-code";
 
 /**
  * The Register screen (Wallow-vec7.3.8).
@@ -141,15 +142,6 @@ const PASSWORDLESS = "passwordless";
 const STRONG_MIN_LENGTH = 12;
 const FAIR_MIN_LENGTH = 8;
 
-/** Read a member off an unknown rejection without asserting its shape. */
-function readMember(cause: unknown, name: string): unknown {
-  if (typeof cause !== "object" || cause === null || !(name in cause)) {
-    return undefined;
-  }
-
-  return (cause as Record<string, unknown>)[name];
-}
-
 /**
  * Map a rejection onto user-facing copy.
  *
@@ -159,7 +151,7 @@ function readMember(cause: unknown, name: string): unknown {
  * rendered.
  */
 function registerFailureMessage(cause: unknown): string {
-  const code: unknown = readMember(cause, "code");
+  const code: string | undefined = readErrorCode(cause);
 
   if (code === EMAIL_TAKEN) {
     return EMAIL_TAKEN_MESSAGE;

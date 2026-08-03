@@ -40,12 +40,9 @@
  * below is the screen's own.
  */
 
-import {
-  GENERIC_MESSAGE,
-  isServerUnreachable,
-  readMember,
-  UNREACHABLE_MESSAGE,
-} from "./auth-result";
+import { readErrorCode, readMember } from "@shared/lib/error-code";
+
+import { GENERIC_MESSAGE, isServerUnreachable, UNREACHABLE_MESSAGE } from "./auth-result";
 
 /** The oracle's blank-input guard (Login.razor:376) — note WHITEspace. */
 export const BLANK_EMAIL_MESSAGE = "Please enter your email.";
@@ -117,7 +114,7 @@ export function magicLinkWasSent(body: unknown): boolean {
  * through a REJECTION rather than an `else` — see the module header.
  */
 export function sendMagicLinkFailureMessage(cause: unknown): string {
-  if (readMember(cause, "code") === RATE_LIMITED_TOKEN) {
+  if (readErrorCode(cause) === RATE_LIMITED_TOKEN) {
     return MAGIC_LINK_RATE_LIMITED_MESSAGE;
   }
 
@@ -141,7 +138,7 @@ export function sendMagicLinkFailureMessage(cause: unknown): string {
  * each failure status carries exactly one token).
  */
 export function verifyMagicLinkFailureMessage(cause: unknown): string {
-  const code: unknown = readMember(cause, "code");
+  const code: string | undefined = readErrorCode(cause);
 
   if (typeof code === "string" && SPENT_TOKENS.has(code)) {
     return MAGIC_LINK_EXPIRED_MESSAGE;

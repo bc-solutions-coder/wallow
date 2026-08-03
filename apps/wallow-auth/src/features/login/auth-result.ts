@@ -1,4 +1,5 @@
 import { asString } from "@bc-solutions-coder/utils/guards";
+import { readErrorCode, readMember } from "@shared/lib/error-code";
 /**
  * The login screen's RESULT LAYER (Wallow-vec7.3.11 / 2.8a): everything that
  * turns an untyped `auth.*` response into a decision, with no React and no SDK
@@ -105,22 +106,6 @@ const MFA_ENROLL_PATH = "/mfa/enroll";
 const ERROR_HREF = "/error?reason=invalid_redirect_uri";
 
 /**
- * Read a member off an unknown value without asserting its shape.
- *
- * Exported (Wallow-vec7.3.12) so each tab's own result module — `./magic-link-result`,
- * and `./otp-result` when `.3.13` lands — narrows its untyped bodies and rejections
- * the SAME way rather than each rolling a slightly laxer probe of its own. It is the
- * only member of this module's private narrowing helpers that is shared.
- */
-export function readMember(value: unknown, name: string): unknown {
-  if (typeof value !== "object" || value === null || !(name in value)) {
-    return undefined;
-  }
-
-  return (value as Record<string, unknown>)[name];
-}
-
-/**
  * Did this rejection never reach the server at all?
  *
  * Exported for `./magic-link-result` and `./otp-result`, which owe their users
@@ -131,7 +116,7 @@ export function readMember(value: unknown, name: string): unknown {
  * cannot drift apart on what a dead network looks like.
  */
 export function isServerUnreachable(cause: unknown): boolean {
-  return readMember(cause, "code") === NETWORK_ERROR;
+  return readErrorCode(cause) === NETWORK_ERROR;
 }
 
 /** A member that is only meaningful as a string; anything else reads as absent. */
@@ -350,7 +335,7 @@ export function loginFailureMessage(cause: unknown): string {
     return UNREACHABLE_MESSAGE;
   }
 
-  const code: unknown = readMember(cause, "code");
+  const code: string | undefined = readErrorCode(cause);
 
   if (code === INVALID_CREDENTIALS) {
     return INVALID_CREDENTIALS_MESSAGE;

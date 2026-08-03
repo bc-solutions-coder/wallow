@@ -19,6 +19,7 @@ import {
   mfaExchangeEnrollmentToken,
 } from "../api";
 import { toAppHref } from "@shared/lib/base-path";
+import { readErrorCode, readMember } from "@shared/lib/error-code";
 
 /**
  * The MfaEnroll screen (Wallow-vec7.3.7).
@@ -172,18 +173,9 @@ const INVALID_OR_EXPIRED_TOKEN = "invalid_or_expired_token";
 const UNAUTHORIZED_STATUS = 401;
 const BAD_REQUEST_STATUS = 400;
 
-/** Read a member off an unknown rejection without asserting its shape. */
-function readMember(cause: unknown, name: string): unknown {
-  if (typeof cause !== "object" || cause === null || !(name in cause)) {
-    return undefined;
-  }
-
-  return (cause as Record<string, unknown>)[name];
-}
-
 /** Map an `enroll/totp` rejection onto user-facing copy. */
 function startFailureMessage(cause: unknown): string {
-  const code: unknown = readMember(cause, "code");
+  const code: string | undefined = readErrorCode(cause);
 
   if (code === NO_AUTH_SESSION || readMember(cause, "status") === UNAUTHORIZED_STATUS) {
     return NO_SESSION_MESSAGE;
@@ -194,7 +186,7 @@ function startFailureMessage(cause: unknown): string {
 
 /** Map an `enroll/exchange-token` rejection onto user-facing copy. */
 function exchangeFailureMessage(cause: unknown): string {
-  if (readMember(cause, "code") === INVALID_OR_EXPIRED_TOKEN) {
+  if (readErrorCode(cause) === INVALID_OR_EXPIRED_TOKEN) {
     return EXPIRED_TOKEN_MESSAGE;
   }
 
@@ -209,7 +201,7 @@ function exchangeFailureMessage(cause: unknown): string {
 
 /** Map an `enroll/confirm` rejection onto user-facing copy — see the note above. */
 function confirmFailureMessage(cause: unknown): string {
-  const code: unknown = readMember(cause, "code");
+  const code: string | undefined = readErrorCode(cause);
 
   if (code === INVALID_CODE) {
     return INVALID_CODE_MESSAGE;

@@ -20,6 +20,7 @@ import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useState } from "react";
 import { accountValidateRedirectUriOptions, accountVerifyMfaChallengeMutation } from "../api";
 import { BASE_PATH, toAppHref } from "@shared/lib/base-path";
+import { readErrorCode, readMember } from "@shared/lib/error-code";
 
 /**
  * The MfaChallenge screen (Wallow-vec7.3.6).
@@ -214,18 +215,9 @@ function verdictOf(
   return allowed === true ? "accept" : "refuse";
 }
 
-/** Read a member off an unknown rejection without asserting its shape. */
-function readMember(cause: unknown, name: string): unknown {
-  if (typeof cause !== "object" || cause === null || !(name in cause)) {
-    return undefined;
-  }
-
-  return (cause as Record<string, unknown>)[name];
-}
-
 /** Map a rejection onto user-facing copy — see the error-branch note above. */
 function verifyFailureMessage(cause: unknown, useBackupCode: boolean): string {
-  const code: unknown = readMember(cause, "code");
+  const code: string | undefined = readErrorCode(cause);
 
   if (code === INVALID_CODE) {
     return useBackupCode ? INVALID_BACKUP_CODE_MESSAGE : INVALID_CODE_MESSAGE;

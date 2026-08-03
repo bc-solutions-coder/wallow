@@ -36,12 +36,9 @@
  * below is the screen's own.
  */
 
-import {
-  GENERIC_MESSAGE,
-  isServerUnreachable,
-  readMember,
-  UNREACHABLE_MESSAGE,
-} from "./auth-result";
+import { readErrorCode, readMember } from "@shared/lib/error-code";
+
+import { GENERIC_MESSAGE, isServerUnreachable, UNREACHABLE_MESSAGE } from "./auth-result";
 
 /**
  * The oracle's blank-input guard (Login.razor:436) — note WHITEspace.
@@ -109,7 +106,7 @@ export function otpWasSent(body: unknown): boolean {
  * 400 would tell a user to wait out a limit they never hit.
  */
 export function sendOtpFailureMessage(cause: unknown): string {
-  if (readMember(cause, "code") === RATE_LIMITED_TOKEN) {
+  if (readErrorCode(cause) === RATE_LIMITED_TOKEN) {
     return OTP_RATE_LIMITED_MESSAGE;
   }
 
