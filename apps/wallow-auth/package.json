@@ -24,7 +24,6 @@
     "@bc-solutions-coder/testing": "workspace:*",
     "@bc-solutions-coder/ui": "workspace:*",
     "@bc-solutions-coder/utils": "workspace:*",
-    "@tanstack/react-form": "catalog:react",
     "@tanstack/react-router": "catalog:start",
     "@tanstack/react-router-ssr-query": "catalog:start",
     "@tanstack/react-start": "catalog:start",

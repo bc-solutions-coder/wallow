@@ -171,13 +171,13 @@ export function isValidEventName(value: string, maxLength: number): boolean {
 }
 
 /** A rejected batch, with the reason a caller may safely be told. */
-export interface InvalidBatch {
+interface InvalidBatch {
   ok: false;
   reason: string;
 }
 
 /** An accepted batch. */
-export interface ValidBatch {
+interface ValidBatch {
   ok: true;
   batch: LogBatch;
 }

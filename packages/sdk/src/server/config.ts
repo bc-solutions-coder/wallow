@@ -280,7 +280,7 @@ function defaultCookieName(hostPrefixRaw: string, cookieSecure: boolean): string
 export function loadBffConfigFromEnv(env: NodeJS.ProcessEnv = process.env): BffConfig {
   const problems: string[] = [];
 
-  const require = (key: string): string => {
+  const requireEnv = (key: string): string => {
     const value: string | undefined = env[key];
     if (value === undefined || value === "") {
       problems.push(`Missing required environment variable: ${key}`);
@@ -295,12 +295,12 @@ export function loadBffConfigFromEnv(env: NodeJS.ProcessEnv = process.env): BffC
       ? scopesRaw.trim().split(/\s+/u)
       : ["openid", "profile", "email", "offline_access"];
 
-  const issuer: string = require("OIDC_ISSUER");
-  const clientId: string = require("OIDC_CLIENT_ID");
-  const clientSecret: string = require("OIDC_CLIENT_SECRET");
-  const redirectUri: string = require("OIDC_REDIRECT_URI");
-  const postLogoutRedirectUri: string = require("OIDC_POST_LOGOUT_REDIRECT_URI");
-  const apiBaseUrl: string = require("BFF_API_BASE_URL");
+  const issuer: string = requireEnv("OIDC_ISSUER");
+  const clientId: string = requireEnv("OIDC_CLIENT_ID");
+  const clientSecret: string = requireEnv("OIDC_CLIENT_SECRET");
+  const redirectUri: string = requireEnv("OIDC_REDIRECT_URI");
+  const postLogoutRedirectUri: string = requireEnv("OIDC_POST_LOGOUT_REDIRECT_URI");
+  const apiBaseUrl: string = requireEnv("BFF_API_BASE_URL");
   // A key map carries the active secret itself, so COOKIE_PASSWORD is required
   // only on the single-secret path. Setting both is allowed and the map wins —
   // that is what lets an operator add COOKIE_PASSWORDS to a running deployment
@@ -309,9 +309,9 @@ export function loadBffConfigFromEnv(env: NodeJS.ProcessEnv = process.env): BffC
   const cookiePasswords: CookiePasswordSet | undefined =
     passwordsRaw === "" ? undefined : parseCookiePasswords(passwordsRaw, problems);
 
-  let cookiePassword: string = passwordsRaw === "" ? require("COOKIE_PASSWORD") : "";
+  let cookiePassword: string = passwordsRaw === "" ? requireEnv("COOKIE_PASSWORD") : "";
   if (passwordsRaw === "") {
-    // A missing password is already reported by require(), which returns ""; the
+    // A missing password is already reported by requireEnv(), which returns ""; the
     // length guard keeps it from being reported a second time as "too short".
     if (cookiePassword !== "" && cookiePassword.length < MIN_COOKIE_PASSWORD_LENGTH) {
       problems.push(

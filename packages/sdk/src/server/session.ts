@@ -20,7 +20,7 @@ const MS_PER_SECOND: number = 1000;
  * explicit one, in milliseconds. Mirrors {@link DEFAULT_SESSION_TTL_SECONDS} so
  * a blob sealed by a caller that never threads config through still expires.
  */
-export const DEFAULT_SESSION_TTL_MS: number = DEFAULT_SESSION_TTL_SECONDS * MS_PER_SECOND;
+const DEFAULT_SESSION_TTL_MS: number = DEFAULT_SESSION_TTL_SECONDS * MS_PER_SECOND;
 
 /**
  * The server-side session persisted (sealed) in the BFF session cookie.

@@ -67,8 +67,7 @@ export const OTP_BLANK_CODE_MESSAGE = "Please enter the verification code.";
  * This is the same call `.3.11` made keeping a 423 status fallback under
  * `loginFailureMessage`, and the same one `.3.12` made on the magic-link send.
  */
-export const OTP_RATE_LIMITED_MESSAGE =
-  "Too many code requests. Please wait a few minutes and try again.";
+const OTP_RATE_LIMITED_MESSAGE = "Too many code requests. Please wait a few minutes and try again.";
 
 /**
  * The oracle's `HandleVerifyOtp` switch copy (Login.razor:484).
@@ -79,7 +78,7 @@ export const OTP_RATE_LIMITED_MESSAGE =
  * EXPIRED code" is precisely the union of `"Invalid code."` and `"Code expired or
  * not found."`.
  */
-export const OTP_INVALID_CODE_MESSAGE = "Invalid or expired code. Please try again.";
+const OTP_INVALID_CODE_MESSAGE = "Invalid or expired code. Please try again.";
 
 /** `SendOtpAsync`'s only failure token (PasswordlessService.cs:131). */
 const RATE_LIMITED_TOKEN = "Rate limit exceeded. Please try again later.";

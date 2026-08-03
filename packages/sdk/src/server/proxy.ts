@@ -25,7 +25,7 @@ import { CookieSessionStore } from "./store/cookie";
 import type { SessionStore } from "./store/types";
 
 /** How long before real expiry a token is treated as expired (ms). */
-export const EXPIRY_SKEW_MS = 30_000;
+const EXPIRY_SKEW_MS = 30_000;
 
 /** How long a single upstream forward may take before it is aborted (ms). */
 export const FORWARD_TIMEOUT_MS = 30_000;

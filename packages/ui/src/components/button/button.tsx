@@ -16,9 +16,6 @@ import { buttonRecipe, type ButtonRecipeProps } from "./button.styles";
 /** The visual variants the shared button offers. `primary` is the default. */
 export type ButtonVariant = NonNullable<ButtonRecipeProps["variant"]>;
 
-/** The size scale the shared button offers. `md` is the default. */
-export type ButtonSize = NonNullable<ButtonRecipeProps["size"]>;
-
 /**
  * Every Base UI `Button` prop (`render`, `nativeButton`, `disabled` and the
  * native button attributes) plus the recipe's `variant`, `size`, `width`,

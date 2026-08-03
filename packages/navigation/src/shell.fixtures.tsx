@@ -23,7 +23,7 @@ import type { NavDestination } from "./destinations";
  */
 
 /** The role a gated destination asks for; `ShellFixture` answers it from `isAdmin`. */
-export const ADMIN_ROLE = "Admin";
+const ADMIN_ROLE = "Admin";
 
 export const fixtureDestinations: readonly NavDestination[] = [
   {
@@ -43,7 +43,7 @@ export const fixtureDestinations: readonly NavDestination[] = [
  * the rail's rest/hover pair itself, because it is not a catalog row and gets
  * none of the `surface="sidebar"` treatment the destinations do.
  */
-export function FixtureFooter(props: { showLabel: boolean }) {
+function FixtureFooter(props: { showLabel: boolean }) {
   return (
     <button
       type="button"

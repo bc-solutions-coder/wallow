@@ -37,9 +37,9 @@ import { asString } from "@bc-solutions-coder/utils/guards";
  */
 
 /** The oracle's `result.Error` switch (Login.razor:345-350), minus its raw-token tail. */
-export const INVALID_CREDENTIALS_MESSAGE = "Invalid email or password.";
-export const LOCKED_OUT_MESSAGE = "Account locked. Try again later.";
-export const EMAIL_NOT_CONFIRMED_MESSAGE = "Please verify your email before signing in.";
+const INVALID_CREDENTIALS_MESSAGE = "Invalid email or password.";
+const LOCKED_OUT_MESSAGE = "Account locked. Try again later.";
+const EMAIL_NOT_CONFIRMED_MESSAGE = "Please verify your email before signing in.";
 
 /**
  * The oracle's `_ =>` tail. Also the FAIL-CLOSED answer for a 200 body this
@@ -56,9 +56,9 @@ export const GENERIC_MESSAGE = "An error occurred. Please try again.";
 export const UNREACHABLE_MESSAGE = "Unable to reach the server. Please try again later.";
 
 /** The oracle's `Error` query-param switch (Login.razor:268-273). */
-export const EXTERNAL_LOGIN_FAILED_MESSAGE =
+const EXTERNAL_LOGIN_FAILED_MESSAGE =
   "External sign-in failed. Please try again or use a different method.";
-export const SESSION_EXPIRED_MESSAGE = "Your session has expired. Please try again.";
+const SESSION_EXPIRED_MESSAGE = "Your session has expired. Please try again.";
 
 /** The oracle's blank-input guard (Login.razor:327). */
 export const BLANK_CREDENTIALS_MESSAGE = "Please enter your email and password.";
@@ -210,7 +210,7 @@ function handOffHref(path: string, returnUrl: string | undefined): string {
  * by the passthrough reverse proxy and not by the client-side route tree, which would 404
  * in-app.
  */
-export type AuthOutcome =
+type AuthOutcome =
   | { readonly kind: "navigate"; readonly href: string }
   | { readonly kind: "exchange-ticket"; readonly ticket: string; readonly returnUrl: string }
   | { readonly kind: "signed-in" }

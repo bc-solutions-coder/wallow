@@ -64,7 +64,7 @@ export const MAGIC_LINK_SENT_MESSAGE = "Check your email for a magic link.";
  * `loginFailureMessage` ("a locked-out user must not be told to retype their
  * password"), for the same reason.
  */
-export const MAGIC_LINK_RATE_LIMITED_MESSAGE =
+const MAGIC_LINK_RATE_LIMITED_MESSAGE =
   "Too many sign-in link requests. Please wait a few minutes and try again.";
 
 /** The oracle's `HandleVerifyMagicLink` switch (Login.razor:419). */
