@@ -1,3 +1,4 @@
+import { consumeConsoleNoise } from "@bc-solutions-coder/testing/console-guard";
 import { render } from "@bc-solutions-coder/testing/render";
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { describe, expect, it } from "vitest";
@@ -151,5 +152,9 @@ describe("Label", () => {
     const boundary = container.querySelector('[data-testid="boundary"]');
     expect(boundary).not.toBeNull();
     expect((boundary as HTMLElement).textContent).toContain("FieldRootContext is missing");
+
+    // React reports a boundary catch through `console.error`, which the project
+    // guard fails the test over unless the spec that provoked it reads it back.
+    await consumeConsoleNoise();
   });
 });

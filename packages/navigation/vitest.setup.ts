@@ -25,8 +25,20 @@
  * dependency: it re-optimizes the graph mid-run and the reload hands the specs a
  * second `@tanstack/react-router` copy. A virtual id lives outside
  * `node_modules`, so there is nothing to discover.
+ *
+ * The console guard beside it answers a leak of the same shape: React reports
+ * real defects through `console.error` — a key collision, an update outside
+ * `act`, a boundary catch — and every one of them scrolls past a run that
+ * reports green. It is installed here for the same reason, and a spec that
+ * drives an error path on purpose reads the messages back with
+ * `consumeConsoleNoise()`/`expectConsoleError()` from the same entry instead of
+ * letting the `afterEach` fail it.
  */
 
+import {
+  assertNoConsoleNoise,
+  installConsoleGuard,
+} from "@bc-solutions-coder/testing/console-guard";
 import {
   assertNoNavigationEscape,
   installNavigationEscapeGuard,
@@ -37,7 +49,15 @@ import "./vitest-styles.css";
 import "virtual:wallow-theme.css";
 
 installNavigationEscapeGuard();
+installConsoleGuard();
 
+// One afterEach PER guard: the hooks are independent, so a console failure
+// cannot stop the navigation assertion from clearing its own record, and vice
+// versa — either would leak a failure into the next test.
 afterEach(() => {
   assertNoNavigationEscape();
+});
+
+afterEach(() => {
+  assertNoConsoleNoise();
 });

@@ -1,3 +1,4 @@
+import { consumeConsoleNoise } from "@bc-solutions-coder/testing/console-guard";
 import { render } from "@bc-solutions-coder/testing/render";
 import { useForm } from "@tanstack/react-form";
 import { Component, type ReactNode } from "react";
@@ -285,6 +286,10 @@ describe("AppForm", () => {
       );
 
       expect(byTestId(container, "probe-message").textContent).toContain("<AppForm>");
+
+      // React reports a boundary catch through `console.error`, which the project
+      // guard fails the test over unless the spec that provoked it reads it back.
+      await consumeConsoleNoise();
     });
   });
 });
