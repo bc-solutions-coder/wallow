@@ -70,3 +70,33 @@ warm-gate latency ever matters again.
 The 45 breaks down as 14 `build` + 15 `test` + 16 `typecheck`. Not all 16 members run all three:
 `config` has neither a `build` nor a `test` script and `lint` has no `build`, so those three are
 transit nodes that turbo threads dependencies through without executing anything.
+
+## Cache-correctness verification
+
+Six adversarial checks, run at commit `8ca18523`. The question each answers is not "is turbo
+fast" but "can a stale cache produce a false pass". All six passed; every edit was reverted and
+`git status` is clean.
+
+| # | Check | Probe | Expected | Observed |
+| - | ----- | ----- | -------- | -------- |
+| 1 | A dependency's source change invalidates its dependents' tests | append to `packages/utils/src/string.ts`, then `test --filter wallow-web` | miss | **miss**, `57ec9129` — 10 of 12 cached, the app's tests re-ran |
+| 2 | A failing test is never cached as a pass | break one assertion in `packages/testing/src/console-guard.test.ts`, run twice | miss both times | **miss both**, identical hash `50e3d0d1`, 1 failed / 81 passed each run |
+| 3a | A `globalDependencies` entry busts everything | add a real key to `tsconfig.base.json` | full miss | **0 of 27 cached** |
+| 3b | A non-`globalDependencies` config does *not* | add a comment to `.oxlintrc.json` | full hit | **27 of 27 cached**, FULL TURBO |
+| 4 | A transit node's source folds into consumers' hashes | append to `packages/config/src/vite/library.ts` | broad miss | **0 of 14 cached** |
+| 5 | `AUTH_BASE_PATH` participates in the hash (run in Task 3) | build wallow-auth set vs unset | different hashes | **`9a401928` vs `297fd917`**, 178 files differ |
+
+Notes on two probes that are easy to get wrong:
+
+- **Checks 3 and 4 use real content edits, not `touch`.** Turbo hashes content, so an mtime bump
+  reports a hit — which reads as a failure of `globalDependencies` when it is really a failure of
+  the test.
+- **Check 5's probe is not the plan's.** The plan suggested `grep -rl '/auth/' .output`, but that
+  matches backend API route strings (`/v1/identity/auth/passwordless/...`) that are present in
+  *both* builds, so it can never go empty and would "pass" vacuously. The marker that actually
+  distinguishes them is the emitted asset prefix: `"/auth/assets/*"` based against `"/assets/*"`
+  unbased. Check 3b is the one that makes 3a meaningful — a probe that busts everything proves
+  nothing unless something comparable is shown *not* to.
+
+Check 1 is the load-bearing one. A hit there would mean `^build` is not wired and every downstream
+suite could replay a pass against code that changed underneath it.
