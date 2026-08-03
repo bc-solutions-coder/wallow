@@ -93,9 +93,10 @@ pnpm typecheck               # pnpm -r typecheck
 pnpm lint                    # oxlint over SOURCE only (test/story files excluded)
 pnpm lint:tests              # scripts/lint-tests.sh — the excluded files, + the vitest plugin
 pnpm lint:manifests          # sherif — workspace package.json hygiene (no ignores; keep it that way)
+pnpm lint:deps               # knip — unused files/exports/deps; knip.json ignores = generated code, lint fixtures, the fork-smoke scaffold, and the two check-exports.sh CLIs knip cannot trace through a shell script
 pnpm format                  # oxfmt --write ...   (format:check verifies)
 pnpm check:exports           # publint + @arethetypeswrong/cli over the built packages (needs dist/)
-pnpm check                   # format:check + lint + lint:tests + lint:manifests + build + typecheck + test + check:exports — the one-command quality gate
+pnpm check                   # format:check + lint + lint:tests + lint:manifests + lint:deps + build + typecheck + test + check:exports — the one-command quality gate
 ```
 
 Linting runs as **two passes over one partition** — `pnpm lint` and `pnpm lint:tests` together
