@@ -10,6 +10,7 @@ on:
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - "tsconfig.base.json"
+      - "turbo.jsonc"
       - "scripts/**"
       - ".oxlintrc.json"
       - ".oxfmtrc.json"
@@ -25,6 +26,7 @@ on:
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - "tsconfig.base.json"
+      - "turbo.jsonc"
       - "scripts/**"
       - ".oxlintrc.json"
       - ".oxfmtrc.json"
@@ -57,6 +59,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Phase-3 fallback until the self-hosted remote cache is live. Per-branch
+      # and less effective than a shared cache, but it turns a same-branch push
+      # into a mostly-cached run.
+      - name: Restore turbo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-
+
       - name: Lint
         run: pnpm lint
 
@@ -78,23 +90,6 @@ jobs:
       - name: Check formatting
         run: pnpm format:check
 
-      # Workspace members resolve @bc-solutions-coder/* packages through their
-      # package.json `exports` maps, which point at dist/. Build every package
-      # first — in topological order, so a package is always built before any
-      # package that depends on it — so dependent members (the apps) can
-      # typecheck against the emitted .d.ts files.
-      - name: Build packages
-        run: pnpm --filter './packages/*' build
-
-      # publint + @arethetypeswrong/cli over the built packages: the manifest's
-      # exports map and every entrypoint's type resolution, checked against the
-      # packed tarball rather than against the working tree.
-      - name: Check package export surface
-        run: pnpm check:exports
-
-      - name: Typecheck
-        run: pnpm typecheck
-
       # Vitest browser-mode specs drive a real Chromium via the Playwright
       # provider. ubuntu-latest runners have no Playwright browser cache, so
       # install the browser (and its OS deps) before the Test step. playwright
@@ -103,8 +98,22 @@ jobs:
       - name: Install Playwright browser
         run: pnpm --filter ./packages/testing exec playwright install --with-deps chromium
 
-      - name: Test
-        run: pnpm test
+      # One task graph, not three phases. Workspace members resolve
+      # @bc-solutions-coder/* packages through their package.json `exports`
+      # maps, which point at dist/, which is why typecheck and test both declare
+      # dependsOn ["^build"] in turbo.jsonc — a dependency is always built
+      # before a dependent reads its .d.ts files, so no standalone build step is
+      # needed ahead of them.
+      #
+      # Every task runs on every PR: unchanged packages restore from cache, so
+      # the merge commit keeps the guarantee that everything actually passed.
+      - name: Build, typecheck and test
+        run: pnpm exec turbo run build typecheck test
 
-      - name: Build
-        run: pnpm build
+      # publint + @arethetypeswrong/cli over the built packages: the manifest's
+      # exports map and every entrypoint's type resolution, checked against the
+      # packed tarball rather than against the working tree. Stays outside turbo
+      # and last — it needs every dist/ present at once, which a root task
+      # cannot express.
+      - name: Check package export surface
+        run: pnpm check:exports
