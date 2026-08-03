@@ -8,6 +8,7 @@
     "src/render.tsx",
     "src/sdk-harness.ts",
     "src/browser-deps.ts",
+    "src/browser-mode-smoke.ts",
     "src/render-with-wallow.tsx",
     "src/contrast.ts",
     "src/locators.ts",

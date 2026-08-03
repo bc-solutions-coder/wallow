@@ -1,3 +1,3 @@
 import { assertBrowserModeSmoke } from "@bc-solutions-coder/testing/browser-mode-smoke";
 
-assertBrowserModeSmoke("wallow-auth");
+assertBrowserModeSmoke("minimal-app");

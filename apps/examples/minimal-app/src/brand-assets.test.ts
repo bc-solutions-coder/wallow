@@ -11,7 +11,7 @@ import viteConfig from "../vite.config";
  * the key, `packages/config` ships no specs, and an app is free to override it —
  * so the assertion belongs on the config an app actually hands Vite.
  */
-describe("the wallow-auth client build", () => {
+describe("the minimal-app client build", () => {
   it("re-enables copyPublicDir on the client environment", () => {
     // Start builds through nitro/vite's two named environments, and nitro does
     // `config.build.copyPublicDir ??= false` on the CLIENT one. That silently

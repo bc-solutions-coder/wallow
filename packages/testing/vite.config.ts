@@ -11,6 +11,7 @@ export default defineLibraryConfig({
     render: "src/render.tsx",
     "sdk-harness": "src/sdk-harness.ts",
     "browser-deps": "src/browser-deps.ts",
+    "browser-mode-smoke": "src/browser-mode-smoke.ts",
     contrast: "src/contrast.ts",
     "render-with-wallow": "src/render-with-wallow.tsx",
     locators: "src/locators.ts",

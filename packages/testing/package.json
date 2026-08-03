@@ -24,6 +24,10 @@
       "types": "./src/browser-deps.ts",
       "import": "./src/browser-deps.ts"
     },
+    "./browser-mode-smoke": {
+      "types": "./src/browser-mode-smoke.ts",
+      "import": "./src/browser-mode-smoke.ts"
+    },
     "./contrast": {
       "types": "./src/contrast.ts",
       "import": "./src/contrast.ts"
@@ -86,6 +90,10 @@
       "./browser-deps": {
         "types": "./dist/browser-deps.d.ts",
         "import": "./dist/browser-deps.js"
+      },
+      "./browser-mode-smoke": {
+        "types": "./dist/browser-mode-smoke.d.ts",
+        "import": "./dist/browser-mode-smoke.js"
       },
       "./contrast": {
         "types": "./dist/contrast.d.ts",

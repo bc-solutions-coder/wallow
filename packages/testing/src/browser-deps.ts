@@ -213,6 +213,29 @@ export function describeBrowserPreBundleList(options: BrowserPreBundleGuardOptio
   });
 }
 
+/** The Vitest config shape this reader needs. Structural, so a consumer passes its own config. */
+export interface BrowserProjectConfig {
+  readonly test?: {
+    readonly projects?: readonly {
+      readonly optimizeDeps?: { readonly include?: readonly string[] };
+      readonly test?: { readonly name?: string };
+    }[];
+  };
+}
+
+/**
+ * A consumer's browser-project `optimizeDeps.include`, read off the CONFIG OBJECT.
+ *
+ * Importing the config does not boot a browser provider: `playwright()` returns a
+ * descriptor and nothing launches until vitest runs the project. Reading the value
+ * asserts what Vite actually receives rather than how the file happens to be written.
+ */
+export function browserPreBundleList(config: BrowserProjectConfig): readonly string[] {
+  const projects = config.test?.projects ?? [];
+
+  return projects.find((project) => project.test?.name === "browser")?.optimizeDeps?.include ?? [];
+}
+
 /**
  * The companion identity check, for a package that reaches Base UI through
  * `@bc-solutions-coder/ui` and also names it in its own pre-bundle list.
