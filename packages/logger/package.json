@@ -32,7 +32,6 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json"
   },
-  "dependencies": {},
   "devDependencies": {
     "@bc-solutions-coder/config": "workspace:*",
     "@types/node": "^24.0.0",
@@ -41,6 +40,5 @@
     "typescript": "catalog:tooling",
     "vite": "^8.1.4",
     "vitest": "^4.1.10"
-  },
-  "peerDependencies": {}
+  }
 }

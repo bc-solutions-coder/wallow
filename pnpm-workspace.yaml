@@ -1,5 +1,7 @@
 packages:
   - "apps/*"
+  # apps/examples is a grouping directory, not a package — its CHILDREN are the members
+  - "!apps/examples"
   - "apps/examples/*"
   - "packages/*"
 
