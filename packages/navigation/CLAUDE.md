@@ -123,11 +123,12 @@ composing `buttonRecipe` is now caught on review or not at all.
 
 ## The lint layer is this package's, not the app's
 
-`.oxlintrc.json` here registers the `wallow/*` plugin and enables **all six** rules. That is not
-symmetry for its own sake: the rail, the drawer and the scrim those rules were written to police
-are what moved HERE out of `apps/wallow-web`, and until they were registered every one of them
-passed vacuously over this source — `pnpm lint`'s roots are `apps packages`, so the files were
-scanned with the rules unloaded. `app-shell.tsx`'s `BACKDROP_SCRIM` is the alpha spelling
+`.oxlintrc.json` here enables **all six** `wallow/*` rules; the plugin itself is registered once
+at the repo root and reaches this config through `extends`. Enabling all six is not symmetry for
+its own sake: the rail, the drawer and the scrim those rules were written to police are what moved
+HERE out of `apps/wallow-web`, and until this config existed every one of them passed vacuously
+over this source — `pnpm lint`'s roots are `apps packages`, so the files were scanned with the
+rules unloaded. `app-shell.tsx`'s `BACKDROP_SCRIM` is the alpha spelling
 `no-sidebar-inversion` deliberately allows; turn it into a bare `bg-foreground` and `pnpm lint`
 fails. The four class-string rules are off for `*.test.*`/`*.stories.tsx` — a spec's class strings
 are subjects, not decisions — while `zone-dag` stays on, exactly as in the two apps.

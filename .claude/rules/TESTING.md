@@ -22,9 +22,9 @@
   happens. Most structural sweeps should not become rules either — a spec pinning file counts or
   README wording makes the codebase rigid without making it correct; **prefer deleting the
   constraint to relocating it.** `wallow/no-source-tests` enforces this by banning `node:fs` in a
-  spec, and reaches every spec under the five trees that register the plugin (both apps,
-  `packages/ui`, `packages/forms`, `packages/navigation`). Elsewhere the doctrine still holds; it is
-  just unenforced. Three specs are deliberately outside it and stay that way — `packages/lint`'s and
+  spec, and reaches **every spec in the repo**: the root `.oxlintrc.json` both registers the plugin
+  and turns this one rule on repo-wide, so a package with no nested config of its own is covered
+  too. Three specs are deliberately outside it and stay that way — `packages/lint`'s and
   `packages/sdk`'s guardrail specs run the real oxlint binary over fixture files, and
   `@bc-solutions-coder/testing`'s `./browser-styles-wiring` reads a consumer's build config to prove
   its browser project has a stylesheet attached. All three assert a **tool's** behaviour, not source

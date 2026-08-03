@@ -186,7 +186,8 @@ of null (reading 'useRef')`. `src/core/browser-deps.test.ts` checks that every e
   in as a prop.
 - React, `react-dom`, and `@tanstack/react-router` are **peer** dependencies — keep them out
   of `dependencies`.
-- **`.oxlintrc.json` here registers the `wallow/*` plugin and enables all six rules.** The
+- **`.oxlintrc.json` here enables all six `wallow/*` rules** — the plugin itself is registered
+  once at the repo root and reaches this config through `extends`. The
   catalog defines the primitives three of them police, which is why they are on here rather than
   left to the consumers: a recipe is the one place a colour decision is written down. Two things
   follow. `no-tinted-text` is why `link`'s hover is the underline alone — the `hover:text-primary/80`

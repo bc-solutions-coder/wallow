@@ -1,11 +1,9 @@
 {
   "$schema": "../../node_modules/oxlint/configuration_schema.json",
   "extends": ["../../.oxlintrc.json"],
-  // Registered HERE rather than at the repo root, and that placement is
-  // load-bearing: `packages/sdk/src/oxlint-guardrails.test.ts` copies the ROOT
-  // config to a temp directory, and any `jsPlugins` entry makes that copy
-  // unloadable. See `packages/lint/CLAUDE.md`.
-  "jsPlugins": [{ "name": "wallow", "specifier": "@bc-solutions-coder/lint" }],
+  // The `wallow` plugin is REGISTERED once, at the repo root. A nested config
+  // inherits that registration through `extends`, so this file only ENABLES
+  // rules and names their options. See `packages/lint/CLAUDE.md`.
   "rules": {
     "react/jsx-props-no-spreading": "off",
     // The catalog DEFINES the primitives three of these rules police, so each is

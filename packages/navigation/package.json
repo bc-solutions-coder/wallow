@@ -37,7 +37,6 @@
   },
   "devDependencies": {
     "@bc-solutions-coder/config": "workspace:*",
-    "@bc-solutions-coder/lint": "workspace:*",
     "@bc-solutions-coder/styles": "workspace:*",
     "@bc-solutions-coder/testing": "workspace:*",
     "@tanstack/react-router": "^1.170.18",

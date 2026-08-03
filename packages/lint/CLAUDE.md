@@ -14,27 +14,27 @@ plugin-load time.
 
 ## Where this is registered
 
-The plugin is registered in **six configs**: the repo-root `.oxlintrc.json` plus five nested
-configs — `apps/wallow-web`, `apps/wallow-auth`, `packages/ui`, `packages/forms` and
-`packages/navigation`:
+The plugin is registered in **exactly one config**, the repo-root `.oxlintrc.json`:
 
 ```json
 "jsPlugins": [{ "name": "wallow", "specifier": "@bc-solutions-coder/lint" }]
 ```
+
+**A nested config inherits that registration through `extends`.** This was verified empirically on
+oxlint 1.74.0, not assumed: with the nested `jsPlugins` entries and devDependencies deleted, a
+probe file planted in each of the five nested trees still produced byte-identical `wallow/*`
+diagnostics — including option-carrying ones (`text-heading-variant` fired at each tree's own
+configured `levels`, and stayed silent in `apps/wallow-web`, which does not enable it). So a
+nested config needs **no** `jsPlugins` entry and **no** `@bc-solutions-coder/lint` devDependency;
+only the root `package.json` names it, because a `jsPlugins` specifier resolves from the
+REGISTERING config's own directory.
 
 **The root registers AND enables exactly one rule repo-wide: `wallow/no-source-tests`** (it is
 option-free and self-gates on `*.test.*` filenames, so one repo-wide `"error"` is correct; its
 doctrine-blessed exemptions are a single override block in the root config, each file with its
 reason). The other five `wallow/*` rules stay **enabled per-tree by the nested configs**, because
 their options genuinely differ between trees (`text-heading-variant`) or are inert without
-per-app inputs (`zone-dag`), and an oxlint override REPLACES options rather than merging. The
-nested configs keep their own `jsPlugins` registration too — redundant with the root's but
-harmless, and removing it is a separate soak-tested decision (there is a bead).
-
-Every config that registers the plugin names `@bc-solutions-coder/lint` as a `workspace:*`
-devDependency — including the **root** `package.json` — because a `jsPlugins` specifier is
-documented to resolve from the config file's own directory, and a config that registers without
-depending cannot rely on loading.
+per-app inputs (`zone-dag`), and an oxlint override REPLACES options rather than merging.
 
 ### Why root registration is possible (it used to be off-limits)
 
@@ -58,12 +58,15 @@ Two things changed, measured on oxlint 1.74.0 under pnpm:
 oxlint's **built-in Rust** plugins (`typescript`, `unicorn`, `oxc`, `react`, `import`) — they are
 compiled into the binary and resolve nothing off disk.
 
-**A config that does not register the plugin lints its subtree with every `wallow/*` rule
-vacuously passing, and nothing fails.** That is how the three package configs sat unprotected
-after the shell extraction moved the code these rules police out of `apps/wallow-web` and into
+**A subtree the registration does not reach lints with every `wallow/*` rule vacuously passing,
+and nothing fails.** That is how the three package configs sat unprotected after the shell
+extraction moved the code these rules police out of `apps/wallow-web` and into
 `packages/navigation`: `pnpm lint`'s roots are `apps packages`, so their files WERE scanned, with
-the rules unloaded. Adding a nested config for a directory that renders UI means adding the
-`jsPlugins` entry and the devDependency with it.
+the rules unloaded. A new nested config now inherits the root's registration, so adding one means
+adding only the rule ENABLEMENTS — but it also means the `extends` line is load-bearing, and a
+config that omits it (or a pass that passes `-c`, see below) loses the plugin silently. The check
+is a one-minute probe, not a reading of the config: plant a file with a known violation in the
+tree and confirm `pnpm lint` names it.
 
 The reasons behind each registration and each scoped exemption are written as `//` comments in
 the config beside the entry — oxlint parses its config as **JSONC**, and since root registration
@@ -89,8 +92,8 @@ hand after touching a rule's own specs and you need both. The test pass enumerat
 rather than globbing — oxlint expands no globs in path arguments and `ignorePatterns` has no `!`
 negation, so a wrong list lints **zero** files and exits 0, which is why `scripts/lint-tests.sh`
 prints its count and fails on zero. Neither pass may pass `-c`: an explicit config file disables
-nested-config lookup, dropping the app configs that register this plugin along with `packages/ui`'s
-and `packages/forms`' test relaxations.
+nested-config lookup, dropping every nested config's per-tree `wallow/*` enablement along with
+`packages/ui`'s and `packages/forms`' test relaxations.
 
 **`import/no-cycle` is named explicitly** in the root config because it belongs to no category and is
 off by default. Enabling the built-in `import` plugin for it also switches on its category rules, and
@@ -111,9 +114,10 @@ shorten it.
 | `packages/ui`         | all six, minus the drawer indent recipe (see below)                                                      |
 | `packages/forms`      | all six, minus `use-app-form.ts` (see below)                                                             |
 
-**`no-source-tests` is enabled at the ROOT for the whole repo** (the five nested enablements are
-now redundant restatements, kept until the registration-cleanup bead lands), and exempted only by
-the root's doctrine block. It is the only rule here that applies exclusively to `*.test.*` files —
+**`no-source-tests` is enabled at the ROOT for the whole repo** and exempted only by the root's
+doctrine block. The five nested enablements are redundant restatements of it, kept because each
+sits beside a comment explaining why it must never appear in that config's `*.test.*` override
+block. It is the only rule here that applies exclusively to `*.test.*` files —
 it bans `node:fs` in a spec, and self-gates on `context.filename` — so it is the one `wallow/*`
 entry that must **not** appear in a config's `*.test.*` override block. Every config carries a comment saying
 so beside `zone-dag`'s, because the two are silent for opposite reasons and both look omittable.

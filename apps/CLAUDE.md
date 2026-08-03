@@ -78,10 +78,10 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
   The first three are off for `*.test.*` and `*.stories.tsx`. `zone-dag` deliberately is NOT,
   because it judges a spec's edges too — its one spec exemption (`@app/*`) is inside the rule —
   and neither is `no-source-tests`, which has nothing BUT specs to judge, so listing it in the
-  test override would switch it off everywhere. The plugin is registered at the repo root
-  (which owns `wallow/no-source-tests` repo-wide) AND from the nested configs, which own
-  per-tree enablement and options for the rest — and the apps are not the only nested configs
-  that register it:
+  test override would switch it off everywhere. The plugin is registered ONCE, at the repo root
+  (which also owns `wallow/no-source-tests` repo-wide); a nested config inherits that
+  registration through `extends` and only ENABLES rules and names their options — and the apps
+  are not the only nested configs that enable them:
   `packages/navigation`, `packages/ui` and `packages/forms` do too, because the shell extraction
   moved most of the UI these rules police out of `apps/wallow-web`. See
   `packages/lint/CLAUDE.md` for which config enables which rule. The two apps are

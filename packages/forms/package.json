@@ -41,7 +41,6 @@
   "devDependencies": {
     "@base-ui/react": "^1.6.0",
     "@bc-solutions-coder/config": "workspace:*",
-    "@bc-solutions-coder/lint": "workspace:*",
     "@bc-solutions-coder/styles": "workspace:*",
     "@bc-solutions-coder/testing": "workspace:*",
     "@types/node": "^24.0.0",

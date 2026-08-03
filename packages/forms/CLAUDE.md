@@ -119,7 +119,8 @@ Four files move together, plus a fifth when new Base UI surface is involved:
 - **`react/jsx-max-depth` is 2** and `pnpm lint` runs `--deny-warnings`, which is why `SelectField`'s
   portal tree is split into one component per nesting level. `unicorn/catch-error-name` requires the
   catch parameter be named `error` outside tests.
-- **`.oxlintrc.json` here registers the `wallow/*` plugin and enables all six rules.**
+- **`.oxlintrc.json` here enables all six `wallow/*` rules** — the plugin itself is registered
+  once at the repo root and reaches this config through `extends`.
   `no-hand-rolled-mutation` matters more here than in either app: this is the layer that owns the
   `useMutation` every form submits through, so a second hand-written `mutationFn` in a field or the
   shell would route a write around the generated factory for every consumer at once. The one
