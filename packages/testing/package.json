@@ -52,6 +52,10 @@
       "types": "./src/theme-wiring.tsx",
       "import": "./src/theme-wiring.tsx"
     },
+    "./navigation-escape": {
+      "types": "./src/navigation-escape.ts",
+      "import": "./src/navigation-escape.ts"
+    },
     "./node-async-hooks-browser-shim": {
       "types": "./src/node-async-hooks-browser-shim.ts",
       "import": "./src/node-async-hooks-browser-shim.ts"
@@ -102,6 +106,10 @@
       "./theme-wiring": {
         "types": "./dist/theme-wiring.d.ts",
         "import": "./dist/theme-wiring.js"
+      },
+      "./navigation-escape": {
+        "types": "./dist/navigation-escape.d.ts",
+        "import": "./dist/navigation-escape.js"
       },
       "./node-async-hooks-browser-shim": {
         "types": "./dist/node-async-hooks-browser-shim.d.ts",

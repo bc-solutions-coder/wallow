@@ -15,6 +15,7 @@
     "src/invalidation.ts",
     "src/browser-styles-wiring.ts",
     "src/theme-wiring.tsx",
+    "src/navigation-escape.ts",
     "src/node-async-hooks-browser-shim.ts"
   ]
 }
