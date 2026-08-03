@@ -1,6 +1,11 @@
 # Architecture Tooling Adoption Implementation Plan
 
-**status: active**
+**status: completed** — all three phases landed on `chore/arch-tooling-adoption` (2026-08-03).
+Deviations from plan: sherif needed zero ignores; knip's exports category was adopted rather
+than scoped out (so no bead for it); Task 8 Step 1's documented failure did not reproduce on
+oxlint 1.74.0 as installed (see `Wallow-4ip4` and the Task 8 commit message), so the mirror
+relocation landed as robustness rather than as an unblock; the snippet scratch directory stayed
+in `os.tmpdir()` deliberately.
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan
 > task-by-task.
