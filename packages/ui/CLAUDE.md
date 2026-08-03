@@ -140,9 +140,14 @@ of null (reading 'useRef')`. `src/core/browser-deps.test.ts` checks that every e
   runner and being reported against whichever file loaded next.
 - **Popup unmount is animation-frame-deferred** for the whole Base UI popup family. Assert
   closure with `await expect.poll(() => ...).toBeNull()`, never a bare synchronous `expect`.
-- In the `browser` project the **mouse position persists across specs in a file**. Open
-  hover-driven components with `element.focus()`; if a spec must hover, make it the last one
-  in the file.
+- In the `browser` project the **mouse position persists across specs in a file** — and across
+  FILES. Open hover-driven components with `element.focus()`, and **name the pointer state at the
+  assertion**: `await userEvent.unhover(el)` before a rest-state colour read or a "the card is
+  closed" claim, `await userEvent.hover(el)` before the hover half. Local and explicit, never a
+  `beforeEach` that parks the pointer somewhere harmless — a park compensates for state the spec
+  never names, so the spec reads the same whether the pointer is where it thinks or not.
+  Ordering still matters in one case: a spec whose hover changes something the FILE cannot
+  re-enter (a toast viewport's hover pauses auto-dismiss timers) goes last and ends by unhovering.
 
 ## Gotchas
 

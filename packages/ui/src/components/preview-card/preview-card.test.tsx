@@ -1,6 +1,6 @@
 import { render } from "@bc-solutions-coder/testing/render";
 import type { ReactElement } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
 import { PreviewCard } from "./preview-card";
@@ -275,47 +275,25 @@ function FullPreviewCard({
 }
 
 /**
- * Renders the full fixture and opens it by focusing the trigger.
+ * Renders the full fixture and opens it by FOCUS, with the pointer named as off
+ * the trigger.
  *
- * Focus rather than hover because it costs no real pointer movement — the
- * Playwright mouse position survives between specs in a file, and a trigger left
- * under it opens on render. It is NOT instant, though: the fixture's `delay={0}`
- * is what makes this resolve promptly, so the poll is the wait, not a formality.
+ * A preview card opens on hover too, and the Playwright pointer position
+ * survives between spec FILES — so whichever file ran before this one can leave
+ * it sitting exactly where the trigger renders. Measured under CPU contention,
+ * the trigger then opens twice (`onOpenChange` fires for the hover-open and
+ * again for the focus-open) and blurring no longer closes the card. Unhovering
+ * first is what makes the open attributable to the focus. It is NOT instant:
+ * the fixture's `delay={0}` is what makes this resolve promptly, so the poll is
+ * the wait, not a formality.
  */
 async function openPreviewCard(): Promise<void> {
   await render(<FullPreviewCard />);
 
+  await userEvent.unhover(part("p-trigger"));
   part("p-trigger").focus();
   await expect.poll(() => maybePart("p-popup")).not.toBeNull();
 }
-
-/**
- * Parks the real Playwright pointer in the bottom-right corner before every
- * spec.
- *
- * The pointer position survives between spec FILES in this page, not just
- * between specs in one file, so whichever file ran before this one can leave it
- * sitting exactly where the fixture below renders its trigger — and a preview
- * card opens on HOVER. Measured under CPU contention: the trigger then opens
- * twice (`onOpenChange` fires for a hover-open and again for the focus-open),
- * and blurring the trigger no longer closes the card, because the pointer is
- * still on it.
- *
- * The park element is `fixed` to a corner the fixture never reaches, and is
- * removed once the pointer has moved — the position is what persists, not the
- * element.
- */
-beforeEach(async () => {
-  const park = document.createElement("div");
-  park.style.cssText = "position:fixed;bottom:0;right:0;width:4px;height:4px";
-  document.body.append(park);
-
-  try {
-    await userEvent.hover(park);
-  } finally {
-    park.remove();
-  }
-});
 
 describe("PreviewCard", () => {
   it("exposes exactly Base UI's namespace members on one namespace object", () => {
@@ -336,6 +314,9 @@ describe("PreviewCard", () => {
     await render(<FullPreviewCard />);
 
     const trigger = part("p-trigger");
+    // `data-popup-open` below is a CLOSED-state claim, and a card opens on hover.
+    await userEvent.unhover(trigger);
+
     expect(trigger.tagName).toBe("A");
     expect(trigger.getAttribute("href")).toBe("https://example.com/ada");
     expect(trigger.id).not.toBe("");
@@ -350,6 +331,7 @@ describe("PreviewCard", () => {
     // Base UI's default: these are absent elements, not hidden ones, so no
     // recipe can be asserted on them until the card opens.
     await render(<FullPreviewCard />);
+    await userEvent.unhover(part("p-trigger"));
 
     expect(maybePart("p-portal")).toBeNull();
     expect(maybePart("p-backdrop")).toBeNull();
@@ -454,6 +436,8 @@ describe("PreviewCard", () => {
     // 150 ms and again within 1200 ms clears both edges with room to spare.
     await render(<FullPreviewCard delay={400} closeDelay={0} />);
 
+    // The delay under test is the FOCUS path's, so the pointer must be off.
+    await userEvent.unhover(part("p-trigger"));
     part("p-trigger").focus();
     await new Promise((resolve) => {
       setTimeout(resolve, 150);
@@ -474,6 +458,8 @@ describe("PreviewCard", () => {
       </>,
     );
 
+    // A pointer left on the trigger holds the card open after the blur.
+    await userEvent.unhover(part("p-trigger"));
     part("p-trigger").focus();
     await expect.poll(() => maybePart("p-popup")).not.toBeNull();
 
@@ -512,6 +498,8 @@ describe("PreviewCard", () => {
       </>,
     );
 
+    // A pointer left on the trigger holds the card open through the Tab.
+    await userEvent.unhover(part("p-trigger"));
     part("p-trigger").focus();
     await expect.poll(() => maybePart("p-popup")).not.toBeNull();
 
@@ -541,6 +529,8 @@ describe("PreviewCard", () => {
       </PreviewCard.Root>,
     );
     expect(maybePart("o-popup")).not.toBeNull();
+    // A pointer left on the trigger reopens the card the press just dismissed.
+    await userEvent.unhover(part("o-trigger"));
 
     document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, composed: true }));
     document.body.dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
@@ -572,6 +562,8 @@ describe("PreviewCard", () => {
       </PreviewCard.Root>,
     );
 
+    // `trigger-focus` is the reason under test; a hover-open reports its own.
+    await userEvent.unhover(part("c-trigger"));
     part("c-trigger").focus();
     await expect.poll(() => maybePart("c-popup")).not.toBeNull();
 

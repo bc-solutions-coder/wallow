@@ -62,35 +62,9 @@ function StyleProbes() {
 
 let harness: SdkHarness;
 
-/**
- * Move the real pointer to a corner nothing below renders into, BEFORE the
- * fixture mounts.
- *
- * Every claim here is about the card AT REST, and `buttonRecipe` gives both
- * answers a hover arm with a `motion-safe:transition-colors` base. The
- * Playwright pointer position persists across spec FILES, and the browser
- * re-evaluates `:hover` when new content is inserted underneath it — so a
- * rest-state colour read can return a hover colour, or that transition caught
- * partway. Parking before the render is what makes this deterministic: the
- * buttons are never under the cursor at any point in their lifetime. It is the
- * POSITION that persists, not the node, so the park element can be removed.
- */
-async function parkPointer(): Promise<void> {
-  const park: HTMLDivElement = document.createElement("div");
-  park.style.cssText = "position:fixed;bottom:0;right:0;width:4px;height:4px";
-  document.body.append(park);
-
-  try {
-    await userEvent.hover(park);
-  } finally {
-    park.remove();
-  }
-}
-
-beforeEach(async () => {
+beforeEach(() => {
   harness = createPassthroughHarness();
   harness.resolveJson(consentInfo());
-  await parkPointer();
 });
 
 /** Render the consent prompt and wait for it to resolve, probes alongside. */
@@ -181,6 +155,11 @@ describe("the consent actions are the catalog's Button", () => {
   it("paints approve on the primary surface", async () => {
     await renderPrompt();
 
+    // The surface AT REST is the claim, and `buttonRecipe` gives approve a hover
+    // arm. The pointer position persists across spec FILES and the browser
+    // re-evaluates `:hover` when new content mounts under it, so say so here.
+    await userEvent.unhover(page.getByTestId("consent-approve").element());
+
     const probe: Rgba = computedColor(
       page.getByTestId("probe-primary").element(),
       "background-color",
@@ -202,6 +181,9 @@ describe("the consent actions are the catalog's Button", () => {
     await renderPrompt();
 
     const deny: Element = page.getByTestId("consent-deny").element();
+    // `hover:bg-accent` would give deny the surface this case says it lacks.
+    await userEvent.unhover(deny);
+
     const border: Rgba = computedColor(deny, "border-top-color");
     const probeBorder: Rgba = computedColor(
       page.getByTestId("probe-border").element(),

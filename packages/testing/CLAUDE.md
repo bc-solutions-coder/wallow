@@ -187,7 +187,17 @@ Each of these cost a debugging session and is invisible from the code:
   `oklch()`/`color()`; regex-parsing `getComputedStyle` output is unstable. Paint the string into a 2d
   context and read the sRGB bytes.
 - **Pointer position persists across spec files**, and the browser re-evaluates `:hover` when new
-  content mounts under it — park the pointer before mounting anything whose rest-state colour you measure.
+  content mounts under it — so a spec that measures a colour, or asserts a hover-driven component is
+  closed, must **name its pointer state at the assertion**: `await userEvent.unhover(el)` before the
+  rest read, `await userEvent.hover(el)` before the hover read. Not in a `beforeEach`, and never a
+  "park" onto some other element — a spec that compensates for pointer state it never names reads
+  the same whether the pointer is where it thinks or not. `unhover` moves the pointer to `<body>`,
+  which is off the subject but still inside the document, so the actionability check cannot stall.
+  Two consequences: a rest read taken immediately after `unhover` can catch
+  `motion-safe:transition-colors` mid-flight, so poll the settled colour rather than reading once;
+  and a pointer parked over a fixed REGION (a toast viewport, whose hover pauses auto-dismiss
+  timers) leaks into the next file, which has no element to unhover — close that one where it is
+  made, in the spec that hovered.
 - **An early `return` out of a `useAppForm` `onSubmit` RESOLVES the form's mutation**, so `onSuccess`
   fires and the user is navigated as though the write happened. A guard clause needs a test asserting
   the navigation did _not_ happen, not merely that no request went out.

@@ -120,15 +120,10 @@ async function waitForTestId(testId: string): Promise<HTMLElement> {
   return elements[0] as HTMLElement;
 }
 
-/**
- * The shell, a parking target for the mouse, and one probe per token needing a
- * REFERENCE colour. The parking target is pinned above everything because
- * Playwright's actionability check retries to timeout on a covered element.
- */
+/** The shell plus one probe per token needing a REFERENCE colour. */
 function ShellUnderTest() {
   return (
     <div>
-      <div data-testid="control-park" className="fixed top-0 right-0 z-50 size-8" />
       <div data-testid="probe-background" className="bg-background size-4" />
       <div data-testid="probe-accent" className="bg-accent size-4" />
       <ShellFixture />
@@ -153,10 +148,6 @@ function probe(testId: string): Rgba {
 function expectThemed(color: Rgba, label: string): Rgba {
   expect(isTransparent(color), `${label}: paints nothing — is the fork theme loaded?`).toBe(false);
   return color;
-}
-
-async function parkMouse(): Promise<void> {
-  await userEvent.hover(page.getByTestId("control-park").element());
 }
 
 /**
@@ -317,7 +308,10 @@ describe.each(MODES)("the desktop control's glyph — %s mode", (mode: string) =
   it("stays legible at rest against the page it sits on", async () => {
     await render(<ShellUnderTest />);
     const control: Element = await waitForTestId("dashboard-nav-toggle");
-    await parkMouse();
+    // "At rest" is a claim about the pointer, so state it at the read: the
+    // position persists across spec FILES, and the browser re-evaluates `:hover`
+    // when new content mounts under it.
+    await userEvent.unhover(control);
 
     const background: Rgba = expectThemed(probe("probe-background"), "bg-background");
 
@@ -353,8 +347,5 @@ describe.each(MODES)("the desktop control's glyph — %s mode", (mode: string) =
     expect(ratio, `the hovered glyph measured ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(
       AA_NON_TEXT,
     );
-
-    // The cursor position persists across cases in a browser-mode file.
-    await parkMouse();
   });
 });

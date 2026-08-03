@@ -58,14 +58,6 @@ const MOBILE_VIEWPORT = [390, 844] as const;
 /** WCAG 2.1 AA for body-sized text. A nav label is `text-sm`, so AA applies. */
 const AA_TEXT = 4.5;
 
-/**
- * Move the cursor off the nav entirely. Playwright's mouse position PERSISTS
- * across tests in a file, so a row left hovered becomes the next case's "rest".
- */
-async function parkMouse(): Promise<void> {
-  await userEvent.hover(page.getByTestId("nav-park").element());
-}
-
 /** The rendered text colour of `element`, composited over the surface it sits on. */
 function paintedText(element: Element): Rgba {
   return over(computedColor(element, "color"), effectiveBackground(element));
@@ -103,18 +95,8 @@ beforeEach(() => {
   useNavStore.setState({ isNavCollapsed: false, isMobileNavOpen: false });
 });
 
-/**
- * The shell plus a parking target for {@link parkMouse}, pinned top-right above
- * everything: the drawer's backdrop covers the whole viewport, and Playwright's
- * actionability check retries to timeout on a covered element.
- */
 function NavUnderTest() {
-  return (
-    <>
-      <div data-testid="nav-park" className="fixed top-0 right-0 z-50 size-8" />
-      <ShellFixture />
-    </>
-  );
+  return <ShellFixture />;
 }
 
 describe("rail contrast (measured, not asserted by class name)", () => {
@@ -136,13 +118,13 @@ describe("rail contrast (measured, not asserted by class name)", () => {
 
   it("keeps a nav label legible against the rail at rest", async () => {
     await render(<NavUnderTest />);
-    await parkMouse();
+    const row: Element = page.getByTestId("dashboard-nav-apps").element();
+    // "At rest" is a claim about the pointer, so state it here. The position
+    // persists across spec FILES and the browser re-evaluates `:hover` when new
+    // content mounts under it, so an unnamed rest read can be a hover read.
+    await userEvent.unhover(row);
 
-    expectLegible(
-      page.getByTestId("dashboard-nav-apps").element(),
-      page.getByTestId("dashboard-nav").element(),
-      "idle row",
-    );
+    expectLegible(row, page.getByTestId("dashboard-nav").element(), "idle row");
   });
 
   it("keeps a nav label legible against the rail WHEN HOVERED", async () => {
@@ -150,6 +132,8 @@ describe("rail contrast (measured, not asserted by class name)", () => {
 
     const row: Element = page.getByTestId("dashboard-nav-apps").element();
     const rail: Element = page.getByTestId("dashboard-nav").element();
+
+    await userEvent.unhover(row);
     const idleRatio: number = expectLegible(row, rail, "row before hover");
 
     await userEvent.hover(row);
@@ -166,17 +150,16 @@ describe("rail contrast (measured, not asserted by class name)", () => {
       Math.abs(hoverRatio - idleRatio) > 0.01 ||
         effectiveBackground(row).r !== effectiveBackground(document.body).r,
     ).toBe(true);
-
-    await parkMouse();
   });
 
   it("keeps the ACTIVE row's label legible against its own surface", async () => {
     routerState.activePath = "/dashboard/apps";
     await render(<NavUnderTest />);
-    await parkMouse();
 
-    // The active row carries `bg-sidebar-accent` itself, so it IS the surface.
+    // The active row carries `bg-sidebar-accent` itself, so it IS the surface —
+    // and `active` is what is under test, so the pointer must be off it.
     const activeRow: Element = page.getByTestId("dashboard-nav-apps").element();
+    await userEvent.unhover(activeRow);
 
     expectLegible(activeRow, activeRow, "active row");
   });
@@ -190,11 +173,12 @@ describe("drawer contrast", () => {
 
   it("paints the drawer on a real surface and keeps its labels legible", async () => {
     await render(<NavUnderTest />);
-    await parkMouse();
 
     const drawer: Element = page.getByTestId("dashboard-nav-drawer").element();
+    const row: Element = page.getByTestId("dashboard-nav-apps").element();
+    await userEvent.unhover(row);
 
     expect(isTransparent(computedColor(drawer, "background-color"))).toBe(false);
-    expectLegible(page.getByTestId("dashboard-nav-apps").element(), drawer, "drawer row");
+    expectLegible(row, drawer, "drawer row");
   });
 });

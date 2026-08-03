@@ -6,7 +6,7 @@ import {
   type Rgba,
 } from "@bc-solutions-coder/testing/contrast";
 import type { MouseEvent, ReactNode } from "react";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -59,16 +59,10 @@ const AA_TEXT = 4.5;
 
 const MODES: readonly string[] = ["light", "dark"];
 
-/**
- * The shell, a parking target for the mouse, and one probe per token needing a
- * REFERENCE colour, so nothing here hard-codes a hex. The parking target is
- * pinned above everything because Playwright retries to timeout on a covered
- * element.
- */
+/** The shell plus one probe per token needing a REFERENCE colour, so nothing here hard-codes a hex. */
 function NavUnderTest() {
   return (
     <div>
-      <div data-testid="nav-park" className="fixed top-0 right-0 z-50 size-8" />
       <div data-testid="probe-secondary" className="bg-secondary size-4" />
       <div data-testid="probe-sidebar" className="bg-sidebar size-4" />
       <div data-testid="probe-sidebar-accent" className="bg-sidebar-accent size-4" />
@@ -139,6 +133,11 @@ describe.each(MODES)("the theme toggle on the rail — %s mode", (mode: string) 
     await render(<NavUnderTest />);
 
     const toggle: Element = page.getByTestId("theme-toggle").element();
+    // Every claim in this describe is about the toggle AT REST, and `buttonRecipe`
+    // gives it a hover arm. Say so at the read rather than trusting where the
+    // pointer happens to be: the position persists across spec FILES.
+    await userEvent.unhover(toggle);
+
     const secondary: Rgba = expectThemed(probe("probe-secondary"), "bg-secondary");
     const painted: Rgba = expectThemed(
       effectiveBackground(toggle),
@@ -153,6 +152,8 @@ describe.each(MODES)("the theme toggle on the rail — %s mode", (mode: string) 
     await render(<NavUnderTest />);
 
     const toggle: Element = page.getByTestId("theme-toggle").element();
+    await userEvent.unhover(toggle);
+
     const painted: Rgba = expectThemed(
       effectiveBackground(toggle),
       "the toggle's rendered surface",
@@ -169,6 +170,7 @@ describe.each(MODES)("the theme toggle on the rail — %s mode", (mode: string) 
   it("keeps its label legible on whatever it paints", async () => {
     await render(<NavUnderTest />);
     const toggle: Element = page.getByTestId("theme-toggle").element();
+    await userEvent.unhover(toggle);
 
     expectThemed(computedColor(toggle, "color"), "the toggle's label");
 

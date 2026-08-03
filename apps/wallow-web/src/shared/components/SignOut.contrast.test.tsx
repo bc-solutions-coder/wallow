@@ -68,14 +68,9 @@ const AA_NON_TEXT = 3;
 
 const MODES: readonly string[] = ["light", "dark"];
 
-/**
- * The shell plus a parking target for the mouse, pinned above everything because
- * Playwright retries to timeout on a covered element.
- */
 function ShellUnderTest() {
   return (
     <div>
-      <div data-testid="nav-park" className="fixed top-0 right-0 z-50 size-8" />
       <div data-testid="probe-sidebar" className="bg-sidebar size-4" />
       <DashboardLayout />
     </div>
@@ -104,7 +99,6 @@ async function failSignOut(): Promise<void> {
   await render(<ShellUnderTest />);
   await userEvent.click(page.getByTestId("dashboard-logout-link").element());
   await expect.element(page.getByTestId("dashboard-logout-error")).toBeInTheDocument();
-  await userEvent.hover(page.getByTestId("nav-park").element());
 }
 
 beforeEach(async () => {
@@ -147,6 +141,10 @@ describe.each(MODES)("the sign-out error banner on the rail — %s mode", (mode:
     await failSignOut();
 
     const banner: Element = page.getByTestId("dashboard-logout-error").element();
+    // The banner is measured AT REST, and the click that raised it left the
+    // pointer inside the rail. Say which state this reads rather than inheriting
+    // one — the position persists across spec files, too.
+    await userEvent.unhover(banner);
     const message: Element | null = banner.querySelector("p");
 
     expect(message, "the banner rendered no message paragraph").not.toBeNull();
@@ -168,6 +166,8 @@ describe.each(MODES)("the sign-out error banner on the rail — %s mode", (mode:
     await failSignOut();
 
     const banner: Element = page.getByTestId("dashboard-logout-error").element();
+    await userEvent.unhover(banner);
+
     const rail: Rgba = expectThemed(
       computedColor(page.getByTestId("dashboard-nav").element(), "background-color"),
       "the rail",

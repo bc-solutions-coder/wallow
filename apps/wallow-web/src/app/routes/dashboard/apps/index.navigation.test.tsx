@@ -39,30 +39,19 @@ async function renderPage(): Promise<AnyRouter> {
   const Page = Route.options.component!;
   const { router } = renderWithWallow(
     <>
-      <div data-testid="cta-park" className="fixed top-0 right-0 z-50 size-8" />
       <div data-testid="probe-primary" className="bg-primary size-4" />
       <Page />
     </>,
     { harness },
   );
   await waitForTestId("apps-register-link");
-  // The pointer persists across cases in a browser-mode file, and the browser
-  // re-evaluates `:hover` when new content mounts under it — so a case that
-  // clicked the CTA leaves the next one measuring `hover:bg-primary/90` as
-  // though it were the resting fill.
-  await parkMouse();
   return router;
-}
-
-/** Move the pointer off anything the cases below measure. */
-async function parkMouse(): Promise<void> {
-  await userEvent.hover(byTestId("cta-park"));
 }
 
 /** WCAG 2.1 AA for body-sized text; the CTA's label is `text-sm`. */
 const AA_TEXT = 4.5;
 
-/** Bounds the hover poll below. Tailwind's own duration is 150ms. */
+/** Bounds the colour polls below. Tailwind's own duration is 150ms. */
 const TRANSITION_TIMEOUT = 2000;
 
 /** The reference colour `bg-primary` paints, failing loudly on a theme-less page. */
@@ -159,12 +148,20 @@ describe("routes/dashboard/apps register CTA navigation", () => {
   it("fills the CTA with the primary token and keeps its label legible on it", async () => {
     await renderPage();
     const cta = byTestId("apps-register-link");
+    // The RESTING fill is the claim, and `buttonRecipe` gives the CTA a
+    // `hover:bg-primary/90` arm. The pointer persists across cases and across
+    // spec FILES, so an unnamed rest read can be a hover read.
+    await userEvent.unhover(cta);
 
     // Measured against a probe, not read off `classList`: `cn()` merges a
     // caller's `className` over the recipe, so `bg-primary` can be present while
     // the anchor paints something else — and the probe is what makes "gold" mean
     // the primary token rather than any colour that happens not to be blank.
-    expect(effectiveBackground(cta)).toEqual(primarySurface());
+    // Polled, because a case that clicked the CTA leaves the pointer on it and
+    // `motion-safe:transition-colors` takes 150ms to hand the resting fill back.
+    await expect
+      .poll(() => JSON.stringify(effectiveBackground(cta)), { timeout: TRANSITION_TIMEOUT })
+      .toBe(JSON.stringify(primarySurface()));
 
     const ratio: number = textContrast(cta);
 
@@ -208,6 +205,15 @@ describe("routes/dashboard/apps register CTA navigation", () => {
   it("repaints the CTA under the cursor", async () => {
     await renderPage();
     const cta = byTestId("apps-register-link");
+
+    // Settle on the resting fill before reading it: a case that clicked the CTA
+    // leaves the pointer on it, and a fill caught mid-transition makes
+    // "repainted under the cursor" true of the transition rather than the hover.
+    await userEvent.unhover(cta);
+    await expect
+      .poll(() => JSON.stringify(effectiveBackground(cta)), { timeout: TRANSITION_TIMEOUT })
+      .toBe(JSON.stringify(primarySurface()));
+
     const resting: string = JSON.stringify(effectiveBackground(cta));
 
     await userEvent.hover(cta);

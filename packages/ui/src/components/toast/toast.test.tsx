@@ -815,11 +815,14 @@ describe("Toast", () => {
   });
 
   /*
-   * LAST ON PURPOSE. Hovering the viewport pauses every auto-dismiss timer, and
-   * the pointer position persists between specs in this file, so this one runs
-   * after the timer specs and parks the pointer off the viewport before it ends.
+   * LAST ON PURPOSE, and it ends by moving the pointer back OFF the viewport.
+   * Hovering the viewport pauses every auto-dismiss timer; the position persists
+   * between specs in this file AND into the next one, where the viewport is a
+   * fixed REGION of a document that file has not rendered yet — so no spec over
+   * there has an element to name a pointer state against. This is the one place
+   * the leak can be closed, and the closing move is itself asserted below.
    */
-  it("expands the viewport while the pointer is over it", async () => {
+  it("expands the viewport while the pointer is over it, and collapses when it leaves", async () => {
     await addSavedToast();
 
     expect(part("t-viewport").hasAttribute("data-expanded")).toBe(false);
@@ -831,8 +834,8 @@ describe("Toast", () => {
     expect(part("t-root-saved").hasAttribute("data-expanded")).toBe(true);
     expect(part("t-close-saved").getAttribute("aria-hidden")).toBe("false");
 
-    // Park the pointer somewhere harmless so the next file's timers still run.
-    await userEvent.hover(part("t-add"));
+    await userEvent.unhover(part("t-viewport"));
+
     expect(part("t-viewport").hasAttribute("data-expanded")).toBe(false);
   });
 });
