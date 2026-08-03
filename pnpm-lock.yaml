@@ -50,6 +50,9 @@ importers:
       '@arethetypeswrong/cli':
         specifier: ^0.18.5
         version: 0.18.5
+      '@bc-solutions-coder/lint':
+        specifier: workspace:*
+        version: link:packages/lint
       husky:
         specifier: ^9.1.7
         version: 9.1.7

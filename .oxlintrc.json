@@ -1,5 +1,10 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
+  // Root registration became possible when packages/sdk/src/oxlint-guardrails.test.ts
+  // moved its config-copy mirror inside the repo (.lint-mirror/), where this bare
+  // specifier resolves through the workspace node_modules. The five nested configs
+  // still own per-tree ENABLEMENT and options for the other wallow/* rules.
+  "jsPlugins": [{ "name": "wallow", "specifier": "@bc-solutions-coder/lint" }],
   "plugins": ["typescript", "unicorn", "oxc", "react", "import"],
   "categories": {
     "correctness": "error",
@@ -9,6 +14,10 @@
     "style": "warn"
   },
   "rules": {
+    // Repo-wide: a spec asserts behaviour, never source text (.claude/rules/TESTING.md).
+    // Self-gates on *.test.* filenames; the doctrine-blessed exemptions are one
+    // override block near the end of this file.
+    "wallow/no-source-tests": "error",
     "react/react-in-jsx-scope": "off",
     "no-ternary": "off",
     "capitalized-comments": "off",
@@ -367,6 +376,26 @@
         "vitest/prefer-import-in-mock": "off",
         "vitest/prefer-each": "off",
         "vitest/no-alias-methods": "off"
+      }
+    },
+    {
+      // The doctrine-blessed node:fs specs (.claude/rules/TESTING.md names the
+      // exemption classes). Exactly these files, never a glob — a new node:fs
+      // spec must argue its way in here or assert behaviour instead.
+      "files": [
+        // Tool-output guardrails: run the real oxlint binary over fixture files.
+        "packages/lint/src/fixtures.test.ts",
+        "packages/sdk/src/oxlint-guardrails.test.ts",
+        // Artifact readers: a committed data contract is not source.
+        "packages/sdk/src/generated-query-surface.test.ts",
+        "packages/sdk/src/openapi-regen.test.ts",
+        "packages/styles/src/assets.test.ts",
+        "packages/styles/src/theme-css.test.ts",
+        // Runtime/compile-time identity: the facade's surface against the real package.
+        "packages/query/src/index.test.ts"
+      ],
+      "rules": {
+        "wallow/no-source-tests": "off"
       }
     }
   ]

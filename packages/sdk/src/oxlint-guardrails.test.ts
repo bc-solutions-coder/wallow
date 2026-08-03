@@ -73,7 +73,13 @@ interface OxlintConfig {
 }
 
 function readConfig(): OxlintConfig {
-  return JSON.parse(readFileSync(oxlintConfigPath, "utf8")) as OxlintConfig;
+  // The root config is JSONC (oxlint parses comments; the jsPlugins entry and the
+  // no-source-tests exemptions carry their reasons inline), so strip line
+  // comments before JSON.parse — the same treatment readNestedConfig gives the
+  // nested configs.
+  const text: string = readFileSync(oxlintConfigPath, "utf8").replaceAll(/^\s*\/\/.*$/gmu, "");
+
+  return JSON.parse(text) as OxlintConfig;
 }
 
 function readRuleEntry(): [string, RestrictedImportsOptions] {

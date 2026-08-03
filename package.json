@@ -24,6 +24,7 @@
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
+    "@bc-solutions-coder/lint": "workspace:*",
     "husky": "^9.1.7",
     "knip": "^6.31.0",
     "lint-staged": "^17.0.8",
