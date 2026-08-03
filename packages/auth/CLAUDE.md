@@ -117,8 +117,9 @@ that own those screens.
 `WallowError` interceptor and the real 401-softening. A `vi.mock` of the SDK would assert
 only that this package calls what it calls.
 
-Build the SDK first (`pnpm --filter @bc-solutions-coder/sdk build`) or typecheck fails
-against a missing `dist/`.
+No SDK build is needed first — in-repo `@bc-solutions-coder/sdk`'s `exports` map resolves to
+its `src/`, so this package typechecks against SDK source. `dist/` is a publish artifact,
+needed only by `pnpm check:exports`.
 
 Scripts: `pnpm --filter @bc-solutions-coder/auth build` (Vite lib mode +
 `tsc -p tsconfig.build.json`), `test`, `test:watch`, `typecheck`.

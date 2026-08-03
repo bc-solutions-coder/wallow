@@ -19,11 +19,11 @@ same feature-folder shape, plus a live BFF smoke route.
 ## Commands
 
 Run from the repo root (pnpm workspace) or with `--filter @bc-solutions-coder/wallow-web`.
-Build the SDK first — the app typechecks against its `dist/`.
+No SDK build is needed first — in-repo `@bc-solutions-coder/sdk` resolves to its `src/`, and the
+`dist/` exports map is applied at publish time. Build it for `pnpm check:exports` (publint + attw
+over a packed tarball), not to typecheck this app.
 
 ```bash
-pnpm --filter @bc-solutions-coder/sdk build   # build the SDK the app depends on
-
 pnpm --filter @bc-solutions-coder/wallow-web dev        # vite dev -- TanStack Start SSR + BFF
 pnpm --filter @bc-solutions-coder/wallow-web build      # vite build -> .output/server + .output/public
 pnpm --filter @bc-solutions-coder/wallow-web start      # node .output/server/index.mjs
@@ -213,10 +213,7 @@ consumed by `@bc-solutions-coder/sdk/server` (`src/server/config.ts`):
 ## Run locally
 
 ```bash
-# build the SDK first, from the repo root
-pnpm --filter @bc-solutions-coder/sdk build
-
-# from apps/wallow-web
+# from apps/wallow-web — no SDK build needed, it resolves from src/ in-repo
 export OIDC_ISSUER=http://localhost:5001
 export OIDC_CLIENT_ID=wallow-web-client
 export OIDC_CLIENT_SECRET=wallow-web-secret

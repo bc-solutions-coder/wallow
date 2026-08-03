@@ -3,7 +3,7 @@
 The TypeScript **BFF auth SDK**: the browser never holds a token; a Node-side tunnel owns
 the OIDC session and proxies API calls with a bearer attached.
 
-## Four entry points (exports map → `dist/`)
+## Four entry points (exports map → `src/`; `dist/` only on publish)
 
 | Entry                                                | Runs in | What it is                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | ---------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -64,8 +64,11 @@ Errors are the reason most of it went: every operation's failure path now surfac
 
 - `pnpm --filter @bc-solutions-coder/sdk build` = **Vite library mode** (ES, every
   non-relative import externalized) + `tsc -p tsconfig.build.json` for declarations.
-  Apps typecheck against `dist/` — **build the SDK before dependent apps**. (No tsup;
-  the README is stale on this.)
+  Dependent apps do **not** need this build — in-repo the `exports` map above resolves to
+  `src/`, and `publishConfig.exports` swaps in the `dist/` map at pack time. The build exists
+  for publishing and for `pnpm check:exports` (publint + attw over a packed tarball), which is
+  why `pnpm build` precedes it in the `pnpm check` chain. (No tsup; the README is stale on
+  this.)
 - This package is the **template all new workspace packages mirror** (exports map,
   build scripts, node-only subpath separation).
 - Publishes to GitHub Packages on `sdk-v*` tags via `sdk-publish.yml`, independently of

@@ -15,8 +15,11 @@ app code.
 | `wallow-auth/` | 3002 | Auth frontend — login / signup / MFA screens.                            |
 | `minimal-app/` | 3010 | Smallest app wiring the core shared packages into a TanStack Start host. |
 
-**Build the SDK before touching an app** — apps typecheck against `packages/sdk/dist/`:
-`pnpm --filter @bc-solutions-coder/sdk build`.
+**No package build is needed before touching an app.** In-repo every `@bc-solutions-coder/*`
+exports map resolves to that package's `src/`, so an app typechecks, tests and builds straight
+from the sources — `dist/` is a publish artifact, swapped in at pack time by
+`publishConfig.exports`. What does need it is `pnpm check:exports` (publint + attw over a packed
+tarball), which is why `pnpm build` precedes it in the `pnpm check` chain.
 
 Per-app scripts (`pnpm --filter ./apps/<app> <script>`): `dev` (`vite dev`), `build`
 (`vite build` → `.output/server/index.mjs` + `.output/public`), `start`

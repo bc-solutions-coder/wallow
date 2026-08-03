@@ -471,8 +471,8 @@ pnpm backend:infra
 # Start the API (required by both frontends) plus the rest of the stack via Aspire
 pnpm backend
 
-# Build the SDK first (apps typecheck and run against dist/)
-pnpm --filter @bc-solutions-coder/sdk build
+# No package build is needed first — in-repo every @bc-solutions-coder/* exports map
+# resolves to that package's src/, so the apps run and typecheck straight from source.
 
 # Start both frontends together (wallow-web on 3000, wallow-auth on 3002)
 pnpm dev
