@@ -23,22 +23,28 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**"],
     },
-    // ^build, not nothing: every member resolves @bc-solutions-coder/* through
-    // an exports map pointing at dist/, so a dependency must be BUILT before a
-    // dependent can typecheck. It also folds the dependency's source into this
-    // task's hash, which is what stops a stale pass being replayed.
+    // ^build, not nothing - but NOT because anything resolves through dist/.
+    // In-repo every @bc-solutions-coder/* exports map points at src/ (dist/
+    // appears only in publishConfig.exports, applied at pack time), so these
+    // tasks read dependency SOURCE and run fine with no dist/ on disk at all.
+    // The dependency is here for the HASH: a task's key folds in the keys of
+    // the tasks it dependsOn, so ^build is what makes an edit under
+    // packages/*/src invalidate every dependent. Measured both ways - remove
+    // it, touch packages/sdk/src, and wallow-web:typecheck comes back FULL
+    // TURBO on the stale result.
     "typecheck": {
       "dependsOn": ["^build"],
     },
     "test": {
       "dependsOn": ["^build"],
     },
-    // ^build here too, which the old `pnpm --parallel ... dev` could not
-    // express: an app resolves its workspace dependencies through dist/, so
-    // `pnpm dev` on a fresh clone dies with UNRESOLVED_IMPORT. A persistent
-    // task may depend on others; it just may not be depended ON.
+    // No ^build here, deliberately, unlike the three above. dev is cache:
+    // false, so it has no hash to protect, and the resolution argument never
+    // applied: with all 11 packages/*/dist moved off disk, both apps still
+    // boot and serve, executing package source (a thrown stack lands in
+    // packages/sdk/src/server/config.ts). Depending on ^build would only make
+    // a fresh clone pay for 11 library builds that nothing then reads.
     "dev": {
-      "dependsOn": ["^build"],
       "cache": false,
       "persistent": true,
     },

@@ -101,9 +101,11 @@ pnpm check                   # format:check + lint + lint:tests + lint:manifests
 ```
 
 **Turbo owns `build`, `typecheck`, `test` and `dev`** (`turbo.jsonc`), with content-addressed
-caching in `.turbo/` — a warm `pnpm check` is ~13 s against ~64 s before. All four declare
-`dependsOn: ["^build"]`, because every member resolves `@bc-solutions-coder/*` through an exports
-map pointing at `dist/`. Lint, format, manifests, deps and `check:exports` stay root invocations
+caching in `.turbo/` — a warm `pnpm check` is ~13 s against ~64 s before. The first three declare
+`dependsOn: ["^build"]` for the **hash**, not for resolution: nothing resolves through `dist/`
+in-repo, but a task's key folds in the keys of the tasks it depends on, so without `^build` an edit
+under `packages/*/src` replays a stale pass in every dependent. `dev` declares no dependency — it
+caches nothing and reads package source. Lint, format, manifests, deps and `check:exports` stay root invocations
 outside turbo. Caching is **local only**; a self-hosted remote cache is filed, not built.
 
 Linting runs as **two passes over one partition** — `pnpm lint` and `pnpm lint:tests` together

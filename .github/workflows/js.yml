@@ -99,12 +99,13 @@ jobs:
       - name: Install Playwright browser
         run: pnpm --filter ./packages/testing exec playwright install --with-deps chromium
 
-      # One task graph, not three phases. Workspace members resolve
-      # @bc-solutions-coder/* packages through their package.json `exports`
-      # maps, which point at dist/, which is why typecheck and test both declare
-      # dependsOn ["^build"] in turbo.jsonc — a dependency is always built
-      # before a dependent reads its .d.ts files, so no standalone build step is
-      # needed ahead of them.
+      # One task graph, not three phases. No standalone "build packages first"
+      # step is needed, and not because typecheck reads a dependency's .d.ts:
+      # in-repo every @bc-solutions-coder/* exports map points at src/, so a
+      # dependent typechecks against source. typecheck and test declare
+      # dependsOn ["^build"] in turbo.jsonc for the cache key — it folds the
+      # dependency's hash into theirs, so a changed package cannot replay a
+      # stale downstream pass. Building is a side effect of that, not the point.
       #
       # Every task runs on every PR: unchanged packages restore from cache, so
       # the merge commit keeps the guarantee that everything actually passed.
