@@ -1,3 +1,7 @@
+import {
+  expectNavigationEscape,
+  navigationEscapes,
+} from "@bc-solutions-coder/testing/navigation-escape";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import { createPassthroughHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { page, userEvent } from "vitest/browser";
@@ -9,11 +13,13 @@ import { AcceptTermsScreen } from "./AcceptTermsScreen";
 /**
  * AcceptTerms: the ToS/Privacy consent gate (not the /terms document), plus its route.
  *
- * Real SDK over a faked fetch (sdk-harness): `harness.calls` staying empty
- * is the assertion that this screen issues no request at all.
+ * Real SDK over a faked fetch (sdk-harness): `harness.calls` staying empty is the
+ * assertion that this screen issues no request at all. The gate finishes by
+ * assigning `globalThis.location.href`, which the project's navigation guard
+ * vetoes — `expectNavigationEscape()` reads that hand-off back.
  *
- * `isSafeReturnUrl` is deliberately not applied — it passes only relative
- * paths, and every returnUrl arriving here is absolute.
+ * `isSafeReturnUrl` is deliberately not applied — it passes only relative paths,
+ * and every returnUrl arriving here is absolute.
  */
 
 /** The endpoint the gate hands the browser to — same-origin, via the passthrough proxy. */
@@ -26,45 +32,6 @@ const NAME = "Ada Lovelace";
 
 /** The client that started the flow: arrives as `client_id`, leaves as `clientId`. */
 const CLIENT_ID = "client-a";
-
-/**
- * NAVIGATION SEAM. The screen hands off with `globalThis.location.href = …`.
- * In a real browser `location` is `[Unforgeable]`, so `vi.stubGlobal` cannot
- * shadow it and the assignment navigates the Chromium iframe and tears the
- * runner down. Instead we listen for the Navigation API `navigate` event the
- * assignment fires, record `destination.url`, and `preventDefault()` it: a
- * hand-off records exactly one absolute URL, a declined submit records none.
- */
-interface NavigateEvent extends Event {
-  readonly destination: { readonly url: string };
-}
-interface NavigationLike {
-  addEventListener: (type: "navigate", handler: (event: NavigateEvent) => void) => void;
-  removeEventListener: (type: "navigate", handler: (event: NavigateEvent) => void) => void;
-}
-const navigationApi: NavigationLike = (globalThis as unknown as { navigation: NavigationLike })
-  .navigation;
-
-const navDisposers: Array<() => void> = [];
-
-/** Arm the navigation seam and return the array the hand-off URL lands in. */
-function captureHandoff(): { urls: string[] } {
-  const urls: string[] = [];
-  const handler = (event: NavigateEvent): void => {
-    urls.push(event.destination.url);
-    event.preventDefault();
-  };
-  navigationApi.addEventListener("navigate", handler);
-  navDisposers.push(() => {
-    navigationApi.removeEventListener("navigate", handler);
-  });
-  return { urls };
-}
-
-/** The pathname + query the screen built, recovered from the cancelled navigation. */
-function handoffTarget(urls: string[]): URL {
-  return new URL(urls[0]);
-}
 
 function renderScreen(props: Partial<Parameters<typeof AcceptTermsScreen>[0]> = {}) {
   return renderWithWallow(<AcceptTermsScreen returnUrl={RETURN_URL} {...props} />, { harness });
@@ -96,10 +63,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  navDisposers.forEach((dispose) => {
-    dispose();
-  });
-  navDisposers.length = 0;
   vi.unstubAllGlobals();
 });
 
@@ -207,38 +170,35 @@ describe("AcceptTermsScreen consent gating", () => {
     // The submit handler must re-check consent rather than trust the disabled
     // attribute, so the forced click has to be inert, not merely unclickable.
     const user = userEvent.setup();
-    const handoff = captureHandoff();
     renderScreen();
 
     await expect.element(page.getByTestId("accept-terms-submit")).toBeDisabled();
     await user.click(page.getByTestId("accept-terms-submit"), { force: true });
 
-    expect(handoff.urls).toEqual([]);
+    expect(navigationEscapes()).toEqual([]);
   });
 
   it("never sends acceptedTerms=false", async () => {
     // The endpoint does have an `acceptedTerms=false` branch, but this screen
     // must never drive it: declining means going nowhere, not a round trip.
     const user = userEvent.setup();
-    const handoff = captureHandoff();
     renderScreen();
 
     await toggleCheckbox(user, "accept-terms-checkbox");
     await user.click(page.getByTestId("accept-terms-submit"), { force: true });
 
     await expect.element(page.getByTestId("accept-terms-submit")).toBeDisabled();
-    expect(handoff.urls).toEqual([]);
+    expect(navigationEscapes()).toEqual([]);
   });
 
   it("offers a way out that does not create an account", async () => {
     // No testid on this footer link, so it is asserted by role + href.
-    const handoff = captureHandoff();
     renderScreen();
 
     await expect
       .element(page.getByRole("link", { name: /back to sign in/iu }))
       .toHaveAttribute("href", "/login");
-    expect(handoff.urls).toEqual([]);
+    expect(navigationEscapes()).toEqual([]);
     // Nothing to clean up client-side: no user was created, and the
     // ExternalLoginState cookie expires on its own.
     expect(harness.calls).toEqual([]);
@@ -292,16 +252,13 @@ describe("AcceptTermsScreen accept branch", () => {
     // top-level navigation makes the browser attach the SameSite=Lax
     // ExternalLoginState cookie that carries the user's identity.
     const user = userEvent.setup();
-    const handoff = captureHandoff();
     renderScreen();
 
     await acceptBoth(user);
     await user.click(page.getByTestId("accept-terms-submit"));
 
-    await vi.waitFor(() => {
-      expect(handoff.urls).toHaveLength(1);
-    });
-    const target = handoffTarget(handoff.urls);
+    const escape = await expectNavigationEscape();
+    const target = new URL(escape.url);
     expect(target.pathname + target.search).toBe(
       `${ENDPOINT}?acceptedTerms=true&returnUrl=${encodeURIComponent(RETURN_URL)}`,
     );
@@ -314,19 +271,16 @@ describe("AcceptTermsScreen accept branch", () => {
     // no browser-resolvable API origin to prepend anyway: WALLOW_API_INTERNAL_URL
     // is a server-side address.
     const user = userEvent.setup();
-    const handoff = captureHandoff();
     renderScreen();
 
     await acceptBoth(user);
     await user.click(page.getByTestId("accept-terms-submit"));
 
-    await vi.waitFor(() => {
-      expect(handoff.urls).toHaveLength(1);
-    });
-    const target = handoffTarget(handoff.urls);
+    const escape = await expectNavigationEscape();
+    const target = new URL(escape.url);
     expect(target.pathname).toBe(ENDPOINT);
     expect(target.origin).toBe(globalThis.location.origin);
-    expect(handoff.urls[0]).not.toContain("localhost:5001");
+    expect(escape.url).not.toContain("localhost:5001");
   });
 
   it("threads the flow's real absolute returnUrl through untouched", async () => {
@@ -334,16 +288,13 @@ describe("AcceptTermsScreen accept branch", () => {
     // so a screen wiring `isSafeReturnUrl` in would refuse the only shape real
     // traffic has. The API re-validates the value before honouring it.
     const user = userEvent.setup();
-    const handoff = captureHandoff();
     renderScreen({ returnUrl: "https://app.example.com/connect/authorize?client_id=web" });
 
     await acceptBoth(user);
     await user.click(page.getByTestId("accept-terms-submit"));
 
-    await vi.waitFor(() => {
-      expect(handoff.urls).toHaveLength(1);
-    });
-    const target = handoffTarget(handoff.urls);
+    const escape = await expectNavigationEscape();
+    const target = new URL(escape.url);
     expect(target.pathname + target.search).toBe(
       `${ENDPOINT}?acceptedTerms=true&returnUrl=${encodeURIComponent(
         "https://app.example.com/connect/authorize?client_id=web",
@@ -356,16 +307,13 @@ describe("AcceptTermsScreen accept branch", () => {
     // check, so the fallback means "send me home" and the API decides where
     // home is.
     const user = userEvent.setup();
-    const handoff = captureHandoff();
     renderScreen({ returnUrl: undefined });
 
     await acceptBoth(user);
     await user.click(page.getByTestId("accept-terms-submit"));
 
-    await vi.waitFor(() => {
-      expect(handoff.urls).toHaveLength(1);
-    });
-    const target = handoffTarget(handoff.urls);
+    const escape = await expectNavigationEscape();
+    const target = new URL(escape.url);
     expect(target.pathname + target.search).toBe(`${ENDPOINT}?acceptedTerms=true&returnUrl=%2F`);
   });
 
@@ -376,16 +324,13 @@ describe("AcceptTermsScreen accept branch", () => {
     // which fails to parse and lands on the !acceptedTerms branch.
     const hostile = "https://app.example.com/cb&acceptedTerms=false";
     const user = userEvent.setup();
-    const handoff = captureHandoff();
     renderScreen({ returnUrl: hostile });
 
     await acceptBoth(user);
     await user.click(page.getByTestId("accept-terms-submit"));
 
-    await vi.waitFor(() => {
-      expect(handoff.urls).toHaveLength(1);
-    });
-    const target = handoffTarget(handoff.urls);
+    const escape = await expectNavigationEscape();
+    const target = new URL(escape.url);
     const href: string = target.pathname + target.search;
     expect(href).toBe(`${ENDPOINT}?acceptedTerms=true&returnUrl=${encodeURIComponent(hostile)}`);
     expect(href).not.toContain("acceptedTerms=false");
@@ -401,7 +346,6 @@ describe("AcceptTermsScreen accept branch", () => {
     document.cookie = decoy;
     const fetchSpy = vi.fn();
     const user = userEvent.setup();
-    const handoff = captureHandoff();
     vi.stubGlobal("fetch", fetchSpy);
     renderScreen();
 
@@ -409,10 +353,8 @@ describe("AcceptTermsScreen accept branch", () => {
     await user.click(page.getByTestId("accept-terms-submit"));
 
     // Anchor: the flow really ran, so the negatives below are not vacuous.
-    await vi.waitFor(() => {
-      expect(handoff.urls).toHaveLength(1);
-    });
-    const target = handoffTarget(handoff.urls);
+    const escape = await expectNavigationEscape();
+    const target = new URL(escape.url);
     const href: string = target.pathname + target.search;
     expect(href).toBe(`${ENDPOINT}?acceptedTerms=true&returnUrl=${encodeURIComponent(RETURN_URL)}`);
     expect(document.cookie).toContain(decoy);
@@ -485,16 +427,13 @@ describe("AcceptTermsScreen error mapping", () => {
     // The bounce-back is a second chance: the error block must not replace the
     // gate, and the echoed returnUrl rides through unchanged.
     const user = userEvent.setup();
-    const handoff = captureHandoff();
     renderScreen({ error: "terms_required" });
 
     await acceptBoth(user);
     await user.click(page.getByTestId("accept-terms-submit"));
 
-    await vi.waitFor(() => {
-      expect(handoff.urls).toHaveLength(1);
-    });
-    const target = handoffTarget(handoff.urls);
+    const escape = await expectNavigationEscape();
+    const target = new URL(escape.url);
     expect(target.pathname + target.search).toBe(
       `${ENDPOINT}?acceptedTerms=true&returnUrl=${encodeURIComponent(RETURN_URL)}`,
     );
@@ -514,16 +453,13 @@ describe("AcceptTermsScreen error mapping", () => {
 describe("AcceptTermsScreen client_id relay", () => {
   it("echoes the flow's client id back to complete-external-registration", async () => {
     const user = userEvent.setup();
-    const handoff = captureHandoff();
     renderScreen({ clientId: CLIENT_ID });
 
     await acceptBoth(user);
     await user.click(page.getByTestId("accept-terms-submit"));
 
-    await vi.waitFor(() => {
-      expect(handoff.urls).toHaveLength(1);
-    });
-    const target = handoffTarget(handoff.urls);
+    const escape = await expectNavigationEscape();
+    const target = new URL(escape.url);
     // Asserted by name rather than by pinning the whole query string, so
     // parameter order stays the implementation's business.
     expect(target.searchParams.get("clientId")).toBe(CLIENT_ID);
@@ -536,16 +472,13 @@ describe("AcceptTermsScreen client_id relay", () => {
     // an unknown client, whose allow list is the AuthUrl origin alone, and would
     // then refuse the very returnUrl the user is mid-journey to.
     const user = userEvent.setup();
-    const handoff = captureHandoff();
     renderScreen({ clientId: undefined });
 
     await acceptBoth(user);
     await user.click(page.getByTestId("accept-terms-submit"));
 
-    await vi.waitFor(() => {
-      expect(handoff.urls).toHaveLength(1);
-    });
-    const target = handoffTarget(handoff.urls);
+    const escape = await expectNavigationEscape();
+    const target = new URL(escape.url);
     expect(target.searchParams.has("clientId")).toBe(false);
     expect(target.pathname + target.search).toBe(
       `${ENDPOINT}?acceptedTerms=true&returnUrl=${encodeURIComponent(RETURN_URL)}`,
@@ -558,16 +491,13 @@ describe("AcceptTermsScreen client_id relay", () => {
     // consent into a terms_required bounce.
     const hostile = "client-a&acceptedTerms=false";
     const user = userEvent.setup();
-    const handoff = captureHandoff();
     renderScreen({ clientId: hostile });
 
     await acceptBoth(user);
     await user.click(page.getByTestId("accept-terms-submit"));
 
-    await vi.waitFor(() => {
-      expect(handoff.urls).toHaveLength(1);
-    });
-    const target = handoffTarget(handoff.urls);
+    const escape = await expectNavigationEscape();
+    const target = new URL(escape.url);
     expect(target.searchParams.get("clientId")).toBe(hostile);
     const href: string = target.pathname + target.search;
     expect(href).not.toContain("acceptedTerms=false");
@@ -607,7 +537,6 @@ describe("/accept-terms route", () => {
 
   it("threads returnUrl, email and name out of the real callback redirect", async () => {
     const user = userEvent.setup();
-    const handoff = captureHandoff();
     renderRouteAt(callbackRedirectUrl());
 
     await expect.element(page.getByTestId("accept-terms-heading")).toBeInTheDocument();
@@ -617,10 +546,8 @@ describe("/accept-terms route", () => {
     await acceptBoth(user);
     await user.click(page.getByTestId("accept-terms-submit"));
 
-    await vi.waitFor(() => {
-      expect(handoff.urls).toHaveLength(1);
-    });
-    const target = handoffTarget(handoff.urls);
+    const escape = await expectNavigationEscape();
+    const target = new URL(escape.url);
     expect(target.pathname + target.search).toBe(
       `${ENDPOINT}?acceptedTerms=true&returnUrl=${encodeURIComponent(RETURN_URL)}`,
     );
@@ -647,7 +574,6 @@ describe("/accept-terms route", () => {
 
   it("threads client_id out of the callback redirect into the handoff", async () => {
     const user = userEvent.setup();
-    const handoff = captureHandoff();
     renderRouteAt(`${callbackRedirectUrl()}&client_id=${encodeURIComponent(CLIENT_ID)}`);
 
     await expect.element(page.getByTestId("accept-terms-heading")).toBeInTheDocument();
@@ -655,10 +581,8 @@ describe("/accept-terms route", () => {
     await acceptBoth(user);
     await user.click(page.getByTestId("accept-terms-submit"));
 
-    await vi.waitFor(() => {
-      expect(handoff.urls).toHaveLength(1);
-    });
-    const target = handoffTarget(handoff.urls);
+    const escape = await expectNavigationEscape();
+    const target = new URL(escape.url);
     expect(target.searchParams.get("clientId")).toBe(CLIENT_ID);
     expect(target.searchParams.get("returnUrl")).toBe(RETURN_URL);
   });
@@ -668,7 +592,6 @@ describe("/accept-terms route", () => {
     // arrives as the NUMBER 42. Relaying it would name a client that cannot
     // exist, and the endpoint fails an unknown client closed.
     const user = userEvent.setup();
-    const handoff = captureHandoff();
     renderRouteAt(`${callbackRedirectUrl()}&client_id=42`);
 
     await expect.element(page.getByTestId("accept-terms-heading")).toBeInTheDocument();
@@ -676,10 +599,8 @@ describe("/accept-terms route", () => {
     await acceptBoth(user);
     await user.click(page.getByTestId("accept-terms-submit"));
 
-    await vi.waitFor(() => {
-      expect(handoff.urls).toHaveLength(1);
-    });
-    const target = handoffTarget(handoff.urls);
+    const escape = await expectNavigationEscape();
+    const target = new URL(escape.url);
     expect(target.searchParams.has("clientId")).toBe(false);
   });
 

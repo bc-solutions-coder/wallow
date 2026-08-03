@@ -1,8 +1,12 @@
+import {
+  expectNavigationEscape,
+  navigationEscapes,
+} from "@bc-solutions-coder/testing/navigation-escape";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import { createPassthroughHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Route as loginRoute } from "@app/routes/login";
 import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
@@ -145,53 +149,19 @@ function loginCalls() {
 }
 
 /**
- * The ticket hand-off is `globalThis.location.href = …`, which in real Chromium
- * would navigate the runner iframe away. `location` is `[Unforgeable]` and
- * cannot be stubbed, so the Navigation API's `navigate` event is the seam: it
- * records the destination and cancels it.
- */
-interface NavigateEvent extends Event {
-  readonly destination: { readonly url: string };
-}
-interface NavigationLike {
-  addEventListener: (type: "navigate", handler: (event: NavigateEvent) => void) => void;
-  removeEventListener: (type: "navigate", handler: (event: NavigateEvent) => void) => void;
-}
-const navigationApi: NavigationLike = (globalThis as unknown as { navigation: NavigationLike })
-  .navigation;
-
-/** Listeners registered by `captureHandoff`, torn down in `afterEach`. */
-const navDisposers: Array<() => void> = [];
-
-/** Arm the navigation seam and return the array the hand-off URL lands in. */
-function captureHandoff(): string[] {
-  const urls: string[] = [];
-  const handler = (event: NavigateEvent): void => {
-    urls.push(event.destination.url);
-    // Cancel it: a live navigation tears the Chromium runner down.
-    event.preventDefault();
-  };
-  navigationApi.addEventListener("navigate", handler);
-  navDisposers.push(() => {
-    navigationApi.removeEventListener("navigate", handler);
-  });
-  return urls;
-}
-
-/** Every hand-off URL this test recorded, newest last. Armed in `beforeEach`. */
-let handoffs: string[];
-
-/**
- * Wait for the ticket hand-off and return its target, parsed. The real
- * `buildExchangeTicketUrl` runs against the `""` origin, so a correct screen
- * produces a SAME-ORIGIN absolute URL.
+ * Wait for the ticket hand-off — `globalThis.location.href = …`, which the
+ * project's navigation guard vetoes and records — and return its target, parsed.
+ * The real `buildExchangeTicketUrl` runs against the `""` origin, so a correct
+ * screen produces a SAME-ORIGIN absolute URL.
+ *
+ * A succeeded sign-in always ends here, so a test whose subject is the REQUEST
+ * awaits it too and drops the result: the hand-off is deliberate, and one left
+ * unread fails that test in the project's `afterEach`.
  */
 async function awaitHandoff(): Promise<URL> {
-  await vi.waitFor(() => {
-    expect(handoffs).toHaveLength(1);
-  });
+  const escape = await expectNavigationEscape();
 
-  return new URL(handoffs[0]);
+  return new URL(escape.url);
 }
 
 /** An ISO-8601 `DateTimeOffset` N days from now, as the grace deadline arrives. */
@@ -246,7 +216,6 @@ async function toggleCheckbox(
 
 beforeEach(() => {
   vi.clearAllMocks();
-  handoffs = captureHandoff();
   harness = createPassthroughHarness();
   respondWithLogin({ succeeded: true, signInTicket: TICKET });
   harness.respond((call) => {
@@ -265,13 +234,6 @@ beforeEach(() => {
     // leaves the fork's chrome in place.
     return new Response(null, { status: NOT_FOUND_STATUS });
   });
-});
-
-afterEach(() => {
-  navDisposers.forEach((dispose) => {
-    dispose();
-  });
-  navDisposers.length = 0;
 });
 
 describe("LoginScreen tab shell", () => {
@@ -528,6 +490,7 @@ describe("LoginScreen password tab", () => {
       password: PASSWORD,
       rememberMe: false,
     });
+    await awaitHandoff();
   });
 
   it("submits rememberMe true once the box is checked", async () => {
@@ -545,6 +508,7 @@ describe("LoginScreen password tab", () => {
       password: PASSWORD,
       rememberMe: true,
     });
+    await awaitHandoff();
   });
 
   it("disables the submit button while the login is in flight", async () => {
@@ -692,7 +656,7 @@ describe("LoginScreen password failures", () => {
 
     await expect.element(page.getByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
     expect(mocks.navigate).not.toHaveBeenCalled();
-    expect(handoffs).toHaveLength(0);
+    expect(navigationEscapes()).toEqual([]);
   });
 
   it("does not accept a stringly-typed succeeded flag", async () => {
@@ -705,7 +669,7 @@ describe("LoginScreen password failures", () => {
     await submitCredentials(user);
 
     await expect.element(page.getByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
-    expect(handoffs).toHaveLength(0);
+    expect(navigationEscapes()).toEqual([]);
   });
 });
 
@@ -726,8 +690,8 @@ describe("LoginScreen mfaRequired branch", () => {
       });
     });
     // The ticket exchange is the screen's only writer of `location.href`, so an
-    // empty `handoffs` is the browser-true "no full page load happened".
-    expect(handoffs).toHaveLength(0);
+    // empty escape record is the browser-true "no full page load happened".
+    expect(navigationEscapes()).toEqual([]);
   });
 
   it("hands off to a bare /mfa/challenge when there is no returnUrl", async () => {
@@ -756,7 +720,7 @@ describe("LoginScreen mfaRequired branch", () => {
       });
     });
     expect(mocks.navigate).not.toHaveBeenCalledWith({ href: ERROR_HREF });
-    expect(handoffs).toHaveLength(0);
+    expect(navigationEscapes()).toEqual([]);
   });
 
   it("encodes the returnUrl so it cannot smuggle a second query key", async () => {
@@ -829,7 +793,7 @@ describe("LoginScreen mfaEnrollmentRequired branch", () => {
     await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalled();
     });
-    expect(handoffs).toHaveLength(0);
+    expect(navigationEscapes()).toEqual([]);
   });
 });
 
@@ -857,7 +821,7 @@ describe("LoginScreen MFA grace period", () => {
     await expect.element(page.getByTestId("login-mfa-enrollment-banner")).toBeInTheDocument();
     await expect.element(page.getByTestId("login-signed-in")).toBeInTheDocument();
     expect(mocks.navigate).not.toHaveBeenCalled();
-    expect(handoffs).toHaveLength(0);
+    expect(navigationEscapes()).toEqual([]);
   });
 
   it("names the grace deadline in the banner", async () => {
@@ -949,7 +913,7 @@ describe("LoginScreen sign-in ticket exchange", () => {
     const target: URL = await awaitHandoff();
     expect(target.origin).toBe(globalThis.location.origin);
     expect(target.pathname).toBe(EXCHANGE_PATH);
-    expect(handoffs[0]).not.toContain(API_ORIGIN);
+    expect(target.href).not.toContain(API_ORIGIN);
   });
 
   it("refuses an absolute returnUrl before exchanging the ticket", async () => {
@@ -963,7 +927,7 @@ describe("LoginScreen sign-in ticket exchange", () => {
     await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({ href: ERROR_HREF });
     });
-    expect(handoffs).toHaveLength(0);
+    expect(navigationEscapes()).toEqual([]);
   });
 
   it("refuses a protocol-relative returnUrl", async () => {
@@ -976,7 +940,7 @@ describe("LoginScreen sign-in ticket exchange", () => {
     await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({ href: ERROR_HREF });
     });
-    expect(handoffs).toHaveLength(0);
+    expect(navigationEscapes()).toEqual([]);
   });
 
   it("shows the signed-in state when there is no returnUrl", async () => {
@@ -987,7 +951,7 @@ describe("LoginScreen sign-in ticket exchange", () => {
 
     await expect.element(page.getByTestId("login-signed-in")).toBeInTheDocument();
     expect(mocks.navigate).not.toHaveBeenCalled();
-    expect(handoffs).toHaveLength(0);
+    expect(navigationEscapes()).toEqual([]);
   });
 
   it("treats an empty returnUrl as no returnUrl, not as an attack", async () => {
@@ -1001,7 +965,7 @@ describe("LoginScreen sign-in ticket exchange", () => {
 
     await expect.element(page.getByTestId("login-signed-in")).toBeInTheDocument();
     expect(mocks.navigate).not.toHaveBeenCalledWith({ href: ERROR_HREF });
-    expect(handoffs).toHaveLength(0);
+    expect(navigationEscapes()).toEqual([]);
   });
 
   it("does not leave the sign-in button spinning after it refuses", async () => {

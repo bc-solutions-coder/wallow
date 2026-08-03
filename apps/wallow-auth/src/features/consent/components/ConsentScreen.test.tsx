@@ -1,3 +1,7 @@
+import {
+  expectNavigationEscape,
+  navigationEscapes,
+} from "@bc-solutions-coder/testing/navigation-escape";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import {
   createPassthroughHarness,
@@ -6,7 +10,7 @@ import {
 } from "@bc-solutions-coder/testing/sdk-harness";
 import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Route as consentRoute } from "@app/routes/consent";
 import { ConsentScreen } from "./ConsentScreen";
@@ -89,54 +93,17 @@ function requestedScopesParameter(): string | null {
 }
 
 /**
- * The navigation seam. The screen hands off with `globalThis.location.href =
- * …`, and `location` is `[Unforgeable]` in a real browser, so it cannot be
- * stubbed: instead the Navigation API `navigate` event that assignment fires is
- * recorded and CANCELLED, making the URL observable without tearing the Chromium
- * runner down. A hand-off appends exactly one absolute URL; a refusal appends
- * nothing.
+ * Wait for the hand-off the screen makes with `globalThis.location.href = …` —
+ * vetoed and recorded by the project's navigation guard — and return it parsed.
  */
-interface NavigateEvent extends Event {
-  readonly destination: { readonly url: string };
-}
-interface NavigationLike {
-  addEventListener: (type: "navigate", handler: (event: NavigateEvent) => void) => void;
-  removeEventListener: (type: "navigate", handler: (event: NavigateEvent) => void) => void;
-}
-const navigationApi: NavigationLike = (globalThis as unknown as { navigation: NavigationLike })
-  .navigation;
+async function awaitHandoff(): Promise<URL> {
+  const escape = await expectNavigationEscape();
 
-/** Listeners registered by `captureHandoff`, torn down in `afterEach`. */
-const navDisposers: Array<() => void> = [];
-
-/** Arm the navigation seam and return the array the submit URL lands in. */
-function captureHandoff(): { urls: string[] } {
-  const urls: string[] = [];
-  const handler = (event: NavigateEvent): void => {
-    urls.push(event.destination.url);
-    event.preventDefault();
-  };
-  navigationApi.addEventListener("navigate", handler);
-  navDisposers.push(() => {
-    navigationApi.removeEventListener("navigate", handler);
-  });
-  return { urls };
-}
-
-/** The absolute URL the screen handed off to, recovered from the cancelled navigation. */
-function handoffUrl(urls: readonly string[]): URL {
-  const [recorded] = urls;
-  if (recorded === undefined) {
-    throw new Error("expected the screen to hand off exactly one navigation, but it made none");
-  }
-
-  return new URL(recorded);
+  return new URL(escape.url);
 }
 
 /** That hand-off's path + query — the part `buildConsentSubmitUrl` composes. */
-function submitTarget(urls: readonly string[]): string {
-  const url: URL = handoffUrl(urls);
-
+function submitTarget(url: URL): string {
   return `${url.pathname}${url.search}`;
 }
 
@@ -177,13 +144,6 @@ beforeEach(() => {
   // consent prompt, which most tests below take as their starting point.
   harness = createPassthroughHarness();
   harness.resolveJson(consentInfo());
-});
-
-afterEach(() => {
-  navDisposers.forEach((dispose) => {
-    dispose();
-  });
-  navDisposers.length = 0;
 });
 
 describe("ConsentScreen — loading", () => {
@@ -370,7 +330,6 @@ describe("ConsentScreen — the consent prompt", () => {
 describe("ConsentScreen — approve", () => {
   it("navigates to the consent-granted URL the builder returns", async () => {
     const user = userEvent.setup();
-    const handoff = captureHandoff();
 
     await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
     await user.click(page.getByTestId("consent-approve"));
@@ -378,15 +337,12 @@ describe("ConsentScreen — approve", () => {
     // A FULL navigation, not `router.navigate`: `/connect/authorize` is served
     // by the passthrough reverse proxy, not by the client-side route tree — the
     // router has no route for it and would 404 in-app.
-    await vi.waitFor(() => {
-      expect(handoff.urls).toHaveLength(1);
-    });
-    expect(submitTarget(handoff.urls)).toBe(GRANTED_TARGET);
+    const target: URL = await awaitHandoff();
+    expect(submitTarget(target)).toBe(GRANTED_TARGET);
   });
 
   it("builds the URL same-origin, granting consent", async () => {
     const user = userEvent.setup();
-    const handoff = captureHandoff();
 
     await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
     await user.click(page.getByTestId("consent-approve"));
@@ -394,11 +350,9 @@ describe("ConsentScreen — approve", () => {
     // The same-origin hand-off, pinned explicitly: this app has no
     // browser-reachable API origin to prepend even if it wanted one — the only
     // API URL it knows is a server-side internal address.
-    await vi.waitFor(() => {
-      expect(handoff.urls).toHaveLength(1);
-    });
-    expect(handoffUrl(handoff.urls).origin).toBe(globalThis.location.origin);
-    expect(submitTarget(handoff.urls)).toBe(GRANTED_TARGET);
+    const target: URL = await awaitHandoff();
+    expect(target.origin).toBe(globalThis.location.origin);
+    expect(submitTarget(target)).toBe(GRANTED_TARGET);
   });
 
   it("appends to a returnUrl that has no query string of its own", async () => {
@@ -406,15 +360,12 @@ describe("ConsentScreen — approve", () => {
     // concatenation instead of calling the builder cannot pass by only ever
     // being tested with a `?`-bearing returnUrl.
     const user = userEvent.setup();
-    const handoff = captureHandoff();
 
     await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl="/connect/authorize" />);
     await user.click(page.getByTestId("consent-approve"));
 
-    await vi.waitFor(() => {
-      expect(handoff.urls).toHaveLength(1);
-    });
-    expect(submitTarget(handoff.urls)).toBe("/connect/authorize?consent_granted=true");
+    const target: URL = await awaitHandoff();
+    expect(submitTarget(target)).toBe("/connect/authorize?consent_granted=true");
   });
 
   it("falls back to the root when the link carries no returnUrl", async () => {
@@ -422,92 +373,74 @@ describe("ConsentScreen — approve", () => {
     // There is nothing hostile about a link that omits it, so the guard must not
     // fire and the builder maps `undefined` to the `/` fallback.
     const user = userEvent.setup();
-    const handoff = captureHandoff();
 
     await renderWithClient(<ConsentScreen clientId={CLIENT_ID} />);
     await user.click(page.getByTestId("consent-approve"));
 
-    await vi.waitFor(() => {
-      expect(handoff.urls).toHaveLength(1);
-    });
-    expect(submitTarget(handoff.urls)).toBe("/?consent_granted=true");
+    const target: URL = await awaitHandoff();
+    expect(submitTarget(target)).toBe("/?consent_granted=true");
     expect(mocks.navigate).not.toHaveBeenCalled();
   });
 
   it("does not deny while approving", async () => {
     const user = userEvent.setup();
-    const handoff = captureHandoff();
 
     await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
     await user.click(page.getByTestId("consent-approve"));
 
     // The two handlers differ by one boolean, so a mis-wired button is invisible
     // to a test that only checks that SOME navigation happened.
-    await vi.waitFor(() => {
-      expect(handoff.urls).toHaveLength(1);
-    });
-    expect(submitTarget(handoff.urls)).toBe(GRANTED_TARGET);
-    expect(submitTarget(handoff.urls)).not.toContain("consent_denied");
+    const target: URL = await awaitHandoff();
+    expect(submitTarget(target)).toBe(GRANTED_TARGET);
+    expect(submitTarget(target)).not.toContain("consent_denied");
   });
 });
 
 describe("ConsentScreen — deny", () => {
   it("navigates to the consent-denied URL the builder returns", async () => {
     const user = userEvent.setup();
-    const handoff = captureHandoff();
 
     await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
     await user.click(page.getByTestId("consent-deny"));
 
-    await vi.waitFor(() => {
-      expect(handoff.urls).toHaveLength(1);
-    });
-    expect(submitTarget(handoff.urls)).toBe(DENIED_TARGET);
+    const target: URL = await awaitHandoff();
+    expect(submitTarget(target)).toBe(DENIED_TARGET);
   });
 
   it("builds the URL same-origin, refusing consent", async () => {
     const user = userEvent.setup();
-    const handoff = captureHandoff();
 
     await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
     await user.click(page.getByTestId("consent-deny"));
 
-    await vi.waitFor(() => {
-      expect(handoff.urls).toHaveLength(1);
-    });
-    expect(handoffUrl(handoff.urls).origin).toBe(globalThis.location.origin);
-    expect(submitTarget(handoff.urls)).toBe(DENIED_TARGET);
+    const target: URL = await awaitHandoff();
+    expect(target.origin).toBe(globalThis.location.origin);
+    expect(submitTarget(target)).toBe(DENIED_TARGET);
   });
 
   it("reports the denial to the authorize endpoint rather than staying put", async () => {
     // A deny that silently did nothing strands the user on a dead consent screen
     // and leaves the relying party's authorize request hanging.
     const user = userEvent.setup();
-    const handoff = captureHandoff();
 
     await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
     await user.click(page.getByTestId("consent-deny"));
 
-    await vi.waitFor(() => {
-      expect(handoff.urls).toHaveLength(1);
-    });
-    expect(submitTarget(handoff.urls)).toBe(DENIED_TARGET);
+    const target: URL = await awaitHandoff();
+    expect(submitTarget(target)).toBe(DENIED_TARGET);
   });
 
   it("does not grant while denying", async () => {
     const user = userEvent.setup();
-    const handoff = captureHandoff();
 
     await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
     await user.click(page.getByTestId("consent-deny"));
 
     // The side that matters: a Deny wired to `granted: true` authorizes the
     // client the user just refused.
-    await vi.waitFor(() => {
-      expect(handoff.urls).toHaveLength(1);
-    });
-    expect(submitTarget(handoff.urls)).toBe(DENIED_TARGET);
-    expect(submitTarget(handoff.urls)).not.toContain("consent_granted");
+    const target: URL = await awaitHandoff();
+    expect(submitTarget(target)).toBe(DENIED_TARGET);
+    expect(submitTarget(target)).not.toContain("consent_granted");
   });
 });
 
@@ -553,8 +486,6 @@ describe("ConsentScreen — the open-redirect guard", () => {
     });
 
     it(`never navigates to the unsafe returnUrl ${JSON.stringify(returnUrl)}`, async () => {
-      const handoff = captureHandoff();
-
       await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={returnUrl} />);
 
       await vi.waitFor(() => {
@@ -562,7 +493,7 @@ describe("ConsentScreen — the open-redirect guard", () => {
       });
 
       // Whatever else happens, the browser must not be sent to any submit URL.
-      expect(handoff.urls).toEqual([]);
+      expect(navigationEscapes()).toEqual([]);
     });
 
     it(`does not fetch consent info for returnUrl ${JSON.stringify(returnUrl)}`, async () => {
@@ -723,7 +654,6 @@ function renderRouteAt(url: string) {
 describe("/consent route", () => {
   it("renders the real screen in place of the pre-registration placeholder", async () => {
     const user = userEvent.setup();
-    const handoff = captureHandoff();
 
     await renderRouteAt(
       `/consent?client_id=${CLIENT_ID}&returnUrl=${encodeURIComponent(RETURN_URL)}`,
@@ -739,10 +669,8 @@ describe("/consent route", () => {
     // it would send the user to the "/" fallback instead.
     await user.click(page.getByTestId("consent-approve"));
 
-    await vi.waitFor(() => {
-      expect(handoff.urls).toHaveLength(1);
-    });
-    expect(submitTarget(handoff.urls)).toBe(GRANTED_TARGET);
+    const target: URL = await awaitHandoff();
+    expect(submitTarget(target)).toBe(GRANTED_TARGET);
   });
 
   it("reads returnUrl and client_id off the query string", () => {

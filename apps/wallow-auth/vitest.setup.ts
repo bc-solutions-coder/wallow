@@ -2,11 +2,21 @@
 
 /**
  * Browser-project setup: give every component spec the CSS the app itself
- * serves, compiled by the `wallowStyles()` plugin this project adds
- * (Wallow-8ytl — before it, this app's browser project loaded NO stylesheet at
- * all).
+ * serves, compiled by the `wallowStyles()` plugin this project adds, and a
+ * navigation guard that turns a leaked hand-off into a failing assertion.
  *
- * Two halves, exactly as the running app has them:
+ * The guard is installed HERE rather than imported per spec because the spec that
+ * leaks is not the spec that reports: an unvetoed cross-document navigation drops
+ * the iframe, and Vitest surfaces the error against whichever file it was loading
+ * next. A guard a file has to opt into cannot catch the file that forgot. Only
+ * CROSS-document hand-offs are vetoed, so this app's real router keeps routing.
+ *
+ * This app's screens hand the browser off for real to finish an OIDC flow, so a
+ * spec asserting one of those calls `expectNavigationEscape()` from the same
+ * entry: it reads the hand-off out of the guard's own record, which is what keeps
+ * the `afterEach` below from failing a test that meant to navigate.
+ *
+ * The stylesheet has two halves, exactly as the running app has them:
  *
  *   - ./vitest-styles.css — the compiled Tailwind utilities. Not cosmetic: a ui
  *     control gets its BOX from a Tailwind utility in its recipe, so with no
@@ -28,5 +38,17 @@
  * the optimizer to discover.
  */
 
+import {
+  assertNoNavigationEscape,
+  installNavigationEscapeGuard,
+} from "@bc-solutions-coder/testing/navigation-escape";
+import { afterEach } from "vitest";
+
 import "./vitest-styles.css";
 import "virtual:wallow-theme.css";
+
+installNavigationEscapeGuard();
+
+afterEach(() => {
+  assertNoNavigationEscape();
+});

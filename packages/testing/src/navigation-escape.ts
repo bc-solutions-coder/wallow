@@ -19,6 +19,8 @@
  * routing in exchange for nothing.
  */
 
+import { vi } from "vitest";
+
 /** A hand-off the guard vetoed: where the runner was asked to go. */
 export interface NavigationEscape {
   /** Absolute URL of the destination, as the Navigation API reported it. */
@@ -89,6 +91,76 @@ export function navigationEscapes(): readonly NavigationEscape[] {
 /** Forget every recorded escape. */
 export function clearNavigationEscapes(): void {
   escapes.length = 0;
+}
+
+/** Options shared by the consuming helpers. */
+export interface ConsumeNavigationEscapeOptions {
+  /** How long to wait for the hand-off to arrive, in ms. */
+  readonly timeout?: number;
+}
+
+/**
+ * The opening words of the failure raised when a spec asserted a hand-off that
+ * never happened. Distinct from `NAVIGATION_ESCAPE_MESSAGE`, which is the
+ * opposite defect.
+ */
+export const NO_NAVIGATION_ESCAPE_MESSAGE = "No navigation escaped the test iframe";
+
+/**
+ * Wait for the guard to veto a hand-off, then take the entries it holds at that
+ * moment out of the shared record and return them.
+ *
+ * This is how a spec asserts a hand-off it MEANT to provoke. Registering a second
+ * `navigate` listener beside the guard's does not work: both fire, the spec is
+ * satisfied, and the project's `afterEach` still fails the test over an escape
+ * nobody told it was expected. Consuming is also why this is not
+ * `clearNavigationEscapes()` — a spec that forgets to call it leaves the escape
+ * in the record, so the `afterEach` still fails, and nothing is suppressed by
+ * being ignored.
+ *
+ * Only what was READ is removed, by count rather than by emptying the array, so a
+ * second hand-off arriving while this awaited is still there for the `afterEach`.
+ */
+export async function consumeNavigationEscapes(
+  options: ConsumeNavigationEscapeOptions = {},
+): Promise<readonly NavigationEscape[]> {
+  await vi.waitFor(
+    () => {
+      if (escapes.length === 0) {
+        throw new Error(
+          `${NO_NAVIGATION_ESCAPE_MESSAGE}. Nothing this test did handed the browser off, so there was nothing to assert — check that the action under test actually runs, and that it navigates cross-document rather than through the router.`,
+        );
+      }
+    },
+    options.timeout === undefined ? undefined : { timeout: options.timeout },
+  );
+
+  const consumed: NavigationEscape[] = [...escapes];
+  escapes.splice(0, consumed.length);
+
+  return consumed;
+}
+
+/**
+ * Consume, and answer with the one hand-off — throwing, and naming each URL, when
+ * the test provoked more than one. A screen finishing an OIDC flow hands off
+ * exactly once; two means something navigated that the spec never accounted for.
+ */
+export async function expectNavigationEscape(
+  options: ConsumeNavigationEscapeOptions = {},
+): Promise<NavigationEscape> {
+  const consumed: readonly NavigationEscape[] = await consumeNavigationEscapes(options);
+  const [escape] = consumed;
+
+  if (escape === undefined || consumed.length > 1) {
+    const destinations: string = consumed.map((entry) => `  ${entry.url}`).join("\n");
+
+    throw new Error(
+      `Expected exactly one navigation, but ${consumed.length} were vetoed:\n${destinations}`,
+    );
+  }
+
+  return escape;
 }
 
 /**

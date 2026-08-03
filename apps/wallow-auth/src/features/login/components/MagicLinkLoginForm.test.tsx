@@ -1,8 +1,12 @@
+import {
+  expectNavigationEscape,
+  navigationEscapes,
+} from "@bc-solutions-coder/testing/navigation-escape";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import { createPassthroughHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Route as loginRoute } from "@app/routes/login";
 import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
@@ -171,52 +175,19 @@ function verifyCalls() {
 }
 
 /**
- * The ticket hand-off is `globalThis.location.href = …`, which in real Chromium
- * would navigate the runner iframe away. `location` is `[Unforgeable]` and cannot
- * be stubbed, so the Navigation API's `navigate` event is the seam.
- */
-interface NavigateEvent extends Event {
-  readonly destination: { readonly url: string };
-}
-interface NavigationLike {
-  addEventListener: (type: "navigate", handler: (event: NavigateEvent) => void) => void;
-  removeEventListener: (type: "navigate", handler: (event: NavigateEvent) => void) => void;
-}
-const navigationApi: NavigationLike = (globalThis as unknown as { navigation: NavigationLike })
-  .navigation;
-
-/** Listeners registered by `captureHandoff`, torn down in `afterEach`. */
-const navDisposers: Array<() => void> = [];
-
-/** Arm the navigation seam and return the array the hand-off URL lands in. */
-function captureHandoff(): string[] {
-  const urls: string[] = [];
-  const handler = (event: NavigateEvent): void => {
-    urls.push(event.destination.url);
-    // Cancel it: a live navigation tears the Chromium runner down.
-    event.preventDefault();
-  };
-  navigationApi.addEventListener("navigate", handler);
-  navDisposers.push(() => {
-    navigationApi.removeEventListener("navigate", handler);
-  });
-  return urls;
-}
-
-/** Every hand-off URL this test recorded, newest last. Armed in `beforeEach`. */
-let handoffs: string[];
-
-/**
- * Wait for the ticket hand-off and return its target, parsed. The real
- * `buildExchangeTicketUrl` runs against the `""` origin, so a correct screen
- * produces a SAME-ORIGIN absolute URL.
+ * Wait for the ticket hand-off — `globalThis.location.href = …`, which the
+ * project's navigation guard vetoes and records — and return its target, parsed.
+ * The real `buildExchangeTicketUrl` runs against the `""` origin, so a correct
+ * screen produces a SAME-ORIGIN absolute URL.
+ *
+ * A verified token always ends here, so a test whose subject is the REQUEST awaits
+ * it too and drops the result: the hand-off is deliberate, and one left unread
+ * fails that test in the project's `afterEach`.
  */
 async function awaitHandoff(): Promise<URL> {
-  await vi.waitFor(() => {
-    expect(handoffs).toHaveLength(1);
-  });
+  const escape = await expectNavigationEscape();
 
-  return new URL(handoffs[0]);
+  return new URL(escape.url);
 }
 
 /** Render `ui` on the shared harness: real SDK, fake transport, real router context. */
@@ -253,7 +224,6 @@ async function submitEmail(user: ReturnType<typeof userEvent.setup>, email: stri
 
 beforeEach(() => {
   vi.clearAllMocks();
-  handoffs = captureHandoff();
   harness = createPassthroughHarness();
   respondWithSend({ succeeded: true });
   respondWithVerify({ succeeded: true, email: EMAIL, signInTicket: TICKET });
@@ -278,13 +248,6 @@ beforeEach(() => {
     // client's branding overlay. A bare 404 is "no branding configured".
     return new Response(null, { status: NOT_FOUND_STATUS });
   });
-});
-
-afterEach(() => {
-  navDisposers.forEach((dispose) => {
-    dispose();
-  });
-  navDisposers.length = 0;
 });
 
 describe("LoginScreen magic-link tab: sending", () => {
@@ -557,6 +520,7 @@ describe("LoginScreen magic-link auto-verify", () => {
     await expect
       .element(page.getByTestId("login-tab-password"))
       .toHaveAttribute("aria-selected", "false");
+    await awaitHandoff();
   });
 
   it("verifies the token on load without the user clicking anything", async () => {
@@ -571,6 +535,7 @@ describe("LoginScreen magic-link auto-verify", () => {
     expect(
       new URL(verifyCalls()[0].url, globalThis.location.origin).searchParams.get("token"),
     ).toBe(MAGIC_LINK_TOKEN);
+    await awaitHandoff();
   });
 
   it("opens on the password tab and verifies nothing when there is no token", async () => {
@@ -636,7 +601,7 @@ describe("LoginScreen magic-link auto-verify", () => {
     await expect.element(page.getByTestId("login-signed-in")).toBeInTheDocument();
     // The ticket exchange is the screen's only writer of `location.href`, so an
     // EMPTY recording is the browser-true "no exchange happened".
-    expect(handoffs).toHaveLength(0);
+    expect(navigationEscapes()).toEqual([]);
   });
 
   it("refuses an absolute returnUrl before exchanging the ticket", async () => {
@@ -649,7 +614,7 @@ describe("LoginScreen magic-link auto-verify", () => {
     });
     // The ticket exchange is the screen's only writer of `location.href`, so an
     // EMPTY recording is the browser-true "no exchange happened".
-    expect(handoffs).toHaveLength(0);
+    expect(navigationEscapes()).toEqual([]);
   });
 
   it("hands an MFA-required verify response to the shell's branch table", async () => {
@@ -746,7 +711,7 @@ describe("LoginScreen magic-link verify failures", () => {
     await expect.element(page.getByTestId("login-error")).toBeInTheDocument();
     // The ticket exchange is the screen's only writer of `location.href`, so an
     // EMPTY recording is the browser-true "no exchange happened".
-    expect(handoffs).toHaveLength(0);
+    expect(navigationEscapes()).toEqual([]);
     expect(page.getByTestId("login-signed-in").query()).toBeNull();
   });
 });
@@ -783,6 +748,7 @@ describe("/login route: magic link", () => {
     expect(
       new URL(verifyCalls()[0].url, globalThis.location.origin).searchParams.get("token"),
     ).toBe(MAGIC_LINK_TOKEN);
+    await awaitHandoff();
   });
 
   it("completes the emailed link end to end: token in, ticket exchanged", async () => {

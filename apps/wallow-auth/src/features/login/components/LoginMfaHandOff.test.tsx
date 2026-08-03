@@ -1,8 +1,12 @@
 import { isSafeReturnUrl } from "@bc-solutions-coder/sdk";
+import {
+  expectNavigationEscape,
+  navigationEscapes,
+} from "@bc-solutions-coder/testing/navigation-escape";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import { createPassthroughHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { page, userEvent } from "vitest/browser";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Route as loginRoute } from "@app/routes/login";
 
@@ -62,34 +66,6 @@ let loginBody: unknown;
 /** Program the 200 body the login POST resolves with. */
 function respondWithLogin(body: unknown): void {
   loginBody = body;
-}
-
-interface NavigateEvent extends Event {
-  readonly destination: { readonly url: string };
-}
-interface NavigationLike {
-  addEventListener: (type: "navigate", handler: (event: NavigateEvent) => void) => void;
-  removeEventListener: (type: "navigate", handler: (event: NavigateEvent) => void) => void;
-}
-const navigationApi: NavigationLike = (globalThis as unknown as { navigation: NavigationLike })
-  .navigation;
-
-/** Listeners registered by `captureHandoff`, torn down in `afterEach`. */
-const navDisposers: Array<() => void> = [];
-
-/** Arm the navigation seam and return the array a full-page hand-off lands in. */
-function captureHandoff(): { urls: string[] } {
-  const urls: string[] = [];
-  const handler = (event: NavigateEvent): void => {
-    urls.push(event.destination.url);
-    // Cancel it: a live navigation tears the Chromium runner down.
-    event.preventDefault();
-  };
-  navigationApi.addEventListener("navigate", handler);
-  navDisposers.push(() => {
-    navigationApi.removeEventListener("navigate", handler);
-  });
-  return { urls };
 }
 
 /**
@@ -153,12 +129,6 @@ beforeEach(() => {
     // branding overlay. A bare 404 is "no branding configured".
     return new Response(null, { status: NOT_FOUND_STATUS });
   });
-});
-
-afterEach(() => {
-  for (const dispose of navDisposers.splice(0)) {
-    dispose();
-  }
 });
 
 describe("/login MFA hand-off — mfaRequired", () => {
@@ -240,15 +210,14 @@ describe("/login MFA hand-off — mfaRequired", () => {
     // The partial-auth cookie is first-party through the proxy, so there is no
     // reason to drop the SPA. A regression to `location.href = …` would still
     // "work" in a browser, which is why it is pinned: the only seam that drops
-    // the SPA is the exchange-ticket URL, so the navigation seam records NOTHING.
-    const handoff = captureHandoff();
+    // the SPA is the exchange-ticket URL, so the guard records NOTHING.
     const user = userEvent.setup();
     renderRouteAt(loginUrlWithReturnUrl(RETURN_URL));
 
     await submitCredentials(user);
 
     await handOffHref();
-    expect(handoff.urls).toEqual([]);
+    expect(navigationEscapes()).toEqual([]);
   });
 });
 
@@ -289,7 +258,6 @@ describe("/login MFA hand-off — mfaEnrollmentRequired", () => {
       mfaGraceDeadline: deadline,
       signInTicket: "sign-in-ticket-xyz",
     });
-    const handoff = captureHandoff();
     const user = userEvent.setup();
     renderRouteAt(loginUrlWithReturnUrl(RETURN_URL));
 
@@ -298,10 +266,8 @@ describe("/login MFA hand-off — mfaEnrollmentRequired", () => {
     // The real builder runs, so the exchange is asserted at the navigation
     // itself — the exact same-origin endpoint, ticket and returnUrl the browser
     // is sent to.
-    await vi.waitFor(() => {
-      expect(handoff.urls).toHaveLength(1);
-    });
-    const target = new URL(handoff.urls[0] ?? "");
+    const escape = await expectNavigationEscape();
+    const target = new URL(escape.url);
     expect(target.origin).toBe(globalThis.location.origin);
     expect(target.pathname).toBe(EXCHANGE_TICKET_PATH);
     expect(target.searchParams.get("ticket")).toBe("sign-in-ticket-xyz");

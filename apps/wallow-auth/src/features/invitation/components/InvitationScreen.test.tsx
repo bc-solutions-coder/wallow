@@ -1,4 +1,5 @@
 import { isSafeReturnUrl } from "@bc-solutions-coder/sdk";
+import { consumeNavigationEscapes } from "@bc-solutions-coder/testing/navigation-escape";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import {
   createPassthroughHarness,
@@ -93,36 +94,6 @@ function renderScreen(props: { token?: string; isAuthenticated?: boolean } = {})
 }
 
 /**
- * THE NAVIGATION SEAM. A successful accept hands off with a raw
- * `globalThis.location.href = "/"`. In real Chromium `window.location` is
- * `[Unforgeable]` and cannot be shadowed, and letting the assignment run
- * navigates the runner's iframe and tears the whole file down. So the hand-off is
- * observed at the Navigation API instead: a same-origin assignment fires a
- * cancelable `navigate` event carrying the destination. Recording it and calling
- * `preventDefault()` pins the destination and keeps every other accept-success
- * test from navigating the iframe.
- */
-interface NavigateEvent extends Event {
-  readonly destination: { readonly url: string };
-  readonly cancelable: boolean;
-}
-
-const browserNavigation = globalThis as unknown as {
-  navigation: {
-    addEventListener: (type: "navigate", handler: (event: NavigateEvent) => void) => void;
-  };
-};
-
-let recordedNavigations: string[] = [];
-
-browserNavigation.navigation.addEventListener("navigate", (event) => {
-  recordedNavigations.push(event.destination.url);
-  if (event.cancelable) {
-    event.preventDefault();
-  }
-});
-
-/**
  * The `href` of one of the screen's links, PARSED — so assertions read the query
  * string the way a browser does rather than string-matching an encoded blob,
  * which would pass on `?returnUrl=/x&returnUrl=//evil.example` too. The base is a
@@ -171,8 +142,6 @@ function verifiedToken(): string {
 }
 
 beforeEach(() => {
-  recordedNavigations = [];
-
   verifyAnswer = () => Response.json(invitation());
   acceptAnswer = () => new Response(null, { status: NO_CONTENT });
   // Only the route probes; the component takes `isAuthenticated` as a prop.
@@ -373,15 +342,14 @@ describe("InvitationScreen — authenticated branch", () => {
     // A FULL navigation, not `navigate()`. The reload is load-bearing: accepting
     // the invitation changes the user's tenant membership, and a client-side
     // transition would carry the pre-acceptance session state into the
-    // destination. Observed at the Navigation API seam (see the guard above).
-    await vi.waitFor(() => {
-      expect(recordedNavigations.length).toBeGreaterThan(0);
-    });
-    const lastNavigation = recordedNavigations.at(-1);
+    // destination. The project's navigation guard vetoed it, so it is read back
+    // rather than followed.
+    const escapes = await consumeNavigationEscapes();
+    const lastNavigation = escapes.at(-1);
     if (lastNavigation === undefined) {
       throw new Error("expected a recorded navigation");
     }
-    const target: URL = new URL(lastNavigation);
+    const target: URL = new URL(lastNavigation.url);
     expect(target.pathname).toBe(HOME_HREF);
     expect(target.search).toBe("");
   });
@@ -415,11 +383,10 @@ describe("InvitationScreen — authenticated branch", () => {
     await expect.element(decline).toHaveAttribute("aria-disabled", "true");
 
     pending.resolve(new Response(null, { status: NO_CONTENT }));
-    // Let the success hand-off fire and be captured (and cancelled) by the
-    // Navigation guard before the test unwinds, so the iframe never navigates.
-    await vi.waitFor(() => {
-      expect(recordedNavigations.length).toBeGreaterThan(0);
-    });
+    // Let the success hand-off fire and be taken out of the guard's record before
+    // the test unwinds: it is deliberate, so the project `afterEach` must not see
+    // it, and the iframe never navigates either way.
+    await consumeNavigationEscapes();
   });
 
   it("reports a rejected accept as expired or already used, keeping the buttons alive", async () => {
@@ -464,14 +431,16 @@ describe("InvitationScreen — authenticated branch", () => {
     await user.click(page.getByTestId("invitation-accept"));
     await expect.element(page.getByTestId("invitation-accept-error")).toBeInTheDocument();
 
-    // The retry succeeds, so its home hand-off is absorbed by the Navigation
-    // guard above.
     await user.click(page.getByTestId("invitation-accept"));
 
     await vi.waitFor(() => {
       expect(page.getByTestId("invitation-accept-error").query()).toBeNull();
     });
     expect(acceptCalls()).toHaveLength(2);
+    // The retry succeeds, so it hands the browser home. That is deliberate, so it
+    // is read out of the guard's record rather than left for the project
+    // `afterEach`.
+    await consumeNavigationEscapes();
   });
 });
 

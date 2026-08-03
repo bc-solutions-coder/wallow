@@ -1,3 +1,7 @@
+import {
+  expectNavigationEscape,
+  navigationEscapes,
+} from "@bc-solutions-coder/testing/navigation-escape";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import {
   createPassthroughHarness,
@@ -6,7 +10,7 @@ import {
 } from "@bc-solutions-coder/testing/sdk-harness";
 import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Route as loginRoute } from "@app/routes/login";
 import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
@@ -193,40 +197,18 @@ function lastCallTo(path: string): SdkCall | undefined {
 }
 
 /**
- * `location` is `[Unforgeable]` in real Chromium, so the shell's
- * `location.href = …` hand-off is observed at the `navigate` event it fires: the
- * URL is recorded and the navigation CANCELLED, leaving the runner in place.
- */
-interface NavigateEvent extends Event {
-  readonly destination: { readonly url: string };
-}
-interface NavigationLike {
-  addEventListener: (type: "navigate", handler: (event: NavigateEvent) => void) => void;
-  removeEventListener: (type: "navigate", handler: (event: NavigateEvent) => void) => void;
-}
-const navigationApi: NavigationLike = (globalThis as unknown as { navigation: NavigationLike })
-  .navigation;
-
-/** Every full-navigation hand-off this test's render attempted, in order. */
-let handoffs: string[] = [];
-
-function recordHandoff(event: NavigateEvent): void {
-  handoffs.push(event.destination.url);
-  // Cancel it: assigning `location.href` would otherwise tear the runner down.
-  event.preventDefault();
-}
-
-/**
- * The ticket-exchange URL the shell handed the browser, recovered from the
- * cancelled navigation. Waits for the hand-off first, so callers assert on the
- * parts rather than on the timing.
+ * The ticket-exchange URL the shell handed the browser with `location.href = …`,
+ * recovered from the hand-off the project's navigation guard vetoed. Waits for it
+ * first, so callers assert on the parts rather than on the timing.
+ *
+ * Every verified code ends here, so a test whose subject is the REQUEST awaits it
+ * too and drops the result: the hand-off is deliberate, and one left unread fails
+ * that test in the project's `afterEach`.
  */
 async function handoffTarget(): Promise<URL> {
-  await vi.waitFor(() => {
-    expect(handoffs).toHaveLength(1);
-  });
+  const escape = await expectNavigationEscape();
 
-  return new URL(handoffs[0] ?? "");
+  return new URL(escape.url);
 }
 
 /** Render `ui` on the shared harness: real SDK, fake transport, real router context. */
@@ -290,12 +272,6 @@ beforeEach(() => {
   vi.clearAllMocks();
   harness = createPassthroughHarness();
   harness.respond(defaultWire);
-  handoffs = [];
-  navigationApi.addEventListener("navigate", recordHandoff);
-});
-
-afterEach(() => {
-  navigationApi.removeEventListener("navigate", recordHandoff);
 });
 
 describe("LoginScreen OTP tab: sending", () => {
@@ -586,6 +562,7 @@ describe("LoginScreen OTP tab: verifying", () => {
       code: CODE,
       rememberMe: false,
     });
+    await handoffTarget();
   });
 
   it("does not re-send a code when the code form is submitted", async () => {
@@ -601,6 +578,7 @@ describe("LoginScreen OTP tab: verifying", () => {
       expect(callsTo(OTP_VERIFY_ENDPOINT)).toHaveLength(1);
     });
     expect(callsTo(OTP_SEND_ENDPOINT)).toHaveLength(1);
+    await handoffTarget();
   });
 
   it("redeems a ONE-TIME code exactly once even when the button is double-clicked", async () => {
@@ -643,6 +621,7 @@ describe("LoginScreen OTP tab: verifying", () => {
     await vi.waitFor(() => {
       expect(page.getByTestId("login-error").query()).toBeNull();
     });
+    await handoffTarget();
   });
 });
 
@@ -676,7 +655,7 @@ describe("LoginScreen OTP tab: verify success hands off to the shell", () => {
     await submitCode(user);
 
     await expect.element(page.getByTestId("login-signed-in")).toBeInTheDocument();
-    expect(handoffs).toEqual([]);
+    expect(navigationEscapes()).toEqual([]);
   });
 
   it("refuses an unsafe returnUrl instead of exchanging the ticket to it", async () => {
@@ -692,7 +671,7 @@ describe("LoginScreen OTP tab: verify success hands off to the shell", () => {
     await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({ href: ERROR_HREF });
     });
-    expect(handoffs).toEqual([]);
+    expect(navigationEscapes()).toEqual([]);
   });
 
   it("defers an mfaRequired response to the shell's one branch table", async () => {
@@ -932,6 +911,7 @@ describe("LoginScreen OTP tab: remember me", () => {
       code: CODE,
       rememberMe: true,
     });
+    await handoffTarget();
   });
 
   it("sends rememberMe false when the box is checked and then unchecked", async () => {
@@ -955,6 +935,7 @@ describe("LoginScreen OTP tab: remember me", () => {
       code: CODE,
       rememberMe: false,
     });
+    await handoffTarget();
   });
 
   it("does not verify or re-send merely because the box was toggled", async () => {
@@ -995,6 +976,7 @@ describe("LoginScreen OTP tab: remember me", () => {
       code: CODE,
       rememberMe: false,
     });
+    await handoffTarget();
   });
 
   it("does not leak its own box into the password tab", async () => {
@@ -1022,6 +1004,7 @@ describe("LoginScreen OTP tab: remember me", () => {
       password: "correct-horse",
       rememberMe: false,
     });
+    await handoffTarget();
   });
 
   it("resets to unchecked when the tab is left and re-entered", async () => {
@@ -1050,6 +1033,7 @@ describe("LoginScreen OTP tab: remember me", () => {
       code: CODE,
       rememberMe: false,
     });
+    await handoffTarget();
   });
 });
 

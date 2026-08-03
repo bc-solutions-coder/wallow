@@ -1,3 +1,4 @@
+import { expectNavigationEscape } from "@bc-solutions-coder/testing/navigation-escape";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import {
   createPassthroughHarness,
@@ -7,7 +8,7 @@ import {
 } from "@bc-solutions-coder/testing/sdk-harness";
 import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Route as mfaEnrollRoute } from "@app/routes/mfa/enroll";
 import { MfaEnrollForm } from "./MfaEnrollForm";
@@ -131,58 +132,18 @@ function callsTo(path: string): readonly SdkCall[] {
 }
 
 /**
- * The screen hands off with a bare `globalThis.location.href = …`, and `window.location` is
- * `[Unforgeable]` in a real browser — it can be neither stubbed nor redefined. So the
- * assignment is observed at the one seam Chromium leaves open: the Navigation API's cancelable
- * `navigate` event, whose `preventDefault()` captures the target without letting the iframe
- * navigate and tear the runner down. `destination.url` is absolute, so `relative()` is what
- * compares against a this-origin expectation.
+ * Wait for the hand-off the screen makes with a bare `globalThis.location.href = …`
+ * — vetoed and recorded by the project's navigation guard — and return it parsed.
  */
-interface NavigateEventLike {
-  readonly destination: { readonly url: string };
-  readonly cancelable: boolean;
-  preventDefault: () => void;
+async function awaitHandoff(): Promise<URL> {
+  const escape = await expectNavigationEscape();
+
+  return new URL(escape.url);
 }
 
-interface NavigationLike {
-  addEventListener: (type: "navigate", listener: (event: NavigateEventLike) => void) => void;
-  removeEventListener: (type: "navigate", listener: (event: NavigateEventLike) => void) => void;
-}
-
-interface NavCapture {
-  /** The full URL of the intercepted navigation, or null if none has fired. */
-  absolute: () => string | null;
-  /** `pathname + search` of that URL — the this-origin-relative form. */
-  relative: () => string | null;
-}
-
-const navDisposers: Array<() => void> = [];
-
-function interceptNavigation(): NavCapture {
-  let target: string | null = null;
-  const nav = (globalThis as unknown as { navigation: NavigationLike }).navigation;
-  const listener = (event: NavigateEventLike): void => {
-    if (!event.cancelable) {
-      return;
-    }
-    target = event.destination.url;
-    event.preventDefault();
-  };
-  nav.addEventListener("navigate", listener);
-  navDisposers.push(() => {
-    nav.removeEventListener("navigate", listener);
-  });
-
-  return {
-    absolute: () => target,
-    relative: () => {
-      if (target === null) {
-        return null;
-      }
-      const parsed = new URL(target);
-      return parsed.pathname + parsed.search;
-    },
-  };
+/** That hand-off's this-origin-relative form: `destination.url` is absolute. */
+function relative(url: URL): string {
+  return url.pathname + url.search;
 }
 
 let harness: SdkHarness;
@@ -207,13 +168,6 @@ async function submitCode(user: ReturnType<typeof userEvent.setup>, code: string
   }
   await user.click(page.getByTestId("mfa-enroll-submit"));
 }
-
-afterEach(() => {
-  for (const dispose of navDisposers) {
-    dispose();
-  }
-  navDisposers.length = 0;
-});
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -540,7 +494,6 @@ describe("MfaEnrollForm — a confirmed code", () => {
     // The proxy serves `/connect/**` from this origin, so prepending an API origin would drop
     // the cookie `enroll/confirm` just upgraded to full auth.
     const user = userEvent.setup();
-    const nav = interceptNavigation();
     renderForm({ returnUrl: RETURN_URL });
     await waitForSecret();
 
@@ -548,18 +501,15 @@ describe("MfaEnrollForm — a confirmed code", () => {
     await expect.element(page.getByTestId("mfa-enroll-done")).toBeInTheDocument();
     await user.click(page.getByTestId("mfa-enroll-done"));
 
-    await vi.waitFor(() => {
-      expect(nav.absolute()).not.toBeNull();
-    });
-    expect(nav.relative()).toBe(RETURN_URL);
-    expect(new URL(nav.absolute() as string).origin).toBe(globalThis.location.origin);
+    const target: URL = await awaitHandoff();
+    expect(relative(target)).toBe(RETURN_URL);
+    expect(target.origin).toBe(globalThis.location.origin);
   });
 
   it("sends a user who arrived without a return url home", async () => {
     // A nullish returnUrl is a legitimate direct enrollment, not an attack, so it gets the "/"
     // fallback — only a PRESENT-but-unsafe value is refused.
     const user = userEvent.setup();
-    const nav = interceptNavigation();
     renderForm();
     await waitForSecret();
 
@@ -567,10 +517,8 @@ describe("MfaEnrollForm — a confirmed code", () => {
     await expect.element(page.getByTestId("mfa-enroll-done")).toBeInTheDocument();
     await user.click(page.getByTestId("mfa-enroll-done"));
 
-    await vi.waitFor(() => {
-      expect(nav.absolute()).not.toBeNull();
-    });
-    expect(nav.relative()).toBe("/");
+    const target: URL = await awaitHandoff();
+    expect(relative(target)).toBe("/");
   });
 });
 
@@ -884,7 +832,6 @@ describe("/mfa/enroll route", () => {
 
   it("threads the returnUrl from the query string into the hand-off", async () => {
     const user = userEvent.setup();
-    const nav = interceptNavigation();
     renderRouteAt(`/mfa/enroll?returnUrl=${encodeURIComponent(RETURN_URL)}`);
     await waitForSecret();
 
@@ -892,10 +839,8 @@ describe("/mfa/enroll route", () => {
     await expect.element(page.getByTestId("mfa-enroll-done")).toBeInTheDocument();
     await user.click(page.getByTestId("mfa-enroll-done"));
 
-    await vi.waitFor(() => {
-      expect(nav.absolute()).not.toBeNull();
-    });
-    expect(nav.relative()).toBe(RETURN_URL);
+    const target: URL = await awaitHandoff();
+    expect(relative(target)).toBe(RETURN_URL);
   });
 
   it("threads the enrollToken from the query string into the exchange", async () => {

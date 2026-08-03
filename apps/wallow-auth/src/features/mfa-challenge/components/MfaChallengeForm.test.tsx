@@ -1,3 +1,7 @@
+import {
+  expectNavigationEscape,
+  navigationEscapes,
+} from "@bc-solutions-coder/testing/navigation-escape";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import {
   createPassthroughHarness,
@@ -7,7 +11,7 @@ import {
 } from "@bc-solutions-coder/testing/sdk-harness";
 import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Route as mfaChallengeRoute } from "@app/routes/mfa/challenge";
 import { MfaChallengeForm, type MfaChallengeFormProps } from "./MfaChallengeForm";
@@ -20,8 +24,9 @@ import { MfaChallengeForm, type MfaChallengeFormProps } from "./MfaChallengeForm
  * `error` member becomes the screen's `code`. Known codes are matched, never rendered; an
  * unrecognised one falls to the generic message rather than guessing.
  *
- * `window.location` is [Unforgeable] here, so a hand-off is captured by CANCELLING the
- * Navigation API's `navigate` event — without the cancel it unloads the Chromium runner.
+ * A verified code ends in a full-page hand-off. The project's navigation guard vetoes and
+ * records it, so EVERY success-path test reads it back with `expectNavigationEscape()`; one
+ * left unread fails that test in the project's `afterEach`.
  */
 
 // Hoisted so the vi.mock factory and the test bodies share the same spy. Only the router's
@@ -188,36 +193,6 @@ function absolute(url: string): string {
   return new URL(url, globalThis.location.href).href;
 }
 
-/**
- * The minimum of the Navigation API this spec uses. Declared structurally because
- * `globalThis.navigation` is not in the DOM lib this repo compiles against, and a cast would
- * be an `as any` in all but name.
- */
-interface NavigateEventLike {
-  readonly destination: { readonly url: string };
-  readonly cancelable: boolean;
-  preventDefault: () => void;
-}
-
-interface NavigationApi {
-  addEventListener: (type: "navigate", listener: (event: NavigateEventLike) => void) => void;
-  removeEventListener: (type: "navigate", listener: (event: NavigateEventLike) => void) => void;
-}
-
-function navigationApi(): NavigationApi | undefined {
-  return (globalThis as { navigation?: NavigationApi }).navigation;
-}
-
-/** Every URL the screen tried to navigate to, in order. Reset per test. */
-let navigations: string[] = [];
-
-const recordNavigation = (event: NavigateEventLike): void => {
-  navigations.push(event.destination.url);
-  if (event.cancelable) {
-    event.preventDefault();
-  }
-};
-
 let harness: SdkHarness;
 
 /** How `POST /v1/identity/auth/mfa/verify` answers. Reassigned per test. */
@@ -267,9 +242,6 @@ async function submitCode(user: ReturnType<typeof userEvent.setup>, code: string
 
 beforeEach(() => {
   vi.clearAllMocks();
-  navigations = [];
-  navigationApi()?.addEventListener("navigate", recordNavigation);
-
   harness = createPassthroughHarness();
   verifyWith = () => verifiedResponse(TICKET);
   validateWith = allowListResponder;
@@ -284,10 +256,6 @@ beforeEach(() => {
     }
     return Response.json({});
   });
-});
-
-afterEach(() => {
-  navigationApi()?.removeEventListener("navigate", recordNavigation);
 });
 
 describe("MfaChallengeForm", () => {
@@ -452,6 +420,7 @@ describe("MfaChallengeForm — submitting a code", () => {
     });
     expect(harness.last?.method).toBe("POST");
     expect(harness.last?.body).toEqual({ code: CODE, useBackupCode: false });
+    await expectNavigationEscape();
   });
 
   it("sends a backup code to the backup endpoint instead", async () => {
@@ -466,6 +435,7 @@ describe("MfaChallengeForm — submitting a code", () => {
       expect(harness.last?.path).toBe(VERIFY_PATH);
     });
     expect(harness.last?.body).toEqual({ code: BACKUP_CODE, useBackupCode: true });
+    await expectNavigationEscape();
   });
 
   it("disables submit while the request is in flight", async () => {
@@ -494,6 +464,7 @@ describe("MfaChallengeForm — submitting a code", () => {
 
     release();
     await expect.element(page.getByTestId("mfa-challenge-success")).toBeInTheDocument();
+    await expectNavigationEscape();
   });
 });
 
@@ -506,6 +477,7 @@ describe("MfaChallengeForm — a verified code", () => {
 
     await expect.element(page.getByTestId("mfa-challenge-success")).toBeInTheDocument();
     expect(page.getByTestId("mfa-challenge-error").query()).toBeNull();
+    await expectNavigationEscape();
   });
 
   it("hands the ticket to the exchange endpoint on THIS origin, not an API origin", async () => {
@@ -518,9 +490,8 @@ describe("MfaChallengeForm — a verified code", () => {
 
     await submitCode(user);
 
-    await vi.waitFor(() => {
-      expect(navigations).toEqual([absolute(exchangeUrl(TICKET, RETURN_URL))]);
-    });
+    const escape = await expectNavigationEscape();
+    expect(escape.url).toBe(absolute(exchangeUrl(TICKET, RETURN_URL)));
   });
 
   it("navigates straight to the return url when the response carries no ticket", async () => {
@@ -532,9 +503,8 @@ describe("MfaChallengeForm — a verified code", () => {
 
     await submitCode(user);
 
-    await vi.waitFor(() => {
-      expect(navigations).toEqual([absolute(RETURN_URL)]);
-    });
+    const escape = await expectNavigationEscape();
+    expect(escape.url).toBe(absolute(RETURN_URL));
   });
 
   it("treats a blank ticket as no ticket", async () => {
@@ -546,9 +516,8 @@ describe("MfaChallengeForm — a verified code", () => {
 
     await submitCode(user);
 
-    await vi.waitFor(() => {
-      expect(navigations).toEqual([absolute(RETURN_URL)]);
-    });
+    const escape = await expectNavigationEscape();
+    expect(escape.url).toBe(absolute(RETURN_URL));
   });
 
   it("stays put on a direct sign-in with no return url", async () => {
@@ -560,7 +529,7 @@ describe("MfaChallengeForm — a verified code", () => {
     await submitCode(user);
 
     await expect.element(page.getByTestId("mfa-challenge-success")).toBeInTheDocument();
-    expect(navigations).toEqual([]);
+    expect(navigationEscapes()).toEqual([]);
     expect(mocks.navigate).not.toHaveBeenCalled();
   });
 
@@ -571,9 +540,8 @@ describe("MfaChallengeForm — a verified code", () => {
     await toggleToBackupCode(user);
     await submitCode(user, BACKUP_CODE);
 
-    await vi.waitFor(() => {
-      expect(navigations).toEqual([absolute(exchangeUrl(TICKET, RETURN_URL))]);
-    });
+    const escape = await expectNavigationEscape();
+    expect(escape.url).toBe(absolute(exchangeUrl(TICKET, RETURN_URL)));
   });
 });
 
@@ -615,9 +583,8 @@ describe("MfaChallengeForm — the open-redirect guard", () => {
 
     // Anchored on a POSITIVE assertion: the user reaches the exchange, not merely "was not
     // sent to /error", which a screen that renders nothing satisfies.
-    await vi.waitFor(() => {
-      expect(navigations).toEqual([absolute(exchangeUrl(TICKET, EXTERNAL_RETURN_URL))]);
-    });
+    const escape = await expectNavigationEscape();
+    expect(escape.url).toBe(absolute(exchangeUrl(TICKET, EXTERNAL_RETURN_URL)));
     expect(mocks.navigate).not.toHaveBeenCalledWith(expect.objectContaining({ href: ERROR_HREF }));
   });
 
@@ -713,9 +680,8 @@ describe("MfaChallengeForm — the flow's client id", () => {
 
     await submitCode(user);
 
-    await vi.waitFor(() => {
-      expect(navigations).toEqual([absolute(exchangeUrl(TICKET, RETURN_URL, CLIENT_ID))]);
-    });
+    const escape = await expectNavigationEscape();
+    expect(escape.url).toBe(absolute(exchangeUrl(TICKET, RETURN_URL, CLIENT_ID)));
   });
 
   it("scopes the allow-list probe to it", async () => {
@@ -736,6 +702,7 @@ describe("MfaChallengeForm — the flow's client id", () => {
       expect(verifyCalls()).toHaveLength(1);
     });
     expect(harness.last?.body).toEqual({ code: CODE, useBackupCode: false });
+    await expectNavigationEscape();
   });
 
   it("refuses a return url only ANOTHER client registered", async () => {
@@ -766,6 +733,7 @@ describe("MfaChallengeForm — the flow's client id", () => {
     });
     expect(harness.last?.body).toEqual({ code: CODE, useBackupCode: false });
     expect(mocks.navigate).not.toHaveBeenCalledWith(expect.objectContaining({ href: ERROR_HREF }));
+    await expectNavigationEscape();
   });
 
   it("sends no client id at all when the flow carries a blank one", async () => {
@@ -778,9 +746,8 @@ describe("MfaChallengeForm — the flow's client id", () => {
 
     await submitCode(user);
 
-    await vi.waitFor(() => {
-      expect(navigations).toEqual([absolute(exchangeUrl(TICKET, RETURN_URL))]);
-    });
+    const escape = await expectNavigationEscape();
+    expect(escape.url).toBe(absolute(exchangeUrl(TICKET, RETURN_URL)));
   });
 });
 
@@ -957,7 +924,7 @@ describe("MfaChallengeForm — a rejected code", () => {
     await submitCode(user);
 
     await expect.element(page.getByTestId("mfa-challenge-error")).toBeInTheDocument();
-    expect(navigations).toEqual([]);
+    expect(navigationEscapes()).toEqual([]);
   });
 
   it("clears a previous error when the next attempt succeeds", async () => {
@@ -977,6 +944,7 @@ describe("MfaChallengeForm — a rejected code", () => {
 
     await expect.element(page.getByTestId("mfa-challenge-success")).toBeInTheDocument();
     expect(page.getByTestId("mfa-challenge-error").query()).toBeNull();
+    await expectNavigationEscape();
   });
 });
 
@@ -1009,9 +977,8 @@ describe("/mfa/challenge route", () => {
     await expect.element(page.getByTestId("mfa-challenge-code")).toBeInTheDocument();
     await submitCode(user);
 
-    await vi.waitFor(() => {
-      expect(navigations).toEqual([absolute(exchangeUrl(TICKET, RETURN_URL))]);
-    });
+    const escape = await expectNavigationEscape();
+    expect(escape.url).toBe(absolute(exchangeUrl(TICKET, RETURN_URL)));
   });
 
   it("threads client_id out of the callback redirect into the exchange", async () => {
@@ -1026,9 +993,8 @@ describe("/mfa/challenge route", () => {
     await expect.element(page.getByTestId("mfa-challenge-code")).toBeInTheDocument();
     await submitCode(user);
 
-    await vi.waitFor(() => {
-      expect(navigations).toEqual([absolute(exchangeUrl(TICKET, RETURN_URL, CLIENT_ID))]);
-    });
+    const escape = await expectNavigationEscape();
+    expect(escape.url).toBe(absolute(exchangeUrl(TICKET, RETURN_URL, CLIENT_ID)));
   });
 
   it("treats a non-string client_id as absent", async () => {
@@ -1042,9 +1008,8 @@ describe("/mfa/challenge route", () => {
     await expect.element(page.getByTestId("mfa-challenge-code")).toBeInTheDocument();
     await submitCode(user);
 
-    await vi.waitFor(() => {
-      expect(navigations).toEqual([absolute(exchangeUrl(TICKET, RETURN_URL))]);
-    });
+    const escape = await expectNavigationEscape();
+    expect(escape.url).toBe(absolute(exchangeUrl(TICKET, RETURN_URL)));
   });
 
   it("renders without throwing when the link carries no query at all", async () => {
