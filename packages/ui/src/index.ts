@@ -59,7 +59,14 @@ export {
 } from "./components/avatar";
 export { Badge, type BadgeProps } from "./components/badge";
 export { Button, type ButtonProps, type ButtonVariant } from "./components/button";
-export { Card, type CardProps, CardTitle, type CardTitleProps } from "./components/card";
+export {
+  Card,
+  CardHeader,
+  type CardHeaderProps,
+  type CardProps,
+  CardTitle,
+  type CardTitleProps,
+} from "./components/card";
 export {
   CenteredCardLayout,
   type CenteredCardLayoutProps,

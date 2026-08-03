@@ -1,8 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect } from "storybook/test";
 
+import { MutedText } from "../muted-text/muted-text";
 import { Text } from "../text/text";
 import { Card, CardTitle } from "./card";
+import { CardHeader } from "./card-header";
 
 /*
  * The visual half of Card's spec (Wallow-m5aq.2.13). card.test.tsx makes the
@@ -55,6 +57,43 @@ export const SquareCorners: Story = {
 /** The heading on its own, so its recipe can be reviewed in isolation. */
 export const TitleOnly: Story = {
   args: { children: <CardTitle>Account settings</CardTitle> },
+};
+
+/**
+ * The shape 11 wallow-auth screens open with, now one component: the heading
+ * and its supporting line at the `space-y-1` rhythm, above the card's body.
+ */
+export const WithHeader: Story = {
+  args: {
+    children: (
+      <>
+        <CardHeader title="Create an account" description="Enter your details to get started." />
+        <MutedText>Form fields go here.</MutedText>
+      </>
+    ),
+  },
+};
+
+/**
+ * The description omitted — ErrorPage and the MFA screens ship a bare heading.
+ * Worth eyeballing because the fix is an absent `<p>`, not an empty one: an
+ * empty paragraph would leave the card's rhythm gap visible here.
+ */
+export const HeaderWithoutDescription: Story = {
+  args: { children: <CardHeader title="Something went wrong" /> },
+};
+
+/** RegisterForm's centred heading — a caller className over the rhythm. */
+export const CenteredHeader: Story = {
+  args: {
+    children: (
+      <CardHeader
+        title="Create an account"
+        description="Enter your details to get started."
+        className="text-center"
+      />
+    ),
+  },
 };
 
 /**
