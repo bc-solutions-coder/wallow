@@ -65,6 +65,11 @@ jobs:
       - name: Lint tests
         run: pnpm lint:tests
 
+      # sherif: workspace manifest hygiene (dependency version alignment,
+      # ordering, root-manifest shape). Zero-config; the script is the config.
+      - name: Lint manifests
+        run: pnpm lint:manifests
+
       - name: Check formatting
         run: pnpm format:check
 
