@@ -2,6 +2,23 @@
 
 **status: active**
 
+> **Progress.** Phases 1 and 2 (Tasks 1–6) are **done and pushed** — turbo owns `build`,
+> `typecheck`, `test` and `dev`, with local caching and per-branch `actions/cache` in CI. Warm
+> `pnpm check` is ~13 s against a ~64 s baseline; measurements and the six cache-correctness
+> verdicts are in `1206-turborepo-results.md`.
+>
+> **Phase 3 (Tasks 7–11) and Task 12 are deferred to bead `Wallow-m4u7`** — nothing depends on
+> them, and the local benefits are already banked. Tasks 8's two files are committed
+> (`docker/turbo-cache/`); Tasks 10 and 11 were written, verified, then backed out rather than
+> leave a `<your-zone>` placeholder in `turbo.jsonc`. Paste them back from those tasks when the
+> hostname exists.
+>
+> Three corrections found while executing, recorded on the bead and in the results file: Task 3's
+> `AUTH_BASE_PATH` grep probe is a false positive (`/auth/` matches backend API route strings in
+> both builds — compare task hashes, or the `/auth/assets/*` asset prefix, instead); Task 10's
+> claim that `futureFlags.longerSignatureKey` busts the global hash is wrong (it is hash-neutral);
+> and `apps/examples/` no longer exists — see the note under Task 2, step 5.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan
 > task-by-task.
 > Design: `docs/plans/2026-08-03/1206-turborepo-adoption-design.md`
@@ -59,7 +76,7 @@ against, and no way to tell later whether the change was worth it.
 
 ```bash
 git status --short          # expect no unstaged work you care about
-rm -rf packages/*/dist apps/*/.output apps/examples/*/.output
+rm -rf packages/*/dist apps/*/.output
 ```
 
 **Step 2: Time a full check**
@@ -199,8 +216,13 @@ In `.lintstagedrc.mjs:62`, widen the JSON glob so a staged `turbo.jsonc` is form
 
 **Step 5: Verify turbo reads the workspace**
 
-`pnpm-workspace.yaml` uses catalogs and a negated `!apps/examples` entry; confirm turbo resolves the
-graph rather than assuming it.
+`pnpm-workspace.yaml` uses catalogs; confirm turbo resolves the graph rather than assuming it.
+
+This step is what caught the `apps/examples/` problem. The workspace then negated `!apps/examples`
+and re-included `apps/examples/*`, which pnpm honours but turbo applies as a directory-prefix
+exclusion — so the nested app was silently absent from every turbo task. It was flattened to
+`apps/minimal-app` (commit `a9cde094`) and the negation is gone. Expect **16 graph entries, 14 of
+them buildable**; `config` and `lint` have no `build` script and are transit nodes.
 
 ```bash
 pnpm exec turbo run build --dry=json | python3 -c "import json,sys; d=json.load(sys.stdin); print(len(d['tasks']), 'tasks'); [print(' ', t['taskId']) for t in d['tasks']]"
@@ -232,7 +254,7 @@ input, and a warm run skips the build so the tree is never regenerated.
 
 - Create: `apps/wallow-web/turbo.jsonc`
 - Create: `apps/wallow-auth/turbo.jsonc`
-- Create: `apps/examples/minimal-app/turbo.jsonc`
+- Create: `apps/minimal-app/turbo.jsonc`
 
 No `package.json` edit is needed here. `oxfmt --write apps packages` already recurses into `apps/`
 and formats `.jsonc` files it finds — verified. Only the *root* `turbo.jsonc` needs adding to the
@@ -311,7 +333,7 @@ whole `.output` rather than one file.)
 
 **Step 2: Write the minimal-app configuration**
 
-`apps/examples/minimal-app/turbo.jsonc` — same shape, but this app is still on the flat `src/`
+`apps/minimal-app/turbo.jsonc` — same shape, but this app is still on the flat `src/`
 layout, so the path is `src/routeTree.gen.ts`:
 
 ```jsonc
@@ -357,7 +379,7 @@ so do not skip it. Re-run the build after the revert so the working tree ends cl
 
 ```bash
 pnpm format && pnpm format:check
-git add apps/*/turbo.jsonc apps/examples/minimal-app/turbo.jsonc
+git add apps/*/turbo.jsonc
 git commit -m "build(turbo): declare app build outputs and exclude generated route trees from inputs"
 ```
 

@@ -87,10 +87,10 @@ pnpm install                 # install workspace deps (--frozen-lockfile in CI)
 pnpm backend                 # run the full .NET backend via Aspire AppHost
 pnpm backend:infra           # docker compose up -d (infra only); :down to stop
 
-pnpm --filter @bc-solutions-coder/sdk build   # build the SDK FIRST (apps typecheck against dist/)
-pnpm build                   # pnpm -r build   (recursive across workspace)
-pnpm test                    # pnpm -r test    (vitest per package)
-pnpm typecheck               # pnpm -r typecheck
+pnpm build                   # turbo run build      (topological; no need to build the SDK first)
+pnpm test                    # turbo run test       (vitest per package)
+pnpm typecheck               # turbo run typecheck
+pnpm dev                     # turbo run dev        (both apps, deps built first)
 pnpm lint                    # oxlint over SOURCE only (test/story files excluded)
 pnpm lint:tests              # scripts/lint-tests.sh — the excluded files, + the vitest plugin
 pnpm lint:manifests          # sherif — workspace package.json hygiene (no ignores; keep it that way)
@@ -99,6 +99,12 @@ pnpm format                  # oxfmt --write ...   (format:check verifies)
 pnpm check:exports           # publint + @arethetypeswrong/cli over the built packages (needs dist/)
 pnpm check                   # format:check + lint + lint:tests + lint:manifests + lint:deps + build + typecheck + test + check:exports — the one-command quality gate
 ```
+
+**Turbo owns `build`, `typecheck`, `test` and `dev`** (`turbo.jsonc`), with content-addressed
+caching in `.turbo/` — a warm `pnpm check` is ~13 s against ~64 s before. All four declare
+`dependsOn: ["^build"]`, because every member resolves `@bc-solutions-coder/*` through an exports
+map pointing at `dist/`. Lint, format, manifests, deps and `check:exports` stay root invocations
+outside turbo. Caching is **local only**; a self-hosted remote cache is filed, not built.
 
 Linting runs as **two passes over one partition** — `pnpm lint` and `pnpm lint:tests` together
 cover every file exactly once, and `pnpm check` runs both. Config detail lives in
