@@ -23,7 +23,7 @@ import { defineConfig } from "vitest/config";
  * `Failed to resolve dependency` warning each and pre-bundled nothing. The fix
  * is not to declare them: naming Base UI here would give the app a second route
  * to a package the catalog exists to own, and the facade entry is what actually
- * pre-bundles react-query's runtime. `src/browser-deps.test.ts` fails now if an
+ * pre-bundles react-query's runtime. `src/app-wiring.test.ts` fails now if an
  * entry stops resolving, so this cannot silently come back.
  */
 

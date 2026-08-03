@@ -22,7 +22,7 @@
  * THE MAGIC-LINK ASYMMETRY, so nobody tidies it away: `send` is a POST and gets an
  * `{op}Mutation()`; `verify` is a GET, so the generator emits an `{op}Options()`
  * factory and no mutation factory at all, and the redemption runs through
- * `queryClient.fetchQuery`. `src/generated-mutations.test.ts` pins the shape the
+ * `queryClient.fetchQuery`. `src/app-wiring.test.ts` pins the shape the
  * generator DOES emit for it (a `queryFn` and a key); the mutation factory's absence
  * needs no guard of its own, since naming one the generator never emitted is a type
  * error at the import.

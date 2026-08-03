@@ -106,12 +106,12 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
   it still wants. `wallow/no-hand-rolled-mutation` reports any
   `mutationFn` property, so a write goes through the generated `{operation}Mutation()` factory
   (it is wallow-auth's, not wallow-web's).
-  Together they replaced the table-driven halves of `generated-mutations.test.ts` and
-  `features-api-seam.test.ts`. The latter is now deleted outright and the per-feature
-  `api.test.ts` files are trimmed to what they can assert by IMPORTING the seam
-  (`Wallow-xg9t.1`) — the seam's _shape_, which they derived by walking each feature directory,
-  is held by the two lint overrides above rather than by a disk sweep. `generated-mutations.test.ts`
-  survives: it exercises the generated surface at runtime.
+  Together they replaced the table-driven halves of the generated-mutation and API-seam specs.
+  `features-api-seam.test.ts` is deleted outright and the per-feature `api.test.ts` files are
+  trimmed to what they can assert by IMPORTING the seam — the seam's _shape_, which they derived
+  by walking each feature directory, is held by the two lint overrides above rather than by a
+  disk sweep. The runtime half survives in `apps/wallow-auth/src/app-wiring.test.ts`, which
+  exercises what each generated factory hands back.
 - **Backend data, react-query imports, and auth state each have exactly one source.** Stated in
   full under "Frontend state boundary" at the bottom of this file — read it before adding a query,
   a mutation, or a permission check.
