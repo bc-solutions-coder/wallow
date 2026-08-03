@@ -48,7 +48,7 @@ interface ProjectWithOptimizeDeps {
 }
 
 /** The slice of a Vitest root config this guard reads. */
-interface ConfigWithProjects {
+export interface ConfigWithProjects {
   readonly test?: { readonly projects?: unknown };
 }
 
@@ -213,25 +213,20 @@ export function describeBrowserPreBundleList(options: BrowserPreBundleGuardOptio
   });
 }
 
-/** The Vitest config shape this reader needs. Structural, so a consumer passes its own config. */
-export interface BrowserProjectConfig {
-  readonly test?: {
-    readonly projects?: readonly {
-      readonly optimizeDeps?: { readonly include?: readonly string[] };
-      readonly test?: { readonly name?: string };
-    }[];
-  };
-}
-
 /**
  * A consumer's browser-project `optimizeDeps.include`, read off the CONFIG OBJECT.
  *
  * Importing the config does not boot a browser provider: `playwright()` returns a
  * descriptor and nothing launches until vitest runs the project. Reading the value
  * asserts what Vite actually receives rather than how the file happens to be written.
+ *
+ * `projects` is typed `unknown` for the same reason `describeBrowserPreBundleList`
+ * types its whole config that way: vitest's own `TestProjectConfiguration` is a
+ * union whose members include a bare glob `string`, so a narrower parameter type
+ * rejects every real `defineConfig` result at the call site.
  */
-export function browserPreBundleList(config: BrowserProjectConfig): readonly string[] {
-  const projects = config.test?.projects ?? [];
+export function browserPreBundleList(config: ConfigWithProjects): readonly string[] {
+  const projects = (config.test?.projects ?? []) as readonly ProjectWithOptimizeDeps[];
 
   return projects.find((project) => project.test?.name === "browser")?.optimizeDeps?.include ?? [];
 }
