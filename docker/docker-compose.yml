@@ -135,8 +135,11 @@ services:
       GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
       GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:-wallow-admin-token}
       GARAGE_REGION: ${GARAGE_REGION:-us-east-1}
-      GARAGE_S3_PORT: ${GARAGE_S3_PORT:-3900}
-      GARAGE_ADMIN_PORT: ${GARAGE_ADMIN_PORT:-3903}
+      # Fixed, not env-configurable: the host port mappings below are literals, so a
+      # knob here could only move the container's listener away from the port the
+      # mapping (and the API's S3 endpoint) still points at.
+      GARAGE_S3_PORT: "3900"
+      GARAGE_ADMIN_PORT: "3903"
       GARAGE_KEY_NAME: ${GARAGE_KEY_NAME:-wallow-dev}
       GARAGE_ACCESS_KEY: ${GARAGE_ACCESS_KEY:-wallow}
       GARAGE_SECRET_KEY: ${GARAGE_SECRET_KEY:-wallowsecretkey1234567890abcdefgh}

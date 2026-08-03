@@ -6,6 +6,7 @@
     "backend": "dotnet run --project api/src/Wallow.AppHost",
     "backend:infra": "cd docker && docker compose up -d",
     "backend:infra:down": "cd docker && docker compose down",
+    "secrets:prod": "./scripts/prod-secrets.sh",
     "dev": "turbo run dev --filter @bc-solutions-coder/wallow-web --filter @bc-solutions-coder/wallow-auth",
     "build": "turbo run build",
     "test": "turbo run test",

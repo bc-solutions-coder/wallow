@@ -6,8 +6,9 @@ your laptop and on a server. TLS and routing are **not** part of the stack: you 
 reverse proxy in front of the published container ports.
 
 ```bash
+pnpm secrets:prod                             # writes docker/.env.production with fresh secrets
 cd docker
-cp .env.production.example .env.production    # then edit every CHANGE_ME value
+# then edit the values the script cannot invent — it lists them
 docker compose -f docker-compose.production.yml --env-file .env.production up --build
 docker compose -f docker-compose.production.yml --env-file .env.production logs -f
 ```
@@ -241,20 +242,37 @@ operational on first boot with no manual step.
 ## 4. Environment Variables
 
 All configuration comes from `.env.production`, which the compose file reads via `--env-file`.
-Start from the template and replace every `CHANGE_ME`:
+Generate it rather than copying the template by hand:
 
 ```bash
-cd docker
-cp .env.production.example .env.production
+pnpm secrets:prod         # scripts/prod-secrets.sh -> docker/.env.production, mode 600
 ```
 
-Generate secrets with:
+That renders `.env.production.example` with all 13 generatable secrets replaced by random values
+of the shape each one requires, then prints the two things it could not decide for you: your
+SMTP password, and the values that describe *where* this deployment lives (`API_PUBLIC_URL`,
+`COOKIE_DOMAIN`, `ADMIN_EMAIL`, `SEED_FILE_HOST_PATH`). It is bootstrap only — it refuses to
+overwrite an existing `.env.production`, because rotating a secret that is already in use is a
+database or cluster operation rather than a text substitution.
+
+To generate one by hand:
 
 ```bash
-openssl rand -base64 32   # general passwords and signing keys
-openssl rand -hex 12      # Garage access key ID (must be exactly 24 hex chars)
-openssl rand -hex 32      # Garage secret key / RPC secret (must be exactly 64 hex chars)
+openssl rand -hex 32      # general passwords and signing keys, and the Garage secret key
+openssl rand -hex 48      # IDENTITY_SIGNING_KEY
+openssl rand -hex 12      # Garage access key ID (prefix with 'GK'; 'GK' + exactly 24 hex chars)
 ```
+
+Use `-hex`, not `-base64`. Base64 emits `+`, `/` and `=`, and the compose file interpolates
+several of these into URLs — `VALKEY_PASSWORD` becomes `redis://:${VALKEY_PASSWORD}@valkey:6379`,
+where a stray `/` or `@` truncates the host and the BFF quietly fails to reach Valkey.
+
+**Every secret except `GF_ADMIN_PASSWORD` fails closed.** The compose entries are written as
+`${VAR:?message}`, so a missing one aborts `docker compose` naming the variable instead of
+starting the stack with a blank signing key. `GF_ADMIN_PASSWORD` is the one exception, and not by
+choice: Compose interpolates the whole file before applying `profiles:`, so marking it required
+would break every deployment that never enables the `observability` profile. Set it yourself
+whenever you use that profile.
 
 `.env.production.example` documents every variable inline. The categories:
 
@@ -264,12 +282,12 @@ openssl rand -hex 32      # Garage secret key / RPC secret (must be exactly 64 h
 | **Image tag** | `VERSION` |
 | **Database** | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` |
 | **Cache** | `VALKEY_PASSWORD` |
-| **Storage** | `GARAGE_RPC_SECRET`, `GARAGE_ADMIN_TOKEN`, `GARAGE_ACCESS_KEY`, `GARAGE_SECRET_KEY`, `GARAGE_KEY_NAME`, `GARAGE_BUCKET`, `GARAGE_REGION`, `GARAGE_S3_PORT`, `GARAGE_ADMIN_PORT` |
+| **Storage** | `GARAGE_RPC_SECRET`, `GARAGE_ADMIN_TOKEN`, `GARAGE_ACCESS_KEY`, `GARAGE_SECRET_KEY`, `GARAGE_KEY_NAME`, `GARAGE_BUCKET`, `GARAGE_REGION` |
 | **SMTP** | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USE_SSL`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, `SMTP_FROM_NAME` |
 | **Security** | `IDENTITY_SIGNING_KEY`, `OPENIDDICT_SIGNING_CERT_PASSWORD`, `OPENIDDICT_ENCRYPTION_CERT_PASSWORD`, `OPENIDDICT_ALLOW_PLAIN_HTTP_ENDPOINTS` |
 | **Seeding** | `SEED_FILE_HOST_PATH`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_FIRST_NAME`, `ADMIN_LAST_NAME` |
 | **OIDC** | `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, plus optional per-fork client secrets |
-| **BFF session** | `BFF_COOKIE_PASSWORD` |
+| **BFF session** | `BFF_COOKIE_PASSWORD`, `BFF_COOKIE_PASSWORDS` (optional — rotation) |
 | **Public URLs** | `API_PUBLIC_URL`, `AUTH_PUBLIC_URL`, `WEB_PUBLIC_URL`, `COOKIE_DOMAIN`, `API_PATH_BASE`, `AUTH_BASE_PATH` |
 | **Ingress** | `CADDYFILE_HOST_PATH`, `INGRESS_HTTP_PORT`, `INGRESS_HTTPS_PORT` |
 | **Ports** | `API_PORT`, `AUTH_PORT`, `WEB_PORT` (all bound to `127.0.0.1`) |
@@ -293,7 +311,21 @@ COOKIE_PASSWORD: ${BFF_COOKIE_PASSWORD:?BFF_COOKIE_PASSWORD is required (32+ cha
 ```
 
 so `docker compose up` fails immediately with that message rather than starting a web container
-with an insecure or absent session key. Generate it with `openssl rand -base64 32`.
+with an insecure or absent session key. Generate it with `openssl rand -hex 32`.
+
+Changing it invalidates every signed-in session — the new value cannot unseal cookies sealed with
+the old one. **`BFF_COOKIE_PASSWORDS`** is the overlap window: a JSON object of key ID to secret
+whose *first* key seals new cookies while every other key stays valid for unsealing. Leave it
+unset and the single password above is used.
+
+```ini
+BFF_COOKIE_PASSWORDS={"k2":"<new 64-hex>","k1":"<the current value>"}
+```
+
+Redeploy, wait longer than `SESSION_TTL_SECONDS` (default `86400`) so every `k1` cookie has
+expired, then drop `k1` and redeploy again. Each secret must be 32+ characters and each key ID
+must be letters, digits or underscores and not all digits; the SDK validates the whole map at
+boot rather than failing mid-login.
 
 **`OPENIDDICT_ALLOW_PLAIN_HTTP_ENDPOINTS`** controls whether the OIDC endpoints
 (`/connect/**` and discovery) will answer plain-HTTP requests. Outside Development the answer is
