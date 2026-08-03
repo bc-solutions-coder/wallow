@@ -29,8 +29,8 @@ import { toAppHref } from "@shared/lib/base-path";
 /**
  * The heading. An `<h2>` rather than a `<div>`: the shell's `<FocusOnNavigate/>`
  * moves focus to the page heading on every navigation, and `AuthLayout` owns the
- * `<h1>` above this card. The scale is the app-wide card-heading step — see
- * `src/heading-scale.test.tsx`.
+ * `<h1>` above this card. The scale is the app-wide card-heading step, which
+ * `wallow/text-heading-variant` holds.
  */
 function NotFoundHeading() {
   return (

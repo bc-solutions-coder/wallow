@@ -124,13 +124,13 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
   `text-sm` title recipes are deliberately NOT in this standard: `toastTitleRecipe` and
   `popoverTitleRecipe` are transient chrome, not surface headings. All 16 `wallow-auth` screens
   compose `<Text as="h2" variant="subheading" color="onCard">` — no `weight` prop, the step
-  carries `font-semibold` itself. `heading-scale.test.tsx` measures the computed font-size
-  across every screen in a real browser and `wallow/text-heading-variant` holds every file the
-  linter reaches, so a new screen cannot skip it; in `packages/ui` the recipe-level pin is
-  a measured `HeadingScale` story per title-bearing component (`.storybook/heading-scale.tsx`),
-  because only the `storybook` project there loads Tailwind. Assert the computed size, never the
-  class string — `cn()` merges a caller's `className` over the recipe, so `text-xl` can be
-  present while the element paints something else.
+  carries `font-semibold` itself. Two things hold that standard, at two levels. At the CALL SITE
+  it is `wallow/text-heading-variant`, which reaches every file the linter does, so a new screen
+  cannot skip it. At the RECIPE level it is a measured `HeadingScale` story per title-bearing
+  component in `packages/ui` (`.storybook/heading-scale.tsx`), because only the `storybook`
+  project there loads Tailwind and the fork theme. Assert the computed size, never the class
+  string — `cn()` merges a caller's `className` over the recipe, so `text-xl` can be present
+  while the element paints something else.
 - **A per-deployment value reaches the browser through the document, not through context.**
   `WALLOW_REPOSITORY_URL` / `WALLOW_DOCS_URL` are read once per request in `src/app/start.ts`
   (`resolveForkLinks(process.env)`), stated in `<head>` as an inline script beside `ThemeScript`
