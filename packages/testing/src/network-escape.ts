@@ -81,7 +81,7 @@ export function installNetworkEscapeGuard(): void {
   const real: typeof globalThis.fetch = globalThis.fetch.bind(globalThis);
   originalFetch = real;
 
-  globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+  globalThis.fetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     // Built rather than read off `input`, which may be a bare string or a URL —
     // `Request` is what normalises both, and resolves a relative path against
     // the page origin so the passthrough test has an origin to compare.
@@ -94,9 +94,11 @@ export function installNetworkEscapeGuard(): void {
 
     escapes.push({ method: request.method, url: request.url });
 
-    return Response.json(
-      { title: `${NETWORK_ESCAPE_MESSAGE}: ${request.method} ${request.url}` },
-      { status: BLOCKED_STATUS },
+    return Promise.resolve(
+      Response.json(
+        { title: `${NETWORK_ESCAPE_MESSAGE}: ${request.method} ${request.url}` },
+        { status: BLOCKED_STATUS },
+      ),
     );
   };
 }

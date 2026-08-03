@@ -84,7 +84,10 @@ function formatArgument(argument: unknown): string {
 }
 
 function record(level: ConsoleNoiseLevel, args: readonly unknown[]): void {
-  noise.push({ level, message: args.map(formatArgument).join(" ") });
+  noise.push({
+    level,
+    message: args.map((argument: unknown): string => formatArgument(argument)).join(" "),
+  });
 }
 
 /**
