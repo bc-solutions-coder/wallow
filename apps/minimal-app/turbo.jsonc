@@ -1,0 +1,11 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      // Same shape as the two first-party apps, but this one is still on the
+      // flat src/ layout, so the generated tree is src/routeTree.gen.ts.
+      "outputs": ["$TURBO_EXTENDS$", ".output/**", "src/routeTree.gen.ts"],
+      "inputs": ["$TURBO_DEFAULT$", "!src/routeTree.gen.ts"],
+    },
+  },
+}

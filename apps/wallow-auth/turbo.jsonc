@@ -1,0 +1,20 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "outputs": ["$TURBO_EXTENDS$", ".output/**", "src/app/routeTree.gen.ts"],
+      "inputs": ["$TURBO_DEFAULT$", "!src/app/routeTree.gen.ts"],
+      // vite.config.ts reads AUTH_BASE_PATH through process.env at config
+      // evaluation and bakes the URL prefix into every emitted asset path (see
+      // src/shared/lib/base-path.ts, docker-compose.production.yml's build-arg,
+      // and docker/.env.production.example). Undeclared it fails twice: strict
+      // envMode filters it out, so a based build silently emits a root-based
+      // bundle; and it would be absent from the hash, so a /auth build and a /
+      // build would share a cache key and be replayed for each other.
+      //
+      // Task-level, not globalEnv: wallow-web and minimal-app never read it and
+      // must not miss cache when a fork changes the auth prefix.
+      "env": ["AUTH_BASE_PATH"],
+    },
+  },
+}

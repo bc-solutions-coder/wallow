@@ -1,0 +1,18 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      // $TURBO_EXTENDS$ appends to the root's ["dist/**"] instead of replacing
+      // it. .output is the deployable bundle; .nitro and .tanstack are scratch
+      // and deliberately left uncached.
+      //
+      // routeTree.gen.ts is emitted BY this build into tracked source. Listing
+      // it as an output means a cache hit restores it; excluding it from inputs
+      // stops the task invalidating itself on every cold run. The tree stays
+      // correct because its real sources - src/app/routes/** and vite.config.ts
+      // - remain inputs.
+      "outputs": ["$TURBO_EXTENDS$", ".output/**", "src/app/routeTree.gen.ts"],
+      "inputs": ["$TURBO_DEFAULT$", "!src/app/routeTree.gen.ts"],
+    },
+  },
+}
