@@ -2,6 +2,7 @@ using System.Reflection;
 using Asp.Versioning;
 using Hangfire;
 using JasperFx.CodeGeneration.Model;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.StackExchangeRedis;
@@ -205,6 +206,10 @@ try
         //   - IBootstrapAdminService and IOrganizationService (behind BootstrapAdminHandler) reach
         //     ASP.NET Identity's UserManager and OpenIddict's managers, both registered as opaque
         //     lambda factories the codegen cannot see through either.
+        //   - IServiceAccountService (behind the six ServiceAccount commands and queries) reaches
+        //     OpenIddict's IOpenIddictApplicationManager for the same reason.
+        // HandlerCodegenTests compiles every discovered handler and fails if this list is short one
+        // entry; WolverineCodegenPolicyTests asserts the list itself has not grown unnoticed.
         // See https://wolverinefx.net/guide/codegen.html.
         opts.ServiceLocationPolicy = ServiceLocationPolicy.NotAllowed;
         opts.CodeGeneration.AlwaysUseServiceLocationFor<ITenantContext>();
@@ -212,6 +217,14 @@ try
         opts.CodeGeneration.AlwaysUseServiceLocationFor<ISetupStatusChecker>();
         opts.CodeGeneration.AlwaysUseServiceLocationFor<IBootstrapAdminService>();
         opts.CodeGeneration.AlwaysUseServiceLocationFor<IOrganizationService>();
+        opts.CodeGeneration.AlwaysUseServiceLocationFor<IServiceAccountService>();
+
+        // ASP.NET's authorization handlers are not Wolverine handlers, but they match its naming
+        // convention exactly: the class ends in "Handler" and AuthorizationHandler<T> exposes a
+        // public HandleAsync(AuthorizationHandlerContext). Left alone, Wolverine builds a message
+        // chain for AuthorizationHandlerContext whose dependencies (SignInManager, UserManager)
+        // cannot be inlined, so a type nothing ever sends fails the codegen policy.
+        opts.Discovery.CustomizeHandlerDiscovery(types => types.Excludes.Implements<IAuthorizationHandler>());
 
         // Discover handlers in all Wallow assemblies
         foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies()

@@ -9,7 +9,7 @@ namespace Wallow.Identity.Infrastructure.Services.ExtensionPoints;
 /// both build the identity module and neither owns a connection to close.
 /// </summary>
 [ExcludeFromCodeCoverage]
-internal sealed class NoOpRealtimeAccessRevoker : IRealtimeAccessRevoker
+public sealed class NoOpRealtimeAccessRevoker : IRealtimeAccessRevoker
 {
     public Task RevokeAsync(string userId, Guid tenantId, CancellationToken ct = default)
     {

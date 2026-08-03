@@ -6,7 +6,7 @@ using Wallow.Identity.Application.Interfaces;
 namespace Wallow.Identity.Infrastructure.Services.ExtensionPoints;
 
 [ExcludeFromCodeCoverage]
-internal sealed class NoOpExternalClaimsMapper : IExternalClaimsMapper
+public sealed class NoOpExternalClaimsMapper : IExternalClaimsMapper
 {
     public Task<IDictionary<string, string>> MapAsync(string provider, IEnumerable<Claim> claims, CancellationToken ct)
     {

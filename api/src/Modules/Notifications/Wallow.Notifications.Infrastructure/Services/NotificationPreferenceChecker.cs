@@ -6,12 +6,6 @@ using Wallow.Shared.Kernel.Identity;
 
 namespace Wallow.Notifications.Infrastructure.Services;
 
-/// <summary>
-/// Public because Wolverine's generated handlers construct their dependencies inline, and
-/// <c>ServiceLocationPolicy.NotAllowed</c> turns a non-public concrete type into a codegen
-/// failure at the first message. The three send handlers take this, so an internal checker
-/// dead-letters every email, SMS and push notification the application ever sends.
-/// </summary>
 public sealed class NotificationPreferenceChecker(NotificationsDbContext dbContext) : INotificationPreferenceChecker
 {
     public async Task<bool> IsChannelEnabledAsync(

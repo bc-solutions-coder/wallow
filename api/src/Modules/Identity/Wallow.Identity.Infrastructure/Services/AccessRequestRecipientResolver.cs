@@ -6,11 +6,6 @@ using Wallow.Identity.Infrastructure.Persistence;
 
 namespace Wallow.Identity.Infrastructure.Services;
 
-/// <summary>
-/// Public because Wolverine's generated handlers construct their dependencies inline and
-/// <c>ServiceLocationPolicy.NotAllowed</c> turns a non-public concrete type into a codegen
-/// failure at the first message.
-/// </summary>
 public sealed class AccessRequestRecipientResolver(IdentityDbContext dbContext) : IAccessRequestRecipientResolver
 {
     /// <summary>

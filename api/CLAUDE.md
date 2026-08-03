@@ -82,6 +82,13 @@ is a 4-project Clean Architecture stack `Wallow.{Module}.{Domain,Application,Inf
 - **Handlers:** most modules use CQRS via Wolverine — handlers are **static classes** with
   `Handle`/`HandleAsync`, auto-discovered, **no DI registration**. Exceptions: **Branding and
   ApiKeys** deliberately use direct service/repository-from-controller (no CQRS/Wolverine).
+- **Anything a handler can inject is `public`.** Wolverine's generated handlers construct their
+  dependencies inline, and `ServiceLocationPolicy.NotAllowed` turns a non-public concrete type into
+  a codegen failure on the *first message*, not at startup. So every Infrastructure implementation
+  of an Application or `Shared.Contracts` interface is public — enforced by
+  `WolverineCodegenPolicyTests`, with `HandlerCodegenTests` compiling every handler in the
+  integration run. An interface the codegen genuinely cannot construct (opaque lambda registration)
+  goes on the `AlwaysUseServiceLocationFor` list in `Program.cs`, which those tests also pin.
 - **DbContexts** extend `TenantAwareDbContext` (automatic tenant query filters +
   `TenantSaveChangesInterceptor`), default `NoTracking` — mutations attach explicitly. Modules
   auto-migrate only in Development/Testing.
