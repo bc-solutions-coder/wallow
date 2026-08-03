@@ -299,6 +299,7 @@ export {
   type ProgressTrackProps,
   type ProgressValueProps,
 } from "./components/progress";
+export { QuietLink, type QuietLinkProps } from "./components/quiet-link";
 export { Radio, type RadioIndicatorProps, type RadioRootProps } from "./components/radio";
 export {
   RadioGroup,
