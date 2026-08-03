@@ -108,7 +108,7 @@ shorten it.
 
 | Config                | Enables                                                                                                  |
 | --------------------- | -------------------------------------------------------------------------------------------------------- |
-| `apps/wallow-web`     | `no-sidebar-inversion`, `no-source-tests`, `no-tinted-text`, `zone-dag`                                  |
+| `apps/wallow-web`     | `no-sidebar-inversion`, `no-source-tests`, `no-tinted-text`, `text-heading-variant`, `zone-dag`          |
 | `apps/wallow-auth`    | `no-hand-rolled-mutation`, `no-sidebar-inversion`, `no-source-tests`, `text-heading-variant`, `zone-dag` |
 | `packages/navigation` | all six                                                                                                  |
 | `packages/ui`         | all six, minus the drawer indent recipe (see below)                                                      |
@@ -151,14 +151,18 @@ fork-unreachable colour matter more there than at a call site.
 ## Both apps are gated, not identically
 
 `apps/wallow-auth/.oxlintrc.json` carries the same rules plus `button` on the `react/forbid-elements`
-list and the `text-heading-variant` levels. Do not converge the two:
+list. Do not converge the two:
 
 - wallow-web's `bff-demo` route deliberately keeps four raw `<button>`s as the un-catalogued
   control of the BFF demo, so the button ban cannot be lifted to both.
-- That same route deliberately takes `Text`'s **derived** scale (no `variant` anywhere), which is
-  why `text-heading-variant` is wallow-auth's alone. wallow-web's headings are not one shape:
-  `LandingPage` runs `display`/`title`/`h3`, the detail routes run `title`. Do not switch the rule
-  on there without first deciding what those should be.
+- **Both apps enable `text-heading-variant`, at different levels.** wallow-auth pins
+  `h1: false` — `AuthLayout` owns the page's one level-1 heading, and it is `FocusOnNavigate`'s
+  focus target. wallow-web has no such layout, so a route may open its own `h1`; it names only
+  `h2: subheading` and lets every other level pick any variant so long as it NAMES one. Its
+  headings are not one shape, which is what the one override handles:
+  `LandingPage.tsx` runs a marketing scale (`h1: display`, `h2: title`, `h3: subheading`), one
+  step above the card scale the rest of the app uses. An override's entry REPLACES the base one,
+  so that block restates every level it wants.
 
 ## Authoring a rule
 

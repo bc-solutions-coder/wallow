@@ -151,7 +151,9 @@ function BffDemoComponent() {
 
   return (
     <main>
-      <Text as="h1">Wallow BFF example</Text>
+      <Text as="h1" variant="display">
+        Wallow BFF example
+      </Text>
 
       <Text as="p">
         Status:{" "}

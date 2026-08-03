@@ -16,6 +16,10 @@
     // level and stays silent over source. See `.claude/rules/TESTING.md`.
     "wallow/no-source-tests": "error",
     "wallow/no-tinted-text": "error",
+    // No `h1` entry: this app has no AuthLayout owning the page's one level-1
+    // heading, so a route is free to open its own — it just has to NAME a variant
+    // rather than take the much larger step Text derives from `as`.
+    "wallow/text-heading-variant": ["error", { "levels": { "h2": "subheading" } }],
     "wallow/zone-dag": "error",
     "react/forbid-elements": [
       "error",
@@ -80,10 +84,24 @@
       }
     },
     {
+      // The landing page renders a marketing scale, not a card scale. Its headings
+      // are one step up throughout — h1 `display`, h2 `title`, h3 `subheading` — so
+      // the override DECLARES that scale rather than switching the rule off. An
+      // override's entry REPLACES the base one, so this restates every level it wants.
+      "files": ["src/features/landing/components/LandingPage.tsx"],
+      "rules": {
+        "wallow/text-heading-variant": [
+          "error",
+          { "levels": { "h1": "display", "h2": "title", "h3": "subheading" } }
+        ]
+      }
+    },
+    {
       "files": ["**/*.test.*", "**/*.stories.tsx"],
       "rules": {
         "no-magic-numbers": "off",
         "react/forbid-elements": "off",
+        "wallow/text-heading-variant": "off",
         // `wallow/zone-dag` and `wallow/no-source-tests` are deliberately NOT in
         // this list. The first judges a spec's import edges exactly as it judges a
         // product module's; the second has nothing BUT specs to judge, so turning it

@@ -186,8 +186,7 @@ function FeatureCard(props: Feature) {
 function FeaturesGrid() {
   return (
     <section id="features" data-testid="home-features" className="max-w-6xl mx-auto px-6 pb-24">
-      {/* No explicit variant: `h2` already defaults to `title` (text-3xl bold). */}
-      <Text as="h2" className="text-center mb-12">
+      <Text as="h2" variant="title" className="text-center mb-12">
         Everything you need to build
       </Text>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -248,7 +247,7 @@ function StepsBand() {
   return (
     <section className="bg-sidebar text-sidebar-foreground py-20 px-6">
       <div className="max-w-4xl mx-auto text-center">
-        <Text as="h2" color="onSidebar" className="mb-12">
+        <Text as="h2" variant="title" color="onSidebar" className="mb-12">
           Get running in minutes
         </Text>
         <StepsGrid />

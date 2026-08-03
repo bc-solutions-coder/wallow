@@ -71,8 +71,11 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
   favour of the recipes' `surface="sidebar"` axis), `wallow/no-tinted-text` (bans
   `text-<token>/<alpha>` — muted copy is `text-muted-foreground`; a translucent _surface_ such as
   the drawer scrim's `bg-foreground/40` stays legal), `wallow/text-heading-variant`
-  (wallow-auth only: every `<Text as="h_">` must name its `variant`, an `h2` must be
-  `subheading` and carry no `weight`, and no file but `auth-layout.tsx` may open an `h1`),
+  (both apps: every `<Text as="h_">` must name its `variant`, an `h2` must be `subheading` and
+  carry no `weight`. The two differ in their exemptions — in wallow-auth no file but
+  `auth-layout.tsx` may open an `h1`, which wallow-web has no equivalent of; wallow-web instead
+  overrides `LandingPage.tsx` to `h1: display`, `h2: title`, `h3: subheading`, because a marketing
+  page runs one step above a card scale),
   `wallow/zone-dag` (the import graph above), and `wallow/no-source-tests` (bans `node:fs` in a
   `*.test.*` file — a spec asserts behaviour, not source text; see `.claude/rules/TESTING.md`).
   The first three are off for `*.test.*` and `*.stories.tsx`. `zone-dag` deliberately is NOT,
