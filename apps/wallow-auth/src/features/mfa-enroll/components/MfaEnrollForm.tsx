@@ -1,4 +1,4 @@
-import { isSafeReturnUrl, type MfaEnrollmentConfirmedResponse } from "@bc-solutions-coder/sdk";
+import type { MfaEnrollmentConfirmedResponse } from "@bc-solutions-coder/sdk";
 import {
   Button,
   Card,
@@ -10,7 +10,7 @@ import {
   Text,
 } from "@bc-solutions-coder/ui";
 import { useMutation } from "@bc-solutions-coder/query";
-import { useNavigate, useRouteContext } from "@tanstack/react-router";
+import { useRouteContext } from "@tanstack/react-router";
 import { QRCodeSVG } from "qrcode.react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import {
@@ -20,6 +20,7 @@ import {
 } from "../api";
 import { toAppHref } from "@shared/lib/base-path";
 import { readErrorCode, readMember } from "@shared/lib/error-code";
+import { useReturnUrlGuard } from "@shared/hooks/use-return-url-guard";
 
 /**
  * The MfaEnroll screen (Wallow-vec7.3.7).
@@ -122,9 +123,6 @@ import { readErrorCode, readMember } from "@shared/lib/error-code";
  * `enroll/confirm` just upgraded to full auth (`UpgradeToFullAuthAsync`,
  * MfaController:113-117) — the exact round-trip in this bead's acceptance.
  */
-
-/** The bail target for an unsafe returnUrl, matching the ConsentScreen port. */
-const ERROR_HREF = "/error?reason=invalid_redirect_uri";
 
 /** The oracle's `Sanitize(null)` fallback for a user who arrived without one. */
 const HOME_HREF: string = toAppHref("/");
@@ -434,7 +432,6 @@ export interface MfaEnrollFormProps {
 
 export function MfaEnrollForm({ returnUrl, enrollToken }: MfaEnrollFormProps): ReactNode {
   const { sdk } = useRouteContext({ from: "__root__" });
-  const navigate = useNavigate();
   const [code, setCode] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [backupCodes, setBackupCodes] = useState<readonly string[] | null>(null);
@@ -449,11 +446,8 @@ export function MfaEnrollForm({ returnUrl, enrollToken }: MfaEnrollFormProps): R
    */
   const [exchanging, setExchanging] = useState(enrollToken !== undefined && enrollToken !== "");
 
-  // The guard, evaluated before anything else happens. A NULLISH returnUrl is not
-  // hostile — it is the oracle's ordinary direct-enrollment path — so only a
-  // PRESENT value is checked. An empty string IS present, and `isSafeReturnUrl("")`
-  // is false, so it is the unsafe case rather than the nullish no-redirect one.
-  const returnUrlIsUnsafe: boolean = returnUrl !== undefined && !isSafeReturnUrl(returnUrl);
+  // Evaluated before anything else happens; the hook owns the bail navigation.
+  const returnUrlVerdict = useReturnUrlGuard(returnUrl);
 
   /**
    * The oracle's `TryTakeFromJson` suppression, kept as a ref: enrollment must
@@ -501,9 +495,8 @@ export function MfaEnrollForm({ returnUrl, enrollToken }: MfaEnrollFormProps): R
 
   useEffect(() => {
     // Refused destinations never enroll: do not make a user set up a second factor
-    // for somewhere already decided against.
-    if (returnUrlIsUnsafe) {
-      void navigate({ href: ERROR_HREF });
+    // for somewhere already decided against. The guard hook is already navigating.
+    if (returnUrlVerdict === "refuse") {
       return;
     }
 
@@ -541,7 +534,7 @@ export function MfaEnrollForm({ returnUrl, enrollToken }: MfaEnrollFormProps): R
       startEnroll({});
       setExchanging(false);
     })();
-  }, [returnUrlIsUnsafe, navigate, enrollToken, startEnroll, sdk]);
+  }, [returnUrlVerdict, enrollToken, startEnroll, sdk]);
 
   // Its own mutation, never folded into the start above: different endpoint,
   // different lifetime (the start fires once on mount, the confirm once per submit
@@ -611,9 +604,9 @@ export function MfaEnrollForm({ returnUrl, enrollToken }: MfaEnrollFormProps): R
     );
   };
 
-  if (returnUrlIsUnsafe) {
-    // The effect above is navigating away; rendering the form would invite the
-    // user to produce a second factor for a destination already refused.
+  if (returnUrlVerdict === "refuse") {
+    // The guard is navigating away; rendering the form would invite the user to
+    // produce a second factor for a destination already refused.
     return null;
   }
 

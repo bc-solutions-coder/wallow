@@ -6,6 +6,10 @@
  * swallow the open-redirect attempt and leave the user on a screen that looks as
  * though nothing was wrong.
  *
+ * A raw `href` rather than `to` + `search` (bd memory
+ * `tanstack-router-redirect-to-an-unregistered-route-use-href-not-to`), which
+ * also keeps every caller off `/error`'s `validateSearch` shape.
+ *
  * A bare constant rather than something the hook owns, because two of its four
  * consumers are pure functions with no React in them — `verifyEmailTarget` in
  * `RegisterForm` and `authOutcome` in the login feature's result layer — and a

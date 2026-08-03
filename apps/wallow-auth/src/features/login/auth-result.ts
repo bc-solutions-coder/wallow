@@ -1,5 +1,6 @@
 import { asString } from "@bc-solutions-coder/utils/guards";
 import { readErrorCode, readMember } from "@shared/lib/error-code";
+import { ERROR_HREF } from "@shared/lib/return-url";
 /**
  * The login screen's RESULT LAYER (Wallow-vec7.3.11 / 2.8a): everything that
  * turns an untyped `auth.*` response into a decision, with no React and no SDK
@@ -101,9 +102,6 @@ const LOCKED_STATUS = 423;
 /** In-app destinations. Constant paths — see the guard note on `authDispositionOf`. */
 const MFA_CHALLENGE_PATH = "/mfa/challenge";
 const MFA_ENROLL_PATH = "/mfa/enroll";
-
-/** The bail target for an unsafe returnUrl, matching the Consent/MfaChallenge ports. */
-const ERROR_HREF = "/error?reason=invalid_redirect_uri";
 
 /**
  * Did this rejection never reach the server at all?

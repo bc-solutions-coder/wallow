@@ -20,6 +20,7 @@ import {
 } from "../api";
 import { BASE_PATH, toAppHref } from "@shared/lib/base-path";
 import { readErrorCode } from "@shared/lib/error-code";
+import { ERROR_HREF } from "@shared/lib/return-url";
 
 /**
  * The Register screen (Wallow-vec7.3.8).
@@ -95,9 +96,6 @@ import { readErrorCode } from "@shared/lib/error-code";
  * note above.
  */
 const SAME_ORIGIN_BASE: string = BASE_PATH;
-
-/** The bail target for an unsafe returnUrl, matching the sibling ports. */
-const ERROR_HREF = "/error?reason=invalid_redirect_uri";
 
 /** The oracle's client-side guards, in the oracle's own order. */
 const BLANK_EMAIL_MESSAGE = "Please enter your email address.";

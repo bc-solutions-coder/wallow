@@ -1,10 +1,11 @@
-import { buildConsentSubmitUrl, consentInfoArgs, isSafeReturnUrl } from "@bc-solutions-coder/sdk";
+import { buildConsentSubmitUrl, consentInfoArgs } from "@bc-solutions-coder/sdk";
 import { Button, Card, ErrorBanner, MutedText, Text } from "@bc-solutions-coder/ui";
 import { useQuery } from "@bc-solutions-coder/query";
-import { useNavigate, useRouteContext } from "@tanstack/react-router";
-import { useEffect, useMemo, type ReactNode } from "react";
+import { useRouteContext } from "@tanstack/react-router";
+import { useMemo, type ReactNode } from "react";
 import { appsGetConsentInfoOptions } from "../api";
 import { BASE_PATH } from "@shared/lib/base-path";
+import { useReturnUrlGuard } from "@shared/hooks/use-return-url-guard";
 
 /**
  * The Consent screen (Wallow-vec7.3.4).
@@ -103,15 +104,6 @@ import { BASE_PATH } from "@shared/lib/base-path";
 
 /** The oracle's single error message, covering every failure it can have. */
 const LOAD_FAILURE_MESSAGE = "Unable to load consent information. Please try again.";
-
-/**
- * The bail target for an unsafe returnUrl. `href` (a raw location) rather than
- * `to` + `search`: bd memory
- * `tanstack-router-redirect-to-an-unregistered-route-use-href-not-to`, and here
- * also because `/error`'s `validateSearch` is owned by the in-flight
- * Wallow-vec7.3.3 — `href` keeps this screen from coupling to that shape.
- */
-const ERROR_HREF = "/error?reason=invalid_redirect_uri";
 
 /**
  * The same-origin base the consent submit URL is built against: this app. See the
@@ -294,7 +286,6 @@ export interface ConsentScreenProps {
 
 export function ConsentScreen({ clientId, returnUrl, scope }: ConsentScreenProps): ReactNode {
   const { sdk } = useRouteContext({ from: "__root__" });
-  const navigate = useNavigate();
 
   // Split on whitespace, dropping empty segments: repeated or trailing spaces in
   // the parameter are not empty scope names. A link with no `scope` asks with
@@ -304,22 +295,14 @@ export function ConsentScreen({ clientId, returnUrl, scope }: ConsentScreenProps
     [scope],
   );
 
-  // The guard, evaluated before anything else happens. A NULLISH returnUrl is not
-  // hostile — the builder's `ReturnUrl ?? "/"` covers it — so only a PRESENT value
-  // is checked. An empty string IS present: `IsNullOrWhiteSpace` fails it, so it
-  // is the unsafe case and not the nullish-fallback one.
-  const returnUrlIsUnsafe: boolean = returnUrl !== undefined && !isSafeReturnUrl(returnUrl);
+  // Evaluated before anything else happens; the hook owns the bail navigation.
+  // The nullish case is the builder's `ReturnUrl ?? "/"` and is not hostile.
+  const returnUrlIsUnsafe: boolean = useReturnUrlGuard(returnUrl) === "refuse";
 
   // The oracle's `if (ClientId is not null)`. An empty string is a malformed
   // link, not a client to look up: a screen that "helpfully" sent `client_id=`
   // would 404 and blame the server for the link's own defect.
   const clientIsKnown: boolean = clientId !== undefined && clientId !== "";
-
-  useEffect(() => {
-    if (returnUrlIsUnsafe) {
-      void navigate({ href: ERROR_HREF });
-    }
-  }, [returnUrlIsUnsafe, navigate]);
 
   // The requested scopes are an INPUT to this lookup — see the note above. The
   // `?? ""` is unreachable — `enabled` gates the read on `clientIsKnown` — and is
