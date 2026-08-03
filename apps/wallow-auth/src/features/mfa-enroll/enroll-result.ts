@@ -44,6 +44,9 @@ import { readErrorCode, readMember } from "@shared/lib/error-code";
 /** The oracle's `HandleStartEnroll` failure copy. */
 const START_FAILED_MESSAGE = "Failed to start MFA enrollment. Please try again.";
 
+/** The oracle's `IsNullOrWhiteSpace(_code)` guard, ahead of the confirm call. */
+const BLANK_CODE_MESSAGE = "Please enter the verification code.";
+
 /** The oracle's `"invalid_code" =>` branch. */
 const INVALID_CODE_MESSAGE = "Invalid verification code. Please try again.";
 
@@ -81,6 +84,26 @@ const INVALID_OR_EXPIRED_TOKEN = "invalid_or_expired_token";
  */
 const UNAUTHORIZED_STATUS = 401;
 const BAD_REQUEST_STATUS = 400;
+
+/** What the confirm step's form holds, and what the guard below reads. */
+export interface ConfirmValues {
+  readonly code: string;
+}
+
+/**
+ * The oracle's pre-call guard, as one message or `null`.
+ *
+ * It is a submit-time check rather than a zod rule because the screen shows a
+ * single banner shared with the confirm rejection: a zod failure would abort
+ * `handleSubmit` before the callback that owns that banner ever ran.
+ */
+export function confirmGuardMessage(values: ConfirmValues): string | null {
+  if (values.code.trim() === "") {
+    return BLANK_CODE_MESSAGE;
+  }
+
+  return null;
+}
 
 /** Map an `enroll/totp` rejection onto user-facing copy. */
 export function startFailureMessage(cause: unknown): string {

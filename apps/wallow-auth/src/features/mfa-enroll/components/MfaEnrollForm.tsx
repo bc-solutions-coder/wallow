@@ -1,20 +1,19 @@
-import type { MfaEnrollmentConfirmedResponse } from "@bc-solutions-coder/sdk";
 import {
-  Button,
-  Card,
-  ErrorBanner,
-  Field,
-  Input,
-  Label,
-  MutedText,
-  Text,
-} from "@bc-solutions-coder/ui";
+  AppForm,
+  type AppFormApi,
+  FormError,
+  SubmitButton,
+  useAppForm,
+} from "@bc-solutions-coder/forms";
+import type { MfaEnrollmentConfirmedResponse } from "@bc-solutions-coder/sdk";
+import { Button, Card, ErrorBanner, MutedText, Text } from "@bc-solutions-coder/ui";
 import { useMutation } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
 import { QRCodeSVG } from "qrcode.react";
-import { type ReactNode, useState } from "react";
+import { type ReactElement, type ReactNode, useState } from "react";
+import { z } from "zod";
 import { mfaConfirmEnrollmentMutation } from "../api";
-import { confirmFailureMessage } from "../enroll-result";
+import { confirmFailureMessage, confirmGuardMessage, type ConfirmValues } from "../enroll-result";
 import { useEnrollmentStart } from "../hooks/use-enrollment-start";
 import { toAppHref } from "@shared/lib/base-path";
 import { useReturnUrlGuard } from "@shared/hooks/use-return-url-guard";
@@ -65,6 +64,25 @@ import { useReturnUrlGuard } from "@shared/hooks/use-return-url-guard";
  * oracle. This screen owns only the CONFIRM side of it; the start and the token
  * exchange report through `useEnrollmentStart`.
  *
+ * `mfa-enroll-error` is stamped in TWO places, and that is deliberate rather than
+ * a duplicate: the start-side banner sits at the card level, because a start that
+ * failed has no secret and therefore no form to hang a banner inside, while the
+ * confirm-side banner is `<FormError/>` inside `ConfirmForm`. The two can never
+ * stand at once — a confirm needs a secret, which needs a start that succeeded,
+ * and the intro's retry clears the start error before refiring — so exactly one
+ * element ever carries that id.
+ *
+ * ── WHY THE CONFIRM RUNS THE FORMS PACKAGE "SIDEWAYS" ─────────────────────────
+ *
+ * `ConfirmForm` takes the plain-`onSubmit` escape hatch instead of handing
+ * `useAppForm` the generated mutation, for this endpoint's own reasons:
+ * `splitServerError` reads RFC 7807 members and `enroll/confirm` answers with a
+ * bare `{ succeeded, error }` body, so only `confirmFailureMessage` can tell its
+ * rejections apart; and the blank-code guard shares that one banner, which a zod
+ * rule could not do — it would abort `handleSubmit` before the callback ran. The
+ * schema below is therefore rule-free, and the banner text is this component's
+ * own `useState` handed to the shell as an EXPLICIT `serverError` prop.
+ *
  * ── THE QR CODE ───────────────────────────────────────────────────────────────
  *
  * `qrUri` is an `otpauth://` URI (`MfaService.cs:38`), NOT a renderable image, so
@@ -88,9 +106,6 @@ import { useReturnUrlGuard } from "@shared/hooks/use-return-url-guard";
 
 /** The oracle's `Sanitize(null)` fallback for a user who arrived without one. */
 const HOME_HREF: string = toAppHref("/");
-
-/** The oracle's `IsNullOrWhiteSpace(_code)` guard. */
-const BLANK_CODE_MESSAGE = "Please enter the verification code.";
 
 /** The oracle's `BbCardHeader`. */
 function CardHeading() {
@@ -140,48 +155,103 @@ function SecretPanel({
   );
 }
 
-/** The oracle's `<form>`: the code field and the submit. */
-function ConfirmFields(props: {
-  readonly code: string;
-  readonly pending: boolean;
-  readonly onCodeChange: (value: string) => void;
-  readonly onSubmit: () => void;
-}) {
-  const { code, pending, onCodeChange, onSubmit } = props;
+/**
+ * RULE-FREE on purpose. `revalidateLogic` runs this on submit and aborts
+ * `handleSubmit` on any failure, which would preempt the banner
+ * `confirmGuardMessage` shares with the rejection copy — see the header note.
+ * It is here for the value type alone.
+ */
+const confirmSchema = z.object({ code: z.string() });
+
+const EMPTY_CONFIRM: ConfirmValues = { code: "" };
+
+/**
+ * The oracle's `<form>`: the code field and the submit, on the shared forms
+ * layer. `testIdPrefix="mfa-enroll"` derives `mfa-enroll-code` (from the field
+ * name), `mfa-enroll-submit` and `mfa-enroll-error` — the ids the E2E suite
+ * already selects.
+ */
+function ConfirmForm({
+  secret,
+  onConfirmed,
+}: {
+  readonly secret: string;
+  readonly onConfirmed: (codes: readonly string[]) => void;
+}): ReactElement {
+  const { sdk } = useRouteContext({ from: "__root__" });
+  const [formError, setFormError] = useState<string | null>(null);
+
+  // Its own mutation, never folded into the start: different endpoint, different
+  // lifetime (the start fires once on mount, the confirm once per submit and
+  // again in place after a rejected code).
+  const confirmMutation = useMutation(mfaConfirmEnrollmentMutation({ client: sdk.client }));
+
+  // Annotated rather than inferred: `onSubmit` below reads `form` back to clear
+  // the code, and an unannotated `const` referenced inside its own initializer
+  // is a circular inference TypeScript refuses.
+  const form: AppFormApi<ConfirmValues> = useAppForm<ConfirmValues>({
+    schema: confirmSchema,
+    defaultValues: EMPTY_CONFIRM,
+    onSubmit: async (values: ConfirmValues): Promise<void> => {
+      const guard: string | null = confirmGuardMessage(values);
+
+      if (guard !== null) {
+        setFormError(guard);
+        return;
+      }
+
+      // The oracle's `_errorMessage = null;` at the top of `HandleConfirm`.
+      setFormError(null);
+
+      let result: MfaEnrollmentConfirmedResponse;
+
+      try {
+        // The generated artifact's REQUEST object, not a bare body. The secret MUST
+        // be the one `enroll/totp` minted — the server re-validates the TOTP against
+        // the secret in the body before storing it. Nothing else rides along: the
+        // oracle needed a cookie header here, and this does not.
+        result = await confirmMutation.mutateAsync({ body: { secret, code: values.code } });
+      } catch (error: unknown) {
+        // The form deliberately stays up, and the SECRET is deliberately kept: the
+        // TOTP window rolls every 30 seconds, so a stale code is the common cause,
+        // and re-enrolling behind the user's back would invalidate the authenticator
+        // entry they just made.
+        setFormError(confirmFailureMessage(error));
+        // The CODE, by contrast, is cleared — a DIVERGENCE from the oracle, which
+        // leaves `_code` sitting in the box. A rejected TOTP is single-use and
+        // time-boxed: it is guaranteed dead, so keeping it makes the user
+        // select-all-delete before every retry and invites a resubmit of the
+        // identical failing value. Same reasoning as the sibling
+        // `MfaChallengeForm`'s clear-on-toggle.
+        form.setFieldValue("code", "");
+        return;
+      }
+
+      // Reached only on a RESOLVED call, which is always a success: every failure
+      // this endpoint has is non-2xx, so `unwrap()` has already thrown above.
+      //
+      // The `??` survives the move to the generated type even though that type
+      // declares `backupCodes` REQUIRED: the declaration is the schema's claim, not
+      // the wire's. `MfaController` returns `Ok(new { succeeded = true, backupCodes })`
+      // and a null list serializes to an absent member, which would reach
+      // `BackupCodesPanel` as `undefined.map` — the success screen replaced by an
+      // error boundary on an enrollment that WORKED. An empty list is still a
+      // successful enrollment and MFA really is on.
+      onConfirmed(result.backupCodes ?? []);
+    },
+  });
 
   return (
-    <form
-      className="space-y-4"
-      onSubmit={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        onSubmit();
-      }}
-    >
-      <Field>
-        <Label htmlFor="code">Verification code</Label>
-        <Input
-          id="code"
-          type="text"
-          placeholder="Enter 6-digit code"
-          data-testid="mfa-enroll-code"
-          value={code}
-          onChange={(e) => {
-            onCodeChange(e.target.value);
-          }}
-        />
-      </Field>
-      <Button
-        type="submit"
-        // The oracle's `Loading`/`Disabled="_isSubmitting"`. A double submit burns
-        // the 30-second TOTP window and mints a second set of backup codes over
-        // the ones the user is mid-way through writing down.
-        disabled={pending}
-        data-testid="mfa-enroll-submit"
-      >
-        {pending ? "Verifying..." : "Verify and enable MFA"}
-      </Button>
-    </form>
+    <AppForm form={form} testIdPrefix="mfa-enroll" serverError={formError} className="space-y-4">
+      <FormError />
+      <form.AppField name="code">
+        {(field) => <field.TextField label="Verification code" placeholder="Enter 6-digit code" />}
+      </form.AppField>
+      {/* The oracle's `Loading`/`Disabled="_isSubmitting"`, now the shell's:
+          a double submit burns the 30-second TOTP window and mints a second set
+          of backup codes over the ones the user is mid-way through writing down. */}
+      <SubmitButton pendingLabel="Verifying...">Verify and enable MFA</SubmitButton>
+    </AppForm>
   );
 }
 
@@ -295,9 +365,6 @@ export interface MfaEnrollFormProps {
 }
 
 export function MfaEnrollForm({ returnUrl, enrollToken }: MfaEnrollFormProps): ReactNode {
-  const { sdk } = useRouteContext({ from: "__root__" });
-  const [code, setCode] = useState("");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [backupCodes, setBackupCodes] = useState<readonly string[] | null>(null);
 
   // Evaluated before anything else happens; the hook owns the bail navigation.
@@ -308,11 +375,6 @@ export function MfaEnrollForm({ returnUrl, enrollToken }: MfaEnrollFormProps): R
   // make a user set up a second factor for somewhere already decided against.
   const enrollment = useEnrollmentStart(enrollToken, returnUrlVerdict === "refuse");
 
-  // Its own mutation, never folded into the start above: different endpoint,
-  // different lifetime (the start fires once on mount, the confirm once per submit
-  // and again in place after a rejected code).
-  const confirmMutation = useMutation({ ...mfaConfirmEnrollmentMutation({ client: sdk.client }) });
-
   const handleDone = (): void => {
     // Unsafe values were refused at mount, so a present returnUrl here is safe.
     // A FULL navigation, not `navigate()`: `/connect/**` is served by the passthrough
@@ -320,65 +382,6 @@ export function MfaEnrollForm({ returnUrl, enrollToken }: MfaEnrollFormProps): R
     // No origin prepend — see the origin-divergence note above.
     globalThis.location.href = returnUrl ?? HOME_HREF;
   };
-
-  const handleSubmit = (): void => {
-    // The oracle's `if (string.IsNullOrWhiteSpace(_code))`, which guards ahead of
-    // the call — a blank submit cannot succeed.
-    if (code.trim() === "") {
-      setErrorMessage(BLANK_CODE_MESSAGE);
-      return;
-    }
-
-    if (enrollment.secret === null) {
-      return;
-    }
-
-    // The oracle's `_errorMessage = null;` at the top of `HandleConfirm`.
-    setErrorMessage(null);
-
-    confirmMutation.mutate(
-      // The generated artifact's REQUEST object, not a bare body. The secret MUST be
-      // the one `enroll/totp` minted — the server re-validates the TOTP against the
-      // secret in the body before storing it. Nothing else rides along: the oracle
-      // needed a cookie header here, and this does not.
-      { body: { secret: enrollment.secret, code } },
-      {
-        // Resolution IS success: every failure this endpoint has is non-2xx, so
-        // `unwrap()` has already thrown by the time this runs.
-        onSuccess: (result: MfaEnrollmentConfirmedResponse) => {
-          // The oracle's `result.BackupCodes ?? Array.Empty<string>()`. An empty
-          // list is still a successful enrollment and MFA really is on; falling
-          // back to the error state would tell the user a lie about their account.
-          //
-          // The `??` survives the move to the generated type even though that
-          // type declares `backupCodes` REQUIRED: the declaration is the schema's
-          // claim, not the wire's. `MfaController` returns `Ok(new { succeeded =
-          // true, backupCodes })` and a null list serializes to an absent member,
-          // which reaches `BackupCodesPanel` as `undefined.map` — the success
-          // screen replaced by an error boundary on an enrollment that WORKED.
-          setBackupCodes(result.backupCodes ?? []);
-        },
-        onError: (cause: unknown) => {
-          // The form deliberately stays up, and the SECRET is deliberately kept:
-          // the TOTP window rolls every 30 seconds, so a stale code is the common
-          // cause, and re-enrolling behind the user's back would invalidate the
-          // authenticator entry they just made.
-          setErrorMessage(confirmFailureMessage(cause));
-          // The CODE, by contrast, is cleared — a DIVERGENCE from the oracle,
-          // which leaves `_code` sitting in the box. A rejected TOTP is single-use
-          // and time-boxed: it is guaranteed dead, so keeping it makes the user
-          // select-all-delete before every retry and invites a resubmit of the
-          // identical failing value. Same reasoning as the sibling
-          // `MfaChallengeForm`'s clear-on-toggle.
-          setCode("");
-        },
-      },
-    );
-  };
-
-  // The two never stand at once: a confirm needs a secret, which needs a start
-  // that succeeded, and the intro's retry clears the start error before refiring.
-  const message: string | null = errorMessage ?? enrollment.error;
 
   if (returnUrlVerdict === "refuse") {
     // The guard is navigating away; rendering the form would invite the user to
@@ -389,18 +392,17 @@ export function MfaEnrollForm({ returnUrl, enrollToken }: MfaEnrollFormProps): R
   return (
     <Card>
       <CardHeading />
-      {message === null ? null : (
-        <ErrorBanner data-testid="mfa-enroll-error">{message}</ErrorBanner>
+      {/* The start-side half of `mfa-enroll-error` — see the header note on why
+          the id is stamped in two places that can never both render. */}
+      {enrollment.error === null ? null : (
+        <ErrorBanner data-testid="mfa-enroll-error">{enrollment.error}</ErrorBanner>
       )}
       {renderBody({
         backupCodes,
         secret: enrollment.secret,
         qrUri: enrollment.qrUri,
-        code,
         loading: enrollment.loading,
-        pending: confirmMutation.isPending,
-        onCodeChange: setCode,
-        onSubmit: handleSubmit,
+        onConfirmed: setBackupCodes,
         onDone: handleDone,
         onBeginSetup: enrollment.beginSetup,
       })}
@@ -420,11 +422,8 @@ function renderBody(props: {
   readonly backupCodes: readonly string[] | null;
   readonly secret: string | null;
   readonly qrUri: string | null;
-  readonly code: string;
   readonly loading: boolean;
-  readonly pending: boolean;
-  readonly onCodeChange: (value: string) => void;
-  readonly onSubmit: () => void;
+  readonly onConfirmed: (codes: readonly string[]) => void;
   readonly onDone: () => void;
   readonly onBeginSetup: () => void;
 }): ReactNode {
@@ -443,12 +442,7 @@ function renderBody(props: {
     return (
       <>
         <SecretPanel qrUri={props.qrUri} secret={props.secret} />
-        <ConfirmFields
-          code={props.code}
-          pending={props.pending}
-          onCodeChange={props.onCodeChange}
-          onSubmit={props.onSubmit}
-        />
+        <ConfirmForm secret={props.secret} onConfirmed={props.onConfirmed} />
       </>
     );
   }
