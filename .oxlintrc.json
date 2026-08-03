@@ -110,6 +110,7 @@
     "builtin": true
   },
   "ignorePatterns": [
+    ".lint-mirror",
     "**/dist/**",
     "**/generated/**",
     "packages/sdk/src/generated/**",

@@ -158,6 +158,11 @@ function allPatternGroups(): string[] {
   return (options.patterns ?? []).flatMap((pattern: RestrictedPattern): string[] => pattern.group);
 }
 
+// Deliberately in the OS tmpdir, unlike `mirrorRoot` below: these snippets are
+// linted against the REAL config in place (`-c <repoRoot>/.oxlintrc.json`), so
+// jsPlugins resolution is unaffected by where the files sit — and a snippet
+// under `.lint-mirror/` would be swallowed by that entry in the root config's
+// `ignorePatterns`, turning every "rejects" assertion vacuously green.
 const scratchDir: string = mkdtempSync(join(tmpdir(), "wallow-oxlint-guardrails-"));
 
 afterAll((): void => {
@@ -355,8 +360,9 @@ describe("the guardrails fire on real source", () => {
  * files). Snippets linted from a scratch directory cannot see either, because an
  * absolute path outside the repo matches no `files` glob at all.
  *
- * So the fixtures below are a MIRROR of the repo: a tmp root holding a verbatim
- * copy of `.oxlintrc.json` plus files at the repo-relative paths that matter.
+ * So the fixtures below are a MIRROR of the repo: a scratch root (in-repo — see
+ * the comment above `mirrorRoot` for why) holding a verbatim copy of
+ * `.oxlintrc.json` plus files at the repo-relative paths that matter.
  * oxlint resolves `files` and `ignorePatterns` against the config's own
  * directory, so a fixture at `apps/wallow-web/src/routes/dashboard.tsx` is
  * matched by exactly the globs its real counterpart is — which makes "an app
@@ -372,16 +378,26 @@ interface Offence {
 }
 
 /**
+ * The mirror lives INSIDE the repo — `<repoRoot>/.lint-mirror/` (gitignored, and
+ * in the root config's `ignorePatterns`) — NOT in `os.tmpdir()`. Do not "clean
+ * this up" back to a temp directory: the root config carries a `jsPlugins` entry
+ * whose bare `@bc-solutions-coder/lint` specifier documented oxlint behaviour
+ * resolves from the CONFIG FILE'S OWN directory, so the copy of the config below
+ * must sit somewhere Node's walk-up resolution can reach the repo's
+ * `node_modules`. A temp-dir mirror happens to load today only because the
+ * installed oxlint also probes its own install location (pnpm's hidden hoist
+ * store) — an implementation detail this spec must not depend on.
+ *
  * `realpathSync` is load-bearing, not tidiness: oxlint canonicalizes each file's
  * path before matching it against an override's `files`, while the globs are
- * resolved against the config's directory as given. On macOS `os.tmpdir()` is
- * `/var/folders/...`, a symlink to `/private/var/folders/...`, so a mirror rooted
- * at the symlinked form matches NO override — every exemption silently evaporates
- * and the tree only ever proves the root rule. The harness proof below is what
- * catches that.
+ * resolved against the config's directory as given. A mirror rooted at a
+ * symlinked form of the path matches NO override — every exemption silently
+ * evaporates and the tree only ever proves the root rule. The harness proof
+ * below is what catches that.
  */
-const mirrorParent: string = mkdtempSync(join(tmpdir(), "wallow-oxlint-mirror-"));
-const mirrorRoot: string = realpathSync(mirrorParent);
+const lintMirrorBase: string = join(repoRoot, ".lint-mirror");
+mkdirSync(lintMirrorBase, { recursive: true });
+const mirrorRoot: string = realpathSync(mkdtempSync(join(lintMirrorBase, "run-")));
 
 afterAll((): void => {
   rmSync(mirrorRoot, { force: true, recursive: true });

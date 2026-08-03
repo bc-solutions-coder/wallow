@@ -123,3 +123,8 @@ storybook-static/
 # handed to it explicitly — which is what keeps a fixture leaked by a crashed run
 # from failing `pnpm lint` for everyone.
 __lintfixtures__/
+
+# The oxlint guardrail spec's mirror trees (packages/sdk/src/oxlint-guardrails.test.ts).
+# In-repo rather than in os.tmpdir() so the copied root config can resolve its
+# jsPlugins specifier through the repo's node_modules.
+.lint-mirror/
