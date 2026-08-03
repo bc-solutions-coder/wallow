@@ -21,7 +21,8 @@ workspace.
 | `./theme-wiring` (`src/theme-wiring.tsx`)                                  | Inside a **browser-mode spec**      | `assertThemeWiring({ tokens, probeClass })` — the consumer's whole spec file is one call.                                                                                                                                                                                                              |
 | `./sdk-harness` (`src/sdk-harness.ts`)                                     | **Any** project                     | `createSdkHarness` / `createPassthroughHarness`, plus the multi-route helpers (`routeHarness`, `failsWith`, `neverSettles`) re-exported so a spec needs one specifier. Imports no `vitest`.                                                                                                            |
 | `./invalidation` (`src/invalidation.ts`)                                   | Inside a **spec**                   | Runs a real `invalidations` predicate against a real generated query key.                                                                                                                                                                                                                              |
-| `./browser-deps` (`src/browser-deps.ts`)                                   | Inside a **node-project spec**      | `describeBrowserPreBundleList()` — asserts every `optimizeDeps.include` entry in a consumer's browser project actually resolves. Spawns child processes; keep it off the barrel.                                                                                                                       |
+| `./browser-deps` (`src/browser-deps.ts`)                                   | Inside a **node-project spec**      | `describeBrowserPreBundleList()` — asserts every `optimizeDeps.include` entry in a consumer's browser project actually resolves. Spawns child processes; keep it off the barrel. Also exports `browserPreBundleList(config)`, the plain reader a consumer uses to assert ONE specifier is named.       |
+| `./browser-mode-smoke` (`src/browser-mode-smoke.ts`)                       | Inside a **browser-mode spec**      | `assertBrowserModeSmoke(appName)` — the consumer's browser project really is headless Chromium, not node and not jsdom. Checks a real userAgent and a real layout engine.                                                                                                                              |
 | `./browser-styles-wiring` (`src/browser-styles-wiring.ts`)                 | Inside a **node-project spec**      | `assertBrowserStylesWiring({ appDir, extraSpecs })` — reads the consumer's config/setup/stylesheet off disk. Node-only.                                                                                                                                                                                |
 | `./navigation-escape` (`src/navigation-escape.ts`)                         | A browser project's **setup file**  | `installNavigationEscapeGuard` + `assertNoNavigationEscape` — vetoes a cross-document hand-off at the Navigation API `navigate` event; a leak fails ONE test instead of killing the iframe. `expectNavigationEscape` / `consumeNavigationEscapes` let a spec read back a hand-off it MEANT to provoke. |
 | `./node-async-hooks-browser-shim` (`src/node-async-hooks-browser-shim.ts`) | A browser-project `resolve.alias`   | Real in-browser `AsyncLocalStorage` answering "no scope", for apps whose router pulls `node:async_hooks`.                                                                                                                                                                                              |
@@ -68,10 +69,17 @@ workspace.
 - **An unresolvable `optimizeDeps.include` entry is a WARNING Vite ignores**, so a list can look
   complete while pre-bundling nothing — and the dropped entry never reaches the dep-cache hash,
   which turns the resulting duplicate-React failure intermittent. `./browser-deps` is the guard;
-  every consumer with a browser project calls it from a one-import `src/**/browser-deps.test.ts`.
-  Under pnpm the cause is almost always non-declaration, so the fix is a `package.json` line.
-  Base UI is named by the glob `@base-ui/react/*`, which Vite expands against that package's own
-  `exports` keys — do not go back to listing subpaths by hand.
+  every consumer with a browser project calls it. Under pnpm the cause is almost always
+  non-declaration, so the fix is a `package.json` line. Base UI is named by the glob
+  `@base-ui/react/*`, which Vite expands against that package's own `exports` keys — do not go
+  back to listing subpaths by hand.
+- **An app's wiring guards live DIRECTLY under its `src/`, and cannot be tidied into a folder.**
+  Each one imports `../vite.config` or `../vitest.config`, and `wallow/zone-dag` only tolerates
+  that because it exempts single-segment `src/*` paths as `ROOT_ZONE`. Moved one directory down,
+  every such import becomes an `escapesSrc` error. The two apps spell this as exactly two files —
+  `src/app-wiring.test.ts` (node) and `src/app-wiring.browser.test.tsx` (browser). They stay two
+  because the preset routes projects by EXTENSION: folded into the node file, the browser guards
+  would evaluate the whole feature graph under `environment: "node"`.
 - Scripts: `pnpm --filter @bc-solutions-coder/testing build` (Vite lib mode +
   `tsc -p tsconfig.build.json`), `test`, `test:watch`, `typecheck`.
 
