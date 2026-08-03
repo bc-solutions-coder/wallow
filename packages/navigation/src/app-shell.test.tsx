@@ -5,24 +5,25 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ShellFixture } from "./shell.fixtures";
 
+type LinkStubProps = {
+  to: string;
+  children?: ReactNode;
+  activeProps?: { className?: string };
+  onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
+} & Record<string, unknown>;
+
 // The shell composes `AppNav`, whose TanStack `Link`s require live router
 // context, so stub `Link` to a plain anchor passing `to` -> `href` + testids.
 // The default navigation is suppressed so no stray click moves the test iframe.
+// `onClick` is pulled out of `rest` so a spread handler cannot land after — and
+// thus replace — the one that calls `preventDefault`.
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({
-    to,
-    children,
-    activeProps: _activeProps,
-    ...rest
-  }: {
-    to: string;
-    children?: ReactNode;
-    activeProps?: { className?: string };
-  } & Record<string, unknown>) => (
+  Link: ({ to, children, activeProps: _activeProps, onClick, ...rest }: LinkStubProps) => (
     <a
       href={to}
       onClick={(event: MouseEvent<HTMLAnchorElement>) => {
         event.preventDefault();
+        onClick?.(event);
       }}
       {...rest}
     >

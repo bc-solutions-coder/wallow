@@ -6,23 +6,24 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useNavStore } from "./nav-store";
 import { ShellFixture } from "./shell.fixtures";
 
+type LinkStubProps = {
+  to: string;
+  children?: ReactNode;
+  activeProps?: { className?: string };
+  onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
+} & Record<string, unknown>;
+
 // Stub the router primitive the nav composes, suppressing the anchor's default
-// navigation so no stray click can move the test iframe.
+// navigation so no stray click can move the test iframe. `onClick` is pulled out
+// of `rest` so a spread handler cannot land after — and thus replace — the one
+// that calls `preventDefault`.
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({
-    to,
-    children,
-    activeProps: _activeProps,
-    ...rest
-  }: {
-    to: string;
-    children?: ReactNode;
-    activeProps?: { className?: string };
-  } & Record<string, unknown>) => (
+  Link: ({ to, children, activeProps: _activeProps, onClick, ...rest }: LinkStubProps) => (
     <a
       href={to}
       onClick={(event: MouseEvent<HTMLAnchorElement>) => {
         event.preventDefault();
+        onClick?.(event);
       }}
       {...rest}
     >

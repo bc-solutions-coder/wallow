@@ -1,25 +1,32 @@
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { fixtureDestinations, ShellFixture } from "./shell.fixtures";
 
+type LinkStubProps = {
+  to: string;
+  children?: ReactNode;
+  activeProps?: { className?: string };
+  onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
+} & Record<string, unknown>;
+
 // The nav renders TanStack `Link`s, whose hooks throw outside a
 // `RouterProvider`, so stub `Link` to a plain anchor that passes through `to`
-// (as `href`) and any `data-testid`.
+// (as `href`) and any `data-testid`. The default navigation is suppressed so no
+// stray click moves the test iframe, and `onClick` is pulled out of `rest` so a
+// spread handler cannot land after — and thus replace — the suppression.
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({
-    to,
-    children,
-    activeProps: _activeProps,
-    ...rest
-  }: {
-    to: string;
-    children?: ReactNode;
-    activeProps?: { className?: string };
-  } & Record<string, unknown>) => (
-    <a href={to} {...rest}>
+  Link: ({ to, children, activeProps: _activeProps, onClick, ...rest }: LinkStubProps) => (
+    <a
+      href={to}
+      onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+        event.preventDefault();
+        onClick?.(event);
+      }}
+      {...rest}
+    >
       {children}
     </a>
   ),
