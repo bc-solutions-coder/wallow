@@ -94,6 +94,13 @@ package has no Storybook: in `ui`, stories exist because only the `storybook` pr
 the token pipeline; here every spec already has it, and a second Storybook instance would buy
 nothing the specs do not measure.
 
+`vitest.setup.ts` also installs `@bc-solutions-coder/testing`'s navigation-escape guard and asserts
+on it after every test, so a cross-document hand-off that reaches the iframe fails the test that
+caused it. Without the guard it instead drops the iframe, and Vitest reports the error against
+whichever file it was loading next — the leak presents as an intermittent flake in a neighbour, and
+every file behind it never reports at all. `navigation-escape.test.tsx` is the proof the wiring is
+live: it provokes an escape two ways and asserts the guard names the URL.
+
 Two naming rules bite:
 
 - **`*.ssr.test.tsx` routes a spec onto the NODE project.** `use-is-desktop.ssr.test.tsx`

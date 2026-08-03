@@ -131,6 +131,13 @@ of null (reading 'useRef')`. `src/core/browser-deps.test.ts` checks that every e
   the DOM's own `element.click()`, or `element.focus()` + `userEvent.keyboard(" ")`. Story
   play functions are unaffected (`storybook/test`'s userEvent is testing-library's, synthetic
   and visibility-blind), so pointer interaction belongs in stories.
+- **The navigation-escape guard is wired TWICE here, because the two browser projects take it
+  through different doors.** `vitest.setup.ts` (via `browserSetupFiles`) covers the `browser`
+  project; `.storybook/preview.tsx`'s named `beforeEach`/`afterEach` exports cover the `storybook`
+  one, which `storybookTest()` assembles itself and which never reads `browserSetupFiles`. Both
+  install `@bc-solutions-coder/testing/navigation-escape`, so a story or spec that lets a
+  cross-document hand-off reach the iframe fails ITSELF naming the URL instead of dropping the
+  runner and being reported against whichever file loaded next.
 - **Popup unmount is animation-frame-deferred** for the whole Base UI popup family. Assert
   closure with `await expect.poll(() => ...).toBeNull()`, never a bare synchronous `expect`.
 - In the `browser` project the **mouse position persists across specs in a file**. Open

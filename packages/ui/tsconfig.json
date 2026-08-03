@@ -9,5 +9,5 @@
     // Typecheck only — no emit settings here on purpose; see tsconfig.base.json.
     "types": ["node"]
   },
-  "include": [".storybook", "src", "vite.config.ts", "vitest.config.ts"]
+  "include": [".storybook", "src", "vite.config.ts", "vitest.config.ts", "vitest.setup.ts"]
 }

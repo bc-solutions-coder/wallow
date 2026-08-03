@@ -16,7 +16,11 @@ import { defineConfig } from "vitest/config";
  * on-disk scaffold guard) runs on node and every `*.test.tsx` component spec
  * runs in the browser project. This package also takes no `browserPlugins` —
  * the `browser` project deliberately loads no Tailwind (see CLAUDE.md), and the
- * `storybook` project below gets the real pipeline from Storybook itself.
+ * `storybook` project below gets the real pipeline from Storybook itself. Its
+ * `browserSetupFiles` therefore carries no styling either: ./vitest.setup.ts
+ * exists only to install the navigation-escape guard. `storybookTest()` does not
+ * read that option, so the storybook project installs the same guard through
+ * .storybook/preview.tsx.
  */
 
 /**
@@ -47,6 +51,7 @@ const recipeRuntime = ["class-variance-authority", "tailwind-merge"];
 
 const { node, browser } = createVitestProjects({
   extraBrowserOptimizeDeps: [...baseUi, ...recipeRuntime],
+  browserSetupFiles: ["./vitest.setup.ts"],
 });
 
 /**

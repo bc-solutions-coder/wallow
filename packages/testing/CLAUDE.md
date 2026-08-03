@@ -142,7 +142,18 @@ Each of these cost a debugging session and is invisible from the code:
 - **`location` is `[Unforgeable]` in real Chromium.** `vi.stubGlobal("location", …)` cannot shadow it,
   and a screen assigning `globalThis.location.href` navigates the iframe and tears the runner down.
   Observe a full-page hand-off at the Navigation API `navigate` event: read `event.destination.url`
-  and `preventDefault()` so the runner stays put.
+  and `preventDefault()` so the runner stays put. `./navigation-escape` is that guard, and a project
+  installs it in its browser SETUP file (`installNavigationEscapeGuard()` plus
+  `afterEach(assertNoNavigationEscape)`), never per spec — the file that leaks is not the file the
+  runner blames, so an opt-in guard cannot catch the file that forgot. `packages/navigation`,
+  `packages/forms`, `packages/ui` and `apps/wallow-web` are wired; `packages/ui`'s `storybook`
+  project takes it through `.storybook/preview.tsx`'s `beforeEach`/`afterEach` exports instead,
+  because `storybookTest()` builds that project itself and never reads `browserSetupFiles`.
+  **`apps/wallow-auth` is deliberately NOT wired.** Its screens hand the browser off for real —
+  eight of them assign `globalThis.location.href` to finish an OIDC flow — and ten specs already
+  intercept that at the same `navigate` event and assert the URL. The project-level guard records
+  those same hand-offs and its `afterEach` then fails ~70 passing tests, so wiring it needs the
+  specs to consume the shared guard rather than run a second listener beside it.
 - **Fill a field with `userEvent.fill`, not `userEvent.type`.** `type` costs one CDP round trip PER
   CHARACTER, and under a full `pnpm test` — where every package's browser project drives its own
   Chromium at once — it is the round-trip COUNT that amplifies. A form helper typing 80 characters to

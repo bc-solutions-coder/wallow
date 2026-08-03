@@ -2,12 +2,19 @@
 
 /**
  * Browser-project setup: give every component spec the CSS the app itself
- * serves, compiled by the `wallowStyles()` plugin this project adds.
+ * serves, compiled by the `wallowStyles()` plugin this project adds, and a
+ * navigation guard that turns a leaked hand-off into a failing assertion.
  *
- * Not cosmetic. A ui control gets its BOX from a Tailwind utility in its recipe,
- * so with no stylesheet the catalog checkbox's `<span role="checkbox">` measures
- * 0x0 and every spec that CLICKS it hangs to Playwright's actionability timeout.
- * See ./vitest-styles.css.
+ * The guard is installed HERE rather than imported per spec because the spec that
+ * leaks is not the spec that reports: an unvetoed cross-document navigation drops
+ * the iframe, and Vitest surfaces the error against whichever file it was loading
+ * next. A guard a file has to opt into cannot catch the file that forgot. Only
+ * CROSS-document hand-offs are vetoed, so this app's real router keeps routing.
+ *
+ * The CSS is not cosmetic either. A ui control gets its BOX from a Tailwind
+ * utility in its recipe, so with no stylesheet the catalog checkbox's
+ * `<span role="checkbox">` measures 0x0 and every spec that CLICKS it hangs to
+ * Playwright's actionability timeout. See ./vitest-styles.css.
  *
  * Both halves, exactly as the running app has them:
  *
@@ -29,5 +36,17 @@
  * outside `node_modules`, so the optimizer has nothing to discover.
  */
 
+import {
+  assertNoNavigationEscape,
+  installNavigationEscapeGuard,
+} from "@bc-solutions-coder/testing/navigation-escape";
+import { afterEach } from "vitest";
+
 import "./vitest-styles.css";
 import "virtual:wallow-theme.css";
+
+installNavigationEscapeGuard();
+
+afterEach(() => {
+  assertNoNavigationEscape();
+});

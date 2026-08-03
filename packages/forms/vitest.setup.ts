@@ -1,9 +1,15 @@
 /// <reference types="vite/client" />
 
 /**
- * Browser-project setup: give every catalog spec the CSS a real app serves.
+ * Browser-project setup: give every catalog spec the CSS a real app serves, and
+ * a navigation guard that turns a leaked hand-off into a failing assertion.
  *
- * Two halves, exactly as a consuming app has them:
+ * The guard is installed HERE rather than imported per spec because the spec that
+ * leaks is not the spec that reports: an unvetoed cross-document navigation drops
+ * the iframe, and Vitest surfaces the error against whichever file it was loading
+ * next. A guard a file has to opt into cannot catch the file that forgot.
+ *
+ * The CSS is two halves, exactly as a consuming app has them:
  *
  *   - ./vitest-styles.css — the compiled Tailwind utilities (see that file for
  *     why a spec that clicks a ui control cannot run without them).
@@ -22,5 +28,17 @@
  * copy of the router. A virtual id has nothing for the optimizer to discover.
  */
 
+import {
+  assertNoNavigationEscape,
+  installNavigationEscapeGuard,
+} from "@bc-solutions-coder/testing/navigation-escape";
+import { afterEach } from "vitest";
+
 import "./vitest-styles.css";
 import "virtual:wallow-theme.css";
+
+installNavigationEscapeGuard();
+
+afterEach(() => {
+  assertNoNavigationEscape();
+});
