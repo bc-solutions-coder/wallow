@@ -6,10 +6,10 @@
     "backend": "dotnet run --project api/src/Wallow.AppHost",
     "backend:infra": "cd docker && docker compose up -d",
     "backend:infra:down": "cd docker && docker compose down",
-    "dev": "pnpm --parallel --filter @bc-solutions-coder/wallow-web --filter @bc-solutions-coder/wallow-auth dev",
-    "build": "pnpm -r build",
-    "test": "pnpm -r test",
-    "typecheck": "pnpm -r typecheck",
+    "dev": "turbo run dev --filter @bc-solutions-coder/wallow-web --filter @bc-solutions-coder/wallow-auth",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
     "lint": "oxlint apps packages --ignore-pattern '**/*.test.*' --ignore-pattern '**/*.stories.tsx' --deny-warnings",
     "lint:fix": "oxlint apps packages --ignore-pattern '**/*.test.*' --ignore-pattern '**/*.stories.tsx' --fix",
     "lint:tests": "./scripts/lint-tests.sh",
@@ -19,7 +19,7 @@
     "format": "oxfmt --write apps packages package.json pnpm-workspace.yaml tsconfig.base.json tsconfig.build.base.json .oxlintrc.json .oxfmtrc.json turbo.jsonc",
     "format:check": "oxfmt --check apps packages package.json pnpm-workspace.yaml tsconfig.base.json tsconfig.build.base.json .oxlintrc.json .oxfmtrc.json turbo.jsonc",
     "check:exports": "./scripts/check-exports.sh",
-    "check": "pnpm format:check && pnpm lint && pnpm lint:tests && pnpm lint:manifests && pnpm lint:deps && pnpm build && pnpm typecheck && pnpm test && pnpm check:exports",
+    "check": "pnpm format:check && pnpm lint && pnpm lint:tests && pnpm lint:manifests && pnpm lint:deps && turbo run build typecheck test && pnpm check:exports",
     "prepare": "husky"
   },
   "devDependencies": {
