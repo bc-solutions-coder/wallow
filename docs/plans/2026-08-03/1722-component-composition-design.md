@@ -137,9 +137,11 @@ Bottom-up — each step makes the next smaller.
   `reset-password-new-password`); `ResetPasswordForm` already needed an explicit
   `testId="reset-password-confirm"` because the suite fills that name. Each migration diffs its
   testids against the specs rather than assuming derivation matches.
-- **`dist/` resolution.** App specs resolve `@bc-solutions-coder/forms` and
-  `@bc-solutions-coder/ui` from `dist/`. Any package change needs
-  `pnpm --filter <pkg> build` before the app suites mean anything.
+- **No rebuild between layers.** In-repo both packages' `exports` maps point at `src/`
+  (`dist/` is swapped in at pack time by `publishConfig`), so an app spec sees a package edit
+  immediately. `packages/forms/CLAUDE.md` currently claims app specs resolve it from `dist/`
+  and needs a rebuild first — that is stale and should be corrected as part of this work.
+  `pnpm build` still matters for `pnpm check:exports`, which packs a tarball.
 - **`react/jsx-max-depth` is 2** in `packages/forms` and both apps, with `--deny-warnings`. New
   composition must respect it.
 
