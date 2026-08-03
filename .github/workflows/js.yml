@@ -12,6 +12,10 @@ on:
       - "tsconfig.base.json"
       - "turbo.jsonc"
       - "scripts/**"
+      # Not a JS path, but scripts/check-env.sh reads it: this workflow owns the
+      # compose-to-.env.example drift gate, so a compose or example edit alone
+      # still has to run it.
+      - "docker/**"
       - ".oxlintrc.json"
       - ".oxfmtrc.json"
       - ".nvmrc"
@@ -28,6 +32,10 @@ on:
       - "tsconfig.base.json"
       - "turbo.jsonc"
       - "scripts/**"
+      # Not a JS path, but scripts/check-env.sh reads it: this workflow owns the
+      # compose-to-.env.example drift gate, so a compose or example edit alone
+      # still has to run it.
+      - "docker/**"
       - ".oxlintrc.json"
       - ".oxfmtrc.json"
       - ".nvmrc"
@@ -87,6 +95,12 @@ jobs:
       # resolves workspace imports from source, so it runs before the build.
       - name: Lint dependency graph
         run: pnpm lint:deps
+
+      # scripts/check-env.sh: every ${VAR} a docker/*.yml interpolates must be
+      # documented in its paired .env.example. Pure text comparison — no Docker
+      # daemon, nothing to be flaky.
+      - name: Lint environment documentation
+        run: pnpm lint:env
 
       - name: Check formatting
         run: pnpm format:check

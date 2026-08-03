@@ -95,9 +95,10 @@ pnpm lint                    # oxlint over SOURCE only (test/story files exclude
 pnpm lint:tests              # scripts/lint-tests.sh — the excluded files, + the vitest plugin
 pnpm lint:manifests          # sherif — workspace package.json hygiene (no ignores; keep it that way)
 pnpm lint:deps               # knip — unused files/exports/deps; knip.json ignores = generated code, lint fixtures, the fork-smoke scaffold, and the two check-exports.sh CLIs knip cannot trace through a shell script
+pnpm lint:env                # scripts/check-env.sh — every ${VAR} a docker/*.yml interpolates must be documented in its paired .env.example (commented counts). Completeness, not requiredness; no Docker needed
 pnpm format                  # oxfmt --write ...   (format:check verifies)
 pnpm check:exports           # publint + @arethetypeswrong/cli over the built packages (needs dist/)
-pnpm check                   # format:check + lint + lint:tests + lint:manifests + lint:deps + build + typecheck + test + check:exports — the one-command quality gate
+pnpm check                   # format:check + lint + lint:tests + lint:manifests + lint:deps + lint:env + build + typecheck + test + check:exports — the one-command quality gate
 ```
 
 **Turbo owns `build`, `typecheck`, `test` and `dev`** (`turbo.jsonc`), with content-addressed

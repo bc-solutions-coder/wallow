@@ -16,10 +16,11 @@
     "lint:tests:fix": "./scripts/lint-tests.sh --fix",
     "lint:manifests": "sherif",
     "lint:deps": "knip",
+    "lint:env": "./scripts/check-env.sh",
     "format": "oxfmt --write apps packages package.json pnpm-workspace.yaml tsconfig.base.json tsconfig.build.base.json .oxlintrc.json .oxfmtrc.json turbo.jsonc",
     "format:check": "oxfmt --check apps packages package.json pnpm-workspace.yaml tsconfig.base.json tsconfig.build.base.json .oxlintrc.json .oxfmtrc.json turbo.jsonc",
     "check:exports": "./scripts/check-exports.sh",
-    "check": "pnpm format:check && pnpm lint && pnpm lint:tests && pnpm lint:manifests && pnpm lint:deps && turbo run build typecheck test && pnpm check:exports",
+    "check": "pnpm format:check && pnpm lint && pnpm lint:tests && pnpm lint:manifests && pnpm lint:deps && pnpm lint:env && turbo run build typecheck test && pnpm check:exports",
     "prepare": "husky"
   },
   "devDependencies": {

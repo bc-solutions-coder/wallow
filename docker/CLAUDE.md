@@ -31,5 +31,15 @@ docker compose -f docker-compose.production.yml --env-file .env.production up --
 - The API container entrypoint lives with its code at `api/src/Wallow.Api/entrypoint.sh` (no
   compose file references it) — `Wallow.Api.csproj` publishes it as `Content` and wires it via
   `ContainerEntrypoint`.
+- **Adding a `${VAR}` to a compose file means adding it to that file's `.env.example`.**
+  `pnpm lint:env` (`scripts/check-env.sh`, in the `pnpm check` chain) fails otherwise. It asserts
+  documentation COMPLETENESS, not requiredness — a `${V:-default}` still needs an entry, because a
+  defaulted knob is still a knob a fork has to be able to find. A commented-out line counts, which
+  is what lets `.env.production.example` document the optional `BCORDES_*` client secrets without
+  setting them: their bare `${VAR}` form in `docker-compose.production.yml` is deliberate
+  fail-closed design (an unset secret aborts the seeder rather than registering a public client),
+  so nothing may "fix" it by giving them defaults. Pairings are `docker-compose.yml` and
+  `docker-compose.test.yml` → `.env.example`, `docker-compose.production.yml` →
+  `.env.production.example`; a new compose file needs a new entry in the script's `pairs` list.
 - `.env`, `.env.example`, and `seed.json` are `merge=ours` in `.gitattributes` so fork values
   survive upstream merges. Never commit a real `.env` / `.env.production`.
