@@ -1,10 +1,4 @@
-import {
-  type AllowListedReturnUrl,
-  allowListedReturnUrl,
-  buildExchangeTicketUrl,
-  isSafeReturnUrl,
-  validateRedirectUriArgs,
-} from "@bc-solutions-coder/sdk";
+import { buildExchangeTicketUrl } from "@bc-solutions-coder/sdk";
 import {
   Button,
   Card,
@@ -15,12 +9,13 @@ import {
   MutedText,
   Text,
 } from "@bc-solutions-coder/ui";
-import { useMutation, useQuery } from "@bc-solutions-coder/query";
-import { useNavigate, useRouteContext } from "@tanstack/react-router";
-import { type ReactNode, useEffect, useState } from "react";
-import { accountValidateRedirectUriOptions, accountVerifyMfaChallengeMutation } from "../api";
+import { useMutation } from "@bc-solutions-coder/query";
+import { useRouteContext } from "@tanstack/react-router";
+import { type ReactNode, useState } from "react";
+import { accountVerifyMfaChallengeMutation } from "../api";
 import { BASE_PATH, toAppHref } from "@shared/lib/base-path";
 import { readErrorCode, readMember } from "@shared/lib/error-code";
+import { useRedirectVerdict } from "../hooks/use-redirect-verdict";
 
 /**
  * The MfaChallenge screen (Wallow-vec7.3.6).
@@ -90,9 +85,6 @@ import { readErrorCode, readMember } from "@shared/lib/error-code";
  */
 const SAME_ORIGIN_BASE: string = BASE_PATH;
 
-/** The bail target for an unsafe returnUrl, matching the ConsentScreen port. */
-const ERROR_HREF = "/error?reason=invalid_redirect_uri";
-
 /** The oracle's blank-input guards, mode-sensitive as the oracle's are. */
 const BLANK_CODE_MESSAGE = "Please enter the verification code.";
 const BLANK_BACKUP_CODE_MESSAGE = "Please enter a backup code.";
@@ -127,93 +119,6 @@ const MFA_LOCKED_OUT = "mfa_locked_out";
  * retyping codes that cannot work, re-locking themselves — is worth the extra rule.
  */
 const LOCKED_OUT_STATUS = 423;
-
-/**
- * The `{ allowed }` narrowing for `auth.validateRedirectUri`, owned at this
- * boundary exactly as the LogoutScreen port owns its own (LogoutScreen.tsx:102).
- *
- * The facade types the call `Promise<unknown>` (auth-client.ts:164) because the
- * endpoint returns an anonymous `Ok(new { allowed = … })` (AccountController.cs:
- * 601-612) that the OpenAPI spec declares with no schema. The comparison is
- * STRICT, mirroring the C# `body?.Allowed == true`: anything that is not literally
- * `allowed: true` — a missing key, the STRING "true", a non-object body — is NOT
- * allowed. Leaning on JS truthiness instead would admit `allowed: "false"`.
- */
-function isRedirectUriAllowed(body: unknown): boolean {
-  if (typeof body !== "object" || body === null || !("allowed" in body)) {
-    return false;
-  }
-
-  return body.allowed === true;
-}
-
-/**
- * What can be settled about `returnUrl` WITHOUT a network call, and the one case
- * that cannot be ("ask" — an absolute URL, where only the server's allow-list
- * knows).
- */
-type LocalDecision = "accept" | "refuse" | "ask";
-
-/** The mount guard's answer. "pending" is its own state: see `verdictOf`. */
-type ReturnUrlVerdict = "accept" | "refuse" | "pending";
-
-/**
- * The half of the guard that needs no network (Wallow-vec7.3.17).
- *
- * `isRelativeSafe` is `isSafeReturnUrl`'s answer, which proves a value can only
- * resolve against THIS origin. It is passed in already computed rather than as a
- * callback, so the SDK facade's method is never called unbound.
- */
-function localDecisionOf(returnUrl: string | undefined, isRelativeSafe: boolean): LocalDecision {
-  if (returnUrl === undefined) {
-    // The oracle's ordinary direct (non-OIDC) sign-in. No destination to decide;
-    // routing it to /error would break every direct login.
-    return "accept";
-  }
-
-  if (isRelativeSafe) {
-    // The password path (`Login.razor`:509 -> `BuildMfaRedirectUrl` threads the
-    // relative OIDC returnUrl). The common case, decided for free.
-    return "accept";
-  }
-
-  if (returnUrl === "") {
-    // `IsNullOrEmpty` parity: `?returnUrl=` is a PRESENT value that fails
-    // `IsNullOrWhiteSpace`, so it is the unsafe case, not the nullish one. A
-    // malformed link is not a destination worth asking the server about — the
-    // LogoutScreen's `hasRedirectUri` short-circuit (LogoutScreen.tsx:219-221).
-    return "refuse";
-  }
-
-  // Absolute: either the external-login hand-off's allow-listed returnUrl or an
-  // attack, and `isSafeReturnUrl` is false for BOTH. Only the allow-list can tell.
-  return "ask";
-}
-
-/**
- * FAIL CLOSED, in every direction.
- *
- * A rejection (the facade's `unwrap()` throws on non-2xx — the C#
- * `!IsSuccessStatusCode -> false` arm) leaves `allowed` undefined, and an
- * unreachable validator must never become a reason to TRUST a URI. In flight it is
- * undefined too, which is why "pending" is a verdict of its own rather than
- * collapsing into "accept": the caller renders nothing until the answer lands.
- */
-function verdictOf(
-  local: LocalDecision,
-  allowListPending: boolean,
-  allowed: boolean | undefined,
-): ReturnUrlVerdict {
-  if (local !== "ask") {
-    return local;
-  }
-
-  if (allowListPending) {
-    return "pending";
-  }
-
-  return allowed === true ? "accept" : "refuse";
-}
 
 /** Map a rejection onto user-facing copy — see the error-branch note above. */
 function verifyFailureMessage(cause: unknown, useBackupCode: boolean): string {
@@ -387,7 +292,6 @@ export interface MfaChallengeFormProps {
 
 export function MfaChallengeForm({ returnUrl, clientId }: MfaChallengeFormProps): ReactNode {
   const { sdk } = useRouteContext({ from: "__root__" });
-  const navigate = useNavigate();
   const [code, setCode] = useState("");
   const [useBackupCode, setUseBackupCode] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -400,49 +304,9 @@ export function MfaChallengeForm({ returnUrl, clientId }: MfaChallengeFormProps)
   const scopedClientId: string | undefined =
     clientId === undefined || clientId.trim() === "" ? undefined : clientId;
 
-  // The guard, evaluated before anything else happens — see `localDecisionOf`.
-  const local: LocalDecision = localDecisionOf(
-    returnUrl,
-    returnUrl !== undefined && isSafeReturnUrl(returnUrl),
-  );
-
-  // The `?? ""` is unreachable — `enabled` gates the read on `local === "ask"`,
-  // and a nullish returnUrl is decided "accept" — and is present only to narrow
-  // the prop to the `string` the factory takes, without a cast.
-  const validation = useQuery({
-    // Scoped to the flow's own client: unscoped, the endpoint answers against
-    // the UNION of every registered client's origins, so a URI any client at all
-    // registered would pass for this one.
-    ...accountValidateRedirectUriOptions({
-      client: sdk.client,
-      ...validateRedirectUriArgs(returnUrl ?? "", scopedClientId),
-    }),
-    // The factory hands back the raw body; the verdict is this screen's reading
-    // of it.
-    select: isRedirectUriAllowed,
-    // The ONLY case that costs a request: an absolute returnUrl. The password path
-    // and the direct sign-in are already decided, and must not pay for a probe
-    // that would sit between the user and their code field.
-    enabled: local === "ask",
-  });
-
-  const returnUrlVerdict: ReturnUrlVerdict = verdictOf(
-    local,
-    validation.isPending,
-    validation.data,
-  );
-
-  // REFUSE, don't sanitize (bd memory `returnurl-guard-refuse-dont-sanitize`);
-  // the oracle instead nulls an unsafe returnUrl and shows a bare success,
-  // silently swallowing the open-redirect attempt. Refused as soon as the verdict
-  // lands, following the ConsentScreen port and `Login.razor` L533-540: do not
-  // make a user burn a one-time second factor on a destination already decided
-  // against.
-  useEffect(() => {
-    if (returnUrlVerdict === "refuse") {
-      void navigate({ href: ERROR_HREF });
-    }
-  }, [returnUrlVerdict, navigate]);
+  // The guard, evaluated before anything else happens. Feature-local, because
+  // this is the app's one returnUrl that may be ABSOLUTE — see the hook.
+  const guard = useRedirectVerdict(returnUrl, scopedClientId);
 
   // The generated factory's response type governs; {@link VerifyResult} stays as the
   // narrowing at the call site's `onSuccess`, because the schema declares
@@ -471,16 +335,9 @@ export function MfaChallengeForm({ returnUrl, clientId }: MfaChallengeFormProps)
       return;
     }
 
-    // The builder applies the guard that matches what it is handed, and only this
-    // screen knows which one is owed (Wallow-a6jr). A returnUrl decided locally is
-    // relative, and `isSafeReturnUrl` is the whole proof. The "ask" one is
-    // ABSOLUTE — the external-login hand-off — and no string inspection can tell
-    // it from an attack, so the allow-list verdict that admitted it at mount
-    // travels WITH it rather than being re-derived here. `validation.data` is the
-    // strict `{ allowed: true }` narrowing, and the mint refuses anything else, so
-    // this cannot widen the accept-set the mount guard already settled.
-    const handOff: string | AllowListedReturnUrl =
-      local === "ask" ? allowListedReturnUrl(returnUrl, validation.data === true) : returnUrl;
+    // The allow-list verdict that admitted an absolute returnUrl at mount travels
+    // WITH it rather than being re-derived here (Wallow-a6jr) — see the hook.
+    const handOff = guard.handOff(returnUrl);
 
     // The id has to survive this last hop too: `ExchangeTicket` re-validates the
     // returnUrl before setting the cookie, and falls back to the union origin set
@@ -536,8 +393,8 @@ export function MfaChallengeForm({ returnUrl, clientId }: MfaChallengeFormProps)
     );
   };
 
-  if (returnUrlVerdict !== "accept") {
-    // "refuse": the effect above is navigating away. "pending": the allow-list has
+  if (guard.verdict !== "accept") {
+    // "refuse": the guard is navigating away. "pending": the allow-list has
     // not answered yet. Rendering the form in either state would invite the user to
     // produce a second factor for a destination that is refused or undecided — and
     // a form retracted late is a form a fast user has already submitted.
