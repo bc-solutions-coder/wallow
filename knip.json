@@ -1,0 +1,21 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignore": ["packages/lint/fixtures/**", "packages/sdk/src/generated/**", "scripts/fork-smoke/**"],
+  "workspaces": {
+    ".": {
+      "ignoreDependencies": ["@arethetypeswrong/cli", "publint"]
+    },
+    "apps/*": {
+      "entry": [
+        "src/app/router.tsx",
+        "src/app/start.ts",
+        "src/app/routes/**/*.{ts,tsx}",
+        "src/shared/lib/log.ts"
+      ],
+      "ignore": ["src/app/routeTree.gen.ts"]
+    },
+    "packages/sdk": {
+      "entry": ["scripts/generate.ts"]
+    }
+  }
+}
