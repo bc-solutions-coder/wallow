@@ -1,25 +1,30 @@
 import {
-  Button,
-  Card,
-  Checkbox,
-  ErrorBanner,
-  Field as FieldRow,
-  Input,
-  Label,
-  MutedText,
-  Text,
-} from "@bc-solutions-coder/ui";
-import { isSafeReturnUrl } from "@bc-solutions-coder/sdk";
+  AppForm,
+  type AppFormApi,
+  FormError,
+  SubmitButton,
+  useAppForm,
+} from "@bc-solutions-coder/forms";
 import { useMutation, useQuery } from "@bc-solutions-coder/query";
+import { isSafeReturnUrl } from "@bc-solutions-coder/sdk";
+import { Button, Card, MutedText, Text } from "@bc-solutions-coder/ui";
 import { useNavigate, useRouteContext } from "@tanstack/react-router";
-import { type ReactNode, useState } from "react";
+import { type ReactElement, type ReactNode, useState } from "react";
+import { z } from "zod";
 import {
   accountGetClientTenantOptions,
   accountGetExternalProvidersOptions,
   accountRegisterMutation,
 } from "../api";
+import {
+  PASSWORD_MISMATCH_MESSAGE,
+  registerFailureMessage,
+  registerGuardMessage,
+  type RegisterValues,
+} from "../register-result";
+import { passwordStrength, type PasswordStrength } from "../password-strength";
+import { AuthScreen } from "@shared/components/auth-screen";
 import { BASE_PATH, toAppHref } from "@shared/lib/base-path";
-import { readErrorCode } from "@shared/lib/error-code";
 import { ERROR_HREF } from "@shared/lib/return-url";
 
 /**
@@ -28,183 +33,78 @@ import { ERROR_HREF } from "@shared/lib/return-url";
  * `clientId` and `returnUrl` arrive as props rather than being read from the
  * router inside the component: the route owns the query string (the oracle's two
  * `[SupplyParameterFromQuery]` properties) and hands them down, which keeps this
- * component a pure function of its inputs and testable without a router — the
- * seam `ResetPasswordForm` established and `MfaChallengeForm` followed.
+ * component a pure function of its inputs and testable without a router.
  *
  * Testids `register-error`, `register-email`, `register-password`,
  * `register-confirm-password`, `register-terms`, `register-privacy` and
- * `register-submit` come verbatim from the oracle. The strength meter and the
+ * `register-submit` come verbatim from the oracle; the first four fall out of
+ * `testIdPrefix="register"` by derivation, and the two consent boxes pin theirs
+ * (their field names would derive `-terms-accepted`). The strength meter and the
  * passwordless toggle ship without testids in the oracle, so those are minted
  * under the `{page}-{element}` rule.
  *
- * Mutations call the GENERATED operations and reads use the generated
- * `{op}Options()` factories, both bound to the request-scoped SDK off the router
- * context (`useRouteContext({ from: "__root__" })`). The OIDC URL builders are
- * pure and imported directly. There is no app-level facade (Wallow-pu6a.5.5).
+ * The rejection→copy mapping and the five submit guards live in
+ * `../register-result`; the strength rating in `../password-strength`.
  *
- * ── THE ERROR BRANCHES (REVISED — see Wallow-vec7.7) ─────────────────────────
+ * ── WHY THIS SCREEN RUNS THE FORMS PACKAGE "SIDEWAYS" ────────────────────────
  *
- * `AccountController.Register` (api/.../Controllers/AccountController.cs:639-724)
- * fails in four ways, each a 400 with a bare `{ succeeded, error }` body (NOT
- * problem details):
+ * Like `ResetPasswordForm`, it uses the plain-`onSubmit` escape hatch rather
+ * than handing `useAppForm` the generated mutation, for two reasons that are
+ * this endpoint's own:
  *
- *     400 error "passwords_do_not_match"   line 648
- *     400 error "invalid_client_id"        line 658
- *     400 error "email_taken"              ~686, from DuplicateEmail/DuplicateUserName
- *     400 error <raw IdentityResult sentence>   the `_ =>` fallback
+ *  1. **The failures are not RFC 7807.** `splitServerError` reads problem-details
+ *     members to decide field message vs banner, and this endpoint answers with a
+ *     bare `{ succeeded, error }` body. `registerFailureMessage` is the only
+ *     thing that can tell its four rejections apart.
+ *  2. **The guards are ORDERED and share one banner.** A zod rule would abort
+ *     `handleSubmit` before the callback ran and report every field at once —
+ *     see `registerGuardMessage`. The schema below is therefore rule-free.
  *
- * `unwrap()` throws on all four. This screen first shipped ONE generic message
- * for every rejection, because `toWallowError()` built its `code` from
- * `extensions.code ?? code` and these endpoints emit neither — so the token under
- * `error` was never read and `code` was always "UNKNOWN". Status could not
- * substitute either: all four share a 400, so unlike the sibling ResetPassword
- * port (one failure reason, so 400 *meant* invalid_token) there was nothing to
- * narrow on.
- *
- * Wallow-vec7.7 closed that: `readCode` now probes `extensions.code > code >
- * error`, so the API's token reaches this screen intact and THREE of the four
- * branches are recoverable. The fourth stays generic on purpose — its "code" is a
- * raw English sentence from Identity, not a token, so there is nothing stable to
- * key on.
- *
- * The oracle's own switch is only partly worth porting:
- *
- *   - Its `"password_too_weak"` branch is DEAD CODE — the controller never emits
- *     that string. That case arrives as the raw sentence, and lands on the
- *     generic tail here.
- *   - The API's error tail renders `result.Error` RAW, so a user really can be
- *     shown Identity's own prose ("Passwords must have at least one digit
- *     ('0'-'9')."). `code` is a machine member here: it is matched against KNOWN
- *     tokens and NEVER rendered. Anything unrecognised — including a 400 carrying
- *     a token added tomorrow — falls to the generic message rather than guessing.
- *
- * Narrowing is STRUCTURAL rather than `instanceof WallowError`, because that
- * class is exported from the SDK's `./server` entry and screens may not import
- * the SDK at all. A network-level rejection carries neither `code` nor `status`
- * and must fall through to the generic message rather than throw.
+ * The banner text is consequently this screen's own `useState`, handed to the
+ * shell as an EXPLICIT `serverError` prop (which `AppForm` prefers over
+ * `form.wallow.serverError`, still `null` here because every rejection is caught
+ * below). `<FormError />` derives `register-error` from the prefix. Navigation
+ * happens at the END of the callback: an early `return` out of a guard resolves
+ * the internal mutation just as a success does, so `onSuccess` could not tell
+ * them apart.
  *
  * ── NO ApiBaseUrl PREPEND (inherited from Wallow-vec7.3.4) ───────────────────
  *
  * The oracle builds external-login links as `{ApiBaseUrl}/v1/...` against a
  * cross-origin API. That prepend is NOT ported: this app's API surface
- * (`src/shared/lib/api-passthrough.server.ts`) is a passthrough reverse proxy mounting `/v1/**` at
- * the ROOT, so this origin hosts them and the origin is `""`.
+ * (`src/shared/lib/api-passthrough.server.ts`) is a passthrough reverse proxy
+ * mounting `/v1/**` at the ROOT, so this origin hosts them.
  */
 
-/**
- * This app's own origin, plus the base path it is served under — see the origin
- * note above.
- */
+/** This app's own origin, plus the base path it is served under. */
 const SAME_ORIGIN_BASE: string = BASE_PATH;
-
-/** The oracle's client-side guards, in the oracle's own order. */
-const BLANK_EMAIL_MESSAGE = "Please enter your email address.";
-const BLANK_PASSWORD_MESSAGE = "Please enter a password.";
-const PASSWORD_MISMATCH_MESSAGE = "Passwords do not match.";
-const TERMS_REQUIRED_MESSAGE = "You must agree to the Terms of Service.";
-const PRIVACY_REQUIRED_MESSAGE = "You must agree to the Privacy Policy.";
-
-/** The oracle's `"email_taken" =>` branch, reachable again as of Wallow-vec7.7. */
-const EMAIL_TAKEN_MESSAGE = "An account with this email already exists. Please sign in instead.";
-
-/**
- * `passwords_do_not_match`: the server-side echo of the local guard, so it says
- * the same thing the local guard says.
- */
-const SERVER_MISMATCH_MESSAGE = PASSWORD_MISMATCH_MESSAGE;
-
-/**
- * `invalid_client_id`: the `client_id` came off the QUERY STRING, not the form.
- * Nothing the user typed is wrong and retyping it cannot help, so the copy points
- * at the link rather than blaming their input.
- */
-const INVALID_CLIENT_MESSAGE =
-  "The sign-up link you followed is not valid. Please go back to the application you came from and try again.";
-
-/**
- * The oracle's `_ =>` tail, minus its raw-string leak. Also the honest home of
- * the weak-password rejection, whose reason arrives as an English sentence rather
- * than a token — see the error-branch note above.
- */
-const GENERIC_FAILURE_MESSAGE = "An error occurred. Please try again.";
-
-/** The API's machine tokens for this endpoint. Matched against, never rendered. */
-const EMAIL_TAKEN = "email_taken";
-const PASSWORDS_DO_NOT_MATCH = "passwords_do_not_match";
-const INVALID_CLIENT_ID = "invalid_client_id";
 
 /** The oracle's `"passwordless"` sentinel, compared case-insensitively server-side. */
 const PASSWORDLESS = "passwordless";
 
-/** The oracle's two `UpdatePasswordStrength` length thresholds. */
-const STRONG_MIN_LENGTH = 12;
-const FAIR_MIN_LENGTH = 8;
-
 /**
- * Map a rejection onto user-facing copy.
- *
- * A `Map` rather than a `switch` on an attacker-influenced value is not needed
- * here — `code` comes from the API, not the query string — but the same rule
- * applies: an unrecognised code falls to the generic tail rather than being
- * rendered.
+ * RULE-FREE on purpose. `revalidateLogic` runs this on submit and aborts
+ * `handleSubmit` on any failure, which would preempt the ordered single banner
+ * `registerGuardMessage` owns — see the header note. It is here for the value
+ * types alone.
  */
-function registerFailureMessage(cause: unknown): string {
-  const code: string | undefined = readErrorCode(cause);
+const registerSchema = z.object({
+  email: z.string(),
+  password: z.string(),
+  confirmPassword: z.string(),
+  isPasswordless: z.boolean(),
+  termsAccepted: z.boolean(),
+  privacyAccepted: z.boolean(),
+});
 
-  if (code === EMAIL_TAKEN) {
-    return EMAIL_TAKEN_MESSAGE;
-  }
-
-  if (code === PASSWORDS_DO_NOT_MATCH) {
-    return SERVER_MISMATCH_MESSAGE;
-  }
-
-  if (code === INVALID_CLIENT_ID) {
-    return INVALID_CLIENT_MESSAGE;
-  }
-
-  return GENERIC_FAILURE_MESSAGE;
-}
-
-/** The oracle's `UpdatePasswordStrength`, ported predicate-for-predicate. */
-interface PasswordStrength {
-  readonly label: string;
-  readonly percent: number;
-  readonly indicatorClass: string;
-}
-
-/**
- * `null` for an empty password — the oracle's
- * `@if (!string.IsNullOrEmpty(_password))` gate on the whole meter.
- *
- * The character classes mirror `char.IsUpper` / `IsLower` / `IsDigit` /
- * `!IsLetterOrDigit`, which are Unicode-aware in .NET, so the Unicode property
- * escapes are used rather than `[A-Z]` — a port that narrowed to ASCII would rate
- * a perfectly strong non-Latin password Weak.
- */
-function passwordStrength(password: string): PasswordStrength | null {
-  if (password === "") {
-    return null;
-  }
-
-  const hasUpper: boolean = /\p{Lu}/u.test(password);
-  const hasLower: boolean = /\p{Ll}/u.test(password);
-  const hasDigit: boolean = /\p{Nd}/u.test(password);
-  const hasSpecial: boolean = /[^\p{L}\p{N}]/u.test(password);
-  const hasMix: boolean = hasUpper && hasLower && (hasDigit || hasSpecial);
-
-  // Length ALONE is not enough: the oracle's `Length >= 12 && hasMix`. A 12-char
-  // all-lowercase password falls through to Fair.
-  if (password.length >= STRONG_MIN_LENGTH && hasMix) {
-    return { label: "Strong", percent: 100, indicatorClass: "bg-green-500" };
-  }
-
-  if (password.length >= FAIR_MIN_LENGTH) {
-    return { label: "Fair", percent: 50, indicatorClass: "bg-yellow-500" };
-  }
-
-  return { label: "Weak", percent: 25, indicatorClass: "bg-red-500" };
-}
+const EMPTY_VALUES: RegisterValues = {
+  email: "",
+  password: "",
+  confirmPassword: "",
+  isPasswordless: false,
+  termsAccepted: false,
+  privacyAccepted: false,
+};
 
 /**
  * The oracle's `VerifyEmailUrl`, with the open-redirect guard the oracle lacks.
@@ -213,10 +113,10 @@ function passwordStrength(password: string): PasswordStrength | null {
  * unsafe returnUrl routes to `/error?reason=invalid_redirect_uri` rather than
  * silently falling back to "/", which would swallow the attempt.
  *
- * An absent returnUrl is NOT an attack — it is the oracle's ordinary direct-signup
- * path — so the guard runs on a PRESENT value only. "" counts as absent, matching
- * the oracle's `string.IsNullOrEmpty(ReturnUrl)` and keeping a bare `?returnUrl=`
- * off the error page.
+ * An absent returnUrl is NOT an attack — it is the oracle's ordinary
+ * direct-signup path — so the guard runs on a PRESENT value only. "" counts as
+ * absent, matching the oracle's `string.IsNullOrEmpty(ReturnUrl)` and keeping a
+ * bare `?returnUrl=` off the error page.
  */
 function verifyEmailTarget(returnUrl: string | undefined): string {
   if (returnUrl === undefined || returnUrl === "") {
@@ -236,8 +136,7 @@ function verifyEmailTarget(returnUrl: string | undefined): string {
  * The oracle round-trips the user back to `Navigation.Uri` — an ABSOLUTE URL,
  * which it can afford because its returnUrl travels to a cross-origin API. Here
  * the path is same-origin and relative, which is both sufficient and what the
- * server's own redirect validator accepts: a single leading "/" and not "//". An
- * absolute URL would be refused.
+ * server's own redirect validator accepts: a single leading "/" and not "//".
  */
 function externalLoginUrl(provider: string): string {
   const returnUrl = `${globalThis.location.pathname}${globalThis.location.search}`;
@@ -246,28 +145,6 @@ function externalLoginUrl(provider: string): string {
     `${SAME_ORIGIN_BASE}/v1/identity/auth/external-login` +
     `?provider=${encodeURIComponent(provider)}` +
     `&returnUrl=${encodeURIComponent(returnUrl)}`
-  );
-}
-
-/** The registration request body, matching `AccountRegisterRequest`. */
-interface RegisterRequest {
-  readonly email: string;
-  readonly password: string;
-  readonly confirmPassword: string;
-  readonly clientId?: string;
-  readonly loginMethod: string | null;
-  readonly returnUrl?: string;
-}
-
-/** The oracle's `BbCardHeader`. */
-function CardHeading() {
-  return (
-    <div className="space-y-1 text-center">
-      <Text as="h2" variant="subheading" color="onCard">
-        Create an account
-      </Text>
-      <MutedText>Enter your details to get started</MutedText>
-    </div>
   );
 }
 
@@ -308,162 +185,83 @@ function StrengthMeter({ strength }: { readonly strength: PasswordStrength }) {
   );
 }
 
-/** One text/password input. */
-function Field(props: {
-  readonly id: string;
-  readonly label: string;
-  readonly type: string;
-  readonly testId: string;
-  readonly placeholder: string;
-  readonly value: string;
-  readonly onChange: (value: string) => void;
-}) {
-  const { id, label, type, testId, placeholder, value, onChange } = props;
-
-  return (
-    <FieldRow>
-      <Label htmlFor={id}>{label}</Label>
-      <Input
-        id={id}
-        type={type}
-        placeholder={placeholder}
-        data-testid={testId}
-        value={value}
-        onChange={(e) => {
-          onChange(e.target.value);
-        }}
-      />
-    </FieldRow>
-  );
-}
-
 /**
- * The two password blocks, which the oracle wraps in one `@if (!_isPasswordless)`.
- * Extracted so the passwordless branch is a single decision in one place rather
- * than two conditionals that could drift apart.
+ * A consent box's label: prose with the policy link inside it.
+ *
+ * Inside rather than beside, because the label IS the checkbox's accessible
+ * name — "I agree to the Terms of Service" — and an anchor rendered as a sibling
+ * would leave the box named by half its own sentence.
  */
-function PasswordBlock(props: {
-  readonly password: string;
-  readonly confirmPassword: string;
-  readonly onPasswordChange: (value: string) => void;
-  readonly onConfirmChange: (value: string) => void;
-}) {
-  const { password, confirmPassword, onPasswordChange, onConfirmChange } = props;
-  const strength: PasswordStrength | null = passwordStrength(password);
-
+function ConsentLabel({ href, text }: { readonly href: string; readonly text: string }) {
   return (
     <>
-      <div className="space-y-2">
-        <Field
-          id="password"
-          label="Password"
-          type="password"
-          testId="register-password"
-          placeholder="Create a password"
-          value={password}
-          onChange={onPasswordChange}
-        />
-        {strength === null ? null : <StrengthMeter strength={strength} />}
-      </div>
-      <div className="space-y-2">
-        <Field
-          id="confirmPassword"
-          label="Confirm Password"
-          type="password"
-          testId="register-confirm-password"
-          placeholder="Confirm your password"
-          value={confirmPassword}
-          onChange={onConfirmChange}
-        />
-        {confirmPassword !== "" && password !== confirmPassword ? (
-          <Text as="p" variant="caption" color="destructive">
-            {PASSWORD_MISMATCH_MESSAGE}
-          </Text>
-        ) : null}
-      </div>
+      I agree to the{" "}
+      <a href={href} className="text-primary underline-offset-4 hover:underline">
+        {text}
+      </a>
     </>
   );
 }
 
 /**
- * One consent checkbox with its inline link, on the catalog's `Checkbox`
- * (Wallow-m5aq.5.2).
+ * The two consent labels, built once at module scope.
  *
- * The `id` is threaded onto `Checkbox.Root` rather than left to the hidden
- * `<input>` Base UI renders beside it: the Root is a `<span role="checkbox">`,
- * which a `<label htmlFor>` cannot name on its own, so Base UI matches the label
- * to the id and stamps the pairing itself. Without it both boxes are unnamed
- * controls differing only in DOM order.
+ * NOT inline in `label={...}`: `react/jsx-max-depth` counts an attribute's JSX
+ * as one level deeper than the element carrying it, so an inline `ConsentLabel`
+ * under `AppField > CheckboxField` is depth 3 against a budget of 2.
  */
-function ConsentCheckbox(props: {
-  readonly id: string;
-  readonly testId: string;
-  readonly checked: boolean;
-  readonly href: string;
-  readonly linkText: string;
-  readonly onChange: (checked: boolean) => void;
-}) {
-  const { id, testId, checked, href, linkText, onChange } = props;
+const TERMS_LABEL: ReactNode = <ConsentLabel href={toAppHref("/terms")} text="Terms of Service" />;
+const PRIVACY_LABEL: ReactNode = (
+  <ConsentLabel href={toAppHref("/privacy")} text="Privacy Policy" />
+);
 
+/** The live confirmation hint, which the submit-time guard repeats in the banner. */
+function MismatchHint() {
   return (
-    <div className="flex items-start space-x-2">
-      <Checkbox.Root
-        id={id}
-        className="mt-1"
-        data-testid={testId}
-        checked={checked}
-        onCheckedChange={onChange}
-      >
-        <Checkbox.Indicator>✓</Checkbox.Indicator>
-      </Checkbox.Root>
-      <label className="text-sm font-normal leading-snug text-foreground" htmlFor={id}>
-        I agree to the{" "}
-        <a href={href} className="text-primary underline-offset-4 hover:underline">
-          {linkText}
-        </a>
-      </label>
-    </div>
+    <Text as="p" variant="caption" color="destructive">
+      {PASSWORD_MISMATCH_MESSAGE}
+    </Text>
   );
 }
 
 /**
- * The oracle's "sign up without a password" preference, on the catalog's
- * `Checkbox` (Wallow-m5aq.5.2) — a sibling of `ConsentCheckbox` rather than
- * markup inlined into the form, which is also what keeps the form's JSX inside
- * the `react/jsx-max-depth` budget.
+ * The two password fields and the two things that read them live — the strength
+ * meter and the confirmation hint.
  *
- * `Checkbox` rather than `Switch` despite the "toggle" name: this is a form
- * preference submitted with the rest of the fields, not a setting that takes
- * effect the instant it is flipped, and the id/label pairing is the same one the
- * two consent boxes need.
+ * Rendered under one `form.Subscribe` rather than from inside the fields' own
+ * render props: the hint needs BOTH values at once, and a field only re-renders
+ * for its own.
  */
-function PasswordlessToggle(props: {
-  readonly checked: boolean;
-  readonly onChange: (checked: boolean) => void;
+function PasswordSection({
+  form,
+  values,
+}: {
+  readonly form: AppFormApi<RegisterValues>;
+  readonly values: RegisterValues;
 }) {
-  const { checked, onChange } = props;
+  const strength: PasswordStrength | null = passwordStrength(values.password);
+  const mismatched: boolean =
+    values.confirmPassword !== "" && values.password !== values.confirmPassword;
 
   return (
-    <div className="flex items-center space-x-2">
-      <Checkbox.Root
-        id="passwordless"
-        data-testid="register-passwordless-toggle"
-        checked={checked}
-        onCheckedChange={onChange}
-      >
-        <Checkbox.Indicator>✓</Checkbox.Indicator>
-      </Checkbox.Root>
-      <label className="text-sm font-normal leading-snug text-foreground" htmlFor="passwordless">
-        Sign up without a password
-      </label>
-    </div>
+    <>
+      <form.AppField name="password">
+        {(field) => <field.PasswordField label="Password" placeholder="Create a password" />}
+      </form.AppField>
+      {strength === null ? null : <StrengthMeter strength={strength} />}
+      <form.AppField name="confirmPassword">
+        {(field) => (
+          <field.PasswordField label="Confirm Password" placeholder="Confirm your password" />
+        )}
+      </form.AppField>
+      {mismatched ? <MismatchHint /> : null}
+    </>
   );
 }
 
 /**
  * One provider's challenge link, split out of the grid below so the mapped
- * element stays inside the JSX depth budget — the same shape the login
- * feature's `ProviderLink` has.
+ * element stays inside the JSX depth budget.
  */
 function ProviderLink({ provider }: { readonly provider: string }) {
   return (
@@ -498,7 +296,13 @@ function ExternalProviders({ providers }: { readonly providers: readonly string[
   );
 }
 
-/** The oracle's `BbCardFooter`. */
+/**
+ * The oracle's `BbCardFooter`.
+ *
+ * NOT `QuietLink`: that recipe is the muted standalone secondary link, and this
+ * one is an accent-coloured call to action sitting inside muted prose — the two
+ * would become indistinguishable.
+ */
 function AlreadyHaveAccount({ returnUrl }: { readonly returnUrl?: string }) {
   // The oracle's `LoginUrl`. Unsafe values are refused at the redirect, not here:
   // this is an href the user chooses to follow, and /login runs its own guard.
@@ -520,80 +324,89 @@ function AlreadyHaveAccount({ returnUrl }: { readonly returnUrl?: string }) {
 }
 
 /** The oracle's `<form>`, from the email field down to the submit. */
-function RegisterFields(props: {
-  readonly email: string;
-  readonly password: string;
-  readonly confirmPassword: string;
-  readonly isPasswordless: boolean;
-  readonly termsAccepted: boolean;
-  readonly privacyAccepted: boolean;
-  readonly pending: boolean;
-  readonly onEmailChange: (value: string) => void;
-  readonly onPasswordChange: (value: string) => void;
-  readonly onConfirmChange: (value: string) => void;
-  readonly onPasswordlessChange: (value: boolean) => void;
-  readonly onTermsChange: (value: boolean) => void;
-  readonly onPrivacyChange: (value: boolean) => void;
-  readonly onSubmit: () => void;
-}) {
+function RegisterFields({ clientId, returnUrl }: RegisterFormProps): ReactElement {
+  const { sdk } = useRouteContext({ from: "__root__" });
+  const navigate = useNavigate();
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const registerMutation = useMutation(accountRegisterMutation({ client: sdk.client }));
+
+  const form = useAppForm({
+    schema: registerSchema,
+    defaultValues: EMPTY_VALUES,
+    onSubmit: async (values: RegisterValues): Promise<void> => {
+      const guard: string | null = registerGuardMessage(values);
+
+      if (guard !== null) {
+        setFormError(guard);
+        return;
+      }
+
+      // The oracle's `_errorMessage = null;` at the top of HandleRegister, moved
+      // past the guards so a guard's own message survives the submit that
+      // produced it. A stale failure above a successful registration is a lie.
+      setFormError(null);
+
+      try {
+        // The generated artifact's REQUEST object, not a bare body: the factory
+        // assembles the request itself, and a bare body would send an empty one.
+        await registerMutation.mutateAsync({
+          body: {
+            email: values.email,
+            password: values.password,
+            confirmPassword: values.confirmPassword,
+            clientId,
+            loginMethod: values.isPasswordless ? PASSWORDLESS : null,
+            returnUrl,
+          },
+        });
+      } catch (error: unknown) {
+        // No account was created, and every reason this endpoint rejects for is
+        // actionable only on the fields, so drop back to the form.
+        setFormError(registerFailureMessage(error));
+        return;
+      }
+
+      void navigate({ href: verifyEmailTarget(returnUrl) });
+    },
+  });
+
   return (
-    <form
-      className="space-y-4"
-      onSubmit={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        props.onSubmit();
-      }}
-    >
-      <Field
-        id="email"
-        label="Email"
-        type="email"
-        testId="register-email"
-        placeholder="name@example.com"
-        value={props.email}
-        onChange={props.onEmailChange}
-      />
+    <AppForm form={form} testIdPrefix="register" serverError={formError} className="space-y-4">
+      <FormError />
 
-      <PasswordlessToggle checked={props.isPasswordless} onChange={props.onPasswordlessChange} />
+      <form.AppField name="email">
+        {(field) => <field.TextField label="Email" type="email" placeholder="name@example.com" />}
+      </form.AppField>
 
-      {props.isPasswordless ? null : (
-        <PasswordBlock
-          password={props.password}
-          confirmPassword={props.confirmPassword}
-          onPasswordChange={props.onPasswordChange}
-          onConfirmChange={props.onConfirmChange}
-        />
-      )}
+      <form.AppField name="isPasswordless">
+        {(field) => (
+          <field.CheckboxField
+            label="Sign up without a password"
+            testId="register-passwordless-toggle"
+          />
+        )}
+      </form.AppField>
 
-      <div className="space-y-3">
-        <ConsentCheckbox
-          id="termsAccepted"
-          testId="register-terms"
-          checked={props.termsAccepted}
-          href={toAppHref("/terms")}
-          linkText="Terms of Service"
-          onChange={props.onTermsChange}
-        />
-        <ConsentCheckbox
-          id="privacyAccepted"
-          testId="register-privacy"
-          checked={props.privacyAccepted}
-          href={toAppHref("/privacy")}
-          linkText="Privacy Policy"
-          onChange={props.onPrivacyChange}
-        />
-      </div>
+      {/* The oracle wraps both password blocks in one `@if (!_isPasswordless)`,
+          so the branch is a single decision rather than two that could drift. */}
+      <form.Subscribe<RegisterValues> selector={(state) => state.values}>
+        {(values: RegisterValues) =>
+          values.isPasswordless ? null : <PasswordSection form={form} values={values} />
+        }
+      </form.Subscribe>
 
-      <Button
-        type="submit"
-        // The oracle's `Disabled="_isSubmitting"` — one click, one account.
-        disabled={props.pending}
-        data-testid="register-submit"
-      >
-        {props.pending ? "Creating account..." : "Create account"}
-      </Button>
-    </form>
+      <form.AppField name="termsAccepted">
+        {(field) => <field.CheckboxField label={TERMS_LABEL} testId="register-terms" />}
+      </form.AppField>
+
+      <form.AppField name="privacyAccepted">
+        {(field) => <field.CheckboxField label={PRIVACY_LABEL} testId="register-privacy" />}
+      </form.AppField>
+
+      {/* The oracle's `Disabled="_isSubmitting"` — one click, one account. */}
+      <SubmitButton pendingLabel="Creating account...">Create account</SubmitButton>
+    </AppForm>
   );
 }
 
@@ -606,14 +419,6 @@ export interface RegisterFormProps {
 
 export function RegisterForm({ clientId, returnUrl }: RegisterFormProps): ReactNode {
   const { sdk } = useRouteContext({ from: "__root__" });
-  const navigate = useNavigate();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [isPasswordless, setIsPasswordless] = useState(false);
-  const [termsAccepted, setTermsAccepted] = useState(false);
-  const [privacyAccepted, setPrivacyAccepted] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // The oracle's two concurrent `OnInitializedAsync` calls. Two independent
   // `useQuery` hooks BOTH fire on mount, which is what makes them concurrent —
@@ -621,8 +426,7 @@ export function RegisterForm({ clientId, returnUrl }: RegisterFormProps): ReactN
   // sequential round-trips, the exact thing the oracle's comment calls out.
   //
   // Both this screen and the login screen read the provider list through the SAME
-  // factory, so they share one cache entry — they used to spell the key two
-  // different ways and fetch it twice.
+  // factory, so they share one cache entry.
   const providersQuery = useQuery(accountGetExternalProvidersOptions({ client: sdk.client }));
 
   // Collapsed to a plain string so the `enabled` gate and the query fn agree
@@ -636,80 +440,10 @@ export function RegisterForm({ clientId, returnUrl }: RegisterFormProps): ReactN
     enabled: tenantClientId !== "",
   });
 
-  const registerMutation = useMutation(accountRegisterMutation({ client: sdk.client }));
-
-  /** Create the account. The ONLY caller of `register`. */
-  const submitRegistration = (request: RegisterRequest): void => {
-    // The generated artifact's REQUEST object, not a bare body: the factory
-    // assembles the request itself, and a bare body would send an empty one.
-    registerMutation.mutate(
-      { body: request },
-      {
-        // Resolution IS success: every failure this endpoint has is non-2xx, so
-        // `unwrap()` has already thrown by the time this runs.
-        onSuccess: () => {
-          void navigate({ href: verifyEmailTarget(returnUrl) });
-        },
-        onError: (cause: unknown) => {
-          // No account was created, so there IS something to fix. Every reason this
-          // endpoint rejects for is actionable only on the fields, so drop back to
-          // the form.
-          setError(registerFailureMessage(cause));
-        },
-      },
-    );
-  };
-
-  const handleSubmit = (): void => {
-    // The oracle's guards, in the oracle's own order.
-    if (email.trim() === "") {
-      setError(BLANK_EMAIL_MESSAGE);
-      return;
-    }
-
-    // Both password guards sit inside the oracle's `if (!_isPasswordless)`: a
-    // passwordless signup has no password to check, so demanding one would make
-    // the toggle unusable.
-    if (!isPasswordless) {
-      if (password.trim() === "") {
-        setError(BLANK_PASSWORD_MESSAGE);
-        return;
-      }
-
-      if (password !== confirmPassword) {
-        setError(PASSWORD_MISMATCH_MESSAGE);
-        return;
-      }
-    }
-
-    if (!termsAccepted) {
-      setError(TERMS_REQUIRED_MESSAGE);
-      return;
-    }
-
-    if (!privacyAccepted) {
-      setError(PRIVACY_REQUIRED_MESSAGE);
-      return;
-    }
-
-    // The oracle's `_errorMessage = null;` at the top of HandleRegister: a stale
-    // failure sitting above a successful registration would be a lie.
-    setError(null);
-
-    const request: RegisterRequest = {
-      email,
-      password,
-      confirmPassword,
-      clientId,
-      loginMethod: isPasswordless ? PASSWORDLESS : null,
-      returnUrl,
-    };
-
-    submitRegistration(request);
-  };
-
   if (providersQuery.isLoading || tenantQuery.isLoading) {
-    // The oracle renders nothing until both calls settle (prerender: false).
+    // The oracle renders nothing until both calls settle (prerender: false), so
+    // this branch stays a bare surface rather than an `AuthScreen` whose heading
+    // would flash above a form that is not there yet.
     return (
       <Card spacing="p-6">
         <InitLoading />
@@ -724,30 +458,14 @@ export function RegisterForm({ clientId, returnUrl }: RegisterFormProps): ReactN
   const orgName: string | undefined = tenantQuery.data?.orgName ?? undefined;
 
   return (
-    <Card>
-      <CardHeading />
+    <AuthScreen
+      title="Create an account"
+      description="Enter your details to get started"
+      footer={<AlreadyHaveAccount returnUrl={returnUrl} />}
+    >
       {orgName === undefined || orgName === "" ? null : <OrgNameBanner orgName={orgName} />}
-      {error === null ? null : <ErrorBanner data-testid="register-error">{error}</ErrorBanner>}
-      <RegisterFields
-        email={email}
-        password={password}
-        confirmPassword={confirmPassword}
-        isPasswordless={isPasswordless}
-        termsAccepted={termsAccepted}
-        privacyAccepted={privacyAccepted}
-        // "One click, one account": the submit must not stay live while a
-        // registration is in flight.
-        pending={registerMutation.isPending}
-        onEmailChange={setEmail}
-        onPasswordChange={setPassword}
-        onConfirmChange={setConfirmPassword}
-        onPasswordlessChange={setIsPasswordless}
-        onTermsChange={setTermsAccepted}
-        onPrivacyChange={setPrivacyAccepted}
-        onSubmit={handleSubmit}
-      />
+      <RegisterFields clientId={clientId} returnUrl={returnUrl} />
       <ExternalProviders providers={providersQuery.data ?? []} />
-      <AlreadyHaveAccount returnUrl={returnUrl} />
-    </Card>
+    </AuthScreen>
   );
 }

@@ -13,7 +13,7 @@
  */
 
 import { Field } from "@bc-solutions-coder/ui/field";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 
 import { useFieldContext } from "../core/contexts";
 import { firstErrorMessage } from "../core/errors";
@@ -56,7 +56,14 @@ export function useCatalogField<TValue>(testId: string | undefined): CatalogFiel
 }
 
 export interface CatalogFieldLabelProps {
-  readonly label: string;
+  /**
+   * `ReactNode` rather than `string`, because a consent box's label is prose
+   * with a link in it ("I agree to the Terms of Service") and the link has to
+   * sit INSIDE the label — it is what gives the box its accessible name, and
+   * splitting the anchor out beside the label would leave the control named by
+   * half its own sentence.
+   */
+  readonly label: ReactNode;
   /** Adds the `(optional)` marker, for a form where most fields are required. */
   readonly optional?: boolean;
   /**

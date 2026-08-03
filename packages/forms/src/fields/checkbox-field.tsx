@@ -11,13 +11,17 @@
 
 import { Checkbox } from "@bc-solutions-coder/ui/checkbox";
 import { Field } from "@bc-solutions-coder/ui/field";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 
 import { CatalogFieldError, CatalogFieldLabel, useCatalogField } from "./field-parts";
 
 export interface CheckboxFieldProps {
-  /** The visible label, sitting to the right of the box and naming it. */
-  readonly label: string;
+  /**
+   * The visible label, sitting to the right of the box and naming it. A
+   * `ReactNode` so a consent box can carry its policy link inline — see
+   * `CatalogFieldLabelProps.label`.
+   */
+  readonly label: ReactNode;
   /** Secondary text under the label, e.g. what agreeing actually means. */
   readonly description?: string;
   /**
@@ -56,7 +60,7 @@ function CheckboxFieldText({
   label,
   description,
 }: {
-  readonly label: string;
+  readonly label: ReactNode;
   readonly description: string | undefined;
 }): ReactElement {
   return (
