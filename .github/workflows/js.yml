@@ -70,6 +70,11 @@ jobs:
       - name: Lint manifests
         run: pnpm lint:manifests
 
+      # knip: unused files, exports and dependencies. Needs no dist/ — it
+      # resolves workspace imports from source, so it runs before the build.
+      - name: Lint dependency graph
+        run: pnpm lint:deps
+
       - name: Check formatting
         run: pnpm format:check
 
