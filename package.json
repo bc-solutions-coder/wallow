@@ -16,8 +16,8 @@
     "lint:tests:fix": "./scripts/lint-tests.sh --fix",
     "lint:manifests": "sherif",
     "lint:deps": "knip",
-    "format": "oxfmt --write apps packages package.json pnpm-workspace.yaml tsconfig.base.json tsconfig.build.base.json .oxlintrc.json .oxfmtrc.json",
-    "format:check": "oxfmt --check apps packages package.json pnpm-workspace.yaml tsconfig.base.json tsconfig.build.base.json .oxlintrc.json .oxfmtrc.json",
+    "format": "oxfmt --write apps packages package.json pnpm-workspace.yaml tsconfig.base.json tsconfig.build.base.json .oxlintrc.json .oxfmtrc.json turbo.jsonc",
+    "format:check": "oxfmt --check apps packages package.json pnpm-workspace.yaml tsconfig.base.json tsconfig.build.base.json .oxlintrc.json .oxfmtrc.json turbo.jsonc",
     "check:exports": "./scripts/check-exports.sh",
     "check": "pnpm format:check && pnpm lint && pnpm lint:tests && pnpm lint:manifests && pnpm lint:deps && pnpm build && pnpm typecheck && pnpm test && pnpm check:exports",
     "prepare": "husky"
@@ -31,7 +31,8 @@
     "oxfmt": "^0.59.0",
     "oxlint": "^1.74.0",
     "publint": "^0.3.22",
-    "sherif": "^1.13.0"
+    "sherif": "^1.13.0",
+    "turbo": "^2.10.8"
   },
   "packageManager": "pnpm@10.20.0"
 }

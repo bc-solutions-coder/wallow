@@ -59,7 +59,7 @@ export default {
   },
 
   // JSON/YAML: format with oxfmt only
-  "*.{json,yml,yaml}": (files) => {
+  "*.{json,jsonc,yml,yaml}": (files) => {
     const filtered = filterProtected(files);
     if (filtered.length === 0) {
       return [];

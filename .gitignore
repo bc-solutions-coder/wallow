@@ -11,6 +11,8 @@ out/
 .output/
 .nitro/
 .tanstack/
+# Turborepo local cache and run scratch
+.turbo/
 
 # IDE
 .idea/

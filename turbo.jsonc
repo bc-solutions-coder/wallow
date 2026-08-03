@@ -1,0 +1,46 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  // "stream" keeps CI logs greppable and linear. The interactive TUI would be
+  // nicer locally, but a single mode means local and CI output match.
+  "ui": "stream",
+  // The root package.json, the lockfile, and the source of any internal package
+  // the root depends on (here: @bc-solutions-coder/lint) are ALWAYS in the
+  // global hash and must not be listed. These are the shared files turbo cannot
+  // infer, and the list is deliberately short: every entry busts build,
+  // typecheck and test across all 16 members.
+  //
+  // NOT listed, on purpose: .oxlintrc.json and .oxfmtrc.json. Turbo runs
+  // neither oxlint nor oxfmt - those stay root scripts (design §1) - so hashing
+  // them would invalidate the whole workspace for a lint-rule tweak that cannot
+  // change a single build output.
+  "globalDependencies": ["tsconfig.base.json", "tsconfig.build.base.json", ".nvmrc"],
+  // Deliberately NOT including CI: hashing it would give CI runners and laptops
+  // different keys for identical inputs and defeat the shared remote cache. CI
+  // is in turbo's built-in passthrough set, so tasks still see it.
+  "globalEnv": ["NODE_ENV"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"],
+    },
+    // ^build, not nothing: every member resolves @bc-solutions-coder/* through
+    // an exports map pointing at dist/, so a dependency must be BUILT before a
+    // dependent can typecheck. It also folds the dependency's source into this
+    // task's hash, which is what stops a stale pass being replayed.
+    "typecheck": {
+      "dependsOn": ["^build"],
+    },
+    "test": {
+      "dependsOn": ["^build"],
+    },
+    // ^build here too, which the old `pnpm --parallel ... dev` could not
+    // express: an app resolves its workspace dependencies through dist/, so
+    // `pnpm dev` on a fresh clone dies with UNRESOLVED_IMPORT. A persistent
+    // task may depend on others; it just may not be depended ON.
+    "dev": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true,
+    },
+  },
+}
