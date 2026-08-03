@@ -48,6 +48,9 @@ coverage-results/
 playwright-report/
 __screenshots__/
 .vitest-attachments/
+# Vitest JSON reporter output (--outputFile.json), written per package by an
+# instrumented `pnpm -r test` run and never worth committing.
+.vitest-run.json
 
 # NuGet
 *.nupkg
