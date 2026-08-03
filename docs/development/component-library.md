@@ -248,12 +248,13 @@ The steps:
 7. **Export it**: the folder's `index.ts`, then the two catalog files that must move together in
    the same commit — the root barrel `src/index.ts`, and `PUBLIC_RUNTIME_EXPORTS` +
    `PublicTypeExports` in `src/index.test.ts`. Growing one alone turns the other red.
-8. **Build, then test**: `pnpm --filter @bc-solutions-coder/ui build && pnpm --filter
-   @bc-solutions-coder/ui test`. Build first because the apps resolve this package from `dist/`,
-   so a stale build is what their suites will actually be testing.
+8. **Test it**: `pnpm --filter @bc-solutions-coder/ui test`. No build first — in-repo the
+   `exports` map resolves to `src/`, so app suites see the change immediately and there is no
+   stale bundle to test against.
 
-The subpath export needs no manifest edit: `package.json` maps `./*` to `dist/components/*/index.js`,
-so the folder you created is already importable as `@bc-solutions-coder/ui/<name>`.
+The subpath export needs no manifest edit: `package.json` maps `./*` to `src/components/*/index.ts`
+in-repo (and to `dist/components/*/index.js` at publish time, via `publishConfig`), so the folder
+you created is already importable as `@bc-solutions-coder/ui/<name>`.
 
 `packages/ui/CLAUDE.md` holds the full contributor detail — package layering, the recipe/JSX split,
 and the Vitest browser-mode pitfalls specific to headless components.

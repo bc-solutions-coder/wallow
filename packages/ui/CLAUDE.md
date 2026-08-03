@@ -180,10 +180,12 @@ of null (reading 'useRef')`. `src/core/browser-deps.test.ts` checks that every e
   delete the `role="button"` a composed `<div>` depends on. Assert with `getByRole("link")`.
 - **`ReadyIndicator` stamps the E2E hydration marker** (`READY_ATTRIBUTE` → `data-app-ready`)
   that every Playwright suite waits on. Changing it breaks E2E readiness across both apps.
-- This package ships a **prebuilt `dist/`**, so `import.meta.env.DEV` inside a component
-  bakes in the _library's_ build env, not the consuming app's. Anything that must reflect the
-  app's build (e.g. `DocumentStyles`' stylesheet href) is decided in the app shell and passed
-  in as a prop.
+- This package **publishes** a prebuilt `dist/`, so for an installed consumer
+  `import.meta.env.DEV` inside a component bakes in the _library's_ build env, not the app's.
+  In-repo it reads the app's, because the `exports` map resolves to `src/` — which is the worse
+  case, since the value then differs between this workspace and a fork. Anything that must
+  reflect the app's build (e.g. `DocumentStyles`' stylesheet href) is decided in the app shell
+  and passed in as a prop.
 - React, `react-dom`, and `@tanstack/react-router` are **peer** dependencies — keep them out
   of `dependencies`.
 - **`.oxlintrc.json` here enables all six `wallow/*` rules** — the plugin itself is registered

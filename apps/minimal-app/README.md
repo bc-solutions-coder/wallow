@@ -34,8 +34,11 @@ All commands run from the repo root. Node 24 (`.nvmrc`), pnpm 10.20.0.
 
 ```bash
 pnpm install                                                   # resolves the workspace:* deps
-pnpm --filter @bc-solutions-coder/sdk build                    # apps typecheck/build against the SDK's dist/
 ```
+
+That is the whole setup — no package build first. In-repo every `@bc-solutions-coder/*` exports
+map resolves to that package's `src/`, so this app runs, typechecks and builds straight from the
+sources. `dist/` is a publish artifact, needed only by `pnpm check:exports`.
 
 There is no `routes:generate` step: the `tanstackStart()` Vite plugin regenerates
 `src/routeTree.gen.ts` as a side effect of both `vite dev` and `vite build`.

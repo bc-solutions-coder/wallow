@@ -91,8 +91,7 @@ Four files move together, plus a fifth when new Base UI surface is involved:
   jsdom or happy-dom.
 - `src/index.test.ts` pins the barrel by IMPORTING it, in both directions (public set exact,
   internals absent). It no longer reaches into `dist/` — the `skipIf(distIsMissing)` block went
-  with the source-reading guards (`Wallow-xg9t.1`). Consumers still resolve this package from
-  `dist/`, so the rebuild note below still applies; nothing asserts the artifact's shape.
+  with the source-reading guards (`Wallow-xg9t.1`), and nothing asserts the artifact's shape.
 
 ## Gotchas
 
@@ -105,10 +104,6 @@ Four files move together, plus a fifth when new Base UI surface is involved:
   moving the schema back to `validators.onSubmit` silently validates nothing. The timing contract
   lives in `src/form/use-app-form.revalidate.test.tsx`; the `TOnDynamic` generic slot in
   `AppFormApi` has to move with it or the instance type stops matching.
-- **App-level specs resolve this package from `dist/`, not `src/`.** Change the hook and the
-  `wallow-auth`/`wallow-web` suites keep testing the previous bundle until
-  `pnpm --filter @bc-solutions-coder/forms build` runs. A consumer spec failing on behaviour the
-  package's own specs prove is that, not a real divergence.
 - **`clearServerErrors()` runs before validation, not inside `onSubmit`.** `handleSubmit` aborts on
   `!isFieldsValid`, and nothing in `@tanstack/form-core` clears an `onServer` error by itself — so a
   stale server field error would wedge every later submit. `AppForm`'s submit handler owns the call.
