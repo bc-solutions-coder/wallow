@@ -20,6 +20,7 @@ export default defineLibraryConfig({
     "theme-wiring": "src/theme-wiring.tsx",
     "navigation-escape": "src/navigation-escape.ts",
     "console-guard": "src/console-guard.ts",
+    "network-escape": "src/network-escape.ts",
     "node-async-hooks-browser-shim": "src/node-async-hooks-browser-shim.ts",
   },
 });

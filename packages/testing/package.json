@@ -60,6 +60,10 @@
       "types": "./src/console-guard.ts",
       "import": "./src/console-guard.ts"
     },
+    "./network-escape": {
+      "types": "./src/network-escape.ts",
+      "import": "./src/network-escape.ts"
+    },
     "./node-async-hooks-browser-shim": {
       "types": "./src/node-async-hooks-browser-shim.ts",
       "import": "./src/node-async-hooks-browser-shim.ts"
@@ -118,6 +122,10 @@
       "./console-guard": {
         "types": "./dist/console-guard.d.ts",
         "import": "./dist/console-guard.js"
+      },
+      "./network-escape": {
+        "types": "./dist/network-escape.d.ts",
+        "import": "./dist/network-escape.js"
       },
       "./node-async-hooks-browser-shim": {
         "types": "./dist/node-async-hooks-browser-shim.d.ts",
