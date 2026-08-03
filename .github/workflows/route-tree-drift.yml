@@ -20,12 +20,12 @@ on:
       # minimal-app is still on the flat src/ layout.
       - "apps/wallow-*/src/app/routes/**"
       - "apps/wallow-*/src/app/routeTree.gen.ts"
-      - "apps/examples/minimal-app/src/routes/**"
-      - "apps/examples/minimal-app/src/routeTree.gen.ts"
+      - "apps/minimal-app/src/routes/**"
+      - "apps/minimal-app/src/routeTree.gen.ts"
       # Each app configures the Start plugin that owns its codegen right here,
       # in its own vite.config.ts — there is no tsr.config.json any more.
       - "apps/wallow-*/vite.config.ts"
-      - "apps/examples/minimal-app/vite.config.ts"
+      - "apps/minimal-app/vite.config.ts"
       - ".github/workflows/route-tree-drift.yml"
   push:
     branches: [main]
@@ -34,12 +34,12 @@ on:
       # minimal-app is still on the flat src/ layout.
       - "apps/wallow-*/src/app/routes/**"
       - "apps/wallow-*/src/app/routeTree.gen.ts"
-      - "apps/examples/minimal-app/src/routes/**"
-      - "apps/examples/minimal-app/src/routeTree.gen.ts"
+      - "apps/minimal-app/src/routes/**"
+      - "apps/minimal-app/src/routeTree.gen.ts"
       # Each app configures the Start plugin that owns its codegen right here,
       # in its own vite.config.ts — there is no tsr.config.json any more.
       - "apps/wallow-*/vite.config.ts"
-      - "apps/examples/minimal-app/vite.config.ts"
+      - "apps/minimal-app/vite.config.ts"
       - ".github/workflows/route-tree-drift.yml"
 
 concurrency:
@@ -86,13 +86,13 @@ jobs:
           if ! git diff --exit-code -- \
             apps/wallow-auth/src/app/routeTree.gen.ts \
             apps/wallow-web/src/app/routeTree.gen.ts \
-            apps/examples/minimal-app/src/routeTree.gen.ts; then
+            apps/minimal-app/src/routeTree.gen.ts; then
             echo "::error::A committed routeTree.gen.ts is out of date with its routes/** sources."
             echo "::error::Regenerate it locally and commit the result:"
             echo "::error::  pnpm --filter @bc-solutions-coder/wallow-auth build"
             echo "::error::  pnpm --filter @bc-solutions-coder/wallow-web build"
             echo "::error::  pnpm --filter @bc-solutions-coder/example-minimal-app build"
-            echo "::error::  git add apps/wallow-*/src/app/routeTree.gen.ts apps/examples/minimal-app/src/routeTree.gen.ts && git commit"
+            echo "::error::  git add apps/wallow-*/src/app/routeTree.gen.ts apps/minimal-app/src/routeTree.gen.ts && git commit"
             exit 1
           fi
           echo "All route trees are in sync with their sources."

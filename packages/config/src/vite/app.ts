@@ -16,7 +16,7 @@ import type { UserConfig } from "vite";
  * found by debugging a blank page in a booted `.output/server/index.mjs`:
  * vitest never builds the Nitro bundle, so none of them has a spec, and a
  * regression surfaces as an empty document rather than a red test.
- * `apps/examples/minimal-app` was missing two of them purely because they had
+ * `apps/minimal-app` was missing two of them purely because they had
  * been discovered while working on the other two apps (Wallow-uc2c).
  *
  * Not here, and not shared, on purpose:

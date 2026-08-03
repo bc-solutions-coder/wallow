@@ -9,7 +9,7 @@ packages, not from this app.
 
 Use it as the copy-from skeleton when bootstrapping a new app. The step-by-step
 rationale for each file lives in
-[`docs/development/frontend-setup.md` → "New App Bootstrap"](../../../docs/development/frontend-setup.md);
+[`docs/development/frontend-setup.md` → "New App Bootstrap"](../../docs/development/frontend-setup.md);
 this README is the boot recipe.
 
 ## The five packages it wires
@@ -138,4 +138,4 @@ invalidate through the curated `queriesWithTag` / `queriesForOperation`
 predicates. Keep UI-only state (open/closed, active tab, wizard step) in a Zustand
 store rather than the query cache. The full boundary — what belongs in TanStack
 Query, what belongs in Zustand, and what belongs in neither — is
-[`docs/development/frontend-state.md`](../../../docs/development/frontend-state.md).
+[`docs/development/frontend-state.md`](../../docs/development/frontend-state.md).

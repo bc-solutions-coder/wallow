@@ -92,7 +92,7 @@ apps/wallow-web/
 └── package.json
 ```
 
-`apps/examples/minimal-app` deliberately stays flat: it exists to show the smallest possible
+`apps/minimal-app` deliberately stays flat: it exists to show the smallest possible
 wiring, and zones only start paying for themselves once an app has features to keep apart.
 
 ### The zone rules
@@ -143,7 +143,7 @@ and `vite.config.ts`; everything cross-cutting (styling, components, the auth
 client, and the test harness) comes from the shared packages. Hosting is **not**
 one of them — TanStack Start and Nitro own that, per app.
 
-The steps below build the **flat** shape, which is what `apps/examples/minimal-app`
+The steps below build the **flat** shape, which is what `apps/minimal-app`
 uses and the right starting point for an app with a handful of routes. Adopt the
 [zones](#the-zone-rules) once the app grows features worth keeping apart: move
 `routes/`, `router.tsx`, `start.ts`, `styles.css` and any server-only module under
@@ -167,7 +167,7 @@ and silently stops checking `features/` and `shared/`.
 `wallow-auth` and `wallow-web` both depend on the first six as `workspace:*` runtime
 `dependencies` (no per-app `@tailwindcss/vite`, `tailwindcss`, or `vitest` preset
 of their own), plus `@bc-solutions-coder/forms` — see [Forms](forms.md) — which an app
-adds once it renders a form. Only the first five are core: `examples/minimal-app`
+adds once it renders a form. Only the first five are core: `minimal-app`
 renders no form and has no signed-in user, so it takes neither `forms` nor `auth`.
 `navigation` is narrower still — `wallow-auth`'s screens sit in its own `auth-layout.tsx`,
 so `wallow-web` is its only consumer today.
@@ -430,7 +430,7 @@ axis, theming, and the steps for adding a component.
 
 Screens do not wire form controls to state by hand. `@bc-solutions-coder/forms` is a sixth shared
 package — added to an app's `dependencies` alongside the five above when it renders forms, which
-`wallow-auth` and `wallow-web` both do and `examples/minimal-app` does not — layering TanStack Form
+`wallow-auth` and `wallow-web` both do and `minimal-app` does not — layering TanStack Form
 state onto the `ui` catalog:
 
 ```tsx
@@ -484,7 +484,7 @@ pnpm --filter @bc-solutions-coder/wallow-web dev
 
 `pnpm dev` (root `package.json`) runs both apps' own `dev` scripts in parallel via
 `pnpm --parallel --filter`, interleaving their output; Ctrl-C stops both. It does not start
-`apps/examples/*` and does not start the .NET backend — pair it with `pnpm backend` (or
+`apps/minimal-app` and does not start the .NET backend — pair it with `pnpm backend` (or
 `pnpm backend:infra` + a manually run API) for a working stack.
 
 To run an app the way its container does, build it and run the Nitro bundle:

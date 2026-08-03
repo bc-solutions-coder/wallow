@@ -10,7 +10,7 @@
  *
  * This absorbs the near-duplicate hand-rolled proxies the apps used to ship
  * (the deleted `apps/wallow-auth/src/lib/auth-server.ts` and
- * `apps/examples/minimal-app/src/lib/proxy-server.ts`), generalizing their
+ * `apps/minimal-app/src/lib/proxy-server.ts`), generalizing their
  * hardcoded prefix list into {@link ApiPassthroughOptions.prefixes} and their
  * `X-Forwarded-For` stamping into
  * {@link ApiPassthroughOptions.forwardClientIp}.

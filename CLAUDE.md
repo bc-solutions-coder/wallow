@@ -58,7 +58,7 @@ cleanly to a fresh database.
 | `packages/logger/` | `@bc-solutions-coder/logger` — structured logging, both ends: browser core (`.`) and app-server ingest handler (`./server`) |
 | `apps/wallow-web/`  | TanStack Start + BFF OIDC reference frontend (dashboard) that consumes the SDK                                                                                              |
 | `apps/wallow-auth/` | TanStack Start auth frontend (login/signup/MFA screens) on port 3002                                                                                                        |
-| `apps/examples/`    | Example apps (`minimal-app`)                                                                                                                                                |
+| `apps/minimal-app/` | Example app — the smallest wiring of the shared packages into a TanStack Start host                                                                                          |
 | `docker/`           | Compose files for infra, production, and the e2e test stack                                                                                                                 |
 | `docs/`             | DocFX documentation site (`docfx.json` at root builds it)                                                                                                                   |
 | `scripts/`          | `run-tests.sh`, `e2e.sh` (backend-dependent E2E runner), docs/theme helpers                                                                                                 |
@@ -73,7 +73,8 @@ bead still points at it. Mark a finished plan `completed` or `superseded` in pla
 
 ## JavaScript / TypeScript Monorepo
 
-pnpm workspace (`pnpm-workspace.yaml` → `apps/*`, `apps/examples/*`, `packages/*`). Node **24** (`.nvmrc`),
+pnpm workspace (`pnpm-workspace.yaml` → `apps/*`, `packages/*`; every app is a direct child of
+`apps/`, no grouping directories — turbo drops packages behind a negated glob). Node **24** (`.nvmrc`),
 pnpm **10.20.0** (`packageManager`). Formatter/linter is the **oxc** toolchain
 (`oxfmt` + `oxlint`), not prettier/eslint. `@bc-solutions-coder` is scoped to GitHub
 Packages (`.npmrc`), but `pnpm install` here needs no token — every scoped dependency is

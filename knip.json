@@ -14,6 +14,9 @@
       ],
       "ignore": ["src/app/routeTree.gen.ts"]
     },
+    "apps/minimal-app": {
+      "entry": ["src/routes/**/*.{ts,tsx}"]
+    },
     "packages/sdk": {
       "entry": ["scripts/generate.ts"]
     }

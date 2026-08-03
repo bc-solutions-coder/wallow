@@ -1,8 +1,10 @@
 packages:
+  # Every app is a direct child of apps/. There is deliberately no grouping
+  # directory: `apps/*` + `!apps/examples` + `apps/examples/*` reads fine to
+  # pnpm but turbo applies the negation as a directory-prefix exclusion, so the
+  # re-include never fires and the nested app silently drops out of every turbo
+  # task — a build that stops running and reports nothing.
   - "apps/*"
-  # apps/examples is a grouping directory, not a package — its CHILDREN are the members
-  - "!apps/examples"
-  - "apps/examples/*"
   - "packages/*"
 
 catalogs:

@@ -6,7 +6,7 @@ import { defineConfig } from "vite";
 
 /**
  * The scratch app's only Vite config — deliberately the same shape as
- * apps/examples/minimal-app's, because that is the config a fork copies.
+ * apps/minimal-app's, because that is the config a fork copies.
  *
  * `wallowStyles()` comes from the PACKED styles tarball, so this file also
  * proves the package's `./vite` subpath (a node-only entry) survives packing and
@@ -17,7 +17,7 @@ export default defineConfig({
     // `nitro/vite` forces the client environment's `copyPublicDir` off, which
     // drops the brand assets `wallowStyles()` points `publicDir` at. Nitro sets
     // the flag with `??=`, so spelling it out here wins — the same override
-    // apps/examples/minimal-app carries.
+    // apps/minimal-app carries.
     client: { build: { copyPublicDir: true } },
   },
   plugins: [tanstackStart(), react(), nitro(), ...wallowStyles()],

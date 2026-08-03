@@ -3,17 +3,17 @@
 Every app here is a **TanStack Start** frontend consuming the `@bc-solutions-coder` workspace
 packages (`sdk`, `styles`, `ui`, `forms`, `navigation`, `query`, `auth`, `utils`, `env`, `logger`,
 `testing`, `config`) via `workspace:*`. `forms`, `auth`, `navigation` and `logger` are the
-optional ones — `examples/minimal-app` renders no form, has no signed-in user, has no shell and
+optional ones — `minimal-app` renders no form, has no signed-in user, has no shell and
 records nothing, so it omits all four. `wallow-auth`'s screens sit in its own `auth-layout.tsx`,
 which leaves `wallow-web` as `navigation`'s one consumer today. `config` is the odd one: a
 build-time-only dependency supplying `wallowAppConfig()` to `vite.config.ts`, never imported by
 app code.
 
-| App                     | Port | What it is                                                               |
-| ----------------------- | ---- | ------------------------------------------------------------------------ |
-| `wallow-web/`           | 3000 | Reference dashboard demonstrating the full same-origin BFF OIDC flow.    |
-| `wallow-auth/`          | 3002 | Auth frontend — login / signup / MFA screens.                            |
-| `examples/minimal-app/` | 3010 | Smallest app wiring the core shared packages into a TanStack Start host. |
+| App            | Port | What it is                                                               |
+| -------------- | ---- | ------------------------------------------------------------------------ |
+| `wallow-web/`  | 3000 | Reference dashboard demonstrating the full same-origin BFF OIDC flow.    |
+| `wallow-auth/` | 3002 | Auth frontend — login / signup / MFA screens.                            |
+| `minimal-app/` | 3010 | Smallest app wiring the core shared packages into a TanStack Start host. |
 
 **Build the SDK before touching an app** — apps typecheck against `packages/sdk/dist/`:
 `pnpm --filter @bc-solutions-coder/sdk build`.
@@ -30,7 +30,7 @@ Per-app scripts (`pnpm --filter ./apps/<app> <script>`): `dev` (`vite dev`), `bu
   an SDK preset (`createApiPassthrough` for wallow-auth/minimal-app, `createWallowBffServer`
   for wallow-web). `src/app/routeTree.gen.ts` regenerates as a side effect of `vite dev`/`vite
 build` — never hand-edit it, and do not add a `routes:generate` script or `tsr.config.json`.
-- **`wallow-web` and `wallow-auth` are zoned; `examples/minimal-app` is deliberately not.**
+- **`wallow-web` and `wallow-auth` are zoned; `minimal-app` is deliberately not.**
   In the two zoned apps `src/` is `app/` (routes, router, entries, server-only modules),
   `features/<name>/` (one directory per screen or vertical, reachable only through its
   `index.ts` barrel) and `shared/` (what more than one feature genuinely needs).

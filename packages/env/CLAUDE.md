@@ -59,7 +59,7 @@ substitutes belongs in the bundle being built, not in a library.
 ## Why the helpers are shared rather than copied
 
 `resolveRequestOrigin` was byte-identical in all three Start apps
-(`wallow-web`, `wallow-auth`, `examples/minimal-app`), and each had its own hand-rolled
+(`wallow-web`, `wallow-auth`, `minimal-app`), and each had its own hand-rolled
 `resolveInternalOrigin` beside it. Both values travel into the SDK's `baseUrl`, so a copy that
 drifts costs an SSR cache hit on one app and not the others — the SSR pass builds an `http` key
 the hydrating browser never matches.

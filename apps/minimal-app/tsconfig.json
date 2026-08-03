@@ -3,7 +3,7 @@
   // this file only layers on the app-local knobs: typecheck-only (noEmit), Node
   // types (the server routes and `src/start.ts` run on the server), and the
   // files to include.
-  "extends": "../../../tsconfig.base.json",
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
     "types": ["node"]

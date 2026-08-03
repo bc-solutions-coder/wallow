@@ -16,7 +16,7 @@ import {
  * Spec (Wallow-pu6a.3.7): `createApiPassthrough` absorbs the pure reverse-proxy
  * topology every fork used to hand-assemble — 201 lines in the deleted
  * `apps/wallow-auth/src/lib/auth-server.ts` and a near-identical 139 in
- * `apps/examples/minimal-app/src/lib/proxy-server.ts`. These cases are ported
+ * `apps/minimal-app/src/lib/proxy-server.ts`. These cases are ported
  * from that suite (the stronger of the two, since it also stamps the client IP)
  * and generalized to the preset's options: the hardcoded `/v1`, `/connect`,
  * `/.well-known` list becomes `prefixes`, and the XFF stamping becomes

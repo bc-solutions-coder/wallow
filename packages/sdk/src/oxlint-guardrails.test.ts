@@ -475,7 +475,7 @@ const MIRROR_FIXTURES: Readonly<Record<string, string>> = {
     'import { useQuery } from "@tanstack/react-query";\nexport const use = useQuery;\n',
   "apps/wallow-auth/src/features/login/use-login.ts":
     'import { useMutation } from "@tanstack/react-query";\nexport const use = useMutation;\n',
-  "apps/examples/minimal-app/src/main.tsx":
+  "apps/minimal-app/src/main.tsx":
     'import { QueryClientProvider } from "@tanstack/react-query";\nexport const use = QueryClientProvider;\n',
   // packages/forms is routed through the facade by an earlier feature, so the ban
   // applies to it like any other package — it gets NO exemption. Type-only, which
@@ -571,7 +571,7 @@ describe("only the facade may import @tanstack/react-query", () => {
   it.each([
     "apps/wallow-web/src/routes/dashboard/index.tsx",
     "apps/wallow-auth/src/features/login/use-login.ts",
-    "apps/examples/minimal-app/src/main.tsx",
+    "apps/minimal-app/src/main.tsx",
     "packages/forms/src/core/use-app-form.ts",
     "packages/auth/src/current-user.ts",
     "packages/testing/src/render.tsx",
