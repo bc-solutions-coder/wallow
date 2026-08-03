@@ -156,6 +156,13 @@ runners, `packages/query/src/index.test.ts`'s built-entry check, `packages/sdk`'
 surface/regen checks, and `packages/styles`' two data-contract readers. The doctrine holds
 everywhere; it is enforced in five places. That was a decision, not an oversight.
 
+> **Addendum (2026-08-03):** this section is superseded. The guardrail spec's mirror tree moved
+> inside the repo (gitignored `.lint-mirror/`), which removed the temp-dir resolution failure,
+> and the plugin is now ALSO registered from the repo-root `.oxlintrc.json` with
+> `wallow/no-source-tests` enabled repo-wide — the seven deliberate `node:fs` specs are exempted
+> by exact path in a root override block. See
+> `docs/plans/2026-08-02/2252-arch-tooling-adoption.md` (Phase 3) and `packages/lint/CLAUDE.md`.
+
 ### Net effect
 
 Seventy-seven files touched: most deleted outright, the rest thinned to what they can assert by

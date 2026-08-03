@@ -1,6 +1,8 @@
 # Architecture-rules review: replacing structure tests with fast tooling
 
-**status: active**
+**status: completed** — recommendations A (root registration), B (sherif) and C (knip) are
+implemented via `docs/plans/2026-08-02/2252-arch-tooling-adoption.md`; D (`package-dag` rule)
+is a filed bead, adopt-if-needed.
 
 A review of Wallow's lint-rule strategy (the `wallow/*` oxlint plugin + import bans) against how
 the wider ecosystem enforces monorepo architecture, with a recommended toolchain for the pnpm
@@ -92,7 +94,11 @@ but its *technique* (temp-dir copy) is what costs the coverage.
 
 Ordered by leverage per unit of effort. A/B are cheap and close live gaps; C/D are additive.
 
-### A. Unlock root-level `jsPlugins` registration (zero new tools)
+### A. Unlock root-level `jsPlugins` registration (zero new tools) — DONE (2026-08-03)
+
+> Implemented via `docs/plans/2026-08-02/2252-arch-tooling-adoption.md` Phase 3, with one
+> deliberate deviation: the five nested override blocks are NOT yet deleted — per-tree rule
+> options make that a separate soak-tested cleanup (bead filed).
 
 Rework `oxlint-guardrails.test.ts` to stop copying the root config to a temp dir — e.g. run the
 real binary against in-repo fixture files (the `packages/lint/fixtures/` pattern: lint-ignored,

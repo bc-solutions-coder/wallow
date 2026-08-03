@@ -12,50 +12,51 @@ ESLint 8+ as well as oxlint. `@oxlint/plugins` is therefore a **runtime `depende
 not a devDependency — a consumer installing this package needs `definePlugin`/`defineRule` at
 plugin-load time.
 
-## Where this is registered — the load-bearing constraint
+## Where this is registered
 
-Rules are registered in **five nested configs**, each of which is also the config that switches
-them on — `apps/wallow-web`, `apps/wallow-auth`, `packages/ui`, `packages/forms` and
+The plugin is registered in **six configs**: the repo-root `.oxlintrc.json` plus five nested
+configs — `apps/wallow-web`, `apps/wallow-auth`, `packages/ui`, `packages/forms` and
 `packages/navigation`:
 
 ```json
 "jsPlugins": [{ "name": "wallow", "specifier": "@bc-solutions-coder/lint" }]
 ```
 
-Each of the five names `@bc-solutions-coder/lint` as a `workspace:*` devDependency, because a
-`jsPlugins` specifier resolves from the config file's own directory (see below) — a package that
-registers the plugin without depending on it cannot load it.
+**The root registers AND enables exactly one rule repo-wide: `wallow/no-source-tests`** (it is
+option-free and self-gates on `*.test.*` filenames, so one repo-wide `"error"` is correct; its
+doctrine-blessed exemptions are a single override block in the root config, each file with its
+reason). The other five `wallow/*` rules stay **enabled per-tree by the nested configs**, because
+their options genuinely differ between trees (`text-heading-variant`) or are inert without
+per-app inputs (`zone-dag`), and an oxlint override REPLACES options rather than merging. The
+nested configs keep their own `jsPlugins` registration too — redundant with the root's but
+harmless, and removing it is a separate soak-tested decision (there is a bead).
 
-**It is not registered from the repo-root `.oxlintrc.json`, and it must not be moved there.**
+Every config that registers the plugin names `@bc-solutions-coder/lint` as a `workspace:*`
+devDependency — including the **root** `package.json` — because a `jsPlugins` specifier is
+documented to resolve from the config file's own directory, and a config that registers without
+depending cannot rely on loading.
 
-### Why the root config is off-limits
+### Why root registration is possible (it used to be off-limits)
 
-`packages/sdk/src/oxlint-guardrails.test.ts` proves the root config's import bans by **copying it
-to a temp directory** and running the real binary there. Any `jsPlugins` entry makes that copy
-unloadable: oxlint answers `Failed to parse oxlint configuration file`, the spec's `JSON.parse`
-throws on it, and the whole file fails to collect — **0 tests run**, an unrelated suite silently
-down. Both root placements were tried and both fail this way: a top-level `jsPlugins`, and a
-`jsPlugins` scoped to the root's `apps/wallow-web` override block (the schema does permit it
-there).
+`packages/sdk/src/oxlint-guardrails.test.ts` proves the root config's import bans by **copying
+it** and running the real binary over a mirror tree. That mirror used to live in `os.tmpdir()`,
+where no `node_modules` is reachable, and a root `jsPlugins` entry made the copy unloadable —
+which is why the plugin was long registered only from the nested configs.
 
-**No specifier form rescues that** — measured on oxlint 1.74.0, not assumed. A `jsPlugins`
-specifier resolves from the **config file's own directory**, whichever form it takes:
+Two things changed, measured on oxlint 1.74.0 under pnpm:
 
-- **Relative**: the temp-dir copy resolves the path against `<tmp>/` rather than the repo and
-  reports `Cannot find module`.
-- **Bare**: `jsPlugins: ["oxfmt"]` resolves from a config at the repo root — where
-  `node_modules/oxfmt` is reachable — and reports `Cannot find module 'oxfmt'` from a config in a
-  temp directory, with the cwd at the repo root either way. (`["oxlint"]` resolves from anywhere,
-  but only because oxlint can reach itself.)
-
-So the temp copy cannot load **any** form — relative or bare, loose file or workspace package: it
-resolves from a directory with no `node_modules` in it at all. Keeping the entry in the nested
-configs keeps it out of the file that gets copied.
+- The mirror now lives **inside the repo**, under gitignored `.lint-mirror/` (also in the root
+  config's `ignorePatterns`), so the copied config resolves the bare specifier through the
+  workspace `node_modules` by ordinary walk-up. Do not move it back to a temp directory — the
+  spec's own comments say why.
+- As installed, oxlint also probes its **own install location**, which reaches pnpm's hidden
+  hoist store (`node_modules/.pnpm/node_modules`), so even a temp-dir copy loads today. That is
+  an implementation detail of the installed toolchain, NOT the documented config-relative
+  resolution — the in-repo mirror and the root devDependency are what this repo relies on.
 
 **This constrains `jsPlugins` only, not `plugins`.** The root config's `plugins` array names
 oxlint's **built-in Rust** plugins (`typescript`, `unicorn`, `oxc`, `react`, `import`) — they are
-compiled into the binary and resolve nothing off disk, so the temp-dir copy loads them fine. Only
-`jsPlugins`, whose entries are real module specifiers, breaks that copy.
+compiled into the binary and resolve nothing off disk.
 
 **A config that does not register the plugin lints its subtree with every `wallow/*` rule
 vacuously passing, and nothing fails.** That is how the three package configs sat unprotected
@@ -65,10 +66,11 @@ the rules unloaded. Adding a nested config for a directory that renders UI means
 `jsPlugins` entry and the devDependency with it.
 
 The reasons behind each registration and each scoped exemption are written as `//` comments in
-the config beside the entry — oxlint parses its config as **JSONC**. One spec reads these configs
-back — `packages/sdk/src/oxlint-guardrails.test.ts`, which walks every nested config and asserts
-each one `extends` the root and restates no `categories`/`plugins` — and it strips line comments
-before `JSON.parse`. (`packages/forms/src/core/package-scaffold.test.ts` was a second reader; it
+the config beside the entry — oxlint parses its config as **JSONC**, and since root registration
+the ROOT config carries comments too. One spec reads these configs back —
+`packages/sdk/src/oxlint-guardrails.test.ts`, which parses the root config and walks every
+nested config asserting each one `extends` the root and restates no `categories`/`plugins` — and
+it strips line comments before `JSON.parse`, for the root exactly as for the nested ones. (`packages/forms/src/core/package-scaffold.test.ts` was a second reader; it
 is gone with the source-reading guards.) A future reader must strip them the same way.
 
 ### The cost of nesting
@@ -109,10 +111,11 @@ shorten it.
 | `packages/ui`         | all six, minus the drawer indent recipe (see below)                                                      |
 | `packages/forms`      | all six, minus `use-app-form.ts` (see below)                                                             |
 
-**`no-source-tests` is enabled by all five and exempted by none**, which makes it the odd one in
-this table. It is the only rule here that applies exclusively to `*.test.*` files — it bans
-`node:fs` in a spec, and self-gates on `context.filename` — so it is the one `wallow/*` entry that
-must **not** appear in a config's `*.test.*` override block. Every config carries a comment saying
+**`no-source-tests` is enabled at the ROOT for the whole repo** (the five nested enablements are
+now redundant restatements, kept until the registration-cleanup bead lands), and exempted only by
+the root's doctrine block. It is the only rule here that applies exclusively to `*.test.*` files —
+it bans `node:fs` in a spec, and self-gates on `context.filename` — so it is the one `wallow/*`
+entry that must **not** appear in a config's `*.test.*` override block. Every config carries a comment saying
 so beside `zone-dag`'s, because the two are silent for opposite reasons and both look omittable.
 The doctrine it enforces is `.claude/rules/TESTING.md`'s: a spec asserts behaviour, and a
 constraint on how code is written is either a rule or (more often) nothing at all.
