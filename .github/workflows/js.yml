@@ -44,6 +44,18 @@ jobs:
     permissions:
       contents: read
 
+    # Credentials for the self-hosted remote cache (docker/turbo-cache/). Until
+    # the secrets exist these interpolate to empty strings, which turbo reads as
+    # "no remote cache" — the job simply runs against the local cache instead.
+    #
+    # Secrets are not exposed to pull_request runs from forks, so those jobs
+    # execute everything with no remote cache. That is correct, just slower; do
+    # NOT reach for pull_request_target to work around it.
+    env:
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+      TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
+
     steps:
       - uses: actions/checkout@v7
 
@@ -59,9 +71,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Phase-3 fallback until the self-hosted remote cache is live. Per-branch
-      # and less effective than a shared cache, but it turns a same-branch push
-      # into a mostly-cached run.
+      # Fallback until the self-hosted remote cache is live. Per-branch and less
+      # effective than a shared cache, but it turns a same-branch push into a
+      # mostly-cached run.
+      #
+      # DELETE THIS STEP once a CI run is observed hitting the remote cache —
+      # keeping both means uploading the same artifacts twice. Not deleted yet
+      # because the remote cache has no hostname (turbo.jsonc still carries the
+      # <your-zone> placeholder), so removing it now would leave CI with no
+      # cache at all.
       - name: Restore turbo cache
         uses: actions/cache@v4
         with:
