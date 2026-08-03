@@ -1,0 +1,39 @@
+# Self-hosted Turborepo remote cache, plus the Cloudflare Tunnel that publishes
+# it. Runs on the build server, NOT as part of `pnpm backend:infra` - it is
+# developer infrastructure, unrelated to the Wallow stack.
+#
+# The tunnel dials out, so no inbound port is opened. Authentication is
+# TURBO_TOKEN alone: turbo sends only `Authorization: Bearer`, so Cloudflare
+# Access service tokens cannot be layered on top (see the design doc). Pair this
+# with a WAF rule on the hostname.
+services:
+  turbo-cache:
+    image: ducktors/turborepo-remote-cache:latest
+    restart: unless-stopped
+    environment:
+      PORT: "3000"
+      TURBO_TOKEN: ${TURBO_TOKEN:?set TURBO_TOKEN in docker/turbo-cache/.env}
+      TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${TURBO_REMOTE_CACHE_SIGNATURE_KEY:?set in .env}
+      STORAGE_PROVIDER: local
+      STORAGE_PATH: /cache
+      # Default is true, which would prefix STORAGE_PATH with the system tmp
+      # dir - and lose the whole cache on reboot.
+      STORAGE_PATH_USE_TMP_FOLDER: "false"
+      LOG_LEVEL: info
+      ENABLE_STATUS_LOG: "false"
+    volumes:
+      - turbo-cache-data:/cache
+    expose:
+      - "3000"
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?create the tunnel first, see the plan}
+    depends_on:
+      - turbo-cache
+
+volumes:
+  turbo-cache-data:
