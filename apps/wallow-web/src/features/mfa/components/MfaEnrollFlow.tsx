@@ -80,10 +80,10 @@ function SetupStep(props: { onBegin: () => void }) {
 }
 
 /**
- * The verify step: shows the secret + QR and collects the confirmation code.
+ * The confirm form: the one value the verify step collects, and the write it drives.
  *
- * The confirm mutation is handed to `useAppForm` WHOLE — spread so this step can
- * add the invalidation and the two callbacks, never destructured or cast, because
+ * The confirm mutation is handed to `useAppForm` WHOLE — spread so this form can
+ * add the invalidation and the three callbacks, never destructured or cast, because
  * the generated factory's own error type has to survive inference. Its `onError`
  * routes to the card's banner rather than the form's own, so no `FormError` is
  * rendered here: one enrollment card, one error surface, whichever step failed.
@@ -93,14 +93,13 @@ function SetupStep(props: { onBegin: () => void }) {
  * write touches. Enrolling invalidates nothing at all — a minted secret is not yet
  * a status — so only the confirm carries it.
  */
-function VerifyStep(props: {
+function ConfirmCodeForm(props: {
   secret: string;
-  qrUri: string;
   onAttempt: () => void;
   onConfirmed: (backupCodes: string[]) => void;
   onFailed: (message: string) => void;
 }) {
-  const { secret, qrUri, onAttempt, onConfirmed, onFailed } = props;
+  const { secret, onAttempt, onConfirmed, onFailed } = props;
   const { sdk } = useRouteContext({ from: "__root__" });
   const queryClient = useQueryClient();
 
@@ -147,6 +146,38 @@ function VerifyStep(props: {
   });
 
   return (
+    <AppForm form={form} testIdPrefix="mfa-enroll">
+      <form.AppField name="code">
+        {(field) => (
+          <field.TextField
+            label="Verification code"
+            // A TOTP code is zero-padded six digits, so `type="number"` would eat
+            // a leading zero; the digits-only hint travels separately.
+            inputMode="numeric"
+            autoComplete="one-time-code"
+          />
+        )}
+      </form.AppField>
+      <SubmitButton pendingLabel="Verifying…">Verify</SubmitButton>
+    </AppForm>
+  );
+}
+
+/**
+ * The verify step: the secret and its QR beside the form that confirms them. The
+ * form is a separate component above, so this one stays presentational and the
+ * `<div>` wrapper does not count against the form's own nesting budget.
+ */
+function VerifyStep(props: {
+  secret: string;
+  qrUri: string;
+  onAttempt: () => void;
+  onConfirmed: (backupCodes: string[]) => void;
+  onFailed: (message: string) => void;
+}) {
+  const { secret, qrUri, onAttempt, onConfirmed, onFailed } = props;
+
+  return (
     <div>
       <Text as="span" variant="body" data-testid="mfa-enroll-secret">
         {secret}
@@ -154,20 +185,12 @@ function VerifyStep(props: {
       <div data-testid="mfa-enroll-qr">
         <Text as="code">{qrUri}</Text>
       </div>
-      <AppForm form={form} testIdPrefix="mfa-enroll">
-        <form.AppField name="code">
-          {(field) => (
-            <field.TextField
-              label="Verification code"
-              // A TOTP code is zero-padded six digits, so `type="number"` would
-              // eat a leading zero; the digits-only hint travels separately.
-              inputMode="numeric"
-              autoComplete="one-time-code"
-            />
-          )}
-        </form.AppField>
-        <SubmitButton pendingLabel="Verifying…">Verify</SubmitButton>
-      </AppForm>
+      <ConfirmCodeForm
+        secret={secret}
+        onAttempt={onAttempt}
+        onConfirmed={onConfirmed}
+        onFailed={onFailed}
+      />
     </div>
   );
 }
