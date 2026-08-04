@@ -1,4 +1,4 @@
-import { Button, Field, Input, Label, Text } from "@bc-solutions-coder/ui";
+import { Button, Field, Input, Label, NoticeBanner, Text } from "@bc-solutions-coder/ui";
 import { useMutation, useQueryClient } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useRef, useState } from "react";
@@ -110,14 +110,11 @@ function SubmitButton({ pending }: { readonly pending: boolean }) {
  */
 function SentAlert() {
   return (
-    <div
-      className="rounded-md border border-success bg-success/10 p-3"
-      data-testid="login-magic-link-sent"
-    >
+    <NoticeBanner data-testid="login-magic-link-sent">
       <Text as="p" variant="bodySm">
         {MAGIC_LINK_SENT_MESSAGE}
       </Text>
-    </div>
+    </NoticeBanner>
   );
 }
 

@@ -6,7 +6,7 @@ import {
   useAppForm,
 } from "@bc-solutions-coder/forms";
 import { buildExchangeTicketUrl } from "@bc-solutions-coder/sdk";
-import { Button, Card, MutedText, Text } from "@bc-solutions-coder/ui";
+import { Button, Card, MutedText, NoticeBanner, Text } from "@bc-solutions-coder/ui";
 import { useMutation } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
 import { type ReactElement, type ReactNode, useState } from "react";
@@ -108,14 +108,11 @@ function CardHeading({ useBackupCode }: { readonly useBackupCode: boolean }) {
 /** The oracle's success `BbAlert`, which replaces the form on `_verified`. */
 function SuccessBanner() {
   return (
-    <div
-      className="rounded-md border border-success bg-success/10 p-3"
-      data-testid="mfa-challenge-success"
-    >
+    <NoticeBanner data-testid="mfa-challenge-success">
       <Text as="p" variant="bodySm">
         Verification successful. Redirecting...
       </Text>
-    </div>
+    </NoticeBanner>
   );
 }
 

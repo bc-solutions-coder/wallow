@@ -6,7 +6,7 @@ import {
   useAppForm,
 } from "@bc-solutions-coder/forms";
 import type { MfaEnrollmentConfirmedResponse } from "@bc-solutions-coder/sdk";
-import { Button, Card, ErrorBanner, MutedText, Text } from "@bc-solutions-coder/ui";
+import { Button, Card, ErrorBanner, MutedText, NoticeBanner, Text } from "@bc-solutions-coder/ui";
 import { useMutation } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
 import { QRCodeSVG } from "qrcode.react";
@@ -259,7 +259,7 @@ function ConfirmForm({
 function BackupCodesPanel({ codes }: { readonly codes: readonly string[] }) {
   return (
     <>
-      <div className="rounded-md border border-success bg-success/10 p-3">
+      <NoticeBanner>
         <Text as="p" variant="bodySm" weight="medium">
           MFA enabled successfully
         </Text>
@@ -267,7 +267,7 @@ function BackupCodesPanel({ codes }: { readonly codes: readonly string[] }) {
           Save these backup codes in a safe place. They can be used to access your account if you
           lose your authenticator device.
         </MutedText>
-      </div>
+      </NoticeBanner>
       <div
         className="bg-muted rounded-md p-4 font-mono text-sm space-y-1"
         data-testid="mfa-enroll-backup-codes"

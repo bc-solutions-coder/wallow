@@ -1,6 +1,6 @@
 import { formatLongDate } from "@bc-solutions-coder/utils/format";
 import { buildExchangeTicketUrl, isSafeReturnUrl } from "@bc-solutions-coder/sdk";
-import { MutedText, Tabs, Text } from "@bc-solutions-coder/ui";
+import { MutedText, NoticeBanner, Tabs, Text } from "@bc-solutions-coder/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 
@@ -86,10 +86,7 @@ const SAME_ORIGIN_BASE: string = BASE_PATH;
  */
 function MfaEnrollmentBanner({ deadline }: { readonly deadline: string }) {
   return (
-    <div
-      className="rounded-md border border-warning bg-warning/10 p-3 space-y-2"
-      data-testid="login-mfa-enrollment-banner"
-    >
+    <NoticeBanner className="space-y-2" data-testid="login-mfa-enrollment-banner" tone="warning">
       <Text as="p" variant="bodySm" weight="medium">
         MFA enrollment required
       </Text>
@@ -100,7 +97,7 @@ function MfaEnrollmentBanner({ deadline }: { readonly deadline: string }) {
       <a className="inline-block text-sm font-medium text-primary" href={toAppHref("/mfa/enroll")}>
         Set up now
       </a>
-    </div>
+    </NoticeBanner>
   );
 }
 
@@ -109,32 +106,26 @@ function MfaEnrollmentBanner({ deadline }: { readonly deadline: string }) {
  * (Wallow-xzha.1.2). `ResetPasswordForm` navigates here with
  * `?message=password_reset`; unlike `SignedInBanner` this is INFORMATIONAL — the
  * user still has to sign in — so it sits ABOVE the tab strip and does NOT retire
- * it. Styled like `SignedInBanner` (border-success), per the DESIGN.
+ * it. Styled like `SignedInBanner` (the success tone), per the DESIGN.
  */
 function PasswordResetNotice() {
   return (
-    <div
-      className="rounded-md border border-success bg-success/10 p-3"
-      data-testid="login-password-reset-notice"
-    >
+    <NoticeBanner data-testid="login-password-reset-notice">
       <Text as="p" variant="bodySm">
         Your password has been reset. You can now sign in.
       </Text>
-    </div>
+    </NoticeBanner>
   );
 }
 
 /** The oracle's `_signedIn` success `BbAlert`, which replaces the whole tab block. */
 function SignedInBanner() {
   return (
-    <div
-      className="rounded-md border border-success bg-success/10 p-3"
-      data-testid="login-signed-in"
-    >
+    <NoticeBanner data-testid="login-signed-in">
       <Text as="p" variant="bodySm">
         You are now signed in.
       </Text>
-    </div>
+    </NoticeBanner>
   );
 }
 
