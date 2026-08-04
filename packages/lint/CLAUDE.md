@@ -22,9 +22,9 @@ The plugin is registered in **exactly one config**, the repo-root `.oxlintrc.jso
 
 **A nested config inherits that registration through `extends`.** This was verified empirically on
 oxlint 1.74.0, not assumed: with the nested `jsPlugins` entries and devDependencies deleted, a
-probe file planted in each of the five nested trees still produced byte-identical `wallow/*`
+probe file planted in each nested tree still produced byte-identical `wallow/*`
 diagnostics — including option-carrying ones (`text-heading-variant` fired at each tree's own
-configured `levels`, and stayed silent in `apps/wallow-web`, which does not enable it). So a
+configured `levels`), while a rule a given tree does not enable stayed silent there. So a
 nested config needs **no** `jsPlugins` entry and **no** `@bc-solutions-coder/lint` devDependency;
 only the root `package.json` names it, because a `jsPlugins` specifier resolves from the
 REGISTERING config's own directory.
@@ -106,16 +106,17 @@ shorten it.
 
 ## Who enables what
 
-| Config                | Enables                                                                                                  |
-| --------------------- | -------------------------------------------------------------------------------------------------------- |
-| `apps/wallow-web`     | `no-sidebar-inversion`, `no-source-tests`, `no-tinted-text`, `text-heading-variant`, `zone-dag`          |
-| `apps/wallow-auth`    | `no-hand-rolled-mutation`, `no-sidebar-inversion`, `no-source-tests`, `text-heading-variant`, `zone-dag` |
-| `packages/navigation` | all six                                                                                                  |
-| `packages/ui`         | all six, minus the drawer indent recipe (see below)                                                      |
-| `packages/forms`      | all six, minus `use-app-form.ts` (see below)                                                             |
+| Config                | Enables                                             |
+| --------------------- | --------------------------------------------------- |
+| `apps/wallow-web`     | all six                                             |
+| `apps/wallow-auth`    | all six                                             |
+| `apps/minimal-app`    | all six, minus `zone-dag` (see below)               |
+| `packages/navigation` | all six                                             |
+| `packages/ui`         | all six, minus the drawer indent recipe (see below) |
+| `packages/forms`      | all six, minus `use-app-form.ts` (see below)        |
 
 **`no-source-tests` is enabled at the ROOT for the whole repo** and exempted only by the root's
-doctrine block. The five nested enablements are redundant restatements of it, kept because each
+doctrine block. The six nested enablements are redundant restatements of it, kept because each
 sits beside a comment explaining why it must never appear in that config's `*.test.*` override
 block. It is the only rule here that applies exclusively to `*.test.*` files —
 it bans `node:fs` in a spec, and self-gates on `context.filename` — so it is the one `wallow/*`
@@ -148,21 +149,57 @@ lives. Every level still has to NAME a variant.
 alone. A recipe is the one place a colour decision gets written down, which is what makes a
 fork-unreachable colour matter more there than at a call site.
 
-## Both apps are gated, not identically
+## The three apps are gated, not identically
 
-`apps/wallow-auth/.oxlintrc.json` carries the same rules plus `button` on the `react/forbid-elements`
-list. Do not converge the two:
+**Every `wallow/*` rule is enabled everywhere it can decide anything.** No config
+blanket-disables one, and none may start: a rule switched off across a whole tree is a rule that
+silently stops holding the standard it was written for. The divergences below are the complete
+list, and each is a rule that would decide **nothing** in that tree or a rule that would be
+**wrong** there — not a rule someone found inconvenient.
 
-- wallow-web's `bff-demo` route deliberately keeps four raw `<button>`s as the un-catalogued
-  control of the BFF demo, so the button ban cannot be lifted to both.
-- **Both apps enable `text-heading-variant`, at different levels.** wallow-auth pins
-  `h1: false` — `AuthLayout` owns the page's one level-1 heading, and it is `FocusOnNavigate`'s
-  focus target. wallow-web has no such layout, so a route may open its own `h1`; it names only
-  `h2: subheading` and lets every other level pick any variant so long as it NAMES one. Its
-  headings are not one shape, which is what the one override handles:
-  `LandingPage.tsx` runs a marketing scale (`h1: display`, `h2: title`, `h3: subheading`), one
-  step above the card scale the rest of the app uses. An override's entry REPLACES the base one,
-  so that block restates every level it wants.
+**`zone-dag`, absent in `apps/minimal-app`.** The rule derives the prefixes it polices from the
+app's `tsconfig.json` `paths` map, and minimal-app declares none: it is deliberately un-zoned
+(`apps/CLAUDE.md`), the smallest wiring of the shared packages, with no `@app`/`@features`/`@shared`
+DAG to judge. Enabled, it would open every file and decide nothing — the same reason it is inert
+in the three packages, but stated as an absence here because an app is exactly where a reader
+expects to find it. Give minimal-app a `paths` map and this becomes an omission; enable it in the
+same edit.
+
+**Raw `<button>`, forbidden in wallow-auth and minimal-app, not in wallow-web.** The
+`react/forbid-elements` list is otherwise identical in all three (`p`, `span`, `legend`, `code`,
+`h1`–`h6`); wallow-web simply omits the `button` entry. Four raw `<button>`s are deliberate there
+and they are not confined to one file, so there is no scoped override to write: three in
+`src/features/bff-demo/components/bff-demo.tsx` and one in
+`src/features/bff-demo/components/SignOut.tsx`. They are the un-catalogued control of the BFF
+demo — the point of that route is to show the flow working with no design system attached. Delete
+the demo, or route those four through `Button`, and the entry should be added; until then it
+cannot be lifted to all three.
+
+**`text-heading-variant`, enabled in all three at different levels.** Every level still has to
+NAME a variant everywhere — what differs is which levels each app admits and at what step.
+
+- **wallow-auth** pins `h1: false`. `AuthLayout` owns the page's one level-1 heading and it is
+  `FocusOnNavigate`'s focus target, so no other file may open one; the layout itself is the one
+  scoped override (`src/shared/components/auth-layout.tsx`, restating `h2: subheading`).
+- **wallow-web** has no such layout, so a route may open its own `h1`. It names only
+  `h2: subheading`. Its one scoped override is `LandingPage.tsx`, which runs a marketing scale
+  (`h1: display`, `h2: title`, `h3: subheading`) one step above the card scale the rest of the app
+  uses. An override's entry REPLACES the base one, so that block restates every level it wants.
+- **minimal-app** takes wallow-web's shape and its reason: no layout owns the level-1 heading, so
+  `h2: subheading` and nothing else. It carries no scoped override.
+
+**`no-tinted-text` and `no-hand-rolled-mutation` are now on in all three.** Neither had a
+principled reason to be missing — `no-tinted-text` was absent from wallow-auth and
+`no-hand-rolled-mutation` from wallow-web only because each was written while looking at the other
+app. Turning them on cost wallow-auth three `text-primary hover:text-primary/80` links, on the
+not-found, access-request and error screens, which are now `Button variant="link"` rendering an
+`<a>` — the recipe fix the rule exists to force. `no-hand-rolled-mutation` was **vacuous** in
+wallow-web when enabled (it writes through the generated `{operation}Mutation()` factories
+already); it is on so that staying that way is enforced rather than observed.
+
+**The two package-level exemptions** (`drawer.styles.ts`, `use-app-form.ts`) are above, under
+"Who enables what". Both name a single file, which is the shape any future exemption must take —
+a `files` glob naming the one counter-example, never a rule dropped from a `rules` block.
 
 ## Authoring a rule
 
@@ -217,7 +254,7 @@ build, `pnpm check:exports`, or an `e2e/` run without their help.
 
 What genuinely stays a spec is behaviour a rule cannot see: a computed style that only exists at
 runtime, and runtime/compile-time identity. **`wallow/no-source-tests` now enforces the rest** — a
-spec cannot import `node:fs` under any of the five configured trees, so "convert it or delete it"
+spec cannot import `node:fs` under any of the six configured trees, so "convert it or delete it"
 is no longer advice.
 
 Type-awareness is not the boundary — oxlint has none, but nothing in this repo is blocked by that.

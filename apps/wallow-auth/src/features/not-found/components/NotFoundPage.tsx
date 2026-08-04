@@ -1,4 +1,4 @@
-import { Card, MutedText, Text } from "@bc-solutions-coder/ui";
+import { Button, Card, MutedText, Text } from "@bc-solutions-coder/ui";
 import type { ReactNode } from "react";
 import { toAppHref } from "@shared/lib/base-path";
 
@@ -54,13 +54,14 @@ function NotFoundMessage() {
 function NotFoundFooter() {
   return (
     <div className="w-full text-center">
-      <a
-        href={toAppHref("/login")}
+      <Button
+        render={<a href={toAppHref("/login")} />}
+        nativeButton={false}
+        variant="link"
         data-testid="not-found-login-link"
-        className="text-sm font-medium text-primary hover:text-primary/80"
       >
         Go to sign in
-      </a>
+      </Button>
     </div>
   );
 }

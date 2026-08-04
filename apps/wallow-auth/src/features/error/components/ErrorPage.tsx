@@ -1,4 +1,4 @@
-import { Card, ErrorBanner, Text } from "@bc-solutions-coder/ui";
+import { Button, Card, ErrorBanner, Text } from "@bc-solutions-coder/ui";
 import type { ReactNode } from "react";
 import { toAppHref } from "@shared/lib/base-path";
 
@@ -102,13 +102,14 @@ function ErrorMessageAlert({ reason }: { readonly reason?: string }) {
  */
 function SignOutLink() {
   return (
-    <a
-      href={toAppHref("/logout")}
+    <Button
+      render={<a href={toAppHref("/logout")} />}
+      nativeButton={false}
+      variant="link"
       data-testid="error-sign-out-link"
-      className="text-sm font-medium text-primary hover:text-primary/80"
     >
       Sign out and try a different account
-    </a>
+    </Button>
   );
 }
 

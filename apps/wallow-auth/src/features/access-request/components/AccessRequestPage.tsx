@@ -1,4 +1,4 @@
-import { Card, Text } from "@bc-solutions-coder/ui";
+import { Button, Card, Text } from "@bc-solutions-coder/ui";
 import type { ReactNode } from "react";
 import { toAppHref } from "@shared/lib/base-path";
 
@@ -37,13 +37,14 @@ function Explanation() {
 function Footer() {
   return (
     <div className="flex flex-col items-center gap-2 w-full">
-      <a
-        href={toAppHref("/logout")}
+      <Button
+        render={<a href={toAppHref("/logout")} />}
+        nativeButton={false}
+        variant="link"
         data-testid="access-request-sign-out-link"
-        className="text-sm font-medium text-primary hover:text-primary/80"
       >
         Sign out and try a different account
-      </a>
+      </Button>
       <a
         href={toAppHref("/")}
         data-testid="access-request-back-link"

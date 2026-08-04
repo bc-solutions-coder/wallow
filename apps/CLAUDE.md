@@ -65,8 +65,9 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
   `@tanstack/react-router@^1.170.18` against an app pinning `1.170.18` exactly is correct
   practice, not drift, and stays a literal.
 
-- **App surfaces are built from the catalog, and in BOTH apps that is lint-enforced.**
-  `apps/wallow-web/.oxlintrc.json` and `apps/wallow-auth/.oxlintrc.json` (the root config carries
+- **App surfaces are built from the catalog, and in ALL THREE apps that is lint-enforced.**
+  `apps/wallow-web/.oxlintrc.json`, `apps/wallow-auth/.oxlintrc.json` and
+  `apps/minimal-app/.oxlintrc.json` (the root config carries
   none of these rules) add `react/forbid-elements` for raw `p`, `span`, `legend`, `code` and
   `h1`–`h6`, pointing each at `Text`/`PageHeader` so the catalog owns the type scale once, plus
   custom rules from the `@bc-solutions-coder/lint` plugin (`packages/lint`):
@@ -74,11 +75,11 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
   favour of the recipes' `surface="sidebar"` axis), `wallow/no-tinted-text` (bans
   `text-<token>/<alpha>` — muted copy is `text-muted-foreground`; a translucent _surface_ such as
   the drawer scrim's `bg-foreground/40` stays legal), `wallow/text-heading-variant`
-  (both apps: every `<Text as="h_">` must name its `variant`, an `h2` must be `subheading` and
-  carry no `weight`. The two differ in their exemptions — in wallow-auth no file but
-  `auth-layout.tsx` may open an `h1`, which wallow-web has no equivalent of; wallow-web instead
-  overrides `LandingPage.tsx` to `h1: display`, `h2: title`, `h3: subheading`, because a marketing
-  page runs one step above a card scale),
+  (all three: every `<Text as="h_">` must name its `variant`, an `h2` must be `subheading` and
+  carry no `weight`. They differ in their exemptions — in wallow-auth no file but
+  `auth-layout.tsx` may open an `h1`, which neither other app has an equivalent of; wallow-web
+  instead overrides `LandingPage.tsx` to `h1: display`, `h2: title`, `h3: subheading`, because a
+  marketing page runs one step above a card scale, and minimal-app carries no override at all),
   `wallow/zone-dag` (the import graph above), and `wallow/no-source-tests` (bans `node:fs` in a
   `*.test.*` file — a spec asserts behaviour, not source text; see `.claude/rules/TESTING.md`).
   The first three are off for `*.test.*` and `*.stories.tsx`. `zone-dag` deliberately is NOT,
@@ -90,9 +91,11 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
   are not the only nested configs that enable them:
   `packages/navigation`, `packages/ui` and `packages/forms` do too, because the shell extraction
   moved most of the UI these rules police out of `apps/wallow-web`. See
-  `packages/lint/CLAUDE.md` for which config enables which rule. The two apps are
-  NOT identical — wallow-auth also forbids raw `<button>`, which wallow-web cannot because
-  `bff-demo` deliberately ships four un-catalogued ones. These rules replaced ~1,400 lines of
+  `packages/lint/CLAUDE.md` for which config enables which rule, and for the complete
+  divergence list. Two of them touch the apps: `zone-dag` is absent from minimal-app, which
+  declares no `paths` and so has no DAG to judge, and wallow-web is the one app that does NOT
+  forbid raw `<button>` — `bff-demo` deliberately ships four un-catalogued ones. No config
+  blanket-disables a `wallow/*` rule, and none may start. These rules replaced ~1,400 lines of
   disk-sweeping guard specs (`catalog-adoption.test.ts`, both `typography.test.ts`,
   `dashboard-chrome-tokens.test.ts`); do not reintroduce a regex sweep for something a rule can
   say.
@@ -107,8 +110,9 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
   `excludedFiles`, so ORDER is the mechanism, and an override's `no-restricted-imports` entry
   REPLACES the base one rather than merging, which is why that override restates every root ban
   it still wants. `wallow/no-hand-rolled-mutation` reports any
-  `mutationFn` property, so a write goes through the generated `{operation}Mutation()` factory
-  (it is wallow-auth's, not wallow-web's).
+  `mutationFn` property, so a write goes through the generated `{operation}Mutation()` factory.
+  The `no-restricted-imports` seam above is wallow-auth's alone; the mutation rule is on in all
+  three apps — it was already vacuous in wallow-web when enabled there, which is the point.
   Together they replaced the table-driven halves of the generated-mutation and API-seam specs.
   `features-api-seam.test.ts` is deleted outright and the per-feature `api.test.ts` files are
   trimmed to what they can assert by IMPORTING the seam — the seam's _shape_, which they derived

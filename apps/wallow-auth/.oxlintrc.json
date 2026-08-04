@@ -16,6 +16,7 @@
     // `*.test.*` file and self-gates on the filename, so it is stated once at this
     // level and stays silent over source. See `.claude/rules/TESTING.md`.
     "wallow/no-source-tests": "error",
+    "wallow/no-tinted-text": "error",
     "wallow/text-heading-variant": ["error", { "levels": { "h1": false, "h2": "subheading" } }],
     "wallow/zone-dag": "error",
     "react/forbid-elements": [
@@ -169,6 +170,7 @@
         // off here would turn it off everywhere.
         "wallow/no-hand-rolled-mutation": "off",
         "wallow/no-sidebar-inversion": "off",
+        "wallow/no-tinted-text": "off",
         "wallow/text-heading-variant": "off"
       }
     }
