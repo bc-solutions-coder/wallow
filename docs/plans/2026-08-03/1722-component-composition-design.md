@@ -1,6 +1,6 @@
 # Component composition, hook extraction, and forms adoption
 
-**status: active**
+**status: completed**
 
 A review of every component in `apps/wallow-auth` and `apps/wallow-web`, and the design for
 reducing their size by composing what the workspace already provides rather than by inventing

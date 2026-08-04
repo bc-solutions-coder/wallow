@@ -13,15 +13,15 @@ Rebranding a fork changes `packages/styles/branding.json` — no component sourc
 
 ## The catalog
 
-56 components, one folder per component under `packages/ui/src/components/`. The folder name is
+60 components, one folder per component under `packages/ui/src/components/`. The folder name is
 also the import subpath.
 
 | Group                | Components                                                                                                                                                                   |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Forms and input      | `Button`, `Input`, `Textarea`, `Field`, `Fieldset`, `Form`, `Label`, `Checkbox`, `CheckboxGroup`, `Radio`, `RadioGroup`, `Select`, `Combobox`, `Autocomplete`, `Switch`, `Slider`, `NumberField`, `OTPField`, `Toggle`, `ToggleGroup` |
+| Forms and input      | `Button`, `Input`, `Textarea`, `Field`, `Fieldset`, `Form`, `Label`, `Checkbox`, `CheckboxGroup`, `Radio`, `RadioGroup`, `Select`, `Combobox`, `Autocomplete`, `Switch`, `Slider`, `NumberField`, `OTPField`, `Toggle`, `ToggleGroup`, `SimpleSelect` |
 | Overlays and menus   | `Dialog`, `AlertDialog`, `Drawer`, `Popover`, `Tooltip`, `PreviewCard`, `Menu`, `ContextMenu`, `Menubar`, `Toast`                                                             |
-| Layout and navigation | `Accordion`, `Collapsible`, `Tabs`, `NavigationMenu`, `Toolbar`, `ScrollArea`, `Separator`, `Card`, `CenteredCardLayout`, `PageHeader`, `EmptyState`, `ListCard`, `ListRow`  |
-| Display and feedback | `Text`, `MutedText`, `Badge`, `Avatar`, `Progress`, `Meter`, `ErrorBanner`                                                                                                   |
+| Layout and navigation | `Accordion`, `Collapsible`, `Tabs`, `NavigationMenu`, `Toolbar`, `ScrollArea`, `Separator`, `Card` (with `CardHeader`), `CenteredCardLayout`, `PageContainer`, `PageHeader`, `EmptyState`, `ListCard`, `ListRow`, `QuietLink`  |
+| Display and feedback | `Text`, `MutedText`, `Badge`, `Avatar`, `Progress`, `Meter`, `ErrorBanner`, `NoticeBanner`                                                                                    |
 | Theming              | `ThemeProvider` (with `ThemeScript` and `useTheme`), `ThemeToggle`                                                                                                            |
 | App wiring           | `ReadyIndicator`, `FocusOnNavigate`, `DocumentStyles`, `ForkAttribution`                                                                                                      |
 
@@ -31,6 +31,23 @@ the semantic colour set (`default`, `muted`, `primary`, `accent`, `destructive`,
 `onSidebar`, `onCard`, `onPrimary`), with `weight` and `align` as independent axes.
 `MutedText` is now literally `<Text as="p" variant="bodySm" color="muted" />` — keep using it for
 secondary copy, but reach for `Text` whenever you need a scale step or colour it does not name.
+
+Four entries wrap no Base UI part; each names a stack the apps had been rebuilding by hand:
+
+- **`CardHeader`** (`Card`'s folder, not one of its own) — a card's title-and-description pair.
+  It owns the `<h2>`, so a screen composing it gets the card-heading step by construction instead
+  of spelling out `<Text as="h2" variant="subheading" color="onCard">` and relying on lint to catch
+  a mistake. `titleTestId` targets the heading element; `data-testid` lands on the wrapper.
+- **`QuietLink`** — the muted secondary link: card footers, back-links, "Forgot password?". A plain
+  `<a>`, because these navigate with real hrefs. Distinct from `Button variant="link"`, which is the
+  primary-coloured stand-in for an **action**; `QuietLink` recedes.
+- **`NoticeBanner`** — the non-destructive banner, `tone="success" | "warning"`. A sibling of
+  `ErrorBanner` rather than a tone on it: `ErrorBanner` wraps its children in a styled `<p>`, right
+  for a sentence of failure text and wrong for a notice whose body may be a heading plus a link. So
+  `NoticeBanner` wraps nothing and you compose `Text` inside it.
+- **`PageContainer`** — `PageHeader`'s sibling: the column a page body sits in. It adds width and
+  centring and nothing else, so a page writes no `max-w-*` of its own; the rail, main column and
+  padding around it belong to the app's layout route.
 
 Browse them interactively with Storybook, which renders every component against the fork's real
 theme tokens:

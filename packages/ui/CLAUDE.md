@@ -1,6 +1,6 @@
 # packages/ui — @bc-solutions-coder/ui Agent Guide
 
-The shared **browser-only** React component library: 58 component folders under
+The shared **browser-only** React component library: 60 component folders under
 `src/components/`, each a **Base UI** (`@base-ui/react` ^1.6.0) headless part wrapped in a
 **CVA** recipe built from `@bc-solutions-coder/styles` semantic tokens. Private (never
 published), consumed by `apps/wallow-auth` and `apps/wallow-web` as `workspace:*`.
@@ -28,6 +28,41 @@ app needs the identical tree and spelling it out per call site blows `react/jsx-
 `Select` stays the composable API for a call site that needs groups, separators or a trigger
 that is not a `Field`; a folder that composes rather than wraps declares no recipe of its own,
 which is why it has no `.styles.ts`.
+
+## Entries that wrap nothing — the composition additions
+
+Three catalog entries wrap no Base UI part at all. Each was extracted from a stack the apps had
+rebuilt by hand at many call sites, so the shape it names is the whole point of it existing.
+They are the pattern for the next such extraction: the catalog owns a decision the call sites
+were making one at a time, and the recipe is where that decision is written down.
+
+- **`CardHeader`** (`card/card-header.tsx`, exported from the `card` folder — not a folder of
+  its own) — the card's title-and-description pair, from 11 local `CardHeading` functions across
+  wallow-auth. **It owns the `<h2>`.** That is the reason to prefer it over spelling
+  `<Text as="h2" variant="subheading" color="onCard">` at a call site: the card-heading step is
+  now guaranteed by CONSTRUCTION, where before it was only guaranteed by
+  `wallow/text-heading-variant` catching each site. The rule still runs and still matters — it
+  polices headings outside a card — but a screen that composes `CardHeader` cannot get the step
+  wrong in the first place. `title` is `Omit`ted from the `HTMLAttributes` passthrough, or the
+  spread would stamp the heading text onto the wrapper as a tooltip; `titleTestId` is separate
+  from the wrapper's `data-testid` because wallow-auth's `{screen}-heading` ids name the heading
+  ELEMENT, and a text assertion against the wrapper would also see the description.
+- **`QuietLink`** — the muted secondary link: card footers, "Forgot password?", back-links, from
+  13 sourced call sites. A plain `<a>` rather than a `render`-composed part, because all 13 are
+  plain anchors — wallow-auth navigates across origins with real hrefs, not router links. It is
+  **distinct from `Button variant="link"`**, which is the primary-coloured, underlined stand-in
+  for an ACTION; this one recedes. Reach for the Button when the destination is the thing the
+  screen wants you to do next (the three sign-out escape hatches), and for `QuietLink` when it is
+  an aside.
+- **`NoticeBanner`** — the non-destructive banner: a confirmation or a nudge, from six hand-rolled
+  wrappers that each rebuilt `ErrorBanner`'s shape in a different tone. It is a **sibling of
+  `ErrorBanner`, not a `tone` axis on it**, and deliberately so: an error banner wraps its
+  children in a styled `<p>`, which is right for one sentence of failure text and wrong for a
+  notice, whose body ranges from a sentence to a heading plus an action link. Folding the two
+  together would have forced that `<p>` to become conditional on the tone — a component with two
+  shapes wearing one name. `NoticeBanner` therefore wraps nothing and the caller composes `Text`
+  inside it. Its `tone` axis (`success` | `warning`) is destructured, never spread, or it would
+  land on the DOM node.
 
 ## Component folder anatomy
 

@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**status: active**
+**status: completed**
 
 **Goal:** Cut the size of both apps' components by composing the layers the workspace already
 has — migrate 11 hand-rolled forms onto `@bc-solutions-coder/forms`, extract 5 hooks, and give

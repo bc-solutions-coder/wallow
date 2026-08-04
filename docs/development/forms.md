@@ -30,6 +30,31 @@ named no field, others put them under the input. The package replaces all of it 
 hook and one catalog, and the testids it derives are byte-identical to the ones the Playwright
 suites already select.
 
+## What is on the layer
+
+Every form in both apps. Eleven screens were migrated onto it, largest first, one commit each:
+
+| Screen                                                     | App         | Notable                                                                          |
+| ---------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------- |
+| `register/RegisterForm`                                    | wallow-auth | Passwordless toggle hides the password block; the schema stays valid either way. |
+| `mfa-enroll/MfaEnrollForm`                                 | wallow-auth | Only the CONFIRM is a form; the start is a hook.                                 |
+| `mfa-challenge/MfaChallengeForm`                           | wallow-auth | Two testids for one field, branching on "use a backup code".                     |
+| `invitation/InvitationScreen`                              | wallow-auth | —                                                                                |
+| `login/LoginScreen`                                        | wallow-auth | The shell; three sibling forms below it.                                         |
+| `accept-terms/AcceptTermsScreen`                           | wallow-auth | —                                                                                |
+| `mfa/MfaSettingsSection`                                   | wallow-web  | Its query wiring came out first, as `useMfaSettings`.                            |
+| `login/OtpLoginForm`                                       | wallow-auth | Two `<form>` elements in one component — request, then verify.                   |
+| `login/MagicLinkLoginForm`                                 | wallow-auth | Keeps its `useEffect`; it was already correct.                                   |
+| `mfa/MfaEnrollFlow`                                        | wallow-web  | —                                                                                |
+| `login/PasswordLoginForm`                                  | wallow-auth | Three local field wrappers collapsed to `TextField` / `CheckboxField`.           |
+
+The four wallow-auth login/MFA screens share a house pattern worth recognising before you copy one:
+a **rule-free** zod schema plus the plain-`onSubmit` escape hatch, because their endpoints answer
+with a bare `{ succeeded, error }` body rather than problem details, and because their blank-input
+guards report into a banner the surrounding SHELL owns — which a zod rule could not do, since it
+would abort `handleSubmit` before the callback ran. A form talking to an RFC 7807 endpoint should
+use `mutation` and put its rules in the schema, like `CreateInquiryForm`.
+
 ## The surface
 
 `src/index.ts` is the only entry — there are no subpaths, and nothing else in `packages/forms/src`
@@ -129,14 +154,25 @@ pending.
 
 | Field           | Value type | Props beyond `label` / `testId`                                                           |
 | --------------- | ---------- | ----------------------------------------------------------------------------------------- |
-| `TextField`     | `string`   | `type` (`"text" \| "email" \| "tel" \| "url"`), `placeholder`, `autoComplete`, `optional` |
-| `PasswordField` | `string`   | `placeholder`, `autoComplete` — the type is pinned to `"password"` and cannot be widened  |
+| `TextField`     | `string`   | `type` (`"text" \| "email" \| "tel" \| "url"`), `placeholder`, `autoComplete`, `optional`, `inputMode` |
+| `PasswordField` | `string`   | `placeholder`, `autoComplete`, `labelAction` — the type is pinned to `"password"` and cannot be widened |
 | `TextareaField` | `string`   | `placeholder`, `rows`, `optional`                                                         |
 | `SelectField`   | `string`   | `options` (`{ value, label }[]`), `placeholder`, `optional`                               |
 | `CheckboxField` | `boolean`  | `description`                                                                             |
 
 `optional` renders a muted `(optional)` marker after the label, which is how a form says a field is
 not required instead of leaving a user to discover it by submitting.
+
+Two of those props are narrower than they look. `inputMode` names the virtual keyboard a touch
+device offers and is kept separate from `type` because the two are not interchangeable for a
+digits-only value — `type="number"` eats the leading zero of a zero-padded one-time code, so an OTP
+field stays `type="text"` and asks for the keypad here. `labelAction` puts an affordance on the
+label's LINE (the sign-in screen's "Forgot password?"), beside the label and never inside it: a
+label names its control, so an anchor folded into one would join the field's accessible name and
+put a navigation target inside the box's click area. Watch the depth budget when passing one —
+`react/jsx-max-depth` is 2 in both apps and a prop's JSX counts at the depth of the element
+carrying it, so an inline `labelAction={<X/>}` usually has to become a module-scope element
+constant.
 
 ## Testids
 

@@ -56,6 +56,18 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
   Start's import protection is what enforces the naming — a client module reaching a `*.server.*`
   file fails the BUILD. `src/server-only-naming.test.ts`, the byte-identical spec that used to
   restate it by sweeping both apps' source, is deleted (`Wallow-xg9t.1`).
+- **A hook lives in `features/<name>/hooks/` unless more than one feature needs it, in which
+  case it lives in `shared/hooks/` — and `wallow/zone-dag` is the reason, not taste.** The rule
+  forbids a feature-to-feature import outright, so a hook parked in the first feature that
+  happened to need it is a hook the second feature **cannot** reach; `shared/` is the only zone
+  both may import from. Put it where its consumers are, and move it the moment a second feature
+  wants it. Five instances back this: `wallow-auth`'s `mfa-challenge/hooks/use-redirect-verdict.ts`
+  and `mfa-enroll/hooks/use-enrollment-start.ts`, `wallow-web`'s `mfa/hooks/use-mfa-settings.ts`
+  and `organizations/hooks/use-user-picker.ts`, all feature-local because exactly one feature uses
+  each — against `wallow-auth`'s `shared/hooks/use-return-url-guard.ts`, which the login, signup
+  and MFA screens all need. The extraction test is the SCREEN's, not the hook's: when a component
+  is holding query wiring, derived narrowing and view state at once, the state moves out and the
+  component keeps the markup.
 - Every app spells out `server.port` in its `vite.config.ts` (`vite dev` binds 3000 when
   `PORT` is unset). `@tanstack/react-start`/`react-router`/`react-router-ssr-query` are still
   pinned exactly, but the pin now lives in the **`start` catalog** in `pnpm-workspace.yaml`:

@@ -51,6 +51,17 @@ have to sit together. Fields import `core/contexts` and `form/app-form-context`,
   across — a failed READ, or a write rendered outside a form — so a screen never hand-rolls the
   `detail`/`title`/`message` walk. It lives here rather than in an app because the shape it walks
   is the same one `splitServerError` walks.
+- **Two field props exist because a migrated screen needed them, and both are deliberately narrow.**
+  `TextField.inputMode` names the virtual keyboard a touch device offers, kept separate from `type`
+  because the two are not interchangeable for a digits-only value — `type="number"` eats the
+  leading zero of a zero-padded one-time code, so the OTP field stays `type="text"` and asks for
+  the keypad here. `PasswordField.labelAction` puts an affordance on the label's LINE (the sign-in
+  screen's "Forgot password?"), beside the label and never inside it: a label names its control, so
+  an anchor folded into one would both join the field's accessible name and put a navigation target
+  inside the box's click area. That is why it is a separate prop rather than a `ReactNode` label.
+  Note the depth budget when you pass one — `react/jsx-max-depth` is 2 in this package **and in
+  both apps**, and a prop's JSX counts at the depth of the element CARRYING it, so an inline
+  `labelAction={<X/>}` at a call site usually has to be hoisted to a module-scope element constant.
 - `src/index.ts` is the contract. `src/index.test.ts` pins it in **both** directions:
   `PUBLIC_RUNTIME_EXPORTS` as an exact set, and `INTERNAL_EXPORTS` (the TanStack contexts, the
   shell's own React context, the field-part helpers) asserted absent.

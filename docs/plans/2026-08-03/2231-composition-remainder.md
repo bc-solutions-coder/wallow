@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**status: active**
+**status: completed**
 
 **Goal:** Finish the ten open beads under epic `Wallow-9n7a` — four screen migrations onto
 `@bc-solutions-coder/forms`, one catalog addition, one hook extraction, one lint reconciliation,
@@ -682,3 +682,20 @@ git ls-remote origin refs/dolt/data          # the hash MUST have changed
 
 `bd dolt push` is not optional and `git push` does not do it — it is the only thing that moves the
 bead closures off this machine.
+
+---
+
+## Deviations from this plan, as executed
+
+- **Phase B Step 5 — the failure mappers stayed put.** The step says "move the failure mapper into
+  the feature's `api.ts`". They were not moved: `otp-result.ts`, `magic-link-result.ts` and
+  `auth-result.ts` already ARE that extraction, and `login/api.ts` is documented as a thin SDK
+  re-export seam. Folding pure mapping functions into it would have widened the seam's job from
+  "which endpoints this feature may call" to "and how their failures read".
+- **Phase C — `useUserPicker` does not expose `users`.** The plan's acceptance mentions a returned
+  directory; the hook returns `matches`, `open` and `onOpenChange` only. A `users` field would be
+  dead surface — `MemberList` never reads it — and the "returns the directory" assertion is covered
+  by `matches` under an empty query, which exercises the real path.
+- **Phase D — the divergence list grew a third app.** `apps/minimal-app` had no nested oxlint config
+  at all, so its whole tree linted with every `wallow/*` rule vacuously passing. Reconciling the
+  rule sets meant giving it one, not just aligning the two that existed.
