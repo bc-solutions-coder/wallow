@@ -25,10 +25,9 @@ Handles contact form inquiries: submission, status tracking (New -> Reviewed -> 
 
 ## Conventions and Patterns
 
-- **Handlers are static classes** with a `HandleAsync` static method (Wolverine convention). No interfaces or DI registration needed.
+- **Handlers**: this module's three command handlers and its event handlers are **static classes** with a `HandleAsync` static method — a local exception, not the repo convention. The query handlers follow the usual Wallow shape: `public sealed class` with primary-constructor DI. Wolverine auto-discovers both, so no interfaces or DI registration are needed either way.
 - **Status transitions** are enforced in `Inquiry.TransitionTo()` with a state machine pattern. Only sequential transitions are valid: New -> Reviewed -> Contacted -> Closed.
 - **Domain events** are raised inside aggregate factory methods and state-change methods, then bridged to integration events in Application-layer event handlers.
-- **The controller is a partial class** to support `[LoggerMessage]` source generator attributes at the bottom of the file.
 - **Submitter identification**: `ExtractSubmitterId()` in the controller returns `null` for service accounts (client IDs starting with `sa-`), otherwise returns the user ID.
 - **Comment visibility**: `IsInternal` flag controls whether comments are visible to submitters. The `GetComments` endpoint filters based on `InquiriesRead` permission.
 - **Rate limiting**: `IRateLimitService` backed by Valkey, 5 requests per 15 minutes per key.
@@ -62,10 +61,15 @@ Defined in `Wallow.Shared.Kernel.Identity.Authorization.PermissionType`.
 - Schema: `inquiries`
 - DbContext: `InquiriesDbContext` (extends `TenantAwareDbContext`)
 - Default tracking: `NoTracking`
-- Auto-migrates in Development/Testing environments
+- Migrated inline only in the `Testing` environment; `Wallow.MigrationService` applies migrations everywhere else
 
 ## Running Tests
 
 ```bash
 ./scripts/run-tests.sh inquiries
 ```
+
+## Related Documentation
+
+- Module reference: [`README.md`](README.md)
+- Backend conventions and commands: [`api/CLAUDE.md`](../../../CLAUDE.md)

@@ -4,7 +4,7 @@ Shared infrastructure utilities, settings framework, and module coordination.
 
 ## Purpose
 
-Provides the settings framework for tenant- and user-scoped configuration, and serves as the coordination point that aggregates the other shared infrastructure packages (Core, BackgroundJobs, Workflows, Plugins).
+Provides the settings framework for tenant- and user-scoped configuration, and serves as the coordination point that aggregates the other shared infrastructure packages (Core, BackgroundJobs, Plugins).
 
 ## Key Components
 
@@ -24,7 +24,6 @@ Provides the settings framework for tenant- and user-scoped configuration, and s
 - Wallow.Shared.Contracts
 - Wallow.Shared.Infrastructure.Core
 - Wallow.Shared.Infrastructure.BackgroundJobs
-- Wallow.Shared.Infrastructure.Workflows
 - Wallow.Shared.Infrastructure.Plugins
 
 **External Packages:**

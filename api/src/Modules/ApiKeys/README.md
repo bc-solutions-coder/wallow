@@ -4,7 +4,7 @@
 
 The ApiKeys module provides API key management for service-to-service authentication. Users create API keys scoped to their tenant, which can then be used to authenticate requests via the `X-Api-Key` header as an alternative to JWT tokens.
 
-Keys are generated with a `sk_live_` prefix, hashed with SHA-256 before storage, and dual-written to PostgreSQL (persistence) and Valkey/Redis (fast validation lookups). The plaintext key is returned only once at creation time.
+Keys are generated with a `sk_live_` prefix, hashed with SHA-256 before storage, and dual-written to PostgreSQL (persistence) and Valkey (fast validation lookups). The plaintext key is returned only once at creation time.
 
 ## Architecture
 
@@ -12,7 +12,7 @@ Keys are generated with a `sk_live_` prefix, hashed with SHA-256 before storage,
 src/Modules/ApiKeys/
 +-- Wallow.ApiKeys.Domain           # ApiKey entity, ApiKeyId strongly-typed ID
 +-- Wallow.ApiKeys.Application      # IApiKeyRepository interface
-+-- Wallow.ApiKeys.Infrastructure   # EF Core persistence, Redis service, auth middleware
++-- Wallow.ApiKeys.Infrastructure   # EF Core persistence, Valkey service, auth middleware
 +-- Wallow.ApiKeys.Api              # Controller, request/response contracts
 ```
 
@@ -28,8 +28,8 @@ Represents a hashed API key bound to a service account within a tenant.
 **Properties**: `ServiceAccountId`, `HashedKey`, `DisplayName`, `Scopes` (JSONB), `ExpiresAt`, `IsRevoked`
 
 **Operations**:
-- `ApiKey.Create(...)` -- factory method with validation
-- `ApiKey.Revoke(...)` -- marks key as permanently revoked
+- `ApiKey.Create(...)` — factory method with validation
+- `ApiKey.Revoke(...)` — marks key as permanently revoked
 
 ## Authentication Flow
 
@@ -43,7 +43,7 @@ Represents a hashed API key bound to a service account within a tenant.
 
 All endpoints require authentication and `ApiKeyManage` permission.
 
-**Route**: `api/v{version}/identity/auth/keys`
+**Route**: `/v1/identity/auth/keys`
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -61,7 +61,7 @@ All endpoints require authentication and `ApiKeyManage` permission.
 
 ## Configuration
 
-Uses the shared `DefaultConnection` connection string and the shared Valkey/Redis `IConnectionMultiplexer`. Auto-migrates its schema in Development and Testing environments.
+Uses the shared `DefaultConnection` connection string and the shared Valkey `IConnectionMultiplexer`. Its schema is migrated inline only in the `Testing` environment; everywhere else `Wallow.MigrationService` applies migrations.
 
 | Setting | Default | Purpose |
 |---------|---------|---------|
@@ -71,9 +71,9 @@ Uses the shared `DefaultConnection` connection string and the shared Valkey/Redi
 
 | Project | Purpose |
 |---------|---------|
-| `Wallow.Shared.Kernel` | Base entities, strongly-typed IDs, multi-tenancy, `ClaimsPrincipalExtensions` |
-| `Wallow.Shared.Contracts` | `IApiKeyService` interface, `ApiScopes`, `ScopePermissionMapper` |
-| `Wallow.Shared.Infrastructure.Core` | `TenantAwareDbContext`, shared persistence utilities |
+| `Wallow.Shared.Kernel` | Base entities, strongly-typed IDs, multi-tenancy, `ClaimsPrincipalExtensions`, `ScopePermissionMapper` |
+| `Wallow.Shared.Contracts` | `IApiKeyService` interface, `ApiScopes` |
+| `Wallow.Shared.Infrastructure.Core` | Cross-cutting infrastructure — tenant-aware persistence, caching, messaging ([README](../../Shared/Wallow.Shared.Infrastructure.Core/README.md)) |
 
 ## Testing
 
@@ -85,7 +85,13 @@ Uses the shared `DefaultConnection` connection string and the shared Valkey/Redi
 
 ```bash
 dotnet ef migrations add MigrationName \
-    --project src/Modules/ApiKeys/Wallow.ApiKeys.Infrastructure \
-    --startup-project src/Wallow.Api \
+    --project api/src/Modules/ApiKeys/Wallow.ApiKeys.Infrastructure \
+    --startup-project api/src/Wallow.Api \
     --context ApiKeysDbContext
 ```
+
+## Related Documentation
+
+- Agent guide for this module: [`CLAUDE.md`](CLAUDE.md)
+- Backend conventions and commands: [`api/CLAUDE.md`](../../../CLAUDE.md)
+- Integration event catalogue: [`Wallow.Shared.Contracts/README.md`](../../Shared/Wallow.Shared.Contracts/README.md)

@@ -12,7 +12,22 @@ All integration events implement `IIntegrationEvent` and extend the `Integration
 
 ### Events by Namespace
 
-**Identity**: `UserRegisteredEvent`, `UserRoleChangedEvent`, `OrganizationCreatedEvent`, `OrganizationMemberAddedEvent`, `OrganizationMemberRemovedEvent`, `PasswordResetRequestedEvent`, `EmailVerificationRequestedEvent`, `EmailVerifiedEvent`, `InvitationCreatedEvent`, `MagicLinkRequestedEvent`, `OtpCodeRequestedEvent`, and others.
+This README is the **canonical integration-event catalogue**. Module READMEs link here rather than
+restating it, because partial copies have drifted.
+
+**Identity** (`Identity/Events/`, 29 events — `MembershipTransition.cs` is a supporting type, not an event):
+
+- *User lifecycle*: `UserRegisteredEvent`, `UserRoleChangedEvent`, `UserLoginSucceededEvent`,
+  `UserLoginFailedEvent`, `UserAccountLockedOutEvent`, `UserSessionEvictedEvent`,
+  `PasswordChangedEvent`, `PasswordResetRequestedEvent`, `UserEmailChangedEvent`,
+  `UserEmailChangeRequestedEvent`, `EmailVerificationRequestedEvent`, `EmailVerifiedEvent`
+- *Passwordless*: `MagicLinkRequestedEvent`, `OtpCodeRequestedEvent`
+- *MFA*: `UserMfaEnabledEvent`, `UserMfaDisabledEvent`, `UserMfaLockedOutEvent`,
+  `UserMfaLockoutClearedEvent`, `UserMfaBackupCodesRegeneratedEvent`
+- *Organization*: `OrganizationCreatedEvent`, `OrganizationArchivedEvent`,
+  `OrganizationReactivatedEvent`, `OrganizationDeletedEvent`, `OrganizationSettingsUpdatedEvent`
+- *Membership and access*: `OrganizationMemberAddedEvent`, `OrganizationMemberRemovedEvent`,
+  `MembershipTransitionedEvent`, `AccessRequestedEvent`, `InvitationCreatedEvent`
 
 **Announcements**: `AnnouncementPublishedEvent`.
 
@@ -20,17 +35,36 @@ All integration events implement `IIntegrationEvent` and extend the `Integration
 
 **Delivery** (`EmailSentEvent`, `PushSentEvent`, `SmsSentEvent`) and **Notifications** (`NotificationCreatedEvent`) are contract namespaces, not modules. These events are declared but nothing publishes or consumes them yet.
 
-## Cross-Module Query Services
+## Cross-Module Service Interfaces
 
-Modules expose read-only interfaces implemented in their Infrastructure layer:
-- `IUserQueryService` (Identity)
+Implemented by whichever project the Owner column names — a module's Infrastructure layer for most,
+and `Wallow.Api/Services/` for the four the host owns. The full set is:
+
+| Interface | Owner | Purpose |
+|-----------|-------|---------|
+| `IUserQueryService` | Identity | Read-only user lookups |
+| `IUserService` | Identity | User operations other modules need |
+| `IScopeSubsetValidator` | Identity | Validates a requested scope set against a grantor's |
+| `ISetupStatusProvider` | Identity | First-run setup state |
+| `IApiKeyService` | ApiKeys | API key issue and validation |
+| `IStorageProvider` | Storage | File storage abstraction |
+| `IEmailService` | Notifications | Email dispatch |
+| `IRealtimeDispatcher` | Api host | Push events to connected clients |
+| `IRealtimeAccessRevoker` | Api host | Force-disconnect a principal |
+| `ISseDispatcher` | Api host | Server-Sent Events dispatcher |
+| `IPresenceService` | Api host | User presence tracking |
+
+Note that `IUserService`, `IStorageProvider`, `IApiKeyService` and `IEmailService` are not read-only,
+so the "Read-only" rule below applies to the *query* services specifically.
 
 ## Real-time Messaging
 
 - `RealtimeEnvelope` - Module-specific message wrapper
-- `IRealtimeDispatcher` - Push events to connected clients
-- `ISseDispatcher` - Server-Sent Events dispatcher
-- `IPresenceService` - User presence tracking
+
+## Shared Commands
+
+Not everything here is an event or an interface: `Storage/Commands/UploadFileCommand.cs` is a command
+record that lives in Contracts while its handler and validator live in `Wallow.Storage.Application`.
 
 ## Other Contracts
 

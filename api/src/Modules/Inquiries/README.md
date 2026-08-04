@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Inquiries module handles contact form submissions and inquiry management. Visitors (or authenticated users) submit inquiries with project details, and administrators review, respond to, and track them through a defined workflow. The module supports comments (internal and external), rate limiting via Valkey, and automatic submitter linking when a user later verifies their email.
+The Inquiries module handles contact form submissions and inquiry management. Authenticated users submit inquiries with project details, and administrators review, respond to, and track them through a defined workflow. The module supports comments (internal and external), rate limiting via Valkey, and automatic submitter linking when a user later verifies their email.
 
 The module follows Clean Architecture with CQRS patterns, using Wolverine for command/query handling and domain event dispatching. All records are tenant-scoped.
 
@@ -43,7 +43,7 @@ All transitions are sequential; no skipping or backward transitions.
 
 ### InquiryComment (Aggregate Root)
 
-Staff or external comments attached to an inquiry. Comments have an `IsInternal` flag to control visibility -- internal comments are only visible to users with the `InquiriesRead` permission.
+Staff or external comments attached to an inquiry. Comments have an `IsInternal` flag to control visibility — internal comments are only visible to users with the `InquiriesRead` permission.
 
 ## Enums
 
@@ -97,7 +97,7 @@ Published via Wolverine in-memory messaging for cross-module communication. Defi
 
 ## API Endpoints
 
-All endpoints require authentication. Base path: `/api/v1/inquiries`
+All endpoints require authentication. Base path: `/v1/inquiries`
 
 | Method | Endpoint | Permission | Description |
 |--------|----------|------------|-------------|
@@ -105,13 +105,13 @@ All endpoints require authentication. Base path: `/api/v1/inquiries`
 | `GET` | `/` | `InquiriesRead` | List all inquiries (optional `?status=` filter) |
 | `GET` | `/submitted` | Authenticated | Get current user's submitted inquiries |
 | `GET` | `/{id}` | `InquiriesRead` or submitter | Get inquiry by ID |
-| `PATCH` | `/{id}/status` | Authenticated | Update inquiry status |
+| `PATCH` | `/{id}/status` | `InquiriesWrite` | Update inquiry status |
 | `POST` | `/{id}/comments` | `InquiriesWrite` | Add a comment |
 | `GET` | `/{id}/comments` | `InquiriesRead` or submitter | Get comments (internal comments hidden from submitters) |
 
 ## Configuration
 
-The module uses the shared `DefaultConnection` connection string and auto-migrates its schema in Development/Testing environments.
+The module uses the shared `DefaultConnection` connection string. Its schema is migrated inline only in the `Testing` environment; everywhere else `Wallow.MigrationService` applies migrations.
 
 Optional configuration in `appsettings.json`:
 
@@ -126,7 +126,7 @@ Optional configuration in `appsettings.json`:
 |---------|---------|
 | `Wallow.Shared.Kernel` | Base entities, strongly-typed IDs, multi-tenancy, Result pattern |
 | `Wallow.Shared.Contracts` | Integration event definitions |
-| `Wallow.Shared.Infrastructure.Core` | Tenant-aware DbContext, interceptors |
+| `Wallow.Shared.Infrastructure.Core` | Cross-cutting infrastructure — tenant-aware persistence, caching, messaging ([README](../../Shared/Wallow.Shared.Infrastructure.Core/README.md)) |
 
 ## Testing
 
@@ -138,7 +138,13 @@ Optional configuration in `appsettings.json`:
 
 ```bash
 dotnet ef migrations add MigrationName \
-    --project src/Modules/Inquiries/Wallow.Inquiries.Infrastructure \
-    --startup-project src/Wallow.Api \
+    --project api/src/Modules/Inquiries/Wallow.Inquiries.Infrastructure \
+    --startup-project api/src/Wallow.Api \
     --context InquiriesDbContext
 ```
+
+## Related Documentation
+
+- Agent guide for this module: [`CLAUDE.md`](CLAUDE.md)
+- Backend conventions and commands: [`api/CLAUDE.md`](../../../CLAUDE.md)
+- Integration event catalogue: [`Wallow.Shared.Contracts/README.md`](../../Shared/Wallow.Shared.Contracts/README.md)

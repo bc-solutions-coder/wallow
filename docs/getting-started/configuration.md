@@ -13,7 +13,7 @@ Wallow uses the **Microsoft.Extensions.Options pattern** for type-safe configura
 
 ## Configuration Reference
 
-This section documents all configuration sections used by Wallow. See the "Quick Start" section below for how to create your own module configuration.
+This section documents the configuration sections a fork is most likely to change. It is not an exhaustive dump of `api/src/Wallow.Api/appsettings.json` — that file also ships `FeatureManagement` (the `Modules.*` toggles), `Wallow:Modules`, `Plugins`, `Database`, `ApiKeys` and `Performance` sections, and the OpenIddict/authentication wiring lives in code rather than configuration. Read `appsettings.json` itself when you need the complete set. See the "Quick Start" section below for how to create your own module configuration.
 
 ### Branding
 
@@ -45,11 +45,11 @@ That file is the single source of fork identity. `packages/styles` (`@bc-solutio
 
 Each color set is a map of camelCase token names to CSS values. The tokens the shipped `packages/styles/branding.json` defines are:
 
-`background`, `foreground`, `card`, `cardForeground`, `popover`, `popoverForeground`, `primary`, `primaryForeground`, `secondary`, `secondaryForeground`, `muted`, `mutedForeground`, `accent`, `accentForeground`, `destructive`, `destructiveForeground`, `border`, `input`, `ring`, `sidebar`, `sidebarForeground`, `sidebarAccent`, `success`, `successForeground`, `radius`
+`background`, `foreground`, `card`, `cardForeground`, `popover`, `popoverForeground`, `primary`, `primaryForeground`, `secondary`, `secondaryForeground`, `muted`, `mutedForeground`, `accent`, `accentForeground`, `destructive`, `destructiveForeground`, `sidebar`, `sidebarForeground`, `sidebarAccent`, `success`, `successForeground`, `warning`, `warningForeground`, `border`, `input`, `ring`, `radius`
 
 All except `radius` are OKLCH colors; `radius` is a CSS length (`0.5rem`). The map is open-ended -- unknown keys are passed through as CSS custom properties, so a fork can add its own tokens.
 
-The `sidebar*` and `success*` tokens were added after the original set, so they resolve through a two-level fallback (`--color-sidebar: var(--sidebar, var(--foreground))`) rather than the plain `var(--x)` the older tokens use. Because `packages/styles/branding.json` is `merge=ours` in `.gitattributes`, a fork whose copy predates these keys never receives them from an upstream merge -- the fallback lands it on a colour its palette already carries instead of on nothing. The `sidebar*` family is the theme's general inverted-surface family, not solely a dashboard sidebar.
+The `sidebar*`, `success*` and `warning*` tokens were added after the original set, so all seven resolve through a two-level fallback (`--color-sidebar: var(--sidebar, var(--foreground))`, `--color-warning: var(--warning, var(--primary))`) rather than the plain `var(--x)` the older tokens use. Because `packages/styles/branding.json` is `merge=ours` in `.gitattributes`, a fork whose copy predates these keys never receives them from an upstream merge -- the fallback lands it on a colour its palette already carries instead of on nothing. The `sidebar*` family is the theme's general inverted-surface family, not solely a dashboard sidebar.
 
 **`defaultMode` is only the starting point.** It is the scheme applied when neither the visitor nor their OS states a preference; the frontends resolve the active scheme at load time as persisted choice, then OS `prefers-color-scheme`, then this value, and a visitor can change it at any time through the shared theme toggle. See [Dark Mode](../development/frontend-setup.md#dark-mode).
 
@@ -121,8 +121,8 @@ Users can inspect and revoke their own sessions via the Identity module API (req
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/api/v1/identity/sessions` | List all active sessions for the authenticated user |
-| `DELETE` | `/api/v1/identity/sessions/{sessionId}` | Revoke a specific session by ID |
+| `GET` | `/v1/identity/sessions` | List all active sessions for the authenticated user |
+| `DELETE` | `/v1/identity/sessions/{sessionId}` | Revoke a specific session by ID |
 
 **List active sessions response:**
 
@@ -140,7 +140,7 @@ Users can inspect and revoke their own sessions via the Identity module API (req
 **Revoke a session:**
 
 ```http
-DELETE /api/v1/identity/sessions/3fa85f64-5717-4562-b3fc-2c963f66afa6
+DELETE /v1/identity/sessions/3fa85f64-5717-4562-b3fc-2c963f66afa6
 Authorization: Bearer {token}
 ```
 
@@ -172,7 +172,7 @@ Wallow includes a secure two-step email change flow. Users request a change via 
 **Initiate email change** -- authenticated users only:
 
 ```http
-POST /api/v1/identity/auth/change-email
+POST /v1/identity/auth/change-email
 Authorization: Cookie (authenticated session)
 Content-Type: application/json
 
@@ -193,7 +193,7 @@ Responses:
 **Confirm email change** -- unauthenticated, accessed via the link in the confirmation email:
 
 ```http
-GET /api/v1/identity/auth/confirm-email-change
+GET /v1/identity/auth/confirm-email-change
   ?token=<change-token>
   &userId=<user-id>
   &newEmail=<new-email>
@@ -230,9 +230,11 @@ The confirmation URL is constructed using the `AuthUrl` configuration key:
 
 The auth app (`apps/wallow-auth`) must serve the email-change confirmation route. This page reads the `token`, `userId`, and `newEmail` query parameters and calls the confirm endpoint on the API to finalize the change.
 
-| Config Key | Required | Description |
-|------------|----------|-------------|
-| `AuthUrl` | Yes | Base URL of the auth app (`apps/wallow-auth`). Used to build the confirmation link sent to the user. |
+| Config Key | Shipped default | Description |
+|------------|-----------------|-------------|
+| `AuthUrl` | `""` | Base URL of the auth app (`apps/wallow-auth`). Used to build the confirmation link sent to the user. |
+
+`appsettings.json` ships this **empty**, and there is a second copy under `ServiceUrls:AuthUrl` that the `ServiceUrlsOptions` binder reads (its own code default is `http://localhost:3002`). `appsettings.Development.json` fills both in with `http://localhost:3002`, so a local run works out of the box; a deployment that leaves them empty will mail a confirmation link with no origin. Set both for your fork.
 
 ---
 
@@ -297,10 +299,11 @@ Redirect URIs are a separate mechanism: OIDC clients register their own redirect
 ```json
 {
   "OpenTelemetry": {
-    "EnableLogging": true,
+    "EnableLogging": false,
     "ServiceName": "Wallow",
     "OtlpEndpoint": "http://localhost:4318",
-    "OtlpGrpcEndpoint": "http://localhost:4317"
+    "OtlpGrpcEndpoint": "http://localhost:4317",
+    "TraceSamplingRatio": 1.0
   }
 }
 ```
@@ -311,6 +314,7 @@ Redirect URIs are a separate mechanism: OIDC clients register their own redirect
 | `ServiceName` | `Wallow` | Service name for traces and metrics |
 | `OtlpEndpoint` | `http://localhost:4318` | OTLP HTTP endpoint |
 | `OtlpGrpcEndpoint` | `http://localhost:4317` | OTLP gRPC endpoint (used for traces/metrics) |
+| `TraceSamplingRatio` | `1.0` | Fraction of traces sampled — `1.0` records everything, which is the shipped default because local development wants complete traces |
 
 **Note**: The application currently uses `OtlpGrpcEndpoint` for exporting traces and metrics.
 
@@ -333,15 +337,12 @@ Wallow uses GarageHQ as the default S3-compatible object storage. The `S3Storage
       "BucketName": "wallow-files",
       "UsePathStyle": true,
       "Region": "us-east-1"
-    },
-    "ClamAv": {
-      "Enabled": true,
-      "Host": "clamav",
-      "Port": 3310
     }
   }
 }
 ```
+
+That is the shipped `Storage` section in full. There is **no `ClamAv` key in `appsettings.json`** — the options class supplies the defaults below, and you add the section only when you want scanning on.
 
 | Key | Default | Description |
 |-----|---------|-------------|
@@ -642,22 +643,26 @@ stringData:
 Start infrastructure services using Docker Compose:
 
 ```bash
-cd docker
-docker compose up -d
+pnpm backend:infra          # docker compose up -d, from the repo root
+pnpm backend:infra:down     # stop the containers (volumes are kept)
 ```
 
-This starts the following services:
+This starts the following services. Every port is published to `127.0.0.1` only, so nothing here is reachable from another machine:
 
 | Service | Port | Purpose | Default Credentials |
 |---------|------|---------|---------------------|
-| PostgreSQL | 5432 | Primary database | `wallow` / `wallow` |
+| PostgreSQL | 5432 | Primary database | `POSTGRES_USER` / `POSTGRES_PASSWORD` from `docker/.env` |
 | Valkey | 6379 | Cache and SignalR backplane | See `docker/.env` |
 | GarageHQ | 3900, 3903 | S3-compatible object storage (S3 API: 3900, Admin: 3903) | See `docker/.env` |
 | Mailpit | 1025, 8025 | Email testing (SMTP: 1025, UI: 8025) | N/A |
+| Grafana Alloy | 4317, 4318 | OpenTelemetry collector (OTLP gRPC: 4317, OTLP HTTP: 4318) | N/A |
+| Grafana LGTM | 3001 | Dashboards and the logs/metrics/traces backend | `admin` / See `docker/.env` |
+| Docs | 5004 | The built DocFX site | N/A |
 | ClamAV (optional) | 3310 | Antivirus file scanning (`--profile clamav`) | N/A |
-| Grafana LGTM | 3001, 4317, 4318 | Observability (Grafana: 3001, OTLP gRPC: 4317, OTLP HTTP: 4318) | `admin` / See `docker/.env` |
 
-Docker environment variables are configured in `docker/.env` (copy from `docker/.env.example` and set your own values):
+Alloy is the collector the OTLP endpoints belong to; it forwards to the LGTM stack, which is why 4317/4318 and the Grafana UI are separate containers.
+
+Docker environment variables are configured in `docker/.env` (copy from `docker/.env.example` and set your own values). The full key list is:
 
 ```env
 COMPOSE_PROJECT_NAME=wallow
@@ -665,12 +670,16 @@ POSTGRES_USER=wallow
 POSTGRES_PASSWORD=changeme
 POSTGRES_DB=wallow
 VALKEY_PASSWORD=changeme
+VALKEY_MAXMEMORY=256mb
 GARAGE_KEY_NAME=wallow-dev
 GARAGE_ACCESS_KEY=changeme
 GARAGE_SECRET_KEY=changeme
 GARAGE_BUCKET=wallow-files
+GARAGE_REGION=us-east-1
 GF_ADMIN_PASSWORD=changeme
 ```
+
+`pnpm lint:env` checks that every `${VAR}` the compose files interpolate is documented in the paired `.env.example`, so this list stays in step with `docker/docker-compose.yml`.
 
 ## User Secrets (Development Only)
 

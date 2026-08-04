@@ -1,7 +1,7 @@
 # example-minimal-app
 
 The smallest reference app on Wallow's frontend golden path: a **TanStack Start**
-app whose entire job is to wire the five shared `@bc-solutions-coder` packages
+app whose entire job is to wire the six shared `@bc-solutions-coder` packages
 together. It owns one page route (`/`) that renders a hello card, plus the server
 routes that passthrough-proxy the API; everything cross-cutting — styling,
 components, the auth client, and the test harness — comes from the shared
@@ -12,7 +12,7 @@ rationale for each file lives in
 [`docs/development/frontend-setup.md` → "New App Bootstrap"](../../docs/development/frontend-setup.md);
 this README is the boot recipe.
 
-## The five packages it wires
+## The six packages it wires
 
 | Package                       | Published          | What this app pulls from it                                                                                                                                           |
 | ----------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -21,10 +21,11 @@ this README is the boot recipe.
 | `@bc-solutions-coder/sdk`     | yes                | `createWallowSdk` (`src/start.ts`), the `createApiPassthrough` server preset (`src/lib/api-passthrough.ts`), and the generated `./query` TanStack Query layer         |
 | `@bc-solutions-coder/testing` | **no (`private`)** | The `createVitestProjects` node+browser preset (`vitest.config.ts`) and the browser-mode `render` helper (`*.test.tsx`)                                               |
 | `@bc-solutions-coder/query`   | **no (`private`)** | `createQueryClient` — the router's `QueryClient` factory — and every react-query symbol the app uses, re-exported from the one facade                                 |
+| `@bc-solutions-coder/env`     | **no (`private`)** | `resolveInternalOrigin` and `resolveRequestOrigin` (`src/start.ts`) — the deployment-derived addressing every Start host needs                                        |
 
 > **Copy-outside-the-monorepo caveat:** only `@bc-solutions-coder/sdk` and
 > `@bc-solutions-coder/styles` are published to GitHub Packages. `ui`, `testing`,
-> and `query` are `private` workspace packages — the `workspace:*` deps below
+> `query` and `env` are `private` workspace packages — the `workspace:*` deps below
 > resolve in-repo but would NOT resolve if this directory were lifted out of the
 > monorepo. A fork extends the repo in place rather than copying this folder out.
 
@@ -76,8 +77,13 @@ pnpm --filter @bc-solutions-coder/example-minimal-app test      # node + headles
 - **Owns:** the route tree (`src/routes/`) — the page route, the `/health` probe,
   and the three passthrough server routes (`v1/$.ts`, `connect/$.ts`,
   `[.]well-known/$.ts`, all delegating to `src/lib/api-passthrough.ts`); the
-  per-request SDK middleware (`src/start.ts`); and the router factory
-  (`src/router.tsx`).
+  per-request SDK middleware (`src/start.ts`); the router factory
+  (`src/router.tsx`); and the little UI it does not inherit —
+  `src/features/hello/HelloCard.tsx` and `src/components/ready-indicator.tsx`, the
+  app's wrapper over the catalog's `ReadyIndicator`. Note that a `features/`
+  directory is not what "zoned" means: this app is un-zoned because its
+  `tsconfig.json` declares no `paths` alias map, so `wallow/zone-dag` has no DAG to
+  judge — not because it has no feature folders.
 - **Inherits (no source of its own):** branding/theme tokens, the component
   library, the test harness, and the whole host runtime — the SSR server, the dev
   server, and the production Node server are Start + Nitro output, not app code.

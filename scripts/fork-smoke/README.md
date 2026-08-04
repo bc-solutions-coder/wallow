@@ -39,9 +39,15 @@ Switching the rule `"off"` instead would reopen all four bans and both pattern
 groups for the whole template, silencing precisely the SDK-exports regressions
 this app exists to catch.
 
-Two things about that file are load-bearing. Its `extends` is what carries the
+One thing about that file is load-bearing: its `extends` is what carries the
 root's plugins and its pedantic/style categories down here; without it fork-smoke
-silently drops to oxlint's defaults. And it must stay comment-free JSON — the
-deleted-package deletion sweep in `packages/query/src/` exempts a lint config only
-after `JSON.parse` proves every mention it makes is one of its own bans, and a
-`//` comment makes that parse throw.
+silently drops to oxlint's defaults.
+
+The file is also comment-free JSON, but **nothing enforces that any more and the
+reason it was written that way is gone.** It dated from a sweep in
+`packages/query/src/` that `JSON.parse`d lint configs; that spec was deleted with
+the rest of the source-reading guards, oxlint itself parses config as JSONC, and
+the one surviving reader (`packages/sdk/src/oxlint-guardrails.test.ts`) strips
+line comments before parsing. Every other config in the repo carries its reasons
+inline as `//` comments. Adding them here would be an improvement, not a
+violation — see `Wallow-ut4w`.

@@ -17,14 +17,15 @@ Completing sign-in requires two things that a background `fetch` cannot do: set 
 ```
 apps/wallow-auth (React)          Wallow.Api (AccountController)
 ─────────────────────────────     ──────────────────────────────────
-POST /identity/auth/login    ───► Validate credentials
+POST /v1/identity/auth/login ───► Validate credentials
                              ◄─── Return { signInTicket: "<token>" }
 
 Navigate browser to:
-  /identity/auth/exchange-ticket
+  /v1/identity/auth/exchange-ticket
   ?ticket=<token>
-  &returnUrl=<url>           ───► 1. Decrypt + validate ticket
-                                  2. SET NX ticket:used:{jti} in Redis (90s TTL)
+  &returnUrl=<url>
+  &clientId=<id>             ───► 1. Decrypt + validate ticket
+                                  2. SET NX ticket:used:{jti} in Valkey (90s TTL)
                                   3. If key already existed → reject (replay)
                                   4. SignInAsync → issue browser auth cookie
                              ◄─── 302 Redirect to returnUrl
@@ -52,7 +53,7 @@ private string CreateSignInTicket(string email, bool rememberMe)
 private sealed record SignInTicketPayload(string Email, bool RememberMe, Guid Jti);
 ```
 
-- **`Jti`** (JWT ID): a `Guid.NewGuid()` unique identifier embedded in every ticket. Used as the Redis key for single-use enforcement.
+- **`Jti`** (JWT ID): a `Guid.NewGuid()` unique identifier embedded in every ticket. Used as the Valkey key for single-use enforcement.
 - **TTL**: 60 seconds. After this window the data protector refuses to decrypt the token.
 - **Purpose**: `"SignInTicket"` — ASP.NET Core Data Protection uses the purpose string as part of the encryption key derivation. A ticket encrypted for `"SignInTicket"` cannot be decrypted by any other protector purpose (e.g., `"ExternalLogin"`).
 
@@ -64,7 +65,7 @@ ASP.NET Core's `ITimeLimitedDataProtector` wraps the standard `IDataProtector` w
 2. Encodes the expiry as part of the protected payload.
 3. Rejects decryption attempts after the expiry has passed (throws `CryptographicException`).
 
-The encryption keys are managed by the Data Protection system (stored in the configured key ring — typically a shared volume or Redis in production). All API instances share the same key ring, so any instance can validate a ticket issued by another.
+The encryption keys are managed by the Data Protection system (stored in the configured key ring — typically a shared volume or Valkey in production). All API instances share the same key ring, so any instance can validate a ticket issued by another.
 
 ### Exchange and Single-Use Enforcement
 
@@ -73,7 +74,10 @@ The encryption keys are managed by the Data Protection system (stored in the con
 ```csharp
 [HttpGet("exchange-ticket")]
 [AllowAnonymous]
-public async Task<IActionResult> ExchangeTicket([FromQuery] string ticket, [FromQuery] string? returnUrl)
+public async Task<IActionResult> ExchangeTicket(
+    [FromQuery] string ticket,
+    [FromQuery] string? returnUrl,
+    [FromQuery] string? clientId = null)
 {
     SignInTicketPayload? payload = ValidateSignInTicket(ticket);
     if (payload is null)
@@ -101,7 +105,7 @@ public async Task<IActionResult> ExchangeTicket([FromQuery] string ticket, [From
 }
 ```
 
-The Redis `SET NX EX` call is atomic:
+The Valkey `SET NX EX` call is atomic:
 
 - `NX` (Not eXists): only sets the key if it does not already exist.
 - `EX 90` (expiry): the key auto-expires after 90 seconds, slightly longer than the ticket TTL, to cover clock skew between the issuance time and exchange time.
@@ -113,17 +117,23 @@ This guarantees that even if an attacker intercepts the ticket URL (e.g., from b
 
 ## When Tickets Are Issued
 
-Tickets are issued in three scenarios within `AccountController`:
+Every `CreateSignInTicket` call site in `AccountController` is listed below. Endpoints are relative to
+the controller's `v{version:apiVersion}/identity/auth` route, so `POST /login` is served at
+`/v1/identity/auth/login`.
 
 | Scenario | Endpoint | Notes |
 |----------|----------|-------|
 | Password login, no MFA | `POST /login` | Standard flow |
 | Password login, org MFA grace period active | `POST /login` | Ticket issued; enrollment banner shown |
 | MFA challenge passed | `POST /mfa/verify` | Issued after TOTP or backup code verification |
+| Magic link verified | `GET /passwordless/magic-link/verify` | Returns `{ succeeded, email, signInTicket }` |
+| OTP verified | `POST /passwordless/otp/verify` | Returns `{ succeeded, email, signInTicket }` |
 
-Tickets are **not** issued for:
-- Passwordless flows (magic link / OTP) — these verify identity differently and trigger sign-in directly after the user returns to the auth app.
-- External OAuth provider logins — the callback is a direct browser GET, so the API can set cookies immediately.
+Passwordless flows go through the same ticket exchange as password login — the response shape is
+identical, and the auth app navigates to `exchange-ticket` exactly as it does after a password login.
+
+Tickets are **not** issued for external OAuth provider logins: that callback is already a direct
+browser GET, so the API sets the cookie immediately and no hand-off is needed.
 
 ---
 
@@ -134,11 +144,22 @@ After receiving a successful login response containing a ticket, the login scree
 ```ts
 import { buildExchangeTicketUrl } from "@bc-solutions-coder/sdk";
 
+const SAME_ORIGIN_BASE: string = BASE_PATH;
+
 if (result.signInTicket) {
-  globalThis.location.href = buildExchangeTicketUrl(SAME_ORIGIN, result.signInTicket, returnUrl);
+  globalThis.location.href = buildExchangeTicketUrl(
+    SAME_ORIGIN_BASE,
+    result.signInTicket,
+    returnUrl,
+    clientId,
+  );
   return;
 }
 ```
+
+The fourth argument is optional. Passing it scopes the endpoint's `returnUrl` allow-list check to that
+client; a nullish or blank value omits the query parameter. `MfaChallengeForm.tsx` passes its
+`scopedClientId` here for exactly that reason.
 
 Assigning `location.href` (rather than a client-side router navigation) is required so the browser actually sends the GET to `exchange-ticket` and receives the `Set-Cookie` response header. Because the endpoint is reached through the auth app's same-origin proxy, the cookie is set on the correct origin. The MFA challenge screen performs the same exchange after a TOTP or backup-code verification.
 
@@ -151,9 +172,9 @@ Assigning `location.href` (rather than a client-side router navigation) is requi
 | Confidentiality | AES-256-CBC encryption via Data Protection |
 | Integrity | HMACSHA256 authentication tag |
 | Expiry | 60-second TTL enforced by `ITimeLimitedDataProtector` |
-| Single-use | Redis SET NX — atomic, guaranteed at most one exchange |
+| Single-use | Valkey SET NX — atomic, guaranteed at most one exchange |
 | Purpose isolation | `"SignInTicket"` purpose string prevents cross-purpose decryption |
-| Replay TTL headroom | Redis key expires at 90s (>60s ticket TTL) to handle clock skew |
+| Replay TTL headroom | Valkey key expires at 90s (>60s ticket TTL) to handle clock skew |
 
 ---
 
@@ -165,3 +186,13 @@ Assigning `location.href` (rather than a client-side router navigation) is requi
 | `apps/wallow-auth/src/features/login/components/LoginScreen.tsx` | Ticket exchange navigation logic |
 | `apps/wallow-auth/src/features/mfa-challenge/components/MfaChallengeForm.tsx` | Ticket exchange after MFA verification |
 | `apps/wallow-auth/src/features/login/auth-result.ts` | Parses the `signInTicket` field from the login response |
+| `apps/wallow-auth/src/features/login/magic-link-result.ts`, `otp-result.ts` | The passwordless equivalents |
+
+---
+
+## Related Documentation
+
+- [Authorization](authorization.md) — what the cookie's claims are allowed to do
+- [Caching](caching.md) — the Valkey instance the replay guard writes to
+- [BFF Pattern](../integrations/bff-pattern.md) — how a frontend consumes the session
+- [External Auth](../integrations/external-auth.md) — the OAuth provider flows that skip the ticket

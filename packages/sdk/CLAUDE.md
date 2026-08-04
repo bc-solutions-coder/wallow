@@ -67,8 +67,7 @@ Errors are the reason most of it went: every operation's failure path now surfac
   Dependent apps do **not** need this build — in-repo the `exports` map above resolves to
   `src/`, and `publishConfig.exports` swaps in the `dist/` map at pack time. The build exists
   for publishing and for `pnpm check:exports` (publint + attw over a packed tarball), which is
-  why `pnpm build` precedes it in the `pnpm check` chain. (No tsup; the README is stale on
-  this.)
+  why `pnpm build` precedes it in the `pnpm check` chain.
 - This package is the **template all new workspace packages mirror** (exports map,
   build scripts, node-only subpath separation).
 - Publishes to GitHub Packages on `sdk-v*` tags via `sdk-publish.yml`, independently of

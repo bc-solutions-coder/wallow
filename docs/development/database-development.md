@@ -1,17 +1,21 @@
 # Database Development Guide
 
-This guide covers database development patterns and practices in Wallow. The platform uses PostgreSQL as its primary database with EF Core for all modules, plus Dapper for complex read queries.
+This guide covers database development patterns and practices in Wallow. The platform uses PostgreSQL as its primary database, with EF Core as the only data-access technology in use.
 
 ## Overview
 
-Wallow uses EF Core as the primary ORM for all modules:
-
 | Approach | Technology | Use Case | Modules |
 |----------|------------|----------|---------|
-| **Relational (EF Core)** | EF Core + PostgreSQL | Standard CRUD, writes, change tracking | Identity, Storage, Notifications, Announcements, Inquiries, ApiKeys, Branding |
-| **Read Queries (Dapper)** | Dapper + PostgreSQL | Complex reporting, aggregations | Cross-module reporting services |
+| **Writes** | EF Core + PostgreSQL | CRUD, change tracking, domain events | Identity, Storage, Notifications, Announcements, Inquiries, ApiKeys, Branding |
+| **Reads** | EF Core `NoTracking` via `IReadDbContext<T>` | Projections, reporting, replica routing | The same seven modules |
 
 All modules share a single PostgreSQL instance but use separate schemas for isolation.
+
+> **Dapper is not used.** Five module Infrastructure projects still carry a `Dapper`
+> `PackageReference`, but nothing in `api/src` imports it — there is no `QueryAsync<T>` call
+> anywhere in the codebase. Reach for `IReadDbContext<T>` first; if you genuinely need raw SQL, use
+> EF Core's `FromSql`/`ExecuteSql` rather than reintroducing a second data-access stack, and
+> remember that tenant query filters do **not** apply to raw SQL.
 
 ## EF Core Usage
 
@@ -224,19 +228,17 @@ public sealed class NotificationRepository(NotificationsDbContext context) : INo
 }
 ```
 
-### Query Patterns: EF Core vs Dapper
+### Query Patterns: the write context vs. the read context
 
-**Use EF Core for:**
+**Use the tenant-scoped write context for:**
 - Standard CRUD operations
 - Loading entities with related data
 - Write operations that need change tracking
-- Simple queries with filters
 
-**Use Dapper for:**
-- Complex reporting queries
-- Aggregations and analytics
-- Performance-critical read paths
-- Queries spanning multiple schemas
+**Use `IReadDbContext<T>` for:**
+- Reporting queries and aggregations
+- Read-heavy list endpoints and projections
+- Anything that should route to a read replica when one is configured
 
 **Read-optimized query via IReadDbContext:**
 
@@ -258,7 +260,7 @@ public sealed class NotificationReportService(IReadDbContext<NotificationsDbCont
 }
 ```
 
-Dapper can still be used for raw SQL queries when needed, particularly for complex aggregations or cross-schema joins.
+For an aggregation LINQ cannot express, drop to EF Core's `FromSql` on the read context rather than adding another data-access library — and filter by `tenant_id` yourself, because global query filters do not reach raw SQL.
 
 ## Database Schema Management
 
@@ -276,6 +278,10 @@ Each module uses its own PostgreSQL schema:
 | ApiKeys | `apikeys` |
 | Branding | `branding` |
 | Audit (Shared) | `audit` |
+| Auth Audit (Shared) | `auth_audit` |
+
+Both shared contexts (`AuditDbContext`, `AuthAuditDbContext`) are registered in
+`api/src/Wallow.MigrationService/Program.cs` alongside the seven module contexts.
 
 This is configured in each DbContext:
 ```csharp
@@ -351,16 +357,21 @@ See [Database Migrations](database-migrations.md) for the full picture.
 Start required services:
 
 ```bash
-cd docker
-docker compose up -d
+pnpm backend:infra          # = cd docker && docker compose up -d
 ```
 
-This provides:
+`docker/docker-compose.yml` defines eight services. Seven start by default:
+
 - **PostgreSQL 18** on port 5432
 - **Valkey** (Redis-compatible) on port 6379
-- **GarageHQ** (S3-compatible) on port 3900
+- **GarageHQ** (S3-compatible) on port 3900, admin API on 3903
 - **Mailpit** on ports 1025 (SMTP) / 8025 (web UI)
 - **Grafana LGTM** on port 3001
+- **Grafana Alloy** (OTLP collector) on 4317 (gRPC) / 4318 (HTTP)
+- **Docs site** (the built DocFX site behind nginx) on port 5004
+
+The eighth, **ClamAV** on port 3310, sits behind the `clamav` Compose profile — start it with
+`cd docker && docker compose --profile clamav up -d`.
 
 ### Database Access
 
@@ -381,10 +392,10 @@ docker exec -it wallow-postgres psql -U wallow -d wallow
 
 | Scenario | Technology | Reasoning |
 |----------|------------|-----------|
-| Simple CRUD | EF Core | Standard patterns, change tracking |
-| Complex joins/aggregates | Dapper | Raw SQL performance |
+| Simple CRUD | EF Core write context | Standard patterns, change tracking |
+| Complex joins/aggregates | `IReadDbContext<T>` projection, or `FromSql` if LINQ cannot express it | No tracking overhead; replica-routed |
 | Audit-critical data | EF Core + Audit interceptor | Interceptor-based audit trail in Shared.Infrastructure.Core |
-| High-throughput reads | Dapper + Materialized Views | Maximum performance |
+| High-throughput reads | `IReadDbContext<T>` + Materialized Views | Read replica plus a precomputed shape |
 
 ### Performance Considerations
 
@@ -447,7 +458,7 @@ api/src/Modules/{Module}/
     │   ├── Configurations/  # Entity configurations
     │   └── Repositories/    # Repository implementations
     ├── Migrations/          # EF Core migrations
-    └── Services/            # Query services (Dapper)
+    └── Services/            # Query services (read context projections)
 ```
 
 ### Common Commands

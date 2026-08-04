@@ -7,14 +7,18 @@ a single unified CQRS mediator and message bus inside one process — there is n
 
 Wallow is a modular monolith. Modules (Identity, Storage, Notifications, Announcements, Inquiries,
 ApiKeys, Branding) never reference each other's projects. The only cross-module coupling allowed is a
-project reference to `Wallow.Shared.Contracts`, which holds the integration event records and the
-read-only query interfaces that make up the public boundary between modules.
+project reference to `Wallow.Shared.Contracts`. That assembly is the public boundary between modules
+and holds three kinds of thing: the integration event records, the cross-module service and query
+interfaces (`IUserService`, `IApiKeyService`, `IStorageProvider`, `ISseDispatcher`, and others), and
+the supporting value types those signatures need. It also holds exactly one command —
+`Storage/Commands/UploadFileCommand.cs` — because Storage's upload is invoked from another module.
+That is the exception, not the pattern: a command normally stays inside its own module.
 
 Three kinds of message travel over the bus:
 
 | Kind | How it is sent | Scope |
 |------|----------------|-------|
-| Commands and queries | `IMessageBus.InvokeAsync(...)` — runs the handler inline and returns its result | Within one module |
+| Commands and queries | `IMessageBus.InvokeAsync(...)` — runs the handler inline and returns its result | Within one module, except `UploadFileCommand` |
 | Integration events | `IMessageBus.PublishAsync(...)` — fans out to every discovered handler | Across modules |
 | Domain events | `AggregateRoot.RaiseDomainEvent(...)` collects them on the aggregate | Within one module |
 
@@ -89,8 +93,9 @@ Following `EmailVerificationRequestedEvent` from publish to sent email:
 declares the record shown above.
 
 **2. Publisher (Identity)** —
-`api/src/Modules/Identity/Wallow.Identity.Api/Controllers/AccountController.cs:726`, in the
-`Register` action, generates the confirmation token, builds the verify URL, and publishes:
+the `Register` action in
+`api/src/Modules/Identity/Wallow.Identity.Api/Controllers/AccountController.cs` generates the
+confirmation token, builds the verify URL, and publishes:
 
 ```csharp
 await messageBus.PublishAsync(new EmailVerificationRequestedEvent
@@ -104,7 +109,7 @@ await messageBus.PublishAsync(new EmailVerificationRequestedEvent
 ```
 
 `messageBus` is Wolverine's `IMessageBus`, injected into the controller's primary constructor. The same
-event is published from `CompleteExternalRegistration` in that controller (line 536) for users arriving
+event is published from `CompleteExternalRegistration` in that controller for users arriving
 through an external identity provider. Identity does not know that Notifications exists.
 
 **3. Consumer (Notifications)** —

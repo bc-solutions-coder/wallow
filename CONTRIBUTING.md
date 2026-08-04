@@ -8,25 +8,39 @@ Thank you for your interest in contributing to Wallow! This guide will help you 
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - [Docker](https://www.docker.com/) and Docker Compose
+- [Node 24](https://nodejs.org/) (see `.nvmrc`) and pnpm 10.20.0 (see `packageManager` in
+  `package.json`)
 - A code editor (Visual Studio, Rider, or VS Code)
 
 ### Local Setup
 
 1. Fork and clone the repository
-2. Start infrastructure services:
+2. Install workspace dependencies:
    ```bash
-   cd docker && docker compose up -d
+   pnpm install
    ```
-3. Run the API:
+3. Start infrastructure services:
    ```bash
-   dotnet run --project api/src/Wallow.Api
+   pnpm backend:infra
    ```
-4. Run all tests to verify your setup:
+4. Run the backend (the Aspire AppHost orchestrates the API, both React apps, migrations, and the seeder):
    ```bash
-   ./scripts/run-tests.sh
+   pnpm backend
+   ```
+5. Run the quality gates to verify your setup:
+   ```bash
+   ./scripts/run-tests.sh          # backend
+   pnpm check                      # frontend
    ```
 
 See the [Developer Guide](docs/getting-started/developer-guide.md) for detailed setup instructions and service URLs.
+
+### Agent and repo conventions
+
+Working rules that apply to every change live in [`CLAUDE.md`](CLAUDE.md) and `.claude/rules/`
+(testing, E2E, coding conventions, and team-agent lifecycle). Issue tracking uses
+[beads](https://github.com/steveyegge/beads) rather than a separate tracker for in-flight work —
+`bd ready` lists available work.
 
 ## How to Contribute
 
@@ -54,13 +68,17 @@ See the [Developer Guide](docs/getting-started/developer-guide.md) for detailed 
 
 Wallow is a modular monolith following Clean Architecture and DDD principles. Before contributing, understand these rules:
 
-- **Modules:** Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries
+- **Modules:** Identity, Storage, Notifications, Announcements, Inquiries, ApiKeys, Branding
 - **Layer order:** Domain → Application → Infrastructure → Api
 - Domain has no external dependencies; Application depends only on Domain
 - Modules communicate via Wolverine in-memory events, never direct project references
 - Cross-module contracts go in `Shared.Contracts` only
 - Each module owns its own database schema
 - Use EF Core for writes, Dapper for complex reads
+
+The frontend half is a pnpm workspace: `apps/wallow-web`, `apps/wallow-auth`, and `apps/minimal-app`
+(the smallest wiring of the shared packages), built on the `packages/*` libraries. See
+[`apps/CLAUDE.md`](apps/CLAUDE.md) and [Frontend Setup](docs/development/frontend-setup.md).
 
 For adding new modules, see `docs/architecture/module-creation.md`.
 
@@ -72,20 +90,13 @@ All commits must follow [Conventional Commits](https://www.conventionalcommits.o
 <type>[optional scope][!]: <description>
 ```
 
-| Type | Purpose | Version Impact |
-|------|---------|---------------|
-| `feat` | New feature | Minor |
-| `fix` | Bug fix | Patch |
-| `docs` | Documentation only | None |
-| `test` | Adding or fixing tests | None |
-| `refactor` | Code change that neither fixes a bug nor adds a feature | None |
-| `chore` | Maintenance tasks | None |
-| `ci` | CI/CD changes | None |
-| `perf` | Performance improvement | None |
+`feat` is a minor bump, `fix` a patch, and `!`/`BREAKING CHANGE:` a major; every other type is
+non-releasing. The complete type table lives in
+[Versioning](docs/operations/versioning.md) — it is the only copy, so read it there.
 
 **Examples:**
 ```
-feat(billing): add invoice PDF export
+feat(inquiries): add form validation
 fix(identity): resolve null reference in tenant resolver
 test(storage): add upload service unit tests
 docs: update contributing guide
@@ -95,14 +106,17 @@ Add `!` after the type for breaking changes: `feat!: redesign authentication API
 
 ## Code Style
 
-- Use explicit types instead of `var`
+- **C#:** use explicit types instead of `var` (this rule is C#-only; TypeScript uses inference
+  normally). Full C# conventions are in `api/CLAUDE.md`.
+- **TypeScript:** the toolchain is oxc (`oxfmt` + `oxlint`), not prettier/eslint — `pnpm format`
+  and `pnpm lint` are the entry points.
 - Follow existing patterns within each module
 - Keep domain logic free of infrastructure concerns
 - Write unit tests for domain and application layers
 
 ## Pull Request Process
 
-1. Ensure all tests pass: `./scripts/run-tests.sh`
+1. Ensure both quality gates pass: `./scripts/run-tests.sh` (backend) and `pnpm check` (frontend)
 2. Update documentation if you changed public APIs or behavior
 3. Fill out the PR template completely
 4. Request review from a maintainer

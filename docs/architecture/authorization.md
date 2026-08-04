@@ -63,19 +63,22 @@ Add the `[HasPermission]` attribute:
 using Wallow.Shared.Kernel.Identity.Authorization;
 
 [ApiController]
-[Route("api/inquiries/submissions")]
+[Route("v{version:apiVersion}/inquiries")]
 [Authorize]
-public class SubmissionsController : ControllerBase
+public partial class InquiriesController : ControllerBase
 {
     [HttpGet]
     [HasPermission(PermissionType.InquiriesRead)]
-    public async Task<IActionResult> GetAll() { /* ... */ }
+    public async Task<IActionResult> GetAll([FromQuery] string? status, CancellationToken cancellationToken) { /* ... */ }
 
     [HttpPost]
     [HasPermission(PermissionType.InquiriesWrite)]
-    public async Task<IActionResult> Create(CreateSubmissionRequest request) { /* ... */ }
+    public async Task<IActionResult> Submit([FromBody] SubmitInquiryRequest request, CancellationToken cancellationToken) { /* ... */ }
 }
 ```
+
+The version segment is substituted from the default API version, so these actions are served at
+`/v1/inquiries`. Routes carry no `api/` prefix.
 
 You can apply `[HasPermission]` at the controller level (all actions) or individual action level.
 
@@ -177,7 +180,7 @@ Users with the `admin` role or operator service accounts (client ID prefixed wit
 ```bash
 curl -H "Authorization: Bearer $TOKEN" \
      -H "X-Tenant-Id: 550e8400-e29b-41d4-a716-446655440000" \
-     http://localhost:5001/api/inquiries/submissions
+     http://localhost:5001/v1/inquiries
 ```
 
 This allows admins and operator service accounts to view data across tenants for support scenarios. Developer application clients (`app-` prefix) cannot use this override.
@@ -231,7 +234,7 @@ MFA code submitted
 
 ### Lockout Thresholds and Durations
 
-A lockout triggers after **5 consecutive failed MFA attempts**. Each subsequent lockout doubles the duration (exponential backoff), capped at 24 hours:
+A lockout triggers after **5 consecutive failed MFA attempts**. `WallowUser.RecordMfaFailure` computes the duration as `15 * 2^MfaLockoutCount` minutes, so each subsequent lockout doubles until it hits the 24-hour cap on the eighth:
 
 | Lockout # | Duration |
 |-----------|----------|
@@ -239,7 +242,10 @@ A lockout triggers after **5 consecutive failed MFA attempts**. Each subsequent 
 | 2nd | 30 minutes |
 | 3rd | 1 hour |
 | 4th | 2 hours |
-| 5th+ | capped at 24 hours |
+| 5th | 4 hours |
+| 6th | 8 hours |
+| 7th | 16 hours |
+| 8th+ | 24 hours (the cap; the doubling would give 32 hours) |
 
 The `MfaLockoutCount` on the user record tracks how many times the user has been locked out. It is only reset by an admin clear (not by a successful login), so repeat offenders accumulate progressively longer lockouts.
 
@@ -277,7 +283,7 @@ Requires: `Authorization: Bearer <admin-token>` (caller must have the `admin` ro
 **What it clears:**
 - `LockoutEnd` and `AccessFailedCount` (Identity password lockout)
 - `MfaLockoutEnd`, `MfaFailedAttempts`, and `MfaLockoutCount` (MFA lockout, including the escalation counter)
-- The Redis cache entry for the MFA lockout
+- The Valkey cache entry for the MFA lockout
 
 A `UserMfaLockoutClearedEvent` is published after a successful clear, recording which admin performed the action.
 
@@ -296,7 +302,7 @@ curl -X POST \
 ```
 
 **Troubleshooting MFA lockout**
-- `423` on MFA submit but lockout time has passed — the Redis cache entry may outlive the DB record in edge cases; an admin clear resolves this
+- `423` on MFA submit but lockout time has passed — the Valkey cache entry may outlive the DB record in edge cases; an admin clear resolves this
 - Admin clear returns `404` — verify the user ID is correct; the endpoint looks up by Identity user ID (GUID), not email
 
 ---
@@ -313,6 +319,31 @@ The authorization middleware must be registered in the correct order in `Program
 ```
 
 **Warning**: Reordering these middlewares will break authorization. `PermissionExpansionMiddleware` requires an authenticated user to have claims to expand.
+
+---
+
+## Authorization in the Frontend
+
+The API is the only enforcement point. The browser helpers exist to decide what to *render*, and they
+are deliberately built to answer the same way the server does — a control the UI shows but the next
+request refuses is a broken screen.
+
+`@bc-solutions-coder/auth` is the single import site for both:
+
+| Helper | Reads | Comparison |
+|--------|-------|-----------|
+| `hasRole(user, role)` | `CurrentUser.roles` | case-**IN**sensitive |
+| `hasPermission(user, permission)` | `CurrentUser.permissions` | case-**SENSITIVE** |
+
+The asymmetry is not an oversight — it mirrors this document:
+
+- **Roles** are compared case-insensitively because `ClaimsPrincipalExtensions.GetRoles()`
+  deduplicates with `StringComparer.OrdinalIgnoreCase`.
+- **Permissions** are compared case-sensitively because `PermissionAuthorizationHandler` decides with
+  a plain ordinal `permissions.Contains(requirement.Permission)`.
+
+The user itself comes from `useCurrentUser(client)`, or from `ensureCurrentUser({ queryClient, client })`
+in a route's `beforeLoad`. See `packages/auth/CLAUDE.md` for the full export table.
 
 ---
 
@@ -334,3 +365,16 @@ The authorization middleware must be registered in the correct order in `Program
 - Verify the scope is in the token
 - Check `ScopePermissionMapper.MapScopeToPermission` includes the mapping
 - Confirm the client ID prefix is correct (`sa-` or `app-`)
+
+**A control renders but the request is refused**
+- Check the casing: `hasPermission` is case-sensitive and must match the `PermissionType` constant exactly
+- Confirm the permission actually reached the token — `PermissionExpansionMiddleware` expands role claims, so a permission granted by no role never appears
+
+---
+
+## Related Documentation
+
+- [Authentication](authentication.md) — how the token the permissions ride on is issued
+- [Module Creation](module-creation.md) — adding a permission-guarded controller to a new module
+- [Service Accounts](../api/service-accounts.md) — scopes and the machine-to-machine path
+- `packages/auth/CLAUDE.md` — the browser-side `hasRole`/`hasPermission` layer

@@ -66,7 +66,7 @@ Key properties: `TenantId`, `BucketId`, `FileName`, `ContentType`, `SizeBytes`, 
 |---------|-------------|
 | `CreateBucketCommand` | Create a new storage bucket with policies |
 | `DeleteBucketCommand` | Delete a bucket |
-| `UploadFileCommand` | Upload a file to storage |
+| `UploadFileCommand` | Upload a file to storage (the record lives in `Wallow.Shared.Contracts/Storage/Commands/`; only the handler and validator are in this module) |
 | `DeleteFileCommand` | Delete a file from storage |
 | `ScanUploadedFileCommand` | Scan an uploaded file for viruses |
 
@@ -82,7 +82,7 @@ Key properties: `TenantId`, `BucketId`, `FileName`, `ContentType`, `SizeBytes`, 
 
 ## API Endpoints
 
-All endpoints require authentication and are prefixed with `/api/storage`.
+All endpoints require authentication and are prefixed with `/v1/storage`.
 
 ### Bucket Operations
 
@@ -137,7 +137,7 @@ Files are stored with tenant isolation enforced via key prefixes:
     "Provider": "Local",
     "Local": {
       "BasePath": "/var/wallow/storage",
-      "BaseUrl": "http://localhost:5000"
+      "BaseUrl": "http://localhost:5001"
     },
     "S3": {
       "Endpoint": "http://garage:3900",
@@ -180,7 +180,12 @@ The Storage module does not publish integration events. It operates as a foundat
 
 ```bash
 dotnet ef migrations add MigrationName \
-    --project src/Modules/Storage/Wallow.Storage.Infrastructure \
-    --startup-project src/Wallow.Api \
+    --project api/src/Modules/Storage/Wallow.Storage.Infrastructure \
+    --startup-project api/src/Wallow.Api \
     --context StorageDbContext
 ```
+
+## Related Documentation
+
+- Backend conventions and commands: [`api/CLAUDE.md`](../../../CLAUDE.md)
+- Integration event catalogue: [`Wallow.Shared.Contracts/README.md`](../../Shared/Wallow.Shared.Contracts/README.md)

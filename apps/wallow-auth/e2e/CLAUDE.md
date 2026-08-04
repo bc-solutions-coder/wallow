@@ -4,7 +4,8 @@ Rules for `apps/wallow-auth/e2e/`. This is the reference pattern for a per-app P
 
 ## This is Playwright, not Vitest browser mode — do not conflate them
 
-Both drive a real Chromium, but they are separate suites with separate configs and commands:
+Both drive a real Chromium, but they are separate suites with separate configs and commands. This
+holds for wallow-web's suites too — its guide points here rather than restating it:
 
 - **Vitest browser mode** (`src/**/*.test.tsx`, run by `pnpm test`) — **isolated component render,
   no dev server.** Mounts one component in a headless Chromium iframe via the Vitest `playwright`
@@ -27,13 +28,19 @@ spec pays the dev server's lazy first-request cost.
 
 ## Selectors
 
+These rules hold for every Playwright suite in the repo, wallow-web's included; this is where they
+are stated.
+
 - **ALWAYS** use `data-testid`: `page.getByTestId("login-email")`.
 - **NEVER** use a raw `#id`, a CSS class (`.btn-primary`), or text (`button:has-text('Sign in')`).
 - **Naming**: `{page}-{element}` kebab-case — `login-email`, `login-submit`.
 
 ## Readiness
 
-Wait for React hydration via the marker `src/shared/components/ready-indicator.tsx` stamps:
+Wait for React hydration via the marker `src/shared/components/ready-indicator.tsx` stamps — the
+app's thin wrapper over `ReadyIndicator` from `@bc-solutions-coder/ui`. Each app has its own
+wrapper (wallow-web's at the same path, minimal-app's at `src/components/`), and all three stamp
+the same attribute:
 
 ```ts
 await expect(page.locator("[data-app-ready='true']")).toBeAttached();

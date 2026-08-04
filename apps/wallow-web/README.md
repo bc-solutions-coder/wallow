@@ -65,7 +65,7 @@ zones exist.
 
 | Path                                                                             | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/app/start.ts`                                                               | The `createStart()` instance: a global request middleware mints a per-request SDK and installs the D13b `setSsrRequestContextResolver` bridge (temporary, until routes read their SDK off the router context).                                                                                                                                                                                                                                                                                |
+| `src/app/start.ts`                                                               | The `createStart()` instance: one global request middleware mints a per-request SDK (`createWallowSdk()`) plus the request's `resolveForkLinks()` pair and hands both to the router through `next({ context })`. There is no module-global client and no request-context seam.                                                                                                                                                                                                                |
 | `src/app/router.tsx`                                                             | `createRouter` + `setupRouterSsrQueryIntegration`, wiring the request's SDK (or a fresh browser one) and a per-request `QueryClient` into the router context.                                                                                                                                                                                                                                                                                                                                 |
 | `src/app/routes/`                                                                | File-based routes: public `index`, the `dashboard` layout + feature routes, the `bff-demo` BFF smoke route, and the server routes below. New routes are added here — there is no manual route tree to register them in.                                                                                                                                                                                                                                                                       |
 | `src/app/routes/bff/$.ts`, `src/app/routes/api/$.ts`, `src/app/routes/health.ts` | File-based server routes (single `ANY`/`GET` handler each) delegating to `src/app/lib/bff.server.ts`. See BFF wiring below.                                                                                                                                                                                                                                                                                                                                                                   |
@@ -151,9 +151,10 @@ two ways: in the `/bff/user` response body, and in a readable (non-`HttpOnly`)
 companion cookie named `${COOKIE_NAME}-csrf`. The session cookie itself stays
 `HttpOnly` — the companion cookie is not a credential on its own.
 
-The SDK's own `csrf.ts` wires a request interceptor onto the shared client that
-echoes the cached token on every unsafe request, so each generated operation
-carries it without any per-call code — the app holds no copy of this:
+The SDK's own `csrf.ts` wires a request interceptor onto **the per-request
+client** — the same instance `src/app/start.ts` mints, never a module-global one
+— that echoes the cached token on every unsafe request, so each generated
+operation carries it without any per-call code. The app holds no copy of this:
 
 ```ts
 client.interceptors.request.use((request: Request): Request => {
@@ -169,40 +170,49 @@ client.interceptors.request.use((request: Request): Request => {
 The typed SDK facade is the SDK's own `createWallowSdk()`, minted per request by
 `src/app/start.ts` and read off the router context. After the client is
 configured, the **generated typed operations** are pointed at the same-origin
-`/api` proxy and send the session cookie — use them instead of raw `fetch`. They
-resolve to `{ data, error, response }` and never throw on a non-2xx, and the BFF
-and API both report failures as RFC 7807 problem+json, so `error` is a
-`ProblemDetails`:
+`/api` proxy and send the session cookie — use them instead of raw `fetch`. The
+generated client is constructed with `throwOnError: true` and
+`responseStyle: 'data'`, so an operation resolves to the response **body** and
+**rejects** on a non-2xx rather than resolving an `{ data, error }` envelope.
+The BFF and API both report failures as RFC 7807 problem+json, which the SDK
+surfaces as a `WallowError` — catch it, do not branch on a returned `error`:
 
 ```ts
-const { data, error, response } = await getV1IdentityUsersMe();
-if (error !== undefined) {
-  const problem = error as ProblemDetails;
-  console.error(response.status, problem.title, problem.detail);
+try {
+  const user = await usersGetCurrentUser({ client: sdk.client });
+} catch (cause) {
+  if (isWallowError(cause)) {
+    console.error(cause.status, cause.title, cause.detail);
+  }
 }
 ```
 
+`isWallowError()` is the supported check — it tests a brand rather than the
+constructor, so it holds across bundle boundaries.
+
+In practice a route or component reaches this through the query layer
+(`@bc-solutions-coder/sdk/query`) rather than calling the operation directly —
+react-query owns the rejection and exposes it as `error`.
+
 ## Environment variables
 
-The SDK reads config via `loadBffConfigFromEnv()`. These are the **actual keys**
-consumed by `@bc-solutions-coder/sdk/server` (`src/server/config.ts`):
+The BFF contract is the SDK's, not this app's: `loadBffConfigFromEnv()` reads it
+and `@bc-solutions-coder/sdk/server` (`src/server/config.ts`) owns it. The
+canonical table — every key, its default, and the `COOKIE_PASSWORDS` rotation
+rules — lives in
+[`packages/sdk/README.md`](../../packages/sdk/README.md#1-configure-the-environment)
+and is deliberately not repeated here; the two copies had already diverged once.
 
-| Variable                        | Required | Default                                           | Purpose                                                                                                                                                                                                                                                                                                                                                    |
-| ------------------------------- | -------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OIDC_ISSUER`                   | yes      | —                                                 | OIDC issuer base URL (e.g. `http://localhost:5001`).                                                                                                                                                                                                                                                                                                       |
-| `OIDC_CLIENT_ID`                | yes      | —                                                 | Confidential client id — `wallow-web-client` for the seeded dev client.                                                                                                                                                                                                                                                                                    |
-| `OIDC_CLIENT_SECRET`            | yes      | —                                                 | Confidential client secret — `wallow-web-secret` in dev.                                                                                                                                                                                                                                                                                                   |
-| `OIDC_REDIRECT_URI`             | yes      | —                                                 | Callback URL — `http://localhost:3000/bff/callback`.                                                                                                                                                                                                                                                                                                       |
-| `OIDC_POST_LOGOUT_REDIRECT_URI` | yes      | —                                                 | Post-logout URL — `http://localhost:3000/`.                                                                                                                                                                                                                                                                                                                |
-| `BFF_API_BASE_URL`              | yes      | —                                                 | Downstream API base URL — `http://localhost:5001`.                                                                                                                                                                                                                                                                                                         |
-| `COOKIE_PASSWORD`               | yes      | —                                                 | Seal/unseal password for the session cookie (>= 32 chars).                                                                                                                                                                                                                                                                                                 |
-| `OIDC_SCOPES`                   | no       | `openid profile email offline_access`             | Space-separated scopes.                                                                                                                                                                                                                                                                                                                                    |
-| `COOKIE_NAME`                   | no       | `wallow_bff`                                      | Sealed session cookie name. The readable CSRF companion cookie is `${COOKIE_NAME}-csrf`.                                                                                                                                                                                                                                                                   |
-| `SESSION_TTL_SECONDS`           | no       | `86400`                                           | Session lifetime. Bounds the session cookie's `Max-Age` (and the Valkey record's TTL), so a stale browser cookie cannot outlive its session.                                                                                                                                                                                                               |
-| `COOKIE_SECURE`                 | no       | `true`                                            | Sets `Secure` on the cookies the BFF writes. Set to `false` for any plain-HTTP deployment, including `localhost`: Chrome and Firefox accept `Secure` cookies over `http://localhost`, but Safari/WebKit drops them, which silently breaks the login callback (400).                                                                                        |
-| `OIDC_METADATA_URL`             | no       | `${OIDC_ISSUER}/.well-known/openid-configuration` | Server-reachable discovery URL. Set this when the browser and server reach the OP under different hostnames (reverse proxy, container network, split-horizon DNS). The server fetches discovery here and uses its `token_endpoint` for the backchannel, while the browser-facing authorize/end-session URLs are pinned to the public `OIDC_ISSUER` origin. |
-| `REDIS_URL`                     | no       | —                                                 | When set, sessions persist in Valkey/Redis (`ValkeySessionStore`); otherwise the app seals the session into the cookie (`CookieSessionStore`).                                                                                                                                                                                                             |
-| `PORT`                          | no       | `3000`                                            | Listen port.                                                                                                                                                                                                                                                                                                                                               |
+What this app adds on top of that contract:
+
+| Variable | Required | Default | Purpose                                                                      |
+| -------- | -------- | ------- | ---------------------------------------------------------------------------- |
+| `PORT`   | no       | `3000`  | Listen port. Read by the host (Vite/Nitro), not by `loadBffConfigFromEnv()`. |
+
+Dev values for the required keys are in [Run locally](#run-locally) below. In the
+shipped Compose stack the two seal secrets are spelled `BFF_COOKIE_PASSWORD` and
+`BFF_COOKIE_PASSWORDS`; `docker/docker-compose.production.yml` maps them onto
+`COOKIE_PASSWORD` / `COOKIE_PASSWORDS`.
 
 > **Split-horizon note (container networks).** In the E2E stack the browser
 > reaches the OP at `http://localhost:5050` while the app container reaches

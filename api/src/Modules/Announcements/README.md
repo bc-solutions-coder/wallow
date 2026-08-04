@@ -91,45 +91,51 @@ Published via Wolverine in-memory messaging. Defined in `Wallow.Shared.Contracts
 
 | Event | When |
 |-------|------|
-| `AnnouncementPublishedEvent` | Announcement is published (includes target criteria and resolved user IDs) |
+| `AnnouncementPublishedEvent` | Announcement is published (carries the target criteria) |
+
+> [!NOTE]
+> The event record declares a `TargetUserIds` property, but targeting resolution is unimplemented:
+> `AnnouncementTargetingService.ResolveTargetUsersAsync` is a `TODO` that always returns an empty
+> list, so the collection is always empty on the wire. Notifications handles broadcast delivery
+> instead.
 
 ## API Endpoints
 
-### Admin Announcements (`/api/v1/admin/announcements`) — requires `AnnouncementManage` permission
+### Admin Announcements (`/v1/admin/announcements`) — requires `AnnouncementManage` permission
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/v1/admin/announcements` | List all announcements |
-| `POST` | `/api/v1/admin/announcements` | Create announcement |
-| `PUT` | `/api/v1/admin/announcements/{id}` | Update announcement |
-| `POST` | `/api/v1/admin/announcements/{id}/publish` | Publish announcement |
-| `DELETE` | `/api/v1/admin/announcements/{id}` | Archive announcement |
+| `GET` | `/v1/admin/announcements` | List all announcements |
+| `POST` | `/v1/admin/announcements` | Create announcement |
+| `PUT` | `/v1/admin/announcements/{id}` | Update announcement |
+| `POST` | `/v1/admin/announcements/{id}/publish` | Publish announcement |
+| `DELETE` | `/v1/admin/announcements/{id}` | Archive announcement |
 
-### User Announcements (`/api/v1/announcements`) — requires `AnnouncementRead` permission
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/v1/announcements` | Get active announcements for current user |
-| `POST` | `/api/v1/announcements/{id}/dismiss` | Dismiss an announcement |
-
-### Admin Changelog (`/api/v1/admin/changelog`) — requires `ChangelogManage` permission
+### User Announcements (`/v1/announcements`) — requires `AnnouncementRead` permission
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/api/v1/admin/changelog` | Create changelog entry |
-| `POST` | `/api/v1/admin/changelog/{id}/publish` | Publish changelog entry |
+| `GET` | `/v1/announcements` | Get active announcements for current user |
+| `POST` | `/v1/announcements/{id}/dismiss` | Dismiss an announcement |
 
-### Public Changelog (`/api/v1/changelog`) — anonymous access
+### Admin Changelog (`/v1/admin/changelog`) — requires `ChangelogManage` permission
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/v1/changelog` | List published changelog entries |
-| `GET` | `/api/v1/changelog/{version}` | Get changelog entry by version |
-| `GET` | `/api/v1/changelog/latest` | Get latest changelog entry |
+| `POST` | `/v1/admin/changelog` | Create changelog entry |
+| `POST` | `/v1/admin/changelog/{id}/publish` | Publish changelog entry |
+
+### Public Changelog (`/v1/changelog`) — anonymous access
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/v1/changelog` | List published changelog entries |
+| `GET` | `/v1/changelog/{version}` | Get changelog entry by version |
+| `GET` | `/v1/changelog/latest` | Get latest changelog entry |
 
 ## Configuration
 
-Uses the shared `DefaultConnection` connection string. No additional configuration required. Auto-migrates its schema on startup in Development and Testing environments.
+Uses the shared `DefaultConnection` connection string. No additional configuration required. Its schema is migrated inline only in the `Testing` environment; everywhere else `Wallow.MigrationService` applies migrations.
 
 ## Dependencies
 
@@ -148,7 +154,13 @@ Uses the shared `DefaultConnection` connection string. No additional configurati
 
 ```bash
 dotnet ef migrations add MigrationName \
-    --project src/Modules/Announcements/Wallow.Announcements.Infrastructure \
-    --startup-project src/Wallow.Api \
+    --project api/src/Modules/Announcements/Wallow.Announcements.Infrastructure \
+    --startup-project api/src/Wallow.Api \
     --context AnnouncementsDbContext
 ```
+
+## Related Documentation
+
+- Agent guide for this module: [`CLAUDE.md`](CLAUDE.md)
+- Backend conventions and commands: [`api/CLAUDE.md`](../../../CLAUDE.md)
+- Integration event catalogue: [`Wallow.Shared.Contracts/README.md`](../../Shared/Wallow.Shared.Contracts/README.md)

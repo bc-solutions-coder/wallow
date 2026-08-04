@@ -25,14 +25,14 @@ Manages tenant-scoped in-app announcements (with audience targeting and user dis
 ## Cross-Module Communication
 
 - **Publishes** `AnnouncementPublishedEvent` (defined in `Wallow.Shared.Contracts/Announcements/Events/`) via Wolverine in-memory messaging when an announcement is published
-- The event includes target criteria (`Target`, `TargetValue`, `TargetUserIds`) so consuming modules (e.g., Notifications) can determine delivery
+- The event carries target criteria (`Target`, `TargetValue`) so consuming modules (e.g., Notifications) can determine delivery. It also declares `TargetUserIds`, but that collection is **always empty** — `ResolveTargetUsersAsync` is an unimplemented `TODO`
 - **Does not consume** any integration events from other modules
 
 ## Important Patterns
 
 - **Two sub-domains**: Announcements are tenant-scoped (`ITenantScoped`); Changelogs are global (no tenant scoping)
 - **Targeting service**: `AnnouncementTargetingService` filters published announcements by target type (All, Tenant, Plan, Role) and excludes dismissed ones. The `ResolveTargetUsersAsync` method currently returns an empty list — actual user resolution is deferred to consuming modules
-- **State transitions via aggregate methods**: Use `Publish()`, `Archive()`, `Expire()` — never set `Status` directly
+- **State transitions**: this module's aggregate methods are `Publish()`, `Archive()`, `Expire()`
 - **HTML sanitization**: Controllers sanitize `Title` and `Content` via `IHtmlSanitizationService` before passing to commands
 - **Wolverine handler discovery**: Handlers are plain classes with `Handle` methods — no interface implementation needed. Wolverine discovers them automatically
 - **Request records in controller files**: `CreateAnnouncementRequest` and `UpdateAnnouncementRequest` are defined at the bottom of `AdminAnnouncementsController.cs`; `CreateChangelogEntryRequest` is in `AdminChangelogController.cs`
@@ -45,13 +45,13 @@ Manages tenant-scoped in-app announcements (with audience targeting and user dis
 | `AnnouncementRead` | User-facing read and dismiss |
 | `ChangelogManage` | Admin changelog creation and publishing |
 
-Public changelog endpoints (`/api/v1/changelog`) are `[AllowAnonymous]`.
+Public changelog endpoints (`/v1/changelog`) are `[AllowAnonymous]`.
 
 ## Database
 
 - Schema: `announcements`
 - Context: `AnnouncementsDbContext` (extends `TenantAwareDbContext`)
-- Auto-migrates in Development/Testing environments only
+- Migrated inline only in the `Testing` environment; `Wallow.MigrationService` applies migrations everywhere else
 - Tenant query filters apply to `Announcement` (via `ITenantScoped`); `ChangelogEntry` and `ChangelogItem` are not tenant-scoped
 
 ## Testing
@@ -61,3 +61,8 @@ Public changelog endpoints (`/api/v1/changelog`) are `[AllowAnonymous]`.
 ```
 
 Tests cover domain entities, all command/query handlers, validators, targeting service, repository persistence (using Testcontainers PostgreSQL), and controller behavior.
+
+## Related Documentation
+
+- Module reference: [`README.md`](README.md)
+- Backend conventions and commands: [`api/CLAUDE.md`](../../../CLAUDE.md)

@@ -39,7 +39,7 @@ Response (201 Created):
   "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "clientId": "sa-tenant12-production-backend",
   "clientSecret": "xK9mN2pL8qR5sT7vW3yZ1aB4cD6eF8gH0iJ2kL5mN7oP9qR1sT3uV5wX7yZ9",
-  "tokenEndpoint": "https://api.yourplatform.com/connect/token",
+  "tokenEndpoint": "http://localhost:5001/connect/token",
   "scopes": ["announcements.read", "announcements.manage", "notifications.read"],
   "warning": "Save this secret now. It will not be shown again."
 }
@@ -50,7 +50,7 @@ The client secret is shown only at creation time. Store it in environment variab
 ### 2. Request an Access Token
 
 ```bash
-curl -X POST https://api.yourplatform.com/connect/token \
+curl -X POST http://localhost:5001/connect/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "client_id=your-client-id" \
   -d "client_secret=your-client-secret" \
@@ -62,7 +62,7 @@ curl -X POST https://api.yourplatform.com/connect/token \
 Use the access token in the `Authorization` header:
 
 ```bash
-curl -X GET https://api.yourplatform.com/v1/announcements \
+curl -X GET http://localhost:5001/v1/announcements \
   -H "Authorization: Bearer <access-token>"
 ```
 
@@ -279,3 +279,12 @@ permission. The `category` query parameter is optional; omit it to list every sc
 | 401 | `invalid_client` | Wrong `client_id` or `client_secret`, or account was revoked. |
 | 403 | `insufficient_scope` | Service account lacks required scopes. Update via the API. |
 | 429 | `rate_limit_exceeded` | Too many requests. Respect the `Retry-After` header. |
+
+---
+
+## Related Documentation
+
+- [Authorization](../architecture/authorization.md) — the scope and permission model these scopes plug into
+- [Authentication](../architecture/authentication.md) — the interactive OIDC path this credential replaces
+- [BFF Pattern](../integrations/bff-pattern.md) — what an interactive frontend uses instead of a service account
+- `api/src/Modules/ApiKeys/README.md` — the other machine credential (`X-Api-Key`, not OAuth2)

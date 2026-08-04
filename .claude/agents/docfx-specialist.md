@@ -14,33 +14,50 @@ You are the documentation specialist for Wallow's DocFX site.
 - **`metadata`** — generates API reference YAML into `.docfx/api` from the `.Domain`,
   `.Application`, and `.Api` projects of each module, plus `Shared/**` and `Wallow.Api`
   (`.Infrastructure` projects are excluded). Filtered by `docfx/filterConfig.yml`.
-- **`build`** — content is `docs/**/*.md` + `docs/toc.yml`, joined with the root
-  `docfx/toc.yml` (top-level Docs / API Reference tabs). Output goes to `.docfx/_site`.
-  Theme: `default`, `modern`, then the fork's `docfx/templates/wallow` overlay.
+- **`build`** — two content blocks. The first is `**/*.md` + `toc.yml` rooted at `docs`, with
+  `exclude: ["plans/**", "claude/**", "CLAUDE.md", "audits/**"]`. The second is `**.yml` +
+  `index.md` from the generated `.docfx/api`, mounted at `api/`. `docs/toc.yml` is the only
+  hand-written TOC in the repo. Output goes to `.docfx/_site`. Theme: `default`, `modern`,
+  then the fork's `docfx/templates/wallow` overlay.
 
-Category folders under `docs/`:
+Category folders under `docs/` (regenerate this table from disk if it looks stale):
 
-| Folder | Contents |
-|--------|----------|
-| `getting-started/` | Fork guide, developer guide, onboarding, configuration |
-| `architecture/` | Module creation, auth, caching, messaging, storage, realtime |
-| `development/` | API/database development, testing, frontend setup |
-| `operations/` | Deployment, versioning, observability, troubleshooting |
-| `integrations/` | External auth, DCR, AsyncAPI, BFF pattern, TypeScript SDK |
-| `api/` | API reference guides (e.g. service accounts) |
+| Folder | Pages | Contents |
+|--------|-------|----------|
+| `getting-started/` | 4 | Configuration, developer guide, fork guide, onboarding |
+| `architecture/` | 9 | Assessment, authentication, authorization, background jobs, caching, file storage, messaging, module creation, realtime |
+| `development/` | 10 | API development, component library, database development, database migrations, forms, frontend setup, frontend state, logging, testing, testing-e2e |
+| `operations/` | 7 | Audit events, deployment, observability, request correlation, reverse proxy, troubleshooting, versioning |
+| `integrations/` | 5 | AsyncAPI, BFF pattern, external auth, integration cookbook, TypeScript SDK |
+| `api/` | 1 | API reference guides (service accounts) |
 
-## Rules (from `docs/CLAUDE.md`)
+`docs/plans/` and `docs/audits/` also live under `docs/` but are excluded from the build.
+
+## Rules
+
+From `docs/CLAUDE.md`:
 
 - **Docs-site content only.** No plans, designs, specs, or session artifacts in the
-  category folders. Design docs that will become guides go in `docs/plans/`.
+  category folders — those go in `docs/plans/` and `docs/audits/`, both of which
+  `docfx.json` excludes.
 - **Filenames are lowercase kebab-case** — `api-development.md`, never `API_Development.md`.
 - **Every new guide MUST get an entry in `docs/toc.yml`** under the matching category, or
   it is orphaned from the sidebar.
 - **Cross-references use relative paths** — `../architecture/messaging.md`. Link to the
   `.md` file, not a rendered URL.
-- Standard GitHub-flavored markdown. DocFX extensions (`[!NOTE]`, `[!WARNING]`, `[!TIP]`
-  callouts, `[!include[]]`, `[!code-csharp[]]`, `@Namespace.Type` xrefs) are available —
-  use them where they earn their place, not by default.
+- **Standard GitHub-flavored markdown.**
+
+Beyond `docs/CLAUDE.md`: DocFX also accepts its own markdown extensions (`[!NOTE]`,
+`[!WARNING]`, `[!TIP]` callouts, `[!include[]]`, `[!code-csharp[]]`, `@Namespace.Type`
+xrefs). The repo does not require or forbid them — use them where they earn their place,
+not by default.
+
+From root `CLAUDE.md` — the plan convention, which `docs/CLAUDE.md` does not state:
+
+- Plans go to `docs/plans/<YYYY-MM-DD>/<HHmm>-<name>.md` (date folder = creation date, 24h
+  `HHmm` prefix), start with a `**status: active|completed|superseded**` line, and are
+  **committed** — beads cite them by path. Mark a finished plan `completed` or `superseded`
+  in place rather than deleting it.
 
 ## Building and Validating
 

@@ -4,15 +4,18 @@
 
 # Wallow
 
-**A production-ready .NET modular monolith for building multi-tenant SaaS products.**
+**A .NET modular monolith base platform for building multi-tenant SaaS products.**
 
 Fork it. Add your domain modules. Deploy.
+
+*Pre-release: Wallow has not been deployed outside local development yet, and breaking changes to
+`main` are expected.*
 
 [![CI](https://github.com/bc-solutions-coder/wallow/actions/workflows/ci.yml/badge.svg)](https://github.com/bc-solutions-coder/wallow/actions/workflows/ci.yml)
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![Tests](https://img.shields.io/badge/tests-6%2C078_passing-brightgreen?logo=checkmarx&logoColor=white)](#testing)
-[![Coverage](https://img.shields.io/badge/coverage-97.7%25_lines_·_89.5%25_branches-brightgreen?logo=codecov&logoColor=white)](#testing)
+[![Tests](https://img.shields.io/badge/tests-passing-brightgreen?logo=checkmarx&logoColor=white)](#testing)
+[![Coverage](https://img.shields.io/badge/coverage-see_testing-brightgreen?logo=codecov&logoColor=white)](#testing)
 [![License](https://img.shields.io/badge/license-Apache_2.0-green.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](docker/)
 
@@ -24,8 +27,8 @@ Fork it. Add your domain modules. Deploy.
 
 - **Multi-tenancy from day one** -- tenant isolation, per-tenant config, and data partitioning built into the architecture so you ship product features, not plumbing
 - **Fork-first architecture** -- merge drivers preserve your branding, config, and customizations when pulling upstream improvements
-- **Production-ready infrastructure** -- observability, background jobs, file storage, email, caching, and CI/CD preconfigured and tested
-- **Comprehensive test coverage** -- 6,000+ tests at 97%+ coverage across unit, integration, architecture, and E2E layers
+- **Batteries-included infrastructure** -- observability, background jobs, file storage, email, caching, and CI/CD preconfigured and tested
+- **Comprehensive test coverage** -- the .NET suites (unit, integration, architecture) plus per-app Playwright E2E and Vitest browser-mode suites across the pnpm workspace
 
 ## What is Wallow?
 
@@ -41,16 +44,24 @@ The intended workflow is to **fork this repo and build your product on top**. Sh
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - [Docker](https://www.docker.com/get-started)
+- [Node 24](https://nodejs.org/) (see `.nvmrc`) and pnpm 10.20.0 (see `packageManager` in
+  `package.json`)
 
-### 1. Start infrastructure
+### 1. Install workspace dependencies
 
 ```bash
-cd docker && docker compose up -d
+pnpm install
+```
+
+### 2. Start infrastructure
+
+```bash
+pnpm backend:infra                        # docker compose up -d; backend:infra:down to stop
 ```
 
 Starts PostgreSQL, Valkey, GarageHQ (S3), Mailpit, and Grafana.
 
-### 2. Run the apps
+### 3. Run the apps
 
 The frontends are React (TanStack Start) apps; the .NET Aspire host orchestrates the
 API, both React apps, migrations, and the seeder together:
@@ -67,11 +78,12 @@ pnpm --filter @bc-solutions-coder/wallow-web dev              # Web   → http:/
 pnpm --filter @bc-solutions-coder/wallow-auth dev             # Auth  → http://localhost:3002
 ```
 
-### 3. Run tests
+### 4. Run tests
 
 ```bash
-./scripts/run-tests.sh                    # all tests
-./scripts/run-tests.sh identity           # single module
+./scripts/run-tests.sh                    # all backend tests
+./scripts/run-tests.sh identity           # single backend module
+pnpm check                                # the frontend quality gate (format, lint, build, typecheck, test)
 ```
 
 > See [Testing](docs/development/testing.md) for coverage, E2E, and CI details.
@@ -97,13 +109,20 @@ api/
     │   ├── ApiKeys/                 # API key management
     │   └── Branding/                # Tenant branding configuration
     └── Shared/
-        ├── Contracts/               # Cross-module integration events
-        ├── Kernel/                  # DDD primitives, multi-tenancy, JWT claim helpers
-        └── Infrastructure/          # Cross-cutting plumbing, API middleware, background jobs
+        ├── Wallow.Shared.Contracts/                 # Cross-module integration events
+        ├── Wallow.Shared.Kernel/                    # DDD primitives, multi-tenancy, JWT claim helpers
+        ├── Wallow.Shared.Api/                       # Shared API utilities (Result → IActionResult, health check)
+        ├── Wallow.Shared.Infrastructure/            # Settings framework and module coordination
+        ├── Wallow.Shared.Infrastructure.Core/       # Persistence, caching, and messaging primitives
+        ├── Wallow.Shared.Infrastructure.BackgroundJobs/  # Hangfire-backed IJobScheduler
+        └── Wallow.Shared.Infrastructure.Plugins/    # Plugin loading and extension points
 
 apps/                               # React (TanStack Start) frontends (pnpm workspace)
 ├── wallow-auth/                     # Auth UI (login, register, MFA)  → http://localhost:3002
-└── wallow-web/                      # Dashboard and public pages       → http://localhost:3000
+├── wallow-web/                      # Dashboard and public pages       → http://localhost:3000
+└── minimal-app/                     # Smallest wiring of the shared packages → http://localhost:3010
+
+packages/                           # Shared TypeScript packages (SDK, UI, forms, auth, styles, …)
 ```
 
 Each module follows four layers: **Domain** (no dependencies) → **Application** → **Infrastructure** → **API**.
@@ -142,13 +161,19 @@ Each module follows four layers: **Domain** (no dependencies) → **Application*
 
 ## Testing
 
-6,078 tests across 45 assemblies, all passing.
+The backend has 15 xUnit test assemblies under `api/tests/` (unit, integration, and architecture),
+alongside the shared `Wallow.Tests.Common` helper library and the BenchmarkDotNet project, neither
+of which carries tests. Most pnpm workspace members add a Vitest suite — DOM specs run in a real
+browser project, non-DOM specs in a node project — plus per-app Playwright E2E suites.
 
-| Metric | Coverage |
-|--------|----------|
-| Lines | **97.7%** (13,457 / 13,771) |
-| Branches | **89.5%** (2,235 / 2,497) |
-| Methods | **96.9%** (1,735 / 1,789) |
+```bash
+./scripts/run-tests.sh                    # backend, with the coverage runsettings
+pnpm check                                # frontend quality gate, including pnpm test
+./scripts/e2e.sh                          # containerised backend + all three Playwright suites
+```
+
+Coverage figures are produced by the run, not tracked here — `./scripts/run-tests.sh` writes them
+with `api/tests/coverage.runsettings` applied.
 
 > Details: [Testing Guide](docs/development/testing.md) — backend suites, frontend Vitest, coverage, the Docker test stack, and CI · [E2E Tests](docs/development/testing-e2e.md)
 
@@ -178,12 +203,14 @@ Configuration loads in order: `appsettings.json` → `appsettings.{Environment}.
 | API Docs (Scalar) | http://localhost:5001/scalar/v1 |
 | Web (TanStack) | http://localhost:3000 |
 | Auth (TanStack) | http://localhost:3002 |
+| Minimal app | http://localhost:3010 |
 | Docs | http://localhost:5004 |
 | Mailpit | http://localhost:8025 |
 | GarageHQ (S3) | http://localhost:3900 |
 | Grafana | http://localhost:3001 |
 
-> Credentials and config: [Configuration Guide](docs/getting-started/configuration.md)
+> Credentials and config: [Configuration Guide](docs/getting-started/configuration.md). The
+> application rows are duplicated in root `CLAUDE.md`'s Local Development table — change both together.
 
 ## Documentation
 
@@ -197,6 +224,13 @@ Configuration loads in order: `appsettings.json` → `appsettings.{Environment}.
 | [Deployment](docs/operations/deployment.md) | CI/CD, Docker, and production setup |
 | [Versioning](docs/operations/versioning.md) | Conventional Commits and release-please |
 | [Observability](docs/operations/observability.md) | Logging, tracing, and dashboards |
+| [Frontend Setup](docs/development/frontend-setup.md) | The pnpm workspace, Vite, and TanStack Start |
+| [Component Library](docs/development/component-library.md) | The shared `@bc-solutions-coder/ui` catalog |
+| [Forms](docs/development/forms.md) | The `@bc-solutions-coder/forms` authoring layer |
+| [Frontend State](docs/development/frontend-state.md) | TanStack Query, auth, and the nav store |
+| [Logging](docs/development/logging.md) | Structured logging across the browser and the app server |
+| [BFF Pattern](docs/integrations/bff-pattern.md) | Same-origin OIDC through the app server |
+| [TypeScript SDK](docs/integrations/typescript-sdk.md) | `@bc-solutions-coder/sdk` reference |
 
 ## License
 

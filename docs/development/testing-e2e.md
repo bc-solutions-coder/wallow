@@ -20,7 +20,7 @@ running app. They live with the React apps in the pnpm workspace, not in the .NE
 
 ### `apps/wallow-auth/e2e/` — the reference pattern
 
-Nine specs plus two helper modules:
+Nine specs plus three helper modules:
 
 | Spec                      | Backend dependency                                                         |
 | ------------------------- | -------------------------------------------------------------------------- |
@@ -34,8 +34,10 @@ Nine specs plus two helper modules:
 | `otp-login.spec.ts`       | API + Mailpit                                                              |
 | `mfa.spec.ts`             | API + Mailpit                                                              |
 
-Helpers: `mailpit.ts` (reads emails back over Mailpit's HTTP API) and `totp.ts` (generates TOTP
-codes for the MFA lifecycle).
+Helpers: `mailpit.ts` (reads emails back over Mailpit's HTTP API), `totp.ts` (generates TOTP
+codes for the MFA lifecycle), and `global-setup.ts` (wired in as Playwright's `globalSetup`, it
+warms the app to hydration once so the first spec's readiness wait is not racing Vite's cold
+pre-bundle).
 
 `routes.spec.ts` is the render-only deletion gate: it visits every route the app claims to
 serve, asserts the response status is below 400, and waits for hydration. It proves each screen
@@ -54,24 +56,32 @@ other dashboard routes redirect to OIDC or need the API.
 
 ### `apps/wallow-web/e2e-cross-app/` — the cross-app journey suite
 
-`login-journey.spec.ts` exercises the complete wallow-web → wallow-auth → wallow-web login
-round trip. It runs under a dedicated config, `playwright.cross-app.config.ts`, which — unlike
-the per-app configs — **boots no server of its own**. The journey needs three cooperating
-origins that only a full stack cross-wires: wallow-web (where the journey starts and ends), the
-API OIDC issuer, and wallow-auth (the login UI the API's `AuthUrl` redirects to).
+Two specs live here, both under a dedicated config, `playwright.cross-app.config.ts`, which —
+unlike the per-app configs — **boots no server of its own**.
+
+- **`login-journey.spec.ts`** exercises the complete wallow-web → wallow-auth → wallow-web login
+  round trip. It needs three cooperating origins that only a full stack cross-wires: wallow-web
+  (where the journey starts and ends), the API OIDC issuer, and wallow-auth (the login UI the
+  API's `AuthUrl` redirects to).
+- **`external-origin-login.spec.ts`** runs the same round trip from the `bff-example` origin on
+  `:3003`, which authenticates as the seeded third-party `bcordes-bff` client instead of
+  `wallow-web-client`. Because that client is not first-party, the API routes it through
+  wallow-auth's interactive **consent** screen — the leg `login-journey.spec.ts` never reaches.
+  `bff-example` exists only in `docker/docker-compose.test.yml`, so this spec needs the
+  containerised stack specifically; Aspire has no equivalent service.
 
 Supply that stack one of two ways:
 
 ```bash
-# Against the containerised test stack (wallow-web on :5053)
+# Against the containerised test stack (wallow-web on :5053) — runs both specs
 E2E_BASE_URL=http://localhost:5053 pnpm --filter ./apps/wallow-web test:e2e:cross-app
 
-# Against the Aspire AppHost (wallow-web on :3000, the config's default)
+# Against the Aspire AppHost (wallow-web on :3000, the config's default) — login-journey only
 pnpm backend
 pnpm --filter ./apps/wallow-web test:e2e:cross-app
 ```
 
-It also needs the seeded admin from `api/seed.json`.
+Both also need the seeded admin from `api/seed.json`.
 
 ## Running
 
@@ -98,8 +108,9 @@ tears the stack down:
 
 1. `pnpm --filter ./apps/wallow-auth test:e2e`
 2. `pnpm --filter ./apps/wallow-web test:e2e` — the reachability gate
-3. `pnpm --filter ./apps/wallow-web test:e2e:cross-app` — the cross-app login journey, which
-   gates the full login + authenticated mutation + logout loop
+3. `pnpm --filter ./apps/wallow-web test:e2e:cross-app` — both cross-app specs: the first-party
+   login journey (full login + authenticated mutation + logout loop) and the external-origin
+   journey through the consent screen
 
 ```bash
 ./scripts/e2e.sh                            # cold local run: build images, up, test, down

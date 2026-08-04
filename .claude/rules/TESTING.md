@@ -24,13 +24,22 @@
   constraint to relocating it.** `wallow/no-source-tests` enforces this by banning `node:fs` in a
   spec, and reaches **every spec in the repo**: the root `.oxlintrc.json` both registers the plugin
   and turns this one rule on repo-wide, so a package with no nested config of its own is covered
-  too. Three specs are deliberately outside it and stay that way — `packages/lint`'s and
-  `packages/sdk`'s guardrail specs run the real oxlint binary over fixture files, and
-  `@bc-solutions-coder/testing`'s `./browser-styles-wiring` reads a consumer's build config to prove
-  its browser project has a stylesheet attached. All three assert a **tool's** behaviour, not source
-  text. Parsing a committed data contract (`packages/sdk/openapi/v1.json`,
-  `packages/styles/styles.css`) and checking it against the runtime modules generated from it is
-  also fine: an artifact is not source.
+  too. **Seven specs** are deliberately outside it and stay that way — the exemption list is a single
+  override block near the end of the root `.oxlintrc.json`, in three classes:
+  - **Tool-output guardrails** — `packages/lint/src/fixtures.test.ts` and
+    `packages/sdk/src/oxlint-guardrails.test.ts` run the real oxlint binary over fixture files, so
+    they assert a **tool's** behaviour, not source text.
+  - **Artifact readers** — `packages/sdk/src/generated-query-surface.test.ts`,
+    `packages/sdk/src/openapi-regen.test.ts`, `packages/styles/src/assets.test.ts` and
+    `packages/styles/src/theme-css.test.ts`. Parsing a committed data contract
+    (`packages/sdk/openapi/v1.json`, `packages/styles/styles.css`) and checking it against the
+    runtime modules generated from it is fine: an artifact is not source.
+  - **Runtime/compile-time identity** — `packages/query/src/index.test.ts` checks the facade's
+    exported surface against the real package it re-exports.
+
+  `@bc-solutions-coder/testing`'s `./browser-styles-wiring` is **not** on that list and is not a
+  spec: it is an exported helper module that reads a consumer's build config to prove its browser
+  project has a stylesheet attached.
 
 Before writing or editing a frontend spec, read **`packages/testing/CLAUDE.md`** — project split,
 the no-mocking rule, test-comment standards, and the browser-mode facts that bite all live there.

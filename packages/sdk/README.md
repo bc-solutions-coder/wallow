@@ -55,24 +55,54 @@ That is the whole install — there is no companion host-runtime package to add.
 `loadBffConfigFromEnv()` builds a `BffConfig` from `process.env` and throws on
 startup if a required key is missing or empty.
 
-| Variable                        | Required | Default                                           | Description                                                                                                                                                         |
-| ------------------------------- | -------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OIDC_ISSUER`                   | Yes      | —                                                 | Issuer base URL, e.g. `https://auth.example.com`                                                                                                                    |
-| `OIDC_CLIENT_ID`                | Yes      | —                                                 | Confidential client id                                                                                                                                              |
-| `OIDC_CLIENT_SECRET`            | Yes      | —                                                 | Confidential client secret (server-side only)                                                                                                                       |
-| `OIDC_REDIRECT_URI`             | Yes      | —                                                 | Absolute callback URL, e.g. `http://localhost:3000/bff/callback`                                                                                                    |
-| `OIDC_POST_LOGOUT_REDIRECT_URI` | Yes      | —                                                 | Absolute URL to land on after logout                                                                                                                                |
-| `BFF_API_BASE_URL`              | Yes      | —                                                 | Downstream API the `/api` proxy forwards to                                                                                                                         |
-| `COOKIE_PASSWORD`               | Yes      | —                                                 | Secret (32+ chars) used to seal the session, transaction, and store-reference cookies                                                                               |
-| `OIDC_SCOPES`                   | No       | `openid profile email offline_access`             | Space-separated scopes                                                                                                                                              |
-| `COOKIE_NAME`                   | No       | `wallow_bff`                                      | Session cookie name                                                                                                                                                 |
-| `OIDC_METADATA_URL`             | No       | `${OIDC_ISSUER}/.well-known/openid-configuration` | Server-side discovery URL for split-horizon DNS — the backchannel uses its `token_endpoint`, while browser-facing redirects stay pinned to the public issuer origin |
-| `SESSION_TTL_SECONDS`           | No       | `86400`                                           | Session cookie `Max-Age`. Must be a positive whole number; a malformed value throws rather than falling back                                                        |
-| `COOKIE_SECURE`                 | No       | `true`                                            | `Secure` flag on the session, transaction, and CSRF cookies. Fails secure: only the literal `false` clears it — set it for plain-HTTP local development             |
+This table is the **canonical** BFF environment contract — every other doc in the
+repo links here rather than restating it.
 
-`OIDC_CLIENT_SECRET` and `COOKIE_PASSWORD` are confidential. They belong in the
-server process environment or a secrets manager, never in the browser bundle or
-source control.
+| Variable                        | Required | Default                                           | Description                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ------------------------------- | -------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `OIDC_ISSUER`                   | Yes      | —                                                 | Issuer base URL, e.g. `https://auth.example.com`                                                                                                                                                                                                                                                                                                                                                                         |
+| `OIDC_CLIENT_ID`                | Yes      | —                                                 | Confidential client id                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `OIDC_CLIENT_SECRET`            | Yes      | —                                                 | Confidential client secret (server-side only)                                                                                                                                                                                                                                                                                                                                                                            |
+| `OIDC_REDIRECT_URI`             | Yes      | —                                                 | Absolute callback URL, e.g. `http://localhost:3000/bff/callback`                                                                                                                                                                                                                                                                                                                                                         |
+| `OIDC_POST_LOGOUT_REDIRECT_URI` | Yes      | —                                                 | Absolute URL to land on after logout                                                                                                                                                                                                                                                                                                                                                                                     |
+| `BFF_API_BASE_URL`              | Yes      | —                                                 | Downstream API the `/api` proxy forwards to                                                                                                                                                                                                                                                                                                                                                                              |
+| `COOKIE_PASSWORD`               | Yes¹     | —                                                 | Secret (32+ chars) used to seal the session, transaction, and store-reference cookies. Not required when `COOKIE_PASSWORDS` is set                                                                                                                                                                                                                                                                                       |
+| `COOKIE_PASSWORDS`              | No       | —                                                 | Rotation form of the above: a JSON object of key ID to secret. The **first** key seals new cookies, every key can unseal. Supersedes `COOKIE_PASSWORD` when both are set. See the rotation rules below                                                                                                                                                                                                                   |
+| `OIDC_SCOPES`                   | No       | `openid profile email offline_access`             | Space-separated scopes                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `COOKIE_NAME`                   | No       | `__Host-wallow_bff`                               | Session cookie name. A non-empty value is taken verbatim and never prefixed; the readable CSRF companion cookie is `${COOKIE_NAME}-csrf`. The default carries the `__Host-` prefix, and falls back to plain `wallow_bff` only when the prefix is not viable — `COOKIE_SECURE=false` or `COOKIE_HOST_PREFIX=false`                                                                                                        |
+| `OIDC_METADATA_URL`             | No       | `${OIDC_ISSUER}/.well-known/openid-configuration` | Server-side discovery URL for split-horizon DNS — the backchannel uses its `token_endpoint`, while browser-facing redirects stay pinned to the public issuer origin                                                                                                                                                                                                                                                      |
+| `SESSION_TTL_SECONDS`           | No       | `86400`                                           | Session cookie `Max-Age`. Must be a positive whole number; a malformed value throws rather than falling back                                                                                                                                                                                                                                                                                                             |
+| `COOKIE_SECURE`                 | No       | `true`                                            | `Secure` flag on the session, transaction, and CSRF cookies. Fails secure: only the literal `false` clears it — set it for any plain-HTTP deployment, `localhost` included: Chrome and Firefox accept `Secure` cookies over `http://localhost` but Safari/WebKit drops them, which breaks the login callback with a 400                                                                                                  |
+| `COOKIE_HOST_PREFIX`            | No       | `true`                                            | `__Host-` prefix on the DEFAULT session cookie name, which binds the cookie to the exact host that set it so a sibling subdomain cannot overwrite it. Relaxes the NAME only, never `Secure`; it is the opt-out for a deployment that terminates TLS but cannot meet the prefix's other requirements. No effect when `COOKIE_NAME` is set or `COOKIE_SECURE` is `false`. Fails secure: only the literal `false` clears it |
+| `REDIS_URL`                     | No       | —                                                 | Read by `createWallowBffServer()`, not by `loadBffConfigFromEnv()`. When set, sessions live in Valkey/Redis (`ValkeySessionStore`) and a `redisClient` must be supplied; otherwise the session is sealed into the cookie (`CookieSessionStore`)                                                                                                                                                                          |
+
+¹ Required only on the single-secret path — a `COOKIE_PASSWORDS` map carries the
+active secret itself.
+
+`OIDC_CLIENT_SECRET`, `COOKIE_PASSWORD` and `COOKIE_PASSWORDS` are confidential.
+They belong in the server process environment or a secrets manager, never in the
+browser bundle or source control.
+
+**Rotating the seal password.** `COOKIE_PASSWORDS` exists so a secret can be
+replaced without 401ing every live session. Its first rotation out of a plain
+`COOKIE_PASSWORD` deployment **must** name the outgoing secret `default` —
+iron-webcrypto seals a bare-string password with an empty key ID and reads that
+back as the literal `default`, so a map keyed anything else fails every cookie
+already in the wild with `Cannot find password: default`, which is the outage
+rotation exists to avoid:
+
+```bash
+COOKIE_PASSWORDS='{"v2":"<32+ char new secret>","default":"<the secret you are retiring>"}'
+```
+
+Key IDs must be letters, digits or underscores and must not be all digits (an
+integer-like key is enumerated first and would silently make the retiring secret
+active). Both constraints are validated at boot. The full four-step procedure is
+in [the BFF pattern guide](../../docs/integrations/bff-pattern.md#rotating-the-cookie-password).
+
+In the shipped Compose stack these two are spelled `BFF_COOKIE_PASSWORD` and
+`BFF_COOKIE_PASSWORDS` in `.env.production`, and
+`docker/docker-compose.production.yml` maps them onto the names above.
 
 ### 2. Choose a session store
 
@@ -344,8 +374,8 @@ no resolver to register. The old request-context seam — `configureSsrClient`,
 `getSsrRequestContext`, `setSsrRequestContextResolver`,
 `wireSsrCookieInterceptor` — existed only to feed per-request values to a
 module-global client, and is deleted along with it.
-[`apps/wallow-web/src/start.ts`](../../apps/wallow-web/src/start.ts) is the
-reference host.
+[`apps/wallow-web/src/app/start.ts`](../../apps/wallow-web/src/app/start.ts) is
+the reference host.
 
 ---
 
@@ -354,7 +384,13 @@ reference host.
 `@bc-solutions-coder/sdk/query` is generated from the same OpenAPI document as
 the operations, giving every operation a `{op}Options()` for reads, a
 `{op}Mutation()` for writes, and a `{op}QueryKey()` for both. Each takes the
-request-scoped client as a call option:
+request-scoped client as a call option.
+
+The example below imports react-query directly, which is what an external
+consumer does. Apps **inside this monorepo** import the same symbols from
+`@bc-solutions-coder/query` instead — the facade owns the pinned version and one
+`QueryClientProvider` context, and a root lint rule fails a direct import. See
+`apps/minimal-app/README.md` for the in-repo form.
 
 ```tsx
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";

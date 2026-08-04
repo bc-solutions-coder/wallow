@@ -14,6 +14,13 @@ plugin-load time.
 
 ## Where this is registered
 
+**The census, canonically — this file owns it and the other docs defer here.** The repo has
+**8 `.oxlintrc.json` files: 1 root + 7 nested.** Six of the seven nested configs enable `wallow/*`
+rules — `apps/wallow-auth`, `apps/wallow-web`, `apps/minimal-app`, `packages/ui`,
+`packages/forms`, `packages/navigation`. The seventh is `scripts/fork-smoke`'s, which enables none:
+it exists to keep the fork-smoke scaffold out of the repo's own rule set, and is documented in
+`scripts/fork-smoke/README.md`. Count these before quoting a number anywhere else.
+
 The plugin is registered in **exactly one config**, the repo-root `.oxlintrc.json`:
 
 ```json
@@ -167,13 +174,20 @@ same edit.
 
 **Raw `<button>`, forbidden in wallow-auth and minimal-app, not in wallow-web.** The
 `react/forbid-elements` list is otherwise identical in all three (`p`, `span`, `legend`, `code`,
-`h1`–`h6`); wallow-web simply omits the `button` entry. Four raw `<button>`s are deliberate there
-and they are not confined to one file, so there is no scoped override to write: three in
-`src/features/bff-demo/components/bff-demo.tsx` and one in
-`src/features/bff-demo/components/SignOut.tsx`. They are the un-catalogued control of the BFF
-demo — the point of that route is to show the flow working with no design system attached. Delete
-the demo, or route those four through `Button`, and the entry should be added; until then it
-cannot be lifted to all three.
+`h1`–`h6`); wallow-web simply omits the `button` entry. Five raw `<button>`s are deliberate there,
+in two unrelated trees and for two different reasons, which is why there is no single scoped
+override to write:
+
+- Four in `src/app/routes/bff-demo.tsx` — the un-catalogued controls of the BFF demo. The point of
+  that route is to show the flow working with no design system attached.
+- One in `src/shared/components/SignOut.tsx` — the nav footer's sign-out. It is a `<button>` rather
+  than a `Link` because it POSTs the BFF logout instead of routing, and it borrows the rail's
+  geometry from `navRowClassName` rather than a catalog recipe. Its own header comment states this;
+  it is permanent, not demo scaffolding.
+
+So deleting the demo does **not** by itself let the `button` entry be added to wallow-web: the
+sign-out would still need either a catalog component that renders a real button row, or a scoped
+override naming that one file.
 
 **`text-heading-variant`, enabled in all three at different levels.** Every level still has to
 NAME a variant everywhere — what differs is which levels each app admits and at what step.
@@ -254,8 +268,9 @@ build, `pnpm check:exports`, or an `e2e/` run without their help.
 
 What genuinely stays a spec is behaviour a rule cannot see: a computed style that only exists at
 runtime, and runtime/compile-time identity. **`wallow/no-source-tests` now enforces the rest** — a
-spec cannot import `node:fs` under any of the six configured trees, so "convert it or delete it"
-is no longer advice.
+spec cannot import `node:fs` **anywhere in the repo**. The root config enables it at top level,
+outside any override, so this reaches every spec — including packages with no nested config of
+their own. "Convert it or delete it" is no longer advice.
 
 Type-awareness is not the boundary — oxlint has none, but nothing in this repo is blocked by that.
 

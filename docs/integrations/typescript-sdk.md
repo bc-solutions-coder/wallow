@@ -1,7 +1,7 @@
 # TypeScript SDK Integration Guide
 
 This guide explains how to consume Wallow from a TypeScript frontend using the
-[`@bc-solutions-coder/sdk`](../operations/versioning.md) package. The SDK ships a **browser
+`@bc-solutions-coder/sdk` package. The SDK ships a **browser
 client** for calling Wallow APIs from the page, and a **server (BFF) tunnel**
 that runs the OAuth 2.0 Authorization Code flow entirely server-side so that no
 token ever reaches the browser.
@@ -42,8 +42,8 @@ sequenceDiagram
     Browser->>BFF: GET /bff/callback?code=...
     BFF->>API: POST /connect/token (code + verifier + secret)
     API->>BFF: { access_token, refresh_token, id_token }
-    BFF->>Browser: Set-Cookie: wallow_bff=<sealed>; 302 -> /
-    Browser->>BFF: GET /api/v1/... (Cookie: wallow_bff)
+    BFF->>Browser: Set-Cookie: __Host-wallow_bff=<sealed>; 302 -> /
+    Browser->>BFF: GET /api/v1/... (Cookie: __Host-wallow_bff)
     BFF->>BFF: Silent refresh if near expiry
     BFF->>API: GET /v1/... (Authorization: Bearer <token>)
     API->>BFF: 200 OK
@@ -131,6 +131,11 @@ The SDK is versioned and released **independently of the platform**. It does not
 piggyback on the release-please `vX.Y.Z` releases (the platform version, e.g.
 `v3.2.1`) — pushing a platform tag or cutting a platform release does **not**
 publish the SDK.
+
+Independently is not manually, though. release-please owns the SDK's version number too, as its
+own manifest component: merging the SDK's Release PR is what bumps `packages/sdk/package.json` and
+creates the `sdk-vX.Y.Z` tag that then triggers the publish below. See
+[the SDK's two release stages](../operations/versioning.md#the-sdk-releases-in-two-stages).
 
 Publish a new SDK version in one of two ways:
 
@@ -285,7 +290,8 @@ any required key is missing or empty):
 | `COOKIE_PASSWORD`               | Yes\*    | Secret (32+ chars) used to seal/unseal the session and transaction cookies. Not required when `COOKIE_PASSWORDS` is set                                                                                                                                                                                                     |
 | `COOKIE_PASSWORDS`              | No       | Keyed form of `COOKIE_PASSWORD` for rotation without logging everyone out: a JSON object of key ID to secret, e.g. `{"v2":"...","default":"..."}`. The first key seals, every key unseals, and it takes precedence over `COOKIE_PASSWORD`. See [Rotating the Cookie Password](bff-pattern.md#rotating-the-cookie-password)  |
 | `OIDC_SCOPES`                   | No       | Space-separated scopes. Defaults to `openid profile email offline_access`                                                                                                                                                                                                                                                   |
-| `COOKIE_NAME`                   | No       | Session cookie name. Defaults to `wallow_bff`                                                                                                                                                                                                                                                                               |
+| `COOKIE_NAME`                   | No       | Session cookie name. Defaults to **`__Host-wallow_bff`** — the `__Host-` prefix is applied whenever the cookie is `Secure` and `COOKIE_HOST_PREFIX` is not `false`, which is the default on both counts. Plain `wallow_bff` only when one of those is off                                                                    |
+| `COOKIE_HOST_PREFIX`            | No       | Whether the default session-cookie name carries the `__Host-` prefix, which binds the cookie to the exact host that set it. Fails secure: only the literal `false` opts out, and it relaxes the **name** only, never the `Secure` flag. Defaults to `true`                                                                    |
 | `OIDC_METADATA_URL`             | No       | Server-side discovery URL, for split-horizon DNS where the issuer is reachable under different hostnames from the browser and the server. The backchannel uses its `token_endpoint`; browser-facing redirects stay pinned to the public `OIDC_ISSUER` origin. Defaults to `${OIDC_ISSUER}/.well-known/openid-configuration` |
 | `SESSION_TTL_SECONDS`           | No       | Lifetime of the session cookie, written as its `Max-Age`, so a stale browser cookie cannot outlive the session it references. Must be a positive whole number — a malformed value throws at startup rather than silently falling back. Defaults to `86400` (24 hours)                                                       |
 | `COOKIE_SECURE`                 | No       | Whether the session, transaction, and CSRF cookies carry the `Secure` flag. Fails secure: only the literal `false` clears it. Set `COOKIE_SECURE=false` for plain-HTTP local development. Defaults to `true`                                                                                                                |
@@ -306,8 +312,13 @@ working.
 
 | Store                | Where the session lives                                                         | Use it when                                                                                                                       |
 | -------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `CookieSessionStore` | Sealed into the session cookie itself                                           | Simple apps and local development — nothing extra to run                                                                          |
+| `CookieSessionStore` | Sealed into the session cookie itself                                           | **Development only** — nothing extra to run                                                                                       |
 | `ValkeySessionStore` | In a Redis-compatible server; the cookie holds only an opaque sealed session id | Production — small cookies, server-side revocation, and a refresh lock that serializes concurrent token refreshes for one session |
+
+The single-argument default is `CookieSessionStore`, and that default exists so a fork runs with
+zero infrastructure. It is a **development default only**: production deployments must construct a
+`ValkeySessionStore` explicitly and pass it as the second argument. See
+[Choosing a Session Store](bff-pattern.md#choosing-a-session-store) for the full reasoning.
 
 ```ts
 import {
@@ -337,14 +348,19 @@ lock a lock. The package README shows a complete `ioredis` adapter:
 The `/api` proxy **rejects every state-changing request that does not present a
 valid CSRF token**, answering `403` with the code `CSRF_INVALID`. This is the
 first thing to reach for when a `POST`, `PUT`, `PATCH`, or `DELETE` through the
-tunnel comes back as `403`. Safe methods (`GET`, `HEAD`, `OPTIONS`, `TRACE`) are
-not gated.
+tunnel comes back as `403`. The gate names those four methods explicitly, so
+everything else — `GET`, `HEAD`, `OPTIONS`, and `TRACE` — passes ungated. The
+client-side `isSafeMethod` helper is narrower, covering only the three RFC 9110
+safe methods; `TRACE` is ungated by the server without being "safe" by that
+definition.
 
 The SDK uses a synchronizer token with a double-submit companion cookie:
 
 1. On successful login, `/bff/callback` mints a token, stores it inside the
    sealed session, and writes it to a cookie named `<COOKIE_NAME>-csrf`
-   (default `wallow_bff-csrf`). That cookie is deliberately **not** `HttpOnly`,
+   (default `__Host-wallow_bff-csrf`, since the companion inherits whatever the
+   session cookie's name resolved to, `__Host-` prefix included). That cookie is
+   deliberately **not** `HttpOnly`,
    because browser JavaScript must read it. It carries no credential of its own
    — the session cookie stays `HttpOnly`, and the token is worthless without it.
 2. `GET /bff/user` returns the same token as `csrfToken` in its JSON body.
@@ -427,9 +443,9 @@ if (user === null) {
   console.log(user.sub, user.email);
 }
 
-// Sign out — navigates to /bff/logout, clears the session, returns to the
-// post-logout redirect URI.
-logout();
+// Sign out. This is an async POST, not a navigation: await it (or catch the
+// rejection) so a refused logout is not swallowed.
+await logout();
 ```
 
 - `createWallowSdk({ baseUrl })` — builds a request-scoped instance owning its
@@ -441,7 +457,16 @@ logout();
   standard `{ client }` call option.
 - `login(returnTo = "/")` — navigates the browser to `/bff/login`, preserving
   where to land after a successful sign-in.
-- `logout()` — navigates the browser to `/bff/logout`.
+- `logout(options?)` — returns `Promise<void>`. `/bff/logout` is state-changing
+  and answers `405 + Allow: POST` to a bare `GET`, so this cannot be a plain
+  navigation: it issues `POST /bff/logout` with `credentials: "include"`,
+  `redirect: "manual"` and an `x-csrf-token` header, then navigates the browser
+  to whatever the handler answers with. The token is resolved most-specific
+  first — an explicit `options.csrfToken`, then the token learned from
+  `/bff/user`, then the readable double-submit cookie. The promise **rejects**
+  when the BFF refuses (`Logout failed: the BFF answered <status>`), leaving the
+  browser where it is, so handle it rather than firing and forgetting. The
+  browser-context guard throws synchronously.
 - `getUser()` — `GET /bff/user`; resolves to a `WallowUser` on `200`, `null` on
   `401` (unauthenticated), and throws on any other error. `WallowUser` always
   carries `sub` and optionally `email`/`name` plus any additional claims. It

@@ -330,7 +330,8 @@ package's scripts.
 
 `pnpm --filter @bc-solutions-coder/forms test` runs the shared two-project Vitest split from
 `@bc-solutions-coder/testing`: a `node` project for the pure-logic specs (the barrel pin, the testid
-and error-split helpers, the on-disk scaffold guard) and a `browser` project running every field and
+derivation, the error-normalization and failure-splitting helpers, the shared form contexts, and the
+browser pre-bundle guard) and a `browser` project running every field and
 shell spec in real headless Chromium — with the Tailwind pipeline and the fork theme attached, since
 a ui control gets its box from a recipe utility and would otherwise measure 0×0. Nothing is mocked;
 `@bc-solutions-coder/ui` in particular must never be (`.claude/rules/TESTING.md`).

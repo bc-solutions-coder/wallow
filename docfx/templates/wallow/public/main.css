@@ -6,64 +6,64 @@
 :root {
 
   /* light mode — generated from branding.json */
-  --bs-primary: oklch(0.52 0.12 45);
-  --bs-primary-rgb: 89, 20, 5;
-  --bs-link-color: oklch(0.52 0.12 45);
-  --bs-link-color-rgb: 89, 20, 5;
-  --bs-link-hover-color: oklch(0.52 0.12 45);
-  --bs-body-bg: oklch(0.96 0.01 60);
-  --bs-body-bg-rgb: 237, 223, 212;
-  --bs-body-color: oklch(0.20 0.03 55);
-  --bs-body-color-rgb: 4, 2, 1;
-  --bs-heading-color: oklch(0.20 0.03 55);
-  --bs-emphasis-color: oklch(0.20 0.03 55);
-  --bs-emphasis-color-rgb: 4, 2, 1;
-  --bs-border-color: oklch(0.84 0.015 55);
-  --bs-secondary-bg: oklch(0.88 0.015 55);
-  --bs-secondary-bg-rgb: 190, 170, 158;
-  --bs-secondary-color: oklch(0.25 0.03 55);
-  --bs-tertiary-bg: oklch(0.90 0.01 55);
+  --bs-primary: oklch(0.72 0.15 85);
+  --bs-primary-rgb: 160, 84, 0;
+  --bs-link-color: oklch(0.72 0.15 85);
+  --bs-link-color-rgb: 160, 84, 0;
+  --bs-link-hover-color: oklch(0.72 0.15 85);
+  --bs-body-bg: oklch(0.97 0.008 70);
+  --bs-body-bg-rgb: 241, 231, 221;
+  --bs-body-color: oklch(0.22 0.035 45);
+  --bs-body-color-rgb: 5, 2, 1;
+  --bs-heading-color: oklch(0.22 0.035 45);
+  --bs-emphasis-color: oklch(0.22 0.035 45);
+  --bs-emphasis-color-rgb: 5, 2, 1;
+  --bs-border-color: oklch(0.86 0.02 70);
+  --bs-secondary-bg: oklch(0.92 0.012 70);
+  --bs-secondary-bg-rgb: 210, 197, 183;
+  --bs-secondary-color: oklch(0.25 0.03 45);
+  --bs-tertiary-bg: oklch(0.93 0.008 70);
   --bs-tertiary-color: oklch(0.50 0.02 55);
-  --bs-code-color: oklch(0.86 0.02 50);
-  --bs-navbar-brand-color: oklch(0.96 0.01 60);
-  --bs-navbar-brand-hover-color: oklch(0.96 0.01 60);
-  --bs-navbar-color: oklch(0.96 0.01 60);
-  --bs-navbar-hover-color: oklch(0.96 0.01 60);
-  --bs-navbar-active-color: oklch(0.96 0.01 60);
+  --bs-code-color: oklch(0.88 0.035 75);
+  --bs-navbar-brand-color: oklch(0.22 0.035 45);
+  --bs-navbar-brand-hover-color: oklch(0.22 0.035 45);
+  --bs-navbar-color: oklch(0.22 0.035 45);
+  --bs-navbar-hover-color: oklch(0.22 0.035 45);
+  --bs-navbar-active-color: oklch(0.22 0.035 45);
 }
 
 [data-bs-theme="dark"] {
 
   /* dark mode — generated from branding.json */
-  --bs-primary: oklch(0.62 0.13 45);
-  --bs-primary-rgb: 142, 36, 12;
-  --bs-link-color: oklch(0.62 0.13 45);
-  --bs-link-color-rgb: 142, 36, 12;
-  --bs-link-hover-color: oklch(0.62 0.13 45);
-  --bs-body-bg: oklch(0.16 0.02 50);
-  --bs-body-bg-rgb: 2, 1, 0;
-  --bs-body-color: oklch(0.88 0.02 55);
-  --bs-body-color-rgb: 195, 169, 153;
-  --bs-heading-color: oklch(0.88 0.02 55);
-  --bs-emphasis-color: oklch(0.88 0.02 55);
-  --bs-emphasis-color-rgb: 195, 169, 153;
-  --bs-border-color: oklch(0.30 0.02 50);
-  --bs-secondary-bg: oklch(0.26 0.02 50);
-  --bs-secondary-bg-rgb: 6, 4, 3;
-  --bs-secondary-color: oklch(0.85 0.02 55);
-  --bs-tertiary-bg: oklch(0.24 0.015 50);
-  --bs-tertiary-color: oklch(0.58 0.02 55);
-  --bs-code-color: oklch(0.28 0.025 50);
-  --bs-navbar-brand-color: oklch(0.14 0.015 50);
-  --bs-navbar-brand-hover-color: oklch(0.14 0.015 50);
-  --bs-navbar-color: oklch(0.14 0.015 50);
-  --bs-navbar-hover-color: oklch(0.14 0.015 50);
-  --bs-navbar-active-color: oklch(0.14 0.015 50);
+  --bs-primary: oklch(0.72 0.15 85);
+  --bs-primary-rgb: 160, 84, 0;
+  --bs-link-color: oklch(0.72 0.15 85);
+  --bs-link-color-rgb: 160, 84, 0;
+  --bs-link-hover-color: oklch(0.72 0.15 85);
+  --bs-body-bg: oklch(0.24 0.04 45);
+  --bs-body-bg-rgb: 7, 2, 1;
+  --bs-body-color: oklch(0.92 0.012 70);
+  --bs-body-color-rgb: 210, 197, 183;
+  --bs-heading-color: oklch(0.92 0.012 70);
+  --bs-emphasis-color: oklch(0.92 0.012 70);
+  --bs-emphasis-color-rgb: 210, 197, 183;
+  --bs-border-color: oklch(0.34 0.03 45);
+  --bs-secondary-bg: oklch(0.30 0.03 45);
+  --bs-secondary-bg-rgb: 11, 6, 4;
+  --bs-secondary-color: oklch(0.88 0.015 70);
+  --bs-tertiary-bg: oklch(0.28 0.025 45);
+  --bs-tertiary-color: oklch(0.60 0.02 55);
+  --bs-code-color: oklch(0.32 0.035 50);
+  --bs-navbar-brand-color: oklch(0.18 0.03 45);
+  --bs-navbar-brand-hover-color: oklch(0.18 0.03 45);
+  --bs-navbar-color: oklch(0.18 0.03 45);
+  --bs-navbar-hover-color: oklch(0.18 0.03 45);
+  --bs-navbar-active-color: oklch(0.18 0.03 45);
 }
 
 /* Navbar */
 .navbar {
-  background-color: oklch(0.16 0.02 50) !important;
+  background-color: oklch(0.24 0.04 45) !important;
 }
 
 .navbar-brand {
@@ -74,35 +74,35 @@
 /* Sidebar active link */
 .nav-link.active,
 .nav-link:hover {
-  color: oklch(0.52 0.12 45) !important;
+  color: oklch(0.72 0.15 85) !important;
 }
 
 [data-bs-theme="dark"] .nav-link.active,
 [data-bs-theme="dark"] .nav-link:hover {
-  color: oklch(0.62 0.13 45) !important;
+  color: oklch(0.72 0.15 85) !important;
 }
 
 /* Code blocks */
 pre {
-  background-color: oklch(0.93 0.012 55);
-  border: 1px solid oklch(0.84 0.015 55);
+  background-color: oklch(1 0 0);
+  border: 1px solid oklch(0.86 0.02 70);
   border-radius: 0.5rem;
 }
 
 [data-bs-theme="dark"] pre {
-  background-color: oklch(0.20 0.02 50);
-  border-color: oklch(0.30 0.02 50);
+  background-color: oklch(0.28 0.035 45);
+  border-color: oklch(0.34 0.03 45);
 }
 
 /* Alert/callout accent */
 .alert-primary {
-  --bs-alert-bg: oklch(0.86 0.02 50);
-  --bs-alert-color: oklch(0.25 0.03 55);
-  --bs-alert-border-color: oklch(0.84 0.015 55);
+  --bs-alert-bg: oklch(0.88 0.035 75);
+  --bs-alert-color: oklch(0.22 0.035 45);
+  --bs-alert-border-color: oklch(0.86 0.02 70);
 }
 
 [data-bs-theme="dark"] .alert-primary {
-  --bs-alert-bg: oklch(0.28 0.025 50);
-  --bs-alert-color: oklch(0.85 0.02 55);
-  --bs-alert-border-color: oklch(0.30 0.02 50);
+  --bs-alert-bg: oklch(0.32 0.035 50);
+  --bs-alert-color: oklch(0.88 0.015 70);
+  --bs-alert-border-color: oklch(0.34 0.03 45);
 }

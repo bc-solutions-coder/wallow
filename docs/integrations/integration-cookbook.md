@@ -20,13 +20,12 @@ you can read a working version rather than trusting a snippet.
 
 ## 1. Install
 
-**Inside a fork of this repository**, a new app under `apps/` depends on the five workspace
+**Inside a fork of this repository**, a new app under `apps/` depends on the core workspace
 packages as `workspace:*` runtime dependencies — see
-[Frontend Setup → Depend on the five core packages](../development/frontend-setup.md#1-depend-on-the-five-core-packages).
+[Frontend Setup → Depend on the core packages](../development/frontend-setup.md#1-depend-on-the-core-packages).
 
-**Outside the workspace**, `@bc-solutions-coder/sdk` and `@bc-solutions-coder/styles` are
-published to GitHub Packages under the repository owner's scope, so point the scope at that
-registry in a project `.npmrc`:
+**Outside the workspace**, packages come from GitHub Packages under the repository owner's scope,
+so point the scope at that registry in a project `.npmrc`:
 
 ```ini
 @bc-solutions-coder:registry=https://npm.pkg.github.com
@@ -38,8 +37,17 @@ redirect the registry:
 
 ```bash
 npm config set "//npm.pkg.github.com/:_authToken" "$GITHUB_TOKEN"   # or: pnpm config set …
-npm install @bc-solutions-coder/sdk @bc-solutions-coder/styles
+npm install @bc-solutions-coder/sdk
 ```
+
+> [!IMPORTANT]
+> **Only `@bc-solutions-coder/sdk` is published today.** `sdk-publish.yml` is scoped to
+> `packages/sdk` and fires on an `sdk-v*` tag; no workflow publishes
+> `@bc-solutions-coder/styles`, and its `package.json` still reads `"version": "0.0.0"`, so
+> `npm install @bc-solutions-coder/styles` returns a 404. Nothing about the package prevents
+> publication — unlike the other workspace packages it is not marked `"private": true` — it simply
+> has no release pipeline yet. Until it gets one, an out-of-workspace app supplies its own Tailwind
+> setup and copies the theme tokens it needs from `packages/styles/branding.json`.
 
 The token needs only `read:packages`. The SDK carries no host-framework dependency: its server handlers are
 web-standard `(Request) => Promise<Response>` functions, so they mount on TanStack Start,
@@ -60,14 +68,36 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   server: { port: Number(process.env.PORT ?? 3010) },
-  plugins: [tanstackStart({ customViteReactPlugin: true }), react(), nitro(), wallowStyles()],
+  plugins: [
+    tanstackStart({
+      // Specs are co-located, so a *.test.tsx under src/routes/ would otherwise
+      // be codegen'd in as a route.
+      router: { routeFileIgnorePattern: String.raw`\.(test|spec)\.(ts|tsx)$` },
+    }),
+    react(),
+    nitro(),
+    ...wallowStyles(),
+  ],
 });
 ```
+
+The `routeFileIgnorePattern` is the part not to drop: without it, every co-located spec file
+under `src/routes/` is compiled in as a route. `wallowStyles()` returns an array of plugins and
+is **spread**, not nested — Vite flattens either form, but every app in this repository spreads it.
 
 `src/routeTree.gen.ts` regenerates as a side effect of `vite dev` and `vite build` — never
 hand-edit it, and do not add a `routes:generate` script. The complete config, including the
 `copyPublicDir` workaround Nitro needs, is in
 [Frontend Setup → Vite config](../development/frontend-setup.md#3-vite-config-viteconfigts).
+
+This config is hand-rolled on purpose. Apps *inside* the workspace spread
+`wallowAppConfig({ defaultPort })` from `@bc-solutions-coder/config/vite/app` instead and get all
+of this for free — but that package is `"private": true` and is never published, so it cannot
+reach the out-of-workspace audience this page is written for. The same applies to the
+`wallowStyles()` plugin above: it is available in a fork of this repository and, per the note in
+step 1, not yet installable outside one. **Working inside a fork? Use the preset** and read
+[Frontend Setup](../development/frontend-setup.md#3-vite-config-viteconfigts) rather than this
+block.
 
 ## 3. Mount the splat server routes
 

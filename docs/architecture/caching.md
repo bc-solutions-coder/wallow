@@ -64,8 +64,10 @@ valkey:
 Start the infrastructure:
 
 ```bash
-cd docker && docker compose up -d
+pnpm backend:infra
 ```
+
+That wraps the Compose invocation from the repository root; `pnpm backend:infra:down` stops it again.
 
 ### Registration
 
@@ -126,7 +128,7 @@ Always include tenant ID in cache keys for multi-tenant data to prevent cross-te
 
 Valkey serves as the SignalR backplane for horizontal scaling. The channel prefix is configurable via `SignalR:RedisPrefix` (defaults to `Wallow`). The backplane reuses the singleton `IConnectionMultiplexer`.
 
-When multiple API instances run behind a load balancer, the backplane ensures WebSocket messages reach all connected clients regardless of which instance they are connected to, using Redis pub/sub channels.
+When multiple API instances run behind a load balancer, the backplane ensures WebSocket messages reach all connected clients regardless of which instance they are connected to, using Valkey pub/sub channels.
 
 ## Presence Tracking
 
@@ -182,3 +184,5 @@ Use Testcontainers with the `valkey/valkey:8-alpine` image for integration tests
 
 - [Testing Guide](../development/testing.md)
 - [Configuration Guide](../getting-started/configuration.md)
+- [Realtime](realtime.md) — the SignalR side of the backplane described above
+- [Authentication](authentication.md) — the sign-in ticket replay guard that writes to Valkey

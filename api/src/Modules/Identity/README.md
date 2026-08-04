@@ -72,6 +72,12 @@ The following middleware executes in strict order:
 - **WallowUser** - ASP.NET Core Identity user entity
 - **WallowRole** - ASP.NET Core Identity role entity
 - **Organization** - Represents a tenant organization
+- **OrganizationBranding** - Per-organization branding overrides
+- **OrganizationSettings** - Per-organization policy and enrollment settings
+- **Membership** - A user's membership in an organization, with lifecycle state
+- **MembershipRole** - A role assigned within a membership
+- **Invitation** - A pending invitation to join an organization
+- **ActiveSession** - A tracked sign-in session
 - **ApiScope** - System-defined OAuth2 scopes assignable to service accounts
 - **ServiceAccountMetadata** - Local reference to an OpenIddict service account application with usage tracking
 
@@ -96,21 +102,24 @@ The following middleware executes in strict order:
 
 ## Integration Events Published
 
-Events published via Wolverine for cross-module communication:
-
-| Event | Trigger |
-|-------|---------|
-| `UserRegisteredEvent` | User created |
-| `UserRoleChangedEvent` | Role assigned/removed |
-| `OrganizationCreatedEvent` | Organization created |
-| `OrganizationMemberAddedEvent` | Member added to organization |
-| `PasswordResetRequestedEvent` | Password reset initiated |
+Identity publishes roughly thirty integration events via Wolverine, covering user lifecycle,
+passwordless, MFA, organization lifecycle, membership transitions, and invitations. The
+**canonical catalogue is [`Wallow.Shared.Contracts/README.md`](../../Shared/Wallow.Shared.Contracts/README.md)**;
+the records themselves live in `src/Shared/Wallow.Shared.Contracts/Identity/Events/`. This README
+deliberately does not restate the list, because a partial copy here has drifted before.
 
 ## Integration Events Consumed
 
 None. Identity is a source module, not a consumer.
 
 ## API Endpoints
+
+> [!NOTE]
+> Routes are served at `/v1/...`. The `/api` prefix only exists when a reverse proxy adds
+> it via the opt-in PathBase (`api/src/Wallow.Api/Program.cs`).
+
+The tables below are a guide, not a contract. `packages/sdk/openapi/v1.json` is generated from the
+controllers and is the authoritative endpoint list.
 
 ### Auth (`/connect`)
 
@@ -121,7 +130,7 @@ None. Identity is a source module, not a consumer.
 | GET/POST | `/logout` | End-session endpoint |
 | GET/POST | `/userinfo` | OpenID Connect userinfo |
 
-### Users (`/api/users`)
+### Users (`/v1/identity/users`)
 
 | Method | Endpoint | Description | Permission |
 |--------|----------|-------------|------------|
@@ -134,59 +143,87 @@ None. Identity is a source module, not a consumer.
 | POST | `/{userId}/roles` | Assign role to user | RolesUpdate |
 | DELETE | `/{userId}/roles/{roleName}` | Remove role from user | RolesUpdate |
 
-### Organizations (`/api/organizations`)
+### Organizations (`/v1/identity/organizations`)
 
 | Method | Endpoint | Description | Permission |
 |--------|----------|-------------|------------|
 | POST | `/` | Create organization | OrganizationsCreate |
 | GET | `/` | List organizations | OrganizationsRead |
 | GET | `/{id}` | Get organization by ID | OrganizationsRead |
+| DELETE | `/{id}` | Delete organization | OrganizationsUpdate |
+| POST | `/{id}/archive` | Archive organization | OrganizationsUpdate |
+| POST | `/{id}/reactivate` | Reactivate organization | OrganizationsUpdate |
+| POST | `/{id}/leave` | Leave the organization | Authenticated |
 | GET | `/{id}/members` | List organization members | OrganizationsRead |
 | POST | `/{id}/members` | Add member | OrganizationsManageMembers |
 | DELETE | `/{id}/members/{userId}` | Remove member | OrganizationsManageMembers |
-| GET | `/mine` | Get current user's organizations | Authenticated |
+| GET | `/{id}/members/pending` | List pending memberships | OrganizationsManageMembers |
+| GET | `/{id}/members/suspended` | List suspended memberships | OrganizationsManageMembers |
+| GET | `/{id}/members/denied` | List denied memberships | OrganizationsManageMembers |
+| POST | `/{id}/members/{userId}/approve` | Approve a pending member | OrganizationsManageMembers |
+| POST | `/{id}/members/{userId}/deny` | Deny a pending member | OrganizationsManageMembers |
+| DELETE | `/{id}/members/{userId}/denial` | Clear a denial | OrganizationsManageMembers |
+| POST | `/{id}/members/{userId}/suspend` | Suspend a member | OrganizationsManageMembers |
+| POST | `/{id}/members/{userId}/reinstate` | Reinstate a member | OrganizationsManageMembers |
+| PUT | `/{id}/enrollment` | Update enrollment policy | OrganizationsManageMembers |
+| GET | `/{id}/branding` | Get organization branding | OrganizationsRead |
+| PUT | `/{id}/branding` | Update organization branding | OrganizationsUpdate |
+| POST | `/{id}/branding/logo` | Upload branding logo | OrganizationsUpdate |
+| GET | `/{id}/settings` | Get organization settings | OrganizationsRead |
+| PUT | `/{id}/settings` | Update organization settings | OrganizationsUpdate |
 
-### Roles (`/api/roles`)
+### Me (`/v1/identity/me`)
+
+| Method | Endpoint | Description | Permission |
+|--------|----------|-------------|------------|
+| GET | `/organizations` | Get current user's organizations | Authenticated |
+
+### Roles (`/v1/identity/roles`)
 
 | Method | Endpoint | Description | Permission |
 |--------|----------|-------------|------------|
 | GET | `/` | List all roles | RolesRead |
 | GET | `/{roleName}/permissions` | Get permissions for role | RolesRead |
 
-### Clients (`/api/v1/identity/clients`)
+### Clients (`/v1/identity/clients`)
+
+`ClientsController` carries a class-level `[HasPermission(PermissionType.AdminAccess)]`, so every
+row below — including the service-account actions — requires `AdminAccess`.
 
 | Method | Endpoint | Description | Permission |
 |--------|----------|-------------|------------|
 | GET | `/` | List OpenIddict applications | AdminAccess |
+| GET | `/{id}` | Get application by client ID | AdminAccess |
+| GET | `/by-tenant/{tenantId}` | List applications for a tenant | AdminAccess |
 | POST | `/` | Create application | AdminAccess |
 | PUT | `/{id}` | Update application | AdminAccess |
 | DELETE | `/{id}` | Delete application | AdminAccess |
 | POST | `/{id}/rotate-secret` | Rotate client secret | AdminAccess |
 
-### Service Accounts (`/api/service-accounts`)
+### Service Accounts (`/v1/identity/clients/service-accounts`)
+
+Served by `ClientsController`, not a separate controller. `PermissionType` does declare
+`ServiceAccountsRead/Write/Manage`, but those are **not** what guards these routes.
 
 | Method | Endpoint | Description | Permission |
 |--------|----------|-------------|------------|
-| GET | `/` | List service accounts | ApiKeysRead |
-| POST | `/` | Create service account (returns secret once) | ApiKeysCreate |
-| GET | `/{id}` | Get service account by ID | ApiKeysRead |
-| PUT | `/{id}/scopes` | Update scopes | ApiKeysUpdate |
-| POST | `/{id}/rotate-secret` | Rotate client secret | ApiKeysUpdate |
-| DELETE | `/{id}` | Revoke service account | ApiKeysDelete |
+| GET | `/` | List service accounts | AdminAccess |
+| POST | `/` | Create service account (returns secret once) | AdminAccess |
+| GET | `/{id}` | Get service account by ID | AdminAccess |
+| PUT | `/{id}/scopes` | Update scopes | AdminAccess |
+| POST | `/{id}/rotate-secret` | Rotate client secret | AdminAccess |
+| DELETE | `/{id}` | Revoke service account | AdminAccess |
 
-### API Keys (`/api/auth/keys`)
+### API Keys (`/v1/identity/auth/keys`)
 
-| Method | Endpoint | Description | Permission |
-|--------|----------|-------------|------------|
-| POST | `/` | Create API key | Authenticated |
-| GET | `/` | List user's API keys | Authenticated |
-| DELETE | `/{keyId}` | Revoke API key | Authenticated |
+Owned by the ApiKeys module — see [`../ApiKeys/README.md`](../ApiKeys/README.md). Every action
+requires `ApiKeyManage`.
 
-### API Scopes (`/api/scopes`)
+### API Scopes (`/v1/identity/scopes`)
 
 | Method | Endpoint | Description | Permission |
 |--------|----------|-------------|------------|
-| GET | `/` | List available scopes | Authenticated |
+| GET | `/` | List available scopes | ScopeRead |
 
 ## Configuration
 
@@ -201,22 +238,35 @@ OpenIddict configuration (encryption/signing certificates, client registrations)
 
 ## Adding a New Permission
 
-1. Add to `PermissionType` enum in Domain layer
-2. Update `RolePermissionLookup` in Infrastructure layer
-3. If scope-based, add to `PermissionExpansionMiddleware.MapScopeToPermission()`
+`PermissionType` is a `public static class` of `public const string` members in
+`Wallow.Shared.Kernel/Identity/Authorization/PermissionType.cs` — not an enum, and not in this
+module's Domain layer.
+
+1. Add a `public const string` to `PermissionType` (Kernel)
+2. Map it to the roles that should carry it in `RolePermissionMapping` (Kernel).
+   `RolePermissionLookup` in Identity Infrastructure is a passthrough to that mapping
+3. If scope-based, add the mapping to `ScopePermissionMapper` (Kernel).
+   `PermissionExpansionMiddleware` only calls it
 4. Apply `[HasPermission(PermissionType.NewPermission)]` to controller actions
 
 ## Testing
 
 ```bash
-./scripts/run-tests.sh identity
+./scripts/run-tests.sh identity      # Wallow.Identity.Tests (unit + Testcontainers)
+./scripts/run-tests.sh integration   # Wallow.Identity.IntegrationTests
 ```
 
 ## EF Core Migrations
 
 ```bash
 dotnet ef migrations add MigrationName \
-    --project src/Modules/Identity/Wallow.Identity.Infrastructure \
-    --startup-project src/Wallow.Api \
+    --project api/src/Modules/Identity/Wallow.Identity.Infrastructure \
+    --startup-project api/src/Wallow.Api \
     --context IdentityDbContext
 ```
+
+## Related Documentation
+
+- Agent guide for this module: [`CLAUDE.md`](CLAUDE.md)
+- Backend conventions and commands: [`api/CLAUDE.md`](../../../CLAUDE.md)
+- Integration event catalogue: [`Wallow.Shared.Contracts/README.md`](../../Shared/Wallow.Shared.Contracts/README.md)

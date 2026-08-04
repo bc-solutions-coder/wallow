@@ -1,6 +1,6 @@
 # Wallow Troubleshooting Guide
 
-This guide helps you diagnose and resolve common issues when developing with Wallow. It covers infrastructure, authentication, database, messaging, testing, and build problems.
+This guide helps you diagnose and resolve common issues when developing with Wallow. It covers infrastructure, authentication, database, messaging, testing, build and frontend problems.
 
 ---
 
@@ -12,7 +12,8 @@ This guide helps you diagnose and resolve common issues when developing with Wal
 4. [Messaging Issues](#4-messaging-issues)
 5. [Test Failures](#5-test-failures)
 6. [Build Issues](#6-build-issues)
-7. [Debugging Tips](#7-debugging-tips)
+7. [Frontend Issues](#7-frontend-issues)
+8. [Debugging Tips](#8-debugging-tips)
 
 ---
 
@@ -122,7 +123,11 @@ docker compose up -d postgres
 ```
 FATAL: no pg_hba.conf entry for host
 ```
-Check that the database user has proper permissions. Module schemas are created automatically by EF Core migrations on startup.
+Check that the database user has proper permissions. Module schemas are **not** created by the API
+on startup — `Wallow.MigrationService` applies them, and the API only migrates inline in the
+`Testing` environment, where Testcontainers hands it an empty database. Under Aspire
+(`pnpm backend`), in the e2e stack and in production, the migration service runs to completion
+first and everything else waits on it.
 
 ### Valkey/Redis Connection Problems
 
@@ -151,11 +156,13 @@ docker compose logs valkey
 cd docker && docker compose up -d valkey
 ```
 
-**Wrong connection string:**
+**Wrong connection string:** the dev stack's Valkey requires a password, so a bare `localhost:6379`
+authenticates as nobody and the connection is refused. `appsettings.Development.json` ships the
+working value:
 ```json
 {
   "ConnectionStrings": {
-    "Redis": "localhost:6379"
+    "Redis": "localhost:6379,password=WallowValkey123!,abortConnect=false"
   }
 }
 ```
@@ -278,12 +285,13 @@ Ensure user belongs to an organization via the Identity module's organization ma
 ### Tenant Resolution Failures
 
 #### Symptom
-```
-Wallow.Shared.Kernel.MultiTenancy.TenantNotResolvedException: Could not resolve tenant from request
-```
+
+There is no dedicated exception type for this — the observable is `ITenantContext.IsResolved`
+returning `false` in a handler, and whatever the handler does next when it has no tenant (usually a
+null-reference or an empty result set where rows were expected).
 
 #### Diagnosis
-Check if `ITenantContext.IsResolved` is `false` in your handler.
+Check `ITenantContext.IsResolved` in your handler before reading `TenantId`.
 
 #### Solutions
 
@@ -346,7 +354,10 @@ dotnet ef database update \
 # Reset database (WARNING: deletes all data)
 cd docker && docker compose down -v
 docker compose up -d postgres
-dotnet run --project api/src/Wallow.Api
+
+# Reapply every module's migrations. The API does NOT do this on startup —
+# starting it against the empty database just fails differently.
+dotnet run --project api/src/Wallow.MigrationService
 ```
 
 **Conflicting migration:**
@@ -797,7 +808,71 @@ dotnet build
 
 ---
 
-## 7. Debugging Tips
+## 7. Frontend Issues
+
+Wallow is a polyglot monorepo: the sections above cover the .NET half, this one covers the pnpm
+workspace under `apps/` and `packages/`.
+
+### `pnpm lint` passes but CI fails on a test file
+
+`pnpm lint` lints **source only** — it excludes `**/*.test.*` and `**/*.stories.tsx`. The excluded
+files are linted by the second pass, `pnpm lint:tests`, which additionally enables oxlint's vitest
+plugin. Together the two cover every file exactly once, and `pnpm check` runs both. Running only
+the first one and concluding you are clean is the usual cause.
+
+```bash
+pnpm lint          # source
+pnpm lint:tests    # test + story files, with the vitest plugin
+```
+
+`scripts/lint-tests.sh` fails loudly if it enumerates zero files, because oxlint does not expand
+globs in path arguments and a silent zero-file pass looks exactly like success.
+
+### A change to package source does not take effect
+
+`build`, `typecheck` and `test` run through turbo with content-addressed caching in `.turbo/`. If
+a task replays a stale result, the input you changed is not in that task's hash. Force a run to
+confirm:
+
+```bash
+pnpm build --force            # bypass the cache for one run
+rm -rf .turbo                 # or drop the local cache entirely
+```
+
+Caching is local only — there is no remote cache — so a colleague's cache can never be the cause.
+Note that lint, format, manifest, dependency and export checks are **not** turbo tasks; they are
+root scripts and always run.
+
+### Vitest fails to launch a browser
+
+DOM specs run in **real headless Chromium** through Vitest browser mode with the Playwright
+provider, never jsdom or happy-dom. A missing browser binary shows up as a launch failure before
+any test runs:
+
+```bash
+pnpm exec playwright install chromium
+```
+
+If a spec that touches the DOM instead runs in Node — `document is not defined`, or
+`assertBrowserModeSmoke` failing — the file is in the wrong vitest project. Check the consumer's
+`vite.config.ts` project inventory; see `packages/testing/CLAUDE.md` for the split.
+
+### E2E suites fail against a backend that is not there
+
+The Playwright suites in `apps/wallow-auth/e2e/`, `apps/wallow-web/e2e/` and
+`apps/wallow-web/e2e-cross-app/` are backend-dependent. Run them through the one-command runner,
+which brings the containerised stack up and tears it down again:
+
+```bash
+./scripts/e2e.sh
+```
+
+Running `pnpm exec playwright test` directly against a stack you have not started fails at the
+first navigation.
+
+---
+
+## 8. Debugging Tips
 
 ### Enabling Detailed Logging
 

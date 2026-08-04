@@ -33,7 +33,7 @@ the `integration` shorthand, because those tiers need live infrastructure.
 ### Module shorthands
 
 `identity`, `storage`, `notifications`, `announcements`, `inquiries`, `branding`, `apikeys`,
-`api`, `arch` (or `architecture`), `shared`, `kernel`, `integration`.
+`api`, `arch` (or `architecture`), `seeder`, `migrations`, `shared`, `kernel`, `integration`.
 
 Anything the script does not recognise as a shorthand is passed through as a project path, so
 `./scripts/run-tests.sh api/tests/Wallow.Api.Tests` works too.
@@ -50,7 +50,8 @@ Anything the script does not recognise as a shorthand is passed through as a pro
 
 The E2E tier is Playwright (`@playwright/test`) and lives in the React apps, not in the .NET
 solution. Additional .NET test projects: `Wallow.Shared.Kernel.Tests`,
-`Wallow.Shared.Infrastructure.Tests`.
+`Wallow.Shared.Infrastructure.Tests`, `Wallow.AppHost.Tests`, `Wallow.MigrationService.Tests`,
+`Wallow.SeederService.Tests`, and the `Benchmarks/` projects.
 
 ## Test Frameworks
 
@@ -68,9 +69,14 @@ solution. Additional .NET test projects: `Wallow.Shared.Kernel.Tests`,
 ```
 api/tests/
 ├── coverage.runsettings           # Coverage config — the single source of exclusions
+├── Directory.Build.props
+├── Benchmarks/                    # BenchmarkDotNet projects
 ├── Wallow.Tests.Common/           # Shared test infrastructure
 ├── Wallow.Api.Tests/              # API integration tests
+├── Wallow.AppHost.Tests/          # Aspire host wiring
 ├── Wallow.Architecture.Tests/     # Architecture enforcement
+├── Wallow.MigrationService.Tests/
+├── Wallow.SeederService.Tests/
 ├── Wallow.Shared.Kernel.Tests/
 ├── Wallow.Shared.Infrastructure.Tests/
 └── Modules/
@@ -148,8 +154,8 @@ NetArchTest enforces the design rules on every run:
 
 ## Frontend Tests
 
-`pnpm test` (which is `pnpm -r test`, i.e. `vitest run` per package) drives the frontend
-suites. Vitest runs a **two-project split**, configured by the shared `createVitestProjects`
+`pnpm test` (which is `turbo run test`, i.e. `vitest run` per package, topologically ordered and
+cached in `.turbo/`) drives the frontend suites. Vitest runs a **two-project split**, configured by the shared `createVitestProjects`
 preset in `packages/testing` and wired up by each app's `vitest.config.ts`:
 
 | Project | Includes | Runtime |
@@ -297,10 +303,17 @@ job in this workflow.
 | `build` | — | Restores, builds `api/Wallow.slnx` in Release, and runs `dotnet format --verify-no-changes`. Caches the build output for the downstream jobs. |
 | `unit-tests` | `build` | `dotnet test --filter "Category!=Integration&Category!=E2E"` with `--settings api/tests/coverage.runsettings`. Uploads the `coverage-unit` artifact. |
 | `integration-tests` | `build` | `dotnet test --filter "Category=Integration"`. PostgreSQL comes from a GitHub Actions service container; Valkey is started with a `docker run` step and polled until it answers `PING`. Uploads the `coverage-integration` artifact. |
+| `cross-tenant-tests` | `build` | `dotnet test --filter "Category=CrossTenant"` against the same Postgres service container and `docker run` Valkey. This is the tenant-isolation gate; it does not upload coverage. |
 | `docker-images-app` | `build` | Publishes the API, migration, and seeder container images plus the `wallow-auth-react` / `wallow-web-react` Docker builds, for both `linux-x64` and `linux-arm64`, then caches them as a tarball. |
 | `docker-images-infra` | `build` | Builds the `garage` image via `docker compose -f docker/docker-compose.test.yml build garage` and the Postgres replica image, then caches them. |
-| `e2e-tests` | `docker-images-app`, `docker-images-infra` | Loads the cached images, installs Chromium, and runs `./scripts/e2e.sh` with `E2E_SKIP_IMAGE_BUILD=1`, `E2E_UP_SERVICE=wallow-auth`, `E2E_BASE_URL=http://localhost:5051`. That one script runs all three Playwright suites — wallow-auth, wallow-web, and the cross-app login journey. Uploads the `playwright-report-wallow-auth` and `playwright-report-wallow-web` artifacts. |
+| `e2e-tests` | `docker-images-app`, `docker-images-infra` | Loads the cached images, installs Chromium, and runs `./scripts/e2e.sh` with `E2E_SKIP_IMAGE_BUILD=1`, `E2E_UP_SERVICE=wallow-auth`, `E2E_BASE_URL=http://localhost:5051`. That one script runs all three Playwright suites — wallow-auth, wallow-web, and the cross-app suite (both its first-party and external-origin specs). Uploads the `playwright-report-wallow-auth` and `playwright-report-wallow-web` artifacts. |
+| `fork-smoke` | — | Runs `./scripts/fork-smoke.sh` outside the checkout: packs `packages/sdk` and `packages/styles` and builds a scratch app against the tarballs, proving an out-of-workspace consumer can install them. |
 | `merge-coverage` | `unit-tests`, `integration-tests` | Merges the two coverage artifacts with ReportGenerator, enforces the coverage threshold, and uploads the `coverage-report` artifact. |
+
+**The frontend gate is a different workflow.** `.github/workflows/js.yml` has a single `build` job
+that runs `pnpm lint`, `lint:tests`, `lint:manifests`, `lint:deps`, `lint:env`, `format:check`,
+`turbo run build typecheck test`, and `check:exports` — the same set `pnpm check` runs locally.
+`ci.yml` does not run any frontend unit tests.
 
 Because `docker-images-app` prebuilds and caches every `:test` image, the `e2e-tests` job sets
 `E2E_SKIP_IMAGE_BUILD=1` and loads them instead of rebuilding. Setting `E2E_BASE_URL` makes

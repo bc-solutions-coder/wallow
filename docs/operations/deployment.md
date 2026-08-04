@@ -251,7 +251,8 @@ pnpm secrets:prod         # scripts/prod-secrets.sh -> docker/.env.production, m
 That renders `.env.production.example` with all 13 generatable secrets replaced by random values
 of the shape each one requires, then prints the two things it could not decide for you: your
 SMTP password, and the values that describe *where* this deployment lives (`API_PUBLIC_URL`,
-`COOKIE_DOMAIN`, `ADMIN_EMAIL`, `SEED_FILE_HOST_PATH`). It is bootstrap only — it refuses to
+`AUTH_PUBLIC_URL`, `WEB_PUBLIC_URL`, `COOKIE_DOMAIN`, `ADMIN_EMAIL`, `SMTP_HOST`,
+`SMTP_FROM_ADDRESS`, `SEED_FILE_HOST_PATH`). It is bootstrap only — it refuses to
 overwrite an existing `.env.production`, because rotating a secret that is already in use is a
 database or cluster operation rather than a text substitution.
 
@@ -291,7 +292,12 @@ whenever you use that profile.
 | **Public URLs** | `API_PUBLIC_URL`, `AUTH_PUBLIC_URL`, `WEB_PUBLIC_URL`, `COOKIE_DOMAIN`, `API_PATH_BASE`, `AUTH_BASE_PATH` |
 | **Ingress** | `CADDYFILE_HOST_PATH`, `INGRESS_HTTP_PORT`, `INGRESS_HTTPS_PORT` |
 | **Ports** | `API_PORT`, `AUTH_PORT`, `WEB_PORT` (all bound to `127.0.0.1`) |
-| **Observability** | `GF_ADMIN_PASSWORD` |
+| **Observability** | `GF_ADMIN_PASSWORD`, `OTEL_TRACE_SAMPLING_RATIO` |
+
+`OTEL_TRACE_SAMPLING_RATIO` defaults to `0.1`, so nine out of ten traces are dropped before they
+reach the collector. That is deliberate — see
+[Performance Considerations](observability.md#performance-considerations) — but it surprises
+anyone who goes looking for a specific request in Tempo and does not find it.
 
 ### Three variables worth calling out
 
@@ -318,18 +324,35 @@ the old one. **`BFF_COOKIE_PASSWORDS`** is the overlap window: a JSON object of 
 whose *first* key seals new cookies while every other key stays valid for unsealing. Leave it
 unset and the single password above is used.
 
+**Your first rotation must key the outgoing secret `default`.** A deployment running on plain
+`BFF_COOKIE_PASSWORD` seals its cookies with no key ID at all, and iron-webcrypto reads a missing
+key ID back as the literal `default`. Publish that same secret under any other ID — `k1`, `v1` —
+and every live session fails to unseal with `Cannot find password: default`, which is exactly the
+outage rotation exists to avoid. Later rotations may use any allowed ID, because by then every
+cookie in the wild carries one.
+
 ```ini
-BFF_COOKIE_PASSWORDS={"k2":"<new 64-hex>","k1":"<the current value>"}
+BFF_COOKIE_PASSWORDS={"v2":"<new 64-hex>","default":"<the current value>"}
 ```
 
-Redeploy, wait longer than `SESSION_TTL_SECONDS` (default `86400`) so every `k1` cookie has
-expired, then drop `k1` and redeploy again. Each secret must be 32+ characters and each key ID
+Redeploy, wait longer than the session TTL (`BFF_SESSION_TTL_SECONDS`, default `86400`) so every
+cookie sealed under the retiring secret has expired, then drop the `default` entry
+(`{"v2":"<new 64-hex>"}`) and redeploy again. Each secret must be 32+ characters and each key ID
 must be letters, digits or underscores and not all digits; the SDK validates the whole map at
-boot rather than failing mid-login.
+boot rather than failing mid-login. The full procedure, including the optional no-op deploy that
+gets a key ID onto cookies before you rotate, is in
+[Rotating the Cookie Password](../integrations/bff-pattern.md#rotating-the-cookie-password).
 
 The rest of the BFF's cookie and session contract is optional, and the shipped stack needs none
 of it set — but it reaches a deployment either way, so it is passed explicitly and documented in
-`.env.production.example` rather than being discoverable only by reading SDK source:
+`.env.production.example` rather than being discoverable only by reading SDK source.
+
+**Two layers, two names.** Everything in the table below is the name you set in
+`.env.production`; the compose file strips the `BFF_` prefix on the way into the container, so
+`BFF_SESSION_TTL_SECONDS` arrives at the SDK as `SESSION_TTL_SECONDS`, `BFF_COOKIE_PASSWORDS` as
+`COOKIE_PASSWORDS`, and so on. The SDK documentation and any error message from inside the
+container use the unprefixed form; `.env.production` and this guide use the prefixed one. Both are
+correct in their own layer.
 
 | Variable | Default | Notes |
 |----------|---------|-------|

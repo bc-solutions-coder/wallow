@@ -157,23 +157,28 @@ and silently stops checking `features/` and `shared/`.
 | Package                         | Published      | Entry points                                       | What a new app pulls from it                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | ------------------------------- | -------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `@bc-solutions-coder/styles`    | yes            | `.`, `./styles.css`, `./vite`, `./assets`          | Tailwind v4 pipeline plugin (`wallowStyles()`), theme-token CSS, brand assets, the branding schema                                                                                                                                                                                                                                                                                                                                           |
-| `@bc-solutions-coder/ui`        | no (`private`) | `.`, `./*`, `./source.css`                         | The 47-component Base UI + CVA catalog — forms, overlays, navigation, feedback — via the root barrel (`.`) or a per-component subpath (`./button`), plus the app-wiring components (`ReadyIndicator`, `FocusOnNavigate`, `DocumentStyles`, `ForkAttribution`) and the Tailwind `@source` scan of its component tree. See [Component Library](component-library.md)                                                                           |
+| `@bc-solutions-coder/ui`        | no (`private`) | `.`, `./*`, `./source.css`                         | The 60-component Base UI + CVA catalog — forms, overlays, navigation, feedback — via the root barrel (`.`) or a per-component subpath (`./button`), plus the app-wiring components (`ReadyIndicator`, `FocusOnNavigate`, `DocumentStyles`, `ForkAttribution`) and the Tailwind `@source` scan of its component tree. See [Component Library](component-library.md)                                                                           |
 | `@bc-solutions-coder/sdk`       | yes            | `.`, `./server`, `./server/passthrough`, `./query` | Browser BFF client + typed API operations (`.`); the BFF server preset, handlers, API proxy, and session stores (`./server`); the pure reverse-proxy preset `createApiPassthrough` (`./server/passthrough`, a separate subpath so a passthrough-only app never pulls `openid-client` into its server bundle); the TanStack Query layer — a generated `{op}Options()` / `{op}QueryKey()` / `{op}Mutation()` trio per operation plus the curated invalidation predicates (`./query`) |
 | `@bc-solutions-coder/testing`   | no (`private`) | `.`, `./render`                                    | The `createVitestProjects` node + browser preset (`.`); the browser-mode `render` helper (`./render`)                                                                                                                                                                                                                                                                                                                                        |
 | `@bc-solutions-coder/query`      | no (`private`) | `.`                                                | The TanStack Query facade — every react-query symbol an app uses (`useQuery`, `useMutation`, `QueryClientProvider`, …) re-exported by reference, plus `createQueryClient`, the shared client factory. Only this package depends on `@tanstack/react-query`; apps never import it directly. See [Frontend State](frontend-state.md)                                                                                                            |
 | `@bc-solutions-coder/auth`       | no (`private`) | `.`                                                | The shared authn/authz layer — the canonical current-user query, `useCurrentUser`, the `ensureCurrentUser` `beforeLoad` primer, `hasRole`/`hasPermission`, and the SDK's route guards and claim helpers re-exported so an app's auth imports come from one package                                                                                                                                                                            |
 | `@bc-solutions-coder/navigation` | no (`private`) | `.`                                                | The application shell — `AppShell` (collapsible desktop rail, mobile drawer, and the controls that drive them) plus the `useNavStore` singleton. An app supplies only its `destinations` manifest, a `can` visibility predicate, and the `header`/`footer` slots. One entry, never a per-component catalog: a second export path for the store would be a second store                                                                        |
+| `@bc-solutions-coder/logger`    | no (`private`) | `.`, `./server`                                    | Structured logging at both ends — the browser core that buffers and posts batches (`.`) and the app-server ingest handler that stamps and forwards them (`./server`). Apps never call `console`. See [Logging](logging.md)                                                                                                                                                                                                                   |
+| `@bc-solutions-coder/env`       | no (`private`) | `./base-path`, `./internal-origin`, `./request-origin` | Deployment-derived addressing — base path, internal origin, per-request origin. Subpath-only, zero dependencies                                                                                                                                                                                                                                                                                                                        |
+| `@bc-solutions-coder/utils`     | no (`private`) | `./format`, `./guards`, `./string`                 | The bottom of the graph: pure functions, zero dependencies, subpath-only                                                                                                                                                                                                                                                                                                                                                                    |
 
-`wallow-auth` and `wallow-web` both depend on the first six as `workspace:*` runtime
-`dependencies` (no per-app `@tailwindcss/vite`, `tailwindcss`, or `vitest` preset
-of their own), plus `@bc-solutions-coder/forms` — see [Forms](forms.md) — which an app
-adds once it renders a form. Only the first five are core: `minimal-app`
-renders no form and has no signed-in user, so it takes neither `forms` nor `auth`.
-`navigation` is narrower still — `wallow-auth`'s screens sit in its own `auth-layout.tsx`,
-so `wallow-web` is its only consumer today.
-Bootstrapping a new app is these steps.
+**Which app takes which.** All three are `workspace:*` runtime `dependencies` — no app
+carries its own `@tailwindcss/vite`, `tailwindcss`, or vitest preset:
 
-### 1. Depend on the five core packages
+| App | Workspace dependencies |
+| --- | --- |
+| `wallow-web` | all ten above, plus `forms` |
+| `wallow-auth` | the same minus `navigation` — its screens sit in its own `auth-layout.tsx`, so `wallow-web` is `navigation`'s only consumer today |
+| `minimal-app` | `env`, `query`, `sdk`, `styles`, `testing`, `ui` — it renders no form and has no signed-in user, so it takes neither `forms` nor `auth`, and it logs nothing to a collector |
+
+`minimal-app`'s six are the floor for a new app. Bootstrapping one is these steps.
+
+### 1. Depend on the core packages
 
 In the app's `package.json` `dependencies` (not `devDependencies` — the SDK and
 styles packages are imported by the app's server routes and `vite.config.ts` at
@@ -182,6 +187,7 @@ build time):
 ```json
 {
   "dependencies": {
+    "@bc-solutions-coder/env": "workspace:*",
     "@bc-solutions-coder/query": "workspace:*",
     "@bc-solutions-coder/sdk": "workspace:*",
     "@bc-solutions-coder/styles": "workspace:*",
@@ -191,13 +197,19 @@ build time):
 }
 ```
 
+Add `logger` and `utils` as soon as the app records an event or reaches for a shared
+helper, `forms` when it renders its first form, `auth` when it has a signed-in user, and
+`navigation` when it grows a shell.
+
 The Start runtime itself (`@tanstack/react-start`, `@tanstack/react-router`,
 `@tanstack/react-router-ssr-query`) is pinned **exactly**, with no `^`, in every
 app — these packages move together and a floating range silently mixes
 incompatible plugin/runtime versions. `nitro` and `@vitejs/plugin-react` are
 `devDependencies`; copy the versions from `apps/wallow-auth/package.json`.
 
-### 2. CSS entry (`src/styles.css`) — three lines
+### 2. CSS entry (`src/styles.css`)
+
+Three lines:
 
 ```css
 @import "@bc-solutions-coder/styles/styles.css";
@@ -208,14 +220,25 @@ incompatible plugin/runtime versions. `nitro` and `@vitejs/plugin-react` are
 The first line pulls in the Tailwind base layer and branding-driven theme
 tokens. The second makes Tailwind scan `@bc-solutions-coder/ui`'s component tree
 (Tailwind v4 skips `node_modules`, so the package ships its own `@source`
-declaration for the app to import). The `@source "./"` is the one line every app
-must own — Tailwind resolves `@source` relative to the declaring stylesheet, so
-the shared packages cannot scan the app's own components on its behalf. Import
-this file **for side effects** once, from `src/routes/__root.tsx`:
-`import "../styles.css";`, and emit no stylesheet `<link>` from `head()` — the
-Start client and SSR builds hash the emitted CSS independently, so a hand-written
-link references a hash the other environment never produced. See
-[Styling and Tailwind Setup](#styling-and-tailwind-setup) for the full rationale.
+declaration for the app to import); omit it if the app does not use
+`@bc-solutions-coder/ui`. The `@source "./"` is the one line every app must own —
+Tailwind resolves `@source` relative to the declaring stylesheet, so the shared
+packages can never scan the app's own component tree on its behalf.
+
+Import this file **for side effects** once, from `src/routes/__root.tsx`:
+
+```ts
+import "../styles.css";
+```
+
+Do not also emit a stylesheet `<link>` from the root route's `head()`. Start's
+client and SSR builds hash the emitted CSS independently, so a hand-written link
+points at a hash only one of them produced — dev looks fine and the production
+build serves an unstyled page.
+
+The rest of the pipeline — the workspace dependency and the `wallowStyles()`
+plugin this entry is compiled by — is in
+[Styling and Tailwind Setup](#styling-and-tailwind-setup).
 
 ### 3. Vite config (`vite.config.ts`)
 
@@ -402,36 +425,27 @@ exception: it belongs to TanStack Start and the app's own config.
 
 ## Component Library
 
-Both apps build their screens from `@bc-solutions-coder/ui`, a catalog of 56 components — each a
-headless [Base UI](https://base-ui.com/react/overview/quick-start) primitive wrapped in a CVA class
-recipe written in the theme tokens `@bc-solutions-coder/styles` emits from `packages/styles/branding.json`. Apps
-import from the root barrel by default and from a per-component subpath when they need a component's
-style recipe:
+Both apps build their screens from `@bc-solutions-coder/ui`, the shared Base UI + CVA catalog:
 
 ```tsx
 import { Button, Card, Dialog } from "@bc-solutions-coder/ui";
 import { buttonRecipe } from "@bc-solutions-coder/ui/button";
 ```
 
-Multi-part components (`Dialog`, `Select`, `Menu`, …) export one namespace object whose keys mirror
-Base UI's part names exactly, and every part merges your `className` over its recipe with
-`tailwind-merge`, so an override wins without discarding the rest of the recipe. Browse the catalog
-with `pnpm --filter @bc-solutions-coder/ui storybook`.
+**[Component Library](component-library.md) is the reference** — the catalog itself, both import
+styles, multi-part namespaces, the `surface` axis, theming, and the steps for adding a component.
+It is the only page that states the catalog's size; this one deliberately does not repeat it.
 
-Copy — headings and body text alike — goes through the catalog's `Text` primitive (or `PageHeader`
-for a page title, `MutedText` for secondary copy) rather than a raw `p`/`span`/`h1`–`h6`, so the type
-scale is decided in one place. In `apps/wallow-web` that is enforced by an app-local oxlint rule; the
-other apps follow it by convention.
-
-[Component Library](component-library.md) covers the full catalog, both import styles, the `surface`
-axis, theming, and the steps for adding a component.
+One app-level rule belongs here rather than there: copy — headings and body text alike — goes
+through the catalog's `Text` primitive (or `PageHeader` for a page title, `MutedText` for secondary
+copy) rather than a raw `p`/`span`/`h1`–`h6`, so the type scale is decided in one place. In
+`apps/wallow-web` an app-local oxlint rule enforces it; the other apps follow it by convention.
 
 ## Forms
 
-Screens do not wire form controls to state by hand. `@bc-solutions-coder/forms` is a sixth shared
-package — added to an app's `dependencies` alongside the five above when it renders forms, which
-`wallow-auth` and `wallow-web` both do and `minimal-app` does not — layering TanStack Form
-state onto the `ui` catalog:
+Screens do not wire form controls to state by hand. `@bc-solutions-coder/forms` layers TanStack Form
+state onto the `ui` catalog. An app adds it once it renders a form — `wallow-auth` and `wallow-web`
+both do, `minimal-app` does not:
 
 ```tsx
 <AppForm form={form} testIdPrefix="organization-create">
@@ -482,8 +496,11 @@ pnpm --filter @bc-solutions-coder/wallow-auth dev
 pnpm --filter @bc-solutions-coder/wallow-web dev
 ```
 
-`pnpm dev` (root `package.json`) runs both apps' own `dev` scripts in parallel via
-`pnpm --parallel --filter`, interleaving their output; Ctrl-C stops both. It does not start
+`pnpm dev` (root `package.json`) runs both apps' own `dev` scripts through
+`turbo run dev --filter @bc-solutions-coder/wallow-web --filter @bc-solutions-coder/wallow-auth`,
+interleaving their output; Ctrl-C stops both. Turbo's `dev` task is `cache: false` and
+`persistent: true`, and unlike `build`/`typecheck`/`test` it declares no `^build` dependency —
+it reads package source directly. It does not start
 `apps/minimal-app` and does not start the .NET backend — pair it with `pnpm backend` (or
 `pnpm backend:infra` + a manually run API) for a working stack.
 
@@ -515,6 +532,7 @@ explicitly by Aspire, both compose stacks, and Playwright.
 | API             | http://localhost:5001 |
 | Web (TanStack)  | http://localhost:3000 |
 | Auth (TanStack) | http://localhost:3002 |
+| Docs (DocFX)    | http://localhost:5004 |
 
 Both modes honour `PORT` and fall back to the defaults above: in dev through
 `server.port` in the app's `vite.config.ts`, and in the built bundle through Nitro's
@@ -522,6 +540,11 @@ own listener. The dev default has to be spelled out per app — `vite dev` binds
 when `PORT` is unset, so without it wallow-auth would claim wallow-web's port and
 Playwright would wait on 3002 forever. Keep any new local port clear of those and of
 Grafana on 3001.
+
+Do not hand-roll the `PORT` read. `wallowAppConfig({ defaultPort })` from
+`@bc-solutions-coder/config/vite/app` — the preset every app in the workspace builds with —
+already resolves `server.port` as `Number(process.env.PORT ?? defaultPort)`. A new app passes
+its default and inherits the behaviour.
 
 ## Styling and Tailwind Setup
 
@@ -563,31 +586,8 @@ steps:
    `environments.client.build.copyPublicDir: true` back on or those brand assets 404 in the
    built output while dev still serves them (see [New App Bootstrap](#new-app-bootstrap)).
 
-3. **Create the CSS entry** at `src/styles.css`, three lines:
-
-   ```css
-   @import "@bc-solutions-coder/styles/styles.css";
-   @import "@bc-solutions-coder/ui/source.css";
-   @source "./";
-   ```
-
-   The first `@import` pulls in the Tailwind base layer and the branding-driven theme tokens. The
-   second imports `@bc-solutions-coder/ui`'s own `@source` declaration so Tailwind scans the shared
-   component library's class names (omit it if the app does not use `@bc-solutions-coder/ui`). The
-   `@source "./"` line is the one thing an app must always own: Tailwind v4 resolves `@source`
-   paths relative to the declaring stylesheet, so a shared package can never scan an app's own
-   component tree for utility classes on its behalf.
-
-   Import that file once, for side effects, from `src/routes/__root.tsx`:
-
-   ```ts
-   import "../styles.css";
-   ```
-
-   Do not also emit a stylesheet `<link>` from the root route's `head()`. Start's client
-   and SSR builds hash the emitted CSS independently, so a hand-written link points at a
-   hash only one of them produced — dev looks fine and the production build serves an
-   unstyled page.
+3. **Create the CSS entry** at `src/styles.css` — the three lines, what each one does, and how the
+   app imports it are in [CSS entry (`src/styles.css`)](#2-css-entry-srcstylescss).
 
 That's the entire setup — nothing else is required. No per-app `@tailwindcss/vite`
 devDependency, no manual `publicDir` wiring, no explanatory boilerplate duplicated into the
@@ -629,9 +629,12 @@ Edit `packages/styles/branding.json` to customize identity across both apps:
 ### Branding Ownership
 
 The canonical branding schema lives in `packages/styles` (`@bc-solutions-coder/styles`,
-`src/branding.ts`), the TypeScript source of truth that parses `packages/styles/branding.json` and emits the
-theme CSS every frontend consumes. It exposes `appName`, `appIcon`, `tagline`, `landingPage`, and
-`theme`.
+`src/branding.ts`), the TypeScript source of truth that parses `packages/styles/branding.json` and
+emits the theme CSS every frontend consumes.
+
+**The [Configuration Guide](../getting-started/configuration.md#branding) documents every key**, the
+runtime-overridable pair, and what each theme token is for. Deliberately not repeated here — a
+second key list is a second thing to keep in step.
 
 ### CSS Variable Customization
 
@@ -646,11 +649,14 @@ variable names:
 --accent, --accent-foreground, --destructive, --destructive-foreground,
 --border, --input, --ring, --radius,
 --sidebar, --sidebar-foreground, --sidebar-accent,
---success, --success-foreground
+--success, --success-foreground,
+--warning, --warning-foreground
 ```
 
-The last five carry a **two-level fallback** the older tokens do not need — for example
-`--color-sidebar: var(--sidebar, var(--foreground))`. `packages/styles/branding.json` is `merge=ours` in
+The `sidebar-*`, `success-*` and `warning-*` families — **seven** mappings in `styles.css` — carry a
+**two-level fallback** the older tokens do not need, for example
+`--color-sidebar: var(--sidebar, var(--foreground))` and
+`--color-warning: var(--warning, var(--primary))`. `packages/styles/branding.json` is `merge=ours` in
 `.gitattributes`, so a fork whose copy predates these keys never receives them from an upstream
 merge and the theme emits no custom property for them; the fallback lands such a fork on a colour
 its palette has always carried rather than on nothing at all.
@@ -663,17 +669,19 @@ would silently stop applying the moment the fork renamed the key.
 
 ### Adding a New Design Token
 
-Adding a new semantic design token (e.g. a `warning` or `success` color) touches exactly
-**two files** — nothing per-app needs to change:
+Adding a new semantic design token — `warning` and `success` already ship, so pick a genuinely new
+name — touches exactly **two files**; nothing per-app needs to change:
 
 1. **`packages/styles/branding.json`** — add the new key under both `theme.light` and `theme.dark` with
    an OKLCH value.
 2. **`packages/styles/styles.css`** — add the matching `@theme` mapping (e.g.
-   `--color-warning: var(--warning);`) so Tailwind exposes it as a utility class.
+   `--color-info: var(--info, var(--primary));`) so Tailwind exposes it as a utility class. Give
+   any token added from now on the two-level form: a fork on `merge=ours` will not receive your new
+   `branding.json` key, and the fallback is what keeps its palette rendering.
 
 `packages/styles/src/branding.ts` parses `packages/styles/branding.json` and emits every `theme.light`/
 `theme.dark` key as a CSS custom property at render time, so no app-level code references the
-token directly — apps just use the Tailwind utility (`bg-warning`, `text-warning`, etc.) once
+token directly — apps just use the Tailwind utility (`bg-info`, `text-info`, etc.) once
 it exists in `styles.css`. `packages/styles/src/theme-css.test.ts` guards this rule: it asserts
 every CSS variable emitted from `forkBranding.theme` has a corresponding `@theme` mapping in
 `styles.css`, so a forgotten step 2 fails the build instead of silently rendering an unstyled

@@ -78,7 +78,7 @@ components from the barrel ships three components.
    subpath alone, so styling internals never widen the package's headline API.
 2. **The module graph is not tree-shaken.** A dev server or a Vitest run links the whole barrel,
    including components you never render. If a spec stubs a dependency that some unrelated barrel
-   member imports, the barrel fails to link — `apps/wallow-web/src/shared/components/DashboardNav.tsx`
+   member imports, the barrel fails to link — `packages/navigation/src/app-nav.tsx`
    imports `@bc-solutions-coder/ui/navigation-menu` for exactly this reason (the barrel also pulls
    in `FocusOnNavigate`, which needs router context its specs do not provide).
 
@@ -148,8 +148,9 @@ surface. The axis has two arms, `page` (the default) and `sidebar`:
 It is carried today by `buttonRecipe` (and so by `ThemeToggle`, which composes `Button`),
 `errorBannerRecipe`, and `navigationMenuLinkRecipe`. `navigationMenuTriggerRecipe` does **not** have
 it yet — no app renders a trigger, so it is a known gap rather than a defect.
-`apps/wallow-web/src/shared/components/DashboardNav.tsx` is the reference example, passing it at all
-three of its rail call sites.
+`packages/navigation/src/app-nav.tsx` is the reference example, passing it at both of its rail call
+sites (lines 120 and 189); `apps/wallow-web/src/shared/components/SignOut.tsx:67` is the third
+`surface="sidebar"` in the shell.
 
 Reach for `surface` instead of hand-writing an inversion (`bg-foreground text-background`) in a
 `className`: the recipe restates every colour dimension a `variant` arm can set, because

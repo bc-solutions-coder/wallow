@@ -2,8 +2,9 @@
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   // Root registration became possible when packages/sdk/src/oxlint-guardrails.test.ts
   // moved its config-copy mirror inside the repo (.lint-mirror/), where this bare
-  // specifier resolves through the workspace node_modules. The five nested configs
-  // still own per-tree ENABLEMENT and options for the other wallow/* rules.
+  // specifier resolves through the workspace node_modules. The nested configs
+  // still own per-tree ENABLEMENT and options for the other wallow/* rules;
+  // packages/lint/CLAUDE.md carries the census of which configs exist.
   "jsPlugins": [{ "name": "wallow", "specifier": "@bc-solutions-coder/lint" }],
   "plugins": ["typescript", "unicorn", "oxc", "react", "import"],
   "categories": {

@@ -23,10 +23,41 @@ explicit: a mutation's `onSuccess` sweeps the entries its write affects.
 open, the active tab. If a piece of state can be re-derived by calling the API again, it does not
 belong in a Zustand store — it belongs behind a generated options factory instead.
 
-Two shared packages stand between an app and that first store, and both are mandatory routes
+The repo has exactly **one** Zustand store today: `useNavStore` in
+`packages/navigation/src/nav-store.ts`, exported by
+[`@bc-solutions-coder/navigation`](#the-navigation-store). `import { create } from "zustand"`
+appears in that one file and nowhere else in `packages/*/src` or `apps/*/src`.
+
+Three shared packages stand between an app and these stores, and all three are mandatory routes
 rather than conveniences: [`@bc-solutions-coder/query`](#the-query-facade) is where react-query
-itself comes from, and [`@bc-solutions-coder/auth`](#the-shared-auth-package) owns the one query
-that answers "who is signed in".
+itself comes from, [`@bc-solutions-coder/auth`](#the-shared-auth-package) owns the one query
+that answers "who is signed in", and `@bc-solutions-coder/navigation` owns the nav store.
+
+## The navigation store
+
+`useNavStore` (`packages/navigation/src/nav-store.ts`) is the shell's global nav state and the
+model for any UI store a fork adds. Three things about it are load-bearing:
+
+- **Two independent axes, never derived from each other.** `isNavCollapsed` is desktop-only —
+  whether the persistent rail is narrowed to icons. `isMobileNavOpen` is mobile-only — whether the
+  overlay drawer is showing. Collapsing the rail must not close a drawer, and opening the drawer
+  says nothing about how the rail should look when the viewport grows back.
+- **It is a store rather than `useState` because of the component tree, not the data.** The
+  controls that flip these flags live in `AppShell`'s main column; the rail and drawer that read
+  them are siblings. Neither can pass props to the other.
+- **It is a module-global singleton**, so `zustand` is a **peer** dependency of
+  `@bc-solutions-coder/navigation` and the store is exported from exactly one entry. Two resolved
+  copies would mean two stores and a toggle that silently stops moving the rail — the same hazard
+  class `@bc-solutions-coder/query` exists to solve for `QueryClient`.
+
+Subscribe with a selector so a component only re-renders for the slice it reads:
+
+```tsx
+import { useNavStore } from "@bc-solutions-coder/navigation";
+
+const isNavCollapsed = useNavStore((state) => state.isNavCollapsed);
+const toggleNavCollapsed = useNavStore((state) => state.toggleNavCollapsed);
+```
 
 ## The query facade
 
@@ -240,6 +271,8 @@ regenerating is what makes its query and mutation artifacts exist.
 ## See also
 
 - [Frontend Setup](frontend-setup.md) — app bootstrap, shared packages, styling, and testing.
+- [Component Library](component-library.md) — the `@bc-solutions-coder/ui` catalog the nav shell
+  composes onto.
 - [Forms](forms.md) — how a form submits through one of those generated mutation factories, and how
   the failure it returns is split between the field messages and the form-level banner.
 - [TypeScript SDK](../integrations/typescript-sdk.md) — the SDK's four entry points and the BFF

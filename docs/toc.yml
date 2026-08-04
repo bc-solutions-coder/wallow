@@ -12,10 +12,10 @@
       href: getting-started/configuration.md
 - name: Architecture
   items:
-    - name: Architecture Assessment
-      href: architecture/assessment.md
     - name: Module Creation
       href: architecture/module-creation.md
+    - name: Architecture Assessment
+      href: architecture/assessment.md
     - name: Authentication
       href: architecture/authentication.md
     - name: Authorization

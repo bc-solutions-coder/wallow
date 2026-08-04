@@ -20,12 +20,12 @@ Wolverine provides the unified mediator pattern for commands and queries across 
 
 ### Real-time Communication
 
-- **SignalR**: `RealtimeHub` at `/hubs/realtime` broadcasts events to connected clients. Redis (Valkey) acts as the backplane for multi-instance deployments.
+- **SignalR**: `RealtimeHub` at `/hubs/realtime` broadcasts events to connected clients. Valkey (Redis-compatible) acts as the backplane for multi-instance deployments.
 - **SSE**: Server-Sent Events endpoint at `/events` for lightweight real-time streaming.
 
 ### Background Jobs
 
-Hangfire handles scheduled and recurring background jobs. The API provides a dashboard at `/hangfire` for monitoring. Recurring jobs include system heartbeat, failed email retry, OpenIddict token pruning, and expired invitation pruning.
+Hangfire handles scheduled and recurring background jobs. The API provides a dashboard at `/hangfire` for monitoring. `Program.cs` registers up to five recurring jobs: system heartbeat, OpenIddict token pruning, expired invitation pruning, session pruning, and — only when the `Modules.Notifications` feature flag is enabled — failed email retry.
 
 ## Middleware Pipeline
 
@@ -35,7 +35,7 @@ Hangfire handles scheduled and recurring background jobs. The API provides a das
 3. CorrelationIdMiddleware    Read/generate X-Correlation-Id
 4. SetupMiddleware            Redirect to setup wizard when admin bootstrap pending
 5. SecurityHeadersMiddleware  CSP, X-Content-Type-Options, etc.
-6. ApiVersionRewriteMiddleware  /api/foo -> /api/v1/foo backward compat
+6. ApiVersionRewriteMiddleware  Prepends /v1 to unversioned paths (see note below)
 7. Routing
 8. OpenAPI/Scalar (dev)       API documentation UI at /scalar
 9. CORS
@@ -56,13 +56,19 @@ Hangfire handles scheduled and recurring background jobs. The API provides a das
 24. SSE Endpoint              /events
 ```
 
+> [!NOTE]
+> `ApiVersionRewriteMiddleware` rewrites the **post-PathBase** path and only ever prepends `/v1`;
+> it never adds `/api`. At the default `PathBase=""` the routes are `/v1/...`, so a request to
+> `/api/users` is rewritten to `/v1/api/users` and 404s. The `/api → /api/v1` shape only appears
+> under the opt-in reverse-proxy PathBase, which is off by default.
+
 ## Key Types
 
 - **`WallowModules`** - Central module registration and initialization
 - **`GlobalExceptionHandler`** - RFC 7807 Problem Details error responses
 - **`SignalRRealtimeDispatcher`** - `IRealtimeDispatcher` implementation broadcasting events to SignalR clients
-- **`RedisPresenceService`** - User presence tracking via Redis
-- **`RedisSseDispatcher`** - SSE dispatcher backed by Redis pub/sub
+- **`RedisPresenceService`** - User presence tracking via Valkey
+- **`RedisSseDispatcher`** - SSE dispatcher backed by Valkey pub/sub
 - **`SystemHeartbeatJob`** - Periodic health check job (every 5 minutes)
 - **`ServiceCollectionExtensions`** - `AddApiServices()`, `AddObservability()`
 - **`HangfireExtensions`** - `AddHangfireServices()` with PostgreSQL storage
@@ -71,28 +77,36 @@ Hangfire handles scheduled and recurring background jobs. The API provides a das
 
 ### Prerequisites
 - .NET 10 SDK
+- Node 24 + pnpm (the repo-root scripts below are pnpm scripts)
 - Docker and Docker Compose (for infrastructure)
 
-### 1. Start Infrastructure
+### 1. Run everything via the Aspire host
+
+`Wallow.AppHost` (`api/src/Wallow.AppHost/Program.cs`) is the documented entrypoint — it
+orchestrates the API, the frontends, the migration and seeder services, and the infrastructure
+containers:
 
 ```bash
-cd docker && docker compose up -d
+pnpm backend
 ```
 
-This starts PostgreSQL, Valkey (Redis-compatible), GarageHQ (S3), Mailpit, and Grafana.
-
-### 2. Run the API
+### 2. Or: infrastructure and the API separately
 
 ```bash
-dotnet run --project src/Wallow.Api
+pnpm backend:infra          # docker compose up -d; pnpm backend:infra:down to stop
+dotnet run --project api/src/Wallow.Api
 ```
 
-The API starts on **http://localhost:5000** with:
-- **API Documentation**: http://localhost:5000/scalar (dev only)
+`docker/docker-compose.yml` defines eight services: `postgres`, `valkey` (Redis-compatible),
+`garage` (S3), `mailpit`, `clamav`, `alloy`, `grafana-lgtm` (Grafana on host port 3001), and
+`docs` (the DocFX site on host port 5004).
+
+The API starts on **http://localhost:5001** with:
+- **API Documentation**: http://localhost:5001/scalar (dev only)
 - **Health Checks**: `/health`, `/health/ready`, `/health/live`, `/health/startup`
-- **Background Jobs**: http://localhost:5000/hangfire
-- **Real-time Hub**: ws://localhost:5000/hubs/realtime
-- **SSE**: http://localhost:5000/events
+- **Background Jobs**: http://localhost:5001/hangfire
+- **Real-time Hub**: ws://localhost:5001/hubs/realtime
+- **SSE**: http://localhost:5001/events
 
 ### 3. Run Tests
 

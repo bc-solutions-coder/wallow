@@ -4,8 +4,13 @@ Shared **build configuration**: the Vite presets every other workspace member bu
 
 | Subpath          | Export                | Used by                                     |
 | ---------------- | --------------------- | ------------------------------------------- |
-| `./vite/library` | `defineLibraryConfig` | all seven `packages/*` library builds       |
+| `./vite/library` | `defineLibraryConfig` | all eleven `packages/*` library builds      |
 | `./vite/app`     | `wallowAppConfig`     | all three `apps/*` TanStack Start frontends |
+
+Eleven, not thirteen, because `packages/config` and `packages/lint` are the two members with no
+`build` script at all — there is no library build for the preset to configure. Everything else
+(`auth`, `env`, `forms`, `logger`, `navigation`, `query`, `sdk`, `styles`, `testing`, `ui`,
+`utils`) calls `defineLibraryConfig` from its `vite.config.ts`.
 
 ## This package is never built and never published
 

@@ -29,7 +29,7 @@ Wallow's realtime system is split into two channels:
                         |   SseRedisSubscriber      |               |
                         +------+--------------------+---------------+
                                |                    |
-                        Redis pub/sub          Redis backplane
+                        Valkey pub/sub         Valkey backplane
                         (sse:tenant:*          (SignalR scale-out)
                          sse:user:*)
 ```
@@ -99,11 +99,11 @@ public sealed record RealtimeEnvelope(
 }
 ```
 
-The `ISseDispatcher` implementation stamps `RequiredPermission`, `RequiredRole`, or `TargetUserId` onto the envelope before publishing to Redis. The SSE connection inspects these fields to decide whether to forward the event.
+The `ISseDispatcher` implementation stamps `RequiredPermission`, `RequiredRole`, or `TargetUserId` onto the envelope before publishing to Valkey. The SSE connection inspects these fields to decide whether to forward the event.
 
 ### SSE Connection Filtering
 
-When an event arrives via Redis pub/sub, each local SSE connection applies these filters in order:
+When an event arrives via Valkey pub/sub, each local SSE connection applies these filters in order:
 
 1. Module in subscribe list? No -- skip
 2. `RequiredPermission` set? Check JWT claims -- skip if missing
@@ -116,13 +116,13 @@ When an event arrives via Redis pub/sub, each local SSE connection applies these
 | Component | Location | Purpose |
 |-----------|----------|---------|
 | `ISseDispatcher` | `api/src/Shared/Wallow.Shared.Contracts/Realtime/` | Dispatch interface for modules |
-| `RedisSseDispatcher` | `api/src/Wallow.Api/Services/` | Publishes events to Redis channels |
+| `RedisSseDispatcher` | `api/src/Wallow.Api/Services/` | Publishes events to Valkey channels |
 | `SseConnectionManager` | `api/src/Wallow.Api/Services/` | Tracks active connections and filters delivery |
 | `SseConnectionState` | `api/src/Wallow.Api/Services/` | Per-connection metadata (user, tenant, modules, permissions, roles) |
-| `SseRedisSubscriber` | `api/src/Wallow.Api/Services/` | Background service that subscribes to Redis and fans out to connections |
+| `SseRedisSubscriber` | `api/src/Wallow.Api/Services/` | Background service that subscribes to Valkey and fans out to connections |
 | `SseEndpoint` | `api/src/Wallow.Api/Endpoints/` | HTTP GET `/events` endpoint |
 
-### Redis Channel Naming
+### Valkey Channel Naming
 
 | Channel Pattern | Purpose |
 |----------------|---------|
@@ -166,7 +166,7 @@ public interface IRealtimeDispatcher
 
 ### Presence Service
 
-`IPresenceService` (in `api/src/Shared/Wallow.Shared.Contracts/Realtime/IPresenceService.cs`) tracks user presence across server instances using Redis. All operations are tenant-scoped:
+`IPresenceService` (in `api/src/Shared/Wallow.Shared.Contracts/Realtime/IPresenceService.cs`) tracks user presence across server instances using Valkey. All operations are tenant-scoped:
 
 ```csharp
 public interface IPresenceService
@@ -181,7 +181,7 @@ public interface IPresenceService
 }
 ```
 
-Redis data structures for presence (tenant-scoped):
+Valkey data structures for presence (tenant-scoped):
 
 | Key Pattern | Type | Purpose |
 |-------------|------|---------|
@@ -201,7 +201,7 @@ Redis data structures for presence (tenant-scoped):
 
 ### SignalR Backplane
 
-SignalR uses Redis/Valkey as a backplane to synchronize messages across API instances. The backplane reuses the singleton `IConnectionMultiplexer` registered in `Program.cs`.
+SignalR uses Valkey as a backplane to synchronize messages across API instances. The backplane reuses the singleton `IConnectionMultiplexer` registered in `Program.cs`.
 
 ## Handler Checklist
 
@@ -231,7 +231,7 @@ When adding a new event handler that sends realtime events:
 **Events not arriving:**
 - Verify the `subscribe` query param includes the event's module
 - Check that the user's JWT contains the required permission/role claims
-- Verify Redis pub/sub is connected (check `SseRedisSubscriber` logs)
+- Verify Valkey pub/sub is connected (check `SseRedisSubscriber` logs)
 
 **Stale permission filtering:**
 - Permissions are read from JWT at connection time -- if permissions changed, the client must reconnect
@@ -249,7 +249,7 @@ When adding a new event handler that sends realtime events:
 
 **Presence not updating:**
 - Verify client joined the correct group after connection/reconnection
-- Check Redis connectivity for backplane
+- Check Valkey connectivity for backplane
 
 ### Debugging
 
@@ -266,3 +266,10 @@ Enable detailed logging:
   }
 }
 ```
+
+## Related Documentation
+
+- [Caching](caching.md) — the Valkey instance backing pub/sub and the SignalR backplane
+- [Authorization](authorization.md) — where the permission and role claims the SSE filter reads come from
+- [Messaging](messaging.md) — `ISseDispatcher` and the events modules publish through it
+- [Observability](../operations/observability.md) — connection and delivery telemetry

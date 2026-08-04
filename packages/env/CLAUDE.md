@@ -12,11 +12,17 @@ Like `packages/utils` this sits at the bottom of the dependency graph — `depen
 
 Subpath-only — deliberately **no `.` barrel**, so an import names the module it depends on.
 
-| Entry               | What it holds                                                                                          |
-| ------------------- | ------------------------------------------------------------------------------------------------------ |
-| `./request-origin`  | `resolveRequestOrigin(request)` — the browser-facing origin, honouring `x-forwarded-proto`.            |
-| `./internal-origin` | `resolveInternalOrigin(env, requestOrigin?)` + `INTERNAL_ORIGIN_ENV_KEY` — the self-reachable origin.  |
-| `./base-path`       | `normalizeBasePath`, `toViteBase`, `stripBasePath`, `withBasePath` — the URL-prefix string arithmetic. |
+| Entry               | What it holds                                                                                                                         |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `./request-origin`  | `resolveRequestOrigin(request)` — the browser-facing origin, honouring `x-forwarded-proto`.                                           |
+| `./internal-origin` | `resolveInternalOrigin(env, requestOrigin?)` + `INTERNAL_ORIGIN_ENV_KEY` (= `"WALLOW_WEB_INTERNAL_URL"`) — the self-reachable origin. |
+| `./base-path`       | `normalizeBasePath`, `toViteBase`, `stripBasePath`, `withBasePath` — the URL-prefix string arithmetic.                                |
+
+**`WALLOW_WEB_INTERNAL_URL` is not `WALLOW_API_INTERNAL_URL`.** The first is the app's **own**
+origin, the one this package resolves; the second is the **upstream API** an app's passthrough
+forwards to (`apps/minimal-app/src/lib/api-passthrough.ts`, both `playwright.config.ts` files) and
+is nothing to do with `./internal-origin`. The names are one word apart and the failure modes are
+not.
 
 `./base-path` is loaded from `apps/wallow-auth/vite.config.ts` at **config load time**, as plain
 Node ESM before any bundle exists. That is why it is its own subpath and why it must stay free of
@@ -92,7 +98,9 @@ specs and build configs, which read the manifest off disk and reach
 
 Adding a module is a new subpath: `src/<name>.ts` plus an `exports` entry, a
 `publishConfig.exports` entry, a `vite.config.ts` lib entry and a `tsconfig.build.json`
-include. The charter spec diffs all four against `src/*.ts` and fails until they agree.
+include. All four, every time — the charter spec that used to diff them against `src/*.ts` went
+with the rest of the source-reading guards (`Wallow-xg9t.1`), so nothing reminds you now, and a
+missing lib entry only surfaces at `pnpm check:exports`.
 
 Scripts: `pnpm --filter @bc-solutions-coder/env build` (Vite lib mode + `tsc -p
 tsconfig.build.json`), `test`, `test:watch`, `typecheck`.

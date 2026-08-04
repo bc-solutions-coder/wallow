@@ -2,7 +2,7 @@
 
 The **application shell**: a collapsible desktop rail, a mobile overlay drawer, the three
 controls that drive them, and the store the two halves share. `apps/wallow-web`'s
-`DashboardLayout` is 36 lines because everything else lives here.
+`DashboardLayout` is a thin wrapper because everything else lives here.
 
 What a consumer supplies is the three things only an app can answer:
 
@@ -43,8 +43,8 @@ Each absence is a decision, and each is easy to reverse by accident:
   through the consuming app's stylesheet.
 - **No `@bc-solutions-coder/utils`.** Nothing calls anything utils-shaped.
 
-`@bc-solutions-coder/ui` is imported by **per-component subpath** (`/button`,
-`/error-banner`, `/navigation-menu`, `/theme-toggle`), never the root barrel. The barrel drags
+`@bc-solutions-coder/ui` is imported by **per-component subpath** (`/navigation-menu`,
+`/button` — twice, for `Button` and `buttonRecipe` — and `/theme-toggle`), never the root barrel. The barrel drags
 in `FocusOnNavigate` → `useRouterState`, and the specs here stub `@tanstack/react-router` down
 to `Link` alone. A bundler tree-shakes that away; a dev/test module graph does not, so the
 barrel fails to link. Keep the comment that says so with the code.
@@ -130,8 +130,11 @@ HERE out of `apps/wallow-web`, and until this config existed every one of them p
 over this source — `pnpm lint`'s roots are `apps packages`, so the files were scanned with the
 rules unloaded. `app-shell.tsx`'s `BACKDROP_SCRIM` is the alpha spelling
 `no-sidebar-inversion` deliberately allows; turn it into a bare `bg-foreground` and `pnpm lint`
-fails. The four class-string rules are off for `*.test.*`/`*.stories.tsx` — a spec's class strings
-are subjects, not decisions — while `zone-dag` stays on, exactly as in the two apps.
+fails. Four rules are off for `*.test.*`/`*.stories.tsx` — `no-sidebar-inversion`,
+`no-tinted-text` and `text-heading-variant`, whose subject is a class string a spec asserts on
+rather than decides, plus `no-hand-rolled-mutation`, which inspects a `mutationFn` property and is
+in the same override for the same reason. `zone-dag` stays on. That override is the same four in
+every config that carries it, all three apps included.
 `no-source-tests` stays on for the opposite reason: specs are the only thing it judges, so the
 test override is precisely where it must not appear.
 

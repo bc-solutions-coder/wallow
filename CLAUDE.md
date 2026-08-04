@@ -52,7 +52,7 @@ cleanly to a fresh database.
 | `packages/auth/`    | `@bc-solutions-coder/auth` — shared authn/authz layer (current-user query + hook, `beforeLoad` primer, role/permission helpers)                     |
 | `packages/testing/` | `@bc-solutions-coder/testing` — shared vitest preset + browser-mode test utilities                                                                                          |
 | `packages/config/` | `@bc-solutions-coder/config` — the Vite presets every workspace member builds with; never built, never published                            |
-| `packages/lint/`   | `@bc-solutions-coder/lint` — Wallow's own oxlint JS-plugin rules (`wallow/*`), registered once at the repo root (which also enables `no-source-tests` repo-wide); five nested configs (both apps, `ui`, `forms`, `navigation`) inherit that registration and enable the rest per-tree |
+| `packages/lint/`   | `@bc-solutions-coder/lint` — Wallow's own oxlint JS-plugin rules (`wallow/*`), registered once at the repo root (which also enables `no-source-tests` repo-wide); nested configs inherit that registration and enable the rest per-tree. `packages/lint/CLAUDE.md` carries the config census and owns it |
 | `packages/utils/`  | `@bc-solutions-coder/utils` — the bottom of the graph: pure functions, zero dependencies, subpath-only |
 | `packages/env/`    | `@bc-solutions-coder/env` — deployment-derived addressing for Start apps, zero dependencies, subpath-only |
 | `packages/logger/` | `@bc-solutions-coder/logger` — structured logging, both ends: browser core (`.`) and app-server ingest handler (`./server`) |
@@ -85,20 +85,23 @@ committed `.npmrc`, which pnpm refuses to expand env vars out of.
 pnpm install                 # install workspace deps (--frozen-lockfile in CI)
 
 pnpm backend                 # run the full .NET backend via Aspire AppHost
-pnpm backend:infra           # docker compose up -d (infra only); :down to stop
+pnpm backend:infra           # docker compose up -d (infra only); pnpm backend:infra:down to stop
+pnpm secrets:prod            # scripts/prod-secrets.sh — generate production secret values
 
 pnpm build                   # turbo run build      (topological; no need to build the SDK first)
 pnpm test                    # turbo run test       (vitest per package)
 pnpm typecheck               # turbo run typecheck
-pnpm dev                     # turbo run dev        (both apps, deps built first)
-pnpm lint                    # oxlint over SOURCE only (test/story files excluded)
-pnpm lint:tests              # scripts/lint-tests.sh — the excluded files, + the vitest plugin
+pnpm dev                     # turbo run dev        (both apps)
+pnpm lint                    # oxlint over SOURCE only (test/story files excluded); lint:fix autofixes
+pnpm lint:tests              # scripts/lint-tests.sh — the excluded files, + the vitest plugin; lint:tests:fix autofixes
 pnpm lint:manifests          # sherif — workspace package.json hygiene (no ignores; keep it that way)
 pnpm lint:deps               # knip — unused files/exports/deps; knip.json ignores = generated code, lint fixtures, the fork-smoke scaffold, and the two check-exports.sh CLIs knip cannot trace through a shell script
 pnpm lint:env                # scripts/check-env.sh — every ${VAR} a docker/*.yml interpolates must be documented in its paired .env.example (commented counts). Completeness, not requiredness; no Docker needed
 pnpm format                  # oxfmt --write ...   (format:check verifies)
 pnpm check:exports           # publint + @arethetypeswrong/cli over the built packages (needs dist/)
 pnpm check                   # format:check + lint + lint:tests + lint:manifests + lint:deps + lint:env + build + typecheck + test + check:exports — the one-command quality gate
+
+# `prepare` (= `husky`) is the twentieth script; pnpm runs it on install, never invoke it by hand
 ```
 
 **Turbo owns `build`, `typecheck`, `test` and `dev`** (`turbo.jsonc`), with content-addressed
@@ -126,15 +129,17 @@ Backend commands (run/seed/format/test) live in `api/CLAUDE.md` — use those, n
 
 ## Local Development
 
-| Service         | URL                   | Notes                                    |
-| --------------- | --------------------- | ---------------------------------------- |
-| API             | http://localhost:5001 |                                          |
-| Docs            | http://localhost:5004 | DocFX site                               |
-| Web (TanStack)  | http://localhost:3000 | `apps/wallow-web`; override with `PORT`  |
-| Auth (TanStack) | http://localhost:3002 | `apps/wallow-auth`; override with `PORT` |
+| Service         | URL                   | Notes                                      |
+| --------------- | --------------------- | ------------------------------------------ |
+| API             | http://localhost:5001 |                                            |
+| Docs            | http://localhost:5004 | DocFX site; `./scripts/docs-serve.sh`      |
+| Web (TanStack)  | http://localhost:3000 | `apps/wallow-web`; override with `PORT`    |
+| Auth (TanStack) | http://localhost:3002 | `apps/wallow-auth`; override with `PORT`   |
+| Minimal app     | http://localhost:3010 | `apps/minimal-app`; not started by `pnpm dev` |
 
 Infra service ports (GarageHQ, Mailpit, Grafana) and Compose commands:
-`docs/getting-started/developer-guide.md` and `docker/CLAUDE.md`.
+`docs/getting-started/developer-guide.md` and `docker/CLAUDE.md`. `README.md`'s Local Services
+table is the front-door copy of these rows — change both together.
 
 **Fork branding** is `packages/styles/branding.json` — no source changes are needed to rebrand.
 `.gitattributes` protects fork-owned config on upstream merges; see
@@ -148,8 +153,9 @@ Automated semver via [Conventional Commits](https://www.conventionalcommits.org/
 **Commit format:** `<type>[optional scope][!]: <description>` (lowercase, imperative, no
 trailing period, first line < 72 chars). Use the module name as scope when relevant
 (e.g. `feat(inquiries): add form validation`). `feat:` is a minor bump, `fix:` a patch,
-`feat!:`/`BREAKING CHANGE:` a major; `chore` `refactor` `docs` `test` `ci` `style` `perf`
-`build` do not release.
+`feat!:`/`BREAKING CHANGE:` a major; every other type is non-releasing.
+`docs/operations/versioning.md` carries the full type table — it is the only copy, so read it
+there rather than restating it here or in `CONTRIBUTING.md`.
 
 ## Documentation
 
@@ -188,7 +194,7 @@ bd update <id> --status in_progress         # Claim work
 bd close <id>                               # Complete work
 ```
 
-Beads sync over SSH through this same GitHub repo, on `refs/dolt/data` — **`git push` does not
+Beads sync over HTTPS through this same GitHub repo, on `refs/dolt/data` — **`git push` does not
 carry them**. Setup, sync mechanics, and the husky/`bd hooks install` conflict are documented in
 `docs/getting-started/developer-guide.md`.
 

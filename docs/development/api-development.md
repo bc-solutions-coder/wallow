@@ -649,10 +649,20 @@ Wolverine validates commands using FluentValidation middleware before the handle
 // api/src/Wallow.Api/Program.cs
 builder.Host.UseWolverine(opts =>
 {
-    // FluentValidation middleware — validates commands before handlers
-    opts.UseFluentValidation();
+    // FluentValidation middleware — validates commands before handlers.
+    // ExplicitRegistration is REQUIRED, not a preference: see below.
+    opts.UseFluentValidation(RegistrationBehavior.ExplicitRegistration);
 });
 ```
+
+**`RegistrationBehavior.ExplicitRegistration` is load-bearing.** Each module already registers its
+own validators (`AddXApplication` → `AddValidatorsFromAssembly`), so Wolverine must not also scan
+for them: its scan appends registrations with a plain `IServiceCollection.Add`, leaving two
+`IValidator<T>` entries per command. Two registrations flip `FluentValidationPolicy` from
+`ExecuteOne(IValidator<T>)` to `ExecuteMany(IEnumerable<IValidator<T>>)`, and that enumerable is
+service-located from the root provider — which throws
+*"Cannot resolve scoped service 'IEnumerable<IValidator&lt;T&gt;>' from root provider"* under
+Development scope validation. Drop the argument and the app fails to start.
 
 Each module registers its validators by assembly scan:
 

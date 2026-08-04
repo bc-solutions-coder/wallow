@@ -31,10 +31,14 @@ api/src/Modules/{Module}/
     Wallow.{Module}.Domain/          # Entities, Value Objects, Domain Events, Aggregates, Repository interfaces
     Wallow.{Module}.Application/     # Commands, Queries, Handlers, DTOs, Validators, Application Services
     Wallow.{Module}.Infrastructure/  # EF Core DbContext, Repository implementations, External service clients
-    Wallow.{Module}.Api/             # Endpoints, Request/Response models, Module registration
+    Wallow.{Module}.Api/             # Controllers, Request/Response models, Module registration
 ```
 
-Current modules: Identity, Storage, Notifications, Announcements, Inquiries, ApiKeys, Branding.
+The Api layer is controller-based throughout -- every module derives from `ControllerBase`; nothing
+in `api/src` uses minimal-API `MapGroup`.
+
+The current module roster is stated once, in root `CLAUDE.md` -- read it there rather than from this
+file.
 
 ### Dependency Flow (Strictly Enforced)
 
@@ -63,7 +67,7 @@ Current modules: Identity, Storage, Notifications, Announcements, Inquiries, Api
 
 ### When Creating New Modules
 
-1. Consult `.claude/docs/module-creation.md` first -- read it thoroughly before scaffolding anything.
+1. Consult `docs/architecture/module-creation.md` first -- read it thoroughly before scaffolding anything.
 2. Design the Domain first -- identify aggregates, entities, value objects, and domain events before writing any code.
 3. Define boundaries clearly -- what does this module own? What events does it publish? What events does it consume?
 4. Scaffold all four layers with proper project references.
@@ -101,7 +105,7 @@ When you produce architectural guidance or code:
 ## Anti-Patterns You Actively Prevent
 
 - **Anemic Domain Models**: Entities with only getters/setters and no behavior. Domain logic should live on the domain objects.
-- **Fat Controllers/Endpoints**: API layer should be thin -- validate input, dispatch to Application layer, return response.
+- **Fat Controllers**: API layer should be thin -- validate input, dispatch to Application layer, return response.
 - **Shared Database Tables**: Each module owns its schema. If two modules need the same data, use events to synchronize.
 - **Direct Module References**: Never `ProjectReference` between modules. Always go through `Shared.Contracts` + messaging.
 - **Infrastructure in Domain**: No EF attributes, no `[JsonProperty]`, no HTTP concerns in the Domain layer.

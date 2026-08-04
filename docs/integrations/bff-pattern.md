@@ -200,7 +200,7 @@ GET {WALLOW_AUTH_URL}/connect/authorize
 
 Store both `state` and `code_verifier` in the user's pre-authentication session so they can be validated in step 3.
 
-`WALLOW_AUTH_URL` is the base URL of the auth app (`apps/wallow-auth`, e.g., `https://wallow.example.com/auth` when behind a reverse proxy).
+`WALLOW_AUTH_URL` is the base URL of the auth app (`apps/wallow-auth`, e.g., `https://wallow.dev/auth` when behind a reverse proxy).
 
 ### Step 2 — User Authenticates on Wallow
 
@@ -233,7 +233,7 @@ grant_type=authorization_code
 &code_verifier={code_verifier_from_step_1}
 ```
 
-`WALLOW_API_URL` is the base URL of the `Wallow.Api` app (e.g., `https://wallow.example.com/api`).
+`WALLOW_API_URL` is the base URL of the `Wallow.Api` app (e.g., `https://wallow.dev/api`).
 Send the `client_secret` from the server-side environment only; the confidential client authenticates with it alongside the PKCE `code_verifier`.
 
 Wallow responds with:
@@ -612,8 +612,8 @@ app.use(cookieParser());
 const redis = createClient({ url: process.env.VALKEY_URL });
 await redis.connect();
 
-const WALLOW_API_URL = process.env.WALLOW_API_URL; // e.g. https://wallow.example.com/api
-const WALLOW_AUTH_URL = process.env.WALLOW_AUTH_URL; // e.g. https://wallow.example.com/auth
+const WALLOW_API_URL = process.env.WALLOW_API_URL; // e.g. https://wallow.dev/api
+const WALLOW_AUTH_URL = process.env.WALLOW_AUTH_URL; // e.g. https://wallow.dev/auth
 const CLIENT_ID = process.env.CLIENT_ID; // e.g. app-my-fork-site
 const CLIENT_SECRET = process.env.CLIENT_SECRET; // confidential secret, shown once at registration
 const REDIRECT_URI = process.env.REDIRECT_URI; // e.g. https://myapp.example.com/callback
@@ -786,7 +786,7 @@ builder.Services.AddAuthentication(options =>
     })
     .AddOpenIdConnect(options =>
     {
-        options.Authority = builder.Configuration["Wallow:ApiBaseUrl"]; // e.g. https://wallow.example.com/api
+        options.Authority = builder.Configuration["Wallow:ApiBaseUrl"]; // e.g. https://wallow.dev/api
         options.ClientId = builder.Configuration["Wallow:ClientId"];        // e.g. app-my-fork-site
         options.ClientSecret = builder.Configuration["Wallow:ClientSecret"]; // confidential secret, shown once at registration
         options.ResponseType = "code";
@@ -849,7 +849,7 @@ Add the corresponding `appsettings.json` configuration:
 ```json
 {
   "Wallow": {
-    "ApiBaseUrl": "https://wallow.example.com/api",
+    "ApiBaseUrl": "https://wallow.dev/api",
     "ClientId": "app-my-fork-site",
     "ClientSecret": "set-from-environment-or-a-secrets-manager"
   },
@@ -870,7 +870,7 @@ Add the corresponding `appsettings.json` configuration:
       "wallow": {
         "Destinations": {
           "primary": {
-            "Address": "https://wallow.example.com/api"
+            "Address": "https://wallow.dev/api"
           }
         }
       }
@@ -885,12 +885,16 @@ Add the corresponding `appsettings.json` configuration:
 
 | Endpoint             | Method | Description                                                                                                   |
 | -------------------- | ------ | ------------------------------------------------------------------------------------------------------------- |
-| `/connect/authorize` | GET    | Start the Authorization Code flow (served by Wallow.Api; fronted same-origin by the `apps/wallow-auth` proxy) |
-| `/connect/token`     | POST   | Exchange code for tokens; refresh tokens (served by Wallow.Api)                                               |
-| `/connect/userinfo`  | GET    | Retrieve claims for the authenticated user (served by Wallow.Api)                                             |
-| `/connect/logout`    | GET    | End the Wallow session and redirect (served by Wallow.Api)                                                    |
+| `/connect/authorize` | GET    | Start the Authorization Code flow |
+| `/connect/token`     | POST   | Exchange code for tokens; refresh tokens |
+| `/connect/userinfo`  | GET    | Retrieve claims for the authenticated user |
+| `/connect/logout`    | GET    | End the Wallow session and redirect |
 
-All `/connect/*` endpoints are served by the OpenIddict middleware. When Wallow is deployed behind a reverse proxy with path-based routing, the Auth app (`/connect/authorize`) and the API (`/connect/token`, `/connect/userinfo`, `/connect/logout`) are on separate origins — use the correct base URL for each.
+All four are served by the OpenIddict middleware in Wallow.Api, and all four are fronted
+same-origin by the `apps/wallow-auth` proxy. The namespace is **not** split across origins: the
+auth app registers a single `/connect/$` splat route (alongside `/v1/$` and `/.well-known/$`) that
+forwards method, path, query, body and cookies to the API verbatim. Use the auth app's origin for
+every `/connect/*` endpoint.
 
 ---
 

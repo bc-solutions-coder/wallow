@@ -49,12 +49,16 @@ Shared test infrastructure for Wallow integration tests.
 
 ## Running Tests
 
-Always use the test script, never bare `dotnet test`:
+Always use the test script, never bare `dotnet test`.
+
+`Wallow.Tests.Common` is a helper library with no tests of its own and no `run-tests.sh`
+shorthand — `./scripts/run-tests.sh shared` resolves to a *different* assembly,
+`Wallow.Shared.Infrastructure.Tests`. To exercise these helpers, run the suites that consume them:
 
 ```bash
-# Run all tests
+# Everything
 ./scripts/run-tests.sh
 
-# Run specific module tests
-./scripts/run-tests.sh shared
+# A consumer, e.g. one module
+./scripts/run-tests.sh identity
 ```

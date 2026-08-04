@@ -188,3 +188,32 @@ runtime:
   whose output belongs on the terminal.
 
 Everything rendered or served by an app goes through the logger.
+
+## How this fits the platform's observability
+
+The [Observability Guide](../operations/observability.md) documents the .NET API's three signals —
+structured logs, metrics and traces, all exported over OTLP/gRPC to the same collector. This page is
+the other half of that picture, and the two halves are **not** symmetric:
+
+| | Backend (`Wallow.Api`) | Frontend (React apps) |
+| --- | --- | --- |
+| Logs | Serilog → OTLP | `@bc-solutions-coder/logger` → app server → OTLP |
+| Metrics | OpenTelemetry instruments | None — the browser emits no metrics |
+| Traces | OpenTelemetry activities, sampled by `OpenTelemetry:TraceSamplingRatio` | None — the browser starts no spans |
+| Transport | OTLP/**gRPC**, port 4317 | OTLP/**HTTP**, port 4318 |
+| Credential | Held by the API process | Held by the app server; **never** by the page |
+
+So "frontend observability" in Wallow means **logs only**, joined to the backend's three signals by
+the shared `correlationId` (the `x-request-id` the SDK's proxy writes). Both ends land in the same
+collector and the same Grafana stack, so a browser record and the API records for the same request
+sit in one query — which is the whole reason the correlation ID is stamped rather than generated
+independently at each end.
+
+Two practical consequences:
+
+- **The endpoint variable is shared but the port is not.** `OTEL_EXPORTER_OTLP_ENDPOINT` is read by
+  both the API and the app servers; the API wants `:4317` and the app servers want `:4318`. In a
+  deployment where the two run as separate processes this is fine. Where they share an environment,
+  the app server's value has to be set per process — see the Configuration table above.
+- **There is nothing to instrument in the page.** If you want a frontend signal that is not a log
+  record, it does not exist yet; add the log event and derive the metric in the collector.

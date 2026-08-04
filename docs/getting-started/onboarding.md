@@ -24,35 +24,39 @@ cd wallow
 # 2. Create the Docker env file (GF_ADMIN_PASSWORD is required)
 cp docker/.env.example docker/.env
 
-# 3. Start infrastructure services
-cd docker && docker compose up -d
+# 3. Install the workspace
+pnpm install
 
-# 4. Run the API (from repo root)
-cd ..
-dotnet run --project api/src/Wallow.Api
+# 4. Run the whole system -- infrastructure, API, and both React apps
+pnpm backend
 
 # You should see:
 # [12:34:56 INF] [Api] Now listening on: http://localhost:5001
 ```
 
-To run the whole system -- infrastructure, API, and both React apps -- in one command instead, use the .NET Aspire host:
+`pnpm backend` starts the .NET Aspire host (`Wallow.AppHost`), which brings up the containerised
+infrastructure and the API together. It is the supported way to run Wallow locally.
 
-```bash
-pnpm install
-pnpm backend
-```
+If you only want the infrastructure containers -- to run or debug the API from your IDE -- use
+`pnpm backend:infra` (and `pnpm backend:infra:down` to stop them). Note that starting
+`Wallow.Api` on its own **does not apply migrations**; see
+[Database Migrations](../development/database-migrations.md) for how schemas are created.
 
 ### Verify Everything Works
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
 | API Docs (Scalar) | http://localhost:5001/scalar/v1 | N/A |
+| Hangfire Dashboard | http://localhost:5001/hangfire | N/A |
+| AsyncAPI Viewer | http://localhost:5001/asyncapi | N/A |
 | Web app | http://localhost:3000 | N/A |
 | Auth app | http://localhost:3002 | N/A |
 | Mailpit (Email Sink) | http://localhost:8025 | N/A |
 | Grafana (Observability) | http://localhost:3001 | `admin` / `GF_ADMIN_PASSWORD` from `docker/.env` |
+| Docs site (DocFX) | http://localhost:5004 | N/A — started separately by `./scripts/docs-serve.sh` |
 
-If all URLs load, you are ready. (The web and auth apps only run when you started things with `pnpm backend`.)
+If all URLs load, you are ready. (The web and auth apps only run under `pnpm backend`; if you started
+only `pnpm backend:infra`, they are not running.)
 
 ---
 
@@ -68,7 +72,7 @@ Every module follows Clean Architecture with four layers:
 api/src/Modules/{Module}/
   Wallow.{Module}.Domain           -- Entities, Value Objects, Domain Events (zero dependencies)
   Wallow.{Module}.Application      -- Commands, Queries, Handlers, DTOs (depends on Domain)
-  Wallow.{Module}.Infrastructure   -- EF Core, Dapper, Consumers (implements Application interfaces)
+  Wallow.{Module}.Infrastructure   -- EF Core, Consumers (implements Application interfaces)
   Wallow.{Module}.Api              -- Controllers, Request/Response DTOs (depends on Application)
 ```
 
@@ -126,7 +130,13 @@ Notifications is a strong reference implementation for DDD patterns with multi-c
 ./scripts/run-tests.sh
 ```
 
-Watch for Testcontainers spinning up Postgres and Valkey.
+This runs the fast suites only -- `run-tests.sh` appends `--filter "Category!=E2E&Category!=Integration"`
+to every invocation except the literal `./scripts/run-tests.sh integration`. Run that one to exercise
+the integration tests, and watch for Testcontainers spinning up Postgres and Valkey.
+
+The frontend workspace has its own gate. `pnpm check` runs formatting, both lint passes, manifest and
+dependency checks, build, typecheck, tests and export checks -- it is what CI runs, so run it before
+opening a PR that touches `apps/` or `packages/`.
 
 ---
 
@@ -149,7 +159,7 @@ For the full step-by-step guide to creating a new module, see the [Developer Gui
 
 ## 5. Points of Interest
 
-**Why doesn't Identity use CQRS?** ASP.NET Core Identity is the source of truth for user accounts. CQRS would add ceremony without benefit. Exception: Service Accounts do use CQRS because they have local state.
+**Which modules skip CQRS?** Two: **Branding** (`DTOs/` + `Interfaces/` only) and **ApiKeys** (`Interfaces/` only). Both go straight to a service or repository because the command/query split would be ceremony without benefit. Every other module -- Identity included -- has `Commands/` and `Queries/` with Wolverine handlers; Identity's cover setup, service accounts and API scopes, while ASP.NET Core Identity remains the source of truth for user accounts themselves. See [API Development](../development/api-development.md) for when each shape applies.
 
 **Where is email handling?** In the Notifications module. It consumes events from Identity, Announcements, and Inquiries to send transactional emails.
 
@@ -181,9 +191,14 @@ dotnet ef migrations add MigrationName \
 
 **How do I reset my local database?**
 ```bash
-cd docker && docker compose down -v && docker compose up -d
-dotnet run --project api/src/Wallow.Api  # Re-runs migrations
+cd docker && docker compose down -v && cd ..   # -v drops the volumes; pnpm backend:infra:down keeps them
+pnpm backend                                   # Aspire runs wallow-migrations, then the seeder, then the API
 ```
+
+Nothing migrates on API startup. Under Aspire the `wallow-migrations` project resource applies
+migrations before the API starts; if you run `Wallow.Api` on its own you must run
+`Wallow.MigrationService` (or `dotnet ef database update`) yourself. See
+[Database Migrations](../development/database-migrations.md).
 
 **Can I query across modules?** No. Modules are autonomous. If Module A needs data from Module B, Module B publishes an event and Module A stores a local copy (eventual consistency). For rare cases requiring synchronous cross-module reads, `Shared.Contracts` defines query service interfaces implemented in the owning module's Infrastructure layer.
 
@@ -200,6 +215,7 @@ dotnet run --project api/src/Wallow.Api  # Re-runs migrations
 | Grafana | http://localhost:3001 |
 | Hangfire Dashboard | http://localhost:5001/hangfire |
 | AsyncAPI Viewer | http://localhost:5001/asyncapi |
+| Docs site (DocFX) | http://localhost:5004 — `./scripts/docs-serve.sh` |
 | Developer Guide | [developer-guide.md](developer-guide.md) |
 | Frontend Setup | [../development/frontend-setup.md](../development/frontend-setup.md) |
 | Architecture Assessment | [../architecture/assessment.md](../architecture/assessment.md) |

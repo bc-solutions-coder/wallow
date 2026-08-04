@@ -6,83 +6,118 @@ Wallow records security-relevant authentication events to a dedicated `auth_audi
 
 Events are stored in `auth_audit.auth_audit_entries`.
 
+Column names are PascalCase in the database. EF Core maps the entity's property names straight
+through — nothing in this repo applies a snake_case naming convention — so every identifier must be
+double-quoted in hand-written SQL.
+
 | Column | Type | Nullable | Description |
 |--------|------|----------|-------------|
-| `id` | `uuid` | No | Primary key, generated per event |
-| `event_type` | `text` | No | String identifier for the event (see below) |
-| `user_id` | `uuid` | No | The user the event relates to |
-| `tenant_id` | `uuid` | No | The tenant the event relates to |
-| `ip_address` | `text` | Yes | Client IP address, when available |
-| `user_agent` | `text` | Yes | HTTP User-Agent header, when available |
-| `occurred_at` | `timestamp with time zone` | No | UTC timestamp; defaults to `now()` at insert |
+| `"Id"` | `uuid` | No | Primary key, generated per event |
+| `"EventType"` | `text` | No | String identifier for the event (see below) |
+| `"UserId"` | `uuid` | No | The user the event is about |
+| `"ActorId"` | `uuid` | Yes | Who caused the event, when that is somebody other than the subject. Null for every authentication event — nobody logs in on another person's behalf |
+| `"TenantId"` | `uuid` | Yes | The tenant the event happened inside, or null when it happened outside every organization |
+| `"IpAddress"` | `text` | Yes | Client IP address, when available |
+| `"UserAgent"` | `text` | Yes | HTTP User-Agent header, when available |
+| `"OccurredAt"` | `timestamp with time zone` | No | UTC timestamp; defaults to `now()` at insert |
 
-The table is created by the `InitialAuthAudit` EF Core migration in `Wallow.Shared.Infrastructure.Core`.
+The table is created by the `InitialCreate` EF Core migration in `Wallow.Shared.Infrastructure.Core`
+(`Migrations/AuthAudit/`).
 
 ## Event Types
 
-The `event_type` column uses plain string values. The following events are recorded by default.
+The `"EventType"` column uses plain string values. The following events are recorded by default.
 
-| `event_type` | Trigger | IP recorded |
+| `"EventType"` | Trigger | IP recorded |
 |--------------|---------|-------------|
 | `LoginSucceeded` | A user successfully authenticates | Yes |
 | `LoginFailed` | A login attempt is rejected (wrong password, unknown user, etc.) | Yes |
 | `AccountLockedOut` | A user account is locked after repeated failed login attempts | Yes |
 | `MfaLockedOut` | A user is locked out after repeated MFA failures | No |
+| `Membership<Transition>` | Somebody's membership of an organization changed state (see below) | No |
 
 Each event is written by `AuthAuditEventHandlers` in the Identity module, which subscribes to the corresponding Wolverine in-memory integration events published by the Identity domain.
 
-| `event_type` | Source integration event |
+| `"EventType"` | Source integration event |
 |--------------|--------------------------|
 | `LoginSucceeded` | `UserLoginSucceededEvent` |
 | `LoginFailed` | `UserLoginFailedEvent` |
 | `AccountLockedOut` | `UserAccountLockedOutEvent` |
 | `MfaLockedOut` | `UserMfaLockedOutEvent` |
+| `Membership<Transition>` | `MembershipTransitionedEvent` |
+
+### Membership events
+
+`MembershipTransitionedEvent` carries a `Transition` discriminator rather than shipping one record
+per transition. The handler spells that discriminator into the event type — `MembershipApproved`,
+`MembershipSuspended`, and so on — so a membership decision is queried exactly the same way every
+other audited event is.
+
+The fourteen `MembershipTransition` values are `AccessRequested`, `Enrolled`, `Added`, `Approved`,
+`Denied`, `DenialCleared`, `Suspended`, `Reinstated`, `RoleAssigned`, `RoleRemoved`, `Left`,
+`Removed`, `OwnerMarked` and `OwnerUnmarked`.
+
+This is the only handler that writes `"ActorId"`: it records who made the change, while `"UserId"`
+records who it was made about. The two are equal for the transitions somebody performs on their own
+membership — requesting access, enrolling, leaving — and that equality is the record, not an
+omission. Every other audited event leaves `"ActorId"` null.
+
+To read the whole family:
+
+```sql
+SELECT "EventType", "UserId", "ActorId", "OccurredAt"
+FROM auth_audit.auth_audit_entries
+WHERE "EventType" LIKE 'Membership%'
+ORDER BY "OccurredAt" DESC;
+```
 
 ## Querying Events
 
 All examples use the `auth_audit` schema. Substitute real UUIDs for `$user_id` and `$tenant_id`.
+Every column identifier is double-quoted, because the columns are PascalCase — an unquoted
+`user_id` or `occurredat` does not exist and the query errors out.
 
 **Recent logins for a user:**
 
 ```sql
-SELECT id, event_type, ip_address, occurred_at
+SELECT "Id", "EventType", "IpAddress", "OccurredAt"
 FROM auth_audit.auth_audit_entries
-WHERE user_id = '$user_id'
-  AND event_type = 'LoginSucceeded'
-ORDER BY occurred_at DESC
+WHERE "UserId" = '$user_id'
+  AND "EventType" = 'LoginSucceeded'
+ORDER BY "OccurredAt" DESC
 LIMIT 50;
 ```
 
 **Failed login attempts in the last 24 hours (across a tenant):**
 
 ```sql
-SELECT user_id, ip_address, COUNT(*) AS attempts
+SELECT "UserId", "IpAddress", COUNT(*) AS attempts
 FROM auth_audit.auth_audit_entries
-WHERE tenant_id = '$tenant_id'
-  AND event_type = 'LoginFailed'
-  AND occurred_at >= now() - INTERVAL '24 hours'
-GROUP BY user_id, ip_address
+WHERE "TenantId" = '$tenant_id'
+  AND "EventType" = 'LoginFailed'
+  AND "OccurredAt" >= now() - INTERVAL '24 hours'
+GROUP BY "UserId", "IpAddress"
 ORDER BY attempts DESC;
 ```
 
 **All security events for a user (ordered most recent first):**
 
 ```sql
-SELECT event_type, ip_address, user_agent, occurred_at
+SELECT "EventType", "IpAddress", "UserAgent", "OccurredAt"
 FROM auth_audit.auth_audit_entries
-WHERE user_id = '$user_id'
-ORDER BY occurred_at DESC;
+WHERE "UserId" = '$user_id'
+ORDER BY "OccurredAt" DESC;
 ```
 
 **Lockout events in a date range:**
 
 ```sql
-SELECT user_id, event_type, ip_address, occurred_at
+SELECT "UserId", "EventType", "IpAddress", "OccurredAt"
 FROM auth_audit.auth_audit_entries
-WHERE tenant_id = '$tenant_id'
-  AND event_type IN ('AccountLockedOut', 'MfaLockedOut')
-  AND occurred_at BETWEEN '2026-01-01' AND '2026-02-01'
-ORDER BY occurred_at DESC;
+WHERE "TenantId" = '$tenant_id'
+  AND "EventType" IN ('AccountLockedOut', 'MfaLockedOut')
+  AND "OccurredAt" BETWEEN '2026-01-01' AND '2026-02-01'
+ORDER BY "OccurredAt" DESC;
 ```
 
 ## Retention Policy
@@ -92,14 +127,14 @@ No automatic retention policy is applied out of the box. The `auth_audit_entries
 ```sql
 -- Example: delete entries older than 90 days
 DELETE FROM auth_audit.auth_audit_entries
-WHERE occurred_at < now() - INTERVAL '90 days';
+WHERE "OccurredAt" < now() - INTERVAL '90 days';
 ```
 
-Consider adding an index on `occurred_at` before running this at scale:
+Consider adding an index on `"OccurredAt"` before running this at scale:
 
 ```sql
 CREATE INDEX IF NOT EXISTS ix_auth_audit_entries_occurred_at
-    ON auth_audit.auth_audit_entries (occurred_at);
+    ON auth_audit.auth_audit_entries ("OccurredAt");
 ```
 
 ## Extending Audit Coverage
@@ -111,7 +146,9 @@ CREATE INDEX IF NOT EXISTS ix_auth_audit_entries_occurred_at
 ```csharp
 using Wallow.Shared.Contracts.Identity.Events;
 using Wallow.Shared.Kernel.Auditing;
+using Wolverine.Attributes;
 
+[WolverineHandler]
 public static class MyModuleAuditHandlers
 {
     public static Task Handle(UserSessionEvictedEvent message, IAuthAuditService authAuditService)
@@ -127,7 +164,17 @@ public static class MyModuleAuditHandlers
 }
 ```
 
-Wolverine auto-discovers handlers in all `Wallow.*` assemblies, so no explicit registration is needed.
+Wolverine scans all `Wallow.*` assemblies, so there is no registration call to write — but
+`[WolverineHandler]` is load-bearing here and must not be dropped. Conventional discovery finds a
+public concrete type only if it implements `IWolverineHandler`, carries `[WolverineHandler]`, or has
+a **type name ending in `Handler` or `Consumer`**. The name is the whole story: `AuthAuditEventHandlers`
+is plural, so it matches none of the three and needs the attribute, without which every method in it
+is silently unreachable and nothing is ever audited. Static-ness is not the problem — 29 `public
+static class …Handler` types elsewhere in `api/src` are discovered fine with no attribute, which is
+why `api/CLAUDE.md` can say static handlers need no registration.
+
+If you name a handler class `…Handlers` (plural) and forget the attribute, nothing fails at startup
+and nothing logs — the messages simply go nowhere.
 
 **2. Use a descriptive, consistent `EventType` string.** Use PascalCase. Prefix with a module name if the event is module-specific (e.g., `Storage.FileUploaded`).
 

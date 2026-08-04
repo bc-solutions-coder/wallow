@@ -2,10 +2,12 @@
 
 Every app here is a **TanStack Start** frontend consuming the `@bc-solutions-coder` workspace
 packages (`sdk`, `styles`, `ui`, `forms`, `navigation`, `query`, `auth`, `utils`, `env`, `logger`,
-`testing`, `config`) via `workspace:*`. `forms`, `auth`, `navigation` and `logger` are the
-optional ones — `minimal-app` renders no form, has no signed-in user, has no shell and
-records nothing, so it omits all four. `wallow-auth`'s screens sit in its own `auth-layout.tsx`,
-which leaves `wallow-web` as `navigation`'s one consumer today. `config` is the odd one: a
+`testing`, `config`) via `workspace:*`. `forms`, `auth`, `navigation`, `logger` and `utils` are
+the optional ones — `minimal-app` renders no form, has no signed-in user, has no shell, records
+nothing and needs no shared helper, so it omits all five and declares six workspace packages
+(`env`, `query`, `sdk`, `styles`, `testing`, `ui`, plus `config` as a devDependency).
+`wallow-auth`'s screens sit in its own `auth-layout.tsx`, which leaves `wallow-web` as
+`navigation`'s one consumer today. `config` is the odd one: a
 build-time-only dependency supplying `wallowAppConfig()` to `vite.config.ts`, never imported by
 app code.
 
@@ -29,10 +31,14 @@ Per-app scripts (`pnpm --filter ./apps/<app> <script>`): `dev` (`vite dev`), `bu
 - **Hosting is per-app and owned by Start.** Each app has one `vite.config.ts`
   (`tanstackStart` + `react` + `nitro` + `wallowStyles`) and no host files: `server.ts`,
   `dev-server.ts`, `vite.ssr.config.ts`, and the hand-rolled host-runtime `./server` presets
-  the deleted shared frontend-runtime package used to ship are all gone. Backend-facing surface = **server routes** under `src/app/routes/**` delegating to
-  an SDK preset (`createApiPassthrough` for wallow-auth/minimal-app, `createWallowBffServer`
-  for wallow-web). `src/app/routeTree.gen.ts` regenerates as a side effect of `vite dev`/`vite
-build` — never hand-edit it, and do not add a `routes:generate` script or `tsr.config.json`.
+  the deleted shared frontend-runtime package used to ship are all gone. Backend-facing surface =
+  **server routes** delegating to an SDK preset (`createApiPassthrough` for
+  wallow-auth/minimal-app, `createWallowBffServer` for wallow-web). The generated route tree
+  regenerates as a side effect of `vite dev`/`vite build` — never hand-edit it, and do not add a
+  `routes:generate` script or `tsr.config.json`. **Where those files sit is per-app**: the two
+  zoned apps put them under `src/app/` (`src/app/routes/**`, `src/app/routeTree.gen.ts`, which is
+  what `srcDirectory: "src/app"` in `vite.config.ts` selects), while minimal-app is flat —
+  `src/routes/**` and `src/routeTree.gen.ts`, with no `app/` directory at all.
 - **`wallow-web` and `wallow-auth` are zoned; `minimal-app` is deliberately not.**
   In the two zoned apps `src/` is `app/` (routes, router, entries, server-only modules),
   `features/<name>/` (one directory per screen or vertical, reachable only through its
@@ -70,18 +76,20 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
   component keeps the markup.
 - Every app spells out `server.port` in its `vite.config.ts` (`vite dev` binds 3000 when
   `PORT` is unset). `@tanstack/react-start`/`react-router`/`react-router-ssr-query` are still
-  pinned exactly, but the pin now lives in the **`start` catalog** in `pnpm-workspace.yaml`:
+  pinned exactly, but the pin now lives in the **`start` version catalog** in `pnpm-workspace.yaml`:
   app manifests say `"catalog:start"`, and the exact version is edited in one place. Ranged
   shared deps (`react`, `react-dom`, `@tanstack/react-form`/`react-query`, `zustand`) come from
-  the sibling **`react` catalog**. Do not collapse the two — a library peering
+  the sibling **`react` version catalog**. Do not collapse the two — a library peering
   `@tanstack/react-router@^1.170.18` against an app pinning `1.170.18` exactly is correct
   practice, not drift, and stays a literal.
 
-- **App surfaces are built from the catalog, and in ALL THREE apps that is lint-enforced.**
+- **App surfaces are built from the `@bc-solutions-coder/ui` component catalog, and in ALL THREE
+  apps that is lint-enforced.** ("Catalog" here is the component library, not a pnpm version
+  catalog — the paragraph above uses the word for those.)
   `apps/wallow-web/.oxlintrc.json`, `apps/wallow-auth/.oxlintrc.json` and
   `apps/minimal-app/.oxlintrc.json` (the root config carries
   none of these rules) add `react/forbid-elements` for raw `p`, `span`, `legend`, `code` and
-  `h1`–`h6`, pointing each at `Text`/`PageHeader` so the catalog owns the type scale once, plus
+  `h1`–`h6`, pointing each at `Text`/`PageHeader` so the component catalog owns the type scale once, plus
   custom rules from the `@bc-solutions-coder/lint` plugin (`packages/lint`):
   `wallow/no-sidebar-inversion` (bans the `bg-foreground`/`text-background` inversion hack in
   favour of the recipes' `surface="sidebar"` axis), `wallow/no-tinted-text` (bans
@@ -94,7 +102,9 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
   marketing page runs one step above a card scale, and minimal-app carries no override at all),
   `wallow/zone-dag` (the import graph above), and `wallow/no-source-tests` (bans `node:fs` in a
   `*.test.*` file — a spec asserts behaviour, not source text; see `.claude/rules/TESTING.md`).
-  The first three are off for `*.test.*` and `*.stories.tsx`. `zone-dag` deliberately is NOT,
+  Those three, plus `wallow/no-hand-rolled-mutation` (the data-boundary rule described further
+  down), are the **four** every rule-enabling config turns off for `*.test.*` and
+  `*.stories.tsx` — the same four in all six of them. `zone-dag` deliberately is NOT,
   because it judges a spec's edges too — its one spec exemption (`@app/*`) is inside the rule —
   and neither is `no-source-tests`, which has nothing BUT specs to judge, so listing it in the
   test override would switch it off everywhere. The plugin is registered ONCE, at the repo root
@@ -134,7 +144,7 @@ build` — never hand-edit it, and do not add a `routes:generate` script or `tsr
 - **Backend data, react-query imports, and auth state each have exactly one source.** Stated in
   full under "Frontend state boundary" at the bottom of this file — read it before adding a query,
   a mutation, or a permission check.
-- **A card heading is 20px (`text-xl`), catalog-wide.** That is `Text`'s `subheading` step,
+- **A card heading is 20px (`text-xl`), across the whole component catalog.** That is `Text`'s `subheading` step,
   which already sat there, plus the four `packages/ui` "names the surface" title recipes moved
   onto it — `cardTitleRecipe`, `dialogTitleRecipe`, `alertDialogTitleRecipe` and
   `drawerTitleRecipe`, all previously `text-lg` (18px). 16px is the browser's default body

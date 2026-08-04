@@ -2,10 +2,15 @@
 
 ## Supported Versions
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 0.2.x   | :white_check_mark: |
-| < 0.2   | :x:                |
+| Component | Version | Supported          |
+| --------- | ------- | ------------------ |
+| Wallow platform | 4.x | :white_check_mark: |
+| Wallow platform | < 4.0 | :x:                |
+| `@bc-solutions-coder/sdk` | 0.2.x | :white_check_mark: |
+
+The TypeScript SDK is versioned as a separate release-please component and carries its own version
+line; see `.release-please-manifest.json` and
+[Versioning](docs/operations/versioning.md).
 
 ## Reporting a Vulnerability
 

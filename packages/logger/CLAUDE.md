@@ -20,8 +20,10 @@ what still fails a build here — a `node:*` import or a `process` reference doe
 | `./server` (`src/server.ts`) | Node    | `createLogIngestHandler(options)` → `(request) => Promise<Response>`, `createServerLogger(options)`, and the OTLP encoder / rate limiter it composes. |
 
 The browser bundle must not carry the guards, the limiter or the OTLP encoder — they are dead
-weight in a page and a map of the server's checks. The charter spec asserts `index.ts` never
-mentions `createLogIngestHandler`, `createRateLimiter` or `toOtlpLogsPayload`.
+weight in a page and a map of the server's checks: `index.ts` must never mention
+`createLogIngestHandler`, `createRateLimiter` or `toOtlpLogsPayload`. **The constraint is real
+even though it is unheld** — the charter spec that asserted it went with the rest of the
+source-reading guards (`Wallow-xg9t.1`), so treat it as load-bearing on review.
 
 ## One transport, one record format, one handler, TWO mount points
 
@@ -125,8 +127,8 @@ anything. The route module builds the handler once at module scope and the route
 `vitest.config.ts` runs the standard two-project split, keyed on file **extension**:
 
 - `src/*.test.ts` → node. Buffering, level filter, redaction, correlation stamping, transport
-  failure and backoff, batch splitting, the guard chain, stamping, OTLP encoding, the limiter,
-  and the charter.
+  failure and backoff, batch splitting, the guard chain, stamping, OTLP encoding, and the
+  limiter.
 - `src/logger.test.tsx` → **real headless Chromium**, and it is the only file there. `pagehide`
   → `sendBeacon`, `visibilitychange` → hidden, and `dispose` unregistering both listeners are
   the behaviours that cannot be asserted on node, and they are exactly where "logs vanish when

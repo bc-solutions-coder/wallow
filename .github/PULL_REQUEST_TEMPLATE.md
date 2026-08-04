@@ -25,14 +25,15 @@
 
 ## Testing
 
-- [ ] All existing tests pass (`./scripts/run-tests.sh`)
+- [ ] Backend tests pass (`./scripts/run-tests.sh`)
+- [ ] Frontend quality gate passes (`pnpm check`) — if the change touches `apps/` or `packages/`
 - [ ] New tests added for new functionality
 - [ ] Manual testing performed (describe below if applicable)
 
 ## Checklist
 
 - [ ] My code follows the project's architecture (Clean Architecture, DDD, module boundaries)
-- [ ] I have used explicit types (not `var`)
+- [ ] C# only: I have used explicit types (not `var`)
 - [ ] My commit messages follow [Conventional Commits](https://www.conventionalcommits.org/)
 - [ ] I have updated documentation where necessary
 - [ ] No cross-module direct references (only `Shared.Contracts`)

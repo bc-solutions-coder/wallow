@@ -14,7 +14,7 @@ External authentication works alongside OpenIddict -- the external provider auth
 User clicks "Sign in with Google"
     |
     v
-GET /api/v1/identity/auth/external-login?provider=Google&returnUrl=...
+GET /v1/identity/auth/external-login?provider=Google&returnUrl=...
     |
     v
 Browser redirects to provider (e.g. accounts.google.com)
@@ -24,7 +24,7 @@ User authenticates with provider
     |
     v
 Provider redirects back to callback:
-GET /api/v1/identity/auth/external-login-callback?returnUrl=...
+GET /v1/identity/auth/external-login-callback?returnUrl=...
     |
     +-- Existing linked account --> Sign in immediately
     |
@@ -32,6 +32,14 @@ GET /api/v1/identity/auth/external-login-callback?returnUrl=...
     |
     +-- New user --> Redirect to /accept-terms --> Create account
 ```
+
+> [!NOTE]
+> The API serves these routes at `/v1/…`; no controller in the codebase carries an `/api` prefix.
+> `/api` does exist in Wallow, but as a **mount**, not as part of the API's own paths: the
+> wallow-web BFF proxies its same-origin `/api/**` to the API, and an ingress doing path-based
+> routing can mount the API under `/api` via the opt-in `PathBase`. Which prefix you use depends on
+> which door you knock on — a browser going through the BFF calls `/api/v1/…`, while anything
+> talking to the API directly calls `/v1/…`.
 
 ## Provider Setup
 
@@ -151,7 +159,7 @@ Add to `api/src/Wallow.Api/appsettings.Development.json`. Never commit secrets t
 
 ## How Provider Visibility Works
 
-The backend conditionally registers authentication schemes only when credentials are present (see `IdentityInfrastructureExtensions.cs`). The API exposes a `GET /api/v1/identity/auth/external-providers` endpoint that returns the list of configured providers. The Login and Register pages query this endpoint and only render buttons for enabled providers.
+The backend conditionally registers authentication schemes only when credentials are present (see `IdentityInfrastructureExtensions.cs`). The API exposes a `GET /v1/identity/auth/external-providers` endpoint that returns the list of configured providers. The Login and Register pages query this endpoint and only render buttons for enabled providers.
 
 If no external providers are configured, the "Or continue with" separator and all social buttons are hidden entirely.
 

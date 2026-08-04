@@ -13,8 +13,8 @@ first-run setup/bootstrap-admin.
 
 | Area | Path |
 |------|------|
-| Aggregates/entities | `Wallow.Identity.Domain/Entities/` (WallowUser, WallowRole, Organization, Membership, Invitation, ActiveSession, ApiScope, ServiceAccountMetadata) |
-| Controllers | `Wallow.Identity.Api/Controllers/` (Account, Authorization, Token, Userinfo, Logout, Mfa, Users, Roles, Scopes, Organizations, Invitations, Session, Clients, Apps, Setup, IdentitySettings, TestSupport) |
+| Aggregates/entities | `Wallow.Identity.Domain/Entities/` (WallowUser, WallowRole, Organization, OrganizationBranding, OrganizationSettings, Membership, MembershipRole, Invitation, ActiveSession, ApiScope, ServiceAccountMetadata) |
+| Controllers | `Wallow.Identity.Api/Controllers/` (Account, Authorization, Token, Userinfo, Logout, Mfa, Me, Users, Roles, Scopes, Organizations, Invitations, Session, Clients, Apps, Setup, IdentitySettings, TestSupport) |
 | Services (most logic) | `Wallow.Identity.Infrastructure/Services/` (UserService, MfaService, PasswordlessService, SessionService, OrganizationService, InvitationService, BootstrapAdminService, PreRegisteredClientSyncService, …) |
 | Commands/Queries | `Wallow.Identity.Application/Commands/`, `Queries/` (service accounts, bootstrap admin, setup status) |
 | OpenIddict setup | `Wallow.Identity.Infrastructure/Extensions/IdentityInfrastructureExtensions.cs` |
@@ -51,15 +51,18 @@ first-run setup/bootstrap-admin.
 
 ## Permissions
 
-`Wallow.Shared.Kernel.Identity.Authorization.PermissionType`: `UsersRead/Create/Update/Delete`,
-`RolesRead/Create/Update/Delete`, `OrganizationsRead/Create/Update/ManageMembers`,
-plus `AdminAccess`/`SystemSettings`. Enforced with `[HasPermission]`; scopes map to
-permissions via `ScopePermissionMapper`.
+`Wallow.Shared.Kernel.Identity.Authorization.PermissionType` declares **39** `public const string`
+permissions across all modules. The ones this module enforces most: `UsersRead/Create/Update/Delete`,
+`RolesRead/Create/Update/Delete`, `OrganizationsRead/Create/Update/ManageMembers`, `ScopeRead`, plus
+`AdminAccess`/`SystemSettings`. **Read `PermissionType.cs` for the full list** — this is a sample,
+not an inventory. Enforced with `[HasPermission]`; scopes map to permissions via
+`ScopePermissionMapper` (also Kernel).
 
 ## Database
 
 - Schema: `identity` (`HasDefaultSchema` in `IdentityDbContext`)
-- Extends `TenantAwareDbContext`; default `NoTracking`; auto-migrates in Development/Testing
+- Extends `TenantAwareDbContext`; default `NoTracking`; migrated inline only in the `Testing`
+  environment — everywhere else `Wallow.MigrationService` applies migrations
 
 ## Running Tests
 
@@ -67,3 +70,8 @@ permissions via `ScopePermissionMapper`.
 ./scripts/run-tests.sh identity      # Wallow.Identity.Tests (unit + Testcontainers)
 ./scripts/run-tests.sh integration   # Wallow.Identity.IntegrationTests
 ```
+
+## Related Documentation
+
+- Module reference: [`README.md`](README.md)
+- Backend conventions and commands: [`api/CLAUDE.md`](../../../CLAUDE.md)

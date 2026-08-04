@@ -25,6 +25,7 @@ wallow (upstream)          your-product (fork)
 ## Prerequisites
 
 - .NET 10 SDK
+- Node 24 (see `.nvmrc`) and pnpm 10.20.0 — the React apps and every shared package live in a pnpm workspace, and Approach A's very first customization step edits a file inside it
 - Docker and Docker Compose
 - PostgreSQL (via Docker or standalone)
 - Git
@@ -342,11 +343,13 @@ To disable a module, set its value to `false`:
 }
 ```
 
+The block above is the shipped file verbatim, including `Modules.Configuration` — which is stale. Wallow has **seven** modules (Identity, Storage, Notifications, Announcements, Inquiries, ApiKeys, Branding); there is no Configuration module, so that flag toggles nothing. Do not carry it into your fork.
+
 This is wired in `WallowModules.cs`, which uses `IFeatureManager` to check feature flags before registering each module. Identity is always registered as a required platform dependency. When a module is disabled, its DI services, database migrations, API controllers, and Wolverine handlers are all excluded from the application.
 
 ### Module-specific configuration
 
-Each module reads its own configuration section from `appsettings.json`. See the [Configuration Guide](configuration.md) for the full reference of all configuration sections (`Smtp`, `Storage`, `OpenTelemetry`, etc.).
+Each module reads its own configuration section from `appsettings.json`. See the [Configuration Guide](configuration.md) for the sections a fork is most likely to change (`Smtp`, `Storage`, `OpenTelemetry`, etc.); `appsettings.json` itself remains the complete list.
 
 ### Environment-specific overrides
 
@@ -401,12 +404,13 @@ dotnet add YourProduct.YourModule.Api reference YourProduct.YourModule.Applicati
 
 # Infrastructure also needs Shared.Kernel for base classes
 dotnet add YourProduct.YourModule.Infrastructure reference ../../Shared/YourProduct.Shared.Kernel
-
-# Api needs Infrastructure for DI registration
-dotnet add YourProduct.YourModule.Api reference YourProduct.YourModule.Infrastructure
 ```
 
 Domain has **no** project references.
+
+**Api must not reference its own module's Infrastructure.** `CleanArchitectureTests.ApiLayer_ShouldNotDependOn_InfrastructureLayer` asserts exactly that, per module. The module's DI registration therefore belongs in Infrastructure — an `AddYourModuleInfrastructure(...)` extension that the composition root (`Wallow.Api`) calls — not in the module's Api project.
+
+The test reads IL rather than the project file, so an unused `ProjectReference` slips past it (`Wallow.Identity.Api.csproj` carries one and still passes). Do not treat that as permission: add the reference and the first type you use across the boundary fails the suite.
 
 ### 4. Add shared events
 
@@ -495,18 +499,18 @@ public class Order : AggregateRoot, ITenantScoped
 }
 ```
 
-### 2. Apply global query filters in your DbContext
+### 2. Derive from `TenantAwareDbContext<T>`
+
+Do **not** hand-write `HasQueryFilter` per entity. `TenantAwareDbContext<T>` (namespace `Wallow.Shared.Infrastructure.Core.Persistence`) carries the tenant plumbing, and one call to `ApplyTenantQueryFilters(modelBuilder)` applies the filter to every entity that implements the tenant-scoped interface — including the ones you add later:
 
 ```csharp
-public sealed class OrderDbContext : DbContext
+public sealed class OrderDbContext : TenantAwareDbContext<OrderDbContext>
 {
-    private readonly ITenantContext _tenantContext;
+    public DbSet<Order> Orders => Set<Order>();
 
-    public OrderDbContext(
-        DbContextOptions<OrderDbContext> options,
-        ITenantContext tenantContext) : base(options)
+    public OrderDbContext(DbContextOptions<OrderDbContext> options) : base(options)
     {
-        _tenantContext = tenantContext;
+        ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -514,56 +518,62 @@ public sealed class OrderDbContext : DbContext
         modelBuilder.HasDefaultSchema("orders");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(OrderDbContext).Assembly);
 
-        modelBuilder.Entity<Order>()
-            .HasQueryFilter(e => e.TenantId == _tenantContext.TenantId);
+        ApplyTenantQueryFilters(modelBuilder);
     }
 }
 ```
 
-### 3. Register the TenantSaveChangesInterceptor
+`HasQueryFilter` appears in exactly two files across `api/src`, both inside the shared base class. A per-entity filter in your module is a filter someone will forget on the next entity.
 
-In your module's service registration, add the interceptor so `TenantId` is automatically stamped on new entities:
+### 3. Register the context
+
+Register a pooled factory, then the tenant-aware scoped wrapper and the read context. The interceptor that stamps `TenantId` on new entities goes on the factory's options:
 
 ```csharp
-services.AddDbContext<OrderDbContext>((sp, options) =>
+services.AddPooledDbContextFactory<OrderDbContext>((sp, options) =>
 {
-    options.UseNpgsql(connectionString);
+    options.UseNpgsql(connectionString, npgsql =>
+        npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "orders"));
     options.AddInterceptors(sp.GetRequiredService<TenantSaveChangesInterceptor>());
 });
+
+services.AddTenantAwareScopedContext<OrderDbContext>();
+services.AddReadDbContext<OrderDbContext>(configuration);
 ```
 
-### 4. Create a DesignTimeTenantContext
+`AddTenantAwareScopedContext<T>()` is what resolves the current tenant per scope and hands it to the pooled instance — pooling and a constructor-injected `ITenantContext` are incompatible, which is the reason the base class takes the tenant from the scope rather than from its constructor.
 
-EF Core tooling needs an `ITenantContext` at migration time. Add this to your Infrastructure project's `Persistence` folder:
+### 4. Create a design-time factory
+
+`dotnet ef` constructs the context outside the DI container, so give it an
+`IDesignTimeDbContextFactory<T>` in your Infrastructure project's `Persistence` folder. Because the context takes no `ITenantContext` in its constructor, the factory needs nothing but a connection string:
 
 ```csharp
-internal sealed class DesignTimeTenantContext : ITenantContext
+public class OrderDbContextFactory : IDesignTimeDbContextFactory<OrderDbContext>
 {
-    public TenantId TenantId => new(Guid.Parse("00000000-0000-0000-0000-000000000000"));
-    public string TenantName => "design-time";
-    public bool IsResolved => true;
-
-    public void SetTenant(TenantId tenantId, string tenantName = "")
+    public OrderDbContext CreateDbContext(string[] args)
     {
-        // No-op for design-time
-    }
+        DbContextOptionsBuilder<OrderDbContext> optionsBuilder = new();
 
-    public void Clear()
-    {
-        // No-op for design-time
+        string password = Environment.GetEnvironmentVariable("WALLOW_DB_PASSWORD") ?? "wallow";
+        optionsBuilder.UseNpgsql($"Host=localhost;Database=wallow;Username=wallow;Password={password}");
+
+        return new OrderDbContext(optionsBuilder.Options);
     }
 }
 ```
 
-### 5. Dapper queries
+Every module ships one of these — `AnnouncementsDbContextFactory` is the shortest to copy.
 
-When using Dapper for reads, you must filter by tenant manually:
+### 5. Raw SQL
+
+The global filter is an EF Core construct, so anything that bypasses EF bypasses the filter. If you drop to raw SQL — `FromSql` on the read context, or any hand-written query — you must filter by tenant yourself:
 
 ```sql
 WHERE tenant_id = @TenantId
 ```
 
-Pass `_tenantContext.TenantId.Value` as the parameter.
+Pass the ambient `ITenantContext.TenantId.Value` as the parameter. This is the one place in a module where forgetting a `WHERE` clause is a cross-tenant data leak rather than a bug.
 
 ---
 
@@ -698,7 +708,11 @@ dotnet ef migrations add InitialCreate \
     --context YourModuleDbContext
 ```
 
-### Apply manually (optional)
+### Apply the migration
+
+`Wallow.MigrationService` applies every module's migrations, and Aspire runs it before the API starts — so `pnpm backend` is the normal way to get a new migration onto your local database. Register your context with the migration service when you add the module.
+
+To apply one context by hand instead:
 
 ```bash
 dotnet ef database update \
@@ -707,7 +721,7 @@ dotnet ef database update \
     --context YourModuleDbContext
 ```
 
-Migrations also run automatically at startup via `InitializeYourModuleModuleAsync()`.
+**Nothing migrates on API startup.** `InitializeYourModuleModuleAsync()` is a no-op with respect to schema; the only inline path is `WallowModules.RunTestMigrationsAsync`, which is gated to the `Testing` environment so integration tests can migrate their own Testcontainers database. Running `Wallow.Api` on its own against an un-migrated database fails at first query rather than fixing itself.
 
 ---
 
@@ -735,13 +749,15 @@ plugins/
   "version": "1.0.0",
   "description": "Product-specific extension",
   "author": "Your Team",
-  "minWallowVersion": "0.2.0",
+  "minWallowVersion": "4.0.0",
   "entryAssembly": "YourPlugin.dll",
   "dependencies": [],
   "requiredPermissions": ["storage:read", "messaging:send"],
   "exportedServices": []
 }
 ```
+
+All ten keys are required — `PluginManifest` is a positional record, so a missing one fails deserialization. `minWallowVersion` is **declarative only**: nothing in the loader compares it against the backend's `<Version>` (currently `4.0.0` in `api/Directory.Build.props`). Record the version you actually built against; do not expect it to stop a mismatched plugin from loading.
 
 **Plugin entry point:**
 

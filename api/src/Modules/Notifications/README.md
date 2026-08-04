@@ -78,40 +78,40 @@ This module handles events from other modules via Wolverine. All event types are
 
 All endpoints require authentication.
 
-### In-App Notifications (`/api/v1/notifications`)
+### In-App Notifications (`/v1/notifications`)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/v1/notifications` | Get paginated notification history |
-| `GET` | `/api/v1/notifications/unread-count` | Get unread count |
-| `POST` | `/api/v1/notifications/{id}/read` | Mark notification as read |
-| `POST` | `/api/v1/notifications/read-all` | Mark all as read |
+| `GET` | `/v1/notifications` | Get paginated notification history |
+| `GET` | `/v1/notifications/unread-count` | Get unread count |
+| `POST` | `/v1/notifications/{id}/read` | Mark notification as read |
+| `POST` | `/v1/notifications/read-all` | Mark all as read |
 
-### Notification Settings (`/api/v1/notification-settings`)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/v1/notification-settings` | Get user notification settings |
-| `PUT` | `/api/v1/notification-settings/channel` | Enable/disable a channel |
-| `PUT` | `/api/v1/notification-settings/type` | Enable/disable a notification type per channel |
-
-### Push Devices (`/api/v1/push`)
+### Notification Settings (`/v1/notification-settings`)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/api/v1/push/devices` | Register a device |
-| `DELETE` | `/api/v1/push/devices/{id}` | Deregister a device |
-| `GET` | `/api/v1/push/devices` | Get user's registered devices |
-| `POST` | `/api/v1/push/send` | Send a push notification |
+| `GET` | `/v1/notification-settings` | Get user notification settings |
+| `PUT` | `/v1/notification-settings/channel` | Enable/disable a channel |
+| `PUT` | `/v1/notification-settings/type` | Enable/disable a notification type per channel |
 
-### Push Configuration - Admin (`/api/v1/admin/push/config`)
+### Push Devices (`/v1/push`)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/v1/admin/push/config` | Get tenant push config |
-| `PUT` | `/api/v1/admin/push/config` | Upsert tenant push config |
-| `PATCH` | `/api/v1/admin/push/config/enabled` | Enable/disable push for a platform |
-| `DELETE` | `/api/v1/admin/push/config/{platform}` | Remove tenant push config |
+| `POST` | `/v1/push/devices` | Register a device |
+| `DELETE` | `/v1/push/devices/{id}` | Deregister a device |
+| `GET` | `/v1/push/devices` | Get user's registered devices |
+| `POST` | `/v1/push/send` | Send a push notification |
+
+### Push Configuration - Admin (`/v1/admin/push/config`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/v1/admin/push/config` | Get tenant push config |
+| `PUT` | `/v1/admin/push/config` | Upsert tenant push config |
+| `PATCH` | `/v1/admin/push/config/enabled` | Enable/disable push for a platform |
+| `DELETE` | `/v1/admin/push/config/{platform}` | Remove tenant push config |
 
 ## Configuration
 
@@ -129,7 +129,7 @@ All endpoints require authentication.
 |---------|---------|
 | `Wallow.Shared.Kernel` | Base entities, value objects, multi-tenancy, Result pattern, identity types |
 | `Wallow.Shared.Contracts` | Integration event definitions from other modules |
-| `Wallow.Shared.Infrastructure.Core` | `TenantAwareDbContext`, resilience pipelines, read DB context |
+| `Wallow.Shared.Infrastructure.Core` | Cross-cutting infrastructure — tenant-aware persistence, caching, messaging ([README](../../Shared/Wallow.Shared.Infrastructure.Core/README.md)) |
 
 ## Testing
 
@@ -141,7 +141,13 @@ All endpoints require authentication.
 
 ```bash
 dotnet ef migrations add MigrationName \
-    --project src/Modules/Notifications/Wallow.Notifications.Infrastructure \
-    --startup-project src/Wallow.Api \
+    --project api/src/Modules/Notifications/Wallow.Notifications.Infrastructure \
+    --startup-project api/src/Wallow.Api \
     --context NotificationsDbContext
 ```
+
+## Related Documentation
+
+- Agent guide for this module: [`CLAUDE.md`](CLAUDE.md)
+- Backend conventions and commands: [`api/CLAUDE.md`](../../../CLAUDE.md)
+- Integration event catalogue: [`Wallow.Shared.Contracts/README.md`](../../Shared/Wallow.Shared.Contracts/README.md)

@@ -60,11 +60,18 @@ every error response:
 
 ```json
 {
+  "type": "https://tools.ietf.org/html/rfc7231#section-6.6.1",
   "title": "Internal Server Error",
   "status": 500,
-  "extensions": { "traceId": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01" }
+  "traceId": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
 }
 ```
+
+It appears at the **top level**, not nested under `extensions`. The handler sets
+`ProblemDetails.Extensions["traceId"]`, and ASP.NET Core carries `Extensions` as
+`[JsonExtensionData]`, so it serializes flattened into the object. The SDK reads
+`extensions.traceId` first and falls back to the flattened member, so it works against either
+shape — which is why a fork whose problem-details serializer nests extensions needs no SDK change.
 
 Surface both in whatever the user can copy — an error boundary, a toast, a support form.
 An id nobody can read is an id nobody will quote.

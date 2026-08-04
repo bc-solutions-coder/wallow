@@ -102,6 +102,9 @@ To run ClamAV locally, start it with the `clamav` Docker Compose profile:
 cd docker && docker compose --profile clamav up -d
 ```
 
+This one stays a raw Compose command. `pnpm backend:infra` brings up the default infrastructure
+services only — there is no pnpm wrapper that passes the `clamav` profile.
+
 When ClamAV is enabled, a health check is registered that verifies TCP connectivity to the ClamAV daemon. The scanning logic lives in `api/src/Modules/Storage/Wallow.Storage.Infrastructure/Scanning/ClamAvFileScanner.cs`, with `NoOpFileScanner` as the fallback at `api/src/Modules/Storage/Wallow.Storage.Infrastructure/Scanning/NoOpFileScanner.cs`.
 
 ### Size Limits
@@ -178,3 +181,10 @@ Storage buckets (`api/src/Modules/Storage/Wallow.Storage.Domain/Entities/Storage
 **File rejected by scanner**: If ClamAV is enabled and rejects a file, check ClamAV logs. Ensure virus definitions are up to date.
 
 **Debug logging**: Set `"Wallow.Storage": "Debug"` in `Logging:LogLevel` for detailed storage operation logs.
+
+## Related Documentation
+
+- [Module Creation](module-creation.md) — how the Storage module is structured
+- [Messaging](messaging.md) — `UploadFileCommand`, the one command in `Shared.Contracts`
+- [Configuration](../getting-started/configuration.md) — the `Storage:` settings referenced above
+- [Authorization](authorization.md) — the permissions the storage endpoints require

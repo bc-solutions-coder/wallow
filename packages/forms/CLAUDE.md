@@ -91,8 +91,8 @@ Four files move together, plus a fifth when new Base UI surface is involved:
 `browserPlugins` / `browserSetupFiles` pass-throughs (`wallowStyles()` compiling
 `vitest-styles.css` via `vitest.setup.ts`).
 
-- `*.test.ts` → **node** project (barrel pin, testid/error-split helpers, the on-disk scaffold
-  guard). `*.test.tsx` → **browser** project. The preset's `*.ssr.test.tsx` convention — which
+- `*.test.ts` → **node** project (barrel pin, testid/error-split helpers). `*.test.tsx` →
+  **browser** project. The preset's `*.ssr.test.tsx` convention — which
   routes a render-nothing `.tsx` spec onto node — matches nothing here, and nothing in this
   package should be named that way.
 - **Real CSS is required, not cosmetic.** A ui control gets its box from a recipe utility; without

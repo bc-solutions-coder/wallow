@@ -8,7 +8,8 @@ build config, analyzers, and the `.editorconfig`/`stylecop.json` rulesets all li
 ## Commands
 
 ```bash
-# Run the full backend via the Aspire host (Api + Auth + Web + Migration + Seeder + Postgres + Redis)
+# Run the full backend via the Aspire host (Api + Auth + Web + MigrationService + SeederService,
+# plus Postgres, Valkey, Garage, Mailpit and ClamAV containers)
 dotnet run --project api/src/Wallow.AppHost        # == `pnpm backend` from repo root
 
 # Run just the API
@@ -25,7 +26,9 @@ dotnet format api/Wallow.slnx                      # run before every commit
 ./scripts/run-tests.sh                             # all unit tests
 ./scripts/run-tests.sh identity                    # one module
 # Shorthands: identity, storage, notifications, announcements, inquiries, branding, apikeys,
-#             api, arch, shared, kernel, integration
+#             api, arch (= architecture), seeder, migrations, shared, kernel, integration
+# Anything else is passed through as a project path, so a real path runs and a typo'd shorthand
+# fails only when `dotnet test` cannot resolve it.
 # (E2E is per-app Playwright now — see .claude/rules/E2E.md)
 
 # EF Core migrations (per module DbContext)
@@ -60,7 +63,10 @@ those and of Grafana on 3001.
   IDs, `ValueObject`, `IDomainEvent`, `Result<T>`), multi-tenancy (`ITenantContext`,
   `TenantSaveChangesInterceptor`), and **`ClaimsPrincipalExtensions`** (JWT claim helpers).
 - `Wallow.Shared.Contracts` — **the only assembly modules reference across boundaries**:
-  integration events, `ISseDispatcher`, `IApiKeyService`, `IStorageProvider`.
+  integration events, cross-module service interfaces (`ISseDispatcher`, `IApiKeyService`,
+  `IStorageProvider`, `IUserService`, `IUserQueryService`, `IEmailService`, `IRealtimeDispatcher`,
+  and others), and a small number of shared command records — `Storage/Commands/UploadFileCommand.cs`
+  is the one to know about, since Storage's handler lives in the module but the record does not.
 - `Wallow.Shared.Infrastructure` / `.Core` / `.BackgroundJobs` (Hangfire) / `.Plugins`, and
   `Wallow.Shared.Api` — cross-cutting plumbing (settings, module registration, middleware,
   caching, messaging, auditing).
@@ -79,9 +85,12 @@ is a 4-project Clean Architecture stack `Wallow.{Module}.{Domain,Application,Inf
 
 ## Backend Patterns (preserve these)
 
-- **Handlers:** most modules use CQRS via Wolverine — handlers are **static classes** with
-  `Handle`/`HandleAsync`, auto-discovered, **no DI registration**. Exceptions: **Branding and
-  ApiKeys** deliberately use direct service/repository-from-controller (no CQRS/Wolverine).
+- **Handlers:** most modules use CQRS via Wolverine — a handler is normally a
+  **`public sealed class`** taking its dependencies through a **primary constructor**, with
+  `Handle`/`HandleAsync`; Wolverine discovers **static** handlers too, and those are the minority
+  (mostly event handlers). Either shape is auto-discovered with **no DI registration**.
+  Exceptions: **Branding and ApiKeys** deliberately use direct
+  service/repository-from-controller (no CQRS/Wolverine).
 - **Anything a handler can inject is `public`.** Wolverine's generated handlers construct their
   dependencies inline, and `ServiceLocationPolicy.NotAllowed` turns a non-public concrete type into
   a codegen failure on the *first message*, not at startup. So every Infrastructure implementation
@@ -91,7 +100,8 @@ is a 4-project Clean Architecture stack `Wallow.{Module}.{Domain,Application,Inf
   goes on the `AlwaysUseServiceLocationFor` list in `Program.cs`, which those tests also pin.
 - **DbContexts** extend `TenantAwareDbContext` (automatic tenant query filters +
   `TenantSaveChangesInterceptor`), default `NoTracking` — mutations attach explicitly. Modules
-  auto-migrate only in Development/Testing.
+  are migrated inline only in the `Testing` environment (`WallowModules.RunTestMigrationsAsync`);
+  everywhere else, Development included, `Wallow.MigrationService` applies them.
 - **State changes go through aggregate methods** (`Publish()`, `Archive()`, `Revoke()`,
   `TransitionTo()`) — never set `Status` directly. Domain events raised in aggregates are
   bridged to integration events in Application event handlers.
@@ -148,9 +158,14 @@ never commit unformatted code. No `--` inside XML comments in `.csproj`/`.props`
   Identity adds `Wallow.Identity.IntegrationTests` (`integration` shorthand).
 - **Host:** `Wallow.Api.Tests`.
 - **Architecture:** `Wallow.Architecture.Tests` (`arch`) enforces module boundaries.
-- **E2E:** per-app `@playwright/test` suites in the pnpm workspace
-  (`apps/wallow-auth/e2e/`) — see `.claude/rules/E2E.md`.
+- **E2E:** three per-app `@playwright/test` suites in the pnpm workspace — `apps/wallow-auth/e2e/`,
+  `apps/wallow-web/e2e/`, and the three-origin `apps/wallow-web/e2e-cross-app/`. See
+  `.claude/rules/E2E.md`; `./scripts/e2e.sh` runs all three.
 - **Shared/Kernel:** `Wallow.Shared.Infrastructure.Tests` (`shared`),
-  `Wallow.Shared.Kernel.Tests` (`kernel`); helpers in `Wallow.Tests.Common`.
+  `Wallow.Shared.Kernel.Tests` (`kernel`); helpers in `Wallow.Tests.Common` (no tests of its own,
+  no shorthand).
+- **Services:** `Wallow.SeederService.Tests` (`seeder`), `Wallow.MigrationService.Tests`
+  (`migrations`), `Wallow.AppHost.Tests` (no shorthand).
+- **Benchmarks:** `Benchmarks` — BenchmarkDotNet, not part of the test run.
 - **Coverage:** `coverage.runsettings` (cobertura, `Include=[Wallow.*]*`, excludes migrations,
   Program/Startup, generated files). CI enforces a 90% line threshold.

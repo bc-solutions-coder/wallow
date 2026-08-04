@@ -7,7 +7,7 @@ The Branding module manages per-client visual customization for OAuth/OIDC appli
 ## Key Features
 
 - **Client branding CRUD**: Upsert and delete branding for OAuth client applications
-- **Logo management**: Upload/replace/delete logos via S3-compatible storage (GarageHQ), with magic-byte validation for PNG, JPEG, and WebP
+- **Logo management**: Upload/replace/delete logos through `IStorageProvider`, whose default provider is `Local` (see `Storage/README.md`); S3-compatible backends such as GarageHQ are opt-in. Magic-byte validation for PNG, JPEG, and WebP
 - **Theme validation**: JSON theme with color values validated against oklch, hex, and rem patterns
 - **Caching**: Keyed `IMemoryCache` ("BrandingCache") with 5-minute sliding expiration and 1000-entry size limit
 - **Ownership enforcement**: Only the user who created the OAuth client can modify its branding
@@ -46,7 +46,7 @@ The sole entity in this module. Stores branding configuration for an OAuth clien
 
 ## API Endpoints
 
-Route: `api/v1/identity/apps/{clientId}/branding`
+Route: `/v1/identity/apps/{clientId}/branding`
 
 | Method | Auth | Description |
 |--------|------|-------------|
@@ -66,13 +66,13 @@ read it via the public GET endpoint (cached, anonymous).
 | Project | Purpose |
 |---------|---------|
 | `Wallow.Shared.Kernel` | Base entities, strongly-typed IDs, multi-tenancy, Result pattern |
-| `Wallow.Shared.Contracts` | `IStorageProvider` interface, integration events |
-| `Wallow.Shared.Infrastructure.Core` | `TenantAwareDbContext`, `AddReadDbContext`, `AddTenantAwareScopedContext` |
+| `Wallow.Shared.Contracts` | `IStorageProvider` interface |
+| `Wallow.Shared.Infrastructure.Core` | Cross-cutting infrastructure — tenant-aware persistence, caching, messaging ([README](../../Shared/Wallow.Shared.Infrastructure.Core/README.md)) |
 | OpenIddict | Client ownership verification via `IOpenIddictApplicationManager` |
 
 ## Configuration
 
-Uses the shared `DefaultConnection` connection string. Auto-migrates in Development and Testing environments. No additional configuration required.
+Uses the shared `DefaultConnection` connection string. No additional configuration required. Its schema is migrated inline only in the `Testing` environment; everywhere else `Wallow.MigrationService` applies migrations.
 
 ## Testing
 
@@ -84,7 +84,13 @@ Uses the shared `DefaultConnection` connection string. Auto-migrates in Developm
 
 ```bash
 dotnet ef migrations add MigrationName \
-    --project src/Modules/Branding/Wallow.Branding.Infrastructure \
-    --startup-project src/Wallow.Api \
+    --project api/src/Modules/Branding/Wallow.Branding.Infrastructure \
+    --startup-project api/src/Wallow.Api \
     --context BrandingDbContext
 ```
+
+## Related Documentation
+
+- Agent guide for this module: [`CLAUDE.md`](CLAUDE.md)
+- Backend conventions and commands: [`api/CLAUDE.md`](../../../CLAUDE.md)
+- Integration event catalogue: [`Wallow.Shared.Contracts/README.md`](../../Shared/Wallow.Shared.Contracts/README.md)

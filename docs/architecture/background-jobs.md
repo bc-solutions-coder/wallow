@@ -20,12 +20,14 @@ The Hangfire server is registered with shutdown/stop timeouts for graceful termi
 
 ### Dashboard
 
-The Hangfire dashboard is available at `/hangfire`, protected by `HangfireDashboardAuthFilter` (`api/src/Wallow.Api/Middleware/HangfireDashboardAuthFilter.cs`). In development, access is open. In production, it requires an authenticated user with the `admin` role.
+The Hangfire dashboard is available at `/hangfire`, protected by `HangfireDashboardAuthFilter` (`api/src/Wallow.Api/Middleware/HangfireDashboardAuthFilter.cs`). The filter requires an authenticated user holding the **`AdminAccess` permission** — it checks `User.GetPermissions()`, not a role claim, so a user whose roles expand to `AdminAccess` passes and a user merely named `admin` does not.
 
-| Environment | URL | Access |
-|-------------|-----|--------|
-| Development | http://localhost:5001/hangfire | Open to all |
-| Production | https://your-domain/hangfire | Admin role required |
+Anonymous access is **not** environment-driven. It is the `Hangfire:AllowAnonymousDashboard` configuration flag, read in `UseHangfireDashboard` and passed to the filter's constructor. The filter's own comment explains why: a configuration flag means no environment name can turn the dashboard open by accident. Local development sees an open dashboard only because `api/src/Wallow.Api/appsettings.Development.json` sets that flag to `true`.
+
+| Configuration | URL | Access |
+|---------------|-----|--------|
+| `Hangfire:AllowAnonymousDashboard: true` (the shipped Development default) | http://localhost:5001/hangfire | Open to all |
+| Flag absent or `false` (every other environment) | https://your-domain/hangfire | `AdminAccess` permission required |
 
 ## IJobScheduler Abstraction
 
@@ -93,3 +95,10 @@ Job parameters are serialized to JSON and stored in PostgreSQL. Pass simple type
 | Deferred execution (run in X minutes) | Hangfire |
 
 The two systems complement each other. A Hangfire job can publish a Wolverine event upon completion, bridging time-based triggers with event-driven processing.
+
+## Related Documentation
+
+- [Messaging](messaging.md) — the Wolverine half of the table above
+- [Authorization](authorization.md) — where the `AdminAccess` permission the dashboard requires comes from
+- [Module Creation](module-creation.md) — adding a job to a new module
+- [Observability](../operations/observability.md) — job telemetry and dashboards

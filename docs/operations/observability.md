@@ -653,8 +653,10 @@ public sealed partial class NotificationDispatchService(
 }
 ```
 
-Remember to register `Wallow.Notifications` with `AddSource` and the meter behind
-`Diagnostics.Meter` with `AddMeter`, or neither the spans nor the counter will leave the process.
+No registration step is needed for this. `ConfigureOpenTelemetry` already registers the prefix and
+the `Wallow.*` wildcard on both sides, so `Wallow.Notifications` and the shared `Wallow` meter are
+picked up as they are — see [Exporting custom instruments](#exporting-custom-instruments). Only an
+instrument named outside that prefix would need a registration of its own.
 
 ## Troubleshooting
 
@@ -670,15 +672,17 @@ Remember to register `Wallow.Notifications` with `AddSource` and the meter behin
 1. Confirm `OTEL_EXPORTER_OTLP_ENDPOINT` is set — without it `UseOtlpExporter()` is never
    registered and nothing is exported, however healthy the collector is
 2. Verify the collector is reachable on the gRPC port (4317)
-3. For spans from a `Wallow.*` activity source, confirm the source is registered with `AddSource` in
-   `ConfigureOpenTelemetry` — unregistered sources produce no spans at all
+3. Confirm the activity source's name starts with the configured prefix. `ConfigureOpenTelemetry`
+   registers `Wallow` and `Wallow.*` with `AddSource`; a source named outside that prefix is not
+   subscribed to, and an unsubscribed source produces no spans at all
 
 ### Metrics Not Appearing in Prometheus
 
 1. Confirm `OTEL_EXPORTER_OTLP_ENDPOINT` is set
-2. Confirm the meter is registered with `AddMeter` — this is the usual cause for custom instruments,
-   since `ConfigureOpenTelemetry` ships with no `AddMeter` calls. See
-   [Exporting custom instruments](#exporting-custom-instruments)
+2. Confirm the meter's name starts with the configured prefix. `ConfigureOpenTelemetry` registers
+   `Wallow` and `Wallow.*` with `AddMeter`, so a module meter created through
+   `Diagnostics.CreateMeter` is already covered — a meter constructed by hand under some other name
+   is not. See [Exporting custom instruments](#exporting-custom-instruments)
 3. Remember the name translation: `wallow.cache.hits_total` is queried as `wallow_cache_hits_total`
 4. Ensure the code path recording the metric actually ran
 
@@ -789,9 +793,11 @@ activity?.SetTag("storage.tenant_id", query.TenantId.ToString());
 activity?.SetTag("storage.file_count", fileList.Count);
 ```
 
-`StartActivity` returns `null` when no listener is subscribed to the source — which is the case for
-every `Wallow.*` source today, since none is registered with `AddSource`. The null-conditional calls
-are not optional defensive style; they are the normal path until you register the source.
+`StartActivity` returns `null` when no listener is subscribed to the source, or when sampling
+declines the trace. `Wallow.*` sources *are* subscribed — `ConfigureOpenTelemetry` registers the
+wildcard — but a null return is still ordinary: it happens whenever tracing is off, no exporter is
+configured, or the sampler drops the trace. The null-conditional calls are not optional defensive
+style.
 
 ### Creating Grafana Dashboard Panels
 
@@ -825,3 +831,5 @@ Series for rates, Heatmap for histograms).
 - [Developer Guide](../getting-started/developer-guide.md) - General development practices
 - [Deployment Guide](deployment.md) - Production deployment including observability
 - [Messaging Guide](../architecture/messaging.md) - Wolverine messaging model and module tagging
+- [Logging](../development/logging.md) - The frontend half: browser log batches, the app-server
+  ingest handler, and how they reach the same collector

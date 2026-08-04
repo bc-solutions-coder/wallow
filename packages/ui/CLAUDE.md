@@ -3,7 +3,10 @@
 The shared **browser-only** React component library: 60 component folders under
 `src/components/`, each a **Base UI** (`@base-ui/react` ^1.6.0) headless part wrapped in a
 **CVA** recipe built from `@bc-solutions-coder/styles` semantic tokens. Private (never
-published), consumed by `apps/wallow-auth` and `apps/wallow-web` as `workspace:*`.
+published), consumed as `workspace:*` by five members: all three apps (`apps/wallow-auth`,
+`apps/wallow-web`, `apps/minimal-app`) **and two packages**, `packages/forms` and
+`packages/navigation` — the shell extraction moved much of the UI these rules police out of the
+apps, so a change here reaches library code as well as screens.
 
 Five folders render nothing a story could show and are the only ones without one: the four
 app-wiring folders — `ReadyIndicator`, `FocusOnNavigate`, `DocumentStyles`,
@@ -14,7 +17,7 @@ app-wiring folders — `ReadyIndicator`, `FocusOnNavigate`, `DocumentStyles`,
 
 | Layer | Path                     | Rule                                                                                                    |
 | ----- | ------------------------ | ------------------------------------------------------------------------------------------------------- |
-| 0     | `src/core/`              | `cn.ts` (tailwind-merge wrapper) plus the package's own scaffold guards. Imports **nothing internal**.  |
+| 0     | `src/core/`              | `cn.ts` (tailwind-merge wrapper) and the specs that sit beside it. Imports **nothing internal**.        |
 | 1     | `src/components/<name>/` | One folder per component. May import `core/`; may import a sibling component only for deliberate reuse. |
 | 2     | `src/index.ts`           | The root barrel — the only file that imports every component folder.                                    |
 
@@ -214,7 +217,12 @@ of null (reading 'useRef')`. `src/core/browser-deps.test.ts` checks that every e
   BEFORE `rest` so it stays a default a caller can still override; `role={undefined}` would
   delete the `role="button"` a composed `<div>` depends on. Assert with `getByRole("link")`.
 - **`ReadyIndicator` stamps the E2E hydration marker** (`READY_ATTRIBUTE` → `data-app-ready`)
-  that every Playwright suite waits on. Changing it breaks E2E readiness across both apps.
+  that every Playwright suite waits on. The catalog component here
+  (`src/components/ready-indicator/ready-indicator.tsx`) is the only place the attribute is
+  written; each app mounts it through a thin wrapper of its own —
+  `src/shared/components/ready-indicator.tsx` in wallow-web and wallow-auth,
+  `src/components/ready-indicator.tsx` in minimal-app, which is un-zoned. Changing the catalog
+  component breaks E2E readiness in all three.
 - This package **publishes** a prebuilt `dist/`, so for an installed consumer
   `import.meta.env.DEV` inside a component bakes in the _library's_ build env, not the app's.
   In-repo it reads the app's, because the `exports` map resolves to `src/` — which is the worse

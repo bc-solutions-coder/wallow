@@ -1,4 +1,4 @@
-# Notifications Module - Agent Guide
+# Notifications Module — Agent Guide
 
 ## Module Role
 
@@ -46,7 +46,6 @@ Each channel has an abstraction (`IEmailProvider`, `ISmsProvider`, `IPushProvide
 - All message entities (EmailMessage, SmsMessage, PushMessage) follow `Pending -> Sent/Delivered | Failed` with retry support (`CanRetry(maxRetries)`, `ResetForRetry()`)
 - All entities implement `ITenantScoped` for multi-tenant isolation
 - Entities use strongly-typed IDs internally; integration events use plain `Guid`
-- State changes go through aggregate methods — never set `Status` directly
 
 ## Important Conventions
 
@@ -61,3 +60,8 @@ Each channel has an abstraction (`IEmailProvider`, `ISmsProvider`, `IPushProvide
 ```bash
 ./scripts/run-tests.sh notifications
 ```
+
+## Related Documentation
+
+- Module reference: [`README.md`](README.md)
+- Backend conventions and commands: [`api/CLAUDE.md`](../../../CLAUDE.md)

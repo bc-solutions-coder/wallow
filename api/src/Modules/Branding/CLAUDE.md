@@ -1,8 +1,8 @@
-# Branding Module - Agent Guide
+# Branding Module — Agent Guide
 
 ## Module Purpose
 
-Per-client OAuth application branding (display name, tagline, logo, theme colors). This is a simple module with one entity and no CQRS -- it uses a service/repository pattern directly from the controller.
+Per-client OAuth application branding (display name, tagline, logo, theme colors). This is a simple module with one entity and no CQRS — it uses a service/repository pattern directly from the controller.
 
 ## Key File Locations
 
@@ -23,7 +23,7 @@ Per-client OAuth application branding (display name, tagline, logo, theme colors
 ## Patterns and Conventions
 
 - **No CQRS/Wolverine handlers**: Unlike most modules, Branding uses a direct service/repository pattern. The controller calls `IClientBrandingRepository` and `IClientBrandingService` directly.
-- **Keyed memory cache**: Uses `[FromKeyedServices("BrandingCache")] IMemoryCache` -- a dedicated bounded cache (size limit 1000) separate from the global `IMemoryCache`. Always set `Size = 1` on cache entries.
+- **Keyed memory cache**: Uses `[FromKeyedServices("BrandingCache")] IMemoryCache` — a dedicated bounded cache (size limit 1000) separate from the global `IMemoryCache`. Always set `Size = 1` on cache entries.
 - **Ownership via OpenIddict**: Client ownership is checked by reading the `creatorUserId` property from the OpenIddict application descriptor. The controller injects `IOpenIddictApplicationManager`.
 - **Logo storage**: Logos stored via `IStorageProvider` (from `Wallow.Shared.Contracts.Storage`) at key `client-logos/{clientId}/{guid}.{ext}`. Old logos are deleted on replacement.
 - **Logo validation**: Magic-byte validation for PNG/JPEG/WebP, 2MB max size. Validation logic is in the controller.
@@ -39,13 +39,17 @@ Per-client OAuth application branding (display name, tagline, logo, theme colors
 ## Things to Watch
 
 - The controller is `partial` (source-generated regex for color validation)
-- GET endpoint is `[AllowAnonymous]` with 300s response cache -- branding is public data
+- GET endpoint is `[AllowAnonymous]` with 300s response cache — branding is public data
 - POST endpoint uses `[Consumes("multipart/form-data")]` for logo upload
 - Cache invalidation must be called after any mutation (`brandingService.InvalidateCache(clientId)`)
-- `QueryTrackingBehavior.NoTracking` is set by default on the DbContext -- mutations must attach/track entities explicitly (the repository's `Add`/`Remove` handle this)
 
 ## Running Tests
 
 ```bash
 ./scripts/run-tests.sh branding
 ```
+
+## Related Documentation
+
+- Module reference: [`README.md`](README.md)
+- Backend conventions and commands: [`api/CLAUDE.md`](../../../CLAUDE.md)

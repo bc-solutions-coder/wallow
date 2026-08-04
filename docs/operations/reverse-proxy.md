@@ -94,14 +94,25 @@ Authentication__CookieDomain=example.com
 
 ### wallow-auth (Node — apps/wallow-auth)
 
-The auth app is a pure same-origin reverse proxy: it holds no session and no cookie jar, and it
-reads only three environment variables (`PORT`, `HOST`, `WALLOW_API_INTERNAL_URL`).
+The auth app is a pure same-origin reverse proxy: it holds no session and no cookie jar. Two
+variables get it routing, but they are not the whole set — a proxy configured from the first two
+alone silently loses the app's browser logs.
 
 ```bash
 PORT=8080
 # Upstream the app reverse-proxies /v1/**, /connect/**, /.well-known/** to (container-to-container)
 WALLOW_API_INTERNAL_URL=http://wallow-api:8080
+# Where browser log batches go. UNSET IS NOT AN ERROR: the /logs route still answers 204 and the
+# records go to this container's stdout instead of the collector, so the loss is silent.
+OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4318
+# Optional — the fork's outbound links for THIS deployment. Unset falls back to
+# packages/styles/branding.json, so a fork that edited that file need set neither.
+WALLOW_REPOSITORY_URL=https://github.com/your-org/your-fork
+WALLOW_DOCS_URL=https://docs.example.com
 ```
+
+`AUTH_BASE_PATH` is the sixth, and it is a build argument rather than a runtime variable — see the
+callout below. (`E2E_BASE_URL` exists too, but only the Playwright suite sets it.)
 
 Under path-based routing the app serves everything — SSR HTML, client assets, and its `/v1`,
 `/connect`, and `/.well-known` passthrough routes — under the `/auth` prefix, so the proxy
@@ -124,7 +135,8 @@ serves at root.
 PORT=8080
 # Browser-facing issuer (must match the API's OpenIddict issuer for redirects)
 OIDC_ISSUER=https://example.com/api
-# Container-reachable discovery URL (avoids a hairpin back through the proxy)
+# OPTIONAL: container-reachable discovery URL (avoids a hairpin back through the proxy).
+# Unset, discovery is derived from OIDC_ISSUER.
 OIDC_METADATA_URL=http://wallow-api:8080/.well-known/openid-configuration
 OIDC_CLIENT_ID=wallow-web-client
 OIDC_CLIENT_SECRET=your-secret
@@ -137,7 +149,9 @@ BFF_API_BASE_URL=http://wallow-api:8080
 COOKIE_PASSWORD=a-32-plus-character-random-secret
 ```
 
-These are the seven required BFF variables. `OIDC_CLIENT_SECRET` and `COOKIE_PASSWORD` are
+Seven of those are required — `PORT` and the optional `OIDC_METADATA_URL` are the two that are
+not, which is why `loadBffConfigFromEnv` calls `requireEnv` exactly seven times.
+`OIDC_CLIENT_SECRET` and `COOKIE_PASSWORD` are
 confidential — set them from the container environment or a secrets manager, never in source
 control. The full variable reference (including the optional `OIDC_SCOPES`, `COOKIE_SECURE`, and
 `SESSION_TTL_SECONDS` knobs) lives in the

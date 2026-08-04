@@ -28,10 +28,11 @@ cp docker/.env.example docker/.env
 Wallow depends on PostgreSQL, Valkey (Redis-compatible cache), GarageHQ (S3-compatible object storage), and Mailpit. Docker Compose provisions all of them:
 
 ```bash
-cd docker && docker compose up -d
+pnpm backend:infra          # = cd docker && docker compose up -d
+pnpm backend:infra:down     # stop them again
 ```
 
-To also start ClamAV for virus scanning on file uploads (optional):
+To also start ClamAV for virus scanning on file uploads (optional), use Compose directly -- there is no pnpm wrapper for the profile:
 
 ```bash
 cd docker && docker compose --profile clamav up -d
@@ -42,10 +43,14 @@ Authentication is handled by the embedded OpenIddict server (part of the Identit
 ### 3. Run the API
 
 ```bash
-dotnet run --project api/src/Wallow.Api
+pnpm backend
 ```
 
+`pnpm backend` runs the .NET Aspire host (`Wallow.AppHost`), which orchestrates the infrastructure containers, the `wallow-migrations` project resource, the seeder, the API and both React apps. It is the canonical way to run Wallow locally, and step 2 is only needed when you want the containers without Aspire.
+
 The API starts on `http://localhost:5001`. Interactive API documentation is available at `http://localhost:5001/scalar/v1`.
+
+You can still run the API alone with `dotnet run --project api/src/Wallow.Api` against `pnpm backend:infra`, but **nothing migrates on API startup** -- you must run `Wallow.MigrationService` or `dotnet ef database update` yourself first. See [Database Migrations](../development/database-migrations.md).
 
 ### 4. Run Tests
 
@@ -60,9 +65,9 @@ The API starts on `http://localhost:5001`. Interactive API documentation is avai
 ./scripts/run-tests.sh api/tests/Modules/Inquiries/Wallow.Inquiries.Tests
 ```
 
-The script outputs structured per-assembly pass/fail counts and lists individual failed test names. Supported shorthands, as defined in `scripts/run-tests.sh`: `identity`, `storage`, `notifications`, `announcements`, `inquiries`, `branding`, `apikeys`, `api`, `arch` (or `architecture`), `shared`, `kernel`, `integration`. Anything else is passed through to `dotnet test` as a project path.
+The script outputs structured per-assembly pass/fail counts and lists individual failed test names. Supported shorthands, as defined in `resolve_filter()` in `scripts/run-tests.sh`: `identity`, `storage`, `notifications`, `announcements`, `inquiries`, `branding`, `apikeys`, `api`, `arch` (or `architecture`), `seeder`, `migrations`, `shared`, `kernel`, `integration`. Anything else is passed through to `dotnet test` as a project path.
 
-Integration tests require Docker. Testcontainers spins up ephemeral Postgres and Valkey containers automatically. They are excluded from a normal run -- only `./scripts/run-tests.sh integration` executes them.
+Integration tests require Docker. Testcontainers spins up ephemeral Postgres and Valkey containers automatically. They are excluded from a normal run -- only `./scripts/run-tests.sh integration` executes them, because every other argument appends `--filter "Category!=E2E&Category!=Integration"`.
 
 ### 5. Run the Frontend
 
@@ -87,6 +92,8 @@ pnpm backend
 
 Both ports can be overridden with `PORT`. For running an app on its own, the shared SDK build order, and the same-origin BFF setup, see the [Frontend Setup guide](../development/frontend-setup.md).
 
+The workspace's quality gate is `pnpm check`: format check, both lint passes, manifest/dependency/env checks, then `turbo run build typecheck test` and `check:exports`. It is what `js.yml` runs in CI, so run it before opening a PR that touches `apps/` or `packages/`. Turbo caches build, typecheck, test and dev locally in `.turbo/`, so a warm run is far faster than the first.
+
 ### Local Services
 
 | Service | URL | Credentials |
@@ -95,12 +102,15 @@ Both ports can be overridden with `PORT`. For running an app on its own, the sha
 | Scalar Docs | http://localhost:5001/scalar/v1 | - |
 | OpenIddict Authorize | http://localhost:5001/connect/authorize | - |
 | OpenIddict Token | http://localhost:5001/connect/token | - |
+| Hangfire Dashboard | http://localhost:5001/hangfire | - |
 | Web app | http://localhost:3000 | - |
 | Auth app | http://localhost:3002 | - |
+| Docs site (DocFX) | http://localhost:5004 | Started separately: `./scripts/docs-serve.sh` |
 | GarageHQ (S3 API) | http://localhost:3900 | See `docker/.env` |
 | GarageHQ (Admin API) | http://localhost:3903 | See `docker/.env` |
 | Mailpit | http://localhost:8025 | - |
 | PostgreSQL | localhost:5432 | See `docker/.env` |
+| Valkey | localhost:6379 | See `docker/.env` |
 | AsyncAPI Viewer | http://localhost:5001/asyncapi | Dev only |
 | ClamAV (optional) | localhost:3310 | - |
 | Grafana | http://localhost:3001 | `admin` / `GF_ADMIN_PASSWORD` from `docker/.env` |
@@ -118,12 +128,15 @@ curl -s -X POST http://localhost:5001/connect/token \
   -d "scope=openid profile email"
 ```
 
-In development, the `ApiScopeSeeder` seeds default API scopes at startup. Use the `ClientsController` admin API (`/api/v1/identity/clients`) to register new OpenIddict applications and obtain client credentials.
+In development, the `ApiScopeSeeder` seeds default API scopes at startup. Use the `ClientsController` admin API (`/v1/identity/clients`) to register new OpenIddict applications and obtain client credentials.
 
 ### Resetting Infrastructure
 
+`pnpm backend:infra:down` stops the containers but keeps their volumes. To wipe the data too, drop to Compose for the `-v` flag, then bring everything back up through Aspire so migrations and seeding run again:
+
 ```bash
-cd docker && docker compose down -v && docker compose up -d
+cd docker && docker compose down -v && cd ..
+pnpm backend
 ```
 
 ---
@@ -143,7 +156,7 @@ bd close <id>                               # Complete work
 
 Beads live in an embedded [Dolt](https://www.dolthub.com/) database under `.beads/embeddeddolt/<db>/`, where `<db>` is the name of the Dolt database itself. That name is **per-machine, not repo-wide**: a machine where `bd init` created the database gets `Wallow`, while a machine set up with `bd bootstrap` (see below) gets `beads`. Nothing in the tooling depends on this name, so never hardcode the path in a script or doc.
 
-All of `.beads/` is gitignored -- none of it is committed to the repository. Instead, beads data travels through the **same GitHub repository** using Dolt's own git-backed remote: issue history sits on `refs/dolt/data`, with a `__dolt_remote_info__` branch pointing at it. `.beads/config.yaml` records `sync.remote: git+ssh://git@github.com/bc-solutions-coder/wallow.git`, so beads sync over your **SSH key**, not a GitHub token or `.npmrc` credential.
+All of `.beads/` is gitignored -- none of it is committed to the repository. Instead, beads data travels through the **same GitHub repository** using Dolt's own git-backed remote: issue history sits on `refs/dolt/data`, with a `__dolt_remote_info__` branch pointing at it. `.beads/config.yaml` records `sync.remote: git+https://github.com/bc-solutions-coder/wallow.git`, so beads sync over **HTTPS**, using whatever git credential helper already authenticates `git push` for this repo — not a `.npmrc` credential.
 
 ### Pushing and pulling
 
@@ -273,7 +286,7 @@ Every module follows Clean Architecture with four layers:
 ```
 Domain         -> Entities, Value Objects, Domain Events. Zero dependencies.
 Application    -> Commands, Queries, Handlers, DTOs, Interfaces. Depends on Domain.
-Infrastructure -> EF Core, Dapper, Consumers, external services. Implements Application interfaces.
+Infrastructure -> EF Core, Consumers, external services. Implements Application interfaces.
 Api            -> Controllers, request/response contracts. Depends on Application.
 ```
 
@@ -358,34 +371,31 @@ public static class ApplicationExtensions
 
 ### Step 4: Create Infrastructure Layer
 
-Create the DbContext:
+Create the DbContext. Derive from `TenantAwareDbContext<T>` (in `Wallow.Shared.Infrastructure.Core.Persistence`) and call `ApplyTenantQueryFilters(modelBuilder)` — **never hand-roll a `HasQueryFilter` per entity**. The base class applies the tenant filter to every entity implementing the tenant marker interface, so a new entity is scoped the moment it is added:
 
 ```csharp
 // Persistence/TicketsDbContext.cs
-public sealed class TicketsDbContext : DbContext
+public sealed class TicketsDbContext : TenantAwareDbContext<TicketsDbContext>
 {
-    private readonly ITenantContext _tenantContext;
-
     public DbSet<Ticket> Tickets => Set<Ticket>();
 
-    public TicketsDbContext(
-        DbContextOptions<TicketsDbContext> options,
-        ITenantContext tenantContext) : base(options)
+    public TicketsDbContext(DbContextOptions<TicketsDbContext> options)
+        : base(options)
     {
-        _tenantContext = tenantContext;
+        ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("tickets");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(TicketsDbContext).Assembly);
-        modelBuilder.Entity<Ticket>()
-            .HasQueryFilter(e => e.TenantId == _tenantContext.TenantId);
+
+        ApplyTenantQueryFilters(modelBuilder);
     }
 }
 ```
 
-Create Infrastructure extension:
+Create the Infrastructure extension. Modules register a **pooled DbContext factory** plus `AddTenantAwareScopedContext<T>()`, which is what resolves a tenant-scoped context per request:
 
 ```csharp
 // Extensions/InfrastructureExtensions.cs
@@ -394,22 +404,42 @@ public static class InfrastructureExtensions
     public static IServiceCollection AddTicketsInfrastructure(
         this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("DefaultConnection");
+        int maxPoolSize = configuration.GetValue("Database:MaxPoolSize", 200);
+        int minPoolSize = configuration.GetValue("Database:MinPoolSize", 10);
 
-        services.AddDbContext<TicketsDbContext>((sp, options) =>
+        string defaultConnectionString = configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
+
+        services.AddPooledDbContextFactory<TicketsDbContext>((sp, options) =>
         {
-            options.UseNpgsql(connectionString, npgsql =>
+            NpgsqlConnectionStringBuilder builder = new(defaultConnectionString)
             {
+                MaxPoolSize = maxPoolSize,
+                MinPoolSize = minPoolSize
+            };
+            options.UseNpgsql(builder.ConnectionString, npgsql =>
+            {
+                // Each module gets its own migration history table in its own schema
                 npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "tickets");
+                npgsql.EnableRetryOnFailure(
+                    maxRetryCount: 5,
+                    maxRetryDelay: TimeSpan.FromSeconds(30),
+                    errorCodesToAdd: null);
+                npgsql.CommandTimeout(30);
             });
             options.AddInterceptors(sp.GetRequiredService<TenantSaveChangesInterceptor>());
         });
+
+        services.AddTenantAwareScopedContext<TicketsDbContext>();
+        services.AddReadDbContext<TicketsDbContext>(configuration);
 
         services.AddScoped<ITicketRepository, TicketRepository>();
         return services;
     }
 }
 ```
+
+`AnnouncementsModuleExtensions.cs` is the reference implementation of this shape; [Database Migrations](../development/database-migrations.md) documents the same registration in more detail.
 
 ### Step 5: Create Module Extension Methods
 
@@ -420,10 +450,8 @@ Create the module extension methods in Infrastructure:
 using Wallow.Tickets.Application.Extensions;
 using Wallow.Tickets.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 namespace Wallow.Tickets.Infrastructure.Extensions;
 
@@ -438,26 +466,21 @@ public static class TicketsModuleExtensions
         return services;
     }
 
-    public static async Task<WebApplication> InitializeTicketsModuleAsync(
+    // Initialization is a no-op. Do NOT call MigrateAsync here — see the note below.
+    public static Task<WebApplication> InitializeTicketsModuleAsync(
         this WebApplication app)
     {
-        try
-        {
-            using var scope = app.Services.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<TicketsDbContext>();
-            await db.Database.MigrateAsync();
-        }
-        catch (Exception ex)
-        {
-            var logger = app.Services.GetRequiredService<ILoggerFactory>()
-                .CreateLogger("TicketsModule");
-            logger.LogWarning(ex, "Tickets module startup failed. Ensure PostgreSQL is running.");
-        }
-
-        return app;
+        return Task.FromResult(app);
     }
 }
 ```
+
+> **Modules do not migrate themselves.** All seven `Initialize{Module}ModuleAsync` methods are
+> `return Task.FromResult(app);`. Migrations run through `Wallow.MigrationService` — under Aspire as
+> the `wallow-migrations` project resource, in Compose as the `wallow-migrations` service. The one
+> exception is the `Testing` environment, where `WallowModules.RunTestMigrationsAsync` migrates
+> inline; **register a new module's DbContext there or it gets no schema under test.** See
+> [Database Migrations](../development/database-migrations.md).
 
 ### Step 6: Register in WallowModules.cs
 
@@ -605,7 +628,7 @@ public static class CreateSubmissionHandler
 
 ### Query (Read)
 
-Same pattern in `Application/Queries/`. For complex reads, use Dapper directly in the handler.
+Same pattern in `Application/Queries/`. For read-heavy queries, inject `IReadDbContext<{Module}DbContext>` and project straight to the DTO.
 
 ### Validation
 
@@ -657,24 +680,23 @@ public interface ITenantScoped
 
 ### 3. Query Filters
 
-Each DbContext applies EF Core global query filters on tenant-scoped entities:
+EF Core global query filters are applied by the `TenantAwareDbContext<T>` base class, not per entity. A module's `OnModelCreating` calls the inherited helper once:
 
 ```csharp
-modelBuilder.Entity<Submission>()
-    .HasQueryFilter(e => e.TenantId == _tenantContext.TenantId);
+ApplyTenantQueryFilters(modelBuilder);
 ```
 
-This ensures all queries are automatically scoped to the current tenant. To bypass (admin scenarios), use `.IgnoreQueryFilters()`.
+`HasQueryFilter` appears in exactly two files in `api/src` — `TenantAwareDbContext.cs` and Identity's `IdentityDbContext.cs` — and a module should never add a third. This scopes all queries to the current tenant automatically. To bypass (admin scenarios), use `.IgnoreQueryFilters()`.
 
 ### 4. Save Interceptor
 
 `TenantSaveChangesInterceptor` automatically stamps `TenantId` on new entities and prevents modification of `TenantId` on updates.
 
-### Dapper Queries
+### Raw SQL
 
-When using Dapper, you must filter by tenant manually:
+Query filters only apply to LINQ over the DbContext. Any raw SQL you write must filter by tenant explicitly:
 
-```csharp
+```sql
 WHERE tenant_id = @TenantId
 ```
 
@@ -700,14 +722,17 @@ dotnet ef database update \
     --context {Module}DbContext
 ```
 
-Migrations also run automatically at startup via `Initialize{Module}ModuleAsync()`.
-
-> **Note:** Auto-migration at startup only applies in Development and Testing environments. In production and staging, a dedicated init container applies migrations before the app starts. See [Database Migrations](../development/database-migrations.md#production-migrations) for details.
+> **Nothing migrates at application startup.** `Initialize{Module}ModuleAsync()` is a no-op in every
+> module. `Wallow.MigrationService` applies migrations — as the `wallow-migrations` project resource
+> under Aspire (`pnpm backend`), and as the `wallow-migrations` service in the Compose, E2E, staging
+> and production stacks. The single exception is the `Testing` environment, where
+> `WallowModules.RunTestMigrationsAsync` migrates inline for Testcontainers. See
+> [Database Migrations](../development/database-migrations.md) for details.
 
 ### Write vs. Read Strategy
 
 - **Writes**: EF Core through repositories.
-- **Complex reads**: Dapper for performance-sensitive or join-heavy queries.
+- **Reads**: EF Core as well, through the `NoTracking` read context registered by `AddReadDbContext<T>()`, which routes to the read replica when `ReadReplicaConnection` is configured.
 
 ---
 
@@ -791,20 +816,20 @@ public async Task Should_create_submission()
 Use `WallowApiFactory` with Testcontainers:
 
 ```csharp
-public class SubmissionsControllerTests : IClassFixture<WallowApiFactory>
+public class InquiriesControllerTests : IClassFixture<WallowApiFactory>
 {
     private readonly HttpClient _client;
 
-    public SubmissionsControllerTests(WallowApiFactory factory)
+    public InquiriesControllerTests(WallowApiFactory factory)
     {
         _client = factory.CreateClient();
     }
 
     [Fact]
-    public async Task CreateSubmission_returns_201()
+    public async Task Submit_returns_200()
     {
-        var response = await _client.PostAsJsonAsync("/api/inquiries/submissions", request);
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        HttpResponseMessage response = await _client.PostAsJsonAsync("/v1/inquiries", request);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 }
 ```
@@ -821,7 +846,7 @@ public class SubmissionsControllerTests : IClassFixture<WallowApiFactory>
 |---------|------------|
 | Framework | .NET 10 |
 | Database | PostgreSQL 18 |
-| ORM | EF Core + Dapper |
+| ORM | EF Core |
 | CQRS & Messaging | Wolverine (mediator + in-memory bus) |
 | Logging | Serilog |
 | Real-time | SignalR |
@@ -841,4 +866,4 @@ public class SubmissionsControllerTests : IClassFixture<WallowApiFactory>
 
 **Tests failing**: Integration tests need Docker. Run `docker ps` to verify. Testcontainers creates ephemeral containers; ensure Docker has enough resources.
 
-**Reset everything**: `cd docker && docker compose down -v && docker compose up -d`
+**Reset everything**: `cd docker && docker compose down -v && cd .. && pnpm backend`. The `-v` is what drops the volumes (`pnpm backend:infra:down` keeps them), and `pnpm backend` brings the stack back up through Aspire so `wallow-migrations` and the seeder run before the API does.

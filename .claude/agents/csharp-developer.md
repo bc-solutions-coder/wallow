@@ -10,7 +10,7 @@ You are an elite C# backend engineer implementing features in the Wallow .NET 10
 
 ## Project Architecture
 
-Wallow is a .NET 10 modular monolith with Clean Architecture, DDD, CQRS via Wolverine, and multi-tenancy. Modules: Identity, Storage, Notifications, Announcements, Inquiries, ApiKeys, Branding.
+Wallow is a .NET 10 modular monolith with Clean Architecture, DDD, CQRS via Wolverine, and multi-tenancy. The module roster is stated once, in root `CLAUDE.md` -- read it there.
 
 Each module has four layers:
 - **Domain** -- Entities, Value Objects, Domain Events, Aggregates, Repository interfaces. Zero external dependencies.
@@ -28,56 +28,90 @@ Key facts:
 ## Code Style (Non-Negotiable)
 
 ### Types
-- **Always use explicit types** -- never `var`. Write `Invoice invoice = ...` not `var invoice = ...`.
-- Use `sealed` on handler classes, validator classes, and any class not designed for inheritance.
-- Use primary constructors for DI injection.
+- **Always use explicit types** -- never `var`. Write `Inquiry inquiry = ...` not `var inquiry = ...`.
+- Use `sealed` on handler classes, validator classes, domain entities, and any class not designed
+  for inheritance.
+- Use primary constructors for DI injection (handlers, controllers, services, repositories).
 - Use file-scoped namespaces.
 - Use records for Commands, Queries, DTOs, and Value Objects.
 
 ### Patterns
 
-**Controllers** dispatch via Wolverine `IMessageBus`:
+The shapes below are abridged from the real Inquiries module — read the actual files under
+`api/src/Modules/Inquiries/` before copying any of them.
+
+**Controllers** are `partial` (for `[LoggerMessage]`) and dispatch via Wolverine `IMessageBus`:
 ```csharp
-public class InvoicesController(IMessageBus bus) : ControllerBase
+public partial class InquiriesController(IMessageBus bus, ITenantContext tenantContext, ILogger<InquiriesController> logger) : ControllerBase
 {
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateInvoiceRequest request, CancellationToken ct)
+    [HasPermission(PermissionType.InquiriesWrite)]
+    public async Task<IActionResult> Submit([FromBody] SubmitInquiryRequest request, CancellationToken cancellationToken)
     {
-        CreateInvoiceCommand command = new(request.UserId, request.InvoiceNumber, request.Currency, request.DueDate);
-        Result<InvoiceDto> result = await bus.InvokeAsync<Result<InvoiceDto>>(command, ct);
-        return result.Map(ToResponse).ToActionResult();
+        SubmitInquiryCommand command = new(request.Name, request.Email, request.Phone, request.Company, submitterId, request.ProjectType, request.BudgetRange, request.Timeline, request.Message);
+        Result<InquiryDto> result = await bus.InvokeAsync<Result<InquiryDto>>(command, cancellationToken);
+        return result.Map(ToInquiryResponse).ToActionResult();
     }
 }
 ```
 
-**Handlers** are sealed classes with primary constructors returning `Result<T>`:
+**Handlers** are `public sealed` classes returning `Result<T>`, taking their dependencies through a
+primary constructor and exposing a `Handle` method Wolverine discovers — no interface and no DI
+registration:
 ```csharp
-public sealed class CreateInvoiceHandler(IInvoiceRepository invoiceRepository, TimeProvider timeProvider)
+public sealed class GetInquiryByIdHandler(IInquiryRepository inquiryRepository)
 {
-    public async Task<Result<InvoiceDto>> Handle(CreateInvoiceCommand command, CancellationToken ct)
+    public async Task<Result<InquiryDto>> Handle(
+        GetInquiryByIdQuery query,
+        CancellationToken cancellationToken)
     {
-        // Business logic here, return Result.Success or Result.Failure
+        InquiryId inquiryId = InquiryId.Create(query.InquiryId);
+        Inquiry? inquiry = await inquiryRepository.GetByIdAsync(inquiryId, cancellationToken);
+
+        if (inquiry is null)
+        {
+            return Result.Failure<InquiryDto>(Error.NotFound("Inquiry", query.InquiryId));
+        }
+
+        return Result.Success(inquiry.ToDto());
     }
 }
 ```
 
-**Validators** use FluentValidation:
+Wolverine also discovers `public static` handlers that take their dependencies as method parameters
+instead. That form is the exception — it is how most `EventHandlers/` are written, plus Inquiries'
+three `Commands/` handlers. Write new command and query handlers in the sealed instance form above.
+
+Branding and ApiKeys are the deliberate exceptions — they call services and repositories straight
+from the controller with no CQRS layer at all.
+
+**Validators** use FluentValidation, one `AbstractValidator<TCommand>` per command:
 ```csharp
-public sealed class CreateInvoiceValidator : AbstractValidator<CreateInvoiceCommand>
+public sealed class SubmitInquiryValidator : AbstractValidator<SubmitInquiryCommand>
 {
-    public CreateInvoiceValidator()
+    public SubmitInquiryValidator()
     {
-        RuleFor(x => x.InvoiceNumber).NotEmpty();
-        RuleFor(x => x.Currency).NotEmpty().MaximumLength(3);
+        RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
+        RuleFor(x => x.Email).NotEmpty().EmailAddress().MaximumLength(254);
     }
 }
 ```
 
-**Domain entities** have rich behavior and factory methods:
+**Domain entities** are `sealed`, derive from `AggregateRoot<TId>`, implement `ITenantScoped`, and
+expose a static factory plus behaviour methods. Setters are `private set` — state changes go
+through the methods:
 ```csharp
-public class Invoice : AggregateRoot
+public sealed class Inquiry : AggregateRoot<InquiryId>, ITenantScoped
 {
-    public static Invoice Create(Guid userId, string invoiceNumber, ...) { /* ... */ }
+    public TenantId TenantId { get; init; }
+    public string Name { get; private set; } = string.Empty;
+    public InquiryStatus Status { get; private set; }
+
+    private Inquiry() { } // EF Core
+
+    public static Inquiry Create(string name, string email, /* ... */, TimeProvider timeProvider) { /* raises InquirySubmittedDomainEvent */ }
+
+    public void TransitionTo(InquiryStatus newStatus, TimeProvider timeProvider) { /* ... */ }
 }
 ```
 
@@ -86,8 +120,8 @@ Use `[LoggerMessage]` source generator -- never `logger.LogInformation(...)`:
 ```csharp
 public sealed partial class SomeService(ILogger<SomeService> logger)
 {
-    [LoggerMessage(Level = LogLevel.Information, Message = "Invoice {InvoiceId} created by {UserId}")]
-    private partial void LogInvoiceCreated(Guid invoiceId, string? userId);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Inquiry {InquiryId} submitted by {UserId}")]
+    private partial void LogInquirySubmitted(Guid inquiryId, string? userId);
 }
 ```
 
@@ -109,32 +143,29 @@ Never use raw `FindFirst`/`FindFirstValue`. Always use `ClaimsPrincipalExtension
 - **AwesomeAssertions** (not FluentAssertions -- FluentAssertions is not commercially licensed): `.Should().BeTrue()`, `.Should().NotBeNull()`, `.Should().Be("value")`
 
 ### Test Structure
+A sealed handler is constructed with its dependencies, then its `Handle` method is awaited:
+`await new GetInquiryByIdHandler(repo).Handle(query, CancellationToken.None)`. A static handler has
+nothing to construct, so the dependencies are passed as arguments instead:
 ```csharp
-public class CreateInvoiceHandlerTests
+public class SubmitInquiryHandlerTests
 {
-    private readonly IInvoiceRepository _repository;
-    private readonly CreateInvoiceHandler _handler;
-
-    public CreateInvoiceHandlerTests()
-    {
-        _repository = Substitute.For<IInvoiceRepository>();
-        _handler = new CreateInvoiceHandler(_repository, TimeProvider.System);
-    }
+    private static SubmitInquiryCommand BuildCommand() =>
+        new("John Doe", "john@example.com", "555-0100", "Acme", null, "Web App", "$10k", "3 months", "We need help.");
 
     [Fact]
-    public async Task Handle_WithValidCommand_CreatesInvoice()
+    public async Task HandleAsync_WithValidCommand_SubmitsInquiry()
     {
         // Arrange
-        CreateInvoiceCommand command = new(Guid.NewGuid(), "INV-001", "USD", DateTime.UtcNow.AddDays(30));
-        _repository.ExistsByInvoiceNumberAsync(command.InvoiceNumber, Arg.Any<CancellationToken>()).Returns(false);
+        IInquiryRepository repo = Substitute.For<IInquiryRepository>();
+        SubmitInquiryCommand command = BuildCommand();
 
         // Act
-        Result<InvoiceDto> result = await _handler.Handle(command, CancellationToken.None);
+        Result<InquiryDto> result = await SubmitInquiryHandler.HandleAsync(command, repo, TimeProvider.System, CancellationToken.None);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        result.Value.InvoiceNumber.Should().Be("INV-001");
-        _repository.Received(1).Add(Arg.Any<Invoice>());
+        result.Value.Email.Should().Be(command.Email);
+        await repo.Received(1).AddAsync(Arg.Any<Inquiry>(), Arg.Any<CancellationToken>());
     }
 }
 ```
@@ -146,7 +177,12 @@ public class CreateInvoiceHandlerTests
 ./scripts/run-tests.sh inquiries    # Module tests
 ./scripts/run-tests.sh identity     # Module tests
 # Supported: identity, storage, notifications, announcements, inquiries,
-#            apikeys, branding, auth, api, arch, shared, kernel, integration
+#            apikeys, branding, api, arch (or architecture), seeder,
+#            migrations, shared, kernel, integration
+# `integration` is the only argument that does not append
+# --filter "Category!=E2E&Category!=Integration", so it is the only way to run
+# the Identity integration suite. An unrecognised name is passed to dotnet test
+# verbatim and fails to resolve.
 ```
 
 ## TDD Workflow
@@ -171,7 +207,7 @@ Rules:
 ## Build Commands
 
 ```bash
-dotnet build                                    # Build solution
+dotnet build api/Wallow.slnx                    # Build solution (there is no root solution file)
 ./scripts/run-tests.sh                          # All tests (structured output)
 ./scripts/run-tests.sh <module>                 # Module tests
 dotnet run --project api/src/Wallow.Api         # Run API
