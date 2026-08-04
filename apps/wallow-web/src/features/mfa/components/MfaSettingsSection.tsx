@@ -2,7 +2,11 @@
  * MFA settings status card (Wallow-8w1h.6.4) — the status + actions card that
  * lives alongside the profile section on the settings route.
  *
- * Drives `useQuery(mfaGetStatusOptions(...))` and renders:
+ * The card is presentational: `useMfaSettings` owns the status read, the two
+ * writes, and every branch-selecting piece of state, so what is left here is
+ * which surface each state renders.
+ *
+ * It renders:
  *   - `settings-mfa-status` — "Enabled"/"Disabled" text.
  *   - When DISABLED: `settings-mfa-enable`; clicking it enters the inline
  *     `MfaEnrollFlow` (no cross-app redirect — the SPA is same-origin).
@@ -20,8 +24,6 @@
  *
  * Testids mirror the C# E2E page object `SettingsMfaSection`.
  */
-import { errorText } from "@bc-solutions-coder/forms";
-import { useMutation, useQuery, useQueryClient } from "@bc-solutions-coder/query";
 import {
   Badge,
   Button,
@@ -34,23 +36,10 @@ import {
   MutedText,
   Text,
 } from "@bc-solutions-coder/ui";
-import { useRouteContext } from "@tanstack/react-router";
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
-import {
-  mfaDisableMutation,
-  mfaGetStatusOptions,
-  mfaGetStatusQueryKey,
-  mfaRegenerateBackupCodesMutation,
-  queriesForOperation,
-} from "../api";
-import { problemDetail } from "../errors";
+import { useMfaSettings } from "../hooks/use-mfa-settings";
 import { MfaEnrollFlow } from "./MfaEnrollFlow";
-
-/** Which enabled-only action opened the shared password-confirm panel. */
-type ConfirmAction = "disable" | "regenerate";
-
-const CONFIRM_FAILED = "Unable to complete that action.";
 
 /** The framed sub-panels nested inside the card (confirm + codes reveal). */
 const PANEL = "rounded-md border border-border p-4";
@@ -163,7 +152,7 @@ function ConfirmPanel(props: {
  * shown in a "New Backup Codes" panel. Shown after a
  * successful regenerate because the old codes are now invalidated.
  */
-function RegeneratedCodes(props: { codes: string[] }) {
+function RegeneratedCodes(props: { codes: readonly string[] }) {
   return (
     <div className={PANEL}>
       <Text as="p" variant="bodySm" weight="semibold" className="mb-2">
@@ -182,39 +171,25 @@ function RegeneratedCodes(props: { codes: string[] }) {
 }
 
 export function MfaSettingsSection() {
-  const { sdk } = useRouteContext({ from: "__root__" });
-  const queryClient = useQueryClient();
-  // The status READ's rejection is `statusError`; the plain `error` below is the
-  // MUTATIONS' copy, which is a different failure with a different surface.
+  // Destructured rather than kept as one object: `react/jsx-handler-names`
+  // checks member expressions but not plain identifiers, so `onDone={mfa.
+  // endEnroll}` is a warning where `onDone={endEnroll}` is not.
   const {
-    data,
     isPending,
-    isError,
-    error: statusError,
-  } = useQuery(mfaGetStatusOptions({ client: sdk.client }));
-  // Both writes change the status the card renders (enrollment state and the
-  // remaining-code count), so each re-reads the status OPERATION. Generated keys
-  // are flat, so there is no `['mfa']` prefix to sweep by; the status query is
-  // tagged `Identity`, which is far broader than these two writes touch.
-  const invalidateStatus = (): void => {
-    void queryClient.invalidateQueries(
-      queriesForOperation(mfaGetStatusQueryKey({ client: sdk.client })),
-    );
-  };
-  const disable = useMutation({
-    ...mfaDisableMutation({ client: sdk.client }),
-    onSuccess: invalidateStatus,
-  });
-  const regenerate = useMutation({
-    ...mfaRegenerateBackupCodesMutation({ client: sdk.client }),
-    onSuccess: invalidateStatus,
-  });
-
-  const [enrolling, setEnrolling] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [regeneratedCodes, setRegeneratedCodes] = useState<string[] | null>(null);
+    statusErrorText,
+    enabled,
+    backupCodeCount,
+    enrolling,
+    confirmAction,
+    password,
+    error,
+    regeneratedCodes,
+    beginEnroll,
+    endEnroll,
+    setPassword,
+    openConfirm,
+    submitConfirm,
+  } = useMfaSettings();
 
   if (isPending) {
     return (
@@ -224,74 +199,13 @@ export function MfaSettingsSection() {
     );
   }
 
-  // `enabled = status?.enabled ?? false` would otherwise make a failed read look
-  // like a confirmed "MFA is off" and invite a second enrolment, so the card
-  // refuses to claim a state it does not have — unless a cached status survives
-  // the failure, which is still the truth as of the last successful read.
-  if (isError && data === undefined) {
-    return (
-      <ErrorBanner data-testid="settings-mfa-status-error">
-        {errorText(statusError, "Could not load your MFA status.")}
-      </ErrorBanner>
-    );
+  if (statusErrorText !== null) {
+    return <ErrorBanner data-testid="settings-mfa-status-error">{statusErrorText}</ErrorBanner>;
   }
-
-  // The generated read already resolves `MfaStatusResponse`, so there is nothing
-  // left to narrow at the render boundary — only the not-yet-loaded case.
-  const status = data ?? null;
-  const enabled = status?.enabled ?? false;
 
   if (enrolling) {
-    return (
-      <MfaEnrollFlow
-        onDone={() => {
-          setEnrolling(false);
-        }}
-        onCancel={() => {
-          setEnrolling(false);
-        }}
-      />
-    );
+    return <MfaEnrollFlow onDone={endEnroll} onCancel={endEnroll} />;
   }
-
-  const openConfirm = (action: ConfirmAction) => {
-    setError(null);
-    setPassword("");
-    setRegeneratedCodes(null);
-    setConfirmAction(action);
-  };
-
-  const handleConfirmSubmit = () => {
-    if (confirmAction === null) {
-      return;
-    }
-    setError(null);
-    const onError = (err: unknown) => {
-      setError(problemDetail(err, CONFIRM_FAILED));
-    };
-    const closePanel = () => {
-      setConfirmAction(null);
-      setPassword("");
-    };
-    if (confirmAction === "disable") {
-      disable.mutate({ body: { password } }, { onSuccess: closePanel, onError });
-    } else {
-      regenerate.mutate(
-        { body: { password } },
-        {
-          onSuccess: (payload) => {
-            // Reveal the freshly minted codes once: the old codes are now
-            // invalid, so the user must save these. The mutation's own
-            // onSuccess re-reads the status so the card stays Enabled with the
-            // new count.
-            setRegeneratedCodes(payload.codes);
-            closePanel();
-          },
-          onError,
-        },
-      );
-    }
-  };
 
   return (
     <Card className="mt-6">
@@ -299,7 +213,7 @@ export function MfaSettingsSection() {
 
       {enabled ? (
         <EnabledCard
-          backupCodeCount={status?.backupCodeCount ?? 0}
+          backupCodeCount={backupCodeCount}
           onDisable={() => {
             openConfirm("disable");
           }}
@@ -308,19 +222,11 @@ export function MfaSettingsSection() {
           }}
         />
       ) : (
-        <DisabledCard
-          onEnable={() => {
-            setEnrolling(true);
-          }}
-        />
+        <DisabledCard onEnable={beginEnroll} />
       )}
 
       {confirmAction === null ? null : (
-        <ConfirmPanel
-          password={password}
-          onPasswordChange={setPassword}
-          onSubmit={handleConfirmSubmit}
-        />
+        <ConfirmPanel password={password} onPasswordChange={setPassword} onSubmit={submitConfirm} />
       )}
 
       {regeneratedCodes === null ? null : <RegeneratedCodes codes={regeneratedCodes} />}
