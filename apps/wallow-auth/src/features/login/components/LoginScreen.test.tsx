@@ -564,7 +564,17 @@ describe("LoginScreen password tab", () => {
     await vi.waitFor(() => {
       expect(page.getByTestId("login-error").query()).toBeNull();
     });
+
+    // Wait for the RETRY to reach the transport before releasing it: `release`
+    // is only assigned when the responder runs, so a bare `release()` here is a
+    // no-op that leaves the never-settling responder installed. Then await the
+    // hand-off it produces — a succeeded sign-in always navigates, and one left
+    // unread lands in the NEXT test's escape check.
+    await vi.waitFor(() => {
+      expect(loginCalls()).toHaveLength(2);
+    });
     release();
+    await awaitHandoff();
   });
 });
 

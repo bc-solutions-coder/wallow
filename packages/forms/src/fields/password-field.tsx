@@ -7,7 +7,7 @@
  */
 
 import { Field } from "@bc-solutions-coder/ui/field";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 
 import { CatalogFieldError, CatalogFieldLabel, useCatalogField } from "./field-parts";
 
@@ -17,21 +17,50 @@ export interface PasswordFieldProps {
   readonly placeholder?: string;
   /** e.g. `"new-password"` on a reset screen, `"current-password"` on sign-in. */
   readonly autoComplete?: string;
+  /**
+   * An affordance that shares the label's line — the sign-in screen's "Forgot
+   * password?" link, which sits opposite the label rather than under the control.
+   *
+   * BESIDE the label, never inside it: a label names its control, so an anchor
+   * folded into one would both make "Forgot password?" part of the field's
+   * accessible name and put a navigation target inside the box's own click area.
+   * That is also why it is not simply a `ReactNode` label.
+   */
+  readonly labelAction?: ReactNode;
   /** Overrides the derived `{testIdPrefix}-{field name}` testid and its `-error` id. */
   readonly testId?: string;
+}
+
+/**
+ * The label line when something shares it. Its own component because
+ * `react/jsx-max-depth` is 2 here, and the row would otherwise put the label one
+ * level deeper than the rule allows.
+ */
+function LabelRow({ label, action }: { readonly label: string; readonly action: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between">
+      <CatalogFieldLabel label={label} />
+      {action}
+    </div>
+  );
 }
 
 export function PasswordField({
   label,
   placeholder,
   autoComplete,
+  labelAction,
   testId,
 }: PasswordFieldProps): ReactElement {
   const { field, pending, error, controlTestId, errorTestId } = useCatalogField<string>(testId);
 
   return (
     <Field invalid={error !== undefined}>
-      <CatalogFieldLabel label={label} />
+      {labelAction === undefined ? (
+        <CatalogFieldLabel label={label} />
+      ) : (
+        <LabelRow label={label} action={labelAction} />
+      )}
       <Field.Control
         type="password"
         placeholder={placeholder}

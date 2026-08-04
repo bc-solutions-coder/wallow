@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@bc-solutions-coder/query";
 import { render } from "@bc-solutions-coder/testing/render";
+import type { ReactNode } from "react";
 import { userEvent } from "vitest/browser";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
@@ -27,6 +28,7 @@ type Values = z.output<typeof schema>;
 interface HarnessProps {
   readonly placeholder?: string;
   readonly autoComplete?: string;
+  readonly labelAction?: ReactNode;
   readonly testId?: string;
   readonly onSubmit?: (values: Values) => Promise<void> | void;
 }
@@ -46,6 +48,7 @@ function Harness(props: HarnessProps) {
             label="New password"
             placeholder={props.placeholder}
             autoComplete={props.autoComplete}
+            labelAction={props.labelAction}
             testId={props.testId}
           />
         )}
@@ -113,6 +116,17 @@ describe("PasswordField", () => {
     // The whole reason this field exists rather than `<TextField type="password">`.
     expect(input(container).type).toBe("password");
     expect(input(container).autocomplete).toBe("new-password");
+    expect(accessibleName(container, input(container))).toBe("New password");
+  });
+
+  it("puts a labelAction beside the label without folding it into the accessible name", async () => {
+    // The sign-in screen's "Forgot password?" link. An anchor inside the label
+    // would name the field after it AND sit inside the box's own click area.
+    const { container } = await renderHarness({
+      labelAction: <a href="/forgot-password">Forgot password?</a>,
+    });
+
+    expect(container.querySelector("a")?.textContent).toBe("Forgot password?");
     expect(accessibleName(container, input(container))).toBe("New password");
   });
 
