@@ -11,7 +11,7 @@
  */
 
 import { Field } from "@bc-solutions-coder/ui/field";
-import type { ReactElement } from "react";
+import type { InputHTMLAttributes, ReactElement } from "react";
 
 import { CatalogFieldError, CatalogFieldLabel, useCatalogField } from "./field-parts";
 
@@ -28,6 +28,13 @@ export interface TextFieldProps {
   readonly optional?: boolean;
   readonly autoComplete?: string;
   /**
+   * The virtual keyboard a touch device should offer. Kept separate from
+   * `type`, because the two are not interchangeable for a digits-only value:
+   * `type="number"` would eat the leading zero of a zero-padded one-time code,
+   * so such a field stays `type="text"` and asks for the keypad here instead.
+   */
+  readonly inputMode?: InputHTMLAttributes<HTMLInputElement>["inputMode"];
+  /**
    * Overrides the derived `{testIdPrefix}-{field name}` testid (and the
    * `-error` id derived from it), so a migrated form keeps its E2E ids
    * byte-identical.
@@ -41,6 +48,7 @@ export function TextField({
   placeholder,
   optional = false,
   autoComplete,
+  inputMode,
   testId,
 }: TextFieldProps): ReactElement {
   const { field, pending, error, controlTestId, errorTestId } = useCatalogField<string>(testId);
@@ -52,6 +60,7 @@ export function TextField({
         type={type}
         placeholder={placeholder}
         autoComplete={autoComplete}
+        inputMode={inputMode}
         disabled={pending}
         data-testid={controlTestId}
         value={field.state.value}

@@ -42,6 +42,7 @@ interface HarnessProps {
   readonly type?: "email";
   readonly placeholder?: string;
   readonly autoComplete?: string;
+  readonly inputMode?: "numeric";
   readonly optional?: boolean;
   readonly testId?: string;
   readonly onSubmit?: (values: Values) => Promise<void> | void;
@@ -64,6 +65,7 @@ function Harness(props: HarnessProps) {
             type={props.type}
             placeholder={props.placeholder}
             autoComplete={props.autoComplete}
+            inputMode={props.inputMode}
             optional={props.optional}
             testId={props.testId}
           />
@@ -159,6 +161,15 @@ describe("TextField", () => {
     expect(input(container).type).toBe("email");
     expect(input(container).placeholder).toBe("you@example.com");
     expect(input(container).autocomplete).toBe("email");
+  });
+
+  it("asks for a numeric keypad without changing the input type", async () => {
+    // The pair a zero-padded one-time code needs: `type="number"` would eat the
+    // leading zero of "042317", so the digits-only hint has to travel separately.
+    const { container } = await renderHarness({ inputMode: "numeric" });
+
+    expect(input(container).type).toBe("text");
+    expect(input(container).inputMode).toBe("numeric");
   });
 
   it("marks an optional field in its label", async () => {
