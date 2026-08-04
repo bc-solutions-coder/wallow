@@ -583,8 +583,13 @@ services:
       # valid for unsealing — so a rotation costs no user their session. Each secret must
       # be 32+ chars and each key ID letters/digits/underscores and not all-digits (the
       # SDK validates all of that at boot, in packages/sdk/src/server/config.ts).
-      #   BFF_COOKIE_PASSWORDS='{"k2":"<new 64-hex>","k1":"<previous>"}'
-      # Redeploy, let the old cookies age out past SESSION_TTL_SECONDS, then drop k1.
+      # On the FIRST rotation the outgoing secret must keep the key ID "default": a bare
+      # COOKIE_PASSWORD seals with an empty key ID that unseals as the literal "default",
+      # so any other ID for the current value invalidates every live session the moment
+      # this is set. Later rotations may use any allowed ID, because by then every cookie
+      # in the wild carries one.
+      #   BFF_COOKIE_PASSWORDS='{"v2":"<new 64-hex>","default":"<previous>"}'
+      # Redeploy, let the old cookies age out past SESSION_TTL_SECONDS, then drop "default".
       COOKIE_PASSWORDS: ${BFF_COOKIE_PASSWORDS:-}
       # The rest of the SDK's cookie/session contract. All five are optional and
       # passed unconditionally BECAUSE they are optional: the SDK reads an empty
