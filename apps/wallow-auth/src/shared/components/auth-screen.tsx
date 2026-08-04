@@ -27,7 +27,11 @@ export interface AuthScreenProps {
    */
   readonly errorTestId?: string;
   readonly footer?: ReactNode;
-  readonly children: ReactNode;
+  /**
+   * Optional, because a screen in a dead-end error state has no body at all —
+   * `InvitationScreen` renders the banner and the way out and nothing between.
+   */
+  readonly children?: ReactNode;
   /** Overrides `Card`'s padding/rhythm block for the two measured outliers. */
   readonly spacing?: string;
 }

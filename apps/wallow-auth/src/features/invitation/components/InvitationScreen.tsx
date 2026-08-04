@@ -1,10 +1,18 @@
 import type { InvitationResponse } from "@bc-solutions-coder/sdk";
 import { forkBranding } from "@bc-solutions-coder/styles";
-import { Button, Card, ErrorBanner, MutedText, Text } from "@bc-solutions-coder/ui";
+import { Button, ErrorBanner, MutedText, QuietLink, Text } from "@bc-solutions-coder/ui";
 import { useMutation, useQuery } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { invitationsAcceptMutation, invitationsVerifyOptions } from "../api";
+import {
+  acceptFailureMessage,
+  EXPIRED_MESSAGE,
+  isExpired,
+  NO_TOKEN_MESSAGE,
+  verifyFailureMessage,
+} from "../invitation-result";
+import { AuthScreen } from "@shared/components/auth-screen";
 import { toAppHref } from "@shared/lib/base-path";
 
 /**
@@ -14,18 +22,19 @@ import { toAppHref } from "@shared/lib/base-path";
  * component: the route owns the query string (the oracle's single
  * `[SupplyParameterFromQuery] Token`) and owns the auth-state probe, which keeps
  * this component a pure function of its inputs and testable without a router.
- * This is the seam `ResetPasswordForm` established and `VerifyEmailConfirm` and
- * `ConsentScreen` followed.
  *
  * Testids come verbatim from the oracle (scout inventory on Wallow-vec7.3):
  * `invitation-loading`, `invitation-error`, `invitation-info`,
  * `invitation-expired`, `invitation-accept-error`, `invitation-accept`,
  * `invitation-decline`, `invitation-create-account`, `invitation-sign-in`.
  *
- * Writes use the generated `{op}Mutation()` factories and reads the generated
- * `{op}Options()` factories, both bound to the request-scoped SDK off the router
- * context (`useRouteContext({ from: "__root__" })`). The OIDC URL builders are
- * pure and imported directly. There is no app-level facade (Wallow-pu6a.5.5).
+ * The rejection→copy mapping and the expiry predicate live in
+ * `../invitation-result`, which documents why they are keyed on HTTP status
+ * rather than on a machine token.
+ *
+ * There is no `useAppForm` here because there is no form: the screen verifies a
+ * token from the link and offers an accept BUTTON, and its one write takes the
+ * token on the path with nothing typed.
  *
  * ── THE AUTHENTICATED BRANCH IS A BUG FIX, NOT A PORT ────────────────────────
  *
@@ -33,38 +42,13 @@ import { toAppHref } from "@shared/lib/base-path";
  * registers no `AddAuthentication`/`UseAuthentication`/
  * `AddCascadingAuthenticationState` at all, so the `AuthenticationStateProvider`
  * it injects (InvitationLanding.razor:7,130) is seeded from an `HttpContext.User`
- * that no auth middleware ever populates. Its accept/decline branch is dead code,
- * and the two E2E tests that would have caught it never run (the containerised
- * e2e job is `if: false` in ci.yml). Porting BOTH branches here therefore fixes a
- * bug rather than reproducing behaviour: the API has always supported it —
+ * that no auth middleware ever populates. Its accept/decline branch is dead code.
+ * Porting BOTH branches here therefore fixes a bug rather than reproducing
+ * behaviour: the API has always supported it —
  * `POST /v1/identity/invitations/{token}/accept` is `[Authorize]`
  * (InvitationsController.cs:82-84), `GET verify/{token}` is `[AllowAnonymous]`
  * (:67-70). The route supplies the real answer via the SDK's `getCurrentUser`
  * seam (Wallow-vec7.2.4).
- *
- * ── FOUR ORACLE BRANCHES COLLAPSE INTO TWO REJECTIONS, KEYED ON STATUS ───────
- *
- * The oracle's `AuthApiClient` SWALLOWS non-2xx into sentinels —
- * `VerifyInvitationAsync` returns null on any failure (AuthApiClient.cs:297-312),
- * `AcceptInvitationAsync` returns `IsSuccessStatusCode` (:314-322) — so it forks
- * sentinel-vs-`catch` and gives each of the two calls two messages. The facade's
- * `unwrap()` THROWS on every non-2xx, so each pair arrives as ONE rejection and
- * that fork is gone. What survives is `.status` (`toWallowError` always populates
- * it), and it is enough to keep all four messages:
- *
- *   - `verify/{token}` has exactly ONE failure return, a bare `NotFound()`
- *     (InvitationsController.cs:71-80) — so its 404 IS the oracle's null case,
- *     and anything else is the oracle's `catch`.
- *   - `{token}/accept` rejects an unknown/spent/expired token from the service
- *     and its aggregate (:82-91) — every one a 4xx, i.e. the oracle's
- *     "expired or already been used". A 5xx is the `catch`.
- *
- * Keyed on STATUS and deliberately NOT on `code`: unlike `/v1/identity/auth/*`
- * (bd memory `mfa-endpoints-mfacontroller-return-business-failures-as-a`), these
- * two endpoints send no machine-readable code at all — `NotFound()` is a bare
- * status with no body — so every rejection here is `code: "UNKNOWN"` (bd memory
- * `wallow-auth-auth-client-ts-wallowerror-code-loss`). A code-keyed mapping would
- * collapse all four messages into the generic one.
  *
  * ── WHY THERE IS NO `isSafeReturnUrl` GUARD HERE ─────────────────────────────
  *
@@ -75,30 +59,12 @@ import { toAppHref } from "@shared/lib/base-path";
  * exactly what the guard checks for. Guarding a constant we just wrote would be
  * dead code. The attacker-controlled part is the TOKEN, and it is defused by
  * percent-encoding the whole returnUrl (so `x&returnUrl=//evil.example` cannot
- * smuggle a second parameter into the link), which is what the oracle's
- * `Uri.EscapeDataString` does and what the tests pin.
+ * smuggle a second parameter into the link).
  */
 
-/** The oracle's `IsNullOrWhiteSpace(Token)` guard message. */
-const NO_TOKEN_MESSAGE = "No invitation token provided.";
-
-/** The oracle's `_invitation is null` branch, reached here via HTTP 404. */
-const INVALID_INVITATION_MESSAGE = "This invitation is not valid or has already been used.";
-
-/** The oracle's `catch` around the verify call: any other failure. */
-const VERIFY_FAILURE_MESSAGE = "Unable to verify this invitation. Please try again later.";
-
-/** The oracle's `success == false` branch on accept, reached here via any 4xx. */
-const ACCEPT_REJECTED_MESSAGE =
-  "Unable to accept this invitation. It may have expired or already been used.";
-
-/** The oracle's `catch` around the accept call: any other failure. */
-const ACCEPT_FAILURE_MESSAGE =
-  "An error occurred while accepting the invitation. Please try again.";
-
-/** The oracle's expired `BbAlert`. */
-const EXPIRED_MESSAGE =
-  "This invitation has expired. Please ask your administrator to send a new one.";
+/** The oracle's `BbCardHeader`. */
+const TITLE = "You've been invited";
+const DESCRIPTION = `Join ${forkBranding.appName}`;
 
 /**
  * The oracle's `NavigateTo("/", forceLoad: true)` target, and the decline link's
@@ -108,71 +74,6 @@ const HOME_HREF: string = toAppHref("/");
 
 /** The way out of the error state (InvitationLanding.razor:32-34). */
 const SIGN_IN_HREF = "/login";
-
-/** The only failure status `verify/{token}` has — see the seam note above. */
-const NOT_FOUND_STATUS = 404;
-
-/** The 4xx band: every way `{token}/accept` says "no" to a well-formed request. */
-const CLIENT_ERROR_MIN = 400;
-const CLIENT_ERROR_MAX = 500;
-
-/**
- * The HTTP status of a rejection, if it carries one.
- *
- * Narrowed structurally rather than with `instanceof WallowError`: that class is
- * exported from the SDK's `./server` entry, and screens may not import the SDK at
- * all. Defensive for the same reason — a network-level rejection carries no
- * `status` and must fall through to the generic copy.
- */
-function statusOf(cause: unknown): number | undefined {
-  if (typeof cause === "object" && cause !== null && "status" in cause) {
-    const status: unknown = (cause as { readonly status: unknown }).status;
-
-    if (typeof status === "number") {
-      return status;
-    }
-  }
-
-  return undefined;
-}
-
-/** The oracle's two verify messages, chosen by status — see the seam note. */
-function verifyFailureMessage(cause: unknown): string {
-  return statusOf(cause) === NOT_FOUND_STATUS ? INVALID_INVITATION_MESSAGE : VERIFY_FAILURE_MESSAGE;
-}
-
-/**
- * The oracle's two accept messages, chosen by status. Keyed on the whole 4xx band
- * rather than 404 alone: the service throws `EntityNotFoundException` for an
- * unknown or spent token, but an EXPIRED one is refused by the aggregate, and
- * "the invitation is expired" is precisely the case this copy names. Telling that
- * user "an error occurred, please try again" would send them retrying a request
- * that can never succeed.
- */
-function acceptFailureMessage(cause: unknown): string {
-  const status: number | undefined = statusOf(cause);
-
-  if (status !== undefined && status >= CLIENT_ERROR_MIN && status < CLIENT_ERROR_MAX) {
-    return ACCEPT_REJECTED_MESSAGE;
-  }
-
-  return ACCEPT_FAILURE_MESSAGE;
-}
-
-/**
- * The oracle's `Status is "Expired" || ExpiresAt < UtcNow` (InvitationLanding.
- * razor:147). The OR is load-bearing: `Status` only flips when the
- * `CleanupExpiredAsync` sweep gets to it (InvitationService.cs:71-89), so between
- * the expiry instant and the sweep the date is the ONLY branch that catches it.
- *
- * An unparseable `expiresAt` yields `NaN`, and every `NaN` comparison is false —
- * so a malformed date falls through to "not expired" and lets the SERVER refuse
- * the accept, rather than this screen declaring a live invitation dead over a
- * date it could not read.
- */
-function isExpired(invitation: InvitationResponse): boolean {
-  return invitation.status === "Expired" || Date.parse(invitation.expiresAt) < Date.now();
-}
 
 /**
  * The link back to this screen that both anonymous actions carry, so the visitor
@@ -190,9 +91,7 @@ function selfReturnUrl(token: string): string {
 /** The oracle's `GetRegisterUrl()` (InvitationLanding.razor:196-201). */
 function registerHref(email: string, token: string): string {
   // `email` is INERT: `/register` reads only `client_id` and `returnUrl`
-  // (Wallow-vec7.3.8).
-  // Kept because it is the oracle's link contract and a `/register` that prefills
-  // the invited address is a plausible follow-up — not because it prefills today.
+  // (Wallow-vec7.3.8). Kept because it is the oracle's link contract.
   // Both links go through `toAppHref` because they render as raw `<a href>`s the
   // router never sees. `selfReturnUrl` stays unprefixed on purpose: it is cargo
   // the destination screen replays through `navigate()`, which applies the base
@@ -207,20 +106,8 @@ function loginHref(token: string): string {
   return toAppHref(`/login?returnUrl=${encodeURIComponent(selfReturnUrl(token))}`);
 }
 
-/** The oracle's `BbCardHeader`. */
-function CardHeading() {
-  return (
-    <div className="text-center space-y-1">
-      <Text as="h2" variant="subheading" color="onCard">
-        You&apos;ve been invited
-      </Text>
-      <MutedText>Join {forkBranding.appName}</MutedText>
-    </div>
-  );
-}
-
 /** The oracle's `_isLoading` branch: the verify is in flight and nothing else. */
-export function InvitationLoading() {
+export function InvitationLoading(): ReactElement {
   return (
     <MutedText className="text-center" data-testid="invitation-loading">
       Loading invitation...
@@ -228,18 +115,25 @@ export function InvitationLoading() {
   );
 }
 
-/** The oracle's danger `BbAlert` plus the one way out of the dead end. */
-function ErrorState({ message }: { readonly message: string }) {
+/** The one way out of the error state's dead end. */
+function BackToSignIn(): ReactElement {
   return (
-    <div className="space-y-4">
-      <ErrorBanner data-testid="invitation-error">{message}</ErrorBanner>
-      <a
-        href={SIGN_IN_HREF}
-        className="block text-center text-sm text-muted-foreground hover:text-foreground"
-      >
-        Back to sign in
-      </a>
-    </div>
+    <QuietLink href={SIGN_IN_HREF} className="block text-center">
+      Back to sign in
+    </QuietLink>
+  );
+}
+
+/** The oracle's danger `BbAlert`, which replaces the whole body. */
+function ErrorScreen({ message }: { readonly message: string }): ReactElement {
+  return (
+    <AuthScreen
+      title={TITLE}
+      description={DESCRIPTION}
+      error={message}
+      errorTestId="invitation-error"
+      footer={<BackToSignIn />}
+    />
   );
 }
 
@@ -248,7 +142,7 @@ function ErrorState({ message }: { readonly message: string }) {
  * tells the visitor which identity the invitation is for, which is the difference
  * between accepting it on the right account and on the wrong one.
  */
-function InvitationInfo({ email }: { readonly email: string }) {
+function InvitationInfo({ email }: { readonly email: string }): ReactElement {
   return (
     <Text
       as="p"
@@ -262,7 +156,7 @@ function InvitationInfo({ email }: { readonly email: string }) {
 }
 
 /** The oracle's expired `BbAlert`, which replaces BOTH action branches. */
-function ExpiredNotice() {
+function ExpiredNotice(): ReactElement {
   return <ErrorBanner data-testid="invitation-expired">{EXPIRED_MESSAGE}</ErrorBanner>;
 }
 
@@ -276,7 +170,10 @@ function ExpiredNotice() {
  * anchor still navigates on click, and letting the user leave mid-POST would hide
  * the outcome of a request that is changing their tenant membership.
  */
-function AcceptActions(props: { readonly isSubmitting: boolean; readonly onAccept: () => void }) {
+function AcceptActions(props: {
+  readonly isSubmitting: boolean;
+  readonly onAccept: () => void;
+}): ReactElement {
   const { isSubmitting, onAccept } = props;
 
   return (
@@ -319,7 +216,7 @@ function AuthenticatedActions(props: {
   readonly acceptError: string | null;
   readonly isSubmitting: boolean;
   readonly onAccept: () => void;
-}) {
+}): ReactElement {
   const { acceptError, isSubmitting, onAccept } = props;
 
   return (
@@ -340,7 +237,7 @@ function AuthenticatedActions(props: {
  * (InvitationsController.cs:82-83), so offering it here would buy the visitor a
  * 401 instead of a membership.
  */
-function AnonymousActions(props: { readonly email: string; readonly token: string }) {
+function AnonymousActions(props: { readonly email: string; readonly token: string }): ReactElement {
   const { email, token } = props;
 
   return (
@@ -380,7 +277,7 @@ function InvitationActions(props: {
   readonly acceptError: string | null;
   readonly isSubmitting: boolean;
   readonly onAccept: () => void;
-}) {
+}): ReactElement {
   const { invitation, token, isAuthenticated, acceptError, isSubmitting, onAccept } = props;
 
   if (isExpired(invitation)) {
@@ -410,9 +307,8 @@ export interface InvitationScreenProps {
   /**
    * Whether the visitor already has a session — the oracle's
    * `AuthStateProvider.GetAuthenticationStateAsync()` branch. Supplied as a prop
-   * so this component stays a pure function of its inputs, matching the seam
-   * `ResetPasswordForm`/`ConsentScreen` established. The route answers it with
-   * the SDK's `getCurrentUser` probe (Wallow-vec7.2.4).
+   * so this component stays a pure function of its inputs. The route answers it
+   * with the SDK's `getCurrentUser` probe (Wallow-vec7.2.4).
    */
   readonly isAuthenticated: boolean;
 }
@@ -450,23 +346,32 @@ export function InvitationScreen({ token, isAuthenticated }: InvitationScreenPro
   });
 
   if (!tokenIsPresent || token === undefined) {
+    return <ErrorScreen message={NO_TOKEN_MESSAGE} />;
+  }
+
+  // `enabled: false` also reports `isPending`, so this branch is only reachable
+  // once the guard above has passed.
+  if (query.isPending) {
     return (
-      <Card>
-        <CardHeading />
-        <ErrorState message={NO_TOKEN_MESSAGE} />
-      </Card>
+      <AuthScreen title={TITLE} description={DESCRIPTION}>
+        <InvitationLoading />
+      </AuthScreen>
     );
   }
 
+  // `data === undefined` is the unreachable queryFn narrow; treated as a failure
+  // rather than crashed on, since there is nothing to render without it.
+  if (query.isError || query.data === undefined) {
+    return <ErrorScreen message={verifyFailureMessage(query.isError ? query.error : null)} />;
+  }
+
   return (
-    <Card>
-      <CardHeading />
-      <InvitationBody
+    <AuthScreen title={TITLE} description={DESCRIPTION}>
+      <InvitationInfo email={query.data.email} />
+      <InvitationActions
+        invitation={query.data}
         token={token}
         isAuthenticated={isAuthenticated}
-        invitation={query.data ?? null}
-        isPending={query.isPending}
-        error={query.isError ? query.error : null}
         acceptError={acceptMutation.isError ? acceptFailureMessage(acceptMutation.error) : null}
         isSubmitting={acceptMutation.isPending}
         onAccept={() => {
@@ -476,57 +381,6 @@ export function InvitationScreen({ token, isAuthenticated }: InvitationScreenPro
           acceptMutation.mutate({ path: { token } });
         }}
       />
-    </Card>
-  );
-}
-
-/**
- * The screen's states, in the order the oracle's if/else-if chain applies them.
- * Split out of `InvitationScreen` so the card above stays flat and the hooks stay
- * unconditional.
- */
-function InvitationBody(props: {
-  readonly token: string;
-  readonly isAuthenticated: boolean;
-  readonly invitation: InvitationResponse | null;
-  readonly isPending: boolean;
-  readonly error: unknown;
-  readonly acceptError: string | null;
-  readonly isSubmitting: boolean;
-  readonly onAccept: () => void;
-}) {
-  const {
-    token,
-    isAuthenticated,
-    invitation,
-    isPending,
-    error,
-    acceptError,
-    isSubmitting,
-    onAccept,
-  } = props;
-
-  if (isPending) {
-    return <InvitationLoading />;
-  }
-
-  // `invitation === null` is the unreachable queryFn narrow; treated as a failure
-  // rather than crashed on, since there is nothing to render without it.
-  if (error !== null || invitation === null) {
-    return <ErrorState message={verifyFailureMessage(error)} />;
-  }
-
-  return (
-    <div className="space-y-4">
-      <InvitationInfo email={invitation.email} />
-      <InvitationActions
-        invitation={invitation}
-        token={token}
-        isAuthenticated={isAuthenticated}
-        acceptError={acceptError}
-        isSubmitting={isSubmitting}
-        onAccept={onAccept}
-      />
-    </div>
+    </AuthScreen>
   );
 }
