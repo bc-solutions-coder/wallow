@@ -1,7 +1,9 @@
-import { Button, Field, Input, Label, NoticeBanner, Text } from "@bc-solutions-coder/ui";
+import { AppForm, SubmitButton, useAppForm } from "@bc-solutions-coder/forms";
 import { useMutation, useQueryClient } from "@bc-solutions-coder/query";
+import { NoticeBanner, Text } from "@bc-solutions-coder/ui";
 import { useRouteContext } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { z } from "zod";
 import { accountSendMagicLinkMutation, accountVerifyMagicLinkOptions } from "../api";
 import { GENERIC_MESSAGE } from "../auth-result";
 import {
@@ -60,42 +62,20 @@ import type { LoginPanelProps } from "../panel";
  * panel's. `../panel` stays the minimal contract all three tabs share.
  */
 
-/** The oracle's magic-link email `BbInput`. */
-function EmailField(props: { readonly value: string; readonly onChange: (v: string) => void }) {
-  const { value, onChange } = props;
+/**
+ * RULE-FREE on purpose. The send form takes the plain-`onSubmit` escape hatch
+ * rather than handing `useAppForm` the generated mutation, for `MfaChallengeForm`'s
+ * two reasons: `splitServerError` reads RFC 7807 members and this endpoint answers
+ * with a bare `{ succeeded, error }` body, so only `../magic-link-result` can tell
+ * its rejections apart; and the blank-email guard reports into the SHELL's banner,
+ * which a zod rule could not do — it would abort `handleSubmit` before the callback
+ * ran. The schema is here for the value type alone.
+ */
+const sendSchema = z.object({ email: z.string() });
 
-  return (
-    <Field>
-      <Label htmlFor="magicLinkEmail">Email</Label>
-      <Input
-        id="magicLinkEmail"
-        type="email"
-        placeholder="name@example.com"
-        data-testid="login-magic-link-email"
-        value={value}
-        onChange={(e) => {
-          onChange(e.target.value);
-        }}
-      />
-    </Field>
-  );
-}
+type SendValues = z.infer<typeof sendSchema>;
 
-/** The oracle's send `BbButton`, with its `Loading`/`Disabled="_isSubmitting"`. */
-function SubmitButton({ pending }: { readonly pending: boolean }) {
-  return (
-    <Button
-      type="submit"
-      // One click, one link. A double send spends the address's rate-limit
-      // allowance and the second link silently invalidates nothing — but the
-      // refusal it earns is a worse experience than a disabled button.
-      disabled={pending}
-      data-testid="login-magic-link-submit"
-    >
-      {pending ? "Sending..." : "Send link"}
-    </Button>
-  );
-}
+const NO_EMAIL: SendValues = { email: "" };
 
 /**
  * The oracle's `_magicLinkSent` success `BbAlert`, which REPLACES the form: the
@@ -139,7 +119,6 @@ export function MagicLinkLoginForm({
 }: MagicLinkLoginFormProps): ReactNode {
   const { sdk } = useRouteContext({ from: "__root__" });
   const queryClient = useQueryClient();
-  const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   /**
    * The oracle verifies ONCE, in `OnInitializedAsync`. A magic-link token is
@@ -201,41 +180,48 @@ export function MagicLinkLoginForm({
       );
   }, [token, onAuthResult, onError, queryClient, sdk]);
 
-  const handleSubmit = (): void => {
-    // The oracle's `IsNullOrWhiteSpace(_email)` guard — WHITEspace, so "   " is
-    // blank. A blank send cannot succeed and would spend rate-limit allowance.
-    if (email.trim() === "") {
-      onError(BLANK_EMAIL_MESSAGE);
-      return;
-    }
+  const form = useAppForm<SendValues>({
+    schema: sendSchema,
+    defaultValues: NO_EMAIL,
+    onSubmit: async (values: SendValues): Promise<void> => {
+      // The oracle's `IsNullOrWhiteSpace(_email)` guard — WHITEspace, so "   " is
+      // blank. A blank send cannot succeed and would spend rate-limit allowance.
+      if (values.email.trim() === "") {
+        onError(BLANK_EMAIL_MESSAGE);
+        return;
+      }
 
-    // The oracle's `_errorMessage = null` at the top of `HandleSendMagicLink`: a
-    // stale banner hanging over an in-flight retry is a lie.
-    onError(null);
+      // The oracle's `_errorMessage = null` at the top of `HandleSendMagicLink`: a
+      // stale banner hanging over an in-flight retry is a lie. Cleared HERE rather
+      // than at the top of the callback, so the guard's own message survives the
+      // submit that produced it.
+      onError(null);
 
-    // The generated artifact's REQUEST object, not a bare body: `returnUrl` and
-    // `clientId` ride along so the emailed link can resume this OIDC flow.
-    sendMutation.mutate(
-      { body: { email, returnUrl, clientId } },
-      {
-        onSuccess: (body: unknown) => {
-          if (!magicLinkWasSent(body)) {
-            // Fail closed: a body this screen cannot read is not a sent link, and
-            // sending the user to watch an empty inbox is worse than an error.
-            onError(GENERIC_MESSAGE);
-            return;
-          }
+      let body: unknown;
 
-          setSent(true);
-        },
-        onError: (cause: unknown) => {
-          // The form deliberately stays up — the user's address may simply have
-          // been mistyped, and they need somewhere to fix it.
-          onError(sendMagicLinkFailureMessage(cause));
-        },
-      },
-    );
-  };
+      try {
+        // The generated artifact's REQUEST object, not a bare body: `returnUrl` and
+        // `clientId` ride along so the emailed link can resume this OIDC flow.
+        body = await sendMutation.mutateAsync({
+          body: { email: values.email, returnUrl, clientId },
+        });
+      } catch (error: unknown) {
+        // The form deliberately stays up — the user's address may simply have been
+        // mistyped, and they need somewhere to fix it.
+        onError(sendMagicLinkFailureMessage(error));
+        return;
+      }
+
+      if (!magicLinkWasSent(body)) {
+        // Fail closed: a body this screen cannot read is not a sent link, and
+        // sending the user to watch an empty inbox is worse than an error.
+        onError(GENERIC_MESSAGE);
+        return;
+      }
+
+      setSent(true);
+    },
+  });
 
   if (sent) {
     // The oracle's `SwitchTab` also resets `_magicLinkSent`. Here that is free: the
@@ -245,16 +231,14 @@ export function MagicLinkLoginForm({
   }
 
   return (
-    <form
-      className="space-y-4"
-      onSubmit={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        handleSubmit();
-      }}
-    >
-      <EmailField value={email} onChange={setEmail} />
-      <SubmitButton pending={sendMutation.isPending} />
-    </form>
+    <AppForm form={form} testIdPrefix="login-magic-link" className="space-y-4">
+      <form.AppField name="email">
+        {(field) => <field.TextField label="Email" type="email" placeholder="name@example.com" />}
+      </form.AppField>
+      {/* The oracle's `Loading`/`Disabled="_isSubmitting"`. One click, one link: a
+          double send spends the address's rate-limit allowance, and the refusal it
+          earns is a worse experience than a disabled button. */}
+      <SubmitButton pendingLabel="Sending...">Send link</SubmitButton>
+    </AppForm>
   );
 }
