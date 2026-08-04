@@ -24,19 +24,18 @@
  *
  * Testids mirror the C# E2E page object `SettingsMfaSection`.
  */
+import { AppForm, SubmitButton, useAppForm } from "@bc-solutions-coder/forms";
 import {
   Badge,
   Button,
   Card,
   CardTitle,
   ErrorBanner,
-  Field,
-  Input,
-  Label,
   MutedText,
   Text,
 } from "@bc-solutions-coder/ui";
 import type { ReactNode } from "react";
+import { z } from "zod";
 
 import { useMfaSettings } from "../hooks/use-mfa-settings";
 import { MfaEnrollFlow } from "./MfaEnrollFlow";
@@ -119,31 +118,45 @@ function EnabledCard(props: {
   );
 }
 
-/** Shared password-confirm panel reused by both the disable and regenerate flows. */
-function ConfirmPanel(props: {
-  password: string;
-  onPasswordChange: (value: string) => void;
-  onSubmit: () => void;
-}) {
-  const { password, onPasswordChange, onSubmit } = props;
+/**
+ * The one value the confirm panel collects. Its NAME is load-bearing:
+ * `settings-mfa-confirm` + `password` is what derives the
+ * `settings-mfa-confirm-password` testid the panel had before the migration.
+ */
+interface ConfirmValues {
+  readonly password: string;
+}
+
+const confirmSchema = z.object({
+  password: z.string().min(1, "Enter your password to continue."),
+});
+
+const NO_PASSWORD: ConfirmValues = { password: "" };
+
+/**
+ * Shared password-confirm panel reused by both the disable and regenerate flows.
+ *
+ * It takes the plain-`onSubmit` escape hatch rather than a mutation: the write
+ * belongs to `useMfaSettings`, which drives both actions off one `confirmAction`
+ * and owns the card's own `settings-mfa-error` banner. `submitConfirm` settles
+ * without rejecting, so awaiting it gives `SubmitButton` a real `pending` while
+ * the failure stays on the card's banner instead of raising a second one here.
+ */
+function ConfirmPanel(props: { onConfirm: (password: string) => Promise<void> }) {
+  const { onConfirm } = props;
+  const form = useAppForm({
+    schema: confirmSchema,
+    defaultValues: NO_PASSWORD,
+    onSubmit: (values: ConfirmValues) => onConfirm(values.password),
+  });
+
   return (
-    <div className={`${PANEL} bg-muted space-y-3`}>
-      <Field>
-        <Label htmlFor="settings-mfa-confirm-password-input">Password</Label>
-        <Input
-          id="settings-mfa-confirm-password-input"
-          type="password"
-          data-testid="settings-mfa-confirm-password"
-          value={password}
-          onChange={(e) => {
-            onPasswordChange(e.target.value);
-          }}
-        />
-      </Field>
-      <Button type="button" data-testid="settings-mfa-confirm-submit" onClick={onSubmit}>
-        Confirm
-      </Button>
-    </div>
+    <AppForm form={form} testIdPrefix="settings-mfa-confirm" className={`${PANEL} bg-muted`}>
+      <form.AppField name="password">
+        {(field) => <field.PasswordField label="Password" autoComplete="current-password" />}
+      </form.AppField>
+      <SubmitButton pendingLabel="Confirming…">Confirm</SubmitButton>
+    </AppForm>
   );
 }
 
@@ -181,12 +194,10 @@ export function MfaSettingsSection() {
     backupCodeCount,
     enrolling,
     confirmAction,
-    password,
     error,
     regeneratedCodes,
     beginEnroll,
     endEnroll,
-    setPassword,
     openConfirm,
     submitConfirm,
   } = useMfaSettings();
@@ -225,8 +236,11 @@ export function MfaSettingsSection() {
         <DisabledCard onEnable={beginEnroll} />
       )}
 
+      {/* Keyed by action so switching between disable and regenerate mounts a
+          FRESH form: the panel owns the typed password now, and carrying it
+          across a switch would arm the other action with it. */}
       {confirmAction === null ? null : (
-        <ConfirmPanel password={password} onPasswordChange={setPassword} onSubmit={submitConfirm} />
+        <ConfirmPanel key={confirmAction} onConfirm={submitConfirm} />
       )}
 
       {regeneratedCodes === null ? null : <RegeneratedCodes codes={regeneratedCodes} />}

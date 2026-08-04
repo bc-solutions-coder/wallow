@@ -36,6 +36,22 @@ type ConfirmAction = "disable" | "regenerate";
 const CONFIRM_FAILED = "Unable to complete that action.";
 const STATUS_UNREADABLE = "Could not load your MFA status.";
 
+/**
+ * Await a `mutate` call, resolving whichever way it lands.
+ *
+ * `mutateAsync` would be the obvious reach and is the wrong one: it REJECTS on
+ * failure, and the failure here is already reported on the card's own
+ * `settings-mfa-error` banner — a rejection propagating into the confirm form
+ * would raise a second banner saying the same thing in the form's words.
+ */
+function settled(run: (onSettled: () => void) => void): Promise<void> {
+  return new Promise((resolve) => {
+    run(() => {
+      resolve();
+    });
+  });
+}
+
 /** What {@link useMfaSettings} hands the card. */
 export interface MfaSettings {
   /** The status read has not answered yet — the card renders its loading state. */
@@ -55,16 +71,21 @@ export interface MfaSettings {
   readonly enrolling: boolean;
   /** Which action the open confirm panel will run, or `null` when it is closed. */
   readonly confirmAction: ConfirmAction | null;
-  readonly password: string;
   /** The disable/regenerate failure surface. */
   readonly error: string | null;
   /** Freshly minted codes to reveal once, or `null` when there are none to show. */
   readonly regeneratedCodes: readonly string[] | null;
   readonly beginEnroll: () => void;
   readonly endEnroll: () => void;
-  readonly setPassword: (value: string) => void;
   readonly openConfirm: (action: ConfirmAction) => void;
-  readonly submitConfirm: () => void;
+  /**
+   * Runs the open panel's action with `password`.
+   *
+   * Settles rather than resolving immediately, and never REJECTS: the confirm
+   * form awaits it for its own `pending`, while the failure itself is reported
+   * through {@link error} on the card's own banner rather than the form's.
+   */
+  readonly submitConfirm: (password: string) => Promise<void>;
 }
 
 export function useMfaSettings(): MfaSettings {
@@ -79,7 +100,6 @@ export function useMfaSettings(): MfaSettings {
 
   const [enrolling, setEnrolling] = useState(false);
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
-  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [regeneratedCodes, setRegeneratedCodes] = useState<string[] | null>(null);
 
@@ -102,21 +122,23 @@ export function useMfaSettings(): MfaSettings {
   });
 
   const openConfirm = (action: ConfirmAction): void => {
-    // Opening either panel clears the LAST attempt's residue — its error, its
-    // password, and any codes still on screen. Codes especially: they belong to
-    // the regenerate that produced them, and leaving them up beside a fresh
-    // prompt reads as if they were about to be reissued.
+    // Opening either panel clears the LAST attempt's residue — its error and any
+    // codes still on screen. Codes especially: they belong to the regenerate
+    // that produced them, and leaving them up beside a fresh prompt reads as if
+    // they were about to be reissued. The typed password is not cleared here
+    // because it is no longer held here: the card keys the confirm form by
+    // action, so switching panels mounts a fresh, empty one.
     setError(null);
-    setPassword("");
     setRegeneratedCodes(null);
     setConfirmAction(action);
   };
 
-  const submitConfirm = (): void => {
+  const submitConfirm = async (password: string): Promise<void> => {
     if (confirmAction === null) {
       return;
     }
     setError(null);
+
     // Named `failure` rather than `error` because the state it writes into is
     // already called that, and `eslint/no-shadow` is on.
     const onError = (failure: unknown): void => {
@@ -127,27 +149,31 @@ export function useMfaSettings(): MfaSettings {
     };
     const closePanel = (): void => {
       setConfirmAction(null);
-      setPassword("");
     };
 
     if (confirmAction === "disable") {
-      disable.mutate({ body: { password } }, { onSuccess: closePanel, onError });
+      await settled((onSettled) => {
+        disable.mutate({ body: { password } }, { onSuccess: closePanel, onError, onSettled });
+      });
       return;
     }
 
-    regenerate.mutate(
-      { body: { password } },
-      {
-        onSuccess: (payload) => {
-          // Revealed once, because regenerating invalidated the old codes. The
-          // mutation's own `onSuccess` re-reads the status, so the card stays
-          // Enabled with the new count.
-          setRegeneratedCodes(payload.codes);
-          closePanel();
+    await settled((onSettled) => {
+      regenerate.mutate(
+        { body: { password } },
+        {
+          onSuccess: (payload) => {
+            // Revealed once, because regenerating invalidated the old codes. The
+            // mutation's own `onSuccess` re-reads the status, so the card stays
+            // Enabled with the new count.
+            setRegeneratedCodes(payload.codes);
+            closePanel();
+          },
+          onError,
+          onSettled,
         },
-        onError,
-      },
-    );
+      );
+    });
   };
 
   return {
@@ -160,7 +186,6 @@ export function useMfaSettings(): MfaSettings {
     backupCodeCount: data?.backupCodeCount ?? 0,
     enrolling,
     confirmAction,
-    password,
     error,
     regeneratedCodes,
     beginEnroll: () => {
@@ -169,7 +194,6 @@ export function useMfaSettings(): MfaSettings {
     endEnroll: () => {
       setEnrolling(false);
     },
-    setPassword,
     openConfirm,
     submitConfirm,
   };

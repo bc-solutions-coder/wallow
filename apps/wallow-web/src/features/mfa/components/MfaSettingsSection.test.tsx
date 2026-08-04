@@ -214,4 +214,33 @@ describe("MfaSettingsSection", () => {
     await expect.element(page.getByTestId("settings-mfa-confirm-password")).not.toBeInTheDocument();
     await expect.element(page.getByTestId("settings-mfa-error")).not.toBeInTheDocument();
   });
+
+  // One panel serves both actions, so a password typed for one must not be
+  // sitting there armed when the other opens. The card keys the panel by action
+  // to get that; this is what the key buys.
+  it("empties the confirm password when the other action opens the panel", async () => {
+    renderStatus(ENABLED_STATUS);
+
+    await expect.element(page.getByTestId("settings-mfa-disable")).toBeInTheDocument();
+    await userEvent.click(page.getByTestId("settings-mfa-disable"));
+    await userEvent.type(page.getByTestId("settings-mfa-confirm-password"), "hunter2");
+    await expect.element(page.getByTestId("settings-mfa-confirm-password")).toHaveValue("hunter2");
+
+    await userEvent.click(page.getByTestId("settings-mfa-regenerate"));
+
+    await expect.element(page.getByTestId("settings-mfa-confirm-password")).toHaveValue("");
+  });
+
+  it("refuses an empty confirm rather than sending a blank password", async () => {
+    renderStatus(ENABLED_STATUS);
+
+    await expect.element(page.getByTestId("settings-mfa-disable")).toBeInTheDocument();
+    await userEvent.click(page.getByTestId("settings-mfa-disable"));
+    await userEvent.click(page.getByTestId("settings-mfa-confirm-submit"));
+
+    await expect
+      .element(page.getByTestId("settings-mfa-confirm-password-error"))
+      .toHaveTextContent("Enter your password to continue.");
+    expect(harness.calls.filter((call) => call.method === "POST")).toHaveLength(0);
+  });
 });

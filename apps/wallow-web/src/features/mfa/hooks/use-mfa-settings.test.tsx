@@ -20,6 +20,9 @@ const STATUS_PATH = "/api/v1/identity/mfa/status";
 const REGENERATE_PATH = "/api/v1/identity/mfa/backup-codes/regenerate";
 const ENABLED_STATUS = { enabled: true, method: "totp", backupCodeCount: 7 };
 
+/** What the probe's submit sends. The password itself is the form's business now. */
+const PASSWORD = "hunter2";
+
 let harness: SdkHarness;
 
 function json(body: unknown, status = 200): Response {
@@ -41,27 +44,12 @@ function program(body: unknown = {}, bodyStatus = 200): void {
  * so a spec drives the state machine directly.
  */
 function Probe() {
-  const {
-    confirmAction,
-    error,
-    regeneratedCodes,
-    password,
-    setPassword,
-    openConfirm,
-    submitConfirm,
-  } = useMfaSettings();
+  const { confirmAction, error, regeneratedCodes, openConfirm, submitConfirm } = useMfaSettings();
   return (
     <div>
       <output data-testid="probe-confirm">{confirmAction ?? "closed"}</output>
       <output data-testid="probe-error">{error ?? "none"}</output>
       <output data-testid="probe-codes">{regeneratedCodes?.join(",") ?? "none"}</output>
-      <input
-        data-testid="probe-password"
-        value={password}
-        onChange={(event) => {
-          setPassword(event.target.value);
-        }}
-      />
       <button
         type="button"
         data-testid="probe-open-disable"
@@ -80,7 +68,13 @@ function Probe() {
       >
         open regenerate
       </button>
-      <button type="button" data-testid="probe-submit" onClick={submitConfirm}>
+      <button
+        type="button"
+        data-testid="probe-submit"
+        onClick={() => {
+          void submitConfirm(PASSWORD);
+        }}
+      >
         submit
       </button>
     </div>
@@ -97,7 +91,6 @@ describe("useMfaSettings", () => {
     renderWithWallow(<Probe />, { harness });
 
     await userEvent.click(page.getByTestId("probe-open-disable"));
-    await userEvent.type(page.getByTestId("probe-password"), "wrong");
     await userEvent.click(page.getByTestId("probe-submit"));
 
     await expect
@@ -111,7 +104,6 @@ describe("useMfaSettings", () => {
     renderWithWallow(<Probe />, { harness });
 
     await userEvent.click(page.getByTestId("probe-open-regenerate"));
-    await userEvent.type(page.getByTestId("probe-password"), "hunter2");
     await userEvent.click(page.getByTestId("probe-submit"));
     await expect.element(page.getByTestId("probe-codes")).toHaveTextContent("aa-11,bb-22");
 
@@ -127,7 +119,6 @@ describe("useMfaSettings", () => {
     renderWithWallow(<Probe />, { harness });
 
     await userEvent.click(page.getByTestId("probe-open-disable"));
-    await userEvent.type(page.getByTestId("probe-password"), "wrong");
     await userEvent.click(page.getByTestId("probe-submit"));
     await expect
       .element(page.getByTestId("probe-error"))
@@ -136,7 +127,6 @@ describe("useMfaSettings", () => {
     await userEvent.click(page.getByTestId("probe-open-regenerate"));
 
     await expect.element(page.getByTestId("probe-error")).toHaveTextContent("none");
-    await expect.element(page.getByTestId("probe-password")).toHaveValue("");
   });
 
   it("sends nothing when a confirm is submitted with no panel open", async () => {
@@ -149,7 +139,6 @@ describe("useMfaSettings", () => {
     // The sync point is a write that DID happen: by the time the regenerate has
     // landed, a request from the closed-panel click would have landed too.
     await userEvent.click(page.getByTestId("probe-open-regenerate"));
-    await userEvent.type(page.getByTestId("probe-password"), "hunter2");
     await userEvent.click(page.getByTestId("probe-submit"));
     await expect.element(page.getByTestId("probe-codes")).toHaveTextContent("aa-11");
 
