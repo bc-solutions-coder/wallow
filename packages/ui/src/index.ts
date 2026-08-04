@@ -247,6 +247,7 @@ export {
   type NavigationMenuTriggerProps,
   type NavigationMenuViewportProps,
 } from "./components/navigation-menu";
+export { NoticeBanner, type NoticeBannerProps } from "./components/notice-banner";
 export {
   NumberField,
   type NumberFieldDecrementProps,
