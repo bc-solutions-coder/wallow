@@ -1,122 +1,80 @@
-import { Button, Card, Checkbox, ErrorBanner, MutedText, Text } from "@bc-solutions-coder/ui";
-import { useId, useState, type ReactNode } from "react";
-import { BASE_PATH, toAppHref } from "@shared/lib/base-path";
+import { AppForm, SubmitButton, useAppForm } from "@bc-solutions-coder/forms";
+import { MutedText, Text } from "@bc-solutions-coder/ui";
+import type { ReactElement, ReactNode } from "react";
+import { z } from "zod";
+
+import { AuthScreen } from "@shared/components/auth-screen";
+import { PRIVACY_CONSENT_LABEL, TERMS_CONSENT_LABEL } from "@shared/components/consent-labels";
+import { toAppHref } from "@shared/lib/base-path";
+import { bounceBackMessage, completeRegistrationUrl } from "../accept-terms-handoff";
 
 /**
  * The AcceptTerms screen (Wallow-vec7.3.10).
  *
  * This is the ToS/Privacy GATE in the external-login (social sign-up) flow — not
- * the static terms document, which is the separate `/terms` route
- * (Wallow-vec7.3.3). Testids come verbatim from the oracle (scout inventory on
- * Wallow-vec7.3): `accept-terms-heading`, `accept-terms-error`,
+ * the static terms document, which is the separate `/terms` route. Testids come
+ * verbatim from the oracle: `accept-terms-heading`, `accept-terms-error`,
  * `accept-terms-checkbox`, `accept-terms-privacy-checkbox`,
- * `accept-terms-submit`.
+ * `accept-terms-submit`. The two boxes pin theirs because their field names
+ * would derive `-terms-accepted` / `-privacy-accepted`.
  *
- * Four of the props are the oracle's `[SupplyParameterFromQuery]` properties; the
- * fifth, `clientId`, is the relay Wallow-53kr added. The route owns the query
- * string and hands them down, keeping this component a pure function of its
- * inputs and testable without a router — the seam `ResetPasswordForm`
- * established and `ConsentScreen` followed.
+ * Four of the props are the oracle's `[SupplyParameterFromQuery]` properties;
+ * the fifth, `clientId`, is the relay Wallow-53kr added. The route owns the
+ * query string and hands them down, keeping this component a pure function of
+ * its inputs and testable without a router.
  *
- * ── WHAT THIS SCREEN IS ──────────────────────────────────────────────────────
+ * The endpoint hand-off, its two injection guards, and the bounce-back
+ * code→copy mapping live in `../accept-terms-handoff`, which also carries the
+ * reasoning for the two decisions this screen is most likely to be "fixed" on:
+ * why the hand-off is same-origin, and why `isSafeReturnUrl` is deliberately not
+ * applied.
  *
- * `AccountController.external-login-callback` (api/src/Modules/Identity/
- * Wallow.Identity.Api/Controllers/AccountController.cs) data-protects the
- * external identity into the **ExternalLoginState** cookie (HttpOnly, Secure,
- * SameSite=Lax, 10 min) and redirects here. `complete-external-registration`
- * reads that cookie back, creates the user, signs them in, deletes the cookie,
- * and redirects to the validated returnUrl.
+ * ── WHY THIS FORM RUNS THE FORMS PACKAGE "SIDEWAYS" ──────────────────────────
  *
- * The user's identity for that step lives ENTIRELY in a cookie this screen
- * cannot read. The screen holds no state beyond its two checkboxes, makes NO
- * request, and its only job is to hand the browser to the endpoint — the browser
- * attaches the cookie itself on the top-level same-origin GET (SameSite=Lax
- * permits exactly that). No identity relay, no session store, no token — the only
- * thing this screen carries onward is the flow's `client_id`, inert query cargo.
- *
- * ── NO `isSafeReturnUrl` GUARD (disclosed on the bead; adjudicated SAFE) ──────
- *
- * `returnUrl` is NOT guarded here, deliberately. `OpenIddictRedirectUriValidator.
- * IsAllowedAsync` bails unless `Uri.TryCreate(uri, UriKind.Absolute, …)` and then
- * origin-allow-lists; `external-login` refuses to start the flow unless it passes,
- * and `external-login-callback` re-validates. So the `returnUrl` arriving here is
- * ALWAYS absolute and allow-listed, while `isSafeReturnUrl` returns true only for
- * a RELATIVE single-'/' path. The two accept-sets are provably disjoint: wiring
- * the guard in would send every social sign-up to
- * `/error?reason=invalid_redirect_uri`.
- *
- * This is the `buildConnectLogoutUrl` precedent, not the `buildConsentSubmitUrl`
- * one — that builder documents the identical reasoning for
- * `post_logout_redirect_uri`. The rule: guard where the CLIENT picks the
- * destination; defer where the SERVER does. Here the destination is a same-origin
- * CONSTANT path and `returnUrl` is inert query cargo, which
- * `complete-external-registration` re-validates against the same allow-list
- * "early, before any user creation", falling back to `authUrl`. The open-redirect
- * decision is the API's, made server-side.
- *
- * What this screen DOES owe is that the cargo cannot break out of the query
- * string — that is `encodeURIComponent` below, the injection guard that actually
- * applies here.
+ * There is no request to make: the user's identity lives entirely in an HttpOnly
+ * cookie this screen cannot read, and consent finishes by handing the browser to
+ * an endpoint the cookie rides along with. So it takes the plain-`onSubmit`
+ * escape hatch, and all `useAppForm` owns here is the two booleans and their
+ * boxes.
  */
 
-/** The endpoint the gate hands the browser to. */
-const COMPLETE_REGISTRATION_PATH = "/v1/identity/auth/complete-external-registration";
+/** What the gate's form holds. */
+interface ConsentValues {
+  readonly termsAccepted: boolean;
+  readonly privacyAccepted: boolean;
+}
 
 /**
- * The origin the handoff is built against: this one. The oracle prepends
- * `Configuration["ApiBaseUrl"] ?? "http://localhost:5001"`; that prepend is NOT
- * ported, for the reason `ConsentScreen` documents at length. This origin DOES
- * host `/v1/**` — `src/shared/lib/api-passthrough.server.ts` mounts the passthrough reverse proxy
- * at the ROOT — so going cross-origin would drop the `SameSite=Lax`
- * ExternalLoginState cookie, which is the user's whole identity here, and the
- * endpoint would bounce them to `/login?error=session_expired`. It would also
- * reintroduce an `ApiBaseUrl` knob this app deliberately lacks:
- * `WALLOW_API_INTERNAL_URL` is a SERVER-side address the browser cannot resolve
- * at all. Named rather than inlined so the empty default reads as a decision
- * rather than a forgotten argument.
- *
- * It is the BASE PATH and not the empty string because under a based build this
- * app's passthrough answers under that prefix, and the site root belongs to a
- * different app entirely.
+ * RULE-FREE on purpose. `revalidateLogic` runs this on submit and aborts
+ * `handleSubmit` on any failure — and this screen has no field messages and no
+ * banner of its own to report that in, because consent is gated by a DISABLED
+ * submit rather than by a rejection. It is here for the value types alone.
  */
-const SAME_ORIGIN_BASE: string = BASE_PATH;
+const consentSchema = z.object({
+  termsAccepted: z.boolean(),
+  privacyAccepted: z.boolean(),
+});
 
-/** The oracle's `_ =>` arm. */
-const GENERIC_ERROR_MESSAGE = "An error occurred. Please try again.";
+const NOTHING_ACCEPTED: ConsentValues = { termsAccepted: false, privacyAccepted: false };
+
+/** The oracle's `BbCardHeader`. */
+const TITLE = "Almost there!";
+const DESCRIPTION = "Please accept our terms to create your account";
 
 /**
- * The oracle's `Error switch`. A `ReadonlyMap` + `.get()`, never a `Record` +
- * bracket lookup (bd memory `attacker-supplied-query-key-lookups-use-map-not-
- * record`): `?error=toString` is a URL anyone can send a victim, and an object
- * literal would resolve `Object.prototype.toString` — a FUNCTION handed to the
- * renderer. A Map only ever sees the keys put in it.
- *
- * `session_expired` is not reachable from the wire — `complete-external-
- * registration` sends every session-expired path to `/login?error=session_expired`,
- * and the only redirect back to THIS screen is `?error=terms_required`. The branch
- * is kept anyway: it is static copy, it costs nothing, and `?error=` is a query
- * string anyone can construct, so it deserves deliberate handling rather than
- * falling to the generic arm by accident.
+ * The oracle's `Disabled="@(!_termsAccepted || !_privacyAccepted)"`. Derived on
+ * every render, never latched forward: consent is revocable right up to the
+ * click.
  */
-const ERROR_MESSAGES: ReadonlyMap<string, string> = new Map([
-  ["terms_required", "You must accept the terms to continue."],
-  ["session_expired", "Your session has expired. Please try signing in again."],
-]);
-
-/** The oracle's `data-testid="accept-terms-error"` alert block. */
-function ErrorAlert({ code }: { readonly code: string }) {
-  return (
-    <ErrorBanner data-testid="accept-terms-error">
-      {ERROR_MESSAGES.get(code) ?? GENERIC_ERROR_MESSAGE}
-    </ErrorBanner>
-  );
+function bothAccepted(values: ConsentValues): boolean {
+  return values.termsAccepted && values.privacyAccepted;
 }
 
 /**
  * The oracle's `@if (!string.IsNullOrEmpty(Email))` block — the user's only
  * chance to notice the provider handed over the wrong account BEFORE one gets
- * created. Gated on the email, so a link carrying no address renders nothing here
- * rather than an empty identity card.
+ * created. Gated on the email, so a link carrying no address renders nothing
+ * here rather than an empty identity card.
  */
 function SigningUpAs({ email, name }: { readonly email: string; readonly name?: string }) {
   return (
@@ -133,88 +91,22 @@ function SigningUpAs({ email, name }: { readonly email: string; readonly name?: 
 }
 
 /**
- * One consent box: the oracle's `BbCheckbox` + `BbLabel` pair, on the catalog's
- * `Checkbox` (Wallow-m5aq.5.2).
+ * The oracle's card footer, and the only "decline" affordance the screen has.
+ * Walking away creates no account and leaves the ExternalLoginState cookie to
+ * expire on its own; there is nothing to clean up client-side.
  *
- * The testid sits on `Checkbox.Root` — the element that carries the role, the
- * name and the state, and the one an E2E `.check()` reaches. The oracle puts it
- * on the wrapping `<div>` (L44, L52), which can do none of those things; the
- * NAME is preserved verbatim.
- *
- * `useId()`'s id goes onto the Root rather than onto the hidden `<input>` Base UI
- * renders beside it: the Root is a `<span role="checkbox">`, which a
- * `<label htmlFor>` cannot name on its own, so Base UI matches the label to the
- * id and stamps the pairing itself. Without it both boxes are unnamed.
- *
- * The document link is `target="_blank"` (the oracle's): reading the terms must
- * not abandon the sign-up.
+ * NOT `QuietLink`: that recipe is the muted standalone secondary link, and this
+ * is an accent-coloured call to action sitting inside muted prose — the same
+ * distinction `RegisterForm`'s footer keeps.
  */
-function ConsentCheckbox(props: {
-  readonly testId: string;
-  readonly checked: boolean;
-  readonly onChange: (checked: boolean) => void;
-  readonly href: string;
-  readonly documentName: string;
-}) {
-  const { testId, checked, onChange, href, documentName } = props;
-  const inputId: string = useId();
-
+function ChangedYourMind(): ReactElement {
   return (
-    <div className="flex items-start space-x-2">
-      <Checkbox.Root
-        id={inputId}
-        data-testid={testId}
-        checked={checked}
-        onCheckedChange={onChange}
-        className="mt-0.5"
-      >
-        <Checkbox.Indicator>✓</Checkbox.Indicator>
-      </Checkbox.Root>
-      <label htmlFor={inputId} className="text-sm font-normal leading-snug text-foreground">
-        I agree to the{" "}
-        <a
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-primary underline-offset-4 hover:underline"
-        >
-          {documentName}
-        </a>
-      </label>
-    </div>
-  );
-}
-
-/**
- * The two-box consent group. The document links point at the real `/terms` and
- * `/privacy` routes (registered by Wallow-vec7.3.16) — the two documents this
- * screen gates informed consent to.
- */
-function ConsentBoxes(props: {
-  readonly termsAccepted: boolean;
-  readonly privacyAccepted: boolean;
-  readonly onTermsChange: (checked: boolean) => void;
-  readonly onPrivacyChange: (checked: boolean) => void;
-}) {
-  const { termsAccepted, privacyAccepted, onTermsChange, onPrivacyChange } = props;
-
-  return (
-    <div className="space-y-3">
-      <ConsentCheckbox
-        testId="accept-terms-checkbox"
-        checked={termsAccepted}
-        onChange={onTermsChange}
-        href={toAppHref("/terms")}
-        documentName="Terms of Service"
-      />
-      <ConsentCheckbox
-        testId="accept-terms-privacy-checkbox"
-        checked={privacyAccepted}
-        onChange={onPrivacyChange}
-        href={toAppHref("/privacy")}
-        documentName="Privacy Policy"
-      />
-    </div>
+    <MutedText className="text-center">
+      Changed your mind?{" "}
+      <a href={toAppHref("/login")} className="text-primary underline-offset-4 hover:underline">
+        Back to sign in
+      </a>
+    </MutedText>
   );
 }
 
@@ -223,14 +115,9 @@ export interface AcceptTermsScreenProps {
   readonly returnUrl?: string;
   /**
    * The `client_id` query parameter — the client that started the external-login
-   * flow, `undefined` when the flow carries none (Wallow-53kr).
-   *
-   * The screen is a relay for this value and nothing more: it echoes it to
-   * `complete-external-registration`, which is what lets that endpoint scope its
-   * redirect check to the requesting client instead of falling back to the
-   * AuthUrl-only origin set. Like `returnUrl` it is inert query cargo here — the
-   * API decides what it means — so what this screen owes it is the same
-   * `encodeURIComponent` the injection guard applies to `returnUrl`.
+   * flow, `undefined` when the flow carries none (Wallow-53kr). The screen is a
+   * relay for this value and nothing more; what it owes the value is the
+   * encoding `completeRegistrationUrl` applies.
    */
   readonly clientId?: string;
   /** The `email` query parameter — the address the external provider vouched for. */
@@ -241,6 +128,68 @@ export interface AcceptTermsScreenProps {
   readonly error?: string;
 }
 
+/**
+ * The consent form itself, split out of the screen so `AuthScreen` is not one of
+ * the levels its fields are counted under: `react/jsx-max-depth` is 2 and
+ * `pnpm lint` runs `--deny-warnings`. This is `RegisterFields`' split, for
+ * `RegisterFields`' reason.
+ */
+function ConsentGate({
+  returnUrl,
+  clientId,
+}: {
+  readonly returnUrl: string | undefined;
+  readonly clientId: string | undefined;
+}): ReactElement {
+  const form = useAppForm({
+    schema: consentSchema,
+    defaultValues: NOTHING_ACCEPTED,
+    onSubmit: (values: ConsentValues): void => {
+      // The oracle re-checks inside its handler rather than trusting the
+      // disabled attribute, and so does this: declining is simply not accepting,
+      // and a forced click must be inert rather than merely unclickable. The
+      // screen never sends `acceptedTerms=false` — the endpoint has that branch,
+      // but it is not ours to drive; there is no "no thanks" round trip.
+      if (!bothAccepted(values)) {
+        return;
+      }
+
+      // A FULL navigation — the oracle's `NavigateTo(url, forceLoad: true)`,
+      // never `router.navigate`: `/v1/**` is served by the passthrough reverse
+      // proxy, not by the client-side route tree, which would 404 in-app. It
+      // must also be a real top-level navigation for the browser to attach the
+      // SameSite=Lax ExternalLoginState cookie the endpoint needs (bd memory
+      // `full-navigation-seam-for-wallow-auth-screens-that`).
+      globalThis.location.href = completeRegistrationUrl(returnUrl, clientId);
+    },
+  });
+
+  return (
+    <AppForm form={form} testIdPrefix="accept-terms" className="space-y-4">
+      <form.AppField name="termsAccepted">
+        {(field) => (
+          <field.CheckboxField label={TERMS_CONSENT_LABEL} testId="accept-terms-checkbox" />
+        )}
+      </form.AppField>
+
+      <form.AppField name="privacyAccepted">
+        {(field) => (
+          <field.CheckboxField
+            label={PRIVACY_CONSENT_LABEL}
+            testId="accept-terms-privacy-checkbox"
+          />
+        )}
+      </form.AppField>
+
+      <form.Subscribe<ConsentValues> selector={(state) => state.values}>
+        {(values: ConsentValues) => (
+          <SubmitButton disabled={!bothAccepted(values)}>Create Account</SubmitButton>
+        )}
+      </form.Subscribe>
+    </AppForm>
+  );
+}
+
 export function AcceptTermsScreen({
   returnUrl,
   clientId,
@@ -248,103 +197,17 @@ export function AcceptTermsScreen({
   name,
   error,
 }: AcceptTermsScreenProps): ReactNode {
-  const [termsAccepted, setTermsAccepted] = useState(false);
-  const [privacyAccepted, setPrivacyAccepted] = useState(false);
-
-  // The oracle's `Disabled="@(!_termsAccepted || !_privacyAccepted)"`. Consent is
-  // revocable right up to the click: this is derived from the boxes on every
-  // render, never latched forward.
-  const bothAccepted: boolean = termsAccepted && privacyAccepted;
-
-  const handleAcceptTerms = (): void => {
-    // The oracle re-checks inside its handler rather than trusting the disabled
-    // attribute, and so does this: declining is simply not accepting, and the
-    // click must be inert rather than merely unclickable. The screen never sends
-    // `acceptedTerms=false` — the endpoint's `!acceptedTerms` branch exists, but
-    // it is not ours to drive; there is no "no thanks" round trip.
-    if (!bothAccepted) {
-      return;
-    }
-
-    // The oracle's `Uri.EscapeDataString(ReturnUrl ?? "/")` — `encodeURIComponent`,
-    // not form encoding. Only a NULLISH returnUrl falls back (bd memory
-    // `returnurl-guard-refuse-dont-sanitize`); "/" fails the API's absolute-URI
-    // check, so the endpoint substitutes authUrl: the fallback means "send me
-    // home", and the API decides where home is.
-    //
-    // The encoding is load-bearing, not cosmetic. `returnUrl` is attacker-supplied
-    // cargo in a URL built by concatenation: unencoded, it would smuggle a second
-    // `acceptedTerms` in, and ASP.NET binds a duplicated `[FromQuery] bool` key as
-    // "true,false", which fails to parse and lands on the !acceptedTerms branch.
-    const encodedReturnUrl: string = encodeURIComponent(returnUrl ?? "/");
-
-    // The relay the flow's client id makes on its last hop: it arrived as
-    // `client_id` and leaves as `clientId`, the name the endpoint binds. Omitted
-    // entirely when the flow carries none — a present-but-blank id reads as an
-    // unknown client, whose allow list is the authUrl origin alone, so the
-    // endpoint would refuse the very returnUrl the user is mid-journey to. It
-    // gets `returnUrl`'s encoding for `returnUrl`'s reason.
-    const clientIdParam: string =
-      clientId === undefined || clientId === "" ? "" : `&clientId=${encodeURIComponent(clientId)}`;
-
-    // A FULL navigation — the oracle's `NavigateTo(completeUrl, forceLoad: true)`,
-    // never `router.navigate`: `/v1/**` is served by the passthrough reverse proxy, not by
-    // the client-side route tree, which would 404 in-app. It must also be a real
-    // top-level navigation for the browser to attach the SameSite=Lax
-    // ExternalLoginState cookie the endpoint needs (bd memory
-    // `full-navigation-seam-for-wallow-auth-screens-that`).
-    globalThis.location.href = `${SAME_ORIGIN_BASE}${COMPLETE_REGISTRATION_PATH}?acceptedTerms=true&returnUrl=${encodedReturnUrl}${clientIdParam}`;
-  };
-
   return (
-    <Card>
-      <div className="space-y-1 text-center">
-        {/*
-          `as="h2"`, not the `<h1>` this screen used to open: `AuthLayout` owns
-          the page's one level-1 heading and it is `FocusOnNavigate`'s focus
-          target, so a second `<h1>` inside the card was an a11y defect the
-          migration fixes rather than carries across.
-        */}
-        <Text as="h2" variant="subheading" color="onCard" data-testid="accept-terms-heading">
-          Almost there!
-        </Text>
-        <MutedText>Please accept our terms to create your account</MutedText>
-      </div>
-
-      <div className="space-y-4">
-        {error === undefined || error === "" ? null : <ErrorAlert code={error} />}
-
-        {email === undefined || email === "" ? null : <SigningUpAs email={email} name={name} />}
-
-        <ConsentBoxes
-          termsAccepted={termsAccepted}
-          privacyAccepted={privacyAccepted}
-          onTermsChange={setTermsAccepted}
-          onPrivacyChange={setPrivacyAccepted}
-        />
-
-        <Button
-          type="button"
-          data-testid="accept-terms-submit"
-          disabled={!bothAccepted}
-          onClick={handleAcceptTerms}
-        >
-          Create Account
-        </Button>
-      </div>
-
-      {/*
-        The oracle's card footer, and the only "decline" affordance the screen
-        has. Walking away creates no account and leaves the ExternalLoginState
-        cookie to expire on its own (10 min); there is nothing to clean up
-        client-side.
-      */}
-      <MutedText className="text-center">
-        Changed your mind?{" "}
-        <a href={toAppHref("/login")} className="text-primary underline-offset-4 hover:underline">
-          Back to sign in
-        </a>
-      </MutedText>
-    </Card>
+    <AuthScreen
+      title={TITLE}
+      description={DESCRIPTION}
+      headingTestId="accept-terms-heading"
+      error={error === undefined || error === "" ? null : bounceBackMessage(error)}
+      errorTestId="accept-terms-error"
+      footer={<ChangedYourMind />}
+    >
+      {email === undefined || email === "" ? null : <SigningUpAs email={email} name={name} />}
+      <ConsentGate returnUrl={returnUrl} clientId={clientId} />
+    </AuthScreen>
   );
 }

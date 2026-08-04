@@ -16,6 +16,15 @@ export interface SubmitButtonProps {
   readonly pendingLabel?: ReactNode;
   /** Overrides the derived `{testIdPrefix}-submit`, e.g. `"organization-create-submit"`. */
   readonly testId?: string;
+  /**
+   * Disables the button for a reason of the form's OWN — a consent gate that
+   * arms only once every box is ticked, read back through `form.Subscribe`.
+   *
+   * OR'd with `pending` rather than replacing it: a submit in flight stays
+   * disabled whatever a caller says, so this can never re-enable a form
+   * mid-request.
+   */
+  readonly disabled?: boolean;
   readonly className?: string;
 }
 
@@ -23,6 +32,7 @@ export function SubmitButton({
   children,
   pendingLabel,
   testId,
+  disabled = false,
   className,
 }: SubmitButtonProps): ReactElement {
   const { testIdPrefix, pending } = useAppFormContext();
@@ -30,7 +40,7 @@ export function SubmitButton({
   return (
     <Button
       type="submit"
-      disabled={pending}
+      disabled={pending || disabled}
       data-testid={testId ?? `${testIdPrefix}-submit`}
       className={className}
     >

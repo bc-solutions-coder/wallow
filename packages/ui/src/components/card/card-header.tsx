@@ -14,6 +14,15 @@ export interface CardHeaderProps extends Omit<HTMLAttributes<HTMLDivElement>, "t
   readonly title: ReactNode;
   /** Optional supporting line beneath the title. Omitted entirely when absent. */
   readonly description?: ReactNode;
+  /**
+   * A testid for the `<h2>` itself, distinct from the wrapper's own
+   * `data-testid` (which `rest` carries).
+   *
+   * Both exist because every wallow-auth `{screen}-heading` id names the heading
+   * ELEMENT, and the wrapper also holds the description — so a text assertion
+   * made against it would pass on copy the heading does not contain.
+   */
+  readonly titleTestId?: string;
 }
 
 /**
@@ -32,12 +41,13 @@ export interface CardHeaderProps extends Omit<HTMLAttributes<HTMLDivElement>, "t
 export function CardHeader({
   title,
   description,
+  titleTestId,
   className,
   ...rest
 }: CardHeaderProps): ReactElement {
   return (
     <div className={cn("space-y-1", className)} {...rest}>
-      <CardTitle>{title}</CardTitle>
+      <CardTitle data-testid={titleTestId}>{title}</CardTitle>
       {description === undefined ? null : <MutedText>{description}</MutedText>}
     </div>
   );

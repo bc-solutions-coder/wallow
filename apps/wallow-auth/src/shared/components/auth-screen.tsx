@@ -19,6 +19,12 @@ function ScreenError({
 export interface AuthScreenProps {
   readonly title: string;
   readonly description?: string;
+  /**
+   * The heading's testid, landing on the `<h2>` itself. Passed in for the same
+   * reason `errorTestId` is: `{screen}-heading` is an existing per-screen
+   * contract, not something a shell can derive.
+   */
+  readonly headingTestId?: string;
   /** Form-level failure copy. `null` or absent renders no banner at all. */
   readonly error?: string | null;
   /**
@@ -50,6 +56,7 @@ export interface AuthScreenProps {
 export function AuthScreen({
   title,
   description,
+  headingTestId,
   error,
   errorTestId,
   footer,
@@ -58,7 +65,7 @@ export function AuthScreen({
 }: AuthScreenProps): ReactElement {
   return (
     <Card spacing={spacing}>
-      <CardHeader title={title} description={description} />
+      <CardHeader title={title} description={description} titleTestId={headingTestId} />
       <ScreenError error={error} testId={errorTestId} />
       {children}
       {footer}

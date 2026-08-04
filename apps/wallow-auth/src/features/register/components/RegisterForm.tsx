@@ -24,7 +24,8 @@ import {
 } from "../register-result";
 import { passwordStrength, type PasswordStrength } from "../password-strength";
 import { AuthScreen } from "@shared/components/auth-screen";
-import { BASE_PATH, toAppHref } from "@shared/lib/base-path";
+import { PRIVACY_CONSENT_LABEL, TERMS_CONSENT_LABEL } from "@shared/components/consent-labels";
+import { BASE_PATH } from "@shared/lib/base-path";
 import { ERROR_HREF } from "@shared/lib/return-url";
 
 /**
@@ -184,36 +185,6 @@ function StrengthMeter({ strength }: { readonly strength: PasswordStrength }) {
     </div>
   );
 }
-
-/**
- * A consent box's label: prose with the policy link inside it.
- *
- * Inside rather than beside, because the label IS the checkbox's accessible
- * name — "I agree to the Terms of Service" — and an anchor rendered as a sibling
- * would leave the box named by half its own sentence.
- */
-function ConsentLabel({ href, text }: { readonly href: string; readonly text: string }) {
-  return (
-    <>
-      I agree to the{" "}
-      <a href={href} className="text-primary underline-offset-4 hover:underline">
-        {text}
-      </a>
-    </>
-  );
-}
-
-/**
- * The two consent labels, built once at module scope.
- *
- * NOT inline in `label={...}`: `react/jsx-max-depth` counts an attribute's JSX
- * as one level deeper than the element carrying it, so an inline `ConsentLabel`
- * under `AppField > CheckboxField` is depth 3 against a budget of 2.
- */
-const TERMS_LABEL: ReactNode = <ConsentLabel href={toAppHref("/terms")} text="Terms of Service" />;
-const PRIVACY_LABEL: ReactNode = (
-  <ConsentLabel href={toAppHref("/privacy")} text="Privacy Policy" />
-);
 
 /** The live confirmation hint, which the submit-time guard repeats in the banner. */
 function MismatchHint() {
@@ -397,11 +368,11 @@ function RegisterFields({ clientId, returnUrl }: RegisterFormProps): ReactElemen
       </form.Subscribe>
 
       <form.AppField name="termsAccepted">
-        {(field) => <field.CheckboxField label={TERMS_LABEL} testId="register-terms" />}
+        {(field) => <field.CheckboxField label={TERMS_CONSENT_LABEL} testId="register-terms" />}
       </form.AppField>
 
       <form.AppField name="privacyAccepted">
-        {(field) => <field.CheckboxField label={PRIVACY_LABEL} testId="register-privacy" />}
+        {(field) => <field.CheckboxField label={PRIVACY_CONSENT_LABEL} testId="register-privacy" />}
       </form.AppField>
 
       {/* The oracle's `Disabled="_isSubmitting"` — one click, one account. */}
