@@ -147,6 +147,13 @@ describe("the branding palette", () => {
  * chip that has no green to reach for — mapped to the exact chain each `@theme`
  * token must go through.
  *
+ * `warning` fell back to `primary` by hand before it existed: `badgeRecipe`'s
+ * warning arm spent `bg-primary` because this fork's primary IS an amber and the
+ * palette carried nothing else warning-shaped. Making `--primary` the token's
+ * FALLBACK rather than its value keeps that exact colour for a fork too old to
+ * have the key, while a fork whose primary is (say) blue now gets a warning that
+ * is not blue.
+ *
  * The two-level `var(--sidebar, var(--foreground))` is not decoration:
  * `packages/styles/branding.json` is `merge=ours` in `.gitattributes`, so a fork's copy
  * never receives new theme keys from an upstream merge, and `toCssVars` emits
@@ -159,6 +166,8 @@ const forkSafeTokens: Readonly<Record<string, string>> = {
   "--color-sidebar-accent": "var(--sidebar-accent, var(--accent))",
   "--color-success": "var(--success, var(--primary))",
   "--color-success-foreground": "var(--success-foreground, var(--primary-foreground))",
+  "--color-warning": "var(--warning, var(--primary))",
+  "--color-warning-foreground": "var(--warning-foreground, var(--primary-foreground))",
 };
 
 /** The palette properties those tokens want: `--color-sidebar` -> `--sidebar`. */
@@ -173,11 +182,13 @@ const newThemeKeys: ReadonlySet<string> = new Set([
   "sidebarAccent",
   "success",
   "successForeground",
+  "warning",
+  "warningForeground",
 ]);
 
 const themeModes: readonly ThemeMode[] = ["light", "dark"];
 
-describe("the sidebar and success semantic tokens", () => {
+describe("the sidebar, success and warning semantic tokens", () => {
   for (const [token, chain] of Object.entries(forkSafeTokens)) {
     it(`maps ${token} through the palette with a fork-safe fallback`, () => {
       expect(themeTokens(sharedCss)[token]).toBe(chain);

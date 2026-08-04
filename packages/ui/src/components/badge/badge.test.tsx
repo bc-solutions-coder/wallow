@@ -38,15 +38,16 @@ const SHAPE_CLASSES = [
  * surface would leave the label at the inherited colour and fail contrast on its
  * own background.
  *
- * `warning` maps onto `primary` deliberately: the fork's primary is the amber
- * oklch(0.72 0.15 85), and the theme has no dedicated warning token. Adding one
- * belongs to F1, not here (F3's scope guard) — so warning spends the amber the
- * palette already carries rather than inventing a sixth token or a raw hue.
+ * `warning` pointed at `primary` while the theme had no warning token of its own
+ * — F1's job, not F3's, so the chip spent the amber the palette already carried.
+ * F1 has since shipped `warning`/`warning-foreground` as `var(--warning,
+ * var(--primary))`, so this pin moves onto the real token and the rendered colour
+ * on THIS fork is unchanged; what changes is a fork whose primary is not amber.
  */
 const VARIANT_COLOURS = {
   neutral: ["bg-accent", "text-accent-foreground"],
   success: ["bg-success", "text-success-foreground"],
-  warning: ["bg-primary", "text-primary-foreground"],
+  warning: ["bg-warning", "text-warning-foreground"],
   destructive: ["bg-destructive", "text-destructive-foreground"],
 } as const;
 
@@ -110,7 +111,7 @@ describe("Badge", () => {
     // value (`bg-[#16a34a]`) and a stock Tailwind palette hue (`bg-green-500`)
     // alike, either of which would ignore the fork's branding.json.
     const semanticToken =
-      /^(?:bg|text)-(?:accent|success|primary|destructive|secondary|muted|card|popover|sidebar|background|foreground|border)(?:-foreground)?$/u;
+      /^(?:bg|text)-(?:accent|success|warning|primary|destructive|secondary|muted|card|popover|sidebar|background|foreground|border)(?:-foreground)?$/u;
 
     for (const variant of Object.keys(VARIANT_COLOURS)) {
       const colourUtilities = badgeRecipe({ variant: variant as keyof typeof VARIANT_COLOURS })

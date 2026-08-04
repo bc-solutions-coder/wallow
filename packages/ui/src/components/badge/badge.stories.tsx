@@ -36,7 +36,7 @@ export const Success: Story = {
   args: { variant: "success", children: "Enabled" },
 };
 
-/** Amber, borrowed from the fork's primary — the theme has no warning token. */
+/** Amber — the theme's own warning token, which falls back to the fork's primary. */
 export const Warning: Story = {
   args: { variant: "warning", children: "Pending" },
 };

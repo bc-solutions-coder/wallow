@@ -15,18 +15,19 @@ import { cva, type VariantProps } from "class-variance-authority";
  * surface would leave the label at the inherited colour and fail contrast on its
  * own background.
  *
- * `warning` maps onto `primary` deliberately: the theme has no dedicated warning
- * token, and this fork's primary IS the amber `oklch(0.72 0.15 85)` — the only
- * warning-shaped colour the palette carries. Adding a sixth token belongs to the
- * styles package, not here, so warning spends the amber rather than inventing a
- * raw hue.
+ * `warning` spent `primary` until the styles package grew a real warning token —
+ * this fork's primary IS an amber, so it was the only warning-shaped colour the
+ * palette carried, and adding a sixth token was explicitly F1's job rather than
+ * this component's. That token now exists and falls back to `--primary`, so this
+ * arm keeps the same colour on this fork while a fork whose primary is not amber
+ * finally gets a warning chip that reads as one.
  */
 export const badgeRecipe = cva("inline-block text-xs font-medium px-2.5 py-0.5 rounded-full", {
   variants: {
     variant: {
       neutral: "bg-accent text-accent-foreground",
       success: "bg-success text-success-foreground",
-      warning: "bg-primary text-primary-foreground",
+      warning: "bg-warning text-warning-foreground",
       destructive: "bg-destructive text-destructive-foreground",
     },
   },

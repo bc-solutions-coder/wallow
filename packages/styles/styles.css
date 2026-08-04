@@ -12,11 +12,17 @@
  * see this package's files, not the app's, and ship a stylesheet that styles
  * nothing.
  *
- * The sidebar and success tokens carry a two-level fallback the older tokens do
- * not need: packages/styles/branding.json is merge=ours in .gitattributes, so a fork whose
+ * The sidebar, success and warning tokens carry a two-level fallback the older
+ * tokens do not need: packages/styles/branding.json is merge=ours in .gitattributes, so a fork whose
  * copy predates those keys never receives them from an upstream merge and the
  * theme emits no custom property for them. The fallback lands such a fork on a
  * colour its palette has always carried instead of on nothing at all.
+ *
+ * warning falls back to primary because that is exactly where it came from: the
+ * catalog's warning badge spent bg-primary by hand, this fork's primary being an
+ * amber and the palette carrying nothing else warning-shaped. A fork too old to
+ * have the key therefore keeps the colour it already had, while a fork whose
+ * primary is not amber now gets a warning that reads as one.
  *
  * The sidebar-* family is deliberately named after its first consumer, not
  * after what it now means: it is the theme's general inverted-surface family,
@@ -62,6 +68,8 @@
   --color-sidebar-accent: var(--sidebar-accent, var(--accent));
   --color-success: var(--success, var(--primary));
   --color-success-foreground: var(--success-foreground, var(--primary-foreground));
+  --color-warning: var(--warning, var(--primary));
+  --color-warning-foreground: var(--warning-foreground, var(--primary-foreground));
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
