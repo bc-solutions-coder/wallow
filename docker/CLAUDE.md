@@ -66,7 +66,13 @@ docker compose -f docker-compose.production.yml --env-file .env.production up --
   is what lets `.env.production.example` document the optional `BCORDES_*` client secrets without
   setting them: their bare `${VAR}` form in `docker-compose.production.yml` is deliberate
   fail-closed design (an unset secret aborts the seeder rather than registering a public client),
-  so nothing may "fix" it by giving them defaults. Pairings are `docker-compose.yml` and
+  so nothing may "fix" it by giving them defaults. **Full-line comments are not scanned**, so
+  prose explaining the `${VAR}` grammar is documentation rather than a reference; a trailing
+  comment on a value line still is, because clipping from the first `#` could drop a real
+  reference out of a quoted value. An app's own env keys are invisible to this check by
+  construction — it walks compose references only, which is why the wallow-web service passes the
+  SDK's five optional cookie/session knobs explicitly instead of letting them go undocumented.
+  Pairings are `docker-compose.yml` and
   `docker-compose.test.yml` → `.env.example`, `docker-compose.production.yml` →
   `.env.production.example`; a new compose file needs a new entry in the script's `pairs` list.
 - `.env`, `.env.example`, and `seed.json` are `merge=ours` in `.gitattributes` so fork values

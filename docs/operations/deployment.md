@@ -287,7 +287,7 @@ whenever you use that profile.
 | **Security** | `IDENTITY_SIGNING_KEY`, `OPENIDDICT_SIGNING_CERT_PASSWORD`, `OPENIDDICT_ENCRYPTION_CERT_PASSWORD`, `OPENIDDICT_ALLOW_PLAIN_HTTP_ENDPOINTS` |
 | **Seeding** | `SEED_FILE_HOST_PATH`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_FIRST_NAME`, `ADMIN_LAST_NAME` |
 | **OIDC** | `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, plus optional per-fork client secrets |
-| **BFF session** | `BFF_COOKIE_PASSWORD`, `BFF_COOKIE_PASSWORDS` (optional — rotation) |
+| **BFF session** | `BFF_COOKIE_PASSWORD`; optional: `BFF_COOKIE_PASSWORDS` (rotation), `BFF_COOKIE_SECURE`, `BFF_COOKIE_HOST_PREFIX`, `BFF_COOKIE_NAME`, `BFF_SESSION_TTL_SECONDS`, `BFF_OIDC_SCOPES` |
 | **Public URLs** | `API_PUBLIC_URL`, `AUTH_PUBLIC_URL`, `WEB_PUBLIC_URL`, `COOKIE_DOMAIN`, `API_PATH_BASE`, `AUTH_BASE_PATH` |
 | **Ingress** | `CADDYFILE_HOST_PATH`, `INGRESS_HTTP_PORT`, `INGRESS_HTTPS_PORT` |
 | **Ports** | `API_PORT`, `AUTH_PORT`, `WEB_PORT` (all bound to `127.0.0.1`) |
@@ -326,6 +326,25 @@ Redeploy, wait longer than `SESSION_TTL_SECONDS` (default `86400`) so every `k1`
 expired, then drop `k1` and redeploy again. Each secret must be 32+ characters and each key ID
 must be letters, digits or underscores and not all digits; the SDK validates the whole map at
 boot rather than failing mid-login.
+
+The rest of the BFF's cookie and session contract is optional, and the shipped stack needs none
+of it set — but it reaches a deployment either way, so it is passed explicitly and documented in
+`.env.production.example` rather than being discoverable only by reading SDK source:
+
+| Variable | Default | Notes |
+|----------|---------|-------|
+| `BFF_COOKIE_SECURE` | `true` | Only the literal `false` clears it. |
+| `BFF_COOKIE_HOST_PREFIX` | `true` | `__Host-` prefix; also requires Secure. |
+| `BFF_COOKIE_NAME` | `__Host-wallow_bff` | `wallow_bff` when either flag above is off. |
+| `BFF_SESSION_TTL_SECONDS` | `86400` | Malformed values throw at boot, never fall back. |
+| `BFF_OIDC_SCOPES` | `openid profile email offline_access` | Space-separated. |
+
+The two flags **fail secure** — a typo such as `False` or `no` leaves the cookie protected rather
+than exposing it, and only the exact string `false` turns either off. Clear them only for a
+plain-HTTP deployment. Override `BFF_COOKIE_NAME` when two Wallow deployments share one origin:
+`__Host-` forces `path=/`, so their session cookies would otherwise collide on the name. Dropping
+`offline_access` from the scopes costs you refresh tokens, and with them the silent renewal that
+keeps a session alive to the TTL.
 
 **`OPENIDDICT_ALLOW_PLAIN_HTTP_ENDPOINTS`** controls whether the OIDC endpoints
 (`/connect/**` and discovery) will answer plain-HTTP requests. Outside Development the answer is

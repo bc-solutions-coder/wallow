@@ -586,6 +586,31 @@ services:
       #   BFF_COOKIE_PASSWORDS='{"k2":"<new 64-hex>","k1":"<previous>"}'
       # Redeploy, let the old cookies age out past SESSION_TTL_SECONDS, then drop k1.
       COOKIE_PASSWORDS: ${BFF_COOKIE_PASSWORDS:-}
+      # The rest of the SDK's cookie/session contract. All five are optional and
+      # passed unconditionally BECAUSE they are optional: the SDK reads an empty
+      # value as unset for every one of them, so a blank here means "take the
+      # default" rather than "set it to nothing". Naming them is what puts them in
+      # front of a fork — they reach a deployment whether or not it knows they
+      # exist, and until this block they were reachable only by reading SDK source.
+      # It is also what lets `pnpm lint:env` see them: that check walks compose
+      # ${VAR} references, so a knob no compose file mentions is invisible to it.
+      #
+      # COOKIE_SECURE / COOKIE_HOST_PREFIX fail SECURE — only the literal string
+      # `false` clears either one. Clear them only for a plain-HTTP deployment;
+      # `__Host-` additionally requires Secure, so turning off COOKIE_SECURE drops
+      # the prefix with it.
+      COOKIE_SECURE: ${BFF_COOKIE_SECURE:-}
+      COOKIE_HOST_PREFIX: ${BFF_COOKIE_HOST_PREFIX:-}
+      # Default `__Host-wallow_bff`, or `wallow_bff` when either flag above is off.
+      # Override it when two Wallow deployments share one origin: `__Host-` forces
+      # path=/, so their session cookies would otherwise collide on the name.
+      COOKIE_NAME: ${BFF_COOKIE_NAME:-}
+      # Default 86400 (24h). A malformed value throws at boot rather than falling
+      # back, so a typo cannot quietly halve your session lifetime.
+      SESSION_TTL_SECONDS: ${BFF_SESSION_TTL_SECONDS:-}
+      # Space-separated. Default `openid profile email offline_access`; dropping
+      # offline_access costs you refresh tokens, and with them silent renewal.
+      OIDC_SCOPES: ${BFF_OIDC_SCOPES:-}
       # Server-side sessions in Valkey so logout truly revokes tokens
       REDIS_URL: "redis://:${VALKEY_PASSWORD}@valkey:6379"
       # OpenTelemetry — 4318, not 4317. @bc-solutions-coder/logger POSTs OTLP/JSON

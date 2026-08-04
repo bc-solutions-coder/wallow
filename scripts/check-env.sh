@@ -65,7 +65,14 @@ for pair in "${pairs[@]}"; do
     # The trailing `=` is load-bearing — without it a GARAGE_S3_PORT_ALT entry
     # would satisfy GARAGE_S3_PORT. The optional `#` accepts a commented line.
     grep -qE "^#? *${name}=" "$example" || missing+="    ${name}"$'\n'
-  done < <(grep -ohE '\$\{[A-Za-z_][A-Za-z_0-9]*' "$compose" | cut -c3- | sort -u)
+    # Full-line comments are dropped first: a comment explaining the interpolation
+    # grammar, or showing a ${VAR} form an operator might use, documents something
+    # rather than referencing it, and demanding an .env.example entry for the word
+    # in the prose is a false alarm. Only whole-line comments go — clipping from
+    # the first `#` on a value line could drop a real reference out of a quoted
+    # value that happens to contain one.
+  done < <(grep -vE '^[[:space:]]*#' "$compose" |
+    grep -ohE '\$\{[A-Za-z_][A-Za-z_0-9]*' | cut -c3- | sort -u)
 
   if [ -z "$missing" ]; then
     echo "==> $compose -> $example: ok"

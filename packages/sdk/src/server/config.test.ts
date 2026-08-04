@@ -554,6 +554,15 @@ describe("loadBffConfigFromEnv — cookieName __Host- prefix", () => {
     );
   });
 
+  it("treats a blank COOKIE_NAME as unset rather than naming the cookie ''", () => {
+    // What `COOKIE_NAME: ${BFF_COOKIE_NAME:-}` in a compose file sends on every
+    // deployment that has not set the override.
+    expect(loadBffConfigFromEnv(envWith({ COOKIE_NAME: "" })).cookieName).toBe("__Host-wallow_bff");
+    expect(loadBffConfigFromEnv(envWith({ COOKIE_NAME: "   " })).cookieName).toBe(
+      "__Host-wallow_bff",
+    );
+  });
+
   it("does not double-prefix an explicit COOKIE_NAME that already carries it", () => {
     const config: BffConfig = loadBffConfigFromEnv(envWith({ COOKIE_NAME: "__Host-wallow_bff" }));
 

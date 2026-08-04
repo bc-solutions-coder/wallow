@@ -267,7 +267,9 @@ function defaultCookieName(hostPrefixRaw: string, cookieSecure: boolean): string
  * A malformed `SESSION_TTL_SECONDS` throws rather than silently falling back to
  * the default, so a startup misconfiguration fails loudly. `COOKIE_SECURE` and
  * `COOKIE_HOST_PREFIX` instead fail secure: only the literal `false` clears
- * the flag. An explicit `COOKIE_NAME` is taken verbatim and never prefixed.
+ * the flag. A non-empty `COOKIE_NAME` is taken verbatim and never prefixed; an
+ * empty or whitespace-only one counts as unset, so passing the variable through
+ * unconditionally cannot name the session cookie "".
  *
  * The whole contract is validated before anything throws, and every problem is
  * reported in ONE error (Wallow-pu6a.3.7). Throwing on the first missing name
@@ -346,6 +348,12 @@ export function loadBffConfigFromEnv(env: NodeJS.ProcessEnv = process.env): BffC
 
   const hostPrefixRaw: string = (env.COOKIE_HOST_PREFIX ?? "").trim().toLowerCase();
 
+  // Empty means unset, as it does for every other optional key here. A `??` alone
+  // would take "" verbatim and seal the session under a cookie with no name — and
+  // "" is what a compose file passing `COOKIE_NAME: ${BFF_COOKIE_NAME:-}` sends on
+  // every deployment that has not set the override.
+  const cookieNameRaw: string = (env.COOKIE_NAME ?? "").trim();
+
   return {
     issuer,
     clientId,
@@ -354,7 +362,8 @@ export function loadBffConfigFromEnv(env: NodeJS.ProcessEnv = process.env): BffC
     postLogoutRedirectUri,
     scopes,
     apiBaseUrl,
-    cookieName: env.COOKIE_NAME ?? defaultCookieName(hostPrefixRaw, cookieSecure),
+    cookieName:
+      cookieNameRaw !== "" ? cookieNameRaw : defaultCookieName(hostPrefixRaw, cookieSecure),
     cookiePassword,
     // Always populated: the parsed key map, or the single password wrapped under
     // the one ID iron gives an unkeyed seal, so every unseal site can take the
