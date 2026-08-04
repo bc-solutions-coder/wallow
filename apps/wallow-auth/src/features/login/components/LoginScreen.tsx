@@ -1,6 +1,6 @@
 import { formatLongDate } from "@bc-solutions-coder/utils/format";
 import { buildExchangeTicketUrl, isSafeReturnUrl } from "@bc-solutions-coder/sdk";
-import { Card, ErrorBanner, MutedText, Tabs, Text } from "@bc-solutions-coder/ui";
+import { MutedText, Tabs, Text } from "@bc-solutions-coder/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 
@@ -15,6 +15,7 @@ import { ExternalProviders } from "./ExternalProviders";
 import { MagicLinkLoginForm } from "./MagicLinkLoginForm";
 import { OtpLoginForm } from "./OtpLoginForm";
 import { PasswordLoginForm } from "./PasswordLoginForm";
+import { AuthScreen } from "@shared/components/auth-screen";
 import { BASE_PATH, toAppHref } from "@shared/lib/base-path";
 
 /**
@@ -138,16 +139,15 @@ function SignedInBanner() {
 }
 
 /** The oracle's `BbCardHeader`. */
-function CardHeading() {
-  return (
-    <div className="space-y-1 text-center">
-      <Text as="h2" variant="subheading" color="onCard">
-        Sign in to your account
-      </Text>
-      <MutedText>Enter your credentials to continue</MutedText>
-    </div>
-  );
-}
+const TITLE = "Sign in to your account";
+const DESCRIPTION = "Enter your credentials to continue";
+
+/**
+ * The oracle's `p-6 space-y-4` card. One of the two measured spacing outliers the
+ * catalog `Card` keeps a slot for: four stacked blocks (notices, banner, tabs,
+ * providers) at the default `space-y-6` push the register prompt below the fold.
+ */
+const SPACING = "p-6 space-y-4";
 
 /** The strip, in order, with the oracle's labels. */
 const LOGIN_TABS: readonly { readonly tab: LoginTab; readonly label: string }[] = [
@@ -398,13 +398,20 @@ export function LoginScreen({
   };
 
   return (
-    <Card spacing="p-6 space-y-4">
-      <CardHeading />
+    <AuthScreen
+      title={TITLE}
+      description={DESCRIPTION}
+      spacing={SPACING}
+      // The shell puts the failure directly under the heading, so it now sits
+      // ABOVE the two notices rather than under them. Both of those are
+      // informational, and an actionable failure buried under a success
+      // acknowledgment is one the user reads second.
+      error={errorMessage}
+      errorTestId="login-error"
+      footer={<RegisterPrompt href={registerHref(clientId, returnUrl)} />}
+    >
       {isPasswordResetMessage(message) ? <PasswordResetNotice /> : null}
       {graceDeadline === null ? null : <MfaEnrollmentBanner deadline={graceDeadline} />}
-      {errorMessage === null ? null : (
-        <ErrorBanner data-testid="login-error">{errorMessage}</ErrorBanner>
-      )}
       {signedIn ? (
         // The oracle renders the whole tab block inside the `else` of `if (_signedIn)`:
         // a sign-in form under a "you are now signed in" alert is an invitation to
@@ -433,7 +440,6 @@ export function LoginScreen({
        * not threaded into it.
        */}
       {signedIn ? null : <ExternalProviders returnUrl={returnUrl} />}
-      <RegisterPrompt href={registerHref(clientId, returnUrl)} />
-    </Card>
+    </AuthScreen>
   );
 }
