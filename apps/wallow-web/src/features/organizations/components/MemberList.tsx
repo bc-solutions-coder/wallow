@@ -34,7 +34,7 @@ import {
   Text,
 } from "@bc-solutions-coder/ui";
 import { useRouteContext } from "@tanstack/react-router";
-import { useMemo, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { z } from "zod";
 
 import {
@@ -43,8 +43,8 @@ import {
   organizationsGetMembersQueryKey,
   organizationsRemoveMemberMutation,
   queriesForOperation,
-  usersGetUsersOptions,
 } from "../api";
+import { useUserPicker } from "../hooks/use-user-picker";
 
 /**
  * A single member row with a remove action. `ListRow` derives the row's test id
@@ -206,11 +206,6 @@ function AddMemberForm(props: {
 }) {
   const { client, queryClient, orgId } = props;
 
-  // The directory the picker searches. `items` is what the paged endpoint
-  // returns; `?? []` also covers the reads that have not landed yet.
-  const directory = useQuery(usersGetUsersOptions({ client }));
-  const users: readonly UserDto[] = directory.data?.items ?? [];
-
   const form = useAppForm({
     schema: addMemberSchema,
     defaultValues: { userId: "" },
@@ -247,7 +242,6 @@ function AddMemberForm(props: {
       <form.AppField name="userId">
         {(field) => (
           <UserIdPicker
-            users={users}
             value={field.state.value}
             error={fieldErrorMessage(field.state.meta.errors)}
             disabled={form.wallow.pending}
@@ -365,14 +359,10 @@ function UserPickerInput(props: { onBlur: () => void }): ReactNode {
  * into that text, and `itemToStringValue` makes what it writes the person's id
  * rather than their email.
  *
- * The list is filtered HERE rather than by Base UI's collator (`filter={null}`
- * hands the root a pre-narrowed `items`): the input's text is a user id once
- * somebody has picked, and matching that id against the emails on screen would
- * re-open the popup over the submit button with nothing in it.
- *
- * `open` is controlled for the same reason — a popup is mounted only while there
- * is something to show, so `aria-expanded` never claims a list that would be
- * empty and no invisible surface sits between the operator and `Add member`.
+ * The directory, the narrowing and the open flag all come from
+ * {@link useUserPicker}, which is also where the reasons for each are written
+ * down. `filter={null}` is the half that has to be spelled here: it is what tells
+ * Base UI's collator to stand aside and take `items` pre-narrowed.
  *
  * Hand-rolled from `Field` + `Autocomplete` rather than added to the forms
  * catalog: the parts a catalog field is built from (`useCatalogField`,
@@ -384,21 +374,14 @@ function UserPickerInput(props: { onBlur: () => void }): ReactNode {
  * them.
  */
 function UserIdPicker(props: {
-  users: readonly UserDto[];
   value: string;
   error: string | undefined;
   disabled: boolean;
   onChange: (next: string) => void;
   onBlur: () => void;
 }): ReactNode {
-  const { users, value, error, disabled, onChange, onBlur } = props;
-  const [requestedOpen, setRequestedOpen] = useState(false);
-
-  const query: string = value.trim().toLowerCase();
-  const matches: readonly UserDto[] = useMemo(
-    () => users.filter((user) => user.email.toLowerCase().includes(query)),
-    [users, query],
-  );
+  const { value, error, disabled, onChange, onBlur } = props;
+  const { matches, open, onOpenChange } = useUserPicker(value);
 
   return (
     <Field invalid={error !== undefined}>
@@ -409,8 +392,8 @@ function UserIdPicker(props: {
         itemToStringValue={(user: UserDto) => user.id}
         value={value}
         onValueChange={onChange}
-        open={requestedOpen && matches.length > 0}
-        onOpenChange={setRequestedOpen}
+        open={open}
+        onOpenChange={onOpenChange}
         disabled={disabled}
       >
         <UserPickerInput onBlur={onBlur} />
