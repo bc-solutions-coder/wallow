@@ -21,21 +21,20 @@
  * raw `{ succeeded: false, error }` — arrives as a thrown `WallowError`, which
  * `problemDetail` renders. `mfa-enroll-cancel` is always visible.
  *
+ * ONLY THE VERIFY STEP IS A FORM. "Begin setup" is a button that mints a secret,
+ * not a submit — it collects nothing, so there is nothing to validate and nothing
+ * to hold. The confirm step collects exactly one value and submits it, which is a
+ * form, and it owns its own `useAppForm` (see `VerifyStep`) so that the secret it
+ * needs is a non-null PROP rather than a nullable read the submit has to re-guard.
+ *
  * Testids mirror the C# E2E page object `MfaEnrollPage`.
  */
+import { AppForm, SubmitButton, useAppForm } from "@bc-solutions-coder/forms";
 import { useMutation, useQueryClient } from "@bc-solutions-coder/query";
-import {
-  Button,
-  Card,
-  CardTitle,
-  ErrorBanner,
-  Field,
-  Input,
-  Label,
-  Text,
-} from "@bc-solutions-coder/ui";
+import { Button, Card, CardTitle, ErrorBanner, Text } from "@bc-solutions-coder/ui";
 import { useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
+import { z } from "zod";
 
 import {
   mfaConfirmEnrollmentMutation,
@@ -55,6 +54,22 @@ export interface MfaEnrollFlowProps {
 const ENROLL_FAILED = "Unable to start MFA enrollment.";
 const CONFIRM_FAILED = "That verification code is not valid.";
 
+/**
+ * The one value the verify step collects. Its NAME is load-bearing: the
+ * `mfa-enroll` prefix plus `code` is what derives the `mfa-enroll-code` testid the
+ * E2E page object binds.
+ *
+ * RULE-FREE on purpose. A blank code is refused by the endpoint like any other
+ * wrong one, and every failure this step can produce belongs on the CARD's shared
+ * `mfa-enroll-error` banner — which is also where the enroll step's failures land,
+ * and which a zod rule could not reach.
+ */
+const confirmSchema = z.object({ code: z.string() });
+
+type ConfirmValues = z.infer<typeof confirmSchema>;
+
+const NO_CODE: ConfirmValues = { code: "" };
+
 /** The setup CTA (initial state): clicking it mints the one-time secret + QR. */
 function SetupStep(props: { onBegin: () => void }) {
   return (
@@ -64,15 +79,73 @@ function SetupStep(props: { onBegin: () => void }) {
   );
 }
 
-/** The verify step: shows the secret + QR and collects the confirmation code. */
+/**
+ * The verify step: shows the secret + QR and collects the confirmation code.
+ *
+ * The confirm mutation is handed to `useAppForm` WHOLE — spread so this step can
+ * add the invalidation and the two callbacks, never destructured or cast, because
+ * the generated factory's own error type has to survive inference. Its `onError`
+ * routes to the card's banner rather than the form's own, so no `FormError` is
+ * rendered here: one enrollment card, one error surface, whichever step failed.
+ *
+ * Invalidation goes through `queriesForOperation` on the status key, NOT the
+ * `Identity` tag: generated keys are flat, and the tag sweeps far more than this
+ * write touches. Enrolling invalidates nothing at all — a minted secret is not yet
+ * a status — so only the confirm carries it.
+ */
 function VerifyStep(props: {
   secret: string;
   qrUri: string;
-  code: string;
-  onCodeChange: (value: string) => void;
-  onSubmit: () => void;
+  onAttempt: () => void;
+  onConfirmed: (backupCodes: string[]) => void;
+  onFailed: (message: string) => void;
 }) {
-  const { secret, qrUri, code, onCodeChange, onSubmit } = props;
+  const { secret, qrUri, onAttempt, onConfirmed, onFailed } = props;
+  const { sdk } = useRouteContext({ from: "__root__" });
+  const queryClient = useQueryClient();
+
+  const form = useAppForm({
+    schema: confirmSchema,
+    defaultValues: NO_CODE,
+    mutation: {
+      ...mfaConfirmEnrollmentMutation({ client: sdk.client }),
+      // The card's banner is cleared as the write STARTS, not when it succeeds: a
+      // stale message hanging over an in-flight retry is a lie about the current
+      // attempt.
+      onMutate: (): void => {
+        onAttempt();
+      },
+      onSuccess: (): void => {
+        void queryClient.invalidateQueries(
+          queriesForOperation(mfaGetStatusQueryKey({ client: sdk.client })),
+        );
+      },
+      // Typed as the factory's OWN error type, not `unknown`: `TError` is
+      // inferred from this object as a whole and sits contravariantly in
+      // `throwOnError` too, so widening it here would reject the very factory
+      // being spread. `problemDetail` still takes it as `unknown` — an RFC 7807
+      // body is only trustworthy after the narrowing it does.
+      onError: (cause: Error): void => {
+        onFailed(problemDetail(cause, CONFIRM_FAILED));
+      },
+    },
+    // The secret is a PROP, so the submit re-guards nothing: this step does not
+    // exist until one has been minted.
+    toVariables: (values: ConfirmValues) => ({ body: { secret, code: values.code } }),
+    onSuccess: (data): void => {
+      // A rejected confirmation no longer resolves: the SDK's error interceptor
+      // turns the endpoint's `{ succeeded: false, error }` BadRequest into a
+      // thrown `WallowError`, so reaching here means the enrollment took.
+      //
+      // The `??` survives the move to the generated type even though that type
+      // declares `backupCodes` REQUIRED: the declaration is the schema's claim,
+      // not the wire's. A null list serializes to an absent member, and the done
+      // step maps over what it is given — so an enrollment that WORKED would blow
+      // up on its own success screen.
+      onConfirmed(data.backupCodes ?? []);
+    },
+  });
+
   return (
     <div>
       <Text as="span" variant="body" data-testid="mfa-enroll-secret">
@@ -81,20 +154,20 @@ function VerifyStep(props: {
       <div data-testid="mfa-enroll-qr">
         <Text as="code">{qrUri}</Text>
       </div>
-      <Field>
-        <Label htmlFor="mfa-enroll-code-input">Verification code</Label>
-        <Input
-          id="mfa-enroll-code-input"
-          data-testid="mfa-enroll-code"
-          value={code}
-          onChange={(e) => {
-            onCodeChange(e.target.value);
-          }}
-        />
-      </Field>
-      <Button type="button" data-testid="mfa-enroll-submit" onClick={onSubmit}>
-        Verify
-      </Button>
+      <AppForm form={form} testIdPrefix="mfa-enroll">
+        <form.AppField name="code">
+          {(field) => (
+            <field.TextField
+              label="Verification code"
+              // A TOTP code is zero-padded six digits, so `type="number"` would
+              // eat a leading zero; the digits-only hint travels separately.
+              inputMode="numeric"
+              autoComplete="one-time-code"
+            />
+          )}
+        </form.AppField>
+        <SubmitButton pendingLabel="Verifying…">Verify</SubmitButton>
+      </AppForm>
     </div>
   );
 }
@@ -122,24 +195,10 @@ function DoneStep(props: { codes: string[]; onDone: () => void }) {
 export function MfaEnrollFlow(props: MfaEnrollFlowProps) {
   const { onDone, onCancel } = props;
   const { sdk } = useRouteContext({ from: "__root__" });
-  const queryClient = useQueryClient();
-  // Enrolling only mints a one-time secret, so it invalidates nothing; confirming
-  // is what flips the status the settings card renders, and it re-reads that one
-  // operation (generated keys are flat, and the status query's `Identity` tag is
-  // far broader than this write touches).
   const enroll = useMutation(mfaEnrollTotpMutation({ client: sdk.client }));
-  const confirm = useMutation({
-    ...mfaConfirmEnrollmentMutation({ client: sdk.client }),
-    onSuccess: (): void => {
-      void queryClient.invalidateQueries(
-        queriesForOperation(mfaGetStatusQueryKey({ client: sdk.client })),
-      );
-    },
-  });
 
   const [secret, setSecret] = useState<string | null>(null);
   const [qrUri, setQrUri] = useState<string | null>(null);
-  const [code, setCode] = useState("");
   const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -159,35 +218,16 @@ export function MfaEnrollFlow(props: MfaEnrollFlowProps) {
     );
   };
 
-  const handleSubmit = () => {
-    if (secret === null) {
-      return;
-    }
+  const handleAttempt = () => {
     setError(null);
-    confirm.mutate(
-      { body: { secret, code } },
-      {
-        onSuccess: (data) => {
-          // A rejected confirmation no longer resolves: the SDK's error
-          // interceptor turns the endpoint's `{ succeeded: false, error }`
-          // BadRequest into a thrown `WallowError`, so reaching here means the
-          // enrollment took. One-time reveal: hold the codes locally and drop
-          // the secret so the verify step is gone; the mutation's own onSuccess
-          // re-reads the status so the card flips to Enabled.
-          //
-          // The `??` survives the move to the generated type even though that
-          // type declares `backupCodes` REQUIRED: the declaration is the
-          // schema's claim, not the wire's. A null list serializes to an absent
-          // member, and `DoneStep` maps over what it is given — so an enrollment
-          // that WORKED would blow up on its own success screen.
-          setBackupCodes(data.backupCodes ?? []);
-          setSecret(null);
-        },
-        onError: (err) => {
-          setError(problemDetail(err, CONFIRM_FAILED));
-        },
-      },
-    );
+  };
+
+  const handleConfirmed = (codes: string[]) => {
+    // One-time reveal: hold the codes locally and drop the secret so the verify
+    // step is gone. The form's own onSuccess re-read the status, so the settings
+    // card behind this one has already flipped to Enabled.
+    setBackupCodes(codes);
+    setSecret(null);
   };
 
   const handleDone = () => {
@@ -223,9 +263,9 @@ export function MfaEnrollFlow(props: MfaEnrollFlowProps) {
         <VerifyStep
           secret={secret}
           qrUri={qrUri ?? ""}
-          code={code}
-          onCodeChange={setCode}
-          onSubmit={handleSubmit}
+          onAttempt={handleAttempt}
+          onConfirmed={handleConfirmed}
+          onFailed={setError}
         />
       );
     }
