@@ -15,7 +15,7 @@ namespace Wallow.MigrationService;
 /// The migration host does NOT honour feature flags — it migrates every module's schema whether or
 /// not the API will register that module, because a disabled module must still be able to come back
 /// on without a migration step. That is why this list is unfiltered while the API's equivalent is
-/// filtered through <c>IFeatureManager</c>.
+/// filtered against <c>FeatureManagement:Modules.*</c> configuration.
 /// </remarks>
 internal static class ModuleMigrations
 {

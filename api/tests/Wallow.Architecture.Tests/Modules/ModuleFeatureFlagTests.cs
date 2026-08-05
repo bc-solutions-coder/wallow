@@ -20,7 +20,7 @@ namespace Wallow.Architecture.Tests.Modules;
 /// DI registration, no Wolverine handler discovery, and (since its <c>.Api</c> ApplicationPart is
 /// pruned) no HTTP surface at all. A key naming a module that does not exist is therefore dead
 /// weight, and a core module's key is inert because <c>ResolveEnabledModules</c> short-circuits on
-/// <c>IsCore</c> before it ever asks the feature manager.
+/// <c>IsCore</c> before it ever reads the key.
 /// </para>
 /// </remarks>
 public sealed class ModuleFeatureFlagTests

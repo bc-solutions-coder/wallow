@@ -19,8 +19,8 @@ namespace Wallow.Api;
 
 /// <summary>
 /// Registers the Wallow modules this host runs. The modules themselves come from
-/// <see cref="WallowModuleRegistry"/> — the one list both hosts read — and are filtered here through
-/// <see cref="IFeatureManager"/>.
+/// <see cref="WallowModuleRegistry"/> — the one list both hosts read — and are filtered here against
+/// the host's <c>FeatureManagement:Modules.*</c> configuration.
 /// </summary>
 internal static partial class WallowModules
 {
@@ -59,24 +59,28 @@ internal static partial class WallowModules
     /// Registers every enabled module and returns the enabled set.
     /// </summary>
     /// <remarks>
-    /// The return value is the point of this method as much as the registration is.
-    /// <see cref="IFeatureManager"/> used to be resolved twice from two different providers — once
-    /// here off a temporary provider built from the half-finished <see cref="IServiceCollection"/>,
-    /// and again in <c>InitializeWallowModulesAsync</c> off the final <c>app.Services</c> — so
-    /// "which modules are on" was answered independently in two places and inferred a third time by
-    /// Wolverine's assembly scan. Callers now compute it once, here, and pass the result on.
+    /// The return value is the point of this method as much as the registration is. The flags used to
+    /// be evaluated twice from two different providers — once here off a temporary provider built from
+    /// the half-finished <see cref="IServiceCollection"/>, and again in
+    /// <c>InitializeWallowModulesAsync</c> off the final <c>app.Services</c> — so "which modules are
+    /// on" was answered independently in two places and inferred a third time by Wolverine's assembly
+    /// scan. Callers now compute it once, here, and pass the result on.
     /// </remarks>
     public static IReadOnlyList<IWallowModule> AddWallowModules(
         this IServiceCollection services,
         IConfiguration configuration,
         IHostEnvironment environment)
     {
-        // Ensure IConfiguration and FeatureManagement are registered before building the temp provider.
-        // This makes AddWallowModules self-contained (works even without prior DI setup in tests).
+        // Neither registration is what decides the enabled set any more — ResolveEnabledModules reads
+        // configuration directly. They stay because IFeatureManager is the documented extension point
+        // a fork's own module code injects (docs/getting-started/fork-guide.md,
+        // docs/architecture/module-creation.md), and registering IConfiguration keeps
+        // AddWallowModules self-contained: it works against a bare ServiceCollection, with or without
+        // prior DI setup, which is how the architecture tests drive it.
         services.AddSingleton(configuration);
         services.AddFeatureManagement();
 
-        IReadOnlyList<IWallowModule> enabledModules = ResolveEnabledModules(services);
+        IReadOnlyList<IWallowModule> enabledModules = ResolveEnabledModules(configuration);
 
         foreach (IWallowModule module in enabledModules)
         {
@@ -177,9 +181,9 @@ internal static partial class WallowModules
     /// <remarks>
     /// <para>
     /// The one way left in <c>Wallow.Api</c> to ask "is module X on" outside <c>AddWallowModules</c>
-    /// itself. It reads membership in the already-resolved set rather than re-resolving
-    /// <see cref="IFeatureManager"/> and re-deriving the <c>"Modules.{Name}"</c> flag key, so a module
-    /// the registry forces on regardless of its flag (<see cref="IWallowModule.IsCore"/>) reads as
+    /// itself. It reads membership in the already-resolved set rather than re-reading configuration and
+    /// re-deriving the <c>"Modules.{Name}"</c> flag key, so a module the registry forces on regardless
+    /// of its flag (<see cref="IWallowModule.IsCore"/>) reads as
     /// enabled here too — <c>enabledModules</c> already applied that short-circuit in
     /// <c>ResolveEnabledModules</c>, and this method never re-derives it. There is no second opinion
     /// left that could disagree with the registry.
@@ -255,22 +259,81 @@ internal static partial class WallowModules
     }
 
     /// <summary>
-    /// Resolves the feature flags once, off a temporary provider built from the services registered
-    /// so far. The provider is deliberately not disposed: <c>services.AddSingleton(configuration)</c>
-    /// registers an existing instance, and disposing the container would dispose the host's own
-    /// <see cref="IConfiguration"/> with it.
+    /// Resolves the enabled set once, reading each optional module's flag straight off
+    /// <see cref="IConfiguration"/>.
     /// </summary>
-    private static IReadOnlyList<IWallowModule> ResolveEnabledModules(IServiceCollection services)
-    {
-        ServiceProvider tempProvider = services.BuildServiceProvider();
-        IFeatureManager featureManager = tempProvider.GetRequiredService<IFeatureManager>();
+    /// <remarks>
+    /// This used to build a whole <see cref="ServiceProvider"/> out of the half-populated
+    /// <see cref="IServiceCollection"/> purely to resolve an <see cref="IFeatureManager"/>, then
+    /// block on it once per module. It could not dispose that container either, because
+    /// <c>services.AddSingleton(configuration)</c> registers an existing instance and disposing the
+    /// container would take the host's own <see cref="IConfiguration"/> with it — so the feature
+    /// manager's change-token subscription on that configuration outlived everything that could ever
+    /// read it. Seven booleans do not need a container: the answer is in configuration, and
+    /// <c>AddWallowModules</c> is handed the configuration already.
+    /// </remarks>
+    private static IReadOnlyList<IWallowModule> ResolveEnabledModules(IConfiguration configuration) =>
+    [
+        .. WallowModuleRegistry.All.Where(module =>
+            module.IsCore || IsModuleFlagEnabled(configuration, module.Name))
+    ];
 
-        return
-        [
-            .. WallowModuleRegistry.All.Where(module =>
-                module.IsCore
-                || featureManager.IsEnabledAsync($"Modules.{module.Name}").GetAwaiter().GetResult())
-        ];
+    /// <summary>
+    /// Reads one module's <c>FeatureManagement:Modules.{name}</c> flag as a plain boolean.
+    /// </summary>
+    /// <param name="configuration">The host's configuration.</param>
+    /// <param name="moduleName">The module's <see cref="IWallowModule.Name"/>.</param>
+    /// <returns><see langword="true"/> when the flag says so; <see langword="false"/> when it is absent.</returns>
+    /// <remarks>
+    /// <para>
+    /// An absent key reads as disabled, which is what the feature manager answered for a feature it
+    /// had no definition for, and every scalar spelling a configuration provider can produce parses
+    /// the same way it did: JSON's <c>true</c>/<c>false</c> literals arrive as <c>"True"</c>/
+    /// <c>"False"</c>, an environment variable or command line arrives however it was typed, and
+    /// <see cref="bool.TryParse(string, out bool)"/> is case-insensitive and trims.
+    /// </para>
+    /// <para>
+    /// Anything else fails the host. This is the one place the direct read could have diverged
+    /// dangerously: <see cref="IConfigurationSection.Value"/> is <see langword="null"/> for an object
+    /// node, so a filter-shaped flag (<c>EnabledFor</c>/<c>RequirementType</c>) would otherwise bind
+    /// to nothing and read as <see langword="false"/> — silently disabling a module whose config
+    /// author was asking for it to be ON. A disabled module has no DI registrations, no Wolverine
+    /// handlers and, since its <c>.Api</c> ApplicationPart is pruned, no HTTP surface at all, so
+    /// "silently disabled" means endpoints that vanish without a word. Refusing to start is the only
+    /// outcome that cannot be missed.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">
+    /// The key is present but is not a scalar boolean.
+    /// </exception>
+    private static bool IsModuleFlagEnabled(IConfiguration configuration, string moduleName)
+    {
+        string key = $"FeatureManagement:Modules.{moduleName}";
+        IConfigurationSection section = configuration.GetSection(key);
+
+        if (!section.Exists())
+        {
+            return false;
+        }
+
+        if (section.Value is string value && bool.TryParse(value, out bool enabled))
+        {
+            return enabled;
+        }
+
+        string actual = section.Value is null
+            ? $"an object whose child keys are [{string.Join(", ", section.GetChildren().Select(child => child.Key))}]"
+            : $"'{section.Value}'";
+
+        throw new InvalidOperationException(
+            $"Configuration key '{key}' must be a scalar boolean, and is {actual}. A module flag is " +
+            "read once at startup, directly off IConfiguration, and decides whether that module's " +
+            "services, message handlers and HTTP endpoints exist at all — there is no request in " +
+            "flight for a Microsoft.FeatureManagement filter (EnabledFor, percentage, targeting, " +
+            "time window) to evaluate against, so a filter here would never run. Set true or false, " +
+            "and gate request-scoped behaviour inside the module instead of switching the module " +
+            "off. The host refuses to start rather than read this as 'disabled', because a disabled " +
+            "module loses its endpoints silently.");
     }
 
     /// <summary>

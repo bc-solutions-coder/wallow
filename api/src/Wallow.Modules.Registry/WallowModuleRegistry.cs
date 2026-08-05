@@ -11,7 +11,8 @@ namespace Wallow.Modules.Registry;
 
 /// <summary>
 /// The single list of modules the platform ships. Both hosts read it: <c>Wallow.Api</c> filters it
-/// through <c>IFeatureManager</c>, and <c>Wallow.MigrationService</c> takes it unfiltered.
+/// against its <c>FeatureManagement:Modules.*</c> configuration, and <c>Wallow.MigrationService</c>
+/// takes it unfiltered.
 /// </summary>
 public static class WallowModuleRegistry
 {

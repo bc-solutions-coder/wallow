@@ -12,8 +12,9 @@ namespace Wallow.Architecture.Tests.Modules;
 
 /// <summary>
 /// Guards the "one module list" property. Both hosts must source their modules from
-/// <see cref="WallowModuleRegistry"/>: <c>Wallow.Api.WallowModules</c> filtered through
-/// <c>IFeatureManager</c>, <c>Wallow.MigrationService.ModuleMigrations</c> unfiltered.
+/// <see cref="WallowModuleRegistry"/>: <c>Wallow.Api.WallowModules</c> filtered against
+/// <c>FeatureManagement:Modules.*</c> configuration, <c>Wallow.MigrationService.ModuleMigrations</c>
+/// unfiltered.
 /// </summary>
 /// <remarks>
 /// The identity assertions are what make this suite a real regression guard rather than a
