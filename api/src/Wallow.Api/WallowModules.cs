@@ -1,32 +1,59 @@
 // Infrastructure extensions - canonical source for module registration
 using Microsoft.EntityFrameworkCore;
 using Microsoft.FeatureManagement;
-using Wallow.Announcements.Infrastructure.Extensions;
+using Wallow.Announcements.Infrastructure.Modules;
 using Wallow.Announcements.Infrastructure.Persistence;
-using Wallow.ApiKeys.Infrastructure.Extensions;
+using Wallow.ApiKeys.Infrastructure.Modules;
 using Wallow.ApiKeys.Infrastructure.Persistence;
-using Wallow.Branding.Infrastructure.Extensions;
+using Wallow.Branding.Infrastructure.Modules;
 using Wallow.Branding.Infrastructure.Persistence;
-using Wallow.Identity.Infrastructure.Extensions;
+using Wallow.Identity.Infrastructure.Modules;
 using Wallow.Identity.Infrastructure.Persistence;
-using Wallow.Inquiries.Infrastructure.Extensions;
+using Wallow.Inquiries.Infrastructure.Modules;
 using Wallow.Inquiries.Infrastructure.Persistence;
-using Wallow.Notifications.Infrastructure.Extensions;
+using Wallow.Notifications.Infrastructure.Modules;
 using Wallow.Notifications.Infrastructure.Persistence;
 using Wallow.Shared.Infrastructure.Core.Auditing;
+using Wallow.Shared.Infrastructure.Modules;
 using Wallow.Shared.Infrastructure.Plugins;
-using Wallow.Storage.Infrastructure.Extensions;
+using Wallow.Storage.Infrastructure.Modules;
 using Wallow.Storage.Infrastructure.Persistence;
 
 namespace Wallow.Api;
 
 /// <summary>
-/// Central registry for all Wallow modules.
-/// Each module provides AddXxxModule() and InitializeXxxModuleAsync() extension methods.
+/// Central registry for all Wallow modules. Each module is an <see cref="IWallowModule"/> living in
+/// its own Infrastructure assembly; this list is the only place that knows all seven exist.
 /// </summary>
-internal static class WallowModules
+internal static partial class WallowModules
 {
-    public static IServiceCollection AddWallowModules(
+    /// <summary>
+    /// Every module the host can run, in registration order. Identity is <c>IsCore</c> and comes
+    /// first because the rest of the platform assumes its schema and services are present.
+    /// </summary>
+    private static readonly IWallowModule[] _allModules =
+    [
+        new IdentityModule(),
+        new BrandingModule(),
+        new NotificationsModule(),
+        new AnnouncementsModule(),
+        new StorageModule(),
+        new ApiKeysModule(),
+        new InquiriesModule(),
+    ];
+
+    /// <summary>
+    /// Registers every enabled module and returns the enabled set.
+    /// </summary>
+    /// <remarks>
+    /// The return value is the point of this method as much as the registration is.
+    /// <see cref="IFeatureManager"/> used to be resolved twice from two different providers — once
+    /// here off a temporary provider built from the half-finished <see cref="IServiceCollection"/>,
+    /// and again in <c>InitializeWallowModulesAsync</c> off the final <c>app.Services</c> — so
+    /// "which modules are on" was answered independently in two places and inferred a third time by
+    /// Wolverine's assembly scan. Callers now compute it once, here, and pass the result on.
+    /// </remarks>
+    public static IReadOnlyList<IWallowModule> AddWallowModules(
         this IServiceCollection services,
         IConfiguration configuration,
         IHostEnvironment environment)
@@ -35,48 +62,12 @@ internal static class WallowModules
         // This makes AddWallowModules self-contained (works even without prior DI setup in tests).
         services.AddSingleton(configuration);
         services.AddFeatureManagement();
-        ServiceProvider tempProvider = services.BuildServiceProvider();
-        IFeatureManager featureManager = tempProvider.GetRequiredService<IFeatureManager>();
 
-        // ============================================================================
-        // PLATFORM MODULES
-        // Core infrastructure services used across all domain modules
-        // ============================================================================
-        // Identity is a required platform dependency — always registered, not behind a feature flag
-        services.AddIdentityModule(configuration, environment);
+        IReadOnlyList<IWallowModule> enabledModules = ResolveEnabledModules(services);
 
-        if (featureManager.IsEnabledAsync("Modules.Branding").GetAwaiter().GetResult())
+        foreach (IWallowModule module in enabledModules)
         {
-            services.AddBrandingModule(configuration);
-        }
-
-        if (featureManager.IsEnabledAsync("Modules.Notifications").GetAwaiter().GetResult())
-        {
-            services.AddNotificationsModule(configuration);
-        }
-
-        if (featureManager.IsEnabledAsync("Modules.Announcements").GetAwaiter().GetResult())
-        {
-            services.AddAnnouncementsModule(configuration);
-        }
-
-        if (featureManager.IsEnabledAsync("Modules.Storage").GetAwaiter().GetResult())
-        {
-            services.AddStorageModule(configuration);
-        }
-
-        if (featureManager.IsEnabledAsync("Modules.ApiKeys").GetAwaiter().GetResult())
-        {
-            services.AddApiKeysModule(configuration);
-        }
-
-        // ============================================================================
-        // FEATURE MODULES
-        // Higher-level application features built on platform and domain modules
-        // ============================================================================
-        if (featureManager.IsEnabledAsync("Modules.Inquiries").GetAwaiter().GetResult())
-        {
-            services.AddInquiriesModule(configuration);
+            module.AddServices(services, configuration, environment);
         }
 
         // ============================================================================
@@ -85,13 +76,13 @@ internal static class WallowModules
         // ============================================================================
         services.AddWallowPlugins(configuration);
 
-        return services;
+        return enabledModules;
     }
 
-    public static async Task InitializeWallowModulesAsync(this WebApplication app)
+    public static async Task InitializeWallowModulesAsync(
+        this WebApplication app,
+        IReadOnlyList<IWallowModule> enabledModules)
     {
-        IFeatureManager featureManager = app.Services.GetRequiredService<IFeatureManager>();
-
         // In Testing environment, run EF Core migrations inline since the separate
         // MigrationService (used in production/Aspire) is not available. The test factory
         // spins up a fresh Postgres container with no schema.
@@ -100,52 +91,37 @@ internal static class WallowModules
             await RunTestMigrationsAsync(app.Services);
         }
 
-        // ============================================================================
-        // PLATFORM MODULES
-        // Core infrastructure services
-        // ============================================================================
-        // Identity is a required platform dependency — always initialized
-        await app.InitializeIdentityModuleAsync();
-
-        if (await featureManager.IsEnabledAsync("Modules.Branding"))
-        {
-            await app.InitializeBrandingModuleAsync();
-        }
-
-        if (await featureManager.IsEnabledAsync("Modules.Notifications"))
-        {
-            await app.InitializeNotificationsModuleAsync();
-        }
-
-        if (await featureManager.IsEnabledAsync("Modules.Announcements"))
-        {
-            await app.InitializeAnnouncementsModuleAsync();
-        }
-
-        if (await featureManager.IsEnabledAsync("Modules.Storage"))
-        {
-            await app.InitializeStorageModuleAsync();
-        }
-
-        if (await featureManager.IsEnabledAsync("Modules.ApiKeys"))
-        {
-            await app.InitializeApiKeysModuleAsync();
-        }
-
-        // ============================================================================
-        // FEATURE MODULES
-        // EF Core modules run migrations
-        // ============================================================================
-        if (await featureManager.IsEnabledAsync("Modules.Inquiries"))
-        {
-            await app.InitializeInquiriesModuleAsync();
-        }
+        // The seven per-module InitializeXModuleAsync calls that used to live here are gone: all
+        // seven were no-ops returning Task.FromResult(app). What is worth recording instead is which
+        // modules actually booted, which nothing logged before.
+        ILogger logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(WallowModules));
+        string moduleNames = string.Join(", ", enabledModules.Select(module => module.Name));
+        LogEnabledModules(logger, moduleNames);
 
         // ============================================================================
         // PLUGIN SYSTEM
         // Discover and optionally load plugins from configured directory
         // ============================================================================
         await app.InitializeWallowPluginsAsync();
+    }
+
+    /// <summary>
+    /// Resolves the feature flags once, off a temporary provider built from the services registered
+    /// so far. The provider is deliberately not disposed: <c>services.AddSingleton(configuration)</c>
+    /// registers an existing instance, and disposing the container would dispose the host's own
+    /// <see cref="IConfiguration"/> with it.
+    /// </summary>
+    private static IReadOnlyList<IWallowModule> ResolveEnabledModules(IServiceCollection services)
+    {
+        ServiceProvider tempProvider = services.BuildServiceProvider();
+        IFeatureManager featureManager = tempProvider.GetRequiredService<IFeatureManager>();
+
+        return
+        [
+            .. _allModules.Where(module =>
+                module.IsCore
+                || featureManager.IsEnabledAsync($"Modules.{module.Name}").GetAwaiter().GetResult())
+        ];
     }
 
     private static async Task RunTestMigrationsAsync(IServiceProvider services)
@@ -179,4 +155,7 @@ internal static class WallowModules
             tasks.Add(context.Database.MigrateAsync());
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Wallow modules enabled: {EnabledModules}")]
+    private static partial void LogEnabledModules(ILogger logger, string enabledModules);
 }

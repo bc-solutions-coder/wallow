@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
@@ -170,12 +169,6 @@ public static partial class NotificationsModuleExtensions
                 services.AddScoped<IEmailProvider, SmtpEmailProvider>();
                 break;
         }
-    }
-
-    public static Task<WebApplication> InitializeNotificationsModuleAsync(
-        this WebApplication app)
-    {
-        return Task.FromResult(app);
     }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Unrecognized email provider '{Provider}'. Defaulting to Smtp")]

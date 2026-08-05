@@ -40,6 +40,7 @@ using Wallow.Shared.Infrastructure.Core.Cache;
 using Wallow.Shared.Infrastructure.Core.Messaging;
 using Wallow.Shared.Infrastructure.Core.Middleware;
 using Wallow.Shared.Infrastructure.Core.Services;
+using Wallow.Shared.Infrastructure.Modules;
 using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wolverine;
@@ -173,9 +174,29 @@ try
     // Explicit module registration via WallowModules.cs
     // See docs/plans/2026-02-13-modular-monolith-consolidation.md
     // ============================================================================
-    Wallow.Api.WallowModules.AddWallowModules(builder.Services, builder.Configuration, builder.Environment);
+    IReadOnlyList<IWallowModule> enabledModules = Wallow.Api.WallowModules.AddWallowModules(
+        builder.Services, builder.Configuration, builder.Environment);
     builder.Services.AddWallowAuditing(builder.Configuration);
     builder.Services.AddAuthAuditing(builder.Configuration);
+
+    // The one handler-discovery list, shared by Wolverine below and by the AsyncAPI document near
+    // the bottom of this file. Both used to run their own AppDomain.CurrentDomain.GetAssemblies()
+    // scan over every "Wallow.*" name, which made the discovered handler set a function of what
+    // earlier code happened to touch first — and, measured, gave the two scans DIFFERENT sets
+    // rather than merely differently-ordered ones.
+    Assembly[] handlerAssemblies =
+    [
+        // The host itself. Wolverine also picks this up through opts.ApplicationAssembly below;
+        // naming it here is what keeps the AsyncAPI document looking at the same set.
+        typeof(Wallow.Api.WallowModules).Assembly,
+
+        // Wallow.Shared.Infrastructure belongs to no module but owns two real Wolverine handlers
+        // (SettingsCacheInvalidationHandlers, for TenantSettingChangedEvent and
+        // UserSettingChangedEvent), so the host declares it unconditionally.
+        typeof(IWallowModule).Assembly,
+
+        .. enabledModules.SelectMany(module => module.HandlerAssemblies),
+    ];
 
     // Wolverine — unified CQRS mediator + message bus.
     //
@@ -274,9 +295,15 @@ try
         // notification write and the SSE push any more; none of them depended on it.
         opts.MultipleHandlerBehavior = MultipleHandlerBehavior.Separated;
 
-        // Discover handlers in all Wallow assemblies
-        foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies()
-            .Where(a => a.GetName().Name?.StartsWith("Wallow.", StringComparison.Ordinal) == true))
+        // Discover handlers in exactly the assemblies the enabled modules declare — never by
+        // scanning the AppDomain. The old scan was correct only by coincidence: a disabled module's
+        // .Application assembly stays unloaded purely because its AddXModule body never ran and so
+        // never touched a type in it. A refactor moving that type to .Domain would have dropped
+        // every handler in that assembly with no error at all, just fewer chains. Registering by
+        // [assembly: WolverineModule] instead is not an option: it discovers unconditionally, so a
+        // DISABLED module's handlers would be found, codegen would build chains for them, and
+        // ServiceLocationPolicy.NotAllowed above would throw on DI that was never registered.
+        foreach (Assembly assembly in handlerAssemblies)
         {
             opts.Discovery.IncludeAssembly(assembly);
         }
@@ -516,7 +543,7 @@ try
     // WALLOW MODULES INITIALIZATION
     // Explicit module initialization via WallowModules.cs
     // ============================================================================
-    await Wallow.Api.WallowModules.InitializeWallowModulesAsync(app);
+    await Wallow.Api.WallowModules.InitializeWallowModulesAsync(app, enabledModules);
     await app.InitializeAppAuditingAsync();
     await app.InitializeAuthAuditingAsync();
 
@@ -707,7 +734,7 @@ try
     // body schema to publish and its untyped 200 would generate an SDK client method returning
     // unknown. Browsers consume it through EventSource, not the generated client.
     app.MapGet("/events", SseEndpoint.HandleSseConnection).RequireAuthorization().ExcludeFromDescription();
-    app.MapAsyncApiEndpoints();
+    app.MapAsyncApiEndpoints(handlerAssemblies);
 
     // API-level recurring jobs (use DI-based IRecurringJobManager, not static RecurringJob)
     await using (AsyncServiceScope jobScope = app.Services.CreateAsyncScope())

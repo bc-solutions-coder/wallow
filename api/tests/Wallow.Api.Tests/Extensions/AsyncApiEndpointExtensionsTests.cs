@@ -1,13 +1,23 @@
 using System.Net;
+using System.Reflection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
 using Wallow.Api.Extensions;
+using Wallow.Notifications.Application.EventHandlers;
 
 namespace Wallow.Api.Tests.Extensions;
 
 public class AsyncApiEndpointExtensionsTests
 {
+    // The registry hands this method the enabled modules' handler assemblies instead of letting it
+    // scan the AppDomain. Notifications owns the largest handler set, so it is the one that makes
+    // the generated document non-trivial.
+    private static readonly Assembly[] _handlerAssemblies =
+    [
+        typeof(UserRoleChangedNotificationHandler).Assembly,
+    ];
+
     private static List<RouteEndpoint> GetMappedEndpoints(WebApplication app)
     {
         IEndpointRouteBuilder routeBuilder = app;
@@ -25,7 +35,7 @@ public class AsyncApiEndpointExtensionsTests
         });
         builder.WebHost.UseTestServer();
         WebApplication app = builder.Build();
-        app.MapAsyncApiEndpoints();
+        app.MapAsyncApiEndpoints(_handlerAssemblies);
         return app;
     }
 
@@ -38,7 +48,7 @@ public class AsyncApiEndpointExtensionsTests
         });
         WebApplication app = builder.Build();
 
-        app.MapAsyncApiEndpoints();
+        app.MapAsyncApiEndpoints(_handlerAssemblies);
 
         List<string?> patterns = GetMappedEndpoints(app)
             .Select(e => e.RoutePattern.RawText)
@@ -58,7 +68,7 @@ public class AsyncApiEndpointExtensionsTests
         });
         WebApplication app = builder.Build();
 
-        app.MapAsyncApiEndpoints();
+        app.MapAsyncApiEndpoints(_handlerAssemblies);
 
         List<string?> patterns = GetMappedEndpoints(app)
             .Select(e => e.RoutePattern.RawText)
@@ -78,7 +88,7 @@ public class AsyncApiEndpointExtensionsTests
         });
         WebApplication app = builder.Build();
 
-        WebApplication result = app.MapAsyncApiEndpoints();
+        WebApplication result = app.MapAsyncApiEndpoints(_handlerAssemblies);
 
         result.Should().BeSameAs(app);
     }
@@ -92,7 +102,7 @@ public class AsyncApiEndpointExtensionsTests
         });
         WebApplication app = builder.Build();
 
-        WebApplication result = app.MapAsyncApiEndpoints();
+        WebApplication result = app.MapAsyncApiEndpoints(_handlerAssemblies);
 
         result.Should().BeSameAs(app);
     }
@@ -106,7 +116,7 @@ public class AsyncApiEndpointExtensionsTests
         });
         WebApplication app = builder.Build();
 
-        app.MapAsyncApiEndpoints();
+        app.MapAsyncApiEndpoints(_handlerAssemblies);
 
         List<RouteEndpoint> asyncApiEndpoints = GetMappedEndpoints(app)
             .Where(e => e.RoutePattern.RawText is "/asyncapi/v1.json" or "/asyncapi/v1/flows" or "/asyncapi")

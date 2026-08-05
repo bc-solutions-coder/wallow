@@ -1,5 +1,3 @@
-using System.Text.RegularExpressions;
-
 namespace Wallow.Architecture.Tests;
 
 public sealed class MigrationRemovalTests
@@ -23,33 +21,13 @@ public sealed class MigrationRemovalTests
         "src/Shared/Wallow.Shared.Infrastructure.Core/Auditing/AuthAuditingExtensions.cs",
     ];
 
-    private static readonly Regex _initializeMethodPattern = new(
-        @"(Initialize\w+(?:Module|Auditing)Async)\b",
-        RegexOptions.Compiled);
-
-    [Theory]
-    [MemberData(nameof(GetModuleExtensionFiles))]
-    public void ModuleInitializeAsync_ShouldNotContainMigrateAsync(string relativeFilePath)
-    {
-        string fullPath = Path.Combine(_solutionRoot, relativeFilePath);
-        File.Exists(fullPath).Should().BeTrue($"expected file to exist: {fullPath}");
-
-        string content = File.ReadAllText(fullPath);
-
-        AssertNoMigrateAsyncInInitializeMethods(content, relativeFilePath);
-    }
-
-    [Theory]
-    [MemberData(nameof(GetAuditingExtensionFiles))]
-    public void AuditingInitializeAsync_ShouldNotContainMigrateAsync(string relativeFilePath)
-    {
-        string fullPath = Path.Combine(_solutionRoot, relativeFilePath);
-        File.Exists(fullPath).Should().BeTrue($"expected file to exist: {fullPath}");
-
-        string content = File.ReadAllText(fullPath);
-
-        AssertNoMigrateAsyncInInitializeMethods(content, relativeFilePath);
-    }
+    // ModuleInitializeAsync_ShouldNotContainMigrateAsync and
+    // AuditingInitializeAsync_ShouldNotContainMigrateAsync were deleted here: both did
+    // File.ReadAllText over a src/ path and regex-matched the method bodies for "MigrateAsync",
+    // which .claude/rules/TESTING.md bans. The first had also lost its subject — the seven
+    // Initialize{Module}ModuleAsync methods it parsed were no-ops and are gone with the
+    // IWallowModule registry. Migrations belong to Wallow.MigrationService, and
+    // Wallow.MigrationService.Tests is what asserts that.
 
     [Fact]
     public void AllModuleExtensionFiles_ShouldExist()
@@ -69,79 +47,6 @@ public sealed class MigrationRemovalTests
             string fullPath = Path.Combine(_solutionRoot, relativeFilePath);
             File.Exists(fullPath).Should().BeTrue($"expected auditing extension file to exist: {fullPath}");
         }
-    }
-
-    public static TheoryData<string> GetModuleExtensionFiles()
-    {
-        TheoryData<string> data = new();
-        foreach (string file in _moduleExtensionFiles)
-        {
-            data.Add(file);
-        }
-        return data;
-    }
-
-    public static TheoryData<string> GetAuditingExtensionFiles()
-    {
-        TheoryData<string> data = new();
-        foreach (string file in _auditingExtensionFiles)
-        {
-            data.Add(file);
-        }
-        return data;
-    }
-
-    private static void AssertNoMigrateAsyncInInitializeMethods(string fileContent, string filePath)
-    {
-        MatchCollection matches = _initializeMethodPattern.Matches(fileContent);
-        matches.Count.Should().BeGreaterThan(0,
-            $"expected to find at least one Initialize method in {filePath}");
-
-        foreach (Match match in matches)
-        {
-            string methodName = match.Groups[1].Value;
-            int methodStart = match.Index;
-
-            string methodBody = ExtractMethodBody(fileContent, methodStart);
-            methodBody.Should().NotBeEmpty($"expected to extract method body for {methodName} in {filePath}");
-
-            bool containsMigrateAsync = methodBody.Contains("MigrateAsync", StringComparison.Ordinal);
-            containsMigrateAsync.Should().BeFalse(
-                $"method '{methodName}' in '{filePath}' should not contain MigrateAsync calls. " +
-                "Migrations should be handled by the MigrationService, not in module initialization.");
-        }
-    }
-
-    private static string ExtractMethodBody(string content, int startIndex)
-    {
-        int braceStart = content.IndexOf('{', startIndex);
-        if (braceStart < 0)
-        {
-            return string.Empty;
-        }
-
-        int depth = 0;
-        int position = braceStart;
-
-        while (position < content.Length)
-        {
-            char c = content[position];
-            if (c == '{')
-            {
-                depth++;
-            }
-            else if (c == '}')
-            {
-                depth--;
-                if (depth == 0)
-                {
-                    return content.Substring(braceStart, position - braceStart + 1);
-                }
-            }
-            position++;
-        }
-
-        return string.Empty;
     }
 
     private static string FindSolutionRoot()

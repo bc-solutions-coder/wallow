@@ -1,7 +1,5 @@
-using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Polly;
 using Polly.Registry;
 using Wallow.Notifications.Application.Channels.Email.Interfaces;
@@ -14,8 +12,6 @@ using Wallow.Notifications.Infrastructure.Jobs;
 using Wallow.Notifications.Infrastructure.Persistence;
 using Wallow.Notifications.Infrastructure.Services;
 using Wallow.Shared.Contracts.Notifications.Email;
-using Wallow.Shared.Contracts.Realtime;
-using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Notifications.Tests.Infrastructure;
 
@@ -422,31 +418,6 @@ public class NotificationsModuleExtensionsTests
             provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<PushSettings>>();
 
         options.Value.Should().NotBeNull();
-    }
-
-    [Fact]
-    public async Task InitializeNotificationsModuleAsync_WhenDbUnavailable_LogsWarningAndReturnsApp()
-    {
-        WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-        {
-            EnvironmentName = "Development"
-        });
-        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Port=1;Database=nonexistent;Timeout=1"
-        });
-        builder.Services.AddScoped<ITenantContext>(_ => Substitute.For<ITenantContext>());
-        builder.Services.AddSingleton(new TenantSaveChangesInterceptor());
-        builder.Services.AddSingleton<ISseDispatcher>(_ => Substitute.For<ISseDispatcher>());
-        builder.Services.AddSingleton(TimeProvider.System);
-        builder.Services.AddHttpClient();
-        builder.Services.AddNotificationsModule(builder.Configuration);
-        builder.Logging.AddSimpleConsole().SetMinimumLevel(LogLevel.Trace);
-        WebApplication app = builder.Build();
-
-        WebApplication result = await app.InitializeNotificationsModuleAsync();
-
-        result.Should().BeSameAs(app);
     }
 
     [Fact]

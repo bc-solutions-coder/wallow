@@ -2,11 +2,9 @@ using System.Net;
 using System.Net.Sockets;
 using Amazon.S3;
 using FluentValidation;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Wallow.Shared.Contracts.Storage;
 using Wallow.Storage.Application.Configuration;
@@ -609,47 +607,6 @@ public sealed class StorageExtensionsTests
         HealthCheckServiceOptions healthOptions = provider.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value;
 
         healthOptions.Registrations.Should().Contain(r => r.Name == "clamav");
-    }
-
-    [Fact]
-    public async Task InitializeStorageModuleAsync_InNonDevelopment_SkipsMigration()
-    {
-        WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-        {
-            EnvironmentName = Environments.Production
-        });
-        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test"
-        });
-
-        WebApplication app = builder.Build();
-
-        // Should not throw — it skips migration entirely in non-Development
-        WebApplication result = await app.InitializeStorageModuleAsync();
-
-        result.Should().BeSameAs(app);
-    }
-
-    [Fact]
-    public async Task InitializeStorageModuleAsync_InDevelopment_WhenDbContextMissing_LogsWarningAndReturnsApp()
-    {
-        WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-        {
-            EnvironmentName = Environments.Development
-        });
-        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test"
-        });
-
-        WebApplication app = builder.Build();
-
-        // StorageDbContext is not registered, so GetRequiredService will throw,
-        // which should be caught and logged as a warning
-        WebApplication result = await app.InitializeStorageModuleAsync();
-
-        result.Should().BeSameAs(app);
     }
 
     [Fact]

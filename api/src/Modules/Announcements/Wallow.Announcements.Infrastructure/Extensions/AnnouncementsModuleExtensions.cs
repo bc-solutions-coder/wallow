@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
@@ -63,11 +62,5 @@ public static class AnnouncementsModuleExtensions
         services.AddScoped<IAnnouncementTargetingService, AnnouncementTargetingService>();
 
         return services;
-    }
-
-    public static Task<WebApplication> InitializeAnnouncementsModuleAsync(
-        this WebApplication app)
-    {
-        return Task.FromResult(app);
     }
 }

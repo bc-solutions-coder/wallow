@@ -1,16 +1,11 @@
-using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using StackExchange.Redis;
 using Wallow.Inquiries.Application.Interfaces;
 using Wallow.Inquiries.Infrastructure.Extensions;
 using Wallow.Inquiries.Infrastructure.Persistence;
 using Wallow.Inquiries.Infrastructure.Persistence.Repositories;
 using Wallow.Inquiries.Infrastructure.Services;
-using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Inquiries.Tests.Infrastructure.Extensions;
 
@@ -83,96 +78,6 @@ public class InquiriesModuleExtensionsTests
             s.ServiceType.GetGenericTypeDefinition().FullName?.Contains("FluentValidation") == true);
         // At minimum, the module registration should not throw and should complete
         services.Should().NotBeEmpty();
-    }
-
-    [Fact]
-    public async Task InitializeInquiriesModuleAsync_InProductionEnvironment_DoesNotMigrate()
-    {
-        WebApplicationBuilder builder = WebApplication.CreateBuilder();
-        builder.Environment.EnvironmentName = Environments.Production;
-
-        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test;Username=test;Password=test"
-        });
-        builder.Services.AddInquiriesModule(builder.Configuration);
-        builder.Services.AddScoped<ITenantContext>(_ => Substitute.For<ITenantContext>());
-        builder.Services.AddSingleton(_ => Substitute.For<IConnectionMultiplexer>());
-
-        WebApplication app = builder.Build();
-
-        // In Production, no migration is attempted (avoids network call)
-        Func<Task> act = async () => await app.InitializeInquiriesModuleAsync();
-
-        await act.Should().NotThrowAsync();
-    }
-
-    [Fact]
-    public async Task InitializeInquiriesModuleAsync_InDevelopmentEnvironment_CatchesConnectionException()
-    {
-        WebApplicationBuilder builder = WebApplication.CreateBuilder();
-        builder.Environment.EnvironmentName = Environments.Development;
-
-        // Invalid connection string - will fail to connect but exception is swallowed
-        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            ["ConnectionStrings:DefaultConnection"] = "Host=invalid-host-xyz;Database=test;Username=test;Password=test;Connect Timeout=1"
-        });
-        builder.Services.AddInquiriesModule(builder.Configuration);
-        builder.Services.AddScoped<ITenantContext>(_ => Substitute.For<ITenantContext>());
-        builder.Services.AddSingleton(_ => Substitute.For<IConnectionMultiplexer>());
-        builder.Logging.ClearProviders().AddConsole();
-
-        WebApplication app = builder.Build();
-
-        Func<Task> act = async () => await app.InitializeInquiriesModuleAsync();
-
-        // Exception is caught internally and logged as warning
-        await act.Should().NotThrowAsync();
-    }
-
-    [Fact]
-    public async Task InitializeInquiriesModuleAsync_InTestingEnvironment_CatchesConnectionException()
-    {
-        WebApplicationBuilder builder = WebApplication.CreateBuilder();
-        builder.Environment.EnvironmentName = "Testing";
-
-        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            ["ConnectionStrings:DefaultConnection"] = "Host=invalid-host-xyz;Database=test;Username=test;Password=test;Connect Timeout=1"
-        });
-        builder.Services.AddInquiriesModule(builder.Configuration);
-        builder.Services.AddScoped<ITenantContext>(_ => Substitute.For<ITenantContext>());
-        builder.Services.AddSingleton(_ => Substitute.For<IConnectionMultiplexer>());
-        builder.Logging.ClearProviders().AddConsole();
-
-        WebApplication app = builder.Build();
-
-        Func<Task> act = async () => await app.InitializeInquiriesModuleAsync();
-
-        // Exception is caught internally and logged as warning
-        await act.Should().NotThrowAsync();
-    }
-
-    [Fact]
-    public async Task InitializeInquiriesModuleAsync_ReturnsWebApplication()
-    {
-        WebApplicationBuilder builder = WebApplication.CreateBuilder();
-        builder.Environment.EnvironmentName = Environments.Production;
-
-        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test;Username=test;Password=test"
-        });
-        builder.Services.AddInquiriesModule(builder.Configuration);
-        builder.Services.AddScoped<ITenantContext>(_ => Substitute.For<ITenantContext>());
-        builder.Services.AddSingleton(_ => Substitute.For<IConnectionMultiplexer>());
-
-        WebApplication app = builder.Build();
-
-        WebApplication result = await app.InitializeInquiriesModuleAsync();
-
-        result.Should().BeSameAs(app);
     }
 }
 

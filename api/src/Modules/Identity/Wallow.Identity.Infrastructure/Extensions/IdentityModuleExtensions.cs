@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -17,11 +16,5 @@ public static class IdentityModuleExtensions
         services.AddIdentityApplication();
         services.AddIdentityInfrastructure(configuration, environment);
         return services;
-    }
-
-    public static Task<WebApplication> InitializeIdentityModuleAsync(
-        this WebApplication app)
-    {
-        return Task.FromResult(app);
     }
 }

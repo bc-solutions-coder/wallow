@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -12,11 +11,5 @@ public static class ApiKeysModuleExtensions
     {
         services.AddApiKeysInfrastructure(configuration);
         return services;
-    }
-
-    public static Task<WebApplication> InitializeApiKeysModuleAsync(
-        this WebApplication app)
-    {
-        return Task.FromResult(app);
     }
 }

@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Wallow.Storage.Application.Extensions;
@@ -14,11 +13,5 @@ public static class StorageModuleExtensions
         services.AddStorageApplication();
         services.AddStorageInfrastructure(configuration);
         return services;
-    }
-
-    public static Task<WebApplication> InitializeStorageModuleAsync(
-        this WebApplication app)
-    {
-        return Task.FromResult(app);
     }
 }

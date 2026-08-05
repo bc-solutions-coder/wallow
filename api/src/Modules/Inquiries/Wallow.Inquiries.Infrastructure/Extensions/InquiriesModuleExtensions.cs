@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Wallow.Inquiries.Application.Extensions;
@@ -14,11 +13,5 @@ public static class InquiriesModuleExtensions
         services.AddInquiriesApplication();
         services.AddInquiriesInfrastructure(configuration);
         return services;
-    }
-
-    public static Task<WebApplication> InitializeInquiriesModuleAsync(
-        this WebApplication app)
-    {
-        return Task.FromResult(app);
     }
 }
