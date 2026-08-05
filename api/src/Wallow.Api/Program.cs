@@ -45,6 +45,7 @@ using Wallow.Shared.Kernel.MultiTenancy;
 using Wolverine;
 using Wolverine.EntityFrameworkCore;
 using Wolverine.FluentValidation;
+using Wolverine.Persistence;
 using Wolverine.Postgresql;
 
 // Note: Using CreateLogger() instead of CreateBootstrapLogger() to support
@@ -286,8 +287,49 @@ try
             opts.Durability.Mode = DurabilityMode.Solo;
         }
 
-        // EF Core transaction integration — enlist Wolverine messages in EF Core transactions
-        opts.UseEntityFrameworkCoreTransactions();
+        // EF Core transaction integration — enlist Wolverine messages in EF Core transactions.
+        //
+        // Lightweight, NOT the default Eager. Eager opens the unit of work with an explicit
+        // DbContext.Database.BeginTransactionAsync(); all seven modules configure
+        // npgsql.EnableRetryOnFailure(...) on their DbContext, which installs
+        // NpgsqlRetryingExecutionStrategy, and that strategy refuses a user-initiated transaction
+        // ("The configured execution strategy 'NpgsqlRetryingExecutionStrategy' does not support
+        // user-initiated transactions"). Measured: Eager + AutoApplyTransactions returns 500 on
+        // login in CrossOrgRoleIsolationTests, thrown out of the generated SendEmailCommand handler.
+        // Lightweight instead treats DbContext.SaveChangesAsync() as the sole transaction boundary,
+        // so the unit of work runs inside EF's own execution strategy and the retry policy survives.
+        // Removing EnableRetryOnFailure from the modules was rejected: it would surrender
+        // transient-fault retry on every DB call in the product, HTTP paths included, to fix a
+        // message-handler problem.
+        //
+        // What Lightweight gives up: operations that bypass SaveChangesAsync are outside the
+        // handler's unit of work. Exactly two exist — Notifications'
+        // TenantPushConfigurationRepository (ExecuteDeleteAsync) and NotificationRepository
+        // (ExecuteUpdateAsync). Both are single statements, atomic on their own.
+        opts.UseEntityFrameworkCoreTransactions(TransactionMiddlewareMode.Lightweight);
+
+        // Apply that transaction middleware to every chain whose service dependencies transitively
+        // reach a module DbContext: the chain gains a <Module>DbContext.SaveChangesAsync
+        // postprocessor, so the handler's writes and the outgoing messages it cascades commit
+        // together instead of the handler saving mid-flight and the messages escaping a later
+        // failure. Measured: 65 of the 88 top-level HandlerGraph.Chains, and 66 of the 94
+        // HandlerGraph.AllChains() — the pair differs because MultipleHandlerBehavior.Separated
+        // replaces each of the four multi-handler message types' parent chain with its per-handler
+        // sticky sub-chains (88 - 4 + 10 = 94). The policy does reach those sub-chains: exactly one
+        // of the ten is transactional (EmailVerifiedEvent's Inquiries handler, the only one of the
+        // ten that touches a DbContext), which is the +1. Quote AllChains() when quoting one number.
+        //
+        // Two things this makes newly fatal, both currently clean:
+        //   - A chain whose transitive dependencies reach MORE THAN ONE DbContext throws out of
+        //     EFCorePersistenceFrameProvider.DetermineDbContextType at codegen time — i.e. on the
+        //     first message of that type, not at startup. Keep a handler inside one module's
+        //     DbContext; cross-module work goes through an integration event, not a second
+        //     repository.
+        //   - A handler that saves explicitly and then dispatches (SendNotificationHandler pushes
+        //     to realtime after its save) must keep that ordering. Dropping the explicit save so
+        //     the postprocessor covers it would move the push BEFORE the commit and give SSE
+        //     consumers a read-your-writes race.
+        opts.Policies.AutoApplyTransactions();
 
         // Standard error handling policies (retry, DLQ)
         opts.ConfigureStandardErrorHandling();
