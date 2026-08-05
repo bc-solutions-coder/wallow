@@ -102,7 +102,8 @@ Work through this list to build a mental map of the codebase.
 ### Startup and Infrastructure
 
 - [ ] **Read `api/src/Wallow.Api/Program.cs`** -- See the middleware pipeline (exception handler, auth, tenant resolution, permission expansion, authorization), Wolverine setup, Hangfire, SignalR, and health checks.
-- [ ] **Read `api/src/Wallow.Api/WallowModules.cs`** -- See explicit module registration via `IFeatureManager`. Identity is always registered; all other modules are behind feature flags.
+- [ ] **Read `api/src/Wallow.Modules.Registry/WallowModuleRegistry.cs`** -- The one list of modules the platform ships. Both hosts read it: `Wallow.Api` filtered by feature flag, `Wallow.MigrationService` unfiltered.
+- [ ] **Read `api/src/Wallow.Api/WallowModules.cs`** -- See how that list becomes the enabled set: `IsModuleFlagEnabled` reads `FeatureManagement:Modules.{Name}` straight off `IConfiguration`. Identity is a core module and is always registered; all other modules are behind feature flags.
 
 ### Module Deep Dive: Notifications
 

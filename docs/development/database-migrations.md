@@ -17,6 +17,8 @@ Wallow uses **EF Core Migrations** for all modules. Each module owns its own Pos
 
 ```
 Module Infrastructure Layer
+├── Modules/
+│   └── {Module}Module.cs             # IWallowModule: Schema const, DbContextTypes, SchemaName
 ├── Persistence/
 │   ├── {Module}DbContext.cs          # EF Core DbContext (TenantAwareDbContext<T>)
 │   ├── {Module}DbContextFactory.cs   # Design-time factory for the dotnet ef CLI
@@ -51,7 +53,7 @@ public sealed class InquiriesDbContext : TenantAwareDbContext<InquiriesDbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.HasDefaultSchema("inquiries");
+        modelBuilder.HasDefaultSchema(InquiriesModule.Schema);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(InquiriesDbContext).Assembly);
 
         ApplyTenantQueryFilters(modelBuilder);
@@ -75,7 +77,7 @@ services.AddPooledDbContextFactory<InquiriesDbContext>((sp, options) =>
     options.UseNpgsql(builder.ConnectionString, npgsql =>
     {
         // CRITICAL: Each module has its own migration history table in its schema
-        npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "inquiries");
+        npgsql.MigrationsHistoryTable("__EFMigrationsHistory", InquiriesModule.Schema);
         npgsql.EnableRetryOnFailure(
             maxRetryCount: 5,
             maxRetryDelay: TimeSpan.FromSeconds(30),
@@ -88,14 +90,17 @@ services.AddPooledDbContextFactory<InquiriesDbContext>((sp, options) =>
 services.AddTenantAwareScopedContext<InquiriesDbContext>();
 ```
 
-The same `MigrationsHistoryTable(..., "<schema>")` call is repeated in
-`api/src/Wallow.MigrationService/Program.cs` — that project registers every DbContext
-independently, so the two registrations must agree on the schema name.
+`InquiriesModule.Schema` is an `internal const string` on the module's `IWallowModule`
+implementation, and it is the **one** place the schema name is written: the DbContext's
+`HasDefaultSchema`, this `MigrationsHistoryTable` call, the design-time factory and the module's own
+`SchemaName` property all resolve to it. `Wallow.MigrationService` does not repeat the string either
+— it reads `IWallowModule.SchemaName` off the registry (see §4), so there is nothing to keep in sync
+by hand.
 
 ### 3. Where Migrations Run
 
-Module initialization (`InitializeInquiriesModuleAsync` and its siblings) does **not** migrate —
-those methods are effectively no-ops today. Migration is the job of `Wallow.MigrationService`.
+Modules have no startup hook — the per-module `Initialize{Module}ModuleAsync` methods were all no-ops
+and have been deleted. Migration is the job of `Wallow.MigrationService`.
 
 `InitializeWallowModulesAsync` in `api/src/Wallow.Api/WallowModules.cs` has exactly one
 in-process migration path, guarded by the environment:
@@ -106,32 +111,40 @@ in-process migration path, guarded by the environment:
 // spins up a fresh Postgres container with no schema.
 if (app.Environment.IsEnvironment("Testing"))
 {
-    await RunTestMigrationsAsync(app.Services);
+    await RunTestMigrationsAsync(app.Services, enabledModules);
 }
 ```
 
-`RunTestMigrationsAsync` migrates the core contexts sequentially (`IdentityDbContext`,
-`AuditDbContext`, `AuthAuditDbContext` — Identity's schema must exist before seeding), then
-migrates each feature context in parallel, skipping any whose module is disabled and therefore
-not registered in DI. Outside the `Testing` environment nothing in the API touches
-`Database.MigrateAsync()`.
+`enabledModules` is the exact set `AddWallowModules` registered. `RunTestMigrationsAsync` migrates
+the core modules' contexts sequentially (`IdentityDbContext` — Identity's schema must exist before
+seeding), then the two host-owned auditing contexts (`AuditDbContext`, `AuthAuditDbContext`), then
+every feature module's `DbContextTypes` in parallel. A disabled module simply is not in
+`enabledModules`, so nothing has to probe DI to skip it. Outside the `Testing` environment nothing in
+the API touches `Database.MigrateAsync()`.
 
 ### 4. The Migration Service
 
 `api/src/Wallow.MigrationService/` is a worker project (`Microsoft.NET.Sdk.Worker`) that:
 
 1. Reads the `DefaultConnection` connection string and throws if it is missing.
-2. Registers all nine DbContexts (Identity, Audit, AuthAudit, Branding, Notifications,
-   Announcements, Storage, ApiKeys, Inquiries), each pinned to its own migration history
-   table and schema.
-3. Groups them into `CoreMigrationRunners` (Identity, Audit, AuthAudit) and
-   `FeatureMigrationRunners` (the rest).
+2. Registers the two host-owned auditing contexts (`AuditDbContext`, `AuthAuditDbContext`) by hand —
+   they belong to no module — and then calls `ModuleMigrations.AddModuleDbContexts`, which walks
+   `WallowModuleRegistry.All` and registers every module's `DbContextTypes` pinned to that module's
+   own `SchemaName`. There is **no hand-maintained list of contexts or schema strings** in this
+   project.
+3. Groups them into `CoreMigrationRunners` (`ModuleMigrations.CreateRunners(isCore: true, …)` — that
+   is Identity — plus the two auditing contexts) and `FeatureMigrationRunners`
+   (`CreateRunners(isCore: false, …)` — the other six modules).
 4. Runs `MigrationWorker`, which migrates core contexts **sequentially**, then all feature
    contexts **in parallel** via `Task.WhenAll`, and finally calls
    `lifetime.StopApplication()` so the process exits.
 
 Each runner is a `DbContextMigrationRunner<TContext>` that resolves the context from a fresh
 scope and calls `Database.MigrateAsync(cancellationToken)`.
+
+This host reads the registry **unfiltered** — it deliberately ignores `FeatureManagement:Modules.*`
+and migrates every module the platform ships, so a disabled module can be switched back on without a
+migration step.
 
 Under Aspire (`pnpm backend` / `dotnet run --project api/src/Wallow.AppHost`) the ordering is
 wired explicitly in `api/src/Wallow.AppHost/Program.cs`:
@@ -234,8 +247,9 @@ The schema was created by `EnsureCreatedAsync()` but now you're trying to run mi
 
 Missing migrations folder or migration history table:
 - Run `dotnet ef migrations add InitialCreate` to generate migrations
-- Ensure `MigrationsHistoryTable()` is configured in **both** the module's DI registration and
-  `Wallow.MigrationService/Program.cs`
+- Ensure the module's DI registration passes its `{Module}Module.Schema` constant to
+  `MigrationsHistoryTable()`, and that `SchemaName` on its `IWallowModule` returns the same constant
+  — the migration host derives its own history table from `SchemaName`
 
 ### "Could not load type for DbContext"
 
@@ -245,10 +259,15 @@ Missing `IDesignTimeDbContextFactory`:
 
 ### A new DbContext never gets migrated
 
-`Wallow.MigrationService` has no reflection-based discovery. Adding a module means editing
-`api/src/Wallow.MigrationService/Program.cs` to register the DbContext, add a
-`DbContextMigrationRunner<T>` to `FeatureMigrationRunners`, and add a `ProjectReference` to the
-module's Infrastructure project in `Wallow.MigrationService.csproj`.
+Both hosts derive the contexts they migrate from the module registry, so there is nothing to register
+in `Wallow.MigrationService/Program.cs`. Check instead that:
+
+- the context is listed in the owning module's `IWallowModule.DbContextTypes`, and
+- the module itself is an entry in `WallowModuleRegistry.All`
+  (`api/src/Wallow.Modules.Registry/WallowModuleRegistry.cs`).
+
+`Wallow.Modules.Registry` already references every module's Infrastructure project, so no
+`ProjectReference` needs adding to `Wallow.MigrationService.csproj` either.
 
 ## Production Migrations
 

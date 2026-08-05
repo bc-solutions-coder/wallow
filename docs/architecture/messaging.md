@@ -75,9 +75,23 @@ The event directories that exist today:
 ## Handlers
 
 A handler is a plain class with a `Handle` or `HandleAsync` method whose first parameter is the message
-type. Wolverine discovers them by scanning every loaded assembly whose name starts with `Wallow.`
-(`api/src/Wallow.Api/Program.cs`), so there is no registration step. Dependencies are injected as
-**method parameters**, not constructor parameters, and handler classes are usually `static`.
+type. There is no per-handler registration step, but the *assemblies* are declared rather than
+scanned: each module lists its own in `IWallowModule.HandlerAssemblies`
+(`api/src/Modules/{Module}/*.Infrastructure/Modules/{Module}Module.cs`), `WallowModuleRegistry.All`
+collects them, and `WallowModules.AddWallowModules` filters that list down to the modules the host
+enabled. `api/src/Wallow.Api/Program.cs` hands exactly those assemblies to
+`opts.Discovery.IncludeAssembly`, plus the host assembly and `Wallow.Shared.Infrastructure`, which
+owns handlers but belongs to no module.
+
+Because the list is per-module and filtered, **a disabled module's handlers are not discovered at
+all** — the messages it used to consume simply go unhandled. That is a real behaviour change from the
+old scan-every-loaded-`Wallow.*`-assembly mechanism, which found handlers whether or not their module
+had been registered. Since every module declares both its `.Application` and its `.Infrastructure`
+assembly unconditionally, a new handler in either layer of an *enabled* module still needs nothing
+written anywhere.
+
+Dependencies are injected as **method parameters**, not constructor parameters, and handler classes
+are usually `static`.
 
 Publishing an event does not require the publisher to know who consumes it. Several modules can handle
 the same event independently: `EmailVerifiedEvent` is consumed both by
@@ -225,10 +239,14 @@ dashboards and tracing.
 
 The full inventory of events, their payload schemas, and which module consumes each one is generated
 from the code itself rather than maintained by hand.
-`api/src/Shared/Wallow.Shared.Infrastructure/AsyncApi/EventFlowDiscovery.cs` reflects over
-the loaded `Wallow.*` assemblies at startup, finds every `IIntegrationEvent` in a
-`Wallow.Shared.Contracts.*` namespace and every Wolverine handler that accepts one, and renders an
-AsyncAPI 3.0 document plus a Mermaid flow diagram at dev-only endpoints.
+`api/src/Shared/Wallow.Shared.Infrastructure/AsyncApi/EventFlowDiscovery.cs` reflects over an
+explicit assembly list at startup — the same `HandlerAssemblies` set Wolverine is given, with
+`Wallow.Shared.Contracts` appended because that assembly hosts the event types themselves but no
+handlers. It finds every `IIntegrationEvent` in a `Wallow.Shared.Contracts.*` namespace and every
+Wolverine handler that accepts one, and renders an AsyncAPI 3.0 document plus a Mermaid flow diagram
+at dev-only endpoints. Sharing one list is deliberate: the generator used to run its own
+`AppDomain.CurrentDomain.GetAssemblies()` scan, which saw a *different* set from Wolverine's
+depending on what had been loaded by the time each ran.
 
 Adding an event to `Wallow.Shared.Contracts` and a handler for it is all that is required — the catalog
 picks both up on the next restart. See the [AsyncAPI Event Catalog](../integrations/asyncapi.md) for the

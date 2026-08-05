@@ -58,7 +58,7 @@ curl http://localhost:5001/asyncapi/v1.json | jq .
 
 ## How It Works
 
-The catalog is generated at startup by scanning all `Wallow.*` assemblies:
+The catalog is generated at startup from an explicit assembly list — the `IWallowModule.HandlerAssemblies` of every **enabled** module, plus `Wallow.Shared.Contracts`, which holds the event types but no handlers. It is the same list `Program.cs` hands to Wolverine's handler discovery, so the document describes the handlers the host actually runs. (This is why a module disabled by `FeatureManagement:Modules.*` disappears from the catalog along with its endpoints.)
 
 1. **Event discovery** — `EventFlowDiscovery` finds all classes implementing `IIntegrationEvent` in `Wallow.Shared.Contracts` namespaces. The namespace determines the module (e.g., `Wallow.Shared.Contracts.Storage.Events` → Storage).
 
@@ -109,7 +109,8 @@ The catalog is only available in the `Development` environment. Check that `ASPN
 
 **A consumer is missing**
 - Verify the handler follows Wolverine conventions (`Handle`/`HandleAsync` method)
-- Verify the handler is in a `Wallow.*` assembly (included in assembly scanning)
+- Verify the handler's assembly is declared in its module's `IWallowModule.HandlerAssemblies`
+- Verify the owning module is enabled — a module switched off in `FeatureManagement:Modules.*` contributes no handlers
 - Verify the handler class is `public`
 
 **Viewer shows a blank page**

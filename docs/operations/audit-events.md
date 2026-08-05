@@ -164,7 +164,8 @@ public static class MyModuleAuditHandlers
 }
 ```
 
-Wolverine scans all `Wallow.*` assemblies, so there is no registration call to write — but
+Your module's `IWallowModule.HandlerAssemblies` already covers its own Infrastructure project, so
+there is no registration call to write — but
 `[WolverineHandler]` is load-bearing here and must not be dropped. Conventional discovery finds a
 public concrete type only if it implements `IWolverineHandler`, carries `[WolverineHandler]`, or has
 a **type name ending in `Handler` or `Consumer`**. The name is the whole story: `AuthAuditEventHandlers`

@@ -157,17 +157,14 @@ Should return nothing.
 
 Renaming the .NET namespaces does not touch the pnpm workspace. If you also want to re-scope the TypeScript packages, change the `name` fields in each `packages/*/package.json` and `apps/*/package.json` from `@bc-solutions-coder/*` to your own scope, update the matching `workspace:*` dependency keys, update `.npmrc` for your registry, and re-run `pnpm install` to regenerate the lockfile.
 
-### 7. Update Wolverine assembly scanning
+### 7. Handler discovery — nothing to rename
 
-In `api/src/Wallow.Api/Program.cs`, update the assembly prefix filter to match your new namespace:
-
-```csharp
-foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies()
-    .Where(a => a.GetName().Name?.StartsWith("YourProduct.") == true))
-{
-    opts.Discovery.IncludeAssembly(assembly);
-}
-```
+Wolverine's handler discovery has **no assembly-name prefix to update**. `Program.cs` builds its
+discovery list from `enabledModules.SelectMany(module => module.HandlerAssemblies)`, and each module
+declares its own assemblies with `typeof(...)` anchors inside its `IWallowModule` implementation
+(`api/src/Modules/{Module}/*.Infrastructure/Modules/{Module}Module.cs`). Renaming namespaces moves
+those anchors and the discovery list follows automatically — a rename that broke one would be a
+compile error, not a silently empty scan.
 
 ### 8. Build and verify
 
@@ -343,7 +340,11 @@ To disable a module, set its value to `false`:
 }
 ```
 
-This is wired in `WallowModules.cs`, which uses `IFeatureManager` to check each module's flag before registering it. Identity is always registered as a required platform dependency. When a module is disabled, its DI services, HTTP controllers, and Wolverine handlers are all excluded from the application — the endpoints return 404 and are absent from the OpenAPI document.
+This is wired in `WallowModules.cs`: `IsModuleFlagEnabled` reads `FeatureManagement:Modules.{Name}` straight off `IConfiguration` once at startup, and filters `WallowModuleRegistry.All` down to the enabled set. Identity is always registered as a required platform dependency. When a module is disabled, its DI services, HTTP controllers, and Wolverine handlers are all excluded from the application — the endpoints return 404 and are absent from the OpenAPI document.
+
+The value must be a **scalar boolean**. An absent key reads as disabled, but a key present as anything other than `true`/`false` — a `Microsoft.FeatureManagement` filter object with `EnabledFor` or `RequirementType`, say — makes the host **refuse to start**. A module flag is read once at startup, so there is no request in flight for a filter to evaluate against, and a module that silently disabled itself would take its endpoints with it. Gate request-scoped behaviour *inside* the module instead of switching the module off.
+
+`IFeatureManager` itself is still registered (`services.AddFeatureManagement()`) and is still the supported extension point for **your fork's own** feature flags — inject it in your handlers and controllers as usual. It is only Wallow's module enable/disable gating that no longer goes through it.
 
 Its **database schema is still migrated**, though: `Wallow.MigrationService` deliberately ignores feature flags and migrates every module the platform ships. A fork that disables a module can therefore re-enable it later without a manual migration step.
 
@@ -436,18 +437,49 @@ The `IntegrationEvent` base record provides `EventId` and `OccurredAt` automatic
 
 ### 5. Register the module
 
-Add to `WallowModules.cs`:
+Implement `IWallowModule` once, in the module's Infrastructure layer
+(`Modules/YourModuleModule.cs`):
 
 ```csharp
-if (await featureManager.IsEnabledAsync("Modules.YourModule"))
-    services.AddYourModuleModule(configuration);
+public sealed class YourModuleModule : IWallowModule
+{
+    internal const string Schema = "yourmodule";
+
+    public string Name => "YourModule";
+
+    public bool IsCore => false;
+
+    public IReadOnlyList<Assembly> HandlerAssemblies =>
+    [
+        typeof(CreateSomethingHandler).Assembly,  // .Application
+        typeof(YourModuleModule).Assembly,        // .Infrastructure
+    ];
+
+    public IReadOnlyList<Type> DbContextTypes => [typeof(YourModuleDbContext)];
+
+    public string SchemaName => Schema;
+
+    public IServiceCollection AddServices(
+        IServiceCollection services,
+        IConfiguration configuration,
+        IHostEnvironment environment) =>
+        services.AddYourModuleModule(configuration);
+}
 ```
 
-Add to initialization in `InitializeWallowModulesAsync()`:
+Then add one entry to `WallowModuleRegistry.All` in
+`api/src/Wallow.Modules.Registry/WallowModuleRegistry.cs`:
 
 ```csharp
-await app.InitializeYourModuleModuleAsync();
+new YourModuleModule(),
 ```
+
+That is the whole registration — there is no per-module `if` block and no startup hook in
+`WallowModules.cs`. Both hosts read that one list: `Wallow.Api` filters it by the module's
+`FeatureManagement:Modules.YourModule` flag, and `Wallow.MigrationService` takes it unfiltered. The
+one remaining host-side edit is a row in `_moduleApiAssemblies` in `WallowModules.cs` naming one of
+your module's controller types, so a disabled module's routes can be removed; the host refuses to
+start if that table and the registry disagree.
 
 ### 6. Add to the solution file
 
@@ -458,9 +490,9 @@ dotnet sln api/YourProduct.slnx add api/src/Modules/YourModule/YourProduct.YourM
 dotnet sln api/YourProduct.slnx add api/src/Modules/YourModule/YourProduct.YourModule.Api
 ```
 
-### 7. Handler discovery (automatic)
+### 7. Handler discovery (automatic within the module)
 
-Wolverine scans all assemblies whose names start with `YourProduct.` (after renaming from `Wallow`) and uses in-memory transport for all messaging. No manual routing configuration is needed. Just create handlers following Wolverine conventions:
+Wolverine discovers handlers in exactly the assemblies your module declared in `HandlerAssemblies` in step 5 — no assembly scan, no name prefix. Because that list names both the `.Application` and the `.Infrastructure` assembly, any handler you add to either project is picked up with no further registration. Messaging uses the in-memory transport, so no manual routing configuration is needed either. Just create handlers following Wolverine conventions:
 
 ```csharp
 public static class CreateSomethingHandler
@@ -691,7 +723,9 @@ public static class OrderPlacedEventHandler
 }
 ```
 
-Wolverine automatically discovers handlers by convention. No manual registration is needed.
+Wolverine discovers handlers by convention inside the assemblies the module declared in
+`HandlerAssemblies` — which is always both its `.Application` and its `.Infrastructure` assembly — so
+a handler in either layer needs no manual registration.
 
 ---
 
@@ -721,7 +755,7 @@ dotnet ef database update \
     --context YourModuleDbContext
 ```
 
-**Nothing migrates on API startup.** `InitializeYourModuleModuleAsync()` is a no-op with respect to schema; the only inline path is `WallowModules.RunTestMigrationsAsync`, which is gated to the `Testing` environment so integration tests can migrate their own Testcontainers database. Running `Wallow.Api` on its own against an un-migrated database fails at first query rather than fixing itself.
+**Nothing migrates on API startup.** Modules have no startup hook at all; the only inline path is `WallowModules.RunTestMigrationsAsync`, which is gated to the `Testing` environment so integration tests can migrate their own Testcontainers database. Running `Wallow.Api` on its own against an un-migrated database fails at first query rather than fixing itself.
 
 ---
 
@@ -1025,6 +1059,5 @@ git push origin main
 - [ ] CI/CD workflows updated
 - [ ] `<ContainerRepository>` properties updated in the three publishable projects
 - [ ] React app Dockerfiles checked (`apps/wallow-web/`, `apps/wallow-auth/`)
-- [ ] Wolverine assembly scanning prefix updated
 - [ ] `dotnet build api/YourProduct.slnx` succeeds
 - [ ] `./scripts/run-tests.sh` passes

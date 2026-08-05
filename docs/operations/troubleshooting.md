@@ -464,10 +464,14 @@ Wallow uses Wolverine with in-memory messaging. There is no external message bro
 #### Solutions
 
 **Handler not discovered:**
-Wolverine discovers handlers in `Wallow.*` assemblies. Ensure:
+Wolverine discovers handlers only in the assemblies each enabled module declares through
+`IWallowModule.HandlerAssemblies`. Ensure:
 1. Handler class is `public static`
 2. Method is named `Handle` or `HandleAsync`
-3. Handler is in a `Wallow.*` assembly
+3. The handler's assembly is listed in its module's `HandlerAssemblies` (every module declares both
+   its `.Application` and its `.Infrastructure` assembly, so a handler in either is already covered)
+4. The owning module is **enabled** — a module switched off in `FeatureManagement:Modules.*`
+   contributes no handler assemblies at all, so its messages go unhandled
 
 ```csharp
 // Correct handler pattern
@@ -512,16 +516,32 @@ public static class MyEventHandler
 ```
 
 **Assembly not included in discovery:**
-In `Program.cs`, handlers are discovered from `Wallow.*` assemblies:
+`Program.cs` does not scan for assemblies — it hands Wolverine exactly what the enabled modules
+declare:
+
 ```csharp
-foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies()
-    .Where(a => a.GetName().Name?.StartsWith("Wallow.") == true))
-{
-    opts.Discovery.IncludeAssembly(assembly);
-}
+Assembly[] handlerAssemblies =
+[
+    typeof(Wallow.Api.WallowModules).Assembly,   // the host
+    typeof(IWallowModule).Assembly,              // Wallow.Shared.Infrastructure — no module owns it
+    .. enabledModules.SelectMany(module => module.HandlerAssemblies),
+];
 ```
 
-If your handler is in a different namespace/assembly, add it explicitly.
+So the fix is in the **owning module**, not in `Program.cs`. Add the assembly to that module's
+`HandlerAssemblies` in `api/src/Modules/{Module}/Wallow.{Module}.Infrastructure/Modules/{Module}Module.cs`:
+
+```csharp
+public IReadOnlyList<Assembly> HandlerAssemblies =>
+[
+    typeof(CreateThingHandler).Assembly,   // .Application
+    typeof({Module}Module).Assembly,       // .Infrastructure
+    typeof(MyExtraHandler).Assembly,       // the assembly that was missing
+];
+```
+
+A brand-new module also needs its entry in `WallowModuleRegistry.All`
+(`api/src/Wallow.Modules.Registry/WallowModuleRegistry.cs`) — nothing else discovers it.
 
 ### Outbox Not Processing
 

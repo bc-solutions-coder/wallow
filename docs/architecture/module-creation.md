@@ -30,7 +30,7 @@ Before creating a new module:
 | 4 | Create Application layer (commands, queries, handlers, interfaces) |
 | 5 | Create Infrastructure layer (DbContext, repositories, DI extensions) |
 | 6 | Create API layer (controllers, request/response contracts) |
-| 7 | Register in `WallowModules.cs` |
+| 7 | Implement `IWallowModule` and add it to `WallowModuleRegistry.All` |
 | 8 | Add feature flag to `appsettings.json` |
 | 9 | Create database migration |
 | 10 | Add tests |
@@ -164,7 +164,7 @@ carries none of them and `Wallow.Identity.Infrastructure` carries only `StackExc
 `Wallow.Shared.Api` is required: `ToActionResult()`, which Step 6 uses on every controller action, is
 defined there and nowhere else.
 
-Module registration is handled by Infrastructure extensions called from `WallowModules.cs`, so the Api layer never needs to reference Infrastructure directly.
+Module registration is handled by the module's `IWallowModule` implementation and the Infrastructure extensions it calls — both live in the Infrastructure layer — so the Api layer never needs to reference Infrastructure directly.
 
 > **Exception in the tree:** `Wallow.Identity.Api` does reference `Wallow.Identity.Infrastructure`,
 > because its controllers reach ASP.NET Core Identity services that Infrastructure hosts. It is the
@@ -260,7 +260,10 @@ public sealed class Create{Entity}Handler(
 }
 ```
 
-Wolverine auto-discovers handlers in all `Wallow.*` assemblies. No manual registration is needed.
+Wolverine discovers handlers in exactly the assemblies each module declares through
+`IWallowModule.HandlerAssemblies` (Step 7). Because that list always names both the module's
+`.Application` and its `.Infrastructure` assembly, a new handler in either project needs no
+registration of its own.
 
 ### Query and Handler
 
@@ -331,8 +334,11 @@ public static class ApplicationExtensions
 
 ### DbContext
 
-Each module owns its own PostgreSQL schema (lowercase module name). Extend
-`TenantAwareDbContext<TContext>` — do **not** hand-roll the multi-tenancy plumbing:
+Each module owns its own PostgreSQL schema (lowercase module name), written once as the
+`internal const string Schema` on the module's `IWallowModule` implementation (Step 7). Every other
+consumer — `HasDefaultSchema`, `MigrationsHistoryTable`, the design-time factory and the module's own
+`SchemaName` property — refers to that constant, so the compiler rather than a convention keeps them
+equal. Extend `TenantAwareDbContext<TContext>` — do **not** hand-roll the multi-tenancy plumbing:
 
 ```csharp
 public sealed class {Module}DbContext : TenantAwareDbContext<{Module}DbContext>
@@ -345,7 +351,7 @@ public sealed class {Module}DbContext : TenantAwareDbContext<{Module}DbContext>
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.HasDefaultSchema("{modulename}");
+        modelBuilder.HasDefaultSchema({Module}Module.Schema);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof({Module}DbContext).Assembly);
 
         ApplyTenantQueryFilters(modelBuilder);
@@ -399,7 +405,7 @@ services.AddPooledDbContextFactory<{Module}DbContext>((sp, options) =>
     options.UseNpgsql(builder.ConnectionString, npgsql =>
     {
         // Each module keeps its migration history table in its own schema
-        npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "{modulename}");
+        npgsql.MigrationsHistoryTable("__EFMigrationsHistory", {Module}Module.Schema);
         npgsql.EnableRetryOnFailure(
             maxRetryCount: 5,
             maxRetryDelay: TimeSpan.FromSeconds(30),
@@ -427,7 +433,8 @@ Identity is the exception again: because `IdentityDbContext` implements `ITenant
 directly rather than extending `TenantAwareDbContext<T>`, it cannot use the generic helper and
 inlines the same factory-plus-`SetTenant` scoped registration by hand.
 
-**`{Module}ModuleExtensions.cs`** provides the two entry points called by `WallowModules.cs`:
+**`{Module}ModuleExtensions.cs`** provides the single entry point the module's `IWallowModule`
+implementation calls from `AddServices` (Step 7):
 
 ```csharp
 public static IServiceCollection Add{Module}Module(
@@ -437,19 +444,15 @@ public static IServiceCollection Add{Module}Module(
     services.Add{Module}Infrastructure(configuration);
     return services;
 }
-
-public static Task<WebApplication> Initialize{Module}ModuleAsync(this WebApplication app)
-{
-    return Task.FromResult(app);
-}
 ```
 
-**Do not migrate here.** All seven existing modules' `Initialize{Module}ModuleAsync` methods are
-`return Task.FromResult(app);`. Migrations run through `Wallow.MigrationService`, a separate project
-the Aspire AppHost runs before the API starts. The only in-process migration path is
-`RunTestMigrationsAsync` in `WallowModules.cs`, and it runs only when the environment is `Testing`.
-The hook exists for module initialization work that genuinely must happen at startup — seeding a
-cache, registering a plugin — not for schema.
+**There is no startup hook, and nothing here migrates.** The per-module
+`Initialize{Module}ModuleAsync` pattern is gone — all seven implementations were no-ops, and the
+host deleted them rather than keep a hook nobody used. Migrations run through
+`Wallow.MigrationService`, a separate project the Aspire AppHost runs before the API starts. The only
+in-process migration path is `RunTestMigrationsAsync` in `api/src/Wallow.Api/WallowModules.cs`, it
+runs only when the environment is `Testing`, and it derives the contexts it migrates from each
+enabled module's `DbContextTypes` — so a new module needs no line there either.
 
 ---
 
@@ -473,31 +476,77 @@ Define sealed records in the `Contracts/` folder. Keep them separate from Applic
 
 ---
 
-## Step 7: Register in WallowModules.cs
+## Step 7: Implement IWallowModule and Add It to the Registry
 
-Edit `api/src/Wallow.Api/WallowModules.cs`:
+A module describes itself to the hosts through one class. There is no per-module code in either
+host: `Wallow.Api` and `Wallow.MigrationService` both read the same registry and ask each module what
+it owns.
 
-1. Add the using statement: `using Wallow.{Module}.Infrastructure.Extensions;`
-
-2. In `AddWallowModules()`, add the feature-flagged registration in the appropriate section (platform or feature modules):
+1. Create `Modules/{Module}Module.cs` in the Infrastructure layer, implementing
+   `Wallow.Shared.Infrastructure.Modules.IWallowModule`:
 
 ```csharp
-if (featureManager.IsEnabledAsync("Modules.{Module}").GetAwaiter().GetResult())
+public sealed class {Module}Module : IWallowModule
 {
-    services.Add{Module}Module(configuration);
+    /// <summary>
+    /// The one place this module's Postgres schema name is written.
+    /// </summary>
+    internal const string Schema = "{modulename}";
+
+    public string Name => "{Module}";
+
+    public bool IsCore => false;
+
+    public IReadOnlyList<Assembly> HandlerAssemblies =>
+    [
+        typeof(Create{Entity}Handler).Assembly,  // the .Application assembly
+        typeof({Module}Module).Assembly,         // the .Infrastructure assembly
+    ];
+
+    public IReadOnlyList<Type> DbContextTypes => [typeof({Module}DbContext)];
+
+    public string SchemaName => Schema;
+
+    public IServiceCollection AddServices(
+        IServiceCollection services,
+        IConfiguration configuration,
+        IHostEnvironment environment)
+    {
+        return services.Add{Module}Module(configuration);
+    }
 }
 ```
 
-3. In `InitializeWallowModulesAsync()`, add the corresponding initialization:
+2. Add one entry to `WallowModuleRegistry.All` in
+   `api/src/Wallow.Modules.Registry/WallowModuleRegistry.cs`:
 
 ```csharp
-if (await featureManager.IsEnabledAsync("Modules.{Module}"))
-{
-    await app.Initialize{Module}ModuleAsync();
-}
+public static IReadOnlyList<IWallowModule> All { get; } =
+[
+    new IdentityModule(),
+    // …
+    new {Module}Module(),
+];
 ```
 
-> **Note:** Identity is a required platform dependency and is always registered without a feature flag. All other modules are behind feature flags.
+That is the whole registration. `Wallow.Api` filters this list against its
+`FeatureManagement:Modules.*` configuration and registers what survives;
+`Wallow.MigrationService` takes it unfiltered.
+
+> **Declare both assemblies in `HandlerAssemblies`, always** — even when one currently holds no
+> handlers. An empty assembly costs nothing (Wolverine simply finds none), whereas omitting one means
+> the first handler added there is silently never discovered. Anchor the Infrastructure entry on the
+> module type itself so it cannot rot when the anchor type moves.
+
+> **Note:** `IsCore` marks a module as a required platform dependency: it ignores its feature flag,
+> is always registered, and migrates first. Identity is the only core module — set `IsCore => false`
+> for anything you add.
+
+3. The `.Api` assembly is named separately. `Wallow.Api` keeps a `_moduleApiAssemblies` table in
+   `WallowModules.cs` mapping each module name to one of its own controller types, so that a disabled
+   module's `ApplicationPart` can be removed and its routes disappear. The host **refuses to start**
+   when that table and the registry disagree, so adding a module without adding its row is a loud
+   startup failure, not a silent one.
 
 ---
 
@@ -513,6 +562,17 @@ Add the feature flag to `appsettings.json` under `FeatureManagement`:
 }
 ```
 
+`WallowModules.IsModuleFlagEnabled` reads `FeatureManagement:Modules.{Name}` straight off
+`IConfiguration` at startup — it does not go through `IFeatureManager`. The value must be a **scalar
+boolean**: an absent key reads as disabled, and anything present that is not a scalar `true`/`false`
+(a `EnabledFor`/`RequirementType` filter object, for instance) throws at startup rather than reading
+as disabled. There is no request in flight for a `Microsoft.FeatureManagement` filter to evaluate
+against, and a module that silently disabled itself would take its endpoints with it.
+
+`IFeatureManager` is still registered (`services.AddFeatureManagement()`) and is still the supported
+extension point for a fork's *own* feature flags — it is only Wallow's module gating that no longer
+uses it.
+
 ---
 
 ## Step 9: Create Database Migration
@@ -524,15 +584,22 @@ dotnet ef migrations add InitialCreate \
     --context {Module}DbContext
 ```
 
-Nothing migrates the new schema on API startup. Two registrations are required, and both are easy to
-miss:
+Nothing migrates the new schema on API startup, but **neither migration host needs a line for your
+module**. Both derive the contexts they migrate from `DbContextTypes` and `SchemaName` on the
+`IWallowModule` you wrote in Step 7:
 
-1. **`Wallow.MigrationService`** applies migrations for every environment except `Testing`. Register
-   the new `DbContext` there or the schema is never created.
+1. **`Wallow.MigrationService`** applies migrations for every environment except `Testing`.
+   `ModuleMigrations.AddModuleDbContexts` registers every context in every registry module against
+   that module's own schema, and `ModuleMigrations.CreateRunners` builds the runners — core modules
+   first and sequentially, feature modules in parallel. This host does **not** honour feature flags:
+   it migrates every module's schema whether or not the API will register it, so a disabled module
+   can be switched back on without a migration step.
 2. **`RunTestMigrationsAsync`** in `api/src/Wallow.Api/WallowModules.cs` is the `Testing`-only
-   in-process path. Add a `MigrateIfRegistered<{Module}DbContext>(sp, featureMigrations);` line
-   alongside the six existing feature contexts, or your integration tests run against a database with
-   no schema for your module.
+   in-process path. It takes the enabled module set as a parameter and migrates each module's
+   `DbContextTypes` from it.
+
+Only the two auditing contexts (`AuditDbContext`, `AuthAuditDbContext`) are still registered by hand
+in `api/src/Wallow.MigrationService/Program.cs`, because they belong to no module.
 
 ---
 
@@ -625,10 +692,11 @@ All of these live under `api/src/Shared/`.
 | PascalCase column names | Always use `.HasColumnName("snake_case")` |
 | Inline ID conversion | Use `StronglyTypedIdConverter<TId>()` |
 | Hand-rolling tenant query filters | Extend `TenantAwareDbContext<TContext>` and call `ApplyTenantQueryFilters(modelBuilder)` |
-| Migrating in `Initialize{Module}ModuleAsync` | Register the context in `Wallow.MigrationService` and in `RunTestMigrationsAsync` |
+| Migrating from module startup code | List the context in `IWallowModule.DbContextTypes`; both migration hosts read it from there |
 | Missing TenantId index | Always index the `tenant_id` column |
 | Domain events not bridged | Create handlers that translate domain events to integration events |
-| Forgetting `WallowModules.cs` | Add both `Add{Module}Module` and `Initialize{Module}ModuleAsync` calls |
+| Forgetting the registry | Add the module to `WallowModuleRegistry.All` — nothing else discovers it |
+| Omitting an assembly from `HandlerAssemblies` | Always declare both `.Application` and `.Infrastructure`, even when one holds no handlers today |
 | Missing design-time factory | Required for `dotnet ef migrations` commands |
 | Missing feature flag | Add `Modules.{Module}` to `appsettings.json` `FeatureManagement` |
 
@@ -656,9 +724,10 @@ All of these live under `api/src/Shared/`.
 - [ ] `dotnet format` run over the solution
 - [ ] Application extensions register validators
 - [ ] Module extensions in Infrastructure layer
-- [ ] Module registered in `WallowModules.cs` with feature flag
-- [ ] Feature flag added to `appsettings.json`
-- [ ] Initial migration created, and the context registered in both `Wallow.MigrationService` and `RunTestMigrationsAsync`
+- [ ] `IWallowModule` implemented, declaring `Name`, `IsCore`, `HandlerAssemblies` (both assemblies), `DbContextTypes`, `SchemaName` and `AddServices`
+- [ ] Module added to `WallowModuleRegistry.All`, and a row added to `_moduleApiAssemblies` in `WallowModules.cs`
+- [ ] Feature flag added to `appsettings.json` as a scalar `true`/`false`
+- [ ] Initial migration created (no migration-host registration needed — both hosts read `DbContextTypes`)
 - [ ] `case` arm added to `resolve_filter()` in `scripts/run-tests.sh`
 - [ ] Tests pass via `./scripts/run-tests.sh`
 - [ ] No direct cross-module references

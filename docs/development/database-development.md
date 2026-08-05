@@ -280,12 +280,15 @@ Each module uses its own PostgreSQL schema:
 | Audit (Shared) | `audit` |
 | Auth Audit (Shared) | `auth_audit` |
 
-Both shared contexts (`AuditDbContext`, `AuthAuditDbContext`) are registered in
-`api/src/Wallow.MigrationService/Program.cs` alongside the seven module contexts.
+The two shared contexts (`AuditDbContext`, `AuthAuditDbContext`) belong to no module, so they are the
+only ones still registered by hand in `api/src/Wallow.MigrationService/Program.cs`. The seven module
+contexts come from `ModuleMigrations.AddModuleDbContexts`, which walks `WallowModuleRegistry.All` and
+registers each module's `DbContextTypes` against its own `SchemaName`.
 
-This is configured in each DbContext:
+A module writes its schema name once, as an `internal const string Schema` on its `IWallowModule`
+implementation; the DbContext and every `MigrationsHistoryTable` call refer to that constant:
 ```csharp
-modelBuilder.HasDefaultSchema("notifications");
+modelBuilder.HasDefaultSchema(NotificationsModule.Schema);
 ```
 
 ### Connection String Configuration
@@ -318,17 +321,8 @@ dotnet ef database update \
     --context NotificationsDbContext
 ```
 
-Migrations do **not** run when the API starts. Module initialization
-(`InitializeNotificationsModuleAsync` and its siblings) is a no-op as far as the database is
-concerned:
-
-```csharp
-public static Task<WebApplication> InitializeNotificationsModuleAsync(
-    this WebApplication app)
-{
-    return Task.FromResult(app);
-}
-```
+Migrations do **not** run when the API starts, and modules have no startup hook to migrate from —
+the per-module `Initialize{Module}ModuleAsync` methods were all no-ops and have been deleted.
 
 Migrations are applied by the separate `Wallow.MigrationService` worker
 (`api/src/Wallow.MigrationService/`), which migrates every module DbContext and then exits.
@@ -344,9 +338,13 @@ available:
 ```csharp
 if (app.Environment.IsEnvironment("Testing"))
 {
-    await RunTestMigrationsAsync(app.Services);
+    await RunTestMigrationsAsync(app.Services, enabledModules);
 }
 ```
+
+`enabledModules` is the exact set `AddWallowModules` registered, so the inline path migrates each
+enabled module's `DbContextTypes` plus the two host-owned auditing contexts — a new module needs no
+line added here.
 
 See [Database Migrations](database-migrations.md) for the full picture.
 

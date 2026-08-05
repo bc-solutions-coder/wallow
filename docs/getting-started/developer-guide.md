@@ -474,37 +474,60 @@ public static class TicketsModuleExtensions
         services.AddTicketsInfrastructure(configuration);
         return services;
     }
-
-    // Initialization is a no-op. Do NOT call MigrateAsync here — see the note below.
-    public static Task<WebApplication> InitializeTicketsModuleAsync(
-        this WebApplication app)
-    {
-        return Task.FromResult(app);
-    }
 }
 ```
 
-> **Modules do not migrate themselves.** All seven `Initialize{Module}ModuleAsync` methods are
-> `return Task.FromResult(app);`. Migrations run through `Wallow.MigrationService` — under Aspire as
-> the `wallow-migrations` project resource, in Compose as the `wallow-migrations` service. The one
-> exception is the `Testing` environment, where `WallowModules.RunTestMigrationsAsync` migrates
-> inline; **register a new module's DbContext there or it gets no schema under test.** See
+> **Modules do not migrate themselves, and they have no startup hook.** Migrations run through
+> `Wallow.MigrationService` — under Aspire as the `wallow-migrations` project resource, in Compose as
+> the `wallow-migrations` service. The one exception is the `Testing` environment, where
+> `WallowModules.RunTestMigrationsAsync` migrates inline; it takes the enabled module set and
+> migrates each module's `DbContextTypes`, so a new module needs no registration there. See
 > [Database Migrations](../development/database-migrations.md).
 
-### Step 6: Register in WallowModules.cs
+### Step 6: Implement IWallowModule and Add It to the Registry
 
-Add the module to `api/src/Wallow.Api/WallowModules.cs`:
+Describe the module once, in its Infrastructure layer:
 
 ```csharp
-// Add using directive at top
-using Wallow.Tickets.Infrastructure.Extensions;
+// api/src/Modules/Tickets/Wallow.Tickets.Infrastructure/Modules/TicketsModule.cs
+public sealed class TicketsModule : IWallowModule
+{
+    internal const string Schema = "tickets";
 
-// In AddWallowModules():
-services.AddTicketsModule(configuration);
+    public string Name => "Tickets";
 
-// In InitializeWallowModulesAsync():
-await app.InitializeTicketsModuleAsync();
+    public bool IsCore => false;
+
+    public IReadOnlyList<Assembly> HandlerAssemblies =>
+    [
+        typeof(CreateTicketHandler).Assembly,  // .Application
+        typeof(TicketsModule).Assembly,        // .Infrastructure
+    ];
+
+    public IReadOnlyList<Type> DbContextTypes => [typeof(TicketsDbContext)];
+
+    public string SchemaName => Schema;
+
+    public IServiceCollection AddServices(
+        IServiceCollection services,
+        IConfiguration configuration,
+        IHostEnvironment environment) =>
+        services.AddTicketsModule(configuration);
+}
 ```
+
+Then add one entry to `WallowModuleRegistry.All` in
+`api/src/Wallow.Modules.Registry/WallowModuleRegistry.cs`:
+
+```csharp
+new TicketsModule(),
+```
+
+That is the whole registration. `Wallow.Api` filters the registry against its
+`FeatureManagement:Modules.*` configuration; `Wallow.MigrationService` takes it unfiltered. The one
+remaining host-side edit is a row in `_moduleApiAssemblies` in `api/src/Wallow.Api/WallowModules.cs`
+naming one of the module's controller types, so a disabled module's routes can be removed — the host
+refuses to start if that table and the registry disagree.
 
 ### Step 7: Create Initial Migration
 
@@ -526,7 +549,10 @@ Then add a shorthand for the new module to the `resolve_filter` case block in `s
 
 ### Handler Discovery
 
-Wolverine automatically discovers handlers in all `Wallow.*` assemblies. No manual registration needed. Just create handlers following Wolverine conventions:
+Wolverine discovers handlers in exactly the assemblies each enabled module declares through
+`IWallowModule.HandlerAssemblies` — there is no assembly scan. Because that list names both the
+module's `.Application` and its `.Infrastructure` assembly, a handler added to either one needs no
+registration of its own. Just create handlers following Wolverine conventions:
 
 ```csharp
 public static class CreateSubmissionHandler
@@ -561,11 +587,11 @@ public static class ExampleModuleExtensions
         services.AddExampleInfrastructure(configuration);
         return services;
     }
-
-    public static Task<WebApplication> InitializeExampleModuleAsync(
-        this WebApplication app) => Task.FromResult(app);
 }
 ```
+
+A stateless module still implements `IWallowModule`; it just returns an empty
+`DbContextTypes` list.
 
 ---
 
@@ -731,8 +757,8 @@ dotnet ef database update \
     --context {Module}DbContext
 ```
 
-> **Nothing migrates at application startup.** `Initialize{Module}ModuleAsync()` is a no-op in every
-> module. `Wallow.MigrationService` applies migrations — as the `wallow-migrations` project resource
+> **Nothing migrates at application startup**, and modules have no startup hook to migrate from.
+> `Wallow.MigrationService` applies migrations — as the `wallow-migrations` project resource
 > under Aspire (`pnpm backend`), and as the `wallow-migrations` service in the Compose, E2E, staging
 > and production stacks. The single exception is the `Testing` environment, where
 > `WallowModules.RunTestMigrationsAsync` migrates inline for Testcontainers. See
