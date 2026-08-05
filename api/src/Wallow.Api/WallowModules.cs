@@ -1,17 +1,10 @@
 // Infrastructure extensions - canonical source for module registration
 using Microsoft.EntityFrameworkCore;
 using Microsoft.FeatureManagement;
-using Wallow.Announcements.Infrastructure.Persistence;
-using Wallow.ApiKeys.Infrastructure.Persistence;
-using Wallow.Branding.Infrastructure.Persistence;
-using Wallow.Identity.Infrastructure.Persistence;
-using Wallow.Inquiries.Infrastructure.Persistence;
 using Wallow.Modules.Registry;
-using Wallow.Notifications.Infrastructure.Persistence;
 using Wallow.Shared.Infrastructure.Core.Auditing;
 using Wallow.Shared.Infrastructure.Modules;
 using Wallow.Shared.Infrastructure.Plugins;
-using Wallow.Storage.Infrastructure.Persistence;
 
 namespace Wallow.Api;
 
@@ -68,7 +61,7 @@ internal static partial class WallowModules
         // spins up a fresh Postgres container with no schema.
         if (app.Environment.IsEnvironment("Testing"))
         {
-            await RunTestMigrationsAsync(app.Services);
+            await RunTestMigrationsAsync(app.Services, enabledModules);
         }
 
         // The seven per-module InitializeXModuleAsync calls that used to live here are gone: all
@@ -104,37 +97,66 @@ internal static partial class WallowModules
         ];
     }
 
-    private static async Task RunTestMigrationsAsync(IServiceProvider services)
+    /// <summary>
+    /// Migrates every context the Testing host needs, given the modules the host actually enabled.
+    /// </summary>
+    /// <param name="services">The host's root service provider.</param>
+    /// <param name="enabledModules">
+    /// The exact set <c>AddWallowModules</c> registered. Every module-owned context comes from here;
+    /// the two auditing contexts belong to no module and stay named explicitly.
+    /// </param>
+    /// <remarks>
+    /// Internal rather than private so a test can drive it with a module list of its own — the only
+    /// way to prove that a module the method does not name is still migrated.
+    /// </remarks>
+    internal static async Task RunTestMigrationsAsync(
+        IServiceProvider services,
+        IReadOnlyList<IWallowModule> enabledModules)
     {
+        ArgumentNullException.ThrowIfNull(enabledModules);
+
         await using AsyncServiceScope scope = services.CreateAsyncScope();
         IServiceProvider sp = scope.ServiceProvider;
 
-        // Core contexts must be migrated first (Identity depends on its schema for seeding)
-        await sp.GetRequiredService<IdentityDbContext>().Database.MigrateAsync();
+        // Core modules migrate first and sequentially, because seeding elsewhere depends on
+        // Identity's schema already existing. Identity is the only core module today, so this loop
+        // runs exactly the line it replaced.
+        IEnumerable<Type> coreContextTypes = enabledModules
+            .Where(module => module.IsCore)
+            .SelectMany(module => module.DbContextTypes);
+
+        foreach (Type contextType in coreContextTypes)
+        {
+            await MigrateContextAsync(sp, contextType);
+        }
+
+        // The two auditing contexts belong to no module (see IWallowModule.DbContextTypes) and so
+        // cannot come from the registry. They stay explicit, in the same position after the core
+        // contexts that this method has always run them in.
         await sp.GetRequiredService<AuditDbContext>().Database.MigrateAsync();
         await sp.GetRequiredService<AuthAuditDbContext>().Database.MigrateAsync();
 
-        // Feature module contexts — only migrate if the module is enabled (registered in DI)
-        List<Task> featureMigrations = [];
-        MigrateIfRegistered<BrandingDbContext>(sp, featureMigrations);
-        MigrateIfRegistered<NotificationsDbContext>(sp, featureMigrations);
-        MigrateIfRegistered<AnnouncementsDbContext>(sp, featureMigrations);
-        MigrateIfRegistered<StorageDbContext>(sp, featureMigrations);
-        MigrateIfRegistered<ApiKeysDbContext>(sp, featureMigrations);
-        MigrateIfRegistered<InquiriesDbContext>(sp, featureMigrations);
+        // Feature module contexts, migrated in parallel. The GetService probe this replaced only
+        // ever guarded against a module being disabled, which enabledModules already encodes
+        // exactly: it is the set AddWallowModules called AddServices on, and no module registers
+        // its DbContext conditionally, so every context named here is registered in this provider.
+        List<Task> featureMigrations =
+        [
+            .. enabledModules
+                .Where(module => !module.IsCore)
+                .SelectMany(module => module.DbContextTypes)
+                .Select(contextType => MigrateContextAsync(sp, contextType)),
+        ];
 
         await Task.WhenAll(featureMigrations);
     }
 
-    private static void MigrateIfRegistered<TContext>(IServiceProvider sp, List<Task> tasks)
-        where TContext : DbContext
-    {
-        TContext? context = sp.GetService<TContext>();
-        if (context is not null)
-        {
-            tasks.Add(context.Database.MigrateAsync());
-        }
-    }
+    /// <summary>
+    /// Resolves and migrates one context named by <see cref="IWallowModule.DbContextTypes"/>, whose
+    /// XML doc contracts that every type in it derives from <see cref="DbContext"/>.
+    /// </summary>
+    private static Task MigrateContextAsync(IServiceProvider sp, Type contextType) =>
+        ((DbContext)sp.GetRequiredService(contextType)).Database.MigrateAsync();
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Wallow modules enabled: {EnabledModules}")]
     private static partial void LogEnabledModules(ILogger logger, string enabledModules);

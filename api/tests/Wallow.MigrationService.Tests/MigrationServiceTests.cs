@@ -20,6 +20,14 @@ public sealed class MigrationServiceTests : IDisposable
     private readonly IMigrationRunner _apiKeysRunner;
     private readonly IMigrationRunner _inquiriesRunner;
 
+    /// <summary>
+    /// The same six runners <see cref="FeatureMigrationRunners"/> is constructed from. Held so that
+    /// "which recorded names are feature modules" is read off the arrangement rather than re-typed
+    /// as a second hardcoded name list. The ordering assertion still reads
+    /// <see cref="_migrationOrder"/>, which only the runtime mock invocations populate.
+    /// </summary>
+    private readonly IReadOnlyList<IMigrationRunner> _featureRunners;
+
     public MigrationServiceTests()
     {
         _lifetime = Substitute.For<IHostApplicationLifetime>();
@@ -35,8 +43,10 @@ public sealed class MigrationServiceTests : IDisposable
         _apiKeysRunner = CreateMockRunner("ApiKeys");
         _inquiriesRunner = CreateMockRunner("Inquiries");
 
+        _featureRunners = [_brandingRunner, _notificationsRunner, _announcementsRunner, _storageRunner, _apiKeysRunner, _inquiriesRunner];
+
         CoreMigrationRunners coreRunners = new([_identityRunner, _auditRunner, _authAuditRunner]);
-        FeatureMigrationRunners featureRunners = new([_brandingRunner, _notificationsRunner, _announcementsRunner, _storageRunner, _apiKeysRunner, _inquiriesRunner]);
+        FeatureMigrationRunners featureRunners = new(_featureRunners);
 
         _worker = new MigrationWorker(
             coreRunners,
@@ -186,16 +196,10 @@ public sealed class MigrationServiceTests : IDisposable
 
     private int GetFirstFeatureModuleIndex()
     {
-        string[] featureModules = ["Branding", "Notifications", "Announcements", "Storage", "ApiKeys", "Inquiries"];
-        int firstIndex = int.MaxValue;
-        foreach (string module in featureModules)
-        {
-            int index = _migrationOrder.IndexOf(module);
-            if (index >= 0 && index < firstIndex)
-            {
-                firstIndex = index;
-            }
-        }
-        return firstIndex == int.MaxValue ? -1 : firstIndex;
+        return _featureRunners
+            .Select(runner => _migrationOrder.IndexOf(runner.ContextName))
+            .Where(index => index >= 0)
+            .DefaultIfEmpty(-1)
+            .Min();
     }
 }
