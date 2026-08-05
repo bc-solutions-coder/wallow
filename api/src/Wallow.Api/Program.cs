@@ -246,12 +246,27 @@ try
         // This prevents conflicts when PersistMessagesWithPostgresql() is used
         opts.Durability.MessageStorageSchemaName = "wolverine";
 
-        // PostgreSQL persistence for durable outbox/inbox (disabled in Testing to prevent polling after containers disposed)
-        if (!builder.Environment.IsEnvironment("Testing"))
+        // PostgreSQL persistence for the durable outbox/inbox. Registered in EVERY environment,
+        // Testing included. Wolverine.EntityFrameworkCore's EfCoreEnvelopeTransaction throws
+        // "This Wolverine application is not using Database backed message persistence" the first
+        // time a transactional handler chain runs against a host with no message store, so a host
+        // without one cannot execute a transactional chain at all — and leaving Testing without a
+        // store would make the transactional path the only path production takes but no test does.
+        // The test host already owns a Testcontainers Postgres (Wallow.Tests.Common's
+        // WallowApiFactory), and Wolverine migrates its own "wolverine" schema into it on startup:
+        // AutoBuildMessageStorageOnStartup defaults to CreateOrUpdate.
+        string pgConnectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("Database connection string not configured");
+        opts.PersistMessagesWithPostgresql(pgConnectionString, "wolverine");
+
+        if (builder.Environment.IsEnvironment("Testing"))
         {
-            string pgConnectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-                ?? throw new InvalidOperationException("Database connection string not configured");
-            opts.PersistMessagesWithPostgresql(pgConnectionString, "wolverine");
+            // Solo mode skips leadership election and node assignment, and starts the durability
+            // agents immediately. Every test class boots its own host against its own throwaway
+            // container, so a second node never exists; Balanced mode would only add its election
+            // round-trips to each of those cold starts. This is JasperFx's own recommendation for
+            // test harnesses (guide/testing.html — "Running Wolverine in Solo Mode").
+            opts.Durability.Mode = DurabilityMode.Solo;
         }
 
         // EF Core transaction integration — enlist Wolverine messages in EF Core transactions
