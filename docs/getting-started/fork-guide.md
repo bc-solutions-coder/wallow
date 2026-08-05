@@ -74,6 +74,47 @@ The entries it covers are:
 
 These files keep your fork's version during upstream merges. Anything outside this list -- including `CLAUDE.md` and `.claude/**` -- merges normally, so expect to resolve conflicts there yourself.
 
+#### The protection is unconditional -- diff these files after every sync
+
+`merge=ours` does not weigh the two sides. It resolves the file to your fork's version and reports
+success: no conflict markers, no merge message, nothing in `git status`. That is exactly what you
+want for the *values* in these files -- your connection strings, your bootstrap admin, your palette
+-- but it applies just as unconditionally to upstream changes to a file's *shape*: a key upstream
+renames, a key upstream deletes, a block upstream adds. Your fork keeps whatever it had, and the
+merge looks clean.
+
+So make "diff the protected files against upstream" a step in every sync. After merging:
+
+```bash
+git ls-files | git check-attr --stdin merge | grep ': merge: ours$' | sed 's/: merge: ours$//' \
+  | xargs git diff upstream/main --
+```
+
+That asks git itself which tracked paths carry `merge=ours` -- so it stays correct if the pattern
+list grows, and it expands `appsettings*.json` to every environment overlay -- then diffs each one
+against upstream's copy. `docker/.env` never appears because it is untracked by design; diff it
+against `docker/.env.example` instead. Everything the command prints is either a deliberate fork
+customization or drift you have not reconciled yet, and only you can tell those apart, so read the
+output rather than automate it. Reconciling is manual by definition: hand-apply the upstream key
+changes you want, and leave your own values in place.
+
+**Worked example -- the `Modules.*` flag cleanup.** Upstream deleted two `FeatureManagement` keys
+from `appsettings.json` and `appsettings.Production.json` -- `Modules.Identity`, which never did
+anything because Identity is a core module and is registered regardless, and
+`Modules.Configuration`, which named a module that has never existed -- along with a dead top-level
+`Wallow:Modules` block that nothing read. A fork that merges that change keeps all three. They are
+inert, so the application behaves identically; they are also a lie about which modules exist, and
+`Wallow.Architecture.Tests` now asserts otherwise. Its `ModuleFeatureFlagTests` loads the real
+checked-in `appsettings*.json` files and fails if the declared `Modules.*` set is anything but
+exactly the non-core modules in `WallowModuleRegistry.All`, or if a second `Wallow:Modules` block is
+present. An unreconciled fork therefore gets a red test suite with no compile error and nothing
+pointing back at the merge that caused it. Delete the stale keys from your copy and it goes green;
+the flags that legitimately remain are described under [Configuring Modules](#configuring-modules).
+
+The same trap bites `branding.json` in the other direction -- a fork whose palette predates a token
+upstream *added* never receives it -- which is why new theme tokens ship with a fallback. See the
+[Configuration Guide](configuration.md).
+
 ---
 
 ## Approach B (Advanced): Full Namespace Rename
