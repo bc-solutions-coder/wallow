@@ -1,5 +1,212 @@
 # Changelog
 
+## [5.0.0](https://github.com/bc-solutions-coder/wallow/compare/v4.0.0...v5.0.0) (2026-08-05)
+
+
+### ⚠ BREAKING CHANGES
+
+* **identity:** CreateAdminRequest requires organizationName. Roles are granted per organization, so an administrator created without one holds no permission anywhere.
+* **announcements:** AnnouncementTarget.Plan no longer exists. Any announcement row stored with target "Plan" will fail to deserialize; re-seed instead.
+* **identity:** IOrganizationService.AddMemberAsync/RemoveMemberAsync and IUserManagementService.AssignRoleAsync/RemoveRoleAsync take a Guid actorId before the CancellationToken.
+* **identity:** OrganizationSettingsDto gains three members and the "user" role no longer carries OrganizationsCreate or OrganizationsUpdate. A fork that wants self-service organization creation grants it on a role of its own.
+* **identity:** POST /v1/identity/invitations now returns 422 Identity.AlreadyAMember when the address already belongs to the organization, and re-inviting returns the existing token rather than a new one.
+* **identity:** IInvitationService.CreateInvitationAsync no longer takes a tenantId; it invites into the caller's own organization.
+* **identity:** POST /v1/identity/invitations/{token}/accept now returns 422 when the caller is not the invited verified user or the invitation has lapsed.
+* **identity:** access tokens are now validated against the token entry on every request, so revoked tokens are refused immediately.
+* **identity:** refuse token issuance for a membership that is not active
+* **identity:** WallowUser has no TenantId, and the person-scoped identity integration events carry a nullable one.
+* **identity:** the auth cookie carries neither org_id nor role claims.
+* **identity:** drop OrgMemberRole in favour of the shared role catalog
+* **identity:** keep global role claims out of the auth cookie
+* **identity:** refreshed tokens carry only the roles the token's own organization grants.
+* **identity:** authorize refuses a client that carries no tenant binding, and role claims are scoped to the client's organization.
+* **identity:** grant the scopes a caller is entitled to instead of refusing the request
+* **identity:** write role assignments to memberships, not the global role store
+* **identity:** gate cross-organization access on per-org permissions
+* **identity:** POST /v1/identity/organizations/{id}/members now requires a "role" field naming the role granted in that organization.
+* packages/web-shell no longer exists. Its createQueryClient() moved to @bc-solutions-coder/query and its current-user helpers moved to @bc-solutions-coder/auth; consumers must switch imports to the new packages.
+* @bc-solutions-coder/sdk drops its h3 dependency and collapses its hand-written surface. The server entry now exports web-standard Request to Response handlers instead of h3 EventHandlers, and consumers must construct a per-request client with createWallowSdk() rather than importing a module-global singleton. The operation and query surfaces are generated, so hand-written wrappers and inline query keys are gone; all query keys come from the generated factory.
+
+### Features
+
+* add packages/query and packages/auth, delete packages/web-shell ([521fd1b](https://github.com/bc-solutions-coder/wallow/commit/521fd1bc09d843c1a7cc5b37bd3d0bf69cd1dea6))
+* **auth:** add the zone alias map and its tsconfig pin test ([eedddfe](https://github.com/bc-solutions-coder/wallow/commit/eedddfef5831a7f227b05d600c682d2f418ba914))
+* **auth:** migrate password recovery forms to the forms package ([c5d72a9](https://github.com/bc-solutions-coder/wallow/commit/c5d72a9fd46ebe9c63cb9c1fdf49866532ec70a3))
+* **auth:** resolve the zone aliases in vite and vitest ([2dff070](https://github.com/bc-solutions-coder/wallow/commit/2dff070123cb5af3585349955235e44275666def))
+* **auth:** support serving under a base path for path-hosted deployments ([b343b65](https://github.com/bc-solutions-coder/wallow/commit/b343b656c398673259b7b8f98480e5ed7e2e0a60))
+* **branding:** restore the cream and gold palette and add docsUrl ([a841b50](https://github.com/bc-solutions-coder/wallow/commit/a841b506e70c9d96f5827e6f57c12fec900d43ed))
+* **docker:** fail closed on missing production secrets, add a bootstrap script ([8dc960d](https://github.com/bc-solutions-coder/wallow/commit/8dc960de72fe29d92586fd94855a6e324959e30c))
+* **docker:** reference Caddy ingress, loopback port bindings, hex secrets for production compose ([5f8dce4](https://github.com/bc-solutions-coder/wallow/commit/5f8dce48c9849a237a729507828097853d99f0e1))
+* **env:** add @bc-solutions-coder/env and rewire the apps onto it ([188bfc9](https://github.com/bc-solutions-coder/wallow/commit/188bfc9e2c7024b1954db03660677f538a918c9e))
+* **forms:** add form core contexts, testids and error normalization ([cb0da09](https://github.com/bc-solutions-coder/wallow/commit/cb0da096024bdde6fe405cad36e34733c614f44e))
+* **forms:** add the AppForm shell, SubmitButton and FormError ([4e0ec6a](https://github.com/bc-solutions-coder/wallow/commit/4e0ec6a138b35eafa944432af579070d85fd22b5))
+* **forms:** add the catalog field components ([9892047](https://github.com/bc-solutions-coder/wallow/commit/9892047b7615f5099feef7ad3d067ede52825e87))
+* **forms:** add the useAppForm hook ([f0b6677](https://github.com/bc-solutions-coder/wallow/commit/f0b667758473f50cc92d7c78110ec42a223f43d0))
+* **forms:** export public surface ([5a66ab4](https://github.com/bc-solutions-coder/wallow/commit/5a66ab4b349e92872130e2d8b0c8948e5a511f7a))
+* **forms:** revalidate flagged fields as the user types ([fb16178](https://github.com/bc-solutions-coder/wallow/commit/fb161782d40cca16a90c8c272703fbb9f52e89a9))
+* **forms:** scaffold the @bc-solutions-coder/forms package ([a9d33a9](https://github.com/bc-solutions-coder/wallow/commit/a9d33a93558050e40c40170d84b665dde8187e43))
+* **hosting:** add WorkerRunOutcome for one-shot worker exit codes ([ffb7469](https://github.com/bc-solutions-coder/wallow/commit/ffb7469065fe2e19feba66c6423e4883f87bead0))
+* **identity:** add membership approve, deny, suspend and reinstate ([60fd0e1](https://github.com/bc-solutions-coder/wallow/commit/60fd0e1ced6b85bb5640fdb4457261d9fc5bec3b))
+* **identity:** add per-organization enrollment policy ([3fda0a6](https://github.com/bc-solutions-coder/wallow/commit/3fda0a6bb612e7dedbb794ef25a7964ba9538941))
+* **identity:** add the access-requested integration event ([a53ccba](https://github.com/bc-solutions-coder/wallow/commit/a53ccba0b2107db7b5d48aa2d1b3a614dcd32a72))
+* **identity:** add the Membership aggregate carrying per-org authorization ([aa86667](https://github.com/bc-solutions-coder/wallow/commit/aa866677fbbd091fe763a34ff2f91df7b1de5072))
+* **identity:** add the membership repository ([d95b314](https://github.com/bc-solutions-coder/wallow/commit/d95b31406876c8c7593e73edc9adcd9b7d2bfbe2))
+* **identity:** decide enrollment in a service, not a controller branch ([d9e42e9](https://github.com/bc-solutions-coder/wallow/commit/d9e42e97285772a29741ce97367aa0a42f3ae123))
+* **identity:** describe every scope on the consent screen ([496eeea](https://github.com/bc-solutions-coder/wallow/commit/496eeea430791f63c47b85352272639eeac5ff0f))
+* **identity:** drop identity.user_roles and give bootstrap an organization ([3a0099a](https://github.com/bc-solutions-coder/wallow/commit/3a0099acf5f2e02e55ab57b81b8e1d8fdb8ecdd6))
+* **identity:** emit audit events for every membership transition ([eb8f101](https://github.com/bc-solutions-coder/wallow/commit/eb8f10173d203674c33f4f2481a87ef2e179c2d6))
+* **identity:** grant a client the scopes it may request ([7bbe3ad](https://github.com/bc-solutions-coder/wallow/commit/7bbe3ad21a146831dc265da9ed31500f06bffb46))
+* **identity:** keep an organization from losing its last owner ([fa80e5f](https://github.com/bc-solutions-coder/wallow/commit/fa80e5ffa3644908649987e67b54c05b82853c62))
+* **identity:** let a denial expire instead of standing forever ([1ce5856](https://github.com/bc-solutions-coder/wallow/commit/1ce58565898442ee7113f0004280ed8f55352af3))
+* **identity:** let a member leave an organization ([508febc](https://github.com/bc-solutions-coder/wallow/commit/508febc4bd8c505ae206e28a96bb00205b47fec4))
+* **identity:** list suspended and denied memberships per organization ([c06797e](https://github.com/bc-solutions-coder/wallow/commit/c06797ee8ae849a3a7ddc82cf6778740bd82a3df))
+* **identity:** persist memberships and their per-org role assignments ([07c36f2](https://github.com/bc-solutions-coder/wallow/commit/07c36f2a54916905efa66a8d0f934e7c343cd6e5))
+* **identity:** refuse token issuance for a membership that is not active ([764f04c](https://github.com/bc-solutions-coder/wallow/commit/764f04c9841b19758a9bde1c2502875108162e21))
+* **identity:** report the signed-in organization on userinfo ([4965ae1](https://github.com/bc-solutions-coder/wallow/commit/4965ae1ed2e902f043707e85a0f8444d5ced6613))
+* **identity:** resolve role names per (user, organization) ([1d06b18](https://github.com/bc-solutions-coder/wallow/commit/1d06b18c8de349eb9c829fea17ff603b8e32ac27))
+* **identity:** revoke access when a membership leaves active ([e03f668](https://github.com/bc-solutions-coder/wallow/commit/e03f668d85b2734f2f93e00acea093d70c3e68e1))
+* **identity:** seed explicit per-organization memberships and roles ([ec6681f](https://github.com/bc-solutions-coder/wallow/commit/ec6681f8f1b2452ed129fdcef64042869d3ee2e5))
+* **identity:** seed how each organization admits people ([5f2371a](https://github.com/bc-solutions-coder/wallow/commit/5f2371af11de1697c84a5cd9e7166d452ae66c99))
+* **identity:** stop granting membership from anonymous registration ([4b7b45f](https://github.com/bc-solutions-coder/wallow/commit/4b7b45f7110836256f4140c46564fac3be83d595))
+* **identity:** tell a person which organizations they belong to ([137f960](https://github.com/bc-solutions-coder/wallow/commit/137f9600e3c636b0977a461e453382876425c96a))
+* **logger:** add @bc-solutions-coder/logger and wire both apps ([b03d7ea](https://github.com/bc-solutions-coder/wallow/commit/b03d7ea013bb3f8248f64b5812fbc02c3449b0b1))
+* migrate apps to tanstack start and streamline sdk ([cc8311e](https://github.com/bc-solutions-coder/wallow/commit/cc8311e38f36d186dfa8b79a5933d3d615b5ed75))
+* **navigation:** extract the app shell into @bc-solutions-coder/navigation ([53da0f7](https://github.com/bc-solutions-coder/wallow/commit/53da0f7b41092033f2b1391b6a16a6248d34e038))
+* **notifications:** email an organization's reviewers when someone requests access ([e093db1](https://github.com/bc-solutions-coder/wallow/commit/e093db14695594900c4a82c706574bf4ebe95611))
+* **sdk:** expose rfc 7807 field errors on WallowError ([3a15ad8](https://github.com/bc-solutions-coder/wallow/commit/3a15ad8b971e811921b9b6eac628347c333f4f31))
+* **sdk:** regenerate OpenAPI snapshot and typed client ([002c2c8](https://github.com/bc-solutions-coder/wallow/commit/002c2c8632e19396b2b1c51c71837d3bc37b101b))
+* **styles:** add sidebar and success semantic tokens ([165bc6a](https://github.com/bc-solutions-coder/wallow/commit/165bc6a215c810942f8c61e057fb76e46dbd2f33))
+* **styles:** add the warning token pair ([e11dd02](https://github.com/bc-solutions-coder/wallow/commit/e11dd02da044022f6f67252372479991b2e73fa6))
+* **styles:** resolve the fork's outbound links from the environment ([8f3036d](https://github.com/bc-solutions-coder/wallow/commit/8f3036d975e2e9ee7f8a6b1742762a5433f2595f))
+* **testing:** add console guard with consume-based error assertions ([b419be5](https://github.com/bc-solutions-coder/wallow/commit/b419be5040fecc1dc0e064d7038fc90df1232844))
+* **testing:** add consume-based hand-off assertions and wire wallow-auth navigation guard ([26be562](https://github.com/bc-solutions-coder/wallow/commit/26be562fe21e9d34527e02f5db944deeb2bf7e08))
+* **testing:** add network-escape guard blocking unharnessed fetch ([39b03f8](https://github.com/bc-solutions-coder/wallow/commit/39b03f880d8256eee8ad410e16494dfb41d44c2c))
+* **ui:** add CardHeader ([639d1ab](https://github.com/bc-solutions-coder/wallow/commit/639d1aba71f16a66d73e88cd4d1ba5fb257efffe))
+* **ui:** add NoticeBanner for success and warning notices ([44b98d7](https://github.com/bc-solutions-coder/wallow/commit/44b98d76ac3b11e10c4a5ce18eb71dbbcda2c69e))
+* **ui:** add QuietLink for muted footer and back links ([488a8ff](https://github.com/bc-solutions-coder/wallow/commit/488a8ffedcefd95abcc2586baff7e1f949715372))
+* **ui:** add textarea component ([b3cc74d](https://github.com/bc-solutions-coder/wallow/commit/b3cc74da54c9eed5f481ff1c674950f31e68b0ae))
+* **ui:** add the EmptyState component ([72f665b](https://github.com/bc-solutions-coder/wallow/commit/72f665bd70bf23940280937600c13442e3914a23))
+* **ui:** add the PageHeader component ([e3e84aa](https://github.com/bc-solutions-coder/wallow/commit/e3e84aaa2e18b035a224c28180dc46fb53aa63f5))
+* **ui:** add the Text component ([58455d5](https://github.com/bc-solutions-coder/wallow/commit/58455d59f0fda8f3a85d0293f1bc4ca890213b28))
+* **ui:** adopt 20px (text-xl) as the catalog-wide card-heading standard ([dd49f14](https://github.com/bc-solutions-coder/wallow/commit/dd49f14aab112254cedae56819fd764835f5b158))
+* **ui:** rebuild @bc-solutions-coder/ui as a Base UI + CVA catalog ([79dbb80](https://github.com/bc-solutions-coder/wallow/commit/79dbb80a1bab6475346da54de931d869788313ce))
+* **ui:** upgrade the Button recipe with outline/ghost/link, sizes, and focus states ([741aa22](https://github.com/bc-solutions-coder/wallow/commit/741aa223df8c9e328eccbfa3fc7470d00313a1c7))
+* **utils:** add @bc-solutions-coder/utils and rewire the apps onto it ([bc7c5c7](https://github.com/bc-solutions-coder/wallow/commit/bc7c5c734302c7888def234445c5cbce846345a7))
+* **wallow-auth:** add the AuthScreen shell ([df8fbea](https://github.com/bc-solutions-coder/wallow/commit/df8fbea18b8cc626af20724816711a1e192574af))
+* **wallow-auth:** add the shared useReturnUrlGuard hook ([c09097a](https://github.com/bc-solutions-coder/wallow/commit/c09097a282205f974c027c6acd4ac3a3d895be07))
+* **wallow-auth:** give a pending join request its own screen ([c18c21c](https://github.com/bc-solutions-coder/wallow/commit/c18c21ca9acd10f110d593a5bae4f8a9a97b1bb4))
+* **wallow-web:** add member role management screen with own-org gate ([c719272](https://github.com/bc-solutions-coder/wallow/commit/c71927287ac081a579c3d26e7cdc64c6d1dcd798))
+* **wallow-web:** add member-facing leave-organization screen ([1175333](https://github.com/bc-solutions-coder/wallow/commit/1175333ff043a05a651e691364a94debb69c027a))
+* **wallow-web:** add pending-request review and invitation screens ([d2ebf1e](https://github.com/bc-solutions-coder/wallow/commit/d2ebf1edc85201ffdde4ff33e3998e0dc050f624))
+* **wallow-web:** migrate org-detail route to $orgId directory form ([b1479af](https://github.com/bc-solutions-coder/wallow/commit/b1479afe2664f8935ec9f2371c81313a0d34e9df))
+* **web:** add an oxlint gate enforcing the catalog migration ([a315558](https://github.com/bc-solutions-coder/wallow/commit/a315558b2ae40f1411e71f05b50f307de90d4dd7))
+* **web:** add sidebar with expanded, icon-rail, and mobile overlay modes ([ca7c258](https://github.com/bc-solutions-coder/wallow/commit/ca7c258d99f7b69d572034104f4ef5eb6513752b))
+* **web:** add the ported Blazor landing page body ([6177a64](https://github.com/bc-solutions-coder/wallow/commit/6177a642c8b489310d08decc75ba3eb93245274b))
+* **web:** add the zone alias map and its tsconfig pin test ([2434359](https://github.com/bc-solutions-coder/wallow/commit/2434359d51075cb4e034f255b124e316f43262e2))
+* **web:** migrate dashboard forms to the forms package ([cf747fd](https://github.com/bc-solutions-coder/wallow/commit/cf747fdd88d14227411375b54225d74fd9c71a78))
+* **web:** migrate wallow-web page shells, lists, text, and forms onto the catalog ([9c20721](https://github.com/bc-solutions-coder/wallow/commit/9c20721548dd4902a54fe6b2c994f3df3265e60d))
+* **web:** name every unlabelled control and drop the bare textarea ([2acfab0](https://github.com/bc-solutions-coder/wallow/commit/2acfab0110e88459779c0c09d1713c242f3a93d7))
+* **web:** navigate the apps register CTA client-side ([9bdb6a0](https://github.com/bc-solutions-coder/wallow/commit/9bdb6a0c412b7adc5a89fa85fd82343931aa0028))
+* **web:** navigate to detail routes from list rows ([ebe0def](https://github.com/bc-solutions-coder/wallow/commit/ebe0def2c109af3389ba31c86428ad0b486cfc26))
+* **web:** pin heading variants with text-heading-variant ([a480973](https://github.com/bc-solutions-coder/wallow/commit/a4809732b029c1448e3185d9fd4e03b2350fb971))
+* **web:** render an error state for every query ([a1bce54](https://github.com/bc-solutions-coder/wallow/commit/a1bce54744d910af4f7e1e164bbd4d624846ec55))
+* **web:** resolve org members by email in a searchable picker ([e4d8659](https://github.com/bc-solutions-coder/wallow/commit/e4d86591044e758d6eb884c94990c3ddfc89dffa))
+* **web:** resolve the zone aliases in vite and vitest ([3059192](https://github.com/bc-solutions-coder/wallow/commit/3059192f3cd6d7122b5f12c939cf1dbfca949a89))
+* **web:** restore the original marketing landing page ([6b44912](https://github.com/bc-solutions-coder/wallow/commit/6b4491268aab79337ee37a3a6b7a42cf40bb1d4b))
+* **web:** sweep the last raw text elements out of bff-demo ([a94cb9d](https://github.com/bc-solutions-coder/wallow/commit/a94cb9de79616fdbd4dcdf1b330f24f04fed4469))
+* **web:** wire membership screens into nav and org detail ([09eb4d7](https://github.com/bc-solutions-coder/wallow/commit/09eb4d73639b12d1df23541e9f034f02e2c5f32b))
+
+
+### Bug Fixes
+
+* align tanstack router-plugin with router-cli ([7426a74](https://github.com/bc-solutions-coder/wallow/commit/7426a74751ad8a697342bab8a7512c6671c8e661))
+* **announcements:** remove plan targeting and the claim nothing issues ([dbf2d2b](https://github.com/bc-solutions-coder/wallow/commit/dbf2d2baa639c232e1e855b53d7008a82afdd2fe))
+* **api:** collapse each module's schema name to one constant ([0f3e3b0](https://github.com/bc-solutions-coder/wallow/commit/0f3e3b00a1e2136de2a87065789623be9eb19921))
+* **api:** commit handler writes and cascaded messages together ([a2eec93](https://github.com/bc-solutions-coder/wallow/commit/a2eec93ca37b4962cfae81eb5abdfa980e3924c9))
+* **api:** give each handler its own chain and retry loop ([4800cd6](https://github.com/bc-solutions-coder/wallow/commit/4800cd6ff8b1b6267770579f4e2bef06bfc3ebd3))
+* **api:** keep OpenIddict endpoints relative so PathBase survives, raise dev-only passwordless rate limit ([551066a](https://github.com/bc-solutions-coder/wallow/commit/551066a94d9b88346f01b647a37bdffa7b234877))
+* **api:** pin the Wolverine application assembly explicitly ([3c7d161](https://github.com/bc-solutions-coder/wallow/commit/3c7d161b3f3cf099c9c527ffbf063ebeb21305c7))
+* **api:** register fluentvalidation validators once per command ([0a3aff8](https://github.com/bc-solutions-coder/wallow/commit/0a3aff83162a9f1c21cca7e51882531a6f8e2b4b))
+* **api:** stop routing a disabled module's controllers ([4f9b0f1](https://github.com/bc-solutions-coder/wallow/commit/4f9b0f1051a4af3974f8267ebffe01a5fb0d8e8e))
+* **apphost:** disable Secure BFF cookies for plain-http local dev ([08872a6](https://github.com/bc-solutions-coder/wallow/commit/08872a65f335105dfa146ee44c691e0bc9355e54))
+* **apphost:** hand wallow-web a REDIS_URL so dev uses Valkey sessions like prod ([3920383](https://github.com/bc-solutions-coder/wallow/commit/3920383684a3a40715ae50e9c32ce15f596bdcd7))
+* **apphost:** serve the React apps unproxied and align the OIDC issuer ([6cba455](https://github.com/bc-solutions-coder/wallow/commit/6cba455dc1af1550618762e959356a7754987014))
+* **apps:** name server-only modules *.server.* so import protection fires ([3d5d687](https://github.com/bc-solutions-coder/wallow/commit/3d5d687008c81ef14254ec386ed660f636093318))
+* **auth:** standardize wallow-auth card headings to one 16px scale ([23408a9](https://github.com/bc-solutions-coder/wallow/commit/23408a9cc434fb4db11e9685b7e5b4d22a4d3f48))
+* **branding:** bypass the tenant filter in the client-branding lookup ([a284b02](https://github.com/bc-solutions-coder/wallow/commit/a284b021adc0dec1a647a85dffe627c36f23227e))
+* **build:** run build before typecheck and test in the check gate ([de08d2a](https://github.com/bc-solutions-coder/wallow/commit/de08d2a68ada87c03edcd4dbc1494e4da38ed8fd))
+* **docker:** disable Secure cookies in the plain-http e2e stack ([a126bd8](https://github.com/bc-solutions-coder/wallow/commit/a126bd82412ca5cf93738480930161c7822f4024))
+* **docker:** make the COOKIE_PASSWORDS rotation example non-destructive ([84eb7df](https://github.com/bc-solutions-coder/wallow/commit/84eb7df7407481c4fa46cdef97179d1fb31eb426))
+* **docs:** make docs/toc.yml the single site-root toc and guard it ([f0af8d4](https://github.com/bc-solutions-coder/wallow/commit/f0af8d4d678fb33de3ba5072cf94039221cc83cd))
+* **docs:** restore the frontend state boundary the CLAUDE.md split dropped ([99d090b](https://github.com/bc-solutions-coder/wallow/commit/99d090b419d1fc10a1e55b76e60a64c9f4653e74))
+* **e2e:** derive mailpit and auth origins from the backend, not the serving mode ([02c4e26](https://github.com/bc-solutions-coder/wallow/commit/02c4e26d8aeb3413b283c187e95e1568ce90b90a))
+* **e2e:** isolate the test compose project from the dev-infra stack ([bd6b5a2](https://github.com/bc-solutions-coder/wallow/commit/bd6b5a25687e9c2b9ed109c9c1d7bd76da4dcf92))
+* **forms:** thread the mutation error type through useAppForm ([7157483](https://github.com/bc-solutions-coder/wallow/commit/7157483e9c6136c477e34f091ca3b1484a70f2d0))
+* **identity:** bind invitation acceptance to the invited verified email and create the membership ([ffe56f8](https://github.com/bc-solutions-coder/wallow/commit/ffe56f84fffd430f8c373f946724e767ea4840e2))
+* **identity:** carry an invitation returnUrl through registration ([2cc7074](https://github.com/bc-solutions-coder/wallow/commit/2cc7074811d69483a00cca33fa3008a628999cf5))
+* **identity:** carry tenant identity on org_id alone ([2265cdf](https://github.com/bc-solutions-coder/wallow/commit/2265cdfda1e31fb54ecc1da88c057d0739d7f9ff))
+* **identity:** delete removed clients after the list reader closes ([b7b0f31](https://github.com/bc-solutions-coder/wallow/commit/b7b0f31dbf6d4dc4a7b073f19bb6d4f363c11ac3))
+* **identity:** evaluate MFA exemption against every active membership ([c47959e](https://github.com/bc-solutions-coder/wallow/commit/c47959e79100f747758eb8f4c26a27b87abd8357))
+* **identity:** gate cross-organization access on per-org permissions ([73db37b](https://github.com/bc-solutions-coder/wallow/commit/73db37b1935ff7fc771a29b8da1a4e9413b99442))
+* **identity:** grant the scopes a caller is entitled to instead of refusing the request ([14f77af](https://github.com/bc-solutions-coder/wallow/commit/14f77af4a76e599062e84c4d06ccc7a5ebaad6eb))
+* **identity:** issue org-scoped roles from the authorize endpoint ([8071315](https://github.com/bc-solutions-coder/wallow/commit/8071315cbeb2200093f7b12d9cbafdc03ac6be6d))
+* **identity:** keep global role claims out of the auth cookie ([f2c9690](https://github.com/bc-solutions-coder/wallow/commit/f2c9690acbd9f3bd7ce8a173164aed11cde5c07a))
+* **identity:** keep one live invitation per email and organization ([9dc7cd7](https://github.com/bc-solutions-coder/wallow/commit/9dc7cd782c781e7d9c79928b3592cc003901c564))
+* **identity:** re-check membership status on the refresh grant ([14e4eba](https://github.com/bc-solutions-coder/wallow/commit/14e4ebab611d968286ce98e61affdeca9494cff8))
+* **identity:** record who granted membership and roles, not the subject ([ac214e1](https://github.com/bc-solutions-coder/wallow/commit/ac214e108863e4b76e1328886f0e726c03c4cce9))
+* **identity:** register ILastOwnerGuard in the seeder's DI container ([5a26b0c](https://github.com/bc-solutions-coder/wallow/commit/5a26b0c0f6735c5b44cee5a6881ff03ba7d47ea8))
+* **identity:** reject invitation acceptance from an unverified registration ([b5b8044](https://github.com/bc-solutions-coder/wallow/commit/b5b804433a9e0e8957cd8d1d089d25f842d2da46))
+* **identity:** resolve invitations outside the ambient tenant ([6726b5d](https://github.com/bc-solutions-coder/wallow/commit/6726b5d498c62b58015cc94c7e23d7401daf65cc))
+* **identity:** resolve org-scoped roles on the refresh grant ([728a70a](https://github.com/bc-solutions-coder/wallow/commit/728a70a049505261cb3e6f507214762d33274c9b))
+* **identity:** scope invitation queries on their own parameters ([08fb7ff](https://github.com/bc-solutions-coder/wallow/commit/08fb7ff23f67b5c12f785a4aff2d71cdb9ff987b))
+* **identity:** stop permission expansion granting across or without a tenant ([0892647](https://github.com/bc-solutions-coder/wallow/commit/0892647f9acae626b1f08d854beb5e54bffac25b))
+* **identity:** validate enrollment requests on the constructor parameter ([fb0d5a7](https://github.com/bc-solutions-coder/wallow/commit/fb0d5a74a78c5cea5b66ed3b0381dd96df36e083))
+* **identity:** write role assignments to memberships, not the global role store ([58e11f7](https://github.com/bc-solutions-coder/wallow/commit/58e11f7c72787862e2bd4eff2403eb9669a9819a))
+* **inquiries:** type the 201 response on inquiry comment creation ([8eeea2d](https://github.com/bc-solutions-coder/wallow/commit/8eeea2df7d83de76d732f455577428de4c31652c))
+* link the dev stylesheet so first paint is styled ([fe83631](https://github.com/bc-solutions-coder/wallow/commit/fe836318bdff9a317fb37fa2bc5035dc49bc1634))
+* **lint:** clear the diagnostics the inherited config surfaced ([7af64f7](https://github.com/bc-solutions-coder/wallow/commit/7af64f7f2af6c0cf37dd814f9781420a8158e684))
+* **lint:** inherit the root oxlint config in ui and forms ([41610cd](https://github.com/bc-solutions-coder/wallow/commit/41610cdb9d2af66b3dae89b5f235e5b02ac9627d))
+* **lint:** register the wallow/* plugin in navigation, ui and forms ([d600e25](https://github.com/bc-solutions-coder/wallow/commit/d600e25f4566047adfe67a944fddfd71c2315a05))
+* **logger:** derive the ingest client IP from the host, not a header ([d343968](https://github.com/bc-solutions-coder/wallow/commit/d343968eb9622cf353b13203aef62b8697b27f8e))
+* **migrations:** exit non-zero when a migration fails ([2bef239](https://github.com/bc-solutions-coder/wallow/commit/2bef239e2907436be0fcd3c63f6bde54303c440c))
+* **notifications:** make the preference checker public so sends generate ([f62c221](https://github.com/bc-solutions-coder/wallow/commit/f62c2214c922c3c2ad11ffa0884d78117d5e9a56))
+* **observability:** point the Node logger at Alloy's HTTP port ([e4f3616](https://github.com/bc-solutions-coder/wallow/commit/e4f361642f7c6cabed68f5137d4bcca5bf96e781))
+* pin js-yaml to ^4.3.0 via pnpm override ([760bce2](https://github.com/bc-solutions-coder/wallow/commit/760bce26dd6d9bed194403c93f808111b6eee1f7))
+* replace stale localhost:5000 fallbacks with the real service urls ([74be8e8](https://github.com/bc-solutions-coder/wallow/commit/74be8e8d7e93298bbe92962006aa45e295298995))
+* **scripts:** make run-tests.sh reach every integration assembly ([5d03093](https://github.com/bc-solutions-coder/wallow/commit/5d0309315b6b19fcec343daece862638e7c9c2c3))
+* **sdk:** fail at boot on a too-short COOKIE_PASSWORD ([3438efc](https://github.com/bc-solutions-coder/wallow/commit/3438efc7a9828bdf941e4c467410a086200dfecb))
+* **sdk:** fall back to the double-submit cookie in the CSRF interceptor ([4d3aec4](https://github.com/bc-solutions-coder/wallow/commit/4d3aec498ed1d8679e80709038458286977af427))
+* **sdk:** forward the real client IP through the BFF api proxy ([01ce6fb](https://github.com/bc-solutions-coder/wallow/commit/01ce6fb08027dca097be6758ce2b669549617242))
+* **sdk:** idempotent logout, cookie-password rotation, refresh coalescing, and split-horizon URL pinning ([acb1794](https://github.com/bc-solutions-coder/wallow/commit/acb1794169d7ca2bab5effbabe83fe29e342031d))
+* **sdk:** preserve the issuer path when pinning browser-facing OIDC endpoints ([3a3c192](https://github.com/bc-solutions-coder/wallow/commit/3a3c192cd2a62a7be2adf03601a1926cb341a88e))
+* **sdk:** read a blank COOKIE_NAME as unset, and surface the BFF's remaining knobs ([3520ff1](https://github.com/bc-solutions-coder/wallow/commit/3520ff155049328e3b4505abfce842759854424e))
+* **seeder:** exit non-zero when a seed step fails ([62bcb9e](https://github.com/bc-solutions-coder/wallow/commit/62bcb9e262421bdc2c54a1e85ddb5ba860052e02))
+* **styles:** resolve branding asset urls under the app base path ([151a2cb](https://github.com/bc-solutions-coder/wallow/commit/151a2cb4ad938fbf83bf5cb44e1e2e8bc1a6e8a2))
+* **styles:** serve the fork theme as a virtual stylesheet for test harnesses ([1eba844](https://github.com/bc-solutions-coder/wallow/commit/1eba8446399f0b808cee0a553789359c50edd5c9))
+* **testing:** budget the node project for the cold route-graph import ([5981e15](https://github.com/bc-solutions-coder/wallow/commit/5981e15c1a106a3dbf656ba1f44c95a9c5e07eab))
+* **testing:** emit types for the console and network guards ([a8892f8](https://github.com/bc-solutions-coder/wallow/commit/a8892f86d2578ee42ec49e0592ad4f21037fabec))
+* **tests:** expect the wallow-auth origin as the dev OIDC issuer ([4ea2e07](https://github.com/bc-solutions-coder/wallow/commit/4ea2e07dd5304d3c918fc768185ba71cb569063e))
+* **ui:** add a surface axis to fix illegible sidebar-composed controls ([eca77a5](https://github.com/bc-solutions-coder/wallow/commit/eca77a5e5ad7be3f4aa9a09556f873b5e4c3bbaa))
+* **ui:** fix contrast on the sidebar navigation menu trigger ([f5e3d92](https://github.com/bc-solutions-coder/wallow/commit/f5e3d92dcd13e5f49ca7bbd718e22b7fff4b5f83))
+* **ui:** let composed anchors announce as links, not buttons ([de9dd46](https://github.com/bc-solutions-coder/wallow/commit/de9dd46764df2dec23699a78144d5ca8b84c2c8c))
+* **ui:** match select popup width to trigger and add a default chevron ([da4c171](https://github.com/bc-solutions-coder/wallow/commit/da4c171c04c2418602dfa351b6a2aee49d88bd24))
+* **ui:** settle the promise toast on demand so loading is observable ([baee3ed](https://github.com/bc-solutions-coder/wallow/commit/baee3edc7c2f032d477e6e0d2264e756c5952a3e))
+* **ui:** stamp document.documentElement for scheme-scoped stories ([671d5b8](https://github.com/bc-solutions-coder/wallow/commit/671d5b8e926b160a68229bb8e15e3cd5028109ed))
+* **wallow-web:** settle the heading-scale spec on its loaded sections ([a912511](https://github.com/bc-solutions-coder/wallow/commit/a91251195309ee308396fb61db1a0209f2fff535))
+* **web,auth:** keep one React Query instance in the SSR bundle ([185f9bb](https://github.com/bc-solutions-coder/wallow/commit/185f9bba401e354c35e9bd31a6c61ee2ad402aad))
+* **web:** apply register-app branding as a post-register upsert ([fec26f9](https://github.com/bc-solutions-coder/wallow/commit/fec26f9fe01eeda173962c270b3e024aa53d8b25))
+* **web:** derive the SSR origin scheme from x-forwarded-proto ([ade57df](https://github.com/bc-solutions-coder/wallow/commit/ade57df5035a3ffe7662d214c4d693d516de28f3))
+* **web:** point repository and docs links at the fork ([4c45286](https://github.com/bc-solutions-coder/wallow/commit/4c4528627ddd0a3e872eabaf07faec2718f599f2))
+* **web:** replace the typography guard's regex comment-stripper ([0f263f9](https://github.com/bc-solutions-coder/wallow/commit/0f263f99b390ff2860630cc32341d455e4e1b7ca))
+* **web:** resolve the mobile-nav SSR flash via a CSS breakpoint ([69aea1b](https://github.com/bc-solutions-coder/wallow/commit/69aea1b0cabbed2fb0a6bae176f52b8a792cfcca))
+
+
+### Code Refactoring
+
+* **identity:** drop OrgMemberRole in favour of the shared role catalog ([2dbd4d7](https://github.com/bc-solutions-coder/wallow/commit/2dbd4d7859d14f610085568bb53e539721a56697))
+* **identity:** drop the frozen home tenant from WallowUser ([77bf14c](https://github.com/bc-solutions-coder/wallow/commit/77bf14cf2dd93916860763620e2a9dc6e313db18))
+* **identity:** read and write organization members through memberships ([d1eaa3d](https://github.com/bc-solutions-coder/wallow/commit/d1eaa3d57a8527808338f7b58655f26d19b3a44e))
+
 ## [4.0.0](https://github.com/bc-solutions-coder/wallow/compare/v3.2.1...v4.0.0) (2026-07-26)
 
 
