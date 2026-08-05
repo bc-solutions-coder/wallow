@@ -15,7 +15,7 @@ namespace Wallow.Architecture.Tests.Modules;
 public class ModuleToggleTests
 {
     [Fact]
-    public void DisabledModule_ShouldNotRegister_Services()
+    public void CoreModule_ShouldStillRegister_WhenFeatureFlagDisabled()
     {
         ServiceCollection services = new();
         IConfiguration configuration = new ConfigurationBuilder()
@@ -38,7 +38,30 @@ public class ModuleToggleTests
 
         hasIdentityDbContext.Should().BeTrue(
             "Identity module is a required platform dependency and should always be registered");
+    }
 
+    [Fact]
+    public void OptionalModules_ShouldNotRegister_WhenFeatureFlagsDisabled()
+    {
+        ServiceCollection services = new();
+
+        // Only the flags under test are set: every optional module is off unless its flag says otherwise,
+        // so this covers both an explicit "false" (Storage, Announcements) and an absent flag (the rest).
+        IConfiguration configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["FeatureManagement:Modules.Storage"] = "false",
+                ["FeatureManagement:Modules.Announcements"] = "false",
+                ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test",
+            })
+            .Build();
+
+        InvokeAddWallowModules(services, configuration);
+
+        services.Should().NotContain(sd => sd.ServiceType == typeof(StorageDbContext),
+            "Storage is an optional module and should not be registered when its feature flag is false");
+        services.Should().NotContain(sd => sd.ServiceType == typeof(AnnouncementsDbContext),
+            "Announcements is an optional module and should not be registered when its feature flag is false");
     }
 
     [Fact]
