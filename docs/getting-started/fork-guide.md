@@ -322,16 +322,16 @@ Modules are controlled by the `FeatureManagement` section in `appsettings.json`.
 {
   "FeatureManagement": {
     "Modules.Branding": true,
-    "Modules.Identity": true,
     "Modules.Storage": true,
     "Modules.Notifications": true,
     "Modules.Announcements": true,
-    "Modules.Configuration": true,
     "Modules.Inquiries": true,
     "Modules.ApiKeys": false
   }
 }
 ```
+
+Only the six optional modules appear. Identity is a core module: it is always registered, so it has no flag and adding one would toggle nothing.
 
 To disable a module, set its value to `false`:
 
@@ -343,9 +343,9 @@ To disable a module, set its value to `false`:
 }
 ```
 
-The block above is the shipped file verbatim, including `Modules.Configuration` — which is stale. Wallow has **seven** modules (Identity, Storage, Notifications, Announcements, Inquiries, ApiKeys, Branding); there is no Configuration module, so that flag toggles nothing. Do not carry it into your fork.
+This is wired in `WallowModules.cs`, which uses `IFeatureManager` to check each module's flag before registering it. Identity is always registered as a required platform dependency. When a module is disabled, its DI services, HTTP controllers, and Wolverine handlers are all excluded from the application — the endpoints return 404 and are absent from the OpenAPI document.
 
-This is wired in `WallowModules.cs`, which uses `IFeatureManager` to check feature flags before registering each module. Identity is always registered as a required platform dependency. When a module is disabled, its DI services, database migrations, API controllers, and Wolverine handlers are all excluded from the application.
+Its **database schema is still migrated**, though: `Wallow.MigrationService` deliberately ignores feature flags and migrates every module the platform ships. A fork that disables a module can therefore re-enable it later without a manual migration step.
 
 ### Module-specific configuration
 

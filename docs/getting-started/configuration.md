@@ -13,7 +13,7 @@ Wallow uses the **Microsoft.Extensions.Options pattern** for type-safe configura
 
 ## Configuration Reference
 
-This section documents the configuration sections a fork is most likely to change. It is not an exhaustive dump of `api/src/Wallow.Api/appsettings.json` — that file also ships `FeatureManagement` (the `Modules.*` toggles), `Wallow:Modules`, `Plugins`, `Database`, `ApiKeys` and `Performance` sections, and the OpenIddict/authentication wiring lives in code rather than configuration. Read `appsettings.json` itself when you need the complete set. See the "Quick Start" section below for how to create your own module configuration.
+This section documents the configuration sections a fork is most likely to change. It is not an exhaustive dump of `api/src/Wallow.Api/appsettings.json` — that file also ships `FeatureManagement` (the `Modules.*` toggles), `Plugins`, `Database`, `ApiKeys` and `Performance` sections, and the OpenIddict/authentication wiring lives in code rather than configuration. Read `appsettings.json` itself when you need the complete set. See the "Quick Start" section below for how to create your own module configuration.
 
 ### Branding
 
