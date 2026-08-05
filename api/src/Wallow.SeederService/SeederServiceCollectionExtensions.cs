@@ -6,6 +6,7 @@ using Wallow.Identity.Application.Queries.IsSetupRequired;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Infrastructure.Data;
 using Wallow.Identity.Infrastructure.Extensions;
+using Wallow.Identity.Infrastructure.Modules;
 using Wallow.Identity.Infrastructure.Options;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Identity.Infrastructure.Repositories;
@@ -38,7 +39,7 @@ internal static class SeederServiceCollectionExtensions
         // Register IdentityDbContext
         services.AddDbContext<IdentityDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql =>
-                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "identity")));
+                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", IdentityModule.Schema)));
 
         // ASP.NET Identity
         services.AddIdentityCore<WallowUser>(opts =>

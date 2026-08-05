@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using Wallow.Identity.Infrastructure.Modules;
 
 namespace Wallow.Identity.Infrastructure.Persistence;
 
@@ -17,7 +18,7 @@ public class IdentityDbContextFactory : IDesignTimeDbContextFactory<IdentityDbCo
         string password = Environment.GetEnvironmentVariable("WALLOW_DB_PASSWORD") ?? "wallow";
         optionsBuilder.UseNpgsql(
             $"Host=localhost;Database=wallow;Username=wallow;Password={password}",
-            npgsqlOptions => npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "identity"));
+            npgsqlOptions => npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", IdentityModule.Schema));
 
         IDataProtectionProvider dataProtectionProvider = new EphemeralDataProtectionProvider();
 

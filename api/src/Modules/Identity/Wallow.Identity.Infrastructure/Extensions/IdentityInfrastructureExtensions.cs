@@ -19,6 +19,7 @@ using Wallow.Identity.Application.Settings;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Infrastructure.Authorization;
 using Wallow.Identity.Infrastructure.Data;
+using Wallow.Identity.Infrastructure.Modules;
 using Wallow.Identity.Infrastructure.Options;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Identity.Infrastructure.Repositories;
@@ -237,7 +238,7 @@ public static class IdentityInfrastructureExtensions
             };
             options.UseNpgsql(builder.ConnectionString, npgsqlOptions =>
             {
-                npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "identity");
+                npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", IdentityModule.Schema);
                 npgsqlOptions.EnableRetryOnFailure(
                     maxRetryCount: 5,
                     maxRetryDelay: TimeSpan.FromSeconds(30),

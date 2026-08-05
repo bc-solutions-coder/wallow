@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using OpenIddict.EntityFrameworkCore.Models;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Infrastructure.Modules;
 using Wallow.Shared.Infrastructure.Settings;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
@@ -59,7 +60,7 @@ public sealed class IdentityDbContext : AspNetIdentityDbContext, ITenantAwareCon
     {
         base.OnModelCreating(builder);
 
-        builder.HasDefaultSchema("identity");
+        builder.HasDefaultSchema(IdentityModule.Schema);
 
         builder.UseOpenIddict<Guid>();
 

@@ -7,6 +7,7 @@ using Wallow.Announcements.Application.Announcements.Interfaces;
 using Wallow.Announcements.Application.Announcements.Services;
 using Wallow.Announcements.Application.Changelogs.Interfaces;
 using Wallow.Announcements.Application.Extensions;
+using Wallow.Announcements.Infrastructure.Modules;
 using Wallow.Announcements.Infrastructure.Persistence;
 using Wallow.Announcements.Infrastructure.Persistence.Repositories;
 using Wallow.Shared.Infrastructure.Core.Extensions;
@@ -37,7 +38,7 @@ public static class AnnouncementsModuleExtensions
             };
             options.UseNpgsql(builder.ConnectionString, npgsql =>
             {
-                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "announcements");
+                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", AnnouncementsModule.Schema);
                 npgsql.EnableRetryOnFailure(
                     maxRetryCount: 5,
                     maxRetryDelay: TimeSpan.FromSeconds(30),

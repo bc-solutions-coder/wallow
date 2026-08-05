@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Wallow.Identity.Tests" />
+    <InternalsVisibleTo Include="Wallow.SeederService" />
   </ItemGroup>
 
   <ItemGroup>

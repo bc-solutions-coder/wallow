@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using Wallow.Inquiries.Application.Interfaces;
+using Wallow.Inquiries.Infrastructure.Modules;
 using Wallow.Inquiries.Infrastructure.Persistence;
 using Wallow.Inquiries.Infrastructure.Persistence.Repositories;
 using Wallow.Inquiries.Infrastructure.Services;
@@ -31,7 +32,7 @@ public static class InquiriesInfrastructureExtensions
             };
             options.UseNpgsql(builder.ConnectionString, npgsql =>
             {
-                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "inquiries");
+                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", InquiriesModule.Schema);
                 npgsql.EnableRetryOnFailure(
                     maxRetryCount: 5,
                     maxRetryDelay: TimeSpan.FromSeconds(30),

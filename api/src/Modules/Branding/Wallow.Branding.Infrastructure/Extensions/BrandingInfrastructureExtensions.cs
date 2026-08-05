@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using Wallow.Branding.Application.Interfaces;
+using Wallow.Branding.Infrastructure.Modules;
 using Wallow.Branding.Infrastructure.Persistence;
 using Wallow.Branding.Infrastructure.Repositories;
 using Wallow.Branding.Infrastructure.Services;
@@ -42,7 +43,7 @@ public static class BrandingInfrastructureExtensions
             };
             options.UseNpgsql(builder.ConnectionString, npgsql =>
             {
-                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "branding");
+                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", BrandingModule.Schema);
                 npgsql.EnableRetryOnFailure(
                     maxRetryCount: 5,
                     maxRetryDelay: TimeSpan.FromSeconds(30),

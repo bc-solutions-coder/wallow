@@ -16,6 +16,7 @@ using Wallow.Storage.Application.Interfaces;
 using Wallow.Storage.Application.Settings;
 using Wallow.Storage.Domain.Enums;
 using Wallow.Storage.Infrastructure.Configuration;
+using Wallow.Storage.Infrastructure.Modules;
 using Wallow.Storage.Infrastructure.Persistence;
 using Wallow.Storage.Infrastructure.Persistence.Repositories;
 using Wallow.Storage.Infrastructure.Providers;
@@ -58,7 +59,7 @@ public static class StorageInfrastructureExtensions
             };
             options.UseNpgsql(builder.ConnectionString, npgsql =>
             {
-                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "storage");
+                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", StorageModule.Schema);
                 npgsql.EnableRetryOnFailure(
                     maxRetryCount: 5,
                     maxRetryDelay: TimeSpan.FromSeconds(30),

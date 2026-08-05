@@ -14,6 +14,7 @@ using Wallow.Notifications.Application.Channels.Sms.Interfaces;
 using Wallow.Notifications.Application.Extensions;
 using Wallow.Notifications.Application.Preferences.Interfaces;
 using Wallow.Notifications.Infrastructure.Jobs;
+using Wallow.Notifications.Infrastructure.Modules;
 using Wallow.Notifications.Infrastructure.Persistence;
 using Wallow.Notifications.Infrastructure.Persistence.Repositories;
 using Wallow.Notifications.Infrastructure.Services;
@@ -58,7 +59,7 @@ public static partial class NotificationsModuleExtensions
             };
             options.UseNpgsql(builder.ConnectionString, npgsql =>
             {
-                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "notifications");
+                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", NotificationsModule.Schema);
                 npgsql.EnableRetryOnFailure(
                     maxRetryCount: 5,
                     maxRetryDelay: TimeSpan.FromSeconds(30),

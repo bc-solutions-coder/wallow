@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Wallow.Shared.Infrastructure.Core.Persistence;
 using Wallow.Shared.Infrastructure.Settings;
 using Wallow.Storage.Domain.Entities;
+using Wallow.Storage.Infrastructure.Modules;
 
 namespace Wallow.Storage.Infrastructure.Persistence;
 
@@ -20,7 +21,7 @@ public sealed class StorageDbContext : TenantAwareDbContext<StorageDbContext>
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.HasDefaultSchema("storage");
+        modelBuilder.HasDefaultSchema(StorageModule.Schema);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(StorageDbContext).Assembly);
         modelBuilder.ApplySettingsConfigurations();
 

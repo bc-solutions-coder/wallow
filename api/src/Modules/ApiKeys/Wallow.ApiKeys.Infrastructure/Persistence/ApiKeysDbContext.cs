@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Wallow.ApiKeys.Domain.Entities;
+using Wallow.ApiKeys.Infrastructure.Modules;
 using Wallow.Shared.Infrastructure.Core.Persistence;
 
 namespace Wallow.ApiKeys.Infrastructure.Persistence;
@@ -16,7 +17,7 @@ public sealed class ApiKeysDbContext : TenantAwareDbContext<ApiKeysDbContext>
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.HasDefaultSchema("apikeys");
+        modelBuilder.HasDefaultSchema(ApiKeysModule.Schema);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApiKeysDbContext).Assembly);
 
         ApplyTenantQueryFilters(modelBuilder);

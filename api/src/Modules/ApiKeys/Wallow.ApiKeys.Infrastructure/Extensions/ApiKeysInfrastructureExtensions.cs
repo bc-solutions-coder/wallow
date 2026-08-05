@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using StackExchange.Redis;
 using Wallow.ApiKeys.Application.Interfaces;
+using Wallow.ApiKeys.Infrastructure.Modules;
 using Wallow.ApiKeys.Infrastructure.Persistence;
 using Wallow.ApiKeys.Infrastructure.Repositories;
 using Wallow.ApiKeys.Infrastructure.Services;
@@ -43,7 +44,7 @@ public static class ApiKeysInfrastructureExtensions
             };
             options.UseNpgsql(builder.ConnectionString, npgsql =>
             {
-                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "apikeys");
+                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", ApiKeysModule.Schema);
                 npgsql.EnableRetryOnFailure(
                     maxRetryCount: 5,
                     maxRetryDelay: TimeSpan.FromSeconds(30),

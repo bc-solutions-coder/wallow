@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Wallow.Branding.Domain.Entities;
+using Wallow.Branding.Infrastructure.Modules;
 using Wallow.Shared.Infrastructure.Core.Persistence;
 
 namespace Wallow.Branding.Infrastructure.Persistence;
@@ -16,7 +17,7 @@ public sealed class BrandingDbContext : TenantAwareDbContext<BrandingDbContext>
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.HasDefaultSchema("branding");
+        modelBuilder.HasDefaultSchema(BrandingModule.Schema);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(BrandingDbContext).Assembly);
 
         ApplyTenantQueryFilters(modelBuilder);

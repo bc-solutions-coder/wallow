@@ -5,6 +5,7 @@ using Wallow.Notifications.Domain.Channels.Push;
 using Wallow.Notifications.Domain.Channels.Push.Entities;
 using Wallow.Notifications.Domain.Channels.Sms.Entities;
 using Wallow.Notifications.Domain.Preferences.Entities;
+using Wallow.Notifications.Infrastructure.Modules;
 using Wallow.Shared.Infrastructure.Core.Persistence;
 
 namespace Wallow.Notifications.Infrastructure.Persistence;
@@ -38,7 +39,7 @@ public sealed class NotificationsDbContext : TenantAwareDbContext<NotificationsD
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.HasDefaultSchema("notifications");
+        modelBuilder.HasDefaultSchema(NotificationsModule.Schema);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(NotificationsDbContext).Assembly);
 
         ApplyTenantQueryFilters(modelBuilder);

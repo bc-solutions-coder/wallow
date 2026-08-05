@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Wallow.Announcements.Domain.Announcements.Entities;
 using Wallow.Announcements.Domain.Changelogs.Entities;
+using Wallow.Announcements.Infrastructure.Modules;
 using Wallow.Shared.Infrastructure.Core.Persistence;
 
 namespace Wallow.Announcements.Infrastructure.Persistence;
@@ -20,7 +21,7 @@ public sealed class AnnouncementsDbContext : TenantAwareDbContext<AnnouncementsD
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.HasDefaultSchema("announcements");
+        modelBuilder.HasDefaultSchema(AnnouncementsModule.Schema);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AnnouncementsDbContext).Assembly);
 
         ApplyTenantQueryFilters(modelBuilder);
