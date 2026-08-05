@@ -56,5 +56,6 @@
     <ProjectReference Include="..\..\src\Shared\Wallow.Shared.Contracts\Wallow.Shared.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Wallow.ServiceDefaults\Wallow.ServiceDefaults.csproj" />
     <ProjectReference Include="..\..\src\Wallow.MigrationService\Wallow.MigrationService.csproj" />
+    <ProjectReference Include="..\..\src\Wallow.Modules.Registry\Wallow.Modules.Registry.csproj" />
   </ItemGroup>
 </Project>

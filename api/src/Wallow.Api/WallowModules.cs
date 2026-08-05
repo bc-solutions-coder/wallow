@@ -1,47 +1,27 @@
 // Infrastructure extensions - canonical source for module registration
 using Microsoft.EntityFrameworkCore;
 using Microsoft.FeatureManagement;
-using Wallow.Announcements.Infrastructure.Modules;
 using Wallow.Announcements.Infrastructure.Persistence;
-using Wallow.ApiKeys.Infrastructure.Modules;
 using Wallow.ApiKeys.Infrastructure.Persistence;
-using Wallow.Branding.Infrastructure.Modules;
 using Wallow.Branding.Infrastructure.Persistence;
-using Wallow.Identity.Infrastructure.Modules;
 using Wallow.Identity.Infrastructure.Persistence;
-using Wallow.Inquiries.Infrastructure.Modules;
 using Wallow.Inquiries.Infrastructure.Persistence;
-using Wallow.Notifications.Infrastructure.Modules;
+using Wallow.Modules.Registry;
 using Wallow.Notifications.Infrastructure.Persistence;
 using Wallow.Shared.Infrastructure.Core.Auditing;
 using Wallow.Shared.Infrastructure.Modules;
 using Wallow.Shared.Infrastructure.Plugins;
-using Wallow.Storage.Infrastructure.Modules;
 using Wallow.Storage.Infrastructure.Persistence;
 
 namespace Wallow.Api;
 
 /// <summary>
-/// Central registry for all Wallow modules. Each module is an <see cref="IWallowModule"/> living in
-/// its own Infrastructure assembly; this list is the only place that knows all seven exist.
+/// Registers the Wallow modules this host runs. The modules themselves come from
+/// <see cref="WallowModuleRegistry"/> — the one list both hosts read — and are filtered here through
+/// <see cref="IFeatureManager"/>.
 /// </summary>
 internal static partial class WallowModules
 {
-    /// <summary>
-    /// Every module the host can run, in registration order. Identity is <c>IsCore</c> and comes
-    /// first because the rest of the platform assumes its schema and services are present.
-    /// </summary>
-    private static readonly IWallowModule[] _allModules =
-    [
-        new IdentityModule(),
-        new BrandingModule(),
-        new NotificationsModule(),
-        new AnnouncementsModule(),
-        new StorageModule(),
-        new ApiKeysModule(),
-        new InquiriesModule(),
-    ];
-
     /// <summary>
     /// Registers every enabled module and returns the enabled set.
     /// </summary>
@@ -118,7 +98,7 @@ internal static partial class WallowModules
 
         return
         [
-            .. _allModules.Where(module =>
+            .. WallowModuleRegistry.All.Where(module =>
                 module.IsCore
                 || featureManager.IsEnabledAsync($"Modules.{module.Name}").GetAwaiter().GetResult())
         ];

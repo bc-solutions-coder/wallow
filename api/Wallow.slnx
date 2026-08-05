@@ -8,6 +8,7 @@
     <Project Path="src/Wallow.Api/Wallow.Api.csproj" />
     <Project Path="src/Wallow.AppHost/Wallow.AppHost.csproj" />
     <Project Path="src/Wallow.MigrationService/Wallow.MigrationService.csproj" />
+    <Project Path="src/Wallow.Modules.Registry/Wallow.Modules.Registry.csproj" />
     <Project Path="src/Wallow.SeederService/Wallow.SeederService.csproj" />
     <Project Path="src/Wallow.ServiceDefaults/Wallow.ServiceDefaults.csproj" />
   </Folder>

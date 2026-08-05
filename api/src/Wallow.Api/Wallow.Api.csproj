@@ -127,6 +127,9 @@
     <ProjectReference Include="..\Shared\Wallow.Shared.Contracts\Wallow.Shared.Contracts.csproj" />
     <ProjectReference Include="..\Shared\Wallow.Shared.Infrastructure\Wallow.Shared.Infrastructure.csproj" />
     <ProjectReference Include="..\Wallow.ServiceDefaults\Wallow.ServiceDefaults.csproj" />
+    <!-- The one module list. The seven module Infrastructure references above stay: this project
+         still names their DbContext types directly in RunTestMigrationsAsync. -->
+    <ProjectReference Include="..\Wallow.Modules.Registry\Wallow.Modules.Registry.csproj" />
   </ItemGroup>
 
 

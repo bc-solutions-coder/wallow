@@ -1,13 +1,7 @@
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
-using Wallow.Announcements.Infrastructure.Modules;
-using Wallow.ApiKeys.Infrastructure.Modules;
-using Wallow.Branding.Infrastructure.Modules;
-using Wallow.Identity.Infrastructure.Modules;
-using Wallow.Inquiries.Infrastructure.Modules;
-using Wallow.Notifications.Infrastructure.Modules;
+using Wallow.Modules.Registry;
 using Wallow.Shared.Infrastructure.Modules;
-using Wallow.Storage.Infrastructure.Modules;
 
 namespace Wallow.MigrationService;
 
@@ -41,21 +35,11 @@ internal static class ModuleMigrations
     /// lands in the core runner group; the other six are feature modules.
     /// </summary>
     /// <remarks>
-    /// This mirrors <c>Wallow.Api.WallowModules</c>'s list. The two cannot share one array today:
-    /// the list has to live in a project that references all seven module Infrastructure assemblies,
-    /// and <c>Wallow.Shared.Infrastructure</c> — the only project both hosts reference — is
-    /// referenced BY the modules, so it cannot reference them back.
+    /// This is the same list <c>Wallow.Api.WallowModules</c> reads — <see cref="WallowModuleRegistry"/>
+    /// exists so neither host has to keep its own copy. The difference between the hosts is the
+    /// filtering described above, not the membership: this host takes the registry whole.
     /// </remarks>
-    public static IReadOnlyList<IWallowModule> All { get; } =
-    [
-        new IdentityModule(),
-        new BrandingModule(),
-        new NotificationsModule(),
-        new AnnouncementsModule(),
-        new StorageModule(),
-        new ApiKeysModule(),
-        new InquiriesModule(),
-    ];
+    public static IReadOnlyList<IWallowModule> All => WallowModuleRegistry.All;
 
     /// <summary>
     /// Registers every module-owned <see cref="DbContext"/> against the module's own schema.
