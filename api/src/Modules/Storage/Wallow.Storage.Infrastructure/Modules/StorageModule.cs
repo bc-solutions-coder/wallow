@@ -15,7 +15,7 @@ public sealed class StorageModule : IWallowModule
 
     public bool IsCore => false;
 
-    public IEnumerable<Assembly> HandlerAssemblies =>
+    public IReadOnlyList<Assembly> HandlerAssemblies =>
     [
         typeof(CreateBucketHandler).Assembly,
         typeof(StorageModule).Assembly,

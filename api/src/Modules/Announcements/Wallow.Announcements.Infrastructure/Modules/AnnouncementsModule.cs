@@ -15,7 +15,7 @@ public sealed class AnnouncementsModule : IWallowModule
 
     public bool IsCore => false;
 
-    public IEnumerable<Assembly> HandlerAssemblies =>
+    public IReadOnlyList<Assembly> HandlerAssemblies =>
     [
         typeof(CreateAnnouncementHandler).Assembly,
         typeof(AnnouncementsModule).Assembly,

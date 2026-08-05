@@ -15,7 +15,7 @@ public sealed class NotificationsModule : IWallowModule
 
     public bool IsCore => false;
 
-    public IEnumerable<Assembly> HandlerAssemblies =>
+    public IReadOnlyList<Assembly> HandlerAssemblies =>
     [
         typeof(UserRoleChangedNotificationHandler).Assembly,
         typeof(NotificationsModule).Assembly,

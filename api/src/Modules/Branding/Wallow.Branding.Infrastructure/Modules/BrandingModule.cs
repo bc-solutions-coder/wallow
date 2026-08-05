@@ -21,7 +21,7 @@ public sealed class BrandingModule : IWallowModule
 
     public bool IsCore => false;
 
-    public IEnumerable<Assembly> HandlerAssemblies =>
+    public IReadOnlyList<Assembly> HandlerAssemblies =>
     [
         typeof(IClientBrandingRepository).Assembly,
         typeof(BrandingModule).Assembly,

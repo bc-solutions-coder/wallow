@@ -19,7 +19,7 @@ public sealed class IdentityModule : IWallowModule
 
     public bool IsCore => true;
 
-    public IEnumerable<Assembly> HandlerAssemblies =>
+    public IReadOnlyList<Assembly> HandlerAssemblies =>
     [
         typeof(CreateServiceAccountHandler).Assembly,
         typeof(IdentityModule).Assembly,

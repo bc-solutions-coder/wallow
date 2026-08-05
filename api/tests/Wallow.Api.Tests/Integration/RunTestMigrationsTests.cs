@@ -163,7 +163,7 @@ public sealed class ProbeFeatureModule : IWallowModule
 
     public bool IsCore => false;
 
-    public IEnumerable<Assembly> HandlerAssemblies => [];
+    public IReadOnlyList<Assembly> HandlerAssemblies => [];
 
     public IReadOnlyList<Type> DbContextTypes => [typeof(ProbeFeatureDbContext)];
 
@@ -182,7 +182,7 @@ public sealed class ProbeCoreModule : IWallowModule
 
     public bool IsCore => true;
 
-    public IEnumerable<Assembly> HandlerAssemblies => [];
+    public IReadOnlyList<Assembly> HandlerAssemblies => [];
 
     public IReadOnlyList<Type> DbContextTypes => [typeof(ProbeCoreDbContext)];
 

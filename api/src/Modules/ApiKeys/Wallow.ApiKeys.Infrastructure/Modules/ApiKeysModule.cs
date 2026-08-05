@@ -21,7 +21,7 @@ public sealed class ApiKeysModule : IWallowModule
 
     public bool IsCore => false;
 
-    public IEnumerable<Assembly> HandlerAssemblies =>
+    public IReadOnlyList<Assembly> HandlerAssemblies =>
     [
         typeof(IApiKeyRepository).Assembly,
         typeof(ApiKeysModule).Assembly,

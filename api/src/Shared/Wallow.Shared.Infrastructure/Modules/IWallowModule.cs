@@ -43,7 +43,7 @@ public interface IWallowModule
     /// (<c>typeof(XModule).Assembly</c>) so it cannot rot when the anchor type moves.
     /// </para>
     /// </summary>
-    IEnumerable<Assembly> HandlerAssemblies { get; }
+    IReadOnlyList<Assembly> HandlerAssemblies { get; }
 
     /// <summary>
     /// Gets every <see cref="Microsoft.EntityFrameworkCore.DbContext"/> type the module owns, so a
