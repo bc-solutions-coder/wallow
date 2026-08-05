@@ -235,6 +235,23 @@ try
         // Wallow.Api appears twice in the assembly list; that duplicate is harmless.
         opts.ApplicationAssembly = typeof(WallowModules).Assembly;
 
+        // Give every handler for a message type its own chain, its own local queue, and its own
+        // retry loop. Under the default (ClassicCombineIntoOneLogicalHandler) all handlers for a
+        // message are welded into ONE logical handler behind ONE retry loop, so a failure in a
+        // late handler re-runs the earlier ones that already committed — duplicate emails,
+        // duplicate notification rows. Four message types have more than one handler today:
+        // EmailVerifiedEvent (2, and it crosses a module boundary: Inquiries links the submitter,
+        // Notifications sends the welcome email), InquirySubmittedEvent (3),
+        // InquiryCommentAddedEvent (3) and InquiryStatusChangedEvent (2). Under the default a
+        // Notifications failure retried the Inquiries link-up — a module boundary violated by a
+        // retry policy. Separated is what JasperFx recommends for modular monoliths, and
+        // MultipleHandlerSeparationTests pins the behaviour.
+        //
+        // Consequence to know about: the handlers for one message now run CONCURRENTLY on
+        // independent local queues. There is no ordering between the email send, the in-app
+        // notification write and the SSE push any more; none of them depended on it.
+        opts.MultipleHandlerBehavior = MultipleHandlerBehavior.Separated;
+
         // Discover handlers in all Wallow assemblies
         foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies()
             .Where(a => a.GetName().Name?.StartsWith("Wallow.", StringComparison.Ordinal) == true))
