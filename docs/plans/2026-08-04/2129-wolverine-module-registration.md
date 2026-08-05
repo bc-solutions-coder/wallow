@@ -1,6 +1,16 @@
 # Wolverine module registration — explicit registry, correct 6.x settings
 
-**status: active**
+**status: completed**
+
+Completed 2026-08-05. All ten children of `Wallow-af3h` are closed. One claim in this plan was
+disproved by measurement during Phase 3 and is corrected on `Wallow-af3h.6`: the plan states that
+adding a handler to ApiKeys or Branding "would fail codegen under `ServiceLocationPolicy.NotAllowed`,
+because a disabled module's services are never registered". Measured on the real host, neither half
+holds. With the flag ON the module's `.Application` assembly is loaded and its services ARE
+registered, so the handler is discovered and compiles; with the flag OFF the assembly is never
+loaded, so no chain is built and there is nothing to fail. The real defect the registry closes is
+that discovery was a function of which types earlier code happened to touch first — see the
+"OPEN MEASUREMENT — RESOLVED" note on `Wallow-af3h.6` for the evidence.
 
 Make Wolverine work correctly against Wallow's existing four-assembly-per-module Clean
 Architecture. **No project structure changes.** All 28 module assemblies stay, the layer
