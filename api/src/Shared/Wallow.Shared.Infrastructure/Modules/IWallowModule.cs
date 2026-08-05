@@ -46,6 +46,26 @@ public interface IWallowModule
     IEnumerable<Assembly> HandlerAssemblies { get; }
 
     /// <summary>
+    /// Gets every <see cref="Microsoft.EntityFrameworkCore.DbContext"/> type the module owns, so a
+    /// host that only migrates (and therefore never calls <see cref="AddServices"/>) can register
+    /// and migrate them without a hand-maintained list of its own.
+    /// <para>
+    /// This is a list rather than a single type because a module is free to own more than one
+    /// context. It does NOT cover contexts that belong to no module: the two auditing contexts in
+    /// <c>Wallow.Shared.Infrastructure.Core.Auditing</c> are host-owned and stay registered
+    /// explicitly by the host.
+    /// </para>
+    /// </summary>
+    IReadOnlyList<Type> DbContextTypes { get; }
+
+    /// <summary>
+    /// Gets the Postgres schema the module owns. Every context in <see cref="DbContextTypes"/> keeps
+    /// its migration history in <c>__EFMigrationsHistory</c> inside this schema, so this string is
+    /// what the host passes to <c>MigrationsHistoryTable</c>.
+    /// </summary>
+    string SchemaName { get; }
+
+    /// <summary>
     /// Registers the module's services.
     /// </summary>
     /// <param name="services">The service collection to register into.</param>

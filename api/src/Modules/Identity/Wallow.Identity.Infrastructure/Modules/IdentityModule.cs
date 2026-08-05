@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Wallow.Identity.Application.Commands.CreateServiceAccount;
 using Wallow.Identity.Infrastructure.Extensions;
+using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Shared.Infrastructure.Modules;
 
 namespace Wallow.Identity.Infrastructure.Modules;
@@ -23,6 +24,10 @@ public sealed class IdentityModule : IWallowModule
         typeof(CreateServiceAccountHandler).Assembly,
         typeof(IdentityModule).Assembly,
     ];
+
+    public IReadOnlyList<Type> DbContextTypes => [typeof(IdentityDbContext)];
+
+    public string SchemaName => "identity";
 
     public IServiceCollection AddServices(
         IServiceCollection services,

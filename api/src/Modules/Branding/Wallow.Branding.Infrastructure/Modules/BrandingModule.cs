@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Wallow.Branding.Application.Interfaces;
 using Wallow.Branding.Infrastructure.Extensions;
+using Wallow.Branding.Infrastructure.Persistence;
 using Wallow.Shared.Infrastructure.Modules;
 
 namespace Wallow.Branding.Infrastructure.Modules;
@@ -25,6 +26,10 @@ public sealed class BrandingModule : IWallowModule
         typeof(IClientBrandingRepository).Assembly,
         typeof(BrandingModule).Assembly,
     ];
+
+    public IReadOnlyList<Type> DbContextTypes => [typeof(BrandingDbContext)];
+
+    public string SchemaName => "branding";
 
     public IServiceCollection AddServices(
         IServiceCollection services,

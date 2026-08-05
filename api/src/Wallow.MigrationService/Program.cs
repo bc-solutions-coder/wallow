@@ -1,14 +1,7 @@
 using Microsoft.EntityFrameworkCore;
-using Wallow.Announcements.Infrastructure.Persistence;
-using Wallow.ApiKeys.Infrastructure.Persistence;
-using Wallow.Branding.Infrastructure.Persistence;
-using Wallow.Identity.Infrastructure.Persistence;
-using Wallow.Inquiries.Infrastructure.Persistence;
 using Wallow.MigrationService;
-using Wallow.Notifications.Infrastructure.Persistence;
 using Wallow.ServiceDefaults;
 using Wallow.Shared.Infrastructure.Core.Auditing;
-using Wallow.Storage.Infrastructure.Persistence;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 
@@ -18,11 +11,8 @@ string connectionString = builder.Configuration.GetConnectionString("DefaultConn
 // IdentityDbContext requires IDataProtectionProvider
 builder.Services.AddDataProtection();
 
-// Register all DbContexts for migration
-builder.Services.AddDbContext<IdentityDbContext>(options =>
-    options.UseNpgsql(connectionString, npgsql =>
-        npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "identity")));
-
+// Host-owned contexts. Auditing belongs to no module, so it is registered explicitly here rather
+// than coming from the registry.
 builder.Services.AddDbContext<AuditDbContext>(options =>
     options.UseNpgsql(connectionString, npgsql =>
         npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "audit")));
@@ -31,47 +21,24 @@ builder.Services.AddDbContext<AuthAuditDbContext>(options =>
     options.UseNpgsql(connectionString, npgsql =>
         npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "auth_audit")));
 
-builder.Services.AddDbContext<BrandingDbContext>(options =>
-    options.UseNpgsql(connectionString, npgsql =>
-        npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "branding")));
+// Module-owned contexts, each against the schema its own module declares.
+ModuleMigrations.AddModuleDbContexts(builder.Services, connectionString);
 
-builder.Services.AddDbContext<NotificationsDbContext>(options =>
-    options.UseNpgsql(connectionString, npgsql =>
-        npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "notifications")));
+// Migration runners. Core runs first and sequentially; feature modules run in parallel afterwards.
+builder.Services.AddSingleton<CoreMigrationRunners>(sp =>
+{
+    IServiceScopeFactory scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+    return new CoreMigrationRunners(
+    [
+        .. ModuleMigrations.CreateRunners(isCore: true, scopeFactory),
+        new DbContextMigrationRunner<AuditDbContext>(scopeFactory),
+        new DbContextMigrationRunner<AuthAuditDbContext>(scopeFactory),
+    ]);
+});
 
-builder.Services.AddDbContext<AnnouncementsDbContext>(options =>
-    options.UseNpgsql(connectionString, npgsql =>
-        npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "announcements")));
-
-builder.Services.AddDbContext<StorageDbContext>(options =>
-    options.UseNpgsql(connectionString, npgsql =>
-        npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "storage")));
-
-builder.Services.AddDbContext<ApiKeysDbContext>(options =>
-    options.UseNpgsql(connectionString, npgsql =>
-        npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "apikeys")));
-
-builder.Services.AddDbContext<InquiriesDbContext>(options =>
-    options.UseNpgsql(connectionString, npgsql =>
-        npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "inquiries")));
-
-// Migration runners
-builder.Services.AddSingleton<CoreMigrationRunners>(sp => new CoreMigrationRunners(
-[
-    new DbContextMigrationRunner<IdentityDbContext>(sp.GetRequiredService<IServiceScopeFactory>()),
-    new DbContextMigrationRunner<AuditDbContext>(sp.GetRequiredService<IServiceScopeFactory>()),
-    new DbContextMigrationRunner<AuthAuditDbContext>(sp.GetRequiredService<IServiceScopeFactory>()),
-]));
-
-builder.Services.AddSingleton<FeatureMigrationRunners>(sp => new FeatureMigrationRunners(
-[
-    new DbContextMigrationRunner<BrandingDbContext>(sp.GetRequiredService<IServiceScopeFactory>()),
-    new DbContextMigrationRunner<NotificationsDbContext>(sp.GetRequiredService<IServiceScopeFactory>()),
-    new DbContextMigrationRunner<AnnouncementsDbContext>(sp.GetRequiredService<IServiceScopeFactory>()),
-    new DbContextMigrationRunner<StorageDbContext>(sp.GetRequiredService<IServiceScopeFactory>()),
-    new DbContextMigrationRunner<ApiKeysDbContext>(sp.GetRequiredService<IServiceScopeFactory>()),
-    new DbContextMigrationRunner<InquiriesDbContext>(sp.GetRequiredService<IServiceScopeFactory>()),
-]));
+builder.Services.AddSingleton<FeatureMigrationRunners>(sp =>
+    new FeatureMigrationRunners(
+        ModuleMigrations.CreateRunners(isCore: false, sp.GetRequiredService<IServiceScopeFactory>())));
 
 builder.Services.AddSingleton<WorkerRunOutcome>();
 builder.Services.AddHostedService<MigrationWorker>();

@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using Wallow.Shared.Infrastructure.Modules;
 using Wallow.Storage.Application.Commands.CreateBucket;
 using Wallow.Storage.Infrastructure.Extensions;
+using Wallow.Storage.Infrastructure.Persistence;
 
 namespace Wallow.Storage.Infrastructure.Modules;
 
@@ -19,6 +20,10 @@ public sealed class StorageModule : IWallowModule
         typeof(CreateBucketHandler).Assembly,
         typeof(StorageModule).Assembly,
     ];
+
+    public IReadOnlyList<Type> DbContextTypes => [typeof(StorageDbContext)];
+
+    public string SchemaName => "storage";
 
     public IServiceCollection AddServices(
         IServiceCollection services,

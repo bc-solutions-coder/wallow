@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Wallow.ApiKeys.Application.Interfaces;
 using Wallow.ApiKeys.Infrastructure.Extensions;
+using Wallow.ApiKeys.Infrastructure.Persistence;
 using Wallow.Shared.Infrastructure.Modules;
 
 namespace Wallow.ApiKeys.Infrastructure.Modules;
@@ -25,6 +26,10 @@ public sealed class ApiKeysModule : IWallowModule
         typeof(IApiKeyRepository).Assembly,
         typeof(ApiKeysModule).Assembly,
     ];
+
+    public IReadOnlyList<Type> DbContextTypes => [typeof(ApiKeysDbContext)];
+
+    public string SchemaName => "apikeys";
 
     public IServiceCollection AddServices(
         IServiceCollection services,

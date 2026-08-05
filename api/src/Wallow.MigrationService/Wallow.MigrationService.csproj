@@ -9,6 +9,10 @@
   <ItemGroup>
     <ProjectReference Include="..\Wallow.ServiceDefaults\Wallow.ServiceDefaults.csproj" />
     <ProjectReference Include="..\Shared\Wallow.Shared.Infrastructure.Core\Wallow.Shared.Infrastructure.Core.csproj" />
+    <!-- Wallow.Shared.Infrastructure is a DIFFERENT project from Wallow.Shared.Infrastructure.Core
+         and is where IWallowModule lives. The migration runner is registry driven, so it needs the
+         interface as well as the seven module Infrastructure assemblies below that implement it. -->
+    <ProjectReference Include="..\Shared\Wallow.Shared.Infrastructure\Wallow.Shared.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Identity\Wallow.Identity.Infrastructure\Wallow.Identity.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Branding\Wallow.Branding.Infrastructure\Wallow.Branding.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Notifications\Wallow.Notifications.Infrastructure\Wallow.Notifications.Infrastructure.csproj" />
