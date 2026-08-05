@@ -24,6 +24,7 @@ using Wallow.Api.Logging;
 using Wallow.Api.Middleware;
 using Wallow.Api.Services;
 using Wallow.ApiKeys.Infrastructure.Authorization;
+using Wallow.ApiKeys.Infrastructure.Modules;
 using Wallow.Identity.Application.Commands.BootstrapAdmin;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Application.Queries.IsSetupRequired;
@@ -32,6 +33,7 @@ using Wallow.Identity.Infrastructure.Jobs;
 using Wallow.Identity.Infrastructure.Middleware;
 using Wallow.Identity.Infrastructure.MultiTenancy;
 using Wallow.Notifications.Infrastructure.Jobs;
+using Wallow.Notifications.Infrastructure.Modules;
 using Wallow.ServiceDefaults;
 using Wallow.Shared.Contracts.Realtime;
 using Wallow.Shared.Infrastructure.BackgroundJobs;
@@ -697,12 +699,9 @@ try
 
     // API key authentication (checks X-Api-Key header first, falls through to JWT if not present)
     // Only register when ApiKeys module is enabled — the middleware depends on IApiKeyService
+    if (enabledModules.IsModuleEnabled<ApiKeysModule>())
     {
-        IFeatureManager apiKeyFeatureCheck = app.Services.GetRequiredService<IFeatureManager>();
-        if (await apiKeyFeatureCheck.IsEnabledAsync("Modules.ApiKeys"))
-        {
-            app.UseMiddleware<ApiKeyAuthenticationMiddleware>();
-        }
+        app.UseMiddleware<ApiKeyAuthenticationMiddleware>();
     }
 
     // Authentication (OpenIddict token validation)
@@ -754,9 +753,7 @@ try
             job => job.ExecuteAsync(),
             "*/5 * * * *");
 
-        IFeatureManager jobFeatureManager = jobScope.ServiceProvider.GetRequiredService<IFeatureManager>();
-
-        if (await jobFeatureManager.IsEnabledAsync("Modules.Notifications"))
+        if (enabledModules.IsModuleEnabled<NotificationsModule>())
         {
             jobManager.AddOrUpdate<RetryFailedEmailsJob>(
                 "retry-failed-emails",

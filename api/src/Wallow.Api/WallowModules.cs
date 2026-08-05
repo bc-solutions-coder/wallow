@@ -165,6 +165,62 @@ internal static partial class WallowModules
     }
 
     /// <summary>
+    /// True when <paramref name="enabledModules"/> — the exact set <c>AddWallowModules</c> registered —
+    /// contains <typeparamref name="TModule"/>.
+    /// </summary>
+    /// <typeparam name="TModule">
+    /// The module being asked about, named by its own type. A module the platform does not ship is
+    /// rejected rather than answered; see the exception below.
+    /// </typeparam>
+    /// <param name="enabledModules">The exact set <c>AddWallowModules</c> returned.</param>
+    /// <returns><see langword="true"/> when that module is one the host registered.</returns>
+    /// <remarks>
+    /// <para>
+    /// The one way left in <c>Wallow.Api</c> to ask "is module X on" outside <c>AddWallowModules</c>
+    /// itself. It reads membership in the already-resolved set rather than re-resolving
+    /// <see cref="IFeatureManager"/> and re-deriving the <c>"Modules.{Name}"</c> flag key, so a module
+    /// the registry forces on regardless of its flag (<see cref="IWallowModule.IsCore"/>) reads as
+    /// enabled here too — <c>enabledModules</c> already applied that short-circuit in
+    /// <c>ResolveEnabledModules</c>, and this method never re-derives it. There is no second opinion
+    /// left that could disagree with the registry.
+    /// </para>
+    /// <para>
+    /// Named by type rather than by module name, and that is the point. A flag string or a name string
+    /// can be misspelled or left behind by a rename, and both mistakes compile and read as DISABLED —
+    /// which, since a disabled module loses its endpoints, removes working surface silently. Naming the
+    /// module class makes both mistakes a compile error at the call site instead.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="enabledModules"/> is null.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// <typeparamref name="TModule"/> is not a module <see cref="WallowModuleRegistry.All"/> ships, so
+    /// no configuration could ever enable it. Answering "disabled" would hide that; refusing to answer
+    /// reports it.
+    /// </exception>
+    internal static bool IsModuleEnabled<TModule>(this IReadOnlyList<IWallowModule> enabledModules)
+        where TModule : class, IWallowModule
+    {
+        ArgumentNullException.ThrowIfNull(enabledModules);
+
+        if (!WallowModuleRegistry.All.Any(IsTModule))
+        {
+            throw new InvalidOperationException(
+                $"{typeof(TModule).FullName} is not a module {nameof(WallowModuleRegistry)}." +
+                $"{nameof(WallowModuleRegistry.All)} ships, so no configuration can enable it and " +
+                "asking whether it is enabled can only ever answer no. Add it to the registry, or ask " +
+                "about a module that is in it.");
+        }
+
+        return enabledModules.Any(IsTModule);
+
+        // Exact runtime type, not a type test: every module is a sealed class registered as one
+        // instance, so this is the identity check the call sites mean. It also keeps the guard above
+        // total — passing an interface, or any other type no registry entry actually is, throws rather
+        // than matching everything.
+        static bool IsTModule(IWallowModule module) => module.GetType() == typeof(TModule);
+    }
+
+    /// <summary>
     /// Fails the host when <see cref="WallowModuleRegistry.All"/> and <see cref="_moduleApiAssemblies"/>
     /// disagree about which modules the platform ships.
     /// </summary>
