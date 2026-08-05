@@ -106,7 +106,7 @@ public class AccountControllerClientScopedRedirectTests
 
         IUrlHelper urlHelper = Substitute.For<IUrlHelper>();
         urlHelper.Action(Arg.Any<UrlActionContext>())
-            .Returns("http://localhost:5000/v1/identity/auth/external-login-callback");
+            .Returns("http://localhost:5001/v1/identity/auth/external-login-callback");
         _controller.Url = urlHelper;
 
         // Ticket has not been exchanged before — the replay guard lets it through.

@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Wallow.Notifications.Application.Channels.Email.Commands.SendEmail;
 using Wallow.Notifications.Application.Channels.Email.Interfaces;
 using Wallow.Shared.Contracts.Identity.Events;
+using Wallow.Shared.Kernel.Configuration;
 using Wolverine;
 
 namespace Wallow.Notifications.Application.EventHandlers;
@@ -16,7 +17,7 @@ public static class EmailVerifiedNotificationHandler
     {
         string appUrl = configuration["AppUrl"]
                         ?? configuration["AuthUrl"]
-                        ?? "http://localhost:5000";
+                        ?? new ServiceUrlsOptions().AuthUrl;
 
         string appName = configuration["Branding:AppName"] ?? "Wallow";
 

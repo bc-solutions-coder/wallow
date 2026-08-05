@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using Wallow.Shared.Contracts.Storage;
+using Wallow.Shared.Kernel.Configuration;
 using Wallow.Storage.Infrastructure.Configuration;
 
 namespace Wallow.Storage.Infrastructure.Providers;
@@ -63,7 +64,7 @@ public sealed class LocalStorageProvider(IOptions<StorageOptions> options) : ISt
     {
         // Local storage doesn't support true presigned URLs
         // Return an API endpoint URL that can be used to download/upload
-        string baseUrl = _options.BaseUrl?.TrimEnd('/') ?? "http://localhost:5000";
+        string baseUrl = _options.BaseUrl?.TrimEnd('/') ?? new ServiceUrlsOptions().ApiUrl;
 
         if (forUpload)
         {

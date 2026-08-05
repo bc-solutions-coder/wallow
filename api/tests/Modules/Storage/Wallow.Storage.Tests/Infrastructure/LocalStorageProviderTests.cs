@@ -19,7 +19,7 @@ public sealed class LocalStorageProviderTests : IDisposable
             Local = new LocalStorageOptions
             {
                 BasePath = _tempPath,
-                BaseUrl = "http://localhost:5000"
+                BaseUrl = "http://localhost:5001"
             }
         });
 
@@ -168,7 +168,7 @@ public sealed class LocalStorageProviderTests : IDisposable
         string url = await _provider.GetPresignedUrlAsync(key, TimeSpan.FromHours(1), forUpload: false);
 
         // Assert
-        url.Should().StartWith("http://localhost:5000");
+        url.Should().StartWith("http://localhost:5001");
         url.Should().Contain("download");
         url.Should().Contain(Uri.EscapeDataString(key));
     }
@@ -183,7 +183,7 @@ public sealed class LocalStorageProviderTests : IDisposable
         string url = await _provider.GetPresignedUrlAsync(key, TimeSpan.FromMinutes(15), forUpload: true);
 
         // Assert
-        url.Should().StartWith("http://localhost:5000");
+        url.Should().StartWith("http://localhost:5001");
         url.Should().Contain("upload");
     }
 
@@ -213,7 +213,7 @@ public sealed class LocalStorageProviderTests : IDisposable
 
         string url = await provider.GetPresignedUrlAsync("test/file.txt", TimeSpan.FromHours(1));
 
-        url.Should().StartWith("http://localhost:5000");
+        url.Should().StartWith("http://localhost:5001");
     }
 
     [Fact]
@@ -257,7 +257,7 @@ public sealed class LocalStorageProviderTests : IDisposable
             Local = new LocalStorageOptions
             {
                 BasePath = _tempPath,
-                BaseUrl = "http://localhost:5000/"
+                BaseUrl = "http://localhost:5001/"
             }
         });
         LocalStorageProvider provider = new(options);
@@ -265,6 +265,6 @@ public sealed class LocalStorageProviderTests : IDisposable
         string url = await provider.GetPresignedUrlAsync("test/file.txt", TimeSpan.FromHours(1));
 
         url.Should().NotContain("//api");
-        url.Should().Contain("http://localhost:5000/api");
+        url.Should().Contain("http://localhost:5001/api");
     }
 }
