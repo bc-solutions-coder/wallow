@@ -177,9 +177,24 @@ try
     builder.Services.AddWallowAuditing(builder.Configuration);
     builder.Services.AddAuthAuditing(builder.Configuration);
 
-    // Wolverine — unified CQRS mediator + message bus
-    // Use ManualOnly to prevent Wolverine from scanning native DLLs (QuestPDF/Skia)
-    // which can cause crashes on macOS (exit codes 139/134)
+    // Wolverine — unified CQRS mediator + message bus.
+    //
+    // This call ends with ExtensionDiscovery.ManualOnly — the argument is ~200 lines below,
+    // on the closing line of UseWolverine, which is why it is called out here.
+    //
+    // ManualOnly is NOT a workaround for the macOS native-DLL crash (exit 139/134) it was
+    // originally added for. That crash was a property of the pre-6.0 AssemblyFinder, which
+    // probed the bin directory at startup and could load QuestPDF/Skia natives. Wolverine 6.0
+    // (GH-2902) deleted that scan outright and replaced it with a compile-time source
+    // generator: JasperFx.SourceGenerator emits a JasperFx.Generated.DiscoveredExtensions
+    // manifest per assembly, which Wolverine reads through the application's REFERENCE GRAPH.
+    // Per guide/extensions.md, "as of Wolverine 6.0 there is no runtime bin-directory assembly
+    // scan for extensions". Wallow is on 6.21.0, so nothing probes the bin directory with or
+    // without the flag.
+    //
+    // What ManualOnly still governs is IWolverineExtension AUTO-discovery. It is retained for
+    // explicit control over which extensions load — not for the crash. Note the coupling to
+    // UseRuntimeCompilation() immediately below, which is only necessary BECAUSE of it.
     builder.Host.UseWolverine(opts =>
     {
         // Wolverine 6 removed the runtime Roslyn compiler from the core package.
@@ -187,6 +202,12 @@ try
         // so the runtime compiler must be registered explicitly. Referencing the
         // WolverineFx.RuntimeCompilation package alone does not auto-register it here,
         // so call it directly. See https://wolverinefx.net/guide/codegen.html (GH-2876).
+        //
+        // "Does not auto-register" is true ONLY because of ExtensionDiscovery.ManualOnly:
+        // the package ships an IWolverineExtension, and auto-discovery is exactly the
+        // mechanism ManualOnly turns off. The two are coupled in both directions — dropping
+        // ManualOnly would make this call redundant, and keeping it makes this call REQUIRED.
+        // Without it, TypeLoadMode.Dynamic has no compiler and every handler fails to build.
         opts.UseRuntimeCompilation();
 
         // Wolverine 6 defaults ServiceLocationPolicy to NotAllowed: any handler or
@@ -386,6 +407,10 @@ try
             opts.Policies.UseDurableInboxOnAllListeners();
             opts.Policies.UseDurableOutboxOnAllSendingEndpoints();
         }
+        // ExtensionDiscovery.ManualOnly — disables IWolverineExtension auto-discovery, which is
+        // why UseRuntimeCompilation() above must be called explicitly. It is NOT a guard against
+        // the pre-6.0 bin-directory scan; that scan no longer exists. See the comment on the
+        // UseWolverine call itself.
     }, ExtensionDiscovery.ManualOnly);
 
     builder.Services.AddSingleton<IPresenceService, RedisPresenceService>();
