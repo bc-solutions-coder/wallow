@@ -226,6 +226,15 @@ try
         // cannot be inlined, so a type nothing ever sends fails the codegen policy.
         opts.Discovery.CustomizeHandlerDiscovery(types => types.Excludes.Implements<IAuthorizationHandler>());
 
+        // Pin the application assembly explicitly. Wolverine otherwise infers it with a
+        // stack walk whose result is cached in a process-wide static (JasperFxOptions.
+        // RememberedApplicationAssembly), so in a test process that stands up several hosts
+        // the first one to boot decides for all of them. Every host in the suite currently
+        // boots this same Program.cs, so the inferred value is already Wallow.Api — this is
+        // preventive, not a fix. The setter also Fills the discovery collection, which is why
+        // Wallow.Api appears twice in the assembly list; that duplicate is harmless.
+        opts.ApplicationAssembly = typeof(WallowModules).Assembly;
+
         // Discover handlers in all Wallow assemblies
         foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies()
             .Where(a => a.GetName().Name?.StartsWith("Wallow.", StringComparison.Ordinal) == true))
