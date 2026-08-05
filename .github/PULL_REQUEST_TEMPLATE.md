@@ -25,7 +25,7 @@
 
 ## Testing
 
-- [ ] Backend tests pass (`./scripts/run-tests.sh`)
+- [ ] Backend tests pass (`./scripts/run-tests.sh all` — a bare run excludes every `Category=Integration` test)
 - [ ] Frontend quality gate passes (`pnpm check`) — if the change touches `apps/` or `packages/`
 - [ ] New tests added for new functionality
 - [ ] Manual testing performed (describe below if applicable)

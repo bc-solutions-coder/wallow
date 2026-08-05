@@ -131,8 +131,13 @@ Notifications is a strong reference implementation for DDD patterns with multi-c
 ```
 
 This runs the fast suites only -- `run-tests.sh` appends `--filter "Category!=E2E&Category!=Integration"`
-to every invocation except the literal `./scripts/run-tests.sh integration`. Run that one to exercise
-the integration tests, and watch for Testcontainers spinning up Postgres and Valkey.
+to every invocation except `integration` and `all`, and tells you so in its own output. Run either of
+these to exercise the integration tier, and watch for Testcontainers spinning up Postgres and Valkey:
+
+```bash
+./scripts/run-tests.sh integration   # ONLY the Category=Integration tests, solution-wide
+./scripts/run-tests.sh all           # the fast suites and the integration suites together
+```
 
 The frontend workspace has its own gate. `pnpm check` runs formatting, both lint passes, manifest and
 dependency checks, build, typecheck, tests and export checks -- it is what CI runs, so run it before

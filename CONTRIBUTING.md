@@ -116,7 +116,8 @@ Add `!` after the type for breaking changes: `feat!: redesign authentication API
 
 ## Pull Request Process
 
-1. Ensure both quality gates pass: `./scripts/run-tests.sh` (backend) and `pnpm check` (frontend)
+1. Ensure both quality gates pass: `./scripts/run-tests.sh all` (backend — `all`, not a bare run,
+   because a bare run filters out every `Category=Integration` test) and `pnpm check` (frontend)
 2. Update documentation if you changed public APIs or behavior
 3. Fill out the PR template completely
 4. Request review from a maintainer

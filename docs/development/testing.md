@@ -11,7 +11,9 @@ its own page: [E2E Testing](testing-e2e.md).
 Run the .NET suites through `./scripts/run-tests.sh`, never bare `dotnet test`:
 
 ```bash
-./scripts/run-tests.sh              # every unit test in api/Wallow.slnx
+./scripts/run-tests.sh              # the fast suites in api/Wallow.slnx; integration EXCLUDED
+./scripts/run-tests.sh integration  # ONLY Category=Integration, solution-wide (needs Docker)
+./scripts/run-tests.sh all          # both, in one run (needs Docker)
 ./scripts/run-tests.sh identity     # one module
 ```
 
@@ -27,13 +29,39 @@ be counted as uncovered lines and deflate every coverage number. Coverage exclus
 **only** in `api/tests/coverage.runsettings`; never duplicate them into a project file or a
 CI command line.
 
-The script also appends `--filter "Category!=E2E&Category!=Integration"` on every run except
-the `integration` shorthand, because those tiers need live infrastructure.
+### Integration tests are opt-in, and the script says so
+
+Every invocation except `integration` and `all` appends
+`--filter "Category!=E2E&Category!=Integration"`, because that tier needs live infrastructure
+(Testcontainers, hence Docker). Those runs print `SCOPE: fast suites only` beside their totals and
+close with an `INTEGRATION TESTS DID NOT RUN` banner naming the two commands that do run them —
+a green total from a bare run is **not** evidence that the integration guards passed.
+
+`integration` and `all` select by **category across `api/Wallow.slnx`**, not by project, because
+integration tests live in seven assemblies. `Wallow.Api.Tests` is the one that matters most:
+`HandlerCodegenTests` compiles every discovered Wolverine handler and is the only guard that a
+handler dependency the codegen cannot inline-construct fails in the suite rather than in a
+dead-letter queue.
+
+A run that executes zero tests reports `RESULT: FAIL` and exits nonzero — a selector that matches
+nothing is a broken selector, not a pass.
 
 ### Module shorthands
 
 `identity`, `storage`, `notifications`, `announcements`, `inquiries`, `branding`, `apikeys`,
-`api`, `arch` (or `architecture`), `seeder`, `migrations`, `shared`, `kernel`, `integration`.
+`api`, `arch` (or `architecture`), `seeder`, `migrations`, `shared`, `kernel`, `integration`,
+`all`. Shorthands are matched case-insensitively.
+
+A **second** argument — `integration` or `all` — narrows that tier to whatever the first argument
+selected, so you can iterate on one assembly's integration tests without running the other six:
+
+```bash
+./scripts/run-tests.sh api integration        # just Wallow.Api.Tests' Category=Integration tests
+./scripts/run-tests.sh storage integration    # just Storage's Testcontainers suites
+./scripts/run-tests.sh api/tests/Wallow.Api.Tests all   # a path works as the first argument too
+```
+
+Any other second argument is rejected with exit code 2 rather than silently ignored.
 
 Anything the script does not recognise as a shorthand is passed through as a project path, so
 `./scripts/run-tests.sh api/tests/Wallow.Api.Tests` works too.

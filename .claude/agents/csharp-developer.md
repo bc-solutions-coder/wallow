@@ -198,6 +198,10 @@ When implementing a feature:
 7. **Implement logic** -- Minimal code to make tests pass. Do NOT modify tests.
 8. **Confirm green** -- Run `./scripts/run-tests.sh <module>`. All tests must PASS.
 9. **Refactor** -- Clean up. Re-run tests.
+10. **Cover the integration tier before reporting green** -- a module run filters out every
+    `Category=Integration` test, including the Wolverine handler-codegen guards. Finish with
+    `./scripts/run-tests.sh all` (or `integration`) whenever the change touches handlers, DI
+    registration, Wolverine/EF configuration, or the API host.
 
 Rules:
 - Structural code before tests is allowed. Logic before tests is NOT.
@@ -208,7 +212,9 @@ Rules:
 
 ```bash
 dotnet build api/Wallow.slnx                    # Build solution (there is no root solution file)
-./scripts/run-tests.sh                          # All tests (structured output)
+./scripts/run-tests.sh                          # Fast suites (structured output); integration EXCLUDED
+./scripts/run-tests.sh all                      # Fast suites + Category=Integration (needs Docker)
+./scripts/run-tests.sh integration              # Only Category=Integration, solution-wide
 ./scripts/run-tests.sh <module>                 # Module tests
 dotnet run --project api/src/Wallow.Api         # Run API
 dotnet format api/Wallow.slnx                    # Format before commits

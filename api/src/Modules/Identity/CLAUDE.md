@@ -68,7 +68,12 @@ not an inventory. Enforced with `[HasPermission]`; scopes map to permissions via
 
 ```bash
 ./scripts/run-tests.sh identity      # Wallow.Identity.Tests (unit + Testcontainers)
-./scripts/run-tests.sh integration   # Wallow.Identity.IntegrationTests
+
+# `integration` is no longer this module's shorthand -- it selects Category=Integration across the
+# whole solution (seven assemblies). Every spec in Wallow.Identity.IntegrationTests carries that
+# category, so narrowing to it takes the project path AND the tier; without the tier the default
+# filter excludes every spec in the project and the run now fails on zero tests.
+./scripts/run-tests.sh api/tests/Modules/Identity/Wallow.Identity.IntegrationTests integration
 ```
 
 ## Related Documentation

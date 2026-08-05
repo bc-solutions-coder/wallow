@@ -23,12 +23,21 @@ dotnet build api/Wallow.slnx
 dotnet format api/Wallow.slnx                      # run before every commit
 
 # Tests — always via the script (structured per-assembly results; applies coverage.runsettings)
-./scripts/run-tests.sh                             # all unit tests
+./scripts/run-tests.sh                             # fast suites; Category=Integration EXCLUDED
+./scripts/run-tests.sh integration                 # ONLY Category=Integration, solution-wide (Docker)
+./scripts/run-tests.sh all                         # both, in one run (Docker)
 ./scripts/run-tests.sh identity                    # one module
+./scripts/run-tests.sh api integration             # one target's integration tests (2nd arg tier)
 # Shorthands: identity, storage, notifications, announcements, inquiries, branding, apikeys,
-#             api, arch (= architecture), seeder, migrations, shared, kernel, integration
+#             api, arch (= architecture), seeder, migrations, shared, kernel, integration, all
+# A second argument (`integration` or `all`) narrows that tier to the first argument's target, so
+# `./scripts/run-tests.sh api integration` iterates on HandlerCodegenTests alone.
 # Anything else is passed through as a project path, so a real path runs and a typo'd shorthand
 # fails only when `dotnet test` cannot resolve it.
+# `integration` and `all` select by CATEGORY across api/Wallow.slnx, because integration tests live
+# in seven assemblies — including Wallow.Api.Tests, whose HandlerCodegenTests is the only guard that
+# every discovered Wolverine handler compiles. Every other invocation appends
+# --filter "Category!=E2E&Category!=Integration" and says so, loudly, in its own output.
 # (E2E is per-app Playwright now — see .claude/rules/E2E.md)
 
 # EF Core migrations (per module DbContext)
@@ -98,6 +107,21 @@ is a 4-project Clean Architecture stack `Wallow.{Module}.{Domain,Application,Inf
   `WolverineCodegenPolicyTests`, with `HandlerCodegenTests` compiling every handler in the
   integration run. An interface the codegen genuinely cannot construct (opaque lambda registration)
   goes on the `AlwaysUseServiceLocationFor` list in `Program.cs`, which those tests also pin.
+- **A handler chain may reach exactly ONE module `DbContext`.** `opts.Policies.AutoApplyTransactions()`
+  gives every chain whose transitive service dependencies reach a `DbContext` a
+  `<Module>DbContext.SaveChangesAsync` postprocessor (currently 66 of 94 chains). If a chain reaches
+  **two**, `EFCorePersistenceFrameProvider.DetermineDbContextType` throws — and, like the service-location
+  policy above, it throws on the *first message* of that type, not at startup. So a handler that injects
+  its own module's repository **and** a second module's repository is a runtime codegen failure, not a
+  compile error. Cross-module work goes through a `Shared.Contracts` integration event, never a second
+  repository. The shared service interfaces are safe to inject because none of them reaches a `DbContext`
+  (`ISseDispatcher` is Redis; `IEmailService`, `IStorageProvider` and `IFileScanner` are external providers).
+- **A handler that saves and then dispatches must keep that order.** The transaction middleware *adds* a
+  `SaveChangesAsync` postprocessor; it does not remove the explicit save a handler already makes. Do not
+  delete an explicit save on the theory that the postprocessor covers it — `SendNotificationHandler` saves
+  and *then* pushes to realtime, and reversing that would push before the commit and hand SSE consumers a
+  read-your-writes race. Note the same middleware only covers work that goes through `SaveChangesAsync`:
+  `ExecuteDeleteAsync`/`ExecuteUpdateAsync` bulk statements sit outside the handler's unit of work.
 - **DbContexts** extend `TenantAwareDbContext` (automatic tenant query filters +
   `TenantSaveChangesInterceptor`), default `NoTracking` — mutations attach explicitly. Modules
   are migrated inline only in the `Testing` environment (`WallowModules.RunTestMigrationsAsync`);
@@ -155,7 +179,8 @@ never commit unformatted code. No `--` inside XML comments in `.csproj`/`.props`
 ## Tests (`api/tests/`)
 
 - **Module tests:** `Modules/{Module}/Wallow.{Module}.Tests` (unit + Testcontainers Postgres).
-  Identity adds `Wallow.Identity.IntegrationTests` (`integration` shorthand).
+  Identity adds `Wallow.Identity.IntegrationTests` — it has **no shorthand**; reach it by path plus
+  the tier (`./scripts/run-tests.sh api/tests/Modules/Identity/Wallow.Identity.IntegrationTests integration`).
 - **Host:** `Wallow.Api.Tests`.
 - **Architecture:** `Wallow.Architecture.Tests` (`arch`) enforces module boundaries.
 - **E2E:** three per-app `@playwright/test` suites in the pnpm workspace — `apps/wallow-auth/e2e/`,

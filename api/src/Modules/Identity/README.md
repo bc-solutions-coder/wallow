@@ -253,7 +253,11 @@ module's Domain layer.
 
 ```bash
 ./scripts/run-tests.sh identity      # Wallow.Identity.Tests (unit + Testcontainers)
-./scripts/run-tests.sh integration   # Wallow.Identity.IntegrationTests
+
+# `integration` selects Category=Integration solution-wide, not just this module. To run only this
+# module's integration suite, pass its path plus the tier -- the tier is required, because the
+# default filter excludes Category=Integration and a zero-test run is now a failure.
+./scripts/run-tests.sh api/tests/Modules/Identity/Wallow.Identity.IntegrationTests integration
 ```
 
 ## EF Core Migrations

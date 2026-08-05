@@ -4,6 +4,14 @@
   module). **Never run bare `dotnet test`** — the script supplies
   `--settings api/tests/coverage.runsettings`, which excludes generated code; without it uncovered
   lines are inflated.
+- **A bare backend run does NOT cover integration tests.** Everything tagged
+  `Category=Integration` — the Wolverine handler-codegen guards in `Wallow.Api.Tests` and every
+  Testcontainers-backed suite — is filtered out of every invocation except
+  `./scripts/run-tests.sh integration` (only those) and `./scripts/run-tests.sh all` (both). Both
+  need Docker; both select by category across `api/Wallow.slnx`, so they reach all seven assemblies
+  that carry integration tests. As a **second** argument they narrow to the first argument's target
+  (`./scripts/run-tests.sh api integration` runs only `Wallow.Api.Tests`'s integration tests). A run that excludes them says so beside its totals and again at the
+  end — **do not report a backend change green off a bare run alone.**
 - **Frontend: `pnpm test`** (= `pnpm -r test` = `vitest run` per package).
 - **DOM tests run in a REAL browser via Vitest browser mode.** Any spec that touches the DOM
   (renders a component, reads layout/focus/computed styles) runs in headless Chromium.

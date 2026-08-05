@@ -65,9 +65,18 @@ You can still run the API alone with `dotnet run --project api/src/Wallow.Api` a
 ./scripts/run-tests.sh api/tests/Modules/Inquiries/Wallow.Inquiries.Tests
 ```
 
-The script outputs structured per-assembly pass/fail counts and lists individual failed test names. Supported shorthands, as defined in `resolve_filter()` in `scripts/run-tests.sh`: `identity`, `storage`, `notifications`, `announcements`, `inquiries`, `branding`, `apikeys`, `api`, `arch` (or `architecture`), `seeder`, `migrations`, `shared`, `kernel`, `integration`. Anything else is passed through to `dotnet test` as a project path.
+The script outputs structured per-assembly pass/fail counts and lists individual failed test names. Supported shorthands, as defined in `resolve_filter()` in `scripts/run-tests.sh`: `identity`, `storage`, `notifications`, `announcements`, `inquiries`, `branding`, `apikeys`, `api`, `arch` (or `architecture`), `seeder`, `migrations`, `shared`, `kernel`, `integration`, `all`. Matching is case-insensitive; anything else is passed through to `dotnet test` as a project path.
 
-Integration tests require Docker. Testcontainers spins up ephemeral Postgres and Valkey containers automatically. They are excluded from a normal run -- only `./scripts/run-tests.sh integration` executes them, because every other argument appends `--filter "Category!=E2E&Category!=Integration"`.
+Integration tests require Docker. Testcontainers spins up ephemeral Postgres and Valkey containers automatically. They are excluded from a normal run, because every argument other than `integration` and `all` appends `--filter "Category!=E2E&Category!=Integration"`:
+
+```bash
+./scripts/run-tests.sh integration   # ONLY Category=Integration, across the whole solution
+./scripts/run-tests.sh all           # the fast suites and the integration suites together
+```
+
+A second argument narrows the tier to the first argument's target -- `./scripts/run-tests.sh api integration` runs only `Wallow.Api.Tests`'s integration tests, and anything other than `integration` or `all` there exits 2 rather than being ignored.
+
+Both select by category over `api/Wallow.slnx` rather than by project, because integration tests live in seven assemblies -- `Wallow.Api.Tests` among them, whose `HandlerCodegenTests` is the only guard that every discovered Wolverine handler compiles. A run that excludes the tier prints `SCOPE: fast suites only` beside its totals and ends with an `INTEGRATION TESTS DID NOT RUN` banner, so a green total is never mistakable for full coverage.
 
 ### 5. Run the Frontend
 
@@ -275,7 +284,7 @@ api/tests/
       Wallow.{Module}.Tests/         # One test project per module, with per-layer subfolders
 ```
 
-Each module has a **single** `Wallow.{Module}.Tests` project rather than one project per layer; domain, application, and infrastructure tests live in subfolders inside it. Identity additionally has `Wallow.Identity.IntegrationTests`, the only integration-test project in the repository.
+Each module has a **single** `Wallow.{Module}.Tests` project rather than one project per layer; domain, application, and infrastructure tests live in subfolders inside it. Identity additionally has `Wallow.Identity.IntegrationTests` — the only project dedicated entirely to integration tests, but not the only place they live. Integration tests are selected by the `[Trait("Category", "Integration")]` marker, which appears across seven assemblies, so `./scripts/run-tests.sh integration` runs the whole solution rather than one project.
 
 ---
 

@@ -81,7 +81,8 @@ pnpm --filter @bc-solutions-coder/wallow-auth dev             # Auth  → http:/
 ### 4. Run tests
 
 ```bash
-./scripts/run-tests.sh                    # all backend tests
+./scripts/run-tests.sh                    # backend fast suites (Category=Integration excluded)
+./scripts/run-tests.sh all                # the same, plus the integration suites (needs Docker)
 ./scripts/run-tests.sh identity           # single backend module
 pnpm check                                # the frontend quality gate (format, lint, build, typecheck, test)
 ```
@@ -167,10 +168,15 @@ of which carries tests. Most pnpm workspace members add a Vitest suite — DOM s
 browser project, non-DOM specs in a node project — plus per-app Playwright E2E suites.
 
 ```bash
-./scripts/run-tests.sh                    # backend, with the coverage runsettings
+./scripts/run-tests.sh                    # backend fast suites, with the coverage runsettings
+./scripts/run-tests.sh all                # the same, plus every Category=Integration test (Docker)
 pnpm check                                # frontend quality gate, including pnpm test
 ./scripts/e2e.sh                          # containerised backend + all three Playwright suites
 ```
+
+A bare backend run filters out `Category=Integration` and says so in its own output; `all` (or
+`integration` for that tier alone) is what exercises the Wolverine handler-codegen guards and the
+Testcontainers-backed suites.
 
 Coverage figures are produced by the run, not tracked here — `./scripts/run-tests.sh` writes them
 with `api/tests/coverage.runsettings` applied.

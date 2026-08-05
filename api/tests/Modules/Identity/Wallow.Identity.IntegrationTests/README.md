@@ -36,15 +36,21 @@ cover the corresponding controller and service surface. `Fakes/` holds test doub
 ## Running
 
 ```bash
-# This suite. `integration` is the ONLY argument that runs it.
+# This suite, plus every other Category=Integration test in the solution.
 ./scripts/run-tests.sh integration
+
+# The same, alongside the fast suites.
+./scripts/run-tests.sh all
 ```
 
 > [!IMPORTANT]
 > `./scripts/run-tests.sh identity` does **not** run this suite. That argument resolves to
-> `Wallow.Identity.Tests` only, and — because the argument is not literally `integration` — the
+> `Wallow.Identity.Tests` only, and — because the argument is neither `integration` nor `all` — the
 > script also appends `--filter "Category!=E2E&Category!=Integration"`, so it skips
-> `[Trait("Category", "Integration")]` tests wherever they live. `integration` is the one argument
-> that does not add that exclusion.
+> `[Trait("Category", "Integration")]` tests wherever they live. `integration` and `all` are the
+> only two arguments that do not add that exclusion; both select by category across
+> `api/Wallow.slnx`, so they run this project **and** the integration tests in
+> `Wallow.Api.Tests`, `Wallow.Storage.Tests`, `Wallow.Announcements.Tests`,
+> `Wallow.Inquiries.Tests`, `Wallow.Identity.Tests` and `Wallow.Shared.Infrastructure.Tests`.
 >
 > These tests need Docker running (Testcontainers PostgreSQL and Valkey).
