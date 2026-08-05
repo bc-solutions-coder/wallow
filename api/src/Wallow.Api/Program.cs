@@ -504,7 +504,15 @@ try
 
     // Core services
     builder.Services.AddHttpContextAccessor();
-    builder.Services.AddControllersWithViews();
+    IMvcBuilder mvcBuilder = builder.Services.AddControllersWithViews();
+
+    // A disabled module must have no HTTP surface, not a broken one. Dropping its application part
+    // here — while the part list is what AddControllersWithViews just populated, and before anything
+    // reads a feature off it — keeps its controllers out of the ActionDescriptorCollection that
+    // routing, Asp.Versioning's ApiExplorer and the OpenAPI document generator all read from.
+    mvcBuilder.ConfigureApplicationPartManager(manager =>
+        Wallow.Api.WallowModules.RemoveDisabledModuleApiParts(manager, enabledModules));
+
     builder.Services.AddApiVersioning(opts =>
     {
         opts.DefaultApiVersion = new ApiVersion(1);
