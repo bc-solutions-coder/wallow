@@ -9,7 +9,7 @@
     <!-- .NET Version-Coupled Packages -->
     <!-- These should match the .NET version (e.g., 10.0.x for .NET 10) -->
     <MicrosoftExtensionsVersion>10.0.10</MicrosoftExtensionsVersion>
-    <EfCoreVersion>10.0.10</EfCoreVersion>
+    <EfCoreVersion>10.0.11</EfCoreVersion>
     <AspNetCoreVersion>10.0.10</AspNetCoreVersion>
   </PropertyGroup>
   <ItemGroup>
