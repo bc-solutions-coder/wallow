@@ -22,11 +22,17 @@ public sealed class DeleteFileHandler(
             return Result.Failure(Error.NotFound("File", command.FileId));
         }
 
-        await storageProvider.DeleteAsync(file.StorageKey, cancellationToken);
+        // Commit the row removal BEFORE deleting the object, never after. An object-store delete
+        // is not undone by a database rollback, so the reverse order lets a failed commit leave a
+        // row pointing at bytes that are already gone -- a permanent 404 on read. This way the
+        // worst case is an orphaned object: garbage, but nothing points at it.
+        string storageKey = file.StorageKey;
 
         file.MarkAsDeleted();
         fileRepository.Remove(file);
         await fileRepository.SaveChangesAsync(cancellationToken);
+
+        await storageProvider.DeleteAsync(storageKey, cancellationToken);
 
         return Result.Success();
     }

@@ -102,6 +102,38 @@ public class DeleteBucketHandlerTests
     }
 
     [Fact]
+    public async Task Handle_WhenForced_CommitsRemovalsBeforeDeletingFromStorage()
+    {
+        TenantId tenantId = TenantId.New();
+        StorageBucket bucket = StorageBucket.Create(tenantId, "force-delete-ordering");
+        StoredFile file1 = StoredFile.Create(
+            tenantId, bucket.Id, "file1.txt", "text/plain", 100, "key1", Guid.NewGuid());
+        StoredFile file2 = StoredFile.Create(
+            tenantId, bucket.Id, "file2.txt", "text/plain", 200, "key2", Guid.NewGuid());
+        DeleteBucketCommand command = new(tenantId.Value, "force-delete-ordering", Force: true);
+
+        _bucketRepository.GetByNameAsync(command.Name, Arg.Any<CancellationToken>())
+            .Returns(bucket);
+        _fileRepository.GetByBucketIdAsync(bucket.Id, cancellationToken: Arg.Any<CancellationToken>())
+            .Returns(new List<StoredFile> { file1, file2 });
+
+        await _handler.Handle(command, CancellationToken.None);
+
+        // Same ordering rule as DeleteFileHandler, and sharper here because the loop can strand a
+        // whole bucket's worth of rows: object-store deletes survive a database rollback, so they
+        // run only once the removals have committed.
+        Received.InOrder(() =>
+        {
+            _fileRepository.Remove(file1);
+            _fileRepository.Remove(file2);
+            _bucketRepository.Remove(bucket);
+            _bucketRepository.SaveChangesAsync(Arg.Any<CancellationToken>());
+            _storageProvider.DeleteAsync("key1", Arg.Any<CancellationToken>());
+            _storageProvider.DeleteAsync("key2", Arg.Any<CancellationToken>());
+        });
+    }
+
+    [Fact]
     public async Task Handle_WhenBucketIsEmpty_DeletesBucketWithoutForce()
     {
         TenantId tenantId = TenantId.New();
