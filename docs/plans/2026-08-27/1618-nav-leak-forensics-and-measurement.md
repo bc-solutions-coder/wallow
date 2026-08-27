@@ -1,4 +1,14 @@
-**status: active**
+**status: completed**
+
+> **Outcome (2026-08-27).** Steps 1–4 all executed. The 25-run uncapped sweep executed the
+> navigation suite in every run and Wallow-x5da fired zero times (P ≈ 0.03 against the
+> historical 13% rate) — the "does not fire" branch was taken: no fix claimed, bead parked
+> open as "trap armed", acceptance criteria amended on the bead. Wallow-xzy1.6's exact
+> mocker signature reproduced 3/25 and proved to be a LOUD failure (victim file dies at
+> 0 tests), refuting the unification theory below on both ends; it closed on the
+> module-delivery-saturation causal story with `--concurrency=1` as the mitigation.
+> Residual risks (post-completion wedge, first-run-after-dep-change re-optimization kill)
+> are filed as Wallow-r6zh. Full numbers live in the two beads' 2026-08-27 notes.
 
 # Nav-leak forensics and measurement — Wallow-x5da + Wallow-xzy1.6
 
