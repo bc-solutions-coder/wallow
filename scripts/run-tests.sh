@@ -15,8 +15,8 @@ RUNSETTINGS="$REPO_ROOT/api/tests/coverage.runsettings"
 MODULE_FILTER="${1:-}"
 TRX_DIR=$(mktemp -d)
 
-# Shorthands are case-insensitive; an arbitrary project path is passed through verbatim, because
-# paths are case-sensitive.
+# Shorthands are case-insensitive; an arbitrary project path is matched verbatim, because paths are
+# case-sensitive. A first argument that is neither is a hard error -- see resolve_filter.
 MODE=$(printf '%s' "$MODULE_FILTER" | tr '[:upper:]' '[:lower:]')
 TIER=$(printf '%s' "${2:-}" | tr '[:upper:]' '[:lower:]')
 # Echo back what was actually typed, before TIER is inferred from the first argument below.
@@ -44,17 +44,28 @@ resolve_filter() {
         # carry Testcontainers-backed suites. Only the category selects them, so run the solution.
         integration|all) echo "$REPO_ROOT/api/Wallow.slnx" ;;
         "")              echo "$REPO_ROOT/api/Wallow.slnx" ;;
-        *)               echo "$MODULE_FILTER" ;;
+        # A path that exists is the documented `<project-path>` form. Anything else is a
+        # misspelled shorthand: echo nothing so the caller below can fail loudly. Passing it
+        # through used to hand it to `dotnet test`, which resolved nothing, ran nothing, and
+        # exited 0 -- a typo reported green.
+        *)               if [[ -e "$MODULE_FILTER" ]]; then echo "$MODULE_FILTER"; fi ;;
     esac
 }
 
 PROJECT_PATH=$(resolve_filter "$MODE")
 
-# Build test command
-CMD=(dotnet test --settings "$RUNSETTINGS" --logger "trx;LogFilePrefix=results" --results-directory "$TRX_DIR" --no-restore -v quiet)
-if [[ -n "$PROJECT_PATH" ]]; then
-    CMD+=("$PROJECT_PATH")
+if [[ -z "$PROJECT_PATH" ]]; then
+    echo "Unknown target '${MODULE_FILTER}'. It is neither a shorthand nor a path that exists." >&2
+    echo "Shorthands: identity, storage, notifications, announcements, inquiries, branding," >&2
+    echo "            apikeys, api, arch|architecture, seeder, migrations, shared, kernel," >&2
+    echo "            integration, all." >&2
+    echo "Or give a test project path, relative to the current directory." >&2
+    rm -rf "$TRX_DIR"
+    exit 2
 fi
+
+# Build test command
+CMD=(dotnet test --settings "$RUNSETTINGS" --logger "trx;LogFilePrefix=results" --results-directory "$TRX_DIR" --no-restore -v quiet "$PROJECT_PATH")
 
 # `integration` and `all` are whole-solution tiers; as a SECOND argument they narrow the same tier to
 # whatever the first argument selected, so `run-tests.sh api integration` iterates on

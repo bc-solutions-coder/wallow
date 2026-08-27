@@ -32,8 +32,8 @@ dotnet format api/Wallow.slnx                      # run before every commit
 #             api, arch (= architecture), seeder, migrations, shared, kernel, integration, all
 # A second argument (`integration` or `all`) narrows that tier to the first argument's target, so
 # `./scripts/run-tests.sh api integration` iterates on HandlerCodegenTests alone.
-# Anything else is passed through as a project path, so a real path runs and a typo'd shorthand
-# fails only when `dotnet test` cannot resolve it.
+# Anything else is taken as a project path and must EXIST — a typo'd shorthand exits 2 with the
+# shorthand list rather than running nothing and reporting green (`Wallow-yhfc`).
 # `integration` and `all` select by CATEGORY across api/Wallow.slnx, because integration tests live
 # in seven assemblies — including Wallow.Api.Tests, whose HandlerCodegenTests is the only guard that
 # every discovered Wolverine handler compiles. Every other invocation appends
@@ -129,7 +129,11 @@ is a 4-project Clean Architecture stack `Wallow.{Module}.{Domain,Application,Inf
 - **State changes go through aggregate methods** (`Publish()`, `Archive()`, `Revoke()`,
   `TransitionTo()`) — never set `Status` directly. Domain events raised in aggregates are
   bridged to integration events in Application event handlers.
-- **EF Core for writes, Dapper for complex reads.**
+- **EF Core is the only data-access technology.** Writes go through the module's
+  `TenantAwareDbContext`; reads go through `IReadDbContext<T>` (`NoTracking`, and routed to
+  `ReadReplicaConnection` when one is configured). There is no Dapper here — if raw SQL is
+  genuinely needed, it is EF Core's `FromSql`/`ExecuteSql`, and tenant query filters do **not**
+  apply to it.
 - **Enum properties persist as strings, never ints** — every entity configuration pairs
   `.HasConversion<string>()` with an explicit `.HasMaxLength(50)` (20 for short status enums), so
   adding or reordering an enum member never silently reinterprets stored rows.
