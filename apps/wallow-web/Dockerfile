@@ -12,7 +12,7 @@
 # something), so this is a single-stage build rather than a prod-deps-only split.
 
 # Node 24 matches the repo's .nvmrc; corepack ships with the image and pins
-# pnpm from the root package.json `packageManager` field (pnpm@10.20.0).
+# pnpm from the root package.json `packageManager` field (pnpm@11.24.0).
 FROM node:24-slim
 
 RUN corepack enable

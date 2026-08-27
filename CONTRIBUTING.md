@@ -8,7 +8,7 @@ Thank you for your interest in contributing to Wallow! This guide will help you 
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - [Docker](https://www.docker.com/) and Docker Compose
-- [Node 24](https://nodejs.org/) (see `.nvmrc`) and pnpm 10.20.0 (see `packageManager` in
+- [Node 24](https://nodejs.org/) (see `.nvmrc`) and pnpm 11.24.0 (see `packageManager` in
   `package.json`)
 - A code editor (Visual Studio, Rider, or VS Code)
 

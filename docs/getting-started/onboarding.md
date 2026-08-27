@@ -10,7 +10,7 @@ This guide gets you from zero to productive. For the full architecture reference
 
 - **Docker Desktop** (or Docker Engine + Docker Compose)
 - **.NET 10 SDK** ([download](https://dotnet.microsoft.com/download/dotnet/10.0))
-- **Node 24** (see `.nvmrc`) and **pnpm 10.20.0**, for the frontend workspace
+- **Node 24** (see `.nvmrc`) and **pnpm 11.24.0**, for the frontend workspace
 - **Your preferred IDE** (Rider, VS Code with C# Dev Kit, or Visual Studio)
 - **Git**
 

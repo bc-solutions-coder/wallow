@@ -31,7 +31,7 @@ this README is the boot recipe.
 
 ## Boot it
 
-All commands run from the repo root. Node 24 (`.nvmrc`), pnpm 10.20.0.
+All commands run from the repo root. Node 24 (`.nvmrc`), pnpm 11.24.0.
 
 ```bash
 pnpm install                                                   # resolves the workspace:* deps

@@ -25,7 +25,7 @@ wallow (upstream)          your-product (fork)
 ## Prerequisites
 
 - .NET 10 SDK
-- Node 24 (see `.nvmrc`) and pnpm 10.20.0 — the React apps and every shared package live in a pnpm workspace, and Approach A's very first customization step edits a file inside it
+- Node 24 (see `.nvmrc`) and pnpm 11.24.0 — the React apps and every shared package live in a pnpm workspace, and Approach A's very first customization step edits a file inside it
 - Docker and Docker Compose
 - PostgreSQL (via Docker or standalone)
 - Git

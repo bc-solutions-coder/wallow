@@ -7,6 +7,14 @@ packages:
   - "apps/*"
   - "packages/*"
 
+# esbuild's postinstall only re-links a binary its platform-specific optional
+# dependency already provides, so it stays off -- the whole build/typecheck/test
+# gate runs Vite, and therefore esbuild, green without it. pnpm 11 promoted an
+# ignored build script from a warning to a hard install error, so the decision
+# has to be written down rather than left implicit the way pnpm 10 allowed.
+allowBuilds:
+  esbuild: false
+
 catalogs:
   # Exact pins. App-side runtime singletons: two copies at runtime is a broken app,
   # not a slow one. Bump these together, deliberately, in one commit.

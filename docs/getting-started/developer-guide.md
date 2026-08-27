@@ -5,7 +5,7 @@
 ## Prerequisites
 
 - .NET 10 SDK
-- Node 24 (see `.nvmrc`) and pnpm 10.20.0, for the frontend workspace
+- Node 24 (see `.nvmrc`) and pnpm 11.24.0, for the frontend workspace
 - Docker and Docker Compose
 - Rider or Visual Studio 2022+
 
@@ -82,7 +82,7 @@ Both select by category over `api/Wallow.slnx` rather than by project, because i
 
 The API is headless. The user interfaces are two TanStack Start React apps in the pnpm workspace: `apps/wallow-web` (dashboard) and `apps/wallow-auth` (login, signup, MFA).
 
-The workspace targets **Node 24** (pinned in `.nvmrc`) and **pnpm 10.20.0** (pinned as `packageManager` in `package.json`). Install the workspace once:
+The workspace targets **Node 24** (pinned in `.nvmrc`) and **pnpm 11.24.0** (pinned as `packageManager` in `package.json`). Install the workspace once:
 
 ```bash
 pnpm install

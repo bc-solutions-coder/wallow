@@ -75,7 +75,7 @@ bead still points at it. Mark a finished plan `completed` or `superseded` in pla
 
 pnpm workspace (`pnpm-workspace.yaml` → `apps/*`, `packages/*`; every app is a direct child of
 `apps/`, no grouping directories — turbo drops packages behind a negated glob). Node **24** (`.nvmrc`),
-pnpm **10.20.0** (`packageManager`). Formatter/linter is the **oxc** toolchain
+pnpm **11.24.0** (`packageManager`). Formatter/linter is the **oxc** toolchain
 (`oxfmt` + `oxlint`), not prettier/eslint. `@bc-solutions-coder` is scoped to GitHub
 Packages (`.npmrc`), but `pnpm install` here needs no token — every scoped dependency is
 `workspace:*`. A registry credential belongs in `~/.npmrc` or `pnpm config set`, never in the

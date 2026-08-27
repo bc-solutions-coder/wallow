@@ -44,7 +44,7 @@ The intended workflow is to **fork this repo and build your product on top**. Sh
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - [Docker](https://www.docker.com/get-started)
-- [Node 24](https://nodejs.org/) (see `.nvmrc`) and pnpm 10.20.0 (see `packageManager` in
+- [Node 24](https://nodejs.org/) (see `.nvmrc`) and pnpm 11.24.0 (see `packageManager` in
   `package.json`)
 
 ### 1. Install workspace dependencies
