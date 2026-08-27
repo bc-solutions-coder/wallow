@@ -28,9 +28,9 @@ src/Modules/Storage/
 
 ### StorageBucket (Entity)
 
-Platform-wide logical grouping of files with shared settings. Buckets define storage policies and are not tenant-scoped.
+Logical grouping of files with shared settings. Buckets define storage policies and are tenant-scoped (`ITenantScoped`), like the files inside them.
 
-Key properties: `Name`, `Access` (Private/Public), `MaxFileSizeBytes`, `AllowedContentTypes`, `Retention` (RetentionPolicy), `Versioning`.
+Key properties: `TenantId`, `Name`, `Access` (Private/Public), `MaxFileSizeBytes`, `AllowedContentTypes`, `Retention` (RetentionPolicy), `Versioning`.
 
 ### StoredFile (Entity)
 
@@ -109,6 +109,16 @@ All endpoints require authentication and are prefixed with `/v1/storage`.
 | `POST` | `/presigned-upload` | Get presigned URL for direct upload |
 | `GET` | `/files/{id}/presigned-url` | Get presigned URL for download |
 
+### Settings
+
+Served by `StorageSettingsController`, under the same `/v1/storage` prefix.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/config` | Resolved settings for the current tenant and user |
+| `GET`/`PUT`/`DELETE` | `/settings/tenant` | Tenant-scoped setting overrides |
+| `GET`/`PUT`/`DELETE` | `/settings/user` | User-scoped setting overrides |
+
 ## Storage Providers
 
 ### LocalStorageProvider
@@ -126,7 +136,7 @@ Both providers implement `IStorageProvider` (defined in `Wallow.Shared.Contracts
 Files are stored with tenant isolation enforced via key prefixes:
 
 ```
-{tenantId}/{bucket}/{path}/{fileId}{extension}
+tenant-{tenantId}/{bucket}/{path}/{fileId}{extension}
 ```
 
 ## Configuration

@@ -89,8 +89,8 @@ is a 4-project Clean Architecture stack `Wallow.{Module}.{Domain,Application,Inf
 - Each module owns a **separate Postgres schema** (enforced by `Wallow.Architecture.Tests`).
 - Modules talk only via **Wolverine** integration events through `Shared.Contracts` — never
   direct project references. Handlers auto-discovered across all `Wallow.*` assemblies.
-- Some modules have their own nested `CLAUDE.md` (Identity, Branding, Inquiries, ApiKeys, Announcements,
-  Notifications) — read those when working inside a module.
+- **Every** module has its own nested `CLAUDE.md` (Identity, Storage, Notifications, Announcements,
+  Inquiries, ApiKeys, Branding) — read the one for the module you are working inside.
 
 ## Backend Patterns (preserve these)
 

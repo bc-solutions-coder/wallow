@@ -76,8 +76,11 @@ export default defineConfig({
       // `@bc-solutions-coder/sdk/server` are NOT on that list, so a plainly-named
       // module wrapping them builds clean and ships to the browser (Wallow-v940).
       // The protection is real only because every server-only module in this app
-      // is named `*.server.*` — here that is `shared/lib/api-passthrough.server.ts`,
-      // and `src/server-only-naming.test.ts` is what keeps the convention true.
+      // is named `*.server.*` — here `shared/lib/api-passthrough.server.ts`,
+      // `client-address.server.ts` and `log-ingest.server.ts`. Nothing asserts the
+      // convention any more: `src/server-only-naming.test.ts` went with the rest of
+      // the source-reading guards (Wallow-xg9t.1), so a plainly-named server module
+      // ships to the browser and only the build's own failure would catch it.
       importProtection: { include: ["src/**"] },
 
       router: {

@@ -214,10 +214,47 @@ without burning a session on any one of them.
 > always is); `dotnet build api/Wallow.slnx` clean; `dotnet format` no-op; `pnpm check` exit 0
 > end to end. `./scripts/run-tests.sh identty` exits 2 with the shorthand list.
 
-### Step 5 — authoring work, do when writing suits you
+### Step 5 — authoring work, do when writing suits you — **DONE 2026-08-27**
 
 `bqoq` (wallow-auth README + CLAUDE.md) and `hr0p` (Storage CLAUDE.md). Both are pure
 authoring against an existing template; neither blocks anything.
+
+> **Landed as one `docs:` commit.** Three files written —
+> `api/src/Modules/Storage/CLAUDE.md`, `apps/wallow-auth/README.md`,
+> `apps/wallow-auth/CLAUDE.md` — plus `api/CLAUDE.md`'s nested-guide bullet, which now says
+> **every** module has a guide rather than listing six.
+>
+> Five things the beads did not say:
+>
+> 1. **Reconnaissance for `hr0p` turned up four defects**, filed rather than documented as
+>    intended behaviour, and the new guide cites them: **`Wallow-p9p4`** (P1 — the presigned
+>    upload path publishes `ScanUploadedFileCommand` BEFORE minting the URL, so the scanner
+>    downloads a key that does not exist yet, throws uncaught, and strands the row in
+>    `PendingValidation`, which `GetPresignedUrlHandler` then refuses; a presigned upload can
+>    never be downloaded), **`Wallow-cf33`** (P2 — all three `StorageSettingKeys` are served by
+>    `StorageSettingsController` and read by nothing: no extension allowlist, no quota
+>    accounting, the real limits are `[RequestSizeLimit]` and per-bucket `MaxFileSizeBytes`),
+>    **`Wallow-p23n`** (P3 — `LocalStorageProvider`'s presigned URLs point at `/api/storage/...`,
+>    a prefix no route serves), **`Wallow-xku9`** (P3 — five test classes duplicated across flat
+>    and nested namespaces, 37 facts run twice).
+> 2. **`Storage/README.md` was wrong on three points** and is corrected in the same commit: the
+>    storage key is `tenant-{tenantId}/...`, not `{tenantId}/...`; the six `/settings` and
+>    `/config` endpoints were undocumented; and it claimed buckets are platform-wide when
+>    `StorageBucket` declares `ITenantScoped` and carries a `TenantId` like `StoredFile` does.
+> 3. **`bqoq`'s two files split by audience rather than by topic.** The README is the human
+>    overview (commands, layout, route table, env table); the CLAUDE.md is only what
+>    `apps/CLAUDE.md` does not already own — the pure-proxy/no-BFF distinction, the srvx
+>    request that cannot be cloned, `AUTH_BASE_PATH`'s three shapes plus the passthrough's
+>    strip, `--configLoader runner`, the three `extraBrowserOptimizeDeps` entries, the
+>    `*-result.ts` narrowing modules, and the two conventions `Wallow-xg9t.1` left unenforced.
+> 4. **Two stale spec references were fixed while reading.** `apps/wallow-auth/vite.config.ts`
+>    and `apps/wallow-auth/Dockerfile` both cited guard specs that `Wallow-xg9t.1` deleted; the
+>    comments now say the convention is unheld rather than naming a spec that is gone.
+> 5. **Nothing was written about behaviour that could not be read.** Every claim in both
+>    guides was checked against source in this session.
+>
+> Verified: `pnpm check` exit 0; `./scripts/run-tests.sh storage` green (integration excluded,
+> as that invocation always is — no C# changed, only Markdown and two comments).
 
 ### Step 6 — the flakes, together, under load
 

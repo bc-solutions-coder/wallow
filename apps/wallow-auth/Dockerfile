@@ -55,9 +55,10 @@ RUN pnpm install --frozen-lockfile
 # every package's own vite.config.ts imports @bc-solutions-coder/config, so
 # omitting packages/config fails the package build below — not the app's — with
 # ERR_MODULE_NOT_FOUND out of a .vite-temp config stub, which reads nothing like
-# a missing COPY. This list is mirrored from the manifest by
-# src/docker-workspace-copies.test.ts, so a new workspace dep fails there rather
-# than minutes into an image build.
+# a missing COPY. Nothing checks the list against the manifest any more --
+# src/docker-workspace-copies.test.ts went with the rest of the source-reading
+# guards (Wallow-xg9t.1) -- so adding a workspace dependency means adding two COPY
+# lines here by hand, and forgetting fails minutes into an image build.
 COPY packages/auth packages/auth
 COPY packages/config packages/config
 COPY packages/env packages/env
