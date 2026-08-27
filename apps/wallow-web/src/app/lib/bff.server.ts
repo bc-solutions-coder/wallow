@@ -21,6 +21,7 @@
  *    failed build is not cached, so a transient Redis outage at boot does not
  *    permanently disable the BFF.
  */
+import { type PeerRequest } from "@bc-solutions-coder/env/client-address";
 import {
   CLIENT_IP_HEADER,
   createWallowBffServer,
@@ -29,16 +30,8 @@ import {
 } from "@bc-solutions-coder/sdk/server";
 import { createClient, type RedisClientType } from "redis";
 
+import { clientAddressFor } from "./client-address.server";
 import { serverLog } from "./log.server";
-
-/**
- * The inbound request as srvx hands it to a Start server route. A WHATWG
- * `Request` has no socket, so the peer address arrives on this extra `ip`
- * property (populated in `vite dev` and in the built Nitro server alike).
- */
-interface PeerRequest extends Request {
-  readonly ip?: string | undefined;
-}
 
 let pending: Promise<WallowBffServer> | undefined;
 
@@ -138,6 +131,13 @@ export async function handleBffRequest(request: Request): Promise<Response> {
  * address — without this the API sees every user of this app as one client and
  * rate-limits them together (Wallow-vufu.4.2, the BFF twin of Wallow-tt5j).
  *
+ * Behind an ingress the peer is the INGRESS, so the address is resolved through
+ * `clientAddressFor` rather than read off the connection: it consults the inbound
+ * `X-Forwarded-For` only when the peer is a proxy `WALLOW_TRUSTED_PROXIES` names, so an
+ * untrusted caller cannot stamp a chosen address into the API's rate-limit key
+ * (Wallow-tvn3). The API pops the RIGHTMOST chain entry into its
+ * `RemoteIpAddress`, which is this value.
+ *
  * The header is set ON THE INBOUND REQUEST rather than on a clone. The obvious
  * `new Request(request, { headers })` throws `Cannot read private member #state`
  * at runtime: srvx's request is its own class that only claims to be a `Request`
@@ -148,9 +148,15 @@ export async function handleBffRequest(request: Request): Promise<Response> {
  */
 export async function handleApiRequest(request: PeerRequest): Promise<Response> {
   const server: WallowBffServer = await getBffServer();
-  const clientIp: string | undefined = request.ip;
+  const clientIp: string | undefined = clientAddressFor(request);
   if (clientIp !== undefined && clientIp !== "") {
     request.headers.set(CLIENT_IP_HEADER, clientIp);
+  } else {
+    // Removed, not left alone. The seam header is a plain request header, so a
+    // caller can send one; the proxy appends whatever it finds there to the
+    // outbound chain and the API believes it. Stamping over it covers that on
+    // every request that HAS a peer address, and this covers the rest.
+    request.headers.delete(CLIENT_IP_HEADER);
   }
   return server.handleApi(request);
 }

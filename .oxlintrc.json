@@ -132,7 +132,15 @@
   ],
   "overrides": [
     {
-      "files": ["packages/lint/src/**/*.ts", "packages/testing/src/**/*.{ts,tsx}"],
+      // Index arithmetic — `slice(0, n)`, `slice(n + 1)`, a reverse `for` — is
+      // what these three write, and `pnpm lint` runs --deny-warnings.
+      // packages/env parses CIDR blocks and walks a forwarded chain; every
+      // number that MEANS something there is already a named constant.
+      "files": [
+        "packages/lint/src/**/*.ts",
+        "packages/testing/src/**/*.{ts,tsx}",
+        "packages/env/src/**/*.ts"
+      ],
       "rules": {
         "no-magic-numbers": ["warn", { "ignore": [0, 1] }]
       }

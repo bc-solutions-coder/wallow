@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * What `handleApiPassthrough` adds on top of the SDK preset: the client-IP
@@ -36,8 +36,13 @@ const CLIENT_IP_HEADER = "x-wallow-client-ip";
 function peerRequest(
   ip?: string,
   url = "http://localhost:3002/v1/ping",
+  forwardedFor?: string,
 ): Request & { ip?: string } {
-  const request = new Request(url) as Request & { ip?: string };
+  const headers: Headers = new Headers();
+  if (forwardedFor !== undefined) {
+    headers.set("x-forwarded-for", forwardedFor);
+  }
+  const request = new Request(url, { headers }) as Request & { ip?: string };
   if (ip !== undefined) {
     Object.defineProperty(request, "ip", { value: ip });
   }
@@ -65,6 +70,10 @@ function forwardedUrl(): URL {
 }
 
 describe("handleApiPassthrough", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -77,6 +86,43 @@ describe("handleApiPassthrough", () => {
 
     const forwarded: Request | undefined = mocks.handle.mock.calls[0]?.[0];
     expect(forwarded?.headers.get(CLIENT_IP_HEADER)).toBe("198.51.100.4");
+  });
+
+  it("reads the forwarded chain when the peer is a trusted proxy", async () => {
+    // The production shape: Caddy on the container bridge network is the peer,
+    // and the address it appended is the real caller's.
+    vi.stubEnv("WALLOW_TRUSTED_PROXIES", "private");
+    const { handleApiPassthrough } = await importModule();
+
+    await handleApiPassthrough(peerRequest("10.0.0.7", undefined, "198.51.100.4"));
+
+    const forwarded: Request | undefined = mocks.handle.mock.calls[0]?.[0];
+    expect(forwarded?.headers.get(CLIENT_IP_HEADER)).toBe("198.51.100.4");
+  });
+
+  it("ignores a forwarded chain from an untrusted peer, which cannot forge its address", async () => {
+    // The load-bearing half. A caller reaching this app directly can write any
+    // chain it likes; believing it would let it pick the API's rate-limit bucket.
+    vi.stubEnv("WALLOW_TRUSTED_PROXIES", "private");
+    const { handleApiPassthrough } = await importModule();
+
+    await handleApiPassthrough(peerRequest("203.0.113.5", undefined, "198.51.100.4"));
+
+    const forwarded: Request | undefined = mocks.handle.mock.calls[0]?.[0];
+    expect(forwarded?.headers.get(CLIENT_IP_HEADER)).toBe("203.0.113.5");
+  });
+
+  it("removes an inbound seam header rather than letting a forged one through", async () => {
+    // The seam header is an ordinary request header, so a caller can send one.
+    // Every request WITH a peer stamps over it; this is the case that does not.
+    const { handleApiPassthrough } = await importModule();
+    const request = peerRequest();
+    request.headers.set(CLIENT_IP_HEADER, "198.51.100.4");
+
+    await handleApiPassthrough(request);
+
+    const forwarded: Request | undefined = mocks.handle.mock.calls[0]?.[0];
+    expect(forwarded?.headers.has(CLIENT_IP_HEADER)).toBe(false);
   });
 
   it("forwards the inbound request itself rather than a copy", async () => {

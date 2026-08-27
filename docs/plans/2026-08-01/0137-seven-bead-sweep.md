@@ -946,7 +946,20 @@ bd create --type task --priority 3 \
 
 ---
 
-## Phase 3 — Wallow-tvn3: make the client address proxy-aware
+## Phase 3 — Wallow-tvn3: make the client address proxy-aware — **SUPERSEDED**
+
+> **Do not implement this phase.** `Wallow-tvn3` landed 2026-08-27 on the CIDR + right-to-left
+> walk design in `docs/plans/2026-08-03/1639-proxy-trust-react-dupe-nav-flake.md` §1, not on the
+> `WALLOW_TRUSTED_PROXY_HOPS` counted-position design below. A hop count has to be raised in
+> lockstep with the real number of terminators and UNDER-limits when set too high — a client can
+> pad the chain to move the counted position into the part it writes — which is the failure mode
+> the long comments below spend most of their length warning about. Naming the trusted peers and
+> walking in from the right removes the setting that could be wrong. What this phase DID
+> contribute, and what shipped: the finding that `x-wallow-client-ip` is an ordinary inbound
+> header a caller can forge, so the stamping sites must DELETE it when there is no peer.
+>
+> The rest of this plan is unaffected — Phase 2 (`Wallow-luni`) is still open.
+
 
 ### The design, decided
 

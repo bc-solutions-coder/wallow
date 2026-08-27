@@ -17,6 +17,7 @@
  * throw takes down far more than the API routes.
  */
 import { stripBasePath } from "@bc-solutions-coder/env/base-path";
+import { type PeerRequest } from "@bc-solutions-coder/env/client-address";
 import {
   CLIENT_IP_HEADER,
   createApiPassthrough,
@@ -24,15 +25,7 @@ import {
 } from "@bc-solutions-coder/sdk/server/passthrough";
 
 import { BASE_PATH } from "./base-path";
-
-/**
- * The inbound request as srvx hands it to a Start server route. A WHATWG
- * `Request` has no socket, so the peer address arrives on this extra `ip`
- * property (populated in `vite dev` and in the built Nitro server alike).
- */
-interface PeerRequest extends Request {
-  readonly ip?: string | undefined;
-}
+import { clientAddressFor } from "./client-address.server";
 
 let passthrough: ApiPassthrough | undefined;
 
@@ -44,6 +37,12 @@ let passthrough: ApiPassthrough | undefined;
  * and strips the seam header itself, but it can only do so if the host supplies
  * the address — without this the API rate-limits every request as if it came
  * from this proxy (Wallow-tt5j).
+ *
+ * Behind an ingress the peer is the INGRESS, so the address is resolved through
+ * `clientAddressFor` rather than read off the connection: it consults the inbound
+ * `X-Forwarded-For` only when the peer is a proxy `WALLOW_TRUSTED_PROXIES` names, so an
+ * untrusted caller cannot stamp a chosen address into the API's rate-limit key
+ * (Wallow-tvn3).
  *
  * The header is set ON THE INBOUND REQUEST rather than on a clone. The obvious
  * `new Request(request, { headers })` throws `Cannot read private member #state`
@@ -76,9 +75,15 @@ export function handleApiPassthrough(
     Object.defineProperty(request, "url", { value: url.toString(), configurable: true });
   }
 
-  const clientIp: string | undefined = request.ip;
+  const clientIp: string | undefined = clientAddressFor(request);
   if (clientIp !== undefined && clientIp !== "") {
     request.headers.set(CLIENT_IP_HEADER, clientIp);
+  } else {
+    // Removed, not left alone. The seam header is a plain request header, so a
+    // caller can send one; the proxy appends whatever it finds there to the
+    // outbound chain and the API believes it. Stamping over it covers that on
+    // every request that HAS a peer address, and this covers the rest.
+    request.headers.delete(CLIENT_IP_HEADER);
   }
 
   return passthrough.handle(request);

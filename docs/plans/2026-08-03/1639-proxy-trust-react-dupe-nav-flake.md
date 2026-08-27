@@ -132,6 +132,19 @@ per-request. The value cannot change within a process.
 One resolution exists and all four sites use it; an untrusted peer provably cannot forge the
 address; two clients behind a trusted proxy land in different buckets. Full `pnpm check`.
 
+### LANDED 2026-08-27
+
+Done, with five corrections to the steps above — five call sites rather than four
+(`apps/minimal-app/src/lib/api-passthrough.ts` is the fifth, and it is the one a fork copies), a
+`createClientAddressResolver(env)` factory instead of the module-scope env read step 1 assumes
+(the package charter forbids it touching the environment), a malformed chain entry SKIPPED
+during the walk rather than falling back to `request.ip`, the inbound seam header deleted when
+there is no peer to stamp, and the docs row in `docs/operations/reverse-proxy.md` rather than
+`configuration.md`. The reasoning for each is in
+`docs/plans/2026-08-27/1127-backlog-triage-and-sequencing.md` Step 3.
+
+**This plan stays `active`** — §2 (`Wallow-luni`) and §3 (`Wallow-x5da`) are untouched.
+
 ### Deliberately out of scope
 
 `resolveRequestOrigin` honours `x-forwarded-proto` **unconditionally**, with a comment

@@ -232,7 +232,17 @@ a `files` glob naming the one counter-example, never a rule dropped from a `rule
   `Program` visitor.
 - The root `.oxlintrc.json` relaxes `no-magic-numbers` to `ignore: [0, 1]` for
   `packages/lint/src/**/*.ts`. `pnpm lint` runs `--deny-warnings`, so without that entry ordinary
-  index arithmetic fails the gate.
+  index arithmetic fails the gate. One block carries that relaxation for three package globs —
+  `packages/testing/src/**` and `packages/env/src/**` are in it for the same reason — and the
+  three apps repeat it beside their `unicorn/filename-case` setting. Every other number stays
+  named: the relaxation buys `slice(0, n)`, not an unexplained `255`.
+- **A hex literal cannot satisfy both halves of the toolchain.** `oxfmt` rewrites hex digits to
+  LOWER case and `unicorn/number-literal-case` (on via `categories.style`) demands UPPER, so
+  `pnpm format` and `pnpm lint` will undo each other forever. Two ways out, both in the tree:
+  derive the value instead of writing it — `packages/env/src/client-address.ts` builds its octet
+  and group masks from the bit widths, which says what they are — or, where the literals ARE the
+  specification, a file-level `oxlint-disable` naming the rule and why, as
+  `apps/wallow-auth/e2e/totp.ts` does for RFC 6238's masks.
 
 ## Testing rules
 

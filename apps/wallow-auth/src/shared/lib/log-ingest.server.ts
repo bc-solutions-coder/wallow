@@ -15,17 +15,11 @@
  * Built ONCE at module scope — the rate limiter is state that must live across
  * requests.
  */
+import { type PeerRequest } from "@bc-solutions-coder/env/client-address";
 import { resolveRequestOrigin } from "@bc-solutions-coder/env/request-origin";
 import { createLogIngestHandler, type LogIngestHandler } from "@bc-solutions-coder/logger/server";
 
-/**
- * The inbound request as srvx hands it to a Start server route. A WHATWG
- * `Request` has no socket, so the peer address arrives on this extra `ip`
- * property (populated in `vite dev` and in the built Nitro server alike).
- */
-interface PeerRequest extends Request {
-  readonly ip?: string | undefined;
-}
+import { clientAddressFor } from "./client-address.server";
 
 /** What this app calls itself in a record. Stamped server-side; the page never sends it. */
 const SERVICE = "wallow-auth";
@@ -41,15 +35,17 @@ const otlpEndpoint: string = (process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? "").tri
  * check. `resolveRequestOrigin` honours `x-forwarded-proto`, so the check still
  * holds behind the TLS-terminating proxy this app runs behind in production.
  *
- * `clientAddress` answers with the address srvx read off the connection, and it
- * is the ONLY source of the peer for both the rate-limit key and the stamped
- * `clientIp`. Nothing inbound is consulted: this route is unauthenticated, so a
- * header the caller writes would be a rate-limit bypass and a forged field.
+ * `clientAddress` answers with the caller's address, which is the key the rate
+ * limiter buckets on and the value stamped as `clientIp`. This route is
+ * unauthenticated, so a header the caller writes would be a rate-limit bypass and
+ * a forged field — which is why `clientAddressFor` reads the forwarded chain ONLY
+ * when the peer is a proxy this deployment configured, and answers with the peer
+ * itself otherwise. Unconfigured, it consults nothing inbound at all.
  */
 const ingest: LogIngestHandler = createLogIngestHandler({
   service: SERVICE,
   allowedOrigins: (request: Request): string[] => [resolveRequestOrigin(request)],
-  clientAddress: (request: PeerRequest): string | undefined => request.ip,
+  clientAddress: clientAddressFor,
   ...(otlpEndpoint === "" ? {} : { otlpEndpoint }),
 });
 

@@ -515,6 +515,17 @@ services:
       # OTEL_SERVICE_NAME beside it on purpose: the ingest handler stamps the record's
       # service itself (log-ingest.server.ts), so the env var would name nothing.
       OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4318
+      # Whose X-Forwarded-For this app believes. `private` = every unroutable
+      # range, which is the right answer here: Caddy reaches these containers over
+      # a bridge network whose subnet the runtime assigns, so the value names the
+      # class rather than an address. Without it every user behind Caddy shares one
+      # rate-limit bucket at the API and every forwarded client IP is Caddy's.
+      # Narrow it to a CIDR list if your ingress has a fixed address, and NEVER
+      # name a range you do not control — a trusted peer's chain is believed.
+      # Caddy keeps its own separate `trusted_proxies`; both notes are in
+      # docker/caddy/Caddyfile.example, and the full rules are in
+      # docs/operations/reverse-proxy.md.
+      WALLOW_TRUSTED_PROXIES: ${WALLOW_TRUSTED_PROXIES:-private}
       # The fork's outbound links, rendered into the page (footer attribution
       # here, nav/footer in wallow-web). Optional: unset falls back to
       # packages/styles/branding.json, so a fork that edited that file need set
@@ -625,6 +636,8 @@ services:
       # No OTEL_SERVICE_NAME: see wallow-auth above. Nothing in the Node path reads
       # it — the ingest handler stamps the record's service from its own constant —
       # so naming one here would only read as if it were load-bearing.
+      # See the wallow-auth service above — same trusted-proxy list, same reason.
+      WALLOW_TRUSTED_PROXIES: ${WALLOW_TRUSTED_PROXIES:-private}
       # See the wallow-auth service above — same two optional links.
       WALLOW_REPOSITORY_URL: ${WALLOW_REPOSITORY_URL:-}
       WALLOW_DOCS_URL: ${WALLOW_DOCS_URL:-}

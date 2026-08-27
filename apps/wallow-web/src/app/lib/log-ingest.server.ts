@@ -11,6 +11,7 @@
  * state that must live across requests, and a limiter constructed per call counts
  * to one and never refuses anything.
  */
+import { type PeerRequest } from "@bc-solutions-coder/env/client-address";
 import { resolveRequestOrigin } from "@bc-solutions-coder/env/request-origin";
 import {
   createLogIngestHandler,
@@ -21,16 +22,8 @@ import {
 import { csrfTokenMatches, readSession, type BffSession } from "@bc-solutions-coder/sdk/server";
 
 import { getBffServer } from "./bff.server";
+import { clientAddressFor } from "./client-address.server";
 import { OTLP_ENDPOINT, SERVICE } from "./log.server";
-
-/**
- * The inbound request as srvx hands it to a Start server route. A WHATWG
- * `Request` has no socket, so the peer address arrives on this extra `ip`
- * property (populated in `vite dev` and in the built Nitro server alike).
- */
-interface PeerRequest extends Request {
-  readonly ip?: string | undefined;
-}
 
 /** The session behind this request, or `null` when there is none. */
 async function sessionFor(request: Request): Promise<BffSession | null> {
@@ -81,15 +74,17 @@ async function contextFor(request: Request): Promise<LogRequestContext> {
  * only a page actually served from this app can match — the Origin-versus-target
  * check, with no environment variable to get wrong in a fork.
  *
- * `clientAddress` answers with the address srvx read off the connection, and it
- * is the ONLY source of the peer for both the rate-limit key and the stamped
- * `clientIp`. Nothing inbound is consulted: this route is unauthenticated, so a
- * header the caller writes would be a rate-limit bypass and a forged field.
+ * `clientAddress` answers with the caller's address, which is the key the rate
+ * limiter buckets on and the value stamped as `clientIp`. This route is
+ * unauthenticated, so a header the caller writes would be a rate-limit bypass and
+ * a forged field — which is why `clientAddressFor` reads the forwarded chain ONLY
+ * when the peer is a proxy this deployment configured, and answers with the peer
+ * itself otherwise. Unconfigured, it consults nothing inbound at all.
  */
 const ingest: LogIngestHandler = createLogIngestHandler({
   service: SERVICE,
   allowedOrigins: (request: Request): string[] => [resolveRequestOrigin(request)],
-  clientAddress: (request: PeerRequest): string | undefined => request.ip,
+  clientAddress: clientAddressFor,
   ...(OTLP_ENDPOINT === "" ? {} : { otlpEndpoint: OTLP_ENDPOINT }),
   authorize: authorizeLogBatch,
   context: contextFor,

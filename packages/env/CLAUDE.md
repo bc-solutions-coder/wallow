@@ -12,11 +12,12 @@ Like `packages/utils` this sits at the bottom of the dependency graph — `depen
 
 Subpath-only — deliberately **no `.` barrel**, so an import names the module it depends on.
 
-| Entry               | What it holds                                                                                                                         |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `./request-origin`  | `resolveRequestOrigin(request)` — the browser-facing origin, honouring `x-forwarded-proto`.                                           |
-| `./internal-origin` | `resolveInternalOrigin(env, requestOrigin?)` + `INTERNAL_ORIGIN_ENV_KEY` (= `"WALLOW_WEB_INTERNAL_URL"`) — the self-reachable origin. |
-| `./base-path`       | `normalizeBasePath`, `toViteBase`, `stripBasePath`, `withBasePath` — the URL-prefix string arithmetic.                                |
+| Entry               | What it holds                                                                                                                           |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `./request-origin`  | `resolveRequestOrigin(request)` — the browser-facing origin, honouring `x-forwarded-proto`.                                             |
+| `./internal-origin` | `resolveInternalOrigin(env, requestOrigin?)` + `INTERNAL_ORIGIN_ENV_KEY` (= `"WALLOW_WEB_INTERNAL_URL"`) — the self-reachable origin.   |
+| `./base-path`       | `normalizeBasePath`, `toViteBase`, `stripBasePath`, `withBasePath` — the URL-prefix string arithmetic.                                  |
+| `./client-address`  | `createClientAddressResolver(env)`, `resolveClientAddress`, `parseTrustedProxies`, `PeerRequest` — the caller's address behind a proxy. |
 
 **`WALLOW_WEB_INTERNAL_URL` is not `WALLOW_API_INTERNAL_URL`.** The first is the app's **own**
 origin, the one this package resolves; the second is the **upstream API** an app's passthrough
@@ -30,6 +31,21 @@ validation and side effects: a module that threw on a missing RUNTIME variable w
 `vite build` fail, which is exactly backwards. `base-path.test.ts` pins it by re-importing the
 module with `process.env` emptied.
 
+## `./client-address` is a trust decision, not a header read
+
+`X-Forwarded-For` is believed only when the immediate peer is inside
+`WALLOW_TRUSTED_PROXIES`; otherwise the peer's own address is the answer and the header is not
+consulted at all. **That check is the load-bearing part** — an untrusted caller who could pick
+its own value would pick its own API rate-limit bucket and its own logged `clientIp`. Unset, the
+list is empty, nothing is trusted, and the result is the peer address, which is byte-for-byte
+what the four call sites did before the module existed.
+
+`PeerRequest` lives here too, and is the only copy: it was declared identically in five app
+modules before this (`Wallow-tvn3`).
+
+The three apps each bind it once in a server-only module — `client-address.server.ts` in the two
+zoned apps, `lib/client-address.ts` in minimal-app — because of the rule immediately below.
+
 ## It reads no environment of its own
 
 `resolveInternalOrigin` takes the env record as a **parameter**. That is the whole reason this
@@ -41,6 +57,11 @@ read stays at the call site, inside the server-only middleware callback:
 ```ts
 internalOrigin: resolveInternalOrigin(process.env);
 ```
+
+`./client-address` obeys the same rule for the same reason, in the shape a per-request helper
+needs: `createClientAddressResolver(process.env)` is called ONCE at module scope in the app, and
+returns the per-request function. Parsing a CIDR list is start-up work, so binding it is not
+merely a charter workaround — a resolver rebuilt per call would reparse on every log record.
 
 `src/charter.test.ts` used to assert this by reading every shipped module's source — no
 `process.env`, no `import.meta.env`, no `import` statement at all — and it went with the rest of

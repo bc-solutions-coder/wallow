@@ -41,6 +41,14 @@
 	# terminates TLS, and replace the ranges with that proxy's real source
 	# addresses. Trusting a range you do not control lets callers forge
 	# X-Forwarded-Proto and X-Forwarded-For.
+	#
+	# This setting is Caddy's alone. The Node apps behind it keep their OWN list,
+	# WALLOW_TRUSTED_PROXIES (set to `private` in docker-compose.production.yml,
+	# naming the bridge network Caddy reaches them from), and the two answer
+	# different questions: this one decides whether Caddy KEEPS an inbound
+	# X-Forwarded-For, and theirs decides whether they believe Caddy's. Without
+	# this, Caddy replaces the chain, so an outer proxy's entry never reaches the
+	# apps no matter what they trust.
 	# servers {
 	# 	trusted_proxies static 10.0.0.0/8 172.16.0.0/12
 	# }

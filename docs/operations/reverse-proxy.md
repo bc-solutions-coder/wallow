@@ -13,6 +13,7 @@ subdomain routing.
 2. [Required Configuration Per Service](#2-required-configuration-per-service)
 3. [TLS Termination](#3-tls-termination)
 4. [Forwarded Headers](#4-forwarded-headers)
+   - [Telling the Node apps which proxy to believe](#telling-the-node-apps-which-proxy-to-believe)
 5. [Health Check Endpoints](#5-health-check-endpoints)
 6. [Proxy Configuration Examples](#6-proxy-configuration-examples)
 7. [Seeding the Production Client](#7-seeding-the-production-client)
@@ -109,6 +110,9 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4318
 # packages/styles/branding.json, so a fork that edited that file need set neither.
 WALLOW_REPOSITORY_URL=https://github.com/your-org/your-fork
 WALLOW_DOCS_URL=https://docs.example.com
+# Optional but wanted behind any proxy — which peers' X-Forwarded-For to believe.
+# See "Telling the Node apps which proxy to believe" under Forwarded Headers.
+WALLOW_TRUSTED_PROXIES=private
 ```
 
 `AUTH_BASE_PATH` is the sixth, and it is a build argument rather than a runtime variable — see the
@@ -147,6 +151,9 @@ OIDC_POST_LOGOUT_REDIRECT_URI=https://example.com/
 BFF_API_BASE_URL=http://wallow-api:8080
 # Secret (32+ chars) that seals/unseals the session and transaction cookies
 COOKIE_PASSWORD=a-32-plus-character-random-secret
+# Optional but wanted behind any proxy — which peers' X-Forwarded-For to believe.
+# See "Telling the Node apps which proxy to believe" under Forwarded Headers.
+WALLOW_TRUSTED_PROXIES=private
 ```
 
 Seven of those are required — `PORT` and the optional `OIDC_METADATA_URL` are the two that are
@@ -187,6 +194,48 @@ Without it, the API generates OIDC discovery documents and redirect URIs with `h
 of `https://`, causing authentication failures. The auth app's passthrough server routes append
 the real client IP to `X-Forwarded-For` on the requests they tunnel, so an outer ingress's
 leftmost entry survives the hop.
+
+### Telling the Node apps which proxy to believe
+
+Behind a proxy, the address a Node app reads off the connection is the **proxy's**, not the
+caller's. Left uncorrected, every user of a deployment shares one rate-limit bucket at the API
+and every log record's `clientIp` names the ingress. The caller's real address is in
+`X-Forwarded-For` — but believing that header unconditionally is worse than ignoring it, because
+any caller can send one and would then choose its own bucket and its own recorded address.
+
+`WALLOW_TRUSTED_PROXIES` is what separates the two. Set it on `wallow-auth` and `wallow-web` to
+the addresses your ingress reaches them from:
+
+```bash
+# Named shorthands (Express's `trust proxy` vocabulary):
+#   loopback     127.0.0.0/8, ::1/128
+#   linklocal    169.254.0.0/16, fe80::/10
+#   uniquelocal  10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, fc00::/7
+#   private      all of the above — the right answer for a container network,
+#                where the bridge subnet is assigned rather than fixed
+WALLOW_TRUSTED_PROXIES=private
+
+# Or an explicit list, comma- or space-separated. CIDR blocks and bare addresses:
+WALLOW_TRUSTED_PROXIES=10.42.0.0/16, 203.0.113.7
+```
+
+**Never name a range you do not control.** A trusted peer's forwarded chain is believed, so
+trusting a shared network hands every host on it the ability to pick its own address.
+
+Unset — the default — nothing is trusted and each app reports the address it actually sees.
+That is safe (it over-buckets rather than accepting a forged address) and it is correct for a
+deployment with nothing in front, so leave it unset unless there is a proxy.
+
+When the peer IS trusted, the chain is walked from the **right** — the end each hop appends to
+— and the first entry that is not itself a trusted proxy is taken as the caller. That is what
+makes the result independent of how many proxies are stacked in front, and what makes a prefix
+the caller prepended inert.
+
+> **The proxy needs its own, separate setting, and the two must agree.** Caddy REPLACES
+> `X-Forwarded-For` rather than appending to it unless its own `servers { trusted_proxies … }`
+> is configured. So in a two-proxy topology (Cloudflare → Caddy → app), an outer entry only
+> reaches the app if Caddy was told to keep it. `docker/caddy/Caddyfile.example` carries both
+> halves of this note.
 
 ---
 

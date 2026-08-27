@@ -131,12 +131,46 @@ exist" rather than "skip the `dotnet publish`". Measured: unchanged tree rebuild
 in **8s**. Image ID is not a usable oracle here — BuildKit provenance gives a fresh ID on every
 build, including fully cached ones.
 
-### Step 3 — one afternoon of correctness with a shared root cause
+### Step 3 — one afternoon of correctness with a shared root cause — **DONE 2026-08-27**
 
 **Wallow-tvn3** (trusted proxy, four call sites, one resolution). The bead is explicit that
 four local patches are the wrong shape. This is the largest genuine *correctness* item in the
 backlog and the one most likely to be forgotten before a first deploy. Land the trusted-peer
 resolution in a shared module, then thread it through all four sites in one change.
+
+Landed as `@bc-solutions-coder/env/client-address`, following the design in
+`docs/plans/2026-08-03/1639-proxy-trust-react-dupe-nav-flake.md` §1 rather than the earlier
+hop-count design in `docs/plans/2026-08-01/0137-seven-bead-sweep.md` Phase 3. Five things the
+bead and both plans did not have right:
+
+- **There are FIVE call sites, not four.** `apps/minimal-app/src/lib/api-passthrough.ts` is the
+  scaffold a fork copies, so leaving it stamping the raw peer propagates the bug into every fork.
+- **The env read could not live in the module** the way the 1639 plan step 1 assumed —
+  `packages/env`'s charter forbids the package touching the environment at all, because every
+  app's `start.ts` is aliased into the CLIENT module graph. `createClientAddressResolver(env)` is
+  a factory called once at module scope in a per-app server-only file. Independently better:
+  parsing a CIDR list is start-up work, and a resolver rebuilt per request would reparse on
+  every log record.
+- **A malformed chain entry is skipped, not fallen back on.** The plan's one-line phrasing says
+  an unparseable entry falls back to `request.ip` globally; that breaks the plan's own reason for
+  walking rightwards, since an attacker could prepend garbage and collapse every user into the
+  proxy's shared bucket. The walk skips it and keeps looking.
+- **The inbound seam header is now deleted when there is no peer to stamp** — the forgery hole
+  the 0137 plan found. `x-wallow-client-ip` is an ordinary request header, so a caller can send
+  one; stamping covers every request that HAS a peer, and this covers the rest.
+- **The configuration row went to `docs/operations/reverse-proxy.md`, not
+  `docs/getting-started/configuration.md`.** That table is .NET double-underscore options
+  binding; reverse-proxy.md already owns proxy trust and now carries the presets table.
+
+Two toolchain findings, both recorded in `packages/lint/CLAUDE.md`: `packages/env/src/**` needed
+the `no-magic-numbers` `ignore: [0, 1]` relaxation five other globs already have (its index
+arithmetic is ordinary; every number that MEANS something is a named constant), and **a hex
+literal cannot pass the gate at all** — `oxfmt` lower-cases hex digits, `unicorn/number-literal-case`
+demands upper. The masks are derived from the bit widths instead, which also says what they are.
+
+Verified: `pnpm check` green end to end (45/45 turbo tasks). `packages/env` is 88 tests over 4
+files. One `packages/ui` menubar run failed under full-gate concurrency and passed 1481/1481 in
+isolation — that is Step 6's territory, not this change's.
 
 ### Step 4 — cheap wins, batchable into one or two commits
 
