@@ -21,10 +21,49 @@
 
 import { vi } from "vitest";
 
+/** A DOM element in a forensics snapshot, reduced to what a failure can name. */
+export interface NavigationEscapeElement {
+  /** Uppercase tag name, as `Element.tagName` reports it. */
+  readonly tag: string;
+  /** The element's `data-testid`, when it has one. */
+  readonly testId: string | null;
+}
+
+/** The element the browser says initiated the hand-off. */
+export interface NavigationEscapeSource extends NavigationEscapeElement {
+  /** Whether the element sits inside a spec's `[data-router-stub]` marker. */
+  readonly routerStub: boolean;
+}
+
+/**
+ * What the page looked like at the instant of the veto. Captured synchronously in
+ * the `navigate` listener — by the time an `afterEach` reports, the tree that
+ * navigated is unmounted and these facts are gone. This is what turns a flaking
+ * escape from a triage session into evidence: the failure names which element
+ * navigated, whether a user gesture caused it, and what state the rail was in.
+ */
+export interface NavigationEscapeForensics {
+  /** Whether a user gesture initiated the hand-off, as the event reported it. */
+  readonly userInitiated: boolean;
+  /** The Navigation API's `navigationType` — `push`, `replace`, `reload`, `traverse`. */
+  readonly navigationType: string;
+  /**
+   * The initiating element. `null` when the browser reported none (a programmatic
+   * hand-off); `undefined` when this Chromium predates `NavigateEvent.sourceElement`.
+   */
+  readonly sourceElement: NavigationEscapeSource | null | undefined;
+  /** The first `[data-nav-open]` value in the document, when a rail is mounted. */
+  readonly navOpen: string | null;
+  /** Where focus was at the veto. */
+  readonly activeElement: NavigationEscapeElement | null;
+}
+
 /** A hand-off the guard vetoed: where the runner was asked to go. */
 export interface NavigationEscape {
   /** Absolute URL of the destination, as the Navigation API reported it. */
   readonly url: string;
+  /** The scene of the veto, captured before the tree could unmount. */
+  readonly forensics: NavigationEscapeForensics;
 }
 
 /**
@@ -44,6 +83,43 @@ const escapes: NavigationEscape[] = [];
  */
 let guarded: Navigation | undefined;
 
+function describeElement(element: Element): NavigationEscapeElement {
+  const testId =
+    element instanceof HTMLElement || element instanceof SVGElement
+      ? (element.dataset.testid ?? null)
+      : null;
+
+  return { tag: element.tagName, testId };
+}
+
+/** Snapshot the scene synchronously — the navigating tree unmounts before any report. */
+function captureForensics(event: NavigateEvent): NavigationEscapeForensics {
+  const withSource = event as NavigateEvent & { readonly sourceElement?: Element | null };
+
+  let sourceElement: NavigationEscapeSource | null | undefined;
+  if (!("sourceElement" in event)) {
+    sourceElement = undefined;
+  } else if (withSource.sourceElement === null || withSource.sourceElement === undefined) {
+    sourceElement = null;
+  } else {
+    sourceElement = {
+      ...describeElement(withSource.sourceElement),
+      routerStub: withSource.sourceElement.closest("[data-router-stub]") !== null,
+    };
+  }
+
+  const rail = document.querySelector("[data-nav-open]");
+  const active = document.activeElement;
+
+  return {
+    userInitiated: event.userInitiated,
+    navigationType: event.navigationType,
+    sourceElement,
+    navOpen: rail instanceof HTMLElement ? (rail.dataset.navOpen ?? null) : null,
+    activeElement: active === null ? null : describeElement(active),
+  };
+}
+
 /**
  * Record and veto. Registered by name rather than as a closure so a duplicate
  * `addEventListener` would be collapsed by the DOM even if `guarded` were ever
@@ -54,7 +130,7 @@ function vetoNavigation(event: NavigateEvent): void {
     return;
   }
 
-  escapes.push({ url: event.destination.url });
+  escapes.push({ url: event.destination.url, forensics: captureForensics(event) });
 
   // A traversal the page is not allowed to stop reports `cancelable: false`;
   // recording it is still worth doing, since it explains the teardown that follows.
@@ -163,20 +239,51 @@ export async function expectNavigationEscape(
   return escape;
 }
 
+function formatElement(element: NavigationEscapeElement): string {
+  const testId = element.testId === null ? "" : ` data-testid="${element.testId}"`;
+
+  return `<${element.tag.toLowerCase()}${testId}>`;
+}
+
+function formatSource(source: NavigationEscapeSource | null | undefined): string {
+  if (source === undefined) {
+    return "unknown (this Chromium reports no NavigateEvent.sourceElement)";
+  }
+  if (source === null) {
+    return "no element (programmatic)";
+  }
+
+  return `${formatElement(source)} (router stub: ${source.routerStub ? "yes" : "no"})`;
+}
+
+/** One escape as the failure report renders it: the URL, then the scene. */
+function formatEscape(escape: NavigationEscape): string {
+  const { forensics } = escape;
+  const scene = [
+    `initiated by ${formatSource(forensics.sourceElement)}`,
+    `user gesture: ${forensics.userInitiated ? "yes" : "no"}`,
+    `type: ${forensics.navigationType}`,
+    `[data-nav-open]: ${forensics.navOpen ?? "none"}`,
+    `focus: ${forensics.activeElement === null ? "none" : formatElement(forensics.activeElement)}`,
+  ].join(" · ");
+
+  return `  ${escape.url}\n    ${scene}`;
+}
+
 /**
- * Throw — naming each escaped URL — when any hand-off was vetoed since the last
- * clear, then clear, so one escape fails one test rather than every test behind
- * it. This is what a project's `afterEach` calls.
+ * Throw — naming each escaped URL and the forensics behind it — when any hand-off
+ * was vetoed since the last clear, then clear, so one escape fails one test
+ * rather than every test behind it. This is what a project's `afterEach` calls.
  */
 export function assertNoNavigationEscape(): void {
   if (escapes.length === 0) {
     return;
   }
 
-  const destinations = escapes.map((escape) => `  ${escape.url}`).join("\n");
+  const destinations = escapes.map((escape) => formatEscape(escape)).join("\n");
   clearNavigationEscapes();
 
   throw new Error(
-    `${NAVIGATION_ESCAPE_MESSAGE}. The guard vetoed every destination below, so this test failed instead of the runner dying and blaming another file:\n${destinations}\nWhatever navigated has to prevent its own default — check that a router stub's onClick is destructured out of the props spread rather than declared beside it.`,
+    `${NAVIGATION_ESCAPE_MESSAGE}. The guard vetoed every destination below, so this test failed instead of the runner dying and blaming another file:\n${destinations}\nWhatever navigated has to prevent its own default; the forensics above name the element that initiated it and whether a user gesture did.`,
   );
 }

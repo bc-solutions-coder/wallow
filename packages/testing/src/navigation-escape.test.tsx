@@ -92,6 +92,20 @@ describe("expectNavigationEscape", () => {
   });
 });
 
+describe("forensics", () => {
+  it("records a programmatic escape as not user-initiated, with no source element", async () => {
+    await provokeEscape("/forensic");
+
+    const forensics = navigationEscapes()[0]?.forensics;
+
+    expect(forensics?.userInitiated).toBe(false);
+    expect(forensics?.navigationType).toBe("push");
+    expect(forensics?.sourceElement).toBeNull();
+    expect(forensics?.navOpen).toBeNull();
+    expect(forensics?.activeElement).toEqual({ tag: "BODY", testId: null });
+  });
+});
+
 describe("consumption is scoped to what it read", () => {
   it("still fails a test for an escape provoked after a consume", async () => {
     globalThis.location.assign("/consumed");

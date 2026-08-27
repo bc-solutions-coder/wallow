@@ -24,9 +24,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const ESCAPE_PATH = "/dashboard/organizations";
 
 /** The escape shape the iframe sees: an anchor whose default nobody prevented. */
-function EscapeHatch() {
+function EscapeHatch(props: { routerStub?: boolean } = {}) {
   return (
-    <a data-testid="escape-hatch" href={ESCAPE_PATH}>
+    <a
+      data-testid="escape-hatch"
+      href={ESCAPE_PATH}
+      data-router-stub={props.routerStub ? "true" : undefined}
+    >
       Organizations
     </a>
   );
@@ -69,6 +73,62 @@ describe("navigation escape guard", () => {
     expect(() => {
       assertNoNavigationEscape();
     }).toThrowError(new RegExp(`${NAVIGATION_ESCAPE_MESSAGE}[\\s\\S]*${ESCAPE_PATH}`, "u"));
+  });
+
+  it("captures forensics naming the element that initiated a click escape", async () => {
+    await render(<EscapeHatch />);
+
+    await userEvent.click(page.getByTestId("escape-hatch"));
+
+    await vi.waitFor(() => {
+      expect(navigationEscapes()).toHaveLength(1);
+    });
+    const forensics = navigationEscapes()[0]?.forensics;
+    expect(forensics?.userInitiated).toBe(true);
+    expect(forensics?.navigationType).toBe("push");
+    expect(forensics?.sourceElement).toEqual({
+      tag: "A",
+      testId: "escape-hatch",
+      routerStub: false,
+    });
+  });
+
+  it("flags an initiating element that carries the router-stub marker", async () => {
+    await render(<EscapeHatch routerStub />);
+
+    await userEvent.click(page.getByTestId("escape-hatch"));
+
+    await vi.waitFor(() => {
+      expect(navigationEscapes()).toHaveLength(1);
+    });
+    expect(navigationEscapes()[0]?.forensics.sourceElement?.routerStub).toBe(true);
+  });
+
+  it("captures the rail's open state at veto time", async () => {
+    await render(
+      <div data-nav-open="false">
+        <EscapeHatch />
+      </div>,
+    );
+
+    await userEvent.click(page.getByTestId("escape-hatch"));
+
+    await vi.waitFor(() => {
+      expect(navigationEscapes()).toHaveLength(1);
+    });
+    expect(navigationEscapes()[0]?.forensics.navOpen).toBe("false");
+  });
+
+  it("renders the forensics into the failure it raises", async () => {
+    await render(<EscapeHatch />);
+    await userEvent.click(page.getByTestId("escape-hatch"));
+    await vi.waitFor(() => {
+      expect(navigationEscapes()).toHaveLength(1);
+    });
+
+    expect(() => {
+      assertNoNavigationEscape();
+    }).toThrowError(/initiated by <a data-testid="escape-hatch">[\s\S]*user gesture: yes/u);
   });
 
   it("catches a programmatic hand-off no router stub could intercept", async () => {
