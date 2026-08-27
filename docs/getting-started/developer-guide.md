@@ -158,8 +158,14 @@ Wallow tracks work with **bd** (beads), a lightweight issue tracker whose databa
 bd ready                                    # Find available work
 bd show <id>                                # View issue details
 bd update <id> --status in_progress         # Claim work
+bd note <id> "..."                          # Record a finding on the issue
 bd close <id>                               # Complete work
 ```
+
+This page is the canonical bd workflow for Wallow. `.beads/README.md` is **not** -- it is stock
+`bd init` boilerplate, it is untracked (see below), and `bd init` regenerates it on every fresh
+setup, so nothing written there survives to another clone. Read it as vendor documentation for the
+tool, not as instructions for this repository.
 
 ### Where the data lives
 
