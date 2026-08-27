@@ -172,12 +172,47 @@ Verified: `pnpm check` green end to end (45/45 turbo tasks). `packages/env` is 8
 files. One `packages/ui` menubar run failed under full-gate concurrency and passed 1481/1481 in
 isolation — that is Step 6's territory, not this change's.
 
-### Step 4 — cheap wins, batchable into one or two commits
+### Step 4 — cheap wins, batchable into one or two commits — **DONE 2026-08-27**
 
 `vpci` (Dapper + the `DAP005` NoWarn), `okkk` (`"private": true`), `uz0w` (collapse duplicate
 tests), `yhfc` (fail-loud module name), `ut4w` (add the comments). Each is minutes; together
 they are one `chore:` sweep per toolchain. Doing them as a batch keeps the backlog honest
 without burning a session on any one of them.
+
+> **Landed as two commits — a `fix:` for `yhfc` and a `chore:` for the other four.** `yhfc` is
+> the only P2 here and it changes behaviour, so it does not belong inside a sweep commit.
+>
+> Four notes on what the beads did not say:
+>
+> 1. **`vpci` could not stop at the `PackageReference`s.** Removing the `Directory.Packages.props`
+>    pin makes the `<PackageReference Include="Dapper" />` line in `module-creation.md`'s csproj
+>    template an **NU1010 build error** under Central Package Management — a fork following the
+>    guide would not compile. Six more passages said Dapper was in use: `module-creation.md` ×3
+>    (the template line, the "last three are optional" count, the `I{Module}QueryService` para),
+>    `database-development.md`'s "five projects still carry a `PackageReference`" note,
+>    `troubleshooting.md`'s tenant-filter snippet, `assessment.md`. Four more the bead did not
+>    name said the same thing and were fixed too: `README.md`'s tech-stack row, `CONTRIBUTING.md`,
+>    `api/CLAUDE.md`, and the `code-reviewer` / `csharp-developer` / `enterprise-architect` agent
+>    definitions under `.claude/agents/`.
+> 2. **`module-creation.md:430` was independently wrong** and is corrected rather than deleted: it
+>    claimed `AddReadDbContext<T>` "registers the Dapper read connection". It registers a singleton
+>    `ReadDbContextFactory<T>` over `ReadReplicaConnection` (falling back to `DefaultConnection`)
+>    plus the scoped `IReadDbContext<T>` resolved from it — read from
+>    `Shared.Infrastructure.Core/Extensions/ReadDbContextExtensions.cs`, not inferred.
+> 3. **`Dapper` STAYS in `Wallow.Architecture.Tests`.** Both occurrences are entries in the Domain
+>    and Application *forbidden*-dependency lists; NetArchTest's `HaveDependencyOn` takes a string,
+>    so the assertion needs no package reference to compile and is now the only mention left in
+>    `api/`.
+> 4. **`yhfc` had to preserve the `<project-path>` form**, which `run-tests.sh`'s own usage block
+>    documents and `api/CLAUDE.md` tells agents to use for `Wallow.Identity.IntegrationTests` (it
+>    has no shorthand). Rejecting everything unknown would have broken it. The catch-all now passes
+>    through only an argument that EXISTS on disk; anything else exits 2 with the shorthand list.
+> 5. **`okkk` had a doc that asserted the opposite.** `integration-cookbook.md`'s IMPORTANT callout
+>    read "unlike the other workspace packages it is not marked `"private": true`". Rewritten.
+>
+> Verified: `./scripts/run-tests.sh` 4969/4969 PASS (integration excluded, as that invocation
+> always is); `dotnet build api/Wallow.slnx` clean; `dotnet format` no-op; `pnpm check` exit 0
+> end to end. `./scripts/run-tests.sh identty` exits 2 with the shorthand list.
 
 ### Step 5 — authoring work, do when writing suits you
 

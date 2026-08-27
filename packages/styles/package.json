@@ -1,6 +1,7 @@
 {
   "name": "@bc-solutions-coder/styles",
   "version": "0.0.0",
+  "private": true,
   "description": "Wallow shared Tailwind v4 entry and branding-driven theme tokens",
   "files": [
     "dist",

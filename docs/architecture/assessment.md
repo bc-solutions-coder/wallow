@@ -160,7 +160,7 @@ Infrastructure: EF Core, Repositories implement interfaces
 - Rich domain model with behavior
 - Aggregates protect invariants
 - EF Core for persistence
-- Dapper for complex queries (optional)
+- `IReadDbContext<T>` (`NoTracking`) for projection and reporting reads
 
 **Use when:**
 - CRUD-heavy operations

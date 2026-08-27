@@ -43,11 +43,12 @@ npm install @bc-solutions-coder/sdk
 > [!IMPORTANT]
 > **Only `@bc-solutions-coder/sdk` is published today.** `sdk-publish.yml` is scoped to
 > `packages/sdk` and fires on an `sdk-v*` tag; no workflow publishes
-> `@bc-solutions-coder/styles`, and its `package.json` still reads `"version": "0.0.0"`, so
-> `npm install @bc-solutions-coder/styles` returns a 404. Nothing about the package prevents
-> publication — unlike the other workspace packages it is not marked `"private": true` — it simply
-> has no release pipeline yet. Until it gets one, an out-of-workspace app supplies its own Tailwind
-> setup and copies the theme tokens it needs from `packages/styles/branding.json`.
+> `@bc-solutions-coder/styles`, so `npm install @bc-solutions-coder/styles` returns a 404. Like
+> every other workspace package but the SDK it is marked `"private": true`, which is what states
+> that: nothing about the package's contents prevents publication, it simply has no release
+> pipeline, and until it gets one the `private` flag stops an accidental `npm publish` from
+> shipping a `0.0.0` under a name forks would then depend on. An out-of-workspace app supplies its
+> own Tailwind setup and copies the theme tokens it needs from `packages/styles/branding.json`.
 
 The token needs only `read:packages`. The SDK carries no host-framework dependency: its server handlers are
 web-standard `(Request) => Promise<Response>` functions, so they mount on TanStack Start,

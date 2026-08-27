@@ -135,7 +135,6 @@ references of its own, so Wolverine cannot arrive transitively.
     <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
   </PackageReference>
   <!-- Add only what the module actually uses: -->
-  <PackageReference Include="Dapper" />               <!-- complex read queries -->
   <PackageReference Include="StackExchange.Redis" />  <!-- direct Valkey access -->
   <PackageReference Include="WolverineFx" />          <!-- publishing integration events from Infrastructure -->
 </ItemGroup>
@@ -146,8 +145,8 @@ references of its own, so Wolverine cannot arrive transitively.
 </ItemGroup>
 ```
 
-The last three are genuinely optional, unlike the Application layer's `WolverineFx`. `Wallow.Storage.Infrastructure`
-carries none of them and `Wallow.Identity.Infrastructure` carries only `StackExchange.Redis`.
+The last two are genuinely optional, unlike the Application layer's `WolverineFx`. `Wallow.Storage.Infrastructure`
+carries neither and `Wallow.Identity.Infrastructure` carries only `StackExchange.Redis`.
 
 **Api** references Application and `Shared.Api` — never its own Infrastructure:
 
@@ -267,7 +266,7 @@ registration of its own.
 
 ### Query and Handler
 
-Use the same pattern for queries. For complex read queries, define an `I{Module}QueryService` interface and implement it with Dapper in the Infrastructure layer. Use EF Core repositories for simple lookups.
+Use the same pattern for queries. Use EF Core repositories for simple lookups; for projections and reporting reads, take `IReadDbContext<T>` and query it `NoTracking`. EF Core is the only data-access technology here — see [Database Development](../development/database-development.md).
 
 ### Repository Interface
 
@@ -427,7 +426,9 @@ with the current `ITenantContext` tenant, falling back to `AmbientTenant.Current
 have not resolved one yet (Wolverine handlers). That call is the **only** place `SetTenant` is
 invoked. A context resolved from a plain `AddDbContext` registration is therefore never primed, so
 `ApplyTenantQueryFilters` runs against an unset tenant and the isolation it looks like it provides
-is not there. `AddReadDbContext<T>` registers the Dapper read connection used for complex reads.
+is not there. `AddReadDbContext<T>` registers the read side: a singleton `ReadDbContextFactory<T>` over
+`ReadReplicaConnection` (falling back to `DefaultConnection`), plus the scoped
+`IReadDbContext<T>` resolved from it.
 
 Identity is the exception again: because `IdentityDbContext` implements `ITenantAwareContext`
 directly rather than extending `TenantAwareDbContext<T>`, it cannot use the generic helper and

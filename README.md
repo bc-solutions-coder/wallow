@@ -151,7 +151,7 @@ Each module follows four layers: **Domain** (no dependencies) → **Application*
 |---------|------------|
 | Framework | .NET 10 |
 | Database | PostgreSQL 18 |
-| ORM | EF Core + Dapper (available for raw SQL reads) |
+| ORM | EF Core (writes tracked, reads `NoTracking` via `IReadDbContext<T>`) |
 | CQRS & Messaging | Wolverine (in-memory) |
 | Caching | Valkey (Redis-compatible) |
 | Identity | OpenIddict + ASP.NET Core Identity |

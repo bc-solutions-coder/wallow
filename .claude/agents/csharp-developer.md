@@ -21,7 +21,7 @@ Each module has four layers:
 Key facts:
 - Modules communicate via Wolverine in-memory bus through `Shared.Contracts`. Never direct references.
 - Each module owns its PostgreSQL schema.
-- EF Core for writes, Dapper for complex reads.
+- EF Core is the only data-access technology: writes through `TenantAwareDbContext`, reads `NoTracking` through `IReadDbContext<T>`.
 - FluentValidation for input validation.
 - Package versions in `Directory.Packages.props`.
 

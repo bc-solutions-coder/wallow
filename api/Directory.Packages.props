@@ -70,10 +70,6 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="$(EfCoreVersion)" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
     <!-- ======================================
-         Dapper (Micro-ORM)
-         ====================================== -->
-    <PackageVersion Include="Dapper" Version="2.1.79" />
-    <!-- ======================================
          Messaging (handled by Wolverine in-memory bus)
          ====================================== -->
     <!-- ======================================

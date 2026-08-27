@@ -1,7 +1,17 @@
 {
   "$schema": "../../node_modules/oxlint/configuration_schema.json",
+  // Load-bearing: `extends` is what carries the root's plugin registration and its
+  // pedantic/style categories down here. Drop it and fork-smoke silently falls back to
+  // oxlint's defaults — still green, but no longer linting what the repo lints.
   "extends": ["../../.oxlintrc.json"],
   "rules": {
+    // RE-DECLARED, not switched off. This is the root's `no-restricted-imports` minus the
+    // `@tanstack/react-query` ban: `@bc-solutions-coder/query` is private and unpublished, so
+    // out here `src/router.tsx` genuinely has to build its `QueryClient` from the real package.
+    // oxlint has no per-name partial disable and a re-declaration REPLACES rather than merges,
+    // so every ban this template still wants is restated below. Setting the rule "off" instead
+    // would reopen all of them and silence exactly the SDK-exports regressions fork-smoke exists
+    // to catch.
     "no-restricted-imports": [
       "error",
       {
@@ -22,6 +32,7 @@
               "unwrap",
               "wireSsrCookieInterceptor"
             ],
+            // The module-global SDK client and its configure/unwrap helpers.
             "message": "Deleted with the module-global client. Build a per-request instance with createWallowSdk({ baseUrl }) and pass { client: sdk.client } to the generated operations; errors already arrive as WallowError, so nothing needs unwrapping."
           },
           {
@@ -39,6 +50,7 @@
               "settingsQueries",
               "userQueries"
             ],
+            // The hand-written query slices, superseded by the generated per-operation artifacts.
             "message": "The hand-written query slices and their key registry are deleted. Use the generated {op}Options()/{op}Mutation()/{op}QueryKey(), and sweep with queriesForOperation()/queriesWithTag()."
           },
           {
@@ -48,6 +60,7 @@
         ],
         "patterns": [
           {
+            // Deep imports past the export map — the layout under them is an internal.
             "group": [
               "@bc-solutions-coder/sdk/dist",
               "@bc-solutions-coder/sdk/dist/**",

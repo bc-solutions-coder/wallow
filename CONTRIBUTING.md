@@ -74,7 +74,7 @@ Wallow is a modular monolith following Clean Architecture and DDD principles. Be
 - Modules communicate via Wolverine in-memory events, never direct project references
 - Cross-module contracts go in `Shared.Contracts` only
 - Each module owns its own database schema
-- Use EF Core for writes, Dapper for complex reads
+- EF Core is the only data-access technology: writes through the module's `TenantAwareDbContext`, reads `NoTracking` through `IReadDbContext<T>`
 
 The frontend half is a pnpm workspace: `apps/wallow-web`, `apps/wallow-auth`, and `apps/minimal-app`
 (the smallest wiring of the shared packages), built on the `packages/*` libraries. See

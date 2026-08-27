@@ -11,11 +11,11 @@ This guide covers database development patterns and practices in Wallow. The pla
 
 All modules share a single PostgreSQL instance but use separate schemas for isolation.
 
-> **Dapper is not used.** Five module Infrastructure projects still carry a `Dapper`
-> `PackageReference`, but nothing in `api/src` imports it — there is no `QueryAsync<T>` call
-> anywhere in the codebase. Reach for `IReadDbContext<T>` first; if you genuinely need raw SQL, use
-> EF Core's `FromSql`/`ExecuteSql` rather than reintroducing a second data-access stack, and
-> remember that tenant query filters do **not** apply to raw SQL.
+> **There is no second data-access stack.** Reach for `IReadDbContext<T>` first; if you genuinely
+> need raw SQL, use EF Core's `FromSql`/`ExecuteSql` rather than reintroducing one, and remember
+> that tenant query filters do **not** apply to raw SQL. `Dapper` is named in the Domain and
+> Application forbidden-dependency lists in `Wallow.Architecture.Tests`, which is the only place
+> the word still appears in `api/`.
 
 ## EF Core Usage
 

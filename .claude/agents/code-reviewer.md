@@ -53,7 +53,7 @@ The roster is stated once, in root `CLAUDE.md` -- read it there rather than from
 - **Handlers**: Sealed classes with primary constructors, `Handle` method returning `Result<T>`.
 - **Domain entities**: Rich models with behavior, factory methods like `Entity.Create(...)`, raise domain events.
 - **Repository interfaces**: Defined in Application layer, implemented in Infrastructure.
-- **EF Core for writes, Dapper for complex reads**.
+- **EF Core for both writes and reads** -- writes through `TenantAwareDbContext`, reads `NoTracking` through `IReadDbContext<T>`. There is no second data-access stack.
 - **Each module owns its PostgreSQL schema** -- never share tables across modules.
 - **Package versions** in `Directory.Packages.props` only.
 

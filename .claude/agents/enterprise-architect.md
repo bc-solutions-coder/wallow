@@ -58,7 +58,7 @@ file.
 ### Code Quality Standards
 
 - Always use explicit types instead of `var`.
-- EF Core for write operations, Dapper for complex read queries.
+- EF Core is the only data-access technology: writes through `TenantAwareDbContext`, reads `NoTracking` through `IReadDbContext<T>`.
 - Wolverine auto-discovers handlers -- no manual registration needed.
 - Package versions managed centrally in `Directory.Packages.props`.
 - Each module owns its PostgreSQL schema -- never share tables across modules.

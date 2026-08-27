@@ -30,7 +30,8 @@ public abstract class DbContextIntegrationTestBase<TDbContext> : IAsyncLifetime
 
     /// <summary>
     /// When true, uses MigrateAsync() instead of EnsureCreatedAsync().
-    /// Override to true for modules with EF migrations and schemas (e.g., Dapper query tests).
+    /// Override to true for modules with EF migrations and schemas (the repository suites in
+    /// Announcements and Inquiries do).
     /// </summary>
     protected virtual bool UseMigrateAsync => false;
 

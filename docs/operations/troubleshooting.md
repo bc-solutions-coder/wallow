@@ -305,11 +305,13 @@ Ensure your JWT contains:
 }
 ```
 
-**Using Dapper without tenant filter:**
-When using Dapper directly, you must filter by tenant manually:
+**Raw SQL without a tenant filter:**
+EF Core's tenant query filters do not apply to `FromSql`/`ExecuteSql`, so raw SQL must filter by
+tenant itself:
 ```csharp
-string sql = "SELECT * FROM announcements.announcements WHERE tenant_id = @TenantId";
-await connection.QueryAsync<Announcement>(sql, new { TenantId = _tenantContext.TenantId.Value });
+await dbContext.Announcements
+    .FromSql($"SELECT * FROM announcements.announcements WHERE tenant_id = {_tenantContext.TenantId.Value}")
+    .ToListAsync(cancellationToken);
 ```
 
 **Test environment:**

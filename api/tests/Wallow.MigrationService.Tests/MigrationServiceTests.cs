@@ -62,7 +62,9 @@ public sealed class MigrationServiceTests : IDisposable
         // Act
         await ExecuteWorkerAsync();
 
-        // Assert
+        // Assert: exactly once, and against the full nine-runner arrangement this class
+        // builds. MigrationWorkerExitCodeTests covers the same call on both the success
+        // and failure paths, but with a minimal one-core-runner worker.
         _lifetime.Received(1).StopApplication();
     }
 
@@ -139,16 +141,6 @@ public sealed class MigrationServiceTests : IDisposable
         // Assert
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("Branding migration failed");
-    }
-
-    [Fact]
-    public async Task ExecuteAsync_CallsStopApplication_WhenAllMigrationsSucceed()
-    {
-        // Act
-        await ExecuteWorkerAsync();
-
-        // Assert: StopApplication must be called even when everything succeeds cleanly
-        _lifetime.Received(1).StopApplication();
     }
 
     [Fact]
