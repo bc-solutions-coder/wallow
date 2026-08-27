@@ -6253,6 +6253,58 @@
         }
       }
     },
+    "/v1/storage/files/{id}/complete": {
+      "post": {
+        "tags": [
+          "Storage"
+        ],
+        "summary": "Complete a presigned upload: verify the object exists, scan it, and promote the file\nto Available (or Rejected). Idempotent once the file has left PendingValidation.",
+        "operationId": "StorageCompletePresignedUpload",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompleteUploadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/storage/files/{id}/presigned-url": {
       "get": {
         "tags": [
@@ -7218,6 +7270,22 @@
           }
         },
         "description": "The tenant an OIDC client belongs to, used by the auth frontend to brand the login screen\nbefore any user is authenticated."
+      },
+      "CompleteUploadResponse": {
+        "required": [
+          "fileId",
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "fileId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
       },
       "ConsentInfoResponse": {
         "required": [

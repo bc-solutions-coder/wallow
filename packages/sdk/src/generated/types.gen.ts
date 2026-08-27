@@ -207,6 +207,11 @@ export type ClientTenantResponse = {
     orgName: null | string;
 };
 
+export type CompleteUploadResponse = {
+    fileId: string;
+    status: string;
+};
+
 export type ConsentInfoResponse = {
     clientId: string;
     displayName: null | string;
@@ -4120,6 +4125,37 @@ export type StorageGetPresignedUploadUrlResponses = {
 };
 
 export type StorageGetPresignedUploadUrlResponse = StorageGetPresignedUploadUrlResponses[keyof StorageGetPresignedUploadUrlResponses];
+
+export type StorageCompletePresignedUploadData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/v1/storage/files/{id}/complete';
+};
+
+export type StorageCompletePresignedUploadErrors = {
+    /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+};
+
+export type StorageCompletePresignedUploadError = StorageCompletePresignedUploadErrors[keyof StorageCompletePresignedUploadErrors];
+
+export type StorageCompletePresignedUploadResponses = {
+    /**
+     * OK
+     */
+    200: CompleteUploadResponse;
+};
+
+export type StorageCompletePresignedUploadResponse = StorageCompletePresignedUploadResponses[keyof StorageCompletePresignedUploadResponses];
 
 export type StorageGetPresignedDownloadUrlData = {
     body?: never;

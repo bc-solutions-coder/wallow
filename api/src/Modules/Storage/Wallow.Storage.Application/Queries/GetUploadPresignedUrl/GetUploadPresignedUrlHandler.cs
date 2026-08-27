@@ -2,12 +2,10 @@ using Microsoft.Extensions.Options;
 using Wallow.Shared.Contracts.Storage;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.Results;
-using Wallow.Storage.Application.Commands.ScanUploadedFile;
 using Wallow.Storage.Application.Configuration;
 using Wallow.Storage.Application.DTOs;
 using Wallow.Storage.Application.Interfaces;
 using Wallow.Storage.Domain.Entities;
-using Wolverine;
 
 namespace Wallow.Storage.Application.Queries.GetUploadPresignedUrl;
 
@@ -15,7 +13,6 @@ public sealed class GetUploadPresignedUrlHandler(
     IStorageBucketRepository bucketRepository,
     IStoredFileRepository fileRepository,
     IStorageProvider storageProvider,
-    IMessageBus messageBus,
     IOptions<PresignedUrlOptions> presignedUrlOptions)
 {
     private static readonly TimeSpan _defaultExpiry = TimeSpan.FromMinutes(15);
@@ -60,8 +57,6 @@ public sealed class GetUploadPresignedUrlHandler(
 
         fileRepository.Add(storedFile);
         await fileRepository.SaveChangesAsync(cancellationToken);
-
-        await messageBus.PublishAsync(new ScanUploadedFileCommand(storedFile.Id));
 
         TimeSpan maxExpiry = TimeSpan.FromMinutes(presignedUrlOptions.Value.MaxUploadExpiryMinutes);
         TimeSpan expiry = query.Expiry ?? _defaultExpiry;

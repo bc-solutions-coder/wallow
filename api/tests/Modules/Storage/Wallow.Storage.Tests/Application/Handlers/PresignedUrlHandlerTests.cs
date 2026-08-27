@@ -9,7 +9,6 @@ using Wallow.Storage.Application.Queries.GetPresignedUrl;
 using Wallow.Storage.Application.Queries.GetUploadPresignedUrl;
 using Wallow.Storage.Domain.Entities;
 using Wallow.Storage.Domain.Identity;
-using Wolverine;
 
 #pragma warning disable CA1861 // Inline arrays in test data initializers
 
@@ -124,7 +123,6 @@ public class GetUploadPresignedUrlHandlerTests
     private readonly IStorageBucketRepository _bucketRepository;
     private readonly IStoredFileRepository _fileRepository;
     private readonly IStorageProvider _storageProvider;
-    private readonly IMessageBus _messageBus;
     private readonly GetUploadPresignedUrlHandler _handler;
 
     public GetUploadPresignedUrlHandlerTests()
@@ -132,8 +130,7 @@ public class GetUploadPresignedUrlHandlerTests
         _bucketRepository = Substitute.For<IStorageBucketRepository>();
         _fileRepository = Substitute.For<IStoredFileRepository>();
         _storageProvider = Substitute.For<IStorageProvider>();
-        _messageBus = Substitute.For<IMessageBus>();
-        _handler = new GetUploadPresignedUrlHandler(_bucketRepository, _fileRepository, _storageProvider, _messageBus, Options.Create(new PresignedUrlOptions()));
+        _handler = new GetUploadPresignedUrlHandler(_bucketRepository, _fileRepository, _storageProvider, Options.Create(new PresignedUrlOptions()));
     }
 
     [Fact]

@@ -60,8 +60,12 @@ an event. Both live in `Wallow.Shared.Contracts/Storage/`:
   then scans inline via `IFileScanner`, then writes, then creates the row as
   `FileStatus.Available`. `POST /presigned-upload` never sees the bytes, so
   `GetUploadPresignedUrlValidator` can only check the metadata: the row is created
-  `PendingValidation` and an async `ScanUploadedFileCommand` is meant to promote it. See
-  **Things to Watch** — that promotion is currently broken.
+  `PendingValidation`, and after PUTting the bytes to the presigned URL the client MUST call
+  `POST /files/{id}/complete` — `CompletePresignedUploadHandler` verifies the object exists
+  (`Error.Validation("File.NotUploaded")` if not), scans it inline, and marks the row
+  `Available` or `Rejected`. The completion call is idempotent: once the file has left
+  `PendingValidation` it just reports the current status without rescanning. Note the byte-level
+  `UploadFileValidator` checks still apply only to the multipart path.
 - **`FileNameSanitizer` runs on the multipart path only.** `UploadFileHandler` sanitizes before
   deriving the extension and storing `FileName`; `GetUploadPresignedUrlHandler` takes
   `query.FileName` raw.
@@ -80,9 +84,9 @@ an event. Both live in `Wallow.Shared.Contracts/Storage/`:
   switches in `StorageInfrastructureExtensions`, not runtime strategy lookups.
 - **`LocalStorageProvider` guards path traversal itself** — `GetFilePath` resolves the key against
   `BasePath` and throws `InvalidOperationException` if it escapes.
-- **Handler shapes are mixed.** Most are `public sealed class` with a primary constructor;
-  `ScanUploadedFileHandler` is a `public static partial class` using Wolverine method injection
-  and `[LoggerMessage]` source-gen logging.
+- **Handler shape is uniform here:** every handler is a `public sealed class` with a primary
+  constructor (the one `static partial` outlier, `ScanUploadedFileHandler`, was deleted with the
+  async scan path).
 
 ## Permissions
 
@@ -117,11 +121,10 @@ to run those, which needs Docker.
 
 ## Things to Watch
 
-- **The presigned-upload path's scan never succeeds** (`Wallow-p9p4`).
-  `GetUploadPresignedUrlHandler` publishes `ScanUploadedFileCommand` *before* it mints the upload
-  URL, so `ScanUploadedFileHandler` calls `DownloadAsync` on a key that does not exist yet. Both
-  providers throw and the handler catches nothing, so the file is stranded `PendingValidation` and
-  can never be downloaded. Do not document this path as working.
+- **A presigned upload that never calls `/complete` stays `PendingValidation` forever.** There is
+  no background sweep that promotes or expires abandoned presigned rows; the completion endpoint
+  is the only promotion path (this replaced the broken async `ScanUploadedFileCommand`,
+  `Wallow-p9p4`), and downloads stay blocked until it runs.
 - **`LocalStorageProvider`'s presigned URLs 404** (`Wallow-p23n`). It returns `/api/storage/...`
   paths; the API serves `/v1/storage/...` and has no key-addressed endpoint at all.
 - **The three `StorageSettingKeys` are read/written by the settings API and enforced nowhere**

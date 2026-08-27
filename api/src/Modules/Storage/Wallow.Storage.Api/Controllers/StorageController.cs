@@ -13,6 +13,7 @@ using Wallow.Shared.Kernel.Results;
 using Wallow.Shared.Kernel.Services;
 using Wallow.Storage.Api.Contracts.Requests;
 using Wallow.Storage.Api.Contracts.Responses;
+using Wallow.Storage.Application.Commands.CompletePresignedUpload;
 using Wallow.Storage.Application.Commands.CreateBucket;
 using Wallow.Storage.Application.Commands.DeleteBucket;
 using Wallow.Storage.Application.Commands.DeleteFile;
@@ -292,6 +293,27 @@ public sealed class StorageController(IMessageBus bus, ITenantContext tenantCont
             cancellationToken);
 
         return result.Map(r => new PresignedUploadResponse(r.FileId, r.UploadUrl, r.ExpiresAt))
+            .ToActionResult();
+    }
+
+    /// <summary>
+    /// Complete a presigned upload: verify the object exists, scan it, and promote the file
+    /// to Available (or Rejected). Idempotent once the file has left PendingValidation.
+    /// </summary>
+    [HttpPost("files/{id:guid}/complete")]
+    [HasPermission(PermissionType.StorageWrite)]
+    [ProducesResponseType(typeof(CompleteUploadResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CompletePresignedUpload(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        Result<CompletePresignedUploadResult> result =
+            await bus.InvokeAsync<Result<CompletePresignedUploadResult>>(
+                new CompletePresignedUploadCommand(id), cancellationToken);
+
+        return result.Map(r => new CompleteUploadResponse(r.FileId, r.Status.ToString()))
             .ToActionResult();
     }
 

@@ -131,6 +131,7 @@ All storage endpoints are versioned and require authorization. The base path is 
 | DELETE | `/v1/storage/files/{id}` | Delete a file |
 | GET | `/v1/storage/files?bucket=x&path=y` | List files in bucket (paginated) |
 | POST | `/v1/storage/presigned-upload` | Get presigned upload URL |
+| POST | `/v1/storage/files/{id}/complete` | Complete a presigned upload (verify + scan + promote) |
 
 The controller is at `api/src/Modules/Storage/Wallow.Storage.Api/Controllers/StorageController.cs`.
 
@@ -148,7 +149,7 @@ Files uploaded through the API are processed by `UploadFileHandler`. The handler
 
 ### Direct Client Upload (Presigned URLs)
 
-For large files, clients request a presigned upload URL via `POST /v1/storage/presigned-upload`, then upload directly to the storage backend, bypassing the API for the file transfer.
+For large files, clients request a presigned upload URL via `POST /v1/storage/presigned-upload`, then upload directly to the storage backend, bypassing the API for the file transfer. The file record is created as `PendingValidation`; after the upload the client must call `POST /v1/storage/files/{id}/complete`, which verifies the object exists, scans it via `IFileScanner`, and marks the file `Available` (or `Rejected` if the scan finds a threat). A file that never completes stays `PendingValidation` and cannot be downloaded.
 
 ### Download
 

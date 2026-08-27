@@ -68,7 +68,7 @@ Key properties: `TenantId`, `BucketId`, `FileName`, `ContentType`, `SizeBytes`, 
 | `DeleteBucketCommand` | Delete a bucket |
 | `UploadFileCommand` | Upload a file to storage (the record lives in `Wallow.Shared.Contracts/Storage/Commands/`; only the handler and validator are in this module) |
 | `DeleteFileCommand` | Delete a file from storage |
-| `ScanUploadedFileCommand` | Scan an uploaded file for viruses |
+| `CompletePresignedUploadCommand` | Complete a presigned upload: verify the object exists, scan it, and mark the file `Available` or `Rejected` |
 
 ### Queries
 
@@ -107,6 +107,7 @@ All endpoints require authentication and are prefixed with `/v1/storage`.
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `POST` | `/presigned-upload` | Get presigned URL for direct upload |
+| `POST` | `/files/{id}/complete` | Complete a presigned upload (verify + scan + promote) |
 | `GET` | `/files/{id}/presigned-url` | Get presigned URL for download |
 
 ### Settings

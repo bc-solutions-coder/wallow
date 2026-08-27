@@ -229,10 +229,9 @@ message kind:
 | `Commands/`, `Queries/` | `public sealed class …Handler(…)` — instance class, primary constructor | constructor parameters |
 | `EventHandlers/` (and Identity's `Handlers/`) | `public static class …Handler` | `Handle`/`HandleAsync` method parameters |
 
-Use the primary-constructor shape for new `Commands/` and `Queries/` handlers. Four command handlers
+Use the primary-constructor shape for new `Commands/` and `Queries/` handlers. Three command handlers
 depart from it and are static: Inquiries' three (`SubmitInquiryHandler`, `AddInquiryCommentHandler`,
-`UpdateInquiryStatusHandler`) and Storage's `ScanUploadedFileHandler`, which is a
-`public static partial class`. Copy Inquiries' *structure* but not its command-handler shape. Its
+`UpdateInquiryStatusHandler`). Copy Inquiries' *structure* but not its command-handler shape. Its
 four `Queries/` handlers are instance classes and do follow the rule.
 
 ### Command and Handler
