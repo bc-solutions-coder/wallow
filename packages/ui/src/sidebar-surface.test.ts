@@ -15,7 +15,7 @@ import { cn } from "./core/cn";
  * The `surface` axis, across every recipe that has one (Wallow-lrlm.6.4).
  *
  * THE DEFECT THIS AXIS EXISTS FOR. Three catalog components render inside
- * wallow-web's dashboard rail — `ThemeToggle`, `NavigationMenu.Link`,
+ * `AppNav`'s rail — `ThemeToggle`, `NavigationMenu.Link`,
  * `ErrorBanner` — and every one of them paints from the PAGE palette, because
  * no recipe knew it could be composed onto an inverted surface. The consumer's
  * only recourse was to out-merge the recipe class by class through
@@ -28,14 +28,13 @@ import { cn } from "./core/cn";
  * WHY THIS FILE ASSERTS CLASS STRINGS WHEN THE REST OF THE EPIC DOES NOT. A
  * class string is blind to what a component PAINTS, which is why the legibility
  * half of this bead is measured in Chromium against the real fork theme
- * (`apps/wallow-web/src/shared/components/DashboardNav.sidebar-surface.test.tsx`
- * reads the rendered colours). But "the row's colour no longer DEPENDS on the
- * consumer suppressing catalog classes by name" is a statement about the
- * recipe's own output BEFORE any consumer className reaches it — no rendered
- * pixel can express it, because a consumer that still suppresses correctly
- * paints identically to one that does not. So the two halves are split: the
- * catalog proves it hands over a clean class list, the app proves the result is
- * legible.
+ * (`packages/navigation/src/app-nav.sidebar-surface.test.tsx` reads the rendered
+ * colours). But "the row's colour does not DEPEND on the consumer suppressing
+ * catalog classes by name" is a statement about the recipe's own output BEFORE
+ * any consumer className reaches it — no rendered pixel can express it, because
+ * a consumer that still suppresses correctly paints identically to one that does
+ * not. So the two halves are split: the catalog proves it hands over a clean
+ * class list, the consumer proves the result is legible.
  *
  * Every assertion here runs the recipe through `cn()` first, because that is
  * what the components do — the question is always what reaches the DOM, not

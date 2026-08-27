@@ -9,9 +9,8 @@ import { defineConfig } from "vitest/config";
  * same shape apps/wallow-auth and packages/ui use.
  *
  * There are no render-nothing `*.test.tsx` specs here, so the preset's
- * `*.ssr.test.tsx` convention matches nothing: every `*.test.ts` (e.g. the
- * on-disk scaffold guard) runs on node and every `*.test.tsx` catalog spec runs
- * in the browser project.
+ * `*.ssr.test.tsx` convention matches nothing: every `*.test.ts` runs on node and
+ * every `*.test.tsx` catalog spec runs in the browser project.
  *
  * `wallowStyles()` + ./vitest.setup.ts are not cosmetic. A ui control gets its
  * BOX from a Tailwind utility in its recipe, so with no stylesheet

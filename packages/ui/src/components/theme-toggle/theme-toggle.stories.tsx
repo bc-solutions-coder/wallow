@@ -132,12 +132,11 @@ export const Cycling: Story = {
  * passthrough down to `buttonRecipe`, and that is the whole point of the story:
  * the axis has to survive a component that never mentions it.
  *
- * ONE scheme, deliberately. This story previously rendered a `.dark` column beside
- * a `.light` one and asserted both — but per the header, a wrapper cannot move a
- * `--color-*` token, so the two columns painted the same palette and the dark half
- * re-measured light while claiming otherwise. The dark half of this criterion is
- * measured in wallow-web's `DashboardNav.sidebar-surface.test.tsx`, which stamps
- * the mode on the document element where the tokens can actually see it.
+ * ONE scheme, deliberately. A wrapper cannot move a `--color-*` token, so a
+ * `.dark` column beside a `.light` one paints the same palette and the dark half
+ * re-measures light while claiming otherwise. The dark half of this criterion is
+ * measured in `packages/navigation/src/app-nav.sidebar-surface.test.tsx`, which
+ * stamps the mode on the document element where the tokens can actually see it.
  *
  * Top is the untouched default, bottom is `surface="sidebar"`.
  */

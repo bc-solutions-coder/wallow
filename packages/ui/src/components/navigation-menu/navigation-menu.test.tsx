@@ -163,9 +163,8 @@ const ITEM_CLASSES = ["min-w-0", "list-none"];
  * onto a real `Button`. A navigation trigger is not a button in a toolbar, it is
  * a NAV ROW that happens to open a panel, and it has to sit flush beside the
  * `Link` rows in the same list — so it takes the shared row shape and states its
- * hover/open colour, exactly as the target consumer (`DashboardNav`) hand-rolls
- * today. A caller who does want it colourless overrides through `className`,
- * which is the contract the override spec below pins.
+ * hover/open colour. A caller who does want it colourless overrides through
+ * `className`, which is the contract the override spec below pins.
  */
 const TRIGGER_CLASSES = [
   "flex",
