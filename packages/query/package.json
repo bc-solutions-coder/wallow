@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "description": "Wallow shared TanStack Query facade (react-query re-export + client factory)",
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

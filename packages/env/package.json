@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "description": "Wallow shared environment-derived addressing for Start apps (request origin, internal origin, base path)",
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "exports": {
     "./base-path": {
