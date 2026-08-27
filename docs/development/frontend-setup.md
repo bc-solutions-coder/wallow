@@ -603,9 +603,12 @@ Because the app's Tailwind build depends on `@bc-solutions-coder/styles` and, tr
   (before `pnpm install --frozen-lockfile`)
 - `COPY packages/styles packages/styles` (before the build step) — this also brings in
   `branding.json`, which lives at the package root, so it needs no COPY line of its own
-- Build the styles package before the app, e.g.
-  `pnpm --filter @bc-solutions-coder/styles build`, since the app's Vite build imports the
-  package's built `dist/` output (brand asset paths), not its source
+
+No package build step is needed before the app build. In-repo, every
+`@bc-solutions-coder/*` exports map resolves to the package's `src/`, so the app's single
+`vite build` compiles workspace package source — styles and `branding.json` included —
+directly; nothing resolves through `dist/`. (Verified by building and running both app
+images with no package build step: both serve fully branded pages.)
 
 `apps/wallow-auth/Dockerfile` and `apps/wallow-web/Dockerfile` are the reference examples.
 

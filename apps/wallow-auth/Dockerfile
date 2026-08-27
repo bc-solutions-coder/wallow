@@ -46,10 +46,9 @@ RUN pnpm install --frozen-lockfile
 # packages/styles/branding.json, so the `COPY packages/styles packages/styles`
 # below brings it in.
 
-# Copy every workspace package plus the app sources, then build all package
-# dist output the app imports followed by the app's own Start build. Every
-# package dir must be present and built or `vite build` fails with
-# UNRESOLVED_IMPORT.
+# Copy every workspace package plus the app sources. Every package dir must be
+# present (source is enough — in-repo the exports maps resolve to src/, so no
+# package is pre-built) or `vite build` fails with UNRESOLVED_IMPORT.
 #
 # `workspace:*` DEV dependencies are copied too, and one of them is load-bearing:
 # every package's own vite.config.ts imports @bc-solutions-coder/config, so
@@ -83,15 +82,14 @@ COPY apps/wallow-auth apps/wallow-auth
 ARG AUTH_BASE_PATH=""
 ENV AUTH_BASE_PATH=${AUTH_BASE_PATH}
 
-# Build all packages first (`pnpm --filter './packages/*' build` runs them in
-# topological order, so a package is always built before any package that
-# depends on it), then the app. The app's
-# `pnpm build` is a single `vite build` that emits BOTH environments into
-# .output/: .output/server/index.mjs is the entrypoint below and .output/public
-# holds the client bundle and brand assets it serves. .output/ is gitignored, so
-# it never arrives via the build context — it only exists if built here.
-RUN pnpm --filter './packages/*' build \
-    && pnpm --filter @bc-solutions-coder/wallow-auth build
+# Only the app builds — no `pnpm --filter './packages/*' build` first. In-repo,
+# every @bc-solutions-coder/* exports map points at the package's src/, so the
+# app's `vite build` compiles workspace package source directly; nothing
+# resolves through dist/. That one build emits BOTH environments into .output/:
+# .output/server/index.mjs is the entrypoint below and .output/public holds the
+# client bundle and brand assets it serves. .output/ is gitignored, so it never
+# arrives via the build context — it only exists if built here.
+RUN pnpm --filter @bc-solutions-coder/wallow-auth build
 
 WORKDIR /repo/apps/wallow-auth
 
