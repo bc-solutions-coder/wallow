@@ -93,10 +93,26 @@ Ordered by *risk retired per hour*, not by priority label.
 
 Nothing else starts until this is on `origin`.
 
-### Step 1 — triage mutations (today, ~15 min)
+### Step 1 — triage mutations (today, ~15 min) — **DONE 2026-08-27**
 
 Close `x271`, `6r58`; merge `tmy4` into `yhfc`; rewrite the premise paragraphs on `7zav` and
 `luni`; downgrade `ut4w`; file the `tanstack-min` chore. All are `bd` operations.
+
+Executed, with every verdict re-verified against the tree first:
+
+| Bead | Action taken |
+| ---- | ------------ |
+| `x271` | **Closed.** Acceptance already satisfied — `api/tests/Modules/Billing` is gone from disk. |
+| `6r58` | **Closed**, after satisfying the close-precondition the 2026-08-02 audit attached to it. Its guidance was relocated to `apps/wallow-auth/src/shared/lib/branding.ts` (a "copy this module" paragraph naming both apps) and to a new *Giving another app a path prefix* subsection in `docs/getting-started/fork-guide.md`. |
+| `tmy4` → `yhfc` | **Merged.** `yhfc`'s acceptance now carries the enumerated shorthand list and tmy4's `api/CLAUDE.md` requirement; `tmy4` closed as a duplicate. Noted on `yhfc` that the tier arm at `scripts/run-tests.sh:76-80` is already the shape to copy. |
+| `7zav` | **Premise rewritten.** The "nothing consumes them" claim was false: the three are scope-mapped, role-granted and seeded, and merely never *checked* (0 `HasPermission` sites). Delete is now the expensive option, so the decision is one-sided rather than a genuine fork. |
+| `luni` | **Fix direction rewritten** into the description, where the wrong one lived. Both dead ends (inert `ssr.external`, no ESM entry to re-alias) and the three remaining options are now in the description rather than buried in notes. |
+| `ut4w` | **Downgraded and retargeted** to a chore. The decision it asked for was already made in prose at `scripts/fork-smoke/README.md:46-54`; only documenting the load-bearing `extends` and trimming the README remain. Retitled to match. |
+| `9wqq` | **Filed** — the untracked `apps/tanstack-min/` orphan (0 tracked files, no `package.json`). Filed rather than deleted, since it may hold local work. |
+
+Also in passing: the three finished `2026-08-03` plans still marked `status: active`
+(`1206-turborepo-implementation`, `1206-turborepo-results`, `1148-testing-guards-implementation`)
+are now `completed`.
 
 ### Step 2 — the P1 that makes every other verification trustworthy
 

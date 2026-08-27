@@ -1,6 +1,6 @@
 # Testing Guards and Scenario Presets Implementation Plan
 
-**status: active**
+**status: completed**
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 > Design: `docs/plans/2026-08-03/1140-testing-guards-and-scenario-presets-design.md`

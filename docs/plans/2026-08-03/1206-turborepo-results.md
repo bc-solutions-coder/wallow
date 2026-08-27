@@ -1,6 +1,6 @@
 # Turborepo Adoption — Measurement Record
 
-**status: active**
+**status: completed**
 
 > Companion to `1206-turborepo-implementation.md` (Task 1 writes the baseline, Task 4 the
 > post-turbo figures, Task 5 the cache-correctness verdicts). Kept separate from the plan so the

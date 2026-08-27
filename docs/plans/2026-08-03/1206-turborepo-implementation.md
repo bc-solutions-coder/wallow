@@ -1,6 +1,6 @@
 # Turborepo Adoption Implementation Plan
 
-**status: active**
+**status: completed**
 
 > **Progress.** Phases 1 and 2 (Tasks 1–6) are **done and pushed** — turbo owns `build`,
 > `typecheck`, `test` and `dev`, with local caching and per-branch `actions/cache` in CI. Warm
