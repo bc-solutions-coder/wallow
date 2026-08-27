@@ -13,6 +13,14 @@
  * once. Every screen imports the fork's branding from this module rather than
  * from the package, which is what keeps a stray `import { appIconUrl } from
  * "@bc-solutions-coder/styles"` from quietly reintroducing the unprefixed URL.
+ *
+ * COPY THIS MODULE when you give another app a path prefix. `wallow-web` and
+ * `minimal-app` import the package-level `appIconUrl` / `forkResolvedBranding`
+ * constants directly, which is correct only while they are served at the site
+ * root — `basePath` defaults to `""`, the identity. The moment either one gains
+ * an `AUTH_BASE_PATH` equivalent, those constants become wrong in exactly the
+ * way described above, and the fix is this file: one per-app module binding the
+ * prefix once, with every screen importing branding from it.
  */
 import {
   type ResolvedBranding,

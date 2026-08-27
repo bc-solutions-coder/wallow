@@ -315,6 +315,24 @@ issuer is the API's origin or the auth app's is an environment-by-environment de
 repository answers it differently in dev, E2E, and production; the table and the reasoning are in
 [The Issuer and Origin Contract](../integrations/bff-pattern.md#the-issuer-and-origin-contract).
 
+### Giving another app a path prefix
+
+Only `wallow-auth` currently has a base-path knob (`AUTH_BASE_PATH`). If you put `wallow-web` or
+`minimal-app` behind a path prefix too, the prefix has to reach that app's **branding assets**, not
+just its router. Those two apps import `appIconUrl` and `forkResolvedBranding` from
+`@bc-solutions-coder/styles` directly, and the package resolves them at the **site** root: it ships
+a prebuilt bundle, so its own `import.meta.env.BASE_URL` is whatever it was when the package was
+built, never yours. Behind a path-based ingress the site root is a *different app*, so the icons
+silently resolve into it.
+
+Mirror `apps/wallow-auth/src/shared/lib/branding.ts`: one per-app module that hands the prefix to
+the package's base-path-aware functions (`toAppIconUrl`, `resolveForkBranding`, and
+`mergeClientBranding` for fetched client branding) exactly once, with every screen importing
+branding from that module rather than from the package. The string arithmetic itself —
+`normalizeBasePath`, `toViteBase`, `stripBasePath`, `withBasePath` — is already shared in
+`@bc-solutions-coder/env/base-path`; only the binding is per-app. Note that the prefix is a **build**
+argument, not a runtime one, for the reason given in `apps/wallow-auth/src/shared/lib/base-path.ts`.
+
 ### Two contracts a fork must not break silently
 
 Both of these hold regardless of how you rebrand or re-host, and both fail in ways that do not point
