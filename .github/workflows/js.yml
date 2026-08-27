@@ -113,8 +113,8 @@ jobs:
       - name: Install Playwright browser
         run: pnpm --filter ./packages/testing exec playwright install --with-deps chromium
 
-      # One task graph, not three phases. No standalone "build packages first"
-      # step is needed, and not because typecheck reads a dependency's .d.ts:
+      # No standalone "build packages first" step is needed, and not because
+      # typecheck reads a dependency's .d.ts:
       # in-repo every @bc-solutions-coder/* exports map points at src/, so a
       # dependent typechecks against source. typecheck and test declare
       # dependsOn ["^build"] in turbo.jsonc for the cache key — it folds the
@@ -123,8 +123,22 @@ jobs:
       #
       # Every task runs on every PR: unchanged packages restore from cache, so
       # the merge commit keeps the guarantee that everything actually passed.
-      - name: Build, typecheck and test
-        run: pnpm exec turbo run build typecheck test
+      # This is two invocations rather than one only because of the concurrency
+      # cap the Test step below explains — the task GRAPH is still single, and
+      # test's dependsOn ["^build"] resolves against the builds cached here.
+      - name: Build and typecheck
+        run: pnpm exec turbo run build typecheck
+
+      # SEPARATE invocation, and `pnpm test` rather than a third task on the line
+      # above, because the root `test` script carries `--concurrency=1` and turbo
+      # applies a concurrency to the whole run graph. Folded in above it would
+      # serialise build and typecheck too, for no reason. See Wallow-pr34: the
+      # browser-mode suites take each other down when several run at once, and
+      # every intermediate cap measured (2, 3, 4, and per-project maxWorkers) was
+      # still red. Build and typecheck stay fully parallel; only the browser
+      # suites queue.
+      - name: Test
+        run: pnpm test
 
       # publint + @arethetypeswrong/cli over the built packages: the manifest's
       # exports map and every entrypoint's type resolution, checked against the

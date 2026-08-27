@@ -9,7 +9,7 @@
     "secrets:prod": "./scripts/prod-secrets.sh",
     "dev": "turbo run dev --filter @bc-solutions-coder/wallow-web --filter @bc-solutions-coder/wallow-auth",
     "build": "turbo run build",
-    "test": "turbo run test",
+    "test": "turbo run test --concurrency=1",
     "typecheck": "turbo run typecheck",
     "lint": "oxlint apps packages --ignore-pattern '**/*.test.*' --ignore-pattern '**/*.stories.tsx' --deny-warnings",
     "lint:fix": "oxlint apps packages --ignore-pattern '**/*.test.*' --ignore-pattern '**/*.stories.tsx' --fix",
@@ -21,7 +21,7 @@
     "format": "oxfmt --write apps packages package.json pnpm-workspace.yaml tsconfig.base.json tsconfig.build.base.json .oxlintrc.json .oxfmtrc.json turbo.jsonc",
     "format:check": "oxfmt --check apps packages package.json pnpm-workspace.yaml tsconfig.base.json tsconfig.build.base.json .oxlintrc.json .oxfmtrc.json turbo.jsonc",
     "check:exports": "./scripts/check-exports.sh",
-    "check": "pnpm format:check && pnpm lint && pnpm lint:tests && pnpm lint:manifests && pnpm lint:deps && pnpm lint:env && turbo run build typecheck test && pnpm check:exports",
+    "check": "pnpm format:check && pnpm lint && pnpm lint:tests && pnpm lint:manifests && pnpm lint:deps && pnpm lint:env && turbo run build typecheck && pnpm test && pnpm check:exports",
     "prepare": "husky"
   },
   "devDependencies": {

@@ -89,7 +89,7 @@ pnpm backend:infra           # docker compose up -d (infra only); pnpm backend:i
 pnpm secrets:prod            # scripts/prod-secrets.sh — generate production secret values
 
 pnpm build                   # turbo run build      (topological; no need to build the SDK first)
-pnpm test                    # turbo run test       (vitest per package)
+pnpm test                    # turbo run test --concurrency=1 (vitest per package; see the cap below)
 pnpm typecheck               # turbo run typecheck
 pnpm dev                     # turbo run dev        (both apps)
 pnpm lint                    # oxlint over SOURCE only (test/story files excluded); lint:fix autofixes
@@ -99,7 +99,7 @@ pnpm lint:deps               # knip — unused files/exports/deps; knip.json ign
 pnpm lint:env                # scripts/check-env.sh — every ${VAR} a docker/*.yml interpolates must be documented in its paired .env.example (commented counts). Completeness, not requiredness; no Docker needed
 pnpm format                  # oxfmt --write ...   (format:check verifies)
 pnpm check:exports           # publint + @arethetypeswrong/cli over the built packages (needs dist/)
-pnpm check                   # format:check + lint + lint:tests + lint:manifests + lint:deps + lint:env + build + typecheck + test + check:exports — the one-command quality gate
+pnpm check                   # format:check + lint + lint:tests + lint:manifests + lint:deps + lint:env + build + typecheck, then `pnpm test`, then check:exports — the one-command quality gate
 
 # `prepare` (= `husky`) is the twentieth script; pnpm runs it on install, never invoke it by hand
 ```
@@ -111,6 +111,16 @@ in-repo, but a task's key folds in the keys of the tasks it depends on, so witho
 under `packages/*/src` replays a stale pass in every dependent. `dev` declares no dependency — it
 caches nothing and reads package source. Lint, format, manifests, deps and `check:exports` stay root invocations
 outside turbo. Caching is **local only**; a self-hosted remote cache is filed, not built.
+
+**`test` runs at `--concurrency=1`, and that is load-bearing** (`Wallow-pr34`). Several
+browser-mode suites running at once starve each other's Vite dev server, and whole suites then
+die at module load — `Failed to fetch dynamically imported module`, `Cannot connect to the
+iframe` — rather than at an assertion. Measured on 8 cores: every intermediate setting is still
+red (turbo `--concurrency` 2, 3 and 4, and per-project `maxWorkers` 1, 2 and 3), while
+`--concurrency=1` took five consecutive forced runs green with zero occurrences of either
+signature. Cost is roughly 95s against 60s, and only on a cold run. Because turbo applies a concurrency to the whole run
+graph, `check` and CI invoke `build typecheck` and `test` **separately** — folding `test` back
+onto the same line would serialise the other two for nothing.
 
 Linting runs as **two passes over one partition** — `pnpm lint` and `pnpm lint:tests` together
 cover every file exactly once, and `pnpm check` runs both. Config detail lives in

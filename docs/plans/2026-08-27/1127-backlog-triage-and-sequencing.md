@@ -1,4 +1,4 @@
-**status: active**
+**status: completed**
 
 # Backlog triage and sequencing — 2026-08-27
 
@@ -84,7 +84,7 @@ in passing.
 
 Ordered by *risk retired per hour*, not by priority label.
 
-### Step 0 — land what's already written (today, ~20 min)
+### Step 0 — land what's already written (today, ~20 min) — **DONE 2026-08-27**
 
 1. Commit the Storage ordering fix + its two tests → `fix(storage): commit removals before deleting objects` (cites Wallow-rqqx).
 2. Commit the comment sweep → `chore(ui): retarget stale DashboardNav comments at AppNav`; close **Wallow-4djs**.
@@ -92,6 +92,8 @@ Ordered by *risk retired per hour*, not by priority label.
 4. `./scripts/run-tests.sh storage` + `pnpm check`, then `git push` **and** `bd dolt push`.
 
 Nothing else starts until this is on `origin`.
+
+> Landed as `12a99a4e`, `ffd7a8f3` and `c20b0843`. **Wallow-4djs** closed.
 
 ### Step 1 — triage mutations (today, ~15 min) — **DONE 2026-08-27**
 
@@ -256,13 +258,84 @@ authoring against an existing template; neither blocks anything.
 > Verified: `pnpm check` exit 0; `./scripts/run-tests.sh storage` green (integration excluded,
 > as that invocation always is — no C# changed, only Markdown and two comments).
 
-### Step 6 — the flakes, together, under load
+### Step 6 — the flakes, together, under load — **DONE 2026-08-27**
 
 **Wallow-x5da** and **Wallow-xzy1.6** are separate defects but share a reproduction harness:
 both only appear under concurrent full-workspace `turbo run test`, and both point at the same
 `fileParallelism` question raised in `docs/plans/2026-08-03/1639-proxy-trust-react-dupe-nav-flake.md`.
 Chase them in one session with a repeat-under-load loop, not separately. Budget for the
 possibility that the answer is a vitest config change that fixes both.
+
+> **The step's premise was wrong, and the repeat-under-load loop is what showed it.** Neither
+> named bead reproduced. What the harness caught instead was a third defect that had to be
+> fixed first, and a fourth that was not on any bead. One `build:` commit; nothing was
+> shipped for `x5da` or `xzy1.6`.
+>
+> **`Wallow-pr34` was sequenced in front of both, and it is the step's actual result.** It is
+> not named anywhere above — it was filed earlier in this triage — but a ~13% flake rate
+> cannot be *measured* while whole suites are dying of contention, so it had to go first. It
+> turned out to be the thing making full-workspace runs unreliable, and it is now fixed:
+> `test` is `turbo run test --concurrency=1`, and `check` plus the CI job run
+> `turbo run build typecheck` and `pnpm test` as **two** invocations. turbo applies a
+> concurrency to the whole run graph and has no per-task setting, so folding `test` onto the
+> same line would serialise build and typecheck for nothing; splitting costs nothing because
+> `test`'s `dependsOn: ["^build"]` resolves against the builds the first invocation cached.
+>
+> **Why a cap and not a smaller number.** Every intermediate setting stayed red — turbo
+> `--concurrency` 2, 3 and 4 (8 of 12 runs failed, and *not monotonically* in the
+> concurrency), and per-project browser `maxWorkers` 1, 2 and 3. The cap alone misses because
+> turbo bounds **packages** while each package's vitest then fans out to its own CPU-count
+> worker pool: **49 `chrome-headless-shell` processes on 8 cores** at `--concurrency=3`. The
+> predictor is the product, not either factor.
+>
+> **A structural finding worth more than the fix.** Giving the browser project its own
+> `maxWorkers` makes Vitest 4 refuse to start: *"Projects 'browser (chromium)' and 'node' have
+> different 'maxWorkers' but same 'sequence.groupOrder'"*. That proves the two projects in
+> `packages/testing/src/vitest-projects.ts` currently share one group and one worker pool and
+> run interleaved. The `groupOrder` scaffolding needed to sweep `maxWorkers` was **reverted**,
+> not shipped — it changed scheduling without fixing anything.
+>
+> **Two candidate fixes deliberately not shipped.** `fileParallelism: false`, because the
+> `1639` plan is explicit that it removes load rather than the mechanism. And making
+> `pnpm check` refuse to report green off a cached `test` task, which `pr34` asked about:
+> turbo's hashing is sound, a cached green honestly means "these exact inputs passed once",
+> and the real complaint underneath is that a *flaky* suite's green gets memoised — an
+> argument for fixing the flakes, not for paying ~50s of browser suites on every warm check.
+>
+> **`Wallow-x5da`: one theory refuted, one left without a substrate.** A "wait for the rail to
+> settle between the two clicks" spec fix was drafted and then not shipped, because the
+> mechanism it guards cannot occur. The driver is
+> `context.iframe.locator(selector).click()` — a real Playwright locator click — and
+> Playwright's actionability for `click` includes **Stable** ("not animating or completed
+> animation") and **Receives Events**. It cannot dispatch mid-`transition-[width]
+> duration-200`, nor onto a hit-test mismatch. The scout's cross-iframe theory fares worse:
+> the `1639` plan already established there are no co-mounted iframes to route between. That
+> leaves `xzy1.6`'s mechanism — `vi.mock` failing under load, so the `Link` stub is absent and
+> a real anchor navigates — as the only candidate that explains a real navigation at all. The
+> two beads are now linked `relates-to` and should be picked up together.
+>
+> **`Wallow-rgu1` (new, P2) was recharacterised the moment the cap landed.** Filed during the
+> sweep as a load-dependent flake, it then fired on a `--concurrency=1` run with nothing else
+> running, taking out **10 tests at once** — every keyboard test in `menubar.test.tsx` — all
+> with focus on `file-recent`, the **last** row of the popup. So it is not a menu that failed
+> to open and not a contention problem; it is a menu that opened and put focus at the end of
+> the list. Retitled accordingly.
+>
+> **A method error worth recording.** The first re-verification run was invalid: without
+> `--continue`, turbo aborts the remaining packages on the first failure, so the menubar flake
+> stopped the run before the app suites — the exact packages that carried the `pr34`
+> signature — ever executed. Any future run of this harness needs `--continue`.
+>
+> Verified on the shipped shape, not the scaffolded tree the sweep was measured on:
+> `pnpm check` exit 0, then five consecutive
+> `turbo run test --concurrency=1 --force --continue` runs, **all exit 0**, 95/95/95/95/94s,
+> with zero occurrences of `Failed to fetch dynamically imported module`,
+> `Failed to import test file` or `Cannot connect to the iframe`.
+>
+> Beads: **`Wallow-pr34` closed.** `Wallow-x5da`, `Wallow-xzy1.6` and `Wallow-rgu1` stay open,
+> each carrying the non-reproduction or refutation this step produced. Whoever picks up the
+> first two must re-measure at the **old** concurrency to get a reproduction — chasing them
+> under the shipped cap will only add more non-reproduction.
 
 ### Deferred, deliberately — do not pull these forward
 
