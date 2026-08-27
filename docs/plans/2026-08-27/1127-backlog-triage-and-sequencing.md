@@ -114,13 +114,22 @@ Also in passing: the three finished `2026-08-03` plans still marked `status: act
 (`1206-turborepo-implementation`, `1206-turborepo-results`, `1148-testing-guards-implementation`)
 are now `completed`.
 
-### Step 2 — the P1 that makes every other verification trustworthy
+### Step 2 — the P1 that makes every other verification trustworthy — **DONE 2026-08-27**
 
 **Wallow-gwy2** (stale E2E image). Everything downstream — the two flakes, any E2E-backed
 confidence in a fix — is worth less while a green E2E run can be testing three-week-old code.
 Fix direction one from the bead (`up -d --wait --build` for the two services with a build
 block) is closest to how the script already reasons, and layer caching keeps a no-op rebuild
 cheap. Update `.claude/rules/E2E.md` with whichever knob survives as the reuse opt-in.
+
+Done in `14467eef`. Two things the bead had wrong, found while fixing it: there are **four**
+services with a build block (`garage`, `wallow-auth`, `wallow-web`, `bff-example`), not two, and
+`--build` had to be gated on `E2E_SKIP_IMAGE_BUILD` or CI would rebuild the five images
+`docker-images-app` had just restored from cache. The knob is now "reuse whatever `:test` images
+exist" rather than "skip the `dotnet publish`". Measured: unchanged tree rebuilds in **0s** (source
+`COPY` and the build layer both `CACHED`, vs 43s cold), a one-line source change re-runs the build
+in **8s**. Image ID is not a usable oracle here — BuildKit provenance gives a fresh ID on every
+build, including fully cached ones.
 
 ### Step 3 — one afternoon of correctness with a shared root cause
 
