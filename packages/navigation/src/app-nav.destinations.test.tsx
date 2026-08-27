@@ -1,3 +1,5 @@
+import { assertRouterStubApplied } from "@bc-solutions-coder/testing/router-stub";
+import { Link } from "@tanstack/react-router";
 import type { MouseEvent, ReactNode } from "react";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -26,19 +28,27 @@ type LinkStubProps = {
 // `activeProps` is destructured away rather than spread: a router-only prop on
 // an `<a>` earns an unknown-prop warning.
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ to, children, activeProps: _activeProps, onClick, ...rest }: LinkStubProps) => (
-    <a
-      href={to}
-      onClick={(event: MouseEvent<HTMLAnchorElement>) => {
-        event.preventDefault();
-        onClick?.(event);
-      }}
-      {...rest}
-    >
-      {children}
-    </a>
+  Link: Object.assign(
+    ({ to, children, activeProps: _activeProps, onClick, ...rest }: LinkStubProps) => (
+      <a
+        href={to}
+        data-router-stub="true"
+        onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+          event.preventDefault();
+          onClick?.(event);
+        }}
+        {...rest}
+      >
+        {children}
+      </a>
+    ),
+    { wallowRouterStub: true },
   ),
 }));
+
+beforeEach(() => {
+  assertRouterStubApplied(Link);
+});
 
 /** Widths on either side of the `md` (48rem) breakpoint the nav switches on. */
 const DESKTOP_VIEWPORT = [1280, 800] as const;

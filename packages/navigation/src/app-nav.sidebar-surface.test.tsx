@@ -1,3 +1,5 @@
+import { assertRouterStubApplied } from "@bc-solutions-coder/testing/router-stub";
+import { Link } from "@tanstack/react-router";
 import {
   computedColor,
   effectiveBackground,
@@ -35,22 +37,30 @@ type LinkStubProps = {
 
 // `activeProps.className` reaches the DOM only through the active route.
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ to, children, className, activeProps, onClick, ...rest }: LinkStubProps) => (
-    <a
-      href={to}
-      className={[className, to === routerState.activePath ? activeProps?.className : undefined]
-        .filter(Boolean)
-        .join(" ")}
-      onClick={(event: MouseEvent<HTMLAnchorElement>) => {
-        event.preventDefault();
-        onClick?.(event);
-      }}
-      {...rest}
-    >
-      {children}
-    </a>
+  Link: Object.assign(
+    ({ to, children, className, activeProps, onClick, ...rest }: LinkStubProps) => (
+      <a
+        href={to}
+        data-router-stub="true"
+        className={[className, to === routerState.activePath ? activeProps?.className : undefined]
+          .filter(Boolean)
+          .join(" ")}
+        onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+          event.preventDefault();
+          onClick?.(event);
+        }}
+        {...rest}
+      >
+        {children}
+      </a>
+    ),
+    { wallowRouterStub: true },
   ),
 }));
+
+beforeEach(() => {
+  assertRouterStubApplied(Link);
+});
 
 const DESKTOP_VIEWPORT = [1280, 800] as const;
 

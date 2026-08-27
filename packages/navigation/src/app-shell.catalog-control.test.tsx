@@ -1,3 +1,5 @@
+import { assertRouterStubApplied } from "@bc-solutions-coder/testing/router-stub";
+import { Link } from "@tanstack/react-router";
 import {
   computedColor,
   contrastRatio,
@@ -39,19 +41,27 @@ type LinkStubProps = {
 // click moves the test iframe, and `onClick` is pulled out of `rest` so a spread
 // handler cannot land after — and thus replace — the one that suppresses it.
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ to, children, activeProps: _activeProps, onClick, ...rest }: LinkStubProps) => (
-    <a
-      href={to}
-      onClick={(event: MouseEvent<HTMLAnchorElement>) => {
-        event.preventDefault();
-        onClick?.(event);
-      }}
-      {...rest}
-    >
-      {children}
-    </a>
+  Link: Object.assign(
+    ({ to, children, activeProps: _activeProps, onClick, ...rest }: LinkStubProps) => (
+      <a
+        href={to}
+        data-router-stub="true"
+        onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+          event.preventDefault();
+          onClick?.(event);
+        }}
+        {...rest}
+      >
+        {children}
+      </a>
+    ),
+    { wallowRouterStub: true },
   ),
 }));
+
+beforeEach(() => {
+  assertRouterStubApplied(Link);
+});
 
 const DESKTOP_VIEWPORT = [1280, 800] as const;
 const MOBILE_VIEWPORT = [390, 844] as const;

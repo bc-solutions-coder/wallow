@@ -1,3 +1,5 @@
+import { assertRouterStubApplied } from "@bc-solutions-coder/testing/router-stub";
+import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -8,21 +10,28 @@ import { ShellFixture } from "./shell.fixtures";
 
 // Stub TanStack `Link` to a plain anchor.
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({
-    to,
-    children,
-    activeProps: _activeProps,
-    ...rest
-  }: {
-    to: string;
-    children?: ReactNode;
-    activeProps?: { className?: string };
-  } & Record<string, unknown>) => (
-    <a href={to} {...rest}>
-      {children}
-    </a>
+  Link: Object.assign(
+    ({
+      to,
+      children,
+      activeProps: _activeProps,
+      ...rest
+    }: {
+      to: string;
+      children?: ReactNode;
+      activeProps?: { className?: string };
+    } & Record<string, unknown>) => (
+      <a href={to} data-router-stub="true" {...rest}>
+        {children}
+      </a>
+    ),
+    { wallowRouterStub: true },
   ),
 }));
+
+beforeEach(() => {
+  assertRouterStubApplied(Link);
+});
 
 /**
  * The theme control's REACHABILITY across the nav's three modes, not its looks.

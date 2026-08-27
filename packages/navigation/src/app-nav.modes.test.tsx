@@ -1,3 +1,5 @@
+import { assertRouterStubApplied } from "@bc-solutions-coder/testing/router-stub";
+import { Link } from "@tanstack/react-router";
 import type { MouseEvent, ReactNode } from "react";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -31,22 +33,30 @@ type LinkStubProps = {
 // The stub applies `activeProps.className` on the active route — TanStack's
 // active-link styling, which the nav must supply in BOTH desktop modes.
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ to, children, className, activeProps, onClick, ...rest }: LinkStubProps) => (
-    <a
-      href={to}
-      className={[className, to === routerState.activePath ? activeProps?.className : undefined]
-        .filter(Boolean)
-        .join(" ")}
-      onClick={(event: MouseEvent<HTMLAnchorElement>) => {
-        event.preventDefault();
-        onClick?.(event);
-      }}
-      {...rest}
-    >
-      {children}
-    </a>
+  Link: Object.assign(
+    ({ to, children, className, activeProps, onClick, ...rest }: LinkStubProps) => (
+      <a
+        href={to}
+        data-router-stub="true"
+        className={[className, to === routerState.activePath ? activeProps?.className : undefined]
+          .filter(Boolean)
+          .join(" ")}
+        onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+          event.preventDefault();
+          onClick?.(event);
+        }}
+        {...rest}
+      >
+        {children}
+      </a>
+    ),
+    { wallowRouterStub: true },
   ),
 }));
+
+beforeEach(() => {
+  assertRouterStubApplied(Link);
+});
 
 /** Every row the rail renders, with the label it must be reachable by. */
 const navItems: ReadonlyArray<readonly [testid: string, label: string]> = [

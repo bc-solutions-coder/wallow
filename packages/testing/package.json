@@ -63,6 +63,10 @@
       "types": "./src/navigation-escape.ts",
       "import": "./src/navigation-escape.ts"
     },
+    "./router-stub": {
+      "types": "./src/router-stub.ts",
+      "import": "./src/router-stub.ts"
+    },
     "./console-guard": {
       "types": "./src/console-guard.ts",
       "import": "./src/console-guard.ts"
@@ -129,6 +133,10 @@
       "./navigation-escape": {
         "types": "./dist/navigation-escape.d.ts",
         "import": "./dist/navigation-escape.js"
+      },
+      "./router-stub": {
+        "types": "./dist/router-stub.d.ts",
+        "import": "./dist/router-stub.js"
       },
       "./console-guard": {
         "types": "./dist/console-guard.d.ts",

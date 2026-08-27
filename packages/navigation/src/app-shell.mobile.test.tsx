@@ -1,3 +1,5 @@
+import { assertRouterStubApplied } from "@bc-solutions-coder/testing/router-stub";
+import { Link } from "@tanstack/react-router";
 import type { MouseEvent, ReactNode } from "react";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -25,19 +27,27 @@ type LinkStubProps = {
 // navigation so a click cannot move the test iframe. The click still bubbles, so
 // the close may be wired on the link or on a container above it.
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ to, children, activeProps: _activeProps, onClick, ...rest }: LinkStubProps) => (
-    <a
-      href={to}
-      onClick={(event: MouseEvent<HTMLAnchorElement>) => {
-        event.preventDefault();
-        onClick?.(event);
-      }}
-      {...rest}
-    >
-      {children}
-    </a>
+  Link: Object.assign(
+    ({ to, children, activeProps: _activeProps, onClick, ...rest }: LinkStubProps) => (
+      <a
+        href={to}
+        data-router-stub="true"
+        onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+          event.preventDefault();
+          onClick?.(event);
+        }}
+        {...rest}
+      >
+        {children}
+      </a>
+    ),
+    { wallowRouterStub: true },
   ),
 }));
+
+beforeEach(() => {
+  assertRouterStubApplied(Link);
+});
 
 /** A phone-width viewport, comfortably below the 48rem `md` breakpoint. */
 const MOBILE_VIEWPORT = [390, 844] as const;

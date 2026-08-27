@@ -1,3 +1,5 @@
+import { assertRouterStubApplied } from "@bc-solutions-coder/testing/router-stub";
+import { Link } from "@tanstack/react-router";
 import type { MouseEvent, ReactNode } from "react";
 import { hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
@@ -29,19 +31,27 @@ type LinkStubProps = {
 
 // `renderToString` has no router context to offer these.
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ to, children, activeProps: _activeProps, onClick, ...rest }: LinkStubProps) => (
-    <a
-      href={to}
-      onClick={(event: MouseEvent<HTMLAnchorElement>) => {
-        event.preventDefault();
-        onClick?.(event);
-      }}
-      {...rest}
-    >
-      {children}
-    </a>
+  Link: Object.assign(
+    ({ to, children, activeProps: _activeProps, onClick, ...rest }: LinkStubProps) => (
+      <a
+        href={to}
+        data-router-stub="true"
+        onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+          event.preventDefault();
+          onClick?.(event);
+        }}
+        {...rest}
+      >
+        {children}
+      </a>
+    ),
+    { wallowRouterStub: true },
   ),
 }));
+
+beforeEach(() => {
+  assertRouterStubApplied(Link);
+});
 
 /** Widths on either side of the `md` (48rem) breakpoint the nav switches on. */
 const DESKTOP_VIEWPORT = [1280, 800] as const;

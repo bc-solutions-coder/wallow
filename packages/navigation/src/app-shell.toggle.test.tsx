@@ -1,3 +1,5 @@
+import { assertRouterStubApplied } from "@bc-solutions-coder/testing/router-stub";
+import { Link } from "@tanstack/react-router";
 import type { MouseEvent, ReactNode } from "react";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -18,19 +20,27 @@ type LinkStubProps = {
 // of `rest` so a spread handler cannot land after — and thus replace — the one
 // that calls `preventDefault`.
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ to, children, activeProps: _activeProps, onClick, ...rest }: LinkStubProps) => (
-    <a
-      href={to}
-      onClick={(event: MouseEvent<HTMLAnchorElement>) => {
-        event.preventDefault();
-        onClick?.(event);
-      }}
-      {...rest}
-    >
-      {children}
-    </a>
+  Link: Object.assign(
+    ({ to, children, activeProps: _activeProps, onClick, ...rest }: LinkStubProps) => (
+      <a
+        href={to}
+        data-router-stub="true"
+        onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+          event.preventDefault();
+          onClick?.(event);
+        }}
+        {...rest}
+      >
+        {children}
+      </a>
+    ),
+    { wallowRouterStub: true },
   ),
 }));
+
+beforeEach(() => {
+  assertRouterStubApplied(Link);
+});
 
 /**
  * The desktop rail toggle. The shell owns the CONTROL — it stays reachable while

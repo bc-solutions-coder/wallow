@@ -1,3 +1,5 @@
+import { assertRouterStubApplied } from "@bc-solutions-coder/testing/router-stub";
+import { Link } from "@tanstack/react-router";
 import type { MouseEvent, ReactNode } from "react";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -27,27 +29,28 @@ type LinkStubProps = {
 // Stub TanStack `Link` to a plain anchor. `activeProps` is dropped rather than
 // spread, since letting it fall into `...rest` puts an object on a DOM attribute.
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({
-    to,
-    children,
-    className,
-    activeProps: _activeProps,
-    onClick,
-    ...rest
-  }: LinkStubProps) => (
-    <a
-      href={to}
-      className={className}
-      onClick={(event: MouseEvent<HTMLAnchorElement>) => {
-        event.preventDefault();
-        onClick?.(event);
-      }}
-      {...rest}
-    >
-      {children}
-    </a>
+  Link: Object.assign(
+    ({ to, children, className, activeProps: _activeProps, onClick, ...rest }: LinkStubProps) => (
+      <a
+        href={to}
+        data-router-stub="true"
+        className={className}
+        onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+          event.preventDefault();
+          onClick?.(event);
+        }}
+        {...rest}
+      >
+        {children}
+      </a>
+    ),
+    { wallowRouterStub: true },
   ),
 }));
+
+beforeEach(() => {
+  assertRouterStubApplied(Link);
+});
 
 /** The four destinations the rail and the drawer both render. */
 const destinationTestIds: readonly string[] = [
