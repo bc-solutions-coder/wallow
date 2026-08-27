@@ -314,12 +314,18 @@ possibility that the answer is a vitest config change that fixes both.
 > a real anchor navigates — as the only candidate that explains a real navigation at all. The
 > two beads are now linked `relates-to` and should be picked up together.
 >
-> **`Wallow-rgu1` (new, P2) was recharacterised the moment the cap landed.** Filed during the
-> sweep as a load-dependent flake, it then fired on a `--concurrency=1` run with nothing else
-> running, taking out **10 tests at once** — every keyboard test in `menubar.test.tsx` — all
-> with focus on `file-recent`, the **last** row of the popup. So it is not a menu that failed
-> to open and not a contention problem; it is a menu that opened and put focus at the end of
-> the list. Retitled accordingly.
+> **A fourth flake surfaced, and I filed it as a duplicate.** `menubar.test.tsx` was the most
+> frequent named failure in the sweep, so I opened `Wallow-rgu1` for it — without finding
+> **`Wallow-egxx`**, filed earlier the same day for the same file, the same helper family and
+> the same `expected 'view-popup' to be 'file-new'` signature. `rgu1` is closed as a duplicate
+> and its evidence merged onto `egxx`, which is retitled from the single ArrowRight spec it
+> named to the whole keyboard surface. What the sweep added: on a `--concurrency=1` run with
+> nothing else executing it took out **10 tests at once** — every keyboard test in the file,
+> the only failing file in the workspace — and a second received value, `file-recent`, which
+> is the **last** row of the popup. That variant is not a menu that failed to open; it is a
+> menu that opened and put focus at the end of the list. `egxx` had already established the
+> concurrency-independence, which the 10-test run corroborates: the `pr34` cap does not touch
+> this one.
 >
 > **A method error worth recording.** The first re-verification run was invalid: without
 > `--continue`, turbo aborts the remaining packages on the first failure, so the menubar flake
@@ -332,8 +338,9 @@ possibility that the answer is a vitest config change that fixes both.
 > with zero occurrences of `Failed to fetch dynamically imported module`,
 > `Failed to import test file` or `Cannot connect to the iframe`.
 >
-> Beads: **`Wallow-pr34` closed.** `Wallow-x5da`, `Wallow-xzy1.6` and `Wallow-rgu1` stay open,
-> each carrying the non-reproduction or refutation this step produced. Whoever picks up the
+> Beads: **`Wallow-pr34` closed**, `Wallow-rgu1` closed as a duplicate. `Wallow-x5da`,
+> `Wallow-xzy1.6` and `Wallow-egxx` stay open, each carrying the non-reproduction, refutation
+> or new evidence this step produced. Whoever picks up the
 > first two must re-measure at the **old** concurrency to get a reproduction — chasing them
 > under the shipped cap will only add more non-reproduction.
 
