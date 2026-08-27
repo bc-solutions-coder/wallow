@@ -46,6 +46,14 @@ this package** unless every consumer that reaches them runs `--configLoader runn
 `vite` only, and it is a real `dependency` rather than a devDependency — the source imports
 `defineConfig` and `UserConfig` from it.
 
+`react` appears as a **peerDependency**, not a dependency, and only because of
+`src/vite/use-sync-external-store-with-selector.mjs` — a vendored ESM replacement for the
+CJS-only `use-sync-external-store/shim/with-selector` that the app preset aliases in
+(Wallow-luni; the why lives in that file's header and the alias comment in `src/vite/app.ts`).
+The vendored module is never imported by this package's own code — `app.ts` references it by
+absolute file path as an alias replacement, so the no-relative-imports constraint above does
+not apply to it, and react resolves in the consuming app's graph, never here.
+
 Keep it that way. The presets were briefly kept under `tools/`, which has no manifest and so
 resolves upward into the ROOT `node_modules` — meaning every import had to be added to the
 root `package.json` to resolve at all, including exactly-pinned ones like

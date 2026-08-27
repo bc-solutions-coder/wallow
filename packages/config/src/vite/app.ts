@@ -1,4 +1,14 @@
+import { fileURLToPath } from "node:url";
 import type { UserConfig } from "vite";
+
+/**
+ * Absolute path to the vendored ESM `with-selector` (see that file's header
+ * and the alias comment below). Resolved from this module's own URL so it
+ * works wherever the consumer's `vite.config.ts` lives.
+ */
+const WITH_SELECTOR_ESM: string = fileURLToPath(
+  new URL("use-sync-external-store-with-selector.mjs", import.meta.url),
+);
 
 /**
  * The non-plugin half of every TanStack Start app's Vite config — ports,
@@ -67,11 +77,27 @@ export function wallowAppConfig(options: AppConfigOptions): UserConfig {
         // Anchored regexes, not a bare string: a string alias matches by PREFIX,
         // so `use-sync-external-store/shim` would also swallow
         // `use-sync-external-store/shim/with-selector` and rewrite it to the
-        // nonexistent `react/with-selector`. That subpath keeps its own
-        // implementation (React ships no `useSyncExternalStoreWithSelector`) and
-        // reads `useSyncExternalStore` off whatever this alias resolves to.
+        // nonexistent `react/with-selector` (React ships no
+        // `useSyncExternalStoreWithSelector`).
         { find: /^use-sync-external-store\/shim$/u, replacement: "react" },
         { find: /^use-sync-external-store\/shim\/index\.js$/u, replacement: "react" },
+        // The `/with-selector` subpath cannot alias to react (see above) but
+        // cannot be left alone either (Wallow-luni): the npm package is
+        // CJS-only, and when Vite bundles it into a zoned app's SSR chunk with
+        // react external, its `require("react")` degrades to a runtime
+        // `createRequire` — a second React out of node_modules at SSR runtime.
+        // So it aliases to a vendored ESM copy whose `import "react"` Nitro
+        // rewrites to the bundled `require_react()`, the linkage minimal-app
+        // proves correct. Both specifier spellings exist in the wild (zustand
+        // writes the `.js` form), hence two anchors. NOT fixable via
+        // `ssr.external` (ignored outright in this environment) or
+        // `ssr.noExternal: ["react", "react-dom"]` (boot-tested: puts a second
+        // LIVE React in the Vite graph while react-dom's renderer stays in
+        // Nitro's — /login 500s on a null hooks dispatcher). See the bead.
+        {
+          find: /^use-sync-external-store\/shim\/with-selector(?:\.js)?$/u,
+          replacement: WITH_SELECTOR_ESM,
+        },
       ],
       // The zone aliases (`@app/*`, `@features/*`, `@shared/*`) come from each
       // app's own `tsconfig.json` `paths` — Vite 8 reads it natively, so tsconfig
