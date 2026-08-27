@@ -90,7 +90,8 @@ pnpm --filter ./apps/wallow-web test:e2e:cross-app   # journey suite (needs an e
 `./scripts/e2e.sh` brings up `docker/docker-compose.test.yml` (infra + API + seeder + wallow-web),
 runs all three Playwright suites against it, and tears down. Both wallow-web suites always drive the
 containerised app on `:5053`; only the wallow-auth suite's serving mode follows `E2E_BASE_URL`. Env
-knobs: `E2E_SKIP_IMAGE_BUILD=1` (reuse prebuilt images), `E2E_UP_SERVICE`, `E2E_BASE_URL` (container
+knobs: `E2E_SKIP_IMAGE_BUILD=1` (reuse prebuilt images instead of building any — it gates
+compose's `--build` as well as the `dotnet publish`, so an unset run always tests the current tree), `E2E_UP_SERVICE`, `E2E_BASE_URL` (container
 mode), `E2E_KEEP_STACK`. CI runs the same script in the `e2e-tests` job of
 `.github/workflows/ci.yml`, uploading the `playwright-report-wallow-auth` and
 `playwright-report-wallow-web` artifacts.

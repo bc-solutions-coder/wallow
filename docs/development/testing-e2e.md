@@ -113,7 +113,7 @@ tears the stack down:
    journey through the consent screen
 
 ```bash
-./scripts/e2e.sh                            # cold local run: build images, up, test, down
+./scripts/e2e.sh                            # local run: (re)build images, up, test, down
 E2E_SKIP_IMAGE_BUILD=1 ./scripts/e2e.sh     # reuse already-built :test images
 ```
 
@@ -123,7 +123,7 @@ silently lack the `admin@wallow.dev` account the login spec signs in as.
 
 | Env knob                 | Effect                                                                                                                                 |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `E2E_SKIP_IMAGE_BUILD=1` | Skip the `dotnet publish` of the API, migration, and seeder `:test` images. CI sets this because a prior job preloads them from cache. |
+| `E2E_SKIP_IMAGE_BUILD=1` | Reuse whatever `:test` images already exist rather than building any of them — it suppresses both the `dotnet publish` of the API, migration, and seeder images **and** compose's `--build` of the services that have a build block (`wallow-web`, `wallow-auth`, `bff-example`, `garage`). CI sets it because a prior job preloads all but `bff-example` from cache. Leaving it unset is what guarantees the run tests your current tree. |
 | `E2E_UP_SERVICE=<svc>`   | Extra compose service to `up --wait` (default `wallow-api`). CI sets `wallow-auth` so that app is served from a container. `wallow-web` is always brought up as well. |
 | `E2E_BASE_URL=<url>`     | Drive an already-running wallow-auth at that URL; Playwright then boots no local dev server. Does not affect the wallow-web suites.                                   |
 | `E2E_KEEP_STACK=1`       | Leave the stack up after the run, for debugging.                                                                                                                     |

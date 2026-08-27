@@ -20,8 +20,14 @@
 # regardless of that choice — see the comment above their invocation below.
 #
 # Env knobs:
-#   E2E_SKIP_IMAGE_BUILD=1  Skip `dotnet publish` of the API/migration/seeder
-#                           images (CI preloads them from cache; set this there).
+#   E2E_SKIP_IMAGE_BUILD=1  Reuse whatever `:test` images already exist instead of
+#                           building any of them: skips both the `dotnet publish`
+#                           of the API/migration/seeder images AND compose's
+#                           `--build` of the ones with a build block (wallow-web,
+#                           wallow-auth, bff-example, garage). CI preloads all but
+#                           bff-example from cache, so it sets this; a local caller
+#                           wanting the same reuse sets it too. Leaving it UNSET is
+#                           what guarantees the run tests the current tree.
 #   E2E_UP_SERVICE=<svc>    Extra compose service to `up --wait` (default:
 #                           wallow-api; CI sets wallow-auth to serve that app from
 #                           a container). `wallow-web` is always brought up too.
@@ -30,7 +36,7 @@
 #   E2E_KEEP_STACK=1        Leave the stack up after the run (for debugging).
 #
 # Usage:
-#   ./scripts/e2e.sh                 # cold local run: builds images, up, test, down
+#   ./scripts/e2e.sh                 # local run: (re)builds images, up, test, down
 #   E2E_SKIP_IMAGE_BUILD=1 ./scripts/e2e.sh   # reuse already-built :test images
 
 set -euo pipefail
@@ -123,8 +129,23 @@ fi
 # named explicitly here or it never starts and that spec fails with
 # ERR_CONNECTION_REFUSED against :3003. It carries a build block and a healthcheck
 # identical to wallow-web's (same image), so `--wait` blocks on it the same way.
+#
+# --build is why this is an array. Compose builds a service's image only when one
+# is ABSENT, so without it any wallow-web-react:test / wallow-auth-react:test left
+# over from an earlier run is reused verbatim, however far the tree has moved
+# since -- a green E2E run that proves nothing about the code under test, and the
+# way a broken image build once went unnoticed for two days (Wallow-gwy2). Layer
+# caching makes the no-change rebuild cheap; a changed tree rebuilds, which is the
+# point. This reaches every service in the set that HAS a build block, so garage
+# and bff-example are covered by the same guarantee, not just the two app images.
+UP_ARGS=(up -d --wait)
+if [[ -z "${E2E_SKIP_IMAGE_BUILD:-}" ]]; then
+  UP_ARGS+=(--build)
+fi
+UP_ARGS+=("$UP_SERVICE" wallow-web bff-example)
+
 log "Bringing up compose stack (services: $UP_SERVICE, wallow-web, bff-example)"
-"${COMPOSE[@]}" up -d --wait "$UP_SERVICE" wallow-web bff-example
+"${COMPOSE[@]}" "${UP_ARGS[@]}"
 
 # `--wait` returns once wallow-api is *running*, not necessarily once Kestrel is
 # listening. Poll OIDC discovery so the login spec never races the boot.

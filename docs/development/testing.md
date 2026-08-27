@@ -343,10 +343,13 @@ that runs `pnpm lint`, `lint:tests`, `lint:manifests`, `lint:deps`, `lint:env`, 
 `turbo run build typecheck test`, and `check:exports` — the same set `pnpm check` runs locally.
 `ci.yml` does not run any frontend unit tests.
 
-Because `docker-images-app` prebuilds and caches every `:test` image, the `e2e-tests` job sets
-`E2E_SKIP_IMAGE_BUILD=1` and loads them instead of rebuilding. Setting `E2E_BASE_URL` makes
-Playwright drive the containerised `wallow-auth` app on `:5051` directly rather than booting a
-local dev server.
+Because `docker-images-app` prebuilds and caches the `:test` images, the `e2e-tests` job sets
+`E2E_SKIP_IMAGE_BUILD=1` and loads them instead of rebuilding. That knob suppresses **both** halves
+of the runner's image work — the `dotnet publish` of the API/migration/seeder images and compose's
+`--build` of the services with a build block — which is why a local run, where it is unset, always
+builds against the current tree. `bff-example` is the one image no job caches, so compose builds it
+either way. Setting `E2E_BASE_URL` makes Playwright drive the containerised `wallow-auth` app on
+`:5051` directly rather than booting a local dev server.
 
 ### Coverage threshold
 
