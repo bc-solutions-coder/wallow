@@ -62,6 +62,10 @@ jobs:
       TURBO_API: ${{ secrets.TURBO_API }}
       TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      # The `secrets` context is not usable inside a step-level `if`, so the
+      # presence check is bridged through env — this is "true"/"false" as a
+      # string, hence the string comparison at the two gated steps.
+      TAILNET_ENABLED: ${{ secrets.TS_OAUTH_CLIENT_ID != '' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -87,7 +91,7 @@ jobs:
       # degradation. The node is logged out and removed automatically when the
       # job ends.
       - name: Tailscale
-        if: ${{ secrets.TS_OAUTH_CLIENT_ID != '' }}
+        if: env.TAILNET_ENABLED == 'true'
         uses: tailscale/github-action@v4
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
@@ -99,7 +103,7 @@ jobs:
       # host answers before the first turbo invocation. Non-fatal: a dead cache
       # host must degrade to an uncached run, never a red one.
       - name: Wait for the cache host over the tailnet
-        if: ${{ secrets.TS_OAUTH_CLIENT_ID != '' }}
+        if: env.TAILNET_ENABLED == 'true'
         run: |
           host=$(printf '%s' "$TURBO_API" | sed -E 's#^[a-z]+://##; s#[:/].*$##')
           tailscale ping --timeout 5s -c 12 "$host" \
