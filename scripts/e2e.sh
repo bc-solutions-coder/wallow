@@ -63,6 +63,9 @@
 
 set -euo pipefail
 
+command -v python3 > /dev/null 2>&1 \
+  || { echo "e2e.sh: python3 is required (free-port allocation, compose-project listing)" >&2; exit 1; }
+
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 COMPOSE_FILE="$REPO_ROOT/docker/docker-compose.test.yml"
 # --- Per-run stack identity (Wallow-joo0) -----------------------------------
@@ -73,6 +76,8 @@ COMPOSE_FILE="$REPO_ROOT/docker/docker-compose.test.yml"
 # machine and a valid Compose project-name fragment (an override must stick to
 # lowercase alphanumerics, '-' and '_').
 E2E_STACK_ID="${E2E_STACK_ID:-$$}"
+[[ "$E2E_STACK_ID" =~ ^[a-z0-9_-]+$ ]] \
+  || { echo "e2e.sh: invalid E2E_STACK_ID '$E2E_STACK_ID' — use lowercase alphanumerics, '-' and '_' only" >&2; exit 1; }
 PROJECT_NAME="wallow-test-${E2E_STACK_ID}"
 # --project-name pins the Compose project even if the caller's environment (or
 # docker/.env, which COMPOSE_PROJECT_NAME-scopes the dev-infra stack) would
