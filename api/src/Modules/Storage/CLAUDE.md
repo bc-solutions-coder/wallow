@@ -20,6 +20,7 @@ over a pluggable backend (local filesystem or any S3-compatible service).
 | Settings registry | `Wallow.Storage.Application/Settings/StorageSettingKeys.cs` |
 | Filename sanitizer | `Wallow.Storage.Application/Utilities/FileNameSanitizer.cs` |
 | Storage backends | `Wallow.Storage.Infrastructure/Providers/` (`LocalStorageProvider`, `S3StorageProvider`) |
+| Background jobs | `Wallow.Storage.Infrastructure/Jobs/` (`OrphanedObjectSweepJob`) |
 | Scanners | `Wallow.Storage.Infrastructure/Scanning/` (`ClamAvFileScanner`, `NoOpFileScanner`) |
 | Repository implementations | `Wallow.Storage.Infrastructure/Persistence/Repositories/` |
 | EF configurations | `Wallow.Storage.Infrastructure/Persistence/Configurations/` |
@@ -34,8 +35,9 @@ Unusually for a module, Storage's outward surface is an **interface plus a comma
 an event. Both live in `Wallow.Shared.Contracts/Storage/`:
 
 - `IStorageProvider` — the low-level backend (`UploadAsync`, `DownloadAsync`, `DeleteAsync`,
-  `ExistsAsync`, `GetPresignedUrlAsync`). This module registers the implementation; anyone can
-  inject the interface.
+  `ExistsAsync`, `ListAsync`, `GetPresignedUrlAsync`). This module registers the implementation;
+  anyone can inject the interface. `ListAsync` yields `StorageObjectInfo` (key + last-modified),
+  prefix-filtered.
 - `UploadFileCommand` — the multipart upload command `StorageController` sends over Wolverine.
 
 ## Cross-Module Relationships
@@ -132,8 +134,12 @@ to run those, which needs Docker.
   own `MaxFileSizeBytes`; there is no extension allowlist and no quota accounting.
 - **Five test classes exist twice**, flat and in a nested namespace (`Wallow-xku9`). Add a fact to
   the nested copy — it is the superset in every pair.
-- **Orphaned objects are not swept** (`Wallow-41it`): a write that reaches the backend but fails
-  before `SaveChangesAsync` leaves the object behind.
+- **The orphan sweep only reaches the DEFAULT S3 bucket.** `OrphanedObjectSweepJob` (daily,
+  registered in `Program.cs` behind the Storage module flag) deletes `tenant-`-prefixed objects
+  with no matching `StoredFile.StorageKey`, skipping anything younger than 24 h. But it runs in a
+  background scope where `ITenantContext` is unresolved, so `S3StorageProvider.ResolveBucket()`
+  falls back to `BucketName` — a multi-region `RegionBuckets` deployment's non-primary buckets are
+  never swept.
 
 ## Related Documentation
 

@@ -2,6 +2,7 @@ using System.Net;
 using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.Extensions.Options;
+using Wallow.Shared.Contracts.Storage;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Storage.Infrastructure.Configuration;
 using Wallow.Storage.Infrastructure.Providers;
@@ -309,6 +310,42 @@ public sealed class S3StorageProviderTests : IDisposable
         await _mockS3Client.Received(1).GetPreSignedURLAsync(
             Arg.Is<GetPreSignedUrlRequest>(r =>
                 r.Expires >= before && r.Expires <= after));
+    }
+
+    [Fact]
+    public async Task ListAsync_PaginatesUntilNoLongerTruncated()
+    {
+        // Arrange
+        DateTime lastModified = new(2026, 8, 1, 0, 0, 0, DateTimeKind.Utc);
+        ListObjectsV2Response firstPage = new()
+        {
+            S3Objects = [new S3Object { Key = "tenant-1/bucket/a.txt", LastModified = lastModified }],
+            IsTruncated = true,
+            NextContinuationToken = "token-1"
+        };
+        ListObjectsV2Response secondPage = new()
+        {
+            S3Objects = [new S3Object { Key = "tenant-1/bucket/b.txt", LastModified = lastModified }],
+            IsTruncated = false
+        };
+
+        _mockS3Client.ListObjectsV2Async(
+            Arg.Is<ListObjectsV2Request>(r =>
+                r.BucketName == TestBucket && r.Prefix == "tenant-" && r.ContinuationToken == null),
+            Arg.Any<CancellationToken>())
+            .Returns(firstPage);
+        _mockS3Client.ListObjectsV2Async(
+            Arg.Is<ListObjectsV2Request>(r =>
+                r.BucketName == TestBucket && r.Prefix == "tenant-" && r.ContinuationToken == "token-1"),
+            Arg.Any<CancellationToken>())
+            .Returns(secondPage);
+
+        // Act
+        List<StorageObjectInfo> objects = await _provider.ListAsync("tenant-").ToListAsync();
+
+        // Assert
+        objects.Select(o => o.Key).Should().Equal("tenant-1/bucket/a.txt", "tenant-1/bucket/b.txt");
+        objects[0].LastModified.Should().Be(new DateTimeOffset(lastModified));
     }
 
     public void Dispose()

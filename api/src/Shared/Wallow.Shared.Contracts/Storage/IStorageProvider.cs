@@ -27,6 +27,13 @@ public interface IStorageProvider
     Task<bool> ExistsAsync(string key, CancellationToken ct = default);
 
     /// <summary>
+    /// Enumerate every object whose key starts with the given prefix.
+    /// </summary>
+    /// <param name="prefix">The key prefix to enumerate under.</param>
+    /// <param name="ct">Cancellation token.</param>
+    IAsyncEnumerable<StorageObjectInfo> ListAsync(string prefix, CancellationToken ct = default);
+
+    /// <summary>
     /// Generate a presigned URL for direct access to the file.
     /// </summary>
     /// <param name="key">The storage key.</param>

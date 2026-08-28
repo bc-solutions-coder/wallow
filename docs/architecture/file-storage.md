@@ -35,6 +35,7 @@ The core abstraction is defined in `api/src/Shared/Wallow.Shared.Contracts/Stora
 - `DownloadAsync` — download content as a stream
 - `DeleteAsync` — remove a file
 - `ExistsAsync` — check if a file exists
+- `ListAsync` — enumerate objects under a key prefix (`StorageObjectInfo`: key + last-modified)
 - `GetPresignedUrlAsync` — generate a time-limited URL for direct access (upload or download)
 
 ### Implementations

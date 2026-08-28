@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using Wallow.Shared.Contracts.Storage;
 using Wallow.Storage.Infrastructure.Configuration;
 using Wallow.Storage.Infrastructure.Providers;
 
@@ -266,5 +267,41 @@ public sealed class LocalStorageProviderTests : IDisposable
 
         url.Should().NotContain("//api");
         url.Should().Contain("http://localhost:5001/api");
+    }
+
+    [Fact]
+    public async Task ListAsync_ReturnsKeysUnderPrefix_WithForwardSlashesAndLastModified()
+    {
+        using MemoryStream contentA = new("a"u8.ToArray());
+        using MemoryStream contentB = new("b"u8.ToArray());
+        using MemoryStream contentC = new("c"u8.ToArray());
+        await _provider.UploadAsync(contentA, "tenant-1/bucket/a.txt", "text/plain");
+        await _provider.UploadAsync(contentB, "tenant-1/bucket/nested/b.txt", "text/plain");
+        await _provider.UploadAsync(contentC, "client-logos/client-1/logo.png", "image/png");
+
+        List<StorageObjectInfo> objects = await _provider.ListAsync("tenant-").ToListAsync();
+
+        objects.Select(o => o.Key).Should().BeEquivalentTo(
+            "tenant-1/bucket/a.txt",
+            "tenant-1/bucket/nested/b.txt");
+        objects.Should().OnlyContain(o => o.LastModified > DateTimeOffset.UtcNow.AddMinutes(-5));
+    }
+
+    [Fact]
+    public async Task ListAsync_ReturnsEmpty_WhenBasePathDoesNotExist()
+    {
+        IOptions<StorageOptions> options = Options.Create(new StorageOptions
+        {
+            Local = new LocalStorageOptions
+            {
+                BasePath = Path.Combine(_tempPath, "does-not-exist"),
+                BaseUrl = "http://localhost:5001"
+            }
+        });
+        LocalStorageProvider provider = new(options);
+
+        List<StorageObjectInfo> objects = await provider.ListAsync("tenant-").ToListAsync();
+
+        objects.Should().BeEmpty();
     }
 }

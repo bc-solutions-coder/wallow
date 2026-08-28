@@ -45,6 +45,8 @@ using Wallow.Shared.Infrastructure.Core.Services;
 using Wallow.Shared.Infrastructure.Modules;
 using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.MultiTenancy;
+using Wallow.Storage.Infrastructure.Jobs;
+using Wallow.Storage.Infrastructure.Modules;
 using Wolverine;
 using Wolverine.EntityFrameworkCore;
 using Wolverine.FluentValidation;
@@ -775,6 +777,14 @@ try
             "session-pruning",
             job => job.ExecuteAsync(),
             Cron.Daily());
+
+        if (enabledModules.IsModuleEnabled<StorageModule>())
+        {
+            jobManager.AddOrUpdate<OrphanedObjectSweepJob>(
+                "storage-orphaned-object-sweep",
+                job => job.ExecuteAsync(CancellationToken.None),
+                Cron.Daily());
+        }
 
     }
     // Unhook OpenTelemetry Redis profiler before DI disposal to prevent ObjectDisposedException

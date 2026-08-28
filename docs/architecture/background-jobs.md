@@ -44,8 +44,14 @@ Recurring jobs are registered at startup in `Program.cs` using `IRecurringJobMan
 | `OpenIddictTokenPruningJob` | Every 4 hours | `api/src/Modules/Identity/Wallow.Identity.Infrastructure/Jobs/OpenIddictTokenPruningJob.cs` |
 | `ExpiredInvitationPruningJob` | Every hour | `api/src/Modules/Identity/Wallow.Identity.Infrastructure/Jobs/ExpiredInvitationPruningJob.cs` |
 | `SessionPruningJob` | Daily (`Cron.Daily()`) | `api/src/Modules/Identity/Wallow.Identity.Infrastructure/Jobs/SessionPruningJob.cs` |
+| `OrphanedObjectSweepJob` | Daily (`Cron.Daily()`, feature-flagged) | `api/src/Modules/Storage/Wallow.Storage.Infrastructure/Jobs/OrphanedObjectSweepJob.cs` |
 
-The `RetryFailedEmailsJob` is conditionally registered behind the `Modules.Notifications` feature flag.
+The `RetryFailedEmailsJob` and `OrphanedObjectSweepJob` are conditionally registered behind their
+modules' feature flags (`Modules.Notifications` and `Modules.Storage`). The orphan sweep deletes
+storage-backend objects under the `tenant-` key prefix that no `StoredFile` row references and
+that are older than 24 hours — the residue of an upload whose backend write succeeded but whose
+database commit failed. The age threshold keeps it clear of in-flight uploads (presigned upload
+URLs expire in minutes).
 
 ### Cron Expression Reference
 

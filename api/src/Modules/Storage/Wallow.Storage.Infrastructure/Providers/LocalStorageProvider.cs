@@ -60,6 +60,38 @@ public sealed class LocalStorageProvider(IOptions<StorageOptions> options) : ISt
         return Task.FromResult(File.Exists(filePath));
     }
 
+    public IAsyncEnumerable<StorageObjectInfo> ListAsync(string prefix, CancellationToken ct = default)
+    {
+        return EnumerateObjects(prefix, ct).ToAsyncEnumerable();
+    }
+
+    private IEnumerable<StorageObjectInfo> EnumerateObjects(string prefix, CancellationToken ct)
+    {
+        string baseDirectory = Path.GetFullPath(_options.BasePath);
+
+        if (!Directory.Exists(baseDirectory))
+        {
+            yield break;
+        }
+
+        foreach (string filePath in Directory.EnumerateFiles(baseDirectory, "*", SearchOption.AllDirectories))
+        {
+            ct.ThrowIfCancellationRequested();
+
+            string key = Path.GetRelativePath(baseDirectory, filePath)
+                .Replace(Path.DirectorySeparatorChar, '/');
+
+            if (!key.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            yield return new StorageObjectInfo(
+                key,
+                new DateTimeOffset(File.GetLastWriteTimeUtc(filePath), TimeSpan.Zero));
+        }
+    }
+
     public Task<string> GetPresignedUrlAsync(string key, TimeSpan expiry, bool forUpload = false, CancellationToken ct = default)
     {
         // Local storage doesn't support true presigned URLs

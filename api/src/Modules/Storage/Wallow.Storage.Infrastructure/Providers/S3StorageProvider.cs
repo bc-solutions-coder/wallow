@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.Extensions.Options;
@@ -52,6 +53,46 @@ public sealed class S3StorageProvider(IAmazonS3 s3Client, IOptions<StorageOption
         };
 
         await _s3Client.DeleteObjectAsync(request, ct);
+    }
+
+    public async IAsyncEnumerable<StorageObjectInfo> ListAsync(
+        string prefix,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        ListObjectsV2Request request = new()
+        {
+            BucketName = ResolveBucket(),
+            Prefix = prefix
+        };
+
+        ListObjectsV2Response response;
+        do
+        {
+            response = await _s3Client.ListObjectsV2Async(request, ct);
+
+            foreach (S3Object s3Object in response.S3Objects ?? [])
+            {
+                yield return new StorageObjectInfo(s3Object.Key, ToUtcOffset(s3Object.LastModified));
+            }
+
+            request.ContinuationToken = response.NextContinuationToken;
+        }
+        while (response.IsTruncated == true);
+    }
+
+    private static DateTimeOffset ToUtcOffset(DateTime? lastModified)
+    {
+        // The SDK surfaces LastModified as a nullable, kind-varying DateTime. A missing
+        // timestamp is reported as "now" so a consumer ageing objects (the orphan sweep)
+        // can never mistake it for an old object.
+        if (lastModified is not { } value)
+        {
+            return DateTimeOffset.UtcNow;
+        }
+
+        return value.Kind == DateTimeKind.Unspecified
+            ? new DateTimeOffset(value, TimeSpan.Zero)
+            : new DateTimeOffset(value.ToUniversalTime(), TimeSpan.Zero);
     }
 
     public async Task<bool> ExistsAsync(string key, CancellationToken ct = default)
