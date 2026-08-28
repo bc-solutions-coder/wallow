@@ -868,9 +868,12 @@ describe("NavigationMenu", () => {
 
   it("opens the panel with ArrowDown and lands focus on its first link", async () => {
     // The keyboard entry path a navigation menu is judged on: no pointer at all,
-    // and the proof that the panel is reachable without a mouse.
+    // and the proof that the panel is reachable without a mouse. "No pointer" has
+    // to be made true, not assumed — a pointer parked (by an earlier file) where
+    // the panel mounts would hover-steal focus from the first link.
     await render(<SiteNav />);
 
+    await userEvent.unhover(part("n-trigger-products"));
     part("n-trigger-products").focus();
     await userEvent.keyboard("{ArrowDown}");
 

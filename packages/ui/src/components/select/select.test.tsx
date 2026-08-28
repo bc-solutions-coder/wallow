@@ -569,6 +569,9 @@ describe("Select", () => {
       </Select.Root>,
     );
 
+    // A pointer parked (by an earlier file) where the popup mounts — and a select
+    // popup aligns OVER its trigger — would hover-steal the highlight mid-sequence.
+    await userEvent.unhover(part("k-trigger"));
     part("k-trigger").focus();
     await userEvent.keyboard("{Enter}");
     await userEvent.keyboard("{ArrowDown}");

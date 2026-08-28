@@ -741,6 +741,9 @@ describe("Combobox", () => {
   it("selects a highlighted result with the keyboard", async () => {
     await render(<FilteringCombobox />);
 
+    // A pointer parked (by an earlier file) where the popup mounts would
+    // hover-steal the highlight from the row ArrowDown lands on.
+    await userEvent.unhover(part("f-input"));
     part("f-input").focus();
     await userEvent.keyboard("alp");
     await expect.poll(() => maybePart("f-item-Beta")).toBeNull();
