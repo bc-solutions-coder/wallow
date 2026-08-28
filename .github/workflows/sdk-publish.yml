@@ -22,6 +22,15 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    # Self-hosted turbo remote cache — same contract as js.yml: all three are
+    # repository secrets, fork PRs see empty values and run uncached.
+    env:
+      TURBO_API: ${{ secrets.TURBO_API }}
+      TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      # The `secrets` context is not usable inside a step-level `if`; bridged
+      # through env as a "true"/"false" string.
+      TAILNET_ENABLED: ${{ secrets.TS_OAUTH_CLIENT_ID != '' }}
     defaults:
       run:
         working-directory: packages/sdk
@@ -44,11 +53,43 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Test
-        run: pnpm test
+      # Join the tailnet as a tagged ephemeral node so turbo can reach the
+      # remote cache at its tailnet address. Skipped when the OAuth secrets are
+      # absent (fork PRs): turbo then runs local-only.
+      - name: Tailscale
+        if: env.TAILNET_ENABLED == 'true'
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
 
-      - name: Build
-        run: pnpm build
+      # Probe the cache endpoint before the first turbo invocation (any HTTP
+      # status proves TCP works; normally 401 without a bearer). Non-fatal: a
+      # dead cache host degrades to an uncached run, never a red one.
+      - name: Wait for the cache host over the tailnet
+        if: env.TAILNET_ENABLED == 'true'
+        run: |
+          host=$(printf '%s' "$TURBO_API" | sed -E 's#^[a-z]+://##; s#[:/].*$##')
+          tailscale ping --until-direct=false --timeout 2s -c 10 "$host" > /dev/null 2>&1 || true
+          for i in $(seq 1 10); do
+            if code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 "$TURBO_API/v8/artifacts/status" 2>&1); then
+              echo "cache endpoint answered HTTP $code"
+              exit 0
+            fi
+            echo "attempt $i: $code"
+            sleep 3
+          done
+          echo "::warning::turbo cache endpoint unreachable over the tailnet; this run is uncached"
+
+      # Through turbo from the repo root (the job default cwd is packages/sdk,
+      # where `pnpm build`/`pnpm test` run the package scripts directly and
+      # bypass the cache — always cold). The --filter runs exactly the SDK's
+      # build and test tasks; a cache hit restores the same dist/ that
+      # `pnpm publish` packs below.
+      - name: Build and test
+        working-directory: ${{ github.workspace }}
+        run: pnpm exec turbo run build test --filter @bc-solutions-coder/sdk
 
       - name: Sync package version from sdk-v tag or dispatch input
         run: |
