@@ -552,9 +552,12 @@ describe("Menu", () => {
   });
 
   it("opens with the arrow key from the trigger and highlights the first row", async () => {
-    // The keyboard entry path a menu is judged on: no pointer involved at all.
+    // The keyboard entry path a menu is judged on — so the ambient pointer must be
+    // named off the fixture first: a pointer parked (by an earlier file) where a
+    // row will mount would hover-steal the highlight from the first row.
     await render(<FullMenu />);
 
+    await userEvent.unhover(part("m-trigger"));
     part("m-trigger").focus();
     await userEvent.keyboard("{ArrowDown}");
 

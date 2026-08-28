@@ -79,6 +79,15 @@ import { menubarTriggerRecipe } from "./menubar.styles";
  * mouse position persists from spec to spec within a file, and a menubar opens a
  * neighbouring menu on HOVER once any menu is down; leaving the pointer parked
  * over a trigger would make the keyboard specs below it ambiguous.
+ *
+ * The pointer ALSO leaks in from other files, over coordinates this fixture
+ * happens to reuse — and Chromium re-dispatches hover events when new content
+ * mounts under a stationary cursor. A keyboard-opened popup mounting under a
+ * parked pointer either hover-highlights the row at that spot (focus lands on
+ * the last row, not the first) or, in the frame before the modal blocker
+ * mounts, hover-switches to a neighbouring menu. Every keyboard open therefore
+ * names its pointer state first: `userEvent.unhover(bar)` moves the pointer to
+ * `<body>`, off the bar and off the footprint of every popup.
  */
 
 /**
@@ -233,6 +242,8 @@ function AppMenubar({ orientation, modal, disabled }: AppMenubarProps): ReactEle
 async function openWithKeyboard(triggerTestId: string, firstRowTestId: string): Promise<void> {
   await render(<AppMenubar />);
 
+  // The pointer must be off the fixture before the popup mounts — see the header.
+  await userEvent.unhover(part("bar"));
   part(triggerTestId).focus();
   await userEvent.keyboard("{Enter}");
   await expect.poll(focusedTestId).toBe(firstRowTestId);
@@ -315,6 +326,8 @@ describe("Menubar", () => {
     // orientation prop reaches Base UI rather than only the recipe.
     await render(<AppMenubar />);
 
+    // The pointer must be off the fixture before the popup mounts — see the header.
+    await userEvent.unhover(part("bar"));
     part("file-trigger").focus();
     await pressKey("{ArrowDown}", "file-new");
 
