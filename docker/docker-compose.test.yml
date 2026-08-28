@@ -10,6 +10,12 @@
 # COMPOSE_PROJECT_NAME still outranks this field — scripts/e2e.sh therefore also
 # passes --project-name wallow-test explicitly. If you invoke this file by hand
 # with COMPOSE_PROJECT_NAME set, pass -p wallow-test yourself.
+#
+# Every host port and the URLs that embed one interpolate ${E2E_*_PORT:-<classic
+# default>}, and every image tag interpolates ${E2E_IMAGE_TAG:-test} — run by
+# hand you get exactly the classic values; scripts/e2e.sh exports per-run values
+# so concurrent runs cannot collide (Wallow-joo0). The knob list lives in
+# .env.example.
 name: wallow-test
 
 services:
@@ -27,7 +33,7 @@ services:
     volumes:
       - test_postgres_data:/var/lib/postgresql/data
     ports:
-      - "127.0.0.1:5442:5432"
+      - "127.0.0.1:${E2E_POSTGRES_PORT:-5442}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U wallow_test -d wallow_test"]
       interval: 5s
@@ -40,7 +46,7 @@ services:
     image: valkey/valkey:8-alpine
     command: valkey-server --appendonly yes --requirepass WallowTestValkey123!
     ports:
-      - "127.0.0.1:6389:6379"
+      - "127.0.0.1:${E2E_VALKEY_PORT:-6389}:6379"
     volumes:
       - test_valkey_data:/data
     healthcheck:
@@ -54,13 +60,13 @@ services:
   mailpit:
     image: axllent/mailpit:v1.22
     ports:
-      - "127.0.0.1:1035:1025"
-      - "127.0.0.1:8035:8025"
+      - "127.0.0.1:${E2E_MAILPIT_SMTP_PORT:-1035}:1025"
+      - "127.0.0.1:${E2E_MAILPIT_HTTP_PORT:-8035}:8025"
     networks:
       - wallow-test
 
   garage:
-    image: wallow-garage:test
+    image: wallow-garage:${E2E_IMAGE_TAG:-test}
     build:
       context: ./images/garage
     environment:
@@ -74,8 +80,8 @@ services:
       - test_garage_meta:/var/lib/garage/meta
       - test_garage_data:/var/lib/garage/data
     ports:
-      - "127.0.0.1:3910:3900"
-      - "127.0.0.1:3913:3903"
+      - "127.0.0.1:${E2E_GARAGE_S3_PORT:-3910}:3900"
+      - "127.0.0.1:${E2E_GARAGE_ADMIN_PORT:-3913}:3903"
     healthcheck:
       test: ["CMD", "garage", "status"]
       interval: 5s
@@ -88,7 +94,7 @@ services:
   # MIGRATIONS
   # ============================================
   wallow-migrations:
-    image: wallow-migrations:test
+    image: wallow-migrations:${E2E_IMAGE_TAG:-test}
     environment:
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=wallow_test;Username=wallow_test;Password=wallow_test"
     depends_on:
@@ -101,15 +107,21 @@ services:
   # SEEDER
   # ============================================
   wallow-seeder:
-    image: wallow-seeder:test
+    image: wallow-seeder:${E2E_IMAGE_TAG:-test}
     environment:
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=wallow_test;Username=wallow_test;Password=wallow_test"
       # Override wallow-web-client redirect URIs for the test port. The client is
       # now a Node BFF (apps/wallow-web), so the callback is /bff/callback, not the
       # Blazor /signin-oidc middleware path. Clients__<index>__ addresses api/seed.json's
       # clients array by POSITION; wallow-web-client is index 0 there.
-      Clients__0__RedirectUris__0: "http://localhost:5053/bff/callback"
-      Clients__0__PostLogoutRedirectUris__0: "http://localhost:5053/"
+      Clients__0__RedirectUris__0: "http://localhost:${E2E_WEB_PORT:-5053}/bff/callback"
+      Clients__0__PostLogoutRedirectUris__0: "http://localhost:${E2E_WEB_PORT:-5053}/"
+      # bcordes-bff (seed.json clients index 2) hardcodes localhost:3003; rebase it
+      # onto this run's bff-example host port so the external-origin consent spec
+      # still round-trips when scripts/e2e.sh randomizes ports (Wallow-joo0).
+      Clients__2__RedirectUris__0: "http://localhost:${E2E_BFF_PORT:-3003}/bff/callback"
+      Clients__2__PostLogoutRedirectUris__0: "http://localhost:${E2E_BFF_PORT:-3003}/"
+      Clients__2__FrontchannelLogoutUri: "http://localhost:${E2E_BFF_PORT:-3003}/bff/frontchannel-logout"
     depends_on:
       wallow-migrations:
         condition: service_completed_successfully
@@ -120,9 +132,9 @@ services:
   # APPLICATION SERVICES
   # ============================================
   wallow-api:
-    image: wallow-api:test
+    image: wallow-api:${E2E_IMAGE_TAG:-test}
     ports:
-      - "5050:8080"
+      - "${E2E_API_PORT:-5050}:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
@@ -143,12 +155,12 @@ services:
       Storage__S3__UsePathStyle: "true"
       Storage__S3__Region: us-east-1
       # Auth URL for link generation (browser-accessible from host)
-      AuthUrl: "http://localhost:5051"
-      ServiceUrls__AuthUrl: "http://localhost:5051"
+      AuthUrl: "http://localhost:${E2E_AUTH_PORT:-5051}"
+      ServiceUrls__AuthUrl: "http://localhost:${E2E_AUTH_PORT:-5051}"
       # API URL for link generation (browser-accessible from host, e.g. magic link emails)
-      ServiceUrls__ApiUrl: "http://localhost:5050"
+      ServiceUrls__ApiUrl: "http://localhost:${E2E_API_PORT:-5050}"
       # Fix OIDC issuer so browser-facing tokens match the authority clients expect (localhost)
-      OpenIddict__Issuer: "http://localhost:5050"
+      OpenIddict__Issuer: "http://localhost:${E2E_API_PORT:-5050}"
       # wallow-web is a BFF; treat its client as first-party so the OIDC flow
       # skips the interactive consent screen during the dashboard login. This
       # override is POSITIONAL: appsettings declares an empty FirstPartyClients
@@ -201,14 +213,14 @@ services:
   # server bundle) and WALLOW_API_INTERNAL_URL (the SDK passthrough the
   # src/routes/{v1,connect,[.]well-known}/$.ts server routes call).
   wallow-auth:
-    image: wallow-auth-react:test
+    image: wallow-auth-react:${E2E_IMAGE_TAG:-test}
     build:
       context: ..
       dockerfile: apps/wallow-auth/Dockerfile
     # Host port stays 5051 (the E2E stack's auth URL); the container port is
     # 3002, this app's Node port, not the Blazor 8080.
     ports:
-      - "127.0.0.1:5051:3002"
+      - "127.0.0.1:${E2E_AUTH_PORT:-5051}:3002"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
@@ -249,24 +261,24 @@ services:
   # bcordes-bff reference client. The OIDC issuer/metadata split mirrors
   # bff-example (browser-facing issuer vs container-reachable discovery URL).
   wallow-web:
-    image: wallow-web-react:test
+    image: wallow-web-react:${E2E_IMAGE_TAG:-test}
     build:
       context: ..
       dockerfile: apps/wallow-web/Dockerfile
     ports:
-      - "127.0.0.1:5053:3000"
+      - "127.0.0.1:${E2E_WEB_PORT:-5053}:3000"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
       PORT: "3000"
       # Browser-facing issuer (must match API OpenIddict issuer for redirects)
-      OIDC_ISSUER: "http://localhost:5050"
+      OIDC_ISSUER: "http://localhost:${E2E_API_PORT:-5050}"
       # Server-reachable discovery URL (container -> host-published API)
-      OIDC_METADATA_URL: "http://host.docker.internal:5050/.well-known/openid-configuration"
+      OIDC_METADATA_URL: "http://host.docker.internal:${E2E_API_PORT:-5050}/.well-known/openid-configuration"
       OIDC_CLIENT_ID: wallow-web-client
       OIDC_CLIENT_SECRET: wallow-web-secret
-      OIDC_REDIRECT_URI: "http://localhost:5053/bff/callback"
-      OIDC_POST_LOGOUT_REDIRECT_URI: "http://localhost:5053/"
+      OIDC_REDIRECT_URI: "http://localhost:${E2E_WEB_PORT:-5053}/bff/callback"
+      OIDC_POST_LOGOUT_REDIRECT_URI: "http://localhost:${E2E_WEB_PORT:-5053}/"
       # Downstream API for the /api proxy (container-to-container)
       BFF_API_BASE_URL: "http://wallow-api:8080"
       COOKIE_PASSWORD: "e2e-web-cookie-seal-password-min-32-chars"
@@ -314,26 +326,26 @@ services:
   #     already returns a backchannel endpoint the container can reach for code
   #     exchange and silent refresh.
   bff-example:
-    image: wallow-bff-example:test
+    image: wallow-bff-example:${E2E_IMAGE_TAG:-test}
     build:
       context: ..
       dockerfile: apps/wallow-web/Dockerfile
     ports:
-      - "3003:3000"
+      - "${E2E_BFF_PORT:-3003}:3000"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
       PORT: "3000"
       # Browser-facing issuer (must match API OpenIddict issuer for redirects)
-      OIDC_ISSUER: "http://localhost:5050"
+      OIDC_ISSUER: "http://localhost:${E2E_API_PORT:-5050}"
       # Server-reachable discovery URL (container -> host-published API).
       # The SDK uses this metadata's token_endpoint for the backchannel and pins
       # the browser-facing authorize/end-session endpoints to OIDC_ISSUER.
-      OIDC_METADATA_URL: "http://host.docker.internal:5050/.well-known/openid-configuration"
+      OIDC_METADATA_URL: "http://host.docker.internal:${E2E_API_PORT:-5050}/.well-known/openid-configuration"
       OIDC_CLIENT_ID: bcordes-bff
       OIDC_CLIENT_SECRET: bcordes-bff-secret
-      OIDC_REDIRECT_URI: "http://localhost:3003/bff/callback"
-      OIDC_POST_LOGOUT_REDIRECT_URI: "http://localhost:3003/"
+      OIDC_REDIRECT_URI: "http://localhost:${E2E_BFF_PORT:-3003}/bff/callback"
+      OIDC_POST_LOGOUT_REDIRECT_URI: "http://localhost:${E2E_BFF_PORT:-3003}/"
       # bcordes-bff (api/seed.json:221-239) is provisioned for these scopes beyond the SDK's
       # default openid/profile/email/offline_access -- request all of them so the consent
       # screen this client exists to exercise actually renders their descriptions instead of
