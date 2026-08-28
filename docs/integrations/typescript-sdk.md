@@ -123,6 +123,40 @@ its commit type before merging: it is `feat(sdk):` by default, and a contract ch
 that removed or renamed an operation should be squashed as `feat(sdk)!:` instead so
 the SDK takes a major bump.
 
+### No runtime payload validation — a deliberate decision
+
+The SDK does **no runtime validation of API payloads**, in the browser or in the
+BFF. The generated types plus the drift check above are the contract. This was
+evaluated and rejected, not overlooked:
+
+- **In the browser it is not worth the bytes.** Generating zod validators into
+  the client (hey-api's zod plugin) was measured at **+24.4 kB gzip** for a
+  five-operation import — ~19.2 kB of that being the zod runtime floor — to
+  re-validate data that already crossed Wallow's own same-origin BFF proxy.
+- **If validation is ever wanted, it belongs on the Node side of the BFF proxy**
+  (`@bc-solutions-coder/sdk/server`), where the proxy talks to the real API:
+  zero bundle cost for end users, and a validation failure can become a proper
+  502 / `WallowError` at the actual trust boundary instead of a thrown
+  `ZodError` on an HTTP 200.
+
+Anyone revisiting this must first close two **known fidelity gaps** between the
+snapshot and what the API actually serializes. The drift check compares the
+committed snapshot against the *spec* the API emits — never the spec against
+actually-serialized payloads — so these do not trip CI, but a strict validator
+trips on both:
+
+1. **`format: date-time` values may carry a non-UTC offset.** The API serializes
+   `DateTimeOffset` values as-is, and zod 4's `z.iso.datetime()` rejects
+   non-UTC offsets by default (proven against
+   `AccountLoginResponse.mfaGraceDeadline`; a validator must opt into offsets,
+   e.g. `dates.offset`).
+2. **Required-and-nullable properties can be omitted on the wire.** The
+   generator marks non-optional constructor parameters `required` even when
+   nullable, but the serializer can omit a null member entirely, so a
+   presence-checking validator throws (proven against
+   `MfaStatusResponse.method`, which is still `required` *and* nullable in the
+   current snapshot).
+
 ---
 
 ## Publishing the SDK
