@@ -509,7 +509,8 @@ export const clientsGetServiceAccount = <ThrowOnError extends boolean = true>(op
 });
 
 /**
- * Update the scopes assigned to a service account.
+ * Update the scopes assigned to a service account. Write-level rather than manage: creation
+ * already accepts arbitrary scopes, so gating updates higher would guard nothing.
  */
 export const clientsUpdateServiceAccountScopes = <ThrowOnError extends boolean = true>(options: Options<ClientsUpdateServiceAccountScopesData, ThrowOnError>): RequestResult<ClientsUpdateServiceAccountScopesResponses, ClientsUpdateServiceAccountScopesErrors, ThrowOnError, 'data'> => (options.client ?? client).put<ClientsUpdateServiceAccountScopesResponses, ClientsUpdateServiceAccountScopesErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
