@@ -1,11 +1,15 @@
-# Self-hosted Turborepo remote cache, plus the Cloudflare Tunnel that publishes
-# it. Runs on the build server, NOT as part of `pnpm backend:infra` - it is
-# developer infrastructure, unrelated to the Wallow stack.
+# Self-hosted Turborepo remote cache. Runs on the build server, NOT as part of
+# `pnpm backend:infra` - it is developer infrastructure, unrelated to the
+# Wallow stack.
 #
-# The tunnel dials out, so no inbound port is opened. Authentication is
-# TURBO_TOKEN alone: turbo sends only `Authorization: Bearer`, so Cloudflare
-# Access service tokens cannot be layered on top (see the design doc). Pair this
-# with a WAF rule on the hostname.
+# The cache is reached over the Tailscale tailnet, not a public hostname: CI
+# joins the tailnet inside the workflow (tailscale/github-action in js.yml) and
+# laptops must be on it. Authentication is TURBO_TOKEN alone - turbo sends only
+# `Authorization: Bearer`, so nothing that needs its own header or login can be
+# layered in front (this is what killed the original Cloudflare Tunnel design;
+# see Wallow-m4u7). Set TURBO_CACHE_BIND_ADDR to the host's tailscale IP so the
+# listener is reachable from the tailnet and nowhere else; the 127.0.0.1
+# default keeps a copy-paste deployment private until that choice is made.
 services:
   turbo-cache:
     image: ducktors/turborepo-remote-cache:latest
@@ -23,17 +27,8 @@ services:
       ENABLE_STATUS_LOG: "false"
     volumes:
       - turbo-cache-data:/cache
-    expose:
-      - "3000"
-
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    restart: unless-stopped
-    command: tunnel --no-autoupdate run
-    environment:
-      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?create the tunnel first, see the plan}
-    depends_on:
-      - turbo-cache
+    ports:
+      - "${TURBO_CACHE_BIND_ADDR:-127.0.0.1}:3000:3000"
 
 volumes:
   turbo-cache-data:

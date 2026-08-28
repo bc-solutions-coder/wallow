@@ -74,6 +74,7 @@ docker compose -f docker-compose.production.yml --env-file .env.production up --
   SDK's five optional cookie/session knobs explicitly instead of letting them go undocumented.
   Pairings are `docker-compose.yml` and
   `docker-compose.test.yml` → `.env.example`, `docker-compose.production.yml` →
-  `.env.production.example`; a new compose file needs a new entry in the script's `pairs` list.
+  `.env.production.example`, `turbo-cache/docker-compose.yml` → `turbo-cache/.env.example`; a new
+  compose file needs a new entry in the script's `pairs` list.
 - `.env`, `.env.example`, and `seed.json` are `merge=ours` in `.gitattributes` so fork values
   survive upstream merges. Never commit a real `.env` / `.env.production`.
