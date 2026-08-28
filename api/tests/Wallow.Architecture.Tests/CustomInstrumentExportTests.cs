@@ -119,6 +119,22 @@ public class CustomInstrumentExportTests
             "subscribe to every third-party meter in the process and flood the collector");
     }
 
+    [Theory]
+    [InlineData("Wolverine:Wallow.Api")]
+    [InlineData("Wolverine:Contoso.Api")]
+    public void AddServiceDefaults_ShouldExport_TheWolverineRuntimeMeter(string meterName)
+    {
+        bool collected = IsMeterCollected(meterName);
+
+        collected.Should().BeTrue(
+            "Wolverine records its built-in instruments (wolverine-dead-letter-queue, " +
+            "wolverine-inbox-count, …) on a meter named \"Wolverine:\" + ServiceName, which " +
+            "defaults to the application assembly name — so the registration must be the " +
+            "wildcard pattern \"Wolverine:*\", or \"{0}\" is recorded in-process and thrown " +
+            "away and a dead-letter pile-up stays invisible (Wallow-qi90.2)",
+            meterName);
+    }
+
     // ---- traces --------------------------------------------------------------------------
 
     [Fact]

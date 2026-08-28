@@ -34,6 +34,14 @@ public static class Extensions
     /// </summary>
     private const string DefaultNamespacePrefix = "Wallow";
 
+    /// <summary>
+    /// Wolverine names its runtime meter "Wolverine:" + ServiceName, and ServiceName defaults to
+    /// the application assembly name, so this is a wildcard rather than a literal: it must keep
+    /// matching when a fork renames the API assembly. That meter carries the built-in messaging
+    /// instruments, including the dead-letter counter this repo alerts on (Wallow-qi90.2).
+    /// </summary>
+    private const string WolverineMeterPattern = "Wolverine:*";
+
     public static IHostApplicationBuilder AddServiceDefaults(this IHostApplicationBuilder builder)
     {
         builder.Services.AddServiceDiscovery();
@@ -93,7 +101,7 @@ public static class Extensions
                     .AddHttpClientInstrumentation()
                     .AddProcessInstrumentation()
                     .AddRuntimeInstrumentation()
-                    .AddMeter(namespacePrefix, moduleNamespaces);
+                    .AddMeter(namespacePrefix, moduleNamespaces, WolverineMeterPattern);
             });
 
         string? otlpEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
