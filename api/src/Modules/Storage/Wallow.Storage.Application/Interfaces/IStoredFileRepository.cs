@@ -9,6 +9,7 @@ public interface IStoredFileRepository
     Task<StoredFile?> GetByIdAsync(StoredFileId id, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<StoredFile>> GetByBucketIdAsync(StorageBucketId bucketId, string? pathPrefix = null, CancellationToken cancellationToken = default);
     Task<PagedResult<StoredFile>> GetByBucketIdPagedAsync(StorageBucketId bucketId, string? pathPrefix, int page, int pageSize, CancellationToken cancellationToken = default);
+    Task<long> GetTotalSizeBytesAsync(CancellationToken cancellationToken = default);
     void Add(StoredFile file);
     void Remove(StoredFile file);
     Task SaveChangesAsync(CancellationToken cancellationToken = default);

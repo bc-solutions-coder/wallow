@@ -104,6 +104,37 @@ public sealed class StoredFileRepositoryTests(PostgresContainerFixture fixture) 
 
 
     [Fact]
+    public async Task GetTotalSizeBytesAsync_SumsOnlyTheCurrentTenantsFiles()
+    {
+        long emptyTotal = await _repository.GetTotalSizeBytesAsync();
+        emptyTotal.Should().Be(0);
+
+        StorageBucket bucket = StorageBucket.Create(TenantId.New(), $"test-bucket-{Guid.NewGuid()}");
+        DbContext.Buckets.Add(bucket);
+        await DbContext.SaveChangesAsync();
+
+        StoredFile file1 = StoredFile.Create(TestTenantId, bucket.Id, "a.txt", "text/plain", 100, Guid.NewGuid().ToString(), Guid.NewGuid());
+        StoredFile file2 = StoredFile.Create(TestTenantId, bucket.Id, "b.txt", "text/plain", 250, Guid.NewGuid().ToString(), Guid.NewGuid());
+        _repository.Add(file1);
+        _repository.Add(file2);
+        await _repository.SaveChangesAsync();
+        DbContext.ChangeTracker.Clear();
+
+        // The save interceptor stamps the ambient tenant, so the other tenant's row must be
+        // seeded through a context whose ambient tenant IS that tenant.
+        TenantId otherTenantId = TenantId.New();
+        await using StorageDbContext otherDbContext = CreateDbContextForTenant(otherTenantId);
+        StoredFile otherTenantFile = StoredFile.Create(otherTenantId, bucket.Id, "c.txt", "text/plain", 999, Guid.NewGuid().ToString(), Guid.NewGuid());
+        otherDbContext.Files.Add(otherTenantFile);
+        await otherDbContext.SaveChangesAsync();
+        otherDbContext.ChangeTracker.Clear();
+
+        long total = await _repository.GetTotalSizeBytesAsync();
+
+        total.Should().Be(350);
+    }
+
+    [Fact]
     public async Task Remove_DeletesFile()
     {
         StorageBucket bucket = StorageBucket.Create(TenantId.New(), $"test-bucket-{Guid.NewGuid()}");

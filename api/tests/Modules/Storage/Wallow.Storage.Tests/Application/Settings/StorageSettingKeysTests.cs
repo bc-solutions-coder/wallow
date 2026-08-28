@@ -31,9 +31,9 @@ public class StorageSettingKeysTests
     }
 
     [Fact]
-    public void AllowedFileTypes_HasExpectedDefaultValue()
+    public void AllowedFileTypes_DefaultsToAllowAll()
     {
-        StorageSettingKeys.AllowedFileTypes.DefaultValue.Should().Be("jpg,png,pdf,doc,docx");
+        StorageSettingKeys.AllowedFileTypes.DefaultValue.Should().Be("*");
     }
 
     [Fact]

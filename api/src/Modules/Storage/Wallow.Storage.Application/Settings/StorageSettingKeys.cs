@@ -13,8 +13,8 @@ public class StorageSettingKeys : SettingRegistryBase
 
     public static readonly SettingDefinition<string> AllowedFileTypes = new(
         Key: "storage.allowed_file_types",
-        DefaultValue: "jpg,png,pdf,doc,docx",
-        Description: "Comma-separated list of allowed file extensions for uploads");
+        DefaultValue: "*",
+        Description: "Comma-separated list of allowed file extensions for uploads; * allows every extension");
 
     public static readonly SettingDefinition<int> StorageQuotaMb = new(
         Key: "storage.storage_quota_mb",

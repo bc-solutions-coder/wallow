@@ -6,6 +6,7 @@ using Wallow.Storage.Application.Configuration;
 using Wallow.Storage.Application.DTOs;
 using Wallow.Storage.Application.Interfaces;
 using Wallow.Storage.Application.Queries.GetUploadPresignedUrl;
+using Wallow.Storage.Application.Settings;
 using Wallow.Storage.Domain.Entities;
 
 #pragma warning disable CA1861 // Inline arrays in test data initializers
@@ -17,6 +18,7 @@ public class GetUploadPresignedUrlHandlerTests
     private readonly IStorageBucketRepository _bucketRepository;
     private readonly IStoredFileRepository _fileRepository;
     private readonly IStorageProvider _storageProvider;
+    private readonly IStorageLimitsProvider _limitsProvider;
     private readonly GetUploadPresignedUrlHandler _handler;
 
     public GetUploadPresignedUrlHandlerTests()
@@ -24,7 +26,15 @@ public class GetUploadPresignedUrlHandlerTests
         _bucketRepository = Substitute.For<IStorageBucketRepository>();
         _fileRepository = Substitute.For<IStoredFileRepository>();
         _storageProvider = Substitute.For<IStorageProvider>();
-        _handler = new GetUploadPresignedUrlHandler(_bucketRepository, _fileRepository, _storageProvider, Options.Create(new PresignedUrlOptions()));
+        _limitsProvider = Substitute.For<IStorageLimitsProvider>();
+        _limitsProvider.GetLimitsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(StorageLimits.Create(50, "*", 1024));
+        _handler = new GetUploadPresignedUrlHandler(
+            _bucketRepository,
+            _fileRepository,
+            _storageProvider,
+            Options.Create(new PresignedUrlOptions()),
+            _limitsProvider);
     }
 
     [Fact]
@@ -96,6 +106,68 @@ public class GetUploadPresignedUrlHandlerTests
         result.IsSuccess.Should().BeTrue();
         result.Value.UploadUrl.Should().Be("https://storage.example.com/upload-url");
         result.Value.ExpiresAt.Should().BeAfter(DateTime.UtcNow);
+    }
+
+    [Fact]
+    public async Task Handle_WhenSizeExceedsTenantUploadLimit_ReturnsValidationFailure()
+    {
+        StorageBucket bucket = StorageBucket.Create(TenantId.New(), "uploads");
+        GetUploadPresignedUrlQuery query = new(
+            Guid.NewGuid(), Guid.NewGuid(), "uploads", "big.png", "image/png", 2L * 1024 * 1024);
+
+        _bucketRepository.GetByNameAsync("uploads", Arg.Any<CancellationToken>())
+            .Returns(bucket);
+        _limitsProvider.GetLimitsAsync(query.TenantId, Arg.Any<CancellationToken>())
+            .Returns(StorageLimits.Create(1, "*", 1024));
+
+        Result<PresignedUploadResult> result = await _handler.Handle(query, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().StartWith("Validation");
+        result.Error.Message.Should().Contain("upload limit");
+        _fileRepository.DidNotReceive().Add(Arg.Any<StoredFile>());
+    }
+
+    [Fact]
+    public async Task Handle_WhenExtensionNotInTenantAllowlist_ReturnsValidationFailure()
+    {
+        StorageBucket bucket = StorageBucket.Create(TenantId.New(), "uploads");
+        GetUploadPresignedUrlQuery query = new(
+            Guid.NewGuid(), Guid.NewGuid(), "uploads", "script.exe", "application/octet-stream", 100);
+
+        _bucketRepository.GetByNameAsync("uploads", Arg.Any<CancellationToken>())
+            .Returns(bucket);
+        _limitsProvider.GetLimitsAsync(query.TenantId, Arg.Any<CancellationToken>())
+            .Returns(StorageLimits.Create(50, "jpg,png", 1024));
+
+        Result<PresignedUploadResult> result = await _handler.Handle(query, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().StartWith("Validation");
+        result.Error.Message.Should().Contain("not allowed");
+        _fileRepository.DidNotReceive().Add(Arg.Any<StoredFile>());
+    }
+
+    [Fact]
+    public async Task Handle_WhenTenantQuotaWouldBeExceeded_ReturnsValidationFailure()
+    {
+        StorageBucket bucket = StorageBucket.Create(TenantId.New(), "uploads");
+        GetUploadPresignedUrlQuery query = new(
+            Guid.NewGuid(), Guid.NewGuid(), "uploads", "photo.png", "image/png", 1000);
+
+        _bucketRepository.GetByNameAsync("uploads", Arg.Any<CancellationToken>())
+            .Returns(bucket);
+        _limitsProvider.GetLimitsAsync(query.TenantId, Arg.Any<CancellationToken>())
+            .Returns(StorageLimits.Create(50, "*", 1));
+        _fileRepository.GetTotalSizeBytesAsync(Arg.Any<CancellationToken>())
+            .Returns((1024L * 1024) - 500);
+
+        Result<PresignedUploadResult> result = await _handler.Handle(query, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().StartWith("Validation");
+        result.Error.Message.Should().Contain("quota");
+        _fileRepository.DidNotReceive().Add(Arg.Any<StoredFile>());
     }
 
     [Fact]

@@ -21,6 +21,7 @@ using Wallow.Storage.Infrastructure.Persistence;
 using Wallow.Storage.Infrastructure.Persistence.Repositories;
 using Wallow.Storage.Infrastructure.Providers;
 using Wallow.Storage.Infrastructure.Scanning;
+using Wallow.Storage.Infrastructure.Settings;
 
 namespace Wallow.Storage.Infrastructure.Extensions;
 
@@ -34,6 +35,7 @@ public static class StorageInfrastructureExtensions
         services.AddStoragePersistence(configuration);
         services.AddReadDbContext<StorageDbContext>(configuration);
         services.AddSettings<StorageDbContext, StorageSettingKeys>("storage");
+        services.AddScoped<IStorageLimitsProvider, StorageLimitsProvider>();
         services.AddStorageProvider(configuration);
         services.AddFileScanning(configuration);
 

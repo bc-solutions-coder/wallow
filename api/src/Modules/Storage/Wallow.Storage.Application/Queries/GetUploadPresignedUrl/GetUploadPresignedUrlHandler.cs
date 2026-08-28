@@ -5,6 +5,7 @@ using Wallow.Shared.Kernel.Results;
 using Wallow.Storage.Application.Configuration;
 using Wallow.Storage.Application.DTOs;
 using Wallow.Storage.Application.Interfaces;
+using Wallow.Storage.Application.Settings;
 using Wallow.Storage.Domain.Entities;
 
 namespace Wallow.Storage.Application.Queries.GetUploadPresignedUrl;
@@ -13,7 +14,8 @@ public sealed class GetUploadPresignedUrlHandler(
     IStorageBucketRepository bucketRepository,
     IStoredFileRepository fileRepository,
     IStorageProvider storageProvider,
-    IOptions<PresignedUrlOptions> presignedUrlOptions)
+    IOptions<PresignedUrlOptions> presignedUrlOptions,
+    IStorageLimitsProvider limitsProvider)
 {
     private static readonly TimeSpan _defaultExpiry = TimeSpan.FromMinutes(15);
 
@@ -42,6 +44,28 @@ public sealed class GetUploadPresignedUrlHandler(
 
         Guid fileId = Guid.NewGuid();
         string extension = Path.GetExtension(query.FileName);
+
+        StorageLimits limits = await limitsProvider.GetLimitsAsync(query.TenantId, cancellationToken);
+
+        if (query.SizeBytes > limits.MaxUploadSizeBytes)
+        {
+            return Result.Failure<PresignedUploadResult>(
+                Error.Validation($"File size {query.SizeBytes} bytes exceeds the tenant upload limit of {limits.MaxUploadSizeBytes} bytes"));
+        }
+
+        if (!limits.IsExtensionAllowed(extension))
+        {
+            return Result.Failure<PresignedUploadResult>(
+                Error.Validation($"File extension '{extension}' is not allowed for this tenant"));
+        }
+
+        long usedBytes = await fileRepository.GetTotalSizeBytesAsync(cancellationToken);
+        if (usedBytes + query.SizeBytes > limits.QuotaBytes)
+        {
+            return Result.Failure<PresignedUploadResult>(
+                Error.Validation($"Upload of {query.SizeBytes} bytes would exceed the tenant storage quota of {limits.QuotaBytes} bytes"));
+        }
+
         string storageKey = BuildStorageKey(query.TenantId, query.BucketName, query.Path, fileId, extension);
 
         TenantId tenantId = TenantId.Create(query.TenantId);

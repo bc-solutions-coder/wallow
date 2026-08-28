@@ -3,6 +3,7 @@ using Wallow.Shared.Contracts.Storage.Commands;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Storage.Application.Interfaces;
+using Wallow.Storage.Application.Settings;
 using Wallow.Storage.Application.Utilities;
 using Wallow.Storage.Domain.Entities;
 
@@ -12,7 +13,8 @@ public sealed class UploadFileHandler(
     IStorageBucketRepository bucketRepository,
     IStoredFileRepository fileRepository,
     IStorageProvider storageProvider,
-    IFileScanner fileScanner)
+    IFileScanner fileScanner,
+    IStorageLimitsProvider limitsProvider)
 {
     public async Task<Result<UploadResult>> Handle(
         UploadFileCommand command,
@@ -41,6 +43,27 @@ public sealed class UploadFileHandler(
         Guid fileId = Guid.NewGuid();
         string sanitizedFileName = FileNameSanitizer.Sanitize(command.FileName);
         string extension = Path.GetExtension(sanitizedFileName);
+
+        StorageLimits limits = await limitsProvider.GetLimitsAsync(command.TenantId, cancellationToken);
+
+        if (command.SizeBytes > limits.MaxUploadSizeBytes)
+        {
+            return Result.Failure<UploadResult>(
+                Error.Validation($"File size {command.SizeBytes} bytes exceeds the tenant upload limit of {limits.MaxUploadSizeBytes} bytes"));
+        }
+
+        if (!limits.IsExtensionAllowed(extension))
+        {
+            return Result.Failure<UploadResult>(
+                Error.Validation($"File extension '{extension}' is not allowed for this tenant"));
+        }
+
+        long usedBytes = await fileRepository.GetTotalSizeBytesAsync(cancellationToken);
+        if (usedBytes + command.SizeBytes > limits.QuotaBytes)
+        {
+            return Result.Failure<UploadResult>(
+                Error.Validation($"Upload of {command.SizeBytes} bytes would exceed the tenant storage quota of {limits.QuotaBytes} bytes"));
+        }
 
         string storageKey = BuildStorageKey(
             command.TenantId,

@@ -4,6 +4,7 @@ using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Storage.Application.Commands.UploadFile;
 using Wallow.Storage.Application.Interfaces;
+using Wallow.Storage.Application.Settings;
 using Wallow.Storage.Domain.Entities;
 
 #pragma warning disable CA1861 // Inline arrays in test data initializers
@@ -16,6 +17,7 @@ public class UploadFileHandlerTests
     private readonly IStoredFileRepository _fileRepository;
     private readonly IStorageProvider _storageProvider;
     private readonly IFileScanner _fileScanner;
+    private readonly IStorageLimitsProvider _limitsProvider;
     private readonly UploadFileHandler _handler;
 
     public UploadFileHandlerTests()
@@ -26,7 +28,11 @@ public class UploadFileHandlerTests
         _fileScanner = Substitute.For<IFileScanner>();
         _fileScanner.ScanAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(FileScanResult.Clean());
-        _handler = new UploadFileHandler(_bucketRepository, _fileRepository, _storageProvider, _fileScanner);
+        _limitsProvider = Substitute.For<IStorageLimitsProvider>();
+        _limitsProvider.GetLimitsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(StorageLimits.Create(50, "*", 1024));
+        _handler = new UploadFileHandler(
+            _bucketRepository, _fileRepository, _storageProvider, _fileScanner, _limitsProvider);
     }
 
     [Fact]
@@ -196,6 +202,77 @@ public class UploadFileHandlerTests
         result.Error.Code.Should().StartWith("Validation");
         result.Error.Message.Should().Contain("Trojan.Generic");
 
+        await _storageProvider.DidNotReceive().UploadAsync(
+            Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WhenSizeExceedsTenantUploadLimit_ReturnsFailure()
+    {
+        // Arrange — the bucket allows the size (no per-bucket cap), the tenant setting does not.
+        StorageBucket bucket = StorageBucket.Create(TenantId.New(), "test-bucket");
+        UploadFileCommand command = CreateCommand(sizeBytes: 2L * 1024 * 1024);
+
+        _bucketRepository.GetByNameAsync(command.BucketName, Arg.Any<CancellationToken>())
+            .Returns(bucket);
+        _limitsProvider.GetLimitsAsync(command.TenantId, Arg.Any<CancellationToken>())
+            .Returns(StorageLimits.Create(1, "*", 1024));
+
+        // Act
+        Result<UploadResult> result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().StartWith("Validation");
+        result.Error.Message.Should().Contain("upload limit");
+        await _storageProvider.DidNotReceive().UploadAsync(
+            Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WhenExtensionNotInTenantAllowlist_ReturnsFailure()
+    {
+        // Arrange
+        StorageBucket bucket = StorageBucket.Create(TenantId.New(), "test-bucket");
+        UploadFileCommand command = CreateCommand(fileName: "malicious.exe", contentType: "application/octet-stream");
+
+        _bucketRepository.GetByNameAsync(command.BucketName, Arg.Any<CancellationToken>())
+            .Returns(bucket);
+        _limitsProvider.GetLimitsAsync(command.TenantId, Arg.Any<CancellationToken>())
+            .Returns(StorageLimits.Create(50, "jpg,png,pdf", 1024));
+
+        // Act
+        Result<UploadResult> result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().StartWith("Validation");
+        result.Error.Message.Should().Contain("not allowed");
+        await _storageProvider.DidNotReceive().UploadAsync(
+            Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WhenTenantQuotaWouldBeExceeded_ReturnsFailure()
+    {
+        // Arrange — 1 MB quota, nearly used up; the new file pushes past it.
+        StorageBucket bucket = StorageBucket.Create(TenantId.New(), "test-bucket");
+        UploadFileCommand command = CreateCommand(sizeBytes: 1000);
+
+        _bucketRepository.GetByNameAsync(command.BucketName, Arg.Any<CancellationToken>())
+            .Returns(bucket);
+        _limitsProvider.GetLimitsAsync(command.TenantId, Arg.Any<CancellationToken>())
+            .Returns(StorageLimits.Create(50, "*", 1));
+        _fileRepository.GetTotalSizeBytesAsync(Arg.Any<CancellationToken>())
+            .Returns((1024L * 1024) - 500);
+
+        // Act
+        Result<UploadResult> result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().StartWith("Validation");
+        result.Error.Message.Should().Contain("quota");
         await _storageProvider.DidNotReceive().UploadAsync(
             Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }

@@ -129,9 +129,14 @@ to run those, which needs Docker.
   `Wallow-p9p4`), and downloads stay blocked until it runs.
 - **`LocalStorageProvider`'s presigned URLs 404** (`Wallow-p23n`). It returns `/api/storage/...`
   paths; the API serves `/v1/storage/...` and has no key-addressed endpoint at all.
-- **The three `StorageSettingKeys` are read/written by the settings API and enforced nowhere**
-  (`Wallow-cf33`). Upload limits actually come from `[RequestSizeLimit(100MB)]` and the bucket's
-  own `MaxFileSizeBytes`; there is no extension allowlist and no quota accounting.
+- **Tenant limits are enforced from tenant-scope settings only.** Both upload handlers resolve
+  `IStorageLimitsProvider` (`StorageLimitsProvider`, built on
+  `ITenantSettingRepository<StorageDbContext>` — deliberately NOT the keyed `ISettingsService`,
+  which Wolverine codegen cannot construct) and check, in order: max upload size, extension
+  allowlist (`*` default = allow all), then quota. Quota counts **every** `StoredFile` row —
+  `PendingValidation` reservations and `Rejected` rows included. User-scope setting overrides are
+  ignored on purpose: a user must not raise their own limits. `[RequestSizeLimit(100MB)]` and the
+  bucket's `MaxFileSizeBytes` still apply on top.
 - **Five test classes exist twice**, flat and in a nested namespace (`Wallow-xku9`). Add a fact to
   the nested copy — it is the superset in every pair.
 - **The orphan sweep only reaches the DEFAULT S3 bucket.** `OrphanedObjectSweepJob` (daily,

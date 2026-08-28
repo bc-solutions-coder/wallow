@@ -112,6 +112,16 @@ When ClamAV is enabled, a health check is registered that verifies TCP connectiv
 
 Kestrel's global request body limit is set to 1 MB in `Program.cs`. The storage upload endpoint overrides this to 100 MB via `[RequestSizeLimit(100 * 1024 * 1024)]`.
 
+On top of that transport cap, both upload paths (multipart and presigned) enforce the tenant's storage settings before accepting a file:
+
+| Setting key | Default | Enforced as |
+|-------------|---------|-------------|
+| `storage.max_upload_size_mb` | 50 | Maximum size of a single upload |
+| `storage.allowed_file_types` | `*` (allow all) | Comma-separated extension allowlist, matched case-insensitively and ignoring leading dots |
+| `storage.storage_quota_mb` | 1024 | Total bytes across all of the tenant's stored files, pending and rejected rows included |
+
+`StorageLimitsProvider` resolves these from the **tenant-scope** setting overrides only — user-scope overrides are ignored so a user cannot raise their own limits. The bucket's own `MaxFileSizeBytes` and allowed content types still apply independently.
+
 ## API Endpoints
 
 All storage endpoints are versioned and require authorization. The base path is `/v1/storage`.

@@ -7,6 +7,7 @@ using Wallow.Storage.Application.DTOs;
 using Wallow.Storage.Application.Interfaces;
 using Wallow.Storage.Application.Queries.GetPresignedUrl;
 using Wallow.Storage.Application.Queries.GetUploadPresignedUrl;
+using Wallow.Storage.Application.Settings;
 using Wallow.Storage.Domain.Entities;
 using Wallow.Storage.Domain.Identity;
 
@@ -123,6 +124,7 @@ public class GetUploadPresignedUrlHandlerTests
     private readonly IStorageBucketRepository _bucketRepository;
     private readonly IStoredFileRepository _fileRepository;
     private readonly IStorageProvider _storageProvider;
+    private readonly IStorageLimitsProvider _limitsProvider;
     private readonly GetUploadPresignedUrlHandler _handler;
 
     public GetUploadPresignedUrlHandlerTests()
@@ -130,7 +132,10 @@ public class GetUploadPresignedUrlHandlerTests
         _bucketRepository = Substitute.For<IStorageBucketRepository>();
         _fileRepository = Substitute.For<IStoredFileRepository>();
         _storageProvider = Substitute.For<IStorageProvider>();
-        _handler = new GetUploadPresignedUrlHandler(_bucketRepository, _fileRepository, _storageProvider, Options.Create(new PresignedUrlOptions()));
+        _limitsProvider = Substitute.For<IStorageLimitsProvider>();
+        _limitsProvider.GetLimitsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(StorageLimits.Create(50, "*", 1024));
+        _handler = new GetUploadPresignedUrlHandler(_bucketRepository, _fileRepository, _storageProvider, Options.Create(new PresignedUrlOptions()), _limitsProvider);
     }
 
     [Fact]
