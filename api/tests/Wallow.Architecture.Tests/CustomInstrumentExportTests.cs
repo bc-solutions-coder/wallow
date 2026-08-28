@@ -243,6 +243,35 @@ public class CustomInstrumentExportTests
             "miss Wallow.Health entirely");
     }
 
+    [Fact]
+    public void ObservabilityDocs_ShouldList_TheDeadLetterDepthGauge_InTheCustomInstrumentTable()
+    {
+        string source = File.ReadAllText(_observabilityDocsPath);
+
+        source.Should().Contain(
+            "wallow.messaging.dead_letter_queue.depth",
+            "the custom instrument table is the census a reader audits against ServiceDefaults " +
+            "registration, and the DLQ depth gauge recorded by WolverineDeadLetterQueueHealthCheck " +
+            "is part of it (Wallow-qi90.2)");
+    }
+
+    [Fact]
+    public void ObservabilityDocs_ShouldDocument_TheWolverineRuntimeMeterExport()
+    {
+        string source = File.ReadAllText(_observabilityDocsPath);
+
+        source.Should().Contain(
+            "Wolverine:*",
+            "ConfigureOpenTelemetry registers Wolverine's runtime meter by this wildcard, and " +
+            "the docs must say so or a reader auditing exported meters would conclude Wolverine " +
+            "metrics are still dropped");
+
+        source.Should().Contain(
+            "wolverine-dead-letter-queue",
+            "the built-in dead-letter counter is the alerting signal Wallow-qi90.2 exists to " +
+            "surface — documenting the meter without naming it buries the lede");
+    }
+
     // ---- helpers -------------------------------------------------------------------------
 
     /// <summary>

@@ -181,9 +181,11 @@ The following are automatically instrumented:
 | **ASP.NET Core** | HTTP requests, responses, status codes, route patterns |
 | **HttpClient** | Outbound HTTP requests to external services |
 
-Entity Framework Core and Wolverine instrumentation are **not** registered. Database calls appear
-inside the ASP.NET Core server span rather than as their own spans, and Wolverine message handling
-produces no dedicated spans (see [Message flow](#tracing-message-flow)).
+Entity Framework Core and Wolverine **tracing** instrumentation are **not** registered. Database
+calls appear inside the ASP.NET Core server span rather than as their own spans, and Wolverine
+message handling produces no dedicated spans (see [Message flow](#tracing-message-flow)). Wolverine
+**metrics** are the exception: its runtime meter is exported (see
+[Wolverine runtime metrics](#wolverine-runtime-metrics)).
 
 ### Trace Propagation
 
@@ -273,6 +275,44 @@ unit and type suffix, so `dotnet.gc.collections` is queried as `dotnet_gc_collec
 - `dotnet.assembly.count` — loaded assemblies
 - `dotnet.process.cpu.time` — process CPU time
 
+### Wolverine Runtime Metrics
+
+Wolverine records its built-in messaging instruments on a meter named `Wolverine:{ServiceName}`,
+where `ServiceName` defaults to the application assembly name — `Wolverine:Wallow.Api` here.
+`ConfigureOpenTelemetry` registers it with the wildcard pattern `Wolverine:*`, so a fork that
+renames the API assembly keeps the export without touching ServiceDefaults. The instruments worth
+alerting on:
+
+- `wolverine-dead-letter-queue` — counter incremented each time an envelope is moved to the
+  dead-letter queue, tagged with `message.type` and `message.destination`. Any non-zero rate means
+  handlers are exhausting their retries and work is being dropped.
+- `wolverine-inbox-count` / `wolverine-outbox-count` / `wolverine-scheduled-count` — gauges over
+  the durable inbox, outbox, and scheduled-message tables.
+
+### Dead-Letter Queue Observability
+
+A dead-lettered envelope is work the API accepted (usually behind an HTTP 200) and then silently
+dropped after retry exhaustion. Three signals cover it, all riding the standard pipeline:
+
+1. **Depth gauge and health check** — `WolverineDeadLetterQueueHealthCheck`
+   (`api/src/Wallow.Api/HealthChecks/WolverineDeadLetterQueueHealthCheck.cs`) counts the
+   `wolverine.wolverine_dead_letters` table via Wolverine's `IMessageStore` and reports
+   **Degraded** on `/health` (check name `wolverine-dlq`) while the queue is non-empty, recording
+   the count on `wallow.messaging.dead_letter_queue.depth` each evaluation. The check is
+   deliberately not tagged `ready`: a poison message must degrade `/health`, not fail
+   `/health/ready` and restart-loop the container. Through `HealthCheckMetricsPublisher` it also
+   surfaces as `wallow.healthcheck.status{check_name="wolverine-dlq"}`.
+2. **Rate counter** — the `wolverine-dead-letter-queue` counter above fires at the moment of each
+   dead-letter, tagged with the message type.
+3. **Error log** — Wolverine logs `Envelope {envelope} was moved to the error queue` at `Error`
+   with the exception attached; the envelope rendering names the message type. The Serilog
+   override for the `Wolverine` source is `Warning`, so this always reaches the sinks —
+   `WolverineDeadLetterLoggingTests` pins every committed appsettings file at an Error-passing
+   level.
+
+To inspect or replay stuck envelopes, query `wolverine.wolverine_dead_letters` directly or use
+`IMessageStore.DeadLetters` (query, replay, discard).
+
 ### Custom Instruments in the Codebase
 
 Instrumentation primitives live in the static `Diagnostics` class at
@@ -291,6 +331,7 @@ Every custom instrument that exists in `api/src` today:
 | `wallow.messaging.messages_total` | Counter | `Wallow.Messaging` | `WolverineModuleTaggingMiddleware` |
 | `wallow.messaging.message_duration` | Histogram (ms) | `Wallow.Messaging` | `WolverineModuleTaggingMiddleware` |
 | `wallow.messaging.domain_events_published_total` | Counter | `Wallow.Messaging` | `WolverineModuleTaggingMiddleware` |
+| `wallow.messaging.dead_letter_queue.depth` | Gauge | `Wallow.Messaging` | `WolverineDeadLetterQueueHealthCheck` |
 | `wallow.cache.hits_total` | Counter | `Wallow.Cache` | `InstrumentedDistributedCache` |
 | `wallow.cache.misses_total` | Counter | `Wallow.Cache` | `InstrumentedDistributedCache` |
 | `wallow.requests_authenticated_total` | Counter | `Wallow.Identity` | `IdentityModuleTelemetry` |
@@ -326,7 +367,7 @@ builder.Services.AddOpenTelemetry()
             .AddHttpClientInstrumentation()
             .AddProcessInstrumentation()
             .AddRuntimeInstrumentation()
-            .AddMeter(namespacePrefix, moduleNamespaces);
+            .AddMeter(namespacePrefix, moduleNamespaces, "Wolverine:*");
     });
 ```
 
@@ -537,7 +578,9 @@ For the messaging model itself, see the [Messaging Guide](../architecture/messag
 
 **Message Processing Issues:**
 1. Search logs for the message type
-2. Check the Wolverine envelope tables for stuck or errored messages
+2. Check the Wolverine envelope tables for stuck or errored messages — the `wolverine-dlq` entry
+   on `/health` and the `wallow.messaging.dead_letter_queue.depth` gauge surface the dead-letter
+   count without a database session
 3. Use trace ID from logs to view full execution trace
 
 ## Adding Observability to New Code
