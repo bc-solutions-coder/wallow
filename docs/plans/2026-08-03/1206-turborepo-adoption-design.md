@@ -1,6 +1,6 @@
 # Turborepo adoption
 
-**status: active**
+**status: completed**
 
 Put `turbo` in front of the three fan-out tasks — `build`, `typecheck`, `test` — so unchanged
 work is replayed from a content-addressed cache instead of re-executed, and so the three stop

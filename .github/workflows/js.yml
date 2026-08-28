@@ -122,17 +122,6 @@ jobs:
           done
           echo "::warning::turbo cache endpoint unreachable over the tailnet; this run is uncached"
 
-      # Turbo's cache directory, keyed per branch. Weaker than a cache shared
-      # across machines — a first run on a new branch restores from the
-      # most recent prefix match and re-executes whatever moved — but it turns a
-      # same-branch push into a mostly-cached run.
-      - name: Restore turbo cache
-        uses: actions/cache@v4
-        with:
-          path: .turbo
-          key: turbo-${{ runner.os }}-${{ github.sha }}
-          restore-keys: turbo-${{ runner.os }}-
-
       - name: Lint
         run: pnpm lint
 

@@ -7,11 +7,14 @@
 > `pnpm check` is ~13 s against a ~64 s baseline; measurements and the six cache-correctness
 > verdicts are in `1206-turborepo-results.md`.
 >
-> **Phase 3 (Tasks 7–11) and Task 12 are deferred to bead `Wallow-m4u7`** — nothing depends on
-> them, and the local benefits are already banked. Tasks 8's two files are committed
-> (`docker/turbo-cache/`); Tasks 10 and 11 were written, verified, then backed out rather than
-> leave a `<your-zone>` placeholder in `turbo.jsonc`. Paste them back from those tasks when the
-> hostname exists.
+> **Phase 3 landed under bead `Wallow-m4u7`**, with one design change from what Tasks 7–11
+> prescribe: the cache server is reached over a **Tailscale tailnet** (CI joins via
+> `tailscale/github-action`, gated on the `TS_OAUTH_CLIENT_ID` secret), not a Cloudflare Tunnel
+> hostname — turbo cannot attach the custom headers a fronting auth layer needs, and the public
+> route rate-limited CI's artifact burst. `TURBO_API`/`TURBO_TEAM`/`TURBO_TOKEN` are repository
+> secrets; the actions/cache fallback from Task 6 is deleted per Task 11. Verified remote-only:
+> with the GitHub `turbo-*` caches wiped, both CI turbo invocations came back FULL TURBO from the
+> tailnet server alone.
 >
 > Three corrections found while executing, recorded on the bead and in the results file: Task 3's
 > `AUTH_BASE_PATH` grep probe is a false positive (`/auth/` matches backend API route strings in
