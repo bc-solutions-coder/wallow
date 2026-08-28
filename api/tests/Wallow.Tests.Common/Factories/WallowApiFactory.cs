@@ -71,6 +71,12 @@ public class WallowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         // so the in-memory override in ConfigureWebHost is too late. Environment variables
         // are read by the default EnvironmentVariablesConfigurationProvider during builder
         // creation, making them visible when modules call configuration.GetConnectionString().
+        //
+        // These vars are process-global and single-writer by design (Wallow-qck0): every
+        // assembly that consumes this factory sets parallelizeTestCollections: false, and
+        // xunit v2 disposes each collection fixture before the next collection starts, so
+        // DisposeAsync nulling them can never be observed by another live factory's hosts.
+        // Keep collection parallelization off in any assembly that takes this fixture.
         string redisConnection = _redis.GetConnectionString() + ",allowAdmin=true";
         Environment.SetEnvironmentVariable("ConnectionStrings__DefaultConnection", _postgres.GetConnectionString());
         Environment.SetEnvironmentVariable("ConnectionStrings__Redis", redisConnection);
