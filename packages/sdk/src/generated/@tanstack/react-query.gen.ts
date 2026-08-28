@@ -689,7 +689,8 @@ export const clientsGetServiceAccountOptions = (options: Options<ClientsGetServi
 });
 
 /**
- * Update the scopes assigned to a service account.
+ * Update the scopes assigned to a service account. Write-level rather than manage: creation
+ * already accepts arbitrary scopes, so gating updates higher would guard nothing.
  */
 export const clientsUpdateServiceAccountScopesMutation = (options?: Partial<Options<ClientsUpdateServiceAccountScopesData>>): UseMutationOptions<unknown, ClientsUpdateServiceAccountScopesError, Options<ClientsUpdateServiceAccountScopesData>> => {
     const mutationOptions: UseMutationOptions<unknown, ClientsUpdateServiceAccountScopesError, Options<ClientsUpdateServiceAccountScopesData>> = {

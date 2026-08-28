@@ -2317,7 +2317,7 @@
         "tags": [
           "Clients"
         ],
-        "summary": "Update the scopes assigned to a service account.",
+        "summary": "Update the scopes assigned to a service account. Write-level rather than manage: creation\nalready accepts arbitrary scopes, so gating updates higher would guard nothing.",
         "operationId": "ClientsUpdateServiceAccountScopes",
         "parameters": [
           {
