@@ -16,8 +16,9 @@ import { expect, test } from "@playwright/test";
  * The allowed origin is the API's OWN configured `AuthUrl`, which
  * OpenIddictRedirectUriValidator adds to the allow-list unconditionally, so it
  * holds regardless of which OIDC clients the seeder registered. That makes it a
- * property of the BACKEND: :5051 under docker-compose.test.yml, :3002 under a
- * local backend (appsettings.Development.json). The runner that supplies a
+ * property of the BACKEND: the auth port scripts/e2e.sh chose for this run
+ * under docker-compose.test.yml (classic default :5051), :3002 under a local
+ * backend (appsettings.Development.json). The runner that supplies a
  * non-local backend therefore names it in `E2E_AUTH_ORIGIN` — scripts/e2e.sh
  * exports it on every path it takes — and the default below covers a local one.
  *

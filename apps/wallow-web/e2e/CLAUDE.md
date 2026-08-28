@@ -59,7 +59,9 @@ stack, which is why its config boots nothing. It also needs the seeded admin fro
 Either stack serves it:
 
 ```bash
-# docker/docker-compose.test.yml — wallow-web on :5053
+# docker/docker-compose.test.yml — wallow-web on :5053, the classic default;
+# scripts/e2e.sh allocates a free per-run port and threads it through
+# E2E_BASE_URL instead (Wallow-joo0)
 E2E_BASE_URL=http://localhost:5053 pnpm --filter ./apps/wallow-web test:e2e:cross-app
 # pnpm backend (Aspire) — wallow-web on :3000, the config's default
 pnpm --filter ./apps/wallow-web test:e2e:cross-app
@@ -69,8 +71,9 @@ pnpm --filter ./apps/wallow-web test:e2e:cross-app
 needs the **containerised stack specifically**. Its fourth origin is `bff-example`
 (`docker/docker-compose.test.yml`), which runs wallow-web's own image but authenticates as the
 seeded third-party `bcordes-bff` client instead of `wallow-web-client`. Aspire has no `bff-example`
-service, so `pnpm backend` cannot serve this spec. The origin is fixed at **`:3003`**
-(`ports: ["3003:3000"]`) independently of `E2E_BASE_URL`; `E2E_BFF_EXAMPLE_URL` overrides it.
+service, so `pnpm backend` cannot serve this spec. The origin's host port defaults to **`:3003`**
+(`ports: ["${E2E_BFF_PORT:-3003}:3000"]`), independently of `E2E_BASE_URL`; `scripts/e2e.sh`
+allocates a per-run port and passes it as `E2E_BFF_EXAMPLE_URL` (Wallow-joo0).
 
 The client identity is the whole point of the second spec: `wallow-web-client` is first-party (its
 id starts with `wallow-`), so its authorize round trip never renders consent, while `bcordes-bff` is
@@ -89,10 +92,12 @@ pnpm --filter ./apps/wallow-web test:e2e:cross-app   # journey suite (needs an e
 
 `./scripts/e2e.sh` brings up `docker/docker-compose.test.yml` (infra + API + seeder + wallow-web),
 runs all three Playwright suites against it, and tears down. Both wallow-web suites always drive the
-containerised app on `:5053`; only the wallow-auth suite's serving mode follows `E2E_BASE_URL`. Env
+containerised app on this run's allocated port (classic default `:5053`); only the wallow-auth
+suite's serving mode follows `E2E_BASE_URL`. Env
 knobs: `E2E_SKIP_IMAGE_BUILD=1` (reuse prebuilt images instead of building any — it gates
 compose's `--build` as well as the `dotnet publish`, so an unset run always tests the current tree), `E2E_UP_SERVICE`, `E2E_BASE_URL` (container
-mode), `E2E_KEEP_STACK`. CI runs the same script in the `e2e-tests` job of
+mode), `E2E_KEEP_STACK`, `E2E_STACK_ID` and `E2E_*_PORT` (per-run isolation, Wallow-joo0 — full
+list in `docker/.env.example`). CI runs the same script in the `e2e-tests` job of
 `.github/workflows/ci.yml`, uploading the `playwright-report-wallow-auth` and
 `playwright-report-wallow-web` artifacts.
 

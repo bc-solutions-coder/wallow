@@ -12,7 +12,9 @@ import { defineConfig } from "@playwright/test";
  * its own and simply drives whatever `E2E_BASE_URL` (or the local default) serves.
  *
  * Two supported stacks (both cross-wire the three origins correctly):
- *   - docker/docker-compose.test.yml — wallow-web on :5053, run with
+ *   - docker/docker-compose.test.yml — wallow-web on :5053, the classic default;
+ *     `scripts/e2e.sh` allocates a free per-run port and threads it through
+ *     `E2E_BASE_URL` instead (Wallow-joo0). Run by hand with
  *     `E2E_BASE_URL=http://localhost:5053 pnpm --filter ./apps/wallow-web test:e2e:cross-app`.
  *   - `pnpm backend` (Aspire AppHost, wiring fixed in Wallow-xzha.1.1) — wallow-web
  *     on :3000, the local default below; no `E2E_BASE_URL` needed.

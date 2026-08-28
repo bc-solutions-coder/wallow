@@ -13,11 +13,13 @@
 #     The compose stack provides infra + API + seeder (service: wallow-api).
 #
 #   CONTAINER (E2E_BASE_URL set, e.g. CI): the app is served by the prebuilt
-#     wallow-auth-react:test container on :5051; Playwright drives it directly and
-#     boots no local dev server. Bring up the `wallow-auth` service instead.
+#     wallow-auth-react:test container on its allocated port (classic default
+#     :5051, per-run below); Playwright drives it directly and boots no local
+#     dev server. Bring up the `wallow-auth` service instead.
 #
-# The two **wallow-web** suites always run in container mode against :5053,
-# regardless of that choice — see the comment above their invocation below.
+# The two **wallow-web** suites always run in container mode against this
+# run's wallow-web port (classic default :5053), regardless of that choice —
+# see the comment above their invocation below.
 #
 # Env knobs:
 #   E2E_STACK_ID=<id>       Per-run stack identity (default: this shell's PID).
@@ -272,7 +274,8 @@ fi
 # drives directly (Wallow-yp3e.4). Nothing `depends_on` it -- wallow-web's own
 # dependency chain doesn't reach it -- so unlike wallow-auth/valkey it must be
 # named explicitly here or it never starts and that spec fails with
-# ERR_CONNECTION_REFUSED against :3003. It carries a build block and a healthcheck
+# ERR_CONNECTION_REFUSED against its allocated port (classic default :3003). It
+# carries a build block and a healthcheck
 # identical to wallow-web's (same image), so `--wait` blocks on it the same way.
 #
 # --build is why this is an array. Compose builds a service's image only when one
@@ -344,8 +347,9 @@ fi
 log "Running the wallow-auth Playwright suite"
 env "${E2E_ENV[@]}" pnpm --filter ./apps/wallow-auth test:e2e
 
-# Both wallow-web suites always drive the containerised app on :5053, whichever
-# mode the wallow-auth suite ran in. The cross-app journey needs three
+# Both wallow-web suites always drive the containerised app on this run's
+# wallow-web port (classic default :5053), whichever mode the wallow-auth
+# suite ran in. The cross-app journey needs three
 # cooperating origins the compose stack alone cross-wires — wallow-web (where the
 # journey starts and ends), the API's OIDC issuer, and the wallow-auth login UI —
 # and playwright.cross-app.config.ts boots no server of its own. Passing

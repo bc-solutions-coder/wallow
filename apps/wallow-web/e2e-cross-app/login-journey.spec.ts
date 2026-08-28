@@ -10,7 +10,9 @@ const UNAUTHENTICATED_STATUS = 401;
  * and cross-wired (docker/docker-compose.test.yml, or `pnpm backend`), plus the
  * seeded admin from api/seed.json. Run it with the dedicated config:
  *   `pnpm --filter ./apps/wallow-web test:e2e:cross-app`
- * (set `E2E_BASE_URL=http://localhost:5053` against the compose stack). A failure
+ * (set `E2E_BASE_URL=http://localhost:5053` against the compose stack -- :5053 is
+ * that stack's classic default; `./scripts/e2e.sh` substitutes a per-run port
+ * instead, Wallow-joo0). A failure
  * here can be a real cross-app regression, not necessarily a fault in this spec.
  *
  * Two tests share that stack: the login round trip itself, and (Wallow-vufu.1.3)

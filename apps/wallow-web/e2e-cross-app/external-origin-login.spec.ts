@@ -7,10 +7,11 @@ const UNAUTHENTICATED_STATUS = 401;
  * `bff-example` (docker/docker-compose.test.yml) hosts wallow-web's own image/route surface
  * but authenticates as the seeded THIRD-PARTY `bcordes-bff` client (api/seed.json:221-227)
  * rather than `wallow-web-client` -- it stands in for a genuinely separate site ("bcordes.dev")
- * built on the same SDK, per design doc Sec 14. Its container port is fixed at 3003
- * (`ports: ["3003:3000"]`); there is no equivalent under `pnpm backend` (Aspire has no
- * bff-example service), so unlike login-journey.spec.ts this spec needs the containerised
- * stack specifically.
+ * built on the same SDK, per design doc Sec 14. Its host port defaults to 3003
+ * (`ports: ["${E2E_BFF_PORT:-3003}:3000"]`); `scripts/e2e.sh` allocates a per-run
+ * port and passes it as `E2E_BFF_EXAMPLE_URL` (Wallow-joo0). There is no
+ * equivalent under `pnpm backend` (Aspire has no bff-example service), so unlike
+ * login-journey.spec.ts this spec needs the containerised stack specifically.
  */
 const BFF_EXAMPLE_ORIGIN = process.env.E2E_BFF_EXAMPLE_URL ?? "http://localhost:3003";
 
@@ -20,8 +21,9 @@ const BFF_EXAMPLE_ORIGIN = process.env.E2E_BFF_EXAMPLE_URL ?? "http://localhost:
  * bff-example round trip for the external-origin reference client, needing the full stack
  * cross-wired exactly like login-journey.spec.ts: `./scripts/e2e.sh`, or
  * `E2E_BASE_URL=http://localhost:5053 pnpm --filter ./apps/wallow-web test:e2e:cross-app`
- * (bff-example itself is always on :3003, independent of `E2E_BASE_URL`/`E2E_BFF_EXAMPLE_URL`
- * defaults matching the compose stack). Plus the seeded admin from `api/seed.json`.
+ * (both :5053 and bff-example's :3003 are classic defaults; `scripts/e2e.sh` substitutes
+ * per-run ports and threads them through `E2E_BASE_URL`/`E2E_BFF_EXAMPLE_URL` instead,
+ * independently of each other -- Wallow-joo0). Plus the seeded admin from `api/seed.json`.
  *
  * WHY THIS IS A DIFFERENT FLOW FROM login-journey.spec.ts, NOT A DUPLICATE: `wallow-web-client`
  * is first-party (id starts with "wallow-", `AuthorizationController.cs`'s `isFirstParty`

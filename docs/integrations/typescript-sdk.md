@@ -610,8 +610,10 @@ halves of a hydrating render agree.
 - `cookieHeader` — the inbound session cookie, forwarded on every outgoing request from this
   instance. Captured per instance, never read from module scope.
 - `internalOrigin` — the origin the host can reach ITSELF on, when it differs from the
-  browser-facing one. A container published as `127.0.0.1:5053:3000` cannot self-fetch the
-  browser's origin, so without this every SSR'd page falls back to an error boundary. It
+  browser-facing one. A container published as `127.0.0.1:5053:3000` (the classic default for
+  `docker/docker-compose.test.yml`'s `wallow-web` service; `./scripts/e2e.sh` publishes it on a
+  per-run port instead, Wallow-joo0) cannot self-fetch the browser's origin, so without this every
+  SSR'd page falls back to an error boundary. It
   rewrites the outgoing request's origin inside the instance's `fetch` ONLY, leaving the
   configured `baseUrl` — and therefore the request identity an SSR-primed cache shares with
   the browser — untouched.
@@ -657,7 +659,9 @@ COOKIE_PASSWORD=dev-only-change-me-to-a-long-random-string
 ```
 
 The redirect and post-logout URIs must match the seeded client exactly, so keep
-your BFF on port `3003` locally (or update `seed.json` and re-seed).
+your BFF on port `3003` locally (or update `seed.json` and re-seed). This is the
+manual, by-hand convention; the containerised E2E stack seeds the same client
+with a per-run port instead (`./scripts/e2e.sh`, Wallow-joo0).
 
 > **Development secret:** `bcordes-bff-secret` and the sample `COOKIE_PASSWORD`
 > are for local development only. Provision distinct, high-entropy values for

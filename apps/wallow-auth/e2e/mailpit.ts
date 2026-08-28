@@ -9,15 +9,17 @@ import type { APIRequestContext } from "@playwright/test";
  *
  * Which Mailpit holds the mail is a property of the BACKEND, so the runner that
  * supplies a non-local backend names it in `E2E_MAILPIT_URL`; the default below
- * describes a local backend only. `./scripts/e2e.sh` exports it (:8035, which is
- * how docker-compose.test.yml publishes the Mailpit its API's `Smtp__Host`
- * points at) on every path it takes.
+ * describes a local backend only. `./scripts/e2e.sh` exports it -- the Mailpit
+ * port scripts/e2e.sh chose for this run (classic default :8035, which is how
+ * docker-compose.test.yml publishes the Mailpit its API's `Smtp__Host` points
+ * at) -- on every path it takes.
  *
  * Deriving it instead from `E2E_BASE_URL` does NOT work, though it looks like it
  * should: that variable selects how the wallow-auth APP is served, not which API
  * is behind it. e2e.sh's default mode leaves it unset while still driving the
  * containerised API, so the inference reads :8025 against a stack whose mail is
- * on :8035 and every email spec times out.
+ * on the allocated Mailpit port (classic default :8035) and every email spec
+ * times out.
  *
  * The default suits a local backend: appsettings.Development.json's `Smtp` block
  * sends to `localhost:1025`, so the inbox is whichever Mailpit owns host port

@@ -274,7 +274,7 @@ on ports distinct from the dev environment, so both stacks can run at once.
 
 ### Infrastructure services
 
-| Service | Image | Host port | Purpose |
+| Service | Image | Default host port | Purpose |
 |---------|-------|-----------|---------|
 | `postgres` | `postgres:18-alpine` | 5442 | Database (dev uses 5432) |
 | `valkey` | `valkey/valkey:8-alpine` | 6389 | Cache (dev uses 6379) |
@@ -286,16 +286,19 @@ on ports distinct from the dev environment, so both stacks can run at once.
 | Service | Image | Purpose |
 |---------|-------|---------|
 | `wallow-migrations` | `wallow-migrations:test` | Applies EF migrations, then exits. Gates on `postgres` being healthy. |
-| `wallow-seeder` | `wallow-seeder:test` | Seeds roles, scopes, the admin, and OIDC clients from `api/seed.json`. Gates on `wallow-migrations` completing successfully, and overrides the `wallow-web-client` redirect URIs for the test port (`http://localhost:5053/bff/callback`). |
+| `wallow-seeder` | `wallow-seeder:test` | Seeds roles, scopes, the admin, and OIDC clients from `api/seed.json`. Gates on `wallow-migrations` completing successfully, and overrides the `wallow-web-client` redirect URIs for the test port (`http://localhost:${E2E_WEB_PORT:-5053}/bff/callback`). |
 
 ### Application services
 
-| Service | Image | Host port | Purpose |
+| Service | Image | Default host port | Purpose |
 |---------|-------|-----------|---------|
 | `wallow-api` | `wallow-api:test` | 5050 | API server |
 | `wallow-auth` | `wallow-auth-react:test` | 5051 | Auth app (TanStack Start; a pure same-origin reverse proxy to the API) |
 | `wallow-web` | `wallow-web-react:test` | 5053 | Web app (TanStack Start dashboard + BFF) |
 | `bff-example` | `wallow-bff-example:test` | 3003 | SDK BFF reference host, authenticating as the `bcordes-bff` client. **Not started by CI** — the CI job brings up only `wallow-auth` and its transitive dependencies. |
+
+`scripts/e2e.sh` overrides every host port (and the image tag) per run so concurrent runs stay
+isolated — see `docker/.env.example` for the `E2E_*` knobs (Wallow-joo0).
 
 The three Node services build from `apps/wallow-auth/Dockerfile` and `apps/wallow-web/Dockerfile`
 with the **repo root** as build context, so the `workspace:*` dependencies resolve. The image
@@ -304,7 +307,9 @@ silently reused.
 
 ### OIDC configuration
 
-The test compose file splits browser-facing URLs from container-to-container ones:
+The test compose file splits browser-facing URLs from container-to-container ones. Ports below are
+the classic defaults (`${E2E_API_PORT:-5050}`); `scripts/e2e.sh` substitutes a per-run port
+everywhere they appear:
 
 - **API:** `OpenIddict__Issuer` is `http://localhost:5050`, so tokens match the URL the browser
   sees.
@@ -334,7 +339,7 @@ job in this workflow.
 | `cross-tenant-tests` | `build` | `dotnet test --filter "Category=CrossTenant"` against the same Postgres service container and `docker run` Valkey. This is the tenant-isolation gate; it does not upload coverage. |
 | `docker-images-app` | `build` | Publishes the API, migration, and seeder container images plus the `wallow-auth-react` / `wallow-web-react` Docker builds, for both `linux-x64` and `linux-arm64`, then caches them as a tarball. |
 | `docker-images-infra` | `build` | Builds the `garage` image via `docker compose -f docker/docker-compose.test.yml build garage` and the Postgres replica image, then caches them. |
-| `e2e-tests` | `docker-images-app`, `docker-images-infra` | Loads the cached images, installs Chromium, and runs `./scripts/e2e.sh` with `E2E_SKIP_IMAGE_BUILD=1`, `E2E_UP_SERVICE=wallow-auth`, `E2E_BASE_URL=http://localhost:5051`. That one script runs all three Playwright suites — wallow-auth, wallow-web, and the cross-app suite (both its first-party and external-origin specs). Uploads the `playwright-report-wallow-auth` and `playwright-report-wallow-web` artifacts. |
+| `e2e-tests` | `docker-images-app`, `docker-images-infra` | Loads the cached images, installs Chromium, and runs `./scripts/e2e.sh` with `E2E_SKIP_IMAGE_BUILD=1`, `E2E_UP_SERVICE=wallow-auth`. That one script runs all three Playwright suites — wallow-auth, wallow-web, and the cross-app suite (both its first-party and external-origin specs) — against ports it allocates for this run (Wallow-joo0). Uploads the `playwright-report-wallow-auth` and `playwright-report-wallow-web` artifacts. |
 | `fork-smoke` | — | Runs `./scripts/fork-smoke.sh` outside the checkout: packs `packages/sdk` and `packages/styles` and builds a scratch app against the tarballs, proving an out-of-workspace consumer can install them. |
 | `merge-coverage` | `unit-tests`, `integration-tests` | Merges the two coverage artifacts with ReportGenerator, enforces the coverage threshold, and uploads the `coverage-report` artifact. |
 
@@ -349,7 +354,7 @@ of the runner's image work — the `dotnet publish` of the API/migration/seeder 
 `--build` of the services with a build block — which is why a local run, where it is unset, always
 builds against the current tree. `bff-example` is the one image no job caches, so compose builds it
 either way. Setting `E2E_BASE_URL` makes Playwright drive the containerised `wallow-auth` app on
-`:5051` directly rather than booting a local dev server.
+its allocated port (classic default `:5051`) directly rather than booting a local dev server.
 
 ### Coverage threshold
 

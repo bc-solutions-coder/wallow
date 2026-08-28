@@ -63,17 +63,19 @@ unlike the per-app configs — **boots no server of its own**.
   round trip. It needs three cooperating origins that only a full stack cross-wires: wallow-web
   (where the journey starts and ends), the API OIDC issuer, and wallow-auth (the login UI the
   API's `AuthUrl` redirects to).
-- **`external-origin-login.spec.ts`** runs the same round trip from the `bff-example` origin on
-  `:3003`, which authenticates as the seeded third-party `bcordes-bff` client instead of
-  `wallow-web-client`. Because that client is not first-party, the API routes it through
-  wallow-auth's interactive **consent** screen — the leg `login-journey.spec.ts` never reaches.
-  `bff-example` exists only in `docker/docker-compose.test.yml`, so this spec needs the
+- **`external-origin-login.spec.ts`** runs the same round trip from the `bff-example` origin,
+  whose host port defaults to `:3003`, which authenticates as the seeded third-party `bcordes-bff`
+  client instead of `wallow-web-client`. Because that client is not first-party, the API routes it
+  through wallow-auth's interactive **consent** screen — the leg `login-journey.spec.ts` never
+  reaches. `bff-example` exists only in `docker/docker-compose.test.yml`, so this spec needs the
   containerised stack specifically; Aspire has no equivalent service.
 
 Supply that stack one of two ways:
 
 ```bash
-# Against the containerised test stack (wallow-web on :5053) — runs both specs
+# Against the containerised test stack (wallow-web on :5053, the classic default) — runs both
+# specs. ./scripts/e2e.sh instead allocates a free per-run port for each and threads it through
+# E2E_BASE_URL / E2E_BFF_EXAMPLE_URL (Wallow-joo0).
 E2E_BASE_URL=http://localhost:5053 pnpm --filter ./apps/wallow-web test:e2e:cross-app
 
 # Against the Aspire AppHost (wallow-web on :3000, the config's default) — login-journey only
@@ -102,8 +104,8 @@ dependent specs additionally need the API — either `pnpm backend` or the runne
 
 `./scripts/e2e.sh` is the supported way to run the backend-dependent suites. It brings up
 `docker/docker-compose.test.yml` (infra, migrations, seeder, `Wallow.Api`, and `wallow-web`),
-waits for OIDC discovery to answer at
-`http://localhost:5050/.well-known/openid-configuration`, runs all three Playwright suites, and
+waits for OIDC discovery to answer at that run's API URL (classic default
+`http://localhost:5050/.well-known/openid-configuration`), runs all three Playwright suites, and
 tears the stack down:
 
 1. `pnpm --filter ./apps/wallow-auth test:e2e`
@@ -123,21 +125,25 @@ silently lack the `admin@wallow.dev` account the login spec signs in as.
 
 | Env knob                 | Effect                                                                                                                                 |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `E2E_STACK_ID=<id>`      | Per-run stack identity (default: this shell's PID). The compose project is `wallow-test-<id>`; concurrent runs isolate on this plus their per-run host ports (Wallow-joo0). |
+| `E2E_*_PORT=<n>`         | Pin any host port (API/AUTH/WEB/BFF/POSTGRES/VALKEY/MAILPIT_SMTP/MAILPIT_HTTP/GARAGE_S3/GARAGE_ADMIN — full list in `docker/.env.example`). Unset ports each get a free port from the kernel for that run. |
+| `E2E_IMAGE_TAG=<tag>`    | Pin the image tag. Default: `test` when `E2E_SKIP_IMAGE_BUILD=1` (reuse), else `test-<stack id>` (built per-run, untagged at teardown). |
 | `E2E_SKIP_IMAGE_BUILD=1` | Reuse whatever `:test` images already exist rather than building any of them — it suppresses both the `dotnet publish` of the API, migration, and seeder images **and** compose's `--build` of the services that have a build block (`wallow-web`, `wallow-auth`, `bff-example`, `garage`). CI sets it because a prior job preloads all but `bff-example` from cache. Leaving it unset is what guarantees the run tests your current tree. |
-| `E2E_UP_SERVICE=<svc>`   | Extra compose service to `up --wait` (default `wallow-api`). CI sets `wallow-auth` so that app is served from a container. `wallow-web` is always brought up as well. |
+| `E2E_UP_SERVICE=<svc>`   | Extra compose service to `up --wait` (default `wallow-api`). CI sets `wallow-auth` so that app is served from a container, which also points the wallow-auth suite at that container's per-run port unless `E2E_BASE_URL` is set. `wallow-web` is always brought up as well. |
 | `E2E_BASE_URL=<url>`     | Drive an already-running wallow-auth at that URL; Playwright then boots no local dev server. Does not affect the wallow-web suites.                                   |
 | `E2E_KEEP_STACK=1`       | Leave the stack up after the run, for debugging.                                                                                                                     |
 
 The two serving modes follow from `E2E_BASE_URL`, and they apply to the **wallow-auth** suite
 only. Left unset (the local default), Playwright's own `pnpm dev` webServer serves that app on
-`:3002` and its passthrough server routes target the containerised API via
-`WALLOW_API_INTERNAL_URL`. Set (as in CI), the prebuilt `wallow-auth-react:test` container serves
-it on `:5051` and Playwright drives it directly.
+this run's allocated port (classic default `:3002`, passed through `PORT`) and its passthrough
+server routes target the containerised API via `WALLOW_API_INTERNAL_URL`. Set (as in CI), the
+prebuilt `wallow-auth-react:test` container serves it on this run's auth port (classic default
+`:5051`) and Playwright drives it directly.
 
 The two wallow-web suites always run in container mode against the `wallow-web-react:test`
-container on `:5053`. The cross-app journey needs three cooperating origins that only the compose
-stack cross-wires — wallow-web, the API's OIDC issuer, and the wallow-auth login UI — and
-`playwright.cross-app.config.ts` boots no server of its own.
+container on this run's web port (classic default `:5053`). The cross-app journey needs three
+cooperating origins that only the compose stack cross-wires — wallow-web, the API's OIDC issuer,
+and the wallow-auth login UI — and `playwright.cross-app.config.ts` boots no server of its own.
 
 ### Driving the backend manually
 
