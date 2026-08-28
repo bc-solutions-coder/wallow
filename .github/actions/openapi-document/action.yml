@@ -85,9 +85,13 @@ runs:
         ConnectionStrings__DefaultConnection: ${{ inputs.connection-string }}
       run: |
         set -euo pipefail
+        # RunAnalyzers=false: this build exists to emit the document, not to
+        # enforce analysis — ci.yml's build job owns that. Source generators
+        # still run (csc /skipanalyzers skips only diagnostic analyzers).
         dotnet build api/src/Wallow.Api/Wallow.Api.csproj \
           --configuration Release \
-          -p:OpenApiGenerateDocumentsOnBuild=true
+          -p:OpenApiGenerateDocumentsOnBuild=true \
+          -p:RunAnalyzers=false
 
         # The file name is the project name; dotnet-getdocument exposes no naming switch.
         document="api/src/Wallow.Api/obj/openapi/Wallow.Api.json"
