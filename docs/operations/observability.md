@@ -371,7 +371,16 @@ builder.Services.AddOpenTelemetry()
     });
 ```
 
-Both sides register the namespace prefix and its wildcard pattern because `AddMeter` and `AddSource` treat `*` as a suffix wildcard: `Wallow.*` covers every module-scoped name — `Wallow.Messaging`, `Wallow.Cache`, `Wallow.Identity`, `Wallow.Health`, `Wallow.Notifications.Email` — but not the bare `Wallow` name returned by `Diagnostics.Meter` and `Diagnostics.ActivitySource`, so the prefix itself is registered too. The metrics side additionally registers `Wolverine:*` to export Wolverine's built-in runtime meter (named `Wolverine:{ServiceName}`), which carries the `wolverine-dead-letter-queue` counter and other instruments — the tracing side omits it because there is no Wolverine instrumentation. A meter or source a module adds later is picked up by the wildcard with no change here.
+Both sides register the namespace prefix and its wildcard pattern because `AddMeter` and `AddSource`
+treat `*` as a suffix wildcard: `Wallow.*` covers every module-scoped name — `Wallow.Messaging`,
+`Wallow.Cache`, `Wallow.Identity`, `Wallow.Health`, `Wallow.Notifications.Email` — but not the bare
+`Wallow` name returned by `Diagnostics.Meter` and `Diagnostics.ActivitySource`, so the prefix itself
+is registered too. The metrics side additionally registers `Wolverine:*` to export Wolverine's
+built-in runtime meter (named `Wolverine:{ServiceName}`), which carries the
+`wolverine-dead-letter-queue` counter and other instruments — the tracing side omits it because
+Wolverine's activity source is deliberately left unregistered (see [Tracing Message
+Flow](#tracing-message-flow)). A meter or source a module adds later is picked up by the wildcard
+with no change here.
 
 The prefix comes from configuration rather than from `Diagnostics`: `AddServiceDefaults()` runs
 before `Diagnostics.Initialize()`, so the static state is not readable yet at registration time.
@@ -536,8 +545,8 @@ defaults to `false` in `appsettings.json` and is turned on in `appsettings.Devel
 
 ### Tracing Message Flow
 
-Wolverine handling produces **no spans of its own** — there is no Wolverine instrumentation and no
-Wolverine `ActivitySource` registered. A message handled inline during a request is folded into that
+Wolverine handling produces **no spans of its own** — Wolverine ships an `ActivitySource` (named
+bare `Wolverine`), but this repo deliberately leaves it unregistered. A message handled inline during a request is folded into that
 request's ASP.NET Core server span, carrying the `wallow.module` and `wallow.tenant_id` tags that
 `WolverineModuleTaggingMiddleware` adds; a message handled off a background queue produces no trace
 at all.
