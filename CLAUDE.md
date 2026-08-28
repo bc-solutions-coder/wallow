@@ -110,7 +110,10 @@ caching in `.turbo/` — a warm `pnpm check` is ~13 s against ~64 s before. The 
 in-repo, but a task's key folds in the keys of the tasks it depends on, so without `^build` an edit
 under `packages/*/src` replays a stale pass in every dependent. `dev` declares no dependency — it
 caches nothing and reads package source. Lint, format, manifests, deps and `check:exports` stay root invocations
-outside turbo. Caching is **local only**; a self-hosted remote cache is filed, not built.
+outside turbo. Caching is local, plus an optional
+self-hosted remote cache that activates only when `TURBO_API`/`TURBO_TEAM`/`TURBO_TOKEN` are set
+(Actions secrets in CI, shell exports locally; unset = local-only, and a failing remote is a
+warning, not a red run). Setup and escape hatches: `docs/getting-started/developer-guide.md`.
 
 **`test` runs at `--concurrency=1`, and that is load-bearing** (`Wallow-pr34`). Several
 browser-mode suites running at once starve each other's Vite dev server, and whole suites then

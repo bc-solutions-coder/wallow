@@ -18,6 +18,16 @@
   // different keys for identical inputs and defeat the shared remote cache. CI
   // is in turbo's built-in passthrough set, so tasks still see it.
   "globalEnv": ["NODE_ENV"],
+  // apiUrl deliberately stays out of the repo: the cache hostname arrives via
+  // the TURBO_API env var (a GitHub Actions secret in CI, a shell export on a
+  // laptop), alongside TURBO_TEAM and TURBO_TOKEN. With those unset the block
+  // is inert — verified on Wallow-m4u7 — so cloning without credentials costs
+  // nothing. turbo sends only `Authorization: Bearer`; it cannot attach custom
+  // headers, so any auth proxy in front of the server must let /v8/* through.
+  "remoteCache": {
+    "timeout": 60,
+    "uploadTimeout": 120,
+  },
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

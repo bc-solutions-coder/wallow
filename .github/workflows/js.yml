@@ -48,6 +48,18 @@ concurrency:
 
 jobs:
   build:
+    # Self-hosted turbo remote cache (Wallow-m4u7). All three are repository
+    # secrets — including the URL, which stays out of the repo — so fork PRs see
+    # empty values and simply run uncached; that is correct and NOT a reason to
+    # switch to pull_request_target. turbo authenticates with
+    # `Authorization: Bearer $TURBO_TOKEN` and nothing else: it cannot attach
+    # custom headers or query params, so the proxy in front of the cache server
+    # must let /v8/* requests through unauthenticated and leave the bearer
+    # token as the credential the server itself checks.
+    env:
+      TURBO_API: ${{ secrets.TURBO_API }}
+      TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
     runs-on: ubuntu-latest
     permissions:
       contents: read

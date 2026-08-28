@@ -101,7 +101,33 @@ pnpm backend
 
 Both ports can be overridden with `PORT`. For running an app on its own, the shared SDK build order, and the same-origin BFF setup, see the [Frontend Setup guide](../development/frontend-setup.md).
 
-The workspace's quality gate is `pnpm check`: format check, both lint passes, manifest/dependency/env checks, then `turbo run build typecheck test` and `check:exports`. It is what `js.yml` runs in CI, so run it before opening a PR that touches `apps/` or `packages/`. Turbo caches build, typecheck, test and dev locally in `.turbo/`, so a warm run is far faster than the first.
+The workspace's quality gate is `pnpm check`: format check, both lint passes, manifest/dependency/env checks, then `turbo run build typecheck test` and `check:exports`. It is what `js.yml` runs in CI, so run it before opening a PR that touches `apps/` or `packages/`. Turbo caches build, typecheck and test locally in `.turbo/`, so a warm run is far faster than the first.
+
+#### Turbo remote cache
+
+Turbo can additionally share artifacts with a self-hosted remote cache, so a laptop build and a
+CI run reuse each other's work. It activates only when three environment variables are set —
+without them turbo is silently local-only, and a failing remote is a warning, never a red run:
+
+| Variable | Value |
+|----------|-------|
+| `TURBO_API` | The cache server's origin (turbo appends `/v8/artifacts/...` itself) |
+| `TURBO_TEAM` | The team slug that namespaces artifacts on the server |
+| `TURBO_TOKEN` | The bearer token the cache server checks |
+
+CI reads all three from GitHub Actions **secrets** of the same names (the URL is a secret too —
+the hostname stays out of the repo). Fork PRs receive no secrets and run uncached, which is
+correct. Locally, export the three values in your shell; get them from the password manager or
+from whoever operates the cache server.
+
+Turbo authenticates with `Authorization: Bearer $TURBO_TOKEN` and nothing else — it cannot send
+custom headers or query parameters. Any authenticating proxy in front of the cache server must
+therefore let `/v8/*` requests through unauthenticated and leave the bearer token as the
+credential the server itself verifies.
+
+When the cache misbehaves: `turbo run <task> --force` re-executes everything while still writing
+results back, `TURBO_REMOTE_CACHE_READ_ONLY=true` stops uploads, and unsetting `TURBO_TOKEN`
+disconnects the remote entirely.
 
 ### Local Services
 
