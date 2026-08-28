@@ -18,6 +18,7 @@
     "lint:manifests": "sherif",
     "lint:deps": "knip",
     "lint:env": "./scripts/check-env.sh",
+    "lint:actions": "./scripts/lint-actions.sh",
     "format": "oxfmt --write apps packages package.json pnpm-workspace.yaml tsconfig.base.json tsconfig.build.base.json .oxlintrc.json .oxfmtrc.json turbo.jsonc",
     "format:check": "oxfmt --check apps packages package.json pnpm-workspace.yaml tsconfig.base.json tsconfig.build.base.json .oxlintrc.json .oxfmtrc.json turbo.jsonc",
     "check:exports": "./scripts/check-exports.sh",

@@ -1,0 +1,36 @@
+name: Actionlint
+
+# Workflow-file lint. Local twin: `pnpm lint:actions` (scripts/lint-actions.sh).
+# Path-filtered: only workflow/action edits can break workflows.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/**"
+  push:
+    branches: [main]
+    paths:
+      - ".github/**"
+
+concurrency:
+  group: actionlint-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Pinned download per actionlint's own install docs; the script emits an
+      # `executable` step output pointing at the downloaded binary.
+      - name: Download actionlint
+        id: get_actionlint
+        run: bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.12/scripts/download-actionlint.bash) 1.7.12
+
+      - name: Run actionlint
+        run: ${{ steps.get_actionlint.outputs.executable }} -color
