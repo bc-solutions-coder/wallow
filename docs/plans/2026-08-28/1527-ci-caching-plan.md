@@ -1,4 +1,4 @@
-**status: active**
+**status: completed**
 
 # CI Caching & Selective Execution — Implementation Plan
 
@@ -8,7 +8,7 @@
 
 **Architecture:** No turbo wrapper around `dotnet build` (rejected — see the design doc). Instead: `dorny/paths-filter` job-level gating in `ci.yml`, `git-restore-mtime` ahead of the existing `build-v3` cache, `-p:RunAnalyzers=false` on the two builds whose analyzers duplicate `ci.yml`'s, and `turbo run` + `TURBO_*` + Tailscale in `route-tree-drift.yml` / `sdk-publish.yml` mirroring `js.yml`.
 
-**Tech Stack:** GitHub Actions, actionlint, dorny/paths-filter@v3, chetan/git-restore-mtime-action@v2, MSBuild/.NET 10 SDK, Turborepo 2.x + ducktors remote cache over Tailscale.
+**Tech Stack:** GitHub Actions, actionlint 1.7.12, dorny/paths-filter@v4, chetan/git-restore-mtime-action@v2, MSBuild/.NET 10 SDK, Turborepo 2.x + ducktors remote cache over Tailscale. (Versions as built — see **As-built amendments** at the end.)
 
 **Spec:** `docs/plans/2026-08-28/1526-ci-caching-design.md`
 
@@ -232,7 +232,9 @@ git commit -m "docs(plans): record build-v3 incrementality measurement"
 - Consumes: `pnpm lint:actions` (Task 1).
 - Produces: a `changes` job with outputs `code` / `dotnet` / `js` that Task 4's edits must not disturb.
 
-- [ ] **Step 1: Confirm dorny/paths-filter semantics.** Check the README for the current major version (v3) and that negation patterns (`'!docs/**'`) are supported in filter lists (they are, since v2.7.0). Pin `@v3`.
+- [ ] **Step 1: Confirm dorny/paths-filter semantics.** ~~Check the README for the current major version (v3) and that negation patterns (`'!docs/**'`) are supported in filter lists (they are, since v2.7.0). Pin `@v3`.~~
+
+  **AS BUILT (amended after implementation — the original step was wrong):** pin `@v4`, and set `predicate-quantifier: 'some-with-excludes'` on the step. Negation *syntax* has parsed since v2.7.0, but under the action's **default** quantifier (`some`) a negated pattern is **inert** — a filter is true when any changed file matches at least one rule, so `code` would evaluate `true` on a docs-only PR (`'**'` matches the markdown) and the headline docs-only skip would never fire. `some-with-excludes` (match ≥1 positive rule **and** 0 negated rules) is the only quantifier correct for all three filters at once: the input is step-level, not per-filter, and `every` would make `dotnet` permanently false since no single file matches all four of its patterns. Available since v4.0.3.
 
 - [ ] **Step 2: Insert the `changes` job** in `.github/workflows/ci.yml`, immediately after the `jobs:` line (before `build`):
 
@@ -253,8 +255,11 @@ git commit -m "docs(plans): record build-v3 incrementality measurement"
     steps:
       - name: Classify changed paths
         id: filter
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
+          # LOAD-BEARING: under the default `some` quantifier a negated pattern
+          # is inert, so `code` would be true on a docs-only PR. Do not remove.
+          predicate-quantifier: "some-with-excludes"
           filters: |
             code:
               - '**'
@@ -662,3 +667,19 @@ git commit -m "docs: sync ci descriptions with the caching changes"
 | B9 | Task 9 docs + closeout | B1–B8 | — |
 
 File-collision rule: B3 and B4 both edit `ci.yml` — the dependency serializes them. Every other bead owns its files exclusively.
+
+---
+
+## As-built amendments
+
+Recorded at closeout (bead B9). The task bodies above are amended in place where the text would
+otherwise reproduce something broken; everything else is listed here.
+
+| Task | Plan said | Shipped | Why |
+|------|-----------|---------|-----|
+| 1 | actionlint `1.7.7` | `1.7.12`, in both `scripts/lint-actions.sh` and `actionlint.yml` | Step 1 required looking the current release up; 1.7.7 was a floor. No findings across the 12 workflows, so the `-shellcheck=` escape hatch of Step 5 was not needed and shellcheck stays live. |
+| 2 | `grep -c '^CoreCompile:'` counts compilations; one clone per scenario | `Compilation request ` lines vs `Skipping target "CoreCompile"` lines; **one fixed build path** for all three scenarios | Both corrections are written up in the design doc's **Measurement** section. The `^CoreCompile:` grep counts nothing meaningful at `-v:normal` (indented, node-id-prefixed, re-emitted headers), and cloning each scenario to its own directory made `mtime` recompile everything — `obj/` is not path-portable, so `restore` rewrites `project.assets.json` with fresh mtimes. Run as written, the plan's script would have wrongly closed Task 4 as a no-op. Verdict was **PLACEBO**; Task 4 proceeded. |
+| 3 | `dorny/paths-filter@v3`, default quantifier | `@v4` + `predicate-quantifier: "some-with-excludes"` | The plan's YAML did not work as written — see the amended Step 1. Task 3's Steps 1–2 above carry the fix. |
+| 4 | commit `perf(ci): restore source mtimes so the build cache is actually incremental` | `perf(ci): restore mtimes so the build cache is incremental` | The plan's subject is 73 characters, over the repo's 72-character limit. |
+
+Nothing else deviated: Tasks 5–8 landed as written.

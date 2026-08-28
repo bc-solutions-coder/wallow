@@ -333,15 +333,24 @@ job in this workflow.
 
 | Job | Depends on | What it does |
 |-----|-----------|--------------|
-| `build` | — | Restores, builds `api/Wallow.slnx` in Release, and runs `dotnet format --verify-no-changes`. Caches the build output for the downstream jobs. |
-| `unit-tests` | `build` | `dotnet test --filter "Category!=Integration&Category!=E2E"` with `--settings api/tests/coverage.runsettings`. Uploads the `coverage-unit` artifact. |
-| `integration-tests` | `build` | `dotnet test --filter "Category=Integration"`. PostgreSQL comes from a GitHub Actions service container; Valkey is started with a `docker run` step and polled until it answers `PING`. Uploads the `coverage-integration` artifact. |
-| `cross-tenant-tests` | `build` | `dotnet test --filter "Category=CrossTenant"` against the same Postgres service container and `docker run` Valkey. This is the tenant-isolation gate; it does not upload coverage. |
+| `changes` | — | Classifies the PR's paths with `dorny/paths-filter` into three outputs — `code` (everything except `docs/**` and `**/*.md`), `dotnet` (`api/**`, `global.json`, `scripts/e2e.sh`, `ci.yml`) and `js` (`apps/**`, `packages/**`, the workspace manifests, `scripts/fork-smoke.sh`, `ci.yml`). Every gate below reads these. |
+| `build` | `changes` | Runs when `code` is true. Restores, builds `api/Wallow.slnx` in Release, and runs `dotnet format --verify-no-changes`. Caches the build output for the downstream jobs. |
+| `unit-tests` | `changes`, `build` | Runs when `dotnet` is true. `dotnet test --filter "Category!=Integration&Category!=E2E"` with `--settings api/tests/coverage.runsettings`. Uploads the `coverage-unit` artifact. |
+| `integration-tests` | `changes`, `build` | Runs when `dotnet` is true. `dotnet test --filter "Category=Integration"`. PostgreSQL comes from a GitHub Actions service container; Valkey is started with a `docker run` step and polled until it answers `PING`. Uploads the `coverage-integration` artifact. |
+| `cross-tenant-tests` | `changes`, `build` | Runs when `dotnet` is true. `dotnet test --filter "Category=CrossTenant"` against the same Postgres service container and `docker run` Valkey. This is the tenant-isolation gate; it does not upload coverage. |
 | `docker-images-app` | `build` | Publishes the API, migration, and seeder container images plus the `wallow-auth-react` / `wallow-web-react` Docker builds, for both `linux-x64` and `linux-arm64`, then caches them as a tarball. |
 | `docker-images-infra` | `build` | Builds the `garage` image via `docker compose -f docker/docker-compose.test.yml build garage` and the Postgres replica image, then caches them. |
 | `e2e-tests` | `docker-images-app`, `docker-images-infra` | Loads the cached images, installs Chromium, and runs `./scripts/e2e.sh` with `E2E_SKIP_IMAGE_BUILD=1`, `E2E_UP_SERVICE=wallow-auth`. That one script runs all three Playwright suites — wallow-auth, wallow-web, and the cross-app suite (both its first-party and external-origin specs) — against ports it allocates for this run (Wallow-joo0). Uploads the `playwright-report-wallow-auth` and `playwright-report-wallow-web` artifacts. |
-| `fork-smoke` | — | Runs `./scripts/fork-smoke.sh` outside the checkout: packs `packages/sdk` and `packages/styles` and builds a scratch app against the tarballs, proving an out-of-workspace consumer can install them. |
+| `fork-smoke` | `changes` | Runs when `js` is true — it needs no .NET output, so it runs alongside the build rather than after it. Runs `./scripts/fork-smoke.sh` outside the checkout: packs `packages/sdk` and `packages/styles` and builds a scratch app against the tarballs, proving an out-of-workspace consumer can install them. |
 | `merge-coverage` | `unit-tests`, `integration-tests` | Merges the two coverage artifacts with ReportGenerator, enforces the coverage threshold, and uploads the `coverage-report` artifact. |
+
+**Jobs skip when their inputs are untouched.** A docs-only PR fails the `code` filter, so `build`
+skips and `docker-images-*` / `e2e-tests` inherit that skip through `needs: build` — the whole
+pipeline stands down. A JS-only PR skips the three .NET test jobs (and `merge-coverage` with them,
+since its `always()` guard degrades to skipped when both producers skip) while `build`, the image
+jobs and `e2e-tests` still run, because e2e boots the full stack from this PR's images. An
+api-only PR skips `fork-smoke` alone. GitHub reports an `if:`-skipped job as passing, so required
+status checks keep working.
 
 **The frontend gate is a different workflow.** `.github/workflows/js.yml` has a single `build` job
 that runs `pnpm lint`, `lint:tests`, `lint:manifests`, `lint:deps`, `lint:env`, `format:check`,

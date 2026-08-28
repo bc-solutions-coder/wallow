@@ -1,4 +1,4 @@
-**status: active**
+**status: completed**
 
 # CI Caching & Selective Execution — Design
 

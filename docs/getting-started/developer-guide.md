@@ -103,6 +103,8 @@ Both ports can be overridden with `PORT`. For running an app on its own, the sha
 
 The workspace's quality gate is `pnpm check`: format check, both lint passes, manifest/dependency/env checks, then `turbo run build typecheck test` and `check:exports`. It is what `js.yml` runs in CI, so run it before opening a PR that touches `apps/` or `packages/`. Turbo caches build, typecheck and test locally in `.turbo/`, so a warm run is far faster than the first.
 
+Workflow YAML has a separate gate: `pnpm lint:actions` runs actionlint over `.github/workflows`, preferring an `actionlint` on your PATH and falling back to a pinned docker image. It stays out of `pnpm check` so `check` remains runnable offline; CI covers it with `.github/workflows/actionlint.yml`, path-filtered to `.github/**`. Run it before pushing a workflow edit.
+
 #### Turbo remote cache
 
 Turbo can additionally share artifacts with a self-hosted remote cache, so a laptop build and a
@@ -119,6 +121,11 @@ CI reads all three from GitHub Actions **secrets** of the same names (the URL is
 the hostname stays out of the repo). Fork PRs receive no secrets and run uncached, which is
 correct. Locally, export the three values in your shell; get them from the password manager or
 from whoever operates the cache server.
+
+Three workflows are on the cache: `js.yml` (the `pnpm check` gate), `route-tree-drift.yml` (it
+builds the three apps through `turbo run build` rather than raw `pnpm --filter` builds) and
+`sdk-publish.yml` (its build and test run through turbo from the repo root, not from
+`packages/sdk`). All three use the same env block and Tailscale steps.
 
 The cache server is not on the public internet: `TURBO_API` is its **tailnet** address. CI joins
 the tailnet as a tagged ephemeral node via the Tailscale GitHub Action (secrets
