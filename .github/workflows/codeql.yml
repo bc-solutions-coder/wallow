@@ -3,6 +3,13 @@ name: CodeQL
 on:
   pull_request:
     branches: [main]
+    # csharp analyzes api/, actions analyzes .github/ — a PR touching neither
+    # has nothing for CodeQL to scan. The weekly cron below still sweeps main
+    # unconditionally, so nothing escapes coverage.
+    paths:
+      - "api/**"
+      - "global.json"
+      - ".github/**"
   schedule:
     - cron: "0 6 * * 1"
 
@@ -60,7 +67,11 @@ jobs:
 
       - name: Build
         if: matrix.build-mode == 'manual'
-        run: dotnet build api/Wallow.slnx --no-restore --no-incremental --graph
+        # --no-incremental stays: CodeQL must observe every compilation.
+        # RunAnalyzers=false (csc /skipanalyzers) skips the four diagnostic
+        # analyzer packages — ci.yml's build job enforces those — but still
+        # runs source generators, which the build cannot succeed without.
+        run: dotnet build api/Wallow.slnx --no-restore --no-incremental --graph -p:RunAnalyzers=false
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v4
