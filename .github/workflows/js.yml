@@ -67,6 +67,13 @@ jobs:
       # string, hence the string comparison at the two gated steps.
       TAILNET_ENABLED: ${{ secrets.TS_OAUTH_CLIENT_ID != '' }}
     runs-on: ubuntu-latest
+    # Cap for the Wallow-r6zh post-completion wedge: turbo has been observed to
+    # print its complete final summary and then never exit (browser-mode
+    # provider suspected, unverified). Without this cap a wedged run burns
+    # GitHub's 360-minute default. The full job is minutes warm and well under
+    # 20 cold, so 30 is generous headroom, and the wedge prints everything
+    # before hanging — a timeout kill loses no log output.
+    timeout-minutes: 30
     permissions:
       contents: read
 
