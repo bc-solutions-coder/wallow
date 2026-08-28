@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using Wallow.Shared.Contracts.Storage;
 using Wallow.Shared.Kernel.Configuration;
+using Wallow.Storage.Application.Services;
 using Wallow.Storage.Infrastructure.Configuration;
 
 namespace Wallow.Storage.Infrastructure.Providers;
@@ -8,7 +9,7 @@ namespace Wallow.Storage.Infrastructure.Providers;
 /// <summary>
 /// Local filesystem storage provider for development environments.
 /// </summary>
-public sealed class LocalStorageProvider(IOptions<StorageOptions> options) : IStorageProvider
+public sealed class LocalStorageProvider(IOptions<StorageOptions> options, LocalPresignedUrlSigner signer) : IStorageProvider
 {
     private readonly LocalStorageOptions _options = options.Value.Local;
 
@@ -94,18 +95,16 @@ public sealed class LocalStorageProvider(IOptions<StorageOptions> options) : ISt
 
     public Task<string> GetPresignedUrlAsync(string key, TimeSpan expiry, bool forUpload = false, CancellationToken ct = default)
     {
-        // Local storage doesn't support true presigned URLs
-        // Return an API endpoint URL that can be used to download/upload
+        // The local filesystem has no native presigned URLs, so mint one against the
+        // key-addressed LocalStorageController endpoint: an HMAC over method + key +
+        // expiry stands in for the object store's request signature.
         string baseUrl = _options.BaseUrl?.TrimEnd('/') ?? new ServiceUrlsOptions().ApiUrl;
+        string method = forUpload ? LocalPresignedUrlSigner.UploadMethod : LocalPresignedUrlSigner.DownloadMethod;
+        long expires = DateTimeOffset.UtcNow.Add(expiry).ToUnixTimeSeconds();
+        string signature = signer.Sign(method, key, expires);
 
-        if (forUpload)
-        {
-            // For uploads, return the upload endpoint
-            return Task.FromResult($"{baseUrl}/api/storage/upload?key={Uri.EscapeDataString(key)}");
-        }
-
-        // For downloads, return the download endpoint
-        return Task.FromResult($"{baseUrl}/api/storage/files/download?key={Uri.EscapeDataString(key)}");
+        return Task.FromResult(
+            $"{baseUrl}/v1/storage/local/files?key={Uri.EscapeDataString(key)}&expires={expires}&sig={signature}");
     }
 
     private string GetFilePath(string key)

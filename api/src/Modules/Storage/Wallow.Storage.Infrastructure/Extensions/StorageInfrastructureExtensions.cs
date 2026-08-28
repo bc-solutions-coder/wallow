@@ -13,6 +13,7 @@ using Wallow.Shared.Infrastructure.Settings;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Storage.Application.Configuration;
 using Wallow.Storage.Application.Interfaces;
+using Wallow.Storage.Application.Services;
 using Wallow.Storage.Application.Settings;
 using Wallow.Storage.Domain.Enums;
 using Wallow.Storage.Infrastructure.Configuration;
@@ -85,6 +86,10 @@ public static class StorageInfrastructureExtensions
 
         StorageOptions storageOptions = configuration.GetSection(StorageOptions.SectionName).Get<StorageOptions>()
                              ?? new StorageOptions();
+
+        // Registered regardless of provider so LocalStorageController always resolves;
+        // under S3 its endpoints simply never receive a validly signed request.
+        services.AddSingleton<LocalPresignedUrlSigner>();
 
         switch (storageOptions.Provider)
         {

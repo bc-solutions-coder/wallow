@@ -124,7 +124,7 @@ Served by `StorageSettingsController`, under the same `/v1/storage` prefix.
 
 ### LocalStorageProvider
 
-For development environments. Stores files on the local filesystem. Presigned URLs return API endpoints (no true presigning).
+For development environments. Stores files on the local filesystem. Presigned URLs point at `LocalStorageController`'s key-addressed endpoints (`GET`/`PUT /v1/storage/local/files`), signed with a per-process HMAC over the method, key, and expiry — anonymous endpoints where the signature is the authorization, mirroring S3 semantics. Because the signing key is per-process, an API restart invalidates outstanding URLs.
 
 ### S3StorageProvider
 

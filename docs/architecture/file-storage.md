@@ -124,7 +124,9 @@ On top of that transport cap, both upload paths (multipart and presigned) enforc
 
 ## API Endpoints
 
-All storage endpoints are versioned and require authorization. The base path is `/v1/storage`.
+All storage endpoints are versioned and require authorization, except the local presigned
+endpoints below, where the URL's signature is itself the authorization. The base path is
+`/v1/storage`.
 
 > [!NOTE]
 > Routes are served at `/v1/...`. The `/api` prefix only exists when a reverse proxy adds
@@ -143,8 +145,16 @@ All storage endpoints are versioned and require authorization. The base path is 
 | GET | `/v1/storage/files?bucket=x&path=y` | List files in bucket (paginated) |
 | POST | `/v1/storage/presigned-upload` | Get presigned upload URL |
 | POST | `/v1/storage/files/{id}/complete` | Complete a presigned upload (verify + scan + promote) |
+| GET | `/v1/storage/local/files?key=…&expires=…&sig=…` | Serve a local presigned download (anonymous; HMAC-authorized) |
+| PUT | `/v1/storage/local/files?key=…&expires=…&sig=…` | Accept a local presigned upload (anonymous; HMAC-authorized) |
 
-The controller is at `api/src/Modules/Storage/Wallow.Storage.Api/Controllers/StorageController.cs`.
+The controller is at `api/src/Modules/Storage/Wallow.Storage.Api/Controllers/StorageController.cs`;
+the two local presigned endpoints live in `LocalStorageController.cs` beside it. They exist because
+the local filesystem cannot answer presigned URLs the way an object store does: `LocalStorageProvider`
+mints URLs against them, signed with a per-process HMAC over the HTTP method, storage key, and expiry
+(GET for downloads, PUT for uploads). They are excluded from the OpenAPI document — clients receive
+the complete URL as an opaque string, exactly as with S3, and cannot construct one themselves. A
+restart of the API invalidates outstanding local URLs, since the signing key is per-process.
 
 ## Upload Patterns
 

@@ -9,6 +9,7 @@ using Microsoft.Extensions.Options;
 using Wallow.Shared.Contracts.Storage;
 using Wallow.Storage.Application.Configuration;
 using Wallow.Storage.Application.Interfaces;
+using Wallow.Storage.Application.Services;
 using Wallow.Storage.Infrastructure.Configuration;
 using Wallow.Storage.Infrastructure.Extensions;
 using Wallow.Storage.Infrastructure.Persistence;
@@ -51,6 +52,29 @@ public sealed class StorageExtensionsTests
         providerDescriptor.Should().NotBeNull();
         providerDescriptor!.Lifetime.Should().Be(ServiceLifetime.Singleton);
         providerDescriptor.ImplementationType!.Name.Should().Be("LocalStorageProvider");
+    }
+
+    [Theory]
+    [InlineData("Local")]
+    [InlineData("S3")]
+    public void AddStorageInfrastructure_RegistersPresignedUrlSignerRegardlessOfProvider(string provider)
+    {
+        // LocalStorageController resolves the signer under every provider, so the
+        // registration must not sit inside the provider switch.
+        IConfiguration configuration = BuildConfiguration(new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test",
+            ["Storage:Provider"] = provider
+        });
+
+        ServiceCollection services = CreateBaseServices(configuration);
+        services.AddStorageInfrastructure(configuration);
+
+        ServiceDescriptor? signerDescriptor = services.FirstOrDefault(
+            d => d.ServiceType == typeof(LocalPresignedUrlSigner));
+
+        signerDescriptor.Should().NotBeNull();
+        signerDescriptor!.Lifetime.Should().Be(ServiceLifetime.Singleton);
     }
 
     [Fact]

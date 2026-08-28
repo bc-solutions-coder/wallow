@@ -1,5 +1,8 @@
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Primitives;
 using Wallow.Shared.Contracts.Storage;
+using Wallow.Storage.Application.Services;
 using Wallow.Storage.Infrastructure.Configuration;
 using Wallow.Storage.Infrastructure.Providers;
 
@@ -8,6 +11,7 @@ namespace Wallow.Storage.Tests.Infrastructure;
 public sealed class LocalStorageProviderTests : IDisposable
 {
     private readonly string _tempPath;
+    private readonly LocalPresignedUrlSigner _signer = new();
     private readonly LocalStorageProvider _provider;
 
     public LocalStorageProviderTests()
@@ -24,7 +28,7 @@ public sealed class LocalStorageProviderTests : IDisposable
             }
         });
 
-        _provider = new LocalStorageProvider(options);
+        _provider = new LocalStorageProvider(options, _signer);
     }
 
     public void Dispose()
@@ -160,7 +164,7 @@ public sealed class LocalStorageProviderTests : IDisposable
     }
 
     [Fact]
-    public async Task GetPresignedUrlAsync_ForDownload_ReturnsApiEndpoint()
+    public async Task GetPresignedUrlAsync_ForDownload_MintsSignedLocalEndpointUrl()
     {
         // Arrange
         string key = "test/presigned.txt";
@@ -168,14 +172,17 @@ public sealed class LocalStorageProviderTests : IDisposable
         // Act
         string url = await _provider.GetPresignedUrlAsync(key, TimeSpan.FromHours(1), forUpload: false);
 
-        // Assert
-        url.Should().StartWith("http://localhost:5001");
-        url.Should().Contain("download");
-        url.Should().Contain(Uri.EscapeDataString(key));
+        // Assert -- the URL targets the key-addressed local endpoint and carries a
+        // signature the process-wide signer accepts for a GET of exactly this key.
+        url.Should().StartWith("http://localhost:5001/v1/storage/local/files?");
+        (string parsedKey, long expires, string signature) = ParsePresignedQuery(url);
+        parsedKey.Should().Be(key);
+        _signer.Validate(LocalPresignedUrlSigner.DownloadMethod, key, expires, signature)
+            .Should().BeTrue();
     }
 
     [Fact]
-    public async Task GetPresignedUrlAsync_ForUpload_ReturnsApiEndpoint()
+    public async Task GetPresignedUrlAsync_ForUpload_MintsPutSignedLocalEndpointUrl()
     {
         // Arrange
         string key = "test/upload-target.txt";
@@ -183,9 +190,37 @@ public sealed class LocalStorageProviderTests : IDisposable
         // Act
         string url = await _provider.GetPresignedUrlAsync(key, TimeSpan.FromMinutes(15), forUpload: true);
 
-        // Assert
-        url.Should().StartWith("http://localhost:5001");
-        url.Should().Contain("upload");
+        // Assert -- upload URLs are signed for PUT, and only PUT.
+        url.Should().StartWith("http://localhost:5001/v1/storage/local/files?");
+        (string parsedKey, long expires, string signature) = ParsePresignedQuery(url);
+        parsedKey.Should().Be(key);
+        _signer.Validate(LocalPresignedUrlSigner.UploadMethod, key, expires, signature)
+            .Should().BeTrue();
+        _signer.Validate(LocalPresignedUrlSigner.DownloadMethod, key, expires, signature)
+            .Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetPresignedUrlAsync_EmbedsExpiryDerivedFromRequestedLifetime()
+    {
+        DateTimeOffset before = DateTimeOffset.UtcNow;
+        string url = await _provider.GetPresignedUrlAsync("test/file.txt", TimeSpan.FromMinutes(15), forUpload: false);
+        DateTimeOffset after = DateTimeOffset.UtcNow;
+
+        (_, long expires, _) = ParsePresignedQuery(url);
+
+        expires.Should().BeInRange(
+            before.AddMinutes(15).ToUnixTimeSeconds(),
+            after.AddMinutes(15).ToUnixTimeSeconds());
+    }
+
+    private static (string Key, long Expires, string Signature) ParsePresignedQuery(string url)
+    {
+        Dictionary<string, StringValues> query = QueryHelpers.ParseQuery(new Uri(url).Query);
+        return (
+            query["key"].ToString(),
+            long.Parse(query["expires"].ToString(), System.Globalization.CultureInfo.InvariantCulture),
+            query["sig"].ToString());
     }
 
     [Fact]
@@ -210,11 +245,11 @@ public sealed class LocalStorageProviderTests : IDisposable
                 BaseUrl = null
             }
         });
-        LocalStorageProvider provider = new(options);
+        LocalStorageProvider provider = new(options, _signer);
 
         string url = await provider.GetPresignedUrlAsync("test/file.txt", TimeSpan.FromHours(1));
 
-        url.Should().StartWith("http://localhost:5001");
+        url.Should().StartWith("http://localhost:5001/v1/storage/local/files?");
     }
 
     [Fact]
@@ -261,12 +296,12 @@ public sealed class LocalStorageProviderTests : IDisposable
                 BaseUrl = "http://localhost:5001/"
             }
         });
-        LocalStorageProvider provider = new(options);
+        LocalStorageProvider provider = new(options, _signer);
 
         string url = await provider.GetPresignedUrlAsync("test/file.txt", TimeSpan.FromHours(1));
 
-        url.Should().NotContain("//api");
-        url.Should().Contain("http://localhost:5001/api");
+        url.Should().NotContain("//v1");
+        url.Should().StartWith("http://localhost:5001/v1/storage/local/files?");
     }
 
     [Fact]
@@ -298,7 +333,7 @@ public sealed class LocalStorageProviderTests : IDisposable
                 BaseUrl = "http://localhost:5001"
             }
         });
-        LocalStorageProvider provider = new(options);
+        LocalStorageProvider provider = new(options, _signer);
 
         List<StorageObjectInfo> objects = await provider.ListAsync("tenant-").ToListAsync();
 

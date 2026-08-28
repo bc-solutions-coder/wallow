@@ -25,7 +25,8 @@ over a pluggable backend (local filesystem or any S3-compatible service).
 | Repository implementations | `Wallow.Storage.Infrastructure/Persistence/Repositories/` |
 | EF configurations | `Wallow.Storage.Infrastructure/Persistence/Configurations/` |
 | Module registration | `Wallow.Storage.Infrastructure/Modules/StorageModule.cs` + `Extensions/StorageInfrastructureExtensions.cs` |
-| Controllers | `Wallow.Storage.Api/Controllers/` (`StorageController`, `StorageSettingsController`) |
+| Controllers | `Wallow.Storage.Api/Controllers/` (`StorageController`, `StorageSettingsController`, `LocalStorageController`) |
+| Presigned URL signer | `Wallow.Storage.Application/Services/LocalPresignedUrlSigner.cs` (in Application because the Api layer may not reference Infrastructure) |
 | Request/response contracts | `Wallow.Storage.Api/Contracts/` |
 | Tests | `tests/Modules/Storage/Wallow.Storage.Tests/` |
 
@@ -86,6 +87,13 @@ an event. Both live in `Wallow.Shared.Contracts/Storage/`:
   switches in `StorageInfrastructureExtensions`, not runtime strategy lookups.
 - **`LocalStorageProvider` guards path traversal itself** — `GetFilePath` resolves the key against
   `BasePath` and throws `InvalidOperationException` if it escapes.
+- **Local presigned URLs are served by `LocalStorageController`.** The filesystem cannot answer a
+  presigned URL the way S3 does, so the provider mints
+  `/v1/storage/local/files?key=...&expires=...&sig=...` — an HMAC (from the singleton
+  `LocalPresignedUrlSigner`, registered under every provider) over method + key + expiry, GET-signed
+  for downloads and PUT-signed for uploads. The controller is `[AllowAnonymous]` (the signature is
+  the authorization, S3-style) and `[ApiExplorerSettings(IgnoreApi = true)]` — deliberately absent
+  from the OpenAPI document and the SDK, because callers receive the full URL as an opaque string.
 - **Handler shape is uniform here:** every handler is a `public sealed class` with a primary
   constructor (the one `static partial` outlier, `ScanUploadedFileHandler`, was deleted with the
   async scan path).
@@ -127,8 +135,11 @@ to run those, which needs Docker.
   no background sweep that promotes or expires abandoned presigned rows; the completion endpoint
   is the only promotion path (this replaced the broken async `ScanUploadedFileCommand`,
   `Wallow-p9p4`), and downloads stay blocked until it runs.
-- **`LocalStorageProvider`'s presigned URLs 404** (`Wallow-p23n`). It returns `/api/storage/...`
-  paths; the API serves `/v1/storage/...` and has no key-addressed endpoint at all.
+- **Local presigned URLs die on API restart.** `LocalPresignedUrlSigner` holds a random
+  per-process HMAC key, so every outstanding local presigned URL is invalidated by a restart
+  (dev-only provider, URLs live minutes — accepted in `Wallow-p23n`). The signature is the
+  *entire* authorization on `LocalStorageController`'s anonymous endpoints; do not "fix" a 403
+  there by adding auth or loosening validation.
 - **Tenant limits are enforced from tenant-scope settings only.** Both upload handlers resolve
   `IStorageLimitsProvider` (`StorageLimitsProvider`, built on
   `ITenantSettingRepository<StorageDbContext>` — deliberately NOT the keyed `ISettingsService`,
