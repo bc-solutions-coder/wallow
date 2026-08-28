@@ -371,12 +371,7 @@ builder.Services.AddOpenTelemetry()
     });
 ```
 
-Two names go in on each side because `AddMeter` and `AddSource` treat `*` as a suffix wildcard.
-`Wallow.*` covers every module-scoped name — `Wallow.Messaging`, `Wallow.Cache`, `Wallow.Identity`,
-`Wallow.Health`, `Wallow.Notifications.Email` — but it does **not** match the bare `Wallow` name
-returned by `Diagnostics.Meter` and `Diagnostics.ActivitySource`, which is why the prefix itself is
-registered too. A meter or source a module adds later is picked up by the wildcard with no change
-here.
+Both sides register the namespace prefix and its wildcard pattern because `AddMeter` and `AddSource` treat `*` as a suffix wildcard: `Wallow.*` covers every module-scoped name — `Wallow.Messaging`, `Wallow.Cache`, `Wallow.Identity`, `Wallow.Health`, `Wallow.Notifications.Email` — but not the bare `Wallow` name returned by `Diagnostics.Meter` and `Diagnostics.ActivitySource`, so the prefix itself is registered too. The metrics side additionally registers `Wolverine:*` to export Wolverine's built-in runtime meter (named `Wolverine:{ServiceName}`), which carries the `wolverine-dead-letter-queue` counter and other instruments — the tracing side omits it because there is no Wolverine instrumentation. A meter or source a module adds later is picked up by the wildcard with no change here.
 
 The prefix comes from configuration rather than from `Diagnostics`: `AddServiceDefaults()` runs
 before `Diagnostics.Initialize()`, so the static state is not readable yet at registration time.
