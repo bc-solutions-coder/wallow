@@ -169,10 +169,8 @@ Each of these cost a debugging session and is invisible from the code:
   because `storybookTest()` builds that project itself and never reads `browserSetupFiles`.
   `createVitestProjects()`'s `browserSetupFiles` still defaults to `[]` (`src/vitest-projects.ts`),
   so a NEW browser project gets no guard until its config passes a setup file — wire one on day
-  one. The guard trio is not uniform either: `apps/minimal-app`, `packages/logger` and this
-  package's setup files install all three guards (navigation, console, network); the five older
-  setup files and the storybook preview install navigation + console only, and extending the
-  network guard to them is filed, not done. **A spec asserting a DELIBERATE
+  one. The guard TRIO is what "the guard" means: every one of those nine projects installs all
+  three (navigation, console, network) through the same door it takes this one. **A spec asserting a DELIBERATE
   hand-off consumes the guard's record rather than registering a listener beside it** — the same
   entry exports `expectNavigationEscape()` (awaits exactly one escape, returns it, and clears only
   what it read) and `consumeNavigationEscapes()` (drains and returns all of them). That keeps

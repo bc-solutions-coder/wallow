@@ -20,6 +20,12 @@
  * drives an error path on purpose reads the messages back with
  * `consumeConsoleNoise()`/`expectConsoleError()` from the same entry instead of
  * letting the `afterEach` fail it.
+ *
+ * The network guard completes the trio: anything reaching `globalThis.fetch` is
+ * traffic no `createSdkHarness()` owns, so it is answered with a 503 naming the
+ * request rather than left to leave for the real network — where it hangs in CI
+ * and passes against a live backend locally. A spec that provokes such a request
+ * on purpose reads it back with `consumeNetworkEscapes()` from the same entry.
  */
 
 import {
@@ -30,18 +36,27 @@ import {
   assertNoNavigationEscape,
   installNavigationEscapeGuard,
 } from "@bc-solutions-coder/testing/navigation-escape";
+import {
+  assertNoNetworkEscape,
+  installNetworkEscapeGuard,
+} from "@bc-solutions-coder/testing/network-escape";
 import { afterEach } from "vitest";
 
 installNavigationEscapeGuard();
 installConsoleGuard();
+installNetworkEscapeGuard();
 
-// One afterEach PER guard: the hooks are independent, so a console failure
-// cannot stop the navigation assertion from clearing its own record, and vice
-// versa — either would leak a failure into the next test.
+// One afterEach PER guard: the hooks are independent, so one guard's failure
+// cannot stop another from clearing its own record — either would leak a
+// failure into the next test.
 afterEach(() => {
   assertNoNavigationEscape();
 });
 
 afterEach(() => {
   assertNoConsoleNoise();
+});
+
+afterEach(() => {
+  assertNoNetworkEscape();
 });

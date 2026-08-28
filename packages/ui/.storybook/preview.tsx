@@ -9,6 +9,10 @@ import {
   assertNoNavigationEscape,
   installNavigationEscapeGuard,
 } from "@bc-solutions-coder/testing/navigation-escape";
+import {
+  assertNoNetworkEscape,
+  installNetworkEscapeGuard,
+} from "@bc-solutions-coder/testing/network-escape";
 import type { Decorator, Preview } from "@storybook/react-vite";
 
 /**
@@ -34,22 +38,25 @@ const themeDecorator: Decorator = (Story) => (
 export const decorators: Decorator[] = [themeDecorator];
 
 /**
- * The navigation-escape and console guards, wired the only way the `storybook`
- * Vitest project can take them. `storybookTest()` builds that project itself and
- * never reads `browserSetupFiles`, so ../vitest.setup.ts — which carries the same
- * calls for the plain `browser` project — does not reach a story. These
- * preview-level hooks do: Storybook runs `beforeEach` before, and `afterEach`
- * after, EVERY story, play function or not.
+ * The navigation-escape, console and network-escape guards, wired the only way
+ * the `storybook` Vitest project can take them. `storybookTest()` builds that
+ * project itself and never reads `browserSetupFiles`, so ../vitest.setup.ts —
+ * which carries the same calls for the plain `browser` project — does not reach
+ * a story. These preview-level hooks do: Storybook runs `beforeEach` before,
+ * and `afterEach` after, EVERY story, play function or not.
  *
- * Without them a story that lets a cross-document hand-off reach the iframe drops
- * the runner mid-file and Vitest blames whichever file it was loading next, and a
- * story whose component logs a React defect through `console.error` renders it
- * into a green run. Both installers are idempotent per browser context, so
- * calling them per story costs a comparison rather than a second listener.
+ * Without them a story that lets a cross-document hand-off reach the iframe
+ * drops the runner mid-file and Vitest blames whichever file it was loading
+ * next, a story whose component logs a React defect through `console.error`
+ * renders it into a green run, and a story whose component reaches
+ * `globalThis.fetch` hangs in CI or passes against a live backend locally. All
+ * three installers are idempotent per browser context, so calling them per
+ * story costs a comparison rather than a second listener.
  */
 export const beforeEach: Preview["beforeEach"] = () => {
   installNavigationEscapeGuard();
   installConsoleGuard();
+  installNetworkEscapeGuard();
 };
 
 /**
@@ -62,7 +69,7 @@ export const beforeEach: Preview["beforeEach"] = () => {
 export const afterEach: Preview["afterEach"] = () => {
   const failures: unknown[] = [];
 
-  for (const assert of [assertNoNavigationEscape, assertNoConsoleNoise]) {
+  for (const assert of [assertNoNavigationEscape, assertNoConsoleNoise, assertNoNetworkEscape]) {
     try {
       assert();
     } catch (error: unknown) {
@@ -77,7 +84,7 @@ export const afterEach: Preview["afterEach"] = () => {
 
   throw rest.length === 0
     ? first
-    : new AggregateError(failures, "This story leaked past two guards");
+    : new AggregateError(failures, "This story leaked past more than one guard");
 };
 
 export const parameters: Preview["parameters"] = {
