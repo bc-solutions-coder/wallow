@@ -51,11 +51,13 @@ jobs:
     # Self-hosted turbo remote cache (Wallow-m4u7). All three are repository
     # secrets — including the URL, which stays out of the repo — so fork PRs see
     # empty values and simply run uncached; that is correct and NOT a reason to
-    # switch to pull_request_target. turbo authenticates with
-    # `Authorization: Bearer $TURBO_TOKEN` and nothing else: it cannot attach
-    # custom headers or query params, so the proxy in front of the cache server
-    # must let /v8/* requests through unauthenticated and leave the bearer
-    # token as the credential the server itself checks.
+    # switch to pull_request_target. TURBO_API is the cache server's tailnet
+    # address: the Tailscale step below joins the runner to the tailnet, so the
+    # server needs no public hostname and nothing in front of it can rate-limit
+    # the burst of artifact requests a build step produces. turbo authenticates
+    # with `Authorization: Bearer $TURBO_TOKEN` and nothing else (it cannot
+    # attach custom headers), which is why the server's own bearer check is the
+    # credential.
     env:
       TURBO_API: ${{ secrets.TURBO_API }}
       TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
@@ -78,6 +80,30 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # Join the tailnet as a tagged ephemeral node so turbo can reach the
+      # remote cache at its tailnet address. Skipped when the OAuth secrets are
+      # absent (fork PRs): turbo then runs local-only, which is the designed
+      # degradation. The node is logged out and removed automatically when the
+      # job ends.
+      - name: Tailscale
+        if: ${{ secrets.TS_OAUTH_CLIENT_ID != '' }}
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      # New-node info takes a moment to propagate across the tailnet, and the
+      # cache host accepts connections only after it has it — so wait until the
+      # host answers before the first turbo invocation. Non-fatal: a dead cache
+      # host must degrade to an uncached run, never a red one.
+      - name: Wait for the cache host over the tailnet
+        if: ${{ secrets.TS_OAUTH_CLIENT_ID != '' }}
+        run: |
+          host=$(printf '%s' "$TURBO_API" | sed -E 's#^[a-z]+://##; s#[:/].*$##')
+          tailscale ping --timeout 5s -c 12 "$host" \
+            || echo "::warning::turbo cache host unreachable over the tailnet; this run is uncached"
 
       # Turbo's cache directory, keyed per branch. Weaker than a cache shared
       # across machines — a first run on a new branch restores from the

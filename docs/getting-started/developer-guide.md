@@ -120,10 +120,15 @@ the hostname stays out of the repo). Fork PRs receive no secrets and run uncache
 correct. Locally, export the three values in your shell; get them from the password manager or
 from whoever operates the cache server.
 
+The cache server is not on the public internet: `TURBO_API` is its **tailnet** address. CI joins
+the tailnet as a tagged ephemeral node via the Tailscale GitHub Action (secrets
+`TS_OAUTH_CLIENT_ID`/`TS_OAUTH_SECRET`, tag `tag:ci`), and a laptop must be on the same tailnet
+for the address to resolve — off the tailnet, turbo simply warns and runs local-only.
+
 Turbo authenticates with `Authorization: Bearer $TURBO_TOKEN` and nothing else — it cannot send
-custom headers or query parameters. Any authenticating proxy in front of the cache server must
-therefore let `/v8/*` requests through unauthenticated and leave the bearer token as the
-credential the server itself verifies.
+custom headers or query parameters — so the cache server's own bearer check is the sole
+credential, and network reachability is governed by tailnet ACLs rather than by a proxy in front
+of the server.
 
 When the cache misbehaves: `turbo run <task> --force` re-executes everything while still writing
 results back, `TURBO_REMOTE_CACHE_READ_ONLY=true` stops uploads, and unsetting `TURBO_TOKEN`
