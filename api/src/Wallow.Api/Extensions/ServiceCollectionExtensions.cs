@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using System.Threading.RateLimiting;
+using Asp.Versioning.OpenApi;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
@@ -42,20 +43,18 @@ internal static partial class ServiceCollectionExtensions
         // Global Exception Handler
         services.AddExceptionHandler<GlobalExceptionHandler>();
 
-        // OpenAPI documentation (Scalar)
-        string appName = configuration["Branding:AppName"] ?? "Wallow";
-        services.AddOpenApi("v1", options =>
-        {
-            options.AddDocumentTransformer((document, _, _) => TransformDocumentInfo(document, appName));
-            options.AddDocumentTransformer((document, _, _) => TransformDocumentSecurity(document));
-            options.AddDocumentTransformer((document, _, _) => TransformDocumentExcludeTestSupport(document));
-            options.AddOperationTransformer((operation, context, _) =>
-                TransformOperationSecurity(operation, context));
-            options.AddOperationTransformer((operation, context, _) =>
-                TransformOperationModuleTag(operation, context));
-            options.AddOperationTransformer((operation, context, _) =>
-                TransformOperationId(operation, context));
-        });
+        // XML documentation comments for the "v1" OpenAPI document. The framework's XML
+        // comment support is a compile-time interceptor that attaches to user-code
+        // AddOpenApi call sites; Asp.Versioning's versioned AddOpenApi call lives inside
+        // its own assembly, where the interceptor cannot reach. This call is deliberately
+        // redundant as a registration (AV0029, suppressed via NoWarn in the csproj — the
+        // interceptor re-emits the call in generated source, out of reach of a pragma)
+        // but is the anchor the interceptor needs: it configures the same named
+        // OpenApiOptions ("v1" = the version's group name) the versioned pipeline
+        // resolves. The package's runtime XmlCommentsTransformer is not a substitute —
+        // it renders <see cref> references as empty text and misattributes method
+        // summaries to parameter descriptions. A future v2 needs its own call.
+        services.AddOpenApi("v1");
 
         // Health checks - connection strings resolved lazily via factories
         // to support Testcontainers dynamic connection strings
@@ -190,12 +189,36 @@ internal static partial class ServiceCollectionExtensions
         return httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
     }
 
-    internal static Task TransformDocumentInfo(OpenApiDocument document, string appName)
+    /// <summary>
+    /// Configures one versioned OpenAPI document. Asp.Versioning registers a document per
+    /// discovered API version, named by its ApiExplorer group name (e.g. "v1"), and invokes
+    /// this callback once for each; the same transformer pipeline applies to every version.
+    /// </summary>
+    internal static void ConfigureVersionedOpenApiDocument(
+        VersionedOpenApiOptions options,
+        IConfiguration configuration)
+    {
+        string appName = configuration["Branding:AppName"] ?? "Wallow";
+        string version = options.Description.GroupName;
+        OpenApiOptions document = options.Document;
+        document.AddDocumentTransformer((doc, _, _) => TransformDocumentInfo(doc, appName, version));
+        document.AddDocumentTransformer((doc, _, _) => TransformDocumentSecurity(doc));
+        document.AddDocumentTransformer((doc, _, _) => TransformDocumentExcludeTestSupport(doc));
+        document.AddDocumentTransformer((doc, _, _) => TransformDocumentScrubEmptyPlaceholders(doc));
+        document.AddOperationTransformer((operation, context, _) =>
+            TransformOperationSecurity(operation, context));
+        document.AddOperationTransformer((operation, context, _) =>
+            TransformOperationModuleTag(operation, context));
+        document.AddOperationTransformer((operation, context, _) =>
+            TransformOperationId(operation, context));
+    }
+
+    internal static Task TransformDocumentInfo(OpenApiDocument document, string appName, string version)
     {
         document.Info = new OpenApiInfo
         {
             Title = $"{appName} API",
-            Version = "v1",
+            Version = version,
             Description = "A modular monolith API built with Clean Architecture, DDD, and CQRS",
             Contact = new OpenApiContact
             {
@@ -270,6 +293,57 @@ internal static partial class ServiceCollectionExtensions
             foreach (OpenApiTag testSupportTag in testSupportTags)
             {
                 document.Tags.Remove(testSupportTag);
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Asp.Versioning's ApiExplorer transformer stamps empty-string summaries on operations and
+    /// empty-string descriptions on parameters that have no XML docs. Empty strings are noise in
+    /// the contract (and churn in the committed snapshot), so drop them back to null.
+    /// </summary>
+    internal static Task TransformDocumentScrubEmptyPlaceholders(OpenApiDocument document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+
+        if (document.Paths is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        foreach (IOpenApiPathItem pathItem in document.Paths.Values)
+        {
+            if (pathItem.Operations is null)
+            {
+                continue;
+            }
+
+            foreach (OpenApiOperation operation in pathItem.Operations.Values)
+            {
+                if (operation.Summary is { Length: 0 })
+                {
+                    operation.Summary = null;
+                }
+
+                if (operation.Description is { Length: 0 })
+                {
+                    operation.Description = null;
+                }
+
+                if (operation.Parameters is null)
+                {
+                    continue;
+                }
+
+                foreach (IOpenApiParameter parameter in operation.Parameters)
+                {
+                    if (parameter is OpenApiParameter { Description.Length: 0 } concreteParameter)
+                    {
+                        concreteParameter.Description = null;
+                    }
+                }
             }
         }
 

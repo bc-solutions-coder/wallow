@@ -1,4 +1,7 @@
 using System.Reflection;
+using Asp.Versioning;
+using Asp.Versioning.ApiExplorer;
+using Asp.Versioning.OpenApi;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
@@ -138,7 +141,7 @@ public class ServiceCollectionExtensionsTests
     {
         OpenApiDocument document = new();
 
-        await Wallow.Api.Extensions.ServiceCollectionExtensions.TransformDocumentInfo(document, "Wallow");
+        await Wallow.Api.Extensions.ServiceCollectionExtensions.TransformDocumentInfo(document, "Wallow", "v1");
 
         document.Info.Should().NotBeNull();
         document.Info.Title.Should().Be("Wallow API");
@@ -327,7 +330,7 @@ public class ServiceCollectionExtensionsTests
     {
         OpenApiDocument document = new();
 
-        await Wallow.Api.Extensions.ServiceCollectionExtensions.TransformDocumentInfo(document, "MyBrand");
+        await Wallow.Api.Extensions.ServiceCollectionExtensions.TransformDocumentInfo(document, "MyBrand", "v1");
 
         document.Info.Title.Should().Be("MyBrand API");
         document.Info.Contact!.Name.Should().Be("MyBrand");
@@ -478,8 +481,34 @@ public class ServiceCollectionExtensionsTests
         return ((IEnumerable<IOpenApiDocumentTransformer>)field.GetValue(options)!).ToList();
     }
 
+    // Builds the versioned options shape Asp.Versioning hands to the callback for one
+    // discovered API version, runs the callback, and returns it for transformer assertions.
+    private static VersionedOpenApiOptions BuildConfiguredVersionedOptions()
+    {
+        VersionedOpenApiOptions options = new()
+        {
+            Description = new ApiVersionDescription(new ApiVersion(1, 0), "v1"),
+            Document = new OpenApiOptions(),
+            DocumentDescription = new OpenApiDocumentDescriptionOptions(),
+        };
+
+        Wallow.Api.Extensions.ServiceCollectionExtensions.ConfigureVersionedOpenApiDocument(
+            options, BuildConfiguration());
+
+        return options;
+    }
+
     [Fact]
-    public void AddApiServices_RegistersTestSupportExclusionDocumentTransformer()
+    public void ConfigureVersionedOpenApiDocument_RegistersDocumentTransformers()
+    {
+        VersionedOpenApiOptions options = BuildConfiguredVersionedOptions();
+
+        // Info, security, test-support exclusion, empty-placeholder scrub.
+        GetRegisteredDocumentTransformers(options.Document).Should().HaveCount(4);
+    }
+
+    [Fact]
+    public void AddApiServices_AnchorsXmlCommentSupportOnTheV1Document()
     {
         ServiceCollection services = CreateServicesWithApiDefaults();
         ServiceProvider provider = services.BuildServiceProvider();
@@ -488,7 +517,13 @@ public class ServiceCollectionExtensionsTests
             .GetRequiredService<IOptionsMonitor<OpenApiOptions>>()
             .Get("v1");
 
-        GetRegisteredDocumentTransformers(options).Should().HaveCount(3);
+        // The bare AddOpenApi("v1") call in AddApiServices exists solely so the framework's
+        // compile-time XML-comment interceptor attaches its transformers to the "v1" named
+        // options the versioned pipeline resolves. If the anchor is removed, nothing registers
+        // here and every XML doc comment silently drops out of the emitted document. The
+        // interceptor contributes operation and schema transformers, not document transformers.
+        GetRegisteredOperationTransformers(options).Should().NotBeEmpty(
+            "the XML-comment interceptor must attach transformers to the v1 anchor");
     }
 
     // Same reflective reach as GetRegisteredDocumentTransformers: OpenApiOptions stores the
@@ -581,20 +616,15 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Fact]
-    public void AddApiServices_RegistersOperationIdOperationTransformer()
+    public void ConfigureVersionedOpenApiDocument_RegistersOperationTransformers()
     {
-        ServiceCollection services = CreateServicesWithApiDefaults();
-        ServiceProvider provider = services.BuildServiceProvider();
+        VersionedOpenApiOptions options = BuildConfiguredVersionedOptions();
 
-        OpenApiOptions options = provider
-            .GetRequiredService<IOptionsMonitor<OpenApiOptions>>()
-            .Get("v1");
+        List<IOpenApiOperationTransformer> transformers =
+            GetRegisteredOperationTransformers(options.Document);
 
-        List<IOpenApiOperationTransformer> transformers = GetRegisteredOperationTransformers(options);
-
-        // Three registered by AddApiServices (security, module tag, operationId) plus one the
-        // framework contributes on its own.
-        transformers.Should().HaveCount(4,
+        // Security, module tag, operationId.
+        transformers.Should().HaveCount(3,
             "registered operation transformers are: {0}",
             string.Join(", ", transformers.Select(transformer => transformer.GetType().Name)));
     }

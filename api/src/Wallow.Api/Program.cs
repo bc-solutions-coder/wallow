@@ -528,7 +528,9 @@ try
         opts.GroupNameFormat = "'v'V";
         opts.SubstitutionFormat = "V";
         opts.SubstituteApiVersionInUrl = true;
-    });
+    }).AddOpenApi(options =>
+        Wallow.Api.Extensions.ServiceCollectionExtensions.ConfigureVersionedOpenApiDocument(
+            options, builder.Configuration));
     builder.Services.AddSharedKernel();
     builder.Services.AddHtmlSanitization();
     builder.Services.AddCurrentUserService();
@@ -645,7 +647,7 @@ try
     if (app.Environment.IsDevelopment())
     {
         string scalarAppName = builder.Configuration["Branding:AppName"] ?? "Wallow";
-        app.MapOpenApi().AllowAnonymous();
+        app.MapOpenApi().WithDocumentPerVersion().AllowAnonymous();
         app.MapScalarApiReference(options =>
         {
             options

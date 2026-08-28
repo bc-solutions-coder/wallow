@@ -5,6 +5,11 @@
 
   <PropertyGroup>
     <RootNamespace>Wallow.Api</RootNamespace>
+    <!-- AV0029 flags the deliberately redundant services.AddOpenApi("v1") call that anchors
+         the framework's compile-time XML-comment interceptor (see AddApiServices). The
+         interceptor copies that call into generated source, where pragmas and .editorconfig
+         severities cannot reach, so the suppression must be project-wide. -->
+    <NoWarn>$(NoWarn);AV0029</NoWarn>
     <!-- Prevent recursive bin/obj nesting from Web SDK content file copying -->
     <DefaultItemExcludes>$(DefaultItemExcludes);bin/**;obj/**</DefaultItemExcludes>
     <UserSecretsId>efd43489-cc17-4e04-9ea3-ac2326aa825a</UserSecretsId>
@@ -42,6 +47,7 @@
   <ItemGroup>
     <!-- API Documentation -->
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Asp.Versioning.OpenApi" />
     <PackageReference Include="Microsoft.Extensions.ApiDescription.Server">
       <IncludeAssets>build; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
