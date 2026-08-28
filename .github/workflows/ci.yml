@@ -69,7 +69,21 @@ jobs:
       contents: read
 
     steps:
+      # Full history: git-restore-mtime needs each file's last-touching commit.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # MSBuild's up-to-date check is mtime-based, and a fresh checkout stamps
+      # every source newer than any cache-restored output — so without this the
+      # restored bin/obj never short-circuits compilation (measured: see the
+      # design doc's Measurement section). Restoring commit-time mtimes makes
+      # only the files this PR touched look newer than the previous build.
+      # Known false-skip classes (deleted/renamed inputs, equal timestamps) are
+      # accepted pre-release; the escape hatch is bumping the cache namespace
+      # (build-v3 -> build-v4) to force a cold build.
+      - name: Restore source file mtimes
+        uses: chetan/git-restore-mtime-action@v2
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
