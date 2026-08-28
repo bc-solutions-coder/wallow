@@ -9,7 +9,8 @@
 # E2E_BASE_URL selects how the **wallow-auth** suite is served:
 #
 #   LOCAL (default): the app is served by Playwright's own `pnpm dev` webServer on
-#     :3002; its passthrough proxy targets the containerised API (WALLOW_API_INTERNAL_URL).
+#     a per-run port this script passes via PORT (the config's default is :3002);
+#     its passthrough proxy targets the containerised API (WALLOW_API_INTERNAL_URL).
 #     The compose stack provides infra + API + seeder (service: wallow-api).
 #
 #   CONTAINER (E2E_BASE_URL set, e.g. CI): the app is served by the prebuilt
@@ -178,6 +179,10 @@ teardown() {
     echo "  api $API_URL · auth $AUTH_ORIGIN · web $WEB_URL · bff-example $BFF_EXAMPLE_URL"
     echo "  mailpit $MAILPIT_URL"
     echo "  teardown: docker compose -p $PROJECT_NAME -f $COMPOSE_FILE down -v --remove-orphans"
+    if [[ -n "$IMAGE_TAG_GENERATED" ]]; then
+      echo "  (this run's per-run image tags *:$E2E_IMAGE_TAG stay behind too —"
+      echo "   remove them with: docker image rm \$(docker images -q --filter reference=\"*:$E2E_IMAGE_TAG\"))"
+    fi
     return
   fi
   log "Tearing down the e2e stack ($PROJECT_NAME)"

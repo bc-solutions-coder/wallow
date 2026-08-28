@@ -20,8 +20,9 @@ only. `test-results/` and `playwright-report/` are gitignored in `apps/wallow-au
 ## Config
 
 `apps/wallow-auth/playwright.config.ts` sets `testDir: "./e2e"` and
-`testIdAttribute: "data-testid"`. Its `webServer` boots `pnpm dev` on port 3002 (reusing an
-already-running server) and defaults `WALLOW_API_INTERNAL_URL` to `http://localhost:5001` so the
+`testIdAttribute: "data-testid"`. Its `webServer` boots `pnpm dev` on `PORT` (default 3002;
+`scripts/e2e.sh` passes a per-run port, reusing an already-running server) and defaults
+`WALLOW_API_INTERNAL_URL` to `http://localhost:5001` so the
 passthrough proxy resolves outside Aspire. Setting `E2E_BASE_URL` drives an already-running app
 instead and boots no server. `e2e/global-setup.ts` drives one page load to hydration first so no
 spec pays the dev server's lazy first-request cost.
