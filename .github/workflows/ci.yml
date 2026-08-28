@@ -14,7 +14,56 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Classifies the PR's paths once; jobs gate on the outputs. `code` is
+  # everything except docs — a docs-only PR skips the whole pipeline via
+  # build's gate (docker/e2e inherit through `needs: build`). `dotnet` and
+  # `js` gate only the test-side jobs: build/docker/e2e must run for BOTH
+  # sides because e2e boots the full stack from this PR's images.
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+      dotnet: ${{ steps.filter.outputs.dotnet }}
+      js: ${{ steps.filter.outputs.js }}
+    steps:
+      - name: Classify changed paths
+        id: filter
+        uses: dorny/paths-filter@v4
+        with:
+          # Load-bearing, and NOT the default: under the default `some`, a
+          # negated pattern is inert — `code`'s `'**'` would match a docs-only
+          # PR's markdown and the gate would never fire. `some-with-excludes`
+          # is the only quantifier that reads `!` as an exclusion while leaving
+          # the negation-free `dotnet`/`js` filters behaving as plain
+          # any-of lists (`every` would demand a file match all four of
+          # `dotnet`'s patterns at once, making it permanently false).
+          predicate-quantifier: "some-with-excludes"
+          filters: |
+            code:
+              - '**'
+              - '!docs/**'
+              - '!**/*.md'
+            dotnet:
+              - 'api/**'
+              - 'global.json'
+              - 'scripts/e2e.sh'
+              - '.github/workflows/ci.yml'
+            js:
+              - 'apps/**'
+              - 'packages/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - '.nvmrc'
+              - '.npmrc'
+              - 'scripts/fork-smoke.sh'
+              - '.github/workflows/ci.yml'
+
   build:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -63,7 +112,8 @@ jobs:
           key: build-v3-${{ runner.os }}-${{ github.sha }}
 
   unit-tests:
-    needs: build
+    needs: [changes, build]
+    if: needs.changes.outputs.dotnet == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -107,7 +157,8 @@ jobs:
           retention-days: 5
 
   integration-tests:
-    needs: build
+    needs: [changes, build]
+    if: needs.changes.outputs.dotnet == 'true'
     runs-on: ubuntu-latest
 
     services:
@@ -192,7 +243,8 @@ jobs:
   # tenant-scoped resource. Half the suite is Category=Integration, so the job supplies the same
   # Postgres and Valkey the integration-tests job does and does NOT exclude that category.
   cross-tenant-tests:
-    needs: build
+    needs: [changes, build]
+    if: needs.changes.outputs.dotnet == 'true'
     runs-on: ubuntu-latest
 
     services:
@@ -486,8 +538,12 @@ jobs:
   # a type left behind. This job installs the packed tarballs into a scratch
   # TanStack Start app outside the workspace, which is exactly that install.
   #
-  # No `needs:` — it touches no .NET output and can run alongside the build.
+  # Needs only `changes` (not build) — it touches no .NET output and can run
+  # alongside the build; it gates on the js filter because a pure-api PR
+  # cannot change what `pnpm pack` ships.
   fork-smoke:
+    needs: changes
+    if: needs.changes.outputs.js == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
