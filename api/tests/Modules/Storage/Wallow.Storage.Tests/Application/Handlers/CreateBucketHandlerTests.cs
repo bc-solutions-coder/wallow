@@ -52,6 +52,7 @@ public class CreateBucketHandlerTests
 
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Contain("Conflict");
+        result.Error.Message.Should().Contain("existing-bucket");
 
         _repository.DidNotReceive().Add(Arg.Any<StorageBucket>());
     }
@@ -79,9 +80,12 @@ public class CreateBucketHandlerTests
         result.Value.Description.Should().Be("A fully configured bucket");
         result.Value.Access.Should().Be("Public");
         result.Value.MaxFileSizeBytes.Should().Be(10_485_760);
+        result.Value.AllowedContentTypes.Should().Contain("image/png");
+        result.Value.AllowedContentTypes.Should().Contain("image/jpeg");
         result.Value.Versioning.Should().BeTrue();
         result.Value.Retention.Should().NotBeNull();
         result.Value.Retention!.Days.Should().Be(30);
+        result.Value.Retention.Action.Should().Be("Archive");
     }
 
     [Fact]
@@ -108,6 +112,20 @@ public class CreateBucketHandlerTests
             Name: "no-retention",
             RetentionDays: null,
             RetentionAction: null);
+
+        _repository.ExistsByNameAsync(command.Name, Arg.Any<CancellationToken>())
+            .Returns(false);
+
+        Result<BucketDto> result = await _handler.Handle(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Retention.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Handle_WithOnlyRetentionDays_NoRetentionActionSet_DoesNotSetRetention()
+    {
+        CreateBucketCommand command = new("partial-retention", RetentionDays: 30);
 
         _repository.ExistsByNameAsync(command.Name, Arg.Any<CancellationToken>())
             .Returns(false);

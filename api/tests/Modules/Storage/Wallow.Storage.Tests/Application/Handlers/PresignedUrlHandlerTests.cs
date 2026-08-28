@@ -298,4 +298,66 @@ public class GetUploadPresignedUrlHandlerTests
         await _storageProvider.DidNotReceive().GetPresignedUrlAsync(
             Arg.Any<string>(), Arg.Any<TimeSpan>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task Handle_WhenSizeExceedsTenantUploadLimit_ReturnsValidationFailure()
+    {
+        StorageBucket bucket = StorageBucket.Create(TenantId.New(), "uploads");
+        GetUploadPresignedUrlQuery query = new(
+            Guid.NewGuid(), Guid.NewGuid(), "uploads", "big.png", "image/png", 2L * 1024 * 1024);
+
+        _bucketRepository.GetByNameAsync("uploads", Arg.Any<CancellationToken>())
+            .Returns(bucket);
+        _limitsProvider.GetLimitsAsync(query.TenantId, Arg.Any<CancellationToken>())
+            .Returns(StorageLimits.Create(1, "*", 1024));
+
+        Result<PresignedUploadResult> result = await _handler.Handle(query, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().StartWith("Validation");
+        result.Error.Message.Should().Contain("upload limit");
+        _fileRepository.DidNotReceive().Add(Arg.Any<StoredFile>());
+    }
+
+    [Fact]
+    public async Task Handle_WhenExtensionNotInTenantAllowlist_ReturnsValidationFailure()
+    {
+        StorageBucket bucket = StorageBucket.Create(TenantId.New(), "uploads");
+        GetUploadPresignedUrlQuery query = new(
+            Guid.NewGuid(), Guid.NewGuid(), "uploads", "script.exe", "application/octet-stream", 100);
+
+        _bucketRepository.GetByNameAsync("uploads", Arg.Any<CancellationToken>())
+            .Returns(bucket);
+        _limitsProvider.GetLimitsAsync(query.TenantId, Arg.Any<CancellationToken>())
+            .Returns(StorageLimits.Create(50, "jpg,png", 1024));
+
+        Result<PresignedUploadResult> result = await _handler.Handle(query, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().StartWith("Validation");
+        result.Error.Message.Should().Contain("not allowed");
+        _fileRepository.DidNotReceive().Add(Arg.Any<StoredFile>());
+    }
+
+    [Fact]
+    public async Task Handle_WhenTenantQuotaWouldBeExceeded_ReturnsValidationFailure()
+    {
+        StorageBucket bucket = StorageBucket.Create(TenantId.New(), "uploads");
+        GetUploadPresignedUrlQuery query = new(
+            Guid.NewGuid(), Guid.NewGuid(), "uploads", "photo.png", "image/png", 1000);
+
+        _bucketRepository.GetByNameAsync("uploads", Arg.Any<CancellationToken>())
+            .Returns(bucket);
+        _limitsProvider.GetLimitsAsync(query.TenantId, Arg.Any<CancellationToken>())
+            .Returns(StorageLimits.Create(50, "*", 1));
+        _fileRepository.GetTotalSizeBytesAsync(Arg.Any<CancellationToken>())
+            .Returns((1024L * 1024) - 500);
+
+        Result<PresignedUploadResult> result = await _handler.Handle(query, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().StartWith("Validation");
+        result.Error.Message.Should().Contain("quota");
+        _fileRepository.DidNotReceive().Add(Arg.Any<StoredFile>());
+    }
 }
