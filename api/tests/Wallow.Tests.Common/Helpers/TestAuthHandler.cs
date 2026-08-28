@@ -98,6 +98,13 @@ public sealed class TestAuthHandler : AuthenticationHandler<AuthenticationScheme
             claims.Add(new Claim(ClaimTypes.Role, role.Trim()));
         }
 
+        // Space-separated, matching the "scope" claim of a real token, so a test principal can
+        // carry granted scopes for PermissionExpansionMiddleware to expand into permissions.
+        if (Request.Headers.TryGetValue("X-Test-Scopes", out StringValues scopesHeader))
+        {
+            claims.Add(new Claim("scope", scopesHeader.ToString()));
+        }
+
         ClaimsIdentity identity = new ClaimsIdentity(claims, "Test");
         ClaimsPrincipal principal = new ClaimsPrincipal(identity);
         AuthenticationTicket ticket = new AuthenticationTicket(principal, "Test");

@@ -80,9 +80,9 @@ public sealed partial class ApiScopeSeeder(ILogger<ApiScopeSeeder> logger)
         yield return ApiScope.Create("serviceaccounts.read", "Read Service Accounts", "Identity",
             "Access to read service account data", isDefault: true);
         yield return ApiScope.Create("serviceaccounts.write", "Create/Update Service Accounts", "Identity",
-            "Access to create and update service accounts");
-        yield return ApiScope.Create("serviceaccounts.manage", "Full Service Account Management", "Identity",
-            "Access to create, update, and delete service accounts");
+            "Access to create service accounts and update their scopes");
+        yield return ApiScope.Create("serviceaccounts.manage", "Rotate/Revoke Service Accounts", "Identity",
+            "Access to rotate service account secrets and revoke accounts");
 
         // Storage scopes
         yield return ApiScope.Create("storage.read", "Read Storage", "Storage",

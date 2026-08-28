@@ -88,13 +88,13 @@
       "code": "serviceaccounts.write",
       "displayName": "Create/Update Service Accounts",
       "category": "Identity",
-      "description": "Access to create and update service accounts"
+      "description": "Access to create service accounts and update their scopes"
     },
     {
       "code": "serviceaccounts.manage",
-      "displayName": "Full Service Account Management",
+      "displayName": "Rotate/Revoke Service Accounts",
       "category": "Identity",
-      "description": "Access to create, update, and delete service accounts"
+      "description": "Access to rotate service account secrets and revoke accounts"
     },
     {
       "code": "storage.read",

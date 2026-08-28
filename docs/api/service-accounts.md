@@ -73,18 +73,20 @@ Cache tokens and refresh before expiry. Each token request counts toward rate li
 ## API Reference
 
 Service accounts are managed through the **clients** controller, so every route is nested under
-`/v1/identity/clients/service-accounts`. All management endpoints require user authentication (not
-service account authentication) and the `AdminAccess` permission.
+`/v1/identity/clients/service-accounts`. Each endpoint requires the matching `ServiceAccounts*`
+permission — held by admin users through their role, or carried by any token granted the
+corresponding `serviceaccounts.*` scope. The permissions are checked independently: `manage` does
+not imply `write` or `read`, so a credential meant to do everything needs all three scopes.
 
-| Method | Route |
-|--------|-------|
-| `GET` | `/v1/identity/clients/service-accounts` |
-| `POST` | `/v1/identity/clients/service-accounts` |
-| `GET` | `/v1/identity/clients/service-accounts/{id}` |
-| `PUT` | `/v1/identity/clients/service-accounts/{id}/scopes` |
-| `POST` | `/v1/identity/clients/service-accounts/{id}/rotate-secret` |
-| `DELETE` | `/v1/identity/clients/service-accounts/{id}` |
-| `GET` | `/v1/identity/scopes` |
+| Method | Route | Permission |
+|--------|-------|------------|
+| `GET` | `/v1/identity/clients/service-accounts` | `ServiceAccountsRead` |
+| `POST` | `/v1/identity/clients/service-accounts` | `ServiceAccountsWrite` |
+| `GET` | `/v1/identity/clients/service-accounts/{id}` | `ServiceAccountsRead` |
+| `PUT` | `/v1/identity/clients/service-accounts/{id}/scopes` | `ServiceAccountsWrite` |
+| `POST` | `/v1/identity/clients/service-accounts/{id}/rotate-secret` | `ServiceAccountsManage` |
+| `DELETE` | `/v1/identity/clients/service-accounts/{id}` | `ServiceAccountsManage` |
+| `GET` | `/v1/identity/scopes` | `ScopeRead` |
 
 `{id}` is the service account metadata GUID (the `id` returned at creation), not the `clientId`.
 
@@ -212,8 +214,8 @@ permission. The `category` query parameter is optional; omit it to list every sc
 | `apikeys.write` | Create and update API keys | No |
 | `apikeys.manage` | Full API key management | No |
 | `serviceaccounts.read` | Read service account data | Yes |
-| `serviceaccounts.write` | Create and update service accounts | No |
-| `serviceaccounts.manage` | Full service account management | No |
+| `serviceaccounts.write` | Create service accounts and update their scopes | No |
+| `serviceaccounts.manage` | Rotate service account secrets and revoke accounts | No |
 
 ### Storage
 

@@ -21,10 +21,12 @@ namespace Wallow.Identity.Api.Controllers;
 [ApiVersion(1)]
 [Route("v{version:apiVersion}/identity/clients")]
 [Authorize]
-[HasPermission(PermissionType.AdminAccess)]
 [Tags("Clients")]
 [Produces("application/json")]
 [Consumes("application/json")]
+// Guards are per-action, and the class level must stay bare: stacked [HasPermission] attributes
+// are separate policies that ALL have to pass, so a class-level AdminAccess would put the
+// service-account actions back behind admin regardless of what each action declares.
 public class ClientsController(
     IOpenIddictApplicationManager applicationManager,
     IOrganizationService organizationService,
@@ -49,6 +51,7 @@ public class ClientsController(
             StringComparer.Ordinal);
 
     [HttpGet]
+    [HasPermission(PermissionType.AdminAccess)]
     [ProducesResponseType(typeof(IReadOnlyList<ClientResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<ClientResponse>>> GetAll(CancellationToken ct)
     {
@@ -78,6 +81,7 @@ public class ClientsController(
     }
 
     [HttpGet("{id}")]
+    [HasPermission(PermissionType.AdminAccess)]
     [ProducesResponseType(typeof(ClientResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ClientResponse>> GetById(string id, CancellationToken ct)
@@ -106,6 +110,7 @@ public class ClientsController(
     }
 
     [HttpGet("by-tenant/{tenantId:guid}")]
+    [HasPermission(PermissionType.AdminAccess)]
     [ProducesResponseType(typeof(IReadOnlyList<ClientResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<IReadOnlyList<ClientResponse>>> GetByTenant(Guid tenantId, CancellationToken ct)
@@ -148,6 +153,7 @@ public class ClientsController(
     }
 
     [HttpPost]
+    [HasPermission(PermissionType.AdminAccess)]
     [ProducesResponseType(typeof(ClientResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -244,6 +250,7 @@ public class ClientsController(
     }
 
     [HttpPut("{id}")]
+    [HasPermission(PermissionType.AdminAccess)]
     [ProducesResponseType(typeof(ClientResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ClientResponse>> Update(
@@ -303,6 +310,7 @@ public class ClientsController(
     }
 
     [HttpDelete("{id}")]
+    [HasPermission(PermissionType.AdminAccess)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> Delete(string id, CancellationToken ct)
@@ -318,6 +326,7 @@ public class ClientsController(
     }
 
     [HttpPost("{id}/rotate-secret")]
+    [HasPermission(PermissionType.AdminAccess)]
     [ProducesResponseType(typeof(ClientResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ClientResponse>> RotateSecret(string id, CancellationToken ct)
@@ -354,6 +363,7 @@ public class ClientsController(
     /// List all service accounts (client-credentials clients) for the current tenant.
     /// </summary>
     [HttpGet("service-accounts")]
+    [HasPermission(PermissionType.ServiceAccountsRead)]
     [ProducesResponseType(typeof(IReadOnlyList<ServiceAccountDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<ServiceAccountDto>>> ListServiceAccounts(CancellationToken ct)
     {
@@ -365,6 +375,7 @@ public class ClientsController(
     /// Create a new service account. Returns the client secret which will NOT be shown again.
     /// </summary>
     [HttpPost("service-accounts")]
+    [HasPermission(PermissionType.ServiceAccountsWrite)]
     [ProducesResponseType(typeof(ServiceAccountCreatedResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ServiceAccountCreatedResponse>> CreateServiceAccount(
@@ -394,6 +405,7 @@ public class ClientsController(
     /// Get a specific service account by ID.
     /// </summary>
     [HttpGet("service-accounts/{id:guid}")]
+    [HasPermission(PermissionType.ServiceAccountsRead)]
     [ProducesResponseType(typeof(ServiceAccountDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ServiceAccountDto>> GetServiceAccount(Guid id, CancellationToken ct)
@@ -403,9 +415,11 @@ public class ClientsController(
     }
 
     /// <summary>
-    /// Update the scopes assigned to a service account.
+    /// Update the scopes assigned to a service account. Write-level rather than manage: creation
+    /// already accepts arbitrary scopes, so gating updates higher would guard nothing.
     /// </summary>
     [HttpPut("service-accounts/{id:guid}/scopes")]
+    [HasPermission(PermissionType.ServiceAccountsWrite)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> UpdateServiceAccountScopes(
@@ -424,6 +438,7 @@ public class ClientsController(
     /// Rotate the client secret for a service account. Returns the new secret which will NOT be shown again.
     /// </summary>
     [HttpPost("service-accounts/{id:guid}/rotate-secret")]
+    [HasPermission(PermissionType.ServiceAccountsManage)]
     [ProducesResponseType(typeof(SecretRotatedResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<SecretRotatedResponse>> RotateServiceAccountSecret(Guid id, CancellationToken ct)
@@ -443,6 +458,7 @@ public class ClientsController(
     /// Revoke and delete a service account.
     /// </summary>
     [HttpDelete("service-accounts/{id:guid}")]
+    [HasPermission(PermissionType.ServiceAccountsManage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> RevokeServiceAccount(Guid id, CancellationToken ct)
