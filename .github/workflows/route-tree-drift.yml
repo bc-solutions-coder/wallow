@@ -48,6 +48,15 @@ concurrency:
 
 jobs:
   drift:
+    # Self-hosted turbo remote cache — same contract as js.yml: all three are
+    # repository secrets, fork PRs see empty values and run uncached.
+    env:
+      TURBO_API: ${{ secrets.TURBO_API }}
+      TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      # The `secrets` context is not usable inside a step-level `if`; bridged
+      # through env as a "true"/"false" string.
+      TAILNET_ENABLED: ${{ secrets.TS_OAUTH_CLIENT_ID != '' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -67,19 +76,48 @@ jobs:
       - name: Install JS dependencies
         run: pnpm install --frozen-lockfile
 
-      # Regeneration is a full `vite build` for both apps, and that resolves the
-      # @bc-solutions-coder/* workspace packages from their dist output — so they
-      # have to be built first or the build dies with UNRESOLVED_IMPORT before it
-      # ever writes a route tree.
-      - name: Build workspace packages
-        run: pnpm --filter './packages/*' build
+      # Join the tailnet as a tagged ephemeral node so turbo can reach the
+      # remote cache at its tailnet address. Skipped when the OAuth secrets are
+      # absent (fork PRs): turbo then runs local-only.
+      - name: Tailscale
+        if: env.TAILNET_ENABLED == 'true'
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
 
-      # Regenerate every app's tree the same way a developer does.
-      - name: Regenerate route trees
+      # Probe the cache endpoint before the first turbo invocation (any HTTP
+      # status proves TCP works; normally 401 without a bearer). Non-fatal: a
+      # dead cache host degrades to an uncached run, never a red one.
+      - name: Wait for the cache host over the tailnet
+        if: env.TAILNET_ENABLED == 'true'
         run: |
-          pnpm --filter @bc-solutions-coder/wallow-auth build
-          pnpm --filter @bc-solutions-coder/wallow-web build
-          pnpm --filter @bc-solutions-coder/example-minimal-app build
+          host=$(printf '%s' "$TURBO_API" | sed -E 's#^[a-z]+://##; s#[:/].*$##')
+          tailscale ping --until-direct=false --timeout 2s -c 10 "$host" > /dev/null 2>&1 || true
+          for i in $(seq 1 10); do
+            if code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 "$TURBO_API/v8/artifacts/status" 2>&1); then
+              echo "cache endpoint answered HTTP $code"
+              exit 0
+            fi
+            echo "attempt $i: $code"
+            sleep 3
+          done
+          echo "::warning::turbo cache endpoint unreachable over the tailnet; this run is uncached"
+
+      # One turbo invocation builds the three apps and, via ^build, every
+      # @bc-solutions-coder/* package they depend on — replacing the raw
+      # `pnpm --filter` builds that bypassed the cache. A remote-cache hit is
+      # sound for the drift check: each app's turbo.jsonc declares
+      # routeTree.gen.ts as an OUTPUT and excludes it from inputs, so the task
+      # hash covers exactly the route sources, and a restored tree is
+      # byte-identical to a regenerated one.
+      - name: Regenerate route trees
+        run: >
+          pnpm exec turbo run build
+          --filter @bc-solutions-coder/wallow-auth
+          --filter @bc-solutions-coder/wallow-web
+          --filter @bc-solutions-coder/example-minimal-app
 
       - name: Fail on route-tree drift
         run: |
