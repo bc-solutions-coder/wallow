@@ -106,3 +106,46 @@ Instead, take the wins the research actually surfaced:
   job exactly as today.
 
 Implementation plan: `docs/plans/2026-08-28/1527-ci-caching-plan.md`.
+
+## Measurement (Task 2 result)
+
+**Verdict: PLACEBO.** The `build-v3` cache short-circuits **no** compilation — a warm
+build recompiles all 58 projects, exactly as research finding #3 predicted — and
+`git-restore-mtime` fixes it completely (0 recompiled, 58 skipped). **Task 4 proceeds.**
+
+Measured locally on 2026-08-28 (8-core linux, .NET SDK 10.0.302, warm NuGet cache), by
+the plan's three-scenario simulation: fresh clone per scenario, `dotnet restore` then
+`dotnet build api/Wallow.slnx --no-restore -c Release --graph -v:normal`, with the cold
+scenario's `**/bin/Release` + `**/obj` tarred (mtimes preserved) as the stand-in for
+`actions/cache`.
+
+| scenario | CoreCompile executed | skipped | wall |
+|----------|---------------------|---------|------|
+| cold  | 58 | 0  | 23s |
+| warm  | 58 | 0  | 20s |
+| mtime | 0  | 58 | 7s  |
+
+Counters: *executed* = `Compilation request ` lines (one per real csc invocation);
+*skipped* = `Skipping target "CoreCompile"` lines. The plan's `^CoreCompile:` grep does
+**not** work — at `-v:normal` the console logger indents target headers and prefixes
+them with a node id (`    3>CoreCompile:`), and re-emits the header when a project's
+output resumes on another node, so the header count (118–131 on a cold build of 58
+projects) counts neither executions nor projects. A control run — rebuilding an
+already-built tree in place, nothing changed — reported executed=0, skipped=58, 3.6s,
+which is what validates both counters.
+
+**One trap worth recording: the workspace path must be identical across scenarios.**
+The plan's script clones each scenario into its own directory (`$WORK/cold`,
+`$WORK/warm`, `$WORK/mtime`). Run that way, `mtime` *also* recompiled all 58 projects —
+which would have (wrongly) closed Task 4 as a no-op. Cause is design finding #2:
+`obj/` is not path-portable, so restoring cold's `obj/` under a different directory
+makes `dotnet restore` rewrite `project.assets.json` / `*.nuget.g.props` with fresh
+mtimes, and those are compile inputs — every project is then out of date no matter what
+the source mtimes say. A GitHub runner always checks out to the same absolute path, so
+the numbers above come from the corrected variant where every scenario builds at one
+fixed path; there `restore` no-ops and the restored outputs stay newer than their
+inputs. Anyone re-running this measurement must keep the path fixed.
+
+Sizes for context: the tarred cache is ~2.1 GB. Wall times are from a fast local
+machine with a warm NuGet cache and are useful only as ratios — the shape (`warm` ≈
+`cold`, `mtime` ≈ ⅓) is the result, not the absolute seconds.
