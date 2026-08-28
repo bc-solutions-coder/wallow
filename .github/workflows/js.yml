@@ -99,15 +99,28 @@ jobs:
           tags: tag:ci
 
       # New-node info takes a moment to propagate across the tailnet, and the
-      # cache host accepts connections only after it has it — so wait until the
-      # host answers before the first turbo invocation. Non-fatal: a dead cache
-      # host must degrade to an uncached run, never a red one.
+      # cache host accepts connections only after it has it — so probe the
+      # actual cache endpoint (any HTTP status proves TCP works; without a
+      # bearer it is normally 401) before the first turbo invocation, and log
+      # what went wrong when it does not answer. tailscale ping alone is not a
+      # readiness check: it is a WireGuard-level ping that says nothing about
+      # the port, and its default --until-direct exits nonzero on a relayed
+      # path. Non-fatal: a dead cache host must degrade to an uncached run,
+      # never a red one.
       - name: Wait for the cache host over the tailnet
         if: env.TAILNET_ENABLED == 'true'
         run: |
           host=$(printf '%s' "$TURBO_API" | sed -E 's#^[a-z]+://##; s#[:/].*$##')
-          tailscale ping --timeout 5s -c 12 "$host" \
-            || echo "::warning::turbo cache host unreachable over the tailnet; this run is uncached"
+          tailscale ping --until-direct=false --timeout 2s -c 10 "$host" > /dev/null 2>&1 || true
+          for i in $(seq 1 10); do
+            if code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 "$TURBO_API/v8/artifacts/status" 2>&1); then
+              echo "cache endpoint answered HTTP $code"
+              exit 0
+            fi
+            echo "attempt $i: $code"
+            sleep 3
+          done
+          echo "::warning::turbo cache endpoint unreachable over the tailnet; this run is uncached"
 
       # Turbo's cache directory, keyed per branch. Weaker than a cache shared
       # across machines — a first run on a new branch restores from the
