@@ -16,8 +16,8 @@ import {
  *
  * `.tsx` because these need a real document: `globalThis.location` is
  * `[Unforgeable]`, so the only honest way to raise the guard's own event is to
- * navigate for real and let the guard veto it. The guard is installed here rather
- * than in a setup file because this package wires none.
+ * navigate for real and let the guard veto it. The project setup file installs
+ * the guard; the install below is the idempotent no-op path, exercised on purpose.
  */
 installNavigationEscapeGuard();
 

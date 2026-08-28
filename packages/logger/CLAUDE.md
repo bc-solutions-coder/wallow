@@ -134,6 +134,13 @@ anything. The route module builds the handler once at module scope and the route
   the behaviours that cannot be asserted on node, and they are exactly where "logs vanish when
   the tab closes" hides.
 
+The browser project's `vitest.setup.ts` installs the three escape guards (console, navigation,
+network) from `@bc-solutions-coder/testing`'s subpath entries. That devDependency buys only the
+guards — the subpaths import nothing but `vitest`, so the project pair stays hand-rolled and the
+package stays React-free. The browser spec's `vi.stubGlobal("fetch", …)` doubles sit over the
+network guard's wrapper and `vi.unstubAllGlobals()` restores it, so a stubbed transport never
+reads as an escape.
+
 Outside a browser `createLogger` registers no listeners and starts no timer — which is what
 makes the buffer assertable without a DOM.
 

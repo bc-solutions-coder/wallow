@@ -35,6 +35,7 @@ import { createVitestProjects } from "./src/vitest-projects";
  * line per run; the pre-bundling it names is done by the facade entry above.
  */
 const { node, browser } = createVitestProjects({
+  browserSetupFiles: ["./vitest.setup.ts"],
   extraBrowserOptimizeDeps: [
     "@bc-solutions-coder/query",
     "@bc-solutions-coder/sdk",

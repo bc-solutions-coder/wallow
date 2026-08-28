@@ -1,10 +1,11 @@
 # packages/testing — @bc-solutions-coder/testing Agent Guide
 
-The shared **Vitest preset** and browser-mode test utilities. Six workspace members depend on it —
-all three apps (`wallow-web`, `wallow-auth`, `minimal-app`) plus `packages/ui`, `packages/forms`
-and `packages/navigation` — and each gets its two-project node/browser split from here rather than
-hand-rolling one. (`packages/logger` is deliberately not among them: it declares no dependency
-here and spells its own project pair out, with a comment saying why.)
+The shared **Vitest preset** and browser-mode test utilities. Seven workspace members depend on it —
+all three apps (`wallow-web`, `wallow-auth`, `minimal-app`) plus `packages/ui`, `packages/forms`,
+`packages/navigation` and `packages/logger` — and all but logger get their two-project node/browser
+split from here rather than hand-rolling one. (`packages/logger` deliberately spells its own project
+pair out, with a comment saying why; its devDependency here buys only the escape guards, which
+import nothing but `vitest`.)
 
 ## Subpath-per-entry — the split is load-bearing
 
@@ -159,16 +160,19 @@ Each of these cost a debugging session and is invisible from the code:
   installs it in its browser SETUP file (`installNavigationEscapeGuard()` plus
   `afterEach(assertNoNavigationEscape)`), never per spec — the file that leaks is not the file the
   runner blames, so an opt-in guard cannot catch the file that forgot. **The guard is opt-in at the
-  project level and the census is not clean**: nine browser projects exist across eight packages
-  (`packages/ui` declares two), and five install it via
-  `browserSetupFiles` — `packages/navigation`, `packages/forms`, `packages/ui`, `apps/wallow-web`
-  and `apps/wallow-auth`. `packages/ui`'s separate `storybook` project takes it through
-  `.storybook/preview.tsx`'s `beforeEach`/`afterEach` exports instead, because `storybookTest()`
-  builds that project itself and never reads `browserSetupFiles`. **Three are unwired today** —
-  `apps/minimal-app`, `packages/logger` and `packages/testing` itself — because
-  `createVitestProjects()`'s `browserSetupFiles` defaults to `[]` (`src/vitest-projects.ts`), so a
-  project that passes no setup file gets a browser project with no guard rather than no browser
-  project at all. Wiring the three is filed as `Wallow-nggf`, not done. **A spec asserting a DELIBERATE
+  project level**: nine browser projects exist across eight packages (`packages/ui` declares two),
+  and every one installs it — seven via a setup file (`packages/navigation`, `packages/forms`,
+  `packages/ui`, `apps/wallow-web`, `apps/wallow-auth`, `apps/minimal-app` through
+  `browserSetupFiles`; `packages/logger` through its hand-rolled project's own `setupFiles`), this
+  package itself via `vitest.setup.ts` importing the guards from `./src`, and `packages/ui`'s
+  separate `storybook` project through `.storybook/preview.tsx`'s `beforeEach`/`afterEach` exports,
+  because `storybookTest()` builds that project itself and never reads `browserSetupFiles`.
+  `createVitestProjects()`'s `browserSetupFiles` still defaults to `[]` (`src/vitest-projects.ts`),
+  so a NEW browser project gets no guard until its config passes a setup file — wire one on day
+  one. The guard trio is not uniform either: `apps/minimal-app`, `packages/logger` and this
+  package's setup files install all three guards (navigation, console, network); the five older
+  setup files and the storybook preview install navigation + console only, and extending the
+  network guard to them is filed, not done. **A spec asserting a DELIBERATE
   hand-off consumes the guard's record rather than registering a listener beside it** — the same
   entry exports `expectNavigationEscape()` (awaits exactly one escape, returns it, and clears only
   what it read) and `consumeNavigationEscapes()` (drains and returns all of them). That keeps

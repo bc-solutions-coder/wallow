@@ -37,6 +37,9 @@ export default defineConfig({
           name: "browser",
           include: ["src/**/*.test.tsx"],
           exclude: [...configDefaults.exclude],
+          // The escape guards the preset's consumers wire through
+          // `browserSetupFiles` — installed here by hand for the same project.
+          setupFiles: ["./vitest.setup.ts"],
           browser: {
             enabled: true,
             // Vitest 4 factory provider, NOT the v3 `"playwright"` string (throws).

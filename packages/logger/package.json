@@ -37,6 +37,7 @@
   },
   "devDependencies": {
     "@bc-solutions-coder/config": "workspace:*",
+    "@bc-solutions-coder/testing": "workspace:*",
     "@types/node": "^24.0.0",
     "@vitest/browser-playwright": "^4.1.10",
     "playwright": "^1.61.1",

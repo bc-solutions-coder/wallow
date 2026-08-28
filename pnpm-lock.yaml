@@ -498,6 +498,9 @@ importers:
       '@bc-solutions-coder/config':
         specifier: workspace:*
         version: link:../config
+      '@bc-solutions-coder/testing':
+        specifier: workspace:*
+        version: link:../testing
       '@types/node':
         specifier: ^24.0.0
         version: 24.13.3
