@@ -1,0 +1,7 @@
+{
+  "name": "fixture-wildcard",
+  "exports": {
+    "./other": { "types": "./src/other.ts", "import": "./src/other.ts" },
+    "./*": "./src/*"
+  }
+}

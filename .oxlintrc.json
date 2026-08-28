@@ -19,6 +19,10 @@
     // Self-gates on *.test.* filenames; the doctrine-blessed exemptions are one
     // override block near the end of this file.
     "wallow/no-source-tests": "error",
+    // Repo-wide: a library's lib entries, exports, publishConfig.exports and
+    // tsconfig.build.json include must name one module set. Self-gates on
+    // vite.config.ts + defineLibraryConfig, so it is inert everywhere else.
+    "wallow/module-lists-in-sync": "error",
     "react/react-in-jsx-scope": "off",
     "no-ternary": "off",
     "capitalized-comments": "off",

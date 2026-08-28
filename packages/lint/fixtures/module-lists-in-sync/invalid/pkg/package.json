@@ -1,0 +1,14 @@
+{
+  "name": "fixture-out-of-sync",
+  "exports": {
+    "./alpha": { "types": "./src/alpha.ts", "import": "./src/alpha.ts" },
+    "./beta": { "types": "./src/beta.ts", "import": "./src/beta.ts" },
+    "./omega": { "types": "./src/omega.ts", "import": "./src/omega.ts" }
+  },
+  "publishConfig": {
+    "exports": {
+      "./alpha": { "types": "./dist/alpha.d.ts", "import": "./dist/alpha.js" },
+      "./gamma": { "types": "./dist/gamma.d.ts", "import": "./dist/gamma.js" }
+    }
+  }
+}

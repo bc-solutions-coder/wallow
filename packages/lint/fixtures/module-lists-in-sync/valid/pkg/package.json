@@ -1,0 +1,17 @@
+{
+  "name": "fixture-in-sync",
+  "exports": {
+    ".": { "types": "./src/index.ts", "import": "./src/index.ts" },
+    "./server": { "types": "./src/server/index.ts", "import": "./src/server/index.ts" },
+    "./extra": { "types": "./src/extra.ts", "import": "./src/extra.ts" },
+    "./styles.css": "./styles.css"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
+      "./server": { "types": "./dist/server/index.d.ts", "import": "./dist/server/index.js" },
+      "./extra": { "types": "./dist/extra.d.ts", "import": "./dist/extra.js" },
+      "./styles.css": "./styles.css"
+    }
+  }
+}

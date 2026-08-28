@@ -1,5 +1,6 @@
 import { definePlugin, eslintCompatPlugin } from "@oxlint/plugins";
 
+import { moduleListsInSync } from "./rules/module-lists-in-sync.ts";
 import { noHandRolledMutation } from "./rules/no-hand-rolled-mutation.ts";
 import { noSidebarInversion } from "./rules/no-sidebar-inversion.ts";
 import { noSourceTests } from "./rules/no-source-tests.ts";
@@ -24,6 +25,7 @@ export default eslintCompatPlugin(
   definePlugin({
     meta: { name: "wallow" },
     rules: {
+      "module-lists-in-sync": moduleListsInSync,
       "no-hand-rolled-mutation": noHandRolledMutation,
       "no-sidebar-inversion": noSidebarInversion,
       "no-source-tests": noSourceTests,

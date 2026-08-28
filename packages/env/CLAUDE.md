@@ -119,9 +119,8 @@ specs and build configs, which read the manifest off disk and reach
 
 Adding a module is a new subpath: `src/<name>.ts` plus an `exports` entry, a
 `publishConfig.exports` entry, a `vite.config.ts` lib entry and a `tsconfig.build.json`
-include. All four, every time — the charter spec that used to diff them against `src/*.ts` went
-with the rest of the source-reading guards (`Wallow-xg9t.1`), so nothing reminds you now, and a
-missing lib entry only surfaces at `pnpm check:exports`.
+include. All four, every time — `wallow/module-lists-in-sync` diffs them at lint time and
+`pnpm lint` names the list a module is missing from.
 
 Scripts: `pnpm --filter @bc-solutions-coder/env build` (Vite lib mode + `tsc -p
 tsconfig.build.json`), `test`, `test:watch`, `typecheck`.

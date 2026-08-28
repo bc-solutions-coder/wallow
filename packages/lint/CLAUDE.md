@@ -36,12 +36,16 @@ nested config needs **no** `jsPlugins` entry and **no** `@bc-solutions-coder/lin
 only the root `package.json` names it, because a `jsPlugins` specifier resolves from the
 REGISTERING config's own directory.
 
-**The root registers AND enables exactly one rule repo-wide: `wallow/no-source-tests`** (it is
-option-free and self-gates on `*.test.*` filenames, so one repo-wide `"error"` is correct; its
-doctrine-blessed exemptions are a single override block in the root config, each file with its
-reason). The other five `wallow/*` rules stay **enabled per-tree by the nested configs**, because
-their options genuinely differ between trees (`text-heading-variant`) or are inert without
-per-app inputs (`zone-dag`), and an oxlint override REPLACES options rather than merging.
+**The root registers the plugin and enables two rules repo-wide: `wallow/no-source-tests` and
+`wallow/module-lists-in-sync`.** Both are option-free and self-gate — the first on `*.test.*`
+filenames, the second on a `vite.config.ts` filename plus a `defineLibraryConfig` call — so one
+repo-wide `"error"` each is correct; `no-source-tests`' doctrine-blessed exemptions are a single
+override block in the root config, each file with its reason, while `module-lists-in-sync` needs
+no exemptions because a list it cannot enumerate (packages/ui's spread entries, a `*` exports
+key) is skipped by the rule itself, not by config. The other five `wallow/*` rules stay
+**enabled per-tree by the nested configs**, because their options genuinely differ between trees
+(`text-heading-variant`) or are inert without per-app inputs (`zone-dag`), and an oxlint
+override REPLACES options rather than merging.
 
 ### Why root registration is possible (it used to be off-limits)
 
@@ -121,6 +125,10 @@ shorten it.
 | `packages/navigation` | all six                                             |
 | `packages/ui`         | all six, minus the drawer indent recipe (see below) |
 | `packages/forms`      | all six, minus `use-app-form.ts` (see below)        |
+
+"All six" in the table means the six rules that predate `module-lists-in-sync` — that rule is
+enabled at the root only and appears in **no** nested config: its self-gate makes it inert
+outside a library's `vite.config.ts`, so a nested entry would restate nothing.
 
 **`no-source-tests` is enabled at the ROOT for the whole repo** and exempted only by the root's
 doctrine block. The six nested enablements are redundant restatements of it, kept because each

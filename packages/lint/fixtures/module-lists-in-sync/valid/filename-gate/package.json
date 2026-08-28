@@ -1,0 +1,6 @@
+{
+  "name": "fixture-filename-gate",
+  "exports": {
+    "./mismatch": { "types": "./src/mismatch.ts", "import": "./src/mismatch.ts" }
+  }
+}

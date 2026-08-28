@@ -38,8 +38,9 @@ rather than a spec:
 4. **Every module on disk is reachable, and nothing else is.** The `exports` map,
    `publishConfig.exports`, `vite.config.ts`'s lib entries and `tsconfig.build.json`'s `include`
    all have to agree — a subpath with no lib entry resolves, at publish time, to a file that was
-   never written. `pnpm check:exports` (publint + `@arethetypeswrong/cli` over the packed
-   tarball) is what catches that now, against the real artifact rather than four config files.
+   never written. `wallow/module-lists-in-sync` diffs the four lists at lint time, and
+   `pnpm check:exports` (publint + `@arethetypeswrong/cli` over the packed tarball) checks the
+   real artifact behind them.
 
 ## Two tsconfigs, on purpose
 
@@ -56,8 +57,7 @@ nothing.
   API that still has to be maintained.
 - A new module is a new subpath: add `src/<name>.ts`, an `exports` and `publishConfig.exports`
   entry, a `vite.config.ts` lib entry and a `tsconfig.build.json` include. All four, every time
-  — nothing in the test suite reminds you any more, and a missing lib entry only surfaces at
-  `pnpm check:exports`.
+  — `wallow/module-lists-in-sync` fails `pnpm lint` naming the list a module is missing from.
 - Keep every function **total** — answer `undefined` rather than throwing. The callers are
   reached by junk links and malformed payloads, where the required behaviour is a usable
   screen.

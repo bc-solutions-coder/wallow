@@ -1,0 +1,5 @@
+{
+  // A line comment — legal in tsconfig JSONC, and the rule must strip it before parsing.
+  "extends": "./tsconfig.json",
+  "include": ["src/index.ts", "src/server/index.ts", "src/extra.ts"]
+}

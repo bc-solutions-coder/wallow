@@ -1,0 +1,5 @@
+{
+  // src/delta.ts has no lib entry — the include-side miss the fixture exists for.
+  "extends": "./tsconfig.json",
+  "include": ["src/alpha.ts", "src/beta.ts", "src/gamma.ts", "src/delta.ts"]
+}
