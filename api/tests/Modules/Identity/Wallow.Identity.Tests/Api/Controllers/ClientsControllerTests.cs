@@ -417,6 +417,166 @@ public class ClientsControllerTests
 
     #endregion
 
+    #region Front-Channel Logout URI
+
+    [Fact]
+    public async Task Create_WithFrontchannelLogoutUri_SetsItOnTheDescriptorAndEchoesIt()
+    {
+        List<OpenIddictApplicationDescriptor> captured = StubCreate();
+
+        CreateClientRequest request = new(
+            "My App",
+            ["https://example.com/callback"],
+            ["https://example.com/logout"],
+            FrontchannelLogoutUri: "https://example.com/bff/frontchannel-logout");
+
+        ActionResult<ClientResponse> result = await _controller.Create(request, CancellationToken.None);
+
+        CreatedAtActionResult created = result.Result.Should().BeOfType<CreatedAtActionResult>().Subject;
+        ClientResponse client = created.Value.Should().BeOfType<ClientResponse>().Subject;
+        client.FrontchannelLogoutUri.Should().Be("https://example.com/bff/frontchannel-logout");
+
+        captured.Should().ContainSingle();
+        captured[0].GetFrontchannelLogoutUri()!.AbsoluteUri
+            .Should().Be("https://example.com/bff/frontchannel-logout");
+    }
+
+    [Fact]
+    public async Task Create_WithoutFrontchannelLogoutUri_LeavesTheDescriptorWithoutOne()
+    {
+        List<OpenIddictApplicationDescriptor> captured = StubCreate();
+
+        CreateClientRequest request = new(
+            "My App",
+            ["https://example.com/callback"],
+            ["https://example.com/logout"]);
+
+        ActionResult<ClientResponse> result = await _controller.Create(request, CancellationToken.None);
+
+        CreatedAtActionResult created = result.Result.Should().BeOfType<CreatedAtActionResult>().Subject;
+        ClientResponse client = created.Value.Should().BeOfType<ClientResponse>().Subject;
+        client.FrontchannelLogoutUri.Should().BeNull();
+
+        captured.Should().ContainSingle();
+        captured[0].GetFrontchannelLogoutUri().Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("/bff/frontchannel-logout")]
+    [InlineData("not a uri")]
+    [InlineData("javascript:alert(1)")]
+    public async Task Create_WithAFrontchannelLogoutUriThatIsNotAbsoluteHttp_ReturnsValidationProblem(string uri)
+    {
+        // The OP loads this URI in an iframe on its own logout page, so anything that is not an
+        // absolute http(s) location is either unloadable or a script-injection vector.
+        CreateClientRequest request = new(
+            "My App",
+            ["https://example.com/callback"],
+            ["https://example.com/logout"],
+            FrontchannelLogoutUri: uri);
+
+        ActionResult<ClientResponse> result = await _controller.Create(request, CancellationToken.None);
+
+        result.Result.Should().BeOfType<ObjectResult>()
+            .Which.Value.Should().BeOfType<ValidationProblemDetails>();
+        await _applicationManager.DidNotReceive()
+            .CreateAsync(Arg.Any<OpenIddictApplicationDescriptor>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Update_WithFrontchannelLogoutUri_SetsItOnTheDescriptor()
+    {
+        object app = new object();
+        OpenIddictApplicationDescriptor? captured = null;
+        _applicationManager.FindByIdAsync("id-1", Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult<object?>(app));
+        _applicationManager.PopulateAsync(Arg.Any<OpenIddictApplicationDescriptor>(), app, Arg.Any<CancellationToken>())
+            .Returns(ValueTask.CompletedTask);
+        _applicationManager.UpdateAsync(app, Arg.Any<OpenIddictApplicationDescriptor>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                captured = callInfo.ArgAt<OpenIddictApplicationDescriptor>(1);
+                return ValueTask.CompletedTask;
+            });
+        _applicationManager.GetClientIdAsync(app, Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult<string?>("client-1"));
+
+        UpdateClientRequest request = new(
+            "Updated Name",
+            ["https://new.example.com/callback"],
+            ["https://new.example.com/logout"],
+            FrontchannelLogoutUri: "https://new.example.com/bff/frontchannel-logout");
+
+        ActionResult<ClientResponse> result = await _controller.Update("id-1", request, CancellationToken.None);
+
+        OkObjectResult ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        ClientResponse client = ok.Value.Should().BeOfType<ClientResponse>().Subject;
+        client.FrontchannelLogoutUri.Should().Be("https://new.example.com/bff/frontchannel-logout");
+
+        captured.Should().NotBeNull();
+        captured!.GetFrontchannelLogoutUri()!.AbsoluteUri
+            .Should().Be("https://new.example.com/bff/frontchannel-logout");
+    }
+
+    [Fact]
+    public async Task Update_WithoutFrontchannelLogoutUri_ClearsAnExistingOne()
+    {
+        // Update is a full replace of the client's registration, matching how the redirect URI
+        // lists behave: omitting the field un-registers the RP from logout notifications.
+        object app = new object();
+        OpenIddictApplicationDescriptor? captured = null;
+        _applicationManager.FindByIdAsync("id-1", Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult<object?>(app));
+        _applicationManager.PopulateAsync(Arg.Any<OpenIddictApplicationDescriptor>(), app, Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                OpenIddictApplicationDescriptor descriptor = callInfo.ArgAt<OpenIddictApplicationDescriptor>(0);
+                descriptor.SetFrontchannelLogoutUri(new Uri("https://old.example.com/bff/frontchannel-logout"));
+                return ValueTask.CompletedTask;
+            });
+        _applicationManager.UpdateAsync(app, Arg.Any<OpenIddictApplicationDescriptor>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                captured = callInfo.ArgAt<OpenIddictApplicationDescriptor>(1);
+                return ValueTask.CompletedTask;
+            });
+        _applicationManager.GetClientIdAsync(app, Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult<string?>("client-1"));
+
+        UpdateClientRequest request = new("Updated Name", [], []);
+
+        await _controller.Update("id-1", request, CancellationToken.None);
+
+        captured.Should().NotBeNull();
+        captured!.GetFrontchannelLogoutUri().Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetById_ReportsTheFrontchannelLogoutUri()
+    {
+        object app = new object();
+        _applicationManager.FindByIdAsync("id-1", Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult<object?>(app));
+        _applicationManager.GetClientIdAsync(app, Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult<string?>("client-1"));
+        _applicationManager.PopulateAsync(Arg.Any<OpenIddictApplicationDescriptor>(), app, Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                OpenIddictApplicationDescriptor descriptor = callInfo.ArgAt<OpenIddictApplicationDescriptor>(0);
+                descriptor.DisplayName = "App One";
+                descriptor.SetFrontchannelLogoutUri(new Uri("https://example.com/bff/frontchannel-logout"));
+                return ValueTask.CompletedTask;
+            });
+
+        ActionResult<ClientResponse> result = await _controller.GetById("id-1", CancellationToken.None);
+
+        OkObjectResult ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        ClientResponse client = ok.Value.Should().BeOfType<ClientResponse>().Subject;
+        client.FrontchannelLogoutUri.Should().Be("https://example.com/bff/frontchannel-logout");
+    }
+
+    #endregion
+
     #region Delete
 
     [Fact]

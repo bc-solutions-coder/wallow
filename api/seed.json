@@ -197,6 +197,7 @@
       "secret": "wallow-web-secret",
       "redirectUris": ["http://localhost:3000/bff/callback"],
       "postLogoutRedirectUris": ["http://localhost:3000/"],
+      "frontchannelLogoutUri": "http://localhost:3000/bff/frontchannel-logout",
       "scopes": [
         "openid",
         "email",
@@ -225,6 +226,7 @@
       "secret": "bcordes-bff-secret",
       "redirectUris": ["http://localhost:3003/bff/callback"],
       "postLogoutRedirectUris": ["http://localhost:3003/"],
+      "frontchannelLogoutUri": "http://localhost:3003/bff/frontchannel-logout",
       "scopes": [
         "openid",
         "email",
@@ -248,6 +250,7 @@
       "secret": "replace-with-a-strong-generated-secret",
       "redirectUris": ["https://bcordes.dev/bff/callback"],
       "postLogoutRedirectUris": ["https://bcordes.dev/"],
+      "frontchannelLogoutUri": "https://bcordes.dev/bff/frontchannel-logout",
       "scopes": [
         "openid",
         "email",

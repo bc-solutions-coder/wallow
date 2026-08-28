@@ -7248,6 +7248,12 @@
             "items": {
               "type": "string"
             }
+          },
+          "frontchannelLogoutUri": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -7563,9 +7569,15 @@
             "items": {
               "type": "string"
             }
+          },
+          "frontchannelLogoutUri": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
-        "description": "Scopes is what the client may ever request at the authorize endpoint. Omitting it grants the\nOIDC sign-in baseline; API scopes are opt-in."
+        "description": "Scopes is what the client may ever request at the authorize endpoint. Omitting it grants the\nOIDC sign-in baseline; API scopes are opt-in. FrontchannelLogoutUri is the absolute http(s)\naddress the logout page notifies (in a hidden iframe, with iss + sid) when the SSO session\nends; omitting it opts the client out of logout notifications."
       },
       "CreateInvitationRequest": {
         "required": [
@@ -9335,8 +9347,15 @@
             "items": {
               "type": "string"
             }
+          },
+          "frontchannelLogoutUri": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
-        }
+        },
+        "description": "A full replacement of the client's mutable registration — omitting FrontchannelLogoutUri\nun-registers the client from front-channel logout notifications, matching how the URI lists\nreplace rather than merge."
       },
       "UpdateInquiryStatusRequest": {
         "required": [

@@ -151,6 +151,7 @@ export function createWallowBffServer(options: WallowBffServerOptions = {}): Wal
     "/callback": handlers.callback,
     "/user": handlers.user,
     "/logout": handlers.logout,
+    "/frontchannel-logout": handlers.frontchannelLogout,
   };
 
   return {

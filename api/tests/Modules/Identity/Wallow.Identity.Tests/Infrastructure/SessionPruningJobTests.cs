@@ -115,4 +115,37 @@ public sealed class SessionPruningJobTests : IDisposable
 
         deleted.Should().Be(0);
     }
+
+    [Fact]
+    public async Task ExecuteAsync_DeletesSsoParticipationRowsOlderThanThirtyDays()
+    {
+        // Participation rows are normally deleted at logout; the sweep is the backstop for
+        // sessions abandoned without one (cookie simply expired).
+        SsoSessionClient stale = SsoSessionClient.Create("sid-old", "web", Guid.NewGuid(), _timeProvider);
+        _timeProvider.Advance(TimeSpan.FromDays(31));
+        SsoSessionClient fresh = SsoSessionClient.Create("sid-new", "web", Guid.NewGuid(), _timeProvider);
+
+        _dbContext.SsoSessionClients.AddRange(stale, fresh);
+        await _dbContext.SaveChangesAsync();
+
+        SessionPruningJob job = new(_dbContext, _timeProvider, NullLogger<SessionPruningJob>.Instance);
+        await job.ExecuteAsync();
+
+        List<SsoSessionClient> remaining = await _dbContext.SsoSessionClients.ToListAsync();
+        remaining.Should().HaveCount(1);
+        remaining[0].Sid.Should().Be("sid-new");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_KeepsRecentSsoParticipationRows()
+    {
+        SsoSessionClient fresh = SsoSessionClient.Create("sid-new", "web", Guid.NewGuid(), _timeProvider);
+        _dbContext.SsoSessionClients.Add(fresh);
+        await _dbContext.SaveChangesAsync();
+
+        SessionPruningJob job = new(_dbContext, _timeProvider, NullLogger<SessionPruningJob>.Instance);
+        await job.ExecuteAsync();
+
+        (await _dbContext.SsoSessionClients.CountAsync()).Should().Be(1);
+    }
 }

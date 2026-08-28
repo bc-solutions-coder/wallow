@@ -333,6 +333,26 @@ describe("createWallowBffServer — BFF dispatch", () => {
     expect(res.status).toBe(204);
   });
 
+  /**
+   * The front-channel logout notification is a cross-site GET the OP's logout
+   * page fires from a hidden iframe — it must be dispatched to its handler
+   * (which answers 200 unconditionally), not swallowed as a router 404.
+   */
+  it("routes /bff/frontchannel-logout to the frontchannel handler, which answers 200", async () => {
+    const server: WallowBffServer = createWallowBffServer({
+      config: makeConfig("https://issuer-frontchannel.test"),
+    });
+
+    const res: Response = await server.handleBff(
+      new Request(
+        `http://app.example.com${WALLOW_BFF_MOUNT}/frontchannel-logout?iss=https%3A%2F%2Fissuer-frontchannel.test&sid=sid-1`,
+      ),
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+  });
+
   it("routes /bff/callback to the callback handler, which rejects a request with no state", async () => {
     const server: WallowBffServer = createWallowBffServer({
       config: makeConfig("https://issuer-callback.test"),

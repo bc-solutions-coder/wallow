@@ -1,10 +1,12 @@
 using System.Collections.Immutable;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Primitives;
 using OpenIddict.Abstractions;
 using OpenIddict.Server;
@@ -14,6 +16,7 @@ using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Shared.Contracts.Identity;
+using Wallow.Shared.Kernel.Extensions;
 
 #pragma warning disable CA2012 // Use ValueTasks correctly - NSubstitute requires ValueTask in Returns()
 
@@ -35,6 +38,8 @@ public sealed class AuthorizationControllerTests : IDisposable
     private readonly IClientTenantResolver _clientTenantResolver;
     private readonly IUserEnrollmentService _enrollment;
     private readonly IMembershipRoleResolver _membershipRoleResolver;
+    private readonly ISsoClientSessionService _ssoClientSessionService;
+    private readonly IAuthenticationService _authenticationService;
     private readonly AuthorizationController _controller;
 
     public AuthorizationControllerTests()
@@ -51,6 +56,8 @@ public sealed class AuthorizationControllerTests : IDisposable
         _clientTenantResolver = Substitute.For<IClientTenantResolver>();
         _enrollment = Substitute.For<IUserEnrollmentService>();
         _membershipRoleResolver = Substitute.For<IMembershipRoleResolver>();
+        _ssoClientSessionService = Substitute.For<ISsoClientSessionService>();
+        _authenticationService = Substitute.For<IAuthenticationService>();
 
         // These tests are about consent, not scope gating: let every requested scope through.
         _scopeSubsetValidator = Substitute.For<IScopeSubsetValidator>();
@@ -67,6 +74,7 @@ public sealed class AuthorizationControllerTests : IDisposable
             _clientTenantResolver,
             _enrollment,
             _membershipRoleResolver,
+            _ssoClientSessionService,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<AuthorizationController>.Instance);
     }
 
@@ -76,12 +84,16 @@ public sealed class AuthorizationControllerTests : IDisposable
         _userManager.Dispose();
     }
 
-    private void SetupAuthenticatedHttpContext(OpenIddictRequest request, string? queryString = null)
+    private void SetupAuthenticatedHttpContext(
+        OpenIddictRequest request, string? queryString = null, string? existingSid = null)
     {
-        ClaimsPrincipal user = new(new ClaimsIdentity(
-        [
-            new Claim(ClaimTypes.NameIdentifier, _testUserId)
-        ], "test"));
+        List<Claim> claims = [new Claim(ClaimTypes.NameIdentifier, _testUserId)];
+        if (existingSid is not null)
+        {
+            claims.Add(new Claim(ClaimsPrincipalExtensions.SessionIdClaimType, existingSid));
+        }
+
+        ClaimsPrincipal user = new(new ClaimsIdentity(claims, "test"));
 
         DefaultHttpContext httpContext = new() { User = user };
 
@@ -91,6 +103,16 @@ public sealed class AuthorizationControllerTests : IDisposable
 
         httpContext.Request.Path = "/connect/authorize";
         httpContext.Request.QueryString = new QueryString(queryString ?? "?client_id=" + (request.ClientId ?? ThirdPartyClientId));
+
+        // Sid minting re-issues the identity cookie through IAuthenticationService, which the
+        // HttpContext.AuthenticateAsync/SignInAsync extensions resolve from RequestServices.
+        _authenticationService
+            .AuthenticateAsync(Arg.Any<HttpContext>(), IdentityConstants.ApplicationScheme)
+            .Returns(AuthenticateResult.Success(
+                new AuthenticationTicket(user, new AuthenticationProperties(), IdentityConstants.ApplicationScheme)));
+        httpContext.RequestServices = new ServiceCollection()
+            .AddSingleton(_authenticationService)
+            .BuildServiceProvider();
 
         _controller.ControllerContext = new ControllerContext
         {
@@ -366,6 +388,112 @@ public sealed class AuthorizationControllerTests : IDisposable
         query["client_id"].ToString().Should().Be(ThirdPartyClientId);
         query["returnUrl"].ToString().Should().Be(
             "/connect/authorize?client_id=" + ThirdPartyClientId + "&scope=openid%20profile");
+    }
+
+    #endregion
+
+    #region Front-Channel Logout Session Id
+
+    [Fact]
+    public async Task Authorize_CookieWithoutSid_MintsSidAndReissuesCookie()
+    {
+        // Arrange - a session signed in before front-channel logout existed carries no sid,
+        // so authorize has to mint one and write it back onto the identity cookie.
+        OpenIddictRequest request = new() { ClientId = FirstPartyClientId, Scope = "openid" };
+
+        SetupAuthenticatedHttpContext(request);
+        SetupUser();
+        SetupApplication(FirstPartyClientId);
+        SetupClientTenantResolver(FirstPartyClientId);
+
+        // Act
+        IActionResult result = await _controller.Authorize();
+
+        // Assert
+        Microsoft.AspNetCore.Mvc.SignInResult signIn =
+            result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>().Subject;
+        string? sid = signIn.Principal.GetSessionId();
+        sid.Should().NotBeNullOrEmpty();
+
+        await _authenticationService.Received(1).SignInAsync(
+            Arg.Any<HttpContext>(),
+            IdentityConstants.ApplicationScheme,
+            Arg.Is<ClaimsPrincipal>(p => p.GetSessionId() == sid),
+            Arg.Any<AuthenticationProperties>());
+    }
+
+    [Fact]
+    public async Task Authorize_CookieWithSid_ReusesItWithoutReissuingCookie()
+    {
+        // Arrange - the sid identifies the SSO session for its whole lifetime; a second
+        // authorize (another RP joining the session) must reuse it, not rotate it.
+        OpenIddictRequest request = new() { ClientId = FirstPartyClientId, Scope = "openid" };
+
+        SetupAuthenticatedHttpContext(request, existingSid: "sid-already-minted");
+        SetupUser();
+        SetupApplication(FirstPartyClientId);
+        SetupClientTenantResolver(FirstPartyClientId);
+
+        // Act
+        IActionResult result = await _controller.Authorize();
+
+        // Assert
+        Microsoft.AspNetCore.Mvc.SignInResult signIn =
+            result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>().Subject;
+        signIn.Principal.GetSessionId().Should().Be("sid-already-minted");
+
+        await _authenticationService.DidNotReceive().SignInAsync(
+            Arg.Any<HttpContext>(),
+            Arg.Any<string?>(),
+            Arg.Any<ClaimsPrincipal>(),
+            Arg.Any<AuthenticationProperties>());
+    }
+
+    [Fact]
+    public async Task Authorize_RecordsClientParticipationInTheSsoSession()
+    {
+        // Arrange - logout can only notify the RPs it knows joined the session, so every
+        // successful authorize records (sid, client) participation.
+        OpenIddictRequest request = new() { ClientId = FirstPartyClientId, Scope = "openid" };
+
+        SetupAuthenticatedHttpContext(request, existingSid: "sid-already-minted");
+        SetupUser();
+        SetupApplication(FirstPartyClientId);
+        SetupClientTenantResolver(FirstPartyClientId);
+
+        // Act
+        await _controller.Authorize();
+
+        // Assert
+        await _ssoClientSessionService.Received(1).RecordAsync(
+            "sid-already-minted",
+            FirstPartyClientId,
+            Guid.Parse(_testUserId),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Authorize_SidClaimIsDestinedForTheIdentityTokenOnly()
+    {
+        // Arrange - sid exists for the RP to match logout notifications against; access-token
+        // consumers have no use for it, so it must not leak there.
+        OpenIddictRequest request = new() { ClientId = FirstPartyClientId, Scope = "openid" };
+
+        SetupAuthenticatedHttpContext(request, existingSid: "sid-already-minted");
+        SetupUser();
+        SetupApplication(FirstPartyClientId);
+        SetupClientTenantResolver(FirstPartyClientId);
+
+        // Act
+        IActionResult result = await _controller.Authorize();
+
+        // Assert
+        Microsoft.AspNetCore.Mvc.SignInResult signIn =
+            result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>().Subject;
+        Claim sidClaim = signIn.Principal!.Claims
+            .Should().ContainSingle(c => c.Type == ClaimsPrincipalExtensions.SessionIdClaimType).Subject;
+        sidClaim.GetDestinations().Should().BeEquivalentTo(
+            [OpenIddictConstants.Destinations.IdentityToken]);
     }
 
     #endregion

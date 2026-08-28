@@ -130,6 +130,16 @@ public sealed partial class PreRegisteredClientSyncService(
             changed = true;
         }
 
+        // Sync frontchannel_logout_uri
+        Uri? expectedFrontchannelUri = client.FrontchannelLogoutUri is null
+            ? null
+            : new Uri(client.FrontchannelLogoutUri);
+        if (descriptor.GetFrontchannelLogoutUri() != expectedFrontchannelUri)
+        {
+            descriptor.SetFrontchannelLogoutUri(expectedFrontchannelUri);
+            changed = true;
+        }
+
         // Sync tenant_id
         Guid? resolvedTenantId = await ResolveTenantIdAsync(client, ct);
         string? currentTenantId = descriptor.GetTenantId();
@@ -306,6 +316,11 @@ public sealed partial class PreRegisteredClientSyncService(
         foreach (string scope in client.Scopes)
         {
             descriptor.Permissions.Add(Permissions.Prefixes.Scope + scope);
+        }
+
+        if (client.FrontchannelLogoutUri is not null)
+        {
+            descriptor.SetFrontchannelLogoutUri(new Uri(client.FrontchannelLogoutUri));
         }
 
         Guid? tenantId = await ResolveTenantIdAsync(client, ct);

@@ -171,6 +171,150 @@ public sealed class PreRegisteredClientSyncServiceTests
     }
 
     [Fact]
+    public async Task SyncAsync_NewClientWithFrontchannelLogoutUri_SetsDescriptorProperty()
+    {
+        _options.Clients.Add(new PreRegisteredClientDefinition
+        {
+            ClientId = "fc",
+            DisplayName = "FC",
+            Secret = "s",
+            RedirectUris = ["https://l/cb"],
+            PostLogoutRedirectUris = [],
+            Scopes = ["openid"],
+            FrontchannelLogoutUri = "https://l/bff/frontchannel-logout"
+        });
+        _appManager.FindByClientIdAsync("fc", Arg.Any<CancellationToken>())
+            .Returns(_ => new ValueTask<object?>((object?)null));
+
+        await _sut.SyncAsync(CancellationToken.None);
+
+        await _appManager.Received(1).CreateAsync(
+            Arg.Is<OpenIddictApplicationDescriptor>(d =>
+                FrontchannelUriOf(d) == "https://l/bff/frontchannel-logout"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SyncAsync_ExistingFrontchannelLogoutUriChanged_Updates()
+    {
+        _options.Clients.Add(new PreRegisteredClientDefinition
+        {
+            ClientId = "fc-up",
+            DisplayName = "FC",
+            Secret = "s",
+            RedirectUris = ["https://l/cb"],
+            PostLogoutRedirectUris = [],
+            Scopes = ["openid"],
+            FrontchannelLogoutUri = "https://l/bff/frontchannel-logout"
+        });
+        object existing = new object();
+        _appManager.FindByClientIdAsync("fc-up", Arg.Any<CancellationToken>())
+            .Returns(_ => new ValueTask<object?>(existing));
+        _appManager.PopulateAsync(
+                Arg.Any<OpenIddictApplicationDescriptor>(), existing, Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                OpenIddictApplicationDescriptor d = callInfo.ArgAt<OpenIddictApplicationDescriptor>(0);
+                d.DisplayName = "FC";
+                d.ClientType = ClientTypes.Confidential;
+                d.RedirectUris.Add(new Uri("https://l/cb"));
+                d.Permissions.Add(Permissions.Prefixes.Scope + "openid");
+                d.Properties["source"] = JsonSerializer.SerializeToElement("config");
+                d.Properties["frontchannel_logout_uri"] = JsonSerializer.SerializeToElement("https://l/old");
+                return ValueTask.CompletedTask;
+            });
+
+        await _sut.SyncAsync(CancellationToken.None);
+
+        await _appManager.Received(1).UpdateAsync(
+            existing,
+            Arg.Is<OpenIddictApplicationDescriptor>(d =>
+                FrontchannelUriOf(d) == "https://l/bff/frontchannel-logout"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SyncAsync_FrontchannelLogoutUriRemovedFromConfig_ClearsProperty()
+    {
+        _options.Clients.Add(new PreRegisteredClientDefinition
+        {
+            ClientId = "fc-gone",
+            DisplayName = "FC",
+            Secret = "s",
+            RedirectUris = ["https://l/cb"],
+            PostLogoutRedirectUris = [],
+            Scopes = ["openid"]
+        });
+        object existing = new object();
+        _appManager.FindByClientIdAsync("fc-gone", Arg.Any<CancellationToken>())
+            .Returns(_ => new ValueTask<object?>(existing));
+        _appManager.PopulateAsync(
+                Arg.Any<OpenIddictApplicationDescriptor>(), existing, Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                OpenIddictApplicationDescriptor d = callInfo.ArgAt<OpenIddictApplicationDescriptor>(0);
+                d.DisplayName = "FC";
+                d.ClientType = ClientTypes.Confidential;
+                d.RedirectUris.Add(new Uri("https://l/cb"));
+                d.Permissions.Add(Permissions.Prefixes.Scope + "openid");
+                d.Properties["source"] = JsonSerializer.SerializeToElement("config");
+                d.Properties["frontchannel_logout_uri"] = JsonSerializer.SerializeToElement("https://l/old");
+                return ValueTask.CompletedTask;
+            });
+
+        await _sut.SyncAsync(CancellationToken.None);
+
+        await _appManager.Received(1).UpdateAsync(
+            existing,
+            Arg.Is<OpenIddictApplicationDescriptor>(d => FrontchannelUriOf(d) == null),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SyncAsync_UnchangedFrontchannelLogoutUri_SkipsUpdate()
+    {
+        _options.Clients.Add(new PreRegisteredClientDefinition
+        {
+            ClientId = "fc-same",
+            DisplayName = "FC",
+            Secret = "s",
+            RedirectUris = ["https://l/cb"],
+            PostLogoutRedirectUris = [],
+            Scopes = ["openid"],
+            FrontchannelLogoutUri = "https://l/bff/frontchannel-logout"
+        });
+        object existing = new object();
+        _appManager.FindByClientIdAsync("fc-same", Arg.Any<CancellationToken>())
+            .Returns(_ => new ValueTask<object?>(existing));
+        _appManager.PopulateAsync(
+                Arg.Any<OpenIddictApplicationDescriptor>(), existing, Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                OpenIddictApplicationDescriptor d = callInfo.ArgAt<OpenIddictApplicationDescriptor>(0);
+                d.DisplayName = "FC";
+                d.ClientType = ClientTypes.Confidential;
+                d.RedirectUris.Add(new Uri("https://l/cb"));
+                d.Permissions.Add(Permissions.Prefixes.Scope + "openid");
+                d.Properties["source"] = JsonSerializer.SerializeToElement("config");
+                d.Properties["frontchannel_logout_uri"] =
+                    JsonSerializer.SerializeToElement("https://l/bff/frontchannel-logout");
+                return ValueTask.CompletedTask;
+            });
+
+        await _sut.SyncAsync(CancellationToken.None);
+
+        await _appManager.DidNotReceive().UpdateAsync(
+            existing,
+            Arg.Any<OpenIddictApplicationDescriptor>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    private static string? FrontchannelUriOf(OpenIddictApplicationDescriptor descriptor) =>
+        descriptor.Properties.TryGetValue("frontchannel_logout_uri", out JsonElement element)
+            ? element.GetString()
+            : null;
+
+    [Fact]
     public async Task SyncAsync_NoChanges_SkipsUpdate()
     {
         _options.Clients.Add(new PreRegisteredClientDefinition

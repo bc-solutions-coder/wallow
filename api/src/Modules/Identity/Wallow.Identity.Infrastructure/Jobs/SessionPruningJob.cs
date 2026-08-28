@@ -10,6 +10,13 @@ public sealed partial class SessionPruningJob(
     TimeProvider timeProvider,
     ILogger<SessionPruningJob> logger)
 {
+    /// <summary>
+    /// Age past which an SSO-session participation row is assumed abandoned. Rows are normally
+    /// deleted at logout; this backstop only catches sessions whose identity cookie expired
+    /// without one, so it just needs to sit safely beyond the cookie's sliding lifetime.
+    /// </summary>
+    private static readonly TimeSpan _ssoParticipationMaxAge = TimeSpan.FromDays(30);
+
     public async Task<int> ExecuteAsync()
     {
         LogPruningStarted(logger);
@@ -27,6 +34,19 @@ public sealed partial class SessionPruningJob(
             {
                 dbContext.ActiveSessions.RemoveRange(staleSessions);
                 await dbContext.SaveChangesAsync();
+            }
+
+            DateTimeOffset participationCutoff = now - _ssoParticipationMaxAge;
+            List<SsoSessionClient> staleParticipations = await dbContext.SsoSessionClients
+                .AsTracking()
+                .Where(s => s.CreatedAt < participationCutoff)
+                .ToListAsync();
+
+            if (staleParticipations.Count > 0)
+            {
+                dbContext.SsoSessionClients.RemoveRange(staleParticipations);
+                await dbContext.SaveChangesAsync();
+                LogSsoParticipationPruned(logger, staleParticipations.Count);
             }
 
             LogPruningCompleted(logger, staleSessions.Count);
@@ -48,4 +68,7 @@ public sealed partial class SessionPruningJob(
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Session pruning failed")]
     private static partial void LogPruningFailed(ILogger logger, Exception ex);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Removed {Count} abandoned SSO-session participation rows")]
+    private static partial void LogSsoParticipationPruned(ILogger logger, int count);
 }

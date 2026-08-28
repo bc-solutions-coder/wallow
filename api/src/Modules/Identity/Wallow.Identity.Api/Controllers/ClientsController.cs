@@ -69,7 +69,8 @@ public class ClientsController(
                 ClientId = clientId ?? string.Empty,
                 RedirectUris = descriptor.RedirectUris.Select(u => u.ToString()).ToList(),
                 PostLogoutRedirectUris = descriptor.PostLogoutRedirectUris.Select(u => u.ToString()).ToList(),
-                Scopes = ScopesOf(descriptor)
+                Scopes = ScopesOf(descriptor),
+                FrontchannelLogoutUri = descriptor.GetFrontchannelLogoutUri()?.AbsoluteUri
             });
         }
 
@@ -99,7 +100,8 @@ public class ClientsController(
             ClientId = clientId ?? string.Empty,
             RedirectUris = descriptor.RedirectUris.Select(u => u.ToString()).ToList(),
             PostLogoutRedirectUris = descriptor.PostLogoutRedirectUris.Select(u => u.ToString()).ToList(),
-            Scopes = ScopesOf(descriptor)
+            Scopes = ScopesOf(descriptor),
+            FrontchannelLogoutUri = descriptor.GetFrontchannelLogoutUri()?.AbsoluteUri
         });
     }
 
@@ -137,7 +139,8 @@ public class ClientsController(
                 ClientId = clientId ?? string.Empty,
                 RedirectUris = descriptor.RedirectUris.Select(u => u.ToString()).ToList(),
                 PostLogoutRedirectUris = descriptor.PostLogoutRedirectUris.Select(u => u.ToString()).ToList(),
-                Scopes = ScopesOf(descriptor)
+                Scopes = ScopesOf(descriptor),
+                FrontchannelLogoutUri = descriptor.GetFrontchannelLogoutUri()?.AbsoluteUri
             });
         }
 
@@ -168,6 +171,14 @@ public class ClientsController(
             ModelState.AddModelError(
                 nameof(request.Scopes),
                 $"Unknown scopes: {string.Join(", ", ungrantableScopes)}.");
+            return ValidationProblem(ModelState);
+        }
+
+        if (!TryParseFrontchannelLogoutUri(request.FrontchannelLogoutUri, out Uri? frontchannelLogoutUri))
+        {
+            ModelState.AddModelError(
+                nameof(request.FrontchannelLogoutUri),
+                FrontchannelLogoutUriError);
             return ValidationProblem(ModelState);
         }
 
@@ -202,6 +213,8 @@ public class ClientsController(
             descriptor.SetTenantId(request.TenantId.Value.ToString());
         }
 
+        descriptor.SetFrontchannelLogoutUri(frontchannelLogoutUri);
+
         foreach (string uri in request.RedirectUris)
         {
             descriptor.RedirectUris.Add(new Uri(uri));
@@ -223,7 +236,8 @@ public class ClientsController(
             ClientSecret = clientSecret,
             RedirectUris = request.RedirectUris,
             PostLogoutRedirectUris = request.PostLogoutRedirectUris,
-            Scopes = scopes
+            Scopes = scopes,
+            FrontchannelLogoutUri = frontchannelLogoutUri?.AbsoluteUri
         };
 
         return CreatedAtAction(nameof(GetById), new { id }, response);
@@ -237,6 +251,14 @@ public class ClientsController(
         [FromBody] UpdateClientRequest request,
         CancellationToken ct)
     {
+        if (!TryParseFrontchannelLogoutUri(request.FrontchannelLogoutUri, out Uri? frontchannelLogoutUri))
+        {
+            ModelState.AddModelError(
+                nameof(request.FrontchannelLogoutUri),
+                FrontchannelLogoutUriError);
+            return ValidationProblem(ModelState);
+        }
+
         object? application = await applicationManager.FindByIdAsync(id, ct);
         if (application is null)
         {
@@ -247,6 +269,10 @@ public class ClientsController(
         await applicationManager.PopulateAsync(descriptor, application, ct);
 
         descriptor.DisplayName = request.Name;
+
+        // Null clears the registration: Update replaces the whole mutable surface, so an omitted
+        // URI opts the client back out of logout notifications rather than keeping the old one.
+        descriptor.SetFrontchannelLogoutUri(frontchannelLogoutUri);
 
         descriptor.RedirectUris.Clear();
         foreach (string uri in request.RedirectUris)
@@ -271,7 +297,8 @@ public class ClientsController(
             ClientId = clientId ?? string.Empty,
             RedirectUris = request.RedirectUris,
             PostLogoutRedirectUris = request.PostLogoutRedirectUris,
-            Scopes = ScopesOf(descriptor)
+            Scopes = ScopesOf(descriptor),
+            FrontchannelLogoutUri = frontchannelLogoutUri?.AbsoluteUri
         });
     }
 
@@ -318,7 +345,8 @@ public class ClientsController(
             ClientSecret = newSecret,
             RedirectUris = descriptor.RedirectUris.Select(u => u.ToString()).ToList(),
             PostLogoutRedirectUris = descriptor.PostLogoutRedirectUris.Select(u => u.ToString()).ToList(),
-            Scopes = ScopesOf(descriptor)
+            Scopes = ScopesOf(descriptor),
+            FrontchannelLogoutUri = descriptor.GetFrontchannelLogoutUri()?.AbsoluteUri
         });
     }
 
@@ -430,6 +458,32 @@ public class ClientsController(
         Guid userId = Guid.Parse(User.GetUserId()!);
         IReadOnlyList<OrganizationDto> userOrgs = await organizationService.GetUserOrganizationsAsync(userId, ct);
         return userOrgs.Any(o => o.Id == orgId);
+    }
+
+    private const string FrontchannelLogoutUriError =
+        "The front-channel logout URI must be an absolute http or https URL.";
+
+    /// <summary>
+    /// The logout page loads this URI in a hidden iframe on the OP's own origin, so anything
+    /// other than an absolute http(s) location is either unloadable there or a script vector.
+    /// A null input is valid and parses to null (the client opts out of notifications).
+    /// </summary>
+    private static bool TryParseFrontchannelLogoutUri(string? value, out Uri? uri)
+    {
+        uri = null;
+        if (value is null)
+        {
+            return true;
+        }
+
+        if (Uri.TryCreate(value, UriKind.Absolute, out Uri? parsed)
+            && (parsed.Scheme == Uri.UriSchemeHttp || parsed.Scheme == Uri.UriSchemeHttps))
+        {
+            uri = parsed;
+            return true;
+        }
+
+        return false;
     }
 
     private static List<string> ScopesOf(OpenIddictApplicationDescriptor descriptor) =>

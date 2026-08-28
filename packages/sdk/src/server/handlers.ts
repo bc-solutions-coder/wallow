@@ -42,12 +42,13 @@ export type BffUserResponse = BffSession["user"] & { csrfToken?: string };
 /** A BFF route handler: a web-standard request in, a web-standard response out. */
 export type BffHandler = (request: Request) => Promise<Response>;
 
-/** The four BFF route handlers returned by {@link createBffHandlers}. */
+/** The five BFF route handlers returned by {@link createBffHandlers}. */
 export interface BffHandlers {
   login: BffHandler;
   callback: BffHandler;
   user: BffHandler;
   logout: BffHandler;
+  frontchannelLogout: BffHandler;
 }
 
 /** The `Set-Cookie` attributes the BFF writes, in `cookie-es` terms. */
@@ -153,6 +154,9 @@ const MS_PER_SECOND = 1000;
 /** Lifetime of the transient login-transaction cookie (seconds). */
 const TX_COOKIE_MAX_AGE_SECONDS = 600;
 
+/** HTTP status for the front-channel logout notification page. */
+const OK_STATUS = 200;
+
 /** HTTP status for a logout that had no session to end. */
 const NO_CONTENT_STATUS = 204;
 
@@ -174,8 +178,30 @@ const FOUND_STATUS = 302;
 /** The only method that may end a session. */
 const LOGOUT_METHOD: string = "POST";
 
+/** The only method the OP's hidden iframe uses for a front-channel notification. */
+const FRONTCHANNEL_METHOD: string = "GET";
+
 /** The fallback a sanitized `returnTo` lands on. */
 const SAFE_RETURN_TO: string = "/";
+
+/**
+ * Issuer identity for the front-channel `iss` check. A lone trailing slash is
+ * the one representational difference tolerated — an OP configured as
+ * `https://auth.example.com` and one advertising `https://auth.example.com/`
+ * are the same issuer; anything else is a mismatch.
+ */
+function normalizeIssuer(issuer: string): string {
+  return issuer.replace(/\/$/u, "");
+}
+
+/**
+ * The body every front-channel notification answers with, hit or miss: the
+ * page renders inside the OP's hidden iframe where nobody reads it, and a
+ * uniform response keeps a prober from learning whether a session existed.
+ */
+const FRONTCHANNEL_PAGE: string =
+  '<!doctype html><html><head><meta charset="utf-8"><title>Signed out</title></head>' +
+  "<body>Signed out.</body></html>";
 
 /**
  * Name of the {@link index}-th session-cookie chunk. Chunk 0 keeps the base
@@ -472,6 +498,10 @@ export function createBffHandlers(
       // rather than the id_token, so this is what surfaces the user's email.
       let user: BffSession["user"] =
         tokens.id_token !== undefined ? decodeIdTokenClaims(tokens.id_token) : { sub: "" };
+      // The OP's session id lives in the id_token only — capture it before the
+      // userinfo overlay so a front-channel logout notification can be matched
+      // against it later.
+      const sid: string | undefined = typeof user.sid === "string" ? user.sid : undefined;
       const info: Record<string, unknown> | null = await fetchUserInfo(doc, tokens.access_token);
       if (info !== null) {
         user = {
@@ -491,6 +521,7 @@ export function createBffHandlers(
         idToken: tokens.id_token,
         expiresAt: Date.now() + tokens.expires_in * MS_PER_SECOND,
         user,
+        sid,
         version: INITIAL_SESSION_VERSION,
         csrfToken,
       };
@@ -571,6 +602,52 @@ export function createBffHandlers(
 
       const doc: DiscoveryDoc = await discover(config);
       return redirect(buildLogoutUrl(config, doc, session.idToken), headers);
+    },
+
+    frontchannelLogout: async (request: Request): Promise<Response> => {
+      // The OP's logout page loads this URL in a hidden iframe when the SSO
+      // session ends (OIDC front-channel logout). It is a cross-site GET by
+      // design, so it sits outside the CSRF gate — the sid requirement below is
+      // what stops a forged teardown: an attacker who can make the browser GET
+      // this URL still cannot know the OP-issued session id.
+      if (request.method.toUpperCase() !== FRONTCHANNEL_METHOD) {
+        return new Response(null, {
+          status: METHOD_NOT_ALLOWED_STATUS,
+          headers: { allow: FRONTCHANNEL_METHOD },
+        });
+      }
+
+      const headers: Headers = new Headers({
+        "content-type": "text/html; charset=utf-8",
+        "cache-control": "no-store",
+      });
+
+      const params: URLSearchParams = new URL(request.url).searchParams;
+      const iss: string | null = params.get("iss");
+      const sid: string | null = params.get("sid");
+      const session: BffSession | null = await readSession(request, config, store);
+
+      // Every miss — no session, a session without a sid, a foreign issuer, a
+      // wrong sid — is a silent no-op: the response never distinguishes them.
+      const matches: boolean =
+        session !== null &&
+        session.sid !== undefined &&
+        sid !== null &&
+        sid === session.sid &&
+        iss !== null &&
+        normalizeIssuer(iss) === normalizeIssuer(config.issuer);
+
+      if (matches) {
+        // Revoke server-side before clearing the browser cookies, mirroring the
+        // user-initiated logout above.
+        const ref: string | null = readSessionRef(request, config);
+        if (ref !== null) {
+          await store.destroy(ref);
+        }
+        clearSession(headers, request, config);
+      }
+
+      return new Response(FRONTCHANNEL_PAGE, { status: OK_STATUS, headers });
     },
   };
 }

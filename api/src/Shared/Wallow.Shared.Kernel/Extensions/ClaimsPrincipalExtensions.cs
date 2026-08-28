@@ -63,6 +63,19 @@ public static class ClaimsPrincipalExtensions
         principal?.FindFirst("auth_method")?.Value;
 
     /// <summary>
+    /// The claim type carrying the SSO session identifier (OIDC front-channel logout
+    /// <c>sid</c>). Minted onto the identity cookie at first authorize and echoed into every
+    /// id_token, so relying parties can match a logout notification to their session.
+    /// </summary>
+    public const string SessionIdClaimType = "sid";
+
+    /// <summary>
+    /// Resolves the SSO session identifier from the "sid" claim.
+    /// </summary>
+    public static string? GetSessionId(this ClaimsPrincipal? principal) =>
+        principal?.FindFirst(SessionIdClaimType)?.Value;
+
+    /// <summary>
     /// Resolves the tenant region from the "tenant_region" claim.
     /// </summary>
     public static string? GetTenantRegion(this ClaimsPrincipal? principal) =>

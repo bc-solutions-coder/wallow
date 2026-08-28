@@ -48,6 +48,12 @@ export interface BffSession {
     tenantName?: string;
     [claim: string]: unknown;
   };
+  /**
+   * The OP's `sid` claim from the id_token, when the issuer minted one. A
+   * front-channel logout notification must present this exact value (plus the
+   * matching `iss`) before the session is torn down.
+   */
+  sid?: string;
   /** Monotonic session version, bumped on token refresh / rotation. */
   version: number;
   /** Synchronizer CSRF token for double-submit validation. */

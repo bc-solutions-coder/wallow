@@ -9,4 +9,5 @@ public record ClientResponse
     public required IReadOnlyList<string> RedirectUris { get; init; }
     public required IReadOnlyList<string> PostLogoutRedirectUris { get; init; }
     public required IReadOnlyList<string> Scopes { get; init; }
+    public string? FrontchannelLogoutUri { get; init; }
 }

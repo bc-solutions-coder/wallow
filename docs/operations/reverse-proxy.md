@@ -379,6 +379,7 @@ commented `_productionExampleClients` entry (ignored by the seeder) you can copy
   "secret": "replace-with-a-strong-generated-secret",
   "redirectUris": ["https://example.com/bff/callback"],
   "postLogoutRedirectUris": ["https://example.com/"],
+  "frontchannelLogoutUri": "https://example.com/bff/frontchannel-logout",
   "scopes": [
     "openid",
     "email",
@@ -402,6 +403,9 @@ Rules that make this a valid production client:
   They must exactly match the BFF's `OIDC_REDIRECT_URI` and `OIDC_POST_LOGOUT_REDIRECT_URI`. Because
   the API validates registered URIs at seed time, adding a client for a new domain needs no source
   change.
+- **`frontchannelLogoutUri`** — the SDK BFF's `/bff/frontchannel-logout` endpoint on the same
+  origin. Registers the client for [front-channel logout notifications](../integrations/bff-pattern.md#logout-is-global-and-wallow-notifies-the-other-applications-front-channel)
+  when the SSO session ends elsewhere; omit it to opt out.
 - **`scopes`** — `openid`, `email`, `profile`, and `offline_access` for login, plus whichever API
   scopes the app calls.
 

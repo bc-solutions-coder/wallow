@@ -1549,3 +1549,202 @@ describe("readSession/writeSession store threading", () => {
     expect(clearedStale).toContain("wallow_bff.1");
   });
 });
+
+/**
+ * OIDC front-channel logout (Wallow-whsz).
+ *
+ * The OP's logout page loads `/bff/frontchannel-logout?iss=...&sid=...` in a
+ * hidden iframe when the SSO session ends. The handler destroys the local
+ * session ONLY when both `iss` and `sid` match; every other GET answers the
+ * same 200 page so a prober learns nothing about session state. It is
+ * deliberately outside the CSRF gate — the notification is a cross-site GET by
+ * design, and the sid requirement is what stops a forged teardown.
+ */
+describe("frontchannel logout handler", () => {
+  const FC_PATH: string = "http://localhost/bff/frontchannel-logout";
+
+  function fcSetup(issuer: string): {
+    handlers: BffHandlers;
+    destroyed: string[];
+    config: BffConfig;
+  } {
+    const config: BffConfig = makeConfig(issuer);
+    const { store, destroyed } = makeRecordingStore(config.cookiePassword);
+    return { handlers: createBffHandlers(config, store), destroyed, config };
+  }
+
+  it("destroys the session and clears cookies when iss and sid both match", async () => {
+    const { handlers, destroyed, config } = fcSetup("https://fc-match.example.com");
+    const sealed: string = await sealSession(
+      makeSession({ sid: "sid-abc" }),
+      config.cookiePassword,
+    );
+
+    const res: Response = await handlers.frontchannelLogout(
+      new Request(`${FC_PATH}?iss=${encodeURIComponent(config.issuer)}&sid=sid-abc`, {
+        headers: { cookie: `wallow_bff=${sealed}` },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type") ?? "").toContain("text/html");
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(destroyed).toEqual([sealed]);
+    const cleared: string | undefined = setCookieFor(res, "wallow_bff");
+    expect(cleared).toBeDefined();
+    expect(cookieValueOf(cleared ?? "")).toBe("");
+  });
+
+  it("treats a trailing slash on iss as the same issuer", async () => {
+    const { handlers, destroyed, config } = fcSetup("https://fc-slash.example.com");
+    const sealed: string = await sealSession(
+      makeSession({ sid: "sid-abc" }),
+      config.cookiePassword,
+    );
+
+    const res: Response = await handlers.frontchannelLogout(
+      new Request(`${FC_PATH}?iss=${encodeURIComponent(`${config.issuer}/`)}&sid=sid-abc`, {
+        headers: { cookie: `wallow_bff=${sealed}` },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(destroyed).toEqual([sealed]);
+  });
+
+  it("answers 200 without destroying anything when sid does not match", async () => {
+    const { handlers, destroyed, config } = fcSetup("https://fc-badsid.example.com");
+    const sealed: string = await sealSession(
+      makeSession({ sid: "sid-abc" }),
+      config.cookiePassword,
+    );
+
+    const res: Response = await handlers.frontchannelLogout(
+      new Request(`${FC_PATH}?iss=${encodeURIComponent(config.issuer)}&sid=some-other-sid`, {
+        headers: { cookie: `wallow_bff=${sealed}` },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(destroyed).toEqual([]);
+    expect(setCookieFor(res, "wallow_bff")).toBeUndefined();
+  });
+
+  it("answers 200 without destroying anything when iss does not match", async () => {
+    const { handlers, destroyed, config } = fcSetup("https://fc-badiss.example.com");
+    const sealed: string = await sealSession(
+      makeSession({ sid: "sid-abc" }),
+      config.cookiePassword,
+    );
+
+    const res: Response = await handlers.frontchannelLogout(
+      new Request(`${FC_PATH}?iss=${encodeURIComponent("https://evil.example.com")}&sid=sid-abc`, {
+        headers: { cookie: `wallow_bff=${sealed}` },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(destroyed).toEqual([]);
+  });
+
+  it("answers 200 without destroying anything when the session carries no sid", async () => {
+    // A session minted before the OP issued sids can never match a
+    // notification; it must survive rather than be torn down on a guess.
+    const { handlers, destroyed, config } = fcSetup("https://fc-nosid.example.com");
+    const sealed: string = await sealSession(makeSession(), config.cookiePassword);
+
+    const res: Response = await handlers.frontchannelLogout(
+      new Request(`${FC_PATH}?iss=${encodeURIComponent(config.issuer)}&sid=sid-abc`, {
+        headers: { cookie: `wallow_bff=${sealed}` },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(destroyed).toEqual([]);
+  });
+
+  it("answers 200 when there is no session at all", async () => {
+    const { handlers, destroyed, config } = fcSetup("https://fc-nosession.example.com");
+
+    const res: Response = await handlers.frontchannelLogout(
+      new Request(`${FC_PATH}?iss=${encodeURIComponent(config.issuer)}&sid=sid-abc`),
+    );
+
+    expect(res.status).toBe(200);
+    expect(destroyed).toEqual([]);
+  });
+
+  it("answers 405 with Allow: GET for a non-GET request", async () => {
+    const { handlers, destroyed } = fcSetup("https://fc-method.example.com");
+
+    const res: Response = await handlers.frontchannelLogout(
+      new Request(FC_PATH, { method: "POST" }),
+    );
+
+    expect(res.status).toBe(405);
+    expect(res.headers.get("allow")).toBe("GET");
+    expect(destroyed).toEqual([]);
+  });
+});
+
+describe("callback sid capture", () => {
+  it("stores the id_token's sid claim on the session for front-channel matching", async () => {
+    const config: BffConfig = makeConfig("https://cb-sid.example.com");
+    const tx: LoginTx = { state: "st-s", nonce: "no-s", verifier: "ver-s", returnTo: "/" };
+    const sealed: string = await sealTx(tx, config.cookiePassword);
+
+    authorizationCodeGrantMock.mockResolvedValue({
+      access_token: "at",
+      refresh_token: "rt",
+      id_token: makeIdToken({ sub: "user-123", sid: "sid-from-op" }),
+      expires_in: 3600,
+      token_type: "Bearer",
+    });
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("unexpected token-endpoint fetch")));
+    const handle = makeHandle(createBffHandlers(config));
+
+    const cbRes: Response = await handle(
+      new Request("http://localhost/bff/callback?code=code-s&state=st-s", {
+        headers: { cookie: `wallow_bff_tx=${sealed}` },
+      }),
+    );
+    expect(cbRes.status).toBe(302);
+
+    const session: BffSession | null = await readSession(
+      new Request("http://localhost/bff/user", { headers: { cookie: cookieHeaderFrom(cbRes) } }),
+      config,
+      new CookieSessionStore({ password: config.cookiePassword }),
+    );
+    expect(session?.sid).toBe("sid-from-op");
+  });
+
+  it("leaves sid unset when the id_token carries none", async () => {
+    const config: BffConfig = makeConfig("https://cb-nosid.example.com");
+    const tx: LoginTx = { state: "st-n", nonce: "no-n", verifier: "ver-n", returnTo: "/" };
+    const sealed: string = await sealTx(tx, config.cookiePassword);
+
+    authorizationCodeGrantMock.mockResolvedValue({
+      access_token: "at",
+      id_token: makeIdToken({ sub: "user-123" }),
+      expires_in: 3600,
+      token_type: "Bearer",
+    });
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("unexpected token-endpoint fetch")));
+    const handle = makeHandle(createBffHandlers(config));
+
+    const cbRes: Response = await handle(
+      new Request("http://localhost/bff/callback?code=code-n&state=st-n", {
+        headers: { cookie: `wallow_bff_tx=${sealed}` },
+      }),
+    );
+    expect(cbRes.status).toBe(302);
+
+    const session: BffSession | null = await readSession(
+      new Request("http://localhost/bff/user", { headers: { cookie: cookieHeaderFrom(cbRes) } }),
+      config,
+      new CookieSessionStore({ password: config.cookiePassword }),
+    );
+    expect(session).not.toBeNull();
+    expect(session?.sid).toBeUndefined();
+  });
+});

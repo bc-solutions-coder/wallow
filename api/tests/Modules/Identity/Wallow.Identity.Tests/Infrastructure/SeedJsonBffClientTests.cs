@@ -93,6 +93,24 @@ public sealed class SeedJsonBffClientTests
     }
 
     [Fact]
+    public void BffClient_HasFrontchannelLogoutUri()
+    {
+        PreRegisteredClientDefinition bff = GetBffClient();
+
+        bff.FrontchannelLogoutUri.Should().Be("http://localhost:3003/bff/frontchannel-logout");
+    }
+
+    [Fact]
+    public void WebClient_HasFrontchannelLogoutUri()
+    {
+        PreRegisteredClientDefinition? web =
+            LoadSeededClients().FirstOrDefault(c => c.ClientId == "wallow-web-client");
+        web.Should().NotBeNull();
+
+        web!.FrontchannelLogoutUri.Should().Be("http://localhost:3000/bff/frontchannel-logout");
+    }
+
+    [Fact]
     public void BffClient_HasExpectedScopes()
     {
         PreRegisteredClientDefinition bff = GetBffClient();

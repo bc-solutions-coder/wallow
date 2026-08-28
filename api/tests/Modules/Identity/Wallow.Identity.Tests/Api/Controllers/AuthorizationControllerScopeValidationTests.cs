@@ -1,8 +1,10 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using OpenIddict.Abstractions;
 using OpenIddict.Server;
 using OpenIddict.Server.AspNetCore;
@@ -43,6 +45,7 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
     private readonly IClientTenantResolver _clientTenantResolver;
     private readonly IUserEnrollmentService _enrollment;
     private readonly IMembershipRoleResolver _membershipRoleResolver;
+    private readonly ISsoClientSessionService _ssoClientSessionService;
     private readonly AuthorizationController _controller;
 
     public AuthorizationControllerScopeValidationTests()
@@ -59,6 +62,7 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
         _clientTenantResolver = Substitute.For<IClientTenantResolver>();
         _enrollment = Substitute.For<IUserEnrollmentService>();
         _membershipRoleResolver = Substitute.For<IMembershipRoleResolver>();
+        _ssoClientSessionService = Substitute.For<ISsoClientSessionService>();
 
         // Default: the client is registered for whatever it asks for, so each test
         // exercises only the gate it is about.
@@ -76,6 +80,7 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
             _clientTenantResolver,
             _enrollment,
             _membershipRoleResolver,
+            _ssoClientSessionService,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<AuthorizationController>.Instance);
     }
 
@@ -254,6 +259,17 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
         httpContext.Features.Set(new OpenIddictServerAspNetCoreFeature { Transaction = transaction });
         httpContext.Request.Path = "/connect/authorize";
         httpContext.Request.QueryString = new QueryString("?client_id=" + clientId);
+
+        // Sid minting re-issues the identity cookie through IAuthenticationService, which the
+        // HttpContext.AuthenticateAsync/SignInAsync extensions resolve from RequestServices.
+        IAuthenticationService authenticationService = Substitute.For<IAuthenticationService>();
+        authenticationService
+            .AuthenticateAsync(Arg.Any<HttpContext>(), IdentityConstants.ApplicationScheme)
+            .Returns(AuthenticateResult.Success(
+                new AuthenticationTicket(user, new AuthenticationProperties(), IdentityConstants.ApplicationScheme)));
+        httpContext.RequestServices = new ServiceCollection()
+            .AddSingleton(authenticationService)
+            .BuildServiceProvider();
 
         _controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
 

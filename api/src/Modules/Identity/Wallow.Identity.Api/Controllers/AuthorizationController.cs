@@ -1,7 +1,9 @@
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Security.Claims;
 using Microsoft.AspNetCore;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -14,6 +16,7 @@ using Wallow.Identity.Application.Helpers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Shared.Contracts.Identity;
+using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
@@ -32,6 +35,7 @@ public sealed partial class AuthorizationController(
     IClientTenantResolver clientTenantResolver,
     IUserEnrollmentService enrollment,
     IMembershipRoleResolver membershipRoleResolver,
+    ISsoClientSessionService ssoClientSessionService,
     ILogger<AuthorizationController> logger) : Controller
 {
     private const string FirstPartyClientPrefix = "wallow-";
@@ -244,7 +248,17 @@ public sealed partial class AuthorizationController(
             }
         }
 
-        ClaimsIdentity identity = await BuildClaimsIdentityAsync(user, userId, roles, grantedScopes, tenantInfo);
+        // The sid ties every RP that completes authorize to one SSO session, so logout can
+        // tell each of them which session ended. It has to exist before the id_token that
+        // carries it is built.
+        string sid = await EnsureSessionIdAsync();
+        if (clientId is not null)
+        {
+            await ssoClientSessionService.RecordAsync(
+                sid, clientId, Guid.Parse(userId), HttpContext.RequestAborted);
+        }
+
+        ClaimsIdentity identity = await BuildClaimsIdentityAsync(user, userId, roles, grantedScopes, tenantInfo, sid);
 
         string allScopes = string.Join(" ", grantedScopes);
         LogIssuingAuthorizationCode(userId, clientId, allScopes);
@@ -274,12 +288,40 @@ public sealed partial class AuthorizationController(
         return SignIn(new ClaimsPrincipal(identity), OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
     }
 
+    /// <summary>
+    /// Returns the SSO session identifier from the caller's identity cookie, minting one and
+    /// re-issuing the cookie when a session predates front-channel logout and carries none.
+    /// The sid deliberately lives on the cookie rather than per-request state: it must stay
+    /// identical across every authorize the session performs, or logout notifications would
+    /// name a session no RP ever recorded.
+    /// </summary>
+    private async Task<string> EnsureSessionIdAsync()
+    {
+        string? sid = User.GetSessionId();
+        if (sid is not null)
+        {
+            return sid;
+        }
+
+        sid = Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
+
+        AuthenticateResult cookie = await HttpContext.AuthenticateAsync(IdentityConstants.ApplicationScheme);
+        if (cookie.Succeeded && cookie.Principal.Identity is ClaimsIdentity cookieIdentity)
+        {
+            cookieIdentity.AddClaim(new Claim(ClaimsPrincipalExtensions.SessionIdClaimType, sid));
+            await HttpContext.SignInAsync(IdentityConstants.ApplicationScheme, cookie.Principal, cookie.Properties);
+        }
+
+        return sid;
+    }
+
     private async Task<ClaimsIdentity> BuildClaimsIdentityAsync(
         WallowUser user,
         string userId,
         IReadOnlyList<string> roles,
         ImmutableArray<string> grantedScopes,
-        ClientTenantInfo tenantInfo)
+        ClientTenantInfo tenantInfo,
+        string sid)
     {
         ClaimsIdentity identity = new(OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
 
@@ -321,6 +363,8 @@ public sealed partial class AuthorizationController(
         {
             identity.AddClaim("org_name", tenantInfo.TenantName);
         }
+
+        identity.AddClaim(ClaimsPrincipalExtensions.SessionIdClaimType, sid);
 
         identity.SetScopes(grantedScopes);
 
@@ -472,6 +516,10 @@ public sealed partial class AuthorizationController(
                 => [Destinations.AccessToken, Destinations.IdentityToken],
 
             "org_id" or "org_name" => [Destinations.AccessToken, Destinations.IdentityToken],
+
+            // sid exists solely so the RP can match a front-channel logout notification to
+            // the session it belongs to — an id_token concern with no access-token consumer.
+            ClaimsPrincipalExtensions.SessionIdClaimType => [Destinations.IdentityToken],
 
             _ => [Destinations.AccessToken]
         };

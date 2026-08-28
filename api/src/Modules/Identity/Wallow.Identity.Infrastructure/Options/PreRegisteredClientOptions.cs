@@ -14,6 +14,13 @@ public sealed record PreRegisteredClientDefinition
 
     public Collection<string> PostLogoutRedirectUris { get; init; } = [];
 
+    /// <summary>
+    /// OIDC front-channel logout endpoint for this client, loaded in a hidden iframe by the
+    /// end-session page so the RP can drop its own session when the SSO session ends. Optional:
+    /// a client without one simply is not notified.
+    /// </summary>
+    public string? FrontchannelLogoutUri { get; init; }
+
     public Collection<string> Scopes { get; init; } = [];
 
     public Guid? TenantId { get; init; }

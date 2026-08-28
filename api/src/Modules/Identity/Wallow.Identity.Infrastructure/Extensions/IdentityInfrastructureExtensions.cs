@@ -11,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Npgsql;
+using OpenIddict.Server;
 using StackExchange.Redis;
 using Wallow.Identity.Application.Commands.BootstrapAdmin;
 using Wallow.Identity.Application.Interfaces;
@@ -150,6 +151,18 @@ public static class IdentityInfrastructureExtensions
                     "inquiries.read", "inquiries.write",
                     "serviceaccounts.read", "serviceaccounts.write", "serviceaccounts.manage",
                     "webhooks.manage");
+
+                // OpenIddict 7 implements RP-initiated logout only, so front-channel logout
+                // support is Wallow's own (LogoutController notifies each participating RP's
+                // frontchannel_logout_uri). These flags advertise it; session_supported
+                // promises every notification carries iss + sid.
+                options.AddEventHandler<OpenIddictServerEvents.HandleConfigurationRequestContext>(builder =>
+                    builder.UseInlineHandler(context =>
+                    {
+                        context.Metadata["frontchannel_logout_supported"] = true;
+                        context.Metadata["frontchannel_logout_session_supported"] = true;
+                        return default;
+                    }));
             })
             .AddValidation(options =>
             {
@@ -426,6 +439,7 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<IOrganizationMfaPolicyService, OrganizationMfaPolicyService>();
         services.AddScoped<IMfaLockoutService, MfaLockoutService>();
         services.AddScoped<ISessionService, SessionService>();
+        services.AddScoped<ISsoClientSessionService, SsoClientSessionService>();
         services.AddScoped<IPasswordlessService, PasswordlessService>();
 
         services.AddSingleton<ServiceAccountUsageBuffer>();

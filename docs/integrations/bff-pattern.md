@@ -383,7 +383,7 @@ Wallow terminates the user's Wallow session and redirects the browser to `post_l
 
 > **Tip:** Store the `id_token` alongside the access and refresh tokens in the session so you can provide the `id_token_hint`. Without it, Wallow may show an intermediate confirmation page before completing logout.
 
-### Logout is global, and Wallow does not notify the other applications
+### Logout is global, and Wallow notifies the other applications (front-channel)
 
 `GET /connect/logout` signs the user out of **Wallow**, not just out of the application that
 sent them there. It clears the shared identity cookie, so every other relying party on the same
@@ -393,30 +393,48 @@ This is deliberate. An SSO platform whose logout only ended one application's se
 a user who deliberately signed out stay signed in on the next tab — the surprise runs in the
 dangerous direction. Signing out means signing out.
 
-What it costs you is that the other applications are **not told**. Wallow implements
-RP-initiated logout only; it publishes no `frontchannel_logout_uri` or `backchannel_logout_uri`
-in its discovery document and sends no notification of any kind. So immediately after the
-logout:
+Wallow tells the other applications through **OIDC front-channel logout**:
 
-- the other BFF's own session cookie is still in the browser, and its session record still
-  exists in its store;
-- to that application the user still looks signed in, until its access token expires;
-- at that point its silent refresh is refused, because the refresh token depends on the Wallow
-  session that just ended.
+1. At authorization time, Wallow mints a session id (`sid`), stamps it into every `id_token` it
+   issues for that SSO session, and records which clients participated in the session.
+2. A client opts in by registering a **`frontchannelLogoutUri`** — an absolute http(s) URL,
+   settable in `seed.json` and on the client create/update API. Clients without one are simply
+   not notified. The discovery document advertises `frontchannel_logout_supported` and
+   `frontchannel_logout_session_supported`.
+3. When the session ends at `/connect/logout`, Wallow renders a brief interstitial page that
+   loads each participating client's registered URI in a **hidden iframe**, appending
+   `iss` and `sid` query parameters, then continues to the normal post-logout redirect.
 
-Handle the refusal, and it degrades to a re-login rather than a broken screen. A BFF built on
-`@bc-solutions-coder/sdk` already does: a refresh the identity server refuses makes
-`/api/*` answer `401`, and the SDK's `getCurrentUser` reads a `401` as "anonymous" rather than
-as an error, so the next navigation hits your login gate. A hand-rolled BFF must do the same
-thing explicitly — **on a failed refresh, delete the session record and the session cookie, then
-send the user to login.** Retrying the refresh, or treating the failure as a server error, is
-what turns a signed-out user into an error page.
+A BFF built on `@bc-solutions-coder/sdk` handles the notification out of the box:
+`createWallowBffServer` routes `GET /bff/frontchannel-logout`, and the handler destroys the
+local session and clears its cookies **only** when the presented `iss` matches the configured
+issuer and the presented `sid` matches the `sid` captured from the id_token at callback time.
+Every other request — wrong `sid`, foreign issuer, no session — is a silent 200 no-op, so the
+endpoint reveals nothing and cannot be used to log a victim out by guesswork. A hand-rolled BFF
+must implement the same checks: never tear a session down on an unauthenticated GET without
+validating both parameters.
+
+The notification is best-effort — that is the nature of front-channel logout. The iframe never
+fires if the user's browser blocks third-party cookies for the RP's origin, if the interstitial
+is skipped, or for a client with no registered URI. So keep the fallback path working too:
+
+- until the notification (or expiry) lands, the other BFF's session cookie is still in the
+  browser and the user still looks signed in there;
+- its next silent refresh is refused, because the refresh token depends on the Wallow session
+  that just ended.
+
+Handle the refusal, and it degrades to a re-login rather than a broken screen. The SDK already
+does: a refresh the identity server refuses makes `/api/*` answer `401`, and `getCurrentUser`
+reads a `401` as "anonymous" rather than as an error, so the next navigation hits your login
+gate. A hand-rolled BFF must do the same thing explicitly — **on a failed refresh, delete the
+session record and the session cookie, then send the user to login.**
 
 Two consequences worth designing for:
 
-- **The gap is as long as your access-token lifetime.** During it, an application can still call
-  the API with a token that is valid but belongs to a session the user has ended. Shorter access
-  tokens shrink the window; they do not close it.
+- **For a client the notification does not reach, the gap is as long as your access-token
+  lifetime.** During it, that application can still call the API with a token that is valid but
+  belongs to a session the user has ended. Shorter access tokens shrink the window; the
+  front-channel notification is what closes it for registered, reachable clients.
 - **A user who signs out of one of your applications signs out of all of them.** If that is not
   what you want, the applications need separate identity providers, not separate Wallow clients.
 
