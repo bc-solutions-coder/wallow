@@ -71,6 +71,10 @@ internal static partial class ServiceCollectionExtensions
                     ?? throw new InvalidOperationException("Redis connection string not configured"),
                 name: "redis",
                 tags: ["infrastructure", "ready"])
+
+            // Not tagged "ready" on purpose: a poison message in the DLQ must degrade /health
+            // without failing readiness probes and restart-looping the container (Wallow-qi90.2).
+            .AddCheck<WolverineDeadLetterQueueHealthCheck>("wolverine-dlq", tags: ["messaging"])
             .AddCheck("startup", () => HealthCheckResult.Healthy(),
                 tags: ["startup"])
             .AddCheck("startup-ready", () => HealthCheckResult.Healthy(),
