@@ -1,5 +1,6 @@
+import { type PeerRequest } from "@bc-solutions-coder/env/client-address";
 import { resolveInternalOrigin } from "@bc-solutions-coder/env/internal-origin";
-import { resolveRequestOrigin } from "@bc-solutions-coder/env/request-origin";
+import { createRequestOriginResolver } from "@bc-solutions-coder/env/request-origin";
 import { createWallowSdk, type WallowSdk } from "@bc-solutions-coder/sdk";
 import { type ForkLinks, resolveForkLinks } from "@bc-solutions-coder/styles";
 import { createMiddleware, createStart } from "@tanstack/react-start";
@@ -29,12 +30,25 @@ import { createMiddleware, createStart } from "@tanstack/react-start";
  */
 const API_MOUNT = "/api";
 
+/**
+ * The origin resolver, bound lazily INSIDE the server callback rather than at
+ * module scope like the `*.server.*` bindings: this file is in the client graph
+ * too, so a module-scope `createRequestOriginResolver(process.env)` would run in
+ * the browser. Memoized because parsing `WALLOW_TRUSTED_PROXIES` is start-up
+ * work, not per-request work.
+ */
+let requestOriginFor: ((request: PeerRequest) => string) | undefined;
+
 const sdkMiddleware = createMiddleware().server(({ next, request }) => {
+  requestOriginFor ??= createRequestOriginResolver(process.env);
   // The browser-facing origin: this app answers its own BFF surface, so the
   // origin serving the page is also the origin the API proxy is reachable on.
-  // Resolved through the helper so an HTTPS-terminating ingress does not leave
-  // the SSR pass building `http` query keys the hydrating browser never matches.
-  const requestOrigin: string = resolveRequestOrigin(request);
+  // Resolved through the helper so a trusted HTTPS-terminating ingress does not
+  // leave the SSR pass building `http` query keys the hydrating browser never
+  // matches — `x-forwarded-proto` is believed only from a peer inside
+  // `WALLOW_TRUSTED_PROXIES`, the same gate the log ingest puts on
+  // `x-forwarded-for`.
+  const requestOrigin: string = requestOriginFor(request);
   // No `requestOrigin` argument: `docker/docker-compose.test.yml` publishes this
   // app as `127.0.0.1:5053:3000`, so self-fetching the browser's origin from
   // inside the container is ECONNREFUSED and every SSR'd page falls back to an

@@ -399,6 +399,25 @@ function isTrusted(address: Address, trusted: TrustedProxies): boolean {
 }
 
 /**
+ * Whether `peer` is one of the proxies a forwarded header may be believed from.
+ *
+ * This is the trust gate {@link resolveClientAddress} applies to
+ * `x-forwarded-for`, exported so `resolveRequestOrigin` can put the SAME gate on
+ * `x-forwarded-proto` — one trust policy for both forwarded headers. A peer that
+ * is absent, blank, or unparseable is never trusted, and an empty trusted set
+ * (the default) trusts nothing.
+ */
+export function isTrustedPeer(peer: string | undefined, trusted: TrustedProxies): boolean {
+  const raw: string = (peer ?? "").trim();
+  if (raw === "" || trusted.length === 0) {
+    return false;
+  }
+
+  const address: Address | undefined = parseAddress(raw);
+  return address !== undefined && isTrusted(address, trusted);
+}
+
+/**
  * The caller's address for `request`, given the immediate `peer` and the proxies
  * whose chain may be believed.
  *

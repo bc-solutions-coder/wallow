@@ -8,11 +8,22 @@
  * SDK's `baseUrl` verbatim, so that one-character difference is a cache-key
  * miss and every SSR-prefetched query refetches on hydration.
  *
- * Only `http` and `https` are honored. The header is attacker-supplied on any
- * deployment whose ingress does not overwrite it, and an unrecognized value
- * would otherwise travel into the SDK's `baseUrl` and into every query key built
- * from it; falling back to the request's own scheme keeps that input inert.
+ * The header is believed only when the immediate peer is inside the deployment's
+ * trusted-proxy set — the same gate `resolveClientAddress` puts on
+ * `X-Forwarded-For`, so the two forwarded headers are one trust policy rather
+ * than two. Even from a trusted peer, only `http` and `https` are honored: a
+ * misconfigured ingress can forward what a caller sent, and an unrecognized
+ * value would otherwise travel into the SDK's `baseUrl` and into every query key
+ * built from it. Falling back to the request's own scheme keeps that input inert.
  */
+
+import {
+  isTrustedPeer,
+  type PeerRequest,
+  parseTrustedProxies,
+  type TrustedProxies,
+  TRUSTED_PROXIES_ENV_KEY,
+} from "./client-address";
 
 /** What a terminating proxy names the scheme the browser actually used. */
 const FORWARDED_PROTO_HEADER = "x-forwarded-proto";
@@ -28,12 +39,22 @@ const SERVED_SCHEMES: ReadonlySet<string> = new Set(["http", "https"]);
 const SCHEME_TERMINATOR = /:$/u;
 
 /**
- * The origin (`https://wallow.dev`, `http://localhost:3000`) the browser sees for
- * `request` — its own origin, unless a proxy in front reported a different
- * scheme.
+ * The origin (`https://wallow.dev`, `http://localhost:3000`) the browser sees
+ * for `request` — its own origin, unless the immediate `peer` is a trusted
+ * proxy that reported a different scheme.
  */
-export function resolveRequestOrigin(request: Request): string {
+export function resolveRequestOrigin(
+  request: Request,
+  peer: string | undefined,
+  trusted: TrustedProxies,
+): string {
   const url: URL = new URL(request.url);
+  if (!isTrustedPeer(peer, trusted)) {
+    // Any caller can send the header; only a configured proxy may rewrite the
+    // origin the SDK builds its query keys from.
+    return url.origin;
+  }
+
   const forwarded: string | null = request.headers.get(FORWARDED_PROTO_HEADER);
   if (forwarded === null) {
     return url.origin;
@@ -51,4 +72,21 @@ export function resolveRequestOrigin(request: Request): string {
 
   // `host`, not `hostname`: dropping a non-default port would aim the SDK at :80.
   return `${scheme}://${url.host}`;
+}
+
+/**
+ * Bind {@link resolveRequestOrigin} to a deployment's trusted-proxy list.
+ *
+ * The env record is a PARAMETER because this package must not read the
+ * environment itself: every app's `start.ts` is aliased into the client module
+ * graph as well as the server one, so a `process.env` read at module scope here
+ * would either break the client build or leak a server value into it. Bind once
+ * in server-only code — the CIDR parse is not per-request work.
+ */
+export function createRequestOriginResolver(
+  env: Readonly<Record<string, string | undefined>>,
+): (request: PeerRequest) => string {
+  const trusted: TrustedProxies = parseTrustedProxies(env[TRUSTED_PROXIES_ENV_KEY]);
+
+  return (request: PeerRequest): string => resolveRequestOrigin(request, request.ip, trusted);
 }

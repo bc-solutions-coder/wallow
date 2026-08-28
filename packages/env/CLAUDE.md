@@ -12,12 +12,12 @@ Like `packages/utils` this sits at the bottom of the dependency graph — `depen
 
 Subpath-only — deliberately **no `.` barrel**, so an import names the module it depends on.
 
-| Entry               | What it holds                                                                                                                           |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `./request-origin`  | `resolveRequestOrigin(request)` — the browser-facing origin, honouring `x-forwarded-proto`.                                             |
-| `./internal-origin` | `resolveInternalOrigin(env, requestOrigin?)` + `INTERNAL_ORIGIN_ENV_KEY` (= `"WALLOW_WEB_INTERNAL_URL"`) — the self-reachable origin.   |
-| `./base-path`       | `normalizeBasePath`, `toViteBase`, `stripBasePath`, `withBasePath` — the URL-prefix string arithmetic.                                  |
-| `./client-address`  | `createClientAddressResolver(env)`, `resolveClientAddress`, `parseTrustedProxies`, `PeerRequest` — the caller's address behind a proxy. |
+| Entry               | What it holds                                                                                                                                                      |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `./request-origin`  | `createRequestOriginResolver(env)`, `resolveRequestOrigin(request, peer, trusted)` — the browser-facing origin, honouring `x-forwarded-proto` from a trusted peer. |
+| `./internal-origin` | `resolveInternalOrigin(env, requestOrigin?)` + `INTERNAL_ORIGIN_ENV_KEY` (= `"WALLOW_WEB_INTERNAL_URL"`) — the self-reachable origin.                              |
+| `./base-path`       | `normalizeBasePath`, `toViteBase`, `stripBasePath`, `withBasePath` — the URL-prefix string arithmetic.                                                             |
+| `./client-address`  | `createClientAddressResolver(env)`, `resolveClientAddress`, `parseTrustedProxies`, `isTrustedPeer`, `PeerRequest` — the caller's address behind a proxy.           |
 
 **`WALLOW_WEB_INTERNAL_URL` is not `WALLOW_API_INTERNAL_URL`.** The first is the app's **own**
 origin, the one this package resolves; the second is the **upstream API** an app's passthrough
@@ -97,12 +97,24 @@ is deleted (`Wallow-xg9t.1`). A re-declared resolver is a duplicate, not a break
 compute the same origin, which is why the failure it watched for is drift over time rather than a
 regression a spec catches on the day it lands. Import the subpath.
 
-## `x-forwarded-proto` is validated, not trusted
+## `x-forwarded-proto` is gated AND validated
 
-The header is attacker-controllable. `resolveRequestOrigin` takes the first hop of a
-comma-joined chain, strips a trailing colon, lower-cases it, and falls back to `url.origin`
-unless the result is exactly `http` or `https`. It composes with `url.host`, never
-`url.hostname` — dropping a non-default port would aim the SDK at `:80`.
+The header is attacker-controllable, so it gets both treatments. **Gated:**
+`resolveRequestOrigin` consults it only when the immediate peer passes `isTrustedPeer` — the
+same `WALLOW_TRUSTED_PROXIES` gate `./client-address` puts on `x-forwarded-for`, so the two
+forwarded headers are one trust policy. Unset (the default), the header is ignored and the
+request's own origin stands, which behind a TLS-terminating ingress means `http` query keys —
+production compose sets `private` on both apps for exactly this reason. **Validated:** even
+from a trusted peer, it takes the first hop of a comma-joined chain, strips a trailing colon,
+lower-cases it, and falls back to `url.origin` unless the result is exactly `http` or `https`.
+It composes with `url.host`, never `url.hostname` — dropping a non-default port would aim the
+SDK at `:80`.
+
+The binding shape differs by call site, and the difference is the client-graph rule below:
+`log-ingest.server.ts` files are server-only, so they bind `createRequestOriginResolver(process.env)`
+at module scope like `clientAddressFor`; each `start.ts` is in the client graph, so it declares a
+module-scope `let` and memoizes the binding INSIDE the server callback
+(`requestOriginFor ??= createRequestOriginResolver(process.env)`).
 
 ## Boot-time validation lives elsewhere
 

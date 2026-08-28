@@ -12,7 +12,7 @@
  * to one and never refuses anything.
  */
 import { type PeerRequest } from "@bc-solutions-coder/env/client-address";
-import { resolveRequestOrigin } from "@bc-solutions-coder/env/request-origin";
+import { createRequestOriginResolver } from "@bc-solutions-coder/env/request-origin";
 import {
   createLogIngestHandler,
   type LogBatch,
@@ -24,6 +24,13 @@ import { csrfTokenMatches, readSession, type BffSession } from "@bc-solutions-co
 import { getBffServer } from "./bff.server";
 import { clientAddressFor } from "./client-address.server";
 import { OTLP_ENDPOINT, SERVICE } from "./log.server";
+
+/**
+ * This deployment's origin resolution, bound once — the same shape as
+ * `clientAddressFor`, and gated by the same `WALLOW_TRUSTED_PROXIES` list:
+ * `x-forwarded-proto` is believed only from a peer inside it.
+ */
+const requestOriginFor: (request: PeerRequest) => string = createRequestOriginResolver(process.env);
 
 /** The session behind this request, or `null` when there is none. */
 async function sessionFor(request: Request): Promise<BffSession | null> {
@@ -83,7 +90,7 @@ async function contextFor(request: Request): Promise<LogRequestContext> {
  */
 const ingest: LogIngestHandler = createLogIngestHandler({
   service: SERVICE,
-  allowedOrigins: (request: Request): string[] => [resolveRequestOrigin(request)],
+  allowedOrigins: (request: PeerRequest): string[] => [requestOriginFor(request)],
   clientAddress: clientAddressFor,
   ...(OTLP_ENDPOINT === "" ? {} : { otlpEndpoint: OTLP_ENDPOINT }),
   authorize: authorizeLogBatch,

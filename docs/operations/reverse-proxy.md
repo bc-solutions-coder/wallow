@@ -203,8 +203,11 @@ and every log record's `clientIp` names the ingress. The caller's real address i
 `X-Forwarded-For` — but believing that header unconditionally is worse than ignoring it, because
 any caller can send one and would then choose its own bucket and its own recorded address.
 
-`WALLOW_TRUSTED_PROXIES` is what separates the two. Set it on `wallow-auth` and `wallow-web` to
-the addresses your ingress reaches them from:
+`WALLOW_TRUSTED_PROXIES` is what separates the two, and it gates **both** forwarded headers as
+one trust policy: `X-Forwarded-For` (who the caller is) and `X-Forwarded-Proto` (which scheme
+the browser used, which each app folds into the SDK's `baseUrl` and the log-ingest origin
+check). Set it on `wallow-auth` and `wallow-web` to the addresses your ingress reaches them
+from:
 
 ```bash
 # Named shorthands (Express's `trust proxy` vocabulary):
@@ -222,9 +225,12 @@ WALLOW_TRUSTED_PROXIES=10.42.0.0/16, 203.0.113.7
 **Never name a range you do not control.** A trusted peer's forwarded chain is believed, so
 trusting a shared network hands every host on it the ability to pick its own address.
 
-Unset — the default — nothing is trusted and each app reports the address it actually sees.
-That is safe (it over-buckets rather than accepting a forged address) and it is correct for a
-deployment with nothing in front, so leave it unset unless there is a proxy.
+Unset — the default — nothing is trusted: each app reports the address it actually sees and
+ignores `X-Forwarded-Proto`. That is safe (it over-buckets rather than accepting a forged
+address) and it is correct for a deployment with nothing in front. Behind an HTTPS-terminating
+proxy it is a misconfiguration, not just a pessimisation: the SSR pass derives `http://` origins
+the hydrating browser never matches, so every prefetched query refetches. Set it whenever there
+is a proxy, leave it unset whenever there is not.
 
 When the peer IS trusted, the chain is walked from the **right** — the end each hop appends to
 — and the first entry that is not itself a trusted proxy is taken as the caller. That is what

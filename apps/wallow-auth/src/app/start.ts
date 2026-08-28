@@ -1,6 +1,7 @@
 import { withBasePath } from "@bc-solutions-coder/env/base-path";
+import { type PeerRequest } from "@bc-solutions-coder/env/client-address";
 import { resolveInternalOrigin } from "@bc-solutions-coder/env/internal-origin";
-import { resolveRequestOrigin } from "@bc-solutions-coder/env/request-origin";
+import { createRequestOriginResolver } from "@bc-solutions-coder/env/request-origin";
 import { createWallowSdk, type WallowSdk } from "@bc-solutions-coder/sdk";
 import { type ForkLinks, resolveForkLinks } from "@bc-solutions-coder/styles";
 import { createMiddleware, createStart } from "@tanstack/react-start";
@@ -25,14 +26,27 @@ import { BASE_PATH } from "@shared/lib/base-path";
  * `process.env` read is HERE, inside the server callback the browser never runs.
  */
 
+/**
+ * The origin resolver, bound lazily INSIDE the server callback rather than at
+ * module scope like the `*.server.*` bindings: this file is in the client graph
+ * too, so a module-scope `createRequestOriginResolver(process.env)` would run in
+ * the browser. Memoized because parsing `WALLOW_TRUSTED_PROXIES` is start-up
+ * work, not per-request work.
+ */
+let requestOriginFor: ((request: PeerRequest) => string) | undefined;
+
 const sdkMiddleware = createMiddleware().server(({ next, request }) => {
+  requestOriginFor ??= createRequestOriginResolver(process.env);
   // The browser-facing base URL: this app proxies `/v1/**` under its own base
   // path, so the origin serving the page plus that prefix is where the API is
   // reachable. Under a based build the bare origin is whatever the ingress
   // serves at the root — a different app — so the prefix is not optional here.
-  // Resolved through the helper so an HTTPS-terminating ingress does not leave
-  // the SSR pass building `http` query keys the hydrating browser never matches.
-  const requestOrigin: string = resolveRequestOrigin(request);
+  // Resolved through the helper so a trusted HTTPS-terminating ingress does not
+  // leave the SSR pass building `http` query keys the hydrating browser never
+  // matches — `x-forwarded-proto` is believed only from a peer inside
+  // `WALLOW_TRUSTED_PROXIES`, the same gate the log ingest puts on
+  // `x-forwarded-for`.
+  const requestOrigin: string = requestOriginFor(request);
 
   const sdk: WallowSdk = createWallowSdk({
     baseUrl: withBasePath(requestOrigin, BASE_PATH),

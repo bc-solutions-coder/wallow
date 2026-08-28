@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   createClientAddressResolver,
+  isTrustedPeer,
   type PeerRequest,
   parseTrustedProxies,
   resolveClientAddress,
@@ -205,6 +206,29 @@ describe("resolveClientAddress", () => {
     expect(resolveClientAddress(requestWith("203.0.113.9"), "::a00:1", LOCAL_PROXIES)).toBe(
       "0:0:0:0:0:0:a00:1",
     );
+  });
+});
+
+describe("isTrustedPeer", () => {
+  // The gate `resolveRequestOrigin` shares: the same peer-in-trusted-set
+  // decision, without the forwarded-chain walk.
+  it("answers whether the peer falls inside a trusted block", () => {
+    expect(isTrustedPeer("10.1.2.3", LOCAL_PROXIES)).toBe(true);
+    expect(isTrustedPeer("203.0.113.9", LOCAL_PROXIES)).toBe(false);
+  });
+
+  it("trusts nothing when nothing is configured, which is the default", () => {
+    expect(isTrustedPeer("10.1.2.3", TRUST_NO_PROXIES)).toBe(false);
+  });
+
+  it("trusts no peer it cannot judge", () => {
+    expect(isTrustedPeer(undefined, LOCAL_PROXIES)).toBe(false);
+    expect(isTrustedPeer("", LOCAL_PROXIES)).toBe(false);
+    expect(isTrustedPeer("not-an-address", LOCAL_PROXIES)).toBe(false);
+  });
+
+  it("matches a v4 peer that a dual-stack listener reported in mapped form", () => {
+    expect(isTrustedPeer("::ffff:10.1.2.3", LOCAL_PROXIES)).toBe(true);
   });
 });
 

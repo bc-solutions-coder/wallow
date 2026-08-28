@@ -48,8 +48,10 @@ The controls that actually apply, in both apps:
   path where no header can be set. An empty `allowedOrigins` rejects everything, which is the
   right failure direction for a misconfigured deployment. It also takes a **function**, resolved
   per request — which is how both apps wire it: they answer with the origin this request was
-  addressed to (`resolveRequestOrigin`, so a reverse proxy's `x-forwarded-proto` counts), making
-  the guard the classic Origin-versus-target check and needing no new environment variable.
+  addressed to (`createRequestOriginResolver`, so a trusted reverse proxy's `x-forwarded-proto`
+  counts — gated by the same `WALLOW_TRUSTED_PROXIES` the client-address resolution reads),
+  making the guard the classic Origin-versus-target check and needing no new environment
+  variable.
 - **Payload caps**, which reject rather than truncate. `maxBodyBytes` defaults to 64 KiB —
   `sendBeacon`'s own quota, so a batch the browser would refuse to queue is a batch the server
   would refuse to read.

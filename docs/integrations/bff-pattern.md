@@ -164,8 +164,11 @@ replacement inherits a hard contract: **it must send `X-Forwarded-Proto: https` 
 consequences land specifically on the BFF:
 
 - **The SSR base URL is derived from the incoming request's scheme.** Server-rendered loaders
-  build their base URL from `X-Forwarded-Proto` when present, falling back to the request's own
-  protocol. Without the header, SSR computes an `http://` base URL while the browser computes
+  build their base URL from `X-Forwarded-Proto` when it arrives from a peer inside
+  `WALLOW_TRUSTED_PROXIES` ([Reverse Proxy → Telling the Node apps which proxy to
+  believe](../operations/reverse-proxy.md#telling-the-node-apps-which-proxy-to-believe)),
+  falling back to the request's own protocol. Without the header — or with the trusted-proxy
+  list unset — SSR computes an `http://` base URL while the browser computes
   `https://`. Both work, but they produce *different* query keys — generated keys embed the base
   URL — so every server-rendered query is re-fetched on hydration instead of being reused.
 - **The API's cookie `Secure` flags and redirect URIs depend on it too.** With the header absent,

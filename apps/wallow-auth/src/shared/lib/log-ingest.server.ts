@@ -16,13 +16,19 @@
  * requests.
  */
 import { type PeerRequest } from "@bc-solutions-coder/env/client-address";
-import { resolveRequestOrigin } from "@bc-solutions-coder/env/request-origin";
+import { createRequestOriginResolver } from "@bc-solutions-coder/env/request-origin";
 import { createLogIngestHandler, type LogIngestHandler } from "@bc-solutions-coder/logger/server";
 
 import { clientAddressFor } from "./client-address.server";
 
 /** What this app calls itself in a record. Stamped server-side; the page never sends it. */
 const SERVICE = "wallow-auth";
+
+/**
+ * This deployment's origin resolution, bound once — the same shape as
+ * `clientAddressFor`, and gated by the same `WALLOW_TRUSTED_PROXIES` list.
+ */
+const requestOriginFor: (request: PeerRequest) => string = createRequestOriginResolver(process.env);
 
 /** Collector base URL. Unset — the default outside the compose stacks — logs to stdout. */
 const otlpEndpoint: string = (process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? "").trim();
@@ -32,8 +38,9 @@ const otlpEndpoint: string = (process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? "").tri
  *
  * `allowedOrigins` resolves to the origin THIS request was addressed to, which
  * only a page actually served from this app can match — the Origin-versus-target
- * check. `resolveRequestOrigin` honours `x-forwarded-proto`, so the check still
- * holds behind the TLS-terminating proxy this app runs behind in production.
+ * check. `requestOriginFor` honours `x-forwarded-proto` from a peer inside
+ * `WALLOW_TRUSTED_PROXIES` (which production sets), so the check still holds
+ * behind the TLS-terminating proxy this app runs behind there.
  *
  * `clientAddress` answers with the caller's address, which is the key the rate
  * limiter buckets on and the value stamped as `clientIp`. This route is
@@ -44,7 +51,7 @@ const otlpEndpoint: string = (process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? "").tri
  */
 const ingest: LogIngestHandler = createLogIngestHandler({
   service: SERVICE,
-  allowedOrigins: (request: Request): string[] => [resolveRequestOrigin(request)],
+  allowedOrigins: (request: PeerRequest): string[] => [requestOriginFor(request)],
   clientAddress: clientAddressFor,
   ...(otlpEndpoint === "" ? {} : { otlpEndpoint }),
 });

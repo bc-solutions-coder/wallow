@@ -101,8 +101,8 @@ routing to `ERROR_HREF` (`/error?reason=invalid_redirect_uri`) instead of silent
 ## Runtime environment is small, and has no OIDC in it
 
 The compose contract is three variables: `PORT`, `HOST` and `WALLOW_API_INTERNAL_URL`. Optional on
-top of those: `WALLOW_TRUSTED_PROXIES` (which gates whether an inbound `X-Forwarded-For` is
-believed — unset, nothing is trusted), `WALLOW_WEB_INTERNAL_URL` (this app's _own_ self-reachable
+top of those: `WALLOW_TRUSTED_PROXIES` (which gates whether the inbound `X-Forwarded-For` and
+`X-Forwarded-Proto` headers are believed — unset, nothing is trusted), `WALLOW_WEB_INTERNAL_URL` (this app's _own_ self-reachable
 origin, a different variable from `WALLOW_API_INTERNAL_URL`), `WALLOW_REPOSITORY_URL` /
 `WALLOW_DOCS_URL`, and `OTEL_EXPORTER_OTLP_ENDPOINT`. `AUTH_BASE_PATH` is build-time only.
 

@@ -138,7 +138,8 @@ in both apps:
   header name, so page script cannot forge it, and it is the one guard that survives the
   `sendBeacon` path where no header can be set. Both apps resolve it per request to the origin
   _this request was addressed to_ — the classic Origin-versus-target check, which needs no
-  configuration and honours a reverse proxy's `x-forwarded-proto`.
+  logging-specific configuration and honours a trusted reverse proxy's `x-forwarded-proto`
+  (gated by `WALLOW_TRUSTED_PROXIES`, the same list that gates `x-forwarded-for`).
 - **Payload caps that reject rather than truncate.** The default is 64 KiB, which is
   `sendBeacon`'s own quota: a batch the browser would refuse to queue is a batch the server
   refuses to read.

@@ -182,9 +182,9 @@ Per-app scripts (`pnpm --filter ./apps/<app> <script>`): `dev` (`vite dev`), `bu
   browser singleton at `src/shared/lib/log.ts` posting to a same-origin ingest route it mounts
   itself — `/bff/logs` in wallow-web (CSRF-gated, because of where the route lives) and `/logs`
   in wallow-auth (no session, so no token to check). Both mount the SAME handler and neither
-  reimplements a guard; the load-bearing one is an origin allowlist resolved per request to
-  `resolveRequestOrigin(request)`, which is why there is no logging environment variable beyond
-  the standard `OTEL_EXPORTER_OTLP_ENDPOINT`. Server-side code uses `createServerLogger`
+  reimplements a guard; the load-bearing one is an origin allowlist resolved per request through
+  `createRequestOriginResolver(process.env)`, which is why there is no logging environment
+  variable beyond the standard `OTEL_EXPORTER_OTLP_ENDPOINT`. Server-side code uses `createServerLogger`
   (wallow-web's is `src/app/lib/log.server.ts`, deliberately split out of `log-ingest.server.ts`
   to keep `bff.server.ts` off an import cycle); wallow-auth has none, because nothing in its
   server code records anything yet. Events are NAMES, not prose (`bff.logout.failed`), and

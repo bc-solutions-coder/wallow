@@ -1,5 +1,6 @@
+import { type PeerRequest } from "@bc-solutions-coder/env/client-address";
 import { resolveInternalOrigin } from "@bc-solutions-coder/env/internal-origin";
-import { resolveRequestOrigin } from "@bc-solutions-coder/env/request-origin";
+import { createRequestOriginResolver } from "@bc-solutions-coder/env/request-origin";
 import { createWallowSdk, type WallowSdk } from "@bc-solutions-coder/sdk";
 import { createMiddleware, createStart } from "@tanstack/react-start";
 
@@ -21,12 +22,23 @@ import { createMiddleware, createStart } from "@tanstack/react-start";
  * `process.env` read is HERE, inside the server callback the browser never runs.
  */
 
+/**
+ * The origin resolver, bound lazily INSIDE the server callback rather than at
+ * module scope: this file is in the client graph too, so a module-scope
+ * `createRequestOriginResolver(process.env)` would run in the browser. Memoized
+ * because parsing `WALLOW_TRUSTED_PROXIES` is start-up work, not per-request
+ * work.
+ */
+let requestOriginFor: ((request: PeerRequest) => string) | undefined;
+
 const sdkMiddleware = createMiddleware().server(({ next, request }) => {
+  requestOriginFor ??= createRequestOriginResolver(process.env);
   // The browser-facing origin: this app proxies `/v1/**` at its own root, so the
   // origin serving the page is also the origin the API is reachable on. Resolved
-  // through the helper so an HTTPS-terminating ingress does not leave the SSR
-  // pass building `http` query keys the hydrating browser never matches.
-  const requestOrigin: string = resolveRequestOrigin(request);
+  // through the helper so a trusted HTTPS-terminating ingress
+  // (`WALLOW_TRUSTED_PROXIES`) does not leave the SSR pass building `http` query
+  // keys the hydrating browser never matches.
+  const requestOrigin: string = requestOriginFor(request);
 
   const sdk: WallowSdk = createWallowSdk({
     baseUrl: requestOrigin,

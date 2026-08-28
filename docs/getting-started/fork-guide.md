@@ -338,12 +338,15 @@ argument, not a runtime one, for the reason given in `apps/wallow-auth/src/share
 Both of these hold regardless of how you rebrand or re-host, and both fail in ways that do not point
 back at the change that caused them.
 
-1. **Your ingress must send `X-Forwarded-Proto: https`.** The reference stack ships a Caddy ingress
+1. **Your ingress must send `X-Forwarded-Proto: https`, and the frontends must trust it.** The
+   reference stack ships a Caddy ingress
    ([Deployment → Routing Topologies](../operations/deployment.md#2-routing-topologies)), and
    replacing it is supported — but the replacement inherits this requirement. Without the header the
    API builds `http://` redirect URIs and discovery documents, `Secure` cookie logic misreads the
    connection, and server-rendered queries compute a different base URL than the browser does, so
-   hydration re-fetches instead of reusing. Details on the proxy side are in
+   hydration re-fetches instead of reusing. The Node apps believe the header only from a peer inside
+   `WALLOW_TRUSTED_PROXIES` (the production compose defaults it to `private`), so an ingress on an
+   address outside that list re-creates the same symptoms with the header present. Details on the proxy side are in
    [Reverse Proxy → Forwarded Headers](../operations/reverse-proxy.md#4-forwarded-headers); the
    frontend consequences are in
    [What the BFF requires from your ingress](../integrations/bff-pattern.md#what-the-bff-requires-from-your-ingress).

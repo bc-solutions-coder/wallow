@@ -105,16 +105,16 @@ this app's, in `src/shared/lib/base-path.ts`.
 
 ## Environment variables
 
-| Variable                                   | Required | Default         | Purpose                                                                                                                             |
-| ------------------------------------------ | -------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `WALLOW_API_INTERNAL_URL`                  | yes      | —               | Upstream the three proxy routes forward to.                                                                                         |
-| `PORT`                                     | no       | `3002`          | Listen port, read by the host (Vite/Nitro).                                                                                         |
-| `HOST`                                     | no       | —               | Bind address, read by the Nitro server bundle.                                                                                      |
-| `AUTH_BASE_PATH`                           | no       | `""`            | URL prefix this build is served under. **Build-time only.**                                                                         |
-| `WALLOW_WEB_INTERNAL_URL`                  | no       | —               | The app's own self-reachable origin, for SSR fetches (`resolveInternalOrigin`). Not the same variable as `WALLOW_API_INTERNAL_URL`. |
-| `WALLOW_TRUSTED_PROXIES`                   | no       | _(empty)_       | CIDRs whose `X-Forwarded-For` is believed. Unset, nothing is trusted and the peer address wins.                                     |
-| `WALLOW_REPOSITORY_URL`, `WALLOW_DOCS_URL` | no       | `branding.json` | The fork's outbound links, stated into the document by `__root.tsx`.                                                                |
-| `OTEL_EXPORTER_OTLP_ENDPOINT`              | no       | —               | Where `/logs` forwards ingested browser records.                                                                                    |
+| Variable                                   | Required | Default         | Purpose                                                                                                                                         |
+| ------------------------------------------ | -------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `WALLOW_API_INTERNAL_URL`                  | yes      | —               | Upstream the three proxy routes forward to.                                                                                                     |
+| `PORT`                                     | no       | `3002`          | Listen port, read by the host (Vite/Nitro).                                                                                                     |
+| `HOST`                                     | no       | —               | Bind address, read by the Nitro server bundle.                                                                                                  |
+| `AUTH_BASE_PATH`                           | no       | `""`            | URL prefix this build is served under. **Build-time only.**                                                                                     |
+| `WALLOW_WEB_INTERNAL_URL`                  | no       | —               | The app's own self-reachable origin, for SSR fetches (`resolveInternalOrigin`). Not the same variable as `WALLOW_API_INTERNAL_URL`.             |
+| `WALLOW_TRUSTED_PROXIES`                   | no       | _(empty)_       | CIDRs whose `X-Forwarded-For` / `X-Forwarded-Proto` are believed. Unset, nothing is trusted: the peer address and the request's own scheme win. |
+| `WALLOW_REPOSITORY_URL`, `WALLOW_DOCS_URL` | no       | `branding.json` | The fork's outbound links, stated into the document by `__root.tsx`.                                                                            |
+| `OTEL_EXPORTER_OTLP_ENDPOINT`              | no       | —               | Where `/logs` forwards ingested browser records.                                                                                                |
 
 There is no OIDC configuration here. This app issues no tokens and reads no
 session; the OIDC contract belongs to `wallow-web`'s BFF and to the API.
