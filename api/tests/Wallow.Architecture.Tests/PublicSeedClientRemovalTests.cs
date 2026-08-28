@@ -37,8 +37,11 @@ public class PublicSeedClientRemovalTests
     /// </summary>
     private const string WebBffClientId = "wallow-web-client";
 
-    /// <summary>The redirect URI docker-compose.test.yml overrides onto <see cref="WebBffClientId"/>.</summary>
-    private const string TestComposeRedirectUri = "http://localhost:5053/bff/callback";
+    /// <summary>
+    /// The redirect URI docker-compose.test.yml overrides onto <see cref="WebBffClientId"/>.
+    /// The host port is parameterized (Wallow-joo0), defaulting to 5053.
+    /// </summary>
+    private const string TestComposeRedirectUri = "http://localhost:${E2E_WEB_PORT:-5053}/bff/callback";
 
     /// <summary>
     /// Directories that are build output, dependencies, test artifacts, or gitignored local
