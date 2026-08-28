@@ -95,8 +95,17 @@ test("sign-in with Wallow from an external origin completes end to end", async (
   // other relying party" leg of the acceptance criteria. Proven the same way
   // login-journey.spec.ts proves its own logout: page.request shares the browser's cookie
   // jar, so a 401 from the external origin's own /bff/user is the destroyed session speaking.
+  //
+  // The pathname check is load-bearing: the click starts an async POST /bff/logout, and only
+  // after that resolves does the SDK navigate -- to "/", because the opaque manual-redirect
+  // response hides the Location header (packages/sdk/src/auth.ts endSession). An origin-only
+  // predicate matches the /bff-demo URL the page is ALREADY on, so waitForURL resolves
+  // immediately and the /bff/user check below races the in-flight logout POST -- 200 instead
+  // of 401 under CI load. Waiting for "/" orders the check after the session is destroyed.
   await page.getByTestId("bff-logout").click();
-  await page.waitForURL((url) => url.origin === BFF_EXAMPLE_ORIGIN, { timeout: 20_000 });
+  await page.waitForURL((url) => url.origin === BFF_EXAMPLE_ORIGIN && url.pathname === "/", {
+    timeout: 20_000,
+  });
 
   const bffUserAfterLogout = await page.request.get(`${BFF_EXAMPLE_ORIGIN}/bff/user`);
   expect(bffUserAfterLogout.status()).toBe(UNAUTHENTICATED_STATUS);
