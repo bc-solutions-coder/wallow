@@ -38,6 +38,12 @@ concurrency:
   cancel-in-progress: false
 
 env:
+  # pnpm install runs `prepare` (husky), which points core.hooksPath at .husky/_ —
+  # so without this the workflow's own git commit and push run the developer
+  # hooks. Those hooks execute under the runner's plain sh (husky's shim ignores
+  # their bash shebang), which rejects `set -o pipefail` and kills the commit.
+  # Automation doesn't want them anyway: the PR this opens gets its own full CI.
+  HUSKY: "0"
   COMMITTED_SNAPSHOT: packages/sdk/openapi/v1.json
   EXPECTED_SERVER_URL: http://localhost:5001/
   REGEN_BRANCH: automation/openapi-regen
