@@ -18,7 +18,6 @@ import { Route } from "./index";
  * flag comes from a partially mocked `@bc-solutions-coder/styles`.
  */
 
-const loginMock = vi.hoisted(() => vi.fn());
 // Mutable branding stand-in so each test can flip `landingPage.enabled`.
 const branding = vi.hoisted(() => ({
   forkBranding: {
@@ -38,13 +37,6 @@ vi.mock("@bc-solutions-coder/styles", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@bc-solutions-coder/styles")>()),
   ...branding,
 }));
-
-// Spy on the SDK's `login` (a real browser nav in prod) while keeping every
-// other export intact so `createFileRoute`/router wiring still resolves.
-vi.mock("@bc-solutions-coder/sdk", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@bc-solutions-coder/sdk")>();
-  return { ...actual, login: loginMock };
-});
 
 // Stub TanStack `Link` (used by PublicLayout) to a plain anchor; keep the rest
 // of react-router real so `createFileRoute` and `redirect` behave.
@@ -130,19 +122,17 @@ describe("routes/index (public-home gate)", () => {
 
     expect(thrown).toBeDefined();
     expect(String(thrown?.to ?? "")).toMatch(/^\/dashboard/u);
-    expect(loginMock).not.toHaveBeenCalled();
   });
 
-  it("shows the page (no redirect, no login) for an unauthenticated visitor when the landing page is enabled", async () => {
+  it("shows the page (no redirect) for an unauthenticated visitor when the landing page is enabled", async () => {
     branding.forkBranding.landingPage.enabled = true;
 
     const thrown = await captureThrow(null);
 
     expect(thrown).toBeUndefined();
-    expect(loginMock).not.toHaveBeenCalled();
   });
 
-  it("throws a BFF-login redirect (not a browser-only login() call) when the landing page is disabled", async () => {
+  it("throws a BFF-login redirect when the landing page is disabled", async () => {
     // The client-side shape only — the SSR half is `index.ssr-gate.test.ts`,
     // which runs in the node project against a real SDK.
     branding.forkBranding.landingPage.enabled = false;
@@ -151,7 +141,6 @@ describe("routes/index (public-home gate)", () => {
 
     assertRedirect(thrown);
     expect(thrown.options.href).toBe("/bff/login?returnTo=%2Fdashboard%2Fapps");
-    expect(loginMock).not.toHaveBeenCalled();
   });
 });
 

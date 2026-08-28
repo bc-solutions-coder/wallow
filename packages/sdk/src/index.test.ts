@@ -55,13 +55,11 @@ const BROWSER_VALUE_EXPORTS: readonly string[] = [
   "createWallowSdk",
   "getCurrentUser",
   "getRoles",
-  "getUser",
   "hasRole",
   "isAdmin",
   "isSafeMethod",
   "isSafeReturnUrl",
   "isWallowError",
-  "login",
   "loginRedirect",
   "logout",
   "readCsrfCookie",
@@ -86,6 +84,12 @@ const DELETED_LEGACY_SYMBOLS: readonly string[] = [
   "createConfiguredOnce",
   "createMfaClient",
   "getSsrRequestContext",
+  // The imperative navigation/fetch helpers Wallow-j7qk retired: login is a
+  // plain `loginRedirect()` link and the current user comes from
+  // `getCurrentUser`/`currentUserQuery`. Only `logout` remains imperative —
+  // `/bff/logout` is CSRF-gated, so it cannot be a link.
+  "getUser",
+  "login",
   "setSsrRequestContextResolver",
   // The envelope-unwrapping layer the response interceptor superseded: every
   // operation's failure path raises a WallowError, so nothing unwraps any more.

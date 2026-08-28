@@ -17,10 +17,11 @@ let harness: SdkHarness;
  * off the router context, so `renderWithWallow` hands it a REAL SDK over the
  * harness transport and the spec asserts on the request that actually went out.
  * Two browser seams stay stubbed — `/bff/user` is read with the global `fetch`,
- * and `login()`/`logout()` assign to `location`, taking the test iframe with them.
+ * and `logout()` assigns to `location`, taking the test iframe with it. Login
+ * is a plain anchor, asserted by its `href`.
  */
 
-const navigationMocks = vi.hoisted(() => ({ login: vi.fn(), logout: vi.fn() }));
+const navigationMocks = vi.hoisted(() => ({ logout: vi.fn() }));
 
 vi.mock("@bc-solutions-coder/sdk", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@bc-solutions-coder/sdk")>();
@@ -33,7 +34,7 @@ const SIGNED_IN_USER = { sub: "u1", email: "user@test.local", csrfToken: "csrf-a
 const UNAUTHORIZED = 401;
 const FORBIDDEN = 403;
 
-/** Stub the global `fetch` that `getUser()` uses for `/bff/user`. */
+/** Stub the global `fetch` the mount effect reads `/bff/user` with. */
 function stubBffUser(body: unknown, status: number = 200): void {
   vi.spyOn(globalThis, "fetch").mockResolvedValue(
     status === UNAUTHORIZED ? new Response(null, { status }) : Response.json(body, { status }),
@@ -94,11 +95,14 @@ describe("routes/bff-demo (BFF smoke surface)", () => {
     await expect.element(page.getByTestId("bff-user-email")).toHaveTextContent("user@test.local");
   });
 
-  it('clicking bff-login triggers login("/")', async () => {
+  it('renders bff-login as a document link to the BFF login with returnTo "/"', async () => {
+    // Asserted by href rather than clicked: following the link would navigate
+    // the test iframe away.
     renderDemo();
 
-    await userEvent.click(page.getByTestId("bff-login"));
-    expect(navigationMocks.login).toHaveBeenCalledWith("/");
+    await expect
+      .element(page.getByTestId("bff-login"))
+      .toHaveAttribute("href", "/bff/login?returnTo=%2F");
   });
 
   it("clicking bff-logout triggers logout()", async () => {

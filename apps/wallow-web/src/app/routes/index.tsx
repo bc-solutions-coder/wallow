@@ -22,11 +22,11 @@ import { LandingPage } from "@features/landing";
  *   - otherwise a thrown TanStack `redirect()` sends them to the BFF login (a
  *     forced OIDC challenge), landing back on the dashboard afterwards.
  *
- * That forced-login branch deliberately does NOT use the SDK's `login(returnTo)`
- * helper: it assigns to the bare global `location`, which does not exist under
- * Node, so a full-page SSR load of `/` would throw and the request handler would
- * surface it as HTTP 500 instead of a redirect (Wallow-fqw9, the sibling of the
- * `/dashboard` fix in Wallow-zyxe). A thrown `redirect()` works on both sides —
+ * That forced-login branch must never navigate by assigning to the bare global
+ * `location` (as the SDK's since-deleted `login(returnTo)` helper did): it does
+ * not exist under Node, so a full-page SSR load of `/` would throw and the
+ * request handler would surface it as HTTP 500 instead of a redirect
+ * (Wallow-fqw9, the sibling of the `/dashboard` fix in Wallow-zyxe). A thrown `redirect()` works on both sides —
  * the SSR request handler turns it into a 307 with a `Location` header, and the
  * client router navigates. It is marked `reloadDocument` because `/bff/login` is
  * a BFF endpoint rather than a route in the TanStack tree, so a relative href

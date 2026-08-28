@@ -9,10 +9,10 @@ import { Route } from "./index";
  *
  * With the landing page disabled and no cached user, the gate must THROW a
  * TanStack `redirect({ href, reloadDocument })` to the BFF login rather than
- * call the SDK's browser-only `login()`, which assigns to the bare global
- * `location` and would surface as HTTP 500 under SSR. `@bc-solutions-coder/sdk`
- * is therefore NOT mocked; as a `.test.ts` this runs in the NODE project, under
- * the same no-global-`location` conditions as a full-page SSR render.
+ * navigate by assigning to the bare global `location`, which would surface as
+ * HTTP 500 under SSR. `@bc-solutions-coder/sdk` is therefore NOT mocked; as a
+ * `.test.ts` this runs in the NODE project, under the same
+ * no-global-`location` conditions as a full-page SSR render.
  */
 
 /** The BFF login target the gate must send a forced-login visitor to. */

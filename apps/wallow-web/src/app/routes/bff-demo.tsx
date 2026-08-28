@@ -1,7 +1,6 @@
 import {
-  getUser,
   isWallowError,
-  login,
+  loginRedirect,
   logout,
   organizationsCreate,
   setCsrfToken,
@@ -20,11 +19,11 @@ import { useEffect, useState } from "react";
  * SSR route, and a static `index.html` in the public assets would shadow it. This
  * route is now the only BFF demo surface.
  *
- * It preserves the `bff-*` `data-testid` contract the C# `BffFlowTests`
- * (api/tests/Wallow.E2E.Tests/Flows/BffFlowTests.cs) drives:
+ * It preserves the `bff-*` `data-testid` contract (pinned by
+ * `bff-demo.test.tsx`):
  *   - bff-user-status   ("anonymous" | "authenticated")
  *   - bff-user-email    (authenticated user's email)
- *   - bff-login         (button -> login("/"))
+ *   - bff-login         (link -> /bff/login, via loginRedirect("/"))
  *   - bff-logout        (button -> logout())
  *   - bff-call-api      (button -> GET usersGetCurrentUser() through /api)
  *   - bff-mutate        (button -> POST organizationsCreate() with CSRF)
@@ -89,7 +88,12 @@ function BffDemoComponent() {
     let cancelled = false;
 
     async function refreshUser(): Promise<void> {
-      const user: WallowUser | null = await getUser();
+      // As the raw BFF example this reads `/bff/user` with a plain fetch (401
+      // means anonymous); app code reads the typed `currentUserQuery` from
+      // `@bc-solutions-coder/auth` instead. The raw read is also what hands
+      // back the session's `csrfToken`, which the typed path never exposes.
+      const response: Response = await fetch("/bff/user", { credentials: "include" });
+      const user: WallowUser | null = response.ok ? ((await response.json()) as WallowUser) : null;
       if (cancelled) {
         return;
       }
@@ -168,9 +172,11 @@ function BffDemoComponent() {
         </Text>
       </Text>
 
-      <button type="button" data-testid="bff-login" onClick={() => login("/")}>
+      {/* A document link, not a button: /bff/login is a BFF endpoint, so the
+          browser must make this hop as a full navigation. */}
+      <a data-testid="bff-login" href={loginRedirect("/").href}>
         Sign in
-      </button>
+      </a>
       <button
         type="button"
         data-testid="bff-logout"

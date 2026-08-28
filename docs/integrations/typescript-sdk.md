@@ -18,7 +18,7 @@ you.
 
 | Import                                       | Runs in                                             | Purpose                                                                                                                                                                                                                                                                                              |
 | -------------------------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@bc-solutions-coder/sdk`                    | Browser (also safe to import from a Node SSR entry) | `createWallowSdk()` — the [per-request client factory](#browser-api) targeting the same-origin `/api` proxy — plus `login()`, `logout()`, `getUser()`, the generated typed operations, the [CSRF module](#csrf-protection), and the [SSR wiring](#per-request-instances-for-server-rendered-loaders) |
+| `@bc-solutions-coder/sdk`                    | Browser (also safe to import from a Node SSR entry) | `createWallowSdk()` — the [per-request client factory](#browser-api) targeting the same-origin `/api` proxy — plus `logout()`, `loginRedirect()`, `getCurrentUser()`, the generated typed operations, the [CSRF module](#csrf-protection), and the [SSR wiring](#per-request-instances-for-server-rendered-loaders) |
 | `@bc-solutions-coder/sdk/server`             | Server (Node)                                       | The BFF tunnel: `createWallowBffServer()`, `createBffHandlers()`, `createApiProxy()`, `loadBffConfigFromEnv()`, and the session stores. Every handler is a plain `(Request) => Promise<Response>` function                                                                                           |
 | `@bc-solutions-coder/sdk/server/passthrough` | Server (Node)                                       | `createApiPassthrough()` — a pure reverse proxy that owns no session and forwards the upstream response verbatim. Its own subpath so a passthrough-only app never pulls `openid-client` into its server bundle                                                                                       |
 | `@bc-solutions-coder/sdk/query`              | Browser                                             | The TanStack Query layer — a generated `{op}Options()` / `{op}QueryKey()` / `{op}Mutation()` trio per OpenAPI operation, plus the curated invalidation predicates `queriesForOperation()` and `queriesWithTag()`                                                                                     |
@@ -303,8 +303,8 @@ re-seals the cookie — the browser sees only a normal API response. It then
 strips the `/api` prefix and forwards the request to `apiBaseUrl` with the
 `Authorization: Bearer <access_token>` header attached.
 
-Requests that arrive without a valid session receive a `401`, which the browser
-`getUser()` helper interprets as "unauthenticated".
+Requests that arrive without a valid session receive a `401`, which the
+`getCurrentUser()` helper interprets as "unauthenticated".
 
 ---
 
@@ -408,12 +408,15 @@ never hand-rolls a request interceptor or reads the companion cookie itself.
 which leaves app code one job — telling it the token:
 
 ```ts
-import { createWallowSdk, getUser, setCsrfToken } from "@bc-solutions-coder/sdk";
+import { createWallowSdk, setCsrfToken } from "@bc-solutions-coder/sdk";
 
 const sdk = createWallowSdk({ baseUrl: "/api" }); // CSRF interceptor already wired
 
-const user = await getUser();
-setCsrfToken(user === null ? null : typeof user.csrfToken === "string" ? user.csrfToken : null);
+// /bff/user is the one endpoint that hands the session's CSRF token to the
+// browser, so it is read with a plain fetch rather than a typed operation.
+const response = await fetch("/bff/user", { credentials: "include" });
+const user: { csrfToken?: unknown } | null = response.ok ? await response.json() : null;
+setCsrfToken(user !== null && typeof user.csrfToken === "string" ? user.csrfToken : null);
 ```
 
 - `wireCsrfInterceptor(client)` registers a request interceptor exactly once:
@@ -461,21 +464,21 @@ the following, each retried at most once:
 
 ## Browser API
 
-Build one SDK instance per request, then use the three auth helpers.
+Build one SDK instance per request, then read and change auth state through
+the helpers.
 
 ```ts
-import { createWallowSdk, getUser, login, logout } from "@bc-solutions-coder/sdk";
+import { createWallowSdk, getCurrentUser, loginRedirect, logout } from "@bc-solutions-coder/sdk";
 
 // Point a fresh typed client at the same-origin BFF proxy.
 const sdk = createWallowSdk({ baseUrl: "/api" });
 
-// Render current auth state.
-const user = await getUser(); // WallowUser | null (null when unauthenticated)
-if (user === null) {
-  login("/dashboard"); // navigates to /bff/login?returnTo=/dashboard
-} else {
-  console.log(user.sub, user.email);
-}
+// Render current auth state (null when anonymous).
+const user = await getCurrentUser({ client: sdk.client });
+
+// Send an anonymous visitor to sign in. loginRedirect() only BUILDS the target
+// — render it as an <a href>, or throw it through the router's redirect().
+const { href } = loginRedirect("/dashboard"); // /bff/login?returnTo=%2Fdashboard
 
 // Sign out. This is an async POST, not a navigation: await it (or catch the
 // rejection) so a refused logout is not swallowed.
@@ -489,8 +492,17 @@ await logout();
   the full origin (`https://app.example.com/api`) when the app is not served
   from the BFF's origin. Bind a generated operation to the instance with the
   standard `{ client }` call option.
-- `login(returnTo = "/")` — navigates the browser to `/bff/login`, preserving
-  where to land after a successful sign-in.
+- `getCurrentUser({ client })` — resolves the signed-in user through the `/api`
+  proxy, or `null` on a `401`. Any other failure throws the error it arrived
+  as, so an outage can never masquerade as a signed-out user. In a TanStack
+  app, prefer `@bc-solutions-coder/auth`'s `currentUserQuery`, which caches
+  this read behind TanStack Query.
+- `loginRedirect(returnTo = "/")` — returns `{ href, reloadDocument }` pointing
+  at `/bff/login` with an encoded `returnTo`. It never touches `location`, so
+  it is SSR-safe: render the `href` as a plain document link, or throw it from
+  a `beforeLoad` via the router's `redirect()` (`requireAuth()` wraps that
+  guard pattern). There is deliberately no imperative `login()` — a helper that
+  assigned to `location` turned gated SSR loads into HTTP 500s.
 - `logout(options?)` — returns `Promise<void>`. `/bff/logout` is state-changing
   and answers `405 + Allow: POST` to a bare `GET`, so this cannot be a plain
   navigation: it issues `POST /bff/logout` with `credentials: "include"`,
@@ -501,10 +513,11 @@ await logout();
   when the BFF refuses (`Logout failed: the BFF answered <status>`), leaving the
   browser where it is, so handle it rather than firing and forgetting. The
   browser-context guard throws synchronously.
-- `getUser()` — `GET /bff/user`; resolves to a `WallowUser` on `200`, `null` on
-  `401` (unauthenticated), and throws on any other error. `WallowUser` always
-  carries `sub` and optionally `email`/`name` plus any additional claims. It
-  fetches `/bff/user` directly and so needs no SDK instance.
+
+The user shape is `WallowUser`: always `sub`, optionally `email`/`name`, plus
+any additional claims. `GET /bff/user` returns it directly (with the session's
+`csrfToken` alongside — see [CSRF protection](#csrf-protection)) for code that
+wants the raw endpoint rather than a typed operation.
 
 > [!IMPORTANT]
 > **There is no module-global client and no configure step.** A singleton is
@@ -735,7 +748,7 @@ with a per-run port instead (`./scripts/e2e.sh`, Wallow-joo0).
 | Symptom                                                 | Likely cause                                           | Fix                                                                                                                                     |
 | ------------------------------------------------------- | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
 | `Missing required environment variable: ...` on startup | A required env var is unset or empty                   | Set every required key in the [environment variables](#environment-variables) table                                                     |
-| `getUser()` always returns `null`                       | Session cookie not being sent                          | Serve the app and BFF on the same origin; on the server, confirm the request's `cookieHeader` reaches `createWallowSdk()`               |
+| `getCurrentUser()` always resolves `null`               | Session cookie not being sent                          | Serve the app and BFF on the same origin; on the server, confirm the request's `cookieHeader` reaches `createWallowSdk()`               |
 | `invalid_client` on callback                            | `OIDC_CLIENT_ID`/`OIDC_CLIENT_SECRET` mismatch         | Confirm they match the registered (or seeded) confidential client                                                                       |
 | `redirect_uri` mismatch                                 | `OIDC_REDIRECT_URI` does not match the registered URI  | Register `http://localhost:3000/bff/callback` (or your value) and keep them identical                                                   |
 | `401` from `/api/**` after login                        | Session missing or refresh token unavailable           | Ensure `offline_access` is in the requested scopes so a refresh token is issued                                                         |

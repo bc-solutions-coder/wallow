@@ -1,11 +1,16 @@
 /**
- * Browser auth helpers that talk to the same-origin BFF tunnel.
+ * The browser half of the BFF logout contract, plus the `WallowUser` shape the
+ * `/bff/user` endpoint resolves.
+ *
+ * `logout()` is deliberately the ONLY imperative navigation helper left here:
+ * login is a plain link built with `loginRedirect()` (route-context.ts), and the
+ * current user is read through `getCurrentUser`/`currentUserQuery`. Logout alone
+ * cannot be a link — `/bff/logout` is CSRF-gated and answers 405 to a GET — so
+ * the SDK ships the client call matching its own handler, pinned together by
+ * `auth-logout.contract.test.ts`.
  */
 
 import { getCsrfToken, readCsrfCookie } from "./csrf";
-
-/** HTTP 401 Unauthorized — the BFF returns this when no session is active. */
-const HTTP_UNAUTHORIZED: number = 401;
 
 /** First status the BFF uses to refuse a request outright (403 CSRF, 405 method). */
 const HTTP_FIRST_ERROR: number = 400;
@@ -34,13 +39,13 @@ export interface WallowUser {
  * Fail with an actionable message when a browser-only navigation helper is
  * called outside the browser.
  *
- * Both helpers navigate by assigning to the global `location`, which Node has
+ * `logout()` navigates by assigning to the global `location`, which Node has
  * no equivalent for; a partially-polyfilled SSR runtime can also expose it as
  * `undefined`. `typeof` covers both shapes. Importing this module stays safe
  * either way — the check lives inside the function bodies, never at module
  * scope — so the browser entry can be pulled into an SSR bundle unchanged.
  *
- * @param caller Name of the calling helper, e.g. `login()`, used in the message.
+ * @param caller Name of the calling helper, e.g. `logout()`, used in the message.
  */
 function assertBrowserNavigation(caller: string): void {
   const canNavigate: boolean = typeof location !== "undefined";
@@ -50,19 +55,6 @@ function assertBrowserNavigation(caller: string): void {
       `${caller} can only run in the browser: it navigates by assigning to the global \`location\`, which is unavailable during server-side rendering. Call it from a client-side event handler or effect.`,
     );
   }
-}
-
-/**
- * Navigate the browser to the BFF login endpoint, preserving where the user
- * should land afterwards.
- *
- * @param returnTo Path to return to after a successful login. Defaults to "/".
- * @throws Error when called outside a browser context.
- */
-export function login(returnTo: string = "/"): void {
-  assertBrowserNavigation("login()");
-
-  location.href = `/bff/login?returnTo=${encodeURIComponent(returnTo)}`;
 }
 
 /**
@@ -144,53 +136,4 @@ async function endSession(options?: LogoutOptions): Promise<void> {
   // were applied and the session IS cleared. Only the target is invisible, so
   // fall back to the app root.
   location.href = response.headers.get("location") ?? "/";
-}
-
-/**
- * Options for {@link getUser}.
- */
-export interface GetUserOptions {
-  /**
-   * Absolute origin (e.g. `http://localhost:3000`) to resolve the `/bff/user`
-   * request against. Required during SSR, where the global (Node/undici) `fetch`
-   * cannot parse a relative URL and throws `Failed to parse URL from /bff/user`.
-   * Omit it in the browser to keep the same-origin relative request.
-   */
-  baseUrl?: string;
-  /**
-   * Extra request headers to attach. Used during SSR to forward the incoming
-   * session `Cookie` header, since the Node `fetch` has no cookie jar and
-   * `credentials: "include"` alone would send an anonymous request. Omit it in
-   * the browser, where the cookie rides along automatically.
-   */
-  headers?: Record<string, string>;
-}
-
-/**
- * Fetch the current user from the BFF `/bff/user` endpoint.
- *
- * @param options Optional {@link GetUserOptions}; pass `baseUrl` during SSR so the
- *                request target is an absolute URL the Node fetch can resolve.
- * @returns The parsed user on 200, or `null` when unauthenticated (401).
- *          Throws on any other non-ok response.
- */
-export async function getUser(options?: GetUserOptions): Promise<WallowUser | null> {
-  const target: string = options?.baseUrl ? `${options.baseUrl}/bff/user` : "/bff/user";
-
-  const init: RequestInit = { credentials: "include" };
-  if (options?.headers) {
-    init.headers = options.headers;
-  }
-
-  const response: Response = await fetch(target, init);
-
-  if (response.status === HTTP_UNAUTHORIZED) {
-    return null;
-  }
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch user: ${response.status}`);
-  }
-
-  return (await response.json()) as WallowUser;
 }

@@ -26,10 +26,10 @@ import { DashboardLayout } from "@shared/components/DashboardLayout";
  * header, and the client router navigates. `loginRedirect` owns both the encoded
  * `returnTo` (so the visitor lands back on the gated page) and `reloadDocument`,
  * which is required because `/bff/login` is a BFF endpoint rather than a route in
- * the TanStack tree. It deliberately does NOT use the SDK's `login(returnTo)`
- * helper: that assigns to the bare global `location`, which does not exist under
- * Node, so a full-page SSR load of `/dashboard/**` returned HTTP 500 instead of a
- * redirect (Wallow-zyxe).
+ * the TanStack tree. It must never navigate by assigning to the bare global
+ * `location` (as the SDK's since-deleted `login(returnTo)` helper did): it does
+ * not exist under Node, so a full-page SSR load of `/dashboard/**` returned
+ * HTTP 500 instead of a redirect (Wallow-zyxe).
  *
  * When a user IS present it derives `isAdmin` from the user's roles claim
  * (Wallow-ffpq.3.6) and exposes it on the route context so the

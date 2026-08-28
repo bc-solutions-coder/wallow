@@ -9,8 +9,8 @@
  * SSR SAFETY IS THE WHOLE POINT (Wallow-zyxe). A guard runs in `beforeLoad`,
  * which executes during a full-page server render as well as in the browser, so
  * it may never navigate by assigning to the global `location` — Node has none,
- * and the SDK's own browser-only `login()` helper turned a gated SSR load into
- * an HTTP 500 for exactly that reason. Nothing in this module reads `location`,
+ * and the SDK's since-deleted browser-only `login()` helper turned a gated SSR
+ * load into an HTTP 500 for exactly that reason. Nothing in this module reads `location`,
  * `document`, or `window`; it only BUILDS a redirect target and hands it to the
  * router's own `redirect()`, which the SSR request handler turns into a 307 and
  * the client router turns into a navigation.

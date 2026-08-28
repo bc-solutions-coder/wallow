@@ -1,9 +1,6 @@
-import { createServer, type Server } from "node:http";
-import { type AddressInfo } from "node:net";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-import { getUser, login, logout, type WallowUser } from "./auth";
+import { logout } from "./auth";
 import { setCsrfToken } from "./csrf";
 
 afterEach(() => {
@@ -76,17 +73,6 @@ function sentHeaders(fetchMock: ReturnType<typeof vi.fn>): Headers {
 function sentInit(fetchMock: ReturnType<typeof vi.fn>): RequestInit {
   return (fetchMock.mock.calls[0]?.[1] ?? {}) as RequestInit;
 }
-
-describe("login", () => {
-  it("redirects to the BFF login endpoint with an encoded returnTo", () => {
-    const location: { href: string } = { href: "" };
-    vi.stubGlobal("location", location);
-
-    login("/dashboard");
-
-    expect(location.href).toBe("/bff/login?returnTo=%2Fdashboard");
-  });
-});
 
 /**
  * `logout()` under the hardened `/bff/logout` gate (Wallow-pu6a.3.9).
@@ -240,105 +226,10 @@ describe("logout (POST + CSRF gate)", () => {
   });
 });
 
-describe("getUser", () => {
-  it("returns the parsed JSON body on a 200 response", async () => {
-    const user: WallowUser = { sub: "user-123", email: "user@example.com" };
-    const fetchMock: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async (): Promise<WallowUser> => user,
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const result: WallowUser | null = await getUser();
-
-    expect(result).toEqual(user);
-    expect(fetchMock).toHaveBeenCalledWith("/bff/user", {
-      credentials: "include",
-    });
-  });
-
-  it("returns null on a 401 response", async () => {
-    const fetchMock: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 401,
-      json: async (): Promise<unknown> => ({}),
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const result: WallowUser | null = await getUser();
-
-    expect(result).toBeNull();
-  });
-
-  it("prepends a provided base URL so the request target is an absolute URL", async () => {
-    const user: WallowUser = { sub: "user-ssr" };
-    const fetchMock: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async (): Promise<WallowUser> => user,
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const result: WallowUser | null = await getUser({ baseUrl: "http://localhost:3000" });
-
-    expect(result).toEqual(user);
-    expect(fetchMock).toHaveBeenCalledWith("http://localhost:3000/bff/user", {
-      credentials: "include",
-    });
-  });
-});
-
 /**
- * SSR reproduction: during a full-page load wallow-web's `beforeLoad` calls
- * `getUser()` server-side, where the global `fetch` is the real Node (undici)
- * fetch. A relative URL such as `/bff/user` has no origin to resolve against in
- * Node and throws `TypeError: Failed to parse URL from /bff/user`, which surfaces
- * as the dashboard error boundary. Passing an absolute base URL must let the SSR
- * path resolve the user without that crash. This exercises the REAL global fetch
- * against a throwaway loopback server rather than a stub, so it fails today for
- * exactly the production reason.
- */
-describe("getUser during SSR (real Node fetch)", () => {
-  let server: Server;
-  let baseUrl: string;
-
-  beforeEach(async () => {
-    server = createServer((req, res) => {
-      if (req.url === "/bff/user") {
-        res.writeHead(200, { "content-type": "application/json" });
-        res.end(JSON.stringify({ sub: "ssr-user" }));
-        return;
-      }
-
-      res.writeHead(404);
-      res.end();
-    });
-
-    await new Promise<void>((resolve) => {
-      server.listen(0, "127.0.0.1", resolve);
-    });
-    const address: AddressInfo = server.address() as AddressInfo;
-    baseUrl = `http://127.0.0.1:${address.port}`;
-  });
-
-  afterEach(async () => {
-    await new Promise<void>((resolve, reject) => {
-      server.close((error) => (error ? reject(error) : resolve()));
-    });
-  });
-
-  it("resolves the user against an absolute base URL instead of throwing on a relative one", async () => {
-    const result: WallowUser | null = await getUser({ baseUrl });
-
-    expect(result).toEqual({ sub: "ssr-user" });
-  });
-});
-
-/**
- * SSR import-safety: `login()`/`logout()` navigate via the `location` global,
- * which does not exist in Node. Merely importing the module must stay safe (it
- * is re-exported from the browser entry that SSR pulls in), and calling either
+ * SSR import-safety: `logout()` navigates via the `location` global, which does
+ * not exist in Node. Merely importing the module must stay safe (it is
+ * re-exported from the browser entry that SSR pulls in), and calling the
  * function server-side must fail with a descriptive, actionable error instead of
  * the raw `ReferenceError: location is not defined`. The SDK stays
  * framework-neutral while doing so — no `@tanstack/react-start` isomorphic-fn
@@ -349,7 +240,7 @@ describe("getUser during SSR (real Node fetch)", () => {
  * stub nothing. The final case additionally pins an explicitly `undefined`
  * `location`, the shape a partially-polyfilled SSR runtime can present.
  */
-describe("login/logout under SSR (no browser globals)", () => {
+describe("logout under SSR (no browser globals)", () => {
   it("has no location global in this environment (guards the specs below)", () => {
     expect("location" in globalThis).toBe(false);
   });
@@ -358,12 +249,6 @@ describe("login/logout under SSR (no browser globals)", () => {
     vi.resetModules();
 
     await expect(import("./auth")).resolves.toBeDefined();
-  });
-
-  it("login() throws a descriptive browser-context error rather than a bare ReferenceError", () => {
-    expect(() => login("/dashboard")).toThrowError(/login\(\)/u);
-    expect(() => login("/dashboard")).toThrowError(/browser/iu);
-    expect(() => login("/dashboard")).not.toThrowError(/location is not defined/u);
   });
 
   it("logout() throws a descriptive browser-context error rather than a bare ReferenceError", () => {
@@ -375,7 +260,7 @@ describe("login/logout under SSR (no browser globals)", () => {
   it("throws a plain Error, not a ReferenceError, when called server-side", () => {
     let thrown: unknown;
     try {
-      login();
+      logout();
     } catch (error: unknown) {
       thrown = error;
     }
@@ -387,7 +272,6 @@ describe("login/logout under SSR (no browser globals)", () => {
   it("throws the same descriptive error when location is present but undefined", () => {
     vi.stubGlobal("location", undefined);
 
-    expect(() => login()).toThrowError(/browser/iu);
     expect(() => logout()).toThrowError(/browser/iu);
   });
 
@@ -397,9 +281,6 @@ describe("login/logout under SSR (no browser globals)", () => {
     // the handler answers with. Only the SSR guard is under test here.
     const { location, fetchMock } = stubBrowser(endSessionRedirect());
     setCsrfToken("tok-abc");
-
-    login("/dashboard");
-    expect(location.href).toBe("/bff/login?returnTo=%2Fdashboard");
 
     await logout();
     expect(fetchMock.mock.calls[0]?.[0]).toBe("/bff/logout");
