@@ -20,20 +20,39 @@
 # regardless of that choice — see the comment above their invocation below.
 #
 # Env knobs:
-#   E2E_SKIP_IMAGE_BUILD=1  Reuse whatever `:test` images already exist instead of
-#                           building any of them: skips both the `dotnet publish`
-#                           of the API/migration/seeder images AND compose's
-#                           `--build` of the ones with a build block (wallow-web,
-#                           wallow-auth, bff-example, garage). CI preloads all but
-#                           bff-example from cache, so it sets this; a local caller
-#                           wanting the same reuse sets it too. Leaving it UNSET is
-#                           what guarantees the run tests the current tree.
+#   E2E_STACK_ID=<id>       Per-run stack identity (default: this shell's PID).
+#                           Compose project = wallow-test-<id>; lowercase
+#                           alphanumerics/'-'/'_' only. Concurrent runs isolate
+#                           on this plus per-run host ports (Wallow-joo0).
+#   E2E_*_PORT=<n>          Pin any host port (API/AUTH/WEB/BFF/POSTGRES/VALKEY/
+#                           MAILPIT_SMTP/MAILPIT_HTTP/GARAGE_S3/GARAGE_ADMIN —
+#                           full list in docker/.env.example). Unset ports get a
+#                           free port from the kernel each run.
+#   E2E_IMAGE_TAG=<tag>     Pin the image tag. Default: `test` when
+#                           E2E_SKIP_IMAGE_BUILD=1 (reuse), else test-<stack id>
+#                           (built per-run, untagged at teardown).
+#   E2E_SKIP_IMAGE_BUILD=1  Reuse the existing plain :test images instead of
+#                           building any (dotnet publish AND compose --build).
+#                           CI sets this after its image jobs; never set it just
+#                           to make a local run faster.
 #   E2E_UP_SERVICE=<svc>    Extra compose service to `up --wait` (default:
-#                           wallow-api; CI sets wallow-auth to serve that app from
-#                           a container). `wallow-web` is always brought up too.
+#                           wallow-api; CI sets wallow-auth to serve that app
+#                           from a container — which also makes the script point
+#                           the wallow-auth suite at that container's per-run
+#                           port unless E2E_BASE_URL is set).
 #   E2E_BASE_URL=<url>      Drive an already-running wallow-auth at <url>; skips
 #                           `pnpm dev`. Does not affect the wallow-web suites.
-#   E2E_KEEP_STACK=1        Leave the stack up after the run (for debugging).
+#   E2E_KEEP_STACK=1        Leave the stack up after the run (for debugging —
+#                           the run prints its project name, URLs and the manual
+#                           teardown command).
+#
+# Same-worktree concurrency caveat: the compose stacks are fully isolated, but
+# the HOST-side build phases (dotnet build/publish, pnpm install, workspace
+# builds) share bin/obj and dist/ — run concurrent same-worktree invocations in
+# container mode against prebuilt images (E2E_SKIP_IMAGE_BUILD=1
+# E2E_UP_SERVICE=wallow-auth). Two worktrees need no such care.
+#
+# python3 is required (free-port allocation, compose-project listing).
 #
 # Usage:
 #   ./scripts/e2e.sh                 # local run: (re)builds images, up, test, down
@@ -43,47 +62,173 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 COMPOSE_FILE="$REPO_ROOT/docker/docker-compose.test.yml"
+# --- Per-run stack identity (Wallow-joo0) -----------------------------------
+# Every invocation gets its own Compose project, host ports and (when it builds
+# its own images) image tags, so two concurrent runs cannot see each other's
+# stack — and, as before (Wallow-kd2e), can never touch the dev-infra stack.
+# E2E_STACK_ID defaults to this shell's PID: unique per concurrent run on one
+# machine and a valid Compose project-name fragment (an override must stick to
+# lowercase alphanumerics, '-' and '_').
+E2E_STACK_ID="${E2E_STACK_ID:-$$}"
+PROJECT_NAME="wallow-test-${E2E_STACK_ID}"
 # --project-name pins the Compose project even if the caller's environment (or
 # docker/.env, which COMPOSE_PROJECT_NAME-scopes the dev-infra stack) would
-# override the compose file's top-level `name:`. Without this, teardown's
-# `down --remove-orphans` removes the running dev-infra containers (Wallow-kd2e).
-COMPOSE=(docker compose --project-name wallow-test -f "$COMPOSE_FILE")
+# override the compose file's top-level `name:`.
+COMPOSE=(docker compose --project-name "$PROJECT_NAME" -f "$COMPOSE_FILE")
 
 UP_SERVICE="${E2E_UP_SERVICE:-wallow-api}"
-# Host-published API port from docker-compose.test.yml (wallow-api: 5050:8080).
-API_URL="http://localhost:5050"
+
+# --- Host ports ---------------------------------------------------------------
+# docker-compose.test.yml publishes every host port as ${E2E_*_PORT:-classic
+# default}. Allocate a free port for each var the caller left unset, in ONE
+# python pass that holds all sockets open until every port is chosen, so the
+# kernel cannot hand out a duplicate within this run. The window between release
+# and compose's bind is accepted: overlapping runs hold their sockets
+# concurrently, so they receive disjoint ports.
+alloc_ports() {
+  python3 - "$1" <<'PY'
+import socket
+import sys
+
+count = int(sys.argv[1])
+socks = [socket.socket() for _ in range(count)]
+for s in socks:
+    s.bind(("127.0.0.1", 0))
+for s in socks:
+    print(s.getsockname()[1])
+    s.close()
+PY
+}
+
+FREE_PORTS=()
+while IFS= read -r free_port; do
+  FREE_PORTS+=("$free_port")
+done < <(alloc_ports 11)
+
+E2E_API_PORT="${E2E_API_PORT:-${FREE_PORTS[0]}}"
+E2E_AUTH_PORT="${E2E_AUTH_PORT:-${FREE_PORTS[1]}}"
+E2E_WEB_PORT="${E2E_WEB_PORT:-${FREE_PORTS[2]}}"
+E2E_BFF_PORT="${E2E_BFF_PORT:-${FREE_PORTS[3]}}"
+E2E_POSTGRES_PORT="${E2E_POSTGRES_PORT:-${FREE_PORTS[4]}}"
+E2E_VALKEY_PORT="${E2E_VALKEY_PORT:-${FREE_PORTS[5]}}"
+E2E_MAILPIT_SMTP_PORT="${E2E_MAILPIT_SMTP_PORT:-${FREE_PORTS[6]}}"
+E2E_MAILPIT_HTTP_PORT="${E2E_MAILPIT_HTTP_PORT:-${FREE_PORTS[7]}}"
+E2E_GARAGE_S3_PORT="${E2E_GARAGE_S3_PORT:-${FREE_PORTS[8]}}"
+E2E_GARAGE_ADMIN_PORT="${E2E_GARAGE_ADMIN_PORT:-${FREE_PORTS[9]}}"
+# Local mode only: the port the wallow-auth `pnpm dev` webServer binds.
+AUTH_DEV_PORT="${FREE_PORTS[10]}"
+export E2E_API_PORT E2E_AUTH_PORT E2E_WEB_PORT E2E_BFF_PORT E2E_POSTGRES_PORT \
+  E2E_VALKEY_PORT E2E_MAILPIT_SMTP_PORT E2E_MAILPIT_HTTP_PORT \
+  E2E_GARAGE_S3_PORT E2E_GARAGE_ADMIN_PORT
+
+# --- Image tag ----------------------------------------------------------------
+# The compose file's image fields interpolate ${E2E_IMAGE_TAG:-test}. A run that
+# builds its own images tags them per-run (test-$E2E_STACK_ID) so a concurrent
+# run in another worktree can't retag the images under it mid-run; teardown
+# untags them. A run that REUSES images (E2E_SKIP_IMAGE_BUILD=1 — CI, or a local
+# caller after a prior build) resolves to the plain `test` tags those builds
+# produce. An explicit E2E_IMAGE_TAG wins over both.
+IMAGE_TAG_GENERATED=""
+if [[ -z "${E2E_IMAGE_TAG:-}" ]]; then
+  if [[ -n "${E2E_SKIP_IMAGE_BUILD:-}" ]]; then
+    E2E_IMAGE_TAG="test"
+  else
+    E2E_IMAGE_TAG="test-${E2E_STACK_ID}"
+    IMAGE_TAG_GENERATED=1
+  fi
+fi
+export E2E_IMAGE_TAG
+
+# --- URLs derived from this run's ports --------------------------------------
+API_URL="http://localhost:${E2E_API_PORT}"
 DISCOVERY_URL="$API_URL/.well-known/openid-configuration"
-# Host-published wallow-web port from docker-compose.test.yml (5053:3000).
-WEB_URL="http://localhost:5053"
+WEB_URL="http://localhost:${E2E_WEB_PORT}"
+BFF_EXAMPLE_URL="http://localhost:${E2E_BFF_PORT}"
 # Two more endpoints the backend-dependent wallow-auth specs need, and which only
-# this script can know. Both branches below drive the CONTAINERISED backend, so
-# both get these — E2E_BASE_URL picks the app's serving mode, not the backend's,
-# and using it to infer either of these would read the local values off a run
-# whose API is a container.
-#   Mailpit HTTP: docker-compose.test.yml publishes 127.0.0.1:8035:8025, and the
-#     API's Smtp__Host points at that same container.
+# this script can know. Both serving modes below drive the CONTAINERISED backend,
+# so both get these — E2E_BASE_URL picks the app's serving mode, not the
+# backend's.
+#   Mailpit HTTP: the API's Smtp__Host points at the same mailpit container this
+#     port publishes.
 #   Auth origin: the API's own configured AuthUrl in that stack, which
 #     OpenIddictRedirectUriValidator allow-lists unconditionally.
-MAILPIT_URL="http://127.0.0.1:8035"
-AUTH_ORIGIN="http://localhost:5051"
+MAILPIT_URL="http://127.0.0.1:${E2E_MAILPIT_HTTP_PORT}"
+AUTH_ORIGIN="http://localhost:${E2E_AUTH_PORT}"
+
+# Container mode for the wallow-auth suite is implied by bringing that service
+# up; the auth port is per-run, so the caller can no longer be expected to spell
+# the URL (ci.yml used to hardcode :5051). An explicit E2E_BASE_URL still wins —
+# that is the knob for driving a genuinely external, already-running app.
+if [[ -z "${E2E_BASE_URL:-}" && "$UP_SERVICE" == "wallow-auth" ]]; then
+  E2E_BASE_URL="$AUTH_ORIGIN"
+fi
 
 log() { printf '\n=== %s ===\n' "$1"; }
 
+PER_RUN_IMAGES=(
+  "wallow-api" "wallow-migrations" "wallow-seeder" "wallow-auth-react"
+  "wallow-web-react" "wallow-bff-example" "wallow-garage"
+)
+
 teardown() {
   if [[ -n "${E2E_KEEP_STACK:-}" ]]; then
-    log "E2E_KEEP_STACK set — leaving the stack up"
+    log "E2E_KEEP_STACK set — leaving the stack up (project $PROJECT_NAME)"
+    echo "  api $API_URL · auth $AUTH_ORIGIN · web $WEB_URL · bff-example $BFF_EXAMPLE_URL"
+    echo "  mailpit $MAILPIT_URL"
+    echo "  teardown: docker compose -p $PROJECT_NAME -f $COMPOSE_FILE down -v --remove-orphans"
     return
   fi
-  log "Tearing down the e2e stack"
+  log "Tearing down the e2e stack ($PROJECT_NAME)"
   "${COMPOSE[@]}" down -v --remove-orphans || true
+  if [[ -n "$IMAGE_TAG_GENERATED" ]]; then
+    # Per-run tags are refs onto layers the next build reuses — removing them
+    # reclaims nothing but the names, which is the point: they must not
+    # accumulate. Best-effort; a shared layer is never deleted.
+    for image in "${PER_RUN_IMAGES[@]}"; do
+      docker image rm "$image:$E2E_IMAGE_TAG" > /dev/null 2>&1 || true
+    done
+  fi
 }
 trap teardown EXIT
 
-# Fresh volumes every run so the seeder always bootstraps admin@wallow.dev.
-# (Seeder skips admin bootstrap if ANY user already exists — Wallow-wd6n — so a
-# reused DB would silently lack the seed admin the login spec signs in as.)
-log "Cleaning any prior e2e stack"
+# Fresh volumes are a per-project guarantee now — a new project name has no
+# volumes to inherit, so the seeder always bootstraps admin@wallow.dev
+# (Wallow-wd6n). The `down` here only matters when E2E_STACK_ID is pinned to a
+# reused value. The sweep after it reclaims DEAD stacks a killed run left
+# behind: a concurrent healthy run always has containers in one of the four
+# live states (and a run in its pre-up gap has no containers, so compose ls
+# does not list it), so only genuinely dead stacks — including a legacy plain
+# `wallow-test` one — are removed.
+log "Cleaning this run's project and sweeping dead e2e stacks"
 "${COMPOSE[@]}" down -v --remove-orphans || true
+while IFS= read -r stale_project; do
+  [[ "$stale_project" == "$PROJECT_NAME" ]] && continue
+  if [[ -z "$(docker ps -q \
+    --filter "label=com.docker.compose.project=$stale_project" \
+    --filter status=running --filter status=created \
+    --filter status=restarting --filter status=paused)" ]]; then
+    echo "removing dead e2e stack: $stale_project"
+    docker compose --project-name "$stale_project" -f "$COMPOSE_FILE" \
+      down -v --remove-orphans || true
+  fi
+done < <(docker compose ls -a --format json | python3 -c '
+import json
+import sys
+
+# Compose versions differ on whether --format json emits one array or NDJSON
+# lines; accept both.
+raw = sys.stdin.read().strip()
+if not raw:
+    sys.exit(0)
+if raw.startswith("["):
+    projects = json.loads(raw)
+else:
+    projects = [json.loads(line) for line in raw.splitlines() if line.strip()]
+for project in projects:
+    name = project.get("Name", "")
+    if name == "wallow-test" or name.startswith("wallow-test-"):
+        print(name)
+')
 
 if [[ -z "${E2E_SKIP_IMAGE_BUILD:-}" ]]; then
   # The API/migration/seeder compose services have no build block — they consume
@@ -105,11 +250,11 @@ if [[ -z "${E2E_SKIP_IMAGE_BUILD:-}" ]]; then
   dotnet restore "$REPO_ROOT/api/Wallow.slnx"
   dotnet build "$REPO_ROOT/api/Wallow.slnx" --no-restore -c Release
 
-  log "Publishing API / migration / seeder container images (:test, $RID)"
+  log "Publishing API / migration / seeder container images (:$E2E_IMAGE_TAG, $RID)"
   for proj in Wallow.Api Wallow.MigrationService Wallow.SeederService; do
     dotnet publish "$REPO_ROOT/api/src/$proj/$proj.csproj" \
       -c Release --no-build /t:PublishContainer \
-      -p:ContainerImageTag=test -p:ContainerRuntimeIdentifier="$RID"
+      -p:ContainerImageTag="$E2E_IMAGE_TAG" -p:ContainerRuntimeIdentifier="$RID"
   done
 fi
 
@@ -188,7 +333,10 @@ if [[ -z "${E2E_BASE_URL:-}" ]]; then
   # adopted with its own upstream and quietly serves the suite against the dev
   # API. apps/wallow-auth/e2e/global-setup.ts compares OIDC discovery issuers to
   # catch exactly that and aborts the run with the offending URLs.
-  E2E_ENV+=("WALLOW_API_INTERNAL_URL=$API_URL")
+  # PORT is this run's allocated dev-server port: playwright.config.ts waits on
+  # it and passes it to the `pnpm dev` child, so two concurrent local-mode runs
+  # cannot adopt each other's dev server via reuseExistingServer.
+  E2E_ENV+=("WALLOW_API_INTERNAL_URL=$API_URL" "PORT=$AUTH_DEV_PORT")
 else
   E2E_ENV+=("E2E_BASE_URL=$E2E_BASE_URL")
 fi
@@ -207,4 +355,5 @@ log "Running the wallow-web Playwright suite"
 env "E2E_BASE_URL=$WEB_URL" pnpm --filter ./apps/wallow-web test:e2e
 
 log "Running the wallow-web cross-app login journey suite"
-env "E2E_BASE_URL=$WEB_URL" pnpm --filter ./apps/wallow-web test:e2e:cross-app
+env "E2E_BASE_URL=$WEB_URL" "E2E_BFF_EXAMPLE_URL=$BFF_EXAMPLE_URL" \
+  pnpm --filter ./apps/wallow-web test:e2e:cross-app
