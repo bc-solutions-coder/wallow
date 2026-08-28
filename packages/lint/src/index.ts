@@ -1,5 +1,6 @@
 import { definePlugin, eslintCompatPlugin } from "@oxlint/plugins";
 
+import { loggerNoNodeBuiltins } from "./rules/logger-no-node-builtins.ts";
 import { moduleListsInSync } from "./rules/module-lists-in-sync.ts";
 import { noHandRolledMutation } from "./rules/no-hand-rolled-mutation.ts";
 import { noSidebarInversion } from "./rules/no-sidebar-inversion.ts";
@@ -25,6 +26,7 @@ export default eslintCompatPlugin(
   definePlugin({
     meta: { name: "wallow" },
     rules: {
+      "logger-no-node-builtins": loggerNoNodeBuiltins,
       "module-lists-in-sync": moduleListsInSync,
       "no-hand-rolled-mutation": noHandRolledMutation,
       "no-sidebar-inversion": noSidebarInversion,

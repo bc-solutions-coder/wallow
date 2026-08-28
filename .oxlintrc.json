@@ -23,6 +23,13 @@
     // tsconfig.build.json include must name one module set. Self-gates on
     // vite.config.ts + defineLibraryConfig, so it is inert everywhere else.
     "wallow/module-lists-in-sync": "error",
+    // Repo-wide: packages/logger's browser entry ships to the page, so no file it
+    // owns may import a Node built-in; the ./server graph (server.ts, otlp.ts,
+    // rate-limit.ts) is exempted inside the rule, as are specs. Self-gates on the
+    // packages/logger/src/ path, so it is inert everywhere else — the general
+    // import/no-nodejs-modules stays off by name below because the SDK's server
+    // entry legitimately imports node:crypto.
+    "wallow/logger-no-node-builtins": "error",
     "react/react-in-jsx-scope": "off",
     "no-ternary": "off",
     "capitalized-comments": "off",

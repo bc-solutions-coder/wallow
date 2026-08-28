@@ -52,7 +52,7 @@ cleanly to a fresh database.
 | `packages/auth/`    | `@bc-solutions-coder/auth` — shared authn/authz layer (current-user query + hook, `beforeLoad` primer, role/permission helpers)                     |
 | `packages/testing/` | `@bc-solutions-coder/testing` — shared vitest preset + browser-mode test utilities                                                                                          |
 | `packages/config/` | `@bc-solutions-coder/config` — the Vite presets every workspace member builds with; never built, never published                            |
-| `packages/lint/`   | `@bc-solutions-coder/lint` — Wallow's own oxlint JS-plugin rules (`wallow/*`), registered once at the repo root (which also enables `no-source-tests` and `module-lists-in-sync` repo-wide); nested configs inherit that registration and enable the rest per-tree. `packages/lint/CLAUDE.md` carries the config census and owns it |
+| `packages/lint/`   | `@bc-solutions-coder/lint` — Wallow's own oxlint JS-plugin rules (`wallow/*`), registered once at the repo root (which also enables `no-source-tests`, `module-lists-in-sync` and `logger-no-node-builtins` repo-wide); nested configs inherit that registration and enable the rest per-tree. `packages/lint/CLAUDE.md` carries the config census and owns it |
 | `packages/utils/`  | `@bc-solutions-coder/utils` — the bottom of the graph: pure functions, zero dependencies, subpath-only |
 | `packages/env/`    | `@bc-solutions-coder/env` — deployment-derived addressing for Start apps, zero dependencies, subpath-only |
 | `packages/logger/` | `@bc-solutions-coder/logger` — structured logging, both ends: browser core (`.`) and app-server ingest handler (`./server`) |

@@ -9,8 +9,13 @@ the page and finishes on the server produces two records a collector joins on
 Like `packages/utils` and `packages/env` this sits at the bottom of the graph: `dependencies`
 and `peerDependencies` are both `{}`, `tsconfig.json` sets `types: []`, and no shipped module
 names a `node:*` builtin, `process.env` or `import.meta.env`. `src/charter.test.ts` pinned that
-by reading the manifest and every module off disk; it is gone (`Wallow-xg9t.1`). `types: []` is
-what still fails a build here — a `node:*` import or a `process` reference does not compile.
+by reading the manifest and every module off disk; it is gone (`Wallow-xg9t.1`). Two guards
+remain. `types: []` fails a build on a `node:*` import or a `process` reference — in EITHER
+entry, indiscriminately, and only until an `@types/node` becomes reachable. The entry-aware one
+is **`wallow/logger-no-node-builtins`** (root `.oxlintrc.json`, `Wallow-lgto`): a Node built-in
+import in any non-spec file here fails `pnpm lint` unless the file is one of the three
+server-owned modules — `server.ts`, `otlp.ts`, `rate-limit.ts`. Moving a module across that
+boundary means updating the rule's allowlist and this census together.
 
 ## Two entries
 
