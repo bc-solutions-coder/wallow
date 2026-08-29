@@ -50,5 +50,6 @@ export {
 export { type BffSession } from "./session";
 export { CookieSessionStore, type CookieSessionStoreOptions } from "./store/cookie";
 export { createRedisAdapter, type NodeRedisClient } from "./store/redis-adapter";
+export { createRedisFromUrl, type RedisFromUrlOptions } from "./store/redis-url";
 export { type RedisLike, type SessionStore } from "./store/types";
 export { ValkeySessionStore, type ValkeySessionStoreOptions } from "./store/valkey";

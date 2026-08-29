@@ -69,6 +69,25 @@ vi.mock("openid-client", () => ({
   ),
 }));
 
+const { redisCreateClientMock, redisConnectMock } = vi.hoisted(() => {
+  const redisConnectMock: ReturnType<typeof vi.fn> = vi.fn(() => Promise.resolve());
+  const data: Map<string, string> = new Map<string, string>();
+  const redisCreateClientMock: ReturnType<typeof vi.fn> = vi.fn(() => ({
+    on: vi.fn(),
+    connect: redisConnectMock,
+    get: (key: string): Promise<string | null> => Promise.resolve(data.get(key) ?? null),
+    set: (key: string, value: string): Promise<string | null> => {
+      data.set(key, value);
+      return Promise.resolve("OK");
+    },
+    del: (key: string): Promise<number> => Promise.resolve(data.delete(key) ? 1 : 0),
+  }));
+  return { redisCreateClientMock, redisConnectMock };
+});
+
+/** `redis` is an OPTIONAL peer the preset imports lazily; stand it in here. */
+vi.mock("redis", () => ({ createClient: redisCreateClientMock }));
+
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -170,10 +189,10 @@ describe("createWallowBffServer — configuration", () => {
 /**
  * Store selection is the one knob swapped between environments, and both the
  * tunnel handlers and the proxy MUST resolve sessions through the SAME
- * instance — the proxy has to read the sessions the login callback wrote. The
- * SDK never imports `redis`, so a Valkey-backed host hands in its own connected
- * client; asking for `REDIS_URL` without one is a misconfiguration that has to
- * fail at boot rather than silently degrade to stateless cookie sessions.
+ * instance — the proxy has to read the sessions the login callback wrote. A
+ * Valkey-backed host either hands in its own connected node-redis client or
+ * just sets `REDIS_URL` and lets the preset connect (through the optional
+ * `redis` peer); `REDIS_URL` never silently degrades to cookie sessions.
  */
 describe("createWallowBffServer — session-store selection", () => {
   it("defaults to the stateless cookie store when REDIS_URL is unset", () => {
@@ -194,13 +213,33 @@ describe("createWallowBffServer — session-store selection", () => {
     expect(server.store).toBeInstanceOf(ValkeySessionStore);
   });
 
-  it("throws at construction when REDIS_URL is set but no client was supplied", () => {
-    expect(() =>
-      createWallowBffServer({
-        config: makeConfig("https://issuer-noclient.test"),
-        env: { REDIS_URL: "redis://valkey:6379" } as NodeJS.ProcessEnv,
-      }),
-    ).toThrow(/REDIS_URL/u);
+  it("connects to REDIS_URL itself when no client is supplied, on first use of the store", async () => {
+    const server: WallowBffServer = createWallowBffServer({
+      config: makeConfig("https://issuer-selfconnect.test"),
+      env: { REDIS_URL: "redis://valkey:6379" } as NodeJS.ProcessEnv,
+    });
+
+    expect(server.store).toBeInstanceOf(ValkeySessionStore);
+    // Construction is synchronous and touches no network: the connection is
+    // made lazily, once, when the store first needs it.
+    expect(redisCreateClientMock).not.toHaveBeenCalled();
+
+    const ref: string = await server.store.write({
+      sessionId: "s-1",
+      accessToken: "a",
+      refreshToken: "r",
+      idToken: "i",
+      expiresAt: Date.now() + 60_000,
+      user: { sub: "u-1" },
+      version: 1,
+    });
+    await server.store.read(ref);
+
+    expect(redisCreateClientMock).toHaveBeenCalledTimes(1);
+    expect(redisCreateClientMock).toHaveBeenCalledWith({ url: "redis://valkey:6379" });
+    expect(redisConnectMock).toHaveBeenCalledTimes(1);
+    const session = await server.store.read(ref);
+    expect(session?.sessionId).toBe("s-1");
   });
 
   it("treats an empty REDIS_URL as unset", () => {

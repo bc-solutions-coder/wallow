@@ -12,8 +12,16 @@ the OIDC session and proxies API calls with a bearer attached.
 - `./server/passthrough` (Node) — `createApiPassthrough`, a pure reverse proxy owning no
   session. **Its own subpath so a passthrough-only app never pulls `openid-client` into its
   server bundle — nothing here may import the BFF handler/proxy graph.**
+- `./server/service` (Node) — `createServiceClient()`, the client-credentials service-account
+  client: same typed client shape, token cached under a `SET NX EX` lock (in-memory `RedisLike`
+  when no store), one replay on 401. **Own subpath for the same reason as passthrough — must
+  never import the handler/proxy graph**; `service.test.ts` throws if it does.
 - `./query` (browser; `@tanstack/react-query` is an **optional** peer) — re-exports the
   generated per-operation artifacts plus the one hand-written module, `invalidations.ts`.
+
+`redis` (node-redis) is an **optional** peer: `createRedisFromUrl` loads it with a dynamic
+`import()` on first store use, so cookie-only hosts never install it. `NodeRedisClient` is
+deliberately wide (`unknown` replies) so a raw `createClient()` result is assignable.
 
 **The server entries are h3-free and must stay that way** — every handler is a web-standard
 `(request: Request) => Promise<Response>`; `src/server/web-standard-handlers.test.ts` pins it.

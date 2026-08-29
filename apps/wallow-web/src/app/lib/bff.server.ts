@@ -9,12 +9,11 @@
  * `/api` proxy over that ONE shared store, dispatch by path — now lives in the
  * SDK. What is left here is the two things a HOST still owns:
  *
- *  - **The Redis client.** The SDK deliberately does not import `redis`, so when
- *    `REDIS_URL` is set this module constructs and connects the client and hands
- *    it in (`createWallowBffServer` throws rather than silently falling back to
- *    stateless cookie sessions for a deployment that asked for server-side ones).
- *    Both compose stacks set `REDIS_URL`, so this is the production path, not a
- *    corner case.
+ *  - **The Redis client.** The preset can connect itself from `REDIS_URL`, but
+ *    this host owns the connection instead so the client's `error` events reach
+ *    the app's structured logger and a connection failure surfaces at BUILD
+ *    time (below) rather than on the first session write. Both compose stacks
+ *    set `REDIS_URL`, so this is the production path, not a corner case.
  *  - **Laziness.** The server is built on FIRST USE and memoised, never at module
  *    load: a Start server-route module is evaluated as part of the server bundle,
  *    where a config throw would take down SSR and every other route with it. A
@@ -25,7 +24,6 @@ import { type PeerRequest } from "@bc-solutions-coder/env/client-address";
 import {
   CLIENT_IP_HEADER,
   createWallowBffServer,
-  type NodeRedisClient,
   type WallowBffServer,
 } from "@bc-solutions-coder/sdk/server";
 import { createClient, type RedisClientType } from "redis";
@@ -36,38 +34,12 @@ import { serverLog } from "./log.server";
 let pending: Promise<WallowBffServer> | undefined;
 
 /**
- * Adapt node-redis to the SDK's narrow client port. node-redis satisfies
- * {@link NodeRedisClient} structurally, but its overloaded signatures are
- * broader than the port, so the three methods the store uses are bridged
- * explicitly.
- */
-function adaptRedisClient(redisClient: RedisClientType): NodeRedisClient {
-  return {
-    get: (key: string): Promise<string | null> => redisClient.get(key),
-    set: (
-      key: string,
-      value: string,
-      options?: { EX?: number; NX?: boolean },
-    ): Promise<string | null> => {
-      if (options === undefined) {
-        return redisClient.set(key, value);
-      }
-      return redisClient.set(key, value, {
-        ...(options.EX === undefined ? {} : { EX: options.EX }),
-        ...(options.NX === true ? { NX: true } : {}),
-      });
-    },
-    del: (key: string): Promise<number> => redisClient.del(key),
-  };
-}
-
-/**
  * Connect to Valkey/Redis when `REDIS_URL` is set, so the session cookie becomes
  * an opaque reference and the tokens live server-side — which is what makes
  * logout a real revocation and gives a multi-instance deployment one refresh
  * lock. Unset, the preset falls back to the stateless cookie store.
  */
-async function connectRedisClient(): Promise<NodeRedisClient | undefined> {
+async function connectRedisClient(): Promise<RedisClientType | undefined> {
   const redisUrl: string = (process.env.REDIS_URL ?? "").trim();
   if (redisUrl === "") {
     return undefined;
@@ -78,7 +50,7 @@ async function connectRedisClient(): Promise<NodeRedisClient | undefined> {
     serverLog.error("bff.redis.error", {}, error);
   });
   await redisClient.connect();
-  return adaptRedisClient(redisClient);
+  return redisClient;
 }
 
 /**
@@ -90,7 +62,7 @@ async function connectRedisClient(): Promise<NodeRedisClient | undefined> {
  * revocation) looks identical at boot to one that did not.
  */
 async function buildBffServer(): Promise<WallowBffServer> {
-  const redisClient: NodeRedisClient | undefined = await connectRedisClient();
+  const redisClient: RedisClientType | undefined = await connectRedisClient();
   serverLog.info("bff.session_store.selected", {
     store: redisClient === undefined ? "cookie" : "redis",
     stateless: redisClient === undefined,

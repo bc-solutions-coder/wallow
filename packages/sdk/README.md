@@ -1,12 +1,13 @@
 # @bc-solutions-coder/sdk
 
-TypeScript SDK for Wallow. It ships four entry points:
+TypeScript SDK for Wallow. It ships five entry points:
 
 | Import                                       | Runs in                                             | Contains                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | -------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `@bc-solutions-coder/sdk`                    | Browser (also safe to import from a Node SSR entry) | `createWallowSdk()` (the per-request factory), `logout()`, `loginRedirect()`, `getCurrentUser()`, `requireAuth()`, the generated typed API operations, the CSRF module (`isSafeMethod`, `readCsrfCookie`, `wireCsrfInterceptor`), the OIDC URL builders (`buildConnectAuthorizeUrl`, `buildConnectLogoutUrl`, `buildConsentSubmitUrl`, `buildExchangeTicketUrl`, `isSafeReturnUrl`), and `WallowError` / `isWallowError` |
 | `@bc-solutions-coder/sdk/server`             | Node                                                | `createWallowBffServer()` (the host preset), `createBffHandlers()`, `createApiProxy()`, `loadBffConfigFromEnv()`, the session stores, and `WallowError`                                                                                                                                                                                                                                                                  |
 | `@bc-solutions-coder/sdk/server/passthrough` | Node                                                | `createApiPassthrough()` — a pure reverse proxy owning no session, forwarding the upstream response (`Set-Cookie` included) verbatim. Kept on its own subpath so a passthrough-only app never pulls `openid-client` into its server bundle                                                                                                                                                                               |
+| `@bc-solutions-coder/sdk/server/service`     | Node                                                | `createServiceClient()` — the client-credentials (service-account) client: the same typed API client, a cached and lock-serialised access token, one replay on `401`. Its own subpath so a service-only process never pulls the BFF handler graph                                                                                                                                                                        |
 | `@bc-solutions-coder/sdk/query`              | Browser                                             | The TanStack Query layer (peer dep `@tanstack/react-query`): a generated `{op}Options()` / `{op}QueryKey()` / `{op}Mutation()` trio per OpenAPI operation, plus the curated invalidation predicates `queriesForOperation()` and `queriesWithTag()` — the only hand-written module left on this entry                                                                                                                     |
 
 Every server handler is a web-standard `(request: Request) => Promise<Response>`.
@@ -75,7 +76,10 @@ repo links here rather than restating it.
 | `COOKIE_SECURE`                 | No       | `true`                                            | `Secure` flag on the session, transaction, and CSRF cookies. Fails secure: only the literal `false` clears it — set it for any plain-HTTP deployment, `localhost` included: Chrome and Firefox accept `Secure` cookies over `http://localhost` but Safari/WebKit drops them, which breaks the login callback with a 400                                                                                                                  |
 | `COOKIE_HOST_PREFIX`            | No       | `true`                                            | `__Host-` prefix on the DEFAULT session cookie name, which binds the cookie to the exact host that set it so a sibling subdomain cannot overwrite it. Relaxes the NAME only, never `Secure`; it is the opt-out for a deployment that terminates TLS but cannot meet the prefix's other requirements. No effect when `COOKIE_NAME` is set or `COOKIE_SECURE` is `false`. Fails secure: only the literal `false` clears it                 |
 | `COOKIE_SAMESITE`               | No       | `lax`                                             | `SameSite` on the session and CSRF cookies: `lax` or `strict`. `strict` hardens SPAs that bootstrap through same-origin `/bff/user`; the trade is that the first document request after any cross-site navigation (the post-login landing included) arrives without the session cookie. The transaction cookie is always `Lax` — it must ride the cross-site callback redirect from the IdP. `none` and any other value throw at startup |
-| `REDIS_URL`                     | No       | —                                                 | Read by `createWallowBffServer()`, not by `loadBffConfigFromEnv()`. When set, sessions live in Valkey/Redis (`ValkeySessionStore`) and a `redisClient` must be supplied; otherwise the session is sealed into the cookie (`CookieSessionStore`)                                                                                                                                                                                          |
+| `REDIS_URL`                     | No       | —                                                 | Read by `createWallowBffServer()` and `createServiceClient()`, not by `loadBffConfigFromEnv()`. When set, sessions live in Valkey/Redis (`ValkeySessionStore`) and the service token cache is shared — the SDK connects itself through its optional `redis` peer unless you hand in a client; otherwise the session is sealed into the cookie (`CookieSessionStore`) and the token cache is in-memory                                    |
+| `OIDC_SERVICE_CLIENT_ID`        | Service  | —                                                 | `createServiceClient()` only: the service account's client id                                                                                                                                                                                                                                                                                                                                                                            |
+| `OIDC_SERVICE_CLIENT_SECRET`    | Service  | —                                                 | `createServiceClient()` only: its secret                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `OIDC_SERVICE_SCOPES`           | Service  | —                                                 | `createServiceClient()` only: space-separated scopes to request; required, no default. The service client shares `OIDC_ISSUER`, `OIDC_METADATA_URL`, `BFF_API_BASE_URL` and `REDIS_URL` with the BFF and needs nothing else — missing variables are reported together                                                                                                                                                                    |
 
 ¹ Required only on the single-secret path — a `COOKIE_PASSWORDS` map carries the
 active secret itself.
@@ -136,9 +140,39 @@ const store: SessionStore = new CookieSessionStore({
 ```
 
 `ValkeySessionStore` takes any client that satisfies the `RedisLike` interface —
-`get`, `set` (with optional `ex` / `nx` flags), and `del` — so no concrete Redis
-dependency is baked into the SDK. Wrap the client you already use. With
-[`ioredis`](https://github.com/redis/ioredis):
+`get`, `set` (with optional `ex` / `nx` flags), and `del` — so no hard Redis
+dependency is baked into the SDK. With [node-redis](https://github.com/redis/node-redis)
+(the SDK's optional `redis` peer) nothing needs wrapping — `createRedisAdapter`
+takes the client as-is, and `createRedisFromUrl(url)` builds one that connects
+on first use:
+
+```ts
+import { createClient } from "redis";
+import {
+  createRedisAdapter,
+  createRedisFromUrl,
+  ValkeySessionStore,
+} from "@bc-solutions-coder/sdk/server";
+
+// Own the connection yourself…
+const client = createClient({ url: process.env.REDIS_URL });
+client.on("error", (error: unknown) => log.error("redis", error));
+await client.connect();
+const owned = new ValkeySessionStore({
+  client: createRedisAdapter(client),
+  password: config.cookiePassword,
+});
+
+// …or let the SDK connect lazily through the optional peer.
+const lazy = new ValkeySessionStore({
+  client: createRedisFromUrl(process.env.REDIS_URL!, {
+    onError: (error) => log.error("redis", error),
+  }),
+  password: config.cookiePassword,
+});
+```
+
+Any other client is a small adapter. With [`ioredis`](https://github.com/redis/ioredis):
 
 ```ts
 import Redis from "ioredis";
@@ -204,9 +238,10 @@ const server: WallowBffServer = createWallowBffServer();
 Build it on **first use and memoise**, not at module load — a config throw at
 import time takes the whole server bundle down with it, and a failed build that
 gets cached turns a transient store outage into a permanently dead BFF. When
-`REDIS_URL` is set, pass a connected client as `redisClient`: the SDK never
-imports `redis`, and the preset throws rather than silently serving stateless
-cookie sessions to a deployment that asked for server-side ones.
+`REDIS_URL` is set the preset connects itself on first use through the optional
+`redis` peer (`pnpm add redis`); pass a connected node-redis client as
+`redisClient` instead to own the connection and its error logging. Either way
+`REDIS_URL` never degrades to stateless cookie sessions.
 
 In TanStack Start, mount each prefix as a splat server route with a single `ANY`
 handler — method policy belongs to the handlers (a bare `GET /bff/logout` answers

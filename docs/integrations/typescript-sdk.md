@@ -225,12 +225,18 @@ repeating string literals that drift.
 
 Build the server on **first use, not at module load**: a server-route module is
 evaluated as part of the server bundle, where a config throw would take down SSR
-and every other route with it. Two things stay the host's job. The SDK never
-imports `redis`, so when `REDIS_URL` is set the host constructs and connects the
-client and passes it as `redisClient` — `createWallowBffServer` throws rather than
-silently serving stateless cookie sessions to a deployment that asked for
-server-side ones. And a failed build must not be memoised, so a transient store
-outage at boot does not permanently disable the BFF.
+and every other route with it, and a failed build must not be memoised, so a
+transient store outage at boot does not permanently disable the BFF.
+
+Setting `REDIS_URL` is all it takes to move sessions into Valkey: the preset
+connects itself, lazily, through the SDK's optional `redis` peer (install it —
+`pnpm add redis` — and the first session write opens the connection; a missing
+package fails there with an error naming it). A host that wants to own the
+connection instead — to route the client's `error` events into its own logger,
+or to fail at boot rather than on first use — passes a connected node-redis
+client as `redisClient`; the client is assignable as-is. `REDIS_URL` never
+degrades to cookie sessions: a deployment that asked for server-side ones gets
+them or an error, never a silent stateless fallback.
 
 In **TanStack Start**, mount each prefix as a splat server route with a single `ANY`
 handler:
@@ -330,10 +336,23 @@ any required key is missing or empty):
 | `SESSION_TTL_SECONDS`           | No       | Lifetime of the session cookie, written as its `Max-Age`, so a stale browser cookie cannot outlive the session it references. Must be a positive whole number — a malformed value throws at startup rather than silently falling back. Defaults to `86400` (24 hours)                                                       |
 | `COOKIE_SECURE`                 | No       | Whether the session, transaction, and CSRF cookies carry the `Secure` flag. Fails secure: only the literal `false` clears it. Set `COOKIE_SECURE=false` for plain-HTTP local development. Defaults to `true`                                                                                                                |
 | `COOKIE_SAMESITE`               | No       | `SameSite` on the session and CSRF cookies: `lax` (default) or `strict`. `strict` is a hardening step for SPAs that bootstrap through same-origin `/bff/user` — the trade is that the first document request after any cross-site navigation (the post-login landing included) arrives without the session cookie. The login transaction cookie is always `Lax`; it must ride the cross-site callback redirect from the IdP. `none` is rejected: the BFF is a same-origin pattern. Any other value throws at startup       |
+| `REDIS_URL`                     | No       | Read by `createWallowBffServer()` (not `loadBffConfigFromEnv()`) and by `createServiceClient()`. When set, BFF sessions live in Valkey/Redis and the service-account token cache is shared across processes; the SDK connects through its optional `redis` peer. Unset, sessions seal into the cookie and the token cache is in-memory                                                                                       |
 
-> **Confidential values:** `OIDC_CLIENT_SECRET` and `COOKIE_PASSWORD` must never
-> be shipped to the browser or committed to source control. They belong in the
-> server process environment (or a secrets manager) only.
+`createServiceClient()` reads its own subset — it shares `OIDC_ISSUER`,
+`OIDC_METADATA_URL`, `BFF_API_BASE_URL` and `REDIS_URL` with the BFF and adds
+three of its own, so a process that only runs a service account never has to
+define `OIDC_CLIENT_ID` or `COOKIE_PASSWORD`. Every missing variable is reported
+in ONE error, not one per restart:
+
+| Variable                     | Required | Description                                                                                                                                         |
+| ---------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OIDC_SERVICE_CLIENT_ID`     | Yes      | The service account's client identifier — a separate client from the BFF's, registered for the client-credentials grant                            |
+| `OIDC_SERVICE_CLIENT_SECRET` | Yes      | Its secret — server-side only                                                                                                                       |
+| `OIDC_SERVICE_SCOPES`        | Yes      | Space-separated scopes to request, e.g. `inquiries.write`. Required with no default: a service account's scopes are its blast radius, so name them |
+
+> **Confidential values:** `OIDC_CLIENT_SECRET`, `OIDC_SERVICE_CLIENT_SECRET` and
+> `COOKIE_PASSWORD` must never be shipped to the browser or committed to source
+> control. They belong in the server process environment (or a secrets manager) only.
 
 ---
 
@@ -370,11 +389,19 @@ const store: SessionStore = new CookieSessionStore({
 ```
 
 `ValkeySessionStore` takes any client satisfying the `RedisLike` interface
-(`get`, `set` with optional `ex`/`nx` flags, `del`), so the SDK carries no
-concrete Redis dependency — you adapt the client you already run. The `nx` flag
-must reach the server as a real conditional set; that is what makes the refresh
-lock a lock. The package README shows a complete `ioredis` adapter:
-[`packages/sdk/README.md`](https://github.com/bc-solutions-coder/wallow/blob/main/packages/sdk/README.md).
+(`get`, `set` with optional `ex`/`nx` flags, `del`), so the SDK carries no hard
+Redis dependency — you adapt the client you already run. Three ways to get one:
+
+- **`REDIS_URL` alone.** `createWallowBffServer()` builds the store over
+  `createRedisFromUrl(url)`, which connects on first use through the optional
+  `redis` peer. This is the zero-code path.
+- **A node-redis client.** `createRedisAdapter(client)` — or the preset's
+  `redisClient` option — accepts a `createClient()` result directly; the port is
+  wide enough that no hand-written bridge is needed.
+- **Any other client.** Implement `RedisLike` yourself. The `nx` flag must reach
+  the server as a real conditional set; that is what makes the refresh lock a
+  lock. The package README shows a complete `ioredis` adapter:
+  [`packages/sdk/README.md`](https://github.com/bc-solutions-coder/wallow/blob/main/packages/sdk/README.md).
 
 ---
 
@@ -626,6 +653,73 @@ const data = await inquiriesGetSubmitted({ client: sdk.client });
 
 Prefer the query layer for anything rendered in a component — a bare call like this has no cache
 entry, so two screens calling it independently can disagree about the same data.
+
+---
+
+## Service accounts: `createServiceClient()`
+
+Not every caller is a browser. A backend job, a webhook receiver, or an external
+relying party's own server calls the Wallow API as **itself**, with no user
+session to proxy — the OAuth client-credentials grant. That is what
+`createServiceClient()` on the `@bc-solutions-coder/sdk/server/service` subpath
+is for:
+
+```ts
+// src/lib/service-client.server.ts
+import { createServiceClient, type WallowServiceClient } from "@bc-solutions-coder/sdk/server/service";
+
+let service: WallowServiceClient | undefined;
+
+export function getServiceClient(): WallowServiceClient {
+  service ??= createServiceClient(); // reads OIDC_SERVICE_* from process.env
+  return service;
+}
+
+// anywhere server-side — a generated operation is called exactly as with a
+// user session's SDK instance: pass the service client's `client`
+import { inquiriesCreate } from "@bc-solutions-coder/sdk";
+const { data } = await inquiriesCreate({ client: getServiceClient().client, body });
+```
+
+What it does for you:
+
+- **One token, fetched once.** The access token is cached under a
+  `wallow:service-token:<clientId>:<scopes>` key and renewed 30 seconds before
+  it expires. Concurrent first calls collapse into one grant in-process, and a
+  `SET NX EX` lock serialises renewals **across** processes when the cache is a
+  shared store — a fleet of workers behind one service account performs one token
+  request, not one per instance.
+- **A shared cache when you have one.** Pass `store` (any `RedisLike`) to share
+  the token across processes; with `REDIS_URL` set and no `store`, the client
+  connects itself through the optional `redis` peer, exactly as the BFF preset
+  does. With neither, the cache is in-memory — correct, just per-process.
+- **One replay on `401`.** A revoked or rotated token is evicted, re-fetched, and
+  the request replayed **once**, with its original body; a second `401` is
+  returned to the caller as the error it is.
+- **A readable environment error.** `OIDC_ISSUER`, `OIDC_SERVICE_CLIENT_ID`,
+  `OIDC_SERVICE_CLIENT_SECRET`, `OIDC_SERVICE_SCOPES` and `BFF_API_BASE_URL` are
+  all required; every missing one is listed in the same error.
+
+Its own subpath, like `./server/passthrough`, so a service-only process never
+pulls the BFF handler graph into its bundle. `accessToken()` is exposed for the
+rare call that has to go outside the typed client; nothing else about the token
+is — it never reaches a browser, and the SDK's browser entry does not know this
+subpath exists.
+
+To bypass the environment (tests, a multi-tenant worker) pass `config` directly:
+
+```ts
+const service = createServiceClient({
+  config: {
+    issuer: "https://auth.example.com",
+    clientId: "billing-worker",
+    clientSecret: process.env.BILLING_WORKER_SECRET!,
+    scopes: ["invoices.write"],
+    apiBaseUrl: "https://api.example.com",
+  },
+  store, // optional RedisLike
+});
+```
 
 ---
 

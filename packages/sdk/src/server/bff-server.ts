@@ -19,6 +19,7 @@ import { createBffHandlers, type BffHandler, type BffHandlers } from "./handlers
 import { createApiProxy, type ApiProxyHandler } from "./proxy";
 import { CookieSessionStore } from "./store/cookie";
 import { createRedisAdapter, type NodeRedisClient } from "./store/redis-adapter";
+import { createRedisFromUrl } from "./store/redis-url";
 import { type SessionStore } from "./store/types";
 import { ValkeySessionStore } from "./store/valkey";
 
@@ -40,12 +41,19 @@ export interface WallowBffServerOptions {
    */
   store?: SessionStore;
   /**
-   * A connected Redis/Valkey client. The SDK never imports `redis` itself, so a
-   * host that wants server-side sessions constructs and connects the client and
-   * hands it here; the preset adapts it into a `ValkeySessionStore`. When
-   * `REDIS_URL` is set and no client is supplied, construction fails fast.
+   * A connected Redis/Valkey client — a node-redis client is assignable as-is.
+   * Supply one to own the connection yourself (its lifecycle, its error
+   * logging); the preset adapts it into a `ValkeySessionStore`. Without it,
+   * a set `REDIS_URL` makes the preset connect itself, lazily, through the
+   * optional `redis` peer.
    */
   redisClient?: NodeRedisClient;
+  /**
+   * Receives the `error` events of a client the preset connected ITSELF from
+   * `REDIS_URL` (ignored when {@link WallowBffServerOptions.redisClient} or
+   * {@link WallowBffServerOptions.store} is supplied). Defaults to `console.error`.
+   */
+  onRedisError?: (error: unknown) => void;
 }
 
 /** The BFF surface a host mounts. */
@@ -74,11 +82,11 @@ const ROOT_PATH: string = "/";
  * Pick the session store.
  *
  * An explicit store wins outright. Otherwise a supplied Redis/Valkey client is
- * adapted into a {@link ValkeySessionStore}; the SDK never imports `redis`
- * itself, so the host constructs and connects the client and hands it in. That
- * makes `REDIS_URL` set with no client a misconfiguration rather than a
- * fallback: silently serving stateless cookie sessions to a deployment that
- * asked for server-side ones is exactly the failure this throw prevents.
+ * adapted into a {@link ValkeySessionStore}; failing that, a set `REDIS_URL`
+ * still means Valkey — the preset connects itself on first use through the
+ * optional `redis` peer. `REDIS_URL` never degrades to the cookie store:
+ * silently serving stateless sessions to a deployment that asked for
+ * server-side ones is exactly the failure this ordering prevents.
  */
 function selectStore(
   config: BffConfig,
@@ -99,11 +107,11 @@ function selectStore(
 
   const redisUrl: string = (env.REDIS_URL ?? "").trim();
   if (redisUrl !== "") {
-    throw new Error(
-      "REDIS_URL is set but no redisClient was supplied to createWallowBffServer. " +
-        "The SDK does not import `redis`: construct and connect the client in the host " +
-        "and pass it as `redisClient`, or unset REDIS_URL to use cookie sessions.",
-    );
+    return new ValkeySessionStore({
+      client: createRedisFromUrl(redisUrl, { onError: options.onRedisError }),
+      password: config.cookiePasswords ?? config.cookiePassword,
+      ttlSeconds: config.sessionTtlSeconds,
+    });
   }
 
   return new CookieSessionStore({

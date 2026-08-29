@@ -1,7 +1,13 @@
 {
   "name": "@bc-solutions-coder/sdk",
   "version": "0.2.0",
-  "description": "Wallow TypeScript browser SDK with BFF tunnel",
+  "description": "Wallow TypeScript SDK: browser client, BFF tunnel, and service-account client",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bc-solutions-coder/wallow.git",
+    "directory": "packages/sdk"
+  },
   "files": [
     "dist"
   ],
@@ -23,6 +29,10 @@
       "types": "./src/server/passthrough.ts",
       "import": "./src/server/passthrough.ts"
     },
+    "./server/service": {
+      "types": "./src/server/service.ts",
+      "import": "./src/server/service.ts"
+    },
     "./query": {
       "types": "./src/query/index.ts",
       "import": "./src/query/index.ts"
@@ -41,6 +51,10 @@
       "./server/passthrough": {
         "types": "./dist/server/passthrough.d.ts",
         "import": "./dist/server/passthrough.js"
+      },
+      "./server/service": {
+        "types": "./dist/server/service.d.ts",
+        "import": "./dist/server/service.js"
       },
       "./query": {
         "types": "./dist/query/index.d.ts",
@@ -67,17 +81,25 @@
     "@hey-api/openapi-ts": "^0.99.0",
     "@tanstack/react-query": "catalog:react",
     "@types/node": "^24.0.0",
+    "redis": "^4.7.0",
     "tsx": "^4.19.0",
     "typescript": "catalog:tooling-tsc6",
     "vite": "^8.1.4",
     "vitest": "^4.1.10"
   },
   "peerDependencies": {
-    "@tanstack/react-query": "catalog:react"
+    "@tanstack/react-query": "catalog:react",
+    "redis": "^4.7.0"
   },
   "peerDependenciesMeta": {
     "@tanstack/react-query": {
       "optional": true
+    },
+    "redis": {
+      "optional": true
     }
+  },
+  "engines": {
+    "node": ">=24"
   }
 }
