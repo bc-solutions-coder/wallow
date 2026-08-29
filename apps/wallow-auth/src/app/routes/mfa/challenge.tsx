@@ -25,11 +25,13 @@ interface MfaChallengeSearch {
   readonly returnUrl?: string;
   /**
    * The client that started the flow. It arrives spelled `client_id` — the OIDC
-   * spelling `external-login-callback` redirects here with — and leaves toward
-   * the API spelled `clientId`, the `[FromQuery]` name those endpoints bind.
-   * `undefined` on the password path, which carries none.
+   * spelling `external-login-callback` redirects here with — and the schema keeps
+   * that wire spelling because it is what the router serializes back into a URL;
+   * the rename to the `clientId` prop (the `[FromQuery]` name the API endpoints
+   * bind) happens at the destructure, the `/login` convention. `undefined` on the
+   * password path, which carries none.
    */
-  readonly clientId?: string;
+  readonly client_id?: string;
 }
 
 /**
@@ -48,12 +50,12 @@ function validateSearch(search: Record<string, unknown>): MfaChallengeSearch {
     // `typeof`-narrowed like returnUrl: TanStack's default parser JSON-parses
     // scalars, so `?client_id=42` arrives as a NUMBER. Relaying it would scope
     // the flow to a client that cannot exist, and an unknown client fails closed.
-    clientId: typeof search.client_id === "string" ? search.client_id : undefined,
+    client_id: typeof search.client_id === "string" ? search.client_id : undefined,
   };
 }
 
 function MfaChallengeRoute() {
-  const { returnUrl, clientId } = Route.useSearch();
+  const { returnUrl, client_id: clientId } = Route.useSearch();
 
   return (
     <AuthLayout>

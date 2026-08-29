@@ -22,10 +22,13 @@ import { RegisterForm } from "@features/register";
  */
 interface RegisterSearch {
   /**
-   * The `client_id` query parameter — snake_case ON THE WIRE (the oracle's
-   * `[SupplyParameterFromQuery(Name = "client_id")]`), camelCase in the app.
+   * The `client_id` query parameter. The wire name is snake_case, per the oracle's
+   * `[SupplyParameterFromQuery(Name = "client_id")]` — it is OpenIddict's parameter
+   * name and is not this screen's to rename: the schema is what the router
+   * serializes back into a URL, so it keeps the wire spelling and the rename to
+   * the `clientId` prop happens at the destructure (the `/login` convention).
    */
-  readonly clientId?: string;
+  readonly client_id?: string;
   /** The `returnUrl` query parameter — `undefined` when the link omits it. */
   readonly returnUrl?: string;
 }
@@ -38,13 +41,13 @@ interface RegisterSearch {
  */
 function validateSearch(search: Record<string, unknown>): RegisterSearch {
   return {
-    clientId: typeof search.client_id === "string" ? search.client_id : undefined,
+    client_id: typeof search.client_id === "string" ? search.client_id : undefined,
     returnUrl: typeof search.returnUrl === "string" ? search.returnUrl : undefined,
   };
 }
 
 function RegisterRoute() {
-  const { clientId, returnUrl } = Route.useSearch();
+  const { client_id: clientId, returnUrl } = Route.useSearch();
 
   return (
     <AuthLayout>

@@ -28,11 +28,13 @@ interface AcceptTermsSearch {
   readonly returnUrl?: string;
   /**
    * The `client_id` query parameter — the client that started the external-login
-   * flow (Wallow-53kr). Snake_case on the way in, because that is the spelling
-   * `external-login-callback` redirects here with; the screen sends it on as
-   * `clientId`, the name the endpoint binds.
+   * flow (Wallow-53kr). Snake_case, because that is the spelling
+   * `external-login-callback` redirects here with, and the schema keeps the wire
+   * spelling it serializes back into a URL; the rename to the `clientId` prop
+   * (the name the endpoint binds) happens at the destructure, the `/login`
+   * convention.
    */
-  readonly clientId?: string;
+  readonly client_id?: string;
   /** The `email` query parameter — the address the external provider vouched for. */
   readonly email?: string;
   /** The `name` query parameter — the provider's display name for the user. */
@@ -60,7 +62,7 @@ interface AcceptTermsSearch {
 function validateSearch(search: Record<string, unknown>): AcceptTermsSearch {
   return {
     returnUrl: typeof search.returnUrl === "string" ? search.returnUrl : undefined,
-    clientId: typeof search.client_id === "string" ? search.client_id : undefined,
+    client_id: typeof search.client_id === "string" ? search.client_id : undefined,
     email: typeof search.email === "string" ? search.email : undefined,
     name: typeof search.name === "string" ? search.name : undefined,
     error: typeof search.error === "string" ? search.error : undefined,
@@ -68,7 +70,7 @@ function validateSearch(search: Record<string, unknown>): AcceptTermsSearch {
 }
 
 function AcceptTermsRoute() {
-  const { returnUrl, clientId, email, name, error } = Route.useSearch();
+  const { returnUrl, client_id: clientId, email, name, error } = Route.useSearch();
 
   return (
     <AuthLayout>
