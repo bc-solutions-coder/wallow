@@ -405,33 +405,39 @@ The SDK uses a synchronizer token with a double-submit companion cookie:
 The SDK's `csrf` module owns this exchange on the client side, so app code
 never hand-rolls a request interceptor or reads the companion cookie itself.
 `createWallowSdk()` already wires the interceptor onto every instance it builds,
-which leaves app code one job — telling it the token:
+and the interceptor reads the companion cookie at request time — there is no
+token to hand over and no state to clear on logout:
 
 ```ts
-import { createWallowSdk, setCsrfToken } from "@bc-solutions-coder/sdk";
+import { createWallowSdk } from "@bc-solutions-coder/sdk";
 
-const sdk = createWallowSdk({ baseUrl: "/api" }); // CSRF interceptor already wired
-
-// /bff/user is the one endpoint that hands the session's CSRF token to the
-// browser, so it is read with a plain fetch rather than a typed operation.
-const response = await fetch("/bff/user", { credentials: "include" });
-const user: { csrfToken?: unknown } | null = response.ok ? await response.json() : null;
-setCsrfToken(user !== null && typeof user.csrfToken === "string" ? user.csrfToken : null);
+// CSRF interceptor already wired; it reads the double-submit cookie live.
+const sdk = createWallowSdk({ baseUrl: "/api" });
 ```
 
 - `wireCsrfInterceptor(client)` registers a request interceptor exactly once:
-  it stamps the current in-memory token into `x-csrf-token` on every request
-  whose method is not CSRF-exempt, and leaves safe methods (and the
-  token-less, pre-login state) untouched. It takes any object shaped like the
-  generated client (`CsrfInterceptorClient`), so it also wires onto a client you
-  built yourself — but you only need to call it directly for a client the
-  factory did not build.
-- `setCsrfToken(token)` sets (or, with `null`, clears) the in-memory token the
-  interceptor reads live — call it once `csrfToken` comes back on the
-  `/bff/user` response, and again with `null` on logout.
+  on every request whose method is not CSRF-exempt it stamps the double-submit
+  cookie's value into `x-csrf-token`, and it leaves safe methods (and the
+  cookie-less pre-login and server-side states) untouched. It takes any object
+  shaped like the generated client (`CsrfInterceptorClient`), so it also wires
+  onto a client you built yourself — but you only need to call it directly for
+  a client the factory did not build.
+- `csrf: false` on `createWallowSdk()` skips the interceptor for a passthrough
+  topology (wallow-auth's shape): that app holds no BFF session and mints no
+  token, and behind a shared-hostname ingress its jar could hold *another*
+  app's companion cookie, which the interceptor would otherwise present as its
+  own.
+- `readCsrfCookie()` reads the companion cookie (preferring the `__Host-`
+  prefixed name), returning `null` outside the browser or when no cookie is
+  set. The interceptor and `logout()` both resolve the token through it; it is
+  exported for anything else that must echo the same token.
 - `isSafeMethod(method)` is the RFC 9110 safe-method check
   (`GET`/`HEAD`/`OPTIONS`) the interceptor uses internally; it is exported for
   hosts that need the same rule outside the interceptor.
+
+`GET /bff/user` still returns the token as `csrfToken` in its body for
+non-browser clients; browser code never needs it, because the cookie carries
+the same token.
 
 Server-side the header name is exported as `CSRF_HEADER` and the rejection code
 as `CSRF_INVALID_CODE`, so a BFF host can reuse them rather than hardcode

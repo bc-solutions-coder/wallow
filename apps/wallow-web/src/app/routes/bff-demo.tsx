@@ -3,7 +3,6 @@ import {
   loginRedirect,
   logout,
   organizationsCreate,
-  setCsrfToken,
   usersGetCurrentUser,
   type WallowUser,
 } from "@bc-solutions-coder/sdk";
@@ -90,8 +89,9 @@ function BffDemoComponent() {
     async function refreshUser(): Promise<void> {
       // As the raw BFF example this reads `/bff/user` with a plain fetch (401
       // means anonymous); app code reads the typed `currentUserQuery` from
-      // `@bc-solutions-coder/auth` instead. The raw read is also what hands
-      // back the session's `csrfToken`, which the typed path never exposes.
+      // `@bc-solutions-coder/auth` instead. Nothing needs arming for the mutate
+      // call below: the CSRF interceptor reads the double-submit cookie the BFF
+      // wrote at login.
       const response: Response = await fetch("/bff/user", { credentials: "include" });
       const user: WallowUser | null = response.ok ? ((await response.json()) as WallowUser) : null;
       if (cancelled) {
@@ -99,15 +99,11 @@ function BffDemoComponent() {
       }
 
       if (user === null) {
-        setCsrfToken(null);
         setStatus("anonymous");
         setEmail("");
         return;
       }
 
-      // `/bff/user` returns the identity claims plus the session's CSRF token;
-      // arm the interceptor with it before any mutate call.
-      setCsrfToken(typeof user.csrfToken === "string" ? user.csrfToken : null);
       setStatus("authenticated");
       setEmail(typeof user.email === "string" ? user.email : (user.sub ?? ""));
     }

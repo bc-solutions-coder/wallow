@@ -46,6 +46,16 @@ export interface CreateWallowSdkOptions {
    * cookie explicitly. Captured per instance, never read from module scope.
    */
   cookieHeader?: string | undefined;
+  /**
+   * Whether to wire the CSRF request interceptor onto the instance. Defaults to
+   * `true` — the BFF topology, where the `/api` proxy rejects a state-changing
+   * request that does not echo the double-submit cookie. Pass `false` in a
+   * passthrough topology (wallow-auth): there is no BFF session and no CSRF
+   * cookie of its own, and behind a shared-hostname ingress the jar can hold
+   * ANOTHER app's `-csrf` cookie, which the interceptor would happily stamp onto
+   * requests whose upstream never asked for it.
+   */
+  csrf?: boolean | undefined;
 }
 
 /** A request-scoped Wallow SDK instance. */
@@ -61,8 +71,9 @@ export interface WallowSdk {
  * Build a request-scoped SDK instance over the generated client factory.
  *
  * Every call constructs a FRESH generated client — no module-global state is
- * read or written — wires the CSRF interceptor onto it exactly once, and applies
- * `internalOrigin` inside the instance's `fetch` only.
+ * read or written — wires the CSRF interceptor onto it exactly once (unless
+ * `csrf: false` opts the topology out), and applies `internalOrigin` inside the
+ * instance's `fetch` only.
  */
 export function createWallowSdk(options: CreateWallowSdkOptions): WallowSdk {
   if (options.baseUrl.trim() === "") {
@@ -108,7 +119,9 @@ export function createWallowSdk(options: CreateWallowSdkOptions): WallowSdk {
       throwOnError: true,
     }),
   );
-  wireCsrfInterceptor(client);
+  if (options.csrf ?? true) {
+    wireCsrfInterceptor(client);
+  }
   // D14: the error interceptor is DEFINED in `runtime-config.ts` but registered
   // per instance here. `createClientConfig` cannot do it — it returns a config,
   // and no client exists yet to hang an interceptor on.

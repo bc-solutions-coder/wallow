@@ -2,12 +2,12 @@
 
 TypeScript SDK for Wallow. It ships four entry points:
 
-| Import                                       | Runs in                                             | Contains                                                                                                                                                                                                                                                                                                                                                                                                               |
-| -------------------------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@bc-solutions-coder/sdk`                    | Browser (also safe to import from a Node SSR entry) | `createWallowSdk()` (the per-request factory), `logout()`, `loginRedirect()`, `getCurrentUser()`, `requireAuth()`, the generated typed API operations, the CSRF module (`isSafeMethod`, `setCsrfToken`, `wireCsrfInterceptor`), the OIDC URL builders (`buildConnectAuthorizeUrl`, `buildConnectLogoutUrl`, `buildConsentSubmitUrl`, `buildExchangeTicketUrl`, `isSafeReturnUrl`), and `WallowError` / `isWallowError` |
-| `@bc-solutions-coder/sdk/server`             | Node                                                | `createWallowBffServer()` (the host preset), `createBffHandlers()`, `createApiProxy()`, `loadBffConfigFromEnv()`, the session stores, and `WallowError`                                                                                                                                                                                                                                                                |
-| `@bc-solutions-coder/sdk/server/passthrough` | Node                                                | `createApiPassthrough()` — a pure reverse proxy owning no session, forwarding the upstream response (`Set-Cookie` included) verbatim. Kept on its own subpath so a passthrough-only app never pulls `openid-client` into its server bundle                                                                                                                                                                             |
-| `@bc-solutions-coder/sdk/query`              | Browser                                             | The TanStack Query layer (peer dep `@tanstack/react-query`): a generated `{op}Options()` / `{op}QueryKey()` / `{op}Mutation()` trio per OpenAPI operation, plus the curated invalidation predicates `queriesForOperation()` and `queriesWithTag()` — the only hand-written module left on this entry                                                                                                                   |
+| Import                                       | Runs in                                             | Contains                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| -------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `@bc-solutions-coder/sdk`                    | Browser (also safe to import from a Node SSR entry) | `createWallowSdk()` (the per-request factory), `logout()`, `loginRedirect()`, `getCurrentUser()`, `requireAuth()`, the generated typed API operations, the CSRF module (`isSafeMethod`, `readCsrfCookie`, `wireCsrfInterceptor`), the OIDC URL builders (`buildConnectAuthorizeUrl`, `buildConnectLogoutUrl`, `buildConsentSubmitUrl`, `buildExchangeTicketUrl`, `isSafeReturnUrl`), and `WallowError` / `isWallowError` |
+| `@bc-solutions-coder/sdk/server`             | Node                                                | `createWallowBffServer()` (the host preset), `createBffHandlers()`, `createApiProxy()`, `loadBffConfigFromEnv()`, the session stores, and `WallowError`                                                                                                                                                                                                                                                                  |
+| `@bc-solutions-coder/sdk/server/passthrough` | Node                                                | `createApiPassthrough()` — a pure reverse proxy owning no session, forwarding the upstream response (`Set-Cookie` included) verbatim. Kept on its own subpath so a passthrough-only app never pulls `openid-client` into its server bundle                                                                                                                                                                               |
+| `@bc-solutions-coder/sdk/query`              | Browser                                             | The TanStack Query layer (peer dep `@tanstack/react-query`): a generated `{op}Options()` / `{op}QueryKey()` / `{op}Mutation()` trio per OpenAPI operation, plus the curated invalidation predicates `queriesForOperation()` and `queriesWithTag()` — the only hand-written module left on this entry                                                                                                                     |
 
 Every server handler is a web-standard `(request: Request) => Promise<Response>`.
 The SDK declares no host framework, so the handlers mount on TanStack Start server
@@ -303,31 +303,40 @@ How the token is delivered:
 The SDK's `csrf` module owns the client side of this exchange, so you never
 hand-roll a request interceptor or read the companion cookie yourself.
 `createWallowSdk()` already wires the interceptor onto every instance it builds,
-which leaves you one job — telling it the token:
+and the interceptor reads the companion cookie at request time — there is
+nothing to arm, no token to hand over, and no state to clear on logout:
 
 ```ts
-import { createWallowSdk, setCsrfToken, type WallowUser } from "@bc-solutions-coder/sdk";
+import { createWallowSdk } from "@bc-solutions-coder/sdk";
 
-const sdk = createWallowSdk({ baseUrl: "/api" }); // CSRF interceptor already wired
-
-// /bff/user is the one endpoint that hands the session's csrfToken to the browser.
-const response = await fetch("/bff/user", { credentials: "include" });
-const user: WallowUser | null = response.ok ? await response.json() : null;
-setCsrfToken(user !== null && typeof user.csrfToken === "string" ? user.csrfToken : null);
+// CSRF interceptor already wired; it reads the double-submit cookie live.
+const sdk = createWallowSdk({ baseUrl: "/api" });
 ```
 
 - `wireCsrfInterceptor(client)` registers a request interceptor exactly once:
-  it stamps the in-memory token into `x-csrf-token` on every request whose
-  method is not CSRF-exempt, and leaves safe methods and the token-less state
-  untouched. It accepts anything shaping up like the generated client
-  (`CsrfInterceptorClient`), so it also wires onto a client you build yourself —
-  but you only need to call it directly for a client the factory did not build.
-- `setCsrfToken(token)` updates the in-memory token the interceptor reads
-  live — call it once you have read `csrfToken` off the `/bff/user` response
-  (or `null` it out on logout).
+  on every request whose method is not CSRF-exempt it stamps the double-submit
+  cookie's value into `x-csrf-token`, and it leaves safe methods and the
+  cookie-less (anonymous, or server-side) state untouched. It accepts anything
+  shaping up like the generated client (`CsrfInterceptorClient`), so it also
+  wires onto a client you build yourself — but you only need to call it directly
+  for a client the factory did not build.
+- Pass `csrf: false` to `createWallowSdk()` to skip the interceptor entirely.
+  That is for a passthrough topology (an app that proxies the API without
+  holding a BFF session): it has no CSRF token of its own, and behind a
+  shared-hostname ingress its jar could hold _another_ app's companion cookie,
+  which the interceptor would then present as if it were this app's.
+- `readCsrfCookie()` reads the companion cookie (preferring the `__Host-`
+  prefixed name) and returns its value, or `null` outside the browser or when
+  no cookie is set. The interceptor and `logout()` both resolve the token
+  through it; it is exported for anything else that must echo the same token —
+  e.g. a logger's ingest transport.
 - `isSafeMethod(method)` is the RFC 9110 safe-method check
   (`GET`/`HEAD`/`OPTIONS`) the interceptor uses internally; it is exported in
   case a host needs the same rule elsewhere.
+
+`GET /bff/user` still returns the token as `csrfToken` in its body for
+non-browser clients; browser code never needs it, because the cookie is the
+same token.
 
 The header name is exported server-side as `CSRF_HEADER`, and the rejection code
 as `CSRF_INVALID_CODE`. `GET`, `HEAD`, `OPTIONS`, and `TRACE` are not gated.

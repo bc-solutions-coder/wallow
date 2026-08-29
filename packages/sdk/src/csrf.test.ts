@@ -1,12 +1,10 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   CSRF_COOKIE_SUFFIX,
   type CsrfInterceptorClient,
-  getCsrfToken,
   isSafeMethod,
   readCsrfCookie,
-  setCsrfToken,
   wireCsrfInterceptor,
 } from "./csrf";
 
@@ -16,9 +14,14 @@ import {
  * `apps/wallow-auth/src/lib/csrf.test.ts` and
  * `apps/wallow-web/src/lib/csrf.test.ts` copies. The interceptor echoes the
  * session CSRF token in the `x-csrf-token` header on state-changing requests and
- * leaves safe methods (GET/HEAD/OPTIONS) untouched. Both apps' facades
- * (`getWallowSdk()` / `getWallowAuthSdk()`) wire it onto the shared `@hey-api`
- * client.
+ * leaves safe methods (GET/HEAD/OPTIONS) untouched.
+ *
+ * The ONE token source is the BFF's non-HttpOnly double-submit cookie
+ * (Wallow-j7qk). The module-scope token store that used to sit in front of it
+ * (`setCsrfToken`/`getCsrfToken`) is deleted: at module scope the token was
+ * process-global during SSR — the exact cross-user hazard `create-sdk.ts`
+ * exists to prevent — and in the browser it could only ever equal or trail the
+ * cookie, which the BFF rewrites on every login.
  */
 
 /**
@@ -56,22 +59,18 @@ function createFakeClient(): CsrfInterceptorClient & {
 /**
  * Stub a browser cookie jar. The node vitest project has no `document` at all,
  * which is exactly the SSR shape the interceptor must stay inert under, so every
- * browser-path test opts in explicitly.
+ * browser-path test opts in explicitly. The returned handle mutates the jar in
+ * place, the way a login/logout response's `Set-Cookie` does.
  */
-function stubCookieJar(cookie: string): void {
-  vi.stubGlobal("document", { cookie });
+function stubCookieJar(cookie: string): { set: (next: string) => void } {
+  const jar: { cookie: string } = { cookie };
+  vi.stubGlobal("document", jar);
+  return {
+    set(next: string): void {
+      jar.cookie = next;
+    },
+  };
 }
-
-beforeEach(() => {
-  // Reset module-scope token state so tests do not leak into one another. The
-  // stub throws in the red phase, so swallow it: the assertions below are what
-  // must drive the implementation, not this teardown.
-  try {
-    setCsrfToken(null);
-  } catch {
-    /* red phase: setCsrfToken is not implemented yet */
-  }
-});
 
 afterEach(() => {
   // Drop any stubbed `document` so the next test starts from the bare node
@@ -95,113 +94,16 @@ describe("isSafeMethod", () => {
 });
 
 describe("wireCsrfInterceptor", () => {
-  // These cases all exercise the browser path, where the module token store is
-  // per-tab and safe to read. An empty jar keeps the double-submit cookie out of
-  // the picture so each case still isolates the store it is about.
-  beforeEach(() => {
-    stubCookieJar("");
-  });
-
   it("registers exactly one request interceptor on the client", () => {
     const client = createFakeClient();
     wireCsrfInterceptor(client);
     expect(client.useCount()).toBe(1);
   });
 
-  it("attaches the CSRF token header on state-changing requests once a token is set", () => {
-    const client = createFakeClient();
-    wireCsrfInterceptor(client);
-    setCsrfToken("tok-123");
-
-    const request = new Request("https://example.test/api/v1/identity/organizations", {
-      method: "POST",
-    });
-    const result = client.run(request);
-
-    expect(result.headers.get("x-csrf-token")).toBe("tok-123");
-  });
-
-  it("does not attach the header on safe methods even when a token is set", () => {
-    const client = createFakeClient();
-    wireCsrfInterceptor(client);
-    setCsrfToken("tok-123");
-
-    const request = new Request("https://example.test/api/v1/identity/users/me", {
-      method: "GET",
-    });
-    const result = client.run(request);
-
-    expect(result.headers.get("x-csrf-token")).toBeNull();
-  });
-
-  it("does not attach the header on state-changing requests while no token is set", () => {
-    const client = createFakeClient();
-    wireCsrfInterceptor(client);
-    // No setCsrfToken call; the token remains null (anonymous / pre-login).
-
-    const request = new Request("https://example.test/api/v1/identity/organizations", {
-      method: "POST",
-    });
-    const result = client.run(request);
-
-    expect(result.headers.get("x-csrf-token")).toBeNull();
-  });
-
-  it("clears the token so later mutations stop carrying it after logout", () => {
-    const client = createFakeClient();
-    wireCsrfInterceptor(client);
-    setCsrfToken("tok-123");
-    setCsrfToken(null);
-
-    const request = new Request("https://example.test/api/v1/identity/organizations", {
-      method: "DELETE",
-    });
-    const result = client.run(request);
-
-    expect(result.headers.get("x-csrf-token")).toBeNull();
-  });
-
-  it("reads the token live, so a token set after wiring still applies", () => {
-    const client = createFakeClient();
-    wireCsrfInterceptor(client);
-    setCsrfToken("tok-late");
-
-    const request = new Request("https://example.test/api/v1/identity/auth/mfa/verify", {
-      method: "POST",
-    });
-
-    expect(client.run(request).headers.get("x-csrf-token")).toBe("tok-late");
-  });
-
-  it("returns the same request instance it was given", () => {
-    const client = createFakeClient();
-    wireCsrfInterceptor(client);
-    setCsrfToken("tok-123");
-
-    const request = new Request("https://example.test/api/v1/identity/organizations", {
-      method: "POST",
-    });
-    expect(client.run(request)).toBe(request);
-  });
-});
-
-/**
- * Double-submit cookie fallback (Wallow-vufu.1.1).
- *
- * `setCsrfToken()` is called from exactly one route in the whole workspace, so
- * every other mutation reached the BFF with no `x-csrf-token` header and came
- * back `403 CSRF_INVALID`. The interceptor therefore cannot depend on that call
- * having happened: it falls back to the non-HttpOnly `${cookieName}-csrf` cookie
- * the BFF writes at the OIDC callback, which is rewritten on every login and so
- * is always the live synchronizer token — including after a re-login that would
- * leave the module store stale.
- */
-describe("wireCsrfInterceptor CSRF token resolution", () => {
-  it("falls back to the double-submit cookie when no token was set", () => {
+  it("stamps the double-submit cookie's token on state-changing requests", () => {
     stubCookieJar("wallow_bff-csrf=cookie-token");
     const client = createFakeClient();
     wireCsrfInterceptor(client);
-    // No setCsrfToken call: this is every dashboard mutation's real state.
 
     const request = new Request("https://example.test/api/v1/identity/organizations", {
       method: "POST",
@@ -210,7 +112,31 @@ describe("wireCsrfInterceptor CSRF token resolution", () => {
     expect(client.run(request).headers.get("x-csrf-token")).toBe("cookie-token");
   });
 
-  it("ignores unrelated cookies in the jar when falling back", () => {
+  it("does not attach the header on safe methods even when a cookie is readable", () => {
+    stubCookieJar("wallow_bff-csrf=cookie-token");
+    const client = createFakeClient();
+    wireCsrfInterceptor(client);
+
+    const request = new Request("https://example.test/api/v1/identity/users/me", {
+      method: "GET",
+    });
+
+    expect(client.run(request).headers.get("x-csrf-token")).toBeNull();
+  });
+
+  it("does not attach the header while the jar holds no CSRF cookie (anonymous)", () => {
+    stubCookieJar("theme=dark");
+    const client = createFakeClient();
+    wireCsrfInterceptor(client);
+
+    const request = new Request("https://example.test/api/v1/identity/organizations", {
+      method: "POST",
+    });
+
+    expect(client.run(request).headers.get("x-csrf-token")).toBeNull();
+  });
+
+  it("ignores unrelated cookies in the jar", () => {
     stubCookieJar("theme=dark; __Host-wallow_bff=sealed-session; wallow_bff-csrf=cookie-token");
     const client = createFakeClient();
     wireCsrfInterceptor(client);
@@ -222,17 +148,50 @@ describe("wireCsrfInterceptor CSRF token resolution", () => {
     expect(client.run(request).headers.get("x-csrf-token")).toBe("cookie-token");
   });
 
-  it("prefers an explicitly set token over the cookie", () => {
-    stubCookieJar("wallow_bff-csrf=cookie-token");
+  it("reads the jar live, so a login after wiring still applies", () => {
+    // The BFF writes the cookie at the OIDC callback, long after the app wired
+    // its client — the interceptor must read at request time, not wire time.
+    const jar = stubCookieJar("");
     const client = createFakeClient();
     wireCsrfInterceptor(client);
-    setCsrfToken("explicit-token");
+    jar.set("wallow_bff-csrf=tok-late");
+
+    const request = new Request("https://example.test/api/v1/identity/auth/mfa/verify", {
+      method: "POST",
+    });
+
+    expect(client.run(request).headers.get("x-csrf-token")).toBe("tok-late");
+  });
+
+  it("stops carrying the token once logout clears the cookie", () => {
+    const jar = stubCookieJar("wallow_bff-csrf=tok-123");
+    const client = createFakeClient();
+    wireCsrfInterceptor(client);
+    // The logout handler answers with a Max-Age=0 `Set-Cookie`; from the jar's
+    // point of view the cookie is simply gone.
+    jar.set("");
+
+    const request = new Request("https://example.test/api/v1/identity/organizations", {
+      method: "DELETE",
+    });
+
+    expect(client.run(request).headers.get("x-csrf-token")).toBeNull();
+  });
+
+  it("picks up the rewritten cookie after a re-login", () => {
+    // Every login mints a fresh token and overwrites the cookie. A cached copy
+    // would present the STALE token here and 403 every mutation — the class of
+    // bug the deleted module store invited.
+    const jar = stubCookieJar("wallow_bff-csrf=first-session");
+    const client = createFakeClient();
+    wireCsrfInterceptor(client);
+    jar.set("wallow_bff-csrf=second-session");
 
     const request = new Request("https://example.test/api/v1/identity/organizations", {
       method: "POST",
     });
 
-    expect(client.run(request).headers.get("x-csrf-token")).toBe("explicit-token");
+    expect(client.run(request).headers.get("x-csrf-token")).toBe("second-session");
   });
 
   it("prefers a __Host--prefixed cookie over a bare-named one when both are present", () => {
@@ -251,38 +210,24 @@ describe("wireCsrfInterceptor CSRF token resolution", () => {
     expect(client.run(request).headers.get("x-csrf-token")).toBe("host-token");
   });
 
-  it("sends no header on a safe method even when a cookie is readable", () => {
-    stubCookieJar("wallow_bff-csrf=cookie-token");
-    const client = createFakeClient();
-    wireCsrfInterceptor(client);
-
-    const request = new Request("https://example.test/api/v1/identity/users/me", {
-      method: "GET",
-    });
-
-    expect(client.run(request).headers.get("x-csrf-token")).toBeNull();
-  });
-
-  it("sends no header when neither a token nor a cookie exists", () => {
-    stubCookieJar("theme=dark");
+  it("returns the same request instance it was given", () => {
+    stubCookieJar("wallow_bff-csrf=tok-123");
     const client = createFakeClient();
     wireCsrfInterceptor(client);
 
     const request = new Request("https://example.test/api/v1/identity/organizations", {
       method: "POST",
     });
-
-    expect(client.run(request).headers.get("x-csrf-token")).toBeNull();
+    expect(client.run(request)).toBe(request);
   });
 
-  it("ignores the module token store outside the browser", () => {
-    // The store is module scope, which during SSR is process-global and shared
-    // by every concurrently rendered request — one user's token must never be
-    // stamped onto another's. With no `document` there is no browser to trust.
+  it("is inert outside the browser, where no cookie jar exists", () => {
+    // During SSR there is no per-user jar to read — anything else the
+    // interceptor could reach at module scope would be process-global and
+    // shared by every concurrently rendered request.
     vi.stubGlobal("document", undefined);
     const client = createFakeClient();
     wireCsrfInterceptor(client);
-    setCsrfToken("other-users-token");
 
     const request = new Request("https://example.test/api/v1/identity/organizations", {
       method: "POST",
@@ -334,33 +279,14 @@ describe("readCsrfCookie", () => {
   });
 });
 
-/**
- * The token is also read outside the interceptor chain: `logout()` POSTs to
- * `/bff/logout` itself and must stamp the same `x-csrf-token` header
- * (Wallow-pu6a.3.9), so the module token needs a reader as well as a writer.
- */
-describe("getCsrfToken", () => {
-  it("returns null before any token is set", () => {
-    expect(getCsrfToken()).toBeNull();
-  });
-
-  it("returns the token most recently set, and null again once cleared", () => {
-    setCsrfToken("tok-123");
-    expect(getCsrfToken()).toBe("tok-123");
-
-    setCsrfToken(null);
-    expect(getCsrfToken()).toBeNull();
-  });
-});
-
 describe("existing callers still resolve", () => {
-  it("keeps exporting isSafeMethod for both app facades", () => {
-    // The app facades import isSafeMethod/setCsrfToken/wireCsrfInterceptor from
-    // the SDK's browser entry; the relocation must preserve these named value
-    // exports so those imports continue to resolve.
+  it("keeps exporting the helper trio as named values", () => {
+    // `logout()` and the apps' logger wiring import
+    // isSafeMethod/readCsrfCookie/wireCsrfInterceptor from the SDK's browser
+    // entry; these named value exports are the contract.
     expect(vi.isMockFunction(isSafeMethod)).toBe(false);
     expect(typeof isSafeMethod).toBe("function");
-    expect(typeof setCsrfToken).toBe("function");
+    expect(typeof readCsrfCookie).toBe("function");
     expect(typeof wireCsrfInterceptor).toBe("function");
   });
 });

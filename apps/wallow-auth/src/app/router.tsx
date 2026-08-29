@@ -36,7 +36,12 @@ export function getRouter() {
   const queryClient: QueryClient = createQueryClient();
   const sdk: WallowSdk =
     getGlobalStartContext()?.sdk ??
-    createWallowSdk({ baseUrl: withBasePath(globalThis.location.origin, BASE_PATH) });
+    // `csrf: false` for the same reason as `start.ts`: a passthrough origin has
+    // no CSRF token of its own for the interceptor to stamp.
+    createWallowSdk({
+      baseUrl: withBasePath(globalThis.location.origin, BASE_PATH),
+      csrf: false,
+    });
 
   const router = createTanStackRouter({
     routeTree,

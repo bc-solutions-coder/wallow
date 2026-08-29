@@ -1,4 +1,3 @@
-import { setCsrfToken } from "@bc-solutions-coder/sdk";
 import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -55,15 +54,15 @@ const ALL_TESTIDS: readonly string[] = [
 describe("routes/bff-demo (BFF smoke surface)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // The token store is module-global; a token armed by one test must not leak
-    // into the next one's "anonymous" assertions.
-    setCsrfToken(null);
     harness = createSdkHarness();
     stubBffUser(null, UNAUTHORIZED);
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    // This suite runs in a REAL browser, so the double-submit cookie the mutate
+    // spec writes lives in a real jar — clear it so no other test inherits it.
+    document.cookie = "wallow_bff-csrf=; max-age=0";
   });
 
   function renderDemo() {
@@ -121,11 +120,14 @@ describe("routes/bff-demo (BFF smoke surface)", () => {
     expect(harness.last?.method).toBe("GET");
   });
 
-  it("clicking bff-mutate posts an org, echoing the CSRF token /bff/user handed out", async () => {
+  it("clicking bff-mutate posts an org, echoing the double-submit cookie's CSRF token", async () => {
     stubBffUser(SIGNED_IN_USER);
     harness.resolveJson({ organizationId: "org-123" });
+    // The BFF writes this non-HttpOnly cookie at login; the SDK's interceptor
+    // reads it back at request time. Written into the REAL jar this suite runs
+    // against — there is no module store to arm (Wallow-j7qk).
+    document.cookie = "wallow_bff-csrf=csrf-abc";
     renderDemo();
-    // The token is armed by the mount effect; wait for it to land before the POST.
     await expect.element(page.getByTestId("bff-user-status")).toHaveTextContent("authenticated");
 
     await userEvent.click(page.getByTestId("bff-mutate"));

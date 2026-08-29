@@ -11,7 +11,7 @@
  * low-cardinality name.
  */
 import { createLogger, type Logger } from "@bc-solutions-coder/logger";
-import { getCsrfToken, readCsrfCookie } from "@bc-solutions-coder/sdk";
+import { readCsrfCookie } from "@bc-solutions-coder/sdk";
 
 /** Where the ingest route is mounted. Same-origin: the page never talks to a collector. */
 const LOG_ENDPOINT = "/bff/logs";
@@ -19,8 +19,7 @@ const LOG_ENDPOINT = "/bff/logs";
 export const log: Logger = createLogger({
   service: "wallow-web",
   endpoint: LOG_ENDPOINT,
-  // The module store is only populated on paths that call `setCsrfToken`, so the
-  // BFF's double-submit cookie is the fallback — the same order the SDK's own
-  // request interceptor resolves in.
-  getCsrfToken: (): string | null => getCsrfToken() ?? readCsrfCookie(),
+  // The BFF's double-submit cookie is the one token source — the same source
+  // the SDK's own request interceptor reads.
+  getCsrfToken: readCsrfCookie,
 });

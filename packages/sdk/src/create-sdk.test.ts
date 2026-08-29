@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createWallowSdk, type CreateWallowSdkOptions, type WallowSdk } from "./create-sdk";
-import { setCsrfToken } from "./csrf";
 // The generator's own module-global instance. `src/client.ts` used to re-export it
 // as the package's public `client`; that re-export is deleted (Wallow-pu6a.5.5),
 // but the generated singleton still exists, so "the factory never touches it"
@@ -79,10 +78,6 @@ async function sendGet(sdk: WallowSdk, url: string = "/v1/identity/users/me"): P
 }
 
 afterEach(() => {
-  // The CSRF token lives in module scope (src/csrf.ts) and is deliberately NOT
-  // per-instance, so reset it between tests. The factory throws in the red phase;
-  // this teardown must not mask that.
-  setCsrfToken(null);
   vi.unstubAllGlobals();
 });
 
@@ -189,10 +184,9 @@ describe("(b) the CSRF interceptor registers exactly once per instance", () => {
       baseUrl: BROWSER_BASE_URL,
       fetch: transport.fetch,
     });
-    setCsrfToken("token-abc");
-    // An empty jar keeps this case about the module store: the interceptor
-    // refuses to trust that store when there is no document (SSR isolation).
-    vi.stubGlobal("document", { cookie: "" });
+    // The BFF's double-submit cookie is the ONE token source (Wallow-j7qk) —
+    // there is no module-scope store for a test to arm any more.
+    vi.stubGlobal("document", { cookie: "wallow_bff-csrf=token-abc" });
 
     await sdk.client.post({ url: "/v1/identity/users/me" });
 
@@ -218,6 +212,50 @@ describe("(b) the CSRF interceptor registers exactly once per instance", () => {
     createWallowSdk({ baseUrl: BROWSER_BASE_URL, cookieHeader: "wallow_bff=sess" });
 
     expect(generatedSingleton.interceptors.request.fns).toHaveLength(before);
+  });
+});
+
+describe("csrf: false opts an instance out of the CSRF interceptor", () => {
+  // The knob exists for the passthrough topology (wallow-auth): that app holds
+  // no session and mints no CSRF token, so there is nothing legitimate to stamp
+  // — and behind a shared-hostname ingress its jar can hold ANOTHER app's
+  // `-csrf` cookie, which the interceptor would then present as this app's.
+  it("registers no request interceptor at all", () => {
+    const sdk: WallowSdk = createWallowSdk({ baseUrl: BROWSER_BASE_URL, csrf: false });
+
+    const registered = sdk.client.interceptors.request.fns.filter(
+      (fn: unknown): boolean => fn !== null,
+    );
+
+    expect(registered).toHaveLength(0);
+  });
+
+  it("stamps no x-csrf-token even when the jar holds a foreign -csrf cookie", async () => {
+    const transport: FetchRecorder = recordingFetch();
+    const sdk: WallowSdk = createWallowSdk({
+      baseUrl: BROWSER_BASE_URL,
+      csrf: false,
+      fetch: transport.fetch,
+    });
+    vi.stubGlobal("document", { cookie: "wallow_bff-csrf=another-apps-token" });
+
+    await sdk.client.post({ url: "/v1/identity/users/me" });
+
+    expect(transport.only().headers.get("x-csrf-token")).toBeNull();
+  });
+
+  it("wires the interceptor when csrf is passed explicitly true", async () => {
+    const transport: FetchRecorder = recordingFetch();
+    const sdk: WallowSdk = createWallowSdk({
+      baseUrl: BROWSER_BASE_URL,
+      csrf: true,
+      fetch: transport.fetch,
+    });
+    vi.stubGlobal("document", { cookie: "wallow_bff-csrf=token-abc" });
+
+    await sdk.client.post({ url: "/v1/identity/users/me" });
+
+    expect(transport.only().headers.get("x-csrf-token")).toBe("token-abc");
   });
 });
 

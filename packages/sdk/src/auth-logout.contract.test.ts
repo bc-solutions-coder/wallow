@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { logout } from "./auth";
-import { setCsrfToken } from "./csrf";
 import type { BffConfig } from "./server/config";
 import { createBffHandlers, type BffHandlers } from "./server/handlers";
 import { CSRF_HEADER } from "./server/csrf";
@@ -62,7 +61,6 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   vi.clearAllMocks();
-  setCsrfToken(null);
 });
 
 /** The origin the SPA is served from; relative helper URLs resolve against it. */
@@ -209,7 +207,6 @@ describe("browser logout() against the ported /bff/logout handler", () => {
     const issuer: string = "https://logout-ok.example.com";
     const { handlers, cookieHeader, location } = await signedIn(issuer);
     stubBffTransport(handlers, cookieHeader);
-    setCsrfToken(CSRF_FIXTURE_TOKEN);
 
     await logout();
 
@@ -222,7 +219,6 @@ describe("browser logout() against the ported /bff/logout handler", () => {
   it("clears the session and CSRF cookies", async () => {
     const { handlers, cookieHeader } = await signedIn("https://logout-cookies.example.com");
     const { responses } = stubBffTransport(handlers, cookieHeader);
-    setCsrfToken(CSRF_FIXTURE_TOKEN);
 
     await logout();
 
@@ -237,7 +233,6 @@ describe("browser logout() against the ported /bff/logout handler", () => {
       "https://logout-destroy.example.com",
     );
     stubBffTransport(handlers, cookieHeader);
-    setCsrfToken(CSRF_FIXTURE_TOKEN);
 
     await logout();
 
@@ -245,9 +240,10 @@ describe("browser logout() against the ported /bff/logout handler", () => {
   });
 
   it("carries the token the handler's CSRF gate compares against", async () => {
+    // logout() resolves the token from the double-submit cookie signedIn()
+    // stubbed — the same jar the handler's gate compares against.
     const { handlers, cookieHeader } = await signedIn("https://logout-token.example.com");
     const { fetchMock } = stubBffTransport(handlers, cookieHeader);
-    setCsrfToken(CSRF_FIXTURE_TOKEN);
 
     await logout();
 

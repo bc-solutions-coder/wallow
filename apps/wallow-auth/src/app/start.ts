@@ -56,6 +56,10 @@ const sdkMiddleware = createMiddleware().server(({ next, request }) => {
     // the container is ECONNREFUSED.
     internalOrigin: resolveInternalOrigin(process.env),
     cookieHeader: request.headers.get("cookie") ?? undefined,
+    // This app is a passthrough, not a BFF: it holds no session and mints no
+    // CSRF token, so there is nothing legitimate for the interceptor to stamp —
+    // only another app's `-csrf` cookie under a shared hostname.
+    csrf: false,
   });
 
   // The fork's outbound links for THIS deployment. Same reason the origin

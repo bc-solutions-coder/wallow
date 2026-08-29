@@ -10,7 +10,7 @@
  * `auth-logout.contract.test.ts`.
  */
 
-import { getCsrfToken, readCsrfCookie } from "./csrf";
+import { readCsrfCookie } from "./csrf";
 
 /** First status the BFF uses to refuse a request outright (403 CSRF, 405 method). */
 const HTTP_FIRST_ERROR: number = 400;
@@ -62,9 +62,9 @@ function assertBrowserNavigation(caller: string): void {
  */
 export interface LogoutOptions {
   /**
-   * CSRF token to echo in the `x-csrf-token` header. Defaults to the token the
-   * SDK learned from `/bff/user` (see `setCsrfToken`), then to the BFF's
-   * non-HttpOnly double-submit cookie.
+   * CSRF token to echo in the `x-csrf-token` header. Defaults to the BFF's
+   * non-HttpOnly double-submit cookie — the same single source the request
+   * interceptor reads.
    */
   csrfToken?: string;
 }
@@ -90,15 +90,14 @@ export function logout(options?: LogoutOptions): Promise<void> {
 }
 
 /**
- * Resolve the CSRF token to present, most specific source first: an explicit
- * option, then the token the SDK learned from `/bff/user`, then the readable
+ * Resolve the CSRF token to present: an explicit option, otherwise the readable
  * double-submit cookie.
  *
  * @returns The token, or `null` when the browser holds none — in which case no
  *          header is sent at all and the BFF stays the authority, answering 403.
  */
 function resolveCsrfToken(options?: LogoutOptions): string | null {
-  return options?.csrfToken ?? getCsrfToken() ?? readCsrfCookie();
+  return options?.csrfToken ?? readCsrfCookie();
 }
 
 /**

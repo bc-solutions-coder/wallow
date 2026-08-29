@@ -55,7 +55,6 @@ const BROWSER_VALUE_EXPORTS: readonly string[] = [
   "logout",
   "readCsrfCookie",
   "requireAuth",
-  "setCsrfToken",
   "validateRedirectUriArgs",
   "WallowError",
   "wireCsrfInterceptor",
@@ -93,6 +92,12 @@ const DELETED_LEGACY_SYMBOLS: readonly string[] = [
   "isAdmin",
   "isGlobalAdmin",
   "isOperator",
+  // The module-scope CSRF token store (Wallow-j7qk item 5): process-global
+  // during SSR — the exact cross-user hazard `create-sdk.ts` exists to prevent
+  // — and strictly redundant in the browser, where the BFF's non-HttpOnly
+  // double-submit cookie is the ONE token source (`readCsrfCookie`).
+  "getCsrfToken",
+  "setCsrfToken",
   "setSsrRequestContextResolver",
   // The envelope-unwrapping layer the response interceptor superseded: every
   // operation's failure path raises a WallowError, so nothing unwraps any more.

@@ -541,11 +541,11 @@ already implements the pieces of it that are easy to get subtly wrong by hand:
   API on its own origin without a session uses the sibling preset,
   `createApiPassthrough()` from `@bc-solutions-coder/sdk/server/passthrough`.
   See [Server setup: mounting the BFF](typescript-sdk.md#server-setup-mounting-the-bff).
-- **CSRF token wiring.** The SDK's `csrf` module (`setCsrfToken`,
-  `wireCsrfInterceptor`, `isSafeMethod`) is the client-side half of the
-  synchronizer-token gate — it stamps the current token onto every
-  state-changing request and leaves safe methods alone. See
-  [CSRF protection](typescript-sdk.md#csrf-protection).
+- **CSRF token wiring.** The SDK's `csrf` module (`wireCsrfInterceptor`,
+  `readCsrfCookie`, `isSafeMethod`) is the client-side half of the
+  synchronizer-token gate — the interceptor reads the double-submit cookie at
+  request time and stamps it onto every state-changing request, leaving safe
+  methods alone. See [CSRF protection](typescript-sdk.md#csrf-protection).
 - **SSR cookie forwarding.** If your BFF also server-renders authenticated
   routes, an SSR-time request runs on Node, which has no cookie jar and
   cannot resolve a relative URL — it needs the incoming request's absolute

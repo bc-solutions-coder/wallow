@@ -3,9 +3,18 @@
  *
  * The BFF rejects any state-changing request (POST/PUT/PATCH/DELETE) that does
  * not echo the session's CSRF token in the `x-csrf-token` header. This module
- * owns the in-memory token store and the request interceptor that stamps the
- * header, so app-level wiring can reuse it against the shared `@hey-api` client
- * without hand-rolling the logic.
+ * owns the cookie reader and the request interceptor that stamps the header, so
+ * app-level wiring can reuse it against the generated `@hey-api` client without
+ * hand-rolling the logic.
+ *
+ * The ONLY token source is the BFF's non-HttpOnly double-submit cookie. There
+ * is deliberately no module-scope token store (Wallow-j7qk): the SDK's doctrine
+ * is that nothing request-scoped lives at module scope (`create-sdk.ts`), and a
+ * process-global token shared by concurrent SSR renders is exactly the
+ * cross-user leak that doctrine exists to prevent. The cookie jar is already
+ * per-tab, per-user state, and the BFF rewrites the cookie on every login, so
+ * it is always the live synchronizer token — a copy held in a variable could
+ * only ever be equal or stale.
  */
 
 /** HTTP methods the BFF does not gate on CSRF, per RFC 9110 safe methods. */
@@ -67,24 +76,6 @@ export function readCsrfCookie(): string | null {
   return fallback;
 }
 
-/**
- * Resolve the token the interceptor should stamp, most specific source first.
- *
- * Returns `null` outside the browser: the module store is process-global there,
- * shared by every concurrently rendered request, so one user's token could be
- * stamped onto another's. Only a real cookie jar makes the store per-tab and
- * safe to trust.
- */
-function resolveToken(): string | null {
-  const inBrowser: boolean = typeof document !== "undefined";
-
-  if (!inBrowser) {
-    return null;
-  }
-
-  return csrfToken ?? readCsrfCookie();
-}
-
 /** True when the method is CSRF-exempt (safe per RFC 9110), case-insensitively. */
 export function isSafeMethod(method: string): boolean {
   return safeMethods.has(method.toUpperCase());
@@ -104,47 +95,20 @@ export interface CsrfInterceptorClient {
 }
 
 /**
- * The session's CSRF token, learned from `/bff/user`.
- *
- * The BFF mints it at login, seals it inside the session, and hands the browser
- * a copy in the `/bff/user` body. Holding it in module scope keeps it out of the
- * DOM and lets the interceptor read it live, so a token set after wiring still
- * applies.
- */
-let csrfToken: string | null = null;
-
-/**
- * Set (or clear, with `null`) the CSRF token the interceptor echoes on
- * state-changing requests.
- */
-export function setCsrfToken(token: string | null): void {
-  csrfToken = token;
-}
-
-/**
- * The CSRF token currently held in module scope, or `null` when none is set.
- *
- * Read by other browser helpers that must stamp `x-csrf-token` on a
- * state-changing request they issue outside the generated client's interceptor
- * chain — `logout()` in particular, which POSTs to `/bff/logout` directly.
- */
-export function getCsrfToken(): string | null {
-  return csrfToken;
-}
-
-/**
  * Register the CSRF request interceptor on the given client. The interceptor
- * stamps the current token into `x-csrf-token` on state-changing requests,
- * leaves safe methods (and the anonymous, token-less state) untouched, and
- * returns the request instance unchanged so it chains with other interceptors.
+ * stamps the live double-submit cookie into `x-csrf-token` on state-changing
+ * requests, leaves safe methods (and the anonymous, cookie-less state)
+ * untouched, and returns the request instance unchanged so it chains with other
+ * interceptors.
  *
- * The token comes from the module store when one was set, and otherwise from
- * the BFF's double-submit cookie — `setCsrfToken()` is not on every app's login
- * path, so the interceptor cannot depend on it having been called.
+ * The cookie is the interceptor's only source: it is rewritten by the BFF on
+ * every login and unreadable outside the browser, so the interceptor is
+ * automatically live after a re-login and automatically inert during SSR —
+ * `readCsrfCookie()` returns `null` where `document` does not exist.
  */
 export function wireCsrfInterceptor(client: CsrfInterceptorClient): void {
   client.interceptors.request.use((request: Request): Request => {
-    const token: string | null = resolveToken();
+    const token: string | null = readCsrfCookie();
 
     if (token !== null && !isSafeMethod(request.method)) {
       request.headers.set("x-csrf-token", token);

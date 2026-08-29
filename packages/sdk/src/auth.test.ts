@@ -1,12 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { logout } from "./auth";
-import { setCsrfToken } from "./csrf";
 
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
-  setCsrfToken(null);
 });
 
 /** A writable stand-in for the `location` global, so a test can read the target. */
@@ -86,8 +84,7 @@ function sentInit(fetchMock: ReturnType<typeof vi.fn>): RequestInit {
  */
 describe("logout (POST + CSRF gate)", () => {
   it("POSTs to /bff/logout instead of navigating the browser there with a GET", async () => {
-    const { location, fetchMock } = stubBrowser(endSessionRedirect());
-    setCsrfToken("tok-abc");
+    const { location, fetchMock } = stubBrowser(endSessionRedirect(), "wallow_bff-csrf=tok-abc");
 
     await logout();
 
@@ -98,35 +95,17 @@ describe("logout (POST + CSRF gate)", () => {
   });
 
   it("sends the session cookie by asking for credentials on the request", async () => {
-    const { fetchMock } = stubBrowser(endSessionRedirect());
-    setCsrfToken("tok-abc");
+    const { fetchMock } = stubBrowser(endSessionRedirect(), "wallow_bff-csrf=tok-abc");
 
     await logout();
 
     expect(sentInit(fetchMock).credentials).toBe("include");
   });
 
-  it("echoes the CSRF token learned from /bff/user in the x-csrf-token header", async () => {
-    const { fetchMock } = stubBrowser(endSessionRedirect());
-    setCsrfToken("tok-from-user-endpoint");
-
-    await logout();
-
-    expect(sentHeaders(fetchMock).get("x-csrf-token")).toBe("tok-from-user-endpoint");
-  });
-
-  it("prefers an explicitly supplied csrfToken over the module token", async () => {
-    const { fetchMock } = stubBrowser(endSessionRedirect());
-    setCsrfToken("tok-from-module");
-
-    await logout({ csrfToken: "tok-explicit" });
-
-    expect(sentHeaders(fetchMock).get("x-csrf-token")).toBe("tok-explicit");
-  });
-
-  it("falls back to the BFF's readable double-submit cookie when no token was set", async () => {
-    // The dashboard never calls setCsrfToken; the non-HttpOnly companion cookie
-    // the login handler writes is the only token the browser holds.
+  it("echoes the BFF's double-submit cookie in the x-csrf-token header", async () => {
+    // The non-HttpOnly companion cookie the login handler writes is the ONE
+    // token source in the browser (Wallow-j7qk) — the module token store that
+    // used to sit in front of it is deleted.
     const { fetchMock } = stubBrowser(
       endSessionRedirect(),
       "wallow_bff=sealed-session-blob; wallow_bff-csrf=tok-from-cookie",
@@ -135,6 +114,14 @@ describe("logout (POST + CSRF gate)", () => {
     await logout();
 
     expect(sentHeaders(fetchMock).get("x-csrf-token")).toBe("tok-from-cookie");
+  });
+
+  it("prefers an explicitly supplied csrfToken over the cookie", async () => {
+    const { fetchMock } = stubBrowser(endSessionRedirect(), "wallow_bff-csrf=tok-from-cookie");
+
+    await logout({ csrfToken: "tok-explicit" });
+
+    expect(sentHeaders(fetchMock).get("x-csrf-token")).toBe("tok-explicit");
   });
 
   it("reads the double-submit cookie under a __Host- prefixed session cookie name", async () => {
@@ -163,7 +150,6 @@ describe("logout (POST + CSRF gate)", () => {
     const fetchMock: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue(endSessionRedirect());
     vi.stubGlobal("location", location);
     vi.stubGlobal("fetch", fetchMock);
-    setCsrfToken("tok-abc");
 
     await expect(logout()).resolves.toBeUndefined();
   });
@@ -172,8 +158,7 @@ describe("logout (POST + CSRF gate)", () => {
     // Following it would put the IdP's end-session endpoint behind CORS and
     // fail the whole logout with an opaque TypeError; the browser must make
     // that hop as a navigation instead.
-    const { fetchMock } = stubBrowser(endSessionRedirect());
-    setCsrfToken("tok-abc");
+    const { fetchMock } = stubBrowser(endSessionRedirect(), "wallow_bff-csrf=tok-abc");
 
     await logout();
 
@@ -181,8 +166,7 @@ describe("logout (POST + CSRF gate)", () => {
   });
 
   it("navigates to the IdP end-session URL from the response Location header", async () => {
-    const { location } = stubBrowser(endSessionRedirect());
-    setCsrfToken("tok-abc");
+    const { location } = stubBrowser(endSessionRedirect(), "wallow_bff-csrf=tok-abc");
 
     await logout();
 
@@ -190,8 +174,7 @@ describe("logout (POST + CSRF gate)", () => {
   });
 
   it("falls back to the app root when the redirect is opaque and its Location is unreadable", async () => {
-    const { location } = stubBrowser(opaqueRedirect());
-    setCsrfToken("tok-abc");
+    const { location } = stubBrowser(opaqueRedirect(), "wallow_bff-csrf=tok-abc");
 
     await logout();
 
@@ -208,8 +191,8 @@ describe("logout (POST + CSRF gate)", () => {
   it("rejects rather than silently leaving the user signed in when the BFF answers 405", async () => {
     const { location } = stubBrowser(
       new Response(null, { status: 405, headers: { allow: "POST" } }),
+      "wallow_bff-csrf=tok-abc",
     );
-    setCsrfToken("tok-abc");
 
     await expect(logout()).rejects.toThrowError(/405/u);
     expect(location.href).toBe("");
@@ -279,8 +262,7 @@ describe("logout under SSR (no browser globals)", () => {
     // logout() no longer navigates to /bff/logout — that GET is a 405 under the
     // hardened gate (Wallow-pu6a.3.9). It POSTs, then navigates on the redirect
     // the handler answers with. Only the SSR guard is under test here.
-    const { location, fetchMock } = stubBrowser(endSessionRedirect());
-    setCsrfToken("tok-abc");
+    const { location, fetchMock } = stubBrowser(endSessionRedirect(), "wallow_bff-csrf=tok-abc");
 
     await logout();
     expect(fetchMock.mock.calls[0]?.[0]).toBe("/bff/logout");
