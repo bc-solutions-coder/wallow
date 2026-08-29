@@ -52,6 +52,13 @@ The simplest fork strategy is to **keep all `Wallow.*` namespaces unchanged** an
 4. **Edit `api/seed.json`** to set your bootstrap tenant, roles, and admin account
 5. **Set up the merge driver** so upstream merges don't overwrite your config (see "Merge Driver Setup" below)
 
+> **Production seeds differently.** `api/seed.json` is the development seed; production uses the
+> committed `docker/seed.production.json`, which is **secret-less** (client secrets are injected
+> as `ClientSecrets__<clientId>` environment variables) and carries **no** `admin` block — a
+> production deployment bootstraps its administrator through the first-run `/setup` page instead
+> of configuration. Edit that file in place for your fork's clients; see the
+> [Deployment Guide](../operations/deployment.md#the-production-seed-file).
+
 This approach has **zero risk of silent failures** and gives you the easiest upstream sync path. All fork identity in the React apps -- page titles, auth screens, theme colors -- is resolved from `packages/styles/branding.json` by `packages/styles`, so no source changes are needed. See the [Configuration Guide](configuration.md) for the full key reference.
 
 ### Merge Driver Setup
@@ -71,6 +78,7 @@ The entries it covers are:
 | `docker/.env` | Your local Compose credentials |
 | `docker/.env.example` | Fork-specific additions to the example env |
 | `seed.json` | Bootstrap tenant, roles, and admin (`api/seed.json`) |
+| `docker/seed.production.json` | The committed, secret-less production seed |
 
 These files keep your fork's version during upstream merges. Anything outside this list -- including `CLAUDE.md` and `.claude/**` -- merges normally, so expect to resolve conflicts there yourself.
 
@@ -432,146 +440,34 @@ Smtp__UseSsl=true
 
 ## Adding a New Module
 
-### 1. Create the module directory structure
+The canonical step-by-step walkthrough is the
+[Module Creation Guide](../architecture/module-creation.md); follow it with your fork's
+namespace substituted for `Wallow` if you took Approach B (so
+`YourProduct.YourModule.Domain/Application/Infrastructure/Api` under
+`api/src/Modules/YourModule/`). In outline: create the four class libraries with the Clean
+Architecture references, put integration event records in
+`Shared.Contracts/YourModule/Events/`, implement `IWallowModule` once in the module's
+Infrastructure layer, add one entry to `WallowModuleRegistry.All`, add a row for one of the
+module's controller types to `_moduleApiAssemblies` in `WallowModules.cs`, add the four
+projects to the solution file, and declare the module's
+`FeatureManagement:Modules.YourModule` flag. Wolverine discovers handlers in exactly the
+assemblies the module's `HandlerAssemblies` names — no assembly scan, no name prefix — so a
+renamed namespace changes nothing about discovery.
 
-```
-api/src/Modules/YourModule/
-  YourProduct.YourModule.Domain/
-  YourProduct.YourModule.Application/
-  YourProduct.YourModule.Infrastructure/
-  YourProduct.YourModule.Api/
-```
+Two fork-specific notes the walkthrough does not dwell on:
 
-### 2. Create the four projects
+- **Api must not reference its own module's Infrastructure.**
+  `CleanArchitectureTests.ApiLayer_ShouldNotDependOn_InfrastructureLayer` asserts exactly that,
+  per module. The module's DI registration therefore belongs in Infrastructure — an
+  `AddYourModuleInfrastructure(...)` extension that the composition root calls — not in the
+  module's Api project.
+- The test reads IL rather than the project file, so an unused `ProjectReference` slips past it
+  (`Wallow.Identity.Api.csproj` carries one and still passes). Do not treat that as permission:
+  add the reference and the first type you use across the boundary fails the suite.
 
-```bash
-cd api/src/Modules/YourModule
-
-dotnet new classlib -n YourProduct.YourModule.Domain
-dotnet new classlib -n YourProduct.YourModule.Application
-dotnet new classlib -n YourProduct.YourModule.Infrastructure
-dotnet new classlib -n YourProduct.YourModule.Api
-```
-
-### 3. Wire up project references (Clean Architecture)
-
-```bash
-# Application depends on Domain
-dotnet add YourProduct.YourModule.Application reference YourProduct.YourModule.Domain
-
-# Infrastructure depends on Application (and transitively Domain)
-dotnet add YourProduct.YourModule.Infrastructure reference YourProduct.YourModule.Application
-
-# Api depends on Application
-dotnet add YourProduct.YourModule.Api reference YourProduct.YourModule.Application
-
-# Infrastructure also needs Shared.Kernel for base classes
-dotnet add YourProduct.YourModule.Infrastructure reference ../../Shared/YourProduct.Shared.Kernel
-```
-
-Domain has **no** project references.
-
-**Api must not reference its own module's Infrastructure.** `CleanArchitectureTests.ApiLayer_ShouldNotDependOn_InfrastructureLayer` asserts exactly that, per module. The module's DI registration therefore belongs in Infrastructure — an `AddYourModuleInfrastructure(...)` extension that the composition root (`Wallow.Api`) calls — not in the module's Api project.
-
-The test reads IL rather than the project file, so an unused `ProjectReference` slips past it (`Wallow.Identity.Api.csproj` carries one and still passes). Do not treat that as permission: add the reference and the first type you use across the boundary fails the suite.
-
-### 4. Add shared events
-
-Create integration event records in:
-
-```
-api/src/Shared/YourProduct.Shared.Contracts/YourModule/Events/
-```
-
-Example:
-
-```csharp
-namespace YourProduct.Shared.Contracts.YourModule.Events;
-
-public sealed record SomethingHappenedEvent : IntegrationEvent
-{
-    public required Guid SomethingId { get; init; }
-    public required string Name { get; init; }
-}
-```
-
-The `IntegrationEvent` base record provides `EventId` and `OccurredAt` automatically.
-
-### 5. Register the module
-
-Implement `IWallowModule` once, in the module's Infrastructure layer
-(`Modules/YourModuleModule.cs`):
-
-```csharp
-public sealed class YourModuleModule : IWallowModule
-{
-    internal const string Schema = "yourmodule";
-
-    public string Name => "YourModule";
-
-    public bool IsCore => false;
-
-    public IReadOnlyList<Assembly> HandlerAssemblies =>
-    [
-        typeof(CreateSomethingHandler).Assembly,  // .Application
-        typeof(YourModuleModule).Assembly,        // .Infrastructure
-    ];
-
-    public IReadOnlyList<Type> DbContextTypes => [typeof(YourModuleDbContext)];
-
-    public string SchemaName => Schema;
-
-    public IServiceCollection AddServices(
-        IServiceCollection services,
-        IConfiguration configuration,
-        IHostEnvironment environment) =>
-        services.AddYourModuleModule(configuration);
-}
-```
-
-Then add one entry to `WallowModuleRegistry.All` in
-`api/src/Wallow.Modules.Registry/WallowModuleRegistry.cs`:
-
-```csharp
-new YourModuleModule(),
-```
-
-That is the whole registration — there is no per-module `if` block and no startup hook in
-`WallowModules.cs`. Both hosts read that one list: `Wallow.Api` filters it by the module's
-`FeatureManagement:Modules.YourModule` flag, and `Wallow.MigrationService` takes it unfiltered. The
-one remaining host-side edit is a row in `_moduleApiAssemblies` in `WallowModules.cs` naming one of
-your module's controller types, so a disabled module's routes can be removed; the host refuses to
-start if that table and the registry disagree.
-
-### 6. Add to the solution file
-
-```bash
-dotnet sln api/YourProduct.slnx add api/src/Modules/YourModule/YourProduct.YourModule.Domain
-dotnet sln api/YourProduct.slnx add api/src/Modules/YourModule/YourProduct.YourModule.Application
-dotnet sln api/YourProduct.slnx add api/src/Modules/YourModule/YourProduct.YourModule.Infrastructure
-dotnet sln api/YourProduct.slnx add api/src/Modules/YourModule/YourProduct.YourModule.Api
-```
-
-### 7. Handler discovery (automatic within the module)
-
-Wolverine discovers handlers in exactly the assemblies your module declared in `HandlerAssemblies` in step 5 — no assembly scan, no name prefix. Because that list names both the `.Application` and the `.Infrastructure` assembly, any handler you add to either project is picked up with no further registration. Messaging uses the in-memory transport, so no manual routing configuration is needed either. Just create handlers following Wolverine conventions:
-
-```csharp
-public static class CreateSomethingHandler
-{
-    public static async Task<Result<SomethingDto>> HandleAsync(
-        CreateSomethingCommand command,
-        ISomethingRepository repo,
-        CancellationToken ct)
-    {
-        // Implementation
-    }
-}
-```
-
-No manual assembly registration is required.
-
-For more detail, see the [Module Creation Guide](../architecture/module-creation.md).
+The flag your module declares is how a fork ships it disabled by default — see
+[Configuring Modules](#configuring-modules) above, and [Adding Plugins and
+Extensions](#adding-plugins-and-extensions) below for when a plugin fits better than a module.
 
 ---
 

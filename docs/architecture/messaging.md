@@ -178,17 +178,21 @@ There are no broker transport packages in the build — `api/Directory.Packages.
   on a background thread. Do not rely on a handler's side effects being visible when the HTTP request
   that published the event returns.
 
-Durability is not left in memory, though. Outside the `Testing` environment, Program.cs calls
-`PersistMessagesWithPostgresql(...)` against the `DefaultConnection` database with
-`opts.Durability.MessageStorageSchemaName = "wolverine"`, then enables
-`UseDurableInboxOnAllListeners()` and `UseDurableOutboxOnAllSendingEndpoints()`. Concretely:
+Durability is not left in memory, though. Program.cs calls `PersistMessagesWithPostgresql(...)`
+against the `DefaultConnection` database with
+`opts.Durability.MessageStorageSchemaName = "wolverine"` in **every** environment, Testing
+included — a host without a message store cannot execute a transactional handler chain at all
+(`EfCoreEnvelopeTransaction` throws on the first one), and leaving Testing without a store would
+make the transactional path the only path production takes but no test does. Outside the
+`Testing` environment it then enables `UseDurableInboxOnAllListeners()` and
+`UseDurableOutboxOnAllSendingEndpoints()`. Concretely:
 
 | Behaviour | Effect |
 |-----------|--------|
 | Durable inbox | Envelopes are written to the `wolverine` Postgres schema before handling, giving at-least-once delivery with deduplication across a restart |
 | Durable outbox | Messages are only released after the enclosing transaction commits, so a rolled-back request never emits an event |
 | EF Core integration | `UseEntityFrameworkCoreTransactions()` enlists outgoing messages in the module's EF Core transaction |
-| `Testing` environment | Persistence and the durable inbox/outbox are skipped entirely, to stop background polling after test containers are disposed |
+| `Testing` environment | Postgres persistence still registers — Wolverine auto-migrates its `wolverine` schema into the test container on startup. `opts.Durability.Mode = DurabilityMode.Solo` skips leadership election, since every test class boots its own single-node host; only the durable inbox/outbox policies are skipped |
 
 Because handlers are at-least-once, **write them idempotently** — the same event can be delivered twice
 after a crash or a retry.

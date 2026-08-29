@@ -286,7 +286,7 @@ on ports distinct from the dev environment, so both stacks can run at once.
 | Service | Image | Purpose |
 |---------|-------|---------|
 | `wallow-migrations` | `wallow-migrations:test` | Applies EF migrations, then exits. Gates on `postgres` being healthy. |
-| `wallow-seeder` | `wallow-seeder:test` | Seeds roles, scopes, the admin, and OIDC clients from `api/seed.json`. Gates on `wallow-migrations` completing successfully, and overrides the `wallow-web-client` redirect URIs for the test port (`http://localhost:${E2E_WEB_PORT:-5053}/bff/callback`). |
+| `wallow-seeder` | `wallow-seeder:test` | Seeds roles, scopes, the admin, and OIDC clients from `api/seed.json`. Gates on `wallow-migrations` completing successfully, and overrides the `wallow-web-client` redirect URIs for the test port (`http://localhost:${E2E_WEB_PORT:-5053}/bff/callback`). The compose default seeds the admin, but `./scripts/e2e.sh` blanks `Admin__Email` for the first pass so the first-run-setup journey creates it, then re-runs the seeder with it restored. |
 
 ### Application services
 

@@ -25,8 +25,9 @@ HTTP Response (JSON or ProblemDetails)
 **Key principles:**
 - Controllers are thin -- they delegate to Wolverine handlers immediately
 - Commands/queries are immutable records
-- Handlers are usually **static classes** with a static `HandleAsync`; Wolverine discovers them
-  and injects their dependencies as method parameters. No DI registration is required.
+- Handlers are normally **`public sealed class`es** taking dependencies through a primary
+  constructor; Wolverine also discovers **static** handlers (mostly event handlers). Either
+  shape is auto-discovered — no DI registration is required.
 - Handlers return `Result<T>` instead of throwing exceptions for expected failures
 - FluentValidation validates commands before handlers execute
 - Global exception handling catches unexpected errors
@@ -354,9 +355,12 @@ public sealed record SubmitInquiryCommand(
 
 ### Handler Structure
 
-Handlers are **static classes** with a static `HandleAsync`. Wolverine discovers them by
-convention across all `Wallow.*` assemblies and resolves every parameter after the message from
-the container -- there is no interface to implement and no DI registration to write:
+A handler is normally a **`public sealed class`** taking dependencies through a primary
+constructor, with a `Handle`/`HandleAsync` method; Wolverine also discovers **static** classes
+whose static `HandleAsync` receives dependencies as method parameters. Either way there is no
+interface to implement and no DI registration to write. The Inquiries command handlers shown
+below use the static shape — a deliberate local exception in that module, kept truthful here
+because the examples are real files:
 
 ```csharp
 // api/src/Modules/Inquiries/Wallow.Inquiries.Application/Commands/SubmitInquiry/SubmitInquiryHandler.cs
@@ -433,8 +437,8 @@ public static class UpdateInquiryStatusHandler
 
 ### Query Handlers
 
-Queries follow the same shape. Wolverine also accepts an instance class with a `Handle` method
-and constructor injection, which is how `GetInquiriesHandler` is written:
+Queries follow the same shape. `GetInquiriesHandler` is written as an instance class with a
+`Handle` method and primary-constructor injection — the repo norm:
 
 ```csharp
 // .../Queries/GetInquiries/GetInquiriesQuery.cs
@@ -457,7 +461,9 @@ public sealed class GetInquiriesHandler(IInquiryRepository inquiryRepository)
 }
 ```
 
-Prefer the static form for new code; both are discovered identically.
+Prefer the sealed-class primary-constructor form for new code; both are discovered
+identically, and the static shape remains in use mostly for event handlers (and Inquiries'
+command handlers, as noted above).
 
 ### Controller to Handler Flow
 
@@ -1284,8 +1290,9 @@ public class SubmitInquiryValidatorTests
 }
 ```
 
-**Handlers** are static, so the test calls them directly with an NSubstitute repository -- no
-host, no container:
+**Handlers** need no host and no container either — the test constructs an instance handler
+(or, as with Inquiries' static handlers here, calls the static method directly) with an
+NSubstitute repository:
 
 ```csharp
 // .../Application/Commands/SubmitInquiry/SubmitInquiryHandlerTests.cs

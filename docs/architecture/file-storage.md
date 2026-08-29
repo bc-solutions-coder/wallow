@@ -145,11 +145,19 @@ endpoints below, where the URL's signature is itself the authorization. The base
 | GET | `/v1/storage/files?bucket=x&path=y` | List files in bucket (paginated) |
 | POST | `/v1/storage/presigned-upload` | Get presigned upload URL |
 | POST | `/v1/storage/files/{id}/complete` | Complete a presigned upload (verify + scan + promote) |
+| GET | `/v1/storage/config` | Resolved storage settings for the current tenant and user |
+| GET | `/v1/storage/settings/tenant` | List tenant-scope setting overrides (requires `StorageWrite`) |
+| PUT | `/v1/storage/settings/tenant` | Upsert a tenant-scope setting (requires `StorageWrite`) |
+| DELETE | `/v1/storage/settings/tenant?key=…` | Delete a tenant-scope setting (requires `StorageWrite`) |
+| GET | `/v1/storage/settings/user` | List the caller's user-scope setting overrides |
+| PUT | `/v1/storage/settings/user` | Upsert a user-scope setting for the caller |
+| DELETE | `/v1/storage/settings/user?key=…` | Delete a user-scope setting for the caller |
 | GET | `/v1/storage/local/files?key=…&expires=…&sig=…` | Serve a local presigned download (anonymous; HMAC-authorized) |
 | PUT | `/v1/storage/local/files?key=…&expires=…&sig=…` | Accept a local presigned upload (anonymous; HMAC-authorized) |
 
 The controller is at `api/src/Modules/Storage/Wallow.Storage.Api/Controllers/StorageController.cs`;
-the two local presigned endpoints live in `LocalStorageController.cs` beside it. They exist because
+the settings endpoints live in `StorageSettingsController.cs` and the two local presigned
+endpoints in `LocalStorageController.cs` beside it. They exist because
 the local filesystem cannot answer presigned URLs the way an object store does: `LocalStorageProvider`
 mints URLs against them, signed with a per-process HMAC over the HTTP method, storage key, and expiry
 (GET for downloads, PUT for uploads). They are excluded from the OpenAPI document — clients receive

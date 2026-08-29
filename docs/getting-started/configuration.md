@@ -163,6 +163,29 @@ If Redis is unreachable, `SessionRevocationMiddleware` will fail to check revoca
 
 Sessions expire 24 hours after creation. The `SessionPruningJob` removes expired and revoked rows from the database on a periodic schedule.
 
+### Identity: First-Run Setup and the Bootstrap Admin
+
+The seeder (`Wallow.SeederService`) can bootstrap the first administrator from the seed file's
+`admin` block, bound to `AdminBootstrapOptions` and env-overridable as `Admin__Email`,
+`Admin__Password`, `Admin__FirstName`, `Admin__LastName`, `Admin__OrganizationName`, and
+`Admin__IsGlobalAdmin`. `Email`, `Password`, and `OrganizationName` must all be non-blank for
+the options to count as configured — `OrganizationName` is required because roles are granted
+per organization — and `IsGlobalAdmin` is deliberately settable only from seeded configuration;
+no runtime endpoint grants it. The bootstrap runs through the same `BootstrapAdminCommand` the
+setup endpoint uses, so the admin arrives as user, organization, and owner membership in one
+step.
+
+Leave the block absent (or `Admin__Email` blank) and **no admin is seeded**: the API stays in
+setup mode, answering `503` on most endpoints until `POST /v1/identity/setup/admin` succeeds,
+and the auth app's first-run `/setup` page walks a person through creating the account.
+`api/seed.json` ships an `admin` block so local development starts signed-in-able; the
+committed `docker/seed.production.json` is deliberately admin-less, so production always
+bootstraps its administrator through the setup page. See the
+[Deployment Guide](../operations/deployment.md#setup-mode--when-no-admin-exists) for the full
+setup-mode contract.
+
+---
+
 ### Identity: Email Change Flow
 
 Wallow includes a secure two-step email change flow. Users request a change via the API, receive a confirmation link at the new address, and click it to finalize.

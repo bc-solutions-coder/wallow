@@ -12,7 +12,6 @@ Wallow uses **Valkey** as its distributed caching and real-time infrastructure l
 | **SignalR Backplane** | WebSocket message distribution across server instances |
 | **Presence Tracking** | Real-time user online status and page context |
 | **API Key Storage** | Service account authentication tokens |
-| **Metering Counters** | High-performance usage tracking and quota enforcement |
 
 ## Configuration
 
@@ -83,8 +82,8 @@ For standard caching scenarios, inject `IDistributedCache`. Wallow registers it 
 
 | Pattern | Example | Use Case |
 |---------|---------|----------|
-| `{domain}:{identifier}` | `feature-flag:dark-mode` | Simple lookups |
-| `{domain}:{tenant}:{identifier}` | `meter:abc-123:api.calls:2026-02` | Tenant-scoped data |
+| `{domain}:{identifier}` | `apikey:{hash}` | Simple lookups |
+| `{domain}:{tenant}:{identifier}` | `presence:{tenantId}:conn2user` | Tenant-scoped data |
 | `{domain}:{scope}:{key}` | `presence:{tenantId}:user:user-id-123` | Hierarchical data |
 
 ### TTL Strategies
@@ -94,7 +93,7 @@ For standard caching scenarios, inject `IDistributedCache`. Wallow registers it 
 | **Absolute Expiration** | Data that becomes stale | Feature flags (5 min) |
 | **Sliding Expiration** | Session-like data | User preferences (30 min) |
 | **No Expiration + Manual Invalidation** | Rarely changing data | Configuration |
-| **Time-Based Keys** | Period-scoped counters | `meter:{tenant}:api.calls:2026-02` |
+| **Safety-Net Expiration** | Data cleaned up on an event, with TTL as backstop | Presence keys (30 min) |
 
 Use `DistributedCacheEntryOptions` to set `AbsoluteExpirationRelativeToNow`, `SlidingExpiration`, or both (sliding with an absolute cap).
 
@@ -136,13 +135,8 @@ The `RedisPresenceService` (`api/src/Wallow.Api/Services/RedisPresenceService.cs
 
 ### Key Structure
 
-| Key Pattern | Type | Purpose |
-|-------------|------|---------|
-| `presence:{tenantId}:conn2user` | Hash | Maps connectionId to userId |
-| `presence:{tenantId}:user:{userId}` | Set | All connectionIds for a user |
-| `presence:connpage:{connId}` | String | Current page for a connection |
-| `presence:{tenantId}:page:{context}` | Set | All connectionIds viewing a page |
-| `presence:conn:tenant:{connId}` | String | Maps connectionId to tenantId (for cleanup) |
+The full presence key table — patterns, Valkey types, and purposes — lives in
+[Realtime](realtime.md#presence-service), which owns the presence feature.
 
 All presence keys use a 30-minute TTL as a safety net against orphaned entries.
 
@@ -162,9 +156,8 @@ The `RedisApiKeyService` (`api/src/Modules/ApiKeys/Wallow.ApiKeys.Infrastructure
 
 1. **Use colons as separators**: `domain:scope:identifier`
 2. **Include tenant ID** for multi-tenant data: `tenant:{tenantId}:resource:{id}`
-3. **Use time-based suffixes** for period-scoped data: `meter:{tenant}:api.calls:2026-02`
-4. **Stagger expiration** with jitter to prevent synchronized cache stampedes
-5. **Handle cache failures gracefully**: cache should enhance performance, not be a hard dependency. Fall back to the database when Valkey is unavailable.
+3. **Stagger expiration** with jitter to prevent synchronized cache stampedes
+4. **Handle cache failures gracefully**: cache should enhance performance, not be a hard dependency. Fall back to the database when Valkey is unavailable.
 
 ## Health Checks
 

@@ -242,10 +242,11 @@ plugin this entry is compiled by — is in
 
 ### 3. Vite config (`vite.config.ts`)
 
-One config serves dev and builds production. It composes four plugins in this
-order and sets the app's port explicitly, because `vite dev` binds 3000 when
-`PORT` is unset and every fixture (Playwright, compose, Aspire) expects the app's
-own port:
+One config serves dev and builds production. It spreads `wallowAppConfig({ defaultPort })`
+from `@bc-solutions-coder/config/vite/app` — the preset every app in the workspace builds
+with, which owns `server.port` (reading `process.env.PORT`), the SSR graph, the
+`use-sync-external-store` aliases, and the `copyPublicDir` restore — and then composes four
+plugins in this order:
 
 ```ts
 import { wallowStyles } from "@bc-solutions-coder/styles/vite";
@@ -254,16 +255,13 @@ import react from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
 
+import { wallowAppConfig } from "@bc-solutions-coder/config/vite/app";
+
+/** The port a bare `pnpm dev` lands on. */
 const DEFAULT_PORT = 3010;
 
 export default defineConfig({
-  server: { port: Number(process.env.PORT ?? DEFAULT_PORT) },
-  environments: {
-    // nitro/vite forces the client env's copyPublicDir off, which drops the
-    // shared brand assets wallowStyles() points publicDir at. It sets the flag
-    // with `??=`, so spelling it out here wins the copy back.
-    client: { build: { copyPublicDir: true } },
-  },
+  ...wallowAppConfig({ defaultPort: DEFAULT_PORT }),
   plugins: [
     tanstackStart({
       // Specs are co-located, so a *.test.tsx under src/routes/ would otherwise
@@ -277,6 +275,9 @@ export default defineConfig({
 });
 ```
 
+`defaultPort` matters because `vite dev` binds 3000 when `PORT` is unset and every fixture
+(Playwright, compose, Aspire) expects the app's own port.
+
 Two things this config must **not** do:
 
 - **Never set `vite: { installDevServerMiddleware: true }`.** The Start plugin
@@ -287,10 +288,11 @@ Two things this config must **not** do:
   plugin regenerates `src/routeTree.gen.ts` as a side effect of `vite dev` and
   `vite build`.
 
-An app that renders Base UI components additionally needs the
-`use-sync-external-store/shim` alias `apps/wallow-auth/vite.config.ts` documents:
-without it the production build loads a second React at runtime and every
-store-backed Base UI part throws "Invalid hook call" during SSR.
+The `use-sync-external-store` aliases the preset supplies are what keep an app
+that renders Base UI components on a single React: without them the production
+build loads a second React at runtime and every store-backed Base UI part throws
+"Invalid hook call" during SSR. That is one of the reasons the preset exists —
+do not hand-roll the alias (or the port read) per app.
 
 ### 4. Vitest config via the testing preset (`vitest.config.ts`)
 

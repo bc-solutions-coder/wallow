@@ -1,37 +1,18 @@
 # wallow-auth E2E — Playwright Agent Guide
 
-Rules for `apps/wallow-auth/e2e/`. This is the reference pattern for a per-app Playwright suite.
-
-## This is Playwright, not Vitest browser mode — do not conflate them
-
-Both drive a real Chromium, but they are separate suites with separate configs and commands.
-This holds for wallow-web's suites too — its guide points here rather than restating it:
-
-- **Vitest browser mode** (`src/**/*.test.tsx`, run by `pnpm test`) — isolated component render,
-  no dev server. Mounts one component in a headless Chromium iframe via the Vitest `playwright`
-  provider. A unit/component test, not E2E; boots neither the app nor a backend. Rules:
-  `.claude/rules/TESTING.md`.
-- **Playwright `e2e/` suites** (this directory) — the full app via a running dev/prod server,
-  exercising real navigation and, for backend specs, the live API.
-
-Keep Playwright specs out of vitest: vitest's `include` is scoped to `src/**`, so specs live
-here only. `test-results/` and `playwright-report/` are gitignored.
+Rules for `apps/wallow-auth/e2e/`. This is the reference pattern for a per-app Playwright
+suite; wallow-web's guide points here. Playwright specs live in `e2e/` only — vitest's
+`include` is scoped to `src/**`.
 
 ## Config
 
-`apps/wallow-auth/playwright.config.ts` sets `testDir: "./e2e"` and
-`testIdAttribute: "data-testid"`. Its `webServer` boots `pnpm dev` on `PORT` (default 3002;
-`scripts/e2e.sh` passes a per-run port, reusing an already-running server) and defaults
-`WALLOW_API_INTERNAL_URL` to `http://localhost:5001` so the passthrough proxy resolves outside
-Aspire. Setting `E2E_BASE_URL` drives an already-running app instead and boots no server.
-`e2e/global-setup.ts` drives one page load to hydration first so no spec pays the dev server's
-lazy first-request cost.
+Serving mode: `E2E_BASE_URL` set = drive an already-running app, no server booted; unset = the
+config's `webServer` boots `pnpm dev` — see `playwright.config.ts`'s comments.
 
-Two Playwright projects order the run: `first-run` holds only `first-run-setup.spec.ts`, and
-`main` (everything else) declares `dependencies: ["first-run"]`. Against the admin-less stack
-`scripts/e2e.sh` boots, the journey creates the `admin@wallow.dev` every other spec signs in
-as; against an already-provisioned backend it skips itself, so the ordering costs a local run
-nothing. Keep new specs out of the `first-run` project — it exists for that one journey.
+Two Playwright projects order the run: `first-run` holds only `first-run-setup.spec.ts`; `main`
+(everything else) declares `dependencies: ["first-run"]`. Against the admin-less stack
+`scripts/e2e.sh` boots, that journey creates the `admin@wallow.dev` every other spec signs in
+as; against an already-provisioned backend it skips itself. Keep new specs OUT of `first-run`.
 
 ## Selectors
 
@@ -43,9 +24,8 @@ These rules hold for every Playwright suite in the repo; this is where they are 
 
 ## Readiness
 
-Wait for React hydration via the marker `src/shared/components/ready-indicator.tsx` stamps —
-the app's thin wrapper over `ReadyIndicator` from `@bc-solutions-coder/ui`. Each app has its own
-wrapper stamping the same attribute:
+Wait for React hydration via the marker the app's `ready-indicator` wrapper (over
+`ReadyIndicator` from `@bc-solutions-coder/ui`) stamps:
 
 ```ts
 await expect(page.locator("[data-app-ready='true']")).toBeAttached();
@@ -53,32 +33,15 @@ await expect(page.locator("[data-app-ready='true']")).toBeAttached();
 
 ## Backend dependence
 
-- `routes.spec.ts` is the route-reachability gate: every route renders (<400) and reaches
-  hydration. Reachability specs must not depend on the backend — keep it that way.
-- `first-run-setup.spec.ts` requires the API _without_ an administrator: it drives the /setup
-  page end to end and is what creates `admin@wallow.dev` in the e2e stack (see Config above).
-- Every other spec (login, signup, logout, MFA, OTP login, magic link, forgot/reset password)
-  requires the API plus the admin account — seeded from `api/seed.json`, or created by the
-  first-run journey in the e2e stack. A backend-dependent spec says so in its header comment
-  and asserts app-level signals (e.g. `login-signed-in`), never incidental side effects like a
-  URL change.
-- Helpers: `mailpit.ts` reads delivered mail out of Mailpit; `totp.ts` generates TOTP codes.
-
-Seeder gotcha: admin bootstrap is skipped when ANY user already exists, so a stale dev DB can
-lack `admin@wallow.dev` even after a "successful" seed.
+- `routes.spec.ts` is the backend-free route-reachability gate — keep it backend-free.
+- A backend-dependent spec says so in its header comment and asserts app-level signals (e.g.
+  `login-signed-in`), never incidental side effects like a URL change.
+- Seeder gotcha: admin bootstrap is skipped when an administrator already exists (setup gate
+  closed — an active membership holding an AdminAccess role), or when the configured admin
+  email already exists as a user. A half-bootstrapped account (user exists, no admin
+  membership) is left for a human, and a re-seed never fights the setup page's outcome.
 
 ## Running
 
-```bash
-pnpm --filter ./apps/wallow-auth test:e2e                              # full suite (boots the dev server itself)
-pnpm --filter ./apps/wallow-auth exec playwright test routes.spec.ts   # reachability only
-./scripts/e2e.sh                                                       # containerised stack, all suites, then teardown
-```
-
-Drive the backend manually instead:
-
-```bash
-pnpm backend:infra                                   # docker compose up -d
-dotnet run --project api/src/Wallow.Api              # port 5001
-dotnet run --project api/src/Wallow.SeederService    # needs ConnectionStrings__DefaultConnection when run standalone
-```
+Commands: `test:e2e` (package.json), `./scripts/e2e.sh` (`.claude/rules/E2E.md`); manual
+backend: `api/CLAUDE.md`.

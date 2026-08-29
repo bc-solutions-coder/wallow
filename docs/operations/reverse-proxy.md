@@ -372,21 +372,22 @@ here.
 ## 7. Seeding the Production Client
 
 The reference frontend (`apps/wallow-web`) authenticates as a **confidential** OIDC client. The
-seeder (`Wallow.SeederService`, reading `api/seed.json`) provisions that client. In production, the
+seeder (`Wallow.SeederService`) provisions that client — in production from the **committed,
+secret-less** `docker/seed.production.json`, which the compose file mounts over the image-bundled
+development `seed.json` (`SEED_FILE_PATH`), so localhost client definitions never leak in. The
 key rule is that **the issuer is the API origin** while **the login UX is served from the auth
 origin** — the client's redirect and post-logout URIs point at your public web app, and its
 `OIDC_ISSUER` (above) points at the API.
 
-Add a confidential client to the `clients` array of `api/seed.json`. `api/seed.json` already ships a
-commented `_productionExampleClients` entry (ignored by the seeder) you can copy from:
+Edit the `clients` array of `docker/seed.production.json`. The committed reference entry looks
+like this (adapted here to `example.com`):
 
 ```json
 {
   "clientId": "wallow-web-client",
   "displayName": "Wallow Web",
   "tenantName": "Wallow",
-  "seedMembers": ["admin@example.com"],
-  "secret": "replace-with-a-strong-generated-secret",
+  "public": false,
   "redirectUris": ["https://example.com/bff/callback"],
   "postLogoutRedirectUris": ["https://example.com/"],
   "frontchannelLogoutUri": "https://example.com/bff/frontchannel-logout",
@@ -406,9 +407,21 @@ commented `_productionExampleClients` entry (ignored by the seeder) you can copy
 
 Rules that make this a valid production client:
 
-- **`secret`** — present (the client is confidential). Use a strong, randomly generated value and
-  wire the **same** value into the BFF's `OIDC_CLIENT_SECRET`. Never commit a real secret; keep the
-  seed value a placeholder and inject the real one at deploy time.
+- **No `secret` in the file.** The seed file is deliberately secret-less (its `_comment` says so),
+  which is what lets it be committed. Client secrets arrive at runtime as environment variables
+  keyed by **clientId** on the seeder service in `docker-compose.production.yml` — each
+  `ClientSecrets__<clientId>` value attaches to the seed client with that id, so the order of the
+  `clients` array never matters:
+
+  ```yaml
+  ClientSecrets__wallow-web-client: ${OIDC_CLIENT_SECRET}
+  ```
+
+  Wire the **same** value into the BFF's `OIDC_CLIENT_SECRET`. The seeder fails closed in both
+  misconfiguration directions: a seed client with no secret that does not declare `"public": true`
+  aborts, and so does a non-empty secret whose clientId matches no client in the seed file.
+- **`public`** — declared explicitly on every client, `false` for a confidential client like this
+  one. The explicit declaration is what arms the fail-closed check above.
 - **`redirectUris` / `postLogoutRedirectUris`** — absolute HTTPS URLs on your public web origin.
   They must exactly match the BFF's `OIDC_REDIRECT_URI` and `OIDC_POST_LOGOUT_REDIRECT_URI`. Because
   the API validates registered URIs at seed time, adding a client for a new domain needs no source
@@ -419,9 +432,11 @@ Rules that make this a valid production client:
 - **`scopes`** — `openid`, `email`, `profile`, and `offline_access` for login, plus whichever API
   scopes the app calls.
 
-`api/seed.json` is marked `merge=ours` in `.gitattributes`, so your fork's production seed survives
-upstream merges. See the [Configuration guide](../getting-started/configuration.md) for the full
-seed schema.
+Both `api/seed.json` and `docker/seed.production.json` are marked `merge=ours` in
+`.gitattributes`, so your fork's seed edits survive upstream merges. See the
+[Deployment guide](deployment.md#3-first-boot-sequence) for the seeder's full production
+behavior and the [Configuration guide](../getting-started/configuration.md) for the full seed
+schema.
 
 ---
 

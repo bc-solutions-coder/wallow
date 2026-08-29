@@ -319,9 +319,11 @@ navigation at the end of the callback rather than in `onSuccess`.
 3. Export the component and its props type from `packages/forms/src/index.ts`.
 4. Pin it in `packages/forms/src/index.test.ts`: add the runtime name to `PUBLIC_RUNTIME_EXPORTS`
    **and** the props type to the `PublicTypeExports` tuple at the bottom of the same file.
-5. If it wraps a ui component backed by a Base UI part not already listed, append that subpath to
-   `baseUiSubpaths` in `packages/forms/vitest.config.ts` — without it the browser project pre-bundles
-   a second copy of React and the specs die.
+5. If it introduces a new runtime dependency, append that specifier to `formRuntime` in
+   `packages/forms/vitest.config.ts` — without it the browser project pre-bundles a second copy of
+   React and the specs die. A new Base UI part needs nothing: the config's `baseUi` list is the
+   single `@base-ui/react/*` glob, expanded against Base UI's own `exports` keys, so every part is
+   already covered.
 
 `packages/forms/CLAUDE.md` holds the contributor detail: internal layering, the test model, and the
 package's scripts.

@@ -1,41 +1,26 @@
-# api/CLAUDE.md — .NET Backend
+# api/CLAUDE.md — .NET backend
 
-The Wallow backend: a **.NET 10 modular monolith** with multi-tenancy, Clean Architecture,
-DDD, CQRS, and Wolverine in-memory messaging. The solution is `api/Wallow.slnx`; central
-build config, analyzers, and the `.editorconfig`/`stylecop.json` rulesets live here in
-`api/`. Root-repo/monorepo context is in `/CLAUDE.md`.
+Solution: `api/Wallow.slnx`. Central build config, analyzers, and the
+`.editorconfig`/`stylecop.json` rulesets live here in `api/`.
 
 ## Commands
 
 ```bash
-# Run the full backend via the Aspire host (Api + Auth + Web + MigrationService + SeederService,
+# Full backend via the Aspire host (Api + Auth + Web + MigrationService + SeederService,
 # plus Postgres, Valkey, Garage, Mailpit and ClamAV containers)
 dotnet run --project api/src/Wallow.AppHost        # == `pnpm backend` from repo root
 
-# Run just the API
-dotnet run --project api/src/Wallow.Api            # http://localhost:5001
+dotnet run --project api/src/Wallow.Api            # just the API — http://localhost:5001
+dotnet run --project api/src/Wallow.SeederService  # seed roles/scopes/admin/OIDC clients from api/seed.json
 
-# Seed roles, scopes, admin, and OIDC clients from api/seed.json
-dotnet run --project api/src/Wallow.SeederService
+dotnet build api/Wallow.slnx                       # always path the solution as api/Wallow.slnx
+dotnet format api/Wallow.slnx                      # before every commit; stage what it changes
 
-# Build & format (always path the solution as api/Wallow.slnx)
-dotnet build api/Wallow.slnx
-dotnet format api/Wallow.slnx                      # run before every commit
-
-# Tests — always via the script (structured per-assembly results; applies coverage.runsettings)
-./scripts/run-tests.sh                             # fast suites; Category=Integration EXCLUDED
-./scripts/run-tests.sh integration                 # ONLY Category=Integration, solution-wide (Docker)
-./scripts/run-tests.sh all                         # both, in one run (Docker)
-./scripts/run-tests.sh identity                    # one module
-./scripts/run-tests.sh storage integration         # one target's integration tests (2nd arg = tier)
-# Shorthands: identity, storage, notifications, announcements, inquiries, branding, apikeys,
-#             api, arch (= architecture), seeder, migrations, shared, kernel, integration, all
-# `integration`/`all` select by CATEGORY across api/Wallow.slnx (integration tests live in seven
-# assemblies, including Wallow.Api.Tests's HandlerCodegenTests — the only guard that every
-# discovered Wolverine handler compiles). Every other invocation appends
-# --filter "Category!=E2E&Category!=Integration" and says so in its output.
-# Anything else is taken as a project path and must exist — a typo'd shorthand exits 2 with the
-# shorthand list. (E2E is per-app Playwright — see .claude/rules/E2E.md)
+# Tests: shorthands (module names, api, arch, seeder, migrations, shared, kernel) run a target's
+# fast suites; `integration`/`all` select Category=Integration solution-wide (Docker); a second
+# argument narrows the tier (`./scripts/run-tests.sh storage integration`). Anything else is a
+# project path — a typo'd shorthand exits 2 and prints the shorthand list.
+./scripts/run-tests.sh <shorthand|path> [integration]
 
 # EF Core migrations (per module DbContext)
 dotnet ef migrations add MigrationName \
@@ -44,56 +29,20 @@ dotnet ef migrations add MigrationName \
     --context {Module}DbContext
 ```
 
-Never run bare `dotnet test` — the script adds `--settings api/tests/coverage.runsettings`,
-without which generated code inflates coverage. Test doctrine: `.claude/rules/TESTING.md`.
-
-## Solution Layout (`api/src/`)
-
-**Host / app projects**
-
-| Project | Role |
-|---------|------|
-| `Wallow.Api` | Main REST API host; assembles all modules, Wolverine, OpenIddict resource server. Port 5001. |
-| `Wallow.AppHost` | **.NET Aspire** host that orchestrates everything (`pnpm backend`). |
-| `Wallow.MigrationService` | Aspire worker; applies EF migrations for all module DbContexts on startup. |
-| `Wallow.SeederService` | Seeds from `api/seed.json`. |
-| `Wallow.ServiceDefaults` | Aspire shared defaults: OpenTelemetry, health checks, service discovery, resilience. |
-
-The TypeScript apps use ports 3000 (`apps/wallow-web`) and 3002 (`apps/wallow-auth`); keep new
-ports clear of those and of Grafana on 3001.
-
-**Shared (`api/src/Shared/`)**
-
-- `Wallow.Shared.Kernel` — DDD primitives (`Entity<TId>`, `AggregateRoot<TId>`, strongly-typed
-  IDs, `ValueObject`, `IDomainEvent`, `Result<T>`), multi-tenancy (`ITenantContext`,
-  `TenantSaveChangesInterceptor`), **`ClaimsPrincipalExtensions`** (JWT claim helpers), and
-  `PermissionType` + `ScopePermissionMapper` (the permission registry all modules share).
-- `Wallow.Shared.Contracts` — **the only assembly modules reference across boundaries**:
-  integration events, cross-module service interfaces (`ISseDispatcher`, `IApiKeyService`,
-  `IStorageProvider`, `IUserService`, `IUserQueryService`, `IEmailService`, `IRealtimeDispatcher`,
-  and others), and a few shared command records — `Storage/Commands/UploadFileCommand.cs` is the
-  one to know: Storage's handler lives in the module but the record does not.
-- `Wallow.Shared.Infrastructure` / `.Core` / `.BackgroundJobs` (Hangfire) / `.Plugins`, and
-  `Wallow.Shared.Api` — cross-cutting plumbing (settings, module registration, middleware,
-  caching, messaging, auditing).
-
-## Modules (`api/src/Modules/`)
-
-Seven: **Identity, Storage, Notifications, Announcements, Inquiries, ApiKeys, Branding**. Each
-is a 4-project Clean Architecture stack `Wallow.{Module}.{Domain,Application,Infrastructure,Api}`:
-
-- Dependency flow: **Domain (no external deps) → Application (Domain only) → Infrastructure → Api.**
-- Each module owns a **separate Postgres schema** (enforced by `Wallow.Architecture.Tests`).
-- Modules talk only via **Wolverine** integration events through `Shared.Contracts` — never
-  direct project references. Handlers auto-discovered across all `Wallow.*` assemblies.
-- Every module has its own nested `CLAUDE.md` — read the one for the module you are inside.
 - **Migrations run inline only in the `Testing` environment**
   (`WallowModules.RunTestMigrationsAsync`); everywhere else, Development included,
-  `Wallow.MigrationService` applies them. This holds for every module.
-- Module tests: `./scripts/run-tests.sh <shorthand>` runs the module's fast suites; add
-  `integration` as a second argument for its Testcontainers-backed suites (Docker).
+  `Wallow.MigrationService` applies them.
+- TypeScript apps use ports 3000/3002; keep new ports clear of those and of Grafana on 3001.
 
-## Backend Patterns (preserve these)
+## Shared.Contracts
+
+`Wallow.Shared.Contracts` is **the only assembly modules reference across boundaries**:
+integration events, cross-module service interfaces (`ISseDispatcher`, `IApiKeyService`,
+`IStorageProvider`, `IEmailService`, …), and a few shared command records —
+`Storage/Commands/UploadFileCommand.cs` is the one to know: Storage's handler lives in the
+module but the record does not.
+
+## Backend patterns (preserve these)
 
 - **Handlers:** most modules use CQRS via Wolverine — a handler is normally a
   **`public sealed class`** taking dependencies through a **primary constructor**, with
@@ -114,8 +63,7 @@ is a 4-project Clean Architecture stack `Wallow.{Module}.{Domain,Application,Inf
   type, not at startup. A handler injecting its own module's repository **and** a second module's
   repository is a runtime codegen failure, not a compile error. Cross-module work goes through a
   `Shared.Contracts` integration event, never a second repository. The shared service interfaces
-  are safe to inject because none of them reaches a `DbContext` (`ISseDispatcher` is Redis;
-  `IEmailService`, `IStorageProvider` and `IFileScanner` are external providers).
+  are safe to inject because none of them reaches a `DbContext`.
 - **A handler that saves and then dispatches must keep that order.** The transaction middleware
   *adds* a `SaveChangesAsync` postprocessor; it does not remove an explicit save. Do not delete an
   explicit save on the theory that the postprocessor covers it — `SendNotificationHandler` saves
@@ -131,65 +79,39 @@ is a 4-project Clean Architecture stack `Wallow.{Module}.{Domain,Application,Inf
   `TenantAwareDbContext`; reads go through `IReadDbContext<T>` (`NoTracking`, routed to
   `ReadReplicaConnection` when configured). No Dapper — if raw SQL is genuinely needed, it is
   EF Core's `FromSql`/`ExecuteSql`, and tenant query filters do **not** apply to it.
-- **Enum properties persist as strings, never ints** — every entity configuration pairs
-  `.HasConversion<string>()` with an explicit `.HasMaxLength(50)` (20 for short status enums), so
-  adding or reordering an enum member never silently reinterprets stored rows.
+- **Enum properties persist as strings, never ints** — pair `.HasConversion<string>()` with an
+  explicit `.HasMaxLength(50)` (20 for short status enums), so adding or reordering an enum
+  member never silently reinterprets stored rows.
 - **Controllers are `partial`** to host `[LoggerMessage]` source-gen and source-generated regex.
 
-## C# Conventions
+## C# conventions
 
-Analyzers run on every non-test project (`Directory.Build.targets` gates them on
-`IsTestProject`), and `AnalysisMode=All` + `TreatWarningsAsErrors=true` turns each rule below into
-a build error — enforced, not advisory.
+`Directory.Build.props` sets `TreatWarningsAsErrors=true` + `AnalysisMode=All`;
+`Directory.Build.targets` injects the analyzers into every non-test project — each rule below is
+a build error, not advisory. `Directory.Packages.props` is central package management.
 
-- **Always write the explicit type, never `var`** — `.editorconfig` sets all three
-  `csharp_style_var_*` options to `false:warning` with `EnforceCodeStyleInBuild`.
+- **Always write the explicit type, never `var`** — `.editorconfig` enforces it as a warning
+  with `EnforceCodeStyleInBuild`.
 - **Read JWT claims through `ClaimsPrincipalExtensions`** (`Wallow.Shared.Kernel.Extensions`),
-  never raw `FindFirst`/`FindFirstValue`/`FindAll` on a `ClaimsPrincipal`:
-  - Single-value: `GetUserId()`, `GetClientId()`, `GetTenantId()`, `GetTenantName()`, `GetEmail()`,
-    `GetDisplayName()`, `GetFirstName()`, `GetLastName()`, `GetAuthMethod()`, `GetTenantRegion()`.
-    Predicates: `IsOperator()`, `IsGlobalAdmin()`.
-  - Multi-value: `GetRoles()`, `GetPermissions()`, `GetScopes()` — each returns `IReadOnlyList<string>`.
-  - A claim with no helper gets a new helper on `ClaimsPrincipalExtensions`, not a raw `FindFirst`.
-- **Log through the `[LoggerMessage]` source generator**, never `logger.LogInformation(...)` or any
-  other `ILogger` extension method (CA1848/CA1873). Mark the class `partial`, inject `ILogger<T>`
-  via the primary constructor, add `using Microsoft.Extensions.Logging;`, and put `private partial
-  void` declarations at the bottom of the class:
+  never raw `FindFirst`/`FindFirstValue`/`FindAll` on a `ClaimsPrincipal` — `GetUserId()`,
+  `GetClientId()`, `GetTenantId()`, `GetEmail()`, `GetRoles()`, `GetPermissions()`,
+  `GetScopes()`, `IsOperator()`, `IsGlobalAdmin()`, and friends. A claim with no helper gets a
+  new helper there, not a raw `FindFirst`.
+- **Log through the `[LoggerMessage]` source generator**, never `logger.LogInformation(...)` or
+  any other `ILogger` extension (CA1848/CA1873). Mark the class `partial`, inject `ILogger<T>`
+  via the primary constructor, put `private partial void` declarations at the bottom:
 
 ```csharp
-[LoggerMessage(Level = LogLevel.Information, Message = "Something happened for {EntityId} by user {UserId}")]
-private partial void LogSomethingHappened(Guid entityId, string? userId);
+[LoggerMessage(Level = LogLevel.Information, Message = "Something happened for {EntityId}")]
+private partial void LogSomethingHappened(Guid entityId);
 ```
 
-## Central Build Config (`api/`)
-
-| File | Governs |
-|------|---------|
-| `Directory.Build.props` | `net10.0`, nullable + implicit usings, **`TreatWarningsAsErrors=true`**, `AnalysisMode=All`, central package management, `<Version>` (release-please). |
-| `Directory.Build.targets` | Injects analyzers into non-test projects: NetAnalyzers, StyleCop, Meziantou, Roslynator. |
-| `Directory.Packages.props` | **Central Package Management** — single source for all NuGet versions. |
-| `global.json` | Pins the .NET SDK (`rollForward: latestMinor`). |
-| `stylecop.json`, `.editorconfig` | Style rulesets driving `EnforceCodeStyleInBuild`. |
-| `seed.json` | Seeder input. (Fork branding is NOT here — no backend code reads it; it lives at `packages/styles/branding.json`.) |
-
-Run `dotnet format api/Wallow.slnx` before every commit and stage the formatting changes it
-makes — never commit unformatted code. No `--` inside XML comments in
-`.csproj`/`.props`/`.targets` (`.claude/rules/CONVENTIONS.md`).
+`api/seed.json` is the seeder's input. Fork branding is NOT here — no backend code reads it; it
+lives at `packages/styles/branding.json`.
 
 ## Tests (`api/tests/`)
 
-- **Module tests:** `Modules/{Module}/Wallow.{Module}.Tests` (unit + Testcontainers Postgres).
-  Identity adds `Wallow.Identity.IntegrationTests` — no shorthand; reach it by path plus the tier
-  (`./scripts/run-tests.sh api/tests/Modules/Identity/Wallow.Identity.IntegrationTests integration`).
-- **Host:** `Wallow.Api.Tests`.
-- **Architecture:** `Wallow.Architecture.Tests` (`arch`) enforces module boundaries.
-- **E2E:** three per-app `@playwright/test` suites — `apps/wallow-auth/e2e/`,
-  `apps/wallow-web/e2e/`, `apps/wallow-web/e2e-cross-app/`. See `.claude/rules/E2E.md`;
-  `./scripts/e2e.sh` runs all three.
-- **Shared/Kernel:** `Wallow.Shared.Infrastructure.Tests` (`shared`),
-  `Wallow.Shared.Kernel.Tests` (`kernel`); helpers in `Wallow.Tests.Common` (no tests, no shorthand).
-- **Services:** `Wallow.SeederService.Tests` (`seeder`), `Wallow.MigrationService.Tests`
-  (`migrations`), `Wallow.AppHost.Tests` (no shorthand).
-- **Benchmarks:** `Benchmarks` — BenchmarkDotNet, not part of the test run.
-- **Coverage:** `coverage.runsettings` (cobertura, `Include=[Wallow.*]*`, excludes migrations,
-  Program/Startup, generated files). CI enforces a 90% line threshold.
+- `Wallow.Architecture.Tests` (`arch`) enforces module boundaries.
+- `Wallow.Tests.Common` — shared helpers; no tests, no shorthand.
+- `Benchmarks` — BenchmarkDotNet, not part of the test run.
+- Coverage: CI enforces a 90% line threshold.

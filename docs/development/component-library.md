@@ -148,8 +148,8 @@ surface. The axis has two arms, `page` (the default) and `sidebar`:
 It is carried today by `buttonRecipe` (and so by `ThemeToggle`, which composes `Button`),
 `errorBannerRecipe`, and `navigationMenuLinkRecipe`. `navigationMenuTriggerRecipe` does **not** have
 it yet — no app renders a trigger, so it is a known gap rather than a defect.
-`packages/navigation/src/app-nav.tsx` is the reference example, passing it at both of its rail call
-sites (lines 120 and 189); `apps/wallow-web/src/shared/components/SignOut.tsx:67` is the third
+`packages/navigation/src/app-nav.tsx` is the reference example, passing it at both rail call
+sites; the `ErrorBanner` in `apps/wallow-web/src/shared/components/SignOut.tsx` is the third
 `surface="sidebar"` in the shell.
 
 Reach for `surface` instead of hand-writing an inversion (`bg-foreground text-background`) in a

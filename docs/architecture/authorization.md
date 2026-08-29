@@ -29,7 +29,7 @@ JWT with role claims
 3. `PermissionExpansionMiddleware` reads the roles and adds permission claims to the request identity
 4. Controller actions decorated with `[HasPermission]` check for specific permissions
 
-A role earns nothing outside the organization that granted it: on a cross-tenant request (an admin override via `X-Tenant-Id`) the middleware expands no role and no scope, so the only grant that crosses an organization boundary is the seeded global-admin flag.
+A role earns nothing outside the organization that granted it: on a cross-tenant request (a global-admin or operator override via `X-Tenant-Id`) the middleware expands no role and no scope, so the only grant that crosses an organization boundary is the seeded global-admin flag.
 
 ---
 
@@ -175,7 +175,7 @@ JWT with tenant claims
 
 ### Admin Tenant Override
 
-Users with the `admin` role or operator service accounts (client ID prefixed with `sa-`) can switch tenant context using the `X-Tenant-Id` header:
+Only callers whose token carries the non-assignable `is_global_admin` claim or the `is_operator` platform-operator claim (`ClaimsPrincipalExtensions.IsGlobalAdmin()` / `IsOperator()`) can switch tenant context using the `X-Tenant-Id` header:
 
 ```bash
 curl -H "Authorization: Bearer $TOKEN" \
@@ -183,7 +183,7 @@ curl -H "Authorization: Bearer $TOKEN" \
      http://localhost:5001/v1/inquiries
 ```
 
-This allows admins and operator service accounts to view data across tenants for support scenarios. Developer application clients (`app-` prefix) cannot use this override.
+This allows global admins and platform operators to view data across tenants for support scenarios. The `admin` **role** does not qualify: it is granted tenant-side by one organization, so it must never reach another tenant — `TenantResolutionMiddleware` ignores the header for role-holders. The `sa-`/`app-` client-ID prefixes play no part here either; prefix detection belongs only to the scope-to-permission mapping in `PermissionExpansionMiddleware`.
 
 ### Accessing Tenant Context in Code
 

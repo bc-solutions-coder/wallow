@@ -182,6 +182,29 @@ For production with TLS:
 "Redis": "localhost:6379,ssl=true,abortConnect=false"
 ```
 
+### API Returns 503 for Everything (First-Run Setup Mode)
+
+#### Symptom
+On a fresh deployment, nearly every request answers `503 Service Unavailable` as
+`application/problem+json` titled "First-run setup is required." — even though every container is
+healthy. Only `/v1/identity/setup`, `/health`, `/.well-known`, `/connect`, `/openapi`, and
+`/scalar` respond normally.
+
+#### Cause
+This is not an outage. The production seed deliberately creates no administrator, so
+`SetupMiddleware` (`api/src/Wallow.Api/Middleware/SetupMiddleware.cs`) locks the API until one
+exists.
+
+#### Solution
+Check the status probe, then create the bootstrap admin — via the auth app's setup page or
+`POST /v1/identity/setup/admin`:
+```bash
+curl https://your-domain/api/v1/identity/setup/status
+# → {"setupRequired": true}
+```
+The 503s stop as soon as the admin exists. See the deployment guide's
+[Setup mode](deployment.md#setup-mode--when-no-admin-exists) section for the full request.
+
 ---
 
 ## 2. Authentication Issues

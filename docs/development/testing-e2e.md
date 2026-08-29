@@ -20,11 +20,12 @@ running app. They live with the React apps in the pnpm workspace, not in the .NE
 
 ### `apps/wallow-auth/e2e/` — the reference pattern
 
-Nine specs plus three helper modules:
+Ten specs plus three helper modules:
 
 | Spec                      | Backend dependency                                                         |
 | ------------------------- | -------------------------------------------------------------------------- |
 | `routes.spec.ts`          | None — the route-reachability gate                                         |
+| `first-run-setup.spec.ts` | API without an administrator — drives the `/setup` page and creates `admin@wallow.dev` in the e2e stack |
 | `login.spec.ts`           | API + seeded admin                                                         |
 | `signup.spec.ts`          | API                                                                        |
 | `logout.spec.ts`          | API (validates the post-logout redirect URI against the client allow-list) |
@@ -34,10 +35,20 @@ Nine specs plus three helper modules:
 | `otp-login.spec.ts`       | API + Mailpit                                                              |
 | `mfa.spec.ts`             | API + Mailpit                                                              |
 
+The config splits the run into two Playwright projects: `first-run` holds only
+`first-run-setup.spec.ts`, and `main` (everything else) declares `dependencies: ["first-run"]`.
+That ordering is load-bearing — against the admin-less stack `./scripts/e2e.sh` boots, the
+first-run journey creates the `admin@wallow.dev` every other spec signs in as (against an
+already-provisioned backend it skips itself). Keep new specs out of `first-run`.
+
 Helpers: `mailpit.ts` (reads emails back over Mailpit's HTTP API), `totp.ts` (generates TOTP
-codes for the MFA lifecycle), and `global-setup.ts` (wired in as Playwright's `globalSetup`, it
-warms the app to hydration once so the first spec's readiness wait is not racing Vite's cold
-pre-bundle).
+codes for the MFA lifecycle), and `global-setup.ts` (wired in as Playwright's `globalSetup`).
+Global setup warms each of the six routes in its `WARMUP_PATHS` list (`/`, `/login`,
+`/register`, `/setup`, `/forgot-password`, `/reset-password`) to hydration so no spec's
+readiness wait races Vite's cold pre-bundle, and — when `WALLOW_API_INTERNAL_URL` is set —
+asserts the app proxies to the expected API by comparing the OIDC discovery issuer served
+through the app against the one the API URL serves directly, which catches an orphaned dev
+server left over from an earlier run being adopted by `reuseExistingServer`.
 
 `routes.spec.ts` is the render-only deletion gate: it visits every route the app claims to
 serve, asserts the response status is below 400, and waits for hydration. It proves each screen
@@ -120,8 +131,18 @@ E2E_SKIP_IMAGE_BUILD=1 ./scripts/e2e.sh     # reuse already-built :test images
 ```
 
 It always starts by running `docker compose down -v` so the volumes are fresh. That matters:
-the seeder skips admin bootstrap when _any_ user already exists, so a reused database would
-silently lack the `admin@wallow.dev` account the login spec signs in as.
+the seeder skips admin bootstrap when its `Admin` options are unconfigured (a blank
+`Admin__Email`), when the setup gate is already closed (an active membership holding an
+AdminAccess role exists), or when the seed-admin user itself already exists — so a reused
+database whose admin came from an earlier run would be re-seeded inconsistently rather than
+freshly bootstrapped. A database containing only non-admin users does get the admin
+bootstrapped.
+
+The stack comes up **admin-less on purpose**: `e2e.sh` exports `E2E_SEED_ADMIN_EMAIL` as empty
+for the initial seed, so the first-run-setup journey exercises the real `/setup` page, then runs
+the seeder a second time with `admin@wallow.dev` restored to attach the journey-created admin to
+the seeded organization's memberships (and, as a backstop, to bootstrap the admin if the journey
+was skipped).
 
 | Env knob                 | Effect                                                                                                                                 |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
@@ -132,6 +153,7 @@ silently lack the `admin@wallow.dev` account the login spec signs in as.
 | `E2E_UP_SERVICE=<svc>`   | Extra compose service to `up --wait` (default `wallow-api`). CI sets `wallow-auth` so that app is served from a container, which also points the wallow-auth suite at that container's per-run port unless `E2E_BASE_URL` is set. `wallow-web` is always brought up as well. |
 | `E2E_BASE_URL=<url>`     | Drive an already-running wallow-auth at that URL; Playwright then boots no local dev server. Does not affect the wallow-web suites.                                   |
 | `E2E_KEEP_STACK=1`       | Leave the stack up after the run, for debugging.                                                                                                                     |
+| `E2E_SEED_ADMIN_EMAIL=<email>` | The admin email the seeder bootstraps — `docker/docker-compose.test.yml` interpolates it as `Admin__Email: ${E2E_SEED_ADMIN_EMAIL-admin@wallow.dev}` (explicitly empty stays empty; unset falls back to the default). `e2e.sh` exports it **empty** for the initial seed so the stack boots admin-less and the first-run journey drives `/setup`, then re-runs the seeder with `admin@wallow.dev` restored. |
 
 The two serving modes follow from `E2E_BASE_URL`, and they apply to the **wallow-auth** suite
 only. Left unset (the local default), Playwright's own `pnpm dev` webServer serves that app on
@@ -156,9 +178,12 @@ dotnet run --project api/src/Wallow.SeederService    # needs ConnectionStrings__
 ## Configuration
 
 `apps/wallow-auth/playwright.config.ts` sets the shared defaults; `apps/wallow-web/playwright.config.ts`
-is identical apart from the port.
+is identical apart from the port (and has no `projects` split).
 
 - `testDir: "./e2e"`, `fullyParallel: true`, `reporter: "list"`
+- wallow-auth only: two `projects` — `first-run` (just `first-run-setup.spec.ts`) and `main`
+  (everything else, `dependencies: ["first-run"]`) — so the setup journey always runs before the
+  specs that sign in as the admin it creates
 - `testIdAttribute: "data-testid"` — every selector resolves against `data-testid`
 - `baseURL` defaults to `http://localhost:3002` for wallow-auth and `http://localhost:3000` for
   wallow-web; override with `PORT`, or with `E2E_BASE_URL` to target an external app
@@ -216,6 +241,6 @@ pnpm --filter ./apps/wallow-auth exec playwright show-report
 | -------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | Timeout waiting for `data-app-ready`               | The app failed to hydrate                          | Check the dev server output and the browser console                                         |
 | Timeout waiting for a `data-testid`                | Element not rendered, or the testid is wrong       | Verify the attribute in the component                                                       |
-| `login.spec.ts` cannot sign in                     | Backend not running, or the admin was never seeded | Run `./scripts/e2e.sh`, which recreates volumes so the seeder bootstraps `admin@wallow.dev` |
+| `login.spec.ts` cannot sign in                     | Backend not running, or `admin@wallow.dev` was never created | Run `./scripts/e2e.sh` — in the e2e stack the first seed is deliberately admin-less and `first-run-setup.spec.ts` creates the admin (the second seeder pass is the backstop) |
 | Mail-dependent specs get `ECONNREFUSED` on `:8035` | Mailpit is not up                                  | Use `./scripts/e2e.sh`; the compose file gates `wallow-api` on Mailpit starting             |
 | Proxy or API errors                                | `WALLOW_API_INTERNAL_URL` points nowhere           | Point it at your running API (default `http://localhost:5001`)                              |

@@ -54,7 +54,7 @@ Authorization: Bearer <jwt>
 Accept: text/event-stream
 ```
 
-Authentication is via Bearer token. The `subscribe` query param limits which modules' events are delivered. Each SSE event is a JSON-serialized `RealtimeEnvelope`.
+The route is mapped with `RequireAuthorization()`, so any authenticated principal works -- a Bearer token as shown, or the BFF's same-origin cookie session. The `subscribe` query param limits which modules' events are delivered. Each SSE event is a JSON-serialized `RealtimeEnvelope`.
 
 ### ISseDispatcher
 
@@ -121,6 +121,10 @@ When an event arrives via Valkey pub/sub, each local SSE connection applies thes
 | `SseConnectionState` | `api/src/Wallow.Api/Services/` | Per-connection metadata (user, tenant, modules, permissions, roles) |
 | `SseRedisSubscriber` | `api/src/Wallow.Api/Services/` | Background service that subscribes to Valkey and fans out to connections |
 | `SseEndpoint` | `api/src/Wallow.Api/Endpoints/` | HTTP GET `/events` endpoint |
+| `RealtimeAccessRevoker` | `api/src/Wallow.Api/Services/` | Implements `IRealtimeAccessRevoker` -- closes one user's SSE streams and hub sockets in one tenant |
+| `RealtimeConnectionRegistry` | `api/src/Wallow.Api/Services/` | Tracks open hub connections (with their `HubCallerContext`) so a revocation can abort them |
+| `SignalRRealtimeDispatcher` | `api/src/Wallow.Api/Services/` | Implements `IRealtimeDispatcher` over the SignalR hub context |
+| `SubClaimUserIdProvider` | `api/src/Wallow.Api/Hubs/` | Resolves the SignalR user identifier from the `sub`/NameIdentifier claim so `Clients.User(...)` targets the right user |
 
 ### Valkey Channel Naming
 
@@ -132,6 +136,8 @@ When an event arrives via Valkey pub/sub, each local SSE connection applies thes
 ### Mid-Session JWT Limitation
 
 SSE connections extract permissions and roles from JWT claims at connection time. If a user's permissions or roles change mid-session, the SSE connection continues filtering based on the original claims until the client reconnects.
+
+Membership revocation is the exception: `IRealtimeAccessRevoker` (`api/src/Shared/Wallow.Shared.Contracts/Realtime/IRealtimeAccessRevoker.cs`), implemented by `RealtimeAccessRevoker` (`api/src/Wallow.Api/Services/`), actively closes both the SSE streams and the hub sockets one user holds in one tenant. Identity's `MembershipAccessRevoker` invokes it after revoking the user's tokens, because revoking a token says nothing to a socket that is already open. The passive caveat above still applies to plain role or permission changes, which revoke nothing.
 
 This is not a security boundary -- API endpoints enforce permissions on every request. The SSE filter prevents leaking event data to the client UI, but the source of truth for authorization remains the API layer.
 
@@ -223,6 +229,10 @@ When adding a new event handler that sends realtime events:
 | `SseNotificationService.BroadcastToTenantAsync` | `SendToTenantAsync` | All tenant members |
 | `SseNotificationService.SendToUserAsync` | `SendToUserAsync` | Specific user |
 | Presence events | **SignalR** (`IRealtimeDispatcher`) | Via SignalR groups |
+
+The three inquiry SSE handlers live in the Notifications module, at
+`api/src/Modules/Notifications/Wallow.Notifications.Application/EventHandlers/` -- Inquiries
+publishes the integration events; Notifications owns their realtime fan-out.
 
 ## Troubleshooting
 
