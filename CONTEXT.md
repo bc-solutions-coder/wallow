@@ -49,6 +49,19 @@ can authorize or obtain tokens until it is reactivated. Distinct from deletion a
 platform suspension.
 _Avoid_: suspended (that is a membership or client state), inactive, disabled
 
+**Deleted** (organization):
+An organization's irreversible end. Every credential it held or issued is revoked, and its
+memberships, invitations, clients, and service accounts cease to exist; the people remain as
+users with one organization fewer. Only an admin of the organization or the platform operator
+may delete it, and a platform-suspended organization can be deleted only by the operator.
+_Avoid_: removed, purged (that is the tenant purge that follows), deactivated, archived
+
+**Tenant purge**:
+The removal of every module's records scoped to a deleted organization's tenant — files,
+notifications, inquiries, announcements, settings. It follows deletion and never precedes it;
+deletion is safe without it, because purge removes data, not access.
+_Avoid_: cascade (the credential revocation that deletion itself performs), cleanup
+
 **Tenant**:
 The isolation partition every scoped record names; "tenant" is the scoping word,
 "organization" the domain noun. Today each organization is its own tenant, one to one, so a
