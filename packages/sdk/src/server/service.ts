@@ -126,6 +126,9 @@ const KEY_PREFIX: string = "wallow";
 /** Refresh-lock lifetime: an upper bound on one grant round trip. */
 const LOCK_TTL_SECONDS = 10;
 
+/** Interval between cache polls while another replica holds the refresh lock. */
+const LOCK_POLL_MS = 50;
+
 /** How early before expiry a cached token is treated as stale (milliseconds). */
 const EXPIRY_SKEW_MS = 30_000;
 
@@ -274,9 +277,6 @@ class ServiceTokenSource {
     return this.configuration;
   }
 }
-
-/** Interval between cache polls while another replica holds the refresh lock. */
-const LOCK_POLL_MS = 50;
 
 /**
  * Pick the token cache: an explicit store, else a lazily connected `REDIS_URL`

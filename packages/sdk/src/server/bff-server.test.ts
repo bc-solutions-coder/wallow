@@ -154,6 +154,34 @@ function fakeRedisClient(): NodeRedisClient {
   };
 }
 
+/**
+ * A client shaped like a real node-redis `createClient()` result: replies are
+ * typed as broadly as node-redis types them (`string | Buffer | null` for
+ * `GET`/`SET`), which is what makes the port's `unknown` replies necessary.
+ */
+function nodeRedisShapedClient(): {
+  get: (key: string) => Promise<string | Buffer | null>;
+  set: (
+    key: string,
+    value: string,
+    options?: { EX?: number; NX?: true },
+  ) => Promise<string | Buffer | null>;
+  del: (key: string) => Promise<number>;
+} {
+  const data: Map<string, string> = new Map<string, string>();
+  return {
+    get: (key: string): Promise<string | Buffer | null> => Promise.resolve(data.get(key) ?? null),
+    set: (key: string, value: string, options?: { NX?: true }): Promise<string | Buffer | null> => {
+      if (options?.NX === true && data.has(key)) {
+        return Promise.resolve(null);
+      }
+      data.set(key, value);
+      return Promise.resolve("OK");
+    },
+    del: (key: string): Promise<number> => Promise.resolve(data.delete(key) ? 1 : 0),
+  };
+}
+
 describe("createWallowBffServer — mount points", () => {
   it("exports the mount prefixes as constants so hosts and the SDK cannot drift", () => {
     expect(WALLOW_API_MOUNT).toBe("/api");
@@ -211,6 +239,29 @@ describe("createWallowBffServer — session-store selection", () => {
     });
 
     expect(server.store).toBeInstanceOf(ValkeySessionStore);
+  });
+
+  it("accepts a node-redis client as-is, without a hand-written bridge", async () => {
+    const server: WallowBffServer = createWallowBffServer({
+      config: makeConfig("https://issuer-raw-node-redis.test"),
+      env: { REDIS_URL: "redis://valkey:6379" } as NodeJS.ProcessEnv,
+      redisClient: nodeRedisShapedClient(),
+    });
+
+    expect(server.store).toBeInstanceOf(ValkeySessionStore);
+    const ref: string = await server.store.write({
+      sessionId: "s-raw",
+      accessToken: "a",
+      refreshToken: "r",
+      idToken: "i",
+      expiresAt: Date.now() + 60_000,
+      user: { sub: "u-raw" },
+      version: 1,
+    });
+    const session = await server.store.read(ref);
+    expect(session?.sessionId).toBe("s-raw");
+    // The supplied client wins: the preset does not also open its own.
+    expect(redisCreateClientMock).not.toHaveBeenCalled();
   });
 
   it("connects to REDIS_URL itself when no client is supplied, on first use of the store", async () => {

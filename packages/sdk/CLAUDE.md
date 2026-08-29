@@ -65,8 +65,10 @@ CI compares the snapshot against the document the API emits **at build time**;
 ## Tests (vitest, node environment)
 
 - `vitest.config.ts` sets `mockReset: true` — Vitest 4 no longer resets module-factory mocks.
-- `openid-client` must be mocked in **both** `oidc.test.ts` and `handlers.test.ts`; the
-  discovery cache is keyed by metadata URL — use a unique issuer per test.
+- `openid-client` must be mocked in every spec that loads it (`oidc`, `handlers`, `bff-server`,
+  `service`); the discovery cache is keyed by metadata URL — use a unique issuer per test.
+  `redis` is mocked the same way (`vi.mock("redis", …)` over a hoisted `createClient` fake) in
+  specs that exercise `REDIS_URL` self-connect.
 
 This package is the **template all new workspace packages mirror**. Publishes to GitHub
 Packages on `sdk-v*` tags via `sdk-publish.yml`, independently of the platform release.

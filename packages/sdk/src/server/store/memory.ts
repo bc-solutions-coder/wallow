@@ -5,7 +5,7 @@
  * It is the default token cache of the service client when no shared store is
  * supplied: one process, one cache. It is NOT a session store — a session
  * cached only in one process is exactly what `ValkeySessionStore` exists to
- * avoid — and it never leaves this module for that purpose.
+ * avoid — so it is deliberately absent from the `./server` barrel.
  */
 
 import { type RedisLike } from "./types";
