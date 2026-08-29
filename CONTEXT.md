@@ -59,6 +59,14 @@ shorthand for a user with an active membership.
 **Invitation**:
 An emailed, tokened invite that brings a person into an organization.
 
+**First-run setup**:
+The platform state before any admin user exists. In this state the API serves only its setup,
+health, and OIDC metadata surface and refuses everything else until setup completes.
+_Avoid_: installation, onboarding (onboarding is per-user, not per-deployment)
+
+**Bootstrap admin**:
+The first admin user. Creating it mints the first organization and ends first-run setup.
+
 **Enrollment policy**:
 How an organization admits users: invite-only, request-approval, or open.
 
