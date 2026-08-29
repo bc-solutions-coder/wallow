@@ -307,6 +307,35 @@ curl -X POST \
 
 ---
 
+## Access Token Format
+
+Access tokens are **plain signed JWTs, not encrypted ones**. OpenIddict
+encrypts access tokens into JWEs by default; Wallow deliberately turns that off
+(`DisableAccessTokenEncryption()` in `IdentityInfrastructureExtensions`).
+
+This is a considered trade, not an omission:
+
+- **Why it is safe today:** the only resource server is the API itself — the
+  same process that issued the token. Encryption would protect claims from a
+  resource server that should not read them, and no such party exists. Under
+  the BFF pattern the browser never holds the token at all.
+- **What it buys:** tokens are debuggable (`jwt.io`, as the troubleshooting
+  sections here assume), and a fork that adds a separate resource server can
+  validate tokens with nothing but the public JWKS — encrypted tokens would
+  force it to share the private encryption certificate with every resource
+  server.
+- **What it costs:** any holder of a token can read its claims. Claims are
+  therefore **not a place for secrets** — nothing may go into a token claim
+  that the authenticated client itself must not see.
+- **When to revisit:** if tokens ever start carrying claims that some audience
+  must not read, re-enable encryption for those audiences rather than trying
+  to scrub claims per-client.
+
+Refresh tokens and authorization codes remain encrypted with the OpenIddict
+encryption certificate — see [Key Rotation](../operations/key-rotation.md).
+
+---
+
 ## Middleware Pipeline Order
 
 The authorization middleware must be registered in the correct order in `Program.cs`:

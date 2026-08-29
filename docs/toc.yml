@@ -30,6 +30,10 @@
       href: architecture/messaging.md
     - name: Realtime
       href: architecture/realtime.md
+- name: Decisions
+  items:
+    - name: "ADR 0001: Identity Behind the OIDC Seam"
+      href: adr/0001-identity-behind-the-oidc-seam.md
 - name: Development
   items:
     - name: API Development
@@ -58,6 +62,8 @@
       href: operations/deployment.md
     - name: Versioning
       href: operations/versioning.md
+    - name: Key Rotation
+      href: operations/key-rotation.md
     - name: Observability
       href: operations/observability.md
     - name: Request Correlation
