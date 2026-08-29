@@ -17,7 +17,13 @@ import { REQUEST_ID_HEADER, resolveRequestId } from "../request-id";
 import type { BffConfig } from "./config";
 import { csrfTokenMatches, CSRF_HEADER, CSRF_INVALID_CODE, isStateChangingMethod } from "./csrf";
 import { parseProblemDetails, redact, WallowError } from "./errors";
-import { applyForwardedHeaders, CLIENT_IP_HEADER } from "./forwarded";
+import {
+  applyForwardedHeaders,
+  resolveClientAddress,
+  TRUST_NO_PROXIES,
+  type PeerRequest,
+  type TrustedProxies,
+} from "./forwarded";
 import { readSession, readSessionRef, writeSession, writeSessionRef } from "./handlers";
 import { discover, refreshTokens, type DiscoveryDoc, type TokenResponse } from "./oidc";
 import type { BffSession } from "./session";
@@ -482,8 +488,12 @@ function logFault(request: ForwardRequest, error: WallowError): void {
   );
 }
 
-/** The `/api` reverse proxy: a web-standard request in, a response out. */
-export type ApiProxyHandler = (request: Request) => Promise<Response>;
+/**
+ * The `/api` reverse proxy: a web-standard request in, a response out. The
+ * request may carry the peer address srvx exposes on `ip`; that, and never a
+ * header, is where the forwarded client address comes from.
+ */
+export type ApiProxyHandler = (request: PeerRequest) => Promise<Response>;
 
 /** HTTP status the BFF answers with when the CSRF check rejects a request. */
 const FORBIDDEN_STATUS = 403;
@@ -508,10 +518,10 @@ const EMPTY_BODY_LENGTH = 0;
  *
  * This is an allowlist, not a copy-everything: the inbound `Cookie` carries the
  * BFF's own session credential and stops at this hop. The `x-forwarded-*` names
- * and the client-IP seam are here because {@link applyForwardedHeaders} reads
- * and rewrites them, and it runs against these outgoing headers — an inbound
- * chain that never made it across would be silently replaced by this hop's own
- * view instead of extended (Wallow-vufu.4.2).
+ * are here because {@link applyForwardedHeaders} reads and rewrites them, and
+ * it runs against these outgoing headers — an inbound chain that never made it
+ * across would be silently replaced by this hop's own view instead of extended
+ * (Wallow-vufu.4.2).
  */
 const FORWARDED_REQUEST_HEADERS: readonly string[] = [
   "content-type",
@@ -519,7 +529,6 @@ const FORWARDED_REQUEST_HEADERS: readonly string[] = [
   "x-forwarded-for",
   "x-forwarded-proto",
   "x-forwarded-host",
-  CLIENT_IP_HEADER,
 ];
 
 /**
@@ -671,6 +680,9 @@ function respondToFailure(error: unknown, cookies: Headers, requestId: string): 
  * @param store Session store used to resolve and persist sessions. Defaults to
  *   a cookie-only {@link CookieSessionStore}, so single-argument callers keep
  *   working.
+ * @param trustedProxies The proxies whose `X-Forwarded-For` may be believed
+ *   when resolving the caller's address. Defaults to trusting none, so the
+ *   peer address is the client.
  * @returns A web-standard handler that proxies to `config.apiBaseUrl`.
  */
 export function createApiProxy(
@@ -679,15 +691,22 @@ export function createApiProxy(
     password: config.cookiePasswords ?? config.cookiePassword,
     ttlSeconds: config.sessionTtlSeconds,
   }),
+  trustedProxies: TrustedProxies = TRUST_NO_PROXIES,
 ): ApiProxyHandler {
-  return async (request: Request): Promise<Response> => {
+  return async (request: PeerRequest): Promise<Response> => {
     // Minted before anything else and stamped onto whatever comes back, so the
     // failures the proxy answers ITSELF — a rejected path, an unauthenticated
     // session, a failed CSRF check — are correlatable too. Those are exactly the
     // ones a user cannot otherwise describe, since they never reach the API and
     // so appear in no backend trace at all.
     const requestId: string = resolveRequestId(request.headers);
-    const response: Response = await proxyRequest(request, requestId, config, store);
+    const response: Response = await proxyRequest(
+      request,
+      requestId,
+      config,
+      store,
+      trustedProxies,
+    );
     response.headers.set(REQUEST_ID_HEADER, requestId);
     return response;
   };
@@ -701,10 +720,11 @@ export function createApiProxy(
  * escaped without it would be a request the browser cannot name.
  */
 async function proxyRequest(
-  request: Request,
+  request: PeerRequest,
   requestId: string,
   config: BffConfig,
   store: SessionStore,
+  trustedProxies: TrustedProxies,
 ): Promise<Response> {
   const url: URL = new URL(request.url);
 
@@ -779,10 +799,16 @@ async function proxyRequest(
     }
   }
 
-  // The API rate-limits on the forwarded chain, so the peer address the host
-  // stamped has to survive this hop: without it every user of this app reaches
-  // the API wearing the BFF's own address and is limited as one client (M6).
-  applyForwardedHeaders(forwardHeaders, url, true);
+  // The API rate-limits on the forwarded chain, so the caller's address has to
+  // survive this hop: without it every user of this app reaches the API wearing
+  // the BFF's own address and is limited as one client (M6). It is resolved
+  // from the socket peer and the trusted-proxy list, never from a header the
+  // caller could have written.
+  applyForwardedHeaders(
+    forwardHeaders,
+    url,
+    resolveClientAddress(request, request.ip, trustedProxies),
+  );
 
   // Set on the headers `forwardWithResilience` replays from, not per attempt, so
   // a reactive-401 replay reaches the API under the id the first attempt used:

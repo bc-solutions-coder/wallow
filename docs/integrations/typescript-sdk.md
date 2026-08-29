@@ -294,10 +294,12 @@ then fetches signing keys from the `jwks_uri` that document advertises — which
 origin too. Omitting the prefix 404s discovery and breaks login with no useful error.
 
 The upstream comes from the `internalApiUrl` option, else `WALLOW_API_INTERNAL_URL`,
-else `http://localhost:5001`. To get real client IPs into the API's rate limiter, the
-host stamps the peer address onto the `x-wallow-client-ip` header before calling
-`handle()`; the passthrough appends it to any inbound `X-Forwarded-For` chain and
-strips the seam header before the upstream hop. `apps/wallow-auth/` is the reference
+else `http://localhost:5001`. Pass the host runtime's request straight through to
+`handle()` — the passthrough reads the peer address from `request.ip` (srvx exposes it;
+a WHATWG `Request` has no socket) and stamps the resolved caller onto the upstream
+`X-Forwarded-For`, so the API's per-IP rate limits apply per visitor rather than per
+proxy. See [Client addresses behind a proxy](#client-addresses-behind-a-proxy) for
+how a fronting proxy's headers become believed. `apps/wallow-auth/` is the reference
 consumer (`src/shared/lib/api-passthrough.server.ts` plus three splat routes).
 
 ### The `/api` proxy and silent refresh
@@ -311,6 +313,53 @@ strips the `/api` prefix and forwards the request to `apiBaseUrl` with the
 
 Requests that arrive without a valid session receive a `401`, which the
 `getCurrentUser()` helper interprets as "unauthenticated".
+
+### Client addresses behind a proxy
+
+The API rate-limits per client address and reads that address from the **rightmost**
+entry of `X-Forwarded-For` — the one the last trusted hop appended. Both server presets
+(`createWallowBffServer().handleApi` and `createApiPassthrough().handle`) append the
+resolved caller to the outgoing `X-Forwarded-For` on every proxied request, so an
+external relying party needs no code of its own to forward visitor addresses. What
+"the caller" resolves to depends on whether the SDK believes the headers it received:
+
+- **Nothing trusted (the default).** The caller is the socket peer, `request.ip`. An
+  inbound `X-Forwarded-For` is forwarded untouched but never believed, so a visitor
+  cannot spoof their address by sending the header themselves. Behind a reverse proxy
+  this makes every visitor look like the proxy.
+- **Trusted proxies configured.** When the peer is inside the trust list, the SDK walks
+  the inbound `X-Forwarded-For` chain from the right, skipping trusted hops, and takes the
+  first untrusted entry as the caller — the visitor the proxy saw. A request from an
+  untrusted peer that carries a forged chain still resolves to the peer.
+
+The trust list comes from the `trustedProxies` option on either preset, else the
+`WALLOW_TRUSTED_PROXIES` environment variable (read from the `env` option, else
+`process.env`). An explicit `trustedProxies: ""` trusts nothing even when the variable is
+set. The value is a comma-separated list of IPv4/IPv6 addresses or CIDR ranges, with the
+keyword `private` standing for every RFC 1918 / link-local / loopback range — the right
+answer for an ingress on the same private network:
+
+```ts
+// trust the container network the ingress lives on
+const server = createWallowBffServer({ config, trustedProxies: "private" });
+
+// or an explicit hop
+const passthrough = createApiPassthrough({ trustedProxies: "10.42.0.0/16, 203.0.113.7" });
+```
+
+Both presets take a `PeerRequest` — a `Request` with an optional `ip` — and every
+server runtime this SDK targets (srvx under TanStack Start, Nitro) supplies one. Hand the
+inbound request to the preset unchanged: an srvx request cannot be cloned (its class holds
+private state the copy constructor cannot read) and a copy would lose `ip`. A runtime that
+exposes no peer address writes no `X-Forwarded-For` entry at all rather than a fake one.
+
+The primitives behind this — `resolveClientAddress`, `parseTrustedProxies`,
+`createClientAddressResolver`, `createRequestOriginResolver` — ship on the dependency-free
+`@bc-solutions-coder/sdk/server/forwarded` subpath, safe to import from an isomorphic
+module, for hosts that need the same trust decision outside a proxied request (a log
+ingest route stamping the caller, a server-rendered page resolving its public origin).
+The operator-facing side of the same list is in
+[Reverse proxy](../operations/reverse-proxy.md).
 
 ---
 
@@ -337,6 +386,7 @@ any required key is missing or empty):
 | `COOKIE_SECURE`                 | No       | Whether the session, transaction, and CSRF cookies carry the `Secure` flag. Fails secure: only the literal `false` clears it. Set `COOKIE_SECURE=false` for plain-HTTP local development. Defaults to `true`                                                                                                                |
 | `COOKIE_SAMESITE`               | No       | `SameSite` on the session and CSRF cookies: `lax` (default) or `strict`. `strict` is a hardening step for SPAs that bootstrap through same-origin `/bff/user` — the trade is that the first document request after any cross-site navigation (the post-login landing included) arrives without the session cookie. The login transaction cookie is always `Lax`; it must ride the cross-site callback redirect from the IdP. `none` is rejected: the BFF is a same-origin pattern. Any other value throws at startup       |
 | `REDIS_URL`                     | No       | Read by `createWallowBffServer()` (not `loadBffConfigFromEnv()`) and by `createServiceClient()`. When set, BFF sessions live in Valkey/Redis and the service-account token cache is shared across processes; the SDK connects through its optional `redis` peer. Unset, sessions seal into the cookie and the token cache is in-memory                                                                                       |
+| `WALLOW_TRUSTED_PROXIES`        | No       | Read by `createWallowBffServer()` and `createApiPassthrough()` (not `loadBffConfigFromEnv()`); the `trustedProxies` option overrides it. Comma-separated addresses / CIDRs, or `private`, whose inbound `X-Forwarded-For` is believed when resolving the caller stamped onto proxied API requests (and whose `X-Forwarded-Proto` is believed by the `./server/forwarded` origin resolver). Unset, nothing is trusted and the socket peer is the caller. See [Client addresses behind a proxy](#client-addresses-behind-a-proxy) |
 
 `createServiceClient()` reads its own subset — it shares `OIDC_ISSUER`,
 `OIDC_METADATA_URL`, `BFF_API_BASE_URL` and `REDIS_URL` with the BFF and adds

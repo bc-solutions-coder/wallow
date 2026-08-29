@@ -24,9 +24,10 @@ origin rather than the API's.
 
 Start's server routes hand the handler an srvx request: a bespoke class that only claims to be a
 `Request` via `Symbol.hasInstance`. `new Request(request, { headers })` passes undici's instance
-check and then throws `Cannot read private member #state` at runtime. So `handleApiPassthrough`
-sets the client-IP header on the inbound request, and rebases the URL by
-`Object.defineProperty(request, "url", …)` shadowing the prototype getter. Both are safe — but a
+check and then throws `Cannot read private member #state` at runtime — and a copy that did
+work would lose `request.ip`, which the SDK reads for the caller it stamps upstream. So
+`handleApiPassthrough` hands the inbound request through unchanged, rebasing the URL in place by
+`Object.defineProperty(request, "url", …)` shadowing the prototype getter. That is safe — but a
 "cleaner" clone is a production 500 no component spec would catch.
 `src/shared/lib/api-passthrough.server.test.ts` pins the identity, not just the headers.
 
@@ -70,12 +71,13 @@ screen; pick a mode (the adjudicated exceptions are documented in the module's h
 
 The compose contract is three variables: `PORT`, `HOST`, `WALLOW_API_INTERNAL_URL`. Optional:
 `WALLOW_TRUSTED_PROXIES` (gates whether inbound `X-Forwarded-*` headers are believed — unset,
-nothing is trusted), `WALLOW_WEB_INTERNAL_URL` (this app's _own_ self-reachable origin),
+nothing is trusted; read by the SDK passthrough for the caller it stamps upstream and by the
+log-ingest route), `WALLOW_WEB_INTERNAL_URL` (this app's _own_ self-reachable origin),
 `WALLOW_REPOSITORY_URL` / `WALLOW_DOCS_URL`, `OTEL_EXPORTER_OTLP_ENDPOINT`. `AUTH_BASE_PATH`
 is build-time only.
 
-Every `process.env` read is in `src/app/start.ts` except two server-only modules
-(`client-address.server.ts`, `log-ingest.server.ts`) and `vite.config.ts`. Start aliases
+Every `process.env` read is in `src/app/start.ts` except one server-only module
+(`log-ingest.server.ts`), the SDK passthrough preset's own env lookup, and `vite.config.ts`. Start aliases
 `start.ts` into the **client** graph too, so a `process.env` read anywhere else either breaks
 the client build or leaks a server value into it.
 

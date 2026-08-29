@@ -8,8 +8,6 @@ export default defineLibraryConfig({
   configUrl: import.meta.url,
   entries: {
     "base-path": "src/base-path.ts",
-    "client-address": "src/client-address.ts",
     "internal-origin": "src/internal-origin.ts",
-    "request-origin": "src/request-origin.ts",
   },
 });

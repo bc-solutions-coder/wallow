@@ -52,8 +52,8 @@ that app's nested config on its own.
   `prefer-default-export`, `group-exports`, `exports-last`, `no-nodejs-modules`,
   `no-namespace`, `namespace`). Deliberate config that looks like cruft: do not switch them
   on to tidy, do not delete them to shorten.
-- `no-magic-numbers` is relaxed to `ignore: [0, 1]` only for lint/testing/env `src/**` (the
-  apps repeat it) — it buys `slice(0, n)`, not an unexplained `255`.
+- `no-magic-numbers` is relaxed to `ignore: [0, 1]` only for lint/testing `src/**` and the
+  SDK's `client-address.ts` (the apps repeat it) — it buys `slice(0, n)`, not an unexplained `255`.
 
 ## Who enables what
 
@@ -96,7 +96,7 @@ blanket-disables a rule, and none may start. The complete divergences:
 - **A hex literal cannot satisfy both halves of the toolchain**: `oxfmt` lowercases hex
   digits and `unicorn/number-literal-case` demands upper, so `pnpm format` and `pnpm lint`
   undo each other forever. Derive the value from bit widths
-  (`packages/env/src/client-address.ts`) or, where the literals ARE the specification, add a
+  (`packages/sdk/src/server/client-address.ts`) or, where the literals ARE the specification, add a
   file-level `oxlint-disable` naming the rule and why (`apps/wallow-auth/e2e/totp.ts`).
 
 ## Testing rules

@@ -25,9 +25,10 @@
  * `trusted_proxies` is configured, so an outer ingress's entry is only there to
  * be read if Caddy was told to keep it.
  *
- * This module reads no environment of its own — see the package charter in
- * `packages/env/CLAUDE.md`. {@link createClientAddressResolver} takes the env
- * record as a parameter so the single `process.env` read stays at the call site.
+ * This module reads no environment of its own, and ships on the SDK's
+ * dependency-free `./server/forwarded` subpath so an isomorphic Start entry can
+ * import it. {@link createClientAddressResolver} takes the env record as a
+ * parameter so the single `process.env` read stays at the call site.
  */
 
 /** What a proxy chain is written to. Every hop appends the peer it saw. */
@@ -473,6 +474,18 @@ export function resolveClientAddress(
   // furthest out anything appended, so it is the closest thing to a caller that
   // exists; with no parseable entry at all, the peer is.
   return leftmost ?? peerText;
+}
+
+/**
+ * The trusted-proxy list a proxy preset runs with: an explicit `spec` wins
+ * (an empty string deliberately trusts nothing), else `WALLOW_TRUSTED_PROXIES`
+ * from `env`, else {@link TRUST_NO_PROXIES}.
+ */
+export function resolveTrustedProxies(
+  spec: string | undefined,
+  env: Readonly<Record<string, string | undefined>>,
+): TrustedProxies {
+  return parseTrustedProxies(spec ?? env[TRUSTED_PROXIES_ENV_KEY]);
 }
 
 /**

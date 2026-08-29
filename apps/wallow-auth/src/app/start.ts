@@ -1,8 +1,10 @@
 import { withBasePath } from "@bc-solutions-coder/env/base-path";
-import { type PeerRequest } from "@bc-solutions-coder/env/client-address";
 import { resolveInternalOrigin } from "@bc-solutions-coder/env/internal-origin";
-import { createRequestOriginResolver } from "@bc-solutions-coder/env/request-origin";
 import { createWallowSdk, type WallowSdk } from "@bc-solutions-coder/sdk";
+import {
+  createRequestOriginResolver,
+  type PeerRequest,
+} from "@bc-solutions-coder/sdk/server/forwarded";
 import { type ForkLinks, resolveForkLinks } from "@bc-solutions-coder/styles";
 import { createMiddleware, createStart } from "@tanstack/react-start";
 
@@ -22,8 +24,9 @@ import { resolveWebAppUrl } from "@shared/lib/web-app-url";
  * Everything imported here lands in BOTH module graphs (Start aliases this file
  * as its entry for the client build too), so this file stays free of
  * `@bc-solutions-coder/sdk/server` and every other Node-only import. That is why
- * the two origin helpers come from `@bc-solutions-coder/env`, whose subpaths
- * declare no dependencies and read no environment of their own: the one
+ * the origin resolver comes from the SDK's dependency-free
+ * `./server/forwarded` subpath and the addressing helpers from
+ * `@bc-solutions-coder/env` — none reads any environment of its own: the one
  * `process.env` read is HERE, inside the server callback the browser never runs.
  */
 

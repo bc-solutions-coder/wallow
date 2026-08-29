@@ -1,10 +1,11 @@
 {
   // Declaration-only build config. Emit settings, rootDir/outDir and the shared
   // exclude list all come from ../../tsconfig.build.base.json; what is local is
-  // the entry list below. `server/passthrough.ts` and `server/service.ts` are
-  // listed explicitly because nothing imports them — deliberately, so neither a
-  // passthrough-only app nor a service-account consumer reaches the BFF handler
-  // graph — and an unlisted entry emits no .d.ts at all.
+  // the entry list below. `server/passthrough.ts`, `server/forwarded.ts` and
+  // `server/service.ts` are listed explicitly because each is its own subpath
+  // entry — deliberately, so neither a passthrough-only app nor a
+  // service-account consumer reaches the BFF handler graph — and an unlisted
+  // entry emits no .d.ts at all.
   //
   // This package is the ONE workspace member with its own typescript pin:
   // `catalog:tooling-tsc6` (6.0.3), against the workspace's `tooling` catalog
@@ -23,6 +24,7 @@
     "src/index.ts",
     "src/server/index.ts",
     "src/server/passthrough.ts",
+    "src/server/forwarded.ts",
     "src/server/service.ts",
     "src/query/index.ts"
   ]

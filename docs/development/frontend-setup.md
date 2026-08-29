@@ -158,13 +158,13 @@ and silently stops checking `features/` and `shared/`.
 | ------------------------------- | -------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `@bc-solutions-coder/styles`    | yes            | `.`, `./styles.css`, `./vite`, `./assets`          | Tailwind v4 pipeline plugin (`wallowStyles()`), theme-token CSS, brand assets, the branding schema                                                                                                                                                                                                                                                                                                                                           |
 | `@bc-solutions-coder/ui`        | no (`private`) | `.`, `./*`, `./source.css`                         | The 60-component Base UI + CVA catalog — forms, overlays, navigation, feedback — via the root barrel (`.`) or a per-component subpath (`./button`), plus the app-wiring components (`ReadyIndicator`, `FocusOnNavigate`, `DocumentStyles`, `ForkAttribution`) and the Tailwind `@source` scan of its component tree. See [Component Library](component-library.md)                                                                           |
-| `@bc-solutions-coder/sdk`       | yes            | `.`, `./server`, `./server/passthrough`, `./query` | Browser BFF client + typed API operations (`.`); the BFF server preset, handlers, API proxy, and session stores (`./server`); the pure reverse-proxy preset `createApiPassthrough` (`./server/passthrough`, a separate subpath so a passthrough-only app never pulls `openid-client` into its server bundle); the TanStack Query layer — a generated `{op}Options()` / `{op}QueryKey()` / `{op}Mutation()` trio per operation plus the curated invalidation predicates (`./query`) |
+| `@bc-solutions-coder/sdk`       | yes            | `.`, `./server`, `./server/passthrough`, `./server/forwarded`, `./query` | Browser BFF client + typed API operations (`.`); the BFF server preset, handlers, API proxy, and session stores (`./server`); the pure reverse-proxy preset `createApiPassthrough` (`./server/passthrough`, a separate subpath so a passthrough-only app never pulls `openid-client` into its server bundle); the dependency-free trusted-proxy seam — `createRequestOriginResolver`, `createClientAddressResolver`, `PeerRequest` — safe in isomorphic modules (`./server/forwarded`); the TanStack Query layer — a generated `{op}Options()` / `{op}QueryKey()` / `{op}Mutation()` trio per operation plus the curated invalidation predicates (`./query`) |
 | `@bc-solutions-coder/testing`   | no (`private`) | `.`, `./render`                                    | The `createVitestProjects` node + browser preset (`.`); the browser-mode `render` helper (`./render`)                                                                                                                                                                                                                                                                                                                                        |
 | `@bc-solutions-coder/query`      | no (`private`) | `.`                                                | The TanStack Query facade — every react-query symbol an app uses (`useQuery`, `useMutation`, `QueryClientProvider`, …) re-exported by reference, plus `createQueryClient`, the shared client factory. Only this package depends on `@tanstack/react-query`; apps never import it directly. See [Frontend State](frontend-state.md)                                                                                                            |
 | `@bc-solutions-coder/auth`       | no (`private`) | `.`                                                | The shared authn/authz layer — the canonical current-user query, `useCurrentUser`, the `ensureCurrentUser` `beforeLoad` primer, `hasRole`/`hasPermission`/`isAdmin`, and the SDK's route guards re-exported so an app's auth imports come from one package                                                                                                                                                                            |
 | `@bc-solutions-coder/navigation` | no (`private`) | `.`                                                | The application shell — `AppShell` (collapsible desktop rail, mobile drawer, and the controls that drive them) plus the `useNavStore` singleton. An app supplies only its `destinations` manifest, a `can` visibility predicate, and the `header`/`footer` slots. One entry, never a per-component catalog: a second export path for the store would be a second store                                                                        |
 | `@bc-solutions-coder/logger`    | no (`private`) | `.`, `./server`                                    | Structured logging at both ends — the browser core that buffers and posts batches (`.`) and the app-server ingest handler that stamps and forwards them (`./server`). Apps never call `console`. See [Logging](logging.md)                                                                                                                                                                                                                   |
-| `@bc-solutions-coder/env`       | no (`private`) | `./base-path`, `./internal-origin`, `./request-origin` | Deployment-derived addressing — base path, internal origin, per-request origin. Subpath-only, zero dependencies                                                                                                                                                                                                                                                                                                                        |
+| `@bc-solutions-coder/env`       | no (`private`) | `./base-path`, `./internal-origin`               | Deployment-derived addressing — base path, internal origin. Subpath-only, zero dependencies                                                                                                                                                                                                                                                                                                                        |
 | `@bc-solutions-coder/utils`     | no (`private`) | `./format`, `./guards`, `./string`                 | The bottom of the graph: pure functions, zero dependencies, subpath-only                                                                                                                                                                                                                                                                                                                                                                    |
 
 **Which app takes which.** All three are `workspace:*` runtime `dependencies` — no app
@@ -346,38 +346,29 @@ so importing the route module does not construct it:
 ```ts
 // src/shared/lib/api-passthrough.server.ts
 import {
-  CLIENT_IP_HEADER,
   createApiPassthrough,
   type ApiPassthrough,
+  type PeerRequest,
 } from "@bc-solutions-coder/sdk/server/passthrough";
-
-/** The server runtime's request carries the peer address; the WHATWG type does not. */
-interface PeerRequest extends Request {
-  readonly ip?: string | undefined;
-}
 
 let passthrough: ApiPassthrough | undefined;
 
 export function handleApiPassthrough(request: PeerRequest): Promise<Response> {
   passthrough ??= createApiPassthrough();
-
-  const clientIp: string | undefined = request.ip;
-  if (clientIp !== undefined && clientIp !== "") {
-    request.headers.set(CLIENT_IP_HEADER, clientIp);
-  }
-
   return passthrough.handle(request);
 }
 ```
 
 Two rules the reference apps encode:
 
-- **Stamp the client IP in place.** The passthrough reads the peer address from
-  the `x-wallow-client-ip` header (a WHATWG `Request` has no socket), appends it
-  to any inbound `X-Forwarded-For`, and strips the seam header before the upstream
-  hop. Set it with `request.headers.set(...)` on the inbound request — do **not**
-  build a `new Request(request, { headers })`, which throws at runtime because the
-  copy constructor reads a private field srvx's request class does not have.
+- **Pass the runtime's request through, never a copy.** The preset reads the peer
+  address from `request.ip` (srvx supplies it; a WHATWG `Request` has no socket)
+  and stamps the resolved caller onto the upstream `X-Forwarded-For` — believing a
+  fronting proxy's own `X-Forwarded-*` only when the peer is inside
+  `WALLOW_TRUSTED_PROXIES`. Do **not** build a `new Request(request, { headers })`:
+  it throws at runtime because the copy constructor reads a private field srvx's
+  request class does not have, and a copy that did work would lose `ip`. Need to
+  change the URL (a base-path rebase)? Mutate the inbound request in place.
 - **Reach a Node-only module through a dynamic `import()`** when the preset pulls
   in `node:crypto`/`openid-client` (as `createWallowBffServer` does). Every route
   module is a member of the tree the **client** graph also imports, so a top-level

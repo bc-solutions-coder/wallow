@@ -2,7 +2,7 @@
   "name": "@bc-solutions-coder/env",
   "version": "0.0.0",
   "private": true,
-  "description": "Wallow shared environment-derived addressing for Start apps (request origin, internal origin, base path, client address)",
+  "description": "Wallow shared environment-derived addressing for Start apps (internal origin, base path)",
   "files": [
     "dist"
   ],
@@ -12,17 +12,9 @@
       "types": "./src/base-path.ts",
       "import": "./src/base-path.ts"
     },
-    "./client-address": {
-      "types": "./src/client-address.ts",
-      "import": "./src/client-address.ts"
-    },
     "./internal-origin": {
       "types": "./src/internal-origin.ts",
       "import": "./src/internal-origin.ts"
-    },
-    "./request-origin": {
-      "types": "./src/request-origin.ts",
-      "import": "./src/request-origin.ts"
     }
   },
   "publishConfig": {
@@ -31,17 +23,9 @@
         "types": "./dist/base-path.d.ts",
         "import": "./dist/base-path.js"
       },
-      "./client-address": {
-        "types": "./dist/client-address.d.ts",
-        "import": "./dist/client-address.js"
-      },
       "./internal-origin": {
         "types": "./dist/internal-origin.d.ts",
         "import": "./dist/internal-origin.js"
-      },
-      "./request-origin": {
-        "types": "./dist/request-origin.d.ts",
-        "import": "./dist/request-origin.js"
       }
     }
   },

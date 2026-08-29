@@ -4,23 +4,19 @@ import { type AddressInfo } from "node:net";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import {
-  CLIENT_IP_HEADER,
   createApiPassthrough,
   DEFAULT_API_INTERNAL_URL,
   DEFAULT_PASSTHROUGH_PREFIXES,
   resolveApiInternalUrl,
   type ApiPassthrough,
+  type PeerRequest,
 } from "./passthrough";
 
 /**
- * Spec (Wallow-pu6a.3.7): `createApiPassthrough` absorbs the pure reverse-proxy
- * topology every fork used to hand-assemble — 201 lines in the deleted
- * `apps/wallow-auth/src/lib/auth-server.ts` and a near-identical 139 in
- * `apps/minimal-app/src/lib/proxy-server.ts`. These cases are ported
- * from that suite (the stronger of the two, since it also stamps the client IP)
- * and generalized to the preset's options: the hardcoded `/v1`, `/connect`,
- * `/.well-known` list becomes `prefixes`, and the XFF stamping becomes
- * `forwardClientIp`.
+ * `createApiPassthrough` is the pure reverse-proxy topology a passthrough-only
+ * fork runs: prefix-matched paths go upstream, everything else is not ours. The
+ * options under test are `prefixes` (the `/v1`, `/connect`, `/.well-known` list)
+ * and the client-address stamping, `forwardClientIp` plus `trustedProxies`.
  *
  * A real fake upstream HTTP server stands in for Wallow.Api, so the assertions
  * pin what actually reaches the wire: method, path, query, body, `Cookie`, the
@@ -74,7 +70,7 @@ function startUpstream(): Promise<Server> {
         forwardedProto: req.headers["x-forwarded-proto"] as string | undefined,
         forwardedHost: req.headers["x-forwarded-host"] as string | undefined,
         forwardedFor: req.headers["x-forwarded-for"] as string | undefined,
-        clientIpHeader: req.headers[CLIENT_IP_HEADER] as string | undefined,
+        clientIpHeader: req.headers["x-wallow-client-ip"] as string | undefined,
       };
 
       const target: string = req.url ?? "";
@@ -355,74 +351,130 @@ describe("createApiPassthrough — forwarded-scheme propagation", () => {
 });
 
 /**
- * Spec ported from `auth-server.test.ts` (Wallow-tt5j): the API rate-limits per
- * client IP off `X-Forwarded-For` with `KnownProxies.Clear()`, so the chain must
- * be appended to — never overwritten — and this hop's entry comes from the
- * host-stamped seam header, which must not leak upstream.
+ * The API rate-limits per client IP off `X-Forwarded-For` with
+ * `KnownProxies.Clear()`, so it reads the RIGHTMOST entry — the one this hop
+ * appends. The passthrough resolves that entry itself from the peer address
+ * srvx exposes on `request.ip` and the deployment's trusted-proxy list: with no
+ * proxies configured the peer is the caller; behind a configured ingress the
+ * chain the ingress wrote is walked for the real caller; a chain sent by an
+ * untrusted peer is never believed. Nothing a host stamps is consulted.
  */
-describe("createApiPassthrough — X-Forwarded-For chaining", () => {
-  it("sets X-Forwarded-For to the host-stamped client IP when the client sent none", async () => {
-    const res: Response = await proxy.handle(
-      new Request("http://localhost/v1/identity/users/me", {
-        headers: { [CLIENT_IP_HEADER]: "203.0.113.7" },
-      }),
-    );
+describe("createApiPassthrough — client address", () => {
+  /** A request as srvx hands it to a route: a WHATWG `Request` plus the peer's address. */
+  function fromPeer(ip: string | undefined, init: RequestInit = {}): PeerRequest {
+    return Object.assign(new Request("http://localhost/v1/identity/users/me", init), { ip });
+  }
+
+  it("stamps the peer address onto X-Forwarded-For when no proxies are trusted", async () => {
+    const res: Response = await proxy.handle(fromPeer("203.0.113.7"));
 
     expect(res.status).toBe(200);
     expect(lastRequest?.forwardedFor).toBe("203.0.113.7");
   });
 
-  it("appends the host-stamped client IP to an inbound X-Forwarded-For rather than overwriting it", async () => {
-    const res: Response = await proxy.handle(
-      new Request("http://localhost/v1/identity/users/me", {
-        headers: { "x-forwarded-for": "198.51.100.9", [CLIENT_IP_HEADER]: "203.0.113.7" },
-      }),
-    );
-
-    expect(res.status).toBe(200);
-    expect(lastRequest?.forwardedFor).toBe("198.51.100.9, 203.0.113.7");
-  });
-
-  it("preserves a multi-hop inbound X-Forwarded-For chain, appending this hop's client IP last", async () => {
-    const res: Response = await proxy.handle(
-      new Request("http://localhost/v1/identity/users/me", {
-        headers: {
-          "x-forwarded-for": "198.51.100.9, 70.41.3.18",
-          [CLIENT_IP_HEADER]: "203.0.113.7",
-        },
-      }),
-    );
-
-    expect(res.status).toBe(200);
-    expect(lastRequest?.forwardedFor).toBe("198.51.100.9, 70.41.3.18, 203.0.113.7");
-  });
-
-  it("never leaks the internal client-IP seam header upstream", async () => {
-    const res: Response = await proxy.handle(
-      new Request("http://localhost/v1/identity/users/me", {
-        headers: { [CLIENT_IP_HEADER]: "203.0.113.7" },
-      }),
-    );
-
-    expect(res.status).toBe(200);
-    expect(lastRequest?.clientIpHeader).toBeUndefined();
-  });
-
-  it("does not append the client IP when forwardClientIp is false, but still strips the seam header", async () => {
-    const noXff: ApiPassthrough = createApiPassthrough({
+  it("forwards the caller a trusted proxy reported, appended to the chain it wrote", async () => {
+    const trusting: ApiPassthrough = createApiPassthrough({
       apiInternalUrl: upstreamUrl,
-      forwardClientIp: false,
+      trustedProxies: "10.0.0.0/8",
     });
 
-    const res: Response = await noXff.handle(
-      new Request("http://localhost/v1/identity/users/me", {
-        headers: { [CLIENT_IP_HEADER]: "203.0.113.7" },
-      }),
+    const res: Response = await trusting.handle(
+      fromPeer("10.0.0.5", { headers: { "x-forwarded-for": "198.51.100.9" } }),
+    );
+
+    expect(res.status).toBe(200);
+    // The API pops the rightmost entry, so the resolved caller has to be last;
+    // the ingress's own chain survives ahead of it for anyone reading the whole
+    // thing.
+    expect(lastRequest?.forwardedFor).toBe("198.51.100.9, 198.51.100.9");
+  });
+
+  it("walks a multi-hop chain past trusted hops to the real caller", async () => {
+    const trusting: ApiPassthrough = createApiPassthrough({
+      apiInternalUrl: upstreamUrl,
+      trustedProxies: "10.0.0.0/8",
+    });
+
+    const res: Response = await trusting.handle(
+      fromPeer("10.0.0.5", { headers: { "x-forwarded-for": "198.51.100.9, 10.0.0.4" } }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(lastRequest?.forwardedFor).toBe("198.51.100.9, 10.0.0.4, 198.51.100.9");
+  });
+
+  it("ignores a chain an untrusted peer sent and stamps the peer itself", async () => {
+    const trusting: ApiPassthrough = createApiPassthrough({
+      apiInternalUrl: upstreamUrl,
+      trustedProxies: "10.0.0.0/8",
+    });
+
+    const res: Response = await trusting.handle(
+      fromPeer("203.0.113.5", { headers: { "x-forwarded-for": "198.51.100.4" } }),
+    );
+
+    expect(res.status).toBe(200);
+    // The spoofed entry is carried but never promoted: the API keys on the
+    // rightmost value, which is the socket address.
+    expect(lastRequest?.forwardedFor).toBe("198.51.100.4, 203.0.113.5");
+  });
+
+  it("reads the trusted-proxy list from WALLOW_TRUSTED_PROXIES when no option is given", async () => {
+    const fromEnv: ApiPassthrough = createApiPassthrough({
+      apiInternalUrl: upstreamUrl,
+      env: { WALLOW_TRUSTED_PROXIES: "10.0.0.0/8" } as NodeJS.ProcessEnv,
+    });
+
+    const res: Response = await fromEnv.handle(
+      fromPeer("10.0.0.5", { headers: { "x-forwarded-for": "198.51.100.9" } }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(lastRequest?.forwardedFor).toBe("198.51.100.9, 198.51.100.9");
+  });
+
+  it("lets an explicit trustedProxies option override the environment", async () => {
+    const explicit: ApiPassthrough = createApiPassthrough({
+      apiInternalUrl: upstreamUrl,
+      trustedProxies: "",
+      env: { WALLOW_TRUSTED_PROXIES: "10.0.0.0/8" } as NodeJS.ProcessEnv,
+    });
+
+    const res: Response = await explicit.handle(
+      fromPeer("10.0.0.5", { headers: { "x-forwarded-for": "198.51.100.9" } }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(lastRequest?.forwardedFor).toBe("198.51.100.9, 10.0.0.5");
+  });
+
+  it("writes no X-Forwarded-For entry when the host exposes no peer address", async () => {
+    const res: Response = await proxy.handle(fromPeer(undefined));
+
+    expect(res.status).toBe(200);
+    expect(lastRequest?.forwardedFor).toBeUndefined();
+  });
+
+  it("never believes a client-IP header the caller sent in place of the socket", async () => {
+    const res: Response = await proxy.handle(
+      fromPeer(undefined, { headers: { "x-wallow-client-ip": "203.0.113.7" } }),
     );
 
     expect(res.status).toBe(200);
     expect(lastRequest?.forwardedFor).toBeUndefined();
     expect(lastRequest?.clientIpHeader).toBeUndefined();
+  });
+
+  it("does not append the peer when forwardClientIp is false", async () => {
+    const noXff: ApiPassthrough = createApiPassthrough({
+      apiInternalUrl: upstreamUrl,
+      forwardClientIp: false,
+    });
+
+    const res: Response = await noXff.handle(fromPeer("203.0.113.7"));
+
+    expect(res.status).toBe(200);
+    expect(lastRequest?.forwardedFor).toBeUndefined();
   });
 
   it("leaves an inbound X-Forwarded-For untouched when forwardClientIp is false", async () => {
@@ -432,9 +484,7 @@ describe("createApiPassthrough — X-Forwarded-For chaining", () => {
     });
 
     const res: Response = await noXff.handle(
-      new Request("http://localhost/v1/identity/users/me", {
-        headers: { "x-forwarded-for": "198.51.100.9", [CLIENT_IP_HEADER]: "203.0.113.7" },
-      }),
+      fromPeer("203.0.113.7", { headers: { "x-forwarded-for": "198.51.100.9" } }),
     );
 
     expect(res.status).toBe(200);

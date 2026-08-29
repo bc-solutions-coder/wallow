@@ -20,18 +20,25 @@
  * Nothing in this module may import the BFF handler/proxy graph.
  */
 
-import { applyForwardedHeaders } from "./forwarded";
+import {
+  applyForwardedHeaders,
+  resolveClientAddress,
+  resolveTrustedProxies,
+  type PeerRequest,
+  type TrustedProxies,
+} from "./forwarded";
 
 /**
- * Internal request header carrying the immediate peer's socket address, stamped
- * by the Node host before it calls {@link ApiPassthrough.handle} — a WHATWG
- * `Request` has no socket, so the proxy cannot read the peer address itself.
+ * The request shape a host hands {@link ApiPassthrough.handle}: a WHATWG
+ * `Request` plus the peer address srvx exposes on `ip`.
  *
- * Re-exported rather than declared: this subpath is where app hosts import it
- * from (`apps/wallow-auth/src/lib/api-passthrough.ts`), but the BFF's own `/api`
- * proxy stamps the same seam, so the one definition lives in `./forwarded`.
+ * Re-exported rather than declared: this subpath is where a passthrough host
+ * imports it from, but the BFF's own `/api` proxy reads the same property, so
+ * the one definition lives in `./forwarded`. The trust helpers themselves
+ * (`createClientAddressResolver`, `resolveRequestOrigin`, …) ship on
+ * `./server/forwarded`.
  */
-export { CLIENT_IP_HEADER } from "./forwarded";
+export { type PeerRequest } from "./forwarded";
 
 /**
  * Standalone-dev default upstream when neither config nor
@@ -72,19 +79,34 @@ export interface ApiPassthroughOptions {
    */
   prefixes?: readonly string[];
   /**
-   * Whether to append the host-stamped {@link CLIENT_IP_HEADER} to the upstream
-   * `X-Forwarded-For` chain. Defaults to `true`. The seam header is stripped
-   * from the upstream hop either way.
+   * Whether to append the resolved client address to the upstream
+   * `X-Forwarded-For` chain. Defaults to `true`.
    */
   forwardClientIp?: boolean;
-  /** Environment source for `WALLOW_API_INTERNAL_URL`. Defaults to `process.env`. */
+  /**
+   * The proxies whose `X-Forwarded-For` may be believed, in the same notation as
+   * `WALLOW_TRUSTED_PROXIES` (CIDRs, bare addresses, or the `loopback`,
+   * `linklocal`, `uniquelocal`, `private` presets; comma- or space-separated).
+   * When omitted it resolves from `WALLOW_TRUSTED_PROXIES`, then to trusting
+   * nothing — the peer address IS the client. An empty string trusts nothing
+   * even when the variable is set.
+   */
+  trustedProxies?: string;
+  /**
+   * Environment source for `WALLOW_API_INTERNAL_URL` and
+   * `WALLOW_TRUSTED_PROXIES`. Defaults to `process.env`.
+   */
   env?: NodeJS.ProcessEnv;
 }
 
 /** The passthrough surface a host mounts. */
 export interface ApiPassthrough {
-  /** Forward an allowlisted request upstream; answer 404 for anything else. */
-  handle: (request: Request) => Promise<Response>;
+  /**
+   * Forward an allowlisted request upstream; answer 404 for anything else. The
+   * caller's address is resolved from `request.ip` and the trusted-proxy list,
+   * never from anything the caller sent.
+   */
+  handle: (request: PeerRequest) => Promise<Response>;
   /** Whether this proxy — rather than router SSR — owns the given path. */
   matches: (pathname: string) => boolean;
   /** The resolved upstream base URL. */
@@ -155,6 +177,10 @@ export function createApiPassthrough(options: ApiPassthroughOptions = {}): ApiPa
     normalizePrefix(entry),
   );
   const forwardClientIp: boolean = options.forwardClientIp ?? true;
+  const trusted: TrustedProxies = resolveTrustedProxies(
+    options.trustedProxies,
+    options.env ?? process.env,
+  );
 
   const matches = (pathname: string): boolean =>
     normalized.some((prefix: string): boolean => pathMatchesPrefix(pathname, prefix));
@@ -163,7 +189,7 @@ export function createApiPassthrough(options: ApiPassthroughOptions = {}): ApiPa
     matches,
     apiInternalUrl,
     prefixes,
-    handle: async (request: Request): Promise<Response> => {
+    handle: async (request: PeerRequest): Promise<Response> => {
       const incoming: URL = new URL(request.url);
       if (!matches(incoming.pathname)) {
         return new Response(null, { status: NOT_FOUND_STATUS });
@@ -172,7 +198,11 @@ export function createApiPassthrough(options: ApiPassthroughOptions = {}): ApiPa
       const headers: Headers = new Headers(request.headers);
       // Strip the inbound Host so fetch derives it from the upstream target.
       headers.delete("host");
-      applyForwardedHeaders(headers, incoming, forwardClientIp);
+      applyForwardedHeaders(
+        headers,
+        incoming,
+        forwardClientIp ? resolveClientAddress(request, request.ip, trusted) : undefined,
+      );
 
       const hasBody: boolean = request.method !== "GET" && request.method !== "HEAD";
       const init: RequestInit = {

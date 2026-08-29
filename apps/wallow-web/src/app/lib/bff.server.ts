@@ -20,15 +20,13 @@
  *    failed build is not cached, so a transient Redis outage at boot does not
  *    permanently disable the BFF.
  */
-import { type PeerRequest } from "@bc-solutions-coder/env/client-address";
 import {
-  CLIENT_IP_HEADER,
   createWallowBffServer,
+  type PeerRequest,
   type WallowBffServer,
 } from "@bc-solutions-coder/sdk/server";
 import { createClient, type RedisClientType } from "redis";
 
-import { clientAddressFor } from "./client-address.server";
 import { serverLog } from "./log.server";
 
 let pending: Promise<WallowBffServer> | undefined;
@@ -97,39 +95,16 @@ export async function handleBffRequest(request: Request): Promise<Response> {
 /**
  * Handle a request under `/api` — the reverse proxy that attaches the session's bearer.
  *
- * The client IP is stamped onto the SDK's `CLIENT_IP_HEADER` before handing over:
- * the proxy appends that header to the outgoing `X-Forwarded-For` chain and
- * strips the seam header itself, but it can only do so if the host supplies the
- * address — without this the API sees every user of this app as one client and
- * rate-limits them together (Wallow-vufu.4.2, the BFF twin of Wallow-tt5j).
- *
- * Behind an ingress the peer is the INGRESS, so the address is resolved through
- * `clientAddressFor` rather than read off the connection: it consults the inbound
- * `X-Forwarded-For` only when the peer is a proxy `WALLOW_TRUSTED_PROXIES` names, so an
- * untrusted caller cannot stamp a chosen address into the API's rate-limit key
- * (Wallow-tvn3). The API pops the RIGHTMOST chain entry into its
- * `RemoteIpAddress`, which is this value.
- *
- * The header is set ON THE INBOUND REQUEST rather than on a clone. The obvious
- * `new Request(request, { headers })` throws `Cannot read private member #state`
- * at runtime: srvx's request is its own class that only claims to be a `Request`
- * through `Symbol.hasInstance`, so undici's copy constructor passes the instance
- * check and then reads a private field that does not exist. Mutating is also
- * safe — the proxy builds its own outgoing `Headers`, and the request object is
- * per-request and dead once this returns.
+ * The request goes through AS srvx handed it over, not as a copy: the proxy
+ * reads the peer address off its `ip` property and resolves the caller through
+ * `WALLOW_TRUSTED_PROXIES` itself, so the API's per-IP limiter sees each visitor
+ * rather than this app as one client. The obvious
+ * `new Request(request, { headers })` would also throw `Cannot read private
+ * member #state` at runtime — srvx's request only claims to be a `Request`
+ * through `Symbol.hasInstance` — and would drop `ip` on the way.
  */
 export async function handleApiRequest(request: PeerRequest): Promise<Response> {
   const server: WallowBffServer = await getBffServer();
-  const clientIp: string | undefined = clientAddressFor(request);
-  if (clientIp !== undefined && clientIp !== "") {
-    request.headers.set(CLIENT_IP_HEADER, clientIp);
-  } else {
-    // Removed, not left alone. The seam header is a plain request header, so a
-    // caller can send one; the proxy appends whatever it finds there to the
-    // outbound chain and the API believes it. Stamping over it covers that on
-    // every request that HAS a peer address, and this covers the rest.
-    request.headers.delete(CLIENT_IP_HEADER);
-  }
   return server.handleApi(request);
 }
 

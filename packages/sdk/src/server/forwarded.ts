@@ -9,20 +9,40 @@
  * so both hops apply one identical rule set.
  *
  * This module is deliberately dependency-free — no config, no session, no
- * fetch — so `passthrough.ts` can import it without violating its own rule that
- * nothing on the `/server/passthrough` subpath may reach into the BFF
- * handler/proxy graph.
+ * fetch, no environment read at module scope — so `passthrough.ts` can import
+ * it without violating its own rule that nothing on the `/server/passthrough`
+ * subpath may reach into the BFF handler/proxy graph, and so an isomorphic
+ * Start entry (`start.ts`, which is aliased into the CLIENT graph too) can
+ * import the origin resolver from the `./server/forwarded` subpath without
+ * pulling `openid-client` into the browser bundle.
+ *
+ * The trust decision behind both forwarded headers lives beside them:
+ * `x-forwarded-for` and `x-forwarded-proto` are believed only when the
+ * immediate peer is inside the deployment's trusted-proxy set
+ * (`WALLOW_TRUSTED_PROXIES`) — one policy for both, re-exported here from
+ * `./client-address` and `./request-origin`.
  */
 
+export {
+  createClientAddressResolver,
+  resolveTrustedProxies,
+  isTrustedPeer,
+  parseTrustedProxies,
+  resolveClientAddress,
+  TRUST_NO_PROXIES,
+  TRUSTED_PROXIES_ENV_KEY,
+  type PeerRequest,
+  type TrustedProxies,
+} from "./client-address";
+export { createRequestOriginResolver, resolveRequestOrigin } from "./request-origin";
+
 /**
- * Internal request header carrying the immediate peer's socket address, stamped
- * by the Node host before it calls a proxy — a WHATWG `Request` has no socket,
- * so neither proxy can read the peer address itself. The value is APPENDED to
- * any inbound `X-Forwarded-For` chain (so an outer ingress's leftmost
- * real-client entry survives) and then STRIPPED, so the internal seam header
- * never reaches the upstream API.
+ * A header a host used to stamp the peer address onto before the SDK read the
+ * peer itself. No host stamps it any more, and nothing reads it: it is stripped
+ * so a caller who sends it — the only remaining author — cannot smuggle a
+ * self-chosen address past this hop.
  */
-export const CLIENT_IP_HEADER: string = "x-wallow-client-ip";
+const STRIPPED_CLIENT_IP_HEADER: string = "x-wallow-client-ip";
 
 /**
  * Set `X-Forwarded-Proto`/`X-Forwarded-Host` for the upstream hop, deriving each
@@ -32,21 +52,18 @@ export const CLIENT_IP_HEADER: string = "x-wallow-client-ip";
  * plain-HTTP leg would downgrade the API's view to `http` and trip OpenIddict's
  * HTTPS check (ID2083).
  *
- * `X-Forwarded-For` follows the same append-not-overwrite rule: the Node host
- * stamps this hop's real peer address into {@link CLIENT_IP_HEADER}, which is
- * APPENDED to any inbound chain so an outer ingress's leftmost real-client entry
- * survives. The seam header is then STRIPPED either way, so it never reaches the
- * upstream API.
- *
- * @param headers The outgoing headers, mutated in place.
- * @param incoming The inbound request URL, the source of the proto/host fallback.
- * @param forwardClientIp Whether to append the seam header's address to the
- *   chain. The seam header is stripped regardless.
+ * `X-Forwarded-For` follows the same append-not-overwrite rule: `clientAddress`
+ * — the caller as {@link resolveClientAddress} settled it from the socket peer
+ * and the trusted-proxy list — is APPENDED to any inbound chain, so an outer
+ * ingress's entries survive ahead of it while the API, which pops the
+ * rightmost entry, keys on the address this hop vouches for. `undefined` (no
+ * peer known) appends nothing: a bogus entry is worse for the rate limiter
+ * than none.
  */
 export function applyForwardedHeaders(
   headers: Headers,
   incoming: URL,
-  forwardClientIp: boolean,
+  clientAddress: string | undefined,
 ): void {
   if (!headers.has("x-forwarded-proto")) {
     headers.set("x-forwarded-proto", incoming.protocol.replace(":", ""));
@@ -55,13 +72,12 @@ export function applyForwardedHeaders(
     headers.set("x-forwarded-host", incoming.host);
   }
 
-  const clientIp: string | null = headers.get(CLIENT_IP_HEADER);
-  if (forwardClientIp && clientIp !== null && clientIp !== "") {
+  if (clientAddress !== undefined && clientAddress !== "") {
     const existing: string | null = headers.get("x-forwarded-for");
     headers.set(
       "x-forwarded-for",
-      existing !== null && existing !== "" ? `${existing}, ${clientIp}` : clientIp,
+      existing !== null && existing !== "" ? `${existing}, ${clientAddress}` : clientAddress,
     );
   }
-  headers.delete(CLIENT_IP_HEADER);
+  headers.delete(STRIPPED_CLIENT_IP_HEADER);
 }

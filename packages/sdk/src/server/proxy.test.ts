@@ -6,7 +6,7 @@ import { isValidRequestId, MAX_REQUEST_ID_LENGTH, REQUEST_ID_HEADER } from "../r
 import type { BffConfig } from "./config";
 import { csrfTokenMatches, CSRF_HEADER, CSRF_INVALID_CODE, isStateChangingMethod } from "./csrf";
 import { WallowError } from "./errors";
-import { CLIENT_IP_HEADER } from "./forwarded";
+import { type PeerRequest } from "./forwarded";
 import { discover, refreshTokens, type DiscoveryDoc, type TokenResponse } from "./oidc";
 import {
   createApiProxy,
@@ -485,6 +485,7 @@ describe("createApiProxy forwarded headers", () => {
     issuer: string,
     inboundHeaders: Record<string, string>,
     url: string = "http://localhost/api/users",
+    ip: string | undefined = undefined,
   ): Promise<Headers> {
     const config: BffConfig = makeConfig(issuer);
     const doc: DiscoveryDoc = makeDoc(config.issuer);
@@ -501,11 +502,13 @@ describe("createApiProxy forwarded headers", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const res: Response = await makeHandle(config)(
+    const request: PeerRequest = Object.assign(
       new Request(url, {
         headers: { cookie: `wallow_bff=${sealed}`, ...inboundHeaders },
       }),
+      { ip },
     );
+    const res: Response = await makeHandle(config)(request);
     expect(res.status).toBe(200);
 
     const upstreamCall = fetchMock.mock.calls.find(
@@ -516,36 +519,40 @@ describe("createApiProxy forwarded headers", () => {
     return new Headers(init.headers);
   }
 
-  it("appends the host-stamped peer address to the upstream X-Forwarded-For", async () => {
-    const headers: Headers = await forwardedHeadersFor("https://proxy-xff-new.example.com", {
-      [CLIENT_IP_HEADER]: "1.2.3.4",
-    });
+  it("appends the peer address to the upstream X-Forwarded-For", async () => {
+    const headers: Headers = await forwardedHeadersFor(
+      "https://proxy-xff-new.example.com",
+      {},
+      undefined,
+      "1.2.3.4",
+    );
 
     expect(headers.get("x-forwarded-for")).toBe("1.2.3.4");
   });
 
-  it("preserves an outer ingress's chain and appends this hop's peer to its end", async () => {
-    const headers: Headers = await forwardedHeadersFor("https://proxy-xff-chain.example.com", {
-      "x-forwarded-for": "198.51.100.9, 70.41.3.18",
-      [CLIENT_IP_HEADER]: "1.2.3.4",
-    });
+  it("preserves an inbound chain and appends this hop's peer to its end", async () => {
+    const headers: Headers = await forwardedHeadersFor(
+      "https://proxy-xff-chain.example.com",
+      { "x-forwarded-for": "198.51.100.9, 70.41.3.18" },
+      undefined,
+      "1.2.3.4",
+    );
 
-    // Ends with this hop's peer; the ingress's leftmost real-client entry — the
-    // one the API's rate limiter keys on — survives ahead of it.
+    // Ends with this hop's peer — the entry the API's rate limiter pops. With no
+    // proxy trusted the inbound chain is carried but never promoted.
     expect(headers.get("x-forwarded-for")).toBe("198.51.100.9, 70.41.3.18, 1.2.3.4");
   });
 
-  it("strips the client-IP seam header before the upstream hop", async () => {
+  it("never believes a client-IP header the caller sent in place of the socket", async () => {
     const headers: Headers = await forwardedHeadersFor("https://proxy-xff-strip.example.com", {
-      [CLIENT_IP_HEADER]: "1.2.3.4",
+      "x-wallow-client-ip": "1.2.3.4",
     });
 
-    // The seam header is this proxy's private contract with its Node host; the
-    // API must never see it.
-    expect(headers.has(CLIENT_IP_HEADER)).toBe(false);
+    expect(headers.has("x-wallow-client-ip")).toBe(false);
+    expect(headers.has("x-forwarded-for")).toBe(false);
   });
 
-  it("writes no X-Forwarded-For when the host stamped no peer address", async () => {
+  it("writes no X-Forwarded-For when the host exposes no peer address", async () => {
     const headers: Headers = await forwardedHeadersFor("https://proxy-xff-none.example.com", {});
 
     expect(headers.has("x-forwarded-for")).toBe(false);
@@ -576,19 +583,24 @@ describe("createApiProxy forwarded headers", () => {
   });
 
   it("still forwards the content-type and accept allowlist alongside them", async () => {
-    const headers: Headers = await forwardedHeadersFor("https://proxy-xff-allowlist.example.com", {
-      accept: "application/json",
-      [CLIENT_IP_HEADER]: "1.2.3.4",
-    });
+    const headers: Headers = await forwardedHeadersFor(
+      "https://proxy-xff-allowlist.example.com",
+      { accept: "application/json" },
+      undefined,
+      "1.2.3.4",
+    );
 
     expect(headers.get("accept")).toBe("application/json");
     expect(headers.get("x-forwarded-for")).toBe("1.2.3.4");
   });
 
   it("does not leak the inbound Cookie header upstream", async () => {
-    const headers: Headers = await forwardedHeadersFor("https://proxy-xff-cookie.example.com", {
-      [CLIENT_IP_HEADER]: "1.2.3.4",
-    });
+    const headers: Headers = await forwardedHeadersFor(
+      "https://proxy-xff-cookie.example.com",
+      {},
+      undefined,
+      "1.2.3.4",
+    );
 
     // Widening the forwarded set for `X-Forwarded-*` must not turn the BFF's
     // allowlist into the passthrough's copy-everything: the session cookie is

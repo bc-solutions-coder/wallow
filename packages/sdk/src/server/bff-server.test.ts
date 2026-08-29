@@ -5,10 +5,12 @@ import {
   WALLOW_API_MOUNT,
   WALLOW_BFF_MOUNT,
   type WallowBffServer,
+  type WallowBffServerOptions,
 } from "./bff-server";
 import { type BffConfig } from "./config";
+import { type PeerRequest } from "./forwarded";
 import { CSRF_HEADER } from "./csrf";
-import { type BffSession } from "./session";
+import { sealSession, type BffSession } from "./session";
 import { CookieSessionStore } from "./store/cookie";
 import { type NodeRedisClient } from "./store/redis-adapter";
 import { type SessionStore } from "./store/types";
@@ -530,6 +532,141 @@ describe("createWallowBffServer — API dispatch", () => {
     );
 
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The BFF proxy resolves the caller's address ITSELF — from the peer srvx
+ * exposes on `request.ip` and the trusted-proxy list — and appends it to the
+ * upstream `X-Forwarded-For`, where the API's per-IP limiter reads the
+ * rightmost entry. Nothing a host stamps onto the request is consulted, so an
+ * own-domain consumer needs no helper of its own beyond the SDK.
+ */
+describe("createWallowBffServer — client address", () => {
+  /** A fresh session, sealed as the cookie the default store reads back. */
+  async function sessionCookie(config: BffConfig): Promise<string> {
+    const session: BffSession = {
+      sessionId: "sess-fixture-000",
+      accessToken: "access-token-abc",
+      refreshToken: "refresh-token-def",
+      idToken: "header.payload.signature",
+      expiresAt: Date.now() + 3_600_000,
+      user: { sub: "user-123", email: "user@example.com", name: "Test User" },
+      version: 1,
+      csrfToken: "csrf-fixture-token",
+    };
+    return `${config.cookieName}=${await sealSession(session, config.cookiePassword)}`;
+  }
+
+  /** Answers discovery with a minimal document and everything else with `{}`. */
+  function upstreamFetch(issuer: string): ReturnType<typeof vi.fn> {
+    const doc = {
+      issuer,
+      authorization_endpoint: `${issuer}/connect/authorize`,
+      token_endpoint: `${issuer}/connect/token`,
+      jwks_uri: `${issuer}/.well-known/jwks`,
+    };
+    const fetchMock: ReturnType<typeof vi.fn> = vi.fn((input: unknown): Promise<Response> => {
+      const body: string = String(input).includes(".well-known") ? JSON.stringify(doc) : "{}";
+      return Promise.resolve(
+        new Response(body, { status: 200, headers: { "content-type": "application/json" } }),
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+
+  /** The `X-Forwarded-For` the API received for one proxied request from `ip`. */
+  async function forwardedForFrom(
+    issuer: string,
+    options: Omit<WallowBffServerOptions, "config">,
+    ip: string | undefined,
+    inboundHeaders: Record<string, string> = {},
+  ): Promise<string | null> {
+    const config: BffConfig = makeConfig(issuer);
+    const fetchMock = upstreamFetch(issuer);
+    const server: WallowBffServer = createWallowBffServer({ config, env: {}, ...options });
+
+    const request: PeerRequest = Object.assign(
+      new Request(`http://app.example.com${WALLOW_API_MOUNT}/v1/identity/users/me`, {
+        headers: { cookie: await sessionCookie(config), ...inboundHeaders },
+      }),
+      { ip },
+    );
+    const res: Response = await server.handleApi(request);
+    expect(res.status).toBe(200);
+
+    const upstreamCall = fetchMock.mock.calls.find(
+      (call): boolean => !String(call[0]).includes(".well-known"),
+    );
+    expect(upstreamCall).toBeDefined();
+    const init = upstreamCall?.[1] as RequestInit;
+    return new Headers(init.headers).get("x-forwarded-for");
+  }
+
+  it("stamps the peer address when no proxies are trusted", async () => {
+    const forwardedFor: string | null = await forwardedForFrom(
+      "https://issuer-ip-peer.test",
+      {},
+      "203.0.113.7",
+    );
+
+    expect(forwardedFor).toBe("203.0.113.7");
+  });
+
+  it("forwards the caller a trusted proxy reported, appended to the chain it wrote", async () => {
+    const forwardedFor: string | null = await forwardedForFrom(
+      "https://issuer-ip-trusted.test",
+      { trustedProxies: "10.0.0.0/8" },
+      "10.0.0.5",
+      { "x-forwarded-for": "198.51.100.9" },
+    );
+
+    // Rightmost is what the API pops, so the resolved caller goes last.
+    expect(forwardedFor).toBe("198.51.100.9, 198.51.100.9");
+  });
+
+  it("ignores a chain an untrusted peer sent and stamps the peer itself", async () => {
+    const forwardedFor: string | null = await forwardedForFrom(
+      "https://issuer-ip-spoof.test",
+      { trustedProxies: "10.0.0.0/8" },
+      "203.0.113.5",
+      { "x-forwarded-for": "198.51.100.4" },
+    );
+
+    expect(forwardedFor).toBe("198.51.100.4, 203.0.113.5");
+  });
+
+  it("reads WALLOW_TRUSTED_PROXIES from the supplied environment", async () => {
+    const forwardedFor: string | null = await forwardedForFrom(
+      "https://issuer-ip-env.test",
+      { env: { WALLOW_TRUSTED_PROXIES: "10.0.0.0/8" } as NodeJS.ProcessEnv },
+      "10.0.0.5",
+      { "x-forwarded-for": "198.51.100.9" },
+    );
+
+    expect(forwardedFor).toBe("198.51.100.9, 198.51.100.9");
+  });
+
+  it("writes no X-Forwarded-For when the host exposes no peer address", async () => {
+    const forwardedFor: string | null = await forwardedForFrom(
+      "https://issuer-ip-none.test",
+      {},
+      undefined,
+    );
+
+    expect(forwardedFor).toBeNull();
+  });
+
+  it("never believes a client-IP header the caller sent in place of the socket", async () => {
+    const forwardedFor: string | null = await forwardedForFrom(
+      "https://issuer-ip-header.test",
+      {},
+      undefined,
+      { "x-wallow-client-ip": "203.0.113.7" },
+    );
+
+    expect(forwardedFor).toBeNull();
   });
 });
 

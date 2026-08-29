@@ -2,10 +2,5 @@
   // Every entry listed explicitly: nothing here imports anything else here, so an
   // unlisted module emits no .d.ts rather than being pulled in transitively.
   "extends": ["./tsconfig.json", "../../tsconfig.build.base.json"],
-  "include": [
-    "src/base-path.ts",
-    "src/client-address.ts",
-    "src/internal-origin.ts",
-    "src/request-origin.ts"
-  ]
+  "include": ["src/base-path.ts", "src/internal-origin.ts"]
 }
