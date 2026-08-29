@@ -31,7 +31,7 @@ import {
   MutedText,
   Text,
 } from "@bc-solutions-coder/ui";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { Link, useRouteContext } from "@tanstack/react-router";
 import { z } from "zod";
 
@@ -333,7 +333,12 @@ function NotFoundCard() {
   );
 }
 
-export function OrganizationDetail(props: { orgId: string }) {
+/**
+ * `clientsSection` is a PROTOTYPE slot (map #112 / ticket #122): when supplied it
+ * replaces the real `ClientsSection` so the variants can mount inside the live
+ * org page. Throwaway — remove with the prototype branch.
+ */
+export function OrganizationDetail(props: { orgId: string; clientsSection?: (orgName: string) => ReactNode }) {
   const { orgId } = props;
   const { sdk } = useRouteContext({ from: "__root__" });
   const queryClient = useQueryClient();
@@ -423,7 +428,7 @@ export function OrganizationDetail(props: { orgId: string }) {
 
       <MemberList orgId={orgId} />
 
-      <ClientsSection orgId={orgId} />
+      {props.clientsSection ? props.clientsSection(org.name) : <ClientsSection orgId={orgId} />}
     </div>
   );
 }

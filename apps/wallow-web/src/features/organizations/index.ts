@@ -16,3 +16,5 @@ export { MyOrganizations } from "./components/MyOrganizations";
 export { OrganizationDetail } from "./components/OrganizationDetail";
 export { OrganizationList } from "./components/OrganizationList";
 export { PendingRequestList } from "./components/PendingRequestList";
+// PROTOTYPE (map #112 / ticket #122) — throwaway; lives only on the prototype branch.
+export { ClientRegistrationPrototype } from "./components/prototype/ClientRegistrationPrototype";
