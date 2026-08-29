@@ -15,19 +15,25 @@
  * Built ONCE at module scope — the rate limiter is state that must live across
  * requests.
  */
-import { type PeerRequest } from "@bc-solutions-coder/env/client-address";
-import { createRequestOriginResolver } from "@bc-solutions-coder/env/request-origin";
 import { createLogIngestHandler, type LogIngestHandler } from "@bc-solutions-coder/logger/server";
-
-import { clientAddressFor } from "./client-address.server";
+import {
+  createClientAddressResolver,
+  createRequestOriginResolver,
+  type PeerRequest,
+} from "@bc-solutions-coder/sdk/server/forwarded";
 
 /** What this app calls itself in a record. Stamped server-side; the page never sends it. */
 const SERVICE = "wallow-auth";
 
 /**
- * This deployment's origin resolution, bound once — the same shape as
- * `clientAddressFor`, and gated by the same `WALLOW_TRUSTED_PROXIES` list.
+ * This deployment's client-address and origin resolution, bound once at module
+ * scope — parsing `WALLOW_TRUSTED_PROXIES` is start-up work, not per-record work.
+ * Both are gated by that one list. With the variable unset the peer address srvx
+ * read off the connection is the answer and no header is consulted at all.
  */
+const clientAddressFor: (request: PeerRequest) => string | undefined = createClientAddressResolver(
+  process.env,
+);
 const requestOriginFor: (request: PeerRequest) => string = createRequestOriginResolver(process.env);
 
 /** Collector base URL. Unset — the default outside the compose stacks — logs to stdout. */

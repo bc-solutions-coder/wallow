@@ -12,6 +12,13 @@ the OIDC session and proxies API calls with a bearer attached.
 - `./server/passthrough` (Node) — `createApiPassthrough`, a pure reverse proxy owning no
   session. **Its own subpath so a passthrough-only app never pulls `openid-client` into its
   server bundle — nothing here may import the BFF handler/proxy graph.**
+- `./server/forwarded` (isomorphic-safe, zero dependencies, no module-scope env reads) — the
+  trusted-proxy seam: `resolveClientAddress`/`parseTrustedProxies`/`resolveTrustedProxies`,
+  `createClientAddressResolver`, `createRequestOriginResolver`, `PeerRequest`. Both proxying
+  presets read the peer from `request.ip` and stamp the resolved caller onto the upstream
+  `X-Forwarded-For` (the API pops the rightmost entry); the trust list is the `trustedProxies`
+  option else `WALLOW_TRUSTED_PROXIES`. The old `x-wallow-client-ip` host↔SDK header is
+  retired — still stripped inbound so a caller cannot smuggle it upstream, never read.
 - `./server/service` (Node) — `createServiceClient()`, the client-credentials service-account
   client: same typed client shape, token cached under a `SET NX EX` lock (in-memory `RedisLike`
   when no store), one replay on 401. **Own subpath for the same reason as passthrough — must

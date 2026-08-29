@@ -16,6 +16,7 @@
 
 import { loadBffConfigFromEnv, type BffConfig } from "./config";
 import { createBffHandlers, type BffHandler, type BffHandlers } from "./handlers";
+import { resolveTrustedProxies, type PeerRequest, type TrustedProxies } from "./forwarded";
 import { createApiProxy, type ApiProxyHandler } from "./proxy";
 import { CookieSessionStore } from "./store/cookie";
 import { createRedisAdapter, type NodeRedisClient } from "./store/redis-adapter";
@@ -54,14 +55,30 @@ export interface WallowBffServerOptions {
    * {@link WallowBffServerOptions.store} is supplied). Defaults to `console.error`.
    */
   onRedisError?: (error: unknown) => void;
+  /**
+   * The proxies whose `X-Forwarded-For` may be believed when the `/api` proxy
+   * resolves the caller's address, in the same notation as
+   * `WALLOW_TRUSTED_PROXIES` (CIDRs, bare addresses, or the `loopback`,
+   * `linklocal`, `uniquelocal`, `private` presets; comma- or space-separated).
+   * When omitted it resolves from `WALLOW_TRUSTED_PROXIES` in
+   * {@link WallowBffServerOptions.env}, then to trusting nothing — the peer
+   * address IS the client. An empty string trusts nothing even when the
+   * variable is set.
+   */
+  trustedProxies?: string;
 }
 
 /** The BFF surface a host mounts. */
 export interface WallowBffServer {
   /** Handle a request under {@link WALLOW_BFF_MOUNT}; unknown sub-paths answer 404. */
   handleBff: (request: Request) => Promise<Response>;
-  /** Handle a request under {@link WALLOW_API_MOUNT}; anything else answers 404. */
-  handleApi: (request: Request) => Promise<Response>;
+  /**
+   * Handle a request under {@link WALLOW_API_MOUNT}; anything else answers 404.
+   * Pass the request as srvx hands it over — its `ip` is the peer address the
+   * proxy forwards to the API, resolved through the trusted-proxy list and never
+   * read from a header the caller could have written.
+   */
+  handleApi: (request: PeerRequest) => Promise<Response>;
   /** Liveness probe: 200 with a small JSON body. */
   handleHealth: () => Response;
   /** The resolved configuration. */
@@ -149,7 +166,8 @@ export function createWallowBffServer(options: WallowBffServerOptions = {}): Wal
   // Handlers and proxy share ONE store instance: the proxy has to resolve the
   // very sessions the callback handler wrote.
   const handlers: BffHandlers = createBffHandlers(config, store);
-  const proxy: ApiProxyHandler = createApiProxy(config, store);
+  const trusted: TrustedProxies = resolveTrustedProxies(options.trustedProxies, env);
+  const proxy: ApiProxyHandler = createApiProxy(config, store, trusted);
 
   // Dispatch is by PATH only. Method policy belongs to the handlers: a bare
   // `GET /bff/logout` must reach the logout handler so it can answer 405 with
@@ -174,7 +192,7 @@ export function createWallowBffServer(options: WallowBffServerOptions = {}): Wal
       }
       return handler(request);
     },
-    handleApi: (request: Request): Promise<Response> => proxy(request),
+    handleApi: (request: PeerRequest): Promise<Response> => proxy(request),
     handleHealth: (): Response => Response.json({ status: "ok" }),
   };
 }

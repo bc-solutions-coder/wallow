@@ -54,7 +54,7 @@ feature needs). Cross-zone imports are spelled `@app/*`, `@features/<name>`,
 | `src/app/styles.css`                       | The app's single Tailwind entry, imported for side effects by `app/routes/__root.tsx`.                                                                                                                                             |
 | `src/features/<name>/`                     | Sixteen screen verticals. Each has `index.ts` (the barrel), usually `api.ts` (the data seam) and `components/`; several add a `*-result.ts` module holding the narrowing that turns an API response into a screen outcome.         |
 | `src/shared/components/`                   | `auth-layout.tsx` (the branded shell and the app's only `<h1>`), `auth-screen.tsx`, `consent-labels.tsx`, `ready-indicator.tsx`.                                                                                                   |
-| `src/shared/lib/`                          | `api-passthrough.server.ts`, `client-address.server.ts`, `log-ingest.server.ts`, `base-path.ts`, `branding.ts`, `fork-links.ts`, `log.ts`, `error-code.ts`, `return-url.ts`.                                                       |
+| `src/shared/lib/`                          | `api-passthrough.server.ts`, `log-ingest.server.ts`, `base-path.ts`, `branding.ts`, `fork-links.ts`, `log.ts`, `error-code.ts`, `return-url.ts`.                                                                                   |
 | `src/shared/hooks/use-return-url-guard.ts` | The `returnUrl` open-redirect guard the login, signup and MFA screens share.                                                                                                                                                       |
 | `Dockerfile`                               | Containerizes the app for the E2E stack; its build context is the **repo root**, and it takes `AUTH_BASE_PATH` as a build `ARG`. Runs `node .output/server/index.mjs`.                                                             |
 
@@ -79,11 +79,10 @@ The three proxy routes use a single `ANY` handler rather than a method map: the
 upstream owns which verbs a path answers, and filtering here would turn an
 upstream `405` into a local `404`.
 
-The passthrough also stamps the caller's address onto the SDK's client-IP seam
-header, resolved through `@bc-solutions-coder/env/client-address` so an inbound
-`X-Forwarded-For` is believed only when the peer is inside
-`WALLOW_TRUSTED_PROXIES`. Without the stamp the API rate-limits every request as
-though it came from this proxy.
+The passthrough hands the runtime's request to the SDK unchanged; the SDK reads the
+peer address from `request.ip`, believes an inbound `X-Forwarded-For` only when the
+peer is inside `WALLOW_TRUSTED_PROXIES`, and stamps the resolved caller onto the
+upstream hop so the API rate-limits per visitor rather than per proxy.
 
 ## Base path
 

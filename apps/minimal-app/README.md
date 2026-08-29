@@ -14,14 +14,14 @@ this README is the boot recipe.
 
 ## The six packages it wires
 
-| Package                       | Published          | What this app pulls from it                                                                                                                                           |
-| ----------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@bc-solutions-coder/styles`  | yes                | Tailwind v4 pipeline (`wallowStyles()` in `vite.config.ts`), brand theme tokens + assets (`src/styles.css`, `__root.tsx`)                                             |
-| `@bc-solutions-coder/ui`      | **no (`private`)** | Shared components (`Card`, `MutedText`, `CenteredCardLayout`, `ForkAttribution`, `DocumentStyles`, `FocusOnNavigate`, `ReadyIndicator`) + its Tailwind `@source` scan |
-| `@bc-solutions-coder/sdk`     | yes                | `createWallowSdk` (`src/start.ts`), the `createApiPassthrough` server preset (`src/lib/api-passthrough.ts`), and the generated `./query` TanStack Query layer         |
-| `@bc-solutions-coder/testing` | **no (`private`)** | The `createVitestProjects` node+browser preset (`vitest.config.ts`) and the browser-mode `render` helper (`*.test.tsx`)                                               |
-| `@bc-solutions-coder/query`   | **no (`private`)** | `createQueryClient` — the router's `QueryClient` factory — and every react-query symbol the app uses, re-exported from the one facade                                 |
-| `@bc-solutions-coder/env`     | **no (`private`)** | `resolveInternalOrigin` and `resolveRequestOrigin` (`src/start.ts`) — the deployment-derived addressing every Start host needs                                        |
+| Package                       | Published          | What this app pulls from it                                                                                                                                                                     |
+| ----------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@bc-solutions-coder/styles`  | yes                | Tailwind v4 pipeline (`wallowStyles()` in `vite.config.ts`), brand theme tokens + assets (`src/styles.css`, `__root.tsx`)                                                                       |
+| `@bc-solutions-coder/ui`      | **no (`private`)** | Shared components (`Card`, `MutedText`, `CenteredCardLayout`, `ForkAttribution`, `DocumentStyles`, `FocusOnNavigate`, `ReadyIndicator`) + its Tailwind `@source` scan                           |
+| `@bc-solutions-coder/sdk`     | yes                | `createWallowSdk` and `createRequestOriginResolver` (`src/start.ts`), the `createApiPassthrough` server preset (`src/lib/api-passthrough.ts`), and the generated `./query` TanStack Query layer |
+| `@bc-solutions-coder/testing` | **no (`private`)** | The `createVitestProjects` node+browser preset (`vitest.config.ts`) and the browser-mode `render` helper (`*.test.tsx`)                                                                         |
+| `@bc-solutions-coder/query`   | **no (`private`)** | `createQueryClient` — the router's `QueryClient` factory — and every react-query symbol the app uses, re-exported from the one facade                                                           |
+| `@bc-solutions-coder/env`     | **no (`private`)** | `resolveInternalOrigin` (`src/start.ts`) — the deployment-derived addressing every Start host needs                                                                                             |
 
 > **Copy-outside-the-monorepo caveat:** only `@bc-solutions-coder/sdk` and
 > `@bc-solutions-coder/styles` are published to GitHub Packages. `ui`, `testing`,

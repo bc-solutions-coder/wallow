@@ -29,6 +29,10 @@
       "types": "./src/server/passthrough.ts",
       "import": "./src/server/passthrough.ts"
     },
+    "./server/forwarded": {
+      "types": "./src/server/forwarded.ts",
+      "import": "./src/server/forwarded.ts"
+    },
     "./server/service": {
       "types": "./src/server/service.ts",
       "import": "./src/server/service.ts"
@@ -51,6 +55,10 @@
       "./server/passthrough": {
         "types": "./dist/server/passthrough.d.ts",
         "import": "./dist/server/passthrough.js"
+      },
+      "./server/forwarded": {
+        "types": "./dist/server/forwarded.d.ts",
+        "import": "./dist/server/forwarded.js"
       },
       "./server/service": {
         "types": "./dist/server/service.d.ts",

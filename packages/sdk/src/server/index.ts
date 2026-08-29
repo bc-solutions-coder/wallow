@@ -25,7 +25,10 @@ export {
   type BffHandlers,
   type BffUserResponse,
 } from "./handlers";
-export { CLIENT_IP_HEADER } from "./forwarded";
+// The trust primitives (`createClientAddressResolver`, `resolveClientAddress`, …) live on
+// the dependency-free `./server/forwarded` subpath, not here: an isomorphic module must
+// be able to import them without pulling the BFF graph in.
+export { type PeerRequest } from "./forwarded";
 export { CSRF_HEADER, CSRF_INVALID_CODE, csrfTokenMatches } from "./csrf";
 export {
   createApiProxy,

@@ -273,9 +273,12 @@ returns the response unchanged, so every `Set-Cookie` reaches the browser verbat
 Keep `/.well-known/**` in the prefix list: an OIDC client pointed at this origin
 resolves discovery there and fetches signing keys from the `jwks_uri` that document
 advertises, so dropping it 404s discovery and breaks login with no useful error.
-Stamp the peer address onto the `x-wallow-client-ip` header before calling
-`handle()` and the passthrough appends it to any inbound `X-Forwarded-For` chain,
-then strips the seam header before the upstream hop.
+Pass the runtime's request through unchanged: the passthrough reads the peer address
+from `request.ip` and appends the resolved caller to the upstream `X-Forwarded-For`,
+so the API rate-limits per visitor. A fronting proxy's own `X-Forwarded-*` headers are
+believed only when the peer is inside `WALLOW_TRUSTED_PROXIES` (or the
+`trustedProxies` option) — `createWallowBffServer` behaves the same. The trust
+primitives are exported from the dependency-free `./server/forwarded` subpath.
 
 ### 4. Build an SDK instance per request
 
