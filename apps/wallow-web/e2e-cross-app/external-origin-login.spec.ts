@@ -5,9 +5,9 @@ const UNAUTHENTICATED_STATUS = 401;
 
 /**
  * `bff-example` (docker/docker-compose.test.yml) hosts wallow-web's own image/route surface
- * but authenticates as the seeded THIRD-PARTY `bcordes-bff` client (api/seed.json:221-227)
- * rather than `wallow-web-client` -- it stands in for a genuinely separate site ("bcordes.dev")
- * built on the same SDK, per design doc Sec 14. Its host port defaults to 3003
+ * but authenticates as the seeded THIRD-PARTY `bff-example-client` (api/seed.json) rather than
+ * `wallow-web-client` -- it stands in for a genuinely separate site built on the same SDK, per
+ * design doc Sec 14. Its host port defaults to 3003
  * (`ports: ["${E2E_BFF_PORT:-3003}:3000"]`); `scripts/e2e.sh` allocates a per-run
  * port and passes it as `E2E_BFF_EXAMPLE_URL` (Wallow-joo0). There is no
  * equivalent under `pnpm backend` (Aspire has no bff-example service), so unlike
@@ -27,7 +27,7 @@ const BFF_EXAMPLE_ORIGIN = process.env.E2E_BFF_EXAMPLE_URL ?? "http://localhost:
  *
  * WHY THIS IS A DIFFERENT FLOW FROM login-journey.spec.ts, NOT A DUPLICATE: `wallow-web-client`
  * is first-party (id starts with "wallow-", `AuthorizationController.cs`'s `isFirstParty`
- * check), so its authorize round trip never renders consent. `bcordes-bff` matches neither
+ * check), so its authorize round trip never renders consent. `bff-example-client` matches neither
  * first-party test, so the API routes it through wallow-auth's interactive consent screen --
  * the leg this bead exists to prove renders real, seeded scope descriptions rather than the
  * null placeholders design doc Sec 14.3 documented before plan Sec 5.5.1 seeded
@@ -48,7 +48,7 @@ async function signInAtExternalOrigin(page: Page): Promise<void> {
   await page.getByTestId("login-password").fill(process.env.E2E_PASSWORD ?? "Admin123!");
   await page.getByTestId("login-submit").click();
 
-  // bcordes-bff is a real third-party client: the API sends the browser to wallow-auth's
+  // bff-example-client is a real third-party client: the API sends the browser to wallow-auth's
   // /consent instead of straight back to bff-example's callback.
   await page.waitForURL((url) => url.pathname === "/consent", { timeout: 20_000 });
   await expect(page.locator("[data-app-ready='true']")).toBeAttached({ timeout: 20_000 });

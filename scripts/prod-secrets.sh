@@ -104,9 +104,9 @@ count="$(printf '%s' "$generated" | grep -c . || true)"
 echo "Wrote $output ($count secrets generated, mode 600)."
 echo
 
-# Only UNCOMMENTED placeholders block a deployment. The commented ones are the
-# optional BCORDES_* client secrets and the BFF_COOKIE_PASSWORDS rotation
-# example, which are supposed to stay placeholders until someone opts in.
+# Only UNCOMMENTED placeholders block a deployment. Commented ones (like the
+# BFF_COOKIE_PASSWORDS rotation example) are supposed to stay placeholders
+# until someone opts in.
 remaining="$(grep -nE '^[A-Z][A-Z_0-9]*=.*CHANGE_ME' "$output" || true)"
 if [ -n "$remaining" ]; then
   echo "STILL PLACEHOLDER — no random value is the right one for these:"

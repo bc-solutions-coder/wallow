@@ -1,4 +1,4 @@
-**status: active**
+**status: completed**
 
 # Remove the bcordes client seeding
 

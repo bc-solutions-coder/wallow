@@ -176,8 +176,7 @@
   "organizations": [
     {
       "name": "Wallow",
-      "enrollmentPolicy": "RequestApproval",
-      "accessRequestEmail": "bryan.cordes@bcordes.dev"
+      "enrollmentPolicy": "RequestApproval"
     }
   ],
   "clients": [

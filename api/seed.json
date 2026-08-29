@@ -212,46 +212,14 @@
       ]
     },
     {
-      "clientId": "sa-bcordes-bff",
-      "displayName": "BCOrdes BFF Service Account",
-      "public": false,
-      "secret": "bcordes-bff-secret",
-      "tenantName": "Wallow",
-      "scopes": ["inquiries.read", "inquiries.write", "notifications.read", "notifications.write"]
-    },
-    {
-      "clientId": "bcordes-bff",
-      "displayName": "BCOrdes BFF",
+      "clientId": "bff-example-client",
+      "displayName": "BFF Example",
       "tenantName": "Wallow",
       "public": false,
-      "secret": "bcordes-bff-secret",
+      "secret": "bff-example-secret",
       "redirectUris": ["http://localhost:3003/bff/callback"],
       "postLogoutRedirectUris": ["http://localhost:3003/"],
       "frontchannelLogoutUri": "http://localhost:3003/bff/frontchannel-logout",
-      "scopes": [
-        "openid",
-        "email",
-        "profile",
-        "roles",
-        "offline_access",
-        "inquiries.read",
-        "inquiries.write",
-        "notifications.read",
-        "notifications.write"
-      ]
-    }
-  ],
-  "_productionExampleClients": [
-    {
-      "_comment": "Documentation-only example (ignored by the seeder). Shows a production-shaped confidential BFF client for the reference deployment: issuer = API origin (api.wallow.dev), login UX = auth origin (auth.wallow.dev), cookie domain = .wallow.dev. Copy into the active 'clients' array and set a real secret to activate.",
-      "clientId": "bcordes-web-client",
-      "displayName": "BCordes Web (Production Example)",
-      "tenantName": "Wallow",
-      "public": false,
-      "secret": "replace-with-a-strong-generated-secret",
-      "redirectUris": ["https://bcordes.dev/bff/callback"],
-      "postLogoutRedirectUris": ["https://bcordes.dev/"],
-      "frontchannelLogoutUri": "https://bcordes.dev/bff/frontchannel-logout",
       "scopes": [
         "openid",
         "email",

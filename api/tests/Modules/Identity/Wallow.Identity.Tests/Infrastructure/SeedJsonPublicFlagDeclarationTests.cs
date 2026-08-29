@@ -18,26 +18,17 @@ public sealed class SeedJsonPublicFlagDeclarationTests
     }
 
     [Fact]
-    public void SeedJson_EveryProductionExampleClient_DeclaresThePublicFlag()
-    {
-        AssertEveryClientDeclaresPublic("_productionExampleClients");
-    }
-
-    [Fact]
     public void SeedJson_PublicFlags_AreBooleans()
     {
         using JsonDocument document = JsonDocument.Parse(File.ReadAllText(SeedPath()));
 
-        foreach (string arrayKey in new[] { "clients", "_productionExampleClients" })
+        foreach (JsonElement client in document.RootElement.GetProperty("clients").EnumerateArray())
         {
-            foreach (JsonElement client in document.RootElement.GetProperty(arrayKey).EnumerateArray())
+            if (client.TryGetProperty(PublicKey, out JsonElement flag))
             {
-                if (client.TryGetProperty(PublicKey, out JsonElement flag))
-                {
-                    flag.ValueKind.Should().BeOneOf(
-                        [JsonValueKind.True, JsonValueKind.False],
-                        $"the '{PublicKey}' flag must be a JSON boolean, not a string");
-                }
+                flag.ValueKind.Should().BeOneOf(
+                    [JsonValueKind.True, JsonValueKind.False],
+                    $"the '{PublicKey}' flag must be a JSON boolean, not a string");
             }
         }
     }

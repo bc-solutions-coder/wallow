@@ -7,13 +7,13 @@ namespace Wallow.Identity.Tests.Infrastructure;
 /// Verifies that the repo-root seed.json declares the confidential
 /// Authorization-Code + PKCE client the BFF uses to authenticate against Wallow.
 ///
-/// Its callback sits on port 3003, not the dashboard's 3000: bcordes-bff is the external-site
-/// reference client and wallow-web-client owns 3000, and two clients sharing one redirect URI
-/// makes which one a callback belongs to ambiguous.
+/// Its callback sits on port 3003, not the dashboard's 3000: bff-example-client is the
+/// external-site reference client and wallow-web-client owns 3000, and two clients sharing one
+/// redirect URI makes which one a callback belongs to ambiguous.
 /// </summary>
 public sealed class SeedJsonBffClientTests
 {
-    private const string BffClientId = "bcordes-bff";
+    private const string BffClientId = "bff-example-client";
     private const string ExpectedRedirectUri = "http://localhost:3003/bff/callback";
 
     private static readonly string[] _expectedScopes =

@@ -116,12 +116,12 @@ services:
       # clients array by POSITION; wallow-web-client is index 0 there.
       Clients__0__RedirectUris__0: "http://localhost:${E2E_WEB_PORT:-5053}/bff/callback"
       Clients__0__PostLogoutRedirectUris__0: "http://localhost:${E2E_WEB_PORT:-5053}/"
-      # bcordes-bff (seed.json clients index 2) hardcodes localhost:3003; rebase it
+      # bff-example-client (seed.json clients index 1) hardcodes localhost:3003; rebase it
       # onto this run's bff-example host port so the external-origin consent spec
       # still round-trips when scripts/e2e.sh randomizes ports (Wallow-joo0).
-      Clients__2__RedirectUris__0: "http://localhost:${E2E_BFF_PORT:-3003}/bff/callback"
-      Clients__2__PostLogoutRedirectUris__0: "http://localhost:${E2E_BFF_PORT:-3003}/"
-      Clients__2__FrontchannelLogoutUri: "http://localhost:${E2E_BFF_PORT:-3003}/bff/frontchannel-logout"
+      Clients__1__RedirectUris__0: "http://localhost:${E2E_BFF_PORT:-3003}/bff/callback"
+      Clients__1__PostLogoutRedirectUris__0: "http://localhost:${E2E_BFF_PORT:-3003}/"
+      Clients__1__FrontchannelLogoutUri: "http://localhost:${E2E_BFF_PORT:-3003}/bff/frontchannel-logout"
       # First-run setup coverage: scripts/e2e.sh blanks this for the initial seed
       # (a blank Admin__Email leaves AdminBootstrapOptions unconfigured, so the
       # bootstrap step is skipped and the stack comes up with setupRequired=true
@@ -176,11 +176,11 @@ services:
       # array, so it starts at index 0 and must be renumbered whenever that
       # array (or this override list) gains or loses an entry.
       #
-      # bcordes-bff (the external-origin reference client, api/seed.json) is
+      # bff-example-client (the external-origin reference client, api/seed.json) is
       # DELIBERATELY ABSENT here. It used to be listed too, to skip consent for
       # it as well -- a workaround dating from when the consent screen was
       # broken (design doc Sec 14.3). Plan Sec 5.5.1/5.5.2 fixed the screen
-      # (seeded scope descriptions, scp:* client permissions), and bcordes-bff
+      # (seeded scope descriptions, scp:* client permissions), and bff-example-client
       # exists specifically to exercise the THIRD-PARTY consent path
       # (Wallow-yp3e.4, plan 5.5.6) -- treating it as first-party here made this
       # stack the one place that path could never be verified, while the
@@ -267,7 +267,7 @@ services:
   #
   # This is the same Node BFF host as bff-example, but authenticates as the
   # seeded wallow-web-client (the canonical dashboard client) rather than the
-  # bcordes-bff reference client. The OIDC issuer/metadata split mirrors
+  # bff-example-client reference client. The OIDC issuer/metadata split mirrors
   # bff-example (browser-facing issuer vs container-reachable discovery URL).
   wallow-web:
     image: wallow-web-react:${E2E_IMAGE_TAG:-test}
@@ -351,11 +351,11 @@ services:
       # The SDK uses this metadata's token_endpoint for the backchannel and pins
       # the browser-facing authorize/end-session endpoints to OIDC_ISSUER.
       OIDC_METADATA_URL: "http://host.docker.internal:${E2E_API_PORT:-5050}/.well-known/openid-configuration"
-      OIDC_CLIENT_ID: bcordes-bff
-      OIDC_CLIENT_SECRET: bcordes-bff-secret
+      OIDC_CLIENT_ID: bff-example-client
+      OIDC_CLIENT_SECRET: bff-example-secret
       OIDC_REDIRECT_URI: "http://localhost:${E2E_BFF_PORT:-3003}/bff/callback"
       OIDC_POST_LOGOUT_REDIRECT_URI: "http://localhost:${E2E_BFF_PORT:-3003}/"
-      # bcordes-bff (api/seed.json:221-239) is provisioned for these scopes beyond the SDK's
+      # bff-example-client (api/seed.json) is provisioned for these scopes beyond the SDK's
       # default openid/profile/email/offline_access -- request all of them so the consent
       # screen this client exists to exercise actually renders their descriptions instead of
       # silently falling back to the default set (AuthorizationController.cs only grants

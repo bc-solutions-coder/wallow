@@ -24,8 +24,8 @@ docker compose -f docker-compose.production.yml --env-file .env.production --pro
   `pnpm lint:env` fails otherwise. Pairings and semantics live in `scripts/check-env.sh`'s
   comments and `pairs` list.
 - `seed.production.json` IS committed and secret-less by design: secrets are `ClientSecrets__*`
-  env vars, and it carries no admin block — first-run setup bootstraps the admin. Never "fix"
-  the bare `${BCORDES_*}` vars with defaults (deliberate fail-closed), and never commit a real
+  env vars, and it carries no admin block — first-run setup bootstraps the admin. Additional
+  OIDC clients are created through the organizations UI, not seeded. Never commit a real
   `.env` / `.env.production`.
 - The API container entrypoint is `api/src/Wallow.Api/entrypoint.sh`, wired via
   `ContainerEntrypoint` — no compose file references it, so grepping `docker/` won't find it.

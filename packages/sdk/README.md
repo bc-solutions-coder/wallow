@@ -18,8 +18,8 @@ flow with PKCE, keeps the token set in a session (sealed cookie or Valkey), and
 attaches the `Authorization: Bearer` header when it proxies `/api/**` calls to
 the Wallow API.
 
-For the full narrative guide — protocol diagrams, the seeded local `bcordes-bff`
-client, publishing, troubleshooting — see
+For the full narrative guide — protocol diagrams, the seeded local
+`bff-example-client`, publishing, troubleshooting — see
 [`docs/integrations/typescript-sdk.md`](../../docs/integrations/typescript-sdk.md).
 A runnable host lives in [`apps/wallow-web/`](../../apps/wallow-web).
 

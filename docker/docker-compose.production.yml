@@ -327,16 +327,12 @@ services:
       # so an unset secret variable below aborts the seeder instead of silently registering a
       # public client that issues tokens without authenticating the caller.
       # wallow-web-client is the dashboard client every deployment has, so it fails closed here.
-      # The other three stay BARE on purpose: they are optional additional clients, and a
-      # `:?` on them would force every deployment to define three clients it may not have.
-      # Compose renders their unset variables as EMPTY values, which the seeder treats as
-      # "not provided": harmless when the seed file omits that client, and the hard fail
-      # above when it defines it. A NON-empty secret whose clientId matches no seed client
-      # also aborts the seeder — a misconfiguration is never dropped silently.
+      # A NON-empty secret whose clientId matches no seed client also aborts the seeder — a
+      # misconfiguration is never dropped silently. Additional OIDC clients are NOT seeded:
+      # create them through the organizations UI (which issues and rotates their secrets). A
+      # fork that genuinely must seed an extra client adds it to its seed file plus one
+      # ClientSecrets__<clientId> line here, keyed by the new client's id.
       ClientSecrets__wallow-web-client: ${OIDC_CLIENT_SECRET:?OIDC_CLIENT_SECRET is required (generate with `openssl rand -hex 32`)}
-      ClientSecrets__bcordes-dev-client: ${BCORDES_CLIENT_SECRET}
-      ClientSecrets__sa-bcordes-bff: ${BCORDES_BFF_SECRET}
-      ClientSecrets__bcordes-bff: ${BCORDES_BFF_AUTHCODE_SECRET}
     depends_on:
       wallow-migrations:
         condition: service_completed_successfully

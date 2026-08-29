@@ -75,7 +75,7 @@ unlike the per-app configs — **boots no server of its own**.
   (where the journey starts and ends), the API OIDC issuer, and wallow-auth (the login UI the
   API's `AuthUrl` redirects to).
 - **`external-origin-login.spec.ts`** runs the same round trip from the `bff-example` origin,
-  whose host port defaults to `:3003`, which authenticates as the seeded third-party `bcordes-bff`
+  whose host port defaults to `:3003`, which authenticates as the seeded third-party `bff-example-client`
   client instead of `wallow-web-client`. Because that client is not first-party, the API routes it
   through wallow-auth's interactive **consent** screen — the leg `login-journey.spec.ts` never
   reaches. `bff-example` exists only in `docker/docker-compose.test.yml`, so this spec needs the

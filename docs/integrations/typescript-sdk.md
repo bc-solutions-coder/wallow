@@ -680,7 +680,7 @@ middleware and `getRouter()` lifts it into the router context.
 
 ---
 
-## Local development: the seeded `bcordes-bff` client
+## Local development: the seeded `bff-example-client`
 
 The repository's `seed.json` ships a ready-to-use confidential client for local
 BFF development so you do not have to register one by hand. It is the *external
@@ -692,8 +692,8 @@ the `Wallow` organization:
 
 | Setting                  | Value                                                                                                             |
 | ------------------------ | ----------------------------------------------------------------------------------------------------------------- |
-| `clientId`               | `bcordes-bff`                                                                                                     |
-| `clientSecret`           | `bcordes-bff-secret`                                                                                              |
+| `clientId`               | `bff-example-client`                                                                                                     |
+| `clientSecret`           | `bff-example-secret`                                                                                              |
 | Redirect URI             | `http://localhost:3003/bff/callback`                                                                              |
 | Post-logout redirect URI | `http://localhost:3003/`                                                                                          |
 | Scopes                   | `openid email profile roles offline_access inquiries.read inquiries.write notifications.read notifications.write` |
@@ -703,8 +703,8 @@ running stack):
 
 ```ini
 OIDC_ISSUER=http://localhost:5001
-OIDC_CLIENT_ID=bcordes-bff
-OIDC_CLIENT_SECRET=bcordes-bff-secret
+OIDC_CLIENT_ID=bff-example-client
+OIDC_CLIENT_SECRET=bff-example-secret
 OIDC_REDIRECT_URI=http://localhost:3003/bff/callback
 OIDC_POST_LOGOUT_REDIRECT_URI=http://localhost:3003/
 BFF_API_BASE_URL=http://localhost:5001
@@ -716,7 +716,7 @@ your BFF on port `3003` locally (or update `seed.json` and re-seed). This is the
 manual, by-hand convention; the containerised E2E stack seeds the same client
 with a per-run port instead (`./scripts/e2e.sh`, Wallow-joo0).
 
-> **Development secret:** `bcordes-bff-secret` and the sample `COOKIE_PASSWORD`
+> **Development secret:** `bff-example-secret` and the sample `COOKIE_PASSWORD`
 > are for local development only. Provision distinct, high-entropy values for
 > every deployed environment.
 

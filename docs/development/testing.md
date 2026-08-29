@@ -295,7 +295,7 @@ on ports distinct from the dev environment, so both stacks can run at once.
 | `wallow-api` | `wallow-api:test` | 5050 | API server |
 | `wallow-auth` | `wallow-auth-react:test` | 5051 | Auth app (TanStack Start; a pure same-origin reverse proxy to the API) |
 | `wallow-web` | `wallow-web-react:test` | 5053 | Web app (TanStack Start dashboard + BFF) |
-| `bff-example` | `wallow-bff-example:test` | 3003 | SDK BFF reference host, authenticating as the `bcordes-bff` client. **Not started by CI** — the CI job brings up only `wallow-auth` and its transitive dependencies. |
+| `bff-example` | `wallow-bff-example:test` | 3003 | SDK BFF reference host, authenticating as the `bff-example-client`. **Not started by CI** — the CI job brings up only `wallow-auth` and its transitive dependencies. |
 
 `scripts/e2e.sh` overrides every host port (and the image tag) per run so concurrent runs stay
 isolated — see `docker/.env.example` for the `E2E_*` knobs (Wallow-joo0).

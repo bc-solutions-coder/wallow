@@ -48,14 +48,14 @@ public class SeederClientSecretMappingTests
     public void ClientSecrets_BlankValueForUnknownClient_IsIgnored()
     {
         // Compose interpolates an unset optional variable as an EMPTY string, so a deployment
-        // that defines only the dashboard client still ships blank entries for the optional
+        // that defines only the dashboard client still ships blank entries for any optional
         // clients it never declared. Those must be a non-event, not a startup failure.
         PreRegisteredClientOptions options = BuildOptions(new Dictionary<string, string?>
         {
             ["Clients:0:ClientId"] = "wallow-web-client",
             ["Clients:0:Secret"] = "s3cret-value",
-            ["ClientSecrets:bcordes-dev-client"] = "",
-            ["ClientSecrets:sa-bcordes-bff"] = "",
+            ["ClientSecrets:optional-spa-client"] = "",
+            ["ClientSecrets:sa-optional-worker"] = "",
         });
 
         options.Clients.Should().ContainSingle()

@@ -227,17 +227,26 @@ client with that id, so the order of the `clients` array never matters:
 
 ```yaml
 ClientSecrets__wallow-web-client: ${OIDC_CLIENT_SECRET}
-ClientSecrets__bcordes-dev-client: ${BCORDES_CLIENT_SECRET}
-ClientSecrets__sa-bcordes-bff: ${BCORDES_BFF_SECRET}
-ClientSecrets__bcordes-bff: ${BCORDES_BFF_AUTHCODE_SECRET}
 ```
 
-`wallow-web-client` is the dashboard client every deployment has; the rest are the fork's own
-clients and are commented out in `.env.production.example` until you need them. An unset
-optional variable is harmless (Compose renders it as an empty value, which the seeder treats as
-"not provided"), but the seeder fails closed in both misconfiguration directions: a seed client
+`wallow-web-client` — the dashboard client every deployment has — is the **only** seeded
+production client. The seeder fails closed in both misconfiguration directions: a seed client
 with no secret that does not declare `"public": true` aborts, and so does a non-empty secret
 whose clientId matches no client in the seed file.
+
+### Additional OIDC clients — create them through the UI
+
+Extra clients (another frontend's BFF, a service integration, a third-party consumer) are
+**not** seeded. Once the deployment is up and an administrator exists, create them from the
+dashboard: an organization's detail page manages its OIDC clients — create the client with its
+redirect URIs and scopes, then use **rotate secret** to issue the credential you configure the
+consuming application with. Service accounts (client-credentials clients for headless
+integrations) are managed from the same surface. The equivalent API endpoints live under
+`/v1/identity/clients`.
+
+Seeding remains the right tool only for a client that must exist *before* anyone can log in.
+A fork with that constraint adds the client to its `seed.production.json` and injects its
+secret with one more name-keyed `ClientSecrets__<clientId>` line in the compose file.
 
 ### Setup mode — when no admin exists
 

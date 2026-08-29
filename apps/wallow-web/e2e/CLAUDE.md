@@ -34,12 +34,12 @@ pnpm --filter ./apps/wallow-web test:e2e:cross-app
 **`external-origin-login.spec.ts`** — the "sign in with Wallow from another site" flow; needs
 the **containerised stack specifically**. Its fourth origin is `bff-example`
 (`docker/docker-compose.test.yml`), running wallow-web's image but authenticating as the seeded
-third-party `bcordes-bff` client. Aspire has no `bff-example` service, so `pnpm backend` cannot
+third-party `bff-example-client`. Aspire has no `bff-example` service, so `pnpm backend` cannot
 serve it. The origin's host port defaults to `:3003` (`E2E_BFF_PORT`), independent of
 `E2E_BASE_URL`; `scripts/e2e.sh` passes a per-run port as `E2E_BFF_EXAMPLE_URL`.
 
 The client identity is the point: `wallow-web-client` is first-party (id starts with `wallow-`)
-so its authorize round trip never renders consent, while `bcordes-bff` routes through
+so its authorize round trip never renders consent, while `bff-example-client` routes through
 wallow-auth's interactive consent screen — the leg `login-journey.spec.ts` structurally cannot
 reach. A failure in either can be a real cross-app regression rather than a fault in the spec.
 
