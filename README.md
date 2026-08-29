@@ -4,73 +4,69 @@
 
 # Wallow
 
-**A .NET modular monolith base platform for building multi-tenant SaaS products.**
+**A fork-first base platform for multi-tenant SaaS: a .NET modular monolith API plus a
+TypeScript workspace of shared packages and React frontends.**
 
-Fork it. Add your domain modules. Deploy.
+Fork it, add your domain modules, build your screens from the shared packages.
 
-*Pre-release: Wallow has not been deployed outside local development yet, and breaking changes to
-`main` are expected.*
+*Pre-release: Wallow has not been deployed outside local development yet, and breaking changes
+to `main` are expected.*
 
 [![CI](https://github.com/bc-solutions-coder/wallow/actions/workflows/ci.yml/badge.svg)](https://github.com/bc-solutions-coder/wallow/actions/workflows/ci.yml)
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![Tests](https://img.shields.io/badge/tests-passing-brightgreen?logo=checkmarx&logoColor=white)](#testing)
-[![Coverage](https://img.shields.io/badge/coverage-see_testing-brightgreen?logo=codecov&logoColor=white)](#testing)
 [![License](https://img.shields.io/badge/license-Apache_2.0-green.svg)](LICENSE)
-[![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](docker/)
 
 </div>
 
 ---
 
-## Why Wallow?
-
-- **Multi-tenancy from day one** -- tenant isolation, per-tenant config, and data partitioning built into the architecture so you ship product features, not plumbing
-- **Fork-first architecture** -- merge drivers preserve your branding, config, and customizations when pulling upstream improvements
-- **Batteries-included infrastructure** -- observability, background jobs, file storage, email, caching, and CI/CD preconfigured and tested
-- **Comprehensive test coverage** -- the .NET suites (unit, integration, architecture) plus per-app Playwright E2E and Vitest browser-mode suites across the pnpm workspace
-
 ## What is Wallow?
 
-Wallow provides the cross-cutting infrastructure every SaaS product needs out of the box -- identity, notifications, announcements, file storage, API keys, and multi-tenant data isolation. You write the business logic.
+Wallow is the infrastructure layer SaaS products keep rebuilding: identity and RBAC,
+multi-tenant data isolation, notifications, announcements, file storage, API keys, and
+per-client branding. You fork this repo, keep all of that, and write only your product's
+modules and screens.
 
-The intended workflow is to **fork this repo and build your product on top**. Shared infrastructure improvements can be pulled from upstream into forks without conflicts.
+One repo, two toolchains:
 
-> **New here?** Start with the [Fork Guide](docs/getting-started/fork-guide.md) or the [Developer Guide](docs/getting-started/developer-guide.md).
+- **`api/`** is a .NET 10 modular monolith. Seven modules, each an autonomous bounded context
+  owning its own PostgreSQL schema and talking to the others only through integration events.
+  The API is headless; the React apps are its only UIs. See [`api/README.md`](api/README.md).
+- **`apps/` + `packages/`** are a pnpm workspace: a TypeScript SDK for same-origin OIDC (the
+  BFF pattern), a shared component catalog, and three TanStack Start frontends.
 
-## Quick Start
+Forks stay mergeable. `.gitattributes` merge drivers protect fork-owned config when you pull
+upstream improvements, and rebranding is a single file, `packages/styles/branding.json`. No
+source changes needed.
 
-### Prerequisites
+New here? Start with the [fork guide](docs/getting-started/fork-guide.md) or the
+[developer guide](docs/getting-started/developer-guide.md).
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/download)
-- [Docker](https://www.docker.com/get-started)
-- [Node 24](https://nodejs.org/) (see `.nvmrc`) and pnpm 11.24.0 (see `packageManager` in
-  `package.json`)
+## Repository layout
 
-### 1. Install workspace dependencies
+| Path | What it is |
+|------|------------|
+| `api/` | .NET 10 solution: the API, Aspire host, migrations, seeder, and the seven modules |
+| `apps/` | TanStack Start frontends: `wallow-web` (dashboard), `wallow-auth` (login/MFA), `minimal-app` (smallest example) |
+| `packages/` | Shared TypeScript packages: SDK, UI catalog, forms, auth, styles, and friends |
+| `docker/` | Compose files for infra, production, and the E2E test stack |
+| `docs/` | The DocFX documentation site |
+| `scripts/` | Test runners (`run-tests.sh`, `e2e.sh`) and docs helpers |
+
+## Quick start
+
+You need the [.NET 10 SDK](https://dotnet.microsoft.com/download),
+[Docker](https://www.docker.com/get-started), and [Node 24](https://nodejs.org/) with pnpm
+(versions pinned in `.nvmrc` and `package.json`).
 
 ```bash
-pnpm install
+pnpm install                              # workspace dependencies
+pnpm backend:infra                        # Postgres, Valkey, GarageHQ, Mailpit, Grafana
+pnpm backend                              # Aspire AppHost: API + both React apps + migration + seeder
 ```
 
-### 2. Start infrastructure
-
-```bash
-pnpm backend:infra                        # docker compose up -d; backend:infra:down to stop
-```
-
-Starts PostgreSQL, Valkey, GarageHQ (S3), Mailpit, and Grafana.
-
-### 3. Run the apps
-
-The frontends are React (TanStack Start) apps; the .NET Aspire host orchestrates the
-API, both React apps, migrations, and the seeder together:
-
-```bash
-pnpm backend                              # Aspire AppHost: API + Auth + Web + Migration + Seeder
-```
-
-Or run the pieces individually:
+That's the whole stack. To run pieces individually:
 
 ```bash
 dotnet run --project api/src/Wallow.Api                       # API   → http://localhost:5001
@@ -78,135 +74,25 @@ pnpm --filter @bc-solutions-coder/wallow-web dev              # Web   → http:/
 pnpm --filter @bc-solutions-coder/wallow-auth dev             # Auth  → http://localhost:3002
 ```
 
-### 4. Run tests
+## Testing and quality gates
 
 ```bash
-./scripts/run-tests.sh                    # backend fast suites (Category=Integration excluded)
-./scripts/run-tests.sh all                # the same, plus the integration suites (needs Docker)
-./scripts/run-tests.sh identity           # single backend module
-pnpm check                                # the frontend quality gate (format, lint, build, typecheck, test)
-```
-
-> See [Testing](docs/development/testing.md) for coverage, E2E, and CI details.
-
-## Architecture
-
-A **modular monolith** where each module is an autonomous bounded context following Clean Architecture. Modules communicate through Wolverine in-memory events via `Shared.Contracts` -- never direct references. Each module owns its own PostgreSQL schema.
-
-```
-api/
-└── src/
-    ├── Wallow.Api/                  # REST API host: modules, Wolverine, OpenIddict resource server
-    ├── Wallow.AppHost/              # .NET Aspire host orchestrating the API, React apps, and infra
-    ├── Wallow.MigrationService/     # Applies EF migrations for all module DbContexts
-    ├── Wallow.SeederService/        # Seeds roles, scopes, admin, and OIDC clients from seed.json
-    ├── Wallow.ServiceDefaults/      # Aspire defaults: telemetry, health checks, resilience
-    ├── Modules/
-    │   ├── Identity/                # Auth, users, organizations, RBAC
-    │   ├── Storage/                 # File storage (S3-compatible)
-    │   ├── Notifications/           # In-app and push notifications
-    │   ├── Announcements/           # System-wide announcements
-    │   ├── Inquiries/               # Inquiry and question submission
-    │   ├── ApiKeys/                 # API key management
-    │   └── Branding/                # Tenant branding configuration
-    └── Shared/
-        ├── Wallow.Shared.Contracts/                 # Cross-module integration events
-        ├── Wallow.Shared.Kernel/                    # DDD primitives, multi-tenancy, JWT claim helpers
-        ├── Wallow.Shared.Api/                       # Shared API utilities (Result → IActionResult, health check)
-        ├── Wallow.Shared.Infrastructure/            # Settings framework and module coordination
-        ├── Wallow.Shared.Infrastructure.Core/       # Persistence, caching, and messaging primitives
-        ├── Wallow.Shared.Infrastructure.BackgroundJobs/  # Hangfire-backed IJobScheduler
-        └── Wallow.Shared.Infrastructure.Plugins/    # Plugin loading and extension points
-
-apps/                               # React (TanStack Start) frontends (pnpm workspace)
-├── wallow-auth/                     # Auth UI (login, register, MFA)  → http://localhost:3002
-├── wallow-web/                      # Dashboard and public pages       → http://localhost:3000
-└── minimal-app/                     # Smallest wiring of the shared packages → http://localhost:3010
-
-packages/                           # Shared TypeScript packages (SDK, UI, forms, auth, styles, …)
-```
-
-Each module follows four layers: **Domain** (no dependencies) → **Application** → **Infrastructure** → **API**.
-
-> Deep dive: [Architecture Assessment](docs/architecture/assessment.md) · [Module Creation](docs/architecture/module-creation.md)
-
-## Key Features
-
-| Feature | Description |
-|---------|-------------|
-| **Clean Architecture** | Strict dependency rules per module with domain isolation |
-| **Domain-Driven Design** | Entities, value objects, domain events, bounded contexts |
-| **CQRS** | Command/query separation with Wolverine as mediator |
-| **Multi-Tenancy** | Schema-per-tenant data isolation, configurable resolution (header, subdomain, JWT) |
-| **Event-Driven** | Wolverine in-memory events between modules |
-| **Identity & RBAC** | OpenIddict + ASP.NET Core Identity |
-| **Real-Time** | Push notifications via SignalR |
-| **Observability** | Serilog structured logging, OpenTelemetry tracing, [Grafana dashboards](docs/operations/observability.md) |
-| **Audit Trail** | Automatic entity change auditing via Audit.NET |
-| **Background Jobs** | `IJobScheduler` abstraction backed by Hangfire |
-
-## Tech Stack
-
-| Purpose | Technology |
-|---------|------------|
-| Framework | .NET 10 |
-| Database | PostgreSQL 18 |
-| ORM | EF Core (writes tracked, reads `NoTracking` via `IReadDbContext<T>`) |
-| CQRS & Messaging | Wolverine (in-memory) |
-| Caching | Valkey (Redis-compatible) |
-| Identity | OpenIddict + ASP.NET Core Identity |
-| Real-time | SignalR |
-| Validation | FluentValidation |
-| Logging & Tracing | Serilog, OpenTelemetry |
-| Testing | xUnit, Testcontainers, AwesomeAssertions |
-
-## Testing
-
-The backend has 15 xUnit test assemblies under `api/tests/` (unit, integration, and architecture),
-alongside the shared `Wallow.Tests.Common` helper library and the BenchmarkDotNet project, neither
-of which carries tests. Most pnpm workspace members add a Vitest suite — DOM specs run in a real
-browser project, non-DOM specs in a node project — plus per-app Playwright E2E suites.
-
-```bash
-./scripts/run-tests.sh                    # backend fast suites, with the coverage runsettings
-./scripts/run-tests.sh all                # the same, plus every Category=Integration test (Docker)
-pnpm check                                # frontend quality gate, including pnpm test
+./scripts/run-tests.sh                    # backend fast suites (integration excluded)
+./scripts/run-tests.sh all                # the same plus the integration suites (needs Docker)
+pnpm check                                # frontend gate: format, lint, build, typecheck, test
 ./scripts/e2e.sh                          # containerised backend + all three Playwright suites
 ```
 
-A bare backend run filters out `Category=Integration` and says so in its own output; `all` (or
-`integration` for that tier alone) is what exercises the Wolverine handler-codegen guards and the
-Testcontainers-backed suites.
+Backend detail (tiers, coverage, the integration category) is in
+[`api/README.md`](api/README.md); the full picture is in the
+[testing guide](docs/development/testing.md).
 
-Coverage figures are produced by the run, not tracked here — `./scripts/run-tests.sh` writes them
-with `api/tests/coverage.runsettings` applied.
-
-> Details: [Testing Guide](docs/development/testing.md) — backend suites, frontend Vitest, coverage, the Docker test stack, and CI · [E2E Tests](docs/development/testing-e2e.md)
-
-## Configuration
-
-Wallow is designed to be customized without changing source code. Backend configuration flows through standard .NET mechanisms; branding is frontend-only and lives with the styles package:
-
-| Area | Config Source | What it controls |
-|------|-------------|------------------|
-| **Branding** | `packages/styles/branding.json` | App name, icon, tagline, theme colors |
-| **Database** | `appsettings.json` | PostgreSQL and Valkey connection strings |
-| **Email** | `appsettings.json` | SMTP host, port, TLS, sender defaults |
-| **Storage** | `appsettings.json` | S3 endpoint, bucket, ClamAV virus scanning |
-| **Observability** | `appsettings.json` | OpenTelemetry OTLP endpoints, service name |
-| **CORS** | `appsettings.json` | Allowed origins for API requests |
-| **Environment** | Environment variables | Override any setting with `Section__Key` syntax |
-
-Configuration loads in order: `appsettings.json` → `appsettings.{Environment}.json` → environment variables → user secrets (dev only).
-
-> Full reference with examples for Docker, Kubernetes, and all module options: [Configuration Guide](docs/getting-started/configuration.md)
-
-## Local Services
+## Local services
 
 | Service | URL |
 |---------|-----|
 | API | http://localhost:5001 |
-| API Docs (Scalar) | http://localhost:5001/scalar/v1 |
+| API docs (Scalar) | http://localhost:5001/scalar/v1 |
 | Web (TanStack) | http://localhost:3000 |
 | Auth (TanStack) | http://localhost:3002 |
 | Minimal app | http://localhost:3010 |
@@ -215,27 +101,28 @@ Configuration loads in order: `appsettings.json` → `appsettings.{Environment}.
 | GarageHQ (S3) | http://localhost:3900 |
 | Grafana | http://localhost:3001 |
 
-> Credentials and config: [Configuration Guide](docs/getting-started/configuration.md). The
-> application rows are duplicated in root `CLAUDE.md`'s Local Development table — change both together.
+Credentials and config: [configuration guide](docs/getting-started/configuration.md). The
+application rows are duplicated in root `CLAUDE.md`'s Local Development table. Change both
+together.
 
 ## Documentation
 
 | Guide | Description |
 |-------|-------------|
-| [Developer Guide](docs/getting-started/developer-guide.md) | Day-to-day development workflow |
-| [Fork Guide](docs/getting-started/fork-guide.md) | Creating a new product from Wallow |
+| [Developer guide](docs/getting-started/developer-guide.md) | Day-to-day development workflow |
+| [Fork guide](docs/getting-started/fork-guide.md) | Creating a new product from Wallow |
 | [Configuration](docs/getting-started/configuration.md) | Environment variables, branding, settings |
 | [Architecture](docs/architecture/assessment.md) | Design decisions and patterns |
-| [Module Creation](docs/architecture/module-creation.md) | Adding new modules |
+| [Module creation](docs/architecture/module-creation.md) | Adding new modules |
 | [Deployment](docs/operations/deployment.md) | CI/CD, Docker, and production setup |
 | [Versioning](docs/operations/versioning.md) | Conventional Commits and release-please |
 | [Observability](docs/operations/observability.md) | Logging, tracing, and dashboards |
-| [Frontend Setup](docs/development/frontend-setup.md) | The pnpm workspace, Vite, and TanStack Start |
-| [Component Library](docs/development/component-library.md) | The shared `@bc-solutions-coder/ui` catalog |
+| [Frontend setup](docs/development/frontend-setup.md) | The pnpm workspace, Vite, and TanStack Start |
+| [Component library](docs/development/component-library.md) | The shared `@bc-solutions-coder/ui` catalog |
 | [Forms](docs/development/forms.md) | The `@bc-solutions-coder/forms` authoring layer |
-| [Frontend State](docs/development/frontend-state.md) | TanStack Query, auth, and the nav store |
+| [Frontend state](docs/development/frontend-state.md) | TanStack Query, auth, and the nav store |
 | [Logging](docs/development/logging.md) | Structured logging across the browser and the app server |
-| [BFF Pattern](docs/integrations/bff-pattern.md) | Same-origin OIDC through the app server |
+| [BFF pattern](docs/integrations/bff-pattern.md) | Same-origin OIDC through the app server |
 | [TypeScript SDK](docs/integrations/typescript-sdk.md) | `@bc-solutions-coder/sdk` reference |
 
 ## License
