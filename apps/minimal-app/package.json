@@ -2,41 +2,31 @@
   "name": "@bc-solutions-coder/example-minimal-app",
   "version": "0.0.0",
   "private": true,
-  "description": "Minimal TanStack Start reference app wiring the core @bc-solutions-coder shared packages",
+  "description": "PROTOTYPE — external own-domain relying party built on nothing but the published @bc-solutions-coder/sdk",
   "type": "module",
   "scripts": {
     "dev": "vite dev --configLoader runner",
     "build": "vite build --configLoader runner",
     "start": "node .output/server/index.mjs",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run --configLoader runner",
-    "test:watch": "vitest --configLoader runner"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@bc-solutions-coder/env": "workspace:*",
-    "@bc-solutions-coder/query": "workspace:*",
     "@bc-solutions-coder/sdk": "workspace:*",
-    "@bc-solutions-coder/styles": "workspace:*",
-    "@bc-solutions-coder/testing": "workspace:*",
-    "@bc-solutions-coder/ui": "workspace:*",
+    "@tanstack/react-query": "catalog:react",
     "@tanstack/react-router": "catalog:start",
     "@tanstack/react-router-ssr-query": "catalog:start",
     "@tanstack/react-start": "catalog:start",
     "react": "catalog:react",
-    "react-dom": "catalog:react"
+    "react-dom": "catalog:react",
+    "redis": "^4.7.0"
   },
   "devDependencies": {
-    "@bc-solutions-coder/config": "workspace:*",
     "@types/node": "^24.0.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
-    "@vitest/browser-playwright": "^4.1.10",
     "nitro": "3.0.260610-beta",
-    "playwright": "^1.61.1",
     "typescript": "catalog:tooling",
-    "vite": "^8.1.4",
-    "vitest": "^4.1.10",
-    "vitest-browser-react": "^2.2.0"
+    "vite": "^8.1.4"
   }
 }

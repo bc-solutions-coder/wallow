@@ -1,47 +1,28 @@
-import { wallowStyles } from "@bc-solutions-coder/styles/vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import react from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
 
-import { wallowAppConfig } from "@bc-solutions-coder/config/vite/app";
-
 /**
- * The one Vite config the app has: `vite dev` serves it and `vite build` emits
- * both environments plus the Nitro server bundle (`.output/server/index.mjs` +
- * `.output/public`). The separate client/SSR passes the deleted host runtime's
- * presets drove are gone, and so is `tsr generate` — the Start plugin owns route
- * codegen.
+ * PROTOTYPE — the Vite config an EXTERNAL relying party writes.
  *
- * `wallowAppConfig()` supplies the port, the SSR graph, the
- * `use-sync-external-store` aliases and the `copyPublicDir` restore. Two of
- * those this app did not have: it built two react-query graphs, so a `useQuery`
- * under SSR would have thrown "No QueryClient set" the moment the example grew a
- * query (Wallow-uc2c). Nothing was wrong with the app — the fix had simply been
- * discovered while debugging the other two, which is the argument for a preset
- * rather than three independent configs.
- *
- * This app is deliberately un-zoned, so it takes the Start plugin's defaults
- * rather than the `srcDirectory` / `importProtection` pairing the other two need.
- *
- * There is deliberately NO `vite: { installDevServerMiddleware }` key. The Start
- * plugin auto-detects a non-runnable SSR environment — which is exactly what
- * `nitro()` installs — and skips its dev middleware; forcing the option on makes
- * `vite dev` fail to boot.
+ * Nothing here comes from a workspace package: `@bc-solutions-coder/config` is
+ * private and an outside consumer cannot install it, so the two invariants it
+ * used to supply are spelled out inline instead.
  */
-/** The port a bare `pnpm dev` lands on, matching the host this app used to run. */
 const DEFAULT_PORT = 3010;
 
 export default defineConfig({
-  ...wallowAppConfig({ defaultPort: DEFAULT_PORT }),
-  plugins: [
-    tanstackStart({
-      // Specs are co-located with the code they cover, so a spec under
-      // `src/routes/` would otherwise be codegen'd in as a route.
-      router: { routeFileIgnorePattern: String.raw`\.(test|spec)\.(ts|tsx)$` },
-    }),
-    react(),
-    nitro(),
-    ...wallowStyles(),
-  ],
+  server: { port: Number(process.env.PORT ?? DEFAULT_PORT) },
+  ssr: {
+    // One react-query in the SSR graph. Vite externalizes ordinary deps for SSR
+    // but bundles linked ones; with the SDK linked (workspace) its `./query`
+    // entry arrives bundled while `@tanstack/react-router-ssr-query` stays
+    // external and brings a second copy — two QueryClient contexts, and a
+    // `useQuery` under SSR throws "No QueryClient set". Naming both here keeps
+    // them in one graph. A consumer installing the SDK from the registry does
+    // not hit the split, but the line is harmless and worth copying.
+    noExternal: ["@tanstack/react-router-ssr-query", "@tanstack/react-query"],
+  },
+  plugins: [tanstackStart(), react(), nitro()],
 });

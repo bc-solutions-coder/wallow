@@ -23,6 +23,10 @@
       "types": "./src/server/passthrough.ts",
       "import": "./src/server/passthrough.ts"
     },
+    "./server/service": {
+      "types": "./src/server/service.ts",
+      "import": "./src/server/service.ts"
+    },
     "./query": {
       "types": "./src/query/index.ts",
       "import": "./src/query/index.ts"
@@ -41,6 +45,10 @@
       "./server/passthrough": {
         "types": "./dist/server/passthrough.d.ts",
         "import": "./dist/server/passthrough.js"
+      },
+      "./server/service": {
+        "types": "./dist/server/service.d.ts",
+        "import": "./dist/server/service.js"
       },
       "./query": {
         "types": "./dist/query/index.d.ts",

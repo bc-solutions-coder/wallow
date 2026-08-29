@@ -40,7 +40,7 @@ const BFF_EXAMPLE_ORIGIN = process.env.E2E_BFF_EXAMPLE_URL ?? "http://localhost:
  * `bff-user-status`/`bff-user-email` testids give the authenticated signal directly.
  */
 async function signInAtExternalOrigin(page: Page): Promise<void> {
-  await page.goto(`${BFF_EXAMPLE_ORIGIN}/bff/login?returnTo=${encodeURIComponent("/bff-demo")}`);
+  await page.goto(`${BFF_EXAMPLE_ORIGIN}/bff/login?returnTo=${encodeURIComponent("/")}`);
 
   // Cross-origin redirect lands on wallow-auth's login screen.
   await expect(page.locator("[data-app-ready='true']")).toBeAttached({ timeout: 20_000 });
@@ -64,10 +64,9 @@ async function signInAtExternalOrigin(page: Page): Promise<void> {
   await page.getByTestId("consent-approve").click();
 
   // Consent grant -> code -> token -> bff-example's own callback -> returnTo (/bff-demo).
-  await page.waitForURL(
-    (url) => url.origin === BFF_EXAMPLE_ORIGIN && url.pathname === "/bff-demo",
-    { timeout: 30_000 },
-  );
+  await page.waitForURL((url) => url.origin === BFF_EXAMPLE_ORIGIN && url.pathname === "/", {
+    timeout: 30_000,
+  });
   await expect(page.locator("[data-app-ready='true']")).toBeAttached({ timeout: 20_000 });
 }
 

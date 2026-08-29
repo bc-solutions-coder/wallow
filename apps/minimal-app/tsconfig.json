@@ -1,12 +1,8 @@
 {
-  // Inherits the workspace-standard TS semantics from the repo-root base config;
-  // this file only layers on the app-local knobs: typecheck-only (noEmit), Node
-  // types (the server routes and `src/start.ts` run on the server), and the
-  // files to include.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts", "vitest.config.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts"]
 }

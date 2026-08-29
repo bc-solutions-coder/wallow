@@ -10,14 +10,19 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ContactRouteImport } from './routes/contact'
 import { Route as HealthRouteImport } from './routes/health'
-import { Route as DotwellKnownSplatRouteImport } from './routes/[.]well-known/$'
-import { Route as ConnectSplatRouteImport } from './routes/connect/$'
-import { Route as V1SplatRouteImport } from './routes/v1/$'
+import { Route as ApiSplatRouteImport } from './routes/api/$'
+import { Route as BffSplatRouteImport } from './routes/bff/$'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HealthRoute = HealthRouteImport.update({
@@ -25,58 +30,53 @@ const HealthRoute = HealthRouteImport.update({
   path: '/health',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DotwellKnownSplatRoute = DotwellKnownSplatRouteImport.update({
-  id: '/.well-known/$',
-  path: '/.well-known/$',
+const ApiSplatRoute = ApiSplatRouteImport.update({
+  id: '/api/$',
+  path: '/api/$',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ConnectSplatRoute = ConnectSplatRouteImport.update({
-  id: '/connect/$',
-  path: '/connect/$',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const V1SplatRoute = V1SplatRouteImport.update({
-  id: '/v1/$',
-  path: '/v1/$',
+const BffSplatRoute = BffSplatRouteImport.update({
+  id: '/bff/$',
+  path: '/bff/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/contact': typeof ContactRoute
   '/health': typeof HealthRoute
-  '/.well-known/$': typeof DotwellKnownSplatRoute
-  '/connect/$': typeof ConnectSplatRoute
-  '/v1/$': typeof V1SplatRoute
+  '/api/$': typeof ApiSplatRoute
+  '/bff/$': typeof BffSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/contact': typeof ContactRoute
   '/health': typeof HealthRoute
-  '/.well-known/$': typeof DotwellKnownSplatRoute
-  '/connect/$': typeof ConnectSplatRoute
-  '/v1/$': typeof V1SplatRoute
+  '/api/$': typeof ApiSplatRoute
+  '/bff/$': typeof BffSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/contact': typeof ContactRoute
   '/health': typeof HealthRoute
-  '/.well-known/$': typeof DotwellKnownSplatRoute
-  '/connect/$': typeof ConnectSplatRoute
-  '/v1/$': typeof V1SplatRoute
+  '/api/$': typeof ApiSplatRoute
+  '/bff/$': typeof BffSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/health' | '/.well-known/$' | '/connect/$' | '/v1/$'
+  fullPaths: '/' | '/contact' | '/health' | '/api/$' | '/bff/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/health' | '/.well-known/$' | '/connect/$' | '/v1/$'
-  id: '__root__' | '/' | '/health' | '/.well-known/$' | '/connect/$' | '/v1/$'
+  to: '/' | '/contact' | '/health' | '/api/$' | '/bff/$'
+  id: '__root__' | '/' | '/contact' | '/health' | '/api/$' | '/bff/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ContactRoute: typeof ContactRoute
   HealthRoute: typeof HealthRoute
-  DotwellKnownSplatRoute: typeof DotwellKnownSplatRoute
-  ConnectSplatRoute: typeof ConnectSplatRoute
-  V1SplatRoute: typeof V1SplatRoute
+  ApiSplatRoute: typeof ApiSplatRoute
+  BffSplatRoute: typeof BffSplatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -88,6 +88,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/health': {
       id: '/health'
       path: '/health'
@@ -95,25 +102,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HealthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/.well-known/$': {
-      id: '/.well-known/$'
-      path: '/.well-known/$'
-      fullPath: '/.well-known/$'
-      preLoaderRoute: typeof DotwellKnownSplatRouteImport
+    '/api/$': {
+      id: '/api/$'
+      path: '/api/$'
+      fullPath: '/api/$'
+      preLoaderRoute: typeof ApiSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/connect/$': {
-      id: '/connect/$'
-      path: '/connect/$'
-      fullPath: '/connect/$'
-      preLoaderRoute: typeof ConnectSplatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/v1/$': {
-      id: '/v1/$'
-      path: '/v1/$'
-      fullPath: '/v1/$'
-      preLoaderRoute: typeof V1SplatRouteImport
+    '/bff/$': {
+      id: '/bff/$'
+      path: '/bff/$'
+      fullPath: '/bff/$'
+      preLoaderRoute: typeof BffSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -121,10 +121,10 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ContactRoute: ContactRoute,
   HealthRoute: HealthRoute,
-  DotwellKnownSplatRoute: DotwellKnownSplatRoute,
-  ConnectSplatRoute: ConnectSplatRoute,
-  V1SplatRoute: V1SplatRoute,
+  ApiSplatRoute: ApiSplatRoute,
+  BffSplatRoute: BffSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

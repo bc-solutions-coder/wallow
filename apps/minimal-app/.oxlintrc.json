@@ -3,108 +3,12 @@
   "extends": ["../../.oxlintrc.json"],
   "ignorePatterns": [
     "**/dist/**",
-    "**/generated/**",
     "**/routeTree.gen.ts",
     "**/.output/**",
     "**/.nitro/**",
     "**/.tanstack/**"
   ],
   "rules": {
-    // `wallow/zone-dag` is deliberately absent, and it is the ONE rule this app
-    // diverges on. The rule derives the prefixes it polices from the app's
-    // tsconfig `paths`, and this app declares none: it is deliberately un-zoned
-    // (`apps/CLAUDE.md`), so there is no `@app`/`@features`/`@shared` DAG to
-    // judge and the rule would pass over every file having decided nothing.
-    "wallow/no-hand-rolled-mutation": "error",
-    "wallow/no-sidebar-inversion": "error",
-    // The one rule here that applies ONLY to specs: it bans `node:fs` in a
-    // `*.test.*` file and self-gates on the filename, so it is stated once at this
-    // level and stays silent over source. See `.claude/rules/TESTING.md`.
-    "wallow/no-source-tests": "error",
-    "wallow/no-tinted-text": "error",
-    // No `h1` entry, for wallow-web's reason: this app has no layout owning the
-    // page's one level-1 heading, so a route may open its own — it just has to
-    // NAME a variant rather than take the step Text derives from `as`.
-    "wallow/text-heading-variant": ["error", { "levels": { "h2": "subheading" } }],
-    "react/forbid-elements": [
-      "error",
-      {
-        "forbid": [
-          {
-            "element": "p",
-            "message": "Raw <p> decides the type scale a second time. Render copy through Text from @bc-solutions-coder/ui (<Text>, or MutedText for secondary copy) so the catalog owns the scale."
-          },
-          {
-            "element": "span",
-            "message": "Raw <span> decides the type scale a second time. Render copy through Text from @bc-solutions-coder/ui (<Text as=\"span\">, or MutedText for secondary copy) so the catalog owns the scale."
-          },
-          {
-            "element": "legend",
-            "message": "Raw <legend> decides the type scale a second time. Render the group's caption through Text from @bc-solutions-coder/ui (<Text as=\"legend\">) so the catalog owns the scale."
-          },
-          {
-            "element": "code",
-            "message": "Raw <code> decides the type scale a second time. Render inline code through Text from @bc-solutions-coder/ui (<Text as=\"code\">) so the catalog owns the scale."
-          },
-          {
-            "element": "h1",
-            "message": "Raw <h1> decides the type scale a second time. Render headings through Text from @bc-solutions-coder/ui (<Text as=\"h1\" variant=\"heading\">)."
-          },
-          {
-            "element": "h2",
-            "message": "Raw <h2> decides the type scale a second time. Render a card heading through Text from @bc-solutions-coder/ui (<Text as=\"h2\" variant=\"subheading\" color=\"onCard\">)."
-          },
-          {
-            "element": "h3",
-            "message": "Raw <h3> decides the type scale a second time. Render headings through Text from @bc-solutions-coder/ui (<Text as=\"h3\" variant=\"...\">)."
-          },
-          {
-            "element": "h4",
-            "message": "Raw <h4> decides the type scale a second time. Render headings through Text from @bc-solutions-coder/ui (<Text as=\"h4\" variant=\"...\">)."
-          },
-          {
-            "element": "h5",
-            "message": "Raw <h5> decides the type scale a second time. Render headings through Text from @bc-solutions-coder/ui (<Text as=\"h5\" variant=\"...\">)."
-          },
-          {
-            "element": "h6",
-            "message": "Raw <h6> decides the type scale a second time. Render headings through Text from @bc-solutions-coder/ui (<Text as=\"h6\" variant=\"...\">)."
-          },
-          {
-            "element": "button",
-            "message": "Raw <button> is a copy of the Button recipe that drifts on its own. Render controls through Button from @bc-solutions-coder/ui — it covers solid, outline, secondary, ghost and link treatments across four size steps, so a quiet control has a variant rather than a hand-rolled class string."
-          }
-        ]
-      }
-    ]
-  },
-  "overrides": [
-    {
-      // Restated rather than inherited: the root config states these under a
-      // REPO-ROOTED glob (`apps/minimal-app/**`), and an override glob is matched
-      // against the path relative to the config that declares it — so the root's
-      // entry stops matching once a file is read through this config. Both other
-      // apps restate the same pair for the same reason.
-      "files": ["**/*.{ts,tsx}"],
-      "rules": {
-        "unicorn/filename-case": ["error", { "cases": { "kebabCase": true, "pascalCase": true } }],
-        "no-magic-numbers": ["warn", { "ignore": [0, 1] }]
-      }
-    },
-    {
-      "files": ["**/*.test.*", "**/*.stories.tsx"],
-      "rules": {
-        "no-magic-numbers": "off",
-        "react/forbid-elements": "off",
-        // `wallow/no-source-tests` is deliberately NOT in this list: it has
-        // nothing BUT specs to judge, so turning it off here turns it off
-        // everywhere. (`wallow/zone-dag`, the other exception both apps name, is
-        // not enabled here at all — see the rules block above.)
-        "wallow/no-hand-rolled-mutation": "off",
-        "wallow/no-sidebar-inversion": "off",
-        "wallow/no-tinted-text": "off",
-        "wallow/text-heading-variant": "off"
-      }
-    }
-  ]
+    "no-restricted-imports": "off"
+  }
 }

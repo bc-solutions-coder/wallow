@@ -122,6 +122,10 @@ services:
       Clients__1__RedirectUris__0: "http://localhost:${E2E_BFF_PORT:-3003}/bff/callback"
       Clients__1__PostLogoutRedirectUris__0: "http://localhost:${E2E_BFF_PORT:-3003}/"
       Clients__1__FrontchannelLogoutUri: "http://localhost:${E2E_BFF_PORT:-3003}/bff/frontchannel-logout"
+      # PROTOTYPE (#127): back-channel logout is the API POSTing to the RP, so
+      # the registered URI is the CONTAINER hostname, not localhost. Real once
+      # #115's seed field exists.
+      #Clients__1__BackchannelLogoutUri: "http://bff-example:3010/bff/backchannel-logout"
       # First-run setup coverage: scripts/e2e.sh blanks this for the initial seed
       # (a blank Admin__Email leaves AdminBootstrapOptions unconfigured, so the
       # bootstrap step is skipped and the stack comes up with setupRequired=true
@@ -304,7 +308,7 @@ services:
           "CMD",
           "node",
           "-e",
-          "fetch('http://localhost:3000/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+          "fetch('http://localhost:3010/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
         ]
       interval: 5s
       timeout: 3s
@@ -318,11 +322,12 @@ services:
       - wallow-test
 
   # ============================================
-  # BFF REFERENCE EXAMPLE (@bc-solutions-coder/sdk wallow-web)
+  # EXTERNAL RELYING-PARTY EXAMPLE (apps/minimal-app) — PROTOTYPE #127
   # ============================================
-  # Node process that hosts the SDK BFF tunnel for the BffFlowTests E2E flow.
-  # Build context is the repo root so the Dockerfile can build the @bc-solutions-coder/sdk
-  # workspace dependency alongside the example.
+  # The "some other site built on the published SDK" origin the cross-app suite
+  # drives. It no longer wears wallow-web's image with a different client id:
+  # apps/minimal-app IS an external RP — depends on nothing but
+  # @bc-solutions-coder/sdk, mounts /bff + /api, keeps sessions in Valkey.
   #
   # OIDC issuer vs discovery-metadata split (mirrors wallow-web):
   #   - OIDC_ISSUER = http://localhost:$E2E_API_PORT is the browser-facing issuer
@@ -338,13 +343,13 @@ services:
     image: wallow-bff-example:${E2E_IMAGE_TAG:-test}
     build:
       context: ..
-      dockerfile: apps/wallow-web/Dockerfile
+      dockerfile: apps/minimal-app/Dockerfile
     ports:
-      - "${E2E_BFF_PORT:-3003}:3000"
+      - "${E2E_BFF_PORT:-3003}:3010"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
-      PORT: "3000"
+      PORT: "3010"
       # Browser-facing issuer (must match API OpenIddict issuer for redirects)
       OIDC_ISSUER: "http://localhost:${E2E_API_PORT:-5050}"
       # Server-reachable discovery URL (container -> host-published API).
