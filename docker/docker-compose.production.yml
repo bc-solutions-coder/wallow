@@ -805,6 +805,10 @@ services:
   # `:ro` only makes the socket file read-only, not the API behind it. That is
   # the price of label discovery; to narrow it, put tecnativa/docker-socket-proxy
   # in between and point DOCKER_SOCKET at it.
+  #
+  # Stack managers that make per-deploy profile flags awkward can run this
+  # same service as its own compose project instead — docker-compose.pangolin.yml
+  # (one newt per site, never both; see that file's header).
   newt:
     image: fosrl/newt:latest
     container_name: ${COMPOSE_PROJECT_NAME:-wallow}-newt

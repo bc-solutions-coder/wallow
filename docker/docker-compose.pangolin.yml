@@ -1,0 +1,73 @@
+# Standalone Pangolin edge stack — the production newt tunnel client as its own
+# compose project, for deployments whose stack manager (Dockhand, Portainer,
+# Komodo, ...) makes per-deploy `--profile pangolin` flags awkward. Functionally
+# identical to running docker-compose.production.yml with the pangolin profile;
+# pick ONE of the two, never both — two newts on one Pangolin site steal the
+# tunnel from each other, exactly like the host-level systemd newt documented
+# on the production file's newt service.
+#
+# This stack owns NOTHING but the tunnel:
+#   - The pangolin.* blueprint labels stay on wallow-api / wallow-auth /
+#     wallow-web in docker-compose.production.yml. newt discovers them through
+#     the Docker socket, which sees every container on the host, so the labels
+#     do not care which compose project newt itself runs in.
+#   - Path targets resolve by container DNS name, so newt must join the main
+#     stack's network. Compose names that network <project>_wallow; with the
+#     documented COMPOSE_PROJECT_NAME=wallow that is wallow_wallow, the
+#     default here. If your stack manager picked a different project name, set
+#     WALLOW_NETWORK to whatever `docker network ls` shows.
+#
+# Unlike the profile-gated copy in the production file, the three site
+# credentials here CAN fail closed — this file has no profiles, so the
+# interpolation-before-profiles limitation that forces bare fallbacks there
+# does not apply.
+#
+# Usage:
+#   cp .env.pangolin.example .env.pangolin   # then fill in the site config
+#   docker compose -f docker-compose.pangolin.yml --env-file .env.pangolin up -d
+
+services:
+  newt:
+    image: fosrl/newt:latest
+    # Deliberately the same name the main stack's profile-gated newt would
+    # take, so starting both fails fast on a container-name collision instead
+    # of silently fighting over the tunnel.
+    container_name: wallow-newt
+    restart: unless-stopped
+    environment:
+      # All three come from the site's config in the Pangolin dashboard.
+      PANGOLIN_ENDPOINT: ${PANGOLIN_ENDPOINT:?set to your Pangolin instance URL}
+      NEWT_ID: ${NEWT_ID:?copy from the site's config in the Pangolin dashboard}
+      NEWT_SECRET: ${NEWT_SECRET:?copy from the site's config in the Pangolin dashboard}
+      # Newt touches this file while the tunnel is up; the healthcheck reads it.
+      HEALTH_FILE: /tmp/healthy
+      # Enables container discovery + the pangolin.* blueprint labels on the
+      # main stack's app services.
+      DOCKER_SOCKET: unix:///var/run/docker.sock
+    volumes:
+      # SECURITY — root-equivalent host access even with :ro; see the newt
+      # service comment in docker-compose.production.yml for the
+      # docker-socket-proxy mitigation.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    healthcheck:
+      test: ["CMD-SHELL", "[ -f /tmp/healthy ]"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - wallow
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  wallow:
+    external: true
+    name: ${WALLOW_NETWORK:-wallow_wallow}

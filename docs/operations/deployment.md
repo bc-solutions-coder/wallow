@@ -142,6 +142,14 @@ The proxy strips nothing in this topology. Both bundled edges implement it:
   `X-Forwarded-Proto: https` straight to the apps; `WALLOW_TRUSTED_PROXIES=private` already
   covers newt's bridge address, so no extra trusted-proxy configuration is needed.
 
+  If your stack manager (Dockhand, Portainer, Komodo) makes per-deploy `--profile` flags
+  awkward, `docker/docker-compose.pangolin.yml` runs the same `newt` service as its own
+  stack: deploy the main stack with **no** edge profile, then the pangolin stack alongside it
+  with `.env.pangolin` (copy `.env.pangolin.example`; `WALLOW_NETWORK` must name the main
+  stack's network as `docker network ls` prints it). Run one newt or the other, never both —
+  they would steal the Pangolin tunnel from each other, so both copies claim the
+  `wallow-newt` container name to make doubling up fail fast.
+
 > `AUTH_BASE_PATH` is a **build** argument, not a runtime one — Vite bakes it into every asset
 > URL. The published `wallow-auth` image is built at root, so path-based deployments must run
 > `up --build` (which is why that is the documented invocation); a plain `pull` yields an auth

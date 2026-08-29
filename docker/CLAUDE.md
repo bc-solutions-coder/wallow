@@ -1,13 +1,14 @@
 # docker — Compose Stacks Agent Guide
 
-Three independent compose files, each a complete stack. Always run them from **this
-directory** — the relative build contexts (`./images/`, `..`) depend on it.
+Four independent compose files. Always run them from **this directory** — the relative build
+contexts (`./images/`, `..`) depend on it.
 
 | File | Stack |
 |------|-------|
 | `docker-compose.yml` | Dev infrastructure only — Postgres, Valkey, Mailpit, Garage (S3), Alloy + Grafana LGTM, the DocFX docs site; ClamAV behind `--profile clamav`. No app containers. |
 | `docker-compose.test.yml` | Containerised E2E stack — the same infra plus `wallow-migrations` / `wallow-seeder` / `wallow-api` (prebuilt `*:test` images) and the `wallow-auth` / `wallow-web` / `bff-example` Node apps. Driven by `./scripts/e2e.sh`, not by hand. |
 | `docker-compose.production.yml` | Full production topology — pulls `ghcr.io/bc-solutions-coder/*` images, adds a Postgres replica, hardened API settings and two profile-gated edges (Caddy via `--profile direct`, a Pangolin newt tunnel via `--profile pangolin`). Its header comment documents path-based vs subdomain routing. |
+| `docker-compose.pangolin.yml` | The production `newt` tunnel client as its own stack, joined to the production stack's network via `external: true` (`WALLOW_NETWORK`). For stack managers (Dockhand, Portainer) where per-deploy `--profile` flags are awkward. Run it INSTEAD of `--profile pangolin`, never alongside — both copies name their container `wallow-newt` so doubling up fails fast. The `pangolin.*` labels stay on the production file's app services; newt reads them via the Docker socket regardless of which project it runs in. |
 
 ```bash
 cp .env.example .env        # required before the dev stack; GF_ADMIN_PASSWORD must be set

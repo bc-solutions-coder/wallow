@@ -66,6 +66,7 @@ docker/caddy/Caddyfile
 # Environment files (keep examples, ignore actual secrets)
 docker/.env
 docker/.env.production
+docker/.env.pangolin
 .env.local
 .env.*.local
 

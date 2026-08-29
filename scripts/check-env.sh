@@ -43,6 +43,7 @@ cd "$repo_root/docker"
 pairs=(
   "docker-compose.yml:.env.example"
   "docker-compose.production.yml:.env.production.example"
+  "docker-compose.pangolin.yml:.env.pangolin.example"
   "docker-compose.test.yml:.env.example"
   "turbo-cache/docker-compose.yml:turbo-cache/.env.example"
 )
