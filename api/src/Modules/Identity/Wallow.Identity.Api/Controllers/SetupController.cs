@@ -57,20 +57,4 @@ public class SetupController(IMessageBus messageBus) : ControllerBase
 
         return NoContent();
     }
-
-    [HttpPost("complete")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> CompleteSetup(CancellationToken ct)
-    {
-        bool setupRequired = await messageBus.InvokeAsync<bool>(new IsSetupRequiredQuery(), ct);
-        if (!setupRequired)
-        {
-            return Conflict("Setup has already been completed.");
-        }
-
-        // Setup is considered complete when an admin user exists.
-        // Re-check to confirm admin was actually created before marking complete.
-        return NoContent();
-    }
 }

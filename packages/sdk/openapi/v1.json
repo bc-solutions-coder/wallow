@@ -4522,32 +4522,6 @@
         }
       }
     },
-    "/v1/identity/setup/complete": {
-      "post": {
-        "tags": [
-          "Setup"
-        ],
-        "operationId": "SetupCompleteSetup",
-        "responses": {
-          "204": {
-            "description": "No Content",
-            "content": {
-              "application/json": { }
-            }
-          },
-          "409": {
-            "description": "Conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/identity/users": {
       "get": {
         "tags": [

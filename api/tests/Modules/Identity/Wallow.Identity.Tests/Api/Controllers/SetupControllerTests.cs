@@ -117,31 +117,4 @@ public class SetupControllerTests
     }
 
     #endregion
-
-    #region CompleteSetup
-
-    [Fact]
-    public async Task CompleteSetup_WhenSetupNotRequired_ReturnsConflict()
-    {
-        _messageBus.InvokeAsync<bool>(Arg.Any<IsSetupRequiredQuery>(), Arg.Any<CancellationToken>())
-            .Returns(false);
-
-        IActionResult result = await _controller.CompleteSetup(CancellationToken.None);
-
-        ConflictObjectResult conflict = result.Should().BeOfType<ConflictObjectResult>().Subject;
-        conflict.Value.Should().Be("Setup has already been completed.");
-    }
-
-    [Fact]
-    public async Task CompleteSetup_WhenSetupRequired_ReturnsNoContent()
-    {
-        _messageBus.InvokeAsync<bool>(Arg.Any<IsSetupRequiredQuery>(), Arg.Any<CancellationToken>())
-            .Returns(true);
-
-        IActionResult result = await _controller.CompleteSetup(CancellationToken.None);
-
-        result.Should().BeOfType<NoContentResult>();
-    }
-
-    #endregion
 }

@@ -3159,29 +3159,6 @@ export type SetupCreateAdminResponses = {
     204: unknown;
 };
 
-export type SetupCompleteSetupData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/v1/identity/setup/complete';
-};
-
-export type SetupCompleteSetupErrors = {
-    /**
-     * Conflict
-     */
-    409: ProblemDetails;
-};
-
-export type SetupCompleteSetupError = SetupCompleteSetupErrors[keyof SetupCompleteSetupErrors];
-
-export type SetupCompleteSetupResponses = {
-    /**
-     * No Content
-     */
-    204: unknown;
-};
-
 export type UsersGetUsersData = {
     body?: never;
     path?: never;
