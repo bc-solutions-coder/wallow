@@ -20,7 +20,7 @@ Specs too: build the `QueryClient` from the facade.
 - `createFormHookContexts()` and `createFormHook()` are each called exactly once; a second
   call anywhere binds fields to a context no `AppForm` publishes.
 - **The schema is an `onDynamic` validator, never `onSubmit`.** `validationLogic:
-  revalidateLogic()` runs ONLY `onDynamic` — moving the schema to `validators.onSubmit`
+revalidateLogic()` runs ONLY `onDynamic` — moving the schema to `validators.onSubmit`
   silently validates nothing. The `TOnDynamic` generic slot in `AppFormApi` must move with
   it.
 - **`clearServerErrors()` runs before validation, not inside `onSubmit`** — `handleSubmit`
