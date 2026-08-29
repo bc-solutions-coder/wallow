@@ -160,10 +160,22 @@ The build-time identity of a fork — app name, icon, links, and theme tokens �
 fork's `branding.json`. Changing it is how a fork rebrands.
 
 **Client branding**:
-The runtime, per-developer-application skin (display name, tagline, logo, theme) shown on that
-application's login and consent screens.
+The runtime, per-developer-application skin (display name, tagline, uploaded logo, curated
+theme) worn by every screen inside that application's authorize transaction. Service accounts
+have none; the error screen never wears it.
 _Avoid_: organization branding — Identity's overlapping per-organization entity is a known
 wart being reconciled, not a concept to build on
+
+**Display name**:
+The mutable, end-user-facing name of a developer application — the heading on its branded
+screens and the name consent asks on behalf of. Defaults to the application's name at
+registration; may never equal the fork's app name.
+_Avoid_: name (that is the developer's immutable handle the client id derives from), title
+
+**Authorize transaction**:
+The span from an application's authorize request to the redirect back to it. Screens reached
+inside it (login, register, consent, terms, MFA, forgot-password) inherit that application's
+client branding; screens reached from an email link or with no application do not.
 
 **Resolved branding**:
 What a screen actually renders: fork branding merged with the requesting application's client
