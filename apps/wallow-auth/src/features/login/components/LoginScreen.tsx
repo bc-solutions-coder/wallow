@@ -303,6 +303,12 @@ export interface LoginScreenProps {
    */
   readonly magicLinkToken?: string;
   /**
+   * Where a sign-in with NO returnUrl lands — the main app's public URL
+   * (`WALLOW_WEB_URL`, see `@shared/lib/web-app-url`). Without one the screen
+   * shows its signed-in banner and stops: it never invents a destination.
+   */
+  readonly homeUrl?: string;
+  /**
    * The `message` query param (Wallow-xzha.1.2). `ResetPasswordForm` navigates to
    * `/login?message=password_reset` after a successful reset; the screen renders a
    * one-line success banner acknowledging it when the value is the recognised
@@ -317,6 +323,7 @@ export function LoginScreen({
   error,
   magicLinkToken,
   message,
+  homeUrl,
 }: LoginScreenProps): ReactNode {
   const navigate = useNavigate();
   // The oracle's `HandleVerifyMagicLink` sets `_activeTab = LoginTab.MagicLink`
@@ -367,6 +374,12 @@ export function LoginScreen({
       }
       case "signed-in": {
         setSignedIn(true);
+        // A FULL navigation to another origin, when the deployment named one:
+        // the session cookie is already set, so the main app's own sign-in
+        // completes silently from here. The banner stays up underneath it.
+        if (homeUrl !== undefined && homeUrl !== "") {
+          globalThis.location.href = homeUrl;
+        }
         return;
       }
       default: {

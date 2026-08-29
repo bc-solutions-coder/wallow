@@ -140,6 +140,7 @@ function useClientBranding(
 function LoginRoute() {
   const { returnUrl, client_id: clientId, error, magicLinkToken, message } = Route.useSearch();
   const branding: ResolvedBranding | undefined = useClientBranding(clientId);
+  const { webAppUrl } = useRouteContext({ from: "__root__" });
 
   return (
     <AuthLayout branding={branding}>
@@ -149,6 +150,7 @@ function LoginRoute() {
         error={error}
         magicLinkToken={magicLinkToken}
         message={message}
+        homeUrl={webAppUrl}
       />
     </AuthLayout>
   );

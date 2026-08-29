@@ -7,6 +7,7 @@ import { type ForkLinks, resolveForkLinks } from "@bc-solutions-coder/styles";
 import { createMiddleware, createStart } from "@tanstack/react-start";
 
 import { BASE_PATH } from "@shared/lib/base-path";
+import { resolveWebAppUrl } from "@shared/lib/web-app-url";
 
 /**
  * The Start instance — global request middleware that mints one SDK per request
@@ -70,7 +71,11 @@ const sdkMiddleware = createMiddleware().server(({ next, request }) => {
   // its own to re-read.
   const forkLinks: ForkLinks = resolveForkLinks(process.env);
 
-  return next({ context: { sdk, forkLinks } });
+  // Where a sign-in with no returnUrl lands — the main app's public URL, by the
+  // same crossing: resolved here, stated in the document by `__root.tsx`.
+  const webAppUrl: string | undefined = resolveWebAppUrl(process.env);
+
+  return next({ context: { sdk, forkLinks, webAppUrl } });
 });
 
 export const startInstance = createStart(() => ({

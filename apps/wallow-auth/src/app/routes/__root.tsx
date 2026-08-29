@@ -24,6 +24,8 @@ import { ErrorPage } from "@features/error";
 import { NotFoundPage } from "@features/not-found";
 import { appIconUrl, forkResolvedBranding } from "@shared/lib/branding";
 import { forkLinks } from "@shared/lib/fork-links";
+import { requestWebAppUrl } from "@shared/lib/web-app-url.request";
+import { webAppUrlScript } from "@shared/lib/web-app-url";
 
 // Side-effect import, NOT `?url` + a head() link. Start builds two Vite
 // environments; a `?url` import resolved in the SSR graph yields a CSS hash the
@@ -45,6 +47,8 @@ const branding: ResolvedBranding = forkResolvedBranding;
 export interface RouterContext {
   readonly queryClient: QueryClient;
   readonly sdk: WallowSdk;
+  /** The main app's public URL (`WALLOW_WEB_URL`), when the deployment named one. */
+  readonly webAppUrl?: string;
 }
 
 /**
@@ -95,6 +99,7 @@ function RootDocument({ children }: { readonly children: ReactNode }): ReactElem
         <DocumentStyles themeCss={renderThemeStyle(branding)} stylesheetHref={null} />
         <ThemeScript defaultMode={branding.defaultMode} />
         <script>{forkLinksScript(requestForkLinks() ?? forkLinks())}</script>
+        <script>{webAppUrlScript(requestWebAppUrl())}</script>
       </head>
       <body>
         <FocusOnNavigate />

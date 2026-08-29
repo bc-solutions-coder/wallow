@@ -964,6 +964,32 @@ describe("LoginScreen sign-in ticket exchange", () => {
     expect(navigationEscapes()).toEqual([]);
   });
 
+  it("sends a signed-in user to the home URL when the deployment named one", async () => {
+    // No returnUrl means no OIDC hand-off — but a deployment that knows where
+    // its main app lives sends the user there instead of stranding them on
+    // the banner. A full navigation: the session cookie is already set.
+    const HOME_URL = "https://app.example.test/";
+    const user = userEvent.setup();
+    await renderScreen({ returnUrl: undefined, homeUrl: HOME_URL });
+
+    await submitCredentials(user);
+
+    const escape = await expectNavigationEscape();
+    expect(escape.url).toBe(HOME_URL);
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+
+  it("prefers the returnUrl hand-off over the home URL", async () => {
+    const user = userEvent.setup();
+    await renderScreen({ homeUrl: "https://app.example.test/" });
+
+    await submitCredentials(user);
+
+    const handoff = await awaitHandoff();
+    expect(handoff.origin).not.toBe("https://app.example.test");
+    expect(handoff.searchParams.get("returnUrl")).toBe(RETURN_URL);
+  });
+
   it("treats an empty returnUrl as no returnUrl, not as an attack", async () => {
     // `""` is NOT nullish and IS unsafe by `isSafeReturnUrl`, so a screen that
     // guarded before checking emptiness would send an ordinary user to /error.

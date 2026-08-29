@@ -565,6 +565,10 @@ services:
       # without rebuilding the image.
       WALLOW_REPOSITORY_URL: ${WALLOW_REPOSITORY_URL:-}
       WALLOW_DOCS_URL: ${WALLOW_DOCS_URL:-}
+      # Where a sign-in with no returnUrl lands — the first-run administrator
+      # coming straight from /setup, or anyone who opened the login page
+      # directly. Unset, the page shows its signed-in banner and stops.
+      WALLOW_WEB_URL: ${WEB_PUBLIC_URL:-https://wallow.dev}
     depends_on:
       wallow-api:
         condition: service_healthy

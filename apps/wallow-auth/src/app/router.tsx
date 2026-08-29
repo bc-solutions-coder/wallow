@@ -6,6 +6,7 @@ import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query
 import { getGlobalStartContext } from "@tanstack/react-start";
 
 import { BASE_PATH } from "@shared/lib/base-path";
+import { requestWebAppUrl } from "@shared/lib/web-app-url.request";
 import { routeTree } from "./routeTree.gen";
 
 /**
@@ -43,9 +44,15 @@ export function getRouter() {
       csrf: false,
     });
 
+  // Where a sign-in with no returnUrl lands: this request's resolved
+  // `WALLOW_WEB_URL` on the server, the value the shell's inline script
+  // published in the browser. Router context rather than a module import so
+  // the login route stays free of `@tanstack/react-start`.
+  const webAppUrl: string | undefined = requestWebAppUrl();
+
   const router = createTanStackRouter({
     routeTree,
-    context: { queryClient, sdk },
+    context: { queryClient, sdk, webAppUrl },
     scrollRestoration: true,
   });
 
