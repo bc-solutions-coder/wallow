@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Text.RegularExpressions;
 
 namespace Wallow.Architecture.Tests;
 
@@ -7,18 +6,22 @@ namespace Wallow.Architecture.Tests;
 /// Guards OIDC clientId naming against drift between the files a fork operator has to keep in
 /// sync by hand (bead Wallow-361m). Two independent drifts are pinned here.
 ///
-/// <para><b>1. The fork's index-1 client is documented under a name nobody seeds.</b>
+/// <para><b>1. The fork's SPA client is documented under a name nobody seeds.</b>
 /// The reference deployment's production seed (<c>docker/seed.production.json</c>, gitignored
 /// per <c>.gitignore</c>'s <c>seed.*.json</c> rule) registers the bcordes.dev SPA as
-/// <c>bcordes-dev-client</c> at <c>clients[1]</c>, and <c>api/src/Wallow.Api/appsettings.json</c>
-/// names the same id. The two committed files that document that slot —
-/// <c>docker/docker-compose.production.yml</c>'s <c>Clients__&lt;index&gt;__Secret</c> map and
-/// <c>docker/.env.production.example</c>'s clientId checklist — instead call it
+/// <c>bcordes-dev-client</c>, and <c>api/src/Wallow.Api/appsettings.json</c> names the same id.
+/// The two committed files that document that client —
+/// <c>docker/docker-compose.production.yml</c>'s <c>ClientSecrets__&lt;clientId&gt;</c> map and
+/// <c>docker/.env.production.example</c>'s clientId checklist — once called it
 /// <c>bcordes-client</c>. An operator following the example values registers a client id that
 /// does not match the one their SPA authenticates with, and the OIDC flow fails with no obvious
 /// cause. The seeded value is canonical because it is already registered in the deployed
 /// OpenIddict application table: renaming it needs a re-seed plus an SPA reconfiguration,
-/// whereas the two drifted sites are inert prose that costs nothing to correct.</para>
+/// whereas the two drifted sites are inert config that costs nothing to correct. The compose
+/// map is name-keyed (a <c>ClientSecrets__&lt;clientId&gt;</c> env var attaches its secret to the
+/// seed client with that id), so a drifted key there is a secret that lands on no client — the
+/// seeder aborts on a non-blank orphaned secret, but only at deploy time on a machine that sets
+/// the variable; this pin catches the drift in CI.</para>
 ///
 /// <para><b>2. The dev first-party list points at nothing.</b>
 /// <c>Identity:FirstPartyClients</c> in <c>api/src/Wallow.Api/appsettings.json</c> lists
@@ -39,7 +42,7 @@ namespace Wallow.Architecture.Tests;
 /// </summary>
 public class SeedClientIdConsistencyTests
 {
-    /// <summary>The id the reference deployment actually seeds at <c>clients[1]</c>.</summary>
+    /// <summary>The id the reference deployment's production seed actually registers.</summary>
     private const string CanonicalForkClientId = "bcordes-dev-client";
 
     /// <summary>The stale id the committed deployment docs use for the same client.</summary>
@@ -74,25 +77,21 @@ public class SeedClientIdConsistencyTests
     // ---- production deployment annotations ---------------------------------------------
 
     [Fact]
-    public void ProductionCompose_ClientSecretIndexMap_ShouldNameTheSeededForkClientId()
+    public void ProductionCompose_ClientSecretMap_ShouldKeyTheSeededForkClientId()
     {
         string source = File.ReadAllText(_productionComposePath);
 
-        Regex indexOneEntry = new(
-            $@"1\s*=\s*{Regex.Escape(CanonicalForkClientId)}\b",
-            RegexOptions.None,
-            TimeSpan.FromSeconds(1));
-
-        indexOneEntry.IsMatch(source).Should().BeTrue(
-            "the Clients__<index>__Secret map in docker-compose.production.yml documents which " +
-            "seed.production.json client each injected secret lands on; index 1 must name '{0}', " +
-            "the id that file actually registers, or an operator wires BCORDES_CLIENT_SECRET to a " +
-            "client they believe is called something else",
+        source.Should().Contain(
+            $"ClientSecrets__{CanonicalForkClientId}:",
+            "the ClientSecrets__<clientId> map in docker-compose.production.yml attaches each " +
+            "injected secret to the seed.production.json client with that id; the SPA secret's key " +
+            "must name '{0}', the id that file actually registers, or BCORDES_CLIENT_SECRET becomes " +
+            "an orphaned secret that aborts the seeder at deploy time",
             CanonicalForkClientId);
     }
 
     [Fact]
-    public void ProductionCompose_ClientSecretIndexMap_ShouldNotNameTheDriftedClientId()
+    public void ProductionCompose_ClientSecretMap_ShouldNotNameTheDriftedClientId()
     {
         string source = File.ReadAllText(_productionComposePath);
 
@@ -112,7 +111,7 @@ public class SeedClientIdConsistencyTests
         source.Should().Contain(
             $"BCORDES_CLIENT_ID={CanonicalForkClientId}",
             ".env.production.example documents BCORDES_CLIENT_ID as a checklist of what must be " +
-            "set inside seed.production.json for clients[1]. It has to quote the id that file " +
+            "set inside seed.production.json for that client. It has to quote the id that file " +
             "really uses ('{0}'), since the whole point of the annotation is keeping the two files " +
             "in sync",
             CanonicalForkClientId);

@@ -209,19 +209,22 @@ with the repo — you must place it on the server yourself and point `SEED_FILE_
 `./seed.production.json` resolves next to the compose file).
 
 The seed file is deliberately **secret-less**. Client secrets are injected as environment
-variables indexed against the `clients` array, and **the index order is load-bearing** — it must
-match the array order in your `seed.production.json`:
+variables keyed by **clientId** — each `ClientSecrets__<clientId>` value attaches to the seed
+client with that id, so the order of the `clients` array never matters:
 
 ```yaml
-Clients__0__Secret: ${OIDC_CLIENT_SECRET}
-Clients__1__Secret: ${BCORDES_CLIENT_SECRET}
-Clients__2__Secret: ${BCORDES_BFF_SECRET}
-Clients__3__Secret: ${BCORDES_BFF_AUTHCODE_SECRET}
+ClientSecrets__wallow-web-client: ${OIDC_CLIENT_SECRET}
+ClientSecrets__bcordes-dev-client: ${BCORDES_CLIENT_SECRET}
+ClientSecrets__sa-bcordes-bff: ${BCORDES_BFF_SECRET}
+ClientSecrets__bcordes-bff: ${BCORDES_BFF_AUTHCODE_SECRET}
 ```
 
-Index 0 is the `wallow-web-client` dashboard client; the rest are the fork's own clients and are
-commented out in `.env.production.example` until you need them. If you add or reorder clients in
-the seed file, update these indices in the compose file to match.
+`wallow-web-client` is the dashboard client every deployment has; the rest are the fork's own
+clients and are commented out in `.env.production.example` until you need them. An unset
+optional variable is harmless (Compose renders it as an empty value, which the seeder treats as
+"not provided"), but the seeder fails closed in both misconfiguration directions: a seed client
+with no secret that does not declare `"public": true` aborts, and so does a non-empty secret
+whose clientId matches no client in the seed file.
 
 ### Setup mode — when no admin exists
 

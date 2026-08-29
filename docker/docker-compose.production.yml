@@ -320,26 +320,25 @@ services:
       Admin__Password: ${ADMIN_PASSWORD:?ADMIN_PASSWORD is required (min 12 chars, mixed case + symbols)}
       Admin__FirstName: ${ADMIN_FIRST_NAME:-Admin}
       Admin__LastName: ${ADMIN_LAST_NAME:-User}
-      # Client secrets injected by index over seed.production.json (which is
-      # deliberately secret-less). Index order is load-bearing and MUST match the
-      # "clients" array in seed.production.json:
-      #   0 = wallow-web-client   (dashboard at wallow.dev)
-      #   1 = bcordes-dev-client  (bcordes.dev SPA login)
-      #   2 = sa-bcordes-bff      (bcordes.dev BFF service account)
-      #   3 = bcordes-bff         (bcordes.dev BFF auth-code client)
+      # Client secrets injected by clientId over seed.production.json (which is
+      # deliberately secret-less). Each ClientSecrets__<clientId> value attaches to the
+      # seed client with that id — there is no index alignment to maintain, and reordering
+      # the "clients" array in the seed file cannot reassign a secret to the wrong client.
       # Every client in seed.production.json must declare "public": true or false explicitly.
-      # A secret-less client that does not declare "public": true is now a startup HARD FAIL,
+      # A secret-less client that does not declare "public": true is a seeder HARD FAIL,
       # so an unset secret variable below aborts the seeder instead of silently registering a
       # public client that issues tokens without authenticating the caller.
-      # Index 0 is the dashboard client every deployment has, so it fails closed here.
-      # Indices 1-3 stay BARE on purpose: they are optional additional clients, and a
-      # `:?` on them would force every deployment to define three clients it may not
-      # have. Their fail-closed behaviour comes from the seeder instead, per the note
-      # above — a secret-less client that does not declare "public": true aborts it.
-      Clients__0__Secret: ${OIDC_CLIENT_SECRET:?OIDC_CLIENT_SECRET is required (generate with `openssl rand -hex 32`)}
-      Clients__1__Secret: ${BCORDES_CLIENT_SECRET}
-      Clients__2__Secret: ${BCORDES_BFF_SECRET}
-      Clients__3__Secret: ${BCORDES_BFF_AUTHCODE_SECRET}
+      # wallow-web-client is the dashboard client every deployment has, so it fails closed here.
+      # The other three stay BARE on purpose: they are optional additional clients, and a
+      # `:?` on them would force every deployment to define three clients it may not have.
+      # Compose renders their unset variables as EMPTY values, which the seeder treats as
+      # "not provided": harmless when the seed file omits that client, and the hard fail
+      # above when it defines it. A NON-empty secret whose clientId matches no seed client
+      # also aborts the seeder — a misconfiguration is never dropped silently.
+      ClientSecrets__wallow-web-client: ${OIDC_CLIENT_SECRET:?OIDC_CLIENT_SECRET is required (generate with `openssl rand -hex 32`)}
+      ClientSecrets__bcordes-dev-client: ${BCORDES_CLIENT_SECRET}
+      ClientSecrets__sa-bcordes-bff: ${BCORDES_BFF_SECRET}
+      ClientSecrets__bcordes-bff: ${BCORDES_BFF_AUTHCODE_SECRET}
     depends_on:
       wallow-migrations:
         condition: service_completed_successfully

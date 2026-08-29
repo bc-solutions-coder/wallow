@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Wallow.Identity.Application.Commands.BootstrapAdmin;
@@ -87,16 +88,62 @@ internal static class SeederServiceCollectionExtensions
         // NullMessageBus — OrganizationService requires IMessageBus but the seeder never dispatches messages
         services.AddSingleton<IMessageBus>(new NullMessageBus());
 
-        // Map SeedOptions.Clients into PreRegisteredClientOptions
+        // Map SeedOptions.Clients into PreRegisteredClientOptions, attaching environment-supplied
+        // secrets by clientId (see SeedOptions.ClientSecrets for why the contract is name-keyed).
         services.Configure<PreRegisteredClientOptions>(opts =>
         {
             SeedOptions? seed = configuration.Get<SeedOptions>();
-            if (seed?.Clients is not null)
+            if (seed is null)
             {
-                foreach (PreRegisteredClientDefinition client in seed.Clients)
+                return;
+            }
+
+            HashSet<string> attachedSecretIds = new(StringComparer.OrdinalIgnoreCase);
+
+            // The binder compacts sparse indices (Clients:0 + Clients:2 bind to positions 0 and 1),
+            // so the raw section keys are the only way to name the index a stray override used.
+            List<string> clientSectionKeys = configuration.GetSection("Clients").GetChildren()
+                .Select(section => section.Key)
+                .ToList();
+
+            for (int index = 0; index < seed.Clients.Count; index++)
+            {
+                PreRegisteredClientDefinition client = seed.Clients[index];
+
+                if (string.IsNullOrWhiteSpace(client.ClientId))
                 {
-                    opts.Clients.Add(client);
+                    string position = index < clientSectionKeys.Count
+                        ? clientSectionKeys[index]
+                        : index.ToString(CultureInfo.InvariantCulture);
+                    throw new InvalidOperationException(
+                        "Seed client entry at index " + position + " has a blank clientId. An index-based "
+                        + "override (e.g. Clients__" + position + "__RedirectUris__0) points past the end of "
+                        + "the seed file's \"clients\" array and materialised a phantom client. Align the "
+                        + "override indices with the seed file, or remove the stray override.");
                 }
+
+                if (seed.ClientSecrets.TryGetValue(client.ClientId, out string? secret)
+                    && !string.IsNullOrWhiteSpace(secret))
+                {
+                    client = client with { Secret = secret };
+                    attachedSecretIds.Add(client.ClientId);
+                }
+
+                opts.Clients.Add(client);
+            }
+
+            List<string> orphanedSecretIds = seed.ClientSecrets
+                .Where(pair => !string.IsNullOrWhiteSpace(pair.Value) && !attachedSecretIds.Contains(pair.Key))
+                .Select(pair => pair.Key)
+                .ToList();
+
+            if (orphanedSecretIds.Count > 0)
+            {
+                throw new InvalidOperationException(
+                    "ClientSecrets entries for " + string.Join(", ", orphanedSecretIds) + " match no client "
+                    + "in the seed file. A secret aimed at an undefined client is a misconfiguration (typo'd "
+                    + "clientId, or a client removed from the seed without removing its secret variable), so "
+                    + "the seeder fails closed instead of dropping it.");
             }
         });
 
