@@ -2,57 +2,40 @@
 
 ## Module Purpose
 
-Manages API keys for service-to-service authentication. Dual-writes to PostgreSQL and Valkey (Redis-compatible; the type names below keep the `Redis` prefix because they wrap `StackExchange.Redis`). The `IApiKeyService` interface lives in `Wallow.Shared.Contracts` so other modules can validate keys without referencing this module directly.
-
-## Key File Locations
-
-| File | Purpose |
-|------|---------|
-| `Domain/Entities/ApiKey.cs` | Aggregate with `Create` and `Revoke` methods |
-| `Domain/ApiKeys/ApiKeyId.cs` | Strongly-typed ID |
-| `Application/Interfaces/IApiKeyRepository.cs` | Repository contract |
-| `Infrastructure/Services/RedisApiKeyService.cs` | Core service — key creation, validation, listing, revocation |
-| `Infrastructure/Services/IRedisDatabase.cs` | Abstraction over `StackExchange.Redis.IDatabase` for testability |
-| `Infrastructure/Authorization/ApiKeyAuthenticationMiddleware.cs` | Middleware that authenticates `X-Api-Key` header requests |
-| `Infrastructure/Persistence/ApiKeysDbContext.cs` | EF Core context, schema `apikeys` |
-| `Infrastructure/Persistence/Configurations/ApiKeyConfiguration.cs` | EF Core entity configuration |
-| `Infrastructure/Extensions/ApiKeysModuleExtensions.cs` | Module registration; no migration call — the schema is migrated inline only in the `Testing` environment, and by `Wallow.MigrationService` everywhere else |
-| `Api/Controllers/ApiKeysController.cs` | REST endpoints at `/v1/identity/auth/keys` |
-
-## Shared Contracts
-
-The `IApiKeyService` interface and its DTOs (`ApiKeyCreateResult`, `ApiKeyValidationResult`, `ApiKeyMetadata`) are defined in `src/Shared/Wallow.Shared.Contracts/ApiKeys/IApiKeyService.cs`. Scope validation uses `ApiScopes` and `ScopePermissionMapper` from `Wallow.Shared.Contracts.Identity` and `Wallow.Shared.Kernel.Identity.Authorization`.
-
-## Cross-Module Relationships
-
-- **Identity module**: Provides `IScopeSubsetValidator` used by the controller to validate service account scope escalation
-- **Shared.Kernel**: Provides `ClaimsPrincipalExtensions`, `ScopePermissionMapper`
-- **No Wolverine events**: This module does not currently publish or consume Wolverine in-memory messages
+API keys for service-to-service authentication. Dual-writes to PostgreSQL and Valkey
+(Redis-compatible; type names keep the `Redis` prefix because they wrap `StackExchange.Redis`).
+`IApiKeyService` lives in `Wallow.Shared.Contracts` so other modules validate keys without
+referencing this module.
 
 ## Patterns and Conventions
 
-- **Dual-write**: `RedisApiKeyService` writes to PostgreSQL first (via `IApiKeyRepository`), then Valkey. Validation reads from Valkey first, falls back to PostgreSQL on cache miss and repopulates the cache.
-- **Key format**: `sk_live_<base64url secret>`. The SHA-256 hash is stored; the plaintext key is never persisted.
-- **Valkey key layout**: `apikey:{hash}` for validation, `apikey:id:{keyId}` for metadata, `apikeys:user:{userId}` as a set of key IDs.
-- **Tenant isolation**: `ApiKeysDbContext` extends `TenantAwareDbContext` with automatic query filters. Repository methods take `tenantId` as a parameter.
-- **No CQRS handlers**: The controller calls `IApiKeyService` directly rather than dispatching commands/queries through Wolverine.
-
-## Testing
-
-```bash
-./scripts/run-tests.sh apikeys
-```
-
-Test files are in `tests/Modules/ApiKeys/Wallow.ApiKeys.Tests/` covering domain logic, controller behavior, middleware, the Valkey service, and EF Core configuration.
+- **No CQRS/Wolverine**: `ApiKeysController` (endpoints at `/v1/identity/auth/keys`) calls
+  `IApiKeyService` directly. The module publishes and consumes no Wolverine messages.
+- **Dual-write**: `RedisApiKeyService` writes PostgreSQL first (via `IApiKeyRepository`), then
+  Valkey. Validation reads Valkey first, falls back to PostgreSQL on cache miss and repopulates.
+- **Key format**: `sk_live_<base64url secret>`. Only the SHA-256 hash is stored; plaintext is
+  never persisted.
+- **Valkey key layout**: `apikey:{hash}` (validation), `apikey:id:{keyId}` (metadata),
+  `apikeys:user:{userId}` (set of key IDs).
+- **`X-Api-Key` requests** authenticate through
+  `Infrastructure/Authorization/ApiKeyAuthenticationMiddleware.cs`.
+- Scope validation uses `ApiScopes` + `ScopePermissionMapper` from Shared; Identity provides
+  `IScopeSubsetValidator`, used by the controller to validate service-account scope escalation.
 
 ## Things to Watch
 
-- The `IRedisDatabase` interface is a thin wrapper for testability — any new Valkey operations need to be added to both `IRedisDatabase` and `RedisDatabaseWrapper`.
-- `GetByHashAsync` with `Guid.Empty` tenantId is used during validation to search across all tenants (cache miss path).
-- Scope validation in the controller has two layers: permission-based (all users) and scope-subset (service accounts only, identified by `sa-` prefix on `clientId`).
+- `IRedisDatabase` is a thin testability wrapper over `StackExchange.Redis.IDatabase` — new
+  Valkey operations must be added to both `IRedisDatabase` and `RedisDatabaseWrapper`.
+- `GetByHashAsync` with `Guid.Empty` tenantId searches across all tenants (cache-miss
+  validation path).
+- Scope validation in the controller has two layers: permission-based (all users) and
+  scope-subset (service accounts only, identified by the `sa-` prefix on `clientId`).
 - Per-user key count is tracked via Valkey set length, not a database query.
 
-## Related Documentation
+## Database
 
-- Module reference: [`README.md`](README.md)
-- Backend conventions and commands: [`api/CLAUDE.md`](../../../CLAUDE.md)
+Schema: `apikeys`; context: `ApiKeysDbContext`. Repository methods take `tenantId` as a parameter.
+
+## Testing
+
+`./scripts/run-tests.sh apikeys`

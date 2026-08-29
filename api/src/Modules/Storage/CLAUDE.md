@@ -5,30 +5,14 @@
 Tenant-isolated file storage: buckets, uploads, metadata, presigned URLs and virus scanning,
 over a pluggable backend (local filesystem or any S3-compatible service).
 
-## Key File Locations
+## Non-Obvious Locations
 
-| Area | Path |
-|------|------|
-| Domain entities | `Wallow.Storage.Domain/Entities/` (`StorageBucket`, `StoredFile`) |
-| Enums | `Wallow.Storage.Domain/Enums/` (`FileStatus`, `AccessLevel`, `StorageProvider`, `RetentionAction`) |
-| Strongly-typed IDs | `Wallow.Storage.Domain/Identity/` |
-| Domain events | `Wallow.Storage.Domain/Events/StorageEvents.cs` |
-| Commands & handlers | `Wallow.Storage.Application/Commands/` |
-| Queries & handlers | `Wallow.Storage.Application/Queries/` |
-| Repository interfaces | `Wallow.Storage.Application/Interfaces/` |
-| Scanner interface | `Wallow.Storage.Application/Interfaces/IFileScanner.cs` |
-| Settings registry | `Wallow.Storage.Application/Settings/StorageSettingKeys.cs` |
-| Filename sanitizer | `Wallow.Storage.Application/Utilities/FileNameSanitizer.cs` |
-| Storage backends | `Wallow.Storage.Infrastructure/Providers/` (`LocalStorageProvider`, `S3StorageProvider`) |
-| Background jobs | `Wallow.Storage.Infrastructure/Jobs/` (`OrphanedObjectSweepJob`) |
-| Scanners | `Wallow.Storage.Infrastructure/Scanning/` (`ClamAvFileScanner`, `NoOpFileScanner`) |
-| Repository implementations | `Wallow.Storage.Infrastructure/Persistence/Repositories/` |
-| EF configurations | `Wallow.Storage.Infrastructure/Persistence/Configurations/` |
-| Module registration | `Wallow.Storage.Infrastructure/Modules/StorageModule.cs` + `Extensions/StorageInfrastructureExtensions.cs` |
-| Controllers | `Wallow.Storage.Api/Controllers/` (`StorageController`, `StorageSettingsController`, `LocalStorageController`) |
-| Presigned URL signer | `Wallow.Storage.Application/Services/LocalPresignedUrlSigner.cs` (in Application because the Api layer may not reference Infrastructure) |
-| Request/response contracts | `Wallow.Storage.Api/Contracts/` |
-| Tests | `tests/Modules/Storage/Wallow.Storage.Tests/` |
+- **Presigned URL signer** is `Wallow.Storage.Application/Services/LocalPresignedUrlSigner.cs` —
+  in Application because the Api layer may not reference Infrastructure.
+- Settings registry: `Wallow.Storage.Application/Settings/StorageSettingKeys.cs`.
+- Backends: `Wallow.Storage.Infrastructure/Providers/` (`LocalStorageProvider`,
+  `S3StorageProvider`); scanners: `Infrastructure/Scanning/` (`ClamAvFileScanner`,
+  `NoOpFileScanner`); background job: `Infrastructure/Jobs/OrphanedObjectSweepJob.cs`.
 
 ## Shared Contracts
 
@@ -37,20 +21,14 @@ an event. Both live in `Wallow.Shared.Contracts/Storage/`:
 
 - `IStorageProvider` — the low-level backend (`UploadAsync`, `DownloadAsync`, `DeleteAsync`,
   `ExistsAsync`, `ListAsync`, `GetPresignedUrlAsync`). This module registers the implementation;
-  anyone can inject the interface. `ListAsync` yields `StorageObjectInfo` (key + last-modified),
-  prefix-filtered.
+  anyone can inject the interface. `ListAsync` yields `StorageObjectInfo`, prefix-filtered.
 - `UploadFileCommand` — the multipart upload command `StorageController` sends over Wolverine.
 
 ## Cross-Module Relationships
 
-- **Branding** injects `IStorageProvider` directly (`ClientBrandingService`,
-  `ClientBrandingController`) to mint a download URL for `LogoStorageKey`. It reaches the backend,
-  not this module's application layer, and that is legal only because the interface sits in
-  `Shared.Contracts`.
-- **Identity** intends to upload through this module but does not yet —
-  `OrganizationService.cs` carries a `TODO` naming `UploadFileCommand`.
-- **Publishes nothing.** The four domain events in `StorageEvents.cs` (`FileUploadedEvent`,
-  `FileDeletedEvent`, `BucketCreatedEvent`, `BucketDeletedEvent`) are raised on the aggregates and
+- **Branding** injects `IStorageProvider` directly to mint a download URL for `LogoStorageKey` —
+  legal only because the interface sits in `Shared.Contracts`.
+- **Publishes nothing.** The domain events in `StorageEvents.cs` are raised on the aggregates and
   asserted in unit tests, but nothing consumes them and there are no Storage entries in
   `Shared.Contracts/…/Events`. Do not assume a subscriber exists.
 - **Consumes no** integration events from other modules.
@@ -58,106 +36,81 @@ an event. Both live in `Wallow.Shared.Contracts/Storage/`:
 ## Important Patterns
 
 - **Two upload paths with different guarantees.** `POST /upload` (multipart) runs
-  `UploadFileValidator` over the request stream — magic-byte/content-type agreement for five
-  types, a blocked-signature check (MZ, `<html`, `<!doctype`, `<svg`), path-traversal rejection —
-  then scans inline via `IFileScanner`, then writes, then creates the row as
-  `FileStatus.Available`. `POST /presigned-upload` never sees the bytes, so
-  `GetUploadPresignedUrlValidator` can only check the metadata: the row is created
-  `PendingValidation`, and after PUTting the bytes to the presigned URL the client MUST call
-  `POST /files/{id}/complete` — `CompletePresignedUploadHandler` verifies the object exists
-  (`Error.Validation("File.NotUploaded")` if not), scans it inline, and marks the row
-  `Available` or `Rejected`. The completion call is idempotent: once the file has left
-  `PendingValidation` it just reports the current status without rescanning. Note the byte-level
-  `UploadFileValidator` checks still apply only to the multipart path.
-- **`FileNameSanitizer` runs on the multipart path only.** `UploadFileHandler` sanitizes before
-  deriving the extension and storing `FileName`; `GetUploadPresignedUrlHandler` takes
+  `UploadFileValidator` over the request stream (magic-byte/content-type agreement,
+  blocked-signature check, path-traversal rejection), scans inline via `IFileScanner`, writes,
+  then creates the row as `FileStatus.Available`. `POST /presigned-upload` never sees the bytes,
+  so its validator checks metadata only: the row is created `PendingValidation`, and after PUTting
+  the bytes the client MUST call `POST /files/{id}/complete` — `CompletePresignedUploadHandler`
+  verifies the object exists, scans it inline, and marks the row `Available` or `Rejected`. The
+  completion call is idempotent: once the file leaves `PendingValidation` it reports current
+  status without rescanning. Byte-level validation applies only to the multipart path.
+- **`FileNameSanitizer` runs on the multipart path only** — `GetUploadPresignedUrlHandler` takes
   `query.FileName` raw.
 - **Storage key** — `tenant-{tenantId}/{bucketName}/{path}/{fileId}{extension}`. `BuildStorageKey`
   is duplicated **verbatim** in `UploadFileHandler` and `GetUploadPresignedUrlHandler`; change
   both or neither.
-- **Presigned expiry is clamped, never trusted.** `PresignedUrlOptions.MaxUploadExpiryMinutes` /
-  `MaxDownloadExpiryMinutes` cap whatever the caller asked for. Download defaults to one hour.
-- **Downloads require `FileStatus.Available`.** `GetPresignedUrlHandler` fails with
-  `File.NotAvailable` for anything else, which is what makes the `PendingValidation` bug below
-  fatal rather than cosmetic.
-- **Provider and scanner are chosen at registration time, from configuration.**
-  `Storage:Provider` selects `S3StorageProvider` (scoped, with a singleton `IAmazonS3`) or
-  `LocalStorageProvider` (singleton, the default). `Storage:ClamAv:Enabled` selects
-  `ClamAvFileScanner` plus a TCP health check tagged `clamav`, or `NoOpFileScanner`. Both are
-  switches in `StorageInfrastructureExtensions`, not runtime strategy lookups.
-- **`LocalStorageProvider` guards path traversal itself** — `GetFilePath` resolves the key against
-  `BasePath` and throws `InvalidOperationException` if it escapes.
-- **Local presigned URLs are served by `LocalStorageController`.** The filesystem cannot answer a
-  presigned URL the way S3 does, so the provider mints
+- **Presigned expiry is clamped, never trusted** — `PresignedUrlOptions.MaxUploadExpiryMinutes` /
+  `MaxDownloadExpiryMinutes` cap whatever the caller asks. Download defaults to one hour.
+- **Downloads require `FileStatus.Available`** — `GetPresignedUrlHandler` fails with
+  `File.NotAvailable` for anything else.
+- **Provider and scanner are chosen at registration time, from configuration.** `Storage:Provider`
+  selects `S3StorageProvider` (scoped, singleton `IAmazonS3`) or `LocalStorageProvider`
+  (singleton, the default). `Storage:ClamAv:Enabled` selects `ClamAvFileScanner` (plus a TCP
+  health check tagged `clamav`) or `NoOpFileScanner`. Switches in
+  `StorageInfrastructureExtensions`, not runtime strategy lookups.
+- **Local presigned URLs are served by `LocalStorageController`.** The provider mints
   `/v1/storage/local/files?key=...&expires=...&sig=...` — an HMAC (from the singleton
-  `LocalPresignedUrlSigner`, registered under every provider) over method + key + expiry, GET-signed
-  for downloads and PUT-signed for uploads. The controller is `[AllowAnonymous]` (the signature is
-  the authorization, S3-style) and `[ApiExplorerSettings(IgnoreApi = true)]` — deliberately absent
-  from the OpenAPI document and the SDK, because callers receive the full URL as an opaque string.
-- **Handler shape is uniform here:** every handler is a `public sealed class` with a primary
-  constructor (the one `static partial` outlier, `ScanUploadedFileHandler`, was deleted with the
-  async scan path).
+  `LocalPresignedUrlSigner`, registered under every provider) over method + key + expiry,
+  GET-signed for downloads and PUT-signed for uploads. The controller is `[AllowAnonymous]` (the
+  signature IS the authorization, S3-style) and `[ApiExplorerSettings(IgnoreApi = true)]` —
+  deliberately absent from the OpenAPI document and SDK; callers receive the URL as an opaque string.
+- **`LocalStorageProvider` guards path traversal itself** — `GetFilePath` throws if a key escapes
+  `BasePath`.
 
 ## Permissions
 
 | Permission | Used By |
 |------------|---------|
-| `StorageWrite` | Create/delete bucket, upload, delete file, presigned upload, and all tenant-scoped settings endpoints |
+| `StorageWrite` | Create/delete bucket, upload, delete file, presigned upload, tenant-scoped settings endpoints |
 | `StorageRead` | Get bucket, get file metadata, download, list files, presigned download |
 
-`GET /config` and the three `/settings/user` endpoints carry `[Authorize]` only — a signed-in user
+`GET /config` and the `/settings/user` endpoints carry `[Authorize]` only — a signed-in user
 manages their own overrides without a Storage permission.
 
 ## Database
 
-- Schema: `storage` (the one copy of the name is `StorageModule.Schema`, `internal const`)
-- Context: `StorageDbContext` (extends `TenantAwareDbContext`), registered via
-  `AddPooledDbContextFactory` + `AddTenantAwareScopedContext<StorageDbContext>`
-- Reads go through `AddReadDbContext<StorageDbContext>`; there is no Dapper here
-- **Both** aggregates declare `ITenantScoped`, so `ApplyTenantQueryFilters` covers `StorageBucket`
-  as well as `StoredFile`. The README used to say buckets were platform-wide; they are not
-- Settings storage is registered with `AddSettings<StorageDbContext, StorageSettingKeys>("storage")`,
-  which is why both settings services are resolved with `[FromKeyedServices("storage")]`
-
-## Testing
-
-```bash
-./scripts/run-tests.sh storage
-```
-
-That excludes the Testcontainers-backed repository suites under
-`Wallow.Storage.Tests/Integration/`; add `integration` (`./scripts/run-tests.sh storage integration`)
-to run those, which needs Docker.
+- Schema: `storage` (the one copy of the name is `StorageModule.Schema`, `internal const`).
+- Context: `StorageDbContext`, registered via `AddPooledDbContextFactory` +
+  `AddTenantAwareScopedContext<StorageDbContext>`; reads via `AddReadDbContext<StorageDbContext>`.
+- **Both** aggregates declare `ITenantScoped` — buckets are tenant-scoped, not platform-wide.
+- Settings storage registers with `AddSettings<StorageDbContext, StorageSettingKeys>("storage")`,
+  which is why both settings services resolve with `[FromKeyedServices("storage")]`.
 
 ## Things to Watch
 
-- **A presigned upload that never calls `/complete` stays `PendingValidation` forever.** There is
-  no background sweep that promotes or expires abandoned presigned rows; the completion endpoint
-  is the only promotion path (this replaced the broken async `ScanUploadedFileCommand`,
-  `Wallow-p9p4`), and downloads stay blocked until it runs.
+- **A presigned upload that never calls `/complete` stays `PendingValidation` forever.** No
+  background sweep promotes or expires abandoned presigned rows; the completion endpoint is the
+  only promotion path, and downloads stay blocked until it runs.
 - **Local presigned URLs die on API restart.** `LocalPresignedUrlSigner` holds a random
-  per-process HMAC key, so every outstanding local presigned URL is invalidated by a restart
-  (dev-only provider, URLs live minutes — accepted in `Wallow-p23n`). The signature is the
+  per-process HMAC key (dev-only provider, URLs live minutes — accepted). The signature is the
   *entire* authorization on `LocalStorageController`'s anonymous endpoints; do not "fix" a 403
   there by adding auth or loosening validation.
 - **Tenant limits are enforced from tenant-scope settings only.** Both upload handlers resolve
-  `IStorageLimitsProvider` (`StorageLimitsProvider`, built on
-  `ITenantSettingRepository<StorageDbContext>` — deliberately NOT the keyed `ISettingsService`,
-  which Wolverine codegen cannot construct) and check, in order: max upload size, extension
-  allowlist (`*` default = allow all), then quota. Quota counts **every** `StoredFile` row —
-  `PendingValidation` reservations and `Rejected` rows included. User-scope setting overrides are
-  ignored on purpose: a user must not raise their own limits. `[RequestSizeLimit(100MB)]` and the
-  bucket's `MaxFileSizeBytes` still apply on top.
-- **Five test classes exist twice**, flat and in a nested namespace (`Wallow-xku9`). Add a fact to
-  the nested copy — it is the superset in every pair.
+  `IStorageLimitsProvider` (built on `ITenantSettingRepository<StorageDbContext>` — deliberately
+  NOT the keyed `ISettingsService`, which Wolverine codegen cannot construct) and check, in order:
+  max upload size, extension allowlist (`*` default = allow all), then quota. Quota counts
+  **every** `StoredFile` row — `PendingValidation` reservations and `Rejected` rows included.
+  User-scope setting overrides are ignored on purpose: a user must not raise their own limits.
+  `[RequestSizeLimit(100MB)]` and the bucket's `MaxFileSizeBytes` still apply on top.
+- **Some test classes exist twice**, flat and in a nested namespace — add a fact to the nested
+  copy; it is the superset in every pair.
 - **The orphan sweep only reaches the DEFAULT S3 bucket.** `OrphanedObjectSweepJob` (daily,
   registered in `Program.cs` behind the Storage module flag) deletes `tenant-`-prefixed objects
-  with no matching `StoredFile.StorageKey`, skipping anything younger than 24 h. But it runs in a
+  with no matching `StoredFile.StorageKey`, skipping anything younger than 24 h. It runs in a
   background scope where `ITenantContext` is unresolved, so `S3StorageProvider.ResolveBucket()`
   falls back to `BucketName` — a multi-region `RegionBuckets` deployment's non-primary buckets are
   never swept.
 
-## Related Documentation
+## Testing
 
-- Module reference: [`README.md`](README.md)
-- Backend conventions and commands: [`api/CLAUDE.md`](../../../CLAUDE.md)
+`./scripts/run-tests.sh storage` (add `integration` for the Testcontainers suites).

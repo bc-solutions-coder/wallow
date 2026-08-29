@@ -2,66 +2,53 @@
 
 ## Module Role
 
-This is a **consumer-only** module. It does not publish integration events to other modules. It listens to events from Identity, Announcements, and Inquiries modules via Wolverine in-memory messaging and dispatches notifications through email, SMS, in-app, and push channels.
+A **consumer-only** module: it publishes no integration events. It listens to events from
+Identity, Announcements, and Inquiries via Wolverine and dispatches notifications through email,
+SMS, in-app, and push channels.
 
-## Key File Locations
+## Code Organization
 
-- **Domain entities**: `Wallow.Notifications.Domain/Channels/{Email,InApp,Push,Sms}/Entities/`
-- **Value objects**: `Wallow.Notifications.Domain/Channels/{Email,Sms}/ValueObjects/`
-- **Enums**: `Wallow.Notifications.Domain/Enums/NotificationType.cs`, `Wallow.Notifications.Domain/Preferences/ChannelType.cs`, plus per-channel status/platform enums
-- **Event handlers** (integration event consumers): `Wallow.Notifications.Application/EventHandlers/`
-- **Channel commands/queries**: `Wallow.Notifications.Application/Channels/{Email,InApp,Push,Sms}/`
-- **Preference commands/queries**: `Wallow.Notifications.Application/Channels/Preferences/` and `Wallow.Notifications.Application/Preferences/`
-- **Infrastructure services**: `Wallow.Notifications.Infrastructure/Services/` (providers, adapters, SSE service)
-- **Module registration**: `Wallow.Notifications.Infrastructure/Extensions/NotificationsModuleExtensions.cs`
-- **DbContext**: `Wallow.Notifications.Infrastructure/Persistence/NotificationsDbContext.cs` (schema: `notifications`)
-- **Controllers**: `Wallow.Notifications.Api/Controllers/`
+The Application layer is organized by **channel** (`Email`, `InApp`, `Push`, `Sms`) rather than
+by entity — each channel directory has its own `Commands/`, `Queries/`, `DTOs/`, `Interfaces/`,
+and `Mappings/`. A cross-channel `Preferences` directory handles global channel enable/disable.
+Integration-event handlers live in a flat `EventHandlers/` directory at the Application root,
+not inside channels.
 
-## Code Organization Pattern
+## Adding an Event Handler
 
-The Application layer is organized by **channel** (`Email`, `InApp`, `Push`, `Sms`) rather than by entity. Each channel directory contains its own `Commands/`, `Queries/`, `DTOs/`, `Interfaces/`, and `Mappings/` subdirectories. There is also a cross-channel `Preferences` directory for global channel enable/disable.
-
-Event handlers for integration events live in a flat `EventHandlers/` directory at the Application root, not inside channels.
-
-## Integration Events
-
-All consumed events come from `Wallow.Shared.Contracts`. When adding a new event handler:
-1. Create a static handler class in `Application/EventHandlers/`
-2. Use `public static async Task Handle(EventType message, IMessageBus bus)` signature
-3. Wolverine auto-discovers handlers — no registration needed
-4. Check user preferences via `INotificationPreferenceChecker` before sending when appropriate
-
-Event handler naming convention: `{EventName}NotificationHandler.cs` for email, `{EventName}InAppHandler.cs` for in-app, `{EventName}SseHandler.cs` for SSE real-time.
+1. Create a static handler class in `Application/EventHandlers/` with
+   `public static async Task Handle(EventType message, IMessageBus bus)` — Wolverine
+   auto-discovers it, no registration.
+2. Check user preferences via `INotificationPreferenceChecker` before sending when appropriate.
+3. Naming: `{EventName}NotificationHandler.cs` (email), `{EventName}InAppHandler.cs` (in-app),
+   `{EventName}SseHandler.cs` (SSE real-time).
 
 ## Provider Pattern
 
-Each channel has an abstraction (`IEmailProvider`, `ISmsProvider`, `IPushProvider`) with concrete implementations:
+Each channel has an abstraction (`IEmailProvider`, `ISmsProvider`, `IPushProvider`):
+
 - **Email**: `SmtpEmailProvider` (default), wrapped by `EmailProviderAdapter` implementing `IEmailService`
 - **SMS**: `TwilioSmsProvider` (when configured) or `NullSmsProvider` (fallback)
-- **Push**: `FcmPushProvider`, `ApnsPushProvider`, `WebPushPushProvider`, `LogPushProvider` — selected by `PushProviderFactory` based on `PushPlatform`
-- **In-App real-time**: `SseNotificationService` using `ISseDispatcher` from `Wallow.Shared.Contracts.Realtime`
+- **Push**: `FcmPushProvider`, `ApnsPushProvider`, `WebPushPushProvider`, `LogPushProvider` —
+  selected by `PushProviderFactory` based on `PushPlatform`
+- **In-App real-time**: `SseNotificationService` using `ISseDispatcher` from
+  `Wallow.Shared.Contracts.Realtime` — separate from persistent in-app notifications
 
-## Entity Patterns
+## Conventions
 
-- All message entities (EmailMessage, SmsMessage, PushMessage) follow `Pending -> Sent/Delivered | Failed` with retry support (`CanRetry(maxRetries)`, `ResetForRetry()`)
-- All entities implement `ITenantScoped` for multi-tenant isolation
-- Entities use strongly-typed IDs internally; integration events use plain `Guid`
+- Message entities (EmailMessage, SmsMessage, PushMessage) follow
+  `Pending → Sent/Delivered | Failed` with retry support (`CanRetry(maxRetries)`,
+  `ResetForRetry()`); all implement `ITenantScoped`.
+- Entities use strongly-typed IDs internally; integration events use plain `Guid`.
+- `RetryFailedEmailsJob` is registered as scoped but invoked externally, not auto-scheduled here.
+- Push credentials are encrypted via `IPushCredentialEncryptor` (ASP.NET Data Protection);
+  `TenantPushConfiguration` stores per-tenant, per-platform credentials.
+- Email templates go through `IEmailTemplateService` (`SimpleEmailTemplateService`).
 
-## Important Conventions
+## Database
 
-- The `RetryFailedEmailsJob` is registered as scoped but invoked externally (not auto-scheduled within this module)
-- Push credentials are encrypted via `IPushCredentialEncryptor` (uses ASP.NET Data Protection)
-- `TenantPushConfiguration` stores per-tenant, per-platform credentials — each tenant configures its own push providers
-- Email templates use `IEmailTemplateService` (`SimpleEmailTemplateService` implementation)
-- SSE handlers dispatch via `ISseDispatcher` for real-time browser updates, separate from persistent in-app notifications
+Schema: `notifications`; context: `NotificationsDbContext`.
 
 ## Testing
 
-```bash
-./scripts/run-tests.sh notifications
-```
-
-## Related Documentation
-
-- Module reference: [`README.md`](README.md)
-- Backend conventions and commands: [`api/CLAUDE.md`](../../../CLAUDE.md)
+`./scripts/run-tests.sh notifications`

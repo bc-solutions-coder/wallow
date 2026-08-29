@@ -4,33 +4,32 @@ Rules for `apps/wallow-auth/e2e/`. This is the reference pattern for a per-app P
 
 ## This is Playwright, not Vitest browser mode — do not conflate them
 
-Both drive a real Chromium, but they are separate suites with separate configs and commands. This
-holds for wallow-web's suites too — its guide points here rather than restating it:
+Both drive a real Chromium, but they are separate suites with separate configs and commands.
+This holds for wallow-web's suites too — its guide points here rather than restating it:
 
-- **Vitest browser mode** (`src/**/*.test.tsx`, run by `pnpm test`) — **isolated component render,
-  no dev server.** Mounts one component in a headless Chromium iframe via the Vitest `playwright`
-  provider. It is a unit/component test, not E2E, and boots neither the app nor a backend. Its
-  rules live in `.claude/rules/TESTING.md`.
-- **Playwright `e2e/` suites** (this directory) — **the full app via a running dev/prod server**,
+- **Vitest browser mode** (`src/**/*.test.tsx`, run by `pnpm test`) — isolated component render,
+  no dev server. Mounts one component in a headless Chromium iframe via the Vitest `playwright`
+  provider. A unit/component test, not E2E; boots neither the app nor a backend. Rules:
+  `.claude/rules/TESTING.md`.
+- **Playwright `e2e/` suites** (this directory) — the full app via a running dev/prod server,
   exercising real navigation and, for backend specs, the live API.
 
-Keep Playwright specs out of vitest: vitest's `include` is scoped to `src/**`, so specs live here
-only. `test-results/` and `playwright-report/` are gitignored in `apps/wallow-auth/.gitignore`.
+Keep Playwright specs out of vitest: vitest's `include` is scoped to `src/**`, so specs live
+here only. `test-results/` and `playwright-report/` are gitignored.
 
 ## Config
 
 `apps/wallow-auth/playwright.config.ts` sets `testDir: "./e2e"` and
 `testIdAttribute: "data-testid"`. Its `webServer` boots `pnpm dev` on `PORT` (default 3002;
 `scripts/e2e.sh` passes a per-run port, reusing an already-running server) and defaults
-`WALLOW_API_INTERNAL_URL` to `http://localhost:5001` so the
-passthrough proxy resolves outside Aspire. Setting `E2E_BASE_URL` drives an already-running app
-instead and boots no server. `e2e/global-setup.ts` drives one page load to hydration first so no
-spec pays the dev server's lazy first-request cost.
+`WALLOW_API_INTERNAL_URL` to `http://localhost:5001` so the passthrough proxy resolves outside
+Aspire. Setting `E2E_BASE_URL` drives an already-running app instead and boots no server.
+`e2e/global-setup.ts` drives one page load to hydration first so no spec pays the dev server's
+lazy first-request cost.
 
 ## Selectors
 
-These rules hold for every Playwright suite in the repo, wallow-web's included; this is where they
-are stated.
+These rules hold for every Playwright suite in the repo; this is where they are stated.
 
 - **ALWAYS** use `data-testid`: `page.getByTestId("login-email")`.
 - **NEVER** use a raw `#id`, a CSS class (`.btn-primary`), or text (`button:has-text('Sign in')`).
@@ -38,10 +37,9 @@ are stated.
 
 ## Readiness
 
-Wait for React hydration via the marker `src/shared/components/ready-indicator.tsx` stamps — the
-app's thin wrapper over `ReadyIndicator` from `@bc-solutions-coder/ui`. Each app has its own
-wrapper (wallow-web's at the same path, minimal-app's at `src/components/`), and all three stamp
-the same attribute:
+Wait for React hydration via the marker `src/shared/components/ready-indicator.tsx` stamps —
+the app's thin wrapper over `ReadyIndicator` from `@bc-solutions-coder/ui`. Each app has its own
+wrapper stamping the same attribute:
 
 ```ts
 await expect(page.locator("[data-app-ready='true']")).toBeAttached();
@@ -51,14 +49,14 @@ await expect(page.locator("[data-app-ready='true']")).toBeAttached();
 
 - `routes.spec.ts` is the route-reachability gate: every route renders (<400) and reaches
   hydration. Reachability specs must not depend on the backend — keep it that way.
-- Every other spec (`login`, `signup`, `logout`, `mfa`, `otp-login`, `magic-link`,
-  `forgot-password`, `reset-password`) requires the API plus the seeded admin from `api/seed.json`.
-  A backend-dependent spec says so in its header comment and asserts app-level signals (e.g.
-  `login-signed-in`), never incidental side effects like a URL change.
+- Every other spec (login, signup, logout, MFA, OTP login, magic link, forgot/reset password)
+  requires the API plus the seeded admin from `api/seed.json`. A backend-dependent spec says so
+  in its header comment and asserts app-level signals (e.g. `login-signed-in`), never incidental
+  side effects like a URL change.
 - Helpers: `mailpit.ts` reads delivered mail out of Mailpit; `totp.ts` generates TOTP codes.
 
-Seeder gotcha: admin bootstrap is skipped when ANY user already exists, so a stale dev DB can lack
-`admin@wallow.dev` even after a "successful" seed.
+Seeder gotcha: admin bootstrap is skipped when ANY user already exists, so a stale dev DB can
+lack `admin@wallow.dev` even after a "successful" seed.
 
 ## Running
 

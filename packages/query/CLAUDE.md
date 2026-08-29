@@ -1,40 +1,34 @@
 # packages/query — @bc-solutions-coder/query Agent Guide
 
 The **shared TanStack Query facade**: the one place `@tanstack/react-query` enters this
-workspace. It re-exports react-query's entire runtime surface and adds exactly one symbol
-of its own, `createQueryClient`.
+workspace. It re-exports react-query's entire runtime surface and adds exactly one symbol of
+its own, `createQueryClient`.
 
 ## One entry, browser-safe by construction
 
-| Entry                | Runs in | What it is                                                                       |
-| -------------------- | ------- | -------------------------------------------------------------------------------- |
-| `.` (`src/index.ts`) | Browser | `export * from "@tanstack/react-query"` plus `createQueryClient`. Must stay free |
-|                      |         | of Node APIs; it is imported from client bundles as well as SSR.                 |
-
-- **Never add a Node-only symbol here** — everything in this package is pulled into every
-  consuming app's client bundle. There is no `./server` subpath to hide it behind.
+| Entry                | Runs in | What it is                                                                                                                                                                                 |
+| -------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `.` (`src/index.ts`) | Browser | `export * from "@tanstack/react-query"` plus `createQueryClient`. No Node APIs — it is imported from client bundles as well as SSR, and there is no `./server` subpath to hide one behind. |
 
 ## The facade rule
 
 Every consumer — the apps, `packages/forms`, `packages/testing`, `packages/auth` — imports
-react-query symbols (`useQuery`, `useMutation`, `QueryClient`, `QueryClientProvider`, …)
-from `@bc-solutions-coder/query`, **never from `@tanstack/react-query` directly**. Only this
-package declares react-query as a dependency; a repo-root oxlint `no-restricted-imports`
-rule enforces the import side.
+react-query symbols (`useQuery`, `QueryClient`, `QueryClientProvider`, …) from
+`@bc-solutions-coder/query`, **never from `@tanstack/react-query` directly**. Only this
+package declares react-query as a dependency; a repo-root oxlint `no-restricted-imports` rule
+enforces the import side.
 
-Two reasons it is a wildcard re-export pinned by reference identity (`src/index.test.ts`):
+It is a wildcard re-export pinned by reference identity (`src/index.test.ts`):
 
-1. A hand-kept named list would silently lag react-query. The first consumer needing an
-   unlisted symbol reaches for the raw package, and the facade erodes one import at a time.
-   So the spec derives the expected surface from the installed package instead.
-2. **Identity, not just presence.** Two copies of react-query in one graph give two
-   `QueryClientProvider` React contexts, and a `useQuery` from copy B inside a provider from
-   copy A throws "No QueryClient set" at runtime. `facade[name] === tanstack[name]` is what
-   proves this package re-exports the same bindings rather than wrapping them.
+1. A hand-kept named list would silently lag react-query and push consumers back to the raw
+   package; the spec derives the expected surface from the installed package instead.
+2. **Identity, not just presence.** Two react-query copies in one graph give two
+   `QueryClientProvider` contexts, and a `useQuery` from copy B inside a provider from copy A
+   throws "No QueryClient set" at runtime. `facade[name] === tanstack[name]` proves the same
+   bindings are re-exported, not wrapped.
 
-The spec also asserts the surface in **both** directions — a dropped re-export fails, and so
-does an accidentally widened one. This is a facade, not a grab bag: new helpers need a
-deliberate addition to `FACADE_ADDITIONS`.
+The spec asserts the surface in **both** directions — a dropped re-export fails, and so does
+an accidentally widened one. New helpers need a deliberate addition to `FACADE_ADDITIONS`.
 
 ## `createQueryClient`
 
@@ -46,22 +40,16 @@ router context and its `__root` `QueryClientProvider`. Its policy is the contrac
 
 ## Tests
 
-Node-environment vitest, co-located in `src/` (`vitest run`; the package has no browser
-project):
+Node-environment vitest, co-located in `src/` (`vitest run`; no browser project):
 
-- `index.test.ts` — the facade pin described above, plus a `skipIf(no dist/)` block that
-  checks the **built** entry: `dist/index.js`'s runtime surface matches the source barrel
-  (proving react-query still arrives through a live `export *` rather than being bundled in
-  as a second copy) and `dist/index.d.ts` declares both react-query and `createQueryClient`.
-  Run `pnpm --filter @bc-solutions-coder/query build` to arm those two.
+- `index.test.ts` — the facade pin above, plus a `skipIf(no dist/)` block checking the
+  **built** entry: `dist/index.js`'s runtime surface matches the source barrel (react-query
+  arrives through a live `export *`, not bundled in as a second copy) and `dist/index.d.ts`
+  declares both halves. Run `pnpm --filter @bc-solutions-coder/query build` to arm it.
 - `query-client.test.ts` — the `createQueryClient` policy.
 
-`devtools-gating.test.ts`, the repo-wide sweep that walked `apps/` asserting no app statically
-imported a `*-devtools` package, is **gone** (`Wallow-xg9t.1`) and is not to be recreated. The
-rule it enforced still stands — a devtools panel is reached by dynamic `import()` behind a dev
-guard, never a static import — but a spec reading three apps' source as text is not how it is
-held. A static import would ship the panel into every production bundle, which is a build-output
-fact; the sweep only ever restated it.
+Devtools panels are reached by dynamic `import()` behind a dev guard, never a static import —
+a static import ships the panel into every production bundle.
 
 Scripts: `pnpm --filter @bc-solutions-coder/query build` (Vite lib mode +
 `tsc -p tsconfig.build.json`), `test`, `test:watch`, `typecheck`.

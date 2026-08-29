@@ -2,46 +2,37 @@
 
 ## Module Purpose
 
-Manages tenant-scoped in-app announcements (with audience targeting and user dismissals) and a global public changelog. Two distinct sub-domains: Announcements and Changelogs.
-
-## Key File Locations
-
-| Area | Path |
-|------|------|
-| Domain entities | `Wallow.Announcements.Domain/Announcements/Entities/` and `Changelogs/Entities/` |
-| Enums | `Wallow.Announcements.Domain/Announcements/Enums/` and `Changelogs/Enums/` |
-| Strongly-typed IDs | `Wallow.Announcements.Domain/Announcements/Identity/` and `Changelogs/Identity/` |
-| Commands & handlers | `Wallow.Announcements.Application/Announcements/Commands/` and `Changelogs/Commands/` |
-| Queries & handlers | `Wallow.Announcements.Application/Announcements/Queries/` and `Changelogs/Queries/` |
-| Repository interfaces | `Wallow.Announcements.Application/Announcements/Interfaces/` and `Changelogs/Interfaces/` |
-| Targeting service | `Wallow.Announcements.Application/Announcements/Services/AnnouncementTargetingService.cs` |
-| Repository implementations | `Wallow.Announcements.Infrastructure/Persistence/Repositories/` |
-| EF configurations | `Wallow.Announcements.Infrastructure/Persistence/Configurations/` |
-| Module registration | `Wallow.Announcements.Infrastructure/Extensions/AnnouncementsModuleExtensions.cs` |
-| Controllers | `Wallow.Announcements.Api/Controllers/` |
-| Response contracts | `Wallow.Announcements.Api/Contracts/Responses/AnnouncementResponse.cs` |
-| Tests | `tests/Modules/Announcements/Wallow.Announcements.Tests/` |
+Tenant-scoped in-app announcements (audience targeting and user dismissals) plus a global public
+changelog — two distinct sub-domains, Announcements and Changelogs, each with its own
+`Entities/`, `Commands/`, `Queries/` and `Interfaces/` trees under the Domain/Application projects.
 
 ## Cross-Module Communication
 
-- **Publishes** `AnnouncementPublishedEvent` (defined in `Wallow.Shared.Contracts/Announcements/Events/`) via Wolverine in-memory messaging when an announcement is published
-- The event carries target criteria (`Target`, `TargetValue`) so consuming modules (e.g., Notifications) can determine delivery. It also declares `TargetUserIds`, but that collection is **always empty** — `ResolveTargetUsersAsync` is an unimplemented `TODO`
-- **Does not consume** any integration events from other modules
+- **Publishes** `AnnouncementPublishedEvent` (`Wallow.Shared.Contracts/Announcements/Events/`)
+  when an announcement is published. The event carries target criteria (`Target`, `TargetValue`)
+  so consumers (e.g. Notifications) determine delivery. It also declares `TargetUserIds`, but that
+  collection is **always empty** — `ResolveTargetUsersAsync` is an unimplemented `TODO`.
+- **Consumes** no integration events.
 
 ## Important Patterns
 
-- **Two sub-domains**: Announcements are tenant-scoped (`ITenantScoped`); Changelogs are global (no tenant scoping)
-- **Targeting service**: `AnnouncementTargetingService` filters published announcements by target type (All, Tenant, Plan, Role) and excludes dismissed ones. The `ResolveTargetUsersAsync` method currently returns an empty list — actual user resolution is deferred to consuming modules
-- **State transitions**: this module's aggregate methods are `Publish()`, `Archive()`, `Expire()`
-- **HTML sanitization**: Controllers sanitize `Title` and `Content` via `IHtmlSanitizationService` before passing to commands
-- **Wolverine handler discovery**: Handlers are plain classes with `Handle` methods — no interface implementation needed. Wolverine discovers them automatically
-- **Request records in controller files**: `CreateAnnouncementRequest` and `UpdateAnnouncementRequest` are defined at the bottom of `AdminAnnouncementsController.cs`; `CreateChangelogEntryRequest` is in `AdminChangelogController.cs`
+- **Two sub-domains**: Announcements are tenant-scoped (`ITenantScoped`); Changelogs are global —
+  `ChangelogEntry`/`ChangelogItem` carry no tenant filter.
+- **Targeting**: `AnnouncementTargetingService` (Application) filters published announcements by
+  target type (All, Tenant, Plan, Role) and excludes dismissed ones. `ResolveTargetUsersAsync`
+  returns an empty list — user resolution is deferred to consuming modules.
+- **Aggregate state methods**: `Publish()`, `Archive()`, `Expire()`.
+- **HTML sanitization**: controllers sanitize `Title` and `Content` via
+  `IHtmlSanitizationService` before passing to commands.
+- **Request records live in controller files**: `CreateAnnouncementRequest` and
+  `UpdateAnnouncementRequest` at the bottom of `AdminAnnouncementsController.cs`;
+  `CreateChangelogEntryRequest` in `AdminChangelogController.cs`.
 
 ## Permissions
 
 | Permission | Used By |
 |------------|---------|
-| `AnnouncementManage` | Admin announcement CRUD (all admin endpoints) |
+| `AnnouncementManage` | Admin announcement CRUD |
 | `AnnouncementRead` | User-facing read and dismiss |
 | `ChangelogManage` | Admin changelog creation and publishing |
 
@@ -49,20 +40,8 @@ Public changelog endpoints (`/v1/changelog`) are `[AllowAnonymous]`.
 
 ## Database
 
-- Schema: `announcements`
-- Context: `AnnouncementsDbContext` (extends `TenantAwareDbContext`)
-- Migrated inline only in the `Testing` environment; `Wallow.MigrationService` applies migrations everywhere else
-- Tenant query filters apply to `Announcement` (via `ITenantScoped`); `ChangelogEntry` and `ChangelogItem` are not tenant-scoped
+Schema: `announcements`; context: `AnnouncementsDbContext`.
 
 ## Testing
 
-```bash
-./scripts/run-tests.sh announcements
-```
-
-Tests cover domain entities, all command/query handlers, validators, targeting service, repository persistence (using Testcontainers PostgreSQL), and controller behavior.
-
-## Related Documentation
-
-- Module reference: [`README.md`](README.md)
-- Backend conventions and commands: [`api/CLAUDE.md`](../../../CLAUDE.md)
+`./scripts/run-tests.sh announcements`
