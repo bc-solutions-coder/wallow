@@ -43,6 +43,12 @@ that appears on the public surface (token claims, the SDK, registration screens)
 never does. Today every organization is its own tenant.
 _Avoid_: company, workspace, team, tenant (on anything a user or developer sees)
 
+**Archived** (organization):
+An organization's own reversible off-state: no member can act in it and none of its clients
+can authorize or obtain tokens until it is reactivated. Distinct from deletion and from
+platform suspension.
+_Avoid_: suspended (that is a membership or client state), inactive, disabled
+
 **Tenant**:
 The isolation partition every scoped record names; "tenant" is the scoping word,
 "organization" the domain noun. Today each organization is its own tenant, one to one, so a
@@ -82,6 +88,11 @@ How an organization admits users: invite-only, request-approval, or open. For a 
 application it doubles as the application's sign-up policy: logging in through the
 application enrolls the person in its organization under that policy.
 
+**Client**:
+Any OAuth2 client registered with the platform: a first-party client, a developer
+application, or a service account. "Client" alone is the umbrella; name the kind when it
+matters.
+
 **First-party client**:
 One of the platform's own user-facing clients (client ids prefixed `wallow-`). Bound to no
 organization and exempt from the consent screen; its organization context comes from the
@@ -100,6 +111,22 @@ A third-party OAuth2 client (client ids prefixed `app-`) registered by an organi
 bound to exactly that organization, whose login and consent screens can carry its own client
 branding. Always confidential: it runs a server-side backend.
 _Avoid_: app (unqualified), external client, relying party (that is the protocol role, not the entity)
+
+**Suspended** (client):
+A registered client's reversible off-state: it cannot authorize or obtain tokens, and its
+outstanding tokens are revoked, while its configuration, branding, and consents are kept.
+The verbs are _suspend_ and _reinstate_. First-party clients are never suspended.
+_Avoid_: disabled, deactivated, revoked (a client is suspended or deleted; tokens are revoked)
+
+**Platform suspension**:
+A suspension imposed by the platform operator on a client or an organization, carrying a
+reason the organization's admins can read but cannot lift. It overrides the organization's
+own state.
+
+**Revocation**:
+Invalidating a credential or grant so it no longer works: a token, a consent, an invitation,
+or an API key. Never said of a client, service account, or organization — those are
+suspended, archived, or deleted.
 
 **Role**:
 A named bundle of permissions granted by an organization — never by the platform. The built-in
