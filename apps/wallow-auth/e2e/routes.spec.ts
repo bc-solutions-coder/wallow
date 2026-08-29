@@ -11,6 +11,7 @@ const routes: string[] = [
   "/",
   "/login",
   "/register",
+  "/setup",
   "/forgot-password",
   "/reset-password",
   "/verify-email",

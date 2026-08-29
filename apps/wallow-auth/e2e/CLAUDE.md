@@ -27,6 +27,12 @@ Aspire. Setting `E2E_BASE_URL` drives an already-running app instead and boots n
 `e2e/global-setup.ts` drives one page load to hydration first so no spec pays the dev server's
 lazy first-request cost.
 
+Two Playwright projects order the run: `first-run` holds only `first-run-setup.spec.ts`, and
+`main` (everything else) declares `dependencies: ["first-run"]`. Against the admin-less stack
+`scripts/e2e.sh` boots, the journey creates the `admin@wallow.dev` every other spec signs in
+as; against an already-provisioned backend it skips itself, so the ordering costs a local run
+nothing. Keep new specs out of the `first-run` project — it exists for that one journey.
+
 ## Selectors
 
 These rules hold for every Playwright suite in the repo; this is where they are stated.
@@ -49,10 +55,13 @@ await expect(page.locator("[data-app-ready='true']")).toBeAttached();
 
 - `routes.spec.ts` is the route-reachability gate: every route renders (<400) and reaches
   hydration. Reachability specs must not depend on the backend — keep it that way.
+- `first-run-setup.spec.ts` requires the API _without_ an administrator: it drives the /setup
+  page end to end and is what creates `admin@wallow.dev` in the e2e stack (see Config above).
 - Every other spec (login, signup, logout, MFA, OTP login, magic link, forgot/reset password)
-  requires the API plus the seeded admin from `api/seed.json`. A backend-dependent spec says so
-  in its header comment and asserts app-level signals (e.g. `login-signed-in`), never incidental
-  side effects like a URL change.
+  requires the API plus the admin account — seeded from `api/seed.json`, or created by the
+  first-run journey in the e2e stack. A backend-dependent spec says so in its header comment
+  and asserts app-level signals (e.g. `login-signed-in`), never incidental side effects like a
+  URL change.
 - Helpers: `mailpit.ts` reads delivered mail out of Mailpit; `totp.ts` generates TOTP codes.
 
 Seeder gotcha: admin bootstrap is skipped when ANY user already exists, so a stale dev DB can

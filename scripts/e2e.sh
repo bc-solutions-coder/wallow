@@ -4,7 +4,11 @@
 #
 # Brings the docker/docker-compose.test.yml stack up (Postgres, Valkey, Mailpit,
 # GarageHQ, migrations, seeder, Wallow.Api, wallow-auth, wallow-web), waits for
-# the API + seeded admin, runs the suites, then tears the stack down.
+# the API, runs the suites, then tears the stack down. The stack boots with NO
+# administrator (see "First-run setup mode" below): the wallow-auth suite's
+# first-run journey creates admin@wallow.dev via the /setup page, and a second
+# seeder pass then attaches it to the seeded memberships the wallow-web suites
+# rely on.
 #
 # E2E_BASE_URL selects how the **wallow-auth** suite is served:
 #
@@ -204,8 +208,9 @@ teardown() {
 trap teardown EXIT
 
 # Fresh volumes are a per-project guarantee now — a new project name has no
-# volumes to inherit, so the seeder always bootstraps admin@wallow.dev
-# (Wallow-wd6n). The `down` here only matters when E2E_STACK_ID is pinned to a
+# volumes to inherit, so the database always starts empty and setupRequired is
+# reliably true for the first-run journey (Wallow-wd6n established the fresh-
+# volume guarantee). The `down` here only matters when E2E_STACK_ID is pinned to a
 # reused value. The sweep after it reclaims DEAD stacks a killed run left
 # behind: a concurrent healthy run always has containers in one of the four
 # live states (and a run in its pre-up gap has no containers, so compose ls
@@ -296,6 +301,16 @@ fi
 # caching makes the no-change rebuild cheap; a changed tree rebuilds, which is the
 # point. This reaches every service in the set that HAS a build block, so garage
 # and bff-example are covered by the same guarantee, not just the two app images.
+# --- First-run setup mode -----------------------------------------------------
+# The initial seed deliberately bootstraps NO administrator: docker-compose.test.yml
+# interpolates this into the seeder's Admin__Email, and a blank value leaves the
+# admin bootstrap unconfigured, so the stack comes up with setupRequired=true.
+# The wallow-auth suite's `first-run` Playwright project then drives the /setup
+# page to create admin@wallow.dev itself; every other project depends on it. The
+# second seeder pass after that suite attaches the journey-created admin to the
+# seeded organization's memberships for the wallow-web suites.
+export E2E_SEED_ADMIN_EMAIL=""
+
 UP_ARGS=(up -d --wait)
 if [[ -z "${E2E_SKIP_IMAGE_BUILD:-}" ]]; then
   UP_ARGS+=(--build)
@@ -356,6 +371,18 @@ fi
 
 log "Running the wallow-auth Playwright suite"
 env "${E2E_ENV[@]}" pnpm --filter ./apps/wallow-auth test:e2e
+
+# The first-run journey created admin@wallow.dev, but only as owner of its own
+# new organization. The wallow-web suites sign into wallow-web-client, whose
+# tenant is the SEEDED organization (enrollment policy RequestApproval), so
+# without a membership there the OIDC authorize would park the admin on
+# /access-request. Re-running the seeder with the admin config restored is
+# convergent: the bootstrap step skips (setup is complete — and would even
+# bootstrap the admin itself had the journey been skipped), while the client
+# sync attaches admin@wallow.dev to the seeded organization with the role
+# seed.json's seedMemberRoles names.
+log "Re-running the seeder to attach the setup-created admin to seeded memberships"
+E2E_SEED_ADMIN_EMAIL="admin@wallow.dev" "${COMPOSE[@]}" run --rm --no-deps wallow-seeder
 
 # Both wallow-web suites always drive the containerised app on this run's
 # wallow-web port (classic default :5053), whichever mode the wallow-auth

@@ -41,6 +41,7 @@ const WARMUP_PATHS: readonly string[] = [
   "/",
   "/login",
   "/register",
+  "/setup",
   "/forgot-password",
   "/reset-password",
 ];

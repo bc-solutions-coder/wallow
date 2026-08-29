@@ -30,6 +30,13 @@ const webServer: PlaywrightTestConfig["webServer"] = externalBaseURL
       },
     };
 
+// The one spec that must run before everything else: against a stack that has
+// no administrator yet (scripts/e2e.sh boots the e2e stack that way), the
+// first-run journey creates the admin@wallow.dev every other spec signs in as.
+// Against an already-seeded backend it skips itself, so the ordering costs a
+// local run nothing.
+const FIRST_RUN_SPEC = /first-run-setup\.spec\.ts/u;
+
 export default defineConfig({
   testDir: "./e2e",
   // Runs after `webServer` is listening and before the first spec: drives one
@@ -42,5 +49,9 @@ export default defineConfig({
     baseURL: externalBaseURL ?? `http://localhost:${port}`,
     testIdAttribute: "data-testid",
   },
+  projects: [
+    { name: "first-run", testMatch: FIRST_RUN_SPEC },
+    { name: "main", testIgnore: FIRST_RUN_SPEC, dependencies: ["first-run"] },
+  ],
   ...(webServer ? { webServer } : {}),
 });

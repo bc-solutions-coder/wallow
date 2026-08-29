@@ -122,6 +122,15 @@ services:
       Clients__2__RedirectUris__0: "http://localhost:${E2E_BFF_PORT:-3003}/bff/callback"
       Clients__2__PostLogoutRedirectUris__0: "http://localhost:${E2E_BFF_PORT:-3003}/"
       Clients__2__FrontchannelLogoutUri: "http://localhost:${E2E_BFF_PORT:-3003}/bff/frontchannel-logout"
+      # First-run setup coverage: scripts/e2e.sh blanks this for the initial seed
+      # (a blank Admin__Email leaves AdminBootstrapOptions unconfigured, so the
+      # bootstrap step is skipped and the stack comes up with setupRequired=true
+      # for the wallow-auth first-run journey), then restores it for a second
+      # seeder pass that attaches the journey-created admin to the seeded
+      # organization's memberships. The dash (not ":-") keeps an explicit empty
+      # value empty; unset (plain `docker compose up`) falls back to seed.json's
+      # admin exactly as before.
+      Admin__Email: ${E2E_SEED_ADMIN_EMAIL-admin@wallow.dev}
     depends_on:
       wallow-migrations:
         condition: service_completed_successfully
