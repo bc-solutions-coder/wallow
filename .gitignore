@@ -28,9 +28,13 @@ out/
 .env
 *.local
 
-# Seed data (environment overrides contain real credentials)
+# Seed data — variants stay untracked EXCEPT the two committed ones: the dev
+# seed and the secret-less production seed (secrets are env-injected, so the
+# production file carries none and can travel with the repo for git-based
+# stack deploys).
 seed.*.json
 !seed.json
+!docker/seed.production.json
 
 # OS
 .DS_Store

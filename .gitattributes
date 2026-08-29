@@ -5,3 +5,4 @@ branding.json merge=ours
 docker/.env merge=ours
 docker/.env.example merge=ours
 seed.json merge=ours
+docker/seed.production.json merge=ours

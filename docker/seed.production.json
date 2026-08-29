@@ -1,0 +1,207 @@
+{
+  "_comment": "Production seed for the reference wallow.dev deployment. Deliberately SECRET-LESS: client secrets arrive as ClientSecrets__<clientId> env vars (docker-compose.production.yml), and the bootstrap admin's email/password/name arrive as Admin__* env vars, which is why this file carries no admin block. The seeder fails closed if a ClientSecrets__* var names a client this file does not define, so every client a set env var targets must exist here. seedMembers emails must match the ADMIN_EMAIL the deployment injects, or no admin membership is created and the API stays in setup mode.",
+  "roles": ["admin", "manager", "user"],
+  "apiScopes": [
+    {
+      "code": "users.read",
+      "displayName": "Read Users",
+      "category": "Identity",
+      "description": "Access to read user profiles and data",
+      "isDefault": true
+    },
+    {
+      "code": "users.write",
+      "displayName": "Manage Users",
+      "category": "Identity",
+      "description": "Access to create and update users"
+    },
+    {
+      "code": "users.manage",
+      "displayName": "Full User Management",
+      "category": "Identity",
+      "description": "Access to create, update, and delete users"
+    },
+    {
+      "code": "roles.read",
+      "displayName": "Read Roles",
+      "category": "Identity",
+      "description": "Access to read roles and role assignments",
+      "isDefault": true
+    },
+    {
+      "code": "roles.write",
+      "displayName": "Create/Update Roles",
+      "category": "Identity",
+      "description": "Access to create and update roles"
+    },
+    {
+      "code": "roles.manage",
+      "displayName": "Full Role Management",
+      "category": "Identity",
+      "description": "Access to create, update, and delete roles"
+    },
+    {
+      "code": "organizations.read",
+      "displayName": "Read Organizations",
+      "category": "Identity",
+      "description": "Access to read organization data",
+      "isDefault": true
+    },
+    {
+      "code": "organizations.write",
+      "displayName": "Create/Update Organizations",
+      "category": "Identity",
+      "description": "Access to create and update organizations"
+    },
+    {
+      "code": "organizations.manage",
+      "displayName": "Full Organization Management",
+      "category": "Identity",
+      "description": "Access to create, update, and delete organizations"
+    },
+    {
+      "code": "apikeys.read",
+      "displayName": "Read API Keys",
+      "category": "Identity",
+      "description": "Access to read API key metadata",
+      "isDefault": true
+    },
+    {
+      "code": "apikeys.write",
+      "displayName": "Create/Update API Keys",
+      "category": "Identity",
+      "description": "Access to create and update API keys"
+    },
+    {
+      "code": "apikeys.manage",
+      "displayName": "Full API Key Management",
+      "category": "Identity",
+      "description": "Access to create, update, and revoke API keys"
+    },
+    {
+      "code": "serviceaccounts.read",
+      "displayName": "Read Service Accounts",
+      "category": "Identity",
+      "description": "Access to read service account data",
+      "isDefault": true
+    },
+    {
+      "code": "serviceaccounts.write",
+      "displayName": "Create/Update Service Accounts",
+      "category": "Identity",
+      "description": "Access to create service accounts and update their scopes"
+    },
+    {
+      "code": "serviceaccounts.manage",
+      "displayName": "Rotate/Revoke Service Accounts",
+      "category": "Identity",
+      "description": "Access to rotate service account secrets and revoke accounts"
+    },
+    {
+      "code": "storage.read",
+      "displayName": "Read Storage",
+      "category": "Storage",
+      "description": "Access to read files and storage data",
+      "isDefault": true
+    },
+    {
+      "code": "storage.write",
+      "displayName": "Write Storage",
+      "category": "Storage",
+      "description": "Access to upload and modify files"
+    },
+    {
+      "code": "announcements.read",
+      "displayName": "Read Announcements",
+      "category": "Announcements",
+      "description": "Access to read announcements",
+      "isDefault": true
+    },
+    {
+      "code": "announcements.manage",
+      "displayName": "Manage Announcements",
+      "category": "Announcements",
+      "description": "Access to create, update, and delete announcements"
+    },
+    {
+      "code": "changelog.manage",
+      "displayName": "Manage Changelog",
+      "category": "Announcements",
+      "description": "Access to create, update, and delete changelog entries"
+    },
+    {
+      "code": "notifications.read",
+      "displayName": "Read Notifications",
+      "category": "Notifications",
+      "description": "Access to read notifications"
+    },
+    {
+      "code": "notifications.write",
+      "displayName": "Send Notifications",
+      "category": "Notifications",
+      "description": "Access to send notifications"
+    },
+    {
+      "code": "configuration.read",
+      "displayName": "Read Configuration",
+      "category": "Configuration",
+      "description": "Access to read configuration data",
+      "isDefault": true
+    },
+    {
+      "code": "configuration.manage",
+      "displayName": "Manage Configuration",
+      "category": "Configuration",
+      "description": "Access to create, update, and delete configuration"
+    },
+    {
+      "code": "inquiries.read",
+      "displayName": "Read Inquiries",
+      "category": "Inquiries",
+      "description": "Access to read inquiries and inquiry data"
+    },
+    {
+      "code": "inquiries.write",
+      "displayName": "Create/Update Inquiries",
+      "category": "Inquiries",
+      "description": "Access to create and update inquiries"
+    },
+    {
+      "code": "webhooks.manage",
+      "displayName": "Manage Webhook Subscriptions",
+      "category": "Platform",
+      "description": "Access to manage webhook subscriptions"
+    }
+  ],
+  "organizations": [
+    {
+      "name": "Wallow",
+      "enrollmentPolicy": "RequestApproval",
+      "accessRequestEmail": "bryan.cordes@bcordes.dev"
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "wallow-web-client",
+      "displayName": "Wallow Web",
+      "tenantName": "Wallow",
+      "seedMembers": ["bryan.cordes@bcordes.dev"],
+      "seedMemberRoles": { "bryan.cordes@bcordes.dev": "admin" },
+      "public": false,
+      "redirectUris": ["https://wallow.dev/bff/callback"],
+      "postLogoutRedirectUris": ["https://wallow.dev/"],
+      "frontchannelLogoutUri": "https://wallow.dev/bff/frontchannel-logout",
+      "scopes": [
+        "openid",
+        "email",
+        "profile",
+        "roles",
+        "offline_access",
+        "inquiries.read",
+        "inquiries.write",
+        "notifications.read",
+        "notifications.write"
+      ]
+    }
+  ]
+}

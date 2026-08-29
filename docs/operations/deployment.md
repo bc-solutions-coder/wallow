@@ -211,10 +211,13 @@ environment:
   SEED_FILE_PATH: /app/seed.production.json
 ```
 
-`seed.production.json` matches the `seed.*.json` gitignore pattern, so it does **not** travel
-with the repo — you must place it on the server yourself and point `SEED_FILE_HOST_PATH` at it
-(an absolute path such as `/data/seed/seed.production.json` is typical; the default
-`./seed.production.json` resolves next to the compose file).
+The reference `docker/seed.production.json` is **committed** — it is secret-less by design
+(see below), so it can travel with the repo, which is what git-based stack deploys (Dockhand,
+Portainer) need: the default `./seed.production.json` mount resolves next to the compose file
+in the checkout, no extra provisioning step. Forks edit it in place (`.gitattributes` marks it
+`merge=ours`, like `seed.json`). To use a seed maintained outside the repo instead, point
+`SEED_FILE_HOST_PATH` at an absolute path such as `/data/seed/seed.production.json` — it
+overrides the committed file entirely. Every other `seed.*.json` variant remains gitignored.
 
 The seed file is deliberately **secret-less**. Client secrets are injected as environment
 variables keyed by **clientId** — each `ClientSecrets__<clientId>` value attaches to the seed

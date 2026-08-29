@@ -77,5 +77,9 @@ docker compose -f docker-compose.production.yml --env-file .env.production --pro
   `docker-compose.test.yml` → `.env.example`; `docker-compose.production.yml` →
   `.env.production.example`; `turbo-cache/docker-compose.yml` → `turbo-cache/.env.example`. A
   new compose file needs a new entry in the script's `pairs` list.
-- `.env`, `.env.example`, and `seed.json` are `merge=ours` in `.gitattributes` so fork values
-  survive upstream merges. Never commit a real `.env` / `.env.production`.
+- `.env`, `.env.example`, `seed.json`, and `docker/seed.production.json` are `merge=ours` in
+  `.gitattributes` so fork values survive upstream merges. Never commit a real `.env` /
+  `.env.production`. `seed.production.json` IS committed — it is secret-less by design
+  (secrets are `ClientSecrets__*` / `Admin__*` env vars), which lets git-based stack deploys
+  mount it via the compose default `./seed.production.json`; `SEED_FILE_HOST_PATH` overrides
+  it with a server-local file.

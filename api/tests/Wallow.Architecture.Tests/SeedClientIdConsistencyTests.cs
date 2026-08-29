@@ -7,8 +7,8 @@ namespace Wallow.Architecture.Tests;
 /// sync by hand (bead Wallow-361m). Two independent drifts are pinned here.
 ///
 /// <para><b>1. The fork's SPA client is documented under a name nobody seeds.</b>
-/// The reference deployment's production seed (<c>docker/seed.production.json</c>, gitignored
-/// per <c>.gitignore</c>'s <c>seed.*.json</c> rule) registers the bcordes.dev SPA as
+/// The reference deployment's production seed (<c>docker/seed.production.json</c>, committed
+/// secret-less since client secrets are env-injected) registers the bcordes.dev SPA as
 /// <c>bcordes-dev-client</c>, and <c>api/src/Wallow.Api/appsettings.json</c> names the same id.
 /// The two committed files that document that client —
 /// <c>docker/docker-compose.production.yml</c>'s <c>ClientSecrets__&lt;clientId&gt;</c> map and
@@ -36,9 +36,9 @@ namespace Wallow.Architecture.Tests;
 ///
 /// These are static source assertions, in the same style as
 /// <see cref="TraceSamplerConfigurationTests" /> and <see cref="CiAuthImageBuildTests" />, because
-/// the real failure only shows up in a deployed OIDC round trip. The production seed file itself
-/// is gitignored and therefore cannot be asserted on from CI — the committed files that describe
-/// it are the only enforceable surface.
+/// the real failure only shows up in a deployed OIDC round trip. A deployment may also override
+/// the committed production seed via <c>SEED_FILE_HOST_PATH</c> with a file CI never sees, so the
+/// committed files that describe the client remain the enforceable surface.
 /// </summary>
 public class SeedClientIdConsistencyTests
 {
