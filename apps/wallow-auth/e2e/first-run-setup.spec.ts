@@ -17,9 +17,10 @@ import { expect, test, type APIResponse } from "@playwright/test";
 
 const ADMIN_EMAIL = process.env.E2E_USER ?? "admin@wallow.dev";
 const ADMIN_PASSWORD = process.env.E2E_PASSWORD ?? "Admin123!";
-// NOT the seeded organization's name: setup creates a brand-new organization,
-// and the seeded one already owns that name's unique slug.
-const ORGANIZATION_NAME = "Wallow E2E";
+// The seeded organization's name — the one the dashboard client is bound to.
+// Setup states it read-only rather than asking, and enrolls the new
+// administrator as its owner instead of founding a sibling.
+const SEEDED_ORGANIZATION_NAME = "Wallow";
 
 const SLOW_BACKEND_TIMEOUT_MS = 15_000;
 
@@ -54,7 +55,9 @@ test("first run: login funnels to setup, setup creates the admin, the admin sign
   await page.getByTestId("setup-confirm-password").fill(ADMIN_PASSWORD);
   await page.getByTestId("setup-first-name").fill("Admin");
   await page.getByTestId("setup-last-name").fill("User");
-  await page.getByTestId("setup-organization-name").fill(ORGANIZATION_NAME);
+  await expect(page.getByTestId("setup-organization-name")).toHaveValue(SEEDED_ORGANIZATION_NAME);
+  await expect(page.getByTestId("setup-organization-name")).toHaveAttribute("readonly", "");
+  await expect(page.getByTestId("setup-organization-seeded")).toBeVisible();
   await page.getByTestId("setup-submit").click();
 
   await expect(page.getByTestId("setup-success-heading")).toBeVisible({

@@ -6,9 +6,9 @@
 # GarageHQ, migrations, seeder, Wallow.Api, wallow-auth, wallow-web), waits for
 # the API, runs the suites, then tears the stack down. The stack boots with NO
 # administrator (see "First-run setup mode" below): the wallow-auth suite's
-# first-run journey creates admin@wallow.dev via the /setup page, and a second
-# seeder pass then attaches it to the seeded memberships the wallow-web suites
-# rely on.
+# first-run journey creates admin@wallow.dev via the /setup page as owner of
+# the seeded organization, and a second seeder pass then reconciles the seeded
+# memberships (roles seed.json names) the wallow-web suites rely on.
 #
 # E2E_BASE_URL selects how the **wallow-auth** suite is served:
 #
@@ -306,9 +306,10 @@ fi
 # interpolates this into the seeder's Admin__Email, and a blank value leaves the
 # admin bootstrap unconfigured, so the stack comes up with setupRequired=true.
 # The wallow-auth suite's `first-run` Playwright project then drives the /setup
-# page to create admin@wallow.dev itself; every other project depends on it. The
-# second seeder pass after that suite attaches the journey-created admin to the
-# seeded organization's memberships for the wallow-web suites.
+# page to create admin@wallow.dev itself; every other project depends on it.
+# Setup enrolls that admin as owner of the seeded organization directly; the
+# second seeder pass after the suite still runs so the seed's client and role
+# bindings are reconciled against the now-populated identity store.
 export E2E_SEED_ADMIN_EMAIL=""
 
 UP_ARGS=(up -d --wait)
@@ -372,15 +373,13 @@ fi
 log "Running the wallow-auth Playwright suite"
 env "${E2E_ENV[@]}" pnpm --filter ./apps/wallow-auth test:e2e
 
-# The first-run journey created admin@wallow.dev, but only as owner of its own
-# new organization. The wallow-web suites sign into wallow-web-client, whose
-# tenant is the SEEDED organization (enrollment policy RequestApproval), so
-# without a membership there the OIDC authorize would park the admin on
-# /access-request. Re-running the seeder with the admin config restored is
+# The first-run journey created admin@wallow.dev as owner (admin role) of the
+# seeded organization — the tenant of wallow-web-client, which the wallow-web
+# suites sign into. Re-running the seeder with the admin config restored is
 # convergent: the bootstrap step skips (setup is complete — and would even
 # bootstrap the admin itself had the journey been skipped), while the client
-# sync attaches admin@wallow.dev to the seeded organization with the role
-# seed.json's seedMemberRoles names.
+# sync grants admin@wallow.dev whatever roles seed.json's seedMemberRoles names
+# beyond the one setup gave it.
 log "Re-running the seeder to attach the setup-created admin to seeded memberships"
 E2E_SEED_ADMIN_EMAIL="admin@wallow.dev" "${COMPOSE[@]}" run --rm --no-deps wallow-seeder
 

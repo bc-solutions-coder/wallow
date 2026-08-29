@@ -1,2 +1,7 @@
 export { SetupForm } from "./components/SetupForm";
-export { ensureSetupRequired, type EnsureSetupRequiredOptions } from "./setup-status";
+export {
+  ensureSetupRequired,
+  ensureSetupStatus,
+  type EnsureSetupRequiredOptions,
+  type SetupStatus,
+} from "./setup-status";

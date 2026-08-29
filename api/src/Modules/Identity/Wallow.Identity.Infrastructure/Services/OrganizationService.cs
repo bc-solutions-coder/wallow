@@ -170,6 +170,51 @@ public sealed partial class OrganizationService(
         LogMemberAdded(userId, orgId);
     }
 
+    public async Task EnrollOwnerAsync(Guid orgId, Guid userId, CancellationToken ct = default)
+    {
+        LogEnrollingOwner(userId, orgId);
+
+        OrganizationId id = OrganizationId.Create(orgId);
+        Organization? organization = await organizationRepository.GetByIdAsync(id, ct);
+
+        if (organization is null)
+        {
+            throw new InvalidOperationException($"Organization {orgId} not found");
+        }
+
+        Guid adminRoleId = await ResolveRoleIdAsync(AdminRoleName, ct);
+        Membership? membership = await membershipRepository.GetAsync(userId, orgId, ct);
+
+        if (membership is null)
+        {
+            membership = Membership.Enroll(userId, id, adminRoleId, timeProvider);
+            membershipRepository.Add(membership);
+        }
+        else
+        {
+            membership.Grant(adminRoleId, userId, timeProvider);
+        }
+
+        // The same self-attribution as creating the organization: there is no other actor at
+        // bootstrap, and a blank one would read as an unattributed grant.
+        membership.MarkOwner(true, userId, timeProvider);
+        await membershipRepository.SaveChangesAsync(ct);
+
+        string email = await GetUserEmailAsync(userId, ct);
+
+        await messageBus.PublishAsync(new OrganizationMemberAddedEvent
+        {
+            OrganizationId = orgId,
+            TenantId = orgId,
+            UserId = userId,
+            Email = email
+        });
+
+        await PublishTransitionAsync(MembershipTransition.OwnerMarked, orgId, userId, userId);
+
+        LogOwnerEnrolled(userId, orgId);
+    }
+
     public async Task RemoveMemberAsync(Guid orgId, Guid userId, Guid actorId, CancellationToken ct = default)
     {
         LogRemovingMember(userId, orgId);
@@ -707,6 +752,12 @@ public sealed partial class OrganizationService
 
     [LoggerMessage(Level = LogLevel.Information, Message = "User {UserId} added to organization {OrgId}")]
     private partial void LogMemberAdded(Guid userId, Guid orgId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Enrolling user {UserId} as owner of existing organization {OrganizationId}")]
+    private partial void LogEnrollingOwner(Guid userId, Guid organizationId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Enrolled user {UserId} as owner of organization {OrganizationId}")]
+    private partial void LogOwnerEnrolled(Guid userId, Guid organizationId);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Removing user {UserId} from organization {OrgId}")]
     private partial void LogRemovingMember(Guid userId, Guid orgId);

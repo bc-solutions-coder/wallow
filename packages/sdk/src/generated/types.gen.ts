@@ -739,8 +739,16 @@ export type SettingUpdateRequest = {
     value: string;
 };
 
+/**
+ * Whether first-run setup is still open and, while it is, the organization the bootstrap
+ * administrator will own. OrganizationName is the one organization the seed
+ * already created (the one the dashboard client is bound to) so the setup page can offer it
+ * rather than let the visitor type a name that creates a sibling; `null` when
+ * setup is complete or when there is not exactly one organization to offer.
+ */
 export type SetupStatusResponse = {
     setupRequired: boolean;
+    organizationName?: null | string;
 };
 
 export type SubmitInquiryRequest = {

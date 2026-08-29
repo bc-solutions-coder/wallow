@@ -45,6 +45,8 @@ interface HarnessProps {
   readonly inputMode?: "numeric";
   readonly optional?: boolean;
   readonly testId?: string;
+  readonly readOnly?: boolean;
+  readonly defaultValue?: string;
   readonly onSubmit?: (values: Values) => Promise<void> | void;
 }
 
@@ -52,7 +54,7 @@ interface HarnessProps {
 function Harness(props: HarnessProps) {
   const form = useAppForm({
     schema,
-    defaultValues: { name: "" },
+    defaultValues: { name: props.defaultValue ?? "" },
     onSubmit: props.onSubmit ?? ((): void => undefined),
   });
 
@@ -68,6 +70,7 @@ function Harness(props: HarnessProps) {
             inputMode={props.inputMode}
             optional={props.optional}
             testId={props.testId}
+            readOnly={props.readOnly}
           />
         )}
       </form.AppField>
@@ -239,5 +242,27 @@ describe("TextField", () => {
     deferred.resolve();
 
     await expect.poll(() => input(container).disabled).toBe(false);
+  });
+});
+
+describe("TextField readOnly", () => {
+  it("states a pre-filled value the visitor cannot edit, and still submits it", async () => {
+    const onSubmit = vi.fn();
+    const { container } = await renderHarness({ readOnly: true, defaultValue: "Wallow", onSubmit });
+
+    const control = input(container);
+    expect(control.readOnly).toBe(true);
+    expect(control.value).toBe("Wallow");
+
+    // Not `userEvent.fill`: the browser refuses to edit a read-only control,
+    // and the driver waits its whole timeout for it to become editable.
+    await userEvent.click(control);
+    await userEvent.keyboard("Contoso");
+    expect(control.value).toBe("Wallow");
+
+    await userEvent.click(submitButton(container));
+    await vi.waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith({ name: "Wallow" });
+    });
   });
 });

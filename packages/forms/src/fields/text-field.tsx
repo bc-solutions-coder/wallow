@@ -40,6 +40,12 @@ export interface TextFieldProps {
    * byte-identical.
    */
   readonly testId?: string;
+  /**
+   * A value the form states rather than asks for — pre-filled by the server and
+   * not the visitor's to change, though still submitted and still validated.
+   * Distinct from `disabled`, which drops the value from the submission.
+   */
+  readonly readOnly?: boolean;
 }
 
 export function TextField({
@@ -50,6 +56,7 @@ export function TextField({
   autoComplete,
   inputMode,
   testId,
+  readOnly = false,
 }: TextFieldProps): ReactElement {
   const { field, pending, error, controlTestId, errorTestId } = useCatalogField<string>(testId);
 
@@ -61,6 +68,7 @@ export function TextField({
         placeholder={placeholder}
         autoComplete={autoComplete}
         inputMode={inputMode}
+        readOnly={readOnly}
         disabled={pending}
         data-testid={controlTestId}
         value={field.state.value}

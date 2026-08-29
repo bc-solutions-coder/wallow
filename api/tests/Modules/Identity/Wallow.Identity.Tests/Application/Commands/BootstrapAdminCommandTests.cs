@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using NSubstitute.ExceptionExtensions;
 #pragma warning restore IDE0005
 using Wallow.Identity.Application.Commands.BootstrapAdmin;
+using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Shared.Kernel.Results;
 
@@ -22,8 +23,19 @@ public class BootstrapAdminCommandTests
     private readonly IOrganizationService _organizationService = Substitute.For<IOrganizationService>();
     private readonly ILogger<BootstrapAdminHandler> _logger = Substitute.For<ILogger<BootstrapAdminHandler>>();
 
+    public BootstrapAdminCommandTests()
+    {
+        // No organization exists yet: the default first-run shape, where bootstrap creates one.
+        _organizationService
+            .GetOrganizationsAsync(Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns([]);
+    }
+
     private BootstrapAdminHandler CreateHandler() =>
         new(_bootstrapAdminService, _organizationService, _logger);
+
+    private static OrganizationDto Organization(string name) =>
+        new(Guid.NewGuid(), name, null, 0);
 
     private static BootstrapAdminCommand Command(
         string email = "admin@example.com",
@@ -252,5 +264,60 @@ public class BootstrapAdminCommandTests
 
         await _bootstrapAdminService.Received(1)
             .EnsureRoleExistsAsync("admin", Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>
+    /// The production seed creates the organization the dashboard client is bound to before any
+    /// administrator exists. Creating a second organization alongside it left the new admin owning
+    /// an organization no client pointed at, so the first sign-in parked them on /access-request.
+    /// </summary>
+    [Fact]
+    public async Task Handle_WhenAnOrganizationWithThatNameExists_EnrollsTheAdminAsItsOwnerInsteadOfCreatingAnother()
+    {
+        BootstrapAdminCommand command = Command();
+        Guid createdUserId = Guid.NewGuid();
+        OrganizationDto seeded = Organization("acme inc");
+
+        _bootstrapAdminService
+            .UserExistsAsync(command.Email, Arg.Any<CancellationToken>())
+            .Returns(false);
+        _bootstrapAdminService
+            .CreateUserAsync(command.Email, command.Password, command.FirstName, command.LastName, Arg.Any<CancellationToken>())
+            .Returns(createdUserId);
+        _organizationService
+            .GetOrganizationsAsync(OrganizationName, Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns([Organization("Acme Inc Holdings"), seeded]);
+
+        Result result = await CreateHandler().Handle(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        // Case-insensitive, like the seeder's own name match: "Wallow" typed as "wallow" is the
+        // same organization, not a sibling.
+        await _organizationService.Received(1).EnrollOwnerAsync(seeded.Id, createdUserId, Arg.Any<CancellationToken>());
+        await _organizationService.DidNotReceive().CreateOrganizationAsync(
+            Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WhenOnlyDifferentlyNamedOrganizationsExist_CreatesTheNamedOne()
+    {
+        BootstrapAdminCommand command = Command();
+        Guid createdUserId = Guid.NewGuid();
+
+        _bootstrapAdminService
+            .UserExistsAsync(command.Email, Arg.Any<CancellationToken>())
+            .Returns(false);
+        _bootstrapAdminService
+            .CreateUserAsync(command.Email, command.Password, command.FirstName, command.LastName, Arg.Any<CancellationToken>())
+            .Returns(createdUserId);
+        _organizationService
+            .GetOrganizationsAsync(OrganizationName, Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns([Organization("Acme Inc Holdings")]);
+
+        await CreateHandler().Handle(command, CancellationToken.None);
+
+        await _organizationService.DidNotReceive().EnrollOwnerAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await _organizationService.Received(1).CreateOrganizationAsync(
+            OrganizationName, Arg.Any<string?>(), command.Email, createdUserId, Arg.Any<CancellationToken>());
     }
 }

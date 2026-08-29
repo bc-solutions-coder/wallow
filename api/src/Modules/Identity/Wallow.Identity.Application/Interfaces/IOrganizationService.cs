@@ -21,6 +21,12 @@ public interface IOrganizationService
     // Stamping the membership with userId instead erases who granted the access - the one question
     // the audit trail exists to answer.
     Task AddMemberAsync(Guid orgId, Guid userId, string roleName, Guid actorId, CancellationToken ct = default);
+
+    // The bootstrap administrator claiming an organization that already exists - the one the seed
+    // created and bound the dashboard client to before any person did. It grants what
+    // CreateOrganizationAsync grants its creator (an Active owner membership carrying the admin
+    // role) and nothing an existing member could reach: it is not exposed by any endpoint.
+    Task EnrollOwnerAsync(Guid orgId, Guid userId, CancellationToken ct = default);
     Task RemoveMemberAsync(Guid orgId, Guid userId, Guid actorId, CancellationToken ct = default);
 
     // Suspending, reinstating, approving and denying live on IMembershipReviewService: they are

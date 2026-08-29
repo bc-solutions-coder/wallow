@@ -3,6 +3,8 @@ using Wallow.Identity.Api.Contracts.Requests;
 using Wallow.Identity.Api.Contracts.Responses;
 using Wallow.Identity.Api.Controllers;
 using Wallow.Identity.Application.Commands.BootstrapAdmin;
+using Wallow.Identity.Application.DTOs;
+using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Application.Queries.IsSetupRequired;
 using Wallow.Shared.Kernel.Results;
 using Wolverine;
@@ -12,13 +14,20 @@ namespace Wallow.Identity.Tests.Api.Controllers;
 public class SetupControllerTests
 {
     private readonly IMessageBus _messageBus;
+    private readonly IOrganizationService _organizationService;
     private readonly SetupController _controller;
 
     public SetupControllerTests()
     {
         _messageBus = Substitute.For<IMessageBus>();
-        _controller = new SetupController(_messageBus);
+        _organizationService = Substitute.For<IOrganizationService>();
+        _organizationService
+            .GetOrganizationsAsync(Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns([]);
+        _controller = new SetupController(_messageBus, _organizationService);
     }
+
+    private static OrganizationDto Organization(string name) => new(Guid.NewGuid(), name, null, 0);
 
     #region GetStatus
 
@@ -33,6 +42,70 @@ public class SetupControllerTests
         OkObjectResult ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
         SetupStatusResponse response = ok.Value.Should().BeOfType<SetupStatusResponse>().Subject;
         response.SetupRequired.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetStatus_WhenSetupRequiredAndOneOrganizationIsSeeded_OffersItsName()
+    {
+        _messageBus.InvokeAsync<bool>(Arg.Any<IsSetupRequiredQuery>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+        _organizationService
+            .GetOrganizationsAsync(Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns([Organization("Wallow")]);
+
+        ActionResult<SetupStatusResponse> result = await _controller.GetStatus(CancellationToken.None);
+
+        OkObjectResult ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        SetupStatusResponse response = ok.Value.Should().BeOfType<SetupStatusResponse>().Subject;
+        response.SetupRequired.Should().BeTrue();
+        response.OrganizationName.Should().Be("Wallow");
+    }
+
+    [Fact]
+    public async Task GetStatus_WhenSetupRequiredAndNoOrganizationExists_OffersNoName()
+    {
+        _messageBus.InvokeAsync<bool>(Arg.Any<IsSetupRequiredQuery>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+
+        ActionResult<SetupStatusResponse> result = await _controller.GetStatus(CancellationToken.None);
+
+        SetupStatusResponse response = result.Result.Should().BeOfType<OkObjectResult>().Subject
+            .Value.Should().BeOfType<SetupStatusResponse>().Subject;
+        response.OrganizationName.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetStatus_WhenSetupRequiredAndSeveralOrganizationsExist_OffersNoName()
+    {
+        _messageBus.InvokeAsync<bool>(Arg.Any<IsSetupRequiredQuery>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+        _organizationService
+            .GetOrganizationsAsync(Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns([Organization("Wallow"), Organization("Contoso")]);
+
+        ActionResult<SetupStatusResponse> result = await _controller.GetStatus(CancellationToken.None);
+
+        SetupStatusResponse response = result.Result.Should().BeOfType<OkObjectResult>().Subject
+            .Value.Should().BeOfType<SetupStatusResponse>().Subject;
+        response.OrganizationName.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetStatus_WhenSetupNotRequired_DoesNotDiscloseAnOrganizationName()
+    {
+        _messageBus.InvokeAsync<bool>(Arg.Any<IsSetupRequiredQuery>(), Arg.Any<CancellationToken>())
+            .Returns(false);
+        _organizationService
+            .GetOrganizationsAsync(Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns([Organization("Wallow")]);
+
+        ActionResult<SetupStatusResponse> result = await _controller.GetStatus(CancellationToken.None);
+
+        SetupStatusResponse response = result.Result.Should().BeOfType<OkObjectResult>().Subject
+            .Value.Should().BeOfType<SetupStatusResponse>().Subject;
+        response.OrganizationName.Should().BeNull();
+        await _organizationService.DidNotReceive()
+            .GetOrganizationsAsync(Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

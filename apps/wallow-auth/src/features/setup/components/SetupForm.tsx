@@ -114,12 +114,22 @@ function NameFields({ form }: { readonly form: AppFormApi<SetupValues> }): React
   );
 }
 
-function SetupFields({ onDone }: { readonly onDone: () => void }): ReactElement {
+interface SetupFieldsProps {
+  readonly onDone: () => void;
+  /** See {@link SetupFormProps.seededOrganizationName}. */
+  readonly seededOrganizationName: string | undefined;
+}
+
+function SetupFields({ onDone, seededOrganizationName }: SetupFieldsProps): ReactElement {
   const { sdk } = useRouteContext({ from: "__root__" });
+  const organizationSeeded: boolean = seededOrganizationName !== undefined;
 
   const form = useAppForm({
     schema: setupSchema,
-    defaultValues: EMPTY_VALUES,
+    defaultValues:
+      seededOrganizationName === undefined
+        ? EMPTY_VALUES
+        : { ...EMPTY_VALUES, organizationName: seededOrganizationName },
     mutation: setupCreateAdminMutation({ client: sdk.client }),
     // `confirmPassword` is the form's, not the API's: the request body carries
     // only what `CreateAdminRequest` declares.
@@ -164,16 +174,39 @@ function SetupFields({ onDone }: { readonly onDone: () => void }): ReactElement 
 
       <NameFields form={form} />
 
+      {/* Stated, not asked, when the seed already created one: the dashboard
+          client is bound to THAT organization, and typing a different name
+          would found a sibling the new administrator is not a member of. */}
       <form.AppField name="organizationName">
-        {(field) => <field.TextField label="Organization name" placeholder="Acme Inc." />}
+        {(field) => (
+          <field.TextField
+            label="Organization name"
+            placeholder="Acme Inc."
+            readOnly={organizationSeeded}
+          />
+        )}
       </form.AppField>
+      {organizationSeeded ? (
+        <Text as="p" variant="bodySm" color="muted" data-testid="setup-organization-seeded">
+          Your deployment already created this organization. Your account will become its owner.
+        </Text>
+      ) : null}
 
       <SubmitButton pendingLabel="Setting up...">Create administrator</SubmitButton>
     </AppForm>
   );
 }
 
-export function SetupForm(): ReactNode {
+export interface SetupFormProps {
+  /**
+   * The organization the deployment seeded, when there is exactly one — the
+   * `/setup` route reads it off setup status. Pre-filled and read-only, so the
+   * bootstrap administrator joins it as owner instead of founding another.
+   */
+  readonly seededOrganizationName?: string;
+}
+
+export function SetupForm({ seededOrganizationName }: SetupFormProps = {}): ReactNode {
   const [done, setDone] = useState(false);
 
   if (done) {
@@ -186,7 +219,7 @@ export function SetupForm(): ReactNode {
       description="Create the first administrator account and organization"
       headingTestId="setup-heading"
     >
-      <SetupFields onDone={() => setDone(true)} />
+      <SetupFields onDone={() => setDone(true)} seededOrganizationName={seededOrganizationName} />
     </AuthScreen>
   );
 }

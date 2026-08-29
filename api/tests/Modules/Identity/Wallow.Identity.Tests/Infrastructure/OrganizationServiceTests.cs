@@ -244,6 +244,48 @@ public sealed class OrganizationServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Bootstrap joins the organization the seed already created rather than minting a sibling,
+    /// and what it needs there is exactly what creating one would have given: an Active owner
+    /// membership carrying the admin role, audited as the owner's own act.
+    /// </summary>
+    [Fact]
+    public async Task EnrollOwnerAsync_EnrollsAnActiveOwnerCarryingTheAdminRole()
+    {
+        Guid orgId = Guid.NewGuid();
+        Guid userId = Guid.NewGuid();
+        Organization organization = Organization.Create(
+            new TenantId(_tenantId), "Wallow", "wallow", Guid.Empty, TimeProvider.System);
+
+        _organizationRepository.GetByIdAsync(Arg.Any<OrganizationId>(), Arg.Any<CancellationToken>())
+            .Returns(organization);
+
+        await _sut.EnrollOwnerAsync(orgId, userId);
+
+        Membership? membership = await MembershipFor(userId, orgId);
+        membership.Should().NotBeNull();
+        membership!.IsActive.Should().BeTrue();
+        membership.IsOwner.Should().BeTrue();
+        membership.RoleIds.Should().BeEquivalentTo([RoleId("admin")]);
+        membership.UpdatedBy.Should().Be(userId);
+        await _messageBus.Received(1).PublishAsync(Arg.Is<MembershipTransitionedEvent>(e =>
+            e.Transition == MembershipTransition.OwnerMarked &&
+            e.OrganizationId == orgId &&
+            e.UserId == userId &&
+            e.ActorId == userId));
+    }
+
+    [Fact]
+    public async Task EnrollOwnerAsync_WhenOrganizationDoesNotExist_Throws()
+    {
+        _organizationRepository.GetByIdAsync(Arg.Any<OrganizationId>(), Arg.Any<CancellationToken>())
+            .Returns((Organization?)null);
+
+        Func<Task> act = () => _sut.EnrollOwnerAsync(Guid.NewGuid(), Guid.NewGuid());
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    /// <summary>
     /// The member does not add themselves - a reviewer or admin does. Stamping the membership with
     /// the subject hides who granted the access, which is the one thing the audit trail exists to
     /// answer.

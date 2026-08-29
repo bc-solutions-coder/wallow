@@ -33,8 +33,10 @@ beforeEach(() => {
   harness = createPassthroughHarness();
 });
 
-function renderForm() {
-  return renderWithWallow(<SetupForm />, { harness });
+function renderForm(seededOrganizationName?: string) {
+  return renderWithWallow(<SetupForm seededOrganizationName={seededOrganizationName} />, {
+    harness,
+  });
 }
 
 /** Every recorded POST to the setup-admin endpoint, in order. */
@@ -179,5 +181,38 @@ describe("SetupForm", () => {
       .toHaveTextContent("Setup has already been completed.");
     // Still the form, not the success card — the visitor can read the banner.
     await expect.element(page.getByTestId("setup-heading")).toBeInTheDocument();
+  });
+});
+
+describe("SetupForm with a seeded organization", () => {
+  const SEEDED = "Wallow";
+
+  it("states the seeded organization read-only and submits it unchanged", async () => {
+    renderForm(SEEDED);
+
+    const organization = page.getByTestId("setup-organization-name");
+    await expect.element(organization).toHaveValue(SEEDED);
+    await expect.element(organization).toHaveAttribute("readonly");
+    await expect.element(page.getByTestId("setup-organization-seeded")).toBeInTheDocument();
+
+    await userEvent.fill(page.getByTestId("setup-email"), VALID.email);
+    await userEvent.fill(page.getByTestId("setup-password"), VALID.password);
+    await userEvent.fill(page.getByTestId("setup-confirm-password"), VALID.password);
+    await userEvent.fill(page.getByTestId("setup-first-name"), VALID.firstName);
+    await userEvent.fill(page.getByTestId("setup-last-name"), VALID.lastName);
+    await userEvent.click(page.getByTestId("setup-submit"));
+
+    await expect.element(page.getByTestId("setup-success-heading")).toBeInTheDocument();
+    expect(adminCalls()).toHaveLength(1);
+    expect(adminCalls()[0]?.body).toMatchObject({ organizationName: SEEDED });
+  });
+
+  it("asks for the organization when nothing was seeded", async () => {
+    renderForm();
+
+    const organization = page.getByTestId("setup-organization-name");
+    await expect.element(organization).toHaveValue("");
+    await expect.element(organization).not.toHaveAttribute("readonly");
+    expect(page.getByTestId("setup-organization-seeded").query()).toBeNull();
   });
 });

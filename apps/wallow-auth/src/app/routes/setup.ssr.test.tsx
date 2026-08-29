@@ -65,6 +65,28 @@ describe("/setup route (already-complete gate)", () => {
     expect(await runGate()).toBeUndefined();
   });
 
+  it("hands the seeded organization to the page through the route context", async () => {
+    harness.resolveJson({ setupRequired: true, organizationName: "Wallow" });
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const beforeLoad = Route.options.beforeLoad as (opts: unknown) => Promise<unknown>;
+
+    const context: unknown = await beforeLoad({ context: { queryClient, sdk: harness.sdk } });
+
+    expect(context).toEqual({ seededOrganizationName: "Wallow" });
+  });
+
+  it("offers no organization when the API names none", async () => {
+    harness.resolveJson({ setupRequired: true, organizationName: null });
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const beforeLoad = Route.options.beforeLoad as (opts: unknown) => Promise<unknown>;
+
+    const context: unknown = await beforeLoad({ context: { queryClient, sdk: harness.sdk } });
+
+    expect(context).toEqual({ seededOrganizationName: undefined });
+  });
+
   it("has a component of its own — the gate protects a page, not a pure redirect", () => {
     expect(Route.options.component).toBeDefined();
   });

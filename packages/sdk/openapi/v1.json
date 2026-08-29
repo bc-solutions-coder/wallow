@@ -9134,8 +9134,15 @@
         "properties": {
           "setupRequired": {
             "type": "boolean"
+          },
+          "organizationName": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
-        }
+        },
+        "description": "Whether first-run setup is still open and, while it is, the organization the bootstrap\nadministrator will own. OrganizationName is the one organization the seed\nalready created (the one the dashboard client is bound to) so the setup page can offer it\nrather than let the visitor type a name that creates a sibling; `null` when\nsetup is complete or when there is not exactly one organization to offer."
       },
       "SubmitInquiryRequest": {
         "required": [

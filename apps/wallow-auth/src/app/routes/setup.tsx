@@ -2,7 +2,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 
 import { AuthLayout } from "@shared/components/auth-layout";
-import { ensureSetupRequired, SetupForm } from "@features/setup";
+import { ensureSetupStatus, SetupForm, type SetupStatus } from "@features/setup";
 
 /**
  * The `/setup` route — the first-run page where a fresh deployment's bootstrap
@@ -22,23 +22,31 @@ import { ensureSetupRequired, SetupForm } from "@features/setup";
  * own branding.
  */
 function SetupRoute(): ReactElement {
+  const { seededOrganizationName } = Route.useRouteContext();
+
   return (
     <AuthLayout>
-      <SetupForm />
+      <SetupForm seededOrganizationName={seededOrganizationName} />
     </AuthLayout>
   );
 }
 
 export const Route = createFileRoute("/setup")({
   beforeLoad: async ({ context }) => {
-    const required: boolean | null = await ensureSetupRequired({
+    const status: SetupStatus | null = await ensureSetupStatus({
       queryClient: context.queryClient,
       client: context.sdk.client,
     });
 
-    if (required === false) {
+    if (status?.setupRequired === false) {
       throw redirect({ to: "/login" });
     }
+
+    // The seeded organization rides the route context so the form states it
+    // rather than asking for it: production seeds the organization the
+    // dashboard client is bound to, and an administrator who founds a sibling
+    // here is not a member where it counts.
+    return { seededOrganizationName: status?.seededOrganizationName };
   },
   component: SetupRoute,
 });
