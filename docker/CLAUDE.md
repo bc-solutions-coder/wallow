@@ -43,6 +43,11 @@ docker compose -f docker-compose.production.yml --env-file .env.production up --
   copy). Both the `/api` and `/auth` prefixes are **kept**, never stripped — each app rebases
   itself. `AUTH_BASE_PATH` is a **build** arg, not a runtime env, so path-based deployments
   must `up --build`; the published `wallow-auth` image is root-mounted.
+- **Pangolin deployments** enable `--profile pangolin`, which runs the `newt` tunnel client
+  inside the stack on the `wallow` network. Pangolin resource targets must be container DNS
+  names (`http://caddy:80` for path-based routing), never bridge IPs — those are reassigned
+  on every recreate. Caddy behind Pangolin's TLS needs `trusted_proxies` enabled
+  (`caddy/Caddyfile.example` GOTCHA) or OIDC redirects leave as `http://`.
 - **One Garage image** — `images/garage/` serves all three stacks (and the Aspire AppHost).
   No committed `garage.toml`: the entrypoint renders `garage.toml.template` through `envsubst`
   at startup, so its knobs (region, RPC secret, admin token, key, bucket) come from env.

@@ -40,6 +40,10 @@
 # With observability (Grafana + Alloy):
 #   docker compose -f docker-compose.production.yml --env-file .env.production \
 #     --profile observability up --build
+#
+# Behind a Pangolin tunnel (adds the newt client — see the newt service below):
+#   docker compose -f docker-compose.production.yml --env-file .env.production \
+#     --profile pangolin up --build
 # =============================================================================
 
 configs:
@@ -717,6 +721,64 @@ services:
         limits:
           cpus: "1.0"
           memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================
+  # PANGOLIN TUNNEL (optional — use --profile pangolin)
+  # ============================================
+  # Newt, the Pangolin tunnel client, for deployments fronted by a Pangolin
+  # instance (typically on a VPS, terminating TLS) instead of exposing this
+  # host's :80/:443 directly. Running it HERE, as part of the stack, is
+  # load-bearing: it joins the `wallow` network, so Pangolin resource TARGETS
+  # can (and must) use container DNS names, which survive restarts. Never
+  # target a container's bridge IP — the runtime reassigns those on every
+  # recreate, and a standalone newt attached with `docker network connect`
+  # loses its attachment when `compose down` deletes the network. Targets:
+  #
+  #   Path-based topology (default): ONE resource for the site,
+  #     target http://caddy:80 — Caddy keeps doing the /api, /auth path split.
+  #   Subdomain topology: three resources ->
+  #     http://wallow-api:8080, http://wallow-auth:8080, http://wallow-web:8080
+  #
+  # Use SERVICE names (caddy, wallow-api, ...) rather than container_name —
+  # they resolve on this network too and don't move with COMPOSE_PROJECT_NAME.
+  #
+  # When Pangolin terminates TLS in front of Caddy, Caddy sees plain HTTP and
+  # would stamp X-Forwarded-Proto: http, breaking every OIDC redirect — you
+  # MUST enable `trusted_proxies` in your Caddyfile so Pangolin's forwarded
+  # headers are kept. See the GOTCHA in caddy/Caddyfile.example.
+  newt:
+    image: fosrl/newt:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-wallow}-newt
+    restart: unless-stopped
+    environment:
+      # All three come from the site's config in the Pangolin dashboard.
+      # They cannot fail closed (`:?`) — the service is profile-gated and
+      # interpolation runs before profiles apply, the same Compose limitation
+      # documented on GF_ADMIN_PASSWORD above. Unset, newt exits and restarts;
+      # it cannot come up insecure.
+      PANGOLIN_ENDPOINT: ${PANGOLIN_ENDPOINT:-}
+      NEWT_ID: ${NEWT_ID:-}
+      NEWT_SECRET: ${NEWT_SECRET:-}
+      # Newt touches this file while the tunnel is up; the healthcheck reads it.
+      HEALTH_FILE: /tmp/healthy
+    healthcheck:
+      test: ["CMD-SHELL", "[ -f /tmp/healthy ]"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - wallow
+    profiles: ["pangolin"]
+    deploy:
+      resources:
+        limits:
+          memory: 128M
     logging:
       driver: json-file
       options:
