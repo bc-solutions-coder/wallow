@@ -44,8 +44,9 @@ public class PublicSeedClientRemovalTests
     private const string TestComposeRedirectUri = "http://localhost:${E2E_WEB_PORT:-5053}/bff/callback";
 
     /// <summary>
-    /// Directories that are build output, dependencies, test artifacts, or gitignored local
-    /// scratch, none of which are part of the source the deletion has to be true of.
+    /// Directories that are build output, dependencies, test artifacts, gitignored local
+    /// scratch, or immutable historical records (plans, the beads tracker export), none of
+    /// which are source a fork acts on, so none of which the deletion has to be true of.
     /// </summary>
     private static readonly HashSet<string> _prunedDirectories = new(StringComparer.Ordinal)
     {
@@ -60,6 +61,7 @@ public class PublicSeedClientRemovalTests
         "playwright-report",
         "coverage",
         "plans",
+        "beads-archive",
     };
 
     /// <summary>Text file extensions worth sweeping for a client id.</summary>
