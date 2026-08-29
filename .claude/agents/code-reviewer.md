@@ -70,7 +70,7 @@ The roster is stated once, in root `CLAUDE.md` -- read it there rather than from
 ## Review Process
 
 ### 1. Understand Scope
-- What was the goal? (Check plan, bead, or user instructions)
+- What was the goal? (Check plan, issue, or user instructions)
 - What files were changed?
 - What module(s) are affected?
 

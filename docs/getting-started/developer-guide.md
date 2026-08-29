@@ -188,62 +188,32 @@ pnpm backend
 
 ---
 
-## Issue Tracking with Beads
+## Issue Tracking
 
-Wallow tracks work with **bd** (beads), a lightweight issue tracker whose database is embedded directly in the repository rather than hosted separately:
-
-```bash
-bd ready                                    # Find available work
-bd show <id>                                # View issue details
-bd update <id> --status in_progress         # Claim work
-bd note <id> "..."                          # Record a finding on the issue
-bd close <id>                               # Complete work
-```
-
-This page is the canonical bd workflow for Wallow. `.beads/README.md` is **not** -- it is stock
-`bd init` boilerplate, it is untracked (see below), and `bd init` regenerates it on every fresh
-setup, so nothing written there survives to another clone. Read it as vendor documentation for the
-tool, not as instructions for this repository.
-
-### Where the data lives
-
-Beads live in an embedded [Dolt](https://www.dolthub.com/) database under `.beads/embeddeddolt/<db>/`, where `<db>` is the name of the Dolt database itself. That name is **per-machine, not repo-wide**: a machine where `bd init` created the database gets `Wallow`, while a machine set up with `bd bootstrap` (see below) gets `beads`. Nothing in the tooling depends on this name, so never hardcode the path in a script or doc.
-
-All of `.beads/` is gitignored -- none of it is committed to the repository. Instead, beads data travels through the **same GitHub repository** using Dolt's own git-backed remote: issue history sits on `refs/dolt/data`, with a `__dolt_remote_info__` branch pointing at it. `.beads/config.yaml` records `sync.remote: git+https://github.com/bc-solutions-coder/wallow.git`, so beads sync over **HTTPS**, using whatever git credential helper already authenticates `git push` for this repo — not a `.npmrc` credential.
-
-### Pushing and pulling
-
-Because beads data does not live in the normal git history, ordinary `git push` and `git pull` do not move it. You must sync it explicitly:
-
-- **`bd dolt push`** -- pushes local issue changes to `refs/dolt/data` on the remote. You must run this **explicitly**; a plain `git push` does *not* carry beads along, because the `pre-push` hook exits 0 without touching `refs/dolt/data`. Skip this step and any issues you created or updated stay stranded on your machine.
-- **`bd dolt pull`** -- pulls issue changes from the remote before you start work on a machine you have not used in a while. Like the push side, `git pull` does **not** bring beads over.
-
-### Setting up a new machine
-
-On a fresh clone, run:
+Wallow tracks work with **GitHub Issues** on this repository, driven through the
+[`gh` CLI](https://cli.github.com/):
 
 ```bash
-bd bootstrap --yes
+gh issue list --state open                   # Find available work
+gh issue view <number> --comments            # View issue details
+gh issue edit <number> --add-assignee @me    # Claim work
+gh issue comment <number> --body "..."       # Record a finding on the issue
+gh issue close <number> --comment "..."      # Complete work
 ```
 
-This finds `refs/dolt/data` on the git origin and rebuilds the whole beads database from it -- no `.beads/` directory needs to exist beforehand -- and wires up `origin` as the sync remote for later `bd dolt push`/`bd dolt pull`, so there is no manual `bd dolt remote add` step.
+`docs/agents/issue-tracker.md` is the canonical description of the conventions, and
+`docs/agents/triage-labels.md` maps the triage label vocabulary. `gh` infers the repository from
+`git remote -v`, so a fresh machine needs nothing beyond `gh auth login`.
 
-### Do not run `bd hooks install`
+### The beads archive
 
-Wallow's git hooks are owned by **husky**, not by beads. Every `pnpm install` runs the `prepare: husky` script, which sets `core.hooksPath=.husky/_`, and the tracked `.husky/*` hook files already contain the bridge block that keeps bd in sync on commit/push. This means beads integration works out of the box with no extra setup (`bd hooks list` will confirm it).
-
-Running `bd hooks install` fights husky for the same git configuration: it repoints `core.hooksPath` at `.beads/hooks`, copies the husky hook bodies into that new location, and appends a second bridge block on top. The result is that every hook runs its beads logic twice, edits to `.husky/` silently stop taking effect because git is no longer looking there, and the next `pnpm install` flips `core.hooksPath` back to husky's directory -- leaving the repo in an inconsistent state either way.
-
-If hooks ever look wrong, recover with:
-
-```bash
-bd hooks uninstall   # clears core.hooksPath entirely, leaving no hooks configured
-pnpm exec husky       # re-installs husky's hooks and restores core.hooksPath=.husky/_
-```
-
-### Diagnostics
-
-`bd dolt remote list` prints the configured remote and is useful for confirming sync is wired up correctly. Note that the standalone `dolt` CLI is not installed in this environment -- `bd` embeds the Dolt engine itself -- so raw `dolt` commands are unavailable, and `bd doctor` will report that diagnostics are "not yet supported in embedded mode".
+Until August 2026 Wallow tracked work with [beads](https://github.com/steveyegge/beads) (`bd`),
+whose issue IDs (`Wallow-xxxx`) still appear throughout code comments, commit messages, and
+`docs/plans/`. Those references are historical provenance, like ticket numbers from any retired
+tracker. The full export — every issue with its notes, plus the agent memories — lives in
+`docs/agents/beads-archive/` (`issues.json`, `memories.json`), so a `Wallow-xxxx` citation can
+always be resolved from a fresh clone without the `bd` tool. The retired Dolt data also still
+sits on the remote's `refs/dolt/data` ref; nothing reads it anymore.
 
 ---
 

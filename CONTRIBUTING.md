@@ -39,8 +39,8 @@ See the [Developer Guide](docs/getting-started/developer-guide.md) for detailed 
 
 Working rules that apply to every change live in [`CLAUDE.md`](CLAUDE.md) and `.claude/rules/`
 (testing, E2E, coding conventions, and team-agent lifecycle). Issue tracking uses
-[beads](https://github.com/steveyegge/beads) rather than a separate tracker for in-flight work —
-`bd ready` lists available work.
+[GitHub Issues](../../issues) via the `gh` CLI — `gh issue list --state open` lists available
+work, and `docs/agents/issue-tracker.md` documents the conventions.
 
 ## How to Contribute
 

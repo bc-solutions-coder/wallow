@@ -1,9 +1,10 @@
 # Docs Site
 
 This folder contains the **DocFX documentation site** for Wallow. Everything here is user-facing
-documentation that will be published to the docs site — with two deliberate exceptions, `docs/plans/`
-and `docs/audits/`, which are tracked in git but kept off the site by `docfx.json`'s
-`build.content[0].exclude` list (`plans/**`, `audits/**`, `claude/**`, `CLAUDE.md`).
+documentation that will be published to the docs site — with three deliberate exceptions,
+`docs/plans/`, `docs/audits/`, and `docs/agents/`, which are tracked in git but kept off the site
+by `docfx.json`'s `build.content[0].exclude` list (`plans/**`, `audits/**`, `agents/**`,
+`claude/**`, `CLAUDE.md`).
 
 ## Structure
 
@@ -24,6 +25,8 @@ docs/
   api/                  # API reference docs (service accounts)
   plans/                # Session/design artifacts — excluded from the site build
   audits/               # Audit reports — excluded from the site build
+  agents/               # Agent config (issue tracker, triage labels, domain docs) and the
+                        #   beads archive — excluded from the site build
 ```
 
 ## Adding a New Guide
@@ -36,7 +39,8 @@ docs/
 
 ## Rules
 
-- **Site pages are user-facing** — a guide, not a session artifact. Plans and audits belong under
-  `docs/plans/` and `docs/audits/`, which `docfx.json` excludes; nothing else here is excluded.
+- **Site pages are user-facing** — a guide, not a session artifact. Plans, audits, and agent
+  config belong under `docs/plans/`, `docs/audits/`, and `docs/agents/`, which `docfx.json`
+  excludes; nothing else here is excluded.
 - **File naming** — always lowercase kebab-case (e.g., `api-development.md`)
 - **Cross-references** — use relative paths (e.g., `../architecture/messaging.md`)

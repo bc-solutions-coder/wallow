@@ -25,7 +25,7 @@ Consequences for how work is done here:
   acceptable and expected.
 - **Schema changes do not need staged migrations.** No expand/contract, no dual-write windows,
   no deprecation periods. Reshape the schema, replace the migration, re-seed. Local databases
-  are disposable — `bd`-tracked data and `api/seed.json` are the only state that matters.
+  are disposable — `api/seed.json` is the only state that matters.
 - **No backfills.** If a model change would strand data, drop and re-seed.
 - **API and contract changes are free.** Regenerate `packages/sdk/openapi/v1.json` and the SDK
   client rather than versioning around a change.
@@ -66,9 +66,9 @@ cleanly to a fresh database.
 
 New plans MUST be written to `docs/plans/<YYYY-MM-DD>/<HHmm>-<name>.md` (date folder =
 creation date, 24h HHmm prefix). Every plan starts with a `**status: active|completed|superseded**`
-line. Plans are **committed**, because beads cite them by path as the justification for the work
+line. Plans are **committed**, because issues cite them by path as the justification for the work
 and a fresh clone must be able to read them — do not archive one out of the repo while an open
-bead still points at it. Mark a finished plan `completed` or `superseded` in place instead.
+issue still points at it. Mark a finished plan `completed` or `superseded` in place instead.
 `docfx.json` excludes `plans/**` from the site build, so a plan never ships as user-facing docs.
 
 ## JavaScript / TypeScript Monorepo
@@ -199,24 +199,25 @@ and `.claude/rules/` files, not to ref.tools.
 
 ## Agent Instructions
 
-Uses **bd** (beads) for issue tracking.
+Uses **GitHub Issues** for issue tracking, via the `gh` CLI (conventions:
+`docs/agents/issue-tracker.md`; labels: `docs/agents/triage-labels.md`).
 
 ```bash
-bd ready                                    # Find available work
-bd show <id>                                # View issue details
-bd update <id> --status in_progress         # Claim work
-bd close <id>                               # Complete work
+gh issue list --state open                   # Find available work
+gh issue view <number> --comments            # View issue details
+gh issue edit <number> --add-assignee @me    # Claim work
+gh issue close <number> --comment "..."      # Complete work
 ```
 
-Beads sync over HTTPS through this same GitHub repo, on `refs/dolt/data` — **`git push` does not
-carry them**. Setup, sync mechanics, and the husky/`bd hooks install` conflict are documented in
-`docs/getting-started/developer-guide.md`.
+Historical `Wallow-xxxx` IDs in comments, commits, and plans refer to the retired beads
+tracker; resolve them against the export in `docs/agents/beads-archive/`.
 
-### Memory discipline
+### Knowledge discipline
 
-`bd remember` is ONLY for timeless, repo-wide facts a fresh clone can't rediscover **and that no
-`CLAUDE.md` already states**. Bead-scoped findings go on the bead (`bd note <id>`). Never store
-dates, bead IDs, plan references, or exact line numbers in a memory.
+Timeless, repo-wide facts a fresh clone can't rediscover belong in the owning `CLAUDE.md` (or a
+`CONTEXT.md`/ADR — see the Domain docs section below). Issue-scoped findings go on the issue as
+a comment. Never store dates, issue numbers, plan references, or exact line numbers as if they
+were timeless.
 
 ### Session Completion
 
@@ -225,8 +226,19 @@ Work is NOT complete until `git push` succeeds.
 1. File issues for remaining work
 2. Run quality gates (if code changed)
 3. Close finished issues, update in-progress items
-4. `git pull --rebase && bd dolt push && git push` — `bd dolt push` is not optional and is not
-   done for you by `git push`; it is the only thing that moves beads off this machine
-5. Verify `git status` shows "up to date with origin". That says nothing about beads — confirm
-   those separately with `git ls-remote origin refs/dolt/data` (the hash must change after a
-   session that touched beads)
+4. `git pull --rebase && git push`
+5. Verify `git status` shows "up to date with origin"
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in this repo's GitHub Issues (`bc-solutions-coder/wallow`), via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical triage roles use their default names verbatim (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one root `CONTEXT.md` + `docs/adr/`, created lazily by `/domain-modeling`. See `docs/agents/domain.md`.

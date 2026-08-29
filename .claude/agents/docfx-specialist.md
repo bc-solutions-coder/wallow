@@ -56,7 +56,7 @@ From root `CLAUDE.md` — the plan convention, which `docs/CLAUDE.md` does not s
 
 - Plans go to `docs/plans/<YYYY-MM-DD>/<HHmm>-<name>.md` (date folder = creation date, 24h
   `HHmm` prefix), start with a `**status: active|completed|superseded**` line, and are
-  **committed** — beads cite them by path. Mark a finished plan `completed` or `superseded`
+  **committed** — issues cite them by path. Mark a finished plan `completed` or `superseded`
   in place rather than deleting it.
 
 ## Building and Validating

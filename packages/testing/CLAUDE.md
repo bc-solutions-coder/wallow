@@ -131,7 +131,7 @@ Delete on sight, in any spec you touch:
 
 | Category                        | Examples                                                                        |
 | ------------------------------- | ------------------------------------------------------------------------------- |
-| Bead IDs / plan refs            | `Wallow-vec7.3.11`, `(2.8a)`, `scout inventory on ...`                          |
+| Issue IDs / plan refs           | `Wallow-vec7.3.11`, `#97`, `(2.8a)`, `scout inventory on ...`                   |
 | History verbs                   | `used to`, `no longer`, `replaces`, `was previously`, `this file used to carry` |
 | Line citations into other files | `AccountController.cs:65-165`, `packages/sdk/src/auth-oidc.ts:42`               |
 | Scope disclaimers               | `deliberately says NOTHING about`, `out of scope for this spec`                 |
