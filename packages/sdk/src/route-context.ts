@@ -1,10 +1,12 @@
 /**
- * Typed router context + SSR-safe auth guard (Wallow-pu6a.5.6).
+ * SSR-safe auth guard (Wallow-pu6a.5.6).
  *
- * Route files used to hand-type `context.sdk`/`context.queryClient` ad hoc and
- * hand-roll the unauthenticated redirect inline. {@link WallowRouterContext} is
- * that context shape declared once, and {@link requireAuth}/{@link loginRedirect}
- * are the guard extracted from wallow-web's `/dashboard` route.
+ * Route files used to hand-roll the unauthenticated redirect inline;
+ * {@link requireAuth}/{@link loginRedirect} are that guard extracted from
+ * wallow-web's `/dashboard` route. (A companion `WallowRouterContext` interface
+ * used to live here too — each app declares its own `RouterContext` in
+ * `__root.tsx` instead, and adoption was offered and declined, so Wallow-j7qk
+ * deleted it.)
  *
  * SSR SAFETY IS THE WHOLE POINT (Wallow-zyxe). A guard runs in `beforeLoad`,
  * which executes during a full-page server render as well as in the browser, so
@@ -28,34 +30,10 @@
  * so the SDK gains no dependency on `@tanstack/react-router` and the guard stays
  * unit-testable without a router.
  */
-import type { QueryClient } from "@tanstack/react-query";
-
 import type { WallowUser } from "./auth";
-import type { WallowSdk } from "./create-sdk";
 
 /** The BFF login endpoint. Outside the route tree — see {@link LoginRedirectOptions}. */
 const BFF_LOGIN_PATH = "/bff/login";
-
-/**
- * The shape apps put in their router context, so route files get a typed
- * `context` instead of re-declaring it.
- *
- * `queryClient` and `sdk` are both request-scoped: a router built per request
- * owns one `QueryClient` (never a module-global one, which would hand one
- * user's cache to the next) and the request's own SDK instance.
- */
-export interface WallowRouterContext {
-  /** The request's TanStack Query cache, shared by loaders and components. */
-  readonly queryClient: QueryClient;
-  /** The request's SDK instance; pass `sdk.client` to generated operations. */
-  readonly sdk: WallowSdk;
-  /**
-   * The resolved current user, when an app chooses to put it in context.
-   * `null` means "resolved, and unauthenticated"; absent means "not resolved
-   * here".
-   */
-  readonly user?: WallowUser | null;
-}
 
 /**
  * A redirect target for the BFF login endpoint: everything the router's

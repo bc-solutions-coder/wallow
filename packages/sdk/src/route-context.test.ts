@@ -1,18 +1,11 @@
-import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, type Mock, vi } from "vitest";
 
 import type { WallowUser } from "./auth";
-import { createWallowSdk, type WallowSdk } from "./create-sdk";
 import * as browserEntry from "./index";
-import {
-  type LoginRedirectOptions,
-  loginRedirect,
-  requireAuth,
-  type WallowRouterContext,
-} from "./route-context";
+import { type LoginRedirectOptions, loginRedirect, requireAuth } from "./route-context";
 
 /**
- * Spec (Wallow-pu6a.5.6): typed router context + the SSR-safe auth guard.
+ * Spec (Wallow-pu6a.5.6): the SSR-safe auth guard.
  *
  * This runs in the SDK's node environment, i.e. under the same conditions as a
  * full-page SSR render: no `location`, no `document`. That is deliberate — the
@@ -32,9 +25,7 @@ import {
  *       THROWS the injected router redirect otherwise — a returned redirect
  *       would let the guarded route render;
  *   (d) `redirect` is injected, so the SDK takes no dependency on
- *       `@tanstack/react-router` and the guard is testable without a router;
- *   (e) `WallowRouterContext` is satisfied by what wallow-web's router actually
- *       puts in context (`{ queryClient, sdk }`).
+ *       `@tanstack/react-router` and the guard is testable without a router.
  */
 
 /** A distinguishable stand-in for the object a router's `redirect()` returns. */
@@ -177,24 +168,6 @@ describe("requireAuth", () => {
 
     expect(() => requireAuth({ user: user(), redirect })).not.toThrow();
     expect(catchThrown(() => requireAuth({ user: null, redirect }))).toBe(REDIRECT_SENTINEL);
-  });
-});
-
-describe("WallowRouterContext", () => {
-  it("is satisfied by what the app router puts in context", () => {
-    const queryClient: QueryClient = new QueryClient();
-    const sdk: WallowSdk = createWallowSdk({ baseUrl: "/api" });
-
-    // Type-level pin: wallow-web's `createRouter({ context: { queryClient, sdk } })`
-    // must be assignable, so route files can stop hand-typing `context`.
-    // `tsc --noEmit` (see index.test.ts) is what enforces this.
-    const context = { queryClient, sdk } satisfies WallowRouterContext;
-    const withUser = { queryClient, sdk, user: user() } satisfies WallowRouterContext;
-    const anonymous = { queryClient, sdk, user: null } satisfies WallowRouterContext;
-
-    expect(context.sdk.client).toBeDefined();
-    expect(withUser.user.sub).toBe("user-1");
-    expect(anonymous.user).toBeNull();
   });
 });
 

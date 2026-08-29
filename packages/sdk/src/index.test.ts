@@ -22,13 +22,7 @@ import * as serverEntry from "./server/index";
 // so a missing type export does not break these tests directly — it breaks the
 // `tsc --noEmit` test at the bottom of this file, which is the assertion that
 // actually pins the type surface.
-import type {
-  CreateWallowSdkOptions,
-  CsrfInterceptorClient,
-  WallowRouterContext,
-  WallowSdk,
-  WallowUser,
-} from "./index";
+import type { CreateWallowSdkOptions, CsrfInterceptorClient, WallowSdk, WallowUser } from "./index";
 import type {
   BffConfig,
   BffHandlers,
@@ -217,7 +211,6 @@ describe("public type surface", () => {
     type _Types = [
       CreateWallowSdkOptions,
       CsrfInterceptorClient,
-      WallowRouterContext,
       WallowSdk,
       WallowUser,
       BffConfig,
