@@ -308,9 +308,12 @@ carries only the roles that one membership grants. `roles: ["admin"]` therefore 
 `org_id`" and never "admin everywhere" — cache it under the organization, and re-read it rather
 than carrying it across a change of organization.
 
-If your BFF is built on `@bc-solutions-coder/sdk`, read these through the browser claim helpers
-(`getOrgId`, `getOrgName`, `getRoles`, `hasRole`, `isAdmin`) rather than indexing the claim bag:
-they mirror the API's own comparison rules, which are case-insensitive for role names.
+If your frontend is built on this workspace's packages, gate UI through
+`@bc-solutions-coder/auth`'s `hasRole`/`isAdmin` over the typed current-user response rather
+than indexing a claim bag: they mirror the API's own comparison rules, which are
+case-insensitive for role names. When you do read these claims raw (a hand-rolled BFF, or
+`org_id`/`org_name`, which the typed response does not carry), compare role names
+case-insensitively too.
 
 ---
 

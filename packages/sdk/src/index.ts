@@ -2,7 +2,6 @@ export * from "./create-sdk";
 export * from "./auth";
 export * from "./auth-extras";
 export * from "./auth-oidc";
-export * from "./claims";
 export * from "./csrf";
 export * from "./errors";
 export * from "./request-id";

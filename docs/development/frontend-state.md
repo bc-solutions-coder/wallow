@@ -158,9 +158,9 @@ what they may do, and the `beforeLoad` primer routes gate on. One browser-safe e
 | `currentUserQuery(client)`                   | The canonical `queryOptions` for the signed-in user; resolves `null` when anonymous.                                                   |
 | `useCurrentUser(client)`                     | `useQuery(currentUserQuery(client))` — how a screen reads the user.                                                                    |
 | `ensureCurrentUser({ queryClient, client })` | `ensureQueryData` over the same query, for a route's `beforeLoad`.                                                                     |
-| `type CurrentUser`                           | The API's response plus the `sub` the SDK's claim helpers key off.                                                                     |
-| `hasRole`, `hasPermission`                   | Membership over `CurrentUser.roles` / `.permissions`. Roles are case-insensitive, permissions case-sensitive — both mirror the server. |
-| `requireAuth`, `loginRedirect`, `isAdmin`    | The SDK's route guards and claim helpers, re-exported **by reference** so an app's auth imports come from one package.                 |
+| `type CurrentUser`                           | The API's response plus the `sub` the SDK's `requireAuth` guard keys off.                                                              |
+| `hasRole`, `hasPermission`, `isAdmin`        | Membership over `CurrentUser.roles` / `.permissions` (`isAdmin` = `hasRole(user, "admin")`). Roles are case-insensitive, permissions case-sensitive — both mirror the server. |
+| `requireAuth`, `loginRedirect`               | The SDK's route guards, re-exported **by reference** so an app's auth imports come from one package.                                   |
 
 **No app defines its own current-user query.** Before this package existed, wallow-web and
 wallow-auth each carried one and they had already drifted (wallow-auth's copy had no `staleTime`

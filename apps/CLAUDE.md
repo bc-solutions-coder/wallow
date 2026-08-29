@@ -224,8 +224,8 @@ itself plus the few `packages/sdk` files that need react-query's types are exemp
 
 Auth state comes from **`@bc-solutions-coder/auth`**, never from a per-app copy:
 `currentUserQuery` / `useCurrentUser` for the current user, `ensureCurrentUser` for a route's
-`beforeLoad` gate, and `hasRole` / `hasPermission` (plus the SDK's `requireAuth` / `isAdmin`,
-re-exported by reference) for role and permission checks.
+`beforeLoad` gate, and `hasRole` / `hasPermission` / `isAdmin` (plus the SDK's `requireAuth` /
+`loginRedirect`, re-exported by reference) for role and permission checks.
 
 Zustand holds UI-only global state; it never stores API data.
 See `docs/development/frontend-state.md`.

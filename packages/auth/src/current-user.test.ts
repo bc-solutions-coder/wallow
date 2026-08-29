@@ -16,8 +16,7 @@
  *      every signed-out visitor hits a route's error boundary instead of its
  *      login gate;
  *   3. `sub`, renamed from the API's `id`, so the resolved user satisfies the
- *      SDK's `WallowUser` and the shared `requireAuth`/`isAdmin` guards can read
- *      it;
+ *      SDK's `WallowUser` and the shared `requireAuth` guard can read it;
  *   4. a 30-second `staleTime`, which is what keeps a `beforeLoad` that calls
  *      `ensureQueryData` on every navigation from re-reading the user on each
  *      route change;

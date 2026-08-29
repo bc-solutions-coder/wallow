@@ -9,11 +9,10 @@
  *
  *   - ROLES are case-INSENSITIVE. `ClaimsPrincipalExtensions.GetRoles()`
  *     deduplicates with `StringComparer.OrdinalIgnoreCase` and
- *     `AuthorizationController` builds its role set the same way. It is also
- *     forced by this package's own barrel: `isAdmin` is re-exported from the SDK
- *     and IS case-insensitive, so a case-sensitive `hasRole` here would let
- *     `hasRole(user, "admin")` and `isAdmin(user)` disagree about the same user
- *     from the same import.
+ *     `AuthorizationController` builds its role set the same way. `isAdmin` is
+ *     defined over `hasRole`, so the two agree about any user by construction —
+ *     that agreement is still asserted below, as the regression signal for
+ *     anyone unpicking that definition.
  *   - PERMISSIONS are case-SENSITIVE. `PermissionAuthorizationHandler` decides
  *     with a plain `permissions.Contains(requirement.Permission)` — ordinal. A
  *     lenient browser check would show a control the API then refuses, which is
@@ -27,10 +26,9 @@
  * hiding a button.
  */
 
-import { isAdmin } from "@bc-solutions-coder/sdk";
 import { describe, expect, it } from "vitest";
 
-import { hasPermission, hasRole } from "./authorization";
+import { hasPermission, hasRole, isAdmin } from "./authorization";
 import type { CurrentUser } from "./current-user";
 
 const ADMIN: CurrentUser = {
@@ -61,9 +59,9 @@ describe("hasRole", () => {
     expect(hasRole(ADMIN, "ADMIN")).toBe(true);
   });
 
-  it("agrees with the isAdmin this package re-exports, for the same user", () => {
-    // The concrete reason roles are case-insensitive: both symbols come out of
-    // this package's barrel, so they may not disagree about one user.
+  it("agrees with isAdmin, for the same user", () => {
+    // Both symbols come out of this package's barrel, so they may not disagree
+    // about one user.
     expect(hasRole(ADMIN, "admin")).toBe(isAdmin(ADMIN));
     expect(hasRole(CLAIMLESS, "admin")).toBe(isAdmin(CLAIMLESS));
   });
@@ -89,6 +87,24 @@ describe("hasRole", () => {
   it("is false for a blank role name", () => {
     expect(hasRole(ADMIN, "")).toBe(false);
     expect(hasRole(ADMIN, "   ")).toBe(false);
+  });
+});
+
+describe("isAdmin", () => {
+  it("is true for a user holding the admin role, whatever its casing", () => {
+    // The fixture holds "Admin" — the case-insensitive comparison is inherited
+    // from hasRole.
+    expect(isAdmin(ADMIN)).toBe(true);
+  });
+
+  it("is false for a signed-in non-admin", () => {
+    expect(isAdmin({ ...CLAIMLESS, roles: ["Member"] })).toBe(false);
+  });
+
+  it("is false for an anonymous or claimless user rather than throwing", () => {
+    expect(isAdmin(null)).toBe(false);
+    expect(isAdmin(undefined)).toBe(false);
+    expect(isAdmin(CLAIMLESS)).toBe(false);
   });
 });
 

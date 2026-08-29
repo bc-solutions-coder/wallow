@@ -54,9 +54,6 @@ const BROWSER_VALUE_EXPORTS: readonly string[] = [
   "consentInfoArgs",
   "createWallowSdk",
   "getCurrentUser",
-  "getRoles",
-  "hasRole",
-  "isAdmin",
   "isSafeMethod",
   "isSafeReturnUrl",
   "isWallowError",
@@ -90,6 +87,18 @@ const DELETED_LEGACY_SYMBOLS: readonly string[] = [
   // `/bff/logout` is CSRF-gated, so it cannot be a link.
   "getUser",
   "login",
+  // The browser claim-bag readers (`claims.ts`), deleted with them (Wallow-j7qk
+  // item 2): the ONE user model at the app boundary is the typed `CurrentUser`,
+  // so role gating goes through `@bc-solutions-coder/auth`'s
+  // `hasRole`/`isAdmin`, and OIDC claim decoding is internal to the server
+  // entry (`server/claims.ts`).
+  "getOrgId",
+  "getOrgName",
+  "getRoles",
+  "hasRole",
+  "isAdmin",
+  "isGlobalAdmin",
+  "isOperator",
   "setSsrRequestContextResolver",
   // The envelope-unwrapping layer the response interceptor superseded: every
   // operation's failure path raises a WallowError, so nothing unwraps any more.

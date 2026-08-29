@@ -8,7 +8,7 @@
  *      back to reaching into the SDK (or re-inventing a current-user probe, which
  *      is exactly the duplication this package deletes), and an accidentally
  *      widened one turns a curated surface into a grab bag.
- *   2. IDENTITY of the SDK re-exports. `isAdmin`/`requireAuth`/`loginRedirect` are
+ *   2. IDENTITY of the SDK re-exports. `requireAuth`/`loginRedirect` are
  *      re-exported by reference, not wrapped, so app code importing them from here
  *      gets the SDK's own tested guards.
  *
@@ -19,7 +19,7 @@
  * which declares no router to import.
  */
 
-import { isAdmin, loginRedirect, requireAuth } from "@bc-solutions-coder/sdk";
+import { loginRedirect, requireAuth } from "@bc-solutions-coder/sdk";
 import { describe, expect, it } from "vitest";
 
 import * as auth from "./index";
@@ -30,18 +30,21 @@ const OWN_EXPORTS: readonly string[] = [
   "ensureCurrentUser",
   "hasPermission",
   "hasRole",
+  "isAdmin",
   "useCurrentUser",
 ];
 
 /**
- * The SDK guards and claim helpers re-exported so auth imports come from one
- * package, held next to the bindings they must BE.
+ * The SDK route guards re-exported so auth imports come from one package, held
+ * next to the bindings they must BE. `isAdmin` is no longer among them: the
+ * SDK's claim-bag readers are deleted (Wallow-j7qk), and the `isAdmin` this
+ * barrel exports is this package's own, over the typed `CurrentUser`.
  *
  * Named imports rather than a namespace import: the repo-root oxlint
  * `no-restricted-imports` rule bans `import * as` from the SDK, because a
  * namespace import reaches the deleted module-global client symbols too.
  */
-const SDK_GUARDS: Readonly<Record<string, unknown>> = { isAdmin, loginRedirect, requireAuth };
+const SDK_GUARDS: Readonly<Record<string, unknown>> = { loginRedirect, requireAuth };
 
 const REEXPORTED_FROM_SDK: readonly string[] = Object.keys(SDK_GUARDS);
 

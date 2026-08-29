@@ -191,11 +191,11 @@ describe("/invitation treats an unresolved visitor as anonymous, never as an err
 });
 
 describe("/invitation reads the visitor through the shared current-user query", () => {
-  it("caches the resolved user with the sub the SDK's claim helpers read", async () => {
+  it("caches the resolved user with the sub the SDK's requireAuth guard reads", async () => {
     // `packages/auth`'s query renames the API's `id` to `sub` so the stored user
-    // satisfies `WallowUser` and the shared `requireAuth`/`isAdmin` guards can
-    // read it. A probe that stored the raw response under this same key would
-    // leave those guards seeing a user with no `sub`.
+    // satisfies `WallowUser` and the shared `requireAuth` guard can read it. A
+    // probe that stored the raw response under this same key would leave that
+    // guard seeing a user with no `sub`.
     const { queryClient } = renderRouteAt(`/invitation?token=${TOKEN}`);
 
     await expect.element(page.getByTestId("invitation-accept")).toBeInTheDocument();

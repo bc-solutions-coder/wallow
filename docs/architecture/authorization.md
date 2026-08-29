@@ -334,6 +334,7 @@ request refuses is a broken screen.
 |--------|-------|-----------|
 | `hasRole(user, role)` | `CurrentUser.roles` | case-**IN**sensitive |
 | `hasPermission(user, permission)` | `CurrentUser.permissions` | case-**SENSITIVE** |
+| `isAdmin(user)` | `CurrentUser.roles` | `hasRole(user, "admin")`, named |
 
 The asymmetry is not an oversight — it mirrors this document:
 

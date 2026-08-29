@@ -22,12 +22,13 @@ they had already drifted apart (wallow-auth's copy had no `staleTime` and no `su
 | `interface EnsureCurrentUserOptions`                                      | `src/ensure-current-user.ts`               | `{ queryClient, client }` — both request-scoped, off the router context.             |
 | `hasRole(user, role)`                                                     | `src/authorization.ts`                     | Role membership over `CurrentUser.roles`. Case-INsensitive.                          |
 | `hasPermission(user, permission)`                                         | `src/authorization.ts`                     | Permission membership over `CurrentUser.permissions`. Case-SENSITIVE.                |
-| `isAdmin`, `requireAuth`, `loginRedirect`                                 | re-exported from `@bc-solutions-coder/sdk` | The SDK's guards and claim helpers, by reference — not wrapped.                      |
+| `isAdmin(user)`                                                           | `src/authorization.ts`                     | `hasRole(user, "admin")`, named — the one role gate any app renders.                 |
+| `requireAuth`, `loginRedirect`                                            | re-exported from `@bc-solutions-coder/sdk` | The SDK's route guards, by reference — not wrapped.                                  |
 | `type WallowUser`, `type RequireAuthOptions`, `type LoginRedirectOptions` | re-exported from `@bc-solutions-coder/sdk` | Their companion types.                                                               |
 
 The SDK re-exports are here so an app's auth imports come from ONE package instead of being
 split across two. They are re-exported **by reference identity** (`src/index.test.ts` pins
-it): `isAdmin` from here IS the SDK's `isAdmin`.
+it): `requireAuth` from here IS the SDK's `requireAuth`.
 
 `src/index.test.ts` also pins the surface in **both** directions — a dropped export fails,
 and so does an accidentally widened one. Anything new needs a deliberate addition there.
@@ -45,7 +46,7 @@ pinned by `src/current-user.test.ts`; do not "simplify" any of them away:
    boundary instead of its login gate. Only 401 is soft — a 500 must reach the caller, or a
    backend outage would sign every real user out.
 3. **`sub`, renamed from the API's `id`.** That is what makes the resolved user satisfy the
-   SDK's `WallowUser` so `requireAuth`/`isAdmin` can read it. It is a rename, not an
+   SDK's `WallowUser` so `requireAuth` can read it. It is a rename, not an
    invention: `UsersController.GetCurrentUser` fills `Id` from `User.GetUserId()`, i.e. the
    very `sub` claim `AuthorizationController` issued. It falls back to `""` when the API
    answers without an `id`, because `WallowUser.sub` is non-optional.
@@ -73,26 +74,21 @@ Every react-query symbol arrives through `@bc-solutions-coder/query`, never from
 would put a second react-query copy in a consumer's graph, and a `useQuery` from copy B
 inside a `QueryClientProvider` from copy A throws at runtime.
 
-## `hasRole` here vs `hasRole` in the SDK — two different functions
+## One user model — the SDK's claim-bag readers are deleted
 
-The SDK also exports a `hasRole` (`packages/sdk/src/claims.ts`). They are NOT
-interchangeable, and this package's barrel deliberately does not re-export the SDK's one:
-
-- **`hasRole` from here** takes a `CurrentUser` and reads the TYPED
-  `CurrentUserResponse.roles` array the API answers with. Use it for anything downstream of
-  `currentUserQuery`.
-- **`hasRole` from the SDK** takes any `WallowUser` and walks a free-form OIDC claim bag,
-  where roles may arrive as a bare string under `role`. Use it when all you have is a token's
-  claims.
+This package's `hasRole`/`hasPermission`/`isAdmin` over the typed `CurrentUser` are the ONE
+role/permission surface at the app boundary. The SDK used to export a second, same-named
+family (`packages/sdk/src/claims.ts` — `hasRole`/`isAdmin`/`getRoles`/… walking a free-form
+`WallowUser` claim bag); Wallow-j7qk deleted it, because two same-named `hasRole`s with
+different semantics invited importing the wrong one. Raw OIDC claim decoding still exists,
+but as the SDK **server** entry's internal `server/claims.ts` — never an app import.
 
 Casing is not a style choice — it mirrors the server, because a browser helper that answers
 differently from the API promises something the next request refuses:
 
 - **Roles are case-INsensitive.** `ClaimsPrincipalExtensions.GetRoles()` deduplicates with
-  `StringComparer.OrdinalIgnoreCase`. It is also forced by this barrel: `isAdmin` is
-  re-exported from the SDK and IS case-insensitive, so a case-sensitive `hasRole` here would
-  let `hasRole(user, "admin")` and `isAdmin(user)` disagree about the same user from the same
-  import.
+  `StringComparer.OrdinalIgnoreCase`. `isAdmin` is defined as `hasRole(user, "admin")`, so
+  the two cannot disagree about one user.
 - **Permissions are case-SENSITIVE.** `PermissionAuthorizationHandler` decides with a plain
   `permissions.Contains(requirement.Permission)` — ordinal. Answering leniently would render
   a control the API then refuses, which is the one direction that produces a broken screen

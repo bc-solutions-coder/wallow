@@ -19,7 +19,7 @@
  *      `getCurrentUser` owns that softening, and without it every anonymous
  *      visitor would hit a route's error boundary instead of its login gate;
  *   2. `sub`, so the resolved user satisfies the SDK's `WallowUser` and the
- *      shared `requireAuth`/`isAdmin` guards can read it. It is a rename, not an
+ *      shared `requireAuth` guard can read it. It is a rename, not an
  *      invention: `UsersController.GetCurrentUser` fills `Id` from
  *      `User.GetUserId()`, i.e. the very `sub` claim `AuthorizationController`
  *      issued.
