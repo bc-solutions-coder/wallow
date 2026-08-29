@@ -5,7 +5,7 @@ import {
 } from "@bc-solutions-coder/styles";
 import { useQuery } from "@bc-solutions-coder/query";
 import { scalarToString } from "@bc-solutions-coder/utils/guards";
-import { createFileRoute, useRouteContext } from "@tanstack/react-router";
+import { createFileRoute, redirect, useRouteContext } from "@tanstack/react-router";
 
 import { AuthLayout } from "@shared/components/auth-layout";
 import {
@@ -14,6 +14,7 @@ import {
   LoginScreen,
   PASSWORD_RESET_MESSAGE,
 } from "@features/login";
+import { ensureSetupRequired } from "@features/setup";
 import { BASE_PATH } from "@shared/lib/base-path";
 
 /**
@@ -155,5 +156,27 @@ function LoginRoute() {
 
 export const Route = createFileRoute("/login")({
   validateSearch,
+  /*
+   * The first-run gate: while a fresh deployment still has no administrator,
+   * every way in funnels through this page (`/` redirects here, and the OIDC
+   * flow lands here), so this is the one place that needs to know setup is
+   * still open and forward the visitor to `/setup`.
+   *
+   * Only a definite "setup is required" redirects. Complete, unknown, and
+   * unreachable all render the login page — a status hiccup must never take
+   * sign-in down. The search params are deliberately dropped on the redirect:
+   * `/setup` is deployment bootstrap, not a step in the flow that carried them,
+   * and post-setup the visitor re-enters sign-in from its own link.
+   */
+  beforeLoad: async ({ context }) => {
+    const required: boolean | null = await ensureSetupRequired({
+      queryClient: context.queryClient,
+      client: context.sdk.client,
+    });
+
+    if (required === true) {
+      throw redirect({ to: "/setup" });
+    }
+  },
   component: LoginRoute,
 });

@@ -21,7 +21,8 @@ import {
   registerGuardMessage,
   type RegisterValues,
 } from "../register-result";
-import { passwordStrength, type PasswordStrength } from "../password-strength";
+import { StrengthMeter } from "@shared/components/strength-meter";
+import { passwordStrength, type PasswordStrength } from "@shared/lib/password-strength";
 import { AuthScreen } from "@shared/components/auth-screen";
 import { PRIVACY_CONSENT_LABEL, TERMS_CONSENT_LABEL } from "@shared/components/consent-labels";
 import { BASE_PATH } from "@shared/lib/base-path";
@@ -44,7 +45,8 @@ import { ERROR_HREF, decideReturnUrl } from "@shared/lib/return-url";
  * under the `{page}-{element}` rule.
  *
  * The rejection→copy mapping and the five submit guards live in
- * `../register-result`; the strength rating in `../password-strength`.
+ * `../register-result`; the strength rating in `@shared/lib/password-strength`
+ * (shared with the setup screen, like the meter that renders it).
  *
  * ── WHY THIS SCREEN RUNS THE FORMS PACKAGE "SIDEWAYS" ────────────────────────
  *
@@ -169,23 +171,6 @@ function InitLoading() {
   );
 }
 
-/** The oracle's `BbProgress` + label, gated on a non-empty password. */
-function StrengthMeter({ strength }: { readonly strength: PasswordStrength }) {
-  return (
-    <div className="space-y-1" data-testid="register-password-strength">
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-        <div
-          className={`h-full ${strength.indicatorClass}`}
-          style={{ width: `${strength.percent}%` }}
-        />
-      </div>
-      <Text as="p" variant="caption" color="muted">
-        {strength.label}
-      </Text>
-    </div>
-  );
-}
-
 /** The live confirmation hint, which the submit-time guard repeats in the banner. */
 function MismatchHint() {
   return (
@@ -219,7 +204,9 @@ function PasswordSection({
       <form.AppField name="password">
         {(field) => <field.PasswordField label="Password" placeholder="Create a password" />}
       </form.AppField>
-      {strength === null ? null : <StrengthMeter strength={strength} />}
+      {strength === null ? null : (
+        <StrengthMeter strength={strength} testId="register-password-strength" />
+      )}
       <form.AppField name="confirmPassword">
         {(field) => (
           <field.PasswordField label="Confirm Password" placeholder="Confirm your password" />
