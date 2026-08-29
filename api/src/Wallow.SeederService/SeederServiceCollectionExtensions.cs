@@ -78,6 +78,9 @@ internal static class SeederServiceCollectionExtensions
         services.AddScoped<OrganizationSeedSyncService>();
         services.AddScoped<OpenIddictScopeSyncService>();
         services.AddScoped<IBootstrapAdminService, BootstrapAdminService>();
+        // The exact handler POST /v1/identity/setup/admin invokes, called directly (the seeder
+        // has no Wolverine runtime): bootstrap must mean the same thing on both paths.
+        services.AddScoped<BootstrapAdminHandler>();
         services.AddScoped<ISetupStatusChecker, SetupStatusChecker>();
         services.AddScoped<DefaultRoleSeeder>();
         services.AddScoped<ApiScopeSeeder>();

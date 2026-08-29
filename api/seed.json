@@ -177,6 +177,7 @@
     "password": "Admin123!",
     "firstName": "Admin",
     "lastName": "User",
+    "organizationName": "Wallow",
     "isGlobalAdmin": true
   },
   "organizations": [

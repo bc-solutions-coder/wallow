@@ -27,4 +27,5 @@ public interface IBootstrapAdminService
     /// </summary>
     Task GrantGlobalAdminAsync(Guid userId, CancellationToken ct = default);
     Task<bool> UserExistsAsync(string email, CancellationToken ct = default);
+    Task<Guid?> FindUserIdByEmailAsync(string email, CancellationToken ct = default);
 }

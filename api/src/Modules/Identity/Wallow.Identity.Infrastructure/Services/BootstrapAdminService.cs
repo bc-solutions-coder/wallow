@@ -64,4 +64,10 @@ public sealed class BootstrapAdminService(
         WallowUser? user = await userManager.FindByEmailAsync(email);
         return user is not null;
     }
+
+    public async Task<Guid?> FindUserIdByEmailAsync(string email, CancellationToken ct = default)
+    {
+        WallowUser? user = await userManager.FindByEmailAsync(email);
+        return user?.Id;
+    }
 }

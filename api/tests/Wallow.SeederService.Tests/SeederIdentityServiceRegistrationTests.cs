@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Wallow.Identity.Application.Commands.BootstrapAdmin;
 using Wallow.Identity.Application.Interfaces;
+using Wallow.Identity.Application.Queries.IsSetupRequired;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Infrastructure.Services;
 
@@ -62,7 +63,9 @@ public class SeederIdentityServiceRegistrationTests
     {
         typeof(RoleManager<WallowRole>),
         typeof(OpenIddictScopeSyncService),
+        typeof(ISetupStatusChecker),
         typeof(IBootstrapAdminService),
+        typeof(BootstrapAdminHandler),
         typeof(OrganizationSeedSyncService),
         typeof(PreRegisteredClientSyncService),
     };
