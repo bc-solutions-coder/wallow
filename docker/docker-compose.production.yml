@@ -31,19 +31,22 @@
 # EVERY ingress, Caddy or not, must forward X-Forwarded-Proto. The API builds its
 # absolute OIDC URLs (authorize, end_session, discovery) from it.
 #
-# Usage:
+# Usage — pick exactly ONE edge profile (`direct` or `pangolin`); without a
+# profile the stack starts with no ingress and nothing reaches the apps:
 #   cd docker
 #   cp .env.production.example .env.production    # edit credentials
-#   docker compose -f docker-compose.production.yml --env-file .env.production up --build
-#   docker compose -f docker-compose.production.yml --env-file .env.production logs -f
 #
-# With observability (Grafana + Alloy):
+# Direct mode (Caddy owns :80/:443 on this host, provisions TLS itself):
 #   docker compose -f docker-compose.production.yml --env-file .env.production \
-#     --profile observability up --build
+#     --profile direct up --build
 #
-# Behind a Pangolin tunnel (adds the newt client — see the newt service below):
+# Tunnel mode (no open ports; a Pangolin instance terminates TLS and reaches
+# the apps through the newt client — see the newt service below):
 #   docker compose -f docker-compose.production.yml --env-file .env.production \
 #     --profile pangolin up --build
+#
+# With observability (Grafana + Alloy), add: --profile observability
+#   (profiles stack; repeat the flag)
 # =============================================================================
 
 configs:
@@ -370,6 +373,18 @@ services:
     image: ghcr.io/bc-solutions-coder/wallow:${VERSION:-latest}
     container_name: ${COMPOSE_PROJECT_NAME:-wallow}-api
     restart: unless-stopped
+    # Pangolin blueprint labels (tunnel mode only — read by the newt service
+    # through the Docker socket; inert without --profile pangolin). The three
+    # app services each contribute one target to the single `wallow` resource,
+    # whose resource-level fields live on wallow-web. This target takes /api by
+    # prefix, and the prefix is KEPT — no rewrite-* keys, ever: the API strips
+    # it itself via PathBase, exactly as behind Caddy.
+    labels:
+      pangolin.public-resources.wallow.targets[0].hostname: wallow-api
+      pangolin.public-resources.wallow.targets[0].port: "8080"
+      pangolin.public-resources.wallow.targets[0].method: http
+      pangolin.public-resources.wallow.targets[0].path: /api
+      pangolin.public-resources.wallow.targets[0].path-match: prefix
     read_only: true
     security_opt:
       - no-new-privileges:true
@@ -496,6 +511,15 @@ services:
         AUTH_BASE_PATH: ${AUTH_BASE_PATH-/auth}
     container_name: ${COMPOSE_PROJECT_NAME:-wallow}-auth
     restart: unless-stopped
+    # Pangolin blueprint labels — see the wallow-api service. /auth by prefix,
+    # prefix KEPT (the image is BUILT with AUTH_BASE_PATH=/auth, so tunnel-mode
+    # deployments need `up --build` exactly like direct mode).
+    labels:
+      pangolin.public-resources.wallow.targets[1].hostname: wallow-auth
+      pangolin.public-resources.wallow.targets[1].port: "8080"
+      pangolin.public-resources.wallow.targets[1].method: http
+      pangolin.public-resources.wallow.targets[1].path: /auth
+      pangolin.public-resources.wallow.targets[1].path-match: prefix
     read_only: true
     security_opt:
       - no-new-privileges:true
@@ -566,6 +590,24 @@ services:
     image: ghcr.io/bc-solutions-coder/wallow-web:${VERSION:-latest}
     container_name: ${COMPOSE_PROJECT_NAME:-wallow}-web
     restart: unless-stopped
+    # Pangolin blueprint labels — see the wallow-api service. This service
+    # carries the RESOURCE-LEVEL fields for the shared `wallow` resource plus
+    # the catch-all target (path /, prefix — lowest priority, so the /api and
+    # /auth targets win first). Deliberately absent keys:
+    #   site       — the resource lands on whatever site the applying newt
+    #                belongs to, so the labels work on any fork's Pangolin;
+    #   rewrite-*  — nothing is ever stripped (see wallow-api);
+    #   auth.*     — Wallow does its own authentication; a Pangolin SSO gate
+    #                in front would break the OIDC flows.
+    labels:
+      pangolin.public-resources.wallow.name: Wallow
+      pangolin.public-resources.wallow.mode: http
+      pangolin.public-resources.wallow.full-domain: ${PANGOLIN_RESOURCE_DOMAIN:-wallow.dev}
+      pangolin.public-resources.wallow.targets[2].hostname: wallow-web
+      pangolin.public-resources.wallow.targets[2].port: "8080"
+      pangolin.public-resources.wallow.targets[2].method: http
+      pangolin.public-resources.wallow.targets[2].path: /
+      pangolin.public-resources.wallow.targets[2].path-match: prefix
     read_only: true
     security_opt:
       - no-new-privileges:true
@@ -670,16 +712,19 @@ services:
         max-file: "3"
 
   # ============================================
-  # INGRESS (Caddy — reference reverse proxy)
+  # INGRESS (Caddy — direct mode, --profile direct)
   # ============================================
-  # The only externally reachable service. Terminates TLS and does the path
-  # routing the three app services above assume (/api and /auth prefixes KEPT,
-  # everything else to wallow-web). Routing lives in caddy/Caddyfile.example;
-  # copy it to caddy/Caddyfile and point CADDYFILE_HOST_PATH at your edited copy
-  # rather than editing the committed example.
+  # The externally reachable service in DIRECT mode. Terminates TLS and does
+  # the path routing the three app services above assume (/api and /auth
+  # prefixes KEPT, everything else to wallow-web). Routing lives in
+  # caddy/Caddyfile.example; copy it to caddy/Caddyfile and point
+  # CADDYFILE_HOST_PATH at your edited copy rather than editing the committed
+  # example.
   #
-  # Running your own ingress instead? Remove this service and target the
-  # 127.0.0.1 ports the app services publish (API_PORT / AUTH_PORT / WEB_PORT).
+  # Profile-gated so a `--profile pangolin` deployment does not also bind this
+  # host's :80/:443 — pick ONE edge per deployment. Running your own ingress
+  # instead? Start neither profile and target the 127.0.0.1 ports the app
+  # services publish (API_PORT / AUTH_PORT / WEB_PORT).
   caddy:
     image: caddy:2-alpine
     container_name: ${COMPOSE_PROJECT_NAME:-wallow}-caddy
@@ -716,6 +761,7 @@ services:
       start_period: 10s
     networks:
       - wallow
+    profiles: ["direct"]
     deploy:
       resources:
         limits:
@@ -728,29 +774,38 @@ services:
         max-file: "3"
 
   # ============================================
-  # PANGOLIN TUNNEL (optional — use --profile pangolin)
+  # PANGOLIN TUNNEL (tunnel mode — use --profile pangolin)
   # ============================================
   # Newt, the Pangolin tunnel client, for deployments fronted by a Pangolin
   # instance (typically on a VPS, terminating TLS) instead of exposing this
   # host's :80/:443 directly. Running it HERE, as part of the stack, is
-  # load-bearing: it joins the `wallow` network, so Pangolin resource TARGETS
-  # can (and must) use container DNS names, which survive restarts. Never
-  # target a container's bridge IP — the runtime reassigns those on every
-  # recreate, and a standalone newt attached with `docker network connect`
-  # loses its attachment when `compose down` deletes the network. Targets:
+  # load-bearing twice over:
   #
-  #   Path-based topology (default): ONE resource for the site,
-  #     target http://caddy:80 — Caddy keeps doing the /api, /auth path split.
-  #   Subdomain topology: three resources ->
-  #     http://wallow-api:8080, http://wallow-auth:8080, http://wallow-web:8080
+  #   - It joins the `wallow` network, so it proxies to the app services by
+  #     container DNS name (wallow-api, ...), which survive restarts. A newt
+  #     running on the HOST (e.g. as a systemd unit) can never resolve those
+  #     names and falls back to bridge IPs, which the runtime reassigns on
+  #     every recreate — the classic "Pangolin breaks after a restart".
+  #     Disable any host-level newt using the same site credentials; two newts
+  #     on one site steal the tunnel from each other.
+  #   - It mounts the Docker socket, so it reads the `pangolin.*` BLUEPRINT
+  #     labels on wallow-api / wallow-auth / wallow-web (see those services)
+  #     and creates/updates the Pangolin resource and its path targets itself.
+  #     Nothing is configured by hand in the dashboard, and labels are applied
+  #     continuously — this file is the source of truth, and dashboard edits
+  #     to the labelled resource get overwritten.
   #
-  # Use SERVICE names (caddy, wallow-api, ...) rather than container_name —
-  # they resolve on this network too and don't move with COMPOSE_PROJECT_NAME.
+  # In this mode Pangolin does the /api, /auth path split that Caddy does in
+  # direct mode, so the caddy service stays down (it is behind --profile
+  # direct) and no host ports are bound at all — newt only dials out.
+  # Pangolin's proxy sends X-Forwarded-Proto: https straight to the apps;
+  # WALLOW_TRUSTED_PROXIES=private on the Node apps already covers newt's
+  # bridge address, so no trusted-proxy changes are needed.
   #
-  # When Pangolin terminates TLS in front of Caddy, Caddy sees plain HTTP and
-  # would stamp X-Forwarded-Proto: http, breaking every OIDC redirect — you
-  # MUST enable `trusted_proxies` in your Caddyfile so Pangolin's forwarded
-  # headers are kept. See the GOTCHA in caddy/Caddyfile.example.
+  # SECURITY — the Docker socket is root-equivalent access to this host, and
+  # `:ro` only makes the socket file read-only, not the API behind it. That is
+  # the price of label discovery; to narrow it, put tecnativa/docker-socket-proxy
+  # in between and point DOCKER_SOCKET at it.
   newt:
     image: fosrl/newt:latest
     container_name: ${COMPOSE_PROJECT_NAME:-wallow}-newt
@@ -766,6 +821,10 @@ services:
       NEWT_SECRET: ${NEWT_SECRET:-}
       # Newt touches this file while the tunnel is up; the healthcheck reads it.
       HEALTH_FILE: /tmp/healthy
+      # Enables container discovery + the pangolin.* blueprint labels above.
+      DOCKER_SOCKET: unix:///var/run/docker.sock
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     healthcheck:
       test: ["CMD-SHELL", "[ -f /tmp/healthy ]"]
       interval: 30s

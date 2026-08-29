@@ -127,5 +127,7 @@ echo "STILL YOURS TO SET — the example file's values describe wallow.dev, not 
 echo "  API_PUBLIC_URL / AUTH_PUBLIC_URL / WEB_PUBLIC_URL / COOKIE_DOMAIN"
 echo "  ADMIN_EMAIL, SMTP_HOST / SMTP_FROM_ADDRESS, SEED_FILE_HOST_PATH"
 echo
-echo "Then bring the stack up from docker/:"
-echo "  docker compose -f docker-compose.production.yml --env-file .env.production up --build"
+echo "Then bring the stack up from docker/, with ONE edge profile — 'direct'"
+echo "(Caddy on :80/:443) or 'pangolin' (newt tunnel, needs the PANGOLIN_* /"
+echo "NEWT_* values in .env.production):"
+echo "  docker compose -f docker-compose.production.yml --env-file .env.production --profile direct up --build"

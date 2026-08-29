@@ -7,14 +7,15 @@ directory** — the relative build contexts (`./images/`, `..`) depend on it.
 |------|-------|
 | `docker-compose.yml` | Dev infrastructure only — Postgres, Valkey, Mailpit, Garage (S3), Alloy + Grafana LGTM, the DocFX docs site; ClamAV behind `--profile clamav`. No app containers. |
 | `docker-compose.test.yml` | Containerised E2E stack — the same infra plus `wallow-migrations` / `wallow-seeder` / `wallow-api` (prebuilt `*:test` images) and the `wallow-auth` / `wallow-web` / `bff-example` Node apps. Driven by `./scripts/e2e.sh`, not by hand. |
-| `docker-compose.production.yml` | Full production topology — pulls `ghcr.io/bc-solutions-coder/*` images, adds a Postgres replica, hardened API settings and a reference Caddy ingress. Its header comment documents path-based vs subdomain routing. |
+| `docker-compose.production.yml` | Full production topology — pulls `ghcr.io/bc-solutions-coder/*` images, adds a Postgres replica, hardened API settings and two profile-gated edges (Caddy via `--profile direct`, a Pangolin newt tunnel via `--profile pangolin`). Its header comment documents path-based vs subdomain routing. |
 
 ```bash
 cp .env.example .env        # required before the dev stack; GF_ADMIN_PASSWORD must be set
 docker compose up -d        # or: pnpm backend:infra from the repo root
 
 pnpm secrets:prod           # from the repo root — writes docker/.env.production
-docker compose -f docker-compose.production.yml --env-file .env.production up --build
+# pick ONE edge profile: `direct` (Caddy on :80/:443) or `pangolin` (newt tunnel)
+docker compose -f docker-compose.production.yml --env-file .env.production --profile direct up --build
 ```
 
 - **The production stack fails closed.** Every secret uses `${VAR:?message}`, at **exactly
@@ -37,17 +38,22 @@ docker compose -f docker-compose.production.yml --env-file .env.production up --
 - **Image build contexts**: app Dockerfiles live with their apps (`apps/wallow-*/Dockerfile`)
   and build from the **repo root** context so `workspace:*` deps resolve. Only the docs site
   (`docker/docs/Dockerfile`) and the Garage images (`docker/images/`) are built from here.
-- **Ingress (production stack only)** — the `caddy` service owns `:80`/`:443` and is the sole
-  externally reachable container; the app services publish on `127.0.0.1` for debugging only.
-  Routing lives in `caddy/Caddyfile.example` (copy it and point `CADDYFILE_HOST_PATH` at your
-  copy). Both the `/api` and `/auth` prefixes are **kept**, never stripped — each app rebases
-  itself. `AUTH_BASE_PATH` is a **build** arg, not a runtime env, so path-based deployments
-  must `up --build`; the published `wallow-auth` image is root-mounted.
-- **Pangolin deployments** enable `--profile pangolin`, which runs the `newt` tunnel client
-  inside the stack on the `wallow` network. Pangolin resource targets must be container DNS
-  names (`http://caddy:80` for path-based routing), never bridge IPs — those are reassigned
-  on every recreate. Caddy behind Pangolin's TLS needs `trusted_proxies` enabled
-  (`caddy/Caddyfile.example` GOTCHA) or OIDC redirects leave as `http://`.
+- **Ingress (production stack only)** — two mutually exclusive edge profiles; a deployment
+  enables exactly one, and with neither profile nothing external reaches the apps (they
+  publish on `127.0.0.1` for debugging only). In **both** modes the `/api` and `/auth`
+  prefixes are **kept**, never stripped — each app rebases itself — and `AUTH_BASE_PATH` is a
+  **build** arg, not a runtime env, so path-based deployments must `up --build`; the published
+  `wallow-auth` image is root-mounted.
+  - `--profile direct`: the `caddy` service owns `:80`/`:443` and terminates TLS. Routing
+    lives in `caddy/Caddyfile.example` (copy it and point `CADDYFILE_HOST_PATH` at your copy).
+  - `--profile pangolin`: the `newt` tunnel client runs inside the stack on the `wallow`
+    network (no host ports; a Pangolin instance terminates TLS) and reads the Docker socket.
+    The whole Pangolin resource — `PANGOLIN_RESOURCE_DOMAIN` plus the `/api`, `/auth`, and
+    catch-all targets — is declared as `pangolin.*` **blueprint labels** on the three app
+    services, applied continuously: the compose file is the source of truth and dashboard
+    edits are overwritten. Targets resolve by container DNS name, never bridge IPs (those are
+    reassigned on every recreate), which is also why a host-level newt (systemd) cannot work
+    and must be disabled — two newts on one site steal the tunnel from each other.
 - **One Garage image** — `images/garage/` serves all three stacks (and the Aspire AppHost).
   No committed `garage.toml`: the entrypoint renders `garage.toml.template` through `envsubst`
   at startup, so its knobs (region, RPC secret, admin token, key, bucket) come from env.

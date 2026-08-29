@@ -43,8 +43,12 @@ breaks the service behind it.
 
 > **Reference implementation.** `docker/caddy/Caddyfile.example` is a working, validated
 > version of this topology, wired into `docker/docker-compose.production.yml` as the `caddy`
-> service. Copy it (`cp caddy/Caddyfile.example caddy/Caddyfile`) and point
-> `CADDYFILE_HOST_PATH` at your copy rather than starting from scratch.
+> service (enabled with `--profile direct`). Copy it
+> (`cp caddy/Caddyfile.example caddy/Caddyfile`) and point `CADDYFILE_HOST_PATH` at your copy
+> rather than starting from scratch. Deployments behind a Pangolin tunnel use
+> `--profile pangolin` instead — there the same topology is declared as `pangolin.*` labels in
+> the compose file and no Caddy runs; see the
+> [Deployment guide](deployment.md#2-routing-topologies).
 
 ### Subdomain routing
 

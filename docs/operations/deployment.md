@@ -2,14 +2,21 @@
 
 Wallow deploys as a set of Docker containers described by a single compose file,
 `docker/docker-compose.production.yml`. The stack is self-contained — it runs the same way on
-your laptop and on a server. TLS and routing are **not** part of the stack: you put your own
-reverse proxy in front of the published container ports.
+your laptop and on a server. Every deployment picks exactly **one edge profile**:
+
+- **`--profile direct`** — the bundled Caddy ingress owns `:80`/`:443` on the host and
+  terminates TLS. Use it when the server is directly reachable from the internet, or when you
+  front the stack with your own reverse proxy (in which case skip both profiles and target the
+  published `127.0.0.1` ports instead — see the [Reverse Proxy guide](reverse-proxy.md)).
+- **`--profile pangolin`** — no host ports at all; the `newt` tunnel client connects out to a
+  [Pangolin](https://pangolin.net) instance that terminates TLS, and the whole Pangolin
+  resource (domain + path targets) is declared by `pangolin.*` labels in the compose file.
 
 ```bash
 pnpm secrets:prod                             # writes docker/.env.production with fresh secrets
 cd docker
 # then edit the values the script cannot invent — it lists them
-docker compose -f docker-compose.production.yml --env-file .env.production up --build
+docker compose -f docker-compose.production.yml --env-file .env.production --profile direct up --build
 docker compose -f docker-compose.production.yml --env-file .env.production logs -f
 ```
 
@@ -61,13 +68,15 @@ promoted.
 
 Every application container listens on **8080 inside the network**; only the host-side port
 differs (`API_PORT`, `AUTH_PORT`, `WEB_PORT`). Those host ports are bound to `127.0.0.1` for
-local debugging — the `caddy` ingress is the only externally reachable container.
+local debugging — in direct mode the `caddy` ingress is the only externally reachable
+container, and in pangolin mode nothing listens externally at all (newt only dials out).
 
 **Long-running services:**
 
 | Service | Image | Purpose |
 |---------|-------|---------|
-| `caddy` | `caddy:2-alpine` | Reference reverse-proxy ingress; owns `:80`/`:443` and routes `/api`, `/auth`, and the catch-all to the three apps (`docker/caddy/Caddyfile.example`) |
+| `caddy` | `caddy:2-alpine` | Reference reverse-proxy ingress (`--profile direct`); owns `:80`/`:443` and routes `/api`, `/auth`, and the catch-all to the three apps (`docker/caddy/Caddyfile.example`) |
+| `newt` | `fosrl/newt` | Pangolin tunnel client (`--profile pangolin`); reads the Docker socket and applies the `pangolin.*` blueprint labels on the three app services as the Pangolin resource |
 | `wallow-api` | `ghcr.io/bc-solutions-coder/wallow` | REST API, OIDC provider (OpenIddict), SignalR hub, background jobs |
 | `wallow-auth` | `ghcr.io/bc-solutions-coder/wallow-auth` | Node SSR login/register/MFA UI (`apps/wallow-auth`); also a pure reverse proxy for `/v1/**`, `/connect/**`, `/.well-known/**` |
 | `wallow-web` | `ghcr.io/bc-solutions-coder/wallow-web` | Node SSR dashboard + BFF, a confidential OIDC client of the API (`apps/wallow-web`) |
@@ -92,8 +101,9 @@ local debugging — the `caddy` ingress is the only externally reachable contain
 | `grafana-lgtm` | `grafana/otel-lgtm` dashboards, published on `127.0.0.1:3001` only |
 
 ```bash
+# profiles stack — keep your edge profile (direct or pangolin) on the command
 docker compose -f docker-compose.production.yml --env-file .env.production \
-  --profile observability up --build
+  --profile direct --profile observability up --build
 ```
 
 The API, auth, and web containers always set `OTEL_EXPORTER_OTLP_ENDPOINT`; without the profile
@@ -117,12 +127,20 @@ The compose file supports two shapes. Pick one and keep the URL variables consis
 | `wallow.dev/auth/*` | `wallow-auth:8080` | Forward the **full** path — the Node app is built with `AUTH_BASE_PATH=/auth` and serves under that prefix. Do not strip it either. |
 | `wallow.dev/*` | `wallow-web:8080` | Forward as-is. |
 
-The proxy strips nothing in this topology. The compose file ships a reference ingress that
-implements it — the `caddy` service, configured by `docker/caddy/Caddyfile.example`, which owns
-`:80`/`:443` while the three app containers publish only on `127.0.0.1` for debugging. Copy the
-example to `caddy/Caddyfile` and point `CADDYFILE_HOST_PATH` at your copy. Full per-service
-variables and nginx/Caddy examples are in the
-[Reverse Proxy guide](reverse-proxy.md).
+The proxy strips nothing in this topology. Both bundled edges implement it:
+
+- **Direct mode** — the `caddy` service, configured by `docker/caddy/Caddyfile.example`, owns
+  `:80`/`:443` while the three app containers publish only on `127.0.0.1` for debugging. Copy
+  the example to `caddy/Caddyfile` and point `CADDYFILE_HOST_PATH` at your copy. Full
+  per-service variables and nginx/Caddy examples are in the
+  [Reverse Proxy guide](reverse-proxy.md).
+- **Pangolin mode** — the `pangolin.*` blueprint labels on `wallow-api`, `wallow-auth`, and
+  `wallow-web` declare one Pangolin resource at `PANGOLIN_RESOURCE_DOMAIN` with `/api` and
+  `/auth` prefix targets (nothing rewritten) and a catch-all. The `newt` service applies them
+  continuously through the Docker socket, so the compose file is the source of truth and
+  dashboard edits to that resource are overwritten. Pangolin's proxy sends
+  `X-Forwarded-Proto: https` straight to the apps; `WALLOW_TRUSTED_PROXIES=private` already
+  covers newt's bridge address, so no extra trusted-proxy configuration is needed.
 
 > `AUTH_BASE_PATH` is a **build** argument, not a runtime one — Vite bakes it into every asset
 > URL. The published `wallow-auth` image is built at root, so path-based deployments must run
@@ -290,7 +308,8 @@ whenever you use that profile.
 | **OIDC** | `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, plus optional per-fork client secrets |
 | **BFF session** | `BFF_COOKIE_PASSWORD`; optional: `BFF_COOKIE_PASSWORDS` (rotation), `BFF_COOKIE_SECURE`, `BFF_COOKIE_HOST_PREFIX`, `BFF_COOKIE_NAME`, `BFF_SESSION_TTL_SECONDS`, `BFF_OIDC_SCOPES` |
 | **Public URLs** | `API_PUBLIC_URL`, `AUTH_PUBLIC_URL`, `WEB_PUBLIC_URL`, `COOKIE_DOMAIN`, `API_PATH_BASE`, `AUTH_BASE_PATH` |
-| **Ingress** | `CADDYFILE_HOST_PATH`, `INGRESS_HTTP_PORT`, `INGRESS_HTTPS_PORT` |
+| **Ingress (direct)** | `CADDYFILE_HOST_PATH`, `INGRESS_HTTP_PORT`, `INGRESS_HTTPS_PORT` |
+| **Ingress (pangolin)** | `PANGOLIN_ENDPOINT`, `PANGOLIN_RESOURCE_DOMAIN`, `NEWT_ID`, `NEWT_SECRET` |
 | **Ports** | `API_PORT`, `AUTH_PORT`, `WEB_PORT` (all bound to `127.0.0.1`) |
 | **Observability** | `GF_ADMIN_PASSWORD`, `OTEL_TRACE_SAMPLING_RATIO` |
 
@@ -553,7 +572,8 @@ CRITICAL or HIGH findings.
 ```bash
 cd docker
 docker compose -f docker-compose.production.yml --env-file .env.production pull
-docker compose -f docker-compose.production.yml --env-file .env.production up -d
+# use the same edge profile the deployment runs with (direct or pangolin)
+docker compose -f docker-compose.production.yml --env-file .env.production --profile direct up -d
 ```
 
 `wallow-migrations` and `wallow-seeder` re-run on every `up` and are idempotent, so schema
