@@ -3,7 +3,9 @@ using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
@@ -205,14 +207,18 @@ public static class IdentityInfrastructureExtensions
             // doesn't include the PathBase prefix (e.g. /connect/authorize vs /api/connect/authorize).
             options.Cookie.Path = "/";
 
-            // The API has no login page — return 401 instead of redirecting to /Account/Login.
-            // OpenIddict controllers (e.g. AuthorizationController) handle their own redirects
-            // to the Auth app via [AllowAnonymous] + manual User.Identity checks.
+            // The API has no login pages — a challenge answers 401 problem+json instead of
+            // redirecting to /Account/Login, and a forbid answers 403 problem+json instead of
+            // redirecting to /Account/AccessDenied (a page that never existed). A BODY is
+            // load-bearing, not cosmetic: SecurityHeadersMiddleware sends
+            // X-Content-Type-Options: nosniff, and browsers treat a navigation to an empty
+            // response with no Content-Type as a file download. OpenIddict controllers
+            // (e.g. AuthorizationController) still own their own redirects to the Auth app
+            // via [AllowAnonymous] + manual User.Identity checks.
             options.Events.OnRedirectToLogin = context =>
-            {
-                context.Response.StatusCode = 401;
-                return Task.CompletedTask;
-            };
+                WriteAuthProblemAsync(context.HttpContext, StatusCodes.Status401Unauthorized);
+            options.Events.OnRedirectToAccessDenied = context =>
+                WriteAuthProblemAsync(context.HttpContext, StatusCodes.Status403Forbidden);
         });
 
         services.AddIdentityAuthorization(configuration);
@@ -472,5 +478,37 @@ public static class IdentityInfrastructureExtensions
 
         byte[] pfxBytes = cert.Export(X509ContentType.Pfx, certPassword);
         File.WriteAllBytes(certPath, pfxBytes);
+    }
+
+    private static async Task WriteAuthProblemAsync(HttpContext httpContext, int statusCode)
+    {
+        httpContext.Response.StatusCode = statusCode;
+
+        ProblemDetails problem = new()
+        {
+            Status = statusCode,
+            Title = statusCode == StatusCodes.Status403Forbidden
+                ? "Forbidden."
+                : "Authentication required.",
+            Detail = statusCode == StatusCodes.Status403Forbidden
+                ? "The authenticated identity lacks the permission this resource requires."
+                : "This resource requires an authenticated session or bearer token.",
+        };
+
+        // Resolved lazily: this module can be hosted without problem-details services, and the
+        // handler must still answer with a body either way (see the comment at the event hookup).
+        IProblemDetailsService? problemDetailsService =
+            httpContext.RequestServices.GetService<IProblemDetailsService>();
+        if (problemDetailsService is not null
+            && await problemDetailsService.TryWriteAsync(
+                new ProblemDetailsContext { HttpContext = httpContext, ProblemDetails = problem }))
+        {
+            return;
+        }
+
+        // The default writer refuses an Accept header that admits no JSON (browsers send */*
+        // and pass); the body is still owed, so write the same document directly.
+        await httpContext.Response.WriteAsJsonAsync(
+            problem, options: null, contentType: "application/problem+json", httpContext.RequestAborted);
     }
 }

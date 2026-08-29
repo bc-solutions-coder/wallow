@@ -581,8 +581,15 @@ try
         app.UseForwardedHeaders(forwardedHeadersOptions);
     }
 
-    // Exception handling
-    app.UseExceptionHandler("/error");
+    // Exception handling. Parameterless on purpose: GlobalExceptionHandler (IExceptionHandler)
+    // handles everything, with the problem-details writer as the built-in fallback. The previous
+    // "/error" re-execution path pointed at a route that never existed.
+    app.UseExceptionHandler();
+
+    // Any 4xx/5xx that reaches the client with an empty body gets a problem+json document
+    // (405s, framework-issued 415s, ...). A body is load-bearing under the nosniff header:
+    // browsers turn an empty, Content-Type-less error navigation into a file download.
+    app.UseStatusCodePages();
     app.UseSerilogRequestLogging(options =>
     {
         options.MessageTemplate = "{RequestPath} in {Elapsed:0.0000} ms";
@@ -720,6 +727,27 @@ try
 
     // Permission expansion (reads roles → expands to PermissionType claims)
     app.UseMiddleware<PermissionExpansionMiddleware>();
+
+    // Unmatched paths become a 404 problem before authorization runs. With no endpoint, the
+    // authorization FallbackPolicy challenges the request, and under the nosniff header a
+    // browser navigation to a typo'd URL downloads an empty file instead of showing an error.
+    // Deliberately a middleware rather than a MapFallback endpoint: a catch-all endpoint joins
+    // every routing DFA node, and ConsumesMatcherPolicy then drops controllers that declare
+    // [Consumes] from the no-Content-Type edge — every bodyless GET on such a controller would
+    // 404. It would also swallow 405s. Endpoint-less handlers that run earlier (OpenIddict's
+    // request handlers inside UseAuthentication) are unaffected; the Hangfire dashboard runs
+    // later and owns its path, so it is exempted here.
+    app.Use(static async (context, next) =>
+    {
+        if (context.GetEndpoint() is null && !context.Request.Path.StartsWithSegments("/hangfire"))
+        {
+            // UseStatusCodePages turns the empty response into a problem+json body.
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+
+        await next();
+    });
 
     // Authorization (checks [HasPermission] attributes)
     app.UseAuthorization();

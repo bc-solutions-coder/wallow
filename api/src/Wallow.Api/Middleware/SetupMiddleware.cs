@@ -1,4 +1,4 @@
-using System.Text.Json;
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Shared.Contracts.Setup;
 
 namespace Wallow.Api.Middleware;
@@ -30,11 +30,28 @@ internal sealed class SetupMiddleware
             && !context.Request.Path.StartsWithSegments("/scalar", StringComparison.OrdinalIgnoreCase))
         {
             context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
-            context.Response.ContentType = "application/json";
-            await JsonSerializer.SerializeAsync(
-                context.Response.Body,
-                new { message = "Initial setup is required. Please complete setup at the /v1/identity/setup endpoint." },
-                cancellationToken: context.RequestAborted);
+
+            ProblemDetails problem = new()
+            {
+                Status = StatusCodes.Status503ServiceUnavailable,
+                Title = "First-run setup is required.",
+                Detail = "No administrator exists yet, so the API serves only its setup, health, "
+                    + "and OIDC metadata surface. Check GET /v1/identity/setup/status and create "
+                    + "the bootstrap admin via POST /v1/identity/setup/admin (or the /setup page "
+                    + "of the auth frontend).",
+            };
+
+            IProblemDetailsService problemDetailsService =
+                context.RequestServices.GetRequiredService<IProblemDetailsService>();
+            if (!await problemDetailsService.TryWriteAsync(
+                new ProblemDetailsContext { HttpContext = context, ProblemDetails = problem }))
+            {
+                // The default writer refuses an Accept header that admits no JSON; the body
+                // is still owed to whoever reads it, so write the same document directly.
+                await context.Response.WriteAsJsonAsync(
+                    problem, options: null, contentType: "application/problem+json", context.RequestAborted);
+            }
+
             return;
         }
 

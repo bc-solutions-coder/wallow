@@ -66,7 +66,9 @@ public static class Extensions
         // Kept out of the API description: an infrastructure liveness probe has no place in the
         // public v1 document, where its untyped 200 would generate an SDK client method returning
         // unknown.
-        app.MapGet("/alive", () => Results.Ok("Alive")).ExcludeFromDescription();
+        // AllowAnonymous is required: a host with an authenticated FallbackPolicy would
+        // otherwise challenge the orchestrator's unauthenticated liveness probe.
+        app.MapGet("/alive", () => Results.Ok("Alive")).AllowAnonymous().ExcludeFromDescription();
 
         return app;
     }

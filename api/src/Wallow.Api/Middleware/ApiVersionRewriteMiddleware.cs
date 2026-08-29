@@ -14,7 +14,6 @@ internal sealed class ApiVersionRewriteMiddleware(RequestDelegate next)
         "/hubs/",
         "/events",
         "/alive",
-        "/error",
         "/asyncapi",
         "/.well-known/",
         "/scim/",
