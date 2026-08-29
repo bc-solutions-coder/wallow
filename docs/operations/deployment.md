@@ -193,9 +193,11 @@ base backup.
 1. **Roles** — creates any role in the seed file's `roles` array that doesn't exist (`admin`,
    `manager`, `user`).
 2. **API scopes** — inserts any scope from `apiScopes` not already present.
-3. **Bootstrap admin** — creates the initial admin user *only if setup is still required*, i.e.
-   there is no user in the `admin` role yet. Email, password, and name come from the
-   `Admin__*` settings.
+3. **Bootstrap admin** — runs only when the seed file has an `admin` block *and* setup is still
+   required. It invokes the same `BootstrapAdminCommand` the setup endpoint uses, so the admin
+   arrives fully provisioned: user, organization, and owner membership in one step. The
+   production seed file deliberately has **no** `admin` block — see
+   [setup mode](#setup-mode--when-no-admin-exists) below for how the first admin is created.
 4. **Client sync** — reconciles OIDC clients (see [section 5](#5-oidc-client-registration)).
 
 ### The production seed file
@@ -239,12 +241,16 @@ whose clientId matches no client in the seed file.
 
 ### Setup mode — when no admin exists
 
-If the seeder never creates an admin (no `ADMIN_EMAIL`/`ADMIN_PASSWORD`, or the seed step was
-skipped), the API comes up in **setup mode**. `SetupMiddleware` returns `503 Service
-Unavailable` for every request except `/v1/identity/setup`, `/health`, `/.well-known`,
-`/connect`, `/openapi`, and `/scalar`. The API is effectively locked until an admin exists.
+A fresh production deployment always starts in **setup mode** — the production seed file
+deliberately defines no admin, so the first administrator is created by a person, not by
+configuration. While setup is required, `SetupMiddleware` returns `503 Service Unavailable`
+(as `application/problem+json`) for every request except `/v1/identity/setup`, `/health`,
+`/.well-known`, `/connect`, `/openapi`, and `/scalar`. The API is effectively locked until an
+admin exists.
 
-Recover by creating the admin over HTTP (paths shown with the default `/api` path base):
+The intended path is the auth app's first-run **setup page**, which walks through creating the
+administrator account. The same thing can be done over raw HTTP (paths shown with the default
+`/api` path base):
 
 ```bash
 # Check setup status
@@ -258,16 +264,14 @@ curl -X POST https://wallow.dev/api/v1/identity/setup/admin \
     "email": "admin@yourdomain.com",
     "password": "YourStrongPassword123!",
     "firstName": "Admin",
-    "lastName": "User"
+    "lastName": "User",
+    "organizationName": "Your Organization"
   }'
 ```
 
-Setup is considered complete as soon as a user holds the `admin` role — there is no separate
-flag to flip, and both `setup/admin` and `setup/complete` return `409 Conflict` once that is
-true.
-
-**Recommendation:** set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env.production` so the stack is
-operational on first boot with no manual step.
+The call creates the user, the named organization, and the admin's owner membership in it.
+Setup is considered complete as soon as an active membership grants admin access — there is no
+separate flag to flip, and `setup/admin` returns `409 Conflict` once that is true.
 
 ---
 
@@ -280,10 +284,10 @@ Generate it rather than copying the template by hand:
 pnpm secrets:prod         # scripts/prod-secrets.sh -> docker/.env.production, mode 600
 ```
 
-That renders `.env.production.example` with all 13 generatable secrets replaced by random values
+That renders `.env.production.example` with all 12 generatable secrets replaced by random values
 of the shape each one requires, then prints the two things it could not decide for you: your
 SMTP password, and the values that describe *where* this deployment lives (`API_PUBLIC_URL`,
-`AUTH_PUBLIC_URL`, `WEB_PUBLIC_URL`, `COOKIE_DOMAIN`, `ADMIN_EMAIL`, `SMTP_HOST`,
+`AUTH_PUBLIC_URL`, `WEB_PUBLIC_URL`, `COOKIE_DOMAIN`, `SMTP_HOST`,
 `SMTP_FROM_ADDRESS`, `SEED_FILE_HOST_PATH`). It is bootstrap only — it refuses to
 overwrite an existing `.env.production`, because rotating a secret that is already in use is a
 database or cluster operation rather than a text substitution.
@@ -318,7 +322,7 @@ whenever you use that profile.
 | **Storage** | `GARAGE_RPC_SECRET`, `GARAGE_ADMIN_TOKEN`, `GARAGE_ACCESS_KEY`, `GARAGE_SECRET_KEY`, `GARAGE_KEY_NAME`, `GARAGE_BUCKET`, `GARAGE_REGION` |
 | **SMTP** | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USE_SSL`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, `SMTP_FROM_NAME` |
 | **Security** | `IDENTITY_SIGNING_KEY`, `OPENIDDICT_SIGNING_CERT_PASSWORD`, `OPENIDDICT_ENCRYPTION_CERT_PASSWORD`, `OPENIDDICT_ALLOW_PLAIN_HTTP_ENDPOINTS` |
-| **Seeding** | `SEED_FILE_HOST_PATH`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_FIRST_NAME`, `ADMIN_LAST_NAME` |
+| **Seeding** | `SEED_FILE_HOST_PATH` |
 | **OIDC** | `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, plus optional per-fork client secrets |
 | **BFF session** | `BFF_COOKIE_PASSWORD`; optional: `BFF_COOKIE_PASSWORDS` (rotation), `BFF_COOKIE_SECURE`, `BFF_COOKIE_HOST_PREFIX`, `BFF_COOKIE_NAME`, `BFF_SESSION_TTL_SECONDS`, `BFF_OIDC_SCOPES` |
 | **Public URLs** | `API_PUBLIC_URL`, `AUTH_PUBLIC_URL`, `WEB_PUBLIC_URL`, `COOKIE_DOMAIN`, `API_PATH_BASE`, `AUTH_BASE_PATH` |

@@ -1,5 +1,5 @@
 {
-  "_comment": "Production seed for the reference wallow.dev deployment. Deliberately SECRET-LESS: client secrets arrive as ClientSecrets__<clientId> env vars (docker-compose.production.yml), and the bootstrap admin's email/password/name arrive as Admin__* env vars, which is why this file carries no admin block. The seeder fails closed if a ClientSecrets__* var names a client this file does not define, so every client a set env var targets must exist here. seedMembers emails must match the ADMIN_EMAIL the deployment injects, or no admin membership is created and the API stays in setup mode.",
+  "_comment": "Production seed for the reference wallow.dev deployment. Deliberately SECRET-LESS: client secrets arrive as ClientSecrets__<clientId> env vars (docker-compose.production.yml). There is no admin block on purpose — production seeds no admin; the bootstrap administrator is created through the first-run setup page (POST /v1/identity/setup/admin). The seeder fails closed if a ClientSecrets__* var names a client this file does not define, so every client a set env var targets must exist here.",
   "roles": ["admin", "manager", "user"],
   "apiScopes": [
     {
@@ -185,8 +185,6 @@
       "clientId": "wallow-web-client",
       "displayName": "Wallow Web",
       "tenantName": "Wallow",
-      "seedMembers": ["bryan.cordes@bcordes.dev"],
-      "seedMemberRoles": { "bryan.cordes@bcordes.dev": "admin" },
       "public": false,
       "redirectUris": ["https://wallow.dev/bff/callback"],
       "postLogoutRedirectUris": ["https://wallow.dev/"],

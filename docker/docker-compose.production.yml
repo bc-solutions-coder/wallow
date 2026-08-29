@@ -315,11 +315,9 @@ services:
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
       # Load the production seed override instead of the bundled seed.json.
       SEED_FILE_PATH: /app/seed.production.json
-      # Admin bootstrap — email + password sourced from .env.production.
-      Admin__Email: ${ADMIN_EMAIL:?ADMIN_EMAIL is required (the bootstrap admin account)}
-      Admin__Password: ${ADMIN_PASSWORD:?ADMIN_PASSWORD is required (min 12 chars, mixed case + symbols)}
-      Admin__FirstName: ${ADMIN_FIRST_NAME:-Admin}
-      Admin__LastName: ${ADMIN_LAST_NAME:-User}
+      # No Admin__* injection: production deliberately seeds no admin. The first-run setup
+      # page (POST /v1/identity/setup/admin) is the canonical way the bootstrap
+      # administrator comes into existence on a fresh deployment.
       # Client secrets injected by clientId over seed.production.json (which is
       # deliberately secret-less). Each ClientSecrets__<clientId> value attaches to the
       # seed client with that id — there is no index alignment to maintain, and reordering

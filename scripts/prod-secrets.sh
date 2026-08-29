@@ -17,7 +17,7 @@
 #
 #   - Operator-supplied credentials. SMTP_PASSWORD is issued by your mail
 #     provider. It stays CHANGE_ME and is reported at the end.
-#   - Deployment identity. API_PUBLIC_URL, COOKIE_DOMAIN, ADMIN_EMAIL,
+#   - Deployment identity. API_PUBLIC_URL, COOKIE_DOMAIN,
 #     SEED_FILE_HOST_PATH and friends describe where this deployment lives.
 #     They ship with wallow.dev defaults that are wrong for your fork.
 #
@@ -74,15 +74,6 @@ secret_for() {
     GF_ADMIN_PASSWORD)
       openssl rand -hex 24
       ;;
-    ADMIN_PASSWORD)
-      # The only value here that must satisfy a character-class policy rather
-      # than a length, so it is the only one that is not plain hex. The suffix
-      # guarantees the four classes that 32 random base64 characters merely make
-      # likely; the entropy is all in the 24 random bytes ahead of it. Base64 is
-      # safe for this one specifically — it is passed to the seeder as a plain
-      # environment value and never interpolated into a URL.
-      printf '%sAa1!' "$(openssl rand -base64 24 | tr -d '\n')"
-      ;;
     *)
       return 1
       ;;
@@ -125,7 +116,7 @@ fi
 
 echo "STILL YOURS TO SET — the example file's values describe wallow.dev, not your deployment:"
 echo "  API_PUBLIC_URL / AUTH_PUBLIC_URL / WEB_PUBLIC_URL / COOKIE_DOMAIN"
-echo "  ADMIN_EMAIL, SMTP_HOST / SMTP_FROM_ADDRESS, SEED_FILE_HOST_PATH"
+echo "  SMTP_HOST / SMTP_FROM_ADDRESS, SEED_FILE_HOST_PATH"
 echo
 echo "Then bring the stack up from docker/, with ONE edge profile — 'direct'"
 echo "(Caddy on :80/:443) or 'pangolin' (newt tunnel, needs the PANGOLIN_* /"
