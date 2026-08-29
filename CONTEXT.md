@@ -38,13 +38,23 @@ _Avoid_: reusing "ticket" for support requests (see Inquiry)
 ## Tenancy & Identity
 
 **Organization**:
-The customer entity — and the tenant: every organization is a tenant, and its identity is the
-tenant's identity. There is no separate Tenant entity.
-_Avoid_: company, workspace, team
+The customer entity. It owns memberships and its registered clients, and it is the only word
+that appears on the public surface (token claims, the SDK, registration screens) — "tenant"
+never does. Today every organization is its own tenant.
+_Avoid_: company, workspace, team, tenant (on anything a user or developer sees)
 
 **Tenant**:
-An organization viewed as an isolation boundary. Everything tenant-scoped belongs to exactly
-one organization; "tenant" is the scoping word, "organization" the domain noun.
+The isolation partition every scoped record names; "tenant" is the scoping word,
+"organization" the domain noun. Today each organization is its own tenant, one to one, so a
+tenant may later hold several organizations without the scoped records changing. There is no
+separate Tenant entity yet.
+
+**Organization context**:
+The one organization a signed-in session acts within. A first-party client selects it (by an
+organization hint at login, or the user's single membership); a developer application or
+service account is bound to it at registration. A session with no organization context holds
+no roles and reaches only what needs no organization: the person's profile, their
+organizations, creating one, accepting an invitation.
 
 **User**:
 A person. A user deliberately belongs to no organization; all organizational facts about a
@@ -68,16 +78,26 @@ _Avoid_: installation, onboarding (onboarding is per-user, not per-deployment)
 The first admin user. Creating it mints the first organization and ends first-run setup.
 
 **Enrollment policy**:
-How an organization admits users: invite-only, request-approval, or open.
+How an organization admits users: invite-only, request-approval, or open. For a developer
+application it doubles as the application's sign-up policy: logging in through the
+application enrolls the person in its organization under that policy.
+
+**First-party client**:
+One of the platform's own user-facing clients (client ids prefixed `wallow-`). Bound to no
+organization and exempt from the consent screen; its organization context comes from the
+login, never from registration. Only the platform can register one.
+_Avoid_: internal app, trusted client
 
 **Service account**:
-A non-human OAuth2 client acting within a tenant (client ids prefixed `sa-`). API keys and
-scopes attach to service accounts, not people.
+A non-human OAuth2 client (client ids prefixed `sa-`) bound to exactly one organization and
+acting only within it. API keys and scopes attach to service accounts, not people.
 _Avoid_: bot, machine user
 
 **Developer application**:
-A registered third-party OAuth2 client (client ids prefixed `app-`) whose login and consent
-screens can carry its own client branding.
+A third-party OAuth2 client (client ids prefixed `app-`) registered by an organization and
+bound to exactly that organization, whose login and consent screens can carry its own client
+branding. Always confidential: it runs a server-side backend.
+_Avoid_: app (unqualified), external client, relying party (that is the protocol role, not the entity)
 
 **Role**:
 A named bundle of permissions granted by an organization — never by the platform. The built-in
