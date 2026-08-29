@@ -27,6 +27,10 @@
 #   wallow.dev/*      -> wallow-web:8080
 #   Also align API_PUBLIC_URL / AUTH_PUBLIC_URL (and COOKIE_DOMAIN) to the subdomains,
 #   and use the commented subdomain site blocks at the bottom of the Caddyfile.
+#   The pangolin profile ALWAYS uses this topology — its blueprint labels
+#   declare three host-based resources (PANGOLIN_RESOURCE_DOMAIN,
+#   PANGOLIN_API_DOMAIN, PANGOLIN_AUTH_DOMAIN), because the pulled images
+#   serve at their roots and a tunnel deployment is rarely able to `--build`.
 #
 # EVERY ingress, Caddy or not, must forward X-Forwarded-Proto. The API builds its
 # absolute OIDC URLs (authorize, end_session, discovery) from it.
@@ -367,17 +371,22 @@ services:
     container_name: ${COMPOSE_PROJECT_NAME:-wallow}-api
     restart: unless-stopped
     # Pangolin blueprint labels (tunnel mode only — read by the newt service
-    # through the Docker socket; inert without --profile pangolin). The three
-    # app services each contribute one target to the single `wallow` resource,
-    # whose resource-level fields live on wallow-web. This target takes /api by
-    # prefix, and the prefix is KEPT — no rewrite-* keys, ever: the API strips
-    # it itself via PathBase, exactly as behind Caddy.
+    # through the Docker socket; inert without --profile pangolin). Tunnel mode
+    # uses the SUBDOMAIN topology: each app service declares its OWN resource
+    # on its own host, so every app serves at its root and the published
+    # images work as pulled. That is deliberate — tunnel deployments are
+    # typically driven by a pull-only stack manager (Dockhand, Portainer,
+    # Komodo), which cannot run the `up --build` that the path-based /auth
+    # route requires (see the wallow-auth HAZARD below). Set API_PATH_BASE=
+    # (empty) and API_PUBLIC_URL=https://<PANGOLIN_API_DOMAIN>. No rewrite-*
+    # keys: nothing is stripped because nothing is prefixed.
     labels:
-      pangolin.public-resources.wallow.targets[0].hostname: wallow-api
-      pangolin.public-resources.wallow.targets[0].port: "8080"
-      pangolin.public-resources.wallow.targets[0].method: http
-      pangolin.public-resources.wallow.targets[0].path: /api
-      pangolin.public-resources.wallow.targets[0].path-match: prefix
+      pangolin.public-resources.wallow-api.name: Wallow API
+      pangolin.public-resources.wallow-api.mode: http
+      pangolin.public-resources.wallow-api.full-domain: ${PANGOLIN_API_DOMAIN:-api.wallow.dev}
+      pangolin.public-resources.wallow-api.targets[0].hostname: wallow-api
+      pangolin.public-resources.wallow-api.targets[0].port: "8080"
+      pangolin.public-resources.wallow-api.targets[0].method: http
     read_only: true
     security_opt:
       - no-new-privileges:true
@@ -504,15 +513,17 @@ services:
         AUTH_BASE_PATH: ${AUTH_BASE_PATH-/auth}
     container_name: ${COMPOSE_PROJECT_NAME:-wallow}-auth
     restart: unless-stopped
-    # Pangolin blueprint labels — see the wallow-api service. /auth by prefix,
-    # prefix KEPT (the image is BUILT with AUTH_BASE_PATH=/auth, so tunnel-mode
-    # deployments need `up --build` exactly like direct mode).
+    # Pangolin blueprint labels — see the wallow-api service. Own resource on
+    # its own host: with AUTH_BASE_PATH= (empty) the pulled root-built image is
+    # exactly right and tunnel mode never needs `up --build`. Set
+    # AUTH_PUBLIC_URL=https://<PANGOLIN_AUTH_DOMAIN> to match.
     labels:
-      pangolin.public-resources.wallow.targets[1].hostname: wallow-auth
-      pangolin.public-resources.wallow.targets[1].port: "8080"
-      pangolin.public-resources.wallow.targets[1].method: http
-      pangolin.public-resources.wallow.targets[1].path: /auth
-      pangolin.public-resources.wallow.targets[1].path-match: prefix
+      pangolin.public-resources.wallow-auth.name: Wallow Auth
+      pangolin.public-resources.wallow-auth.mode: http
+      pangolin.public-resources.wallow-auth.full-domain: ${PANGOLIN_AUTH_DOMAIN:-auth.wallow.dev}
+      pangolin.public-resources.wallow-auth.targets[0].hostname: wallow-auth
+      pangolin.public-resources.wallow-auth.targets[0].port: "8080"
+      pangolin.public-resources.wallow-auth.targets[0].method: http
     read_only: true
     security_opt:
       - no-new-privileges:true
@@ -583,24 +594,20 @@ services:
     image: ghcr.io/bc-solutions-coder/wallow-web:${VERSION:-latest}
     container_name: ${COMPOSE_PROJECT_NAME:-wallow}-web
     restart: unless-stopped
-    # Pangolin blueprint labels — see the wallow-api service. This service
-    # carries the RESOURCE-LEVEL fields for the shared `wallow` resource plus
-    # the catch-all target (path /, prefix — lowest priority, so the /api and
-    # /auth targets win first). Deliberately absent keys:
-    #   site       — the resource lands on whatever site the applying newt
+    # Pangolin blueprint labels — see the wallow-api service. The apex resource
+    # (WEB_PUBLIC_URL). Deliberately absent keys on all three resources:
+    #   site       — each resource lands on whatever site the applying newt
     #                belongs to, so the labels work on any fork's Pangolin;
-    #   rewrite-*  — nothing is ever stripped (see wallow-api);
+    #   path/rewrite-* — host routing only; nothing is prefixed or stripped;
     #   auth.*     — Wallow does its own authentication; a Pangolin SSO gate
     #                in front would break the OIDC flows.
     labels:
       pangolin.public-resources.wallow.name: Wallow
       pangolin.public-resources.wallow.mode: http
       pangolin.public-resources.wallow.full-domain: ${PANGOLIN_RESOURCE_DOMAIN:-wallow.dev}
-      pangolin.public-resources.wallow.targets[2].hostname: wallow-web
-      pangolin.public-resources.wallow.targets[2].port: "8080"
-      pangolin.public-resources.wallow.targets[2].method: http
-      pangolin.public-resources.wallow.targets[2].path: /
-      pangolin.public-resources.wallow.targets[2].path-match: prefix
+      pangolin.public-resources.wallow.targets[0].hostname: wallow-web
+      pangolin.public-resources.wallow.targets[0].port: "8080"
+      pangolin.public-resources.wallow.targets[0].method: http
     read_only: true
     security_opt:
       - no-new-privileges:true
@@ -783,13 +790,13 @@ services:
   #     on one site steal the tunnel from each other.
   #   - It mounts the Docker socket, so it reads the `pangolin.*` BLUEPRINT
   #     labels on wallow-api / wallow-auth / wallow-web (see those services)
-  #     and creates/updates the Pangolin resource and its path targets itself.
+  #     and creates/updates the three host-based Pangolin resources itself.
   #     Nothing is configured by hand in the dashboard, and labels are applied
   #     continuously — this file is the source of truth, and dashboard edits
-  #     to the labelled resource get overwritten.
+  #     to the labelled resources get overwritten.
   #
-  # In this mode Pangolin does the /api, /auth path split that Caddy does in
-  # direct mode, so the caddy service stays down (it is behind --profile
+  # In this mode Pangolin routes by HOST (api./auth./apex — the subdomain
+  # topology above), so the caddy service stays down (it is behind --profile
   # direct) and no host ports are bound at all — newt only dials out.
   # Pangolin's proxy sends X-Forwarded-Proto: https straight to the apps;
   # WALLOW_TRUSTED_PROXIES=private on the Node apps already covers newt's

@@ -9,8 +9,8 @@ your laptop and on a server. Every deployment picks exactly **one edge profile**
   front the stack with your own reverse proxy (in which case skip both profiles and target the
   published `127.0.0.1` ports instead — see the [Reverse Proxy guide](reverse-proxy.md)).
 - **`--profile pangolin`** — no host ports at all; the `newt` tunnel client connects out to a
-  [Pangolin](https://pangolin.net) instance that terminates TLS, and the whole Pangolin
-  resource (domain + path targets) is declared by `pangolin.*` labels in the compose file.
+  [Pangolin](https://pangolin.net) instance that terminates TLS, and the three host-based
+  Pangolin resources (apex, `api.`, `auth.`) are declared by `pangolin.*` labels in the compose file.
 
 ```bash
 pnpm secrets:prod                             # writes docker/.env.production with fresh secrets
@@ -134,11 +134,14 @@ The proxy strips nothing in this topology. Both bundled edges implement it:
   the example to `caddy/Caddyfile` and point `CADDYFILE_HOST_PATH` at your copy. Full
   per-service variables and nginx/Caddy examples are in the
   [Reverse Proxy guide](reverse-proxy.md).
-- **Pangolin mode** — the `pangolin.*` blueprint labels on `wallow-api`, `wallow-auth`, and
-  `wallow-web` declare one Pangolin resource at `PANGOLIN_RESOURCE_DOMAIN` with `/api` and
-  `/auth` prefix targets (nothing rewritten) and a catch-all. The `newt` service applies them
-  continuously through the Docker socket, so the compose file is the source of truth and
-  dashboard edits to that resource are overwritten. Pangolin's proxy sends
+- **Pangolin mode** — uses the **subdomain** topology below, not this one. The `pangolin.*`
+  blueprint labels on `wallow-api`, `wallow-auth`, and `wallow-web` declare three host-based
+  Pangolin resources (`PANGOLIN_API_DOMAIN`, `PANGOLIN_AUTH_DOMAIN`, `PANGOLIN_RESOURCE_DOMAIN`),
+  so every app serves at its root and the pulled images work without `up --build` — tunnel
+  deployments are usually driven by a pull-only stack manager that cannot rebuild. Set
+  `API_PATH_BASE=` and `AUTH_BASE_PATH=` (both empty) and point the public URLs at the
+  subdomains. The `newt` service applies the labels continuously through the Docker socket, so
+  the compose file is the source of truth and dashboard edits to those resources are overwritten. Pangolin's proxy sends
   `X-Forwarded-Proto: https` straight to the apps; `WALLOW_TRUSTED_PROXIES=private` already
   covers newt's bridge address, so no extra trusted-proxy configuration is needed.
 
@@ -336,7 +339,7 @@ whenever you use that profile.
 | **BFF session** | `BFF_COOKIE_PASSWORD`; optional: `BFF_COOKIE_PASSWORDS` (rotation), `BFF_COOKIE_SECURE`, `BFF_COOKIE_HOST_PREFIX`, `BFF_COOKIE_NAME`, `BFF_SESSION_TTL_SECONDS`, `BFF_OIDC_SCOPES` |
 | **Public URLs** | `API_PUBLIC_URL`, `AUTH_PUBLIC_URL`, `WEB_PUBLIC_URL`, `COOKIE_DOMAIN`, `API_PATH_BASE`, `AUTH_BASE_PATH` |
 | **Ingress (direct)** | `CADDYFILE_HOST_PATH`, `INGRESS_HTTP_PORT`, `INGRESS_HTTPS_PORT` |
-| **Ingress (pangolin)** | `PANGOLIN_ENDPOINT`, `PANGOLIN_RESOURCE_DOMAIN`, `NEWT_ID`, `NEWT_SECRET` |
+| **Ingress (pangolin)** | `PANGOLIN_ENDPOINT`, `PANGOLIN_RESOURCE_DOMAIN`, `PANGOLIN_API_DOMAIN`, `PANGOLIN_AUTH_DOMAIN`, `NEWT_ID`, `NEWT_SECRET` |
 | **Ports** | `API_PORT`, `AUTH_PORT`, `WEB_PORT` (all bound to `127.0.0.1`) |
 | **Observability** | `GF_ADMIN_PASSWORD`, `OTEL_TRACE_SAMPLING_RATIO` |
 

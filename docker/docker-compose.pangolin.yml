@@ -11,7 +11,7 @@
 #     wallow-web in docker-compose.production.yml. newt discovers them through
 #     the Docker socket, which sees every container on the host, so the labels
 #     do not care which compose project newt itself runs in.
-#   - Path targets resolve by container DNS name, so newt must join the main
+#   - Targets resolve by container DNS name, so newt must join the main
 #     stack's network. Compose names that network <project>_wallow; with the
 #     documented COMPOSE_PROJECT_NAME=wallow that is wallow_wallow, the
 #     default here. If your stack manager picked a different project name, set
