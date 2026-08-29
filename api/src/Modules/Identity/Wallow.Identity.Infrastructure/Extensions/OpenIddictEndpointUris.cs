@@ -34,6 +34,9 @@ public static class OpenIddictEndpointUris
     /// <summary>The userinfo endpoint URI.</summary>
     public const string UserInfo = "connect/userinfo";
 
+    /// <summary>The token revocation (RFC 7009) endpoint URI.</summary>
+    public const string Revocation = "connect/revocation";
+
     /// <summary>Every configured endpoint URI, for tests that assert the shared invariant.</summary>
-    public static IReadOnlyList<string> All { get; } = [Authorization, Token, EndSession, UserInfo];
+    public static IReadOnlyList<string> All { get; } = [Authorization, Token, EndSession, UserInfo, Revocation];
 }

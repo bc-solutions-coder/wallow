@@ -34,6 +34,7 @@ public sealed partial class OpenIddictServiceAccountService(
         List<string> permissions =
         [
             Permissions.Endpoints.Token,
+            Permissions.Endpoints.Revocation,
             Permissions.GrantTypes.ClientCredentials
         ];
 

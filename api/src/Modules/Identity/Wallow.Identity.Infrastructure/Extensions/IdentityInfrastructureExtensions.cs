@@ -71,7 +71,12 @@ public static class IdentityInfrastructureExtensions
                 options.SetAuthorizationEndpointUris(OpenIddictEndpointUris.Authorization)
                     .SetTokenEndpointUris(OpenIddictEndpointUris.Token)
                     .SetEndSessionEndpointUris(OpenIddictEndpointUris.EndSession)
-                    .SetUserInfoEndpointUris(OpenIddictEndpointUris.UserInfo);
+                    .SetUserInfoEndpointUris(OpenIddictEndpointUris.UserInfo)
+                    // RFC 7009 token revocation. Deliberately no passthrough controller:
+                    // OpenIddict's built-in handlers authenticate the client and revoke the
+                    // token entry, and EnableTokenEntryValidation() below makes the revocation
+                    // take effect on the next API request rather than at token expiry.
+                    .SetRevocationEndpointUris(OpenIddictEndpointUris.Revocation);
 
                 // The browser reaches /connect/** through the unified auth origin's reverse
                 // proxy, so the advertised issuer must be that public origin rather than the

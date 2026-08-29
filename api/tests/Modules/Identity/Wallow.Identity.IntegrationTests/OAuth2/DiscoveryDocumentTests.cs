@@ -31,4 +31,18 @@ public class DiscoveryDocumentTests(WallowApiFactory factory) : IdentityIntegrat
             .Should().BeTrue("the discovery document must advertise sid support");
         sessionSupported.GetBoolean().Should().BeTrue();
     }
+
+    [Fact]
+    public async Task Discovery_AdvertisesRevocationEndpoint()
+    {
+        HttpResponseMessage response = await Client.GetAsync("/.well-known/openid-configuration");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        using JsonDocument document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        document.RootElement.TryGetProperty("revocation_endpoint", out JsonElement revocation)
+            .Should().BeTrue("clients discover RFC 7009 revocation from this document, not from our docs");
+        revocation.GetString().Should().EndWith("/connect/revocation");
+    }
 }

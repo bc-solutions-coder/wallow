@@ -290,6 +290,7 @@ public sealed partial class PreRegisteredClientSyncService(
         if (isServiceAccount)
         {
             descriptor.Permissions.Add(Permissions.Endpoints.Token);
+            descriptor.Permissions.Add(Permissions.Endpoints.Revocation);
             descriptor.Permissions.Add(Permissions.GrantTypes.ClientCredentials);
         }
         else
@@ -297,6 +298,7 @@ public sealed partial class PreRegisteredClientSyncService(
             descriptor.Permissions.Add(Permissions.Endpoints.Authorization);
             descriptor.Permissions.Add(Permissions.Endpoints.EndSession);
             descriptor.Permissions.Add(Permissions.Endpoints.Token);
+            descriptor.Permissions.Add(Permissions.Endpoints.Revocation);
             descriptor.Permissions.Add(Permissions.GrantTypes.AuthorizationCode);
             descriptor.Permissions.Add(Permissions.GrantTypes.RefreshToken);
             descriptor.Permissions.Add(Permissions.ResponseTypes.Code);

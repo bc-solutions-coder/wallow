@@ -81,6 +81,7 @@ public sealed class OpenIddictEndpointUriTests
             OpenIddictEndpointUris.Token,
             OpenIddictEndpointUris.EndSession,
             OpenIddictEndpointUris.UserInfo,
+            OpenIddictEndpointUris.Revocation,
         ]);
     }
 }
