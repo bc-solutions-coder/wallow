@@ -10,8 +10,9 @@
  * runs exactly once (`createQueryClient()` disables query retries globally); an
  * `{op}Options()` factory is what the generator emits for the `GET`.
  *
- * `isSafeReturnUrl` stays a direct import from the raw barrel here and in the
- * feature's `sign-in-href.ts`: it is a synchronous predicate over a string, not a
- * request, and the seam lists this feature's ENDPOINTS.
+ * The open-redirect guard is not named here: this screen and the feature's
+ * `sign-in-href.ts` read their verdicts from `@shared/lib/return-url`'s
+ * `decideReturnUrl`, which issues no request — the seam lists this feature's
+ * ENDPOINTS.
  */
 export { accountVerifyEmailOptions } from "@bc-solutions-coder/sdk/query";

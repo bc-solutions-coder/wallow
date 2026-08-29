@@ -1,6 +1,5 @@
-import { isSafeReturnUrl } from "@bc-solutions-coder/sdk";
-
 import { toAppHref } from "@shared/lib/base-path";
+import { decideReturnUrl } from "@shared/lib/return-url";
 
 /**
  * Build the "go to sign in" link both verify-email screens end on, forwarding
@@ -30,20 +29,16 @@ import { toAppHref } from "@shared/lib/base-path";
  * `/error?reason=invalid_redirect_uri` — the right answer when a screen is about
  * to NAVIGATE somewhere unsafe — would be wrong. The user's email really was
  * verified; refusing them the sign-in link over a query parameter they may not
- * have chosen would punish them for the attacker's input.
- *
- * The guard is the SDK's `isSafeReturnUrl`, never a re-implementation of the
- * rule here: it mirrors the server's `ReturnUrlValidator.IsSafe`, and a second
- * copy of a security rule is a second copy to get wrong.
+ * have chosen would punish them for the attacker's input. That is why every
+ * non-"accept" verdict — absent and refuse alike — collapses to the bare link.
  *
  * @param returnUrl The `returnUrl` query parameter, if the link carried one.
  * @returns `/login`, or `/login?returnUrl=...` when `returnUrl` is safe.
  */
 export function signInHref(returnUrl: string | undefined): string {
-  // The `undefined` arm is redundant against the guard (which rejects nullish
-  // itself) and is kept only to narrow `returnUrl` to `string` for the template
-  // below without a cast — the guard returns a boolean, not a type predicate.
-  if (returnUrl === undefined || !isSafeReturnUrl(returnUrl)) {
+  const destination = decideReturnUrl(returnUrl, "empty-ok");
+
+  if (destination.verdict !== "accept") {
     return toAppHref("/login");
   }
 
@@ -54,5 +49,5 @@ export function signInHref(returnUrl: string | undefined): string {
   // router never sees and therefore never rebases; `returnUrl` itself is left
   // alone, since the login page hands it to `navigate()` and the router applies
   // the base path on the way out.
-  return toAppHref(`/login?returnUrl=${encodeURIComponent(returnUrl)}`);
+  return toAppHref(`/login?returnUrl=${encodeURIComponent(destination.returnUrl)}`);
 }

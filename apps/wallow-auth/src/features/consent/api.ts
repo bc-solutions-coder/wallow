@@ -10,10 +10,10 @@
  * nothing to configure or bootstrap first.
  *
  * ONE endpoint, because the consent screen only READS: the grant itself is a
- * full-page form POST to the OIDC endpoint, not an SDK call. `consentInfoArgs`,
- * `buildConsentSubmitUrl` and `isSafeReturnUrl` stay direct imports from the raw
- * barrel at the call site — they build arguments, build a URL and test a string,
- * and none of them issues a request. Pulling them behind the seam would turn this
- * one-line endpoint list into a second barrel.
+ * full-page form POST to the OIDC endpoint, not an SDK call. `consentInfoArgs`
+ * and `buildConsentSubmitUrl` stay direct imports from the raw barrel at the
+ * call site — they build arguments and a URL, and neither issues a request.
+ * Pulling them behind the seam would turn this one-line endpoint list into a
+ * second barrel.
  */
 export { appsGetConsentInfoOptions } from "@bc-solutions-coder/sdk/query";

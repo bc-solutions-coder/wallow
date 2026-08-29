@@ -15,8 +15,8 @@
  * them into a shared module would make the sign-up surface unreadable from the
  * sign-up feature.
  *
- * `isSafeReturnUrl` stays a direct import from the raw barrel: it is a synchronous
- * predicate over a string, not a request.
+ * The open-redirect guard is not named here: the screen reads its verdict from
+ * `@shared/lib/return-url`'s `decideReturnUrl`, which issues no request.
  */
 export {
   accountGetClientTenantOptions,

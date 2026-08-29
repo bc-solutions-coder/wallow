@@ -1,5 +1,5 @@
 import { formatLongDate } from "@bc-solutions-coder/utils/format";
-import { buildExchangeTicketUrl, isSafeReturnUrl } from "@bc-solutions-coder/sdk";
+import { buildExchangeTicketUrl } from "@bc-solutions-coder/sdk";
 import { MutedText, NoticeBanner, Tabs, Text } from "@bc-solutions-coder/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
@@ -332,20 +332,15 @@ export function LoginScreen({
   const [signedIn, setSignedIn] = useState(false);
   const [graceDeadline, setGraceDeadline] = useState<string | null>(null);
 
-  // EMPTINESS BEFORE SAFETY, and the `&&` short-circuit is what enforces it: `""`
-  // is not nullish and IS unsafe, so consulting the guard for it would route an
-  // ordinary direct sign-in to /error. `authDispositionOf` re-checks emptiness on
-  // its own path; this keeps the two in agreement. See the guard note there.
-  const returnUrlIsSafe: boolean =
-    returnUrl !== undefined && returnUrl !== "" && isSafeReturnUrl(returnUrl);
-
   /**
    * The oracle's `HandleSuccessfulAuth`, and the shell's whole reason to exist:
    * ONE copy, shared by every tab. `.3.12`/`.3.13` route their verify responses
-   * here; `.3.15` owns the MFA arms of the disposition it consumes.
+   * here; `.3.15` owns the MFA arms of the disposition it consumes. The
+   * returnUrl guard lives inside the disposition (`decideReturnUrl`,
+   * `"empty-ok"` mode).
    */
   const handleAuthResult = (body: unknown): void => {
-    const disposition: AuthDisposition = authDispositionOf(body, returnUrl, returnUrlIsSafe);
+    const disposition: AuthDisposition = authDispositionOf(body, returnUrl);
 
     setGraceDeadline(disposition.graceDeadline);
 
@@ -427,8 +422,8 @@ export function LoginScreen({
        * would invite the user to start over. It takes no `clientId` — the
        * `external-login` endpoint binds no such parameter; client_id rides inside
        * `returnUrl`. See the no-guard note in that file: this returnUrl is CARGO,
-       * not a destination this screen picks, so `returnUrlIsSafe` is deliberately
-       * not threaded into it.
+       * not a destination this screen picks, so the returnUrl guard is
+       * deliberately not threaded into it.
        */}
       {signedIn ? null : <ExternalProviders returnUrl={returnUrl} />}
     </AuthScreen>

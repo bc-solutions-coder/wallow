@@ -6,7 +6,6 @@ import {
   useAppForm,
 } from "@bc-solutions-coder/forms";
 import { useMutation, useQuery } from "@bc-solutions-coder/query";
-import { isSafeReturnUrl } from "@bc-solutions-coder/sdk";
 import { Button, Card, MutedText, Text } from "@bc-solutions-coder/ui";
 import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { type ReactElement, type ReactNode, useState } from "react";
@@ -26,7 +25,7 @@ import { passwordStrength, type PasswordStrength } from "../password-strength";
 import { AuthScreen } from "@shared/components/auth-screen";
 import { PRIVACY_CONSENT_LABEL, TERMS_CONSENT_LABEL } from "@shared/components/consent-labels";
 import { BASE_PATH } from "@shared/lib/base-path";
-import { ERROR_HREF } from "@shared/lib/return-url";
+import { ERROR_HREF, decideReturnUrl } from "@shared/lib/return-url";
 
 /**
  * The Register screen (Wallow-vec7.3.8).
@@ -112,23 +111,24 @@ const EMPTY_VALUES: RegisterValues = {
  *
  * REFUSE, don't sanitize (bd memory `returnurl-guard-refuse-dont-sanitize`): an
  * unsafe returnUrl routes to `/error?reason=invalid_redirect_uri` rather than
- * silently falling back to "/", which would swallow the attempt.
- *
- * An absent returnUrl is NOT an attack — it is the oracle's ordinary
- * direct-signup path — so the guard runs on a PRESENT value only. "" counts as
- * absent, matching the oracle's `string.IsNullOrEmpty(ReturnUrl)` and keeping a
- * bare `?returnUrl=` off the error page.
+ * silently falling back to "/", which would swallow the attempt. The mode is
+ * `"empty-ok"`: an absent returnUrl is NOT an attack — it is the oracle's
+ * ordinary direct-signup path — and "" counts as absent, matching the oracle's
+ * `string.IsNullOrEmpty(ReturnUrl)` and keeping a bare `?returnUrl=` off the
+ * error page.
  */
 function verifyEmailTarget(returnUrl: string | undefined): string {
-  if (returnUrl === undefined || returnUrl === "") {
+  const destination = decideReturnUrl(returnUrl, "empty-ok");
+
+  if (destination.verdict === "absent") {
     return "/verify-email";
   }
 
-  if (!isSafeReturnUrl(returnUrl)) {
+  if (destination.verdict === "refuse") {
     return ERROR_HREF;
   }
 
-  return `/verify-email?returnUrl=${encodeURIComponent(returnUrl)}`;
+  return `/verify-email?returnUrl=${encodeURIComponent(destination.returnUrl)}`;
 }
 
 /**

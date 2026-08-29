@@ -5,6 +5,7 @@ import { useRouteContext } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { accountValidateRedirectUriOptions } from "../api";
 import { BASE_PATH, toAppHref } from "@shared/lib/base-path";
+import { isRedirectUriAllowed } from "@shared/lib/return-url";
 
 /**
  * The Logout screen (Wallow-vec7.3.5).
@@ -72,6 +73,11 @@ import { BASE_PATH, toAppHref } from "@shared/lib/base-path";
  * no proof a sign-out ever happened — that call is the only thing standing
  * between a crafted link and a Wallow-branded button pointing at an arbitrary
  * origin.
+ *
+ * For the same reason this screen takes no `decideReturnUrl` mode: a mode would
+ * locally accept a RELATIVE value and skip the probe, widening trust. Its share
+ * of the shared guard module is the `isRedirectUriAllowed` narrowing alone —
+ * see `@shared/lib/return-url`.
  */
 
 /**
@@ -89,28 +95,6 @@ const SAME_ORIGIN_BASE: string = BASE_PATH;
  * user they are signed out.
  */
 const SIGNED_OUT = "true";
-
-/**
- * The `{ allowed }` narrowing, owned at THIS boundary.
- *
- * The facade types the call `Promise<unknown>` (auth-client.ts:149), because the
- * OpenAPI spec declares the 200 with no schema — the endpoint returns an anonymous
- * `Ok(new { allowed = … })` (AccountController.cs:601-607), so there is nothing to
- * generate a type from. The C# client's `body?.Allowed == true` collapse
- * (AuthApiClient.cs:93-108) therefore does not come for free.
- *
- * That comparison is STRICT and this reproduces it: anything that is not literally
- * `allowed: true` — a missing key, the STRING `"true"`, a non-object body — is NOT
- * allowed. Leaning on JS truthiness instead would link on `allowed: "false"`,
- * which is a non-empty string and therefore truthy.
- */
-function isRedirectUriAllowed(body: unknown): boolean {
-  if (typeof body !== "object" || body === null || !("allowed" in body)) {
-    return false;
-  }
-
-  return body.allowed === true;
-}
 
 /**
  * The oracle's `BbCardTitle`. One testid across both phases, per the oracle; the

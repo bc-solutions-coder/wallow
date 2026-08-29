@@ -78,10 +78,14 @@ narrowing that turns an API response into a screen outcome (next step, redirect,
 with no React in it, so both the component and a node spec can use it. Put that logic there, not
 inside a component.
 
-`returnUrl` handling is shared (`src/shared/hooks/use-return-url-guard.ts`,
-`src/shared/lib/return-url.ts`) and **refuses** an unsafe value rather than sanitizing it —
-routing to `ERROR_HREF` (`/error?reason=invalid_redirect_uri`) instead of silently falling back
-to `/`, which would swallow the open-redirect attempt.
+`returnUrl` handling is shared: `src/shared/lib/return-url.ts` owns the ONE decision function,
+`decideReturnUrl(returnUrl, mode)` — modes `refuse-empty` (mount guards), `empty-ok` (the
+oracle's `IsNullOrEmpty` parity), `server-allowlist` (MfaChallenge's ask-the-server arm) — plus
+`ERROR_HREF` and the `isRedirectUriAllowed` narrowing. Screens **refuse** an unsafe value rather
+than sanitizing it — routing to `ERROR_HREF` (`/error?reason=invalid_redirect_uri`) instead of
+silently falling back to `/`, which would swallow the open-redirect attempt. Do not re-inline an
+empty/safety check in a screen; pick a mode. The two adjudicated exceptions (accept-terms
+hand-off, LogoutScreen) are documented in that module's header.
 
 `qrcode.react` is the app's one non-workspace UI dependency (`MfaEnrollForm` only).
 

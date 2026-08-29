@@ -26,9 +26,8 @@
  * the feature's only data import, not so it is the feature's only *generated*
  * import.
  *
- * The `MfaEnrollmentConfirmedResponse` DTO and `isSafeReturnUrl` stay direct
- * imports from the raw barrel at the call site: a type is not a data import, and a
- * return-url predicate issues no request.
+ * The `MfaEnrollmentConfirmedResponse` DTO stays a direct import from the raw
+ * barrel at the call site: a type is not a data import.
  */
 export { mfaExchangeEnrollmentToken } from "@bc-solutions-coder/sdk";
 export { mfaConfirmEnrollmentMutation, mfaEnrollTotpMutation } from "@bc-solutions-coder/sdk/query";

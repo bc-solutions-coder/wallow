@@ -1,7 +1,6 @@
 import {
   type AllowListedReturnUrl,
   allowListedReturnUrl,
-  isSafeReturnUrl,
   validateRedirectUriArgs,
 } from "@bc-solutions-coder/sdk";
 import { useQuery } from "@bc-solutions-coder/query";
@@ -9,77 +8,26 @@ import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { useEffect } from "react";
 
 import { accountValidateRedirectUriOptions } from "../api";
-import { ERROR_HREF } from "@shared/lib/return-url";
+import {
+  ERROR_HREF,
+  type ReturnUrlDecision,
+  decideReturnUrl,
+  isRedirectUriAllowed,
+} from "@shared/lib/return-url";
 
 /**
  * The MfaChallenge screen's open-redirect guard (Wallow-vec7.3.17).
  *
- * Feature-local rather than shared, because it is the only guard in the app that
- * consults the server's allow-list: the external-login hand-off arrives with an
+ * The app's ONE `"server-allowlist"`-mode caller of `decideReturnUrl`, and
+ * feature-local because of it: the external-login hand-off arrives with an
  * ABSOLUTE returnUrl, and no string inspection can tell that apart from an
- * attack. Every other screen's returnUrl is relative and settled by
- * `useReturnUrlGuard` for free.
+ * attack — only the server's allow-list can, which is what the mode's "ask"
+ * verdict defers to. Every other screen's returnUrl is relative and settled
+ * locally by its mode.
  */
-
-/**
- * The `{ allowed }` narrowing for `auth.validateRedirectUri`, owned at this
- * boundary exactly as the LogoutScreen port owns its own.
- *
- * The endpoint returns an anonymous `Ok(new { allowed = … })` the OpenAPI spec
- * declares with no schema, so the facade types the call `Promise<unknown>`. The
- * comparison is STRICT, mirroring the C# `body?.Allowed == true`: anything that
- * is not literally `allowed: true` — a missing key, the STRING "true", a
- * non-object body — is NOT allowed. JS truthiness would admit `allowed: "false"`.
- */
-function isRedirectUriAllowed(body: unknown): boolean {
-  if (typeof body !== "object" || body === null || !("allowed" in body)) {
-    return false;
-  }
-
-  return body.allowed === true;
-}
-
-/**
- * What can be settled about `returnUrl` WITHOUT a network call, and the one case
- * that cannot be ("ask" — an absolute URL, where only the server's allow-list
- * knows).
- */
-type LocalDecision = "accept" | "refuse" | "ask";
 
 /** The mount guard's answer. "pending" is its own state: see `verdictOf`. */
 type ReturnUrlVerdict = "accept" | "refuse" | "pending";
-
-/**
- * The half of the guard that needs no network.
- *
- * `isRelativeSafe` is `isSafeReturnUrl`'s answer, which proves a value can only
- * resolve against THIS origin. It is passed in already computed rather than as a
- * callback, so the SDK facade's method is never called unbound.
- */
-function localDecisionOf(returnUrl: string | undefined, isRelativeSafe: boolean): LocalDecision {
-  if (returnUrl === undefined) {
-    // The oracle's ordinary direct (non-OIDC) sign-in. No destination to decide;
-    // routing it to /error would break every direct login.
-    return "accept";
-  }
-
-  if (isRelativeSafe) {
-    // The password path (`Login.razor`:509 -> `BuildMfaRedirectUrl` threads the
-    // relative OIDC returnUrl). The common case, decided for free.
-    return "accept";
-  }
-
-  if (returnUrl === "") {
-    // `IsNullOrEmpty` parity: `?returnUrl=` is a PRESENT value that fails
-    // `IsNullOrWhiteSpace`, so it is the unsafe case, not the nullish one. A
-    // malformed link is not a destination worth asking the server about.
-    return "refuse";
-  }
-
-  // Absolute: either the external-login hand-off's allow-listed returnUrl or an
-  // attack, and `isSafeReturnUrl` is false for BOTH. Only the allow-list can tell.
-  return "ask";
-}
 
 /**
  * FAIL CLOSED, in every direction.
@@ -89,14 +37,22 @@ function localDecisionOf(returnUrl: string | undefined, isRelativeSafe: boolean)
  * unreachable validator must never become a reason to TRUST a URI. In flight it is
  * undefined too, which is why "pending" is a verdict of its own rather than
  * collapsing into "accept": the caller renders nothing until the answer lands.
+ *
+ * "absent" (the ordinary direct, non-OIDC sign-in — routing it to /error would
+ * break every direct login) and "accept" (the password path's relative OIDC
+ * returnUrl, decided for free) are both settled locally.
  */
 function verdictOf(
-  local: LocalDecision,
+  decision: ReturnUrlDecision["verdict"],
   allowListPending: boolean,
   allowed: boolean | undefined,
 ): ReturnUrlVerdict {
-  if (local !== "ask") {
-    return local;
+  if (decision === "refuse") {
+    return "refuse";
+  }
+
+  if (decision !== "ask") {
+    return "accept";
   }
 
   if (allowListPending) {
@@ -144,29 +100,30 @@ export function useRedirectVerdict(
   const { sdk } = useRouteContext({ from: "__root__" });
   const navigate = useNavigate();
 
-  const local: LocalDecision = localDecisionOf(
-    returnUrl,
-    returnUrl !== undefined && isSafeReturnUrl(returnUrl),
-  );
+  const decision = decideReturnUrl(returnUrl, "server-allowlist");
 
-  // The `?? ""` is unreachable — `enabled` gates the read on `local === "ask"`,
-  // and a nullish returnUrl is decided "accept" — and is present only to narrow
+  // The `?? ""` is unreachable — `enabled` gates the read on the "ask" verdict,
+  // and a nullish returnUrl is decided "absent" — and is present only to narrow
   // the argument to the `string` the factory takes, without a cast.
   const validation = useQuery({
     ...accountValidateRedirectUriOptions({
       client: sdk.client,
       ...validateRedirectUriArgs(returnUrl ?? "", scopedClientId),
     }),
-    // The factory hands back the raw body; the verdict is this screen's reading
-    // of it.
+    // The factory hands back the raw body; the verdict is the shared narrowing's
+    // reading of it.
     select: isRedirectUriAllowed,
     // The ONLY case that costs a request: an absolute returnUrl. The password path
     // and the direct sign-in are already decided, and must not pay for a probe
     // that would sit between the user and their code field.
-    enabled: local === "ask",
+    enabled: decision.verdict === "ask",
   });
 
-  const verdict: ReturnUrlVerdict = verdictOf(local, validation.isPending, validation.data);
+  const verdict: ReturnUrlVerdict = verdictOf(
+    decision.verdict,
+    validation.isPending,
+    validation.data,
+  );
 
   useEffect(() => {
     if (verdict === "refuse") {
@@ -177,6 +134,8 @@ export function useRedirectVerdict(
   return {
     verdict,
     handOff: (accepted: string): string | AllowListedReturnUrl =>
-      local === "ask" ? allowListedReturnUrl(accepted, validation.data === true) : accepted,
+      decision.verdict === "ask"
+        ? allowListedReturnUrl(accepted, validation.data === true)
+        : accepted,
   };
 }

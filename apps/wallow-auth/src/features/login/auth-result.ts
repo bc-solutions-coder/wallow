@@ -1,6 +1,6 @@
 import { asString } from "@bc-solutions-coder/utils/guards";
 import { readErrorCode, readMember } from "@shared/lib/error-code";
-import { ERROR_HREF } from "@shared/lib/return-url";
+import { ERROR_HREF, decideReturnUrl } from "@shared/lib/return-url";
 /**
  * The login screen's RESULT LAYER (Wallow-vec7.3.11 / 2.8a): everything that
  * turns an untyped `auth.*` response into a decision, with no React and no SDK
@@ -216,7 +216,7 @@ export interface AuthDisposition {
  *
  * ── GUARD PLACEMENT — both poles, and why they differ ─────────────────────────
  *
- * `returnUrlIsSafe` is consulted on the TICKET path ONLY, and that asymmetry is
+ * `decideReturnUrl` is consulted on the TICKET path ONLY, and that asymmetry is
  * the whole lesson of `.3.6`/`.3.17` (bd memory `guard-where-the-client-picks-…`):
  *
  *   TICKET PATH — the CLIENT picks the destination (`location.href` is built from
@@ -233,12 +233,10 @@ export interface AuthDisposition {
  *     not a security feature. What is owed instead is INJECTION, which
  *     `handOffHref` pays.
  *
- * ── ORDER IS LOAD-BEARING ────────────────────────────────────────────────────
- *
- * EMPTINESS IS CHECKED BEFORE SAFETY, mirroring the oracle's
- * `if (!string.IsNullOrEmpty(ReturnUrl))` wrapping its `IsSafe` call. `""` is NOT
- * nullish and IS unsafe by `isSafeReturnUrl`, so a screen that guarded first
- * would route a perfectly ordinary direct sign-in to `/error`.
+ * The mode is `"empty-ok"` — the oracle's `IsNullOrEmpty` parity, where `""`
+ * means "no destination" and lands on the signed-in banner, never `/error`.
+ * The empty-before-safety ordering that used to live inline here is owned by
+ * `decideReturnUrl` itself now; see `@shared/lib/return-url`.
  *
  * ── THE DEAD BRANCH ──────────────────────────────────────────────────────────
  *
@@ -249,15 +247,8 @@ export interface AuthDisposition {
  *
  * @param body The untyped `auth.login` (or `verifyMagicLink`/`verifyOtp`) response.
  * @param returnUrl The OIDC returnUrl threaded through the login link.
- * @param returnUrlIsSafe `oidc.isSafeReturnUrl(returnUrl)`, passed in already
- *   computed so this module stays free of the SDK facade — and so the method is
- *   never called unbound.
  */
-export function authDispositionOf(
-  body: unknown,
-  returnUrl: string | undefined,
-  returnUrlIsSafe: boolean,
-): AuthDisposition {
+export function authDispositionOf(body: unknown, returnUrl: string | undefined): AuthDisposition {
   const result: LoginResult | null = narrowLoginResult(body);
 
   if (result === null) {
@@ -291,13 +282,15 @@ export function authDispositionOf(
     return { outcome: { kind: "failed", message: GENERIC_MESSAGE }, graceDeadline: null };
   }
 
-  if (returnUrl === undefined || returnUrl === "") {
+  const destination = decideReturnUrl(returnUrl, "empty-ok");
+
+  if (destination.verdict === "absent") {
     // The oracle's trailing `else`: nowhere to send the user, so say so rather
     // than inventing a destination. No `"/"` fallback.
     return { outcome: { kind: "signed-in" }, graceDeadline };
   }
 
-  if (!returnUrlIsSafe) {
+  if (destination.verdict === "refuse") {
     // REFUSE, don't sanitize (bd memory `returnurl-guard-refuse-dont-sanitize`).
     return { outcome: { kind: "navigate", href: ERROR_HREF }, graceDeadline };
   }
@@ -310,7 +303,10 @@ export function authDispositionOf(
     return { outcome: { kind: "failed", message: GENERIC_MESSAGE }, graceDeadline };
   }
 
-  return { outcome: { kind: "exchange-ticket", ticket, returnUrl }, graceDeadline };
+  return {
+    outcome: { kind: "exchange-ticket", ticket, returnUrl: destination.returnUrl },
+    graceDeadline,
+  };
 }
 
 /**

@@ -1,4 +1,3 @@
-import { isSafeReturnUrl } from "@bc-solutions-coder/sdk";
 import { Button, Card, MutedText, Text } from "@bc-solutions-coder/ui";
 import { useQuery } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
@@ -6,6 +5,7 @@ import type { ReactNode } from "react";
 
 import { accountVerifyEmailOptions } from "../api";
 import { signInHref } from "../sign-in-href";
+import { decideReturnUrl } from "@shared/lib/return-url";
 
 /**
  * The VerifyEmailConfirm screen (Wallow-vec7.3.3).
@@ -160,12 +160,14 @@ function ContinueButton({ returnUrl }: { readonly returnUrl: string }) {
 
 /** The oracle's success branch: the alert, plus a Continue when there is one. */
 function SuccessState({ returnUrl }: { readonly returnUrl?: string }) {
-  const canContinue: boolean = returnUrl !== undefined && isSafeReturnUrl(returnUrl);
+  const destination = decideReturnUrl(returnUrl, "empty-ok");
 
   return (
     <div className="space-y-4">
       <SuccessAlert />
-      {canContinue && returnUrl !== undefined ? <ContinueButton returnUrl={returnUrl} /> : null}
+      {destination.verdict === "accept" ? (
+        <ContinueButton returnUrl={destination.returnUrl} />
+      ) : null}
     </div>
   );
 }

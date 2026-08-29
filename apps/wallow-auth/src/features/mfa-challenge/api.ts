@@ -15,9 +15,10 @@
  * the browser to it. Each feature's seam states what THAT feature reaches; the
  * repetition is the point, not duplication to factor out into a shared module.
  *
- * `validateRedirectUriArgs`, `allowListedReturnUrl`, `buildExchangeTicketUrl` and
- * `isSafeReturnUrl` stay direct imports from the raw barrel: they build arguments
- * and URLs and test strings, and none of them issues a request.
+ * `validateRedirectUriArgs`, `allowListedReturnUrl` and `buildExchangeTicketUrl`
+ * stay direct imports from the raw barrel: they build arguments and URLs, and
+ * none of them issues a request. The open-redirect guard itself is
+ * `@shared/lib/return-url`'s `decideReturnUrl`.
  */
 export {
   accountValidateRedirectUriOptions,
