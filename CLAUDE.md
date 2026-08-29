@@ -207,6 +207,15 @@ Work is NOT complete until `git push` succeeds.
 
 Issues live in this repo's GitHub Issues (`bc-solutions-coder/wallow`), via the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
+### Wayfinder
+
+`/wayfinder` maps and their decision tickets are GitHub issues (map labelled `wayfinder:map`,
+tickets `wayfinder:<type>`; all five labels exist in the repo). The operations — map body,
+sub-issue linking, blocking, frontier, claim, resolve — live in `docs/agents/issue-tracker.md`
+under "Wayfinding operations"; do not improvise them. Wayfinder decisions are recorded on
+tickets, never as `docs/plans/` files; an asset produced while resolving a ticket is committed
+normally and linked from its ticket.
+
 ### Triage labels
 
 The five canonical triage roles use their default names verbatim (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
