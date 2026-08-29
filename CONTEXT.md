@@ -89,9 +89,11 @@ login, never from registration. Only the platform can register one.
 _Avoid_: internal app, trusted client
 
 **Service account**:
-A non-human OAuth2 client (client ids prefixed `sa-`) bound to exactly one organization and
-acting only within it. API keys and scopes attach to service accounts, not people.
-_Avoid_: bot, machine user
+A non-human OAuth2 client (client ids prefixed `sa-`) registered by an organization, bound to
+exactly that organization and acting only within it, under its own identity: what it does is
+attributed to the service account, never to the member who created it. Its scopes are the
+organization's to grant. Always confidential.
+_Avoid_: bot, machine user, application (that is the user-facing client kind)
 
 **Developer application**:
 A third-party OAuth2 client (client ids prefixed `app-`) registered by an organization and
@@ -108,12 +110,15 @@ A fine-grained capability, named `{Domain}{Action}`, expanded from a user's role
 time.
 
 **Scope**:
-A dotted string (e.g. `users.read`) limiting what a service account or API key may do; scopes
-map onto permissions.
+A dotted string (e.g. `users.read`) limiting what a client (developer application or service
+account) or an API key may do; scopes map onto permissions. A scope may be platform-only, in
+which case no organization can grant it to a client.
 
 **API key**:
-A hashed credential bound to a service account; it authenticates the service account, never a
-person, and its scopes must be a subset of the account's.
+A hashed credential bound to a person; whoever presents it acts _as_ that person, and its
+scopes must be a subset of what that person may do. Never a service account's credential —
+a service account authenticates with its client secret.
+_Avoid_: service token, machine key
 
 ## Communication
 
