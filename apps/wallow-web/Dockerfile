@@ -7,13 +7,23 @@
 # packages/sdk — never from a registry — so the on-disk layout packages/sdk
 # (SDK) and apps/wallow-web (example) must be preserved inside the image.
 #
-# The image is built here rather than pulled in, and the build needs the full
-# workspace install (vite, nitro and the workspace packages are all devDeps of
-# something), so this is a single-stage build rather than a prod-deps-only split.
+# Two stages. The `build` stage is pinned to $BUILDPLATFORM so `pnpm install`
+# and `vite build` always run NATIVELY on the machine doing the build, even when
+# the target image is another architecture (CI cross-builds linux/arm64 on an
+# amd64 runner). Vite 8's rolldown/oxc are multi-threaded native binaries, and
+# running them under QEMU user-mode emulation deadlocked this app's build
+# intermittently — a job that takes ~2 minutes natively sat silent for over an
+# hour until the run was cancelled. The bundle Vite emits is platform-independent,
+# so nothing is lost by building it on the host arch. Only the tiny runtime
+# stage below is built for $TARGETPLATFORM, and it has no RUN steps at all.
+#
+# The build stage needs the full workspace install (vite, nitro and the workspace
+# packages are all devDeps of something), so there is no prod-deps-only split —
+# the runtime stage copies just the self-contained `.output/` bundle.
 
 # Node 24 matches the repo's .nvmrc; corepack ships with the image and pins
 # pnpm from the root package.json `packageManager` field (pnpm@11.24.0).
-FROM node:24-slim
+FROM --platform=$BUILDPLATFORM node:24-slim AS build
 
 RUN corepack enable
 WORKDIR /repo
@@ -82,7 +92,17 @@ COPY apps/wallow-web apps/wallow-web
 # arrives via the build context — it only exists if built here.
 RUN pnpm --filter @bc-solutions-coder/wallow-web build
 
+# Runtime stage — built for the TARGET platform. Nitro's node-server preset
+# bundles every runtime dependency into .output/server (_chunks/, _libs/; no
+# node_modules/ and no native .node addons), so the bundle is the whole app and
+# nothing from the workspace install is needed at runtime. Keep this stage free
+# of RUN steps: that is what lets the arm64 image build without QEMU ever
+# executing a foreign binary.
+FROM node:24-slim
+
 WORKDIR /repo/apps/wallow-web
+
+COPY --from=build /repo/apps/wallow-web/.output ./.output
 
 # 3000 is wallow-web's port (vite.config.ts DEFAULT_PORT); wallow-auth uses 3002.
 # The nitro server reads PORT at boot, so this is what it binds.

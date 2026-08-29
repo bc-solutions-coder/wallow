@@ -330,6 +330,10 @@ jobs:
   docker-images-app:
     needs: build
     runs-on: ubuntu-latest
+    # Healthy runs finish in ~10 minutes. The cap exists because this job once
+    # wedged for 60-90 minutes (the arm64 wallow-web Vite build hung under QEMU)
+    # and only ended when the next push cancelled it; a hang must fail fast.
+    timeout-minutes: 25
     permissions:
       contents: read
 
@@ -361,9 +365,13 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore api/Wallow.slnx
 
-      # The arm64 app images below are cross-built on the amd64 runner; register
-      # QEMU binfmt handlers so their Dockerfile RUN steps can execute arm64
-      # binaries (without this, buildx fails with "exec format error").
+      # The arm64 app images below are cross-built on the amd64 runner. The React
+      # Dockerfiles pin their build stage to $BUILDPLATFORM, so pnpm/vite run
+      # natively and the arm64 runtime stage has no RUN steps — emulation is never
+      # on the build's hot path (it deadlocked rolldown for an hour at a time when
+      # it was). QEMU binfmt handlers stay registered only so buildx can still
+      # execute an arm64 binary if a runtime stage ever grows a RUN step, instead
+      # of failing with "exec format error".
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
         with:
