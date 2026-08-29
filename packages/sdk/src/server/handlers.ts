@@ -16,7 +16,7 @@ import { parse as parseCookies, serialize as serializeCookie } from "cookie-es";
 
 import { isSafeReturnUrl } from "../auth-oidc";
 import { decodeIdTokenClaims, mapClaims } from "./claims";
-import type { BffConfig } from "./config";
+import type { BffConfig, BffCookieSameSite } from "./config";
 import { createPkcePair, randomUrlSafe } from "./pkce";
 import {
   buildAuthorizeUrl,
@@ -54,26 +54,36 @@ export interface BffHandlers {
 /** The `Set-Cookie` attributes the BFF writes, in `cookie-es` terms. */
 interface CookieAttributes {
   httpOnly: boolean;
-  sameSite: "lax";
+  sameSite: BffCookieSameSite;
   secure: boolean;
   path: "/";
   maxAge?: number;
 }
 
-/** Base attributes shared by every cookie the BFF writes. */
-function baseCookieOpts(secure: boolean = true): CookieAttributes {
-  return { httpOnly: true, sameSite: "lax", secure, path: "/" };
+/**
+ * Base attributes shared by every cookie the BFF writes. `sameSite` defaults to
+ * `"lax"` because the one caller that must NOT follow `cookieSameSite` — the
+ * login-transaction cookie, which has to ride the cross-site callback redirect
+ * from the IdP — relies on that default; every other caller passes the
+ * configured value through.
+ */
+function baseCookieOpts(
+  secure: boolean = true,
+  sameSite: BffCookieSameSite = "lax",
+): CookieAttributes {
+  return { httpOnly: true, sameSite, secure, path: "/" };
 }
 
 /**
  * Attributes for the session cookie (and each of its chunks): the base
- * attributes with `Secure` driven by `COOKIE_SECURE` and a `Max-Age` that
- * bounds the cookie's lifetime to the configured session TTL, so a stale
- * browser cookie cannot outlive the session it references.
+ * attributes with `Secure` driven by `COOKIE_SECURE`, `SameSite` driven by
+ * `COOKIE_SAMESITE`, and a `Max-Age` that bounds the cookie's lifetime to the
+ * configured session TTL, so a stale browser cookie cannot outlive the session
+ * it references.
  */
 function sessionCookieOpts(config: BffConfig): CookieAttributes {
   return {
-    ...baseCookieOpts(config.cookieSecure),
+    ...baseCookieOpts(config.cookieSecure, config.cookieSameSite),
     maxAge: config.sessionTtlSeconds,
   };
 }
@@ -92,12 +102,18 @@ function csrfCookieOpts(config: BffConfig): CookieAttributes {
 
 /**
  * Attributes that expire a cookie immediately. `Max-Age=0` is the clearing
- * signal; the rest must still match the attributes the cookie was written with
- * or the browser treats it as a different cookie and leaves the original in
- * place.
+ * signal; the name, `Domain`, and `Path` must still match the cookie as
+ * written or the browser treats it as a different cookie and leaves the
+ * original in place. `SameSite` is not part of cookie identity, which is why
+ * one clear helper serves both the Lax-pinned tx cookie and the
+ * `cookieSameSite`-driven session and CSRF cookies.
  */
 function clearCookieOpts(config: BffConfig, httpOnly: boolean = true): CookieAttributes {
-  return { ...baseCookieOpts(config.cookieSecure), httpOnly, maxAge: CLEARED_MAX_AGE };
+  return {
+    ...baseCookieOpts(config.cookieSecure, config.cookieSameSite),
+    httpOnly,
+    maxAge: CLEARED_MAX_AGE,
+  };
 }
 
 /** Name of the transient login-transaction cookie for a given session cookie. */
@@ -448,6 +464,10 @@ export function createBffHandlers(
       const sealed: string = await sealTx(tx, config.cookiePasswords ?? config.cookiePassword);
 
       const headers: Headers = new Headers();
+      // Deliberately NOT threaded through `cookieSameSite`: the tx cookie must
+      // accompany the top-level redirect back from the IdP — a cross-site
+      // navigation — or `state` validation fails on every login. `Lax` permits
+      // exactly that and nothing more; `Strict` would not.
       appendCookie(headers, txCookieName(config.cookieName), sealed, {
         ...baseCookieOpts(config.cookieSecure),
         maxAge: TX_COOKIE_MAX_AGE_SECONDS,

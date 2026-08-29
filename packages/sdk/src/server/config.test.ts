@@ -131,6 +131,51 @@ describe("loadBffConfigFromEnv — cookieSecure", () => {
   });
 });
 
+describe("loadBffConfigFromEnv — cookieSameSite", () => {
+  it("defaults to 'lax' when COOKIE_SAMESITE is unset", () => {
+    const config: BffConfig = loadBffConfigFromEnv(requiredEnv());
+
+    expect(config.cookieSameSite).toBe("lax");
+  });
+
+  it("defaults to 'lax' when COOKIE_SAMESITE is empty", () => {
+    const config: BffConfig = loadBffConfigFromEnv(envWith({ COOKIE_SAMESITE: "" }));
+
+    expect(config.cookieSameSite).toBe("lax");
+  });
+
+  it("reads 'strict'", () => {
+    const config: BffConfig = loadBffConfigFromEnv(envWith({ COOKIE_SAMESITE: "strict" }));
+
+    expect(config.cookieSameSite).toBe("strict");
+  });
+
+  it("reads 'lax' explicitly", () => {
+    const config: BffConfig = loadBffConfigFromEnv(envWith({ COOKIE_SAMESITE: "lax" }));
+
+    expect(config.cookieSameSite).toBe("lax");
+  });
+
+  it("tolerates mixed case and surrounding whitespace", () => {
+    expect(loadBffConfigFromEnv(envWith({ COOKIE_SAMESITE: " Strict " })).cookieSameSite).toBe(
+      "strict",
+    );
+    expect(loadBffConfigFromEnv(envWith({ COOKIE_SAMESITE: "LAX" })).cookieSameSite).toBe("lax");
+  });
+
+  it("throws on an unrecognized value instead of silently falling back", () => {
+    expect(() => loadBffConfigFromEnv(envWith({ COOKIE_SAMESITE: "garbage" }))).toThrow(
+      /COOKIE_SAMESITE/,
+    );
+  });
+
+  it("rejects 'none' — the BFF is same-origin and must never offer it", () => {
+    expect(() => loadBffConfigFromEnv(envWith({ COOKIE_SAMESITE: "none" }))).toThrow(
+      /COOKIE_SAMESITE/,
+    );
+  });
+});
+
 /**
  * Env-contract fail-fast (Wallow-pu6a.3.7).
  *

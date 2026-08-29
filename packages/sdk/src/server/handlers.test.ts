@@ -1748,3 +1748,56 @@ describe("callback sid capture", () => {
     expect(session?.sid).toBeUndefined();
   });
 });
+
+/**
+ * The `COOKIE_SAMESITE` hardening knob (RFC 10017 §6.1.3.2): `strict` moves the
+ * session and CSRF cookies to `SameSite=Strict`, while the login-transaction
+ * cookie is pinned `Lax` — it has to ride the cross-site top-level redirect
+ * back from the IdP, or `state` validation would reject every login.
+ */
+describe("cookieSameSite", () => {
+  it("defaults the session and CSRF cookies to SameSite=Lax", async () => {
+    const config: BffConfig = makeConfig("https://samesite-default.example.com");
+
+    const { res } = await completeCallback(config);
+
+    expect(res.status).toBe(302);
+    expect(attributeValue(setCookieFor(res, "wallow_bff") ?? "", "SameSite")).toBe("Lax");
+    expect(attributeValue(setCookieFor(res, "wallow_bff-csrf") ?? "", "SameSite")).toBe("Lax");
+  });
+
+  it("writes the session and CSRF cookies SameSite=Strict when configured", async () => {
+    const config: BffConfig = makeConfig("https://samesite-strict.example.com", {
+      cookieSameSite: "strict",
+    });
+
+    const { res } = await completeCallback(config);
+
+    expect(res.status).toBe(302);
+    expect(attributeValue(setCookieFor(res, "wallow_bff") ?? "", "SameSite")).toBe("Strict");
+    expect(attributeValue(setCookieFor(res, "wallow_bff-csrf") ?? "", "SameSite")).toBe("Strict");
+  });
+
+  it("keeps the tx cookie SameSite=Lax even under a strict configuration", async () => {
+    const config: BffConfig = makeConfig("https://samesite-tx.example.com", {
+      cookieSameSite: "strict",
+    });
+    const doc: DiscoveryDoc = makeDoc(config.issuer);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async (): Promise<DiscoveryDoc> => doc,
+      }),
+    );
+    const handle = makeHandle(createBffHandlers(config));
+
+    const res: Response = await handle(new Request("http://localhost/bff/login"));
+
+    expect(res.status).toBe(302);
+    const txCookie: string | undefined = setCookieFor(res, "wallow_bff_tx");
+    expect(txCookie).toBeDefined();
+    expect(attributeValue(txCookie ?? "", "SameSite")).toBe("Lax");
+  });
+});

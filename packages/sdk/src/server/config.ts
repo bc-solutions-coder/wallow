@@ -31,6 +31,15 @@ export interface CookiePasswordSet {
 export type CookieSecret = string | CookiePasswordSet;
 
 /**
+ * `SameSite` values the BFF will write on its session and CSRF cookies.
+ *
+ * `"none"` is deliberately absent: the BFF is a same-origin pattern (RFC 10017
+ * §6.1) whose cookies never need to accompany cross-site subresource requests,
+ * so offering `None` would only weaken deployments that reach for it.
+ */
+export type BffCookieSameSite = "lax" | "strict";
+
+/**
  * Key ID used when only the single `COOKIE_PASSWORD` is configured.
  *
  * The value is load-bearing and cannot be an arbitrary label like `"1"`:
@@ -106,6 +115,24 @@ export interface BffConfig {
    * development. Defaults to `true`.
    */
   cookieSecure: boolean;
+  /**
+   * `SameSite` attribute written on the session and CSRF cookies. Read from
+   * `COOKIE_SAMESITE`; defaults to `"lax"`.
+   *
+   * `"lax"` is what lets the first document request after the cross-site
+   * login redirect chain carry the fresh session. `"strict"` is the RFC 10017
+   * §6.1.3.2 hardening knob for apps that tolerate that first navigation
+   * arriving cookie-less (an SPA shell that bootstraps through same-origin
+   * `/bff/user` does; a server-rendered page that needs the session on the
+   * post-login document request does not). The login *transaction* cookie is
+   * always `Lax` regardless: it must ride the cross-site callback redirect
+   * from the IdP, or `state` validation would reject every login.
+   *
+   * Optional for the same reason as {@link cookiePasswords}: `BffConfig` is
+   * public API a fork may build by hand, and use sites treat `undefined` as
+   * `"lax"`.
+   */
+  cookieSameSite?: BffCookieSameSite;
 }
 
 /** Session cookie lifetime used when `SESSION_TTL_SECONDS` is not set: 24 hours. */
@@ -249,7 +276,7 @@ function defaultCookieName(hostPrefixRaw: string, cookieSecure: boolean): string
  * `OIDC_CLIENT_SECRET`, `OIDC_REDIRECT_URI`, `OIDC_POST_LOGOUT_REDIRECT_URI`,
  * `BFF_API_BASE_URL`, `COOKIE_PASSWORD`. `OIDC_SCOPES` (space-separated),
  * `COOKIE_NAME`, `OIDC_METADATA_URL`, `SESSION_TTL_SECONDS`, `COOKIE_SECURE`,
- * and `COOKIE_HOST_PREFIX` are optional with defaults.
+ * `COOKIE_SAMESITE`, and `COOKIE_HOST_PREFIX` are optional with defaults.
  *
  * `COOKIE_PASSWORD` must also be at least 32 characters — the minimum
  * iron-webcrypto seals a session with — so a too-short secret fails here at
@@ -264,8 +291,9 @@ function defaultCookieName(hostPrefixRaw: string, cookieSecure: boolean): string
  * wrapped under {@link DEFAULT_COOKIE_KEY_ID}, so both paths produce the same
  * shape.
  *
- * A malformed `SESSION_TTL_SECONDS` throws rather than silently falling back to
- * the default, so a startup misconfiguration fails loudly. `COOKIE_SECURE` and
+ * A malformed `SESSION_TTL_SECONDS` or `COOKIE_SAMESITE` throws rather than
+ * silently falling back to the default, so a startup misconfiguration fails
+ * loudly. `COOKIE_SECURE` and
  * `COOKIE_HOST_PREFIX` instead fail secure: only the literal `false` clears
  * the flag. A non-empty `COOKIE_NAME` is taken verbatim and never prefixed; an
  * empty or whitespace-only one counts as unset, so passing the variable through
@@ -339,6 +367,15 @@ export function loadBffConfigFromEnv(env: NodeJS.ProcessEnv = process.env): BffC
     }
   }
 
+  const sameSiteRaw: string = (env.COOKIE_SAMESITE ?? "").trim().toLowerCase();
+  if (sameSiteRaw !== "" && sameSiteRaw !== "lax" && sameSiteRaw !== "strict") {
+    // "none" is rejected on purpose, not forgotten — see BffCookieSameSite.
+    problems.push(
+      `Invalid environment variable COOKIE_SAMESITE: expected "lax" or "strict", got "${(env.COOKIE_SAMESITE ?? "").trim()}"`,
+    );
+  }
+  const cookieSameSite: BffCookieSameSite = sameSiteRaw === "strict" ? "strict" : "lax";
+
   if (problems.length !== NO_PROBLEMS) {
     throw new Error(`Invalid BFF environment configuration:\n  - ${problems.join("\n  - ")}`);
   }
@@ -378,5 +415,6 @@ export function loadBffConfigFromEnv(env: NodeJS.ProcessEnv = process.env): BffC
         : undefined,
     sessionTtlSeconds,
     cookieSecure,
+    cookieSameSite,
   };
 }
