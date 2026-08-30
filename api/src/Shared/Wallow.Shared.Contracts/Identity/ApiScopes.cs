@@ -52,16 +52,9 @@ public static class ApiScopes
         "webhooks.manage"
     };
 
-    public static readonly IReadOnlySet<string> DeveloperAppScopes = new HashSet<string>
-    {
-        "inquiries.read",
-        "inquiries.write",
-        "announcements.read",
-        "storage.read"
-    };
-
     // The OIDC login scopes docs/integrations/bff-pattern.md instructs integrators to request.
-    // A self-service app may request these in addition to DeveloperAppScopes.
+    // Always grantable to an organization-registered application; API scopes are opt-in and
+    // gated by the scope catalog.
     public static readonly IReadOnlySet<string> LoginScopes = new HashSet<string>
     {
         "openid",

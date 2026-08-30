@@ -20,7 +20,7 @@ const UNAUTHENTICATED_STATUS = 401;
  *
  * The journey traced in the routing audit:
  *   1. wallow-web's home "Get Started" link targets
- *      `/bff/login?returnTo=/dashboard/apps` (src/routes/index.tsx). Both tests
+ *      `/bff/login?returnTo=/dashboard/my-organizations` (src/routes/index.tsx). Both tests
  *      enter through that endpoint rather than clicking through `/`, because
  *      `/`'s `beforeLoad` shares the SSR defect noted below; the href IS the home
  *      page's Get Started contract.
@@ -30,19 +30,19 @@ const UNAUTHENTICATED_STATUS = 401;
  *   3. Password login succeeds; the same-origin exchange-ticket proxy sets the
  *      API auth cookie, the flow re-enters authorize (now authenticated), an OIDC
  *      code is issued, wallow-web's `/bff/callback` exchanges it for tokens, and
- *      the browser lands back on the original `returnTo` (`/dashboard/apps`) with
+ *      the browser lands back on the original `returnTo` (`/dashboard/my-organizations`) with
  *      an authenticated wallow-web BFF session.
  *
- * ASSERTING THE AUTHENTICATED STATE via `dashboard-apps`:
- *   The final signal is the dashboard's own `data-testid="dashboard-apps"`,
- *   rendered by the authenticated `/dashboard/apps` route. Reaching it through the
+ * ASSERTING THE AUTHENTICATED STATE via `dashboard-my-organizations`:
+ *   The final signal is the dashboard's own `data-testid="dashboard-my-organizations"`,
+ *   rendered by the authenticated `/dashboard/my-organizations` route. Reaching it through the
  *   real redirect (a full-page load) exercises the SSR fix from Wallow-cqoa: the
- *   `/dashboard` route's `beforeLoad` and the apps loader both run server-side, so
+ *   `/dashboard` route's `beforeLoad` and the page's loader both run server-side, so
  *   `getWallowSdk()` now points the BFF client at the request's absolute origin
  *   and forwards the session cookie during SSR (Node's fetch has no cookie jar and
  *   cannot parse a relative URL). Before that fix the dashboard rendered an error
  *   boundary ("Failed to parse URL from /bff/user"); it now hydrates the signed-in
- *   apps list. This is the strengthened assertion the earlier `/bff-demo`
+ *   organizations page. This is the strengthened assertion the earlier `/bff-demo`
  *   `bff-user-status` stand-in was a placeholder for.
  */
 /**
@@ -82,10 +82,10 @@ async function signInAndLandOn(page: Page, returnTo: string): Promise<void> {
 test("cross-app login journey establishes an authenticated wallow-web session", async ({
   page,
 }) => {
-  await signInAndLandOn(page, "/dashboard/apps");
+  await signInAndLandOn(page, "/dashboard/my-organizations");
 
-  // The `dashboard-apps` signal described in the header block above.
-  await expect(page.getByTestId("dashboard-apps")).toBeVisible({ timeout: 15_000 });
+  // The `dashboard-my-organizations` signal described in the header block above.
+  await expect(page.getByTestId("dashboard-my-organizations")).toBeVisible({ timeout: 15_000 });
 });
 
 /**

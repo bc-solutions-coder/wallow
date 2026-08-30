@@ -115,7 +115,7 @@ intrinsic anchor or onto a router `Link`:
 
 ```tsx
 <Button render={<a href="/terms" />}>Terms</Button>
-<Button render={<Link to="/dashboard/apps" />}>Register an app</Button>
+<Button render={<Link to="/dashboard/organizations" />}>Browse organizations</Button>
 ```
 
 **Do not pass a `role` yourself.** Base UI's `useButton` merges `role="button"` onto every

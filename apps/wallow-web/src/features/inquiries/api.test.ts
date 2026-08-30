@@ -40,7 +40,9 @@ describe("inquiries invalidation", () => {
   });
 
   it("leaves another feature's queries alone", () => {
-    expect(sweeps(api.queriesWithTag("Inquiries"), query.appsGetUserAppsQueryKey())).toBe(false);
+    expect(sweeps(api.queriesWithTag("Inquiries"), query.organizationsGetAllQueryKey())).toBe(
+      false,
+    );
   });
 
   it("reaches an inquiry's comments by operation", () => {

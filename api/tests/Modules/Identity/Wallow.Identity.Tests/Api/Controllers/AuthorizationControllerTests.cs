@@ -11,7 +11,6 @@ using Microsoft.Extensions.Primitives;
 using OpenIddict.Abstractions;
 using OpenIddict.Server;
 using OpenIddict.Server.AspNetCore;
-using static OpenIddict.Abstractions.OpenIddictConstants;
 using Wallow.Identity.Api.Controllers;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Helpers;
@@ -19,6 +18,7 @@ using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Shared.Contracts.Identity;
 using Wallow.Shared.Kernel.Extensions;
+using static OpenIddict.Abstractions.OpenIddictConstants;
 
 #pragma warning disable CA2012 // Use ValueTasks correctly - NSubstitute requires ValueTask in Returns()
 

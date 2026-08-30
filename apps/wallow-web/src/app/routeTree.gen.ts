@@ -18,8 +18,6 @@ import { Route as BffSplatRouteImport } from './routes/bff/$'
 import { Route as BffLogsRouteImport } from './routes/bff/logs'
 import { Route as DashboardMyOrganizationsRouteImport } from './routes/dashboard/my-organizations'
 import { Route as DashboardSettingsRouteImport } from './routes/dashboard/settings'
-import { Route as DashboardAppsIndexRouteImport } from './routes/dashboard/apps/index'
-import { Route as DashboardAppsRegisterRouteImport } from './routes/dashboard/apps/register'
 import { Route as DashboardInquiriesIndexRouteImport } from './routes/dashboard/inquiries/index'
 import { Route as DashboardInquiriesInquiryIdRouteImport } from './routes/dashboard/inquiries/$inquiryId'
 import { Route as DashboardOrganizationsIndexRouteImport } from './routes/dashboard/organizations/index'
@@ -74,16 +72,6 @@ const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => DashboardRouteRoute,
 } as any)
-const DashboardAppsIndexRoute = DashboardAppsIndexRouteImport.update({
-  id: '/apps/',
-  path: '/apps/',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
-const DashboardAppsRegisterRoute = DashboardAppsRegisterRouteImport.update({
-  id: '/apps/register',
-  path: '/apps/register',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
 const DashboardInquiriesIndexRoute = DashboardInquiriesIndexRouteImport.update({
   id: '/inquiries/',
   path: '/inquiries/',
@@ -136,10 +124,8 @@ export interface FileRoutesByFullPath {
   '/bff/logs': typeof BffLogsRoute
   '/dashboard/my-organizations': typeof DashboardMyOrganizationsRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
-  '/dashboard/apps/register': typeof DashboardAppsRegisterRoute
   '/dashboard/inquiries/$inquiryId': typeof DashboardInquiriesInquiryIdRoute
   '/dashboard/organizations/invitations': typeof DashboardOrganizationsInvitationsRoute
-  '/dashboard/apps/': typeof DashboardAppsIndexRoute
   '/dashboard/inquiries/': typeof DashboardInquiriesIndexRoute
   '/dashboard/organizations/': typeof DashboardOrganizationsIndexRoute
   '/dashboard/organizations/$orgId/members': typeof DashboardOrganizationsOrgIdMembersRoute
@@ -156,10 +142,8 @@ export interface FileRoutesByTo {
   '/bff/logs': typeof BffLogsRoute
   '/dashboard/my-organizations': typeof DashboardMyOrganizationsRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
-  '/dashboard/apps/register': typeof DashboardAppsRegisterRoute
   '/dashboard/inquiries/$inquiryId': typeof DashboardInquiriesInquiryIdRoute
   '/dashboard/organizations/invitations': typeof DashboardOrganizationsInvitationsRoute
-  '/dashboard/apps': typeof DashboardAppsIndexRoute
   '/dashboard/inquiries': typeof DashboardInquiriesIndexRoute
   '/dashboard/organizations': typeof DashboardOrganizationsIndexRoute
   '/dashboard/organizations/$orgId/members': typeof DashboardOrganizationsOrgIdMembersRoute
@@ -177,10 +161,8 @@ export interface FileRoutesById {
   '/bff/logs': typeof BffLogsRoute
   '/dashboard/my-organizations': typeof DashboardMyOrganizationsRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
-  '/dashboard/apps/register': typeof DashboardAppsRegisterRoute
   '/dashboard/inquiries/$inquiryId': typeof DashboardInquiriesInquiryIdRoute
   '/dashboard/organizations/invitations': typeof DashboardOrganizationsInvitationsRoute
-  '/dashboard/apps/': typeof DashboardAppsIndexRoute
   '/dashboard/inquiries/': typeof DashboardInquiriesIndexRoute
   '/dashboard/organizations/': typeof DashboardOrganizationsIndexRoute
   '/dashboard/organizations/$orgId/members': typeof DashboardOrganizationsOrgIdMembersRoute
@@ -199,10 +181,8 @@ export interface FileRouteTypes {
     | '/bff/logs'
     | '/dashboard/my-organizations'
     | '/dashboard/settings'
-    | '/dashboard/apps/register'
     | '/dashboard/inquiries/$inquiryId'
     | '/dashboard/organizations/invitations'
-    | '/dashboard/apps/'
     | '/dashboard/inquiries/'
     | '/dashboard/organizations/'
     | '/dashboard/organizations/$orgId/members'
@@ -219,10 +199,8 @@ export interface FileRouteTypes {
     | '/bff/logs'
     | '/dashboard/my-organizations'
     | '/dashboard/settings'
-    | '/dashboard/apps/register'
     | '/dashboard/inquiries/$inquiryId'
     | '/dashboard/organizations/invitations'
-    | '/dashboard/apps'
     | '/dashboard/inquiries'
     | '/dashboard/organizations'
     | '/dashboard/organizations/$orgId/members'
@@ -239,10 +217,8 @@ export interface FileRouteTypes {
     | '/bff/logs'
     | '/dashboard/my-organizations'
     | '/dashboard/settings'
-    | '/dashboard/apps/register'
     | '/dashboard/inquiries/$inquiryId'
     | '/dashboard/organizations/invitations'
-    | '/dashboard/apps/'
     | '/dashboard/inquiries/'
     | '/dashboard/organizations/'
     | '/dashboard/organizations/$orgId/members'
@@ -325,20 +301,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardSettingsRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
-    '/dashboard/apps/': {
-      id: '/dashboard/apps/'
-      path: '/apps'
-      fullPath: '/dashboard/apps/'
-      preLoaderRoute: typeof DashboardAppsIndexRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
-    '/dashboard/apps/register': {
-      id: '/dashboard/apps/register'
-      path: '/apps/register'
-      fullPath: '/dashboard/apps/register'
-      preLoaderRoute: typeof DashboardAppsRegisterRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
     '/dashboard/inquiries/': {
       id: '/dashboard/inquiries/'
       path: '/inquiries'
@@ -394,10 +356,8 @@ declare module '@tanstack/react-router' {
 interface DashboardRouteRouteChildren {
   DashboardMyOrganizationsRoute: typeof DashboardMyOrganizationsRoute
   DashboardSettingsRoute: typeof DashboardSettingsRoute
-  DashboardAppsRegisterRoute: typeof DashboardAppsRegisterRoute
   DashboardInquiriesInquiryIdRoute: typeof DashboardInquiriesInquiryIdRoute
   DashboardOrganizationsInvitationsRoute: typeof DashboardOrganizationsInvitationsRoute
-  DashboardAppsIndexRoute: typeof DashboardAppsIndexRoute
   DashboardInquiriesIndexRoute: typeof DashboardInquiriesIndexRoute
   DashboardOrganizationsIndexRoute: typeof DashboardOrganizationsIndexRoute
   DashboardOrganizationsOrgIdMembersRoute: typeof DashboardOrganizationsOrgIdMembersRoute
@@ -408,11 +368,9 @@ interface DashboardRouteRouteChildren {
 const DashboardRouteRouteChildren: DashboardRouteRouteChildren = {
   DashboardMyOrganizationsRoute: DashboardMyOrganizationsRoute,
   DashboardSettingsRoute: DashboardSettingsRoute,
-  DashboardAppsRegisterRoute: DashboardAppsRegisterRoute,
   DashboardInquiriesInquiryIdRoute: DashboardInquiriesInquiryIdRoute,
   DashboardOrganizationsInvitationsRoute:
     DashboardOrganizationsInvitationsRoute,
-  DashboardAppsIndexRoute: DashboardAppsIndexRoute,
   DashboardInquiriesIndexRoute: DashboardInquiriesIndexRoute,
   DashboardOrganizationsIndexRoute: DashboardOrganizationsIndexRoute,
   DashboardOrganizationsOrgIdMembersRoute:

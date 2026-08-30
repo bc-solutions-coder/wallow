@@ -1,4 +1,4 @@
-/** The organizations feature's public contract. See `features/apps/index.ts`. */
+/** The organizations feature's public contract. See `docs/development/frontend-setup.md`. */
 // `MemberList` is deliberately absent: only `OrganizationDetail` mounts it.
 export {
   invitationsGetByTenantOptions,

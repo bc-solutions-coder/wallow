@@ -1,4 +1,4 @@
-/** The MFA feature's public contract. See `features/apps/index.ts`. */
+/** The MFA feature's public contract. See `docs/development/frontend-setup.md`. */
 // `MfaEnrollFlow` is deliberately absent: no route mounts it, only
 // `MfaSettingsSection` does, so it stays internal.
 export { mfaGetStatusOptions } from "./api";

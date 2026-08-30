@@ -111,8 +111,8 @@ Three things follow that are easy to get wrong:
 - **Server-only modules live in `app/`, never `shared/`.** `bff.ts` pulls in `node:crypto`
   and `openid-client`; the DAG is what keeps that out of the client graph, and `shared/` is
   reachable from everywhere by definition.
-- **A feature is reachable only through its `index.ts` barrel** — `@features/apps` is the
-  contract, `@features/apps/components/AppList` reaches around it.
+- **A feature is reachable only through its `index.ts` barrel** — `@features/organizations` is the
+  contract, `@features/organizations/components/OrganizationList` reaches around it.
 - **`shared/` is not a junk drawer.** Promotion into it is a
   decision: when two features need the same *behaviour*, the first answer is that the route
   composes both features. Promote only genuinely presentational, feature-agnostic pieces, and

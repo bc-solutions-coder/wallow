@@ -18,6 +18,7 @@ using Wallow.Identity.Application.Queries.IsSetupRequired;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Data;
+using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Shared.Contracts.ApiKeys;
 using Wallow.Shared.Contracts.Identity;
 using Wallow.Shared.Kernel.Identity;
@@ -242,6 +243,7 @@ public class WallowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
             // Seed roles and bootstrap admin at test startup so SetupMiddleware does not return 503.
             // SeederService runs this in production; in tests we replicate it inline.
+            services.AddScoped<ApiScopeSeeder>();
             services.AddHostedService<TestSeedHostedService>();
         });
     }
@@ -262,6 +264,11 @@ public class WallowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
             DefaultRoleSeeder roleSeeder = sp.GetRequiredService<DefaultRoleSeeder>();
             await roleSeeder.SeedAsync();
+
+            // The scope catalog is what the org-scoped client surface validates requested scopes
+            // against; production seeds it from api/seed.json, the test host from the same defaults.
+            ApiScopeSeeder scopeSeeder = sp.GetRequiredService<ApiScopeSeeder>();
+            await scopeSeeder.SeedAsync(sp.GetRequiredService<IdentityDbContext>(), cancellationToken);
 
             string? email = configuration["AdminBootstrap:Email"];
             string? password = configuration["AdminBootstrap:Password"];

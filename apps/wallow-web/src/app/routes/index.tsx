@@ -16,7 +16,7 @@ import { LandingPage } from "@features/landing";
  *
  * The `beforeLoad` gate:
  *   - an AUTHENTICATED visitor is redirected to the dashboard
- *     (`/dashboard/apps`) via a TanStack `redirect`,
+ *     (`/dashboard/my-organizations`) via a TanStack `redirect`,
  *   - an unauthenticated visitor is shown the marketing page only when
  *     `forkBranding.landingPage.enabled`,
  *   - otherwise a thrown TanStack `redirect()` sends them to the BFF login (a
@@ -54,11 +54,13 @@ export const Route = createFileRoute("/")({
     if (user !== null) {
       // TanStack stores the target under `.options.to`; also surface `to` at the
       // top level so it reads directly off the thrown redirect.
-      throw Object.assign(redirect({ to: "/dashboard/apps" }), { to: "/dashboard/apps" });
+      throw Object.assign(redirect({ to: "/dashboard/my-organizations" }), {
+        to: "/dashboard/my-organizations",
+      });
     }
     if (!forkBranding.landingPage.enabled) {
       throw redirect({
-        href: "/bff/login?returnTo=%2Fdashboard%2Fapps",
+        href: "/bff/login?returnTo=%2Fdashboard%2Fmy-organizations",
         reloadDocument: true,
       });
     }

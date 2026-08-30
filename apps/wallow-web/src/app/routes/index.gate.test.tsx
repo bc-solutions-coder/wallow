@@ -10,7 +10,7 @@ import { Route } from "./index";
 
 /**
  * The public-home `beforeLoad` gate: an authenticated visitor is redirected to
- * `/dashboard/apps`, an unauthenticated one sees the marketing page when the
+ * `/dashboard/my-organizations`, an unauthenticated one sees the marketing page when the
  * landing-page flag is enabled, and is sent to the BFF login when it is not.
  *
  * The gate reads the user through the router-context QueryClient, using the
@@ -140,7 +140,7 @@ describe("routes/index (public-home gate)", () => {
     const thrown: unknown = await captureThrow(null);
 
     assertRedirect(thrown);
-    expect(thrown.options.href).toBe("/bff/login?returnTo=%2Fdashboard%2Fapps");
+    expect(thrown.options.href).toBe("/bff/login?returnTo=%2Fdashboard%2Fmy-organizations");
   });
 });
 

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Wallow.Identity.Application.Helpers;
 
 namespace Wallow.Identity.Infrastructure.Options;
 
@@ -94,6 +95,18 @@ public sealed class PreRegisteredClientOptions
                 "Pre-registered client(s) " + string.Join(", ", silentlyPublic) + " have no secret and do not declare "
                 + "\"public\": true. A missing secret never implies a public client: declare \"public\": true for "
                 + "browser/native clients, or supply the secret for confidential ones.");
+        }
+
+        List<string> badRedirects = Clients
+            .Where(c => ClientUriRules.FirstRefusedRedirect([.. c.RedirectUris, .. c.PostLogoutRedirectUris]) is not null)
+            .Select(c => c.ClientId + " (" + ClientUriRules.FirstRefusedRedirect([.. c.RedirectUris, .. c.PostLogoutRedirectUris]) + ")")
+            .ToList();
+
+        if (badRedirects.Count > 0)
+        {
+            throw new InvalidOperationException(
+                "Pre-registered client(s) " + string.Join(", ", badRedirects) + " register a redirect URI the "
+                + "platform refuses. " + ClientUriRules.RedirectUriError);
         }
 
         List<string> problems = [];

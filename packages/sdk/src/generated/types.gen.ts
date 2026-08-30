@@ -116,16 +116,11 @@ export type ApiScopeDto = {
     category: string;
     description: null | string;
     isDefault: boolean;
+    platformOnly: boolean;
 };
 
 export type ApiScopeId = {
     value?: string;
-};
-
-export type AppRegistrationResponse = {
-    clientId: string;
-    clientSecret: string;
-    registrationAccessToken: string;
 };
 
 export type AssignRoleRequest = {
@@ -284,7 +279,6 @@ export type CreateClientRequest = {
     name: string;
     redirectUris: Array<string>;
     postLogoutRedirectUris: Array<string>;
-    tenantId?: null | string;
     scopes?: null | Array<string>;
     frontchannelLogoutUri?: null | string;
 };
@@ -327,14 +321,6 @@ export type CurrentUserResponse = {
 
 export type DeleteOrganizationRequest = {
     confirmName: string;
-};
-
-export type DeveloperAppResponse = {
-    clientId: string;
-    displayName: string;
-    clientType: string;
-    redirectUris: Array<string>;
-    createdAt: null | string;
 };
 
 export type DeviceRegistrationResponse = {
@@ -516,6 +502,37 @@ export type OrganizationBrandingResponse = {
     accentColor: null | string;
 };
 
+/**
+ * The one-time registration reveal: the client secret is returned here and never again, and the
+ * issuer and API base URL are what the application's environment must point at.
+ */
+export type OrganizationClientRegistrationResponse = {
+    client: OrganizationClientResponse;
+    clientSecret: string;
+    issuer: string;
+    apiBaseUrl: string;
+};
+
+export type OrganizationClientResponse = {
+    clientId: string;
+    name: string;
+    /**
+     * `application` or `service-account`.
+     */
+    kind: string;
+    /**
+     * `active` or `suspended`.
+     */
+    status: string;
+    redirectUris: Array<string>;
+    postLogoutRedirectUris: Array<string>;
+    backchannelLogoutUri?: null | string;
+    scopes: Array<string>;
+    createdByUserId: string;
+    createdAt: string;
+    lastUsedAt?: null | string;
+};
+
 export type OrganizationDto = {
     id: string;
     name: string;
@@ -617,17 +634,25 @@ export type RedirectUriValidationResponse = {
     allowed: boolean;
 };
 
-export type RegisterAppRequest = {
-    clientName: string;
-    requestedScopes: Array<string>;
-    clientType?: null | string;
-    redirectUris?: null | Array<string>;
-    postLogoutRedirectUris?: null | Array<string>;
-};
-
 export type RegisterDeviceRequest = {
     platform: PushPlatform;
     token: string;
+};
+
+/**
+ * Registers a client on behalf of an organization. `Kind` is `application` for a
+ * developer application a person signs in to (the only kind this surface registers today) or
+ * `service-account`. Name and the derived client id are immutable once registered. Redirect
+ * URIs must be absolute, fragment-free, and https or http://localhost; at least one redirect URI
+ * and one scope are required.
+ */
+export type RegisterOrganizationClientRequest = {
+    kind: string;
+    name: string;
+    redirectUris: Array<string>;
+    postLogoutRedirectUris: Array<string>;
+    scopes: Array<string>;
+    backchannelLogoutUri?: null | string;
 };
 
 export type ResolvedSetting = {
@@ -812,6 +837,17 @@ export type UpdateOrganizationBrandingRequest = {
 };
 
 /**
+ * Everything about a client its organization may change after registration. Name and client id
+ * are immutable and deliberately absent.
+ */
+export type UpdateOrganizationClientRequest = {
+    redirectUris: Array<string>;
+    postLogoutRedirectUris: Array<string>;
+    scopes: Array<string>;
+    backchannelLogoutUri?: null | string;
+};
+
+/**
  * Who may join an organization and on what terms. Separate from
  * UpdateOrganizationSettingsRequest because these fields are gated on the right to
  * manage members, not the right to edit settings.
@@ -858,6 +894,17 @@ export type UserDto = {
 export type UserNotificationSettingsResponse = {
     userId: string;
     channelSettings: Array<ChannelSettingResponse>;
+};
+
+export type ValidationProblemDetails = {
+    type?: null | string;
+    title?: null | string;
+    status?: null | number | string;
+    detail?: null | string;
+    instance?: null | string;
+    errors?: {
+        [key: string]: Array<string>;
+    };
 };
 
 export type VerifyOtpRequest = {
@@ -1632,74 +1679,6 @@ export type AccountConfirmEmailChangeResponses = {
 
 export type AccountConfirmEmailChangeResponse = AccountConfirmEmailChangeResponses[keyof AccountConfirmEmailChangeResponses];
 
-export type AppsRegisterData = {
-    body: RegisterAppRequest;
-    path?: never;
-    query?: never;
-    url: '/v1/identity/apps/register';
-};
-
-export type AppsRegisterErrors = {
-    /**
-     * Bad Request
-     */
-    400: ProblemDetails;
-};
-
-export type AppsRegisterError = AppsRegisterErrors[keyof AppsRegisterErrors];
-
-export type AppsRegisterResponses = {
-    /**
-     * Created
-     */
-    201: AppRegistrationResponse;
-};
-
-export type AppsRegisterResponse = AppsRegisterResponses[keyof AppsRegisterResponses];
-
-export type AppsGetUserAppsData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/v1/identity/apps';
-};
-
-export type AppsGetUserAppsResponses = {
-    /**
-     * OK
-     */
-    200: Array<DeveloperAppResponse>;
-};
-
-export type AppsGetUserAppsResponse = AppsGetUserAppsResponses[keyof AppsGetUserAppsResponses];
-
-export type AppsGetUserAppData = {
-    body?: never;
-    path: {
-        clientId: string;
-    };
-    query?: never;
-    url: '/v1/identity/apps/{clientId}';
-};
-
-export type AppsGetUserAppErrors = {
-    /**
-     * Not Found
-     */
-    404: ProblemDetails;
-};
-
-export type AppsGetUserAppError = AppsGetUserAppErrors[keyof AppsGetUserAppErrors];
-
-export type AppsGetUserAppResponses = {
-    /**
-     * OK
-     */
-    200: DeveloperAppResponse;
-};
-
-export type AppsGetUserAppResponse = AppsGetUserAppResponses[keyof AppsGetUserAppResponses];
-
 export type AppsGetConsentInfoData = {
     body?: never;
     path: {
@@ -1757,10 +1736,6 @@ export type ClientsCreateErrors = {
      * Bad Request
      */
     400: ProblemDetails;
-    /**
-     * Forbidden
-     */
-    403: ProblemDetails;
 };
 
 export type ClientsCreateError = ClientsCreateErrors[keyof ClientsCreateErrors];
@@ -1852,33 +1827,6 @@ export type ClientsUpdateResponses = {
 };
 
 export type ClientsUpdateResponse = ClientsUpdateResponses[keyof ClientsUpdateResponses];
-
-export type ClientsGetByTenantData = {
-    body?: never;
-    path: {
-        tenantId: string;
-    };
-    query?: never;
-    url: '/v1/identity/clients/by-tenant/{tenantId}';
-};
-
-export type ClientsGetByTenantErrors = {
-    /**
-     * Forbidden
-     */
-    403: ProblemDetails;
-};
-
-export type ClientsGetByTenantError = ClientsGetByTenantErrors[keyof ClientsGetByTenantErrors];
-
-export type ClientsGetByTenantResponses = {
-    /**
-     * OK
-     */
-    200: Array<ClientResponse>;
-};
-
-export type ClientsGetByTenantResponse = ClientsGetByTenantResponses[keyof ClientsGetByTenantResponses];
 
 export type ClientsRotateSecretData = {
     body?: never;
@@ -2477,6 +2425,158 @@ export type MfaExchangeEnrollmentTokenResponses = {
 };
 
 export type MfaExchangeEnrollmentTokenResponse = MfaExchangeEnrollmentTokenResponses[keyof MfaExchangeEnrollmentTokenResponses];
+
+export type OrganizationClientsListData = {
+    body?: never;
+    path: {
+        orgId: string;
+    };
+    query?: never;
+    url: '/v1/identity/organizations/{orgId}/clients';
+};
+
+export type OrganizationClientsListErrors = {
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+};
+
+export type OrganizationClientsListError = OrganizationClientsListErrors[keyof OrganizationClientsListErrors];
+
+export type OrganizationClientsListResponses = {
+    /**
+     * OK
+     */
+    200: Array<OrganizationClientResponse>;
+};
+
+export type OrganizationClientsListResponse = OrganizationClientsListResponses[keyof OrganizationClientsListResponses];
+
+export type OrganizationClientsRegisterData = {
+    body: RegisterOrganizationClientRequest;
+    path: {
+        orgId: string;
+    };
+    query?: never;
+    url: '/v1/identity/organizations/{orgId}/clients';
+};
+
+export type OrganizationClientsRegisterErrors = {
+    /**
+     * Bad Request
+     */
+    400: ValidationProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Unprocessable Entity
+     */
+    422: ProblemDetails;
+};
+
+export type OrganizationClientsRegisterError = OrganizationClientsRegisterErrors[keyof OrganizationClientsRegisterErrors];
+
+export type OrganizationClientsRegisterResponses = {
+    /**
+     * Created
+     */
+    201: OrganizationClientRegistrationResponse;
+};
+
+export type OrganizationClientsRegisterResponse = OrganizationClientsRegisterResponses[keyof OrganizationClientsRegisterResponses];
+
+export type OrganizationClientsDeleteData = {
+    body?: never;
+    path: {
+        orgId: string;
+        clientId: string;
+    };
+    query?: never;
+    url: '/v1/identity/organizations/{orgId}/clients/{clientId}';
+};
+
+export type OrganizationClientsDeleteErrors = {
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+};
+
+export type OrganizationClientsDeleteError = OrganizationClientsDeleteErrors[keyof OrganizationClientsDeleteErrors];
+
+export type OrganizationClientsDeleteResponses = {
+    /**
+     * No Content
+     */
+    204: unknown;
+};
+
+export type OrganizationClientsGetByIdData = {
+    body?: never;
+    path: {
+        orgId: string;
+        clientId: string;
+    };
+    query?: never;
+    url: '/v1/identity/organizations/{orgId}/clients/{clientId}';
+};
+
+export type OrganizationClientsGetByIdErrors = {
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+};
+
+export type OrganizationClientsGetByIdError = OrganizationClientsGetByIdErrors[keyof OrganizationClientsGetByIdErrors];
+
+export type OrganizationClientsGetByIdResponses = {
+    /**
+     * OK
+     */
+    200: OrganizationClientResponse;
+};
+
+export type OrganizationClientsGetByIdResponse = OrganizationClientsGetByIdResponses[keyof OrganizationClientsGetByIdResponses];
+
+export type OrganizationClientsUpdateData = {
+    body: UpdateOrganizationClientRequest;
+    path: {
+        orgId: string;
+        clientId: string;
+    };
+    query?: never;
+    url: '/v1/identity/organizations/{orgId}/clients/{clientId}';
+};
+
+export type OrganizationClientsUpdateErrors = {
+    /**
+     * Bad Request
+     */
+    400: ValidationProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Unprocessable Entity
+     */
+    422: ProblemDetails;
+};
+
+export type OrganizationClientsUpdateError = OrganizationClientsUpdateErrors[keyof OrganizationClientsUpdateErrors];
+
+export type OrganizationClientsUpdateResponses = {
+    /**
+     * OK
+     */
+    200: OrganizationClientResponse;
+};
+
+export type OrganizationClientsUpdateResponse = OrganizationClientsUpdateResponses[keyof OrganizationClientsUpdateResponses];
 
 export type OrganizationsGetAllData = {
     body?: never;

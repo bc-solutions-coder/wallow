@@ -20,7 +20,8 @@ public sealed class GetApiScopesHandler(IApiScopeRepository apiScopeRepository)
                 s.DisplayName,
                 s.Category,
                 s.Description,
-                s.IsDefault))
+                s.IsDefault,
+                s.PlatformOnly))
             .ToList();
 
         return Result.Success<IReadOnlyList<ApiScopeDto>>(dtos);

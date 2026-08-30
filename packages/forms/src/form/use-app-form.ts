@@ -110,7 +110,8 @@ export interface UseAppFormOptions<TValues, TVariables, TData, TError = unknown>
    * `TError` is inferred from whatever is handed over, which is the only way the
    * generated factories can be accepted at all: each operation carries its own
    * error type (`organizationsCreateMutation` is `DefaultError`,
-   * `appsRegisterMutation` is `AppsRegisterError`), and `TError` sits in the
+   * `organizationClientsRegisterMutation` is
+   * `OrganizationClientsRegisterError`), and `TError` sits in the
    * CONTRAVARIANT position of `UseMutationOptions`' optional
    * `onError`/`onSettled`/`retry` members — so a slot pinned to any one concrete
    * type (`unknown` included) rejects every factory that does not name exactly

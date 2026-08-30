@@ -18,7 +18,6 @@ const EXPECTED_IDS: readonly string[] = [
   "nav-organizations",
   "nav-invitations",
   "nav-my-organizations",
-  "nav-apps",
   "nav-settings",
   "nav-inquiries",
 ];

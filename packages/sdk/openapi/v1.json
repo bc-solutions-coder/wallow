@@ -1724,114 +1724,6 @@
         }
       }
     },
-    "/v1/identity/apps/register": {
-      "post": {
-        "tags": [
-          "Apps"
-        ],
-        "operationId": "AppsRegister",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RegisterAppRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/RegisterAppRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppRegistrationResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/identity/apps": {
-      "get": {
-        "tags": [
-          "Apps"
-        ],
-        "operationId": "AppsGetUserApps",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/DeveloperAppResponse"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/identity/apps/{clientId}": {
-      "get": {
-        "tags": [
-          "Apps"
-        ],
-        "operationId": "AppsGetUserApp",
-        "parameters": [
-          {
-            "name": "clientId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DeveloperAppResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/identity/apps/consent-info/{clientId}": {
       "get": {
         "tags": [
@@ -1934,16 +1826,6 @@
           },
           "400": {
             "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
             "content": {
               "application/json": {
                 "schema": {
@@ -2071,50 +1953,6 @@
           },
           "404": {
             "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/identity/clients/by-tenant/{tenantId}": {
-      "get": {
-        "tags": [
-          "Clients"
-        ],
-        "operationId": "ClientsGetByTenant",
-        "parameters": [
-          {
-            "name": "tenantId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ClientResponse"
-                  }
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
             "content": {
               "application/json": {
                 "schema": {
@@ -3214,6 +3052,303 @@
               "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MfaOperationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/identity/organizations/{orgId}/clients": {
+      "post": {
+        "tags": [
+          "Organization Clients"
+        ],
+        "summary": "Register a developer application for the organization. The response carries the client\nsecret exactly once.",
+        "operationId": "OrganizationClientsRegister",
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterOrganizationClientRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterOrganizationClientRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationClientRegistrationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Organization Clients"
+        ],
+        "summary": "List the clients the organization owns.",
+        "operationId": "OrganizationClientsList",
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OrganizationClientResponse"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/identity/organizations/{orgId}/clients/{clientId}": {
+      "get": {
+        "tags": [
+          "Organization Clients"
+        ],
+        "summary": "Get one of the organization's clients.",
+        "operationId": "OrganizationClientsGetById",
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationClientResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Organization Clients"
+        ],
+        "summary": "Replace a client's redirect URIs, logout URI and scopes. Name and client id are immutable.",
+        "operationId": "OrganizationClientsUpdate",
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrganizationClientRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrganizationClientRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationClientResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Organization Clients"
+        ],
+        "summary": "Delete one of the organization's clients.",
+        "operationId": "OrganizationClientsDelete",
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "content": {
+              "application/json": { }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -6883,7 +7018,8 @@
           "displayName",
           "category",
           "description",
-          "isDefault"
+          "isDefault",
+          "platformOnly"
         ],
         "type": "object",
         "properties": {
@@ -6907,6 +7043,9 @@
           },
           "isDefault": {
             "type": "boolean"
+          },
+          "platformOnly": {
+            "type": "boolean"
           }
         }
       },
@@ -6916,25 +7055,6 @@
           "value": {
             "type": "string",
             "format": "uuid"
-          }
-        }
-      },
-      "AppRegistrationResponse": {
-        "required": [
-          "clientId",
-          "clientSecret",
-          "registrationAccessToken"
-        ],
-        "type": "object",
-        "properties": {
-          "clientId": {
-            "type": "string"
-          },
-          "clientSecret": {
-            "type": "string"
-          },
-          "registrationAccessToken": {
-            "type": "string"
           }
         }
       },
@@ -7529,13 +7649,6 @@
               "type": "string"
             }
           },
-          "tenantId": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "uuid"
-          },
           "scopes": {
             "type": [
               "null",
@@ -7691,40 +7804,6 @@
         "properties": {
           "confirmName": {
             "type": "string"
-          }
-        }
-      },
-      "DeveloperAppResponse": {
-        "required": [
-          "clientId",
-          "displayName",
-          "clientType",
-          "redirectUris",
-          "createdAt"
-        ],
-        "type": "object",
-        "properties": {
-          "clientId": {
-            "type": "string"
-          },
-          "displayName": {
-            "type": "string"
-          },
-          "clientType": {
-            "type": "string"
-          },
-          "redirectUris": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "createdAt": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
           }
         }
       },
@@ -8275,6 +8354,99 @@
           }
         }
       },
+      "OrganizationClientRegistrationResponse": {
+        "required": [
+          "client",
+          "clientSecret",
+          "issuer",
+          "apiBaseUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "client": {
+            "$ref": "#/components/schemas/OrganizationClientResponse"
+          },
+          "clientSecret": {
+            "type": "string"
+          },
+          "issuer": {
+            "type": "string"
+          },
+          "apiBaseUrl": {
+            "type": "string"
+          }
+        },
+        "description": "The one-time registration reveal: the client secret is returned here and never again, and the\nissuer and API base URL are what the application's environment must point at."
+      },
+      "OrganizationClientResponse": {
+        "required": [
+          "clientId",
+          "name",
+          "kind",
+          "status",
+          "redirectUris",
+          "postLogoutRedirectUris",
+          "scopes",
+          "createdByUserId",
+          "createdAt"
+        ],
+        "type": "object",
+        "properties": {
+          "clientId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "description": "`application` or `service-account`."
+          },
+          "status": {
+            "type": "string",
+            "description": "`active` or `suspended`."
+          },
+          "redirectUris": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "postLogoutRedirectUris": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "backchannelLogoutUri": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdByUserId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastUsedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
       "OrganizationDto": {
         "required": [
           "id",
@@ -8694,48 +8866,6 @@
         },
         "description": "Whether a candidate post-login redirect URI is registered for the requesting client."
       },
-      "RegisterAppRequest": {
-        "required": [
-          "clientName",
-          "requestedScopes"
-        ],
-        "type": "object",
-        "properties": {
-          "clientName": {
-            "type": "string"
-          },
-          "requestedScopes": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "clientType": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "redirectUris": {
-            "type": [
-              "null",
-              "array"
-            ],
-            "items": {
-              "type": "string"
-            }
-          },
-          "postLogoutRedirectUris": {
-            "type": [
-              "null",
-              "array"
-            ],
-            "items": {
-              "type": "string"
-            }
-          }
-        }
-      },
       "RegisterDeviceRequest": {
         "required": [
           "platform",
@@ -8750,6 +8880,49 @@
             "type": "string"
           }
         }
+      },
+      "RegisterOrganizationClientRequest": {
+        "required": [
+          "kind",
+          "name",
+          "redirectUris",
+          "postLogoutRedirectUris",
+          "scopes"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "redirectUris": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "postLogoutRedirectUris": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "backchannelLogoutUri": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "Registers a client on behalf of an organization. `Kind` is `application` for a\ndeveloper application a person signs in to (the only kind this surface registers today) or\n`service-account`. Name and the derived client id are immutable once registered. Redirect\nURIs must be absolute, fragment-free, and https or http://localhost; at least one redirect URI\nand one scope are required."
       },
       "ResolvedSetting": {
         "required": [
@@ -9378,6 +9551,41 @@
           }
         }
       },
+      "UpdateOrganizationClientRequest": {
+        "required": [
+          "redirectUris",
+          "postLogoutRedirectUris",
+          "scopes"
+        ],
+        "type": "object",
+        "properties": {
+          "redirectUris": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "postLogoutRedirectUris": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "backchannelLogoutUri": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "Everything about a client its organization may change after registration. Name and client id\nare immutable and deliberately absent."
+      },
       "UpdateOrganizationEnrollmentRequest": {
         "required": [
           "enrollmentPolicy",
@@ -9564,6 +9772,53 @@
           }
         }
       },
+      "ValidationProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
       "VerifyOtpRequest": {
         "required": [
           "email",
@@ -9637,6 +9892,9 @@
     },
     {
       "name": "Mfa"
+    },
+    {
+      "name": "Organization Clients"
     },
     {
       "name": "Organizations"

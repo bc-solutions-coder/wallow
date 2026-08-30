@@ -53,4 +53,30 @@ public static class OpenIddictApplicationExtensions
 
         return null;
     }
+
+    /// <summary>Writes the back-channel logout URI; <see langword="null"/> removes it.</summary>
+    public static void SetBackchannelLogoutUri(this OpenIddictApplicationDescriptor descriptor, Uri? uri)
+    {
+        if (uri is null)
+        {
+            descriptor.Properties.Remove(ClientApplicationProperties.BackchannelLogoutUri);
+            return;
+        }
+
+        descriptor.Properties[ClientApplicationProperties.BackchannelLogoutUri] =
+            JsonSerializer.SerializeToElement(uri.AbsoluteUri);
+    }
+
+    public static Uri? GetBackchannelLogoutUri(this OpenIddictApplicationDescriptor descriptor)
+    {
+        if (descriptor.Properties.TryGetValue(
+                ClientApplicationProperties.BackchannelLogoutUri, out JsonElement element)
+            && element.GetString() is string value
+            && Uri.TryCreate(value, UriKind.Absolute, out Uri? uri))
+        {
+            return uri;
+        }
+
+        return null;
+    }
 }

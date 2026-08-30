@@ -2,27 +2,12 @@ using Wallow.Identity.Application.DTOs;
 
 namespace Wallow.Identity.Application.Interfaces;
 
+/// <summary>
+/// Describes a registered client to the consent screen. Registration itself lives on
+/// <see cref="IOrganizationClientService"/>.
+/// </summary>
 public interface IDeveloperAppService
 {
-    Task<DeveloperAppRegistrationResult> RegisterClientAsync(
-        string clientId,
-        string clientName,
-        IReadOnlyCollection<string> requestedScopes,
-        string? clientType = null,
-        IReadOnlyCollection<string>? redirectUris = null,
-        IReadOnlyCollection<string>? postLogoutRedirectUris = null,
-        string? creatorUserId = null,
-        CancellationToken cancellationToken = default);
-
-    Task<IReadOnlyList<DeveloperAppInfo>> GetUserAppsAsync(
-        string userId,
-        CancellationToken cancellationToken = default);
-
-    Task<DeveloperAppInfo?> GetUserAppAsync(
-        string userId,
-        string clientId,
-        CancellationToken cancellationToken = default);
-
     Task<ConsentInfoDto?> GetConsentInfoAsync(
         string clientId,
         IReadOnlyCollection<string> requestedScopes,

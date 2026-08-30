@@ -1,303 +1,66 @@
 #pragma warning disable CA2012 // Use ValueTasks correctly - NSubstitute requires ValueTask in Returns()
 
 using System.Text.Json;
-using Microsoft.Extensions.Logging.Abstractions;
 using OpenIddict.Abstractions;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Infrastructure.Services;
-using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace Wallow.Identity.Tests.Infrastructure;
 
 public class OpenIddictDeveloperAppServiceTests
 {
-    private readonly IOpenIddictApplicationManager _appManager;
-    private readonly IOpenIddictScopeManager _scopeManager;
+    private readonly IOpenIddictApplicationManager _appManager = Substitute.For<IOpenIddictApplicationManager>();
+    private readonly IOpenIddictScopeManager _scopeManager = Substitute.For<IOpenIddictScopeManager>();
     private readonly OpenIddictDeveloperAppService _sut;
 
     public OpenIddictDeveloperAppServiceTests()
     {
-        _appManager = Substitute.For<IOpenIddictApplicationManager>();
-        _scopeManager = Substitute.For<IOpenIddictScopeManager>();
-        _sut = new OpenIddictDeveloperAppService(_appManager, _scopeManager, NullLogger<OpenIddictDeveloperAppService>.Instance);
+        _sut = new OpenIddictDeveloperAppService(_appManager, _scopeManager);
     }
 
     [Fact]
-    public async Task RegisterClientAsync_Confidential_CreatesWithSecret()
+    public async Task GetConsentInfoAsync_UnknownClient_ReturnsNull()
     {
-        DeveloperAppRegistrationResult result = await _sut.RegisterClientAsync(
-            "app-test", "Test App", ["openid", "profile"],
-            clientType: ClientTypes.Confidential,
-            creatorUserId: "user-1");
+        _appManager.FindByClientIdAsync("missing", Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult<object?>(null));
 
-        result.ClientId.Should().Be("app-test");
-        result.ClientSecret.Should().NotBeNullOrEmpty();
-        result.RegistrationAccessToken.Should().Be(result.ClientSecret);
+        ConsentInfoDto? info = await _sut.GetConsentInfoAsync("missing", ["openid"]);
 
-        await _appManager.Received(1).CreateAsync(
-            Arg.Is<OpenIddictApplicationDescriptor>(d =>
-                d.ClientId == "app-test" &&
-                d.DisplayName == "Test App" &&
-                d.ClientType == ClientTypes.Confidential &&
-                d.ClientSecret != null &&
-                d.Permissions.Contains(Permissions.Prefixes.Scope + "openid") &&
-                d.Permissions.Contains(Permissions.Prefixes.Scope + "profile")),
-            Arg.Any<CancellationToken>());
+        info.Should().BeNull();
     }
 
     [Fact]
-    public async Task RegisterClientAsync_Public_CreatesWithoutSecret()
-    {
-        DeveloperAppRegistrationResult result = await _sut.RegisterClientAsync(
-            "app-public", "Public App", ["openid"],
-            clientType: ClientTypes.Public);
-
-        result.ClientId.Should().Be("app-public");
-
-        await _appManager.Received(1).CreateAsync(
-            Arg.Is<OpenIddictApplicationDescriptor>(d =>
-                d.ClientType == ClientTypes.Public &&
-                d.ClientSecret == null),
-            Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task RegisterClientAsync_WithRedirectUris_AddsAuthorizationCodeFlow()
-    {
-        await _sut.RegisterClientAsync(
-            "app-redir", "Redirect App", ["openid"],
-            redirectUris: ["https://app/callback", "https://app/callback2"]);
-
-        await _appManager.Received(1).CreateAsync(
-            Arg.Is<OpenIddictApplicationDescriptor>(d =>
-                d.Permissions.Contains(Permissions.Endpoints.Authorization) &&
-                d.Permissions.Contains(Permissions.GrantTypes.AuthorizationCode) &&
-                d.Permissions.Contains(Permissions.ResponseTypes.Code) &&
-                d.RedirectUris.Count == 2),
-            Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task RegisterClientAsync_NoRedirectUris_ClientCredentialsOnly()
-    {
-        await _sut.RegisterClientAsync(
-            "app-creds", "Creds App", ["openid"]);
-
-        await _appManager.Received(1).CreateAsync(
-            Arg.Is<OpenIddictApplicationDescriptor>(d =>
-                d.Permissions.Contains(Permissions.Endpoints.Token) &&
-                d.Permissions.Contains(Permissions.GrantTypes.ClientCredentials) &&
-                !d.Permissions.Contains(Permissions.Endpoints.Authorization)),
-            Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task RegisterClientAsync_WithPostLogoutRedirectUris_PopulatesDescriptor()
-    {
-        await _sut.RegisterClientAsync(
-            "app-logout", "Logout App", ["openid"],
-            redirectUris: ["https://app/callback"],
-            postLogoutRedirectUris: ["https://app/", "https://app/signed-out"]);
-
-        await _appManager.Received(1).CreateAsync(
-            Arg.Is<OpenIddictApplicationDescriptor>(d =>
-                d.PostLogoutRedirectUris.Count == 2 &&
-                d.PostLogoutRedirectUris.Contains(new Uri("https://app/")) &&
-                d.PostLogoutRedirectUris.Contains(new Uri("https://app/signed-out"))),
-            Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task RegisterClientAsync_WithRedirectAndPostLogoutUris_PopulatesBothCollections()
-    {
-        await _sut.RegisterClientAsync(
-            "app-bff", "BFF App", ["openid", "offline_access"],
-            redirectUris: ["https://app/callback"],
-            postLogoutRedirectUris: ["https://app/"]);
-
-        await _appManager.Received(1).CreateAsync(
-            Arg.Is<OpenIddictApplicationDescriptor>(d =>
-                d.RedirectUris.Count == 1 &&
-                d.RedirectUris.Contains(new Uri("https://app/callback")) &&
-                d.PostLogoutRedirectUris.Count == 1 &&
-                d.PostLogoutRedirectUris.Contains(new Uri("https://app/"))),
-            Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task RegisterClientAsync_NoPostLogoutRedirectUris_LeavesCollectionEmpty()
-    {
-        await _sut.RegisterClientAsync(
-            "app-nologout", "No Logout App", ["openid"],
-            redirectUris: ["https://app/callback"]);
-
-        await _appManager.Received(1).CreateAsync(
-            Arg.Is<OpenIddictApplicationDescriptor>(d => d.PostLogoutRedirectUris.Count == 0),
-            Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task RegisterClientAsync_PostLogoutUrisWithoutRedirectUris_AddsEndSessionButNotAuthorizationCode()
-    {
-        // Post-logout URIs are unusable unless the client may call the end-session endpoint, so the
-        // EndSession permission is gated on either URI collection — but the login flow stays gated
-        // on redirect URIs alone.
-        await _sut.RegisterClientAsync(
-            "app-logout-only", "Logout Only App", ["openid"],
-            postLogoutRedirectUris: ["https://app/"]);
-
-        await _appManager.Received(1).CreateAsync(
-            Arg.Is<OpenIddictApplicationDescriptor>(d =>
-                d.Permissions.Contains(Permissions.Endpoints.EndSession) &&
-                !d.Permissions.Contains(Permissions.Endpoints.Authorization) &&
-                !d.Permissions.Contains(Permissions.GrantTypes.AuthorizationCode) &&
-                d.PostLogoutRedirectUris.Count == 1),
-            Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task RegisterClientAsync_WithCreatorUserId_SetsProperty()
-    {
-        await _sut.RegisterClientAsync(
-            "app-creator", "Creator App", ["openid"],
-            creatorUserId: "creator-42");
-
-        await _appManager.Received(1).CreateAsync(
-            Arg.Is<OpenIddictApplicationDescriptor>(d =>
-                d.Properties.ContainsKey("creatorUserId")),
-            Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task RegisterClientAsync_NoCreatorUserId_NoProperty()
-    {
-        await _sut.RegisterClientAsync(
-            "app-nocreator", "No Creator App", ["openid"]);
-
-        await _appManager.Received(1).CreateAsync(
-            Arg.Is<OpenIddictApplicationDescriptor>(d =>
-                !d.Properties.ContainsKey("creatorUserId")),
-            Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task GetUserAppsAsync_ReturnsOnlyUserApps()
-    {
-        object app1 = new();
-        object app2 = new();
-        IAsyncEnumerable<object> apps = ToAsync([app1, app2]);
-        _appManager.ListAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(apps);
-
-        // app1 belongs to user-1
-        _appManager.PopulateAsync(Arg.Any<OpenIddictApplicationDescriptor>(), app1, Arg.Any<CancellationToken>())
-            .Returns(ci =>
-            {
-                OpenIddictApplicationDescriptor d = ci.ArgAt<OpenIddictApplicationDescriptor>(0);
-                d.DisplayName = "App1";
-                d.ClientType = ClientTypes.Confidential;
-                d.Properties["creatorUserId"] = JsonSerializer.SerializeToElement("user-1");
-                return ValueTask.CompletedTask;
-            });
-        _appManager.GetClientIdAsync(app1, Arg.Any<CancellationToken>()).Returns(new ValueTask<string?>("app-1"));
-
-        // app2 belongs to user-2
-        _appManager.PopulateAsync(Arg.Any<OpenIddictApplicationDescriptor>(), app2, Arg.Any<CancellationToken>())
-            .Returns(ci =>
-            {
-                OpenIddictApplicationDescriptor d = ci.ArgAt<OpenIddictApplicationDescriptor>(0);
-                d.DisplayName = "App2";
-                d.ClientType = ClientTypes.Public;
-                d.Properties["creatorUserId"] = JsonSerializer.SerializeToElement("user-2");
-                return ValueTask.CompletedTask;
-            });
-
-        IReadOnlyList<DeveloperAppInfo> result = await _sut.GetUserAppsAsync("user-1");
-
-        result.Should().HaveCount(1);
-        result[0].ClientId.Should().Be("app-1");
-        result[0].DisplayName.Should().Be("App1");
-    }
-
-    [Fact]
-    public async Task GetUserAppsAsync_NoCreatorProperty_SkipsApp()
+    public async Task GetConsentInfoAsync_KnownClient_DescribesClientAndScopes()
     {
         object app = new();
-        IAsyncEnumerable<object> apps = ToAsync([app]);
-        _appManager.ListAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(apps);
-
+        object scope = new();
+        _appManager.FindByClientIdAsync("app-acme-portal", Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult<object?>(app));
+        _appManager.GetDisplayNameAsync(app, Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult<string?>("Acme Portal"));
         _appManager.PopulateAsync(Arg.Any<OpenIddictApplicationDescriptor>(), app, Arg.Any<CancellationToken>())
-            .Returns(ci =>
+            .Returns(call =>
             {
-                OpenIddictApplicationDescriptor d = ci.ArgAt<OpenIddictApplicationDescriptor>(0);
-                d.DisplayName = "NoCreator";
+                call.ArgAt<OpenIddictApplicationDescriptor>(0).Properties["logoUrl"] =
+                    JsonSerializer.SerializeToElement("https://cdn.example.com/logo.png");
                 return ValueTask.CompletedTask;
             });
+        _scopeManager.FindByNameAsync("storage.read", Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult<object?>(scope));
+        _scopeManager.GetDescriptionAsync(scope, Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult<string?>("Read your files"));
+        _scopeManager.FindByNameAsync("openid", Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult<object?>(null));
 
-        IReadOnlyList<DeveloperAppInfo> result = await _sut.GetUserAppsAsync("user-1");
+        ConsentInfoDto? info = await _sut.GetConsentInfoAsync("app-acme-portal", ["openid", "storage.read"]);
 
-        result.Should().BeEmpty();
-    }
-
-    [Fact]
-    public async Task GetUserAppAsync_AppNotFound_ReturnsNull()
-    {
-        _appManager.FindByClientIdAsync("missing", Arg.Any<CancellationToken>()).Returns((object?)null);
-
-        DeveloperAppInfo? result = await _sut.GetUserAppAsync("user-1", "missing");
-
-        result.Should().BeNull();
-    }
-
-    [Fact]
-    public async Task GetUserAppAsync_AppBelongsToUser_ReturnsInfo()
-    {
-        object app = new();
-        _appManager.FindByClientIdAsync("app-1", Arg.Any<CancellationToken>()).Returns(app);
-        _appManager.PopulateAsync(Arg.Any<OpenIddictApplicationDescriptor>(), app, Arg.Any<CancellationToken>())
-            .Returns(ci =>
-            {
-                OpenIddictApplicationDescriptor d = ci.ArgAt<OpenIddictApplicationDescriptor>(0);
-                d.DisplayName = "My App";
-                d.ClientType = ClientTypes.Confidential;
-                d.RedirectUris.Add(new Uri("https://app/cb"));
-                d.Properties["creatorUserId"] = JsonSerializer.SerializeToElement("user-1");
-                return ValueTask.CompletedTask;
-            });
-        _appManager.GetClientIdAsync(app, Arg.Any<CancellationToken>()).Returns(new ValueTask<string?>("app-1"));
-
-        DeveloperAppInfo? result = await _sut.GetUserAppAsync("user-1", "app-1");
-
-        result.Should().NotBeNull();
-        result!.ClientId.Should().Be("app-1");
-        result.DisplayName.Should().Be("My App");
-        result.RedirectUris.Should().HaveCount(1);
-    }
-
-    [Fact]
-    public async Task GetUserAppAsync_AppBelongsToDifferentUser_ReturnsNull()
-    {
-        object app = new();
-        _appManager.FindByClientIdAsync("app-1", Arg.Any<CancellationToken>()).Returns(app);
-        _appManager.PopulateAsync(Arg.Any<OpenIddictApplicationDescriptor>(), app, Arg.Any<CancellationToken>())
-            .Returns(ci =>
-            {
-                OpenIddictApplicationDescriptor d = ci.ArgAt<OpenIddictApplicationDescriptor>(0);
-                d.Properties["creatorUserId"] = JsonSerializer.SerializeToElement("user-2");
-                return ValueTask.CompletedTask;
-            });
-
-        DeveloperAppInfo? result = await _sut.GetUserAppAsync("user-1", "app-1");
-
-        result.Should().BeNull();
-    }
-
-    private static async IAsyncEnumerable<object> ToAsync(List<object> items)
-    {
-        foreach (object item in items)
-        {
-            yield return item;
-        }
-
-        await Task.CompletedTask;
+        info.Should().NotBeNull();
+        info!.DisplayName.Should().Be("Acme Portal");
+        info.LogoUrl.Should().Be("https://cdn.example.com/logo.png");
+        info.RequestedScopes.Should().BeEquivalentTo(
+        [
+            new ConsentScopeDto("openid", null),
+            new ConsentScopeDto("storage.read", "Read your files"),
+        ]);
     }
 }

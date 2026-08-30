@@ -81,7 +81,6 @@ const modes: readonly NavMode[] = [
 /** Every destination the manifest declares, with the name and route it answers to. */
 const destinations: ReadonlyArray<readonly [testid: string, label: string, href: string]> = [
   ["dashboard-nav-organizations", "Organizations", "/dashboard/organizations"],
-  ["dashboard-nav-apps", "Apps", "/dashboard/apps"],
   ["dashboard-nav-settings", "Settings", "/dashboard/settings"],
   ["dashboard-nav-inquiries", "Inquiries", "/dashboard/inquiries"],
 ];
@@ -120,7 +119,7 @@ describe.each(modes)("DashboardLayout — $name", (mode: NavMode) => {
 
   it("hides Organizations from a non-admin without touching the other destinations", async () => {
     await render(<DashboardLayout isAdmin={false} />);
-    await expect.element(page.getByTestId("dashboard-nav-apps")).toBeInTheDocument();
+    await expect.element(page.getByTestId("dashboard-nav-my-organizations")).toBeInTheDocument();
 
     await expect.element(page.getByTestId("dashboard-nav-organizations")).not.toBeInTheDocument();
     await expect.element(page.getByRole("link", { name: "Settings" })).toBeInTheDocument();

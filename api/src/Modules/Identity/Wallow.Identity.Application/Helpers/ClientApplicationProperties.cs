@@ -31,4 +31,10 @@ public static class ClientApplicationProperties
     /// the SSO session ends. Absent for clients that opted out of notification.
     /// </summary>
     public const string FrontchannelLogoutUri = "frontchannel_logout_uri";
+
+    /// <summary>
+    /// The client's OIDC back-channel logout endpoint, recorded at registration so the
+    /// back-channel logout work can deliver logout tokens to it. Absent when the client has none.
+    /// </summary>
+    public const string BackchannelLogoutUri = "backchannel_logout_uri";
 }

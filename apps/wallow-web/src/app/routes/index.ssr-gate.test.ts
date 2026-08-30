@@ -16,7 +16,7 @@ import { Route } from "./index";
  */
 
 /** The BFF login target the gate must send a forced-login visitor to. */
-const EXPECTED_LOGIN_HREF: string = "/bff/login?returnTo=%2Fdashboard%2Fapps";
+const EXPECTED_LOGIN_HREF: string = "/bff/login?returnTo=%2Fdashboard%2Fmy-organizations";
 
 // Mutable branding stand-in so each test can flip `landingPage.enabled`. Mirrors
 // the shape `routes/index.tsx` and `components/PublicLayout.tsx` read.
@@ -126,6 +126,6 @@ describe("routes/index (SSR-safe home gate)", () => {
     const thrown: unknown = await catchGate({ sub: "u1", email: "user@test.local" });
 
     assertRedirect(thrown);
-    expect(thrown.options.to).toBe("/dashboard/apps");
+    expect(thrown.options.to).toBe("/dashboard/my-organizations");
   });
 });

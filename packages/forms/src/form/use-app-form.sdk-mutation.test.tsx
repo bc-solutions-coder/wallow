@@ -21,8 +21,8 @@
  *     typecheck` (`tsc --noEmit`, part of `pnpm check`) is therefore the gate:
  *     it fails today and must pass once the hook takes a `TError` generic.
  *     TWO factories are used on purpose — `organizationsCreateMutation` has
- *     `TError = DefaultError` while `appsRegisterMutation` has
- *     `TError = AppsRegisterError` — so a fix that merely swaps `unknown` for
+ *     `TError = DefaultError` while `organizationClientsRegisterMutation` has
+ *     `TError = OrganizationClientsRegisterError` — so a fix that merely swaps `unknown` for
  *     `DefaultError` (which would satisfy Wallow-ov6w.4.1 alone) still fails
  *     here, as it would for .4.2 and .4.3.
  *
@@ -40,7 +40,10 @@
 
 import { QueryClient, QueryClientProvider } from "@bc-solutions-coder/query";
 import { createWallowSdk, type WallowSdk } from "@bc-solutions-coder/sdk";
-import { appsRegisterMutation, organizationsCreateMutation } from "@bc-solutions-coder/sdk/query";
+import {
+  organizationClientsRegisterMutation,
+  organizationsCreateMutation,
+} from "@bc-solutions-coder/sdk/query";
 import { render } from "@bc-solutions-coder/testing/render";
 import type { ReactElement, ReactNode } from "react";
 import { userEvent } from "vitest/browser";
@@ -152,13 +155,14 @@ function CreateOrganizationHarness(props: {
 }
 
 const registerAppSchema = z.object({
-  clientName: z.string().trim().min(1, "Client name is required"),
+  name: z.string().trim().min(1, "Name is required"),
 });
 
 /**
- * The register-app shape (`appsRegisterMutation`), whose `TError` is the
- * operation's own `AppsRegisterError` and NOT `DefaultError`. Its presence is
- * what stops the hook from being "fixed" by hardcoding one concrete error type.
+ * The register-application shape (`organizationClientsRegisterMutation`), whose
+ * `TError` is the operation's own `OrganizationClientsRegisterError` and NOT
+ * `DefaultError`. Its presence is what stops the hook from being "fixed" by
+ * hardcoding one concrete error type.
  */
 function RegisterAppHarness(props: {
   readonly sdk: WallowSdk;
@@ -166,22 +170,27 @@ function RegisterAppHarness(props: {
 }): ReactElement {
   const form = useAppForm({
     schema: registerAppSchema,
-    defaultValues: { clientName: "" },
-    mutation: appsRegisterMutation({ client: props.sdk.client }),
+    defaultValues: { name: "" },
+    mutation: organizationClientsRegisterMutation({ client: props.sdk.client }),
     toVariables: (values) => ({
-      body: { clientName: values.clientName, requestedScopes: ["openid"] },
+      path: { orgId: "o1" },
+      body: {
+        kind: "application",
+        name: values.name,
+        redirectUris: ["https://app.example/cb"],
+        postLogoutRedirectUris: [],
+        scopes: ["openid"],
+      },
     }),
     onSuccess: (data) => {
-      props.onRegistered(data.clientId);
+      props.onRegistered(data.client.clientId);
     },
     fallbackError: "Could not register the app.",
   });
 
   return (
     <AppForm form={form} testIdPrefix="app-register">
-      <form.AppField name="clientName">
-        {(field) => <field.TextField label="Client name" />}
-      </form.AppField>
+      <form.AppField name="name">{(field) => <field.TextField label="Name" />}</form.AppField>
       <FormError />
       <SubmitButton>Register app</SubmitButton>
     </AppForm>
@@ -254,26 +263,43 @@ describe("useAppForm with a generated SDK mutation", () => {
     });
   });
 
-  describe("appsRegisterMutation (TError = the operation's own error)", () => {
+  describe("organizationClientsRegisterMutation (TError = the operation's own error)", () => {
     it("submits through the generated operation and reports its parsed response", async () => {
       const transport = createTransport(201, {
-        clientId: "client-1",
+        client: {
+          clientId: "client-1",
+          name: "Dashboard",
+          kind: "application",
+          status: "active",
+          redirectUris: ["https://app.example/cb"],
+          postLogoutRedirectUris: [],
+          scopes: ["openid"],
+          createdByUserId: "u1",
+          createdAt: "2026-01-01T00:00:00Z",
+        },
         clientSecret: "secret",
-        registrationAccessToken: "token",
+        issuer: "https://auth.example/auth",
+        apiBaseUrl: "https://api.example",
       });
       const onRegistered = vi.fn<(clientId: string) => void>();
       const { container } = await renderWithClient(
         <RegisterAppHarness sdk={createSdk(transport)} onRegistered={onRegistered} />,
       );
 
-      await userEvent.fill(byTestId(container, "app-register-client-name"), "Dashboard");
+      await userEvent.fill(byTestId(container, "app-register-name"), "Dashboard");
       await userEvent.click(byTestId(container, "app-register-submit"));
 
       await expect.poll(() => transport.sent.length).toBe(1);
       expect(transport.sent[0]).toEqual({
         method: "POST",
-        path: "/api/v1/identity/apps/register",
-        body: { clientName: "Dashboard", requestedScopes: ["openid"] },
+        path: "/api/v1/identity/organizations/o1/clients",
+        body: {
+          kind: "application",
+          name: "Dashboard",
+          redirectUris: ["https://app.example/cb"],
+          postLogoutRedirectUris: [],
+          scopes: ["openid"],
+        },
       });
       await expect.poll(() => onRegistered.mock.calls.length).toBe(1);
       expect(onRegistered.mock.calls[0]?.[0]).toBe("client-1");
@@ -281,16 +307,16 @@ describe("useAppForm with a generated SDK mutation", () => {
 
     it("splits the API's RFC 7807 failure across the field and the banner", async () => {
       // A real 400 problem details body: the SDK's own error interceptor turns
-      // it into a `WallowError`, `splitServerError` folds `ClientName` onto the
-      // form's `clientName`, and `RequestedScopes` — which this form has no
-      // field for — joins the banner instead of vanishing.
+      // it into a `WallowError`, `splitServerError` folds `Name` onto the
+      // form's `name`, and `Scopes` — which this form has no field for — joins
+      // the banner instead of vanishing.
       const transport = createTransport(400, {
         status: 400,
         title: "Validation failed",
         detail: "One or more validation errors occurred.",
         errors: {
-          ClientName: ["'Client Name' must not be empty."],
-          RequestedScopes: ["At least one scope is required."],
+          Name: ["'Name' must not be empty."],
+          Scopes: ["At least one scope is required."],
         },
         extensions: { code: "VALIDATION_ERROR" },
       });
@@ -298,12 +324,12 @@ describe("useAppForm with a generated SDK mutation", () => {
         <RegisterAppHarness sdk={createSdk(transport)} onRegistered={vi.fn()} />,
       );
 
-      await userEvent.fill(byTestId(container, "app-register-client-name"), "Dashboard");
+      await userEvent.fill(byTestId(container, "app-register-name"), "Dashboard");
       await userEvent.click(byTestId(container, "app-register-submit"));
 
       await expect
-        .poll(() => byTestId(container, "app-register-client-name-error").textContent)
-        .toBe("'Client Name' must not be empty.");
+        .poll(() => byTestId(container, "app-register-name-error").textContent)
+        .toBe("'Name' must not be empty.");
       expect(byTestId(container, "app-register-error").textContent).toBe(
         "At least one scope is required.",
       );

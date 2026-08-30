@@ -41,6 +41,10 @@ public sealed class ApiScopeConfiguration : IEntityTypeConfiguration<ApiScope>
             .HasColumnName("is_default")
             .HasDefaultValue(false);
 
+        builder.Property(e => e.PlatformOnly)
+            .HasColumnName("platform_only")
+            .HasDefaultValue(false);
+
         builder.HasIndex(e => e.Code).IsUnique();
         builder.HasIndex(e => e.Category);
     }

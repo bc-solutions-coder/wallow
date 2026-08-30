@@ -34,10 +34,22 @@ public sealed class ApiScope : Entity<ApiScopeId>
     /// </summary>
     public bool IsDefault { get; private set; }
 
+    /// <summary>
+    /// If true, only the platform's own (first-party) clients may hold this scope; a developer
+    /// application registered by an organization cannot be granted it.
+    /// </summary>
+    public bool PlatformOnly { get; private set; }
+
     // ReSharper disable once UnusedMember.Local
     private ApiScope() { } // EF Core
 
-    private ApiScope(string code, string displayName, string category, string? description, bool isDefault)
+    private ApiScope(
+        string code,
+        string displayName,
+        string category,
+        string? description,
+        bool isDefault,
+        bool platformOnly)
     {
         Id = ApiScopeId.New();
         Code = code;
@@ -45,6 +57,7 @@ public sealed class ApiScope : Entity<ApiScopeId>
         Category = category;
         Description = description;
         IsDefault = isDefault;
+        PlatformOnly = platformOnly;
     }
 
     public static ApiScope Create(
@@ -52,7 +65,8 @@ public sealed class ApiScope : Entity<ApiScopeId>
         string displayName,
         string category,
         string? description = null,
-        bool isDefault = false)
+        bool isDefault = false,
+        bool platformOnly = false)
     {
         if (string.IsNullOrWhiteSpace(code))
         {
@@ -75,6 +89,6 @@ public sealed class ApiScope : Entity<ApiScopeId>
                 "API scope category cannot be empty");
         }
 
-        return new ApiScope(code, displayName, category, description, isDefault);
+        return new ApiScope(code, displayName, category, description, isDefault, platformOnly);
     }
 }

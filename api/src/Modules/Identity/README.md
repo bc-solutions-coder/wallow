@@ -40,9 +40,17 @@ The module provides:
 - **Secret Rotation**: Rotate client secrets without downtime
 - **Last-Used Tracking**: Monitor service account activity via `ServiceAccountTrackingMiddleware`
 
-### Developer Apps
-- **OpenIddict Authorization Code**: Developer applications via `OpenIddictDeveloperAppService`
-- **Client ID Prefix**: Developer app client IDs prefixed with `app-`
+### Organization Clients
+- **Self-service registration**: an organization admin or manager registers a confidential
+  authorization-code application on the org-scoped client surface (`OrganizationClientsController`
+  / `OrganizationClientService`), gated by `OrganizationClientsManage`
+- **Client ID derivation**: `app-<org-slug>-<name-slug>`; name and id are immutable
+- **Registered-client ledger**: one `RegisteredClient` row per OpenIddict application (organization,
+  kind, status, created by/at, last used)
+- **Redirect URI rule**: absolute, fragment-free, HTTPS or loopback HTTP, enforced on the org
+  surface, the admin surface, and seed sync (`ClientUriRules`)
+- **Platform-only scopes**: `ApiScope.PlatformOnly` marks scopes an organization's application
+  can never be granted
 
 ## Architecture
 
@@ -187,18 +195,37 @@ controllers and is the authoritative endpoint list.
 
 ### Clients (`/v1/identity/clients`)
 
-`ClientsController` carries a class-level `[HasPermission(PermissionType.AdminAccess)]`, so every
+`ClientsController` guards each action separately (the class level stays bare so the service-account
+actions can carry their own permissions); every
 row below — including the service-account actions — requires `AdminAccess`.
 
 | Method | Endpoint | Description | Permission |
 |--------|----------|-------------|------------|
 | GET | `/` | List OpenIddict applications | AdminAccess |
 | GET | `/{id}` | Get application by client ID | AdminAccess |
-| GET | `/by-tenant/{tenantId}` | List applications for a tenant | AdminAccess |
 | POST | `/` | Create application | AdminAccess |
 | PUT | `/{id}` | Update application | AdminAccess |
 | DELETE | `/{id}` | Delete application | AdminAccess |
 | POST | `/{id}/rotate-secret` | Rotate client secret | AdminAccess |
+
+### Organization Clients (`/v1/identity/organizations/{orgId}/clients`)
+
+Every action requires `OrganizationClientsManage` (built-in `admin` and `manager` roles) and
+answers 404 to a caller who cannot address the organization.
+
+| Method | Endpoint | Description | Permission |
+|--------|----------|-------------|------------|
+| GET | `/` | List the organization's registered clients | OrganizationClientsManage |
+| POST | `/` | Register an application (returns secret, issuer, API base URL once) | OrganizationClientsManage |
+| GET | `/{clientId}` | Get a registered client | OrganizationClientsManage |
+| PATCH | `/{clientId}` | Update redirect URIs, logout URIs, scopes | OrganizationClientsManage |
+| DELETE | `/{clientId}` | Delete a registered client | OrganizationClientsManage |
+
+### Apps (`/v1/identity/apps`)
+
+| Method | Endpoint | Description | Permission |
+|--------|----------|-------------|------------|
+| GET | `/consent-info/{clientId}` | Client name, logo and scope descriptions for the consent screen | Anonymous |
 
 ### Service Accounts (`/v1/identity/clients/service-accounts`)
 

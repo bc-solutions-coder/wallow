@@ -287,6 +287,7 @@ public static class IdentityInfrastructureExtensions
             (IServiceAccountUnfilteredRepository)sp.GetRequiredService<IServiceAccountRepository>());
         services.AddScoped<IApiScopeRepository, ApiScopeRepository>();
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
+        services.AddScoped<IRegisteredClientRepository, RegisteredClientRepository>();
         services.AddScoped<IInvitationRepository, InvitationRepository>();
         services.AddScoped<IMembershipRepository, MembershipRepository>();
         services.AddScoped<IMembershipRoleResolver, MembershipRoleResolver>();
@@ -423,6 +424,7 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<IServiceAccountService, OpenIddictServiceAccountService>();
         services.AddScoped<IOrganizationService, OrganizationService>();
         services.AddScoped<IOrganizationAccessPolicy, OrganizationAccessPolicy>();
+        services.AddScoped<IOrganizationClientService, OrganizationClientService>();
         services.AddScoped<ITestSupportService, TestSupportService>();
         services.AddScoped<IDeveloperAppService, OpenIddictDeveloperAppService>();
         services.AddScoped<IClientTenantResolver, ClientTenantResolver>();

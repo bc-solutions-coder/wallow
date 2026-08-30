@@ -18,19 +18,16 @@ namespace Wallow.Identity.Tests.Api.Controllers;
 public class ClientsControllerTests
 {
     private static readonly Guid _testUserId = Guid.NewGuid();
-    private static readonly Guid _testOrgId = Guid.NewGuid();
 
     private readonly IOpenIddictApplicationManager _applicationManager;
-    private readonly IOrganizationService _organizationService;
     private readonly IServiceAccountService _serviceAccountService;
     private readonly ClientsController _controller;
 
     public ClientsControllerTests()
     {
         _applicationManager = Substitute.For<IOpenIddictApplicationManager>();
-        _organizationService = Substitute.For<IOrganizationService>();
         _serviceAccountService = Substitute.For<IServiceAccountService>();
-        _controller = new ClientsController(_applicationManager, _organizationService, _serviceAccountService);
+        _controller = new ClientsController(_applicationManager, _serviceAccountService);
 
         ClaimsPrincipal user = new(new ClaimsIdentity(new[]
         {
@@ -207,53 +204,32 @@ public class ClientsControllerTests
             .CreateAsync(Arg.Any<OpenIddictApplicationDescriptor>(), Arg.Any<CancellationToken>());
     }
 
-    [Fact]
-    public async Task Create_WithTenantId_WhenMember_SetsTenantIdOnDescriptor()
+    [Theory]
+    [InlineData("http://app.example.com/callback")]
+    [InlineData("https://app.example.com/callback#fragment")]
+    [InlineData("/relative/callback")]
+    public async Task Create_WithARefusedRedirectUri_ReturnsValidationProblem(string redirectUri)
     {
-        _organizationService.GetUserOrganizationsAsync(_testUserId, Arg.Any<CancellationToken>())
-            .Returns([new OrganizationDto(_testOrgId, "Test Org", null, 1)]);
+        CreateClientRequest request = new("My App", [redirectUri], ["https://example.com/logout"]);
 
-        OpenIddictApplicationDescriptor? capturedDescriptor = null;
-        object createdApp = new object();
-        _applicationManager.CreateAsync(Arg.Any<OpenIddictApplicationDescriptor>(), Arg.Any<CancellationToken>())
-            .Returns(callInfo =>
-            {
-                capturedDescriptor = callInfo.ArgAt<OpenIddictApplicationDescriptor>(0);
-                return ValueTask.FromResult(createdApp);
-            });
-        _applicationManager.GetIdAsync(createdApp, Arg.Any<CancellationToken>())
-            .Returns(ValueTask.FromResult<string?>("new-id"));
+        ActionResult<ClientResponse> result = await _controller.Create(request, CancellationToken.None);
 
-        CreateClientRequest request = new(
-            "Tenant App",
-            ["https://example.com/callback"],
-            ["https://example.com/logout"],
-            _testOrgId);
+        ObjectResult problem = result.Result.Should().BeOfType<ObjectResult>().Subject;
+        ValidationProblemDetails details = problem.Value.Should().BeOfType<ValidationProblemDetails>().Subject;
+        details.Errors.Should().ContainKey(nameof(CreateClientRequest.RedirectUris));
+        await _applicationManager.DidNotReceive()
+            .CreateAsync(Arg.Any<OpenIddictApplicationDescriptor>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Create_WithLoopbackHttpRedirectUri_IsAccepted()
+    {
+        StubCreate();
+        CreateClientRequest request = new("Local App", ["http://localhost:3000/callback"], []);
 
         ActionResult<ClientResponse> result = await _controller.Create(request, CancellationToken.None);
 
         result.Result.Should().BeOfType<CreatedAtActionResult>();
-        capturedDescriptor.Should().NotBeNull();
-        capturedDescriptor!.GetTenantId().Should().Be(_testOrgId.ToString());
-    }
-
-    [Fact]
-    public async Task Create_WithTenantId_WhenNotMember_ReturnsForbid()
-    {
-        _organizationService.GetUserOrganizationsAsync(_testUserId, Arg.Any<CancellationToken>())
-            .Returns(new List<OrganizationDto>());
-
-        CreateClientRequest request = new(
-            "Tenant App",
-            ["https://example.com/callback"],
-            ["https://example.com/logout"],
-            _testOrgId);
-
-        ActionResult<ClientResponse> result = await _controller.Create(request, CancellationToken.None);
-
-        result.Result.Should().BeOfType<ForbidResult>();
-        await _applicationManager.DidNotReceive()
-            .CreateAsync(Arg.Any<OpenIddictApplicationDescriptor>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -309,64 +285,6 @@ public class ClientsControllerTests
             .Which.Value.Should().BeOfType<ValidationProblemDetails>();
         await _applicationManager.DidNotReceive()
             .CreateAsync(Arg.Any<OpenIddictApplicationDescriptor>(), Arg.Any<CancellationToken>());
-    }
-
-    #endregion
-
-    #region GetByTenant
-
-    [Fact]
-    public async Task GetByTenant_WhenMember_ReturnsMatchingClients()
-    {
-        _organizationService.GetUserOrganizationsAsync(_testUserId, Arg.Any<CancellationToken>())
-            .Returns([new OrganizationDto(_testOrgId, "Test Org", null, 1)]);
-
-        object app1 = new object();
-        object app2 = new object();
-
-        _applicationManager.ListAsync(int.MaxValue, 0, Arg.Any<CancellationToken>())
-            .Returns(ToAsyncEnumerable(app1, app2));
-
-        _applicationManager.GetIdAsync(app1, Arg.Any<CancellationToken>())
-            .Returns(ValueTask.FromResult<string?>("id-1"));
-        _applicationManager.GetClientIdAsync(app1, Arg.Any<CancellationToken>())
-            .Returns(ValueTask.FromResult<string?>("client-1"));
-        _applicationManager.PopulateAsync(Arg.Any<OpenIddictApplicationDescriptor>(), app1, Arg.Any<CancellationToken>())
-            .Returns(callInfo =>
-            {
-                OpenIddictApplicationDescriptor descriptor = callInfo.ArgAt<OpenIddictApplicationDescriptor>(0);
-                descriptor.DisplayName = "Tenant App";
-                descriptor.SetTenantId(_testOrgId.ToString());
-                return ValueTask.CompletedTask;
-            });
-
-        // app2 has no tenant - should be filtered out
-        _applicationManager.PopulateAsync(Arg.Any<OpenIddictApplicationDescriptor>(), app2, Arg.Any<CancellationToken>())
-            .Returns(callInfo =>
-            {
-                OpenIddictApplicationDescriptor descriptor = callInfo.ArgAt<OpenIddictApplicationDescriptor>(0);
-                descriptor.DisplayName = "Other App";
-                return ValueTask.CompletedTask;
-            });
-
-        ActionResult<IReadOnlyList<ClientResponse>> result = await _controller.GetByTenant(_testOrgId, CancellationToken.None);
-
-        OkObjectResult ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
-        List<ClientResponse> clients = ok.Value.Should().BeOfType<List<ClientResponse>>().Subject;
-        clients.Should().HaveCount(1);
-        clients[0].Id.Should().Be("id-1");
-        clients[0].Name.Should().Be("Tenant App");
-    }
-
-    [Fact]
-    public async Task GetByTenant_WhenNotMember_ReturnsForbid()
-    {
-        _organizationService.GetUserOrganizationsAsync(_testUserId, Arg.Any<CancellationToken>())
-            .Returns(new List<OrganizationDto>());
-
-        ActionResult<IReadOnlyList<ClientResponse>> result = await _controller.GetByTenant(_testOrgId, CancellationToken.None);
-
-        result.Result.Should().BeOfType<ForbidResult>();
     }
 
     #endregion

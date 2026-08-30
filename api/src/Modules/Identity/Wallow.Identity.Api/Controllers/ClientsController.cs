@@ -8,10 +8,10 @@ using Wallow.Identity.Api.Contracts.Requests;
 using Wallow.Identity.Api.Contracts.Responses;
 using Wallow.Identity.Api.Extensions;
 using Wallow.Identity.Application.DTOs;
+using Wallow.Identity.Application.Helpers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Shared.Contracts.Identity;
-using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
@@ -29,7 +29,6 @@ namespace Wallow.Identity.Api.Controllers;
 // service-account actions back behind admin regardless of what each action declares.
 public class ClientsController(
     IOpenIddictApplicationManager applicationManager,
-    IOrganizationService organizationService,
     IServiceAccountService serviceAccountService) : ControllerBase
 {
     /// <summary>
@@ -109,66 +108,14 @@ public class ClientsController(
         });
     }
 
-    [HttpGet("by-tenant/{tenantId:guid}")]
-    [HasPermission(PermissionType.AdminAccess)]
-    [ProducesResponseType(typeof(IReadOnlyList<ClientResponse>), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<ActionResult<IReadOnlyList<ClientResponse>>> GetByTenant(Guid tenantId, CancellationToken ct)
-    {
-        if (!await IsCallerMemberOfOrgAsync(tenantId, ct))
-        {
-            return Forbid();
-        }
-
-        List<ClientResponse> clients = [];
-        string tenantIdString = tenantId.ToString();
-
-        await foreach (object application in applicationManager.ListAsync(int.MaxValue, 0, ct))
-        {
-            OpenIddictApplicationDescriptor descriptor = new();
-            await applicationManager.PopulateAsync(descriptor, application, ct);
-
-            string? appTenantId = descriptor.GetTenantId();
-            if (appTenantId != tenantIdString)
-            {
-                continue;
-            }
-
-            string? id = await applicationManager.GetIdAsync(application, ct);
-            string? clientId = await applicationManager.GetClientIdAsync(application, ct);
-
-            clients.Add(new ClientResponse
-            {
-                Id = id ?? string.Empty,
-                Name = descriptor.DisplayName ?? string.Empty,
-                ClientId = clientId ?? string.Empty,
-                RedirectUris = descriptor.RedirectUris.Select(u => u.ToString()).ToList(),
-                PostLogoutRedirectUris = descriptor.PostLogoutRedirectUris.Select(u => u.ToString()).ToList(),
-                Scopes = ScopesOf(descriptor),
-                FrontchannelLogoutUri = descriptor.GetFrontchannelLogoutUri()?.AbsoluteUri
-            });
-        }
-
-        return Ok(clients);
-    }
-
     [HttpPost]
     [HasPermission(PermissionType.AdminAccess)]
     [ProducesResponseType(typeof(ClientResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<ClientResponse>> Create(
         [FromBody] CreateClientRequest request,
         CancellationToken ct)
     {
-        if (request.TenantId.HasValue)
-        {
-            if (!await IsCallerMemberOfOrgAsync(request.TenantId.Value, ct))
-            {
-                return Forbid();
-            }
-        }
-
         IReadOnlyList<string> scopes = request.Scopes is { Count: > 0 } ? request.Scopes : _defaultScopes;
 
         List<string> ungrantableScopes = scopes.Where(s => !_grantableScopes.Contains(s)).ToList();
@@ -185,6 +132,11 @@ public class ClientsController(
             ModelState.AddModelError(
                 nameof(request.FrontchannelLogoutUri),
                 FrontchannelLogoutUriError);
+            return ValidationProblem(ModelState);
+        }
+
+        if (!RedirectUrisAreAcceptable(request.RedirectUris, request.PostLogoutRedirectUris))
+        {
             return ValidationProblem(ModelState);
         }
 
@@ -213,11 +165,6 @@ public class ClientsController(
         foreach (string scope in scopes)
         {
             descriptor.Permissions.Add(Permissions.Prefixes.Scope + scope);
-        }
-
-        if (request.TenantId.HasValue)
-        {
-            descriptor.SetTenantId(request.TenantId.Value.ToString());
         }
 
         descriptor.SetFrontchannelLogoutUri(frontchannelLogoutUri);
@@ -264,6 +211,11 @@ public class ClientsController(
             ModelState.AddModelError(
                 nameof(request.FrontchannelLogoutUri),
                 FrontchannelLogoutUriError);
+            return ValidationProblem(ModelState);
+        }
+
+        if (!RedirectUrisAreAcceptable(request.RedirectUris, request.PostLogoutRedirectUris))
+        {
             return ValidationProblem(ModelState);
         }
 
@@ -470,11 +422,30 @@ public class ClientsController(
         return NoContent();
     }
 
-    private async Task<bool> IsCallerMemberOfOrgAsync(Guid orgId, CancellationToken ct)
+    /// <summary>
+    /// The same rule the organization surface and seed sync apply: absolute, fragment-free,
+    /// HTTPS or loopback HTTP. Records the offending list in ModelState and reports whether
+    /// both lists passed.
+    /// </summary>
+    private bool RedirectUrisAreAcceptable(
+        IReadOnlyList<string> redirectUris,
+        IReadOnlyList<string> postLogoutRedirectUris)
     {
-        Guid userId = Guid.Parse(User.GetUserId()!);
-        IReadOnlyList<OrganizationDto> userOrgs = await organizationService.GetUserOrganizationsAsync(userId, ct);
-        return userOrgs.Any(o => o.Id == orgId);
+        if (ClientUriRules.FirstRefusedRedirect(redirectUris) is { } refusedRedirect)
+        {
+            ModelState.AddModelError(
+                nameof(CreateClientRequest.RedirectUris),
+                $"'{refusedRedirect}': {ClientUriRules.RedirectUriError}");
+        }
+
+        if (ClientUriRules.FirstRefusedRedirect(postLogoutRedirectUris) is { } refusedPostLogout)
+        {
+            ModelState.AddModelError(
+                nameof(CreateClientRequest.PostLogoutRedirectUris),
+                $"'{refusedPostLogout}': {ClientUriRules.RedirectUriError}");
+        }
+
+        return ModelState.IsValid;
     }
 
     private const string FrontchannelLogoutUriError =

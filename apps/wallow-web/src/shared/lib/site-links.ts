@@ -11,4 +11,4 @@
  *
  * CONTRACT: `e2e-cross-app/login-journey.spec.ts` hardcodes this href — never change it.
  */
-export const getStartedHref: string = "/bff/login?returnTo=/dashboard/apps";
+export const getStartedHref: string = "/bff/login?returnTo=/dashboard/my-organizations";

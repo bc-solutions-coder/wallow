@@ -43,6 +43,7 @@ public class OrganizationAccessPolicyTests(WallowApiFactory factory) : IdentityI
     [InlineData(PermissionType.OrganizationsRead, true)]
     [InlineData(PermissionType.OrganizationsManageMembers, true)]
     [InlineData(PermissionType.OrganizationsUpdate, true)]
+    [InlineData(PermissionType.OrganizationClientsManage, true)]
     [InlineData(PermissionType.AdminAccess, true)]
     public async Task AnAdminMember_HoldsTheOrganizationsAdministrativePermissions(string permission, bool expected)
     {
@@ -56,6 +57,7 @@ public class OrganizationAccessPolicyTests(WallowApiFactory factory) : IdentityI
     [Theory]
     [InlineData(PermissionType.OrganizationsRead, true)]
     [InlineData(PermissionType.OrganizationsManageMembers, true)]
+    [InlineData(PermissionType.OrganizationClientsManage, true)]
     [InlineData(PermissionType.AdminAccess, false)]
     public async Task AManagerMember_ManagesMembersWithoutAdministeringTheOrganization(string permission, bool expected)
     {
@@ -69,6 +71,7 @@ public class OrganizationAccessPolicyTests(WallowApiFactory factory) : IdentityI
     [Theory]
     [InlineData(PermissionType.OrganizationsRead, true)]
     [InlineData(PermissionType.OrganizationsManageMembers, false)]
+    [InlineData(PermissionType.OrganizationClientsManage, false)]
     [InlineData(PermissionType.AdminAccess, false)]
     public async Task AUserMember_ReadsWithoutReachingTheMemberLifecycle(string permission, bool expected)
     {

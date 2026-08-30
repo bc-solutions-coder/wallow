@@ -25,6 +25,12 @@ public static class PermissionType
     public const string OrganizationsUpdate = "OrganizationsUpdate";
     public const string OrganizationsManageMembers = "OrganizationsManageMembers";
 
+    /// <summary>
+    /// Register, edit and delete the developer applications an organization owns. Held by the
+    /// organization's admin and manager roles, never by a plain member.
+    /// </summary>
+    public const string OrganizationClientsManage = "OrganizationClientsManage";
+
     // API Keys
     public const string ApiKeysRead = "ApiKeysRead";
     public const string ApiKeysCreate = "ApiKeysCreate";

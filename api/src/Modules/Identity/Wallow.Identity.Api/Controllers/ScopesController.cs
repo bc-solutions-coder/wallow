@@ -40,7 +40,8 @@ public class ScopesController(IApiScopeRepository apiScopeRepository) : Controll
                 s.DisplayName,
                 s.Category,
                 s.Description,
-                s.IsDefault))
+                s.IsDefault,
+                s.PlatformOnly))
             .ToList();
 
         return Ok(dtos);

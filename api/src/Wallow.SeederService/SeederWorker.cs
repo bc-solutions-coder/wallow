@@ -97,7 +97,7 @@ public sealed partial class SeederWorker(
 
         List<ApiScope> newScopes = seedOptions.Value.ApiScopes
             .Where(s => !existingCodes.Contains(s.Code))
-            .Select(s => ApiScope.Create(s.Code, s.DisplayName, s.Category, s.Description, s.IsDefault))
+            .Select(s => ApiScope.Create(s.Code, s.DisplayName, s.Category, s.Description, s.IsDefault, s.PlatformOnly))
             .ToList();
 
         if (newScopes.Count > 0)

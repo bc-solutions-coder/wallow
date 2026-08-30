@@ -1,4 +1,4 @@
-/** The inquiries feature's public contract. See `features/apps/index.ts`. */
+/** The inquiries feature's public contract. See `docs/development/frontend-setup.md`. */
 export {
   inquiriesGetAllOptions,
   inquiriesGetByIdOptions,

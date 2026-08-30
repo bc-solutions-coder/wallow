@@ -8,4 +8,5 @@ public record ApiScopeDto(
     string DisplayName,
     string Category,
     string? Description,
-    bool IsDefault);
+    bool IsDefault,
+    bool PlatformOnly);

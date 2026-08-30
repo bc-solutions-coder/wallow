@@ -17,14 +17,14 @@
  *    predicates re-exported below rather than by naming a parent key.
  */
 export {
-  clientsCreateMutation,
-  clientsGetByTenantOptions,
-  clientsGetByTenantQueryKey,
   invitationsGetByTenantOptions,
   invitationsGetByTenantQueryKey,
   invitationsRevokeMutation,
   meGetOrganizationsOptions,
   meGetOrganizationsQueryKey,
+  organizationClientsListOptions,
+  organizationClientsListQueryKey,
+  organizationClientsRegisterMutation,
   organizationsAddMemberMutation,
   organizationsApproveMemberMutation,
   organizationsArchiveMutation,
@@ -43,6 +43,7 @@ export {
   queriesForOperation,
   queriesWithTag,
   rolesGetRolesOptions,
+  scopesListOptions,
   usersAssignRoleMutation,
   usersGetUsersOptions,
   usersRemoveRoleMutation,

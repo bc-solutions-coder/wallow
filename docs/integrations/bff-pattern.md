@@ -53,18 +53,26 @@ sequenceDiagram
 
 ### 1. Register an OAuth Application in Wallow
 
-Sign in to the Wallow dashboard and navigate to **Settings > Applications > Register Application** (`/dashboard/apps/register`). Fill in:
+Sign in to the Wallow dashboard as an admin or manager of your organization, open
+**Organizations → your organization**, and press **Register application** in the
+**Applications** ledger. The inline stepper walks three steps — only the required fields
+gate the **Register** button, which is reachable from every step:
 
-| Field                     | Value                                                                                                                                                                                                                                                                 |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Application name          | Must start with the `app-` prefix (e.g., `app-my-fork-site`). Also shown on the consent screen.                                                                                                                                                                       |
-| Client type               | **Select `Confidential`.** The form defaults to `Public`, but a BFF integration requires a confidential client so it can authenticate to the token endpoint with a `client_secret`. A public client is issued no secret and cannot complete the token exchange below. |
-| Grant type                | `authorization_code`                                                                                                                                                                                                                                                  |
-| Redirect URIs             | The full callback URL on your BFF (e.g., `https://myapp.example.com/callback`). Each URI must be absolute HTTPS; `localhost` may use plain HTTP for local development.                                                                                                |
-| Post-logout redirect URIs | Where to send the user after logout (e.g., `https://myapp.example.com/`). Same absolute-HTTPS (localhost-HTTP) rule.                                                                                                                                                  |
-| Scopes                    | The scopes your application needs. `openid`, `profile`, `email`, and `offline_access` are always available for login; you may additionally request any developer-app scope your integration uses.                                                                     |
+| Step      | Field                     | Value                                                                                                                                                                                                                                    |
+| --------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Basics    | Name                      | Required. Shown on the consent screen, and the source of the client id, which Wallow derives as `app-<organization-slug>-<name-slug>`. Both are immutable after registration.                                                             |
+| Redirects | Redirect URIs             | Required, one per line. The full callback URL on your BFF (e.g., `https://myapp.example.com/callback`). Each URI must be absolute, fragment-free, and HTTPS; `http://localhost` (and `127.0.0.1`) may use plain HTTP for local development. |
+| Redirects | Post-logout redirect URIs | Optional. Where to send the user after logout (e.g., `https://myapp.example.com/`). Same URI rules.                                                                                                                                       |
+| Redirects | Back-channel logout URI   | Optional. Same URI rules.                                                                                                                                                                                                                 |
+| Scopes    | Scopes                    | At least one. `openid`, `profile`, `email`, and `offline_access` are the login scopes (`openid` is pre-selected); below them is the organization-grantable API scope catalog. Platform-only scopes are listed but cannot be granted.       |
 
-With `Confidential` selected, Wallow registers a **confidential client** and returns a `client_id` together with a `client_secret`. **The secret is shown exactly once, at creation time** — copy it straight into your BFF's server-side configuration (`OIDC_CLIENT_SECRET`). If you lose it, rotate the secret from the application's settings to mint a new one; the previous secret stops working immediately.
+Every application is a **confidential client** — there is no public-client option — so
+Wallow returns a `client_id` together with a `client_secret`. **The secret is shown exactly
+once, on the reveal that follows Register**, alongside a ready-made `.env` block
+(`OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_REDIRECT_URI`,
+`OIDC_POST_LOGOUT_REDIRECT_URI`, `OIDC_SCOPES`, `BFF_API_BASE_URL`, and a freshly generated
+`COOKIE_PASSWORD`) and an **Open quickstart** link back to this guide. Copy the block straight
+into your BFF's server-side configuration; the secret cannot be fetched again.
 
 Because the client is confidential, your BFF authenticates to the token endpoint with its `client_secret` **in addition to** PKCE. Keep the secret in the BFF server process (or a secrets manager) only — never in the browser or in source control.
 

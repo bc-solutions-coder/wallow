@@ -19,7 +19,7 @@ const ORG_ID = "o1";
 /** Wire paths, `/api`-prefixed by the harness's base URL. */
 const DETAIL_PATH = `/api/v1/identity/organizations/${ORG_ID}`;
 const MEMBERS_PATH = `/api/v1/identity/organizations/${ORG_ID}/members`;
-const CLIENTS_PATH = `/api/v1/identity/clients/by-tenant/${ORG_ID}`;
+const CLIENTS_PATH = `/api/v1/identity/organizations/${ORG_ID}/clients`;
 
 const ORG = { id: ORG_ID, name: "Acme", domain: null, memberCount: "0" };
 
@@ -99,6 +99,6 @@ describe("OrganizationDetail — bound clients query error state", () => {
     await expect
       .element(page.getByTestId("organization-detail-clients-error"))
       .toHaveTextContent("Clients failed.");
-    expect(page.getByTestId("organization-detail-clients-table").elements()).toHaveLength(0);
+    expect(page.getByTestId("organization-detail-applications-table").elements()).toHaveLength(0);
   });
 });

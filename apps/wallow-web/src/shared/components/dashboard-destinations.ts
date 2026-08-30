@@ -1,5 +1,5 @@
 import type { NavDestination } from "@bc-solutions-coder/navigation";
-import { Building, Building2, LayoutGrid, MailPlus, MessageSquare, Settings } from "lucide-react";
+import { Building, Building2, MailPlus, MessageSquare, Settings } from "lucide-react";
 
 /**
  * The dashboard's nav manifest — one entry per vertical, in render order.
@@ -12,7 +12,7 @@ import { Building, Building2, LayoutGrid, MailPlus, MessageSquare, Settings } fr
  * `id` is the testid suffix. Under the shell's default `testIdPrefix` of
  * `"dashboard"` these produce `dashboard-nav-organizations`,
  * `dashboard-nav-invitations`, `dashboard-nav-my-organizations`,
- * `dashboard-nav-apps`, `dashboard-nav-settings` and `dashboard-nav-inquiries`.
+ * `dashboard-nav-settings` and `dashboard-nav-inquiries`.
  *
  * `requires` is inert to the package — it is handed straight back to the `can`
  * predicate `DashboardLayout` supplies, which is what keeps
@@ -51,7 +51,6 @@ export const dashboardDestinations: readonly NavDestination[] = [
     label: "My Organizations",
     icon: Building,
   },
-  { id: "nav-apps", to: "/dashboard/apps", label: "Apps", icon: LayoutGrid },
   { id: "nav-settings", to: "/dashboard/settings", label: "Settings", icon: Settings },
   { id: "nav-inquiries", to: "/dashboard/inquiries", label: "Inquiries", icon: MessageSquare },
 ];

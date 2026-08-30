@@ -18,7 +18,8 @@
       "code": "users.manage",
       "displayName": "Full User Management",
       "category": "Identity",
-      "description": "Access to create, update, and delete users"
+      "description": "Access to create, update, and delete users",
+      "platformOnly": true
     },
     {
       "code": "roles.read",
@@ -151,7 +152,8 @@
       "code": "configuration.manage",
       "displayName": "Manage Configuration",
       "category": "Configuration",
-      "description": "Access to create, update, and delete configuration"
+      "description": "Access to create, update, and delete configuration",
+      "platformOnly": true
     },
     {
       "code": "inquiries.read",
@@ -169,7 +171,8 @@
       "code": "webhooks.manage",
       "displayName": "Manage Webhook Subscriptions",
       "category": "Platform",
-      "description": "Access to manage webhook subscriptions"
+      "description": "Access to manage webhook subscriptions",
+      "platformOnly": true
     }
   ],
   "admin": {

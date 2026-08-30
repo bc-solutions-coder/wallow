@@ -40,6 +40,7 @@ public sealed class IdentityDbContext : AspNetIdentityDbContext, ITenantAwareCon
     public DbSet<OrganizationBranding> OrganizationBrandings => Set<OrganizationBranding>();
     public DbSet<ActiveSession> ActiveSessions => Set<ActiveSession>();
     public DbSet<SsoSessionClient> SsoSessionClients => Set<SsoSessionClient>();
+    public DbSet<RegisteredClient> RegisteredClients => Set<RegisteredClient>();
 
     public TenantId CurrentTenantId => _tenantId;
 

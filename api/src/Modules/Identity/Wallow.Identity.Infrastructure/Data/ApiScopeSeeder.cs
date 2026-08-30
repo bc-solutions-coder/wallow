@@ -6,7 +6,9 @@ using Wallow.Identity.Infrastructure.Persistence;
 namespace Wallow.Identity.Infrastructure.Data;
 
 /// <summary>
-/// Seeds default API scopes that can be assigned to service accounts.
+/// Seeds default API scopes that can be assigned to service accounts. A scope flagged
+/// <c>platformOnly</c> is one only the platform's own clients may hold; the org-scoped client
+/// surface refuses to grant it to a developer application.
 /// </summary>
 public sealed partial class ApiScopeSeeder(ILogger<ApiScopeSeeder> logger)
 {
@@ -50,7 +52,7 @@ public sealed partial class ApiScopeSeeder(ILogger<ApiScopeSeeder> logger)
         yield return ApiScope.Create("users.write", "Manage Users", "Identity",
             "Access to create and update users");
         yield return ApiScope.Create("users.manage", "Full User Management", "Identity",
-            "Access to create, update, and delete users");
+            "Access to create, update, and delete users", platformOnly: true);
 
         // Identity - Roles
         yield return ApiScope.Create("roles.read", "Read Roles", "Identity",
@@ -108,7 +110,7 @@ public sealed partial class ApiScopeSeeder(ILogger<ApiScopeSeeder> logger)
         yield return ApiScope.Create("configuration.read", "Read Configuration", "Configuration",
             "Access to read configuration data", isDefault: true);
         yield return ApiScope.Create("configuration.manage", "Manage Configuration", "Configuration",
-            "Access to create, update, and delete configuration");
+            "Access to create, update, and delete configuration", platformOnly: true);
 
         // Inquiries scopes
         yield return ApiScope.Create("inquiries.read", "Read Inquiries", "Inquiries",
@@ -118,7 +120,7 @@ public sealed partial class ApiScopeSeeder(ILogger<ApiScopeSeeder> logger)
 
         // Platform scopes
         yield return ApiScope.Create("webhooks.manage", "Manage Webhook Subscriptions", "Platform",
-            "Access to manage webhook subscriptions", isDefault: false);
+            "Access to manage webhook subscriptions", isDefault: false, platformOnly: true);
     }
 
 }

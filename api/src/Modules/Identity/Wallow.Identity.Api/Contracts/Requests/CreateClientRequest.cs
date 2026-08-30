@@ -10,6 +10,5 @@ public record CreateClientRequest(
     string Name,
     IReadOnlyList<string> RedirectUris,
     IReadOnlyList<string> PostLogoutRedirectUris,
-    Guid? TenantId = null,
     IReadOnlyList<string>? Scopes = null,
     string? FrontchannelLogoutUri = null);

@@ -20,6 +20,7 @@ public static class RolePermissionMapping
             PermissionType.OrganizationsRead,
             PermissionType.OrganizationsUpdate,
             PermissionType.OrganizationsManageMembers,
+            PermissionType.OrganizationClientsManage,
             PermissionType.ApiKeysRead,
             PermissionType.ApiKeysCreate,
             PermissionType.ApiKeysUpdate,
@@ -52,6 +53,10 @@ public static class RolePermissionMapping
             PermissionType.UsersRead,
             PermissionType.OrganizationsRead,
             PermissionType.OrganizationsManageMembers,
+            PermissionType.OrganizationClientsManage,
+            // Registering a client means choosing its scopes, so the catalog read
+            // travels with the manage permission.
+            PermissionType.ScopeRead,
             PermissionType.ApiKeysRead,
             PermissionType.ApiKeysCreate,
             PermissionType.ApiKeysUpdate,

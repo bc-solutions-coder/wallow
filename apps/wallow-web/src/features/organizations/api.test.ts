@@ -14,8 +14,8 @@ import { sweeps } from "@bc-solutions-coder/testing/invalidation";
 import * as api from "./api";
 
 const membersKey: readonly unknown[] = api.organizationsGetMembersQueryKey({ path: { id: "o1" } });
-const clientsKey: readonly unknown[] = api.clientsGetByTenantQueryKey({
-  path: { tenantId: "o1" },
+const clientsKey: readonly unknown[] = api.organizationClientsListQueryKey({
+  path: { orgId: "o1" },
 });
 
 describe("api.ts re-exports the SDK organizations query surface", () => {
@@ -30,9 +30,10 @@ describe("api.ts re-exports the SDK organizations query surface", () => {
     expect(api.organizationsRemoveMemberMutation).toBe(query.organizationsRemoveMemberMutation);
     expect(api.organizationsArchiveMutation).toBe(query.organizationsArchiveMutation);
     expect(api.organizationsReactivateMutation).toBe(query.organizationsReactivateMutation);
-    expect(api.clientsCreateMutation).toBe(query.clientsCreateMutation);
-    expect(api.clientsGetByTenantOptions).toBe(query.clientsGetByTenantOptions);
-    expect(api.clientsGetByTenantQueryKey).toBe(query.clientsGetByTenantQueryKey);
+    expect(api.organizationClientsListOptions).toBe(query.organizationClientsListOptions);
+    expect(api.organizationClientsListQueryKey).toBe(query.organizationClientsListQueryKey);
+    expect(api.organizationClientsRegisterMutation).toBe(query.organizationClientsRegisterMutation);
+    expect(api.scopesListOptions).toBe(query.scopesListOptions);
     expect(api.queriesForOperation).toBe(query.queriesForOperation);
     expect(api.queriesWithTag).toBe(query.queriesWithTag);
   });
@@ -48,7 +49,7 @@ describe("organizations invalidation", () => {
 
   it("does NOT reach an org's clients, which are tagged separately", () => {
     expect(sweeps(api.queriesWithTag("Organizations"), clientsKey)).toBe(false);
-    expect(sweeps(api.queriesWithTag("Clients"), clientsKey)).toBe(true);
+    expect(sweeps(api.queriesWithTag("Organization Clients"), clientsKey)).toBe(true);
   });
 
   it("narrows to a single operation when only the members changed", () => {

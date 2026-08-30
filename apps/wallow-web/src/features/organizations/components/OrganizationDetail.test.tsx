@@ -55,11 +55,11 @@ describe("OrganizationDetail", () => {
     await expect.element(backLink).toHaveAttribute("href", "/dashboard/organizations");
 
     await expect
-      .element(page.getByTestId("organization-detail-clients-heading"))
-      .toHaveTextContent("Bound Clients");
+      .element(page.getByTestId("organization-detail-applications-heading"))
+      .toHaveTextContent("Applications");
     await expect
-      .element(page.getByTestId("organization-detail-register-submit"))
-      .toHaveTextContent("Register client");
+      .element(page.getByTestId("organization-detail-register-open"))
+      .toHaveTextContent("Register application");
   });
 
   it("renders the not-found state when the org is missing", async () => {
