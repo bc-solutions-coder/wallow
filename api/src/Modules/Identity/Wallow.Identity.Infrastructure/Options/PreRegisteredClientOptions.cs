@@ -62,6 +62,21 @@ public sealed class PreRegisteredClientOptions
 
     public Collection<PreRegisteredClientDefinition> Clients { get; set; } = [];
 
+    // The client <-> organization invariant as (predicate, message) rules: each names the
+    // offending clients between its two message halves so one report lists every violation.
+    private static readonly (Func<PreRegisteredClientDefinition, bool> Violates, string Before, string After)[] _organizationRules =
+    [
+        (c => c.FirstParty && c.IsBoundToOrganization,
+            "first-party client(s) ",
+            " declare an organization (\"tenantId\"/\"tenantName\"); a first-party client is bound to no organization"),
+        (c => c.FirstParty && (c.SeedMembers.Count > 0 || c.SeedMemberRoles.Count > 0),
+            "first-party client(s) ",
+            " declare \"seedMembers\"/\"seedMemberRoles\"; seed members belong to an organization-bound client"),
+        (c => !c.FirstParty && !c.IsBoundToOrganization,
+            "client(s) ",
+            " declare no organization; a client that is not \"firstParty\": true must name exactly one (\"tenantId\" or \"tenantName\")"),
+    ];
+
     // Fails fast, before any client is written, on the two seed shapes that would otherwise
     // register something the platform does not mean: a secret-less client with no explicit
     // public declaration, and a client on the wrong side of the client <-> organization
@@ -81,46 +96,19 @@ public sealed class PreRegisteredClientOptions
                 + "browser/native clients, or supply the secret for confidential ones.");
         }
 
-        List<string> boundFirstParty = Clients
-            .Where(c => c.FirstParty && c.IsBoundToOrganization)
-            .Select(c => c.ClientId)
-            .ToList();
+        List<string> problems = [];
+        foreach ((Func<PreRegisteredClientDefinition, bool> violates, string before, string after) in _organizationRules)
+        {
+            List<string> offenders = Clients.Where(violates).Select(c => c.ClientId).ToList();
+            if (offenders.Count > 0)
+            {
+                problems.Add(before + string.Join(", ", offenders) + after);
+            }
+        }
 
-        List<string> firstPartyWithMembers = Clients
-            .Where(c => c.FirstParty && (c.SeedMembers.Count > 0 || c.SeedMemberRoles.Count > 0))
-            .Select(c => c.ClientId)
-            .ToList();
-
-        List<string> unboundThirdParty = Clients
-            .Where(c => !c.FirstParty && !c.IsBoundToOrganization)
-            .Select(c => c.ClientId)
-            .ToList();
-
-        if (boundFirstParty.Count == 0 && firstPartyWithMembers.Count == 0 && unboundThirdParty.Count == 0)
+        if (problems.Count == 0)
         {
             return;
-        }
-
-        List<string> problems = [];
-        if (boundFirstParty.Count > 0)
-        {
-            problems.Add(
-                "first-party client(s) " + string.Join(", ", boundFirstParty) + " declare an organization "
-                + "(\"tenantId\"/\"tenantName\"); a first-party client is bound to no organization");
-        }
-
-        if (firstPartyWithMembers.Count > 0)
-        {
-            problems.Add(
-                "first-party client(s) " + string.Join(", ", firstPartyWithMembers) + " declare \"seedMembers\"/"
-                + "\"seedMemberRoles\"; seed members belong to an organization-bound client");
-        }
-
-        if (unboundThirdParty.Count > 0)
-        {
-            problems.Add(
-                "client(s) " + string.Join(", ", unboundThirdParty) + " declare no organization; a client that "
-                + "is not \"firstParty\": true must name exactly one (\"tenantId\" or \"tenantName\")");
         }
 
         throw new InvalidOperationException(
