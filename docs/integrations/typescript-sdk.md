@@ -581,12 +581,18 @@ await logout();
   as, so an outage can never masquerade as a signed-out user. In a TanStack
   app, prefer `@bc-solutions-coder/auth`'s `currentUserQuery`, which caches
   this read behind TanStack Query.
-- `loginRedirect(returnTo = "/")` — returns `{ href, reloadDocument }` pointing
-  at `/bff/login` with an encoded `returnTo`. It never touches `location`, so
-  it is SSR-safe: render the `href` as a plain document link, or throw it from
-  a `beforeLoad` via the router's `redirect()` (`requireAuth()` wraps that
-  guard pattern). There is deliberately no imperative `login()` — a helper that
-  assigned to `location` turned gated SSR loads into HTTP 500s.
+- `loginRedirect(returnTo = "/", hints?)` — returns `{ href, reloadDocument }`
+  pointing at `/bff/login` with an encoded `returnTo`. It never touches
+  `location`, so it is SSR-safe: render the `href` as a plain document link, or
+  throw it from a `beforeLoad` via the router's `redirect()` (`requireAuth()`
+  wraps that guard pattern). There is deliberately no imperative `login()` — a
+  helper that assigned to `location` turned gated SSR loads into HTTP 500s.
+  `hints.organization` (an organization id) is forwarded to the IdP as the
+  `organization` authorize parameter: a signed-in user follows that link to
+  switch organization context — the re-authorize is silent against the SSO
+  cookie and the new session is scoped to that organization. Wallow-web's
+  *My organizations* renders one such link per membership; that page is the
+  organization picker.
 - `logout(options?)` — returns `Promise<void>`. `/bff/logout` is state-changing
   and answers `405 + Allow: POST` to a bare `GET`, so this cannot be a plain
   navigation: it issues `POST /bff/logout` with `credentials: "include"`,

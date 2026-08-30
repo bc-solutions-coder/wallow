@@ -80,6 +80,24 @@ describe("loginRedirect", () => {
     expect(loginRedirect("   ").href).toBe("/bff/login?returnTo=%2F");
   });
 
+  it("carries an organization hint for the silent re-authorize", () => {
+    // The organization picker is a link built from this: the BFF forwards the
+    // hint to the authorize request, and the IdP switches the session's org.
+    expect(loginRedirect("/dashboard", { organization: "o2" }).href).toBe(
+      "/bff/login?returnTo=%2Fdashboard&organization=o2",
+    );
+    expect(loginRedirect("/dashboard", { organization: "a b&c" }).href).toBe(
+      "/bff/login?returnTo=%2Fdashboard&organization=a%20b%26c",
+    );
+  });
+
+  it("omits the organization parameter when no hint is given", () => {
+    expect(loginRedirect("/dashboard", {}).href).toBe("/bff/login?returnTo=%2Fdashboard");
+    expect(loginRedirect("/dashboard", { organization: "  " }).href).toBe(
+      "/bff/login?returnTo=%2Fdashboard",
+    );
+  });
+
   it("always marks the redirect as a full-document navigation", () => {
     // Baked in rather than left to each call site: forgetting `reloadDocument`
     // is the same not-found bug in a quieter form.

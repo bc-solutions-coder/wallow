@@ -1,8 +1,11 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using Wallow.Identity.Infrastructure.MultiTenancy;
 using Wallow.Shared.Kernel.Extensions;
+using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Identity.Tests.Infrastructure;
@@ -171,6 +174,108 @@ public class TenantResolutionMiddlewareTests
         tenantContext.IsResolved.Should().BeTrue();
         tenantContext.TenantId.Value.Should().Be(overrideId);
     }
+
+    #region Organization-less callers
+
+    [Fact]
+    public async Task InvokeAsync_TokenWithoutOrganization_OnATenantScopedEndpoint_IsForbidden()
+    {
+        TenantResolutionMiddleware middleware = CreateMiddleware();
+        DefaultHttpContext context = CreateAuthenticatedContext();
+        context.SetEndpoint(EndpointWith(new AuthorizeAttribute()));
+
+        await middleware.InvokeAsync(context, new TenantContext());
+
+        _nextCalled.Should().BeFalse();
+        context.Response.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+        context.Response.ContentType.Should().StartWith("application/problem+json");
+    }
+
+    [Fact]
+    public async Task InvokeAsync_TokenWithoutOrganization_OnAnEndpointAllowedWithoutOne_CallsNext()
+    {
+        TenantResolutionMiddleware middleware = CreateMiddleware();
+        DefaultHttpContext context = CreateAuthenticatedContext();
+        context.SetEndpoint(EndpointWith(new AuthorizeAttribute(), new AllowWithoutOrganizationAttribute()));
+
+        await middleware.InvokeAsync(context, new TenantContext());
+
+        _nextCalled.Should().BeTrue();
+        context.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_TokenWithoutOrganization_OnAnAnonymousEndpoint_CallsNext()
+    {
+        TenantResolutionMiddleware middleware = CreateMiddleware();
+        DefaultHttpContext context = CreateAuthenticatedContext();
+        context.SetEndpoint(EndpointWith(new AllowAnonymousAttribute()));
+
+        await middleware.InvokeAsync(context, new TenantContext());
+
+        _nextCalled.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task InvokeAsync_TokenWithoutOrganization_WhenNoEndpointMatched_CallsNext()
+    {
+        TenantResolutionMiddleware middleware = CreateMiddleware();
+        DefaultHttpContext context = CreateAuthenticatedContext();
+
+        await middleware.InvokeAsync(context, new TenantContext());
+
+        _nextCalled.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task InvokeAsync_TokenWithOrganization_OnATenantScopedEndpoint_CallsNext()
+    {
+        TenantResolutionMiddleware middleware = CreateMiddleware();
+        DefaultHttpContext context = CreateAuthenticatedContext(new Claim("org_id", Guid.NewGuid().ToString()));
+        context.SetEndpoint(EndpointWith(new AuthorizeAttribute()));
+
+        await middleware.InvokeAsync(context, new TenantContext());
+
+        _nextCalled.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task InvokeAsync_GlobalAdminOverridingTenant_WithoutAnOrganizationClaim_CallsNext()
+    {
+        TenantResolutionMiddleware middleware = CreateMiddleware();
+        DefaultHttpContext context = CreateAuthenticatedContext(
+            new Claim(ClaimsPrincipalExtensions.GlobalAdminClaimType, "true"));
+        context.Request.Headers["X-Tenant-Id"] = Guid.NewGuid().ToString();
+        context.SetEndpoint(EndpointWith(new AuthorizeAttribute()));
+
+        await middleware.InvokeAsync(context, new TenantContext());
+
+        _nextCalled.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task InvokeAsync_AuthHostCookieSession_WithoutAnOrganization_CallsNext()
+    {
+        // The auth host's own cookie session never carries an organization: it is the sign-in
+        // surface, not a tenant-scoped API caller.
+        TenantResolutionMiddleware middleware = CreateMiddleware();
+        DefaultHttpContext context = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity(
+                [new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString())],
+                IdentityConstants.ApplicationScheme)),
+        };
+        context.SetEndpoint(EndpointWith(new AuthorizeAttribute()));
+
+        await middleware.InvokeAsync(context, new TenantContext());
+
+        _nextCalled.Should().BeTrue();
+    }
+
+    private static Endpoint EndpointWith(params object[] metadata) =>
+        new(_ => Task.CompletedTask, new EndpointMetadataCollection(metadata), "test");
+
+    #endregion
 
     private TenantResolutionMiddleware CreateMiddleware()
     {

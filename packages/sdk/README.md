@@ -292,6 +292,10 @@ if (user === null) {
   // A link, not a call: /bff/login is a full-document navigation.
   const { href } = loginRedirect("/dashboard"); // -> /bff/login?returnTo=%2Fdashboard
 }
+
+// Switch organization context: a link that re-authorizes with the hint.
+loginRedirect("/dashboard", { organization: organizationId }).href;
+// -> /bff/login?returnTo=%2Fdashboard&organization=<id>
 ```
 
 `baseUrl` is REQUIRED and has no default, because the right value differs by

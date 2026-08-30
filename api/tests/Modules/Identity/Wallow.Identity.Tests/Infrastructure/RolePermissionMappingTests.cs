@@ -37,7 +37,6 @@ public class RolePermissionMappingTests
         // The per-organization roles exist to withhold exactly this. A default grant here reinstates
         // the escalation whichever way the membership model is written.
         result.Should().NotContain(PermissionType.OrganizationsUpdate);
-        result.Should().NotContain(PermissionType.OrganizationsCreate);
         result.Should().NotContain(PermissionType.OrganizationsManageMembers);
     }
 

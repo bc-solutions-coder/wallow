@@ -147,7 +147,7 @@ controllers and is the authoritative endpoint list.
 
 | Method | Endpoint | Description | Permission |
 |--------|----------|-------------|------------|
-| POST | `/` | Create organization | OrganizationsCreate |
+| POST | `/` | Create organization | none — any signed-in account, org-less token included |
 | GET | `/` | List organizations | OrganizationsRead |
 | GET | `/{id}` | Get organization by ID | OrganizationsRead |
 | DELETE | `/{id}` | Delete organization | OrganizationsUpdate |

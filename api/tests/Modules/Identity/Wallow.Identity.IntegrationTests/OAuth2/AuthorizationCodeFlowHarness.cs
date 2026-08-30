@@ -95,13 +95,16 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
 
     /// <summary>
     /// Requests an authorization code. Returns the endpoint's answer whether it granted a code or
-    /// refused, so a caller can assert on either.
+    /// refused, so a caller can assert on either. <paramref name="organization"/> is the
+    /// <c>organization</c> hint a first-party client sends to run one organization's enrollment
+    /// policy; a bound client may only name its own.
     /// </summary>
     public async Task<AuthorizeOutcome> AuthorizeAsync(
         string clientId,
         string scope,
         string redirectUri = RedirectUri,
-        string? extraQuery = null)
+        string? extraQuery = null,
+        string? organization = null)
     {
         string verifier = Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
         string challenge = Base64UrlEncode(SHA256.HashData(Encoding.ASCII.GetBytes(verifier)));
@@ -115,6 +118,11 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
             $"code_challenge={challenge}",
             "code_challenge_method=S256",
             "state=harness");
+
+        if (!string.IsNullOrEmpty(organization))
+        {
+            query += $"&{AuthorizationController.OrganizationParameter}={Uri.EscapeDataString(organization)}";
+        }
 
         if (!string.IsNullOrEmpty(extraQuery))
         {
@@ -179,6 +187,7 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
         Uri? location = response.Headers.Location;
         string? code = null;
         string? error = null;
+        string? errorDescription = null;
         string? returnUrl = null;
         string? consentToken = null;
 
@@ -195,6 +204,7 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
                 // A refusal from OpenIddict names 'error'; one the controller writes itself
                 // redirects to the auth app's error screen and names 'reason'.
                 error = Single(parsed, "error") ?? Single(parsed, "reason");
+                errorDescription = Single(parsed, "error_description");
 
                 // A redirect to the consent screen carries the request to come back to and the
                 // token that lets the answer through.
@@ -211,7 +221,8 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
             verifier,
             await response.Content.ReadAsStringAsync(),
             returnUrl,
-            consentToken);
+            consentToken,
+            errorDescription);
     }
 
     /// <summary>Exchanges an authorization code for tokens.</summary>
@@ -249,9 +260,10 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
         string clientId,
         string clientSecret,
         string scope,
-        string redirectUri = RedirectUri)
+        string redirectUri = RedirectUri,
+        string? organization = null)
     {
-        AuthorizeOutcome authorize = await AuthorizeAsync(clientId, scope, redirectUri);
+        AuthorizeOutcome authorize = await AuthorizeAsync(clientId, scope, redirectUri, organization: organization);
         if (authorize.Code is null)
         {
             throw new InvalidOperationException(
@@ -283,7 +295,8 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
     /// explicit-consent and is answered with a redirect to the auth app's consent route carrying
     /// a single-use consent token, which <see cref="ConsentAsync"/> posts back the way the consent
     /// screen does. The tenant property is what binds the client to an organization: a first-party
-    /// client is legal without one, while an explicit-consent client carrying none is refused by
+    /// client is never bound (it names an organization per request through the
+    /// <c>organization</c> hint), while an explicit-consent client carrying none is refused by
     /// the authorize endpoint as bound to no organization.
     /// </summary>
     public static async Task RegisterClientAsync(
@@ -298,6 +311,13 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(scopes);
+
+        if (firstParty && tenantId is not null)
+        {
+            throw new ArgumentException(
+                "A first-party client is never bound to an organization; pass the organization hint to AuthorizeAsync instead.",
+                nameof(tenantId));
+        }
 
         IOpenIddictApplicationManager applications =
             services.GetRequiredService<IOpenIddictApplicationManager>();
@@ -468,7 +488,9 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
 /// <summary>
 /// What the authorize endpoint answered: a code, the refusal it redirected to, or the consent
 /// screen it sent the user to (<paramref name="ReturnUrl"/> and <paramref name="ConsentToken"/>
-/// are set only then).
+/// are set only then). <paramref name="ErrorDescription"/> is the <c>error_description</c> a
+/// refusal sent back to the relying party carries — for <c>access_denied</c>, the membership
+/// reason.
 /// </summary>
 public sealed record AuthorizeOutcome(
     HttpStatusCode StatusCode,
@@ -478,7 +500,8 @@ public sealed record AuthorizeOutcome(
     string CodeVerifier,
     string Body,
     string? ReturnUrl = null,
-    string? ConsentToken = null);
+    string? ConsentToken = null,
+    string? ErrorDescription = null);
 
 /// <summary>What the token endpoint answered.</summary>
 public sealed record TokenOutcome(

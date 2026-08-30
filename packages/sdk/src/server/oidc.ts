@@ -52,6 +52,12 @@ export interface AuthorizeParams {
   state: string;
   codeChallenge: string;
   nonce: string;
+  /**
+   * Organization hint: the IdP runs this organization's enrollment policy and
+   * scopes the tokens to it. Omitted, the IdP falls back to the user's single
+   * membership or issues an org-less token.
+   */
+  organization?: string;
 }
 
 /** Parameters required to exchange an authorization code for tokens. */
@@ -263,6 +269,7 @@ export function buildAuthorizeUrl(
     code_challenge: params.codeChallenge,
     code_challenge_method: "S256",
     nonce: params.nonce,
+    ...(params.organization === undefined ? {} : { organization: params.organization }),
   });
   return pinToBrowserEndpoint(url, doc.authorization_endpoint);
 }

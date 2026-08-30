@@ -569,6 +569,23 @@ describe("buildAuthorizeUrl", () => {
     expect(params.code_challenge).toBe("challenge-abc");
     expect(params.code_challenge_method).toBe("S256");
     expect(params.nonce).toBe("nonce-xyz");
+    expect(params).not.toHaveProperty("organization");
+  });
+
+  it("passes the organization hint through as the organization param", () => {
+    const config: BffConfig = makeConfig();
+    const authorizeDoc: DiscoveryDoc = makeAuthorizeDoc();
+    buildAuthorizationUrlMock.mockReturnValue(new URL(doc.authorization_endpoint));
+
+    buildAuthorizeUrl(config, authorizeDoc, {
+      state: "state-123",
+      codeChallenge: "challenge-abc",
+      nonce: "nonce-xyz",
+      organization: "org-42",
+    });
+
+    const [, params] = buildAuthorizationUrlMock.mock.calls[0] as [unknown, Record<string, string>];
+    expect(params.organization).toBe("org-42");
   });
 });
 

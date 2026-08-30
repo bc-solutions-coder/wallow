@@ -55,6 +55,16 @@ public abstract class WallowIntegrationTestBase : IAsyncLifetime
         Client.DefaultRequestHeaders.Add("X-Test-Tenant-Id", tenantId.ToString("D"));
     }
 
+    /// <summary>
+    /// Issues the test principal without any organization, as a first-party token without a hint
+    /// is for a user with several (or no) memberships.
+    /// </summary>
+    protected void SetTestNoOrganization()
+    {
+        Client.DefaultRequestHeaders.Remove("X-Test-No-Organization");
+        Client.DefaultRequestHeaders.Add("X-Test-No-Organization", "true");
+    }
+
     private static Guid GenerateGuidFromString(string input)
     {
         byte[] hash = System.Security.Cryptography.SHA256.HashData(

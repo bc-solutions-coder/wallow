@@ -453,7 +453,11 @@ export function createBffHandlers(
       // `searchParams.get` takes the FIRST value of a repeated parameter, so
       // the guard below — not the parameter parser — is what rejects a value
       // smuggled in behind a safe-looking one.
-      const returnTo: string = safeReturnTo(new URL(request.url).searchParams.get("returnTo"));
+      const loginUrl: URL = new URL(request.url);
+      const returnTo: string = safeReturnTo(loginUrl.searchParams.get("returnTo"));
+      // The organization picker's hint. Passed through verbatim: the IdP owns
+      // its validation and answers a bad one to this redirect URI as an error.
+      const organization: string = loginUrl.searchParams.get("organization")?.trim() ?? "";
 
       const doc: DiscoveryDoc = await discover(config);
       const { verifier, challenge } = await createPkcePair();
@@ -477,6 +481,7 @@ export function createBffHandlers(
         state,
         codeChallenge: challenge,
         nonce,
+        ...(organization === "" ? {} : { organization }),
       });
       return redirect(authorizeUrl, headers);
     },
@@ -530,7 +535,7 @@ export function createBffHandlers(
           sub: typeof info.sub === "string" ? info.sub : user.sub,
         };
       }
-      // Normalize authorization + tenant claims into first-class user fields.
+      // Normalize authorization + organization claims into first-class user fields.
       user = mapClaims(user);
 
       const csrfToken: string = randomUrlSafe(TOKEN_BYTES);

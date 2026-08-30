@@ -284,7 +284,7 @@ describe("callback handler", () => {
     expect(checks.pkceCodeVerifier).toBe("ver-1");
   });
 
-  it("maps role/tenant/scope claims into first-class session.user fields", async () => {
+  it("maps role/organization/scope claims into first-class session.user fields", async () => {
     const config: BffConfig = makeConfig("https://cb-claims.example.com");
     const tx: LoginTx = {
       state: "st-c",
@@ -305,8 +305,8 @@ describe("callback handler", () => {
         role: "admin",
         roles: ["user"],
         scope: "read write",
-        tenant_id: "tenant-42",
-        tenant_name: "Acme Corp",
+        org_id: "org-42",
+        org_name: "Acme Corp",
       }),
       expires_in: 3600,
       token_type: "Bearer",
@@ -337,8 +337,8 @@ describe("callback handler", () => {
     // scope (space-delimited string) normalizes into permissions.
     expect(user.permissions).toEqual(expect.arrayContaining(["read", "write"]));
     // tenant claims are lifted into first-class fields.
-    expect(user.tenantId).toBe("tenant-42");
-    expect(user.tenantName).toBe("Acme Corp");
+    expect(user.organizationId).toBe("org-42");
+    expect(user.organizationName).toBe("Acme Corp");
   });
 });
 
@@ -457,6 +457,29 @@ describe("returnTo open-redirect guard", () => {
     expect(res.status).toBe(302);
     const tx: LoginTx | null = await txFromLogin(res, config.cookiePassword);
     expect(tx?.returnTo).toBe("/");
+  });
+
+  it("login forwards an organization hint to the authorize request", async () => {
+    // The organization picker re-authorizes with the hint; the BFF passes it
+    // through untouched so the IdP runs that organization's enrollment policy.
+    const [res] = await loginWithQuery(
+      "https://login-org-hint.example.com",
+      "returnTo=%2Fdashboard&organization=11111111-2222-3333-4444-555555555555",
+    );
+
+    expect(res.status).toBe(302);
+    const url: URL = new URL(res.headers.get("location") ?? "");
+    expect(url.searchParams.get("organization")).toBe("11111111-2222-3333-4444-555555555555");
+  });
+
+  it("login sends no organization parameter when the hint is absent or blank", async () => {
+    const [res] = await loginWithQuery(
+      "https://login-org-none.example.com",
+      "returnTo=%2Fdashboard&organization=",
+    );
+
+    const url: URL = new URL(res.headers.get("location") ?? "");
+    expect(url.searchParams.has("organization")).toBe(false);
   });
 
   it("login preserves a safe relative returnTo", async () => {

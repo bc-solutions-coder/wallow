@@ -25,7 +25,8 @@ public sealed class AuthorizationCodeFlowHarnessTests(WallowApiFactory factory)
         using AuthorizationCodeFlowHarness harness = new(Factory);
         await harness.SignInAsync(email, Password);
 
-        TokenOutcome tokens = await harness.AcquireTokensAsync(clientId, ClientSecret, Scope);
+        TokenOutcome tokens = await harness.AcquireTokensAsync(
+            clientId, ClientSecret, Scope, organization: organizationId.ToString());
 
         tokens.StatusCode.Should().Be(HttpStatusCode.OK, tokens.Body);
         AuthorizationCodeFlowHarness.ReadClaimValues(tokens.RequireAccessToken(), "org_id")
@@ -41,7 +42,8 @@ public sealed class AuthorizationCodeFlowHarnessTests(WallowApiFactory factory)
         using AuthorizationCodeFlowHarness harness = new(Factory);
         await harness.SignInAsync(email, Password);
 
-        TokenOutcome tokens = await harness.AcquireTokensAsync(clientId, ClientSecret, Scope);
+        TokenOutcome tokens = await harness.AcquireTokensAsync(
+            clientId, ClientSecret, Scope, organization: organizationId.ToString());
         tokens.RefreshToken.Should().NotBeNull(tokens.Body);
 
         TokenOutcome refreshed = await harness.RefreshAsync(clientId, ClientSecret, tokens.RefreshToken!);
@@ -55,14 +57,15 @@ public sealed class AuthorizationCodeFlowHarnessTests(WallowApiFactory factory)
     [Fact]
     public async Task Authorize_ForAUserOutsideTheClientsOrganization_IssuesNoCode()
     {
-        (_, _, string clientId) = await SeedAsync();
+        (_, Guid organizationId, string clientId) = await SeedAsync();
         string outsiderEmail = $"harness-outsider-{Guid.NewGuid():N}@wallow.dev";
         await AuthorizationCodeFlowHarness.CreateUserAsync(ScopedServices, outsiderEmail, Password);
 
         using AuthorizationCodeFlowHarness harness = new(Factory);
         await harness.SignInAsync(outsiderEmail, Password);
 
-        AuthorizeOutcome authorize = await harness.AuthorizeAsync(clientId, Scope);
+        AuthorizeOutcome authorize = await harness.AuthorizeAsync(
+            clientId, Scope, organization: organizationId.ToString());
 
         authorize.Code.Should().BeNull(authorize.Location?.ToString());
         authorize.Error.Should().Be("not_a_member");
@@ -84,7 +87,7 @@ public sealed class AuthorizationCodeFlowHarnessTests(WallowApiFactory factory)
             ScopedServices,
             clientId,
             ClientSecret,
-            organizationId,
+            tenantId: null,
             _clientScopes,
             firstParty: true);
 

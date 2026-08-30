@@ -84,6 +84,7 @@ public class InvitationsController(
     /// </summary>
     [HttpPost("{token}/accept")]
     [Authorize]
+    [AllowWithoutOrganization]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]

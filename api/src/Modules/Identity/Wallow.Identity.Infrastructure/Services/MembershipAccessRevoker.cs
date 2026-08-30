@@ -7,21 +7,70 @@ using Wallow.Shared.Contracts.Realtime;
 namespace Wallow.Identity.Infrastructure.Services;
 
 /// <summary>
-/// A token belongs to the organization its client is bound to — that binding is what puts an
-/// org_id on the token in the first place — so revoking access to one organization means
-/// revoking the subject's tokens issued through that organization's clients, and no others.
+/// A token names its organization in one of two places. A bound client's tokens carry it through
+/// the client: the binding is what put an org_id on them. A first-party client is bound to none,
+/// so its sign-in writes the organization on the authorization its tokens chain to instead.
+/// Revoking access to one organization means revoking the subject's tokens found either way, and
+/// no others.
 /// </summary>
 public sealed partial class MembershipAccessRevoker(
     IOpenIddictTokenManager tokenManager,
     IOpenIddictApplicationManager applicationManager,
+    IOpenIddictAuthorizationManager authorizationManager,
     IRealtimeAccessRevoker realtimeAccessRevoker,
     ILogger<MembershipAccessRevoker> logger) : IMembershipAccessRevoker
 {
     public async Task RevokeAsync(Guid userId, Guid organizationId, CancellationToken ct = default)
     {
         string subject = userId.ToString();
+        HashSet<string> revokedTokenIds = [];
+
+        await RevokeByAuthorizationAsync(subject, organizationId, revokedTokenIds, ct);
+        await RevokeByClientBindingAsync(subject, organizationId, revokedTokenIds, ct);
+
+        // Revoking a token says nothing to a socket that is already open, and an open stream
+        // carries the roles it was opened with.
+        await realtimeAccessRevoker.RevokeAsync(subject, organizationId, ct);
+
+        LogAccessRevoked(userId, organizationId, revokedTokenIds.Count);
+    }
+
+    private async Task RevokeByAuthorizationAsync(
+        string subject,
+        Guid organizationId,
+        HashSet<string> revokedTokenIds,
+        CancellationToken ct)
+    {
+        await foreach (object authorization in authorizationManager.FindBySubjectAsync(subject, ct))
+        {
+            OpenIddictAuthorizationDescriptor descriptor = new();
+            await authorizationManager.PopulateAsync(descriptor, authorization, ct);
+
+            if (descriptor.GetOrganizationId() != organizationId)
+            {
+                continue;
+            }
+
+            string? authorizationId = await authorizationManager.GetIdAsync(authorization, ct);
+            if (authorizationId is not null)
+            {
+                await foreach (object token in tokenManager.FindByAuthorizationIdAsync(authorizationId, ct))
+                {
+                    await RevokeTokenAsync(token, revokedTokenIds, ct);
+                }
+            }
+
+            await authorizationManager.TryRevokeAsync(authorization, ct);
+        }
+    }
+
+    private async Task RevokeByClientBindingAsync(
+        string subject,
+        Guid organizationId,
+        HashSet<string> revokedTokenIds,
+        CancellationToken ct)
+    {
         Dictionary<string, bool> clientBelongsToOrganization = [];
-        int revoked = 0;
 
         await foreach (object token in tokenManager.FindBySubjectAsync(subject, ct))
         {
@@ -38,17 +87,22 @@ public sealed partial class MembershipAccessRevoker(
                 clientBelongsToOrganization[applicationId] = belongs;
             }
 
-            if (belongs && await tokenManager.TryRevokeAsync(token, ct))
+            if (belongs)
             {
-                revoked++;
+                await RevokeTokenAsync(token, revokedTokenIds, ct);
             }
         }
+    }
 
-        // Revoking a token says nothing to a socket that is already open, and an open stream
-        // carries the roles it was opened with.
-        await realtimeAccessRevoker.RevokeAsync(subject, organizationId, ct);
+    private async Task RevokeTokenAsync(object token, HashSet<string> revokedTokenIds, CancellationToken ct)
+    {
+        string? tokenId = await tokenManager.GetIdAsync(token, ct);
+        if (tokenId is not null && !revokedTokenIds.Add(tokenId))
+        {
+            return;
+        }
 
-        LogAccessRevoked(userId, organizationId, revoked);
+        await tokenManager.TryRevokeAsync(token, ct);
     }
 
     private async Task<bool> BelongsToOrganizationAsync(

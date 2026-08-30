@@ -70,11 +70,13 @@ export function decodeIdTokenClaims(idToken: string): BffSession["user"] {
  * Map a merged claims object (id_token payload overlaid with userinfo) into the
  * first-class {@link BffSession.user} fields.
  *
- * Normalizes authorization claims into arrays and lifts tenant claims into
- * dedicated fields: `role`/`roles` merge into `roles`, `permissions`/`scope`
- * merge into `permissions`, `tenant_id` becomes `tenantId`, `tenant_name`
- * becomes `tenantName`. All other claims (including `sub`, `email`, `name`) pass
- * through via the {@link BffSession.user} index signature.
+ * Normalizes authorization claims into arrays and lifts organization claims
+ * into dedicated fields: `role`/`roles` merge into `roles`, `permissions`/`scope`
+ * merge into `permissions`, `org_id` becomes `organizationId`, `org_name`
+ * becomes `organizationName`. An org-less token (a first-party sign-in with no
+ * organization hint and no single membership) leaves both unset. All other
+ * claims (including `sub`, `email`, `name`) pass through via the
+ * {@link BffSession.user} index signature.
  *
  * @param claims The merged OIDC claims object.
  * @returns The resolved session user with normalized first-class fields.
@@ -85,8 +87,8 @@ export function mapClaims(claims: Record<string, unknown>): BffSession["user"] {
   delete rest.roles;
   delete rest.permissions;
   delete rest.scope;
-  delete rest.tenant_id;
-  delete rest.tenant_name;
+  delete rest.org_id;
+  delete rest.org_name;
 
   const user: BffSession["user"] = {
     ...rest,
@@ -106,12 +108,12 @@ export function mapClaims(claims: Record<string, unknown>): BffSession["user"] {
     user.permissions = permissions;
   }
 
-  if (typeof claims.tenant_id === "string") {
-    user.tenantId = claims.tenant_id;
+  if (typeof claims.org_id === "string") {
+    user.organizationId = claims.org_id;
   }
 
-  if (typeof claims.tenant_name === "string") {
-    user.tenantName = claims.tenant_name;
+  if (typeof claims.org_name === "string") {
+    user.organizationName = claims.org_name;
   }
 
   return user;

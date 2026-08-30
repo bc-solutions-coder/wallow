@@ -78,7 +78,7 @@ async function contextFor(request: Request): Promise<LogRequestContext> {
 
   return {
     userId: session.user.sub,
-    ...(session.user.tenantId === undefined ? {} : { tenantId: session.user.tenantId }),
+    ...(session.user.organizationId === undefined ? {} : { tenantId: session.user.organizationId }),
   };
 }
 

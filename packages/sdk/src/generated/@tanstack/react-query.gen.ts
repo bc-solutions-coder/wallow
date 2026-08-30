@@ -863,9 +863,11 @@ export const meGetOrganizationsQueryKey = (options?: Options<MeGetOrganizationsD
 /**
  * The organizations the caller belongs to.
  *
- * A client is bound to one organization, so this is not a switcher: an app cannot open
- * another organization's door with the token it holds. It can link to it, which is the
- * only honest thing to offer someone who belongs to three.
+ * This is the organization picker's data: a first-party app lists these and re-authorizes
+ * with the `organization` hint to switch context. The token it holds still opens one
+ * organization's door at a time, so the switch is a new authorize round-trip, never a
+ * header. Reachable without an organization, because a caller who belongs to three and
+ * has picked none must be able to see them.
  *
  * Asks for no permission — the answer is about the caller, and demanding one would hide
  * every organization but the one their token is scoped to, which is the question.
@@ -1008,6 +1010,10 @@ export const organizationsGetAllOptions = (options?: Options<OrganizationsGetAll
 
 /**
  * Create a new organization.
+ *
+ * Any account holder may found an organization without an operator, so this asks for no
+ * permission and answers an organization-less token: a permission would have to be
+ * granted by an organization the caller does not yet have.
  */
 export const organizationsCreateMutation = (options?: Partial<Options<OrganizationsCreateData>>): UseMutationOptions<OrganizationsCreateResponse, DefaultError, Options<OrganizationsCreateData>> => {
     const mutationOptions: UseMutationOptions<OrganizationsCreateResponse, DefaultError, Options<OrganizationsCreateData>> = {

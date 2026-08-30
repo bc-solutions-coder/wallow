@@ -299,7 +299,30 @@ Every claim past `sub` is scope-gated, and userinfo returns only what the grante
 
 `org_id` is the organization this session belongs to, and `org_name` its display name — Wallow
 omits `org_name` when the resolved organization has none, so treat it as optional and fall back
-to `org_id`.
+to `org_id`. Both are absent altogether on an **org-less** token (see below).
+
+#### Organization context: one code path for every client
+
+Which organization a session belongs to is decided at the authorization endpoint, the same way
+for a first-party client and for a third-party client bound to one organization:
+
+- A **bound** client always runs its organization's enrollment policy. A user who is pending,
+  suspended, denied, or simply not a member is sent back to the RP's `redirect_uri` with
+  `error=access_denied` and `error_description` set to one of `membership_pending`,
+  `membership_suspended`, `membership_denied`, or `not_a_member` — pending still records the
+  request, so a later approval lets the same sign-in succeed. Passing an `organization`
+  parameter naming any organization other than the bound one is `invalid_request`.
+- A **first-party** client may pass an `organization` authorize parameter (the organization
+  GUID). The transaction then runs that organization's enrollment policy exactly as a bound
+  client's would, and the token carries that `org_id`.
+- Without the hint, a first-party token carries the user's single membership — or, when the
+  user has several or none, **no `org_id` at all**. That org-less token is legal, but it reaches
+  only the endpoints that need no organization: the caller's profile, *my organizations*,
+  create organization, and accept invitation. Every other tenant-scoped endpoint answers `403`.
+
+A frontend therefore treats *my organizations* as the organization picker: to switch, it
+re-authorizes with the `organization` hint (silently, against the SSO cookie) and gets a fresh
+session scoped to the chosen organization. There is no picker on the auth host.
 
 #### Roles are scoped to `org_id`, not to the user
 
@@ -307,6 +330,10 @@ A user can belong to several organizations. They sign in to **one at a time**, a
 carries only the roles that one membership grants. `roles: ["admin"]` therefore means "admin of
 `org_id`" and never "admin everywhere" — cache it under the organization, and re-read it rather
 than carrying it across a change of organization.
+
+With `@bc-solutions-coder/sdk`'s BFF, these two claims land on the session as
+`organizationId`/`organizationName`, and `loginRedirect(returnTo, { organization })` builds the
+switch link that carries the hint.
 
 If your frontend is built on this workspace's packages, gate UI through
 `@bc-solutions-coder/auth`'s `hasRole`/`isAdmin` over the typed current-user response rather

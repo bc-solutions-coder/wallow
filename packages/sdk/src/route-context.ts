@@ -49,22 +49,39 @@ export interface LoginRedirectOptions {
   readonly reloadDocument: true;
 }
 
+/** Optional hints for {@link loginRedirect}. */
+export interface LoginHints {
+  /**
+   * The organization to sign in to. The BFF forwards it to the authorize
+   * request, where the IdP runs that organization's enrollment policy and
+   * scopes the new session to it — the silent re-authorize behind an
+   * organization picker. Blank input is treated as absent.
+   */
+  readonly organization?: string;
+}
+
 /**
- * Build the redirect target that sends an unauthenticated visitor to the BFF
- * login endpoint and back to where they were heading.
+ * Build the redirect target that sends a visitor to the BFF login endpoint and
+ * back to where they were heading — an unauthenticated visitor's login, or a
+ * signed-in member's switch of organization context.
  *
  * Pure and SSR-safe: it reads no globals and performs no navigation. Hand the
- * result to the router's `redirect()` and throw that.
+ * result to the router's `redirect()` and throw that, or use its `href` on a
+ * full-document link.
  *
  * @param returnTo Path to return to after authenticating. Defaults to `"/"`;
  *                 blank input is treated as absent. It is URL-encoded, so a
  *                 path carrying its own query string survives intact.
+ * @param hints    See {@link LoginHints}.
  */
-export function loginRedirect(returnTo?: string): LoginRedirectOptions {
+export function loginRedirect(returnTo?: string, hints?: LoginHints): LoginRedirectOptions {
   const target: string = returnTo?.trim() || "/";
+  const organization: string = hints?.organization?.trim() ?? "";
+  const organizationQuery: string =
+    organization === "" ? "" : `&organization=${encodeURIComponent(organization)}`;
 
   return {
-    href: `${BFF_LOGIN_PATH}?returnTo=${encodeURIComponent(target)}`,
+    href: `${BFF_LOGIN_PATH}?returnTo=${encodeURIComponent(target)}${organizationQuery}`,
     reloadDocument: true,
   };
 }

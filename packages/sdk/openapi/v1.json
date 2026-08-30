@@ -2841,7 +2841,7 @@
           "Me"
         ],
         "summary": "The organizations the caller belongs to.",
-        "description": "A client is bound to one organization, so this is not a switcher: an app cannot open\nanother organization's door with the token it holds. It can link to it, which is the\nonly honest thing to offer someone who belongs to three.\n\nAsks for no permission — the answer is about the caller, and demanding one would hide\nevery organization but the one their token is scoped to, which is the question.",
+        "description": "This is the organization picker's data: a first-party app lists these and re-authorizes\nwith the `organization` hint to switch context. The token it holds still opens one\norganization's door at a time, so the switch is a new authorize round-trip, never a\nheader. Reachable without an organization, because a caller who belongs to three and\nhas picked none must be able to see them.\n\nAsks for no permission — the answer is about the caller, and demanding one would hide\nevery organization but the one their token is scoped to, which is the question.",
         "operationId": "MeGetOrganizations",
         "responses": {
           "200": {
@@ -3227,6 +3227,7 @@
           "Organizations"
         ],
         "summary": "Create a new organization.",
+        "description": "Any account holder may found an organization without an operator, so this asks for no\npermission and answers an organization-less token: a permission would have to be\ngranted by an organization the caller does not yet have.",
         "operationId": "OrganizationsCreate",
         "requestBody": {
           "content": {

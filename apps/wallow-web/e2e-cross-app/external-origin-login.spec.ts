@@ -82,15 +82,14 @@ test("sign-in with Wallow from an external origin completes end to end", async (
     process.env.E2E_USER ?? "admin@wallow.dev",
   );
 
-  // userinfo/id-token claims carry org_id: read them off the external origin's own session
-  // view. packages/sdk/src/server/claims.ts's mapClaims only strips
-  // role/roles/permissions/scope/tenant_id/tenant_name -- org_id/org_name pass through
-  // untouched (plan Sec 5.5.3).
+  // userinfo/id-token claims carry org_id/org_name: the SDK's mapClaims reads them into the
+  // session as organizationId/organizationName, which the external origin's own /bff/user
+  // view exposes. A bound client's session always names its organization.
   const bffUser = await page.request.get(`${BFF_EXAMPLE_ORIGIN}/bff/user`);
   expect(bffUser.ok()).toBe(true);
   const bffUserBody = (await bffUser.json()) as Record<string, unknown>;
-  expect(bffUserBody.org_id).toBeTruthy();
-  expect(bffUserBody.org_name).toBeTruthy();
+  expect(bffUserBody.organizationId).toBeTruthy();
+  expect(bffUserBody.organizationName).toBeTruthy();
 
   // Logout ends the session at the external origin -- the "clears the local session at the
   // other relying party" leg of the acceptance criteria. Proven the same way

@@ -1,10 +1,18 @@
 /**
  * The organizations the signed-in caller belongs to (Wallow-yp3e.7), with a way
- * to leave one. Drives `useQuery(meGetOrganizationsOptions({ client }))` —
- * ambient caller, no orgId prop, same shape as `InvitationList`'s ambient
- * tenant. `MeController.GetOrganizations` asks for no permission, so this is
- * the one organizations screen every signed-in member can reach regardless of
- * role.
+ * to switch into one and a way to leave one. Drives
+ * `useQuery(meGetOrganizationsOptions({ client }))` — ambient caller, no orgId
+ * prop, same shape as `InvitationList`'s ambient tenant.
+ * `MeController.GetOrganizations` asks for no permission and answers an
+ * org-less token, so this is the one organizations screen every signed-in
+ * member can reach regardless of role — and it is the organization picker:
+ * there is none on the auth host.
+ *
+ * Switching is a full-document link built by the SDK's `loginRedirect` with the
+ * `organization` hint: `/bff/login` re-authorizes silently against the SSO
+ * cookie and the IdP scopes the new session to that organization. A link, not
+ * a handler — `/bff/login` is a BFF endpoint outside the route tree, and the
+ * SDK's imperative `login()` is banned for exactly that reason.
  *
  * Leaving is destructive and irreversible from a member's side, so it goes
  * through `AlertDialog` rather than a bare button, mirroring the catalog's own
@@ -17,7 +25,7 @@
  */
 import { errorText } from "@bc-solutions-coder/forms";
 import { useMutation, useQuery, useQueryClient } from "@bc-solutions-coder/query";
-import type { MyOrganizationDto } from "@bc-solutions-coder/sdk";
+import { loginRedirect, type MyOrganizationDto } from "@bc-solutions-coder/sdk";
 import {
   AlertDialog,
   Badge,
@@ -26,6 +34,7 @@ import {
   ListCard,
   ListRow,
   MutedText,
+  QuietLink,
   Text,
 } from "@bc-solutions-coder/ui";
 import { useRouteContext } from "@tanstack/react-router";
@@ -36,6 +45,9 @@ import {
   organizationsLeaveMutation,
   queriesForOperation,
 } from "../api";
+
+/** Where a switch lands: the dashboard, whose gate re-reads the new session's user. */
+const SWITCH_RETURN_TO = "/dashboard";
 
 /**
  * The confirm/cancel footer, extracted so the popup body below stays under
@@ -104,6 +116,12 @@ function MyOrganizationRow(props: { org: MyOrganizationDto; onLeave: (orgId: str
         {org.name}
       </Text>
       {org.isOwner ? <Badge data-testid="my-organization-item-owner">Owner</Badge> : null}
+      <QuietLink
+        data-testid="my-organization-switch"
+        href={loginRedirect(SWITCH_RETURN_TO, { organization: org.organizationId }).href}
+      >
+        Switch
+      </QuietLink>
       <LeaveOrganizationAlert
         org={org}
         onLeave={() => {

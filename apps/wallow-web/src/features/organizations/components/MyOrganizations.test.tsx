@@ -53,6 +53,25 @@ describe("MyOrganizations", () => {
     expect(page.getByTestId("my-organization-item-owner").elements()).toHaveLength(1);
   });
 
+  it("offers a switch into each organization as a full-document login link carrying the hint", async () => {
+    // The picker: `/bff/login` re-authorizes with the `organization` hint, so
+    // the IdP scopes the new session to that organization. It is a link (a
+    // BFF endpoint outside the route tree), never an imperative login().
+    harness.resolveJson([
+      { organizationId: "o1", name: "Acme", slug: "acme", isOwner: true },
+      { organizationId: "o2", name: "Globex", slug: "globex", isOwner: false },
+    ]);
+
+    renderWithWallow(<MyOrganizations />, { harness });
+
+    await expect.element(page.getByTestId("my-organization-switch").first()).toBeInTheDocument();
+    const links = page.getByTestId("my-organization-switch").elements();
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/bff/login?returnTo=%2Fdashboard&organization=o1",
+      "/bff/login?returnTo=%2Fdashboard&organization=o2",
+    ]);
+  });
+
   it("renders the empty state when the caller belongs to no organizations", async () => {
     harness.resolveJson([]);
 

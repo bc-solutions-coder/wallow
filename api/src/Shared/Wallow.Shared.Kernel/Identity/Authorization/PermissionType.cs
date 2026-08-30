@@ -22,7 +22,6 @@ public static class PermissionType
 
     // Organizations
     public const string OrganizationsRead = "OrganizationsRead";
-    public const string OrganizationsCreate = "OrganizationsCreate";
     public const string OrganizationsUpdate = "OrganizationsUpdate";
     public const string OrganizationsManageMembers = "OrganizationsManageMembers";
 

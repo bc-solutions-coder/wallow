@@ -178,6 +178,36 @@ Assigning `location.href` (rather than a client-side router navigation) is requi
 
 ---
 
+## Organization context
+
+Once the cookie exists, the resumed OIDC authorization decides **which organization** the
+issued token belongs to. There is one code path for every client:
+
+| Client | Organization | Enrollment policy |
+|--------|--------------|-------------------|
+| Third-party, bound to an organization | The bound one. An `organization` parameter naming any other organization is `invalid_request`. | Always runs. |
+| First-party, `organization=<guid>` passed | The hinted one. | Runs exactly as for a bound client. |
+| First-party, no hint | The user's single membership, or **none** when they hold several or zero. | Not run; the org-less token reaches only `[AllowWithoutOrganization]` endpoints. |
+
+When the policy refuses a user on a bound client — pending, suspended, denied, or not a member —
+the transaction ends at the RP's `redirect_uri` with `error=access_denied` and
+`error_description` ∈ `membership_pending | membership_suspended | membership_denied |
+not_a_member`; a pending outcome still records the membership request. Only an unverified email
+stays on the auth host, because that is the user's to fix, not the RP's.
+
+Every sign-in links its tokens to an OpenIddict authorization that records the organization
+(`org_id` in the authorization's properties): a permanent consent authorization for a
+third-party client, an ad-hoc one for a first-party sign-in with an organization. Revoking a
+membership therefore revokes the tokens that named that organization — whichever client issued
+them — alongside the bound-client tokens.
+
+Switching organization is a fresh authorization with the hint: the SDK's
+`loginRedirect(returnTo, { organization })` builds the link, the SSO cookie makes the
+re-authorize silent, and wallow-web's *My organizations* page is the picker. The auth host has
+none.
+
+---
+
 ## Key Files
 
 | File | Role |

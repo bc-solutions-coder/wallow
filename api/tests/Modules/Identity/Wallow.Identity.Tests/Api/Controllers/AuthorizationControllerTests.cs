@@ -14,6 +14,7 @@ using OpenIddict.Server.AspNetCore;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 using Wallow.Identity.Api.Controllers;
 using Wallow.Identity.Application.DTOs;
+using Wallow.Identity.Application.Helpers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Shared.Contracts.Identity;
@@ -212,6 +213,13 @@ public sealed class AuthorizationControllerTests : IDisposable
     /// required: authorize refuses a client bound to no organization, and refuses a caller the
     /// enrollment service does not admit, so a consent test never reaches consent without them.
     /// </summary>
+    /// <summary>An unbound (first-party) client: the resolver answers with no organization.</summary>
+    private void SetupUnboundClientTenantResolver(string clientId)
+    {
+        _clientTenantResolver.ResolveAsync(clientId, Arg.Any<CancellationToken>())
+            .Returns(new ClientTenantInfo(Guid.Empty, null));
+    }
+
     private void SetupClientTenantResolver(string clientId)
     {
         _clientTenantResolver.ResolveAsync(clientId, Arg.Any<CancellationToken>())
@@ -420,12 +428,13 @@ public sealed class AuthorizationControllerTests : IDisposable
         IActionResult result = await _controller.Authorize();
 
         // Assert - a client registered with implicit consent skips consent entirely
-        // and goes directly to token issuance. No authorization should be created.
+        // and goes directly to token issuance. No consent is recorded.
         result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>();
 
-        // First-party clients should never trigger authorization creation
+        // First-party clients never record a permanent (consent) authorization
         await _authorizationManager.DidNotReceive().CreateAsync(
-            Arg.Any<OpenIddictAuthorizationDescriptor>(), Arg.Any<CancellationToken>());
+            Arg.Is<OpenIddictAuthorizationDescriptor>(d => d.Type == AuthorizationTypes.Permanent),
+            Arg.Any<CancellationToken>());
 
         // Consent-related authorization lookups should not happen for first-party clients
         _authorizationManager.DidNotReceive().FindBySubjectAsync(
@@ -443,8 +452,7 @@ public sealed class AuthorizationControllerTests : IDisposable
         SetupAuthenticatedHttpContext(request);
         SetupUser();
         SetupApplication(FirstPartyClientId, consentType: ConsentTypes.Implicit);
-        _clientTenantResolver.ResolveAsync(FirstPartyClientId, Arg.Any<CancellationToken>())
-            .Returns(new ClientTenantInfo(Guid.Empty, null));
+        SetupUnboundClientTenantResolver(FirstPartyClientId);
 
         IActionResult result = await _controller.Authorize();
 
@@ -469,8 +477,7 @@ public sealed class AuthorizationControllerTests : IDisposable
         SetupAuthenticatedHttpContext(request);
         SetupUser();
         SetupApplication(FirstPartyClientId, consentType: ConsentTypes.Implicit);
-        _clientTenantResolver.ResolveAsync(FirstPartyClientId, Arg.Any<CancellationToken>())
-            .Returns(new ClientTenantInfo(Guid.Empty, null));
+        SetupUnboundClientTenantResolver(FirstPartyClientId);
         _organizations.GetMyOrganizationsAsync(Guid.Parse(_testUserId), Arg.Any<CancellationToken>())
             .Returns([new MyOrganizationDto(organizationId, "Only Org", "only-org", IsOwner: true)]);
         _enrollment.EnrollAsync(Guid.Parse(_testUserId), organizationId, Arg.Any<CancellationToken>())
@@ -497,8 +504,7 @@ public sealed class AuthorizationControllerTests : IDisposable
         SetupAuthenticatedHttpContext(request);
         SetupUser();
         SetupApplication(FirstPartyClientId, consentType: ConsentTypes.Implicit);
-        _clientTenantResolver.ResolveAsync(FirstPartyClientId, Arg.Any<CancellationToken>())
-            .Returns(new ClientTenantInfo(Guid.Empty, null));
+        SetupUnboundClientTenantResolver(FirstPartyClientId);
         _organizations.GetMyOrganizationsAsync(Guid.Parse(_testUserId), Arg.Any<CancellationToken>())
             .Returns(
             [
@@ -532,6 +538,301 @@ public sealed class AuthorizationControllerTests : IDisposable
 
         result.Should().BeOfType<RedirectResult>().Which.Url
             .Should().Be("https://auth.example.com/error?reason=client_not_bound_to_organization");
+    }
+
+    #endregion
+
+    #region Organization Hint
+
+    [Fact]
+    public async Task Authorize_FirstPartyClient_WithAnOrganizationHint_RunsThatOrganizationsPolicy()
+    {
+        // The hint is what lets a first-party login name an organization: the transaction runs
+        // the hinted organization's enrollment policy exactly as a bound client's would, and the
+        // token is scoped to it — even when the user belongs to several and no default applies.
+        Guid hinted = Guid.NewGuid();
+        OpenIddictRequest request = FirstPartyRequestWithHint(hinted.ToString());
+
+        SetupAuthenticatedHttpContext(request);
+        SetupUser();
+        SetupApplication(FirstPartyClientId, consentType: ConsentTypes.Implicit);
+        SetupUnboundClientTenantResolver(FirstPartyClientId);
+        _organizations.GetMyOrganizationsAsync(Guid.Parse(_testUserId), Arg.Any<CancellationToken>())
+            .Returns(
+            [
+                new MyOrganizationDto(hinted, "Hinted Org", "hinted", IsOwner: false),
+                new MyOrganizationDto(Guid.NewGuid(), "Other", "other", IsOwner: true),
+            ]);
+        _organizations.GetOrganizationByIdAsync(hinted, Arg.Any<CancellationToken>())
+            .Returns(new OrganizationDto(hinted, "Hinted Org", null, 2));
+        _enrollment.EnrollAsync(Guid.Parse(_testUserId), hinted, Arg.Any<CancellationToken>())
+            .Returns(new Enrolled());
+        _membershipRoleResolver.GetRoleNamesAsync(Guid.Parse(_testUserId), hinted, Arg.Any<CancellationToken>())
+            .Returns(["user"]);
+
+        IActionResult result = await _controller.Authorize();
+
+        Microsoft.AspNetCore.Mvc.SignInResult signIn =
+            result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>().Subject;
+        signIn.Principal.FindFirst("org_id")!.Value.Should().Be(hinted.ToString());
+        signIn.Principal.FindFirst("org_name")!.Value.Should().Be("Hinted Org");
+        signIn.Principal.FindAll(Claims.Role).Select(c => c.Value).Should().Equal("user");
+        await _enrollment.Received(1).EnrollAsync(
+            Guid.Parse(_testUserId), hinted, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Authorize_FirstPartyClient_WithAHintTheUserIsNoMemberOf_RedirectsToTheErrorPage()
+    {
+        // A first-party refusal stays on the auth host: the hinted organization's policy said no,
+        // and the error page is where that is explained.
+        Guid hinted = Guid.NewGuid();
+        OpenIddictRequest request = FirstPartyRequestWithHint(hinted.ToString());
+
+        SetupAuthenticatedHttpContext(request);
+        SetupUser();
+        SetupApplication(FirstPartyClientId, consentType: ConsentTypes.Implicit);
+        SetupUnboundClientTenantResolver(FirstPartyClientId);
+        _organizations.GetOrganizationByIdAsync(hinted, Arg.Any<CancellationToken>())
+            .Returns((OrganizationDto?)null);
+        _enrollment.EnrollAsync(Guid.Parse(_testUserId), hinted, Arg.Any<CancellationToken>())
+            .Returns(new Rejected("not_a_member"));
+
+        IActionResult result = await _controller.Authorize();
+
+        result.Should().BeOfType<RedirectResult>().Which.Url
+            .Should().Be("https://auth.example.com/error?reason=not_a_member");
+    }
+
+    [Fact]
+    public async Task Authorize_ThirdPartyClient_WithAHintOtherThanItsBoundOrganization_IsInvalidRequest()
+    {
+        // A bound client's organization is fixed by registration; a hint naming any other one is
+        // a malformed request, answered to the relying party as such.
+        OpenIddictRequest request = new()
+        {
+            ClientId = ThirdPartyClientId,
+            Scope = "openid profile",
+            [AuthorizationController.OrganizationParameter] = Guid.NewGuid().ToString(),
+        };
+
+        SetupAuthenticatedHttpContext(request);
+        SetupUser();
+        SetupApplication(ThirdPartyClientId);
+        SetupClientTenantResolver(ThirdPartyClientId);
+
+        IActionResult result = await _controller.Authorize();
+
+        ForbidResult forbid = result.Should().BeOfType<ForbidResult>().Subject;
+        forbid.AuthenticationSchemes.Should().Contain(OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+        forbid.Properties!.Items[OpenIddictServerAspNetCoreConstants.Properties.Error]
+            .Should().Be(Errors.InvalidRequest);
+        await _enrollment.DidNotReceive().EnrollAsync(
+            Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Authorize_ThirdPartyClient_WithAHintNamingItsOwnOrganization_SignsIn()
+    {
+        // The one code path: a bound client is "hint fixed by registration", so restating that
+        // organization is not a contradiction.
+        OpenIddictRequest request = new()
+        {
+            ClientId = ThirdPartyClientId,
+            Scope = "openid profile",
+            [AuthorizationController.OrganizationParameter] = _testOrganizationId.ToString(),
+        };
+
+        SetupAuthenticatedHttpContext(request);
+        SetupUser();
+        SetupApplication(ThirdPartyClientId, consentType: ConsentTypes.Implicit);
+        SetupClientTenantResolver(ThirdPartyClientId);
+
+        IActionResult result = await _controller.Authorize();
+
+        Microsoft.AspNetCore.Mvc.SignInResult signIn =
+            result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>().Subject;
+        signIn.Principal.FindFirst("org_id")!.Value.Should().Be(_testOrganizationId.ToString());
+    }
+
+    [Fact]
+    public async Task Authorize_WithAHintThatIsNotAnOrganizationId_IsInvalidRequest()
+    {
+        OpenIddictRequest request = FirstPartyRequestWithHint("not-an-organization");
+
+        SetupAuthenticatedHttpContext(request);
+        SetupUser();
+        SetupApplication(FirstPartyClientId, consentType: ConsentTypes.Implicit);
+        SetupUnboundClientTenantResolver(FirstPartyClientId);
+
+        IActionResult result = await _controller.Authorize();
+
+        ForbidResult forbid = result.Should().BeOfType<ForbidResult>().Subject;
+        forbid.Properties!.Items[OpenIddictServerAspNetCoreConstants.Properties.Error]
+            .Should().Be(Errors.InvalidRequest);
+    }
+
+    [Fact]
+    public async Task Authorize_FirstPartyClient_WithAnOrganization_LinksTheTokensToAnAuthorizationNamingIt()
+    {
+        // A first-party client is bound to no organization, so its tokens' organization has to be
+        // recorded somewhere revocation can find it: the authorization the tokens chain to.
+        OpenIddictRequest request = FirstPartyRequestWithHint(_testOrganizationId.ToString());
+
+        SetupAuthenticatedHttpContext(request);
+        SetupUser();
+        SetupApplication(FirstPartyClientId, consentType: ConsentTypes.Implicit);
+        SetupUnboundClientTenantResolver(FirstPartyClientId);
+        _organizations.GetOrganizationByIdAsync(_testOrganizationId, Arg.Any<CancellationToken>())
+            .Returns(new OrganizationDto(_testOrganizationId, "Acme", null, 1));
+        _enrollment.EnrollAsync(Guid.Parse(_testUserId), _testOrganizationId, Arg.Any<CancellationToken>())
+            .Returns(new Enrolled());
+        object authorization = new();
+        OpenIddictAuthorizationDescriptor? created = null;
+        _authorizationManager.CreateAsync(
+                Arg.Do<OpenIddictAuthorizationDescriptor>(d => created = d), Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult(authorization));
+        _authorizationManager.GetIdAsync(authorization, Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult<string?>("authorization-1"));
+
+        IActionResult result = await _controller.Authorize();
+
+        Microsoft.AspNetCore.Mvc.SignInResult signIn =
+            result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>().Subject;
+        signIn.Principal.GetAuthorizationId().Should().Be("authorization-1");
+        created.Should().NotBeNull();
+        created!.Type.Should().Be(AuthorizationTypes.AdHoc);
+        created.Subject.Should().Be(_testUserId);
+        created.ApplicationId.Should().Be(ApplicationId);
+        created.Properties[AuthorizationProperties.OrganizationId].GetString()
+            .Should().Be(_testOrganizationId.ToString());
+    }
+
+    [Fact]
+    public async Task Authorize_FirstPartyClient_WithoutAnOrganization_RecordsNoAuthorization()
+    {
+        // An org-less token has nothing to revoke per organization; OpenIddict's own ad-hoc
+        // tracking is all it needs.
+        OpenIddictRequest request = new() { ClientId = FirstPartyClientId, Scope = "openid profile" };
+
+        SetupAuthenticatedHttpContext(request);
+        SetupUser();
+        SetupApplication(FirstPartyClientId, consentType: ConsentTypes.Implicit);
+        SetupUnboundClientTenantResolver(FirstPartyClientId);
+        _organizations.GetMyOrganizationsAsync(Guid.Parse(_testUserId), Arg.Any<CancellationToken>())
+            .Returns([]);
+
+        IActionResult result = await _controller.Authorize();
+
+        Microsoft.AspNetCore.Mvc.SignInResult signIn =
+            result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>().Subject;
+        signIn.Principal.GetAuthorizationId().Should().BeNull();
+        await _authorizationManager.DidNotReceive().CreateAsync(
+            Arg.Any<OpenIddictAuthorizationDescriptor>(), Arg.Any<CancellationToken>());
+    }
+
+    private static OpenIddictRequest FirstPartyRequestWithHint(string organization) => new()
+    {
+        ClientId = FirstPartyClientId,
+        Scope = "openid profile",
+        [AuthorizationController.OrganizationParameter] = organization,
+    };
+
+    #endregion
+
+    #region Enrollment Refusals
+
+    [Theory]
+    [InlineData("membership_suspended")]
+    [InlineData("membership_denied")]
+    [InlineData("not_a_member")]
+    public async Task Authorize_ThirdPartyClient_WhenTheOrganizationRefuses_SendsAccessDeniedToTheRelyingParty(
+        string reason)
+    {
+        // A third-party user the organization refuses is the relying party's to handle: the
+        // refusal goes back to its redirect URI as access_denied, with the reason as the
+        // description, rather than stranding the person on the auth host.
+        OpenIddictRequest request = new() { ClientId = ThirdPartyClientId, Scope = "openid profile" };
+
+        SetupAuthenticatedHttpContext(request);
+        SetupUser();
+        SetupApplication(ThirdPartyClientId);
+        SetupClientTenantResolver(ThirdPartyClientId);
+        _enrollment.EnrollAsync(Guid.Parse(_testUserId), _testOrganizationId, Arg.Any<CancellationToken>())
+            .Returns(new Rejected(reason));
+
+        IActionResult result = await _controller.Authorize();
+
+        ForbidResult forbid = result.Should().BeOfType<ForbidResult>().Subject;
+        forbid.AuthenticationSchemes.Should().Contain(OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+        forbid.Properties!.Items[OpenIddictServerAspNetCoreConstants.Properties.Error]
+            .Should().Be(Errors.AccessDenied);
+        forbid.Properties.Items[OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription]
+            .Should().Be(reason);
+    }
+
+    [Fact]
+    public async Task Authorize_ThirdPartyClient_WhenTheRequestIsPending_SendsAccessDeniedMembershipPending()
+    {
+        // Pending is still recorded (the enrollment service did that); the relying party is told
+        // the person is waiting rather than shown the auth host's request-submitted screen.
+        OpenIddictRequest request = new() { ClientId = ThirdPartyClientId, Scope = "openid profile" };
+
+        SetupAuthenticatedHttpContext(request);
+        SetupUser();
+        SetupApplication(ThirdPartyClientId);
+        SetupClientTenantResolver(ThirdPartyClientId);
+        _enrollment.EnrollAsync(Guid.Parse(_testUserId), _testOrganizationId, Arg.Any<CancellationToken>())
+            .Returns(new PendingApproval());
+
+        IActionResult result = await _controller.Authorize();
+
+        ForbidResult forbid = result.Should().BeOfType<ForbidResult>().Subject;
+        forbid.Properties!.Items[OpenIddictServerAspNetCoreConstants.Properties.Error]
+            .Should().Be(Errors.AccessDenied);
+        forbid.Properties.Items[OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription]
+            .Should().Be("membership_pending");
+    }
+
+    [Fact]
+    public async Task Authorize_ThirdPartyClient_WhenTheEmailIsUnverified_StaysOnTheAuthHost()
+    {
+        // Verifying an email is the auth host's job, not the relying party's, so this one
+        // precondition is not an organization's refusal and keeps its error page.
+        OpenIddictRequest request = new() { ClientId = ThirdPartyClientId, Scope = "openid profile" };
+
+        SetupAuthenticatedHttpContext(request);
+        SetupUser();
+        SetupApplication(ThirdPartyClientId);
+        SetupClientTenantResolver(ThirdPartyClientId);
+        _enrollment.EnrollAsync(Guid.Parse(_testUserId), _testOrganizationId, Arg.Any<CancellationToken>())
+            .Returns(new Rejected("email_unverified"));
+
+        IActionResult result = await _controller.Authorize();
+
+        result.Should().BeOfType<RedirectResult>().Which.Url
+            .Should().Be("https://auth.example.com/error?reason=email_unverified");
+    }
+
+    [Fact]
+    public async Task Authorize_FirstPartyClient_WhenTheRequestIsPending_RedirectsToTheAccessRequestScreen()
+    {
+        Guid hinted = Guid.NewGuid();
+        OpenIddictRequest request = FirstPartyRequestWithHint(hinted.ToString());
+
+        SetupAuthenticatedHttpContext(request);
+        SetupUser();
+        SetupApplication(FirstPartyClientId, consentType: ConsentTypes.Implicit);
+        SetupUnboundClientTenantResolver(FirstPartyClientId);
+        _organizations.GetOrganizationByIdAsync(hinted, Arg.Any<CancellationToken>())
+            .Returns(new OrganizationDto(hinted, "Hinted Org", null, 2));
+        _enrollment.EnrollAsync(Guid.Parse(_testUserId), hinted, Arg.Any<CancellationToken>())
+            .Returns(new PendingApproval());
+
+        IActionResult result = await _controller.Authorize();
+
+        result.Should().BeOfType<RedirectResult>().Which.Url
+            .Should().Be("https://auth.example.com/access-request");
     }
 
     #endregion

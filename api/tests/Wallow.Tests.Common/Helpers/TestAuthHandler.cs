@@ -90,8 +90,16 @@ public sealed class TestAuthHandler : AuthenticationHandler<AuthenticationScheme
         {
             new(ClaimTypes.NameIdentifier, userId),
             new(ClaimTypes.Email, $"{userId}@test.com"),
-            new("org_id", tenantId),
         };
+
+        // An organization-less principal: the first-party token a user with several (or no)
+        // memberships receives when no organization hint was sent.
+        bool withoutOrganization = Request.Headers.TryGetValue("X-Test-No-Organization", out StringValues noOrgHeader)
+            && noOrgHeader == "true";
+        if (!withoutOrganization)
+        {
+            claims.Add(new Claim("org_id", tenantId));
+        }
 
         foreach (string role in roles)
         {

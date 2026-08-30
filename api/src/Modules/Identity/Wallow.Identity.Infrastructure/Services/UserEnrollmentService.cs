@@ -20,10 +20,6 @@ public sealed partial class UserEnrollmentService(
     TimeProvider timeProvider,
     ILogger<UserEnrollmentService> logger) : IUserEnrollmentService
 {
-    /// <summary>The error-screen reasons a refusal routes on.</summary>
-    private const string NotAMember = "not_a_member";
-    private const string EmailUnverified = "email_unverified";
-
     public async Task<EnrollmentOutcome> EnrollAsync(
         Guid userId, Guid organizationId, CancellationToken ct = default)
     {
@@ -50,7 +46,7 @@ public sealed partial class UserEnrollmentService(
 
         if (organization is not { IsActive: true })
         {
-            return new Rejected(NotAMember);
+            return new Rejected(EnrollmentReasons.NotAMember);
         }
 
         WallowUser? user = await dbContext.Users
@@ -59,7 +55,7 @@ public sealed partial class UserEnrollmentService(
 
         if (user is null || !user.IsActive)
         {
-            return new Rejected(NotAMember);
+            return new Rejected(EnrollmentReasons.NotAMember);
         }
 
         // Required under every policy, not only the self-service ones: an unverified address is
@@ -68,7 +64,7 @@ public sealed partial class UserEnrollmentService(
         if (!user.EmailConfirmed)
         {
             LogEnrollmentRefusedUnverifiedEmail(userId, organizationId);
-            return new Rejected(EmailUnverified);
+            return new Rejected(EnrollmentReasons.EmailUnverified);
         }
 
         EnrollmentPolicy policy = await ResolvePolicyAsync(organizationId, ct);
@@ -84,7 +80,7 @@ public sealed partial class UserEnrollmentService(
 
             // InviteOnly, and any policy a fork adds without deciding what it means here.
             default:
-                return new Rejected(NotAMember);
+                return new Rejected(EnrollmentReasons.NotAMember);
         }
     }
 
@@ -202,9 +198,9 @@ public sealed partial class UserEnrollmentService(
     {
         MembershipStatus.Active => new Enrolled(),
         MembershipStatus.Pending => new PendingApproval(),
-        MembershipStatus.Suspended => new Rejected("membership_suspended"),
-        MembershipStatus.Denied => new Rejected("membership_denied"),
-        _ => new Rejected(NotAMember)
+        MembershipStatus.Suspended => new Rejected(EnrollmentReasons.MembershipSuspended),
+        MembershipStatus.Denied => new Rejected(EnrollmentReasons.MembershipDenied),
+        _ => new Rejected(EnrollmentReasons.NotAMember)
     };
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Enrollment policy applied: userId={UserId}, organizationId={OrganizationId}, policy={Policy}")]

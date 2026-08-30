@@ -44,7 +44,8 @@ public sealed class CrossOrgRoleIsolationTests(WallowApiFactory factory)
         await harness.SignInAsync(seed.Email, Password);
 
         TokenOutcome tokens = await harness.AcquireTokensAsync(
-            seed.ClientId, ClientSecret, "openid profile email roles");
+            seed.ClientId, ClientSecret, "openid profile email roles",
+            organization: seed.MemberOrganizationId.ToString());
 
         tokens.StatusCode.Should().Be(HttpStatusCode.OK, tokens.Body);
 
@@ -67,7 +68,8 @@ public sealed class CrossOrgRoleIsolationTests(WallowApiFactory factory)
         await harness.SignInAsync(seed.Email, Password);
 
         TokenOutcome tokens = await harness.AcquireTokensAsync(
-            seed.ClientId, ClientSecret, "openid profile email roles offline_access");
+            seed.ClientId, ClientSecret, "openid profile email roles offline_access",
+            organization: seed.MemberOrganizationId.ToString());
 
         tokens.RefreshToken.Should().NotBeNullOrEmpty(tokens.Body);
 
@@ -93,7 +95,8 @@ public sealed class CrossOrgRoleIsolationTests(WallowApiFactory factory)
         await harness.SignInAsync(seed.Email, Password);
 
         TokenOutcome tokens = await harness.AcquireTokensAsync(
-            seed.ClientId, ClientSecret, $"openid profile email roles {PrivilegedScope}");
+            seed.ClientId, ClientSecret, $"openid profile email roles {PrivilegedScope}",
+            organization: seed.MemberOrganizationId.ToString());
 
         tokens.StatusCode.Should().Be(HttpStatusCode.OK, tokens.Body);
 
@@ -170,7 +173,7 @@ public sealed class CrossOrgRoleIsolationTests(WallowApiFactory factory)
 
         string clientId = $"wallow-cross-org-{suffix}";
         await AuthorizationCodeFlowHarness.RegisterClientAsync(
-            ScopedServices, clientId, ClientSecret, memberOrganizationId, _clientScopes, firstParty: true);
+            ScopedServices, clientId, ClientSecret, tenantId: null, _clientScopes, firstParty: true);
 
         return new Seed(email, clientId, userId, adminOrganizationId, memberOrganizationId);
     }

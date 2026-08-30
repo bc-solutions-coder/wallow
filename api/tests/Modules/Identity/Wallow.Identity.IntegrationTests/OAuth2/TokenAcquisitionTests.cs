@@ -41,7 +41,7 @@ public class TokenAcquisitionTests(WallowApiFactory factory) : IdentityIntegrati
             ScopedServices,
             clientId,
             RefreshClientSecret,
-            organizationB,
+            tenantId: null,
             ["openid", "profile", "email", "roles", "offline_access"],
             firstParty: true);
 
@@ -49,7 +49,8 @@ public class TokenAcquisitionTests(WallowApiFactory factory) : IdentityIntegrati
         await harness.SignInAsync(email, Password);
 
         TokenOutcome issued = await harness.AcquireTokensAsync(
-            clientId, RefreshClientSecret, "openid profile email roles offline_access");
+            clientId, RefreshClientSecret, "openid profile email roles offline_access",
+            organization: organizationB.ToString());
         issued.RefreshToken.Should().NotBeNull(issued.Body);
 
         TokenOutcome refreshed = await harness.RefreshAsync(

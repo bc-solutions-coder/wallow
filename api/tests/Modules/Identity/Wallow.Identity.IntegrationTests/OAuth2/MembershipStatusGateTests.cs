@@ -47,7 +47,8 @@ public sealed class MembershipStatusGateTests(WallowApiFactory factory)
         using AuthorizationCodeFlowHarness harness = new(Factory);
         await harness.SignInAsync(seed.Email, Password);
 
-        TokenOutcome tokens = await harness.AcquireTokensAsync(seed.ClientId, ClientSecret, Scope);
+        TokenOutcome tokens = await harness.AcquireTokensAsync(
+            seed.ClientId, ClientSecret, Scope, organization: seed.OrganizationId.ToString());
 
         tokens.StatusCode.Should().Be(HttpStatusCode.OK, tokens.Body);
     }
@@ -114,7 +115,8 @@ public sealed class MembershipStatusGateTests(WallowApiFactory factory)
         using AuthorizationCodeFlowHarness harness = new(Factory);
         await harness.SignInAsync(seed.Email, Password);
 
-        TokenOutcome tokens = await harness.AcquireTokensAsync(seed.ClientId, ClientSecret, Scope);
+        TokenOutcome tokens = await harness.AcquireTokensAsync(
+            seed.ClientId, ClientSecret, Scope, organization: seed.OrganizationId.ToString());
 
         tokens.StatusCode.Should().Be(HttpStatusCode.OK, tokens.Body);
     }
@@ -130,7 +132,7 @@ public sealed class MembershipStatusGateTests(WallowApiFactory factory)
         await harness.SignInAsync(seed.Email, Password);
 
         TokenOutcome tokens = await harness.AcquireTokensAsync(
-            seed.ClientId, ClientSecret, $"{Scope} offline_access");
+            seed.ClientId, ClientSecret, $"{Scope} offline_access", organization: seed.OrganizationId.ToString());
         tokens.RefreshToken.Should().NotBeNullOrEmpty(tokens.Body);
 
         await SuspendAsync(seed);
@@ -152,7 +154,8 @@ public sealed class MembershipStatusGateTests(WallowApiFactory factory)
         using AuthorizationCodeFlowHarness harness = new(Factory);
         await harness.SignInAsync(seed.Email, Password);
 
-        TokenOutcome tokens = await harness.AcquireTokensAsync(seed.ClientId, ClientSecret, Scope);
+        TokenOutcome tokens = await harness.AcquireTokensAsync(
+            seed.ClientId, ClientSecret, Scope, organization: seed.OrganizationId.ToString());
         tokens.AccessToken.Should().NotBeNullOrEmpty(tokens.Body);
 
         harness.Client.DefaultRequestHeaders.Add("Authorization", $"Bearer {tokens.AccessToken}");
@@ -181,7 +184,7 @@ public sealed class MembershipStatusGateTests(WallowApiFactory factory)
     {
         using AuthorizationCodeFlowHarness harness = new(Factory);
         await harness.SignInAsync(seed.Email, Password);
-        return await harness.AuthorizeAsync(seed.ClientId, Scope);
+        return await harness.AuthorizeAsync(seed.ClientId, Scope, organization: seed.OrganizationId.ToString());
     }
 
     private async Task AddMembershipAsync(Membership membership)
@@ -211,7 +214,7 @@ public sealed class MembershipStatusGateTests(WallowApiFactory factory)
 
         string clientId = $"wallow-membership-gate-{suffix}";
         await AuthorizationCodeFlowHarness.RegisterClientAsync(
-            ScopedServices, clientId, ClientSecret, organizationId, _clientScopes, firstParty: true);
+            ScopedServices, clientId, ClientSecret, tenantId: null, _clientScopes, firstParty: true);
 
         return new Seed(email, clientId, userId, ownerId, organizationId);
     }

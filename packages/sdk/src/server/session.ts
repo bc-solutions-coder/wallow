@@ -44,8 +44,9 @@ export interface BffSession {
     name?: string;
     roles?: string[];
     permissions?: string[];
-    tenantId?: string;
-    tenantName?: string;
+    /** The organization the session's tokens are scoped to; absent for an org-less token. */
+    organizationId?: string;
+    organizationName?: string;
     [claim: string]: unknown;
   };
   /**

@@ -96,15 +96,24 @@ describe("mapClaims", () => {
     expect(user.permissions).toHaveLength(3);
   });
 
-  it("lifts tenant_id and tenant_name into first-class fields", () => {
+  it("lifts org_id and org_name into organizationId and organizationName", () => {
     const user: BffSession["user"] = mapClaims({
       sub: "user-1",
-      tenant_id: "tenant-42",
-      tenant_name: "Acme Corp",
+      org_id: "org-42",
+      org_name: "Acme Corp",
     });
 
-    expect(user.tenantId).toBe("tenant-42");
-    expect(user.tenantName).toBe("Acme Corp");
+    expect(user.organizationId).toBe("org-42");
+    expect(user.organizationName).toBe("Acme Corp");
+    expect(user).not.toHaveProperty("org_id");
+    expect(user).not.toHaveProperty("org_name");
+  });
+
+  it("leaves organizationId and organizationName unset for an org-less token", () => {
+    const user = mapClaims({ sub: "user-1" });
+
+    expect(user.organizationId).toBeUndefined();
+    expect(user.organizationName).toBeUndefined();
   });
 
   it("preserves sub and passes unknown claims through the index signature", () => {

@@ -1,10 +1,14 @@
 using System.Diagnostics;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using Serilog.Context;
 using Wallow.Identity.Application.Telemetry;
+using Wallow.Identity.Infrastructure.Authorization;
 using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Identity;
+using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Identity.Infrastructure.MultiTenancy;
@@ -69,6 +73,19 @@ public partial class TenantResolutionMiddleware(RequestDelegate next, ILogger<Te
             {
                 LogRegionResolved(resolvedRegion);
             }
+
+            if (!resolvedTenantId.HasValue && RequiresOrganization(context))
+            {
+                string callerId = context.User.GetUserId() ?? "unknown";
+                string requestPath = context.Request.Path.Value ?? "/";
+                LogOrganizationRequired(callerId, requestPath);
+                await AuthProblemResponse.WriteAsync(
+                    context,
+                    StatusCodes.Status403Forbidden,
+                    "Organization context required.",
+                    "The token carries no organization. Sign in again with an organization selected to reach this resource.");
+                return;
+            }
         }
 
         if (resolvedTenantId.HasValue)
@@ -95,6 +112,27 @@ public partial class TenantResolutionMiddleware(RequestDelegate next, ILogger<Te
 
 public partial class TenantResolutionMiddleware
 {
+    /// <summary>
+    /// An organization-less token reaches only endpoints marked
+    /// <see cref="AllowWithoutOrganizationAttribute"/> (and anonymous ones). The auth host's own
+    /// cookie session is exempt: it is the sign-in surface, never a tenant-scoped API caller.
+    /// </summary>
+    private static bool RequiresOrganization(HttpContext context)
+    {
+        if (context.User.Identity?.AuthenticationType == IdentityConstants.ApplicationScheme)
+        {
+            return false;
+        }
+
+        Endpoint? endpoint = context.GetEndpoint();
+        return endpoint is not null
+            && endpoint.Metadata.GetMetadata<IAllowAnonymous>() is null
+            && endpoint.Metadata.GetMetadata<AllowWithoutOrganizationAttribute>() is null;
+    }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Organization context required: token for user {UserId} carries no org_id and {RequestPath} is tenant-scoped")]
+    private partial void LogOrganizationRequired(string userId, string requestPath);
+
     [LoggerMessage(Level = LogLevel.Debug, Message = "Tenant resolved: {TenantId} ({TenantName})")]
     private partial void LogTenantResolved(Guid? tenantId, string tenantName);
 

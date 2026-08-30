@@ -27,7 +27,37 @@ public sealed record Enrolled : EnrollmentOutcome;
 public sealed record PendingApproval : EnrollmentOutcome;
 
 /// <summary>
-/// Nothing was recorded. <see cref="Reason" /> is the error-screen reason the caller routes on,
-/// so it is one of the strings the auth app's error page knows.
+/// Nothing was recorded. <see cref="Reason" /> is one of <see cref="EnrollmentReasons" />: the
+/// auth app's error page routes on it for a first-party login, and a relying party receives it
+/// as the <c>error_description</c> of an <c>access_denied</c> answer.
 /// </summary>
 public sealed record Rejected(string Reason) : EnrollmentOutcome;
+
+/// <summary>
+/// The reasons an organization gives for not signing someone in, spelled the one way every
+/// consumer — the auth app's error page, a relying party's <c>error_description</c> — reads them.
+/// </summary>
+public static class EnrollmentReasons
+{
+    /// <summary>No membership, and the organization's policy grants none on the spot.</summary>
+    public const string NotAMember = "not_a_member";
+
+    /// <summary>
+    /// The account's email is unverified. Not an organization's answer at all — a precondition
+    /// the auth host resolves — so it never leaves the auth host.
+    /// </summary>
+    public const string EmailUnverified = "email_unverified";
+
+    /// <summary>The membership exists and is suspended.</summary>
+    public const string MembershipSuspended = "membership_suspended";
+
+    /// <summary>The membership was denied and the denial still stands.</summary>
+    public const string MembershipDenied = "membership_denied";
+
+    /// <summary>
+    /// An access request is recorded and awaits approval. Never a <see cref="Rejected" />
+    /// reason — that outcome is <see cref="PendingApproval" /> — but the description a relying
+    /// party is given for it.
+    /// </summary>
+    public const string MembershipPending = "membership_pending";
+}

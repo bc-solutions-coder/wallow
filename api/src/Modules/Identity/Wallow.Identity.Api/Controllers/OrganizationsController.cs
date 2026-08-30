@@ -51,8 +51,14 @@ public class OrganizationsController(
     /// <summary>
     /// Create a new organization.
     /// </summary>
+    /// <remarks>
+    /// Any account holder may found an organization without an operator, so this asks for no
+    /// permission and answers an organization-less token: a permission would have to be
+    /// granted by an organization the caller does not yet have.
+    /// </remarks>
     [HttpPost]
-    [HasPermission(PermissionType.OrganizationsCreate)]
+    [Authorize]
+    [AllowWithoutOrganization]
     public async Task<ActionResult<CreateOrganizationResponse>> Create(
         CreateOrganizationRequest request, CancellationToken ct)
     {

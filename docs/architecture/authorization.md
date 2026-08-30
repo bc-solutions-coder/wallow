@@ -24,8 +24,8 @@ JWT with role claims
 └─────────────────────────────┘
 ```
 
-1. User authenticates through an OIDC client, which is bound to one organization
-2. The token carries the roles that user holds **in that organization** (e.g., `admin`, `manager`, `user`), plus its `org_id`
+1. User authenticates through an OIDC client. A third-party client is bound to one organization; a first-party client names one through the `organization` authorize parameter, or falls back to the user's single membership — either way the same enrollment policy decides admission (see [Authentication § Organization context](authentication.md#organization-context))
+2. The token carries the roles that user holds **in that organization** (e.g., `admin`, `manager`, `user`), plus its `org_id`. A first-party token issued without a hint to a user with several (or no) memberships carries no `org_id`: it holds no roles, and `TenantResolutionMiddleware` answers `403` on every tenant-scoped endpoint, letting through only actions marked `[AllowWithoutOrganization]` (profile, my organizations, create organization, accept invitation)
 3. `PermissionExpansionMiddleware` reads the roles and adds permission claims to the request identity
 4. Controller actions decorated with `[HasPermission]` check for specific permissions
 

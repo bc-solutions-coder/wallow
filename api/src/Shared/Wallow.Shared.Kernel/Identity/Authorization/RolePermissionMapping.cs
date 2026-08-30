@@ -18,7 +18,6 @@ public static class RolePermissionMapping
             PermissionType.RolesUpdate,
             PermissionType.RolesDelete,
             PermissionType.OrganizationsRead,
-            PermissionType.OrganizationsCreate,
             PermissionType.OrganizationsUpdate,
             PermissionType.OrganizationsManageMembers,
             PermissionType.ApiKeysRead,
@@ -61,10 +60,10 @@ public static class RolePermissionMapping
             PermissionType.InquiriesRead,
         ],
         // Read-only on organizations. A plain member holding OrganizationsUpdate can rewrite the
-        // settings of any organization they belong to, and holding OrganizationsCreate can mint one
-        // they own outright; granting either by default hands every member the administrative
-        // surface the per-organization roles exist to withhold. Self-service organization creation,
-        // if a fork wants it, is a deliberate grant on a role of its own.
+        // settings of any organization they belong to; granting it by default hands every member
+        // the administrative surface the per-organization roles exist to withhold. Founding an
+        // organization needs no permission at all: any account holder may, even with a token that
+        // names no organization, so there is nothing here to grant or withhold for it.
         ["user"] =
         [
             PermissionType.OrganizationsRead,

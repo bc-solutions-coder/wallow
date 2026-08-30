@@ -32,7 +32,7 @@ public sealed class ScopeNarrowingTests(WallowApiFactory factory)
     [Fact]
     public async Task AcquireTokens_RequestingAScopeBeyondTheCallersRoles_IssuesTheRestAnyway()
     {
-        (string email, string clientId) = await SeedAsync();
+        (string email, string clientId, Guid organizationId) = await SeedAsync();
 
         using AuthorizationCodeFlowHarness harness = new(Factory);
         await harness.SignInAsync(email, Password);
@@ -40,7 +40,8 @@ public sealed class ScopeNarrowingTests(WallowApiFactory factory)
         TokenOutcome tokens = await harness.AcquireTokensAsync(
             clientId,
             ClientSecret,
-            $"openid profile email {ReachableScope} {PrivilegedScope}");
+            $"openid profile email {ReachableScope} {PrivilegedScope}",
+            organization: organizationId.ToString());
 
         tokens.StatusCode.Should().Be(HttpStatusCode.OK, tokens.Body);
 
@@ -52,7 +53,7 @@ public sealed class ScopeNarrowingTests(WallowApiFactory factory)
     [Fact]
     public async Task AcquireTokens_RequestingAScopeBeyondTheCallersRoles_LeavesItsPermissionUnexpandable()
     {
-        (string email, string clientId) = await SeedAsync();
+        (string email, string clientId, Guid organizationId) = await SeedAsync();
 
         using AuthorizationCodeFlowHarness harness = new(Factory);
         await harness.SignInAsync(email, Password);
@@ -60,7 +61,8 @@ public sealed class ScopeNarrowingTests(WallowApiFactory factory)
         TokenOutcome tokens = await harness.AcquireTokensAsync(
             clientId,
             ClientSecret,
-            $"openid profile email {ReachableScope} {PrivilegedScope}");
+            $"openid profile email {ReachableScope} {PrivilegedScope}",
+            organization: organizationId.ToString());
 
         IReadOnlyList<string> permissions = await ExpandPermissionsAsync(tokens.RequireAccessToken());
 
@@ -71,12 +73,13 @@ public sealed class ScopeNarrowingTests(WallowApiFactory factory)
     [Fact]
     public async Task Authorize_RequestingAScopeTheClientIsNotRegisteredFor_RefusesOutright()
     {
-        (string email, string clientId) = await SeedAsync();
+        (string email, string clientId, Guid organizationId) = await SeedAsync();
 
         using AuthorizationCodeFlowHarness harness = new(Factory);
         await harness.SignInAsync(email, Password);
 
-        AuthorizeOutcome authorize = await harness.AuthorizeAsync(clientId, "openid roles.manage");
+        AuthorizeOutcome authorize = await harness.AuthorizeAsync(
+            clientId, "openid roles.manage", organization: organizationId.ToString());
 
         authorize.Code.Should().BeNull(authorize.Location?.ToString());
     }
@@ -116,7 +119,7 @@ public sealed class ScopeNarrowingTests(WallowApiFactory factory)
     /// The caller must be a plain member, so a second user owns the organization: creating one
     /// enrolls its creator as an admin, and an admin reaches every scope under test.
     /// </summary>
-    private async Task<(string Email, string ClientId)> SeedAsync()
+    private async Task<(string Email, string ClientId, Guid OrganizationId)> SeedAsync()
     {
         string suffix = Guid.NewGuid().ToString("N");
         string email = $"narrowing-{suffix}@wallow.dev";
@@ -147,10 +150,10 @@ public sealed class ScopeNarrowingTests(WallowApiFactory factory)
             ScopedServices,
             clientId,
             ClientSecret,
-            organizationId,
+            tenantId: null,
             _clientScopes,
             firstParty: true);
 
-        return (email, clientId);
+        return (email, clientId, organizationId);
     }
 }

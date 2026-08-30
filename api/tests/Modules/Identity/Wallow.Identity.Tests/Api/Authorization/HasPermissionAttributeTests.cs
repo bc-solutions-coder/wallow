@@ -15,9 +15,9 @@ public class HasPermissionAttributeTests
     [Fact]
     public void Constructor_WithDifferentPermission_SetsCorrectPolicy()
     {
-        HasPermissionAttribute attribute = new(PermissionType.OrganizationsCreate);
+        HasPermissionAttribute attribute = new(PermissionType.OrganizationsManageMembers);
 
-        attribute.Policy.Should().Be("OrganizationsCreate");
+        attribute.Policy.Should().Be("OrganizationsManageMembers");
     }
 
     [Theory]
@@ -27,7 +27,6 @@ public class HasPermissionAttributeTests
     [InlineData(PermissionType.RolesRead)]
     [InlineData(PermissionType.RolesUpdate)]
     [InlineData(PermissionType.OrganizationsRead)]
-    [InlineData(PermissionType.OrganizationsCreate)]
     [InlineData(PermissionType.OrganizationsManageMembers)]
     [InlineData(PermissionType.ApiKeysRead)]
     [InlineData(PermissionType.ApiKeysCreate)]

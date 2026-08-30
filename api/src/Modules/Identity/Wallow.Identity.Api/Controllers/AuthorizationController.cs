@@ -12,6 +12,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using OpenIddict.Abstractions;
 using OpenIddict.Server.AspNetCore;
+using Wallow.Identity.Api.Extensions;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Helpers;
 using Wallow.Identity.Application.Interfaces;
@@ -41,6 +42,12 @@ public sealed partial class AuthorizationController(
     IConsentTokenService consentTokenService,
     ILogger<AuthorizationController> logger) : Controller
 {
+    /// <summary>
+    /// The authorize parameter naming the organization a first-party login should run under
+    /// (an organization identifier). A bound client may only restate its own organization.
+    /// </summary>
+    public const string OrganizationParameter = "organization";
+
     [HttpGet]
     public async Task<IActionResult> Authorize()
     {
@@ -125,9 +132,38 @@ public sealed partial class AuthorizationController(
             return Redirect($"{GetRequiredAuthUrl()}/error?reason=client_not_bound_to_organization");
         }
 
-        // A first-party client names no organization, so the user's own memberships decide the
-        // organization context: exactly one active membership is unambiguous and becomes the
-        // session's organization; none or several leave the token org-less rather than guessing.
+        // One code path for organization context: a bound client is "hint fixed by registration",
+        // and a first-party client supplies the hint itself. Either way the transaction runs the
+        // named organization's enrollment policy below. A bound client restating its own
+        // organization is not a contradiction; naming any other one is a malformed request.
+        string? organizationHint = request[OrganizationParameter]?.ToString();
+        if (!string.IsNullOrEmpty(organizationHint))
+        {
+            if (!Guid.TryParse(organizationHint, out Guid hintedOrganizationId) || hintedOrganizationId == Guid.Empty)
+            {
+                return InvalidRequest($"The '{OrganizationParameter}' parameter must be an organization identifier.");
+            }
+
+            if (tenantInfo is not null && tenantInfo.TenantId != hintedOrganizationId)
+            {
+                LogOrganizationHintContradictsBinding(clientId, hintedOrganizationId, tenantInfo.TenantId);
+                return InvalidRequest(
+                    $"The '{OrganizationParameter}' parameter names an organization other than the one this client is bound to.");
+            }
+
+            if (tenantInfo is null)
+            {
+                // The name is for the org_name claim only; whether the user may sign in here is
+                // the enrollment policy's answer, and it treats an unknown organization as
+                // refusing a stranger.
+                OrganizationDto? hintedOrganization = await organizations.GetOrganizationByIdAsync(hintedOrganizationId);
+                tenantInfo = new ClientTenantInfo(hintedOrganizationId, hintedOrganization?.Name);
+            }
+        }
+
+        // Without a hint, a first-party client's user decides by their own memberships: exactly
+        // one active membership is unambiguous and becomes the session's organization; none or
+        // several leave the token org-less rather than guessing.
         if (tenantInfo is null)
         {
             IReadOnlyList<MyOrganizationDto> memberships =
@@ -151,22 +187,10 @@ public sealed partial class AuthorizationController(
             EnrollmentOutcome outcome = await enrollment.EnrollAsync(Guid.Parse(userId), tenantInfo.TenantId);
             LogEnrollmentOutcome(userId, tenantInfo.TenantId, outcome.GetType().Name);
 
-            switch (outcome)
+            IActionResult? refusal = RefuseEnrollment(outcome, isFirstParty);
+            if (refusal is not null)
             {
-                case Enrolled:
-                    break;
-
-                // Not a refusal: the request was accepted and the pending membership recorded,
-                // so this goes to the screen that says so rather than to the error page.
-                case PendingApproval:
-                    return Redirect($"{GetRequiredAuthUrl()}/access-request");
-
-                case Rejected rejected:
-                    return Redirect($"{GetRequiredAuthUrl()}/error?reason={rejected.Reason}");
-
-                default:
-                    throw new InvalidOperationException(
-                        $"Unhandled enrollment outcome '{outcome.GetType().Name}'.");
+                return refusal;
             }
         }
 
@@ -189,10 +213,16 @@ public sealed partial class AuthorizationController(
             return scopeRejection;
         }
 
+        string applicationId = (await applicationManager.GetIdAsync(application))!;
+
+        // The authorization every token of this sign-in chains to. OpenIddict would mint an
+        // anonymous ad-hoc one itself; Wallow records its own so the organization the sign-in
+        // ran in is written on it, which is the only place revocation can find a first-party
+        // token's organization (a bound client's tokens name it through the client as well).
+        string? authorizationId = null;
+
         if (!isFirstParty)
         {
-            string applicationId = (await applicationManager.GetIdAsync(application))!;
-
             // Check for an existing valid authorization for this user+client+scopes combination
             await foreach (object authorization in authorizationManager.FindBySubjectAsync(userId))
             {
@@ -212,6 +242,7 @@ public sealed partial class AuthorizationController(
                 if (grantedScopes.All(s => authorizedScopes.Contains(s)))
                 {
                     hasValidAuthorization = true;
+                    authorizationId = await authorizationManager.GetIdAsync(authorization);
                     break;
                 }
             }
@@ -252,21 +283,8 @@ public sealed partial class AuthorizationController(
                 if (string.Equals(decision, ConsentGranted, StringComparison.Ordinal) && !hasValidAuthorization)
                 {
                     // Store a permanent authorization so consent is not re-prompted.
-                    OpenIddictAuthorizationDescriptor descriptor = new()
-                    {
-                        ApplicationId = applicationId,
-                        CreationDate = DateTimeOffset.UtcNow,
-                        Status = Statuses.Valid,
-                        Subject = userId,
-                        Type = AuthorizationTypes.Permanent
-                    };
-
-                    foreach (string scope in grantedScopes)
-                    {
-                        descriptor.Scopes.Add(scope);
-                    }
-
-                    await authorizationManager.CreateAsync(descriptor);
+                    authorizationId = await CreateAuthorizationAsync(
+                        AuthorizationTypes.Permanent, applicationId, userId, grantedScopes, tenantInfo);
                     hasValidAuthorization = true;
                 }
             }
@@ -287,12 +305,52 @@ public sealed partial class AuthorizationController(
                 sid, clientId, Guid.Parse(userId), HttpContext.RequestAborted);
         }
 
+        if (isFirstParty && tenantInfo is not null)
+        {
+            authorizationId = await CreateAuthorizationAsync(
+                AuthorizationTypes.AdHoc, applicationId, userId, grantedScopes, tenantInfo);
+        }
+
         ClaimsIdentity identity = await BuildClaimsIdentityAsync(user, userId, roles, grantedScopes, tenantInfo, sid);
+        if (authorizationId is not null)
+        {
+            identity.SetAuthorizationId(authorizationId);
+        }
 
         string allScopes = string.Join(" ", grantedScopes);
         LogIssuingAuthorizationCode(userId, clientId, allScopes);
 
         return SignIn(new ClaimsPrincipal(identity), OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+    }
+
+    private async Task<string?> CreateAuthorizationAsync(
+        string type,
+        string applicationId,
+        string userId,
+        ImmutableArray<string> grantedScopes,
+        ClientTenantInfo? tenantInfo)
+    {
+        OpenIddictAuthorizationDescriptor descriptor = new()
+        {
+            ApplicationId = applicationId,
+            CreationDate = DateTimeOffset.UtcNow,
+            Status = Statuses.Valid,
+            Subject = userId,
+            Type = type
+        };
+
+        foreach (string scope in grantedScopes)
+        {
+            descriptor.Scopes.Add(scope);
+        }
+
+        if (tenantInfo is not null)
+        {
+            descriptor.SetOrganizationId(tenantInfo.TenantId);
+        }
+
+        object authorization = await authorizationManager.CreateAsync(descriptor);
+        return await authorizationManager.GetIdAsync(authorization);
     }
 
     /// <summary>
@@ -447,13 +505,61 @@ public sealed partial class AuthorizationController(
         return (null, [.. granted]);
     }
 
+    /// <summary>
+    /// Turns an enrollment outcome into the answer the user gets, or null when they are enrolled.
+    /// Where the answer lands depends on whose problem it is. A first-party client is the
+    /// platform's own UI, so its user stays on the auth host: the request-submitted screen for a
+    /// pending request, the error page for a refusal. A third-party user is the relying party's
+    /// to handle, so an organization's answer — pending, suspended, denied, not a member — goes
+    /// back to its redirect URI as <c>access_denied</c> with the reason as the description. The
+    /// one precondition that is not an organization's answer, an unverified email, keeps the
+    /// auth host's error page for every client: verifying it is the auth host's job.
+    /// </summary>
+    private IActionResult? RefuseEnrollment(EnrollmentOutcome outcome, bool isFirstParty)
+    {
+        switch (outcome)
+        {
+            case Enrolled:
+                return null;
+
+            case PendingApproval when isFirstParty:
+                return Redirect($"{GetRequiredAuthUrl()}/access-request");
+
+            case PendingApproval:
+                return AccessDenied(EnrollmentReasons.MembershipPending);
+
+            case Rejected rejected when isFirstParty || rejected.Reason == EnrollmentReasons.EmailUnverified:
+                return Redirect($"{GetRequiredAuthUrl()}/error?reason={rejected.Reason}");
+
+            case Rejected rejected:
+                return AccessDenied(rejected.Reason);
+
+            default:
+                throw new InvalidOperationException(
+                    $"Unhandled enrollment outcome '{outcome.GetType().Name}'.");
+        }
+    }
+
     private ForbidResult InvalidScope(string description) =>
+        ForbidToRelyingParty(Errors.InvalidScope, description);
+
+    private ForbidResult InvalidRequest(string description) =>
+        ForbidToRelyingParty(Errors.InvalidRequest, description);
+
+    private ForbidResult AccessDenied(string reason) =>
+        ForbidToRelyingParty(Errors.AccessDenied, reason);
+
+    /// <summary>
+    /// Refuses the transaction the OAuth way: OpenIddict delivers the error to the relying
+    /// party's redirect URI, so the client — not the auth host — decides what to show.
+    /// </summary>
+    private ForbidResult ForbidToRelyingParty(string error, string description) =>
         Forbid(
             authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme,
             properties: new Microsoft.AspNetCore.Authentication.AuthenticationProperties(
                 new Dictionary<string, string?>
                 {
-                    [OpenIddictServerAspNetCoreConstants.Properties.Error] = Errors.InvalidScope,
+                    [OpenIddictServerAspNetCoreConstants.Properties.Error] = error,
                     [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] = description
                 }));
 
@@ -502,6 +608,9 @@ public sealed partial class AuthorizationController(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "OIDC refused authorize for client {ClientId}: the client is bound to no organization")]
     private partial void LogClientHasNoOrganization(string? clientId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "OIDC refused authorize for client {ClientId}: organization hint {HintedOrganizationId} contradicts the bound organization {BoundOrganizationId}")]
+    private partial void LogOrganizationHintContradictsBinding(string? clientId, Guid hintedOrganizationId, Guid boundOrganizationId);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "OIDC narrowed scopes beyond caller role: userId={UserId}, clientId={ClientId}, dropped={DroppedScopes}, granted={GrantedScopes}")]
     private partial void LogScopesNarrowed(string userId, string? clientId, string droppedScopes, string grantedScopes);

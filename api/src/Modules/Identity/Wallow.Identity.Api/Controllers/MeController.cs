@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Shared.Kernel.Extensions;
+using Wallow.Shared.Kernel.Identity.Authorization;
 
 namespace Wallow.Identity.Api.Controllers;
 
@@ -16,6 +17,7 @@ namespace Wallow.Identity.Api.Controllers;
 [ApiVersion(1)]
 [Route("v{version:apiVersion}/identity/me")]
 [Authorize]
+[AllowWithoutOrganization]
 [Tags("Me")]
 [Produces("application/json")]
 public class MeController(IOrganizationService orgService) : ControllerBase
@@ -24,9 +26,11 @@ public class MeController(IOrganizationService orgService) : ControllerBase
     /// The organizations the caller belongs to.
     /// </summary>
     /// <remarks>
-    /// A client is bound to one organization, so this is not a switcher: an app cannot open
-    /// another organization's door with the token it holds. It can link to it, which is the
-    /// only honest thing to offer someone who belongs to three.
+    /// This is the organization picker's data: a first-party app lists these and re-authorizes
+    /// with the <c>organization</c> hint to switch context. The token it holds still opens one
+    /// organization's door at a time, so the switch is a new authorize round-trip, never a
+    /// header. Reachable without an organization, because a caller who belongs to three and
+    /// has picked none must be able to see them.
     ///
     /// Asks for no permission — the answer is about the caller, and demanding one would hide
     /// every organization but the one their token is scoped to, which is the question.

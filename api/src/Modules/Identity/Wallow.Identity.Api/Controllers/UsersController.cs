@@ -71,6 +71,7 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
     /// Get the currently authenticated user's profile, roles, and permissions.
     /// </summary>
     [HttpGet("me")]
+    [AllowWithoutOrganization]
     public ActionResult<CurrentUserResponse> GetCurrentUser()
     {
         return Ok(new CurrentUserResponse

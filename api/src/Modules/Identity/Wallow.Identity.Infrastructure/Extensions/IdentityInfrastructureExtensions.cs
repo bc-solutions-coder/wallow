@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
@@ -221,9 +220,9 @@ public static class IdentityInfrastructureExtensions
             // (e.g. AuthorizationController) still own their own redirects to the Auth app
             // via [AllowAnonymous] + manual User.Identity checks.
             options.Events.OnRedirectToLogin = context =>
-                WriteAuthProblemAsync(context.HttpContext, StatusCodes.Status401Unauthorized);
+                AuthProblemResponse.WriteAsync(context.HttpContext, StatusCodes.Status401Unauthorized);
             options.Events.OnRedirectToAccessDenied = context =>
-                WriteAuthProblemAsync(context.HttpContext, StatusCodes.Status403Forbidden);
+                AuthProblemResponse.WriteAsync(context.HttpContext, StatusCodes.Status403Forbidden);
         });
 
         services.AddIdentityAuthorization(configuration);
@@ -484,37 +483,5 @@ public static class IdentityInfrastructureExtensions
 
         byte[] pfxBytes = cert.Export(X509ContentType.Pfx, certPassword);
         File.WriteAllBytes(certPath, pfxBytes);
-    }
-
-    private static async Task WriteAuthProblemAsync(HttpContext httpContext, int statusCode)
-    {
-        httpContext.Response.StatusCode = statusCode;
-
-        ProblemDetails problem = new()
-        {
-            Status = statusCode,
-            Title = statusCode == StatusCodes.Status403Forbidden
-                ? "Forbidden."
-                : "Authentication required.",
-            Detail = statusCode == StatusCodes.Status403Forbidden
-                ? "The authenticated identity lacks the permission this resource requires."
-                : "This resource requires an authenticated session or bearer token.",
-        };
-
-        // Resolved lazily: this module can be hosted without problem-details services, and the
-        // handler must still answer with a body either way (see the comment at the event hookup).
-        IProblemDetailsService? problemDetailsService =
-            httpContext.RequestServices.GetService<IProblemDetailsService>();
-        if (problemDetailsService is not null
-            && await problemDetailsService.TryWriteAsync(
-                new ProblemDetailsContext { HttpContext = httpContext, ProblemDetails = problem }))
-        {
-            return;
-        }
-
-        // The default writer refuses an Accept header that admits no JSON (browsers send */*
-        // and pass); the body is still owed, so write the same document directly.
-        await httpContext.Response.WriteAsJsonAsync(
-            problem, options: null, contentType: "application/problem+json", httpContext.RequestAborted);
     }
 }
