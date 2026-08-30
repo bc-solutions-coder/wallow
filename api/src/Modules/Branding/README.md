@@ -6,11 +6,12 @@ The Branding module manages per-client visual customization for OAuth/OIDC appli
 
 ## Key Features
 
-- **Client branding CRUD**: Upsert and delete branding for OAuth client applications
+- **Client branding as an org sub-resource**: registration creates each application's branding row; the owning organization reads and replaces it and removes the logo under `…/organizations/{orgId}/clients/{clientId}/branding`
 - **Logo management**: Upload/replace/delete logos through `IStorageProvider`, whose default provider is `Local` (see `Storage/README.md`); S3-compatible backends such as GarageHQ are opt-in. Magic-byte validation for PNG, JPEG, and WebP
-- **Theme validation**: JSON theme with color values validated against oklch, hex, and rem patterns
+- **Curated theme validation**: JSON theme restricted to `primary` and `primaryForeground` per `light`/`dark` mode, colors validated as oklch or hex
 - **Caching**: Keyed `IMemoryCache` ("BrandingCache") with 5-minute sliding expiration and 1000-entry size limit
-- **Ownership enforcement**: Only the user who created the OAuth client can modify its branding
+- **Ownership enforcement**: the caller needs `OrganizationClientsManage`, a tenant matching the route organization (or the global-admin claim), and the client must be that organization's own application — resolved through `IOrganizationClientDirectory`, never OpenIddict
+- **Reserved display name**: the end-user-facing display name may never case-insensitively equal the fork's app name (`ForkBrandingOptions`)
 - **Multi-tenancy**: Automatic tenant isolation via EF Core query filters
 
 ## Architecture
@@ -46,20 +47,37 @@ The sole entity in this module. Stores branding configuration for an OAuth clien
 
 ## API Endpoints
 
-Route: `/v1/identity/apps/{clientId}/branding`
+Public read (what the sign-in screen renders): `/v1/identity/apps/{clientId}/branding`
 
 | Method | Auth | Description |
 |--------|------|-------------|
-| `GET` | Anonymous | Get branding for a client (cached, 300s response cache) |
-| `POST` | Required | Upsert branding (multipart/form-data with optional logo) |
-| `DELETE` | Required | Delete branding and associated logo |
+| `GET` | Anonymous | Get branding for a client (served from the bounded memory cache; no HTTP response cache, so an edit shows on the next sign-in) |
+
+Management (org sub-resource): `/v1/identity/organizations/{orgId}/clients/{clientId}/branding`
+
+| Method | Auth | Description |
+|--------|------|-------------|
+| `GET` | `OrganizationClientsManage` | The client's branding as its organization sees it |
+| `PUT` | `OrganizationClientsManage` | Replace branding (multipart/form-data with optional logo) |
+| `DELETE /logo` | `OrganizationClientsManage` | Remove the logo; the rest of the branding stays |
 
 Logo uploads are validated for file type (magic bytes), size (max 2MB), and content type match.
+A foreign organization, an unknown client and a service account are all answered 404.
 
 ## Integration Events
 
-The module currently publishes no integration events. Consumers needing fresh branding
-read it via the public GET endpoint (cached, anonymous).
+Consumed (Wolverine, in-memory):
+
+| Event | Reaction |
+|-------|----------|
+| `ClientRegisteredEvent` | Creates the branding row for an application (display name defaults to the client name; a chosen initial branding wins) |
+| `ClientDeletedEvent` | Removes the branding row and its logo |
+
+Published:
+
+| Event | Consumers |
+|-------|-----------|
+| `ClientBrandingUpdatedEvent` | Identity — writes the `ClientBrandingUpdated` audit row and copies the display name onto the OpenIddict application |
 
 ## Dependencies
 
@@ -68,7 +86,7 @@ read it via the public GET endpoint (cached, anonymous).
 | `Wallow.Shared.Kernel` | Base entities, strongly-typed IDs, multi-tenancy, Result pattern |
 | `Wallow.Shared.Contracts` | `IStorageProvider` interface |
 | `Wallow.Shared.Infrastructure.Core` | Cross-cutting infrastructure — tenant-aware persistence, caching, messaging ([README](../../Shared/Wallow.Shared.Infrastructure.Core/README.md)) |
-| OpenIddict | Client ownership verification via `IOpenIddictApplicationManager` |
+| `Wallow.Shared.Contracts` (Identity) | Client ownership via `IOrganizationClientDirectory` — the module never touches OpenIddict or Identity's persistence |
 
 ## Configuration
 

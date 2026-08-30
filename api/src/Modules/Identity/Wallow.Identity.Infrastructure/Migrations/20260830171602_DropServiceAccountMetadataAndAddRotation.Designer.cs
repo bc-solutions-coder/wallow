@@ -803,6 +803,12 @@ namespace Wallow.Identity.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_used_at");
 
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uuid")
                         .HasColumnName("organization_id");

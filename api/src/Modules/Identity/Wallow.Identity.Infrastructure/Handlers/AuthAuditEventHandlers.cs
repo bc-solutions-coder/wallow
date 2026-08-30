@@ -1,3 +1,4 @@
+using Wallow.Shared.Contracts.Branding.Events;
 using Wallow.Shared.Contracts.Identity.Events;
 using Wallow.Shared.Kernel.Auditing;
 using Wolverine.Attributes;
@@ -82,6 +83,11 @@ public static class AuthAuditEventHandlers
     public static Task Handle(ClientRegisteredEvent message, IAuthAuditService authAuditService) =>
         RecordClientEventAsync(
             "ClientRegistered", message.ClientId, message.OrganizationId, message.ActorId,
+            message.IpAddress, message.OccurredAt, authAuditService);
+
+    public static Task Handle(ClientBrandingUpdatedEvent message, IAuthAuditService authAuditService) =>
+        RecordClientEventAsync(
+            "ClientBrandingUpdated", message.ClientId, message.OrganizationId, message.ActorId,
             message.IpAddress, message.OccurredAt, authAuditService);
 
     public static Task Handle(ClientSecretRotatedEvent message, IAuthAuditService authAuditService) =>

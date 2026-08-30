@@ -281,6 +281,9 @@ services:
       COOKIE_SECURE: "false"
       # Server-side sessions in Valkey so logout truly revokes (see bff-example).
       REDIS_URL: "redis://:WallowTestValkey123!@valkey:6379"
+      # Where the branding editor's "Preview sign-in" link points: the sign-in
+      # app as the browser reaches it, i.e. its host-published port.
+      WALLOW_AUTH_URL: "http://localhost:${E2E_AUTH_PORT:-5051}"
     # node:24-slim ships no curl/wget, so liveness is probed with node's own fetch.
     healthcheck:
       test:

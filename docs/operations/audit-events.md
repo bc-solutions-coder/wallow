@@ -42,12 +42,13 @@ The `"EventType"` column uses plain string values. The following events are reco
 | `ClientSuspended` | Somebody suspended a registered client, ending every token it held (see below) | Yes |
 | `ClientReinstated` | Somebody reinstated a suspended client (see below) | Yes |
 | `ClientDeleted` | Somebody deleted a registered client along with its tokens, consents and branding (see below) | Yes |
+| `ClientBrandingUpdated` | Somebody replaced a client's branding or removed its logo (see below) | Yes |
 | `ClientSuspendedByPlatform` | A global admin placed the platform's suspension on a registered client (see below) | Yes |
 | `ClientReinstatedByPlatform` | A global admin lifted a client's platform suspension (see below) | Yes |
 | `OrganizationSuspendedByPlatform` | A global admin placed the platform's suspension on an organization (see below) | No |
 | `OrganizationReinstatedByPlatform` | A global admin lifted an organization's platform suspension (see below) | No |
 
-Each event is written by `AuthAuditEventHandlers` in the Identity module, which subscribes to the corresponding Wolverine in-memory integration events published by the Identity domain.
+Each event is written by `AuthAuditEventHandlers` in the Identity module, which subscribes to the corresponding Wolverine in-memory integration events published by the Identity domain — except `ClientBrandingUpdatedEvent`, which the Branding module publishes.
 
 | `"EventType"` | Source integration event |
 |--------------|--------------------------|
@@ -61,6 +62,7 @@ Each event is written by `AuthAuditEventHandlers` in the Identity module, which 
 | `ClientSuspended` | `ClientSuspendedEvent` |
 | `ClientReinstated` | `ClientReinstatedEvent` |
 | `ClientDeleted` | `ClientDeletedEvent` |
+| `ClientBrandingUpdated` | `ClientBrandingUpdatedEvent` |
 | `ClientSuspendedByPlatform` | `ClientSuspendedByPlatformEvent` |
 | `ClientReinstatedByPlatform` | `ClientReinstatedByPlatformEvent` |
 | `OrganizationSuspendedByPlatform` | `OrganizationSuspendedByPlatformEvent` |
@@ -94,9 +96,9 @@ ORDER BY "OccurredAt" DESC;
 
 ### Client lifecycle events
 
-`ClientRegistered`, `ClientSecretRotated`, `ClientSuspended`, `ClientReinstated`, `ClientDeleted`
-and the two client platform-suspension events below are about a registered client rather than a
-person, so they are the only events that fill `"ClientId"`. The person who did it stands in both `"UserId"` and `"ActorId"` — there is no separate
+`ClientRegistered`, `ClientSecretRotated`, `ClientSuspended`, `ClientReinstated`,
+`ClientDeleted`, `ClientBrandingUpdated` and the two client platform-suspension events below are
+about a registered client rather than a person, so they are the only events that fill `"ClientId"`. The person who did it stands in both `"UserId"` and `"ActorId"` — there is no separate
 subject — and `"TenantId"` is the organization that owns the client. All of them carry the caller's
 IP address when the request exposed one.
 
@@ -109,6 +111,11 @@ which is why `"ClientId"` is a string rather than a foreign key.
 
 `ClientSecretRotatedEvent` also says whether the rotation revoked the client's outstanding tokens;
 that flag is logged by the Identity module but not stored in the audit row.
+
+`ClientBrandingUpdated` records every write to the client's end-user-facing branding — a PUT of the
+branding sub-resource or a logo removal alike. The event carries the resulting display name, which
+Identity also copies onto the OpenIddict application, but the audit row stores only who changed the
+branding and when; the branding itself lives in the Branding module.
 
 To see a client's history:
 

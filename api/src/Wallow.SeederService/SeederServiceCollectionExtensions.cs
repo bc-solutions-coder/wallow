@@ -70,6 +70,9 @@ internal static class SeederServiceCollectionExtensions
         // Identity services needed by seeders
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
         services.AddScoped<IMembershipRepository, MembershipRepository>();
+        // AccessRevoker (behind AddAccessRevocation) walks an org's registered clients.
+        services.AddScoped<IRegisteredClientRepository, RegisteredClientRepository>();
+        services.AddScoped<IOrganizationAdminEmailResolver, OrganizationAdminEmailResolver>();
         services.AddScoped<IMembershipRoleResolver, MembershipRoleResolver>();
         services.AddScoped<IOrganizationService, OrganizationService>();
         services.AddScoped<ILastOwnerGuard, LastOwnerGuard>();

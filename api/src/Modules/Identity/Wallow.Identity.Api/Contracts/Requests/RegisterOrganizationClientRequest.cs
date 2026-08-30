@@ -13,7 +13,16 @@ public record RegisterOrganizationClientRequest(
     IReadOnlyList<string> RedirectUris,
     IReadOnlyList<string> PostLogoutRedirectUris,
     IReadOnlyList<string> Scopes,
-    string? BackchannelLogoutUri = null);
+    string? BackchannelLogoutUri = null,
+    RegisterOrganizationClientBranding? Branding = null);
+
+/// <summary>
+/// Optional initial branding for an application: the end-user-facing display name (defaults to
+/// the client's name) and a tagline. Ignored for service accounts, which face no end user.
+/// </summary>
+public record RegisterOrganizationClientBranding(
+    string? DisplayName = null,
+    string? Tagline = null);
 
 /// <summary>
 /// Everything about a client its organization may change after registration. Name and client id

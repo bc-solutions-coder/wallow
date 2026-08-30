@@ -64,11 +64,16 @@ public sealed partial class OrganizationClientService(
         }
 
         string clientSecret = GenerateClientSecret();
-        OpenIddictApplicationDescriptor descriptor = NewDescriptor(input.Kind, clientId, clientSecret, input.Name);
+
+        // The OpenIddict display name is the end-user-facing branded name; Branding owns it after
+        // registration. The immutable ledger name lives on the RegisteredClient row instead.
+        string displayName = (input.BrandingDisplayName ?? input.Name).Trim();
+        OpenIddictApplicationDescriptor descriptor = NewDescriptor(input.Kind, clientId, clientSecret, displayName);
         descriptor.SetTenantId(organizationId.ToString());
         ApplyConfiguration(descriptor, input.Kind, input.Configuration);
 
-        RegisteredClient record = RegisteredClient.Create(clientId, organizationId, input.Kind, actorUserId, timeProvider);
+        RegisteredClient record = RegisteredClient.Create(
+            clientId, organizationId, input.Name, input.Kind, actorUserId, timeProvider);
 
         // Both writes land on IdentityDbContext (OpenIddict's store shares it), so one transaction
         // covers them: no application without its record, no record without its application. The
@@ -491,7 +496,7 @@ public sealed partial class OrganizationClientService(
     private static OrganizationClientDto ToDto(RegisteredClient record, OpenIddictApplicationDescriptor descriptor) =>
         new(
             record.ClientId,
-            descriptor.DisplayName ?? record.ClientId,
+            record.Name,
             record.Kind,
             record.Status,
             descriptor.RedirectUris.Select(u => u.AbsoluteUri).ToList(),

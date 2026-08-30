@@ -441,6 +441,9 @@ services:
       Storage__S3__BucketName: ${GARAGE_BUCKET:-wallow-files}
       Storage__S3__UsePathStyle: "true"
       Storage__S3__Region: ${GARAGE_REGION:-us-east-1}
+      # Fork branding: the server-side guard reserving the platform's own name as a client
+      # display name. A rebranded fork sets this to match packages/styles/branding.json appName.
+      Branding__AppName: ${WALLOW_APP_NAME:-Wallow}
       # Service URLs (public-facing, what browsers see)
       ServiceUrls__ApiUrl: ${API_PUBLIC_URL:-https://wallow.dev/api}
       ServiceUrls__AuthUrl: ${AUTH_PUBLIC_URL:-https://wallow.dev/auth}
@@ -695,6 +698,9 @@ services:
       # See the wallow-auth service above — same two optional links.
       WALLOW_REPOSITORY_URL: ${WALLOW_REPOSITORY_URL:-}
       WALLOW_DOCS_URL: ${WALLOW_DOCS_URL:-}
+      # Where the branding editor's "Preview sign-in" link points: the sign-in
+      # app's public origin, which is the same value the API advertises.
+      WALLOW_AUTH_URL: ${AUTH_PUBLIC_URL:-https://wallow.dev/auth}
     depends_on:
       wallow-api:
         condition: service_healthy

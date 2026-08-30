@@ -1,3 +1,4 @@
+import { authUrlScript } from "@bc-solutions-coder/env/auth-origin";
 import type { QueryClient } from "@bc-solutions-coder/query";
 import type { WallowSdk } from "@bc-solutions-coder/sdk";
 import {
@@ -23,6 +24,7 @@ import type { ReactElement, ReactNode } from "react";
 
 import { PublicLayout } from "@shared/components/PublicLayout";
 import { ReadyIndicator } from "@shared/components/ready-indicator";
+import { authUrl } from "@shared/lib/auth-url";
 import { forkLinks } from "@shared/lib/fork-links";
 
 // Side-effect import, NOT `?url` + a head() link. Start builds two Vite
@@ -66,6 +68,15 @@ function requestForkLinks(): ForkLinks | undefined {
   }
 }
 
+/** The auth origin this REQUEST resolved, with the same fallback story as {@link requestForkLinks}. */
+function requestAuthUrl(): string | undefined {
+  try {
+    return getGlobalStartContext()?.authUrl;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * The document shell for wallow-web: the full `<html>/<head>/<body>` every page
  * renders into.
@@ -89,12 +100,13 @@ function requestForkLinks(): ForkLinks | undefined {
  * `<ReadyIndicator/>` sits at the root so *every* page emits the hydration
  * marker the Playwright suites wait on.
  *
- * The second script publishes this deployment's outbound fork links, resolved
- * from the environment in `app/start.ts`. It is here for the same reason
- * `<ThemeScript/>` is: the browser cannot re-derive the value (it has no
- * environment to read) and an href that differs across hydration is a mismatch,
- * so the server states the answer in the document and `forkLinks()` reads it
- * back — no context, no provider, and nothing for React to re-render.
+ * The last two scripts publish this deployment's outbound fork links and its
+ * sign-in app's origin, resolved from the environment in `app/start.ts`. They
+ * are here for the same reason `<ThemeScript/>` is: the browser cannot
+ * re-derive the values (it has no environment to read) and an href that differs
+ * across hydration is a mismatch, so the server states each answer in the
+ * document and `forkLinks()` / `authUrl()` read it back — no context, no
+ * provider, and nothing for React to re-render.
  */
 function RootDocument({ children }: { readonly children: ReactNode }): ReactElement {
   return (
@@ -104,6 +116,7 @@ function RootDocument({ children }: { readonly children: ReactNode }): ReactElem
         <DocumentStyles themeCss={renderThemeStyle(branding)} stylesheetHref={null} />
         <ThemeScript defaultMode={branding.defaultMode} />
         <script>{forkLinksScript(requestForkLinks() ?? forkLinks())}</script>
+        <script>{authUrlScript(requestAuthUrl() ?? authUrl())}</script>
       </head>
       <body>
         <FocusOnNavigate />

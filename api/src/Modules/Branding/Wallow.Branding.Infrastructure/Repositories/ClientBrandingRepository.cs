@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Wallow.Branding.Application.Interfaces;
 using Wallow.Branding.Domain.Entities;
 using Wallow.Branding.Infrastructure.Persistence;
+using Wallow.Shared.Kernel.Identity;
 
 namespace Wallow.Branding.Infrastructure.Repositories;
 
@@ -21,6 +22,11 @@ public sealed class ClientBrandingRepository(BrandingDbContext context) : IClien
             .AsTracking()
             .IgnoreQueryFilters()
             .FirstOrDefaultAsync(b => b.ClientId == clientId, ct);
+    }
+
+    public void UseTenant(TenantId tenantId)
+    {
+        context.SetTenant(tenantId);
     }
 
     public void Add(ClientBranding branding)

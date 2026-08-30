@@ -50,6 +50,18 @@ describe("api.ts re-exports the SDK organizations query surface", () => {
     expect(api.organizationClientsLiftPlatformSuspensionMutation).toBe(
       query.organizationClientsLiftPlatformSuspensionMutation,
     );
+    expect(api.organizationClientBrandingGetBrandingOptions).toBe(
+      query.organizationClientBrandingGetBrandingOptions,
+    );
+    expect(api.organizationClientBrandingGetBrandingQueryKey).toBe(
+      query.organizationClientBrandingGetBrandingQueryKey,
+    );
+    expect(api.organizationClientBrandingUpsertBrandingMutation).toBe(
+      query.organizationClientBrandingUpsertBrandingMutation,
+    );
+    expect(api.organizationClientBrandingDeleteLogoMutation).toBe(
+      query.organizationClientBrandingDeleteLogoMutation,
+    );
     expect(api.scopesListOptions).toBe(query.scopesListOptions);
     expect(api.queriesForOperation).toBe(query.queriesForOperation);
     expect(api.queriesWithTag).toBe(query.queriesWithTag);

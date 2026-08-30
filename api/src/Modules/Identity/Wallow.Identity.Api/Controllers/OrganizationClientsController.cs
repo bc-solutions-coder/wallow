@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
 using Wallow.Identity.Api.Authorization;
 using Wallow.Identity.Api.Contracts.Requests;
 using Wallow.Identity.Api.Contracts.Responses;
@@ -11,7 +12,9 @@ using Wallow.Identity.Application.Helpers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Enums;
 using Wallow.Shared.Contracts;
+using Wallow.Shared.Contracts.Identity;
 using Wallow.Shared.Contracts.Identity.Events;
+using Wallow.Shared.Kernel.Configuration;
 using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
@@ -38,7 +41,8 @@ public class OrganizationClientsController(
     IOrganizationAccessPolicy accessPolicy,
     IMessageBus messageBus,
     IOrganizationAdminEmailResolver adminEmails,
-    IOrganizationService organizations) : ControllerBase
+    IOrganizationService organizations,
+    IOptions<ForkBrandingOptions> forkBranding) : ControllerBase
 {
     private const string RedirectUrisField = "redirectUris";
     private const string PostLogoutRedirectUrisField = "postLogoutRedirectUris";
@@ -78,6 +82,12 @@ public class OrganizationClientsController(
         {
             ModelState.AddModelError(nameof(request.Name), "Name is required.");
         }
+        else if (request.Name.Trim().Length > 200)
+        {
+            ModelState.AddModelError(nameof(request.Name), "Name must be at most 200 characters.");
+        }
+
+        (string? brandingDisplayName, string? brandingTagline) = NormalizeBranding(kind, request);
 
         ClientConfigurationInput? configuration = ParseConfiguration(
             kind ?? RegisteredClientKind.Application,
@@ -92,7 +102,7 @@ public class OrganizationClientsController(
 
         OrganizationClientRegistrationResult result = await clients.RegisterAsync(
             orgId,
-            new RegisterClientInput(kind.Value, request.Name.Trim(), configuration),
+            new RegisterClientInput(kind.Value, request.Name.Trim(), configuration, brandingDisplayName, brandingTagline),
             ActorId(),
             ct);
 
@@ -100,7 +110,13 @@ public class OrganizationClientsController(
         {
             ClientId = result.Client.ClientId,
             OrganizationId = orgId,
+            ClientName = result.Client.Name,
+            Kind = kind.Value == RegisteredClientKind.Application
+                ? OrganizationClientKind.Application
+                : OrganizationClientKind.ServiceAccount,
             ActorId = ActorId(),
+            BrandingDisplayName = brandingDisplayName,
+            BrandingTagline = brandingTagline,
             IpAddress = CallerIpAddress(),
         });
 
@@ -411,6 +427,46 @@ public class OrganizationClientsController(
         await messageBus.PublishAsync(announce(client));
         return Ok(OrganizationClientResponse.From(client));
     }
+
+    /// <summary>
+    /// Validates and trims the optional initial branding. A service account carries none — it
+    /// faces no end user. An application's effective display name (the branded one, or the
+    /// client's name when none was given) may never read as the platform itself.
+    /// </summary>
+    private (string? DisplayName, string? Tagline) NormalizeBranding(
+        RegisteredClientKind? kind, RegisterOrganizationClientRequest request)
+    {
+        if (kind != RegisteredClientKind.Application)
+        {
+            return (null, null);
+        }
+
+        string? displayName = TrimmedOrNull(request.Branding?.DisplayName);
+        string? tagline = TrimmedOrNull(request.Branding?.Tagline);
+
+        if (displayName is { Length: > 200 })
+        {
+            ModelState.AddModelError("branding.displayName", "Display name must be at most 200 characters.");
+        }
+
+        if (tagline is { Length: > 500 })
+        {
+            ModelState.AddModelError("branding.tagline", "Tagline must be at most 500 characters.");
+        }
+
+        string effectiveDisplayName = displayName ?? request.Name?.Trim() ?? string.Empty;
+        if (effectiveDisplayName.Length > 0 && forkBranding.Value.IsReservedDisplayName(effectiveDisplayName))
+        {
+            ModelState.AddModelError(
+                "branding.displayName",
+                $"'{forkBranding.Value.AppName}' is reserved for the platform itself.");
+        }
+
+        return (displayName, tagline);
+    }
+
+    private static string? TrimmedOrNull(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private Guid ActorId() => Guid.Parse(User.GetUserId()!);
 

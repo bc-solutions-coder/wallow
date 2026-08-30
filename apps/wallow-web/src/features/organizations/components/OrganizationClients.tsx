@@ -8,7 +8,9 @@
  * Each row shows who created the client and who last rotated its secret, and
  * carries a `{row}-rotate` dialog whose reveal reuses the registration one, a
  * `{row}-suspend` / `{row}-reinstate` toggle, and a `{row}-delete` dialog that
- * only confirms once the client id has been typed back.
+ * only confirms once the client id has been typed back. Application rows also
+ * carry a `{row}-branding` trigger opening the `organization-detail-branding-*`
+ * editor in place of the ledger's register flow.
  */
 import { errorText } from "@bc-solutions-coder/forms";
 import { useMutation, useQuery, useQueryClient } from "@bc-solutions-coder/query";
@@ -45,6 +47,7 @@ import {
   organizationsGetMembersOptions,
   queriesForOperation,
 } from "../api";
+import { ClientBrandingEditor } from "./ClientBrandingEditor";
 import { ClientPlatformControls } from "./PlatformSuspension";
 import {
   type ClientKind,
@@ -401,8 +404,10 @@ function ClientRow(props: {
   client: OrganizationClientResponse;
   nameOf: NameOf;
   onRotated: (result: OrganizationClientRegistrationResponse) => void;
+  /** Opens the branding editor; only application ledgers pass one. */
+  onBranding?: (client: OrganizationClientResponse) => void;
 }) {
-  const { name, orgId, client, nameOf, onRotated } = props;
+  const { name, orgId, client, nameOf, onRotated, onBranding } = props;
   return (
     <ListRow name={name} className="flex-wrap gap-x-6 gap-y-2">
       <Text as="span" variant="bodySm" color="onCard" weight="medium">
@@ -423,6 +428,19 @@ function ClientRow(props: {
           Suspended by the platform: {client.platformSuspensionReason}
         </Text>
       ) : null}
+      {onBranding === undefined ? null : (
+        <Button
+          type="button"
+          variant="secondary"
+          className="w-auto"
+          onClick={() => {
+            onBranding(client);
+          }}
+          data-testid={`${name}-branding`}
+        >
+          Branding
+        </Button>
+      )}
       <RotateSecretDialog name={name} orgId={orgId} client={client} onRotated={onRotated} />
       <LifecycleToggle name={name} orgId={orgId} client={client} />
       <ClientPlatformControls name={name} orgId={orgId} client={client} />
@@ -439,8 +457,9 @@ function Ledger(props: {
   emptyMessage: string;
   nameOf: NameOf;
   onRotated: (result: OrganizationClientRegistrationResponse) => void;
+  onBranding?: (client: OrganizationClientResponse) => void;
 }) {
-  const { name, orgId, clients, emptyMessage, nameOf, onRotated } = props;
+  const { name, orgId, clients, emptyMessage, nameOf, onRotated, onBranding } = props;
   if (clients.length === 0) {
     return <EmptyState data-testid={`${name}s-empty`} message={emptyMessage} />;
   }
@@ -454,6 +473,7 @@ function Ledger(props: {
           client={client}
           nameOf={nameOf}
           onRotated={onRotated}
+          onBranding={onBranding}
         />
       ))}
     </ListCard>
@@ -464,6 +484,7 @@ function Ledger(props: {
 type Flow =
   | { readonly kind: "idle" }
   | { readonly kind: "registering" }
+  | { readonly kind: "branding"; readonly client: OrganizationClientResponse }
   | {
       readonly kind: "revealed";
       readonly result: OrganizationClientRegistrationResponse;
@@ -495,6 +516,9 @@ function RegistrationFlow(props: {
           onCancel={toIdle}
         />
       );
+    }
+    case "branding": {
+      return <ClientBrandingEditor orgId={orgId} client={flow.client} onDone={toIdle} />;
     }
     case "revealed": {
       return (
@@ -586,6 +610,13 @@ function KindLedger(props: {
         onRotated={(result) => {
           setFlow({ kind: "revealed", result, origin: "rotated" });
         }}
+        onBranding={
+          kind === "application"
+            ? (client) => {
+                setFlow({ kind: "branding", client });
+              }
+            : undefined
+        }
       />
       <RegistrationFlow kind={kind} orgId={orgId} flow={flow} onFlow={setFlow} />
     </section>

@@ -46,6 +46,13 @@ public sealed record ClientConfigurationInput(
 
 /// <summary>
 /// A registration request as the surface has already validated it: which kind of client, its
-/// display name and the configuration that kind accepts.
+/// immutable name, the configuration that kind accepts and — for an application — the optional
+/// initial branding. When <c>BrandingDisplayName</c> is null the application's end-user-facing
+/// display name defaults to <c>Name</c>.
 /// </summary>
-public sealed record RegisterClientInput(RegisteredClientKind Kind, string Name, ClientConfigurationInput Configuration);
+public sealed record RegisterClientInput(
+    RegisteredClientKind Kind,
+    string Name,
+    ClientConfigurationInput Configuration,
+    string? BrandingDisplayName = null,
+    string? BrandingTagline = null);

@@ -114,5 +114,5 @@ public class RegisteredClientTests
     }
 
     private RegisteredClient CreateClient() =>
-        RegisteredClient.Create("acme-app", _organizationId, RegisteredClientKind.Application, _actorId, _timeProvider);
+        RegisteredClient.Create("acme-app", _organizationId, "App", RegisteredClientKind.Application, _actorId, _timeProvider);
 }

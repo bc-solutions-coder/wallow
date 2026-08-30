@@ -27,6 +27,11 @@ public sealed class RegisteredClientConfiguration : IEntityTypeConfiguration<Reg
             .HasColumnName("organization_id")
             .IsRequired();
 
+        builder.Property(e => e.Name)
+            .HasColumnName("name")
+            .HasMaxLength(200)
+            .IsRequired();
+
         builder.Property(e => e.Kind)
             .HasColumnName("kind")
             .HasConversion<string>()

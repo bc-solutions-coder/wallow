@@ -10,7 +10,6 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" />
-    <PackageReference Include="OpenIddict.AspNetCore" />
   </ItemGroup>
 
   <ItemGroup>

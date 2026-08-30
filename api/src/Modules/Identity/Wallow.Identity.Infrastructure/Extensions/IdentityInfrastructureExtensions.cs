@@ -429,6 +429,7 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<IClientTenantResolver, ClientTenantResolver>();
         services.AddScoped<IRedirectUriValidator, OpenIddictRedirectUriValidator>();
         services.TryAddScoped<Wallow.Shared.Contracts.Identity.IScopeSubsetValidator, ScopeSubsetValidator>();
+        services.TryAddScoped<Wallow.Shared.Contracts.Identity.IOrganizationClientDirectory, OrganizationClientDirectory>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IUserQueryService, UserQueryService>();
         services.AddScoped<IInvitationService, InvitationService>();

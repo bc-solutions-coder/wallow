@@ -15,6 +15,12 @@ public sealed class RegisteredClient : Entity<RegisteredClientId>
 {
     public string ClientId { get; private set; } = string.Empty;
     public Guid OrganizationId { get; private set; }
+
+    /// <summary>
+    /// The immutable name the developer registered the client under. Distinct from the OpenIddict
+    /// display name, which carries the client's mutable end-user-facing branding.
+    /// </summary>
+    public string Name { get; private set; } = string.Empty;
     public RegisteredClientKind Kind { get; private set; }
     public RegisteredClientStatus Status { get; private set; }
     public Guid CreatedByUserId { get; private set; }
@@ -40,6 +46,7 @@ public sealed class RegisteredClient : Entity<RegisteredClientId>
     public static RegisteredClient Create(
         string clientId,
         Guid organizationId,
+        string name,
         RegisteredClientKind kind,
         Guid createdByUserId,
         TimeProvider timeProvider)
@@ -49,6 +56,11 @@ public sealed class RegisteredClient : Entity<RegisteredClientId>
         if (string.IsNullOrWhiteSpace(clientId))
         {
             throw new BusinessRuleException("Identity.ClientIdRequired", "Client id cannot be empty");
+        }
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new BusinessRuleException("Identity.ClientNameRequired", "Client name cannot be empty");
         }
 
         if (organizationId == Guid.Empty)
@@ -63,6 +75,7 @@ public sealed class RegisteredClient : Entity<RegisteredClientId>
             Id = RegisteredClientId.New(),
             ClientId = clientId,
             OrganizationId = organizationId,
+            Name = name.Trim(),
             Kind = kind,
             Status = RegisteredClientStatus.Active,
             CreatedByUserId = createdByUserId,

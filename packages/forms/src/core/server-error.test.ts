@@ -17,11 +17,14 @@ import { splitServerError } from "./server-error";
  *      FluentValidation/`ValidationProblemDetails` ("Name"), the form's values
  *      are camelCase ("name"), and nothing renders next to an input until the
  *      two are reconciled.
- *   2. Unmatched names are ROUTED, not dropped. A message keyed by a property
- *      the form does not hold (a computed or nested one) would otherwise
- *      disappear, leaving a form that failed with no visible reason.
- *   3. A non-validation `WallowError` contributes its RFC 7807 `detail`.
- *   4./5. Anything else contributes the caller's fallback, except that a plain
+ *   2. The nested-path fold. A stepper that flattens a nested request object
+ *      holds `branding.displayName` as `brandingDisplayName`; the wire key must
+ *      land on that field or the message never reaches its step.
+ *   3. Unmatched names are ROUTED, not dropped. A message keyed by a property
+ *      the form does not hold (a computed one) would otherwise disappear,
+ *      leaving a form that failed with no visible reason.
+ *   4. A non-validation `WallowError` contributes its RFC 7807 `detail`.
+ *   5./6. Anything else contributes the caller's fallback, except that a plain
  *      `Error` carrying a message contributes that message.
  */
 
@@ -43,6 +46,22 @@ describe("splitServerError", () => {
 
     expect(result.fieldErrors).toEqual({ name: ["'Name' must not be empty."] });
     // Everything landed on a field, so there is nothing left for the banner.
+    expect(result.formError).toBeNull();
+  });
+
+  it("folds a nested wire path onto the flattened field a stepper holds it as", () => {
+    const error = new WallowError({
+      status: 400,
+      code: "VALIDATION_ERROR",
+      title: "Validation failed",
+      fieldErrors: { "branding.displayName": ["'Wallow' is reserved for the platform itself."] },
+    });
+
+    const result = splitServerError(error, ["name", "brandingDisplayName"], FALLBACK);
+
+    expect(result.fieldErrors).toEqual({
+      brandingDisplayName: ["'Wallow' is reserved for the platform itself."],
+    });
     expect(result.formError).toBeNull();
   });
 

@@ -41,6 +41,7 @@ public class WolverineCodegenPolicyTests
     private static readonly string[] _expectedServiceLocationExemptions =
     [
         "IBootstrapAdminService",
+        "IOpenIddictApplicationManager",
         "IOrganizationService",
         "ISetupStatusChecker",
         "ITenantContext",

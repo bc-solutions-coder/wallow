@@ -2,12 +2,16 @@
   "name": "@bc-solutions-coder/env",
   "version": "0.0.0",
   "private": true,
-  "description": "Wallow shared environment-derived addressing for Start apps (internal origin, base path)",
+  "description": "Wallow shared environment-derived addressing for Start apps (internal origin, base path, auth origin)",
   "files": [
     "dist"
   ],
   "type": "module",
   "exports": {
+    "./auth-origin": {
+      "types": "./src/auth-origin.ts",
+      "import": "./src/auth-origin.ts"
+    },
     "./base-path": {
       "types": "./src/base-path.ts",
       "import": "./src/base-path.ts"
@@ -19,6 +23,10 @@
   },
   "publishConfig": {
     "exports": {
+      "./auth-origin": {
+        "types": "./dist/auth-origin.d.ts",
+        "import": "./dist/auth-origin.js"
+      },
       "./base-path": {
         "types": "./dist/base-path.d.ts",
         "import": "./dist/base-path.js"

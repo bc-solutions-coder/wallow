@@ -55,6 +55,19 @@ function toFieldName(propertyName: string): string {
 }
 
 /**
+ * A nested wire path folded onto the flattened field a form holds it as:
+ * `"branding.displayName"` becomes `"brandingDisplayName"`. Tried only after
+ * `toFieldName` misses, so a form that genuinely holds a dotted path keeps it.
+ */
+function toFlattenedFieldName(propertyName: string): string {
+  const [head, ...rest] = propertyName.split(".");
+  return (
+    toFieldName(head ?? "") +
+    rest.map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1)).join("")
+  );
+}
+
+/**
  * Split a failed submit into field-level and form-level messages.
  *
  * `knownFields` is the set of camelCase names the form holds; a message keyed by
@@ -79,9 +92,12 @@ export function splitServerError(
 
   for (const [propertyName, messages] of Object.entries(error.fieldErrors ?? {})) {
     const field: string = toFieldName(propertyName);
+    const flattened: string = toFlattenedFieldName(propertyName);
 
     if (knownFields.includes(field)) {
       matched[field] = messages;
+    } else if (knownFields.includes(flattened)) {
+      matched[flattened] = messages;
     } else {
       unmatched.push(...messages);
     }

@@ -104,7 +104,9 @@ public class ClientLifecycleTests(WallowApiFactory factory) : OrganizationClient
         (Guid userId, string email) = await EnrollAndActAsync(orgId, "admin");
         (string clientId, string secret) = await RegisterApplicationAsync(orgId, "Delete App");
         TokenOutcome tokens = await SignInThroughAsync(email, clientId, secret);
-        await SeedBrandingAsync(clientId);
+        // Registration itself creates the branding row through the integration event; wait for it.
+        await WaitForAsync(async () => await BrandingOfAsync(clientId) is not null);
+        (await BrandingOfAsync(clientId)).Should().NotBeNull("registration creates the branding row");
 
         HttpResponseMessage deleted = await Client.DeleteAsync($"/identity/organizations/{orgId}/clients/{clientId}");
         deleted.StatusCode.Should().Be(HttpStatusCode.NoContent);
@@ -178,14 +180,6 @@ public class ClientLifecycleTests(WallowApiFactory factory) : OrganizationClient
         string connectionId = $"lifecycle-{Guid.NewGuid():N}";
         connections.AddConnection(connectionId, userId.ToString(), orgId, [], [], [], clientId);
         return connections.GetCancellationToken(connectionId);
-    }
-
-    private async Task SeedBrandingAsync(string clientId)
-    {
-        using IServiceScope scope = Factory.Services.CreateScope();
-        IClientBrandingRepository brandings = scope.ServiceProvider.GetRequiredService<IClientBrandingRepository>();
-        brandings.Add(ClientBranding.Create(clientId, "Delete App"));
-        await brandings.SaveChangesAsync();
     }
 
     private async Task<ClientBranding?> BrandingOfAsync(string clientId)

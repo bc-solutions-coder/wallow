@@ -12,6 +12,7 @@ using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 using Microsoft.FeatureManagement;
+using OpenIddict.Abstractions;
 using Scalar.AspNetCore;
 using Serilog;
 using StackExchange.Redis;
@@ -257,6 +258,7 @@ try
         // entry; WolverineCodegenPolicyTests asserts the list itself has not grown unnoticed.
         // See https://wolverinefx.net/guide/codegen.html.
         opts.ServiceLocationPolicy = ServiceLocationPolicy.NotAllowed;
+        opts.CodeGeneration.AlwaysUseServiceLocationFor<IOpenIddictApplicationManager>();
         opts.CodeGeneration.AlwaysUseServiceLocationFor<ITenantContext>();
         opts.CodeGeneration.AlwaysUseServiceLocationFor<ITenantContextSetter>();
         opts.CodeGeneration.AlwaysUseServiceLocationFor<ISetupStatusChecker>();

@@ -697,13 +697,73 @@
             }
           }
         }
-      },
-      "post": {
+      }
+    },
+    "/v1/identity/organizations/{orgId}/clients/{clientId}/branding": {
+      "get": {
         "tags": [
-          "Client Branding"
+          "Organization Client Branding"
         ],
-        "operationId": "ClientBrandingUpsertBranding",
+        "summary": "The client's branding as its organization sees it.",
+        "operationId": "OrganizationClientBrandingGetBranding",
         "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientBrandingDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Organization Client Branding"
+        ],
+        "summary": "Replace the client's branding: display name, tagline, optional logo upload and the curated\ntheme (`primary` and `primaryForeground` per `light`/`dark` mode). The\ndisplay name may never read as the platform itself.",
+        "operationId": "OrganizationClientBrandingUpsertBranding",
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
           {
             "name": "clientId",
             "in": "path",
@@ -763,13 +823,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
                 }
               }
             }
           },
-          "403": {
-            "description": "Forbidden",
+          "404": {
+            "description": "Not Found",
             "content": {
               "application/json": {
                 "schema": {
@@ -779,13 +839,25 @@
             }
           }
         }
-      },
+      }
+    },
+    "/v1/identity/organizations/{orgId}/clients/{clientId}/branding/logo": {
       "delete": {
         "tags": [
-          "Client Branding"
+          "Organization Client Branding"
         ],
-        "operationId": "ClientBrandingDeleteBranding",
+        "summary": "Remove the client's logo. The rest of the branding stays.",
+        "operationId": "OrganizationClientBrandingDeleteLogo",
         "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
           {
             "name": "clientId",
             "in": "path",
@@ -800,16 +872,6 @@
             "description": "No Content",
             "content": {
               "application/json": { }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
             }
           },
           "404": {
@@ -8968,10 +9030,11 @@
         "type": "object",
         "properties": {
           "reason": {
+            "maxLength": 1000,
             "type": "string"
           }
         },
-        "description": "Places a platform suspension. The reason is the operator's and travels with the suspension:\nthe affected organization's admins read it, only a global admin removes it."
+        "description": "Places a platform suspension. The reason is the operator's and travels with the suspension:\nthe affected organization's admins read it, only a global admin removes it. The length cap\nmatches the column both suspension marks persist the reason into."
       },
       "PresignedUploadRequest": {
         "required": [
@@ -9121,6 +9184,24 @@
           }
         }
       },
+      "RegisterOrganizationClientBranding": {
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tagline": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "Optional initial branding for an application: the end-user-facing display name (defaults to\nthe client's name) and a tagline. Ignored for service accounts, which face no end user."
+      },
       "RegisterOrganizationClientRequest": {
         "required": [
           "kind",
@@ -9159,6 +9240,16 @@
             "type": [
               "null",
               "string"
+            ]
+          },
+          "branding": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RegisterOrganizationClientBranding"
+              }
             ]
           }
         },
@@ -9987,6 +10078,9 @@
     },
     {
       "name": "Client Branding"
+    },
+    {
+      "name": "Organization Client Branding"
     },
     {
       "name": "Account"

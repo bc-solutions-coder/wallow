@@ -616,7 +616,8 @@ export type PasswordlessVerificationResponse = {
 
 /**
  * Places a platform suspension. The reason is the operator's and travels with the suspension:
- * the affected organization's admins read it, only a global admin removes it.
+ * the affected organization's admins read it, only a global admin removes it. The length cap
+ * matches the column both suspension marks persist the reason into.
  */
 export type PlatformSuspensionRequest = {
     reason: string;
@@ -665,6 +666,15 @@ export type RegisterDeviceRequest = {
 };
 
 /**
+ * Optional initial branding for an application: the end-user-facing display name (defaults to
+ * the client's name) and a tagline. Ignored for service accounts, which face no end user.
+ */
+export type RegisterOrganizationClientBranding = {
+    displayName?: null | string;
+    tagline?: null | string;
+};
+
+/**
  * Registers a client on behalf of an organization. `Kind` is `application` for a
  * developer application a person signs in to or `service-account` for a client-credentials
  * client. Name and the derived client id are immutable once registered. An application needs at
@@ -678,6 +688,7 @@ export type RegisterOrganizationClientRequest = {
     postLogoutRedirectUris: Array<string>;
     scopes: Array<string>;
     backchannelLogoutUri?: null | string;
+    branding?: null | RegisterOrganizationClientBranding;
 };
 
 export type ResolvedSetting = {
@@ -1274,35 +1285,6 @@ export type ApiKeysRevokeApiKeyResponses = {
 
 export type ApiKeysRevokeApiKeyResponse = ApiKeysRevokeApiKeyResponses[keyof ApiKeysRevokeApiKeyResponses];
 
-export type ClientBrandingDeleteBrandingData = {
-    body?: never;
-    path: {
-        clientId: string;
-    };
-    query?: never;
-    url: '/v1/identity/apps/{clientId}/branding';
-};
-
-export type ClientBrandingDeleteBrandingErrors = {
-    /**
-     * Forbidden
-     */
-    403: ProblemDetails;
-    /**
-     * Not Found
-     */
-    404: ProblemDetails;
-};
-
-export type ClientBrandingDeleteBrandingError = ClientBrandingDeleteBrandingErrors[keyof ClientBrandingDeleteBrandingErrors];
-
-export type ClientBrandingDeleteBrandingResponses = {
-    /**
-     * No Content
-     */
-    204: unknown;
-};
-
 export type ClientBrandingGetBrandingData = {
     body?: never;
     path: {
@@ -1330,7 +1312,35 @@ export type ClientBrandingGetBrandingResponses = {
 
 export type ClientBrandingGetBrandingResponse = ClientBrandingGetBrandingResponses[keyof ClientBrandingGetBrandingResponses];
 
-export type ClientBrandingUpsertBrandingData = {
+export type OrganizationClientBrandingGetBrandingData = {
+    body?: never;
+    path: {
+        orgId: string;
+        clientId: string;
+    };
+    query?: never;
+    url: '/v1/identity/organizations/{orgId}/clients/{clientId}/branding';
+};
+
+export type OrganizationClientBrandingGetBrandingErrors = {
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+};
+
+export type OrganizationClientBrandingGetBrandingError = OrganizationClientBrandingGetBrandingErrors[keyof OrganizationClientBrandingGetBrandingErrors];
+
+export type OrganizationClientBrandingGetBrandingResponses = {
+    /**
+     * OK
+     */
+    200: ClientBrandingDto;
+};
+
+export type OrganizationClientBrandingGetBrandingResponse = OrganizationClientBrandingGetBrandingResponses[keyof OrganizationClientBrandingGetBrandingResponses];
+
+export type OrganizationClientBrandingUpsertBrandingData = {
     body: {
         DisplayName?: string;
         Tagline?: string;
@@ -1339,33 +1349,60 @@ export type ClientBrandingUpsertBrandingData = {
         logo?: IFormFile;
     };
     path: {
+        orgId: string;
         clientId: string;
     };
     query?: never;
-    url: '/v1/identity/apps/{clientId}/branding';
+    url: '/v1/identity/organizations/{orgId}/clients/{clientId}/branding';
 };
 
-export type ClientBrandingUpsertBrandingErrors = {
+export type OrganizationClientBrandingUpsertBrandingErrors = {
     /**
      * Bad Request
      */
-    400: ProblemDetails;
+    400: ValidationProblemDetails;
     /**
-     * Forbidden
+     * Not Found
      */
-    403: ProblemDetails;
+    404: ProblemDetails;
 };
 
-export type ClientBrandingUpsertBrandingError = ClientBrandingUpsertBrandingErrors[keyof ClientBrandingUpsertBrandingErrors];
+export type OrganizationClientBrandingUpsertBrandingError = OrganizationClientBrandingUpsertBrandingErrors[keyof OrganizationClientBrandingUpsertBrandingErrors];
 
-export type ClientBrandingUpsertBrandingResponses = {
+export type OrganizationClientBrandingUpsertBrandingResponses = {
     /**
      * OK
      */
     200: ClientBrandingDto;
 };
 
-export type ClientBrandingUpsertBrandingResponse = ClientBrandingUpsertBrandingResponses[keyof ClientBrandingUpsertBrandingResponses];
+export type OrganizationClientBrandingUpsertBrandingResponse = OrganizationClientBrandingUpsertBrandingResponses[keyof OrganizationClientBrandingUpsertBrandingResponses];
+
+export type OrganizationClientBrandingDeleteLogoData = {
+    body?: never;
+    path: {
+        orgId: string;
+        clientId: string;
+    };
+    query?: never;
+    url: '/v1/identity/organizations/{orgId}/clients/{clientId}/branding/logo';
+};
+
+export type OrganizationClientBrandingDeleteLogoErrors = {
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+};
+
+export type OrganizationClientBrandingDeleteLogoError = OrganizationClientBrandingDeleteLogoErrors[keyof OrganizationClientBrandingDeleteLogoErrors];
+
+export type OrganizationClientBrandingDeleteLogoResponses = {
+    /**
+     * No Content
+     */
+    204: unknown;
+};
 
 export type AccountGetExternalProvidersData = {
     body?: never;

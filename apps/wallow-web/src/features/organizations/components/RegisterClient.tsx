@@ -1,7 +1,7 @@
 /**
  * The register-client stepper and the one-time reveal that follows it, for
- * both kinds: an application walks Basics → Redirects → Scopes, a service
- * account Basics → Scopes. One `useAppForm` owns every step: the inactive
+ * both kinds: an application walks Basics → Redirects → Scopes → Branding, a
+ * service account Basics → Scopes. One `useAppForm` owns every step: the inactive
  * steps stay mounted but hidden, so values survive navigation and a server
  * field error can pull the stepper back to the step that owns it. Only the
  * REQUIRED fields (name, a scope, and for an application a redirect URI) gate
@@ -10,6 +10,7 @@
 import { AppForm, FormError, SubmitButton, useAppForm } from "@bc-solutions-coder/forms";
 import { useQuery, useQueryClient } from "@bc-solutions-coder/query";
 import type { ApiScopeDto, OrganizationClientRegistrationResponse } from "@bc-solutions-coder/sdk";
+import { forkBranding } from "@bc-solutions-coder/styles";
 import {
   Badge,
   Button,
@@ -35,11 +36,12 @@ import {
 
 export type ClientKind = "application" | "service-account";
 
-type Step = "basics" | "redirects" | "scopes";
+type Step = "basics" | "redirects" | "scopes" | "branding";
 const STEP_LABELS: Record<Step, string> = {
   basics: "Basics",
   redirects: "Redirects",
   scopes: "Scopes",
+  branding: "Branding",
 };
 
 /** How each kind presents: its steps, copy, test-id prefix and quickstart. */
@@ -60,7 +62,7 @@ interface KindPresentation {
 const KINDS: Record<ClientKind, KindPresentation> = {
   application: {
     testIdPrefix: "organization-detail-register",
-    steps: ["basics", "redirects", "scopes"],
+    steps: ["basics", "redirects", "scopes", "branding"],
     registerTitle: "Register application",
     revealTitle: "Application registered",
     namePlaceholder: "Dashboard",
@@ -106,7 +108,20 @@ interface RegisterValues {
   postLogoutRedirectUris: string;
   backchannelLogoutUri: string;
   scopes: string[];
+  brandingDisplayName: string;
+  brandingTagline: string;
 }
+
+/**
+ * The fork's own name is reserved for the platform itself — the same rule the
+ * API enforces, checked here so the person hears it before submitting.
+ */
+export function isReservedDisplayName(value: string): boolean {
+  return value.trim().toLowerCase() === forkBranding.appName.trim().toLowerCase();
+}
+
+/** The message both the stepper and the branding editor show for a reserved display name. */
+export const RESERVED_DISPLAY_NAME_MESSAGE = `'${forkBranding.appName}' is reserved for the platform itself.`;
 
 /** A service account ignores every URI field, so only an application requires a redirect. */
 function registerSchemaFor(kind: ClientKind): z.ZodType<RegisterValues, RegisterValues> {
@@ -121,6 +136,10 @@ function registerSchemaFor(kind: ClientKind): z.ZodType<RegisterValues, Register
     postLogoutRedirectUris: z.string(),
     backchannelLogoutUri: z.string(),
     scopes: z.array(z.string()).min(1, "Choose at least one scope"),
+    brandingDisplayName: z
+      .string()
+      .refine((value) => !isReservedDisplayName(value), RESERVED_DISPLAY_NAME_MESSAGE),
+    brandingTagline: z.string(),
   });
 }
 
@@ -131,6 +150,8 @@ const STEP_OF_FIELD: Record<keyof RegisterValues, Step> = {
   postLogoutRedirectUris: "redirects",
   backchannelLogoutUri: "redirects",
   scopes: "scopes",
+  brandingDisplayName: "branding",
+  brandingTagline: "branding",
 };
 
 function isFieldName(name: string): name is keyof RegisterValues {
@@ -176,6 +197,8 @@ const LOGIN_SCOPES: readonly { code: string; displayName: string }[] = [
  */
 function toRegisterBody(kind: ClientKind, values: RegisterValues) {
   const backchannel = values.backchannelLogoutUri.trim();
+  const brandingDisplayName = values.brandingDisplayName.trim();
+  const brandingTagline = values.brandingTagline.trim();
   return kind === "application"
     ? {
         kind,
@@ -184,6 +207,14 @@ function toRegisterBody(kind: ClientKind, values: RegisterValues) {
         postLogoutRedirectUris: toUriList(values.postLogoutRedirectUris),
         backchannelLogoutUri: backchannel === "" ? undefined : backchannel,
         scopes: values.scopes,
+        // Left blank, registration defaults the branding to the client name.
+        branding:
+          brandingDisplayName === "" && brandingTagline === ""
+            ? undefined
+            : {
+                displayName: brandingDisplayName === "" ? undefined : brandingDisplayName,
+                tagline: brandingTagline === "" ? undefined : brandingTagline,
+              },
       }
     : {
         kind,
@@ -210,6 +241,8 @@ function useRegisterClientForm(
       postLogoutRedirectUris: "",
       backchannelLogoutUri: "",
       scopes: [...KINDS[kind].defaultScopes],
+      brandingDisplayName: "",
+      brandingTagline: "",
     },
     mutation: organizationClientsRegisterMutation({ client: sdk.client }),
     // Field by field, never a spread: the URI lists arrive as strings and an
@@ -300,6 +333,30 @@ function RedirectsStep(props: { form: RegisterForm }) {
       <form.AppField name="backchannelLogoutUri">
         {(field) => <field.TextField label="Back-channel logout URI" optional />}
       </form.AppField>
+    </div>
+  );
+}
+
+/**
+ * The optional branding step: what END USERS see on the sign-in screen, as
+ * opposed to Basics' internal ledger name. Both fields may stay blank —
+ * registration then defaults the display name to the client name — and the
+ * full editor (logo, theme) lives on the ledger row after registration.
+ */
+function BrandingStep(props: Stepper) {
+  const { form } = props;
+  return (
+    <div className="space-y-4">
+      <form.AppField name="brandingDisplayName">
+        {(field) => <field.TextField label="Display name" optional />}
+      </form.AppField>
+      <form.AppField name="brandingTagline">
+        {(field) => <field.TextField label="Tagline" optional />}
+      </form.AppField>
+      <MutedText>
+        Shown to end users on the sign-in screen. Leave blank to use the application name; logo and
+        theme colours can be added from the ledger after registration.
+      </MutedText>
     </div>
   );
 }
@@ -501,6 +558,11 @@ function StepPanels(props: Stepper & { step: Step }) {
       <div hidden={step !== "scopes"}>
         <ScopesStep kind={kind} form={form} />
       </div>
+      {KINDS[kind].steps.includes("branding") ? (
+        <div hidden={step !== "branding"}>
+          <BrandingStep kind={kind} form={form} />
+        </div>
+      ) : null}
     </>
   );
 }

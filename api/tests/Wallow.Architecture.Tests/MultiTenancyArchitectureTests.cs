@@ -152,6 +152,14 @@ public class MultiTenancyArchitectureTests
 
             foreach (MethodInfo method in methods)
             {
+                // UseTenant is the one sanctioned TenantId-taking method: it states which tenant
+                // OWNS the rows a cross-organization write is about to add (something query
+                // filters cannot express), never which tenant a read is filtered by.
+                if (method.Name == "UseTenant")
+                {
+                    continue;
+                }
+
                 ParameterInfo[] parameters = method.GetParameters();
                 bool hasTenantIdParameter = parameters.Any(p => p.ParameterType.Name == "TenantId");
 

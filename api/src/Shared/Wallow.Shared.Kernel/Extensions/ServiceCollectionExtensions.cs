@@ -22,6 +22,9 @@ public static class ServiceCollectionExtensions
         services.AddOptions<ServiceUrlsOptions>()
             .BindConfiguration(ServiceUrlsOptions.SectionName);
 
+        services.AddOptions<ForkBrandingOptions>()
+            .BindConfiguration(ForkBrandingOptions.SectionName);
+
         return services;
     }
 }

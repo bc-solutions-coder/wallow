@@ -1,3 +1,4 @@
+import { resolveAuthUrl } from "@bc-solutions-coder/env/auth-origin";
 import { resolveInternalOrigin } from "@bc-solutions-coder/env/internal-origin";
 import { createWallowSdk, type WallowSdk } from "@bc-solutions-coder/sdk";
 import {
@@ -76,7 +77,12 @@ const sdkMiddleware = createMiddleware().server(({ next, request }) => {
   // differs between the two renders is a hydration mismatch.
   const forkLinks: ForkLinks = resolveForkLinks(process.env);
 
-  return next({ context: { sdk, forkLinks } });
+  // The sign-in app's public origin, for the same reason and by the same route:
+  // resolved here, carried through the context, stated into the document by
+  // `__root.tsx`, and read back by `@shared/lib/auth-url`.
+  const authUrl: string = resolveAuthUrl(process.env);
+
+  return next({ context: { sdk, forkLinks, authUrl } });
 });
 
 export const startInstance = createStart(() => ({
