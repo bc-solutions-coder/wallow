@@ -28,15 +28,15 @@ public sealed record OrganizationClientRegistrationResult(
     string? Issuer,
     string? ApiBaseUrl);
 
-public sealed record RegisterApplicationInput(
-    string Name,
+/// <summary>
+/// Everything about a client its organization may set: the redirect URIs, the optional
+/// back-channel logout URI and the scopes it may request. Name and client id live outside it
+/// because they are fixed at registration.
+/// </summary>
+public sealed record ClientConfigurationInput(
     IReadOnlyList<Uri> RedirectUris,
     IReadOnlyList<Uri> PostLogoutRedirectUris,
     Uri? BackchannelLogoutUri,
     IReadOnlyList<string> Scopes);
 
-public sealed record UpdateOrganizationClientInput(
-    IReadOnlyList<Uri> RedirectUris,
-    IReadOnlyList<Uri> PostLogoutRedirectUris,
-    Uri? BackchannelLogoutUri,
-    IReadOnlyList<string> Scopes);
+public sealed record RegisterApplicationInput(string Name, ClientConfigurationInput Configuration);

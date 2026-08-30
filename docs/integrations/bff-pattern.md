@@ -119,7 +119,7 @@ wrong. A fork inherits this shape, so it is worth knowing which one you are copy
 | ---------------------------------------------------- | -------------------------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Local Aspire dev** (`pnpm backend`)                | `http://localhost:3002` — the **auth app's** origin | `http://localhost:5001/.well-known/openid-configuration`         | In development the API advertises the auth app as its issuer (`AuthUrl` in `appsettings.Development.json`), because the auth app same-origin-proxies `/connect/*` and `/.well-known/*` through to the API. Discovery goes straight to the API to save a proxy hop. |
 | **Containerised E2E** (`docker/docker-compose.test.yml`) | `http://localhost:5050` — the **API's** origin (classic default; `./scripts/e2e.sh` substitutes a per-run port, Wallow-joo0) | `http://host.docker.internal:5050/.well-known/openid-configuration` | That stack pins `OpenIddict__Issuer` to the API's published port, so the issuer is the API itself rather than the auth app. Inside the BFF container `localhost` is the container, not the host, so discovery has to go through `host.docker.internal` instead.                    |
-| **Production compose** (path-based, the default)     | `https://wallow.dev/api` — one public host **with a path prefix** | `http://wallow-api:8080/.well-known/openid-configuration`         | Everything sits behind one ingress hostname, so the issuer carries the `/api` prefix. Discovery travels over the container network, which is why it needs no TLS and no path prefix.                                                                        |
+| **Production compose** (path-based, the default)     | `https://wallow.dev/auth` — the **auth app's** public URL **with its path prefix** | `http://wallow-api:8080/.well-known/openid-configuration`         | As in development the auth app same-origin-proxies `/connect/*` and `/.well-known/*`, and everything sits behind one ingress hostname, so the issuer carries the `/auth` prefix. Discovery travels over the container network, which is why it needs no TLS and no path prefix. |
 
 Two things follow from that table:
 
@@ -127,7 +127,7 @@ Two things follow from that table:
   `OpenIddict:Issuer` (env-var form `OpenIddict__Issuer`) wins, otherwise it falls back to
   `AuthUrl`. Whatever the API ends up advertising, the BFF's `OIDC_ISSUER` must equal it.
 - **The issuer may carry a path.** In the path-based production topology it is
-  `https://wallow.dev/api`, not `https://wallow.dev`. Every browser-facing endpoint is re-based
+  `https://wallow.dev/auth`, not `https://wallow.dev`. Every browser-facing endpoint is re-based
   onto that prefix, so a fork that drops the path silently sends users to `/connect/authorize` on
   the web app's origin, where nothing serves it.
 
@@ -146,8 +146,8 @@ unrelated to the change:
 | The public origin, in a topology where a browser calls the API cross-origin  | `Cors__AllowedOrigins` still lists the old origin.                                                                                      | CORS preflight failures on direct browser-to-API calls. Same-origin topologies, where everything goes through the BFF proxy, are unaffected. |
 
 The one reliable way to keep them in step is to derive them from a single variable. The production
-compose does exactly that: `API_PUBLIC_URL` feeds both the API's `OpenIddict__Issuer` and the web
-app's `OIDC_ISSUER`, so they cannot drift apart.
+compose does exactly that: `AUTH_PUBLIC_URL` feeds the API's `OpenIddict__Issuer`, the web app's
+`OIDC_ISSUER`, and the issuer every registered application is shown, so they cannot drift apart.
 
 ### Identity cookie scope
 

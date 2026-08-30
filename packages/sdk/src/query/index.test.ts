@@ -1,9 +1,8 @@
 /**
- * Export-surface contract for the `./query` entry after Wallow-pu6a.5.5 deleted
- * the hand-written per-feature slices. Everything on this entry is now either
+ * Export-surface contract for the `./query` entry. Everything on it is either
  * generated or one of the two curated invalidation predicates, so the pins are:
- * the generated artifacts are reachable, the curated ones are reachable, and the
- * retired hand-rolled factories are gone for good.
+ * the generated artifacts are reachable, the curated ones are reachable, and
+ * the retired hand-rolled factories stay gone.
  */
 import { describe, expect, it } from "vitest";
 

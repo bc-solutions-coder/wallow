@@ -1,41 +1,10 @@
 /**
- * `useAppForm` against a REAL generated SDK mutation factory.
+ * `useAppForm` against REAL generated SDK mutation factories, handed over whole.
  *
- * `use-app-form.test.tsx` covers the hook's behaviour, but every one of its
- * cases hands over a hand-made `{ mutationFn }` — so nothing in this package
- * ever met the thing the option actually receives in production, and the whole
- * point of the option (a form author writes
- * `mutation: organizationsCreateMutation({ client: sdk.client })` and is done)
- * went uncovered. Wallow-ov6w.4.1 found out at the call site: the generated
- * factory returns `UseMutationOptions<TData, TError, TVariables>` with a REAL
- * error type, `UseAppFormOptions.mutation` pins that slot to `unknown`, and
- * `TError` sits in the contravariant position of the optional
- * `onError`/`onSettled` members — so handing the factory over whole is a hard
- * TS2322 and the migration had to destructure `mutationFn` back out.
- *
- * This file is that missing coverage, and it is deliberately BOTH kinds of test:
- *
- *   - COMPILE TIME. Every `useAppForm` call below passes the factory's result
- *     WHOLE — no `as`, no `as any`, no `{ mutationFn }` destructuring, no
- *     intermediate re-annotation. `pnpm --filter @bc-solutions-coder/forms
- *     typecheck` (`tsc --noEmit`, part of `pnpm check`) is therefore the gate:
- *     it fails today and must pass once the hook takes a `TError` generic.
- *     TWO factories are used on purpose — `organizationsCreateMutation` has
- *     `TError = DefaultError` while `organizationClientsRegisterMutation` has
- *     `TError = OrganizationClientsRegisterError` — so a fix that merely swaps `unknown` for
- *     `DefaultError` (which would satisfy Wallow-ov6w.4.1 alone) still fails
- *     here, as it would for .4.2 and .4.3.
- *
- *   - RUN TIME. The cases drive the real chain end to end in headless Chromium:
- *     the real `createWallowSdk` client (its CSRF and RFC 7807 error
- *     interceptors included), the real generated operation, the real
- *     `AppForm`/`TextField`/`FormError`/`SubmitButton` shell. The ONLY stand-in
- *     is the transport — a `fetch` that records the outgoing request and answers
- *     it — so the assertions are about the HTTP call the SDK genuinely made and
- *     the `WallowError` it genuinely raised, not about a spy the spec invented.
- *
- * Nothing is mocked: no jsdom, no `vi.mock`, no stubbed `@bc-solutions-coder/ui`
- * (.claude/rules/TESTING.md).
+ * Compile time: no `as`, no `{ mutationFn }` destructuring — two factories with
+ * different `TError` types pin the hook's error generic. Run time: the real
+ * `createWallowSdk` client and generated operations in headless Chromium, with
+ * only the transport (a recording `fetch`) standing in.
  */
 
 import { QueryClient, QueryClientProvider } from "@bc-solutions-coder/query";

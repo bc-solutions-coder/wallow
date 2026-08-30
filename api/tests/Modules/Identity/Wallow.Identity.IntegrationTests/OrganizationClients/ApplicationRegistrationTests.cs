@@ -179,6 +179,21 @@ public class ApplicationRegistrationTests(WallowApiFactory factory) : IdentityIn
     }
 
     [Fact]
+    public async Task Register_RefusesANameThatLeavesNothingToDeriveAnIdFrom()
+    {
+        Guid orgId = await OrganizationOwnedBySomeoneElseAsync("Punctuation Org");
+        await ActAsEnrolledAsync(orgId, "manager");
+
+        HttpResponseMessage response = await Client.PostAsJsonAsync(
+            $"/identity/organizations/{orgId}/clients",
+            RegisterBody("!!!", [RedirectUri], ["openid"]));
+
+        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+        JsonElement problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        problem.GetProperty("code").GetString().Should().Be("Identity.ClientNameUnusable");
+    }
+
+    [Fact]
     public async Task DerivedClientId_IsStable_AndASecondRegistrationOfTheSameNameIsRefused()
     {
         Guid orgId = await OrganizationOwnedBySomeoneElseAsync("Stable Org");

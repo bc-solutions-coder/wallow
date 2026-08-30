@@ -22,7 +22,7 @@ public interface IOrganizationClientService
     Task<OrganizationClientDto?> UpdateAsync(
         Guid organizationId,
         string clientId,
-        UpdateOrganizationClientInput input,
+        ClientConfigurationInput configuration,
         CancellationToken ct = default);
 
     /// <summary>Returns false when the client is not one of the organization's.</summary>

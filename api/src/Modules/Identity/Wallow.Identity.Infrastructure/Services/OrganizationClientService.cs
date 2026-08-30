@@ -1,7 +1,10 @@
 using System.Security.Cryptography;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Npgsql;
 using OpenIddict.Abstractions;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Helpers;
@@ -10,6 +13,7 @@ using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Domain.Enums;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Extensions;
+using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Shared.Contracts.Identity;
 using Wallow.Shared.Kernel.Configuration;
 using Wallow.Shared.Kernel.Domain;
@@ -19,13 +23,14 @@ namespace Wallow.Identity.Infrastructure.Services;
 
 /// <summary>
 /// Registers and manages the clients an organization owns. A registration writes two records in
-/// one request — the OpenIddict application carrying the OAuth configuration and the
+/// one transaction — the OpenIddict application carrying the OAuth configuration and the
 /// <see cref="RegisteredClient"/> row carrying what OpenIddict has no place for — and hands back the
 /// only copy of the client secret the caller will ever see.
 /// </summary>
 public sealed partial class OrganizationClientService(
     IOpenIddictApplicationManager applicationManager,
     IRegisteredClientRepository registeredClients,
+    IdentityDbContext dbContext,
     IOrganizationRepository organizations,
     IApiScopeRepository apiScopes,
     TimeProvider timeProvider,
@@ -46,14 +51,12 @@ public sealed partial class OrganizationClientService(
         Organization organization = await organizations.GetByIdAsync(OrganizationId.Create(organizationId), ct)
             ?? throw new EntityNotFoundException("Organization", organizationId);
 
-        await EnsureGrantableAsync(input.Scopes, ct);
+        await EnsureGrantableAsync(input.Configuration.Scopes, ct);
 
         string clientId = ClientIdDerivation.DeriveApplicationClientId(organization.Slug, input.Name);
         if (await applicationManager.FindByClientIdAsync(clientId, ct) is not null)
         {
-            throw new BusinessRuleException(
-                "Identity.ClientIdTaken",
-                $"An application named '{input.Name}' already exists in this organization (client id '{clientId}').");
+            throw ClientIdTaken(input.Name, clientId);
         }
 
         string clientSecret = GenerateClientSecret();
@@ -77,19 +80,34 @@ public sealed partial class OrganizationClientService(
             Requirements = { Requirements.Features.ProofKeyForCodeExchange },
         };
         descriptor.SetTenantId(organizationId.ToString());
-        ApplyConfiguration(
-            descriptor,
-            input.RedirectUris,
-            input.PostLogoutRedirectUris,
-            input.BackchannelLogoutUri,
-            input.Scopes);
-
-        await applicationManager.CreateAsync(descriptor, ct);
+        ApplyConfiguration(descriptor, input.Configuration);
 
         RegisteredClient record = RegisteredClient.Create(
             clientId, organizationId, RegisteredClientKind.Application, actorUserId, timeProvider);
-        registeredClients.Add(record);
-        await registeredClients.SaveChangesAsync(ct);
+
+        // Both writes land on IdentityDbContext (OpenIddict's store shares it), so one transaction
+        // covers them: no application without its record, no record without its application. The
+        // execution strategy wraps the transaction because the context retries on transient faults.
+        IExecutionStrategy strategy = dbContext.Database.CreateExecutionStrategy();
+        try
+        {
+            await strategy.ExecuteAsync(
+                ct,
+                async token =>
+                {
+                    await using IDbContextTransaction transaction = await dbContext.Database.BeginTransactionAsync(token);
+                    await applicationManager.CreateAsync(descriptor, token);
+                    registeredClients.Add(record);
+                    await registeredClients.SaveChangesAsync(token);
+                    await transaction.CommitAsync(token);
+                });
+        }
+        catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+        {
+            // A concurrent registration of the same name got past the lookup above; the unique
+            // index on the client id is what actually decides, so answer as the lookup would have.
+            throw ClientIdTaken(input.Name, clientId);
+        }
 
         LogApplicationRegistered(clientId, organizationId, actorUserId);
 
@@ -131,10 +149,10 @@ public sealed partial class OrganizationClientService(
     public async Task<OrganizationClientDto?> UpdateAsync(
         Guid organizationId,
         string clientId,
-        UpdateOrganizationClientInput input,
+        ClientConfigurationInput configuration,
         CancellationToken ct = default)
     {
-        ArgumentNullException.ThrowIfNull(input);
+        ArgumentNullException.ThrowIfNull(configuration);
 
         RegisteredClient? record = await OwnedRecordAsync(organizationId, clientId, ct);
         if (record is null)
@@ -149,19 +167,14 @@ public sealed partial class OrganizationClientService(
             return null;
         }
 
-        await EnsureGrantableAsync(input.Scopes, ct);
+        await EnsureGrantableAsync(configuration.Scopes, ct);
 
         OpenIddictApplicationDescriptor descriptor = new();
         await applicationManager.PopulateAsync(descriptor, application, ct);
         descriptor.RedirectUris.Clear();
         descriptor.PostLogoutRedirectUris.Clear();
         descriptor.Permissions.RemoveWhere(p => p.StartsWith(Permissions.Prefixes.Scope, StringComparison.Ordinal));
-        ApplyConfiguration(
-            descriptor,
-            input.RedirectUris,
-            input.PostLogoutRedirectUris,
-            input.BackchannelLogoutUri,
-            input.Scopes);
+        ApplyConfiguration(descriptor, configuration);
 
         await applicationManager.UpdateAsync(application, descriptor, ct);
         return ToDto(record, descriptor);
@@ -239,32 +252,35 @@ public sealed partial class OrganizationClientService(
         }
     }
 
-    private static void ApplyConfiguration(
-        OpenIddictApplicationDescriptor descriptor,
-        IReadOnlyList<Uri> redirectUris,
-        IReadOnlyList<Uri> postLogoutRedirectUris,
-        Uri? backchannelLogoutUri,
-        IReadOnlyList<string> scopes)
+    private static void ApplyConfiguration(OpenIddictApplicationDescriptor descriptor, ClientConfigurationInput configuration)
     {
-        foreach (Uri uri in redirectUris)
+        foreach (Uri uri in configuration.RedirectUris)
         {
             descriptor.RedirectUris.Add(uri);
         }
 
-        foreach (Uri uri in postLogoutRedirectUris)
+        foreach (Uri uri in configuration.PostLogoutRedirectUris)
         {
             descriptor.PostLogoutRedirectUris.Add(uri);
         }
 
-        descriptor.SetBackchannelLogoutUri(backchannelLogoutUri);
+        descriptor.SetBackchannelLogoutUri(configuration.BackchannelLogoutUri);
 
         // Without these the client is refused every scope it asks for on its first authorize:
         // OpenIddict grants only what the application's own permissions list allows.
-        foreach (string scope in scopes)
+        foreach (string scope in configuration.Scopes)
         {
             descriptor.Permissions.Add(Permissions.Prefixes.Scope + scope);
         }
     }
+
+    private static BusinessRuleException ClientIdTaken(string name, string clientId) =>
+        new(
+            "Identity.ClientIdTaken",
+            $"An application named '{name}' already exists in this organization (client id '{clientId}').");
+
+    private static bool IsUniqueViolation(DbUpdateException exception) =>
+        exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation };
 
     private static OrganizationClientDto ToDto(RegisteredClient record, OpenIddictApplicationDescriptor descriptor) =>
         new(

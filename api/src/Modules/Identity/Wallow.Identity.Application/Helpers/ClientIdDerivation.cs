@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using Wallow.Shared.Kernel.Domain;
 
 namespace Wallow.Identity.Application.Helpers;
 
@@ -11,8 +12,22 @@ public static class ClientIdDerivation
 {
     public const string ApplicationPrefix = "app-";
 
-    public static string DeriveApplicationClientId(string organizationSlug, string name) =>
-        ApplicationPrefix + Slugify(organizationSlug) + "-" + Slugify(name);
+    /// <summary>
+    /// Refuses a name with no letter or digit in it: the id would end in a bare hyphen and every
+    /// such name would collide with every other.
+    /// </summary>
+    public static string DeriveApplicationClientId(string organizationSlug, string name)
+    {
+        string nameSlug = Slugify(name);
+        if (nameSlug.Length == 0)
+        {
+            throw new BusinessRuleException(
+                "Identity.ClientNameUnusable",
+                "An application name must contain at least one letter or digit.");
+        }
+
+        return ApplicationPrefix + Slugify(organizationSlug) + "-" + nameSlug;
+    }
 
     /// <summary>
     /// Lowercase ASCII letters and digits with runs of anything else collapsed to one hyphen; the

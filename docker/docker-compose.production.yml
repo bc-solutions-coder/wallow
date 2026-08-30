@@ -442,9 +442,13 @@ services:
       Storage__S3__UsePathStyle: "true"
       Storage__S3__Region: ${GARAGE_REGION:-us-east-1}
       # Service URLs (public-facing, what browsers see)
+      ServiceUrls__ApiUrl: ${API_PUBLIC_URL:-https://wallow.dev/api}
       ServiceUrls__AuthUrl: ${AUTH_PUBLIC_URL:-https://wallow.dev/auth}
       ServiceUrls__WebUrl: ${WEB_PUBLIC_URL:-https://wallow.dev}
-      OpenIddict__Issuer: ${API_PUBLIC_URL:-https://wallow.dev/api}
+      # The issuer is the public auth URL, path prefix included: the auth app same-origin
+      # proxies /connect/** and /.well-known/** to the API, so browser-facing OIDC endpoints
+      # live under it. Registered applications are told the same value.
+      OpenIddict__Issuer: ${AUTH_PUBLIC_URL:-https://wallow.dev/auth}
       AuthUrl: ${AUTH_PUBLIC_URL:-https://wallow.dev/auth}
       Authentication__CookieDomain: ${COOKIE_DOMAIN:-wallow.dev}
       # OpenTelemetry (active only when --profile observability is used;
@@ -626,8 +630,8 @@ services:
       # :1F90 (hex 8080) healthcheck below stay valid.
       PORT: "8080"
       # OIDC config for the BFF (apps/wallow-web/server.ts -> loadBffConfigFromEnv)
-      # Issuer = public URL (must match issuer in tokens for browser redirects)
-      OIDC_ISSUER: ${API_PUBLIC_URL:-https://wallow.dev/api}
+      # Issuer = the public auth URL the API advertises (must match `iss` in tokens)
+      OIDC_ISSUER: ${AUTH_PUBLIC_URL:-https://wallow.dev/auth}
       # Metadata = container-to-container discovery URL (avoids hairpin through the proxy)
       OIDC_METADATA_URL: http://wallow-api:8080/.well-known/openid-configuration
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}

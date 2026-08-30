@@ -79,8 +79,8 @@ PathBase=/api
 # The public-facing base URL including the path prefix; used to build redirect/link URLs
 API_PUBLIC_URL=https://example.com/api
 
-# OIDC issuer must match the browser-facing API URL
-OpenIddict__Issuer=https://example.com/api
+# OIDC issuer is the browser-facing auth URL (the auth app proxies /connect and /.well-known)
+OpenIddict__Issuer=https://example.com/auth
 
 # CORS must allow the public origin of any browser client
 Cors__AllowedOrigins__0=https://example.com
@@ -142,7 +142,7 @@ serves at root.
 ```bash
 PORT=8080
 # Browser-facing issuer (must match the API's OpenIddict issuer for redirects)
-OIDC_ISSUER=https://example.com/api
+OIDC_ISSUER=https://example.com/auth
 # OPTIONAL: container-reachable discovery URL (avoids a hairpin back through the proxy).
 # Unset, discovery is derived from OIDC_ISSUER.
 OIDC_METADATA_URL=http://wallow-api:8080/.well-known/openid-configuration
@@ -375,9 +375,9 @@ The reference frontend (`apps/wallow-web`) authenticates as a **confidential** O
 seeder (`Wallow.SeederService`) provisions that client — in production from the **committed,
 secret-less** `docker/seed.production.json`, which the compose file mounts over the image-bundled
 development `seed.json` (`SEED_FILE_PATH`), so localhost client definitions never leak in. The
-key rule is that **the issuer is the API origin** while **the login UX is served from the auth
-origin** — the client's redirect and post-logout URIs point at your public web app, and its
-`OIDC_ISSUER` (above) points at the API.
+key rule is that **the issuer is the auth origin**, which proxies the OIDC endpoints to the API
+and serves the login UX — the client's redirect and post-logout URIs point at your public web
+app, and its `OIDC_ISSUER` (above) points at the auth app.
 
 Edit the `clients` array of `docker/seed.production.json`. The committed reference entry looks
 like this (adapted here to `example.com`):
@@ -455,5 +455,5 @@ schema.
 | Proxy strips `/auth`                                     | Auth app routes 404                          | Forward `/auth` unstripped (no trailing slash on nginx `proxy_pass`; Caddy `handle`, not `handle_path`) |
 | Auth image built without `AUTH_BASE_PATH=/auth`          | Auth page loads but every asset 404s under `/auth` | Rebuild with `--build-arg AUTH_BASE_PATH=/auth` (`up --build`, not `pull`)     |
 | `ASPNETCORE_FORWARDEDHEADERS_ENABLED` missing on the API | OIDC redirects use `http://`; login fails    | Set it on the API service                                                           |
-| `OpenIddict__Issuer` / `OIDC_ISSUER` mismatch            | `redirect_uri` or issuer errors during login | Point both at the public API URL                                                    |
+| `OpenIddict__Issuer` / `OIDC_ISSUER` mismatch            | `redirect_uri` or issuer errors during login | Point both at the public auth URL                                                   |
 | Redirect URIs not updated                                | OIDC login returns `redirect_uri mismatch`   | Update the seeded client redirect URIs to the public `https://example.com/...` URLs |

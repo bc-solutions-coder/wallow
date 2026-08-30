@@ -30,7 +30,6 @@ import { RegisterApplication, RegistrationReveal } from "./RegisterApplication";
 const STATUS_VARIANT: Record<string, BadgeProps["variant"]> = {
   active: "success",
   suspended: "warning",
-  revoked: "destructive",
 };
 
 /** One client row; `ListRow` derives the test id `{name}-item`. */

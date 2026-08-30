@@ -56,10 +56,4 @@ public sealed class RegisteredClient : Entity<RegisteredClientId>
             CreatedAt = timeProvider.GetUtcNow(),
         };
     }
-
-    public void MarkUsed(TimeProvider timeProvider)
-    {
-        ArgumentNullException.ThrowIfNull(timeProvider);
-        LastUsedAt = timeProvider.GetUtcNow();
-    }
 }

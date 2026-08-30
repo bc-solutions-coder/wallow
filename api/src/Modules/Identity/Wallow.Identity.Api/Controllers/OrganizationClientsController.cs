@@ -30,6 +30,11 @@ public class OrganizationClientsController(
     ITenantContext tenantContext,
     IOrganizationAccessPolicy accessPolicy) : ControllerBase
 {
+    private const string RedirectUrisField = "redirectUris";
+    private const string PostLogoutRedirectUrisField = "postLogoutRedirectUris";
+    private const string BackchannelLogoutUriField = "backchannelLogoutUri";
+    private const string ScopesField = "scopes";
+
     /// <summary>
     /// Register a developer application for the organization. The response carries the client
     /// secret exactly once.
@@ -65,36 +70,16 @@ public class OrganizationClientsController(
             ModelState.AddModelError(nameof(request.Name), "Name is required.");
         }
 
-        if (request.RedirectUris.Count == 0)
-        {
-            ModelState.AddModelError(nameof(request.RedirectUris), "At least one redirect URI is required.");
-        }
-
-        if (request.Scopes.Count == 0)
-        {
-            ModelState.AddModelError(nameof(request.Scopes), "At least one scope is required.");
-        }
-
-        if (!TryParseConfiguration(
-                request.RedirectUris,
-                request.PostLogoutRedirectUris,
-                request.BackchannelLogoutUri,
-                out List<Uri> redirectUris,
-                out List<Uri> postLogoutRedirectUris,
-                out Uri? backchannelLogoutUri)
-            || !ModelState.IsValid)
+        ClientConfigurationInput? configuration = ParseConfiguration(
+            request.RedirectUris, request.PostLogoutRedirectUris, request.BackchannelLogoutUri, request.Scopes);
+        if (configuration is null || !ModelState.IsValid)
         {
             return ValidationProblem(ModelState);
         }
 
         OrganizationClientRegistrationResult result = await clients.RegisterApplicationAsync(
             orgId,
-            new RegisterApplicationInput(
-                request.Name.Trim(),
-                redirectUris,
-                postLogoutRedirectUris,
-                backchannelLogoutUri,
-                request.Scopes),
+            new RegisterApplicationInput(request.Name.Trim(), configuration),
             ActorId(),
             ct);
 
@@ -161,33 +146,14 @@ public class OrganizationClientsController(
             return NotFound();
         }
 
-        if (request.RedirectUris.Count == 0)
-        {
-            ModelState.AddModelError(nameof(request.RedirectUris), "At least one redirect URI is required.");
-        }
-
-        if (request.Scopes.Count == 0)
-        {
-            ModelState.AddModelError(nameof(request.Scopes), "At least one scope is required.");
-        }
-
-        if (!TryParseConfiguration(
-                request.RedirectUris,
-                request.PostLogoutRedirectUris,
-                request.BackchannelLogoutUri,
-                out List<Uri> redirectUris,
-                out List<Uri> postLogoutRedirectUris,
-                out Uri? backchannelLogoutUri)
-            || !ModelState.IsValid)
+        ClientConfigurationInput? configuration = ParseConfiguration(
+            request.RedirectUris, request.PostLogoutRedirectUris, request.BackchannelLogoutUri, request.Scopes);
+        if (configuration is null || !ModelState.IsValid)
         {
             return ValidationProblem(ModelState);
         }
 
-        OrganizationClientDto? client = await clients.UpdateAsync(
-            orgId,
-            clientId,
-            new UpdateOrganizationClientInput(redirectUris, postLogoutRedirectUris, backchannelLogoutUri, request.Scopes),
-            ct);
+        OrganizationClientDto? client = await clients.UpdateAsync(orgId, clientId, configuration, ct);
 
         return client is null ? NotFound() : Ok(OrganizationClientResponse.From(client));
     }
@@ -227,58 +193,59 @@ public class OrganizationClientsController(
     private string RequestOrigin() => $"{Request.Scheme}://{Request.Host}";
 
     /// <summary>
-    /// Parses every URI the request carries under the shared client URI rules, recording each
-    /// refusal against its field so one response names them all.
+    /// Validates the configuration half of a register or update request under the shared client
+    /// URI rules, recording every refusal against its field so one response names them all.
+    /// Returns <see langword="null"/> when anything was refused.
     /// </summary>
-    private bool TryParseConfiguration(
+    private ClientConfigurationInput? ParseConfiguration(
         IReadOnlyList<string> redirectValues,
         IReadOnlyList<string> postLogoutValues,
         string? backchannelValue,
-        out List<Uri> redirectUris,
-        out List<Uri> postLogoutRedirectUris,
-        out Uri? backchannelLogoutUri)
+        IReadOnlyList<string> scopes)
     {
-        redirectUris = [];
-        postLogoutRedirectUris = [];
-        backchannelLogoutUri = null;
         bool valid = true;
+        if (redirectValues.Count == 0)
+        {
+            valid = false;
+            ModelState.AddModelError(RedirectUrisField, "At least one redirect URI is required.");
+        }
 
-        foreach (string value in redirectValues)
+        if (scopes.Count == 0)
+        {
+            valid = false;
+            ModelState.AddModelError(ScopesField, "At least one scope is required.");
+        }
+
+        valid &= TryParseRedirectUris(redirectValues, RedirectUrisField, out List<Uri> redirectUris);
+        valid &= TryParseRedirectUris(postLogoutValues, PostLogoutRedirectUrisField, out List<Uri> postLogoutRedirectUris);
+
+        Uri? backchannelLogoutUri = null;
+        if (!string.IsNullOrWhiteSpace(backchannelValue)
+            && !ClientUriRules.TryParseLogoutUri(backchannelValue, out backchannelLogoutUri))
+        {
+            valid = false;
+            ModelState.AddModelError(BackchannelLogoutUriField, ClientUriRules.LogoutUriError);
+        }
+
+        return valid
+            ? new ClientConfigurationInput(redirectUris, postLogoutRedirectUris, backchannelLogoutUri, scopes)
+            : null;
+    }
+
+    private bool TryParseRedirectUris(IReadOnlyList<string> values, string field, out List<Uri> uris)
+    {
+        uris = new List<Uri>(values.Count);
+        bool valid = true;
+        foreach (string value in values)
         {
             if (ClientUriRules.TryParseRedirectUri(value, out Uri? uri))
             {
-                redirectUris.Add(uri);
+                uris.Add(uri);
             }
             else
             {
                 valid = false;
-                ModelState.AddModelError("redirectUris", $"'{value}': {ClientUriRules.RedirectUriError}");
-            }
-        }
-
-        foreach (string value in postLogoutValues)
-        {
-            if (ClientUriRules.TryParseRedirectUri(value, out Uri? uri))
-            {
-                postLogoutRedirectUris.Add(uri);
-            }
-            else
-            {
-                valid = false;
-                ModelState.AddModelError("postLogoutRedirectUris", $"'{value}': {ClientUriRules.RedirectUriError}");
-            }
-        }
-
-        if (!string.IsNullOrWhiteSpace(backchannelValue))
-        {
-            if (ClientUriRules.TryParseLogoutUri(backchannelValue, out Uri? uri))
-            {
-                backchannelLogoutUri = uri;
-            }
-            else
-            {
-                valid = false;
-                ModelState.AddModelError("backchannelLogoutUri", ClientUriRules.LogoutUriError);
+                ModelState.AddModelError(field, $"'{value}': {ClientUriRules.RedirectUriError}");
             }
         }
 

@@ -98,8 +98,9 @@ public sealed class PreRegisteredClientOptions
         }
 
         List<string> badRedirects = Clients
-            .Where(c => ClientUriRules.FirstRefusedRedirect([.. c.RedirectUris, .. c.PostLogoutRedirectUris]) is not null)
-            .Select(c => c.ClientId + " (" + ClientUriRules.FirstRefusedRedirect([.. c.RedirectUris, .. c.PostLogoutRedirectUris]) + ")")
+            .Select(c => (c.ClientId, Refused: ClientUriRules.FirstRefusedRedirect([.. c.RedirectUris, .. c.PostLogoutRedirectUris])))
+            .Where(c => c.Refused is not null)
+            .Select(c => c.ClientId + " (" + c.Refused + ")")
             .ToList();
 
         if (badRedirects.Count > 0)
