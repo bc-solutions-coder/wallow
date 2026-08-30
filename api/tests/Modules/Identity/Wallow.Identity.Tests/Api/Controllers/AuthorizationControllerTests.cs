@@ -100,7 +100,7 @@ public sealed class AuthorizationControllerTests : IDisposable
             _organizations,
             _ssoClientSessionService,
             _consentTokens,
-            Substitute.For<IRegisteredClientRepository>(),
+            Substitute.For<IClientAccessPolicy>(),
             Microsoft.Extensions.Logging.Abstractions.NullLogger<AuthorizationController>.Instance);
     }
 

@@ -43,6 +43,12 @@ public sealed class OrganizationConfiguration : IEntityTypeConfiguration<Organiz
         builder.Property(e => e.ArchivedAt).HasColumnName("archived_at");
         builder.Property(e => e.ArchivedBy).HasColumnName("archived_by");
 
+        builder.Property(e => e.PlatformSuspendedAt).HasColumnName("platform_suspended_at");
+        builder.Property(e => e.PlatformSuspendedBy).HasColumnName("platform_suspended_by");
+        builder.Property(e => e.PlatformSuspensionReason)
+            .HasColumnName("platform_suspension_reason")
+            .HasMaxLength(1000);
+
         builder.Property(e => e.CreatedAt).HasColumnName("created_at");
         builder.Property(e => e.UpdatedAt).HasColumnName("updated_at");
         builder.Property(e => e.CreatedBy).HasColumnName("created_by");

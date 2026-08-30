@@ -20,6 +20,7 @@ double-quoted in hand-written SQL.
 | `"IpAddress"` | `text` | Yes | Client IP address, when available |
 | `"UserAgent"` | `text` | Yes | HTTP User-Agent header, when available |
 | `"ClientId"` | `text` | Yes | The OAuth client the event is about, for the client lifecycle events below; null for every other event |
+| `"Reason"` | `text` | Yes | The operator's stated reason, for the platform-suspension events that carry one; null for everything else |
 | `"OccurredAt"` | `timestamp with time zone` | No | UTC timestamp; defaults to `now()` at insert |
 
 The table is created by the `InitialCreate` EF Core migration in `Wallow.Shared.Infrastructure.Core`
@@ -41,6 +42,10 @@ The `"EventType"` column uses plain string values. The following events are reco
 | `ClientSuspended` | Somebody suspended a registered client, ending every token it held (see below) | Yes |
 | `ClientReinstated` | Somebody reinstated a suspended client (see below) | Yes |
 | `ClientDeleted` | Somebody deleted a registered client along with its tokens, consents and branding (see below) | Yes |
+| `ClientSuspendedByPlatform` | A global admin placed the platform's suspension on a registered client (see below) | Yes |
+| `ClientReinstatedByPlatform` | A global admin lifted a client's platform suspension (see below) | Yes |
+| `OrganizationSuspendedByPlatform` | A global admin placed the platform's suspension on an organization (see below) | No |
+| `OrganizationReinstatedByPlatform` | A global admin lifted an organization's platform suspension (see below) | No |
 
 Each event is written by `AuthAuditEventHandlers` in the Identity module, which subscribes to the corresponding Wolverine in-memory integration events published by the Identity domain.
 
@@ -56,6 +61,10 @@ Each event is written by `AuthAuditEventHandlers` in the Identity module, which 
 | `ClientSuspended` | `ClientSuspendedEvent` |
 | `ClientReinstated` | `ClientReinstatedEvent` |
 | `ClientDeleted` | `ClientDeletedEvent` |
+| `ClientSuspendedByPlatform` | `ClientSuspendedByPlatformEvent` |
+| `ClientReinstatedByPlatform` | `ClientReinstatedByPlatformEvent` |
+| `OrganizationSuspendedByPlatform` | `OrganizationSuspendedByPlatformEvent` |
+| `OrganizationReinstatedByPlatform` | `OrganizationReinstatedByPlatformEvent` |
 
 ### Membership events
 
@@ -85,9 +94,9 @@ ORDER BY "OccurredAt" DESC;
 
 ### Client lifecycle events
 
-`ClientRegistered`, `ClientSecretRotated`, `ClientSuspended`, `ClientReinstated` and `ClientDeleted`
-are about a registered client rather than a person, so they are the only events that fill
-`"ClientId"`. The person who did it stands in both `"UserId"` and `"ActorId"` — there is no separate
+`ClientRegistered`, `ClientSecretRotated`, `ClientSuspended`, `ClientReinstated`, `ClientDeleted`
+and the two client platform-suspension events below are about a registered client rather than a
+person, so they are the only events that fill `"ClientId"`. The person who did it stands in both `"UserId"` and `"ActorId"` — there is no separate
 subject — and `"TenantId"` is the organization that owns the client. All of them carry the caller's
 IP address when the request exposed one.
 
@@ -107,6 +116,32 @@ To see a client's history:
 SELECT "EventType", "ActorId", "IpAddress", "OccurredAt"
 FROM auth_audit.auth_audit_entries
 WHERE "ClientId" = '$client_id'
+ORDER BY "OccurredAt" DESC;
+```
+
+### Platform suspension events
+
+`ClientSuspendedByPlatform`, `ClientReinstatedByPlatform`, `OrganizationSuspendedByPlatform` and
+`OrganizationReinstatedByPlatform` record the platform operator's own interventions — a global
+admin acting above every organization role. `"UserId"` and `"ActorId"` both hold the operator, and
+`"TenantId"` holds the affected organization (for the client events, the organization that owns the
+client). The two `…SuspendedByPlatform` events carry the operator's stated reason in `"Reason"` —
+the same reason the organization's admins read on the client or organization — while the
+`…ReinstatedByPlatform` events leave it null: lifting needs no justification on the record, the
+placement carries it.
+
+A platform-suspended client behaves exactly as a suspended one (tokens revoked, authorize and token
+endpoints refuse) but none of the organization's own controls lift it. A platform-suspended
+organization loses every member's and every bound client's tokens, and every change to the
+organization is refused until the suspension is lifted; it also cannot be deleted while suspended.
+
+To see everything the platform has done to an organization:
+
+```sql
+SELECT "EventType", "ActorId", "ClientId", "Reason", "OccurredAt"
+FROM auth_audit.auth_audit_entries
+WHERE "TenantId" = '$tenant_id'
+  AND "EventType" LIKE '%ByPlatform'
 ORDER BY "OccurredAt" DESC;
 ```
 

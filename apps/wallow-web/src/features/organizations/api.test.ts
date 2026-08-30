@@ -38,6 +38,18 @@ describe("api.ts re-exports the SDK organizations query surface", () => {
       query.organizationClientsReinstateMutation,
     );
     expect(api.organizationClientsDeleteMutation).toBe(query.organizationClientsDeleteMutation);
+    expect(api.organizationsPlacePlatformSuspensionMutation).toBe(
+      query.organizationsPlacePlatformSuspensionMutation,
+    );
+    expect(api.organizationsLiftPlatformSuspensionMutation).toBe(
+      query.organizationsLiftPlatformSuspensionMutation,
+    );
+    expect(api.organizationClientsPlacePlatformSuspensionMutation).toBe(
+      query.organizationClientsPlacePlatformSuspensionMutation,
+    );
+    expect(api.organizationClientsLiftPlatformSuspensionMutation).toBe(
+      query.organizationClientsLiftPlatformSuspensionMutation,
+    );
     expect(api.scopesListOptions).toBe(query.scopesListOptions);
     expect(api.queriesForOperation).toBe(query.queriesForOperation);
     expect(api.queriesWithTag).toBe(query.queriesWithTag);

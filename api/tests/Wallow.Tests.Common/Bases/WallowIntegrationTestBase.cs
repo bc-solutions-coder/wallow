@@ -45,8 +45,20 @@ public abstract class WallowIntegrationTestBase : IAsyncLifetime
 
         Client.DefaultRequestHeaders.Remove("X-Test-User-Id");
         Client.DefaultRequestHeaders.Remove("X-Test-Roles");
+        Client.DefaultRequestHeaders.Remove("X-Test-Global-Admin");
         Client.DefaultRequestHeaders.Add("X-Test-User-Id", userIdValue);
         Client.DefaultRequestHeaders.Add("X-Test-Roles", roles);
+    }
+
+    /// <summary>
+    /// Marks the current test principal as a global admin — the platform operator's own
+    /// authority, carried as its own claim and never derived from organization roles.
+    /// <see cref="SetTestUser"/> clears it, so becoming someone else drops the authority.
+    /// </summary>
+    protected void SetTestGlobalAdmin()
+    {
+        Client.DefaultRequestHeaders.Remove("X-Test-Global-Admin");
+        Client.DefaultRequestHeaders.Add("X-Test-Global-Admin", "true");
     }
 
     protected void SetTestTenant(Guid tenantId)

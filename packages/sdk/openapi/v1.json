@@ -3300,6 +3300,159 @@
         }
       }
     },
+    "/v1/identity/organizations/{orgId}/clients/{clientId}/platform-suspension": {
+      "post": {
+        "tags": [
+          "Organization Clients"
+        ],
+        "summary": "Place the platform's own suspension on the client, with a reason (global admins only).\nWhile it stands the client is refused everywhere, whatever its own status says, and the\norganization can read the reason but not lift it.",
+        "operationId": "OrganizationClientsPlacePlatformSuspension",
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformSuspensionRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformSuspensionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationClientResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Organization Clients"
+        ],
+        "summary": "Lift the platform suspension (global admins only). The client serves again unless the\norganization's own suspension still stands.",
+        "operationId": "OrganizationClientsLiftPlatformSuspension",
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationClientResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/identity/organizations": {
       "post": {
         "tags": [
@@ -4095,6 +4248,115 @@
           },
           "404": {
             "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/identity/organizations/{id}/platform-suspension": {
+      "post": {
+        "tags": [
+          "Organizations"
+        ],
+        "summary": "Place the platform's own suspension on the organization, with a reason (global admins\nonly). Every bound client's and every member's tokens are revoked, and every change to\nthe organization is refused while the suspension stands.",
+        "operationId": "OrganizationsPlacePlatformSuspension",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformSuspensionRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformSuspensionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "content": {
+              "application/json": { }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Organizations"
+        ],
+        "summary": "Lift the organization's platform suspension (global admins only). Nothing is revoked\nback into place: people sign in again, and clients the organization suspended itself\nstay suspended.",
+        "operationId": "OrganizationsLiftPlatformSuspension",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "content": {
+              "application/json": { }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
             "content": {
               "application/json": {
                 "schema": {
@@ -7712,6 +7974,10 @@
             "items": {
               "type": "string"
             }
+          },
+          "isGlobalAdmin": {
+            "type": "boolean",
+            "description": "Whether the caller holds the platform operator's own authority — minted as its own\nclaim at sign-in, never derived from organization roles. The web app renders the\nplatform-suspension controls only for callers carrying it."
           }
         }
       },
@@ -8377,6 +8643,21 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "platformSuspendedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "When the platform operator suspended this client, or `null`.",
+            "format": "date-time"
+          },
+          "platformSuspensionReason": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The operator's reason, readable by the organization's admins but not liftable by them."
           }
         }
       },
@@ -8409,8 +8690,22 @@
               "string"
             ],
             "format": "int32"
+          },
+          "platformSuspendedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "platformSuspensionReason": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
-        }
+        },
+        "description": "The platform-suspension pair is present so the owning organization's admins can read the\noperator's reason; only a global admin can place or lift the suspension itself."
       },
       "OrganizationLogoResponse": {
         "required": [
@@ -8665,6 +8960,18 @@
           }
         },
         "description": "Result of verifying a magic link or one-time code, carrying the single-use ticket the auth\nfrontend exchanges for a sign-in cookie."
+      },
+      "PlatformSuspensionRequest": {
+        "required": [
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string"
+          }
+        },
+        "description": "Places a platform suspension. The reason is the operator's and travels with the suspension:\nthe affected organization's admins read it, only a global admin removes it."
       },
       "PresignedUploadRequest": {
         "required": [

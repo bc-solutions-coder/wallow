@@ -311,6 +311,12 @@ export type CurrentUserResponse = {
     lastName?: string;
     roles?: Array<string>;
     permissions?: Array<string>;
+    /**
+     * Whether the caller holds the platform operator's own authority — minted as its own
+     * claim at sign-in, never derived from organization roles. The web app renders the
+     * platform-suspension controls only for callers carrying it.
+     */
+    isGlobalAdmin?: boolean;
 };
 
 export type DeleteOrganizationRequest = {
@@ -528,13 +534,27 @@ export type OrganizationClientResponse = {
     lastUsedAt?: null | string;
     lastRotatedByUserId?: null | string;
     lastRotatedAt?: null | string;
+    /**
+     * When the platform operator suspended this client, or `null`.
+     */
+    platformSuspendedAt?: null | string;
+    /**
+     * The operator's reason, readable by the organization's admins but not liftable by them.
+     */
+    platformSuspensionReason?: null | string;
 };
 
+/**
+ * The platform-suspension pair is present so the owning organization's admins can read the
+ * operator's reason; only a global admin can place or lift the suspension itself.
+ */
 export type OrganizationDto = {
     id: string;
     name: string;
     domain: null | string;
     memberCount: number | string;
+    platformSuspendedAt?: null | string;
+    platformSuspensionReason?: null | string;
 };
 
 /**
@@ -592,6 +612,14 @@ export type PasswordlessVerificationResponse = {
     succeeded: boolean;
     email: null | string;
     signInTicket: null | string;
+};
+
+/**
+ * Places a platform suspension. The reason is the operator's and travels with the suspension:
+ * the affected organization's admins read it, only a global admin removes it.
+ */
+export type PlatformSuspensionRequest = {
+    reason: string;
 };
 
 export type PresignedUploadRequest = {
@@ -2494,6 +2522,78 @@ export type OrganizationClientsReinstateResponses = {
 
 export type OrganizationClientsReinstateResponse = OrganizationClientsReinstateResponses[keyof OrganizationClientsReinstateResponses];
 
+export type OrganizationClientsLiftPlatformSuspensionData = {
+    body?: never;
+    path: {
+        orgId: string;
+        clientId: string;
+    };
+    query?: never;
+    url: '/v1/identity/organizations/{orgId}/clients/{clientId}/platform-suspension';
+};
+
+export type OrganizationClientsLiftPlatformSuspensionErrors = {
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Unprocessable Entity
+     */
+    422: ProblemDetails;
+};
+
+export type OrganizationClientsLiftPlatformSuspensionError = OrganizationClientsLiftPlatformSuspensionErrors[keyof OrganizationClientsLiftPlatformSuspensionErrors];
+
+export type OrganizationClientsLiftPlatformSuspensionResponses = {
+    /**
+     * OK
+     */
+    200: OrganizationClientResponse;
+};
+
+export type OrganizationClientsLiftPlatformSuspensionResponse = OrganizationClientsLiftPlatformSuspensionResponses[keyof OrganizationClientsLiftPlatformSuspensionResponses];
+
+export type OrganizationClientsPlacePlatformSuspensionData = {
+    body: PlatformSuspensionRequest;
+    path: {
+        orgId: string;
+        clientId: string;
+    };
+    query?: never;
+    url: '/v1/identity/organizations/{orgId}/clients/{clientId}/platform-suspension';
+};
+
+export type OrganizationClientsPlacePlatformSuspensionErrors = {
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Unprocessable Entity
+     */
+    422: ProblemDetails;
+};
+
+export type OrganizationClientsPlacePlatformSuspensionError = OrganizationClientsPlacePlatformSuspensionErrors[keyof OrganizationClientsPlacePlatformSuspensionErrors];
+
+export type OrganizationClientsPlacePlatformSuspensionResponses = {
+    /**
+     * OK
+     */
+    200: OrganizationClientResponse;
+};
+
+export type OrganizationClientsPlacePlatformSuspensionResponse = OrganizationClientsPlacePlatformSuspensionResponses[keyof OrganizationClientsPlacePlatformSuspensionResponses];
+
 export type OrganizationsGetAllData = {
     body?: never;
     path?: never;
@@ -2915,6 +3015,64 @@ export type OrganizationsReactivateErrors = {
 export type OrganizationsReactivateError = OrganizationsReactivateErrors[keyof OrganizationsReactivateErrors];
 
 export type OrganizationsReactivateResponses = {
+    /**
+     * No Content
+     */
+    204: unknown;
+};
+
+export type OrganizationsLiftPlatformSuspensionData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/v1/identity/organizations/{id}/platform-suspension';
+};
+
+export type OrganizationsLiftPlatformSuspensionErrors = {
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Unprocessable Entity
+     */
+    422: ProblemDetails;
+};
+
+export type OrganizationsLiftPlatformSuspensionError = OrganizationsLiftPlatformSuspensionErrors[keyof OrganizationsLiftPlatformSuspensionErrors];
+
+export type OrganizationsLiftPlatformSuspensionResponses = {
+    /**
+     * No Content
+     */
+    204: unknown;
+};
+
+export type OrganizationsPlacePlatformSuspensionData = {
+    body: PlatformSuspensionRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/v1/identity/organizations/{id}/platform-suspension';
+};
+
+export type OrganizationsPlacePlatformSuspensionErrors = {
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Unprocessable Entity
+     */
+    422: ProblemDetails;
+};
+
+export type OrganizationsPlacePlatformSuspensionError = OrganizationsPlacePlatformSuspensionErrors[keyof OrganizationsPlacePlatformSuspensionErrors];
+
+export type OrganizationsPlacePlatformSuspensionResponses = {
     /**
      * No Content
      */

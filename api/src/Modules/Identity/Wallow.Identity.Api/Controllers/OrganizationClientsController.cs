@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Wallow.Identity.Api.Authorization;
 using Wallow.Identity.Api.Contracts.Requests;
 using Wallow.Identity.Api.Contracts.Responses;
 using Wallow.Identity.Application.DTOs;
@@ -27,6 +28,7 @@ namespace Wallow.Identity.Api.Controllers;
 [ApiVersion(1)]
 [Route("v{version:apiVersion}/identity/organizations/{orgId:guid}/clients")]
 [Authorize]
+[TypeFilter(typeof(RefusePlatformSuspendedOrganizationFilter))]
 [Tags("Organization Clients")]
 [Produces("application/json")]
 [Consumes("application/json")]
@@ -34,7 +36,9 @@ public class OrganizationClientsController(
     IOrganizationClientService clients,
     ITenantContext tenantContext,
     IOrganizationAccessPolicy accessPolicy,
-    IMessageBus messageBus) : ControllerBase
+    IMessageBus messageBus,
+    IOrganizationAdminEmailResolver adminEmails,
+    IOrganizationService organizations) : ControllerBase
 {
     private const string RedirectUrisField = "redirectUris";
     private const string PostLogoutRedirectUrisField = "postLogoutRedirectUris";
@@ -252,6 +256,84 @@ public class OrganizationClientsController(
             clientId,
             clients.ReinstateAsync,
             client => new ClientReinstatedEvent
+            {
+                ClientId = client.ClientId,
+                OrganizationId = orgId,
+                ActorId = ActorId(),
+                IpAddress = CallerIpAddress(),
+            },
+            ct);
+    }
+
+    /// <summary>
+    /// Place the platform's own suspension on the client, with a reason (global admins only).
+    /// While it stands the client is refused everywhere, whatever its own status says, and the
+    /// organization can read the reason but not lift it.
+    /// </summary>
+    [HttpPost("{clientId}/platform-suspension")]
+    [ProducesResponseType(typeof(OrganizationClientResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult<OrganizationClientResponse>> PlacePlatformSuspension(
+        Guid orgId,
+        string clientId,
+        [FromBody] PlatformSuspensionRequest request,
+        CancellationToken ct)
+    {
+        if (!User.IsGlobalAdmin())
+        {
+            return Forbid();
+        }
+
+        // Resolved before the transition because the announcement factory is synchronous;
+        // nothing is published unless the transition succeeds.
+        IReadOnlyList<string> recipients = await adminEmails.ResolveAsync(orgId, ct);
+        OrganizationDto? organization = await organizations.GetOrganizationByIdAsync(orgId, ct);
+
+        return await TransitionAsync(
+            orgId,
+            clientId,
+            (organizationId, id, token) => clients.SuspendByPlatformAsync(
+                organizationId, id, request.Reason, ActorId(), token),
+            client => new ClientSuspendedByPlatformEvent
+            {
+                ClientId = client.ClientId,
+                ClientName = client.Name,
+                OrganizationId = orgId,
+                OrganizationName = organization?.Name ?? string.Empty,
+                ActorId = ActorId(),
+                Reason = client.PlatformSuspensionReason ?? request.Reason,
+                RecipientEmails = recipients,
+                IpAddress = CallerIpAddress(),
+            },
+            ct);
+    }
+
+    /// <summary>
+    /// Lift the platform suspension (global admins only). The client serves again unless the
+    /// organization's own suspension still stands.
+    /// </summary>
+    [HttpDelete("{clientId}/platform-suspension")]
+    [ProducesResponseType(typeof(OrganizationClientResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult<OrganizationClientResponse>> LiftPlatformSuspension(
+        Guid orgId,
+        string clientId,
+        CancellationToken ct)
+    {
+        if (!User.IsGlobalAdmin())
+        {
+            return Forbid();
+        }
+
+        return await TransitionAsync(
+            orgId,
+            clientId,
+            clients.ReinstateByPlatformAsync,
+            client => new ClientReinstatedByPlatformEvent
             {
                 ClientId = client.ClientId,
                 OrganizationId = orgId,

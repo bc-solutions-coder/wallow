@@ -10,5 +10,6 @@ public class AuthAuditEntry
     public string? IpAddress { get; set; }
     public string? UserAgent { get; set; }
     public string? ClientId { get; set; }
+    public string? Reason { get; set; }
     public DateTimeOffset OccurredAt { get; set; }
 }

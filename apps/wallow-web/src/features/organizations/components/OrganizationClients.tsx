@@ -45,6 +45,7 @@ import {
   organizationsGetMembersOptions,
   queriesForOperation,
 } from "../api";
+import { ClientPlatformControls } from "./PlatformSuspension";
 import {
   type ClientKind,
   RegisterClient,
@@ -412,8 +413,19 @@ function ClientRow(props: {
       </Text>
       <Badge variant={STATUS_VARIANT[client.status] ?? "neutral"}>{client.status}</Badge>
       <ClientProvenance name={name} client={client} nameOf={nameOf} />
+      {typeof client.platformSuspendedAt === "string" ? (
+        <Text
+          as="span"
+          variant="bodySm"
+          className="text-destructive"
+          data-testid={`${name}-platform-suspension`}
+        >
+          Suspended by the platform: {client.platformSuspensionReason}
+        </Text>
+      ) : null}
       <RotateSecretDialog name={name} orgId={orgId} client={client} onRotated={onRotated} />
       <LifecycleToggle name={name} orgId={orgId} client={client} />
+      <ClientPlatformControls name={name} orgId={orgId} client={client} />
       <DeleteClientDialog name={name} orgId={orgId} client={client} />
     </ListRow>
   );

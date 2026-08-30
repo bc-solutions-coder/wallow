@@ -264,6 +264,58 @@ public sealed partial class OrganizationClientService(
         return ToDto(record, descriptor);
     }
 
+    public async Task<OrganizationClientDto?> SuspendByPlatformAsync(
+        Guid organizationId,
+        string clientId,
+        string reason,
+        Guid actorId,
+        CancellationToken ct = default)
+    {
+        RegisteredClient? record = await OwnedRecordAsync(organizationId, clientId, ct);
+        OpenIddictApplicationDescriptor? descriptor = record is null ? null : await DescriptorOfAsync(record, ct);
+        if (record is null || descriptor is null)
+        {
+            return null;
+        }
+
+        record.SuspendByPlatform(reason, actorId, timeProvider);
+
+        // Same shape as the organization's own suspend: the mark and the revocation land
+        // together, so no window exists where one is visible without the other.
+        IExecutionStrategy strategy = dbContext.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(
+            ct,
+            async token =>
+            {
+                await using IDbContextTransaction transaction = await dbContext.Database.BeginTransactionAsync(token);
+                await registeredClients.SaveChangesAsync(token);
+                await accessRevoker.RevokeClientAsync(record.ClientId, token);
+                await transaction.CommitAsync(token);
+            });
+
+        LogClientSuspendedByPlatform(record.ClientId, organizationId, actorId);
+        return ToDto(record, descriptor);
+    }
+
+    public async Task<OrganizationClientDto?> ReinstateByPlatformAsync(
+        Guid organizationId,
+        string clientId,
+        CancellationToken ct = default)
+    {
+        RegisteredClient? record = await OwnedRecordAsync(organizationId, clientId, ct);
+        OpenIddictApplicationDescriptor? descriptor = record is null ? null : await DescriptorOfAsync(record, ct);
+        if (record is null || descriptor is null)
+        {
+            return null;
+        }
+
+        record.ReinstateByPlatform();
+        await registeredClients.SaveChangesAsync(ct);
+
+        LogClientReinstatedByPlatform(record.ClientId, organizationId);
+        return ToDto(record, descriptor);
+    }
+
     public async Task<bool> DeleteAsync(Guid organizationId, string clientId, CancellationToken ct = default)
     {
         RegisteredClient? record = await OwnedRecordAsync(organizationId, clientId, ct);
@@ -453,7 +505,9 @@ public sealed partial class OrganizationClientService(
             record.CreatedAt,
             record.LastUsedAt,
             record.LastRotatedByUserId,
-            record.LastRotatedAt);
+            record.LastRotatedAt,
+            record.PlatformSuspendedAt,
+            record.PlatformSuspensionReason);
 
     /// <summary>
     /// The issuer the application must validate tokens against: the public auth URL including any
@@ -486,6 +540,12 @@ public sealed partial class OrganizationClientService(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Reinstated client {ClientId} of organization {OrganizationId}")]
     private partial void LogClientReinstated(string clientId, Guid organizationId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Client {ClientId} of organization {OrganizationId} suspended by platform actor {ActorId}")]
+    private partial void LogClientSuspendedByPlatform(string clientId, Guid organizationId, Guid actorId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Client {ClientId} of organization {OrganizationId} reinstated by platform")]
+    private partial void LogClientReinstatedByPlatform(string clientId, Guid organizationId);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Deleted client {ClientId} of organization {OrganizationId}")]
     private partial void LogClientDeleted(string clientId, Guid organizationId);

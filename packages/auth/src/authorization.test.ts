@@ -28,7 +28,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { hasPermission, hasRole, isAdmin } from "./authorization";
+import { hasPermission, hasRole, isAdmin, isGlobalAdmin } from "./authorization";
 import type { CurrentUser } from "./current-user";
 
 const ADMIN: CurrentUser = {
@@ -142,5 +142,24 @@ describe("hasPermission", () => {
   it("is false for a blank permission name", () => {
     expect(hasPermission(ADMIN, "")).toBe(false);
     expect(hasPermission(ADMIN, "   ")).toBe(false);
+  });
+});
+
+describe("isGlobalAdmin", () => {
+  it("is true only when the API marked the user with the platform's own authority", () => {
+    expect(isGlobalAdmin({ ...ADMIN, isGlobalAdmin: true })).toBe(true);
+  });
+
+  it("is false for an organization admin without the claim", () => {
+    // The authority is minted at sign-in, never derived from roles — holding
+    // "Admin" must not imply it.
+    expect(isGlobalAdmin(ADMIN)).toBe(false);
+    expect(isGlobalAdmin({ ...ADMIN, isGlobalAdmin: false })).toBe(false);
+  });
+
+  it("is false for an anonymous or claimless user rather than throwing", () => {
+    expect(isGlobalAdmin(null)).toBe(false);
+    expect(isGlobalAdmin(undefined)).toBe(false);
+    expect(isGlobalAdmin(CLAIMLESS)).toBe(false);
   });
 });

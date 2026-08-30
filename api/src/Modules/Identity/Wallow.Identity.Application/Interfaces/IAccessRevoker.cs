@@ -22,4 +22,13 @@ public interface IAccessRevoker
     /// connection opened with one. Returns how many token entries it ended.
     /// </summary>
     Task<int> RevokeClientAsync(string clientId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Takes back everything an organization's closure implies: every bound client's tokens,
+    /// whoever holds them, and every member's credentials against the organization, live realtime
+    /// streams included. Archive and platform suspension both mean this; individual client
+    /// suspensions are untouched, so lifting the closure restores exactly the clients the
+    /// organization did not suspend itself.
+    /// </summary>
+    Task RevokeOrganizationAsync(Guid organizationId, CancellationToken ct = default);
 }

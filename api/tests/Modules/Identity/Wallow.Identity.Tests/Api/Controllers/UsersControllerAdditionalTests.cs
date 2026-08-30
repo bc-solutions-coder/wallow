@@ -10,6 +10,7 @@ using Wallow.Shared.Contracts.Identity;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Pagination;
+using WallowClaims = Wallow.Shared.Kernel.Extensions.ClaimsPrincipalExtensions;
 
 namespace Wallow.Identity.Tests.Api.Controllers;
 
@@ -125,6 +126,25 @@ public class UsersControllerAdditionalTests
         response.Roles.Should().BeEquivalentTo(_expectedRoles);
         response.Permissions.Should().HaveCount(3);
         response.Permissions.Should().BeEquivalentTo(_expectedPermissions);
+        response.IsGlobalAdmin.Should().BeFalse("organization roles never grant the platform's own authority");
+    }
+
+    [Fact]
+    public void GetCurrentUser_WithGlobalAdminClaim_CarriesTheAuthority()
+    {
+        ClaimsPrincipal globalAdmin = new(new ClaimsIdentity(new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, _userId.ToString()),
+            new Claim(ClaimTypes.Email, "operator@example.com"),
+            new Claim(WallowClaims.GlobalAdminClaimType, "true")
+        }, "TestAuth"));
+        _controller.ControllerContext.HttpContext = new DefaultHttpContext { User = globalAdmin };
+
+        ActionResult<CurrentUserResponse> result = _controller.GetCurrentUser();
+
+        OkObjectResult ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        CurrentUserResponse response = ok.Value.Should().BeOfType<CurrentUserResponse>().Subject;
+        response.IsGlobalAdmin.Should().BeTrue();
     }
 
     #endregion

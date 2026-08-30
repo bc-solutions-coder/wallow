@@ -18,7 +18,7 @@ namespace Wallow.Shared.Infrastructure.Core.Migrations.AuthAudit
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("auth_audit")
-                .HasAnnotation("ProductVersion", "10.0.10")
+                .HasAnnotation("ProductVersion", "10.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -46,6 +46,9 @@ namespace Wallow.Shared.Infrastructure.Core.Migrations.AuthAudit
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("now()");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("text");
 
                     b.Property<Guid?>("TenantId")
                         .HasColumnType("uuid");

@@ -65,3 +65,15 @@ export function hasPermission(user: CurrentUser | null | undefined, permission: 
 
   return (user?.permissions ?? []).includes(wanted);
 }
+
+/**
+ * Whether the user holds the platform operator's own authority — the
+ * `is_global_admin` claim `GetCurrentUser` surfaces as `isGlobalAdmin`. The
+ * authority is minted at sign-in and never derived from organization roles, so
+ * neither {@link hasRole} nor {@link isAdmin} implies it.
+ *
+ * @param user The resolved user, or `null`/`undefined` when anonymous.
+ */
+export function isGlobalAdmin(user: CurrentUser | null | undefined): boolean {
+  return user?.isGlobalAdmin === true;
+}

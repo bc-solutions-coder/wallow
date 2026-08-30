@@ -117,7 +117,16 @@ public sealed class OrganizationsControllerCrossTenantTests
     /// </summary>
     private static readonly string[] _selfServiceEndpoints = ["Leave"];
 
+    /// <summary>
+    /// Organization-scoped by URL but the platform's own controls: the is_global_admin claim,
+    /// checked inside the action, is the only key, so no tenant permission belongs in the
+    /// inventory -- a tenant caller is refused outright, own organization included.
+    /// </summary>
+    private static readonly string[] _platformEndpoints = ["PlacePlatformSuspension", "LiftPlatformSuspension"];
+
     public static TheoryData<string> OrganizationScopedEndpoints => new(_endpointPermissions.Keys);
+
+    public static TheoryData<string> PlatformEndpoints => new(_platformEndpoints);
 
     public static TheoryData<string> EndpointsBeyondRead => new(_endpointPermissions
         .Where(pair => !string.Equals(pair.Value, PermissionType.OrganizationsRead, StringComparison.Ordinal))
@@ -153,7 +162,8 @@ public sealed class OrganizationsControllerCrossTenantTests
                 && first.ParameterType == typeof(Guid))
             .Select(method => method.Name);
 
-        declared.Should().BeEquivalentTo([.. _endpointPermissions.Keys, .. _selfServiceEndpoints]);
+        declared.Should().BeEquivalentTo(
+            [.. _endpointPermissions.Keys, .. _selfServiceEndpoints, .. _platformEndpoints]);
     }
 
     /// <summary>
@@ -226,6 +236,33 @@ public sealed class OrganizationsControllerCrossTenantTests
 
         ReceivedServiceCalls().Should().NotBeEmpty(
             "the is_global_admin claim is the cross-tenant escape hatch and must not be locked out");
+    }
+
+    [Theory]
+    [MemberData(nameof(PlatformEndpoints))]
+    public async Task TenantAdminRole_PlatformSuspensionEndpoint_IsForbidden(string endpoint)
+    {
+        OrganizationsController controller = CreateController(new Claim(ClaimTypes.Role, "admin"));
+
+        ActionResult? result = await InvokeAsync(controller, endpoint, _tenantOrgId);
+
+        result.Should().BeOfType<ForbidResult>(
+            "the platform's own suspension is never a tenant admin's to place or lift, "
+            + "not even on their own organization");
+        ReceivedServiceCalls().Should().BeEmpty();
+    }
+
+    [Theory]
+    [MemberData(nameof(PlatformEndpoints))]
+    public async Task GlobalAdminClaim_PlatformSuspensionEndpoint_ReachesTheOrganizationService(string endpoint)
+    {
+        OrganizationsController controller = CreateController(
+            new Claim(WallowClaims.GlobalAdminClaimType, "true"));
+
+        await InvokeAsync(controller, endpoint, _otherTenantOrgId);
+
+        ReceivedServiceCalls().Should().NotBeEmpty(
+            "the is_global_admin claim is the only key to the platform suspension controls");
     }
 
     [Theory]
@@ -389,6 +426,9 @@ public sealed class OrganizationsControllerCrossTenantTests
             "ClearDenial" => await controller.ClearDenial(orgId, Guid.NewGuid(), ct),
             "SuspendMember" => await controller.SuspendMember(orgId, Guid.NewGuid(), ct),
             "ReinstateMember" => await controller.ReinstateMember(orgId, Guid.NewGuid(), ct),
+            "PlacePlatformSuspension" => await controller.PlacePlatformSuspension(
+                orgId, new PlatformSuspensionRequest { Reason = "Fraud investigation" }, ct),
+            "LiftPlatformSuspension" => await controller.LiftPlatformSuspension(orgId, ct),
             _ => throw new ArgumentOutOfRangeException(
                 nameof(endpoint), endpoint, "Unknown organization-scoped endpoint."),
         };

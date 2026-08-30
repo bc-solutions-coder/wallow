@@ -24,6 +24,11 @@ public record AuthAuditRecord
     /// admins perform; null for everything else.
     /// </summary>
     public string? ClientId { get; init; }
+    /// <summary>
+    /// The operator's stated reason, for the platform-suspension events that carry one; null for
+    /// everything else. Lifting an event records no reason: the placement carries it.
+    /// </summary>
+    public string? Reason { get; init; }
     public DateTimeOffset OccurredAt { get; init; }
 }
 

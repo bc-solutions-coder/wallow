@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
+using WallowClaims = Wallow.Shared.Kernel.Extensions.ClaimsPrincipalExtensions;
 
 namespace Wallow.Tests.Common.Helpers;
 
@@ -104,6 +105,14 @@ public sealed class TestAuthHandler : AuthenticationHandler<AuthenticationScheme
         foreach (string role in roles)
         {
             claims.Add(new Claim(ClaimTypes.Role, role.Trim()));
+        }
+
+        // The platform operator's own claim, minted at sign-in for users granted global
+        // administration; never derived from roles, which are organization-scoped.
+        if (Request.Headers.TryGetValue("X-Test-Global-Admin", out StringValues globalAdminHeader)
+            && globalAdminHeader == "true")
+        {
+            claims.Add(new Claim(WallowClaims.GlobalAdminClaimType, "true"));
         }
 
         // Space-separated, matching the "scope" claim of a real token, so a test principal can

@@ -153,6 +153,8 @@ controllers and is the authoritative endpoint list.
 | DELETE | `/{id}` | Delete organization | OrganizationsUpdate |
 | POST | `/{id}/archive` | Archive organization | OrganizationsUpdate |
 | POST | `/{id}/reactivate` | Reactivate organization | OrganizationsUpdate |
+| POST | `/{id}/platform-suspension` | Place the platform's suspension on the organization, with a reason: every member's and bound client's tokens are revoked and every change to the organization is refused until it is lifted | Global admin |
+| DELETE | `/{id}/platform-suspension` | Lift the organization's platform suspension; people sign in again, and clients the organization suspended itself stay suspended | Global admin |
 | POST | `/{id}/leave` | Leave the organization | Authenticated |
 | GET | `/{id}/members` | List organization members | OrganizationsRead |
 | POST | `/{id}/members` | Add member | OrganizationsManageMembers |
@@ -203,7 +205,10 @@ row below — including the service-account actions — requires `AdminAccess`.
 ### Organization Clients (`/v1/identity/organizations/{orgId}/clients`)
 
 Every action requires `OrganizationClientsManage` (built-in `admin` and `manager` roles) and
-answers 404 to a caller who cannot address the organization.
+answers 404 to a caller who cannot address the organization — except the two platform-suspension
+actions, which require a global admin and answer 403 to everyone else. While an organization is
+platform-suspended, every non-read action here and on the organization itself answers 422 for
+everyone but global admins.
 
 | Method | Endpoint | Description | Permission |
 |--------|----------|-------------|------------|
@@ -215,13 +220,18 @@ answers 404 to a caller who cannot address the organization.
 | POST | `/{clientId}/rotate-secret` | Rotate the secret (returned once); `revokeActiveTokens` also ends every token the client holds | OrganizationClientsManage |
 | POST | `/{clientId}/suspend` | Suspend the client: every token is revoked and its realtime connections closed; authorize shows the auth host's error page and the token endpoint answers `invalid_client` until it is reinstated | OrganizationClientsManage |
 | POST | `/{clientId}/reinstate` | Put a suspended client back in service; prior consents still stand | OrganizationClientsManage |
+| POST | `/{clientId}/platform-suspension` | Place the platform's suspension on the client, with a reason the organization reads but cannot lift | Global admin |
+| DELETE | `/{clientId}/platform-suspension` | Lift the client's platform suspension; the organization's own suspension, if any, still stands | Global admin |
 
 Registration, rotation, suspension, reinstatement and deletion publish `ClientRegisteredEvent` /
 `ClientSecretRotatedEvent` / `ClientSuspendedEvent` / `ClientReinstatedEvent` / `ClientDeletedEvent`,
 which the auth-audit handler records with the actor, organization, client and caller IP; the Branding
 module also listens for `ClientDeletedEvent` to drop the deleted client's branding and logo.
 Rotate-with-revoke, suspension, deletion and organization-membership revocation all go through the one
-`IAccessRevoker`.
+`IAccessRevoker`. Platform suspension and its lift publish `ClientSuspendedByPlatformEvent` /
+`ClientReinstatedByPlatformEvent` (and, on the organization, `OrganizationSuspendedByPlatformEvent` /
+`OrganizationReinstatedByPlatformEvent`), which the auth-audit handler records with the operator and
+— on the suspensions — the stated reason.
 
 ### Apps (`/v1/identity/apps`)
 

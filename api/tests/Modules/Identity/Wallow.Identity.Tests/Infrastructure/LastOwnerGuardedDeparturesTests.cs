@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
@@ -38,6 +39,7 @@ public sealed class LastOwnerGuardedDeparturesTests : IDisposable
     {
         DbContextOptions<IdentityDbContext> options = new DbContextOptionsBuilder<IdentityDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
             .Options;
         _dbContext = new IdentityDbContext(options, DataProtectionProvider.Create("test"));
 
@@ -97,6 +99,7 @@ public sealed class LastOwnerGuardedDeparturesTests : IDisposable
             new MembershipRepository(_dbContext),
             _dbContext,
             _accessRevoker,
+            Substitute.For<IOrganizationAdminEmailResolver>(),
             _refusingGuard,
             _messageBus,
             TimeProvider.System,

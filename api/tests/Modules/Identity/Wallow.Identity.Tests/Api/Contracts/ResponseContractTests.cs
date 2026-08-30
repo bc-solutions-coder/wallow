@@ -21,7 +21,8 @@ public class ResponseContractTests
             FirstName = "John",
             LastName = "Doe",
             Roles = _adminUserRoles,
-            Permissions = _usersReadWritePermissions
+            Permissions = _usersReadWritePermissions,
+            IsGlobalAdmin = true
         };
 
         response.Id.Should().Be(id);
@@ -30,6 +31,7 @@ public class ResponseContractTests
         response.LastName.Should().Be("Doe");
         response.Roles.Should().HaveCount(2);
         response.Permissions.Should().HaveCount(2);
+        response.IsGlobalAdmin.Should().BeTrue();
     }
 
     [Fact]
@@ -43,6 +45,7 @@ public class ResponseContractTests
         response.LastName.Should().Be(string.Empty);
         response.Roles.Should().BeEmpty();
         response.Permissions.Should().BeEmpty();
+        response.IsGlobalAdmin.Should().BeFalse();
     }
 
     #endregion

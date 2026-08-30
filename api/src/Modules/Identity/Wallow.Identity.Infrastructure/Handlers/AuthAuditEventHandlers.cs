@@ -99,6 +99,26 @@ public static class AuthAuditEventHandlers
             "ClientReinstated", message.ClientId, message.OrganizationId, message.ActorId,
             message.IpAddress, message.OccurredAt, authAuditService);
 
+    public static Task Handle(ClientSuspendedByPlatformEvent message, IAuthAuditService authAuditService) =>
+        RecordClientEventAsync(
+            "ClientSuspendedByPlatform", message.ClientId, message.OrganizationId, message.ActorId,
+            message.IpAddress, message.OccurredAt, authAuditService, message.Reason);
+
+    public static Task Handle(ClientReinstatedByPlatformEvent message, IAuthAuditService authAuditService) =>
+        RecordClientEventAsync(
+            "ClientReinstatedByPlatform", message.ClientId, message.OrganizationId, message.ActorId,
+            message.IpAddress, message.OccurredAt, authAuditService);
+
+    public static Task Handle(OrganizationSuspendedByPlatformEvent message, IAuthAuditService authAuditService) =>
+        RecordOrganizationEventAsync(
+            "OrganizationSuspendedByPlatform", message.OrganizationId, message.ActorId,
+            message.OccurredAt, authAuditService, message.Reason);
+
+    public static Task Handle(OrganizationReinstatedByPlatformEvent message, IAuthAuditService authAuditService) =>
+        RecordOrganizationEventAsync(
+            "OrganizationReinstatedByPlatform", message.OrganizationId, message.ActorId,
+            message.OccurredAt, authAuditService);
+
     public static Task Handle(ClientDeletedEvent message, IAuthAuditService authAuditService) =>
         RecordClientEventAsync(
             "ClientDeleted", message.ClientId, message.OrganizationId, message.ActorId,
@@ -111,7 +131,8 @@ public static class AuthAuditEventHandlers
         Guid actorId,
         string? ipAddress,
         DateTimeOffset occurredAt,
-        IAuthAuditService authAuditService)
+        IAuthAuditService authAuditService,
+        string? reason = null)
     {
         return authAuditService.RecordAsync(new AuthAuditRecord
         {
@@ -121,6 +142,26 @@ public static class AuthAuditEventHandlers
             TenantId = organizationId,
             ClientId = clientId,
             IpAddress = ipAddress,
+            Reason = reason,
+            OccurredAt = occurredAt
+        }, CancellationToken.None);
+    }
+
+    private static Task RecordOrganizationEventAsync(
+        string eventType,
+        Guid organizationId,
+        Guid actorId,
+        DateTimeOffset occurredAt,
+        IAuthAuditService authAuditService,
+        string? reason = null)
+    {
+        return authAuditService.RecordAsync(new AuthAuditRecord
+        {
+            EventType = eventType,
+            UserId = actorId,
+            ActorId = actorId,
+            TenantId = organizationId,
+            Reason = reason,
             OccurredAt = occurredAt
         }, CancellationToken.None);
     }

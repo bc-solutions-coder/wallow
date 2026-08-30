@@ -253,6 +253,36 @@ public sealed partial class SimpleEmailTemplateService(
                 "Review Request",
                 "{{ReviewUrl}}"),
 
+            "organizationplatformsuspended" => WrapInLayout(
+                "Organization Suspended",
+                """
+                <tr>
+                    <td style="padding: 30px 40px; font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.6; color: #333333;">
+                        <p style="margin: 0 0 16px;"><strong>{{OrganizationName}}</strong> has been suspended by the {{AppName}} platform team.</p>
+                        <p style="margin: 0 0 16px;">Reason: {{Reason}}</p>
+                        <p style="margin: 0 0 16px;">While the suspension stands, members cannot sign in to the organization and its registered clients are refused. Only the platform team can lift it.</p>
+                        <p style="margin: 0 0 24px;">The reason is also shown on the organization page.</p>
+                    </td>
+                </tr>
+                """,
+                "View Organization",
+                "{{OrganizationUrl}}"),
+
+            "clientplatformsuspended" => WrapInLayout(
+                "Client Suspended",
+                """
+                <tr>
+                    <td style="padding: 30px 40px; font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.6; color: #333333;">
+                        <p style="margin: 0 0 16px;"><strong>{{ClientName}}</strong>, a client of <strong>{{OrganizationName}}</strong>, has been suspended by the {{AppName}} platform team.</p>
+                        <p style="margin: 0 0 16px;">Reason: {{Reason}}</p>
+                        <p style="margin: 0 0 16px;">Every token the client held has been revoked, and it will be refused everywhere until the platform team lifts the suspension.</p>
+                        <p style="margin: 0 0 24px;">The reason is also shown on the client in your organization's client list.</p>
+                    </td>
+                </tr>
+                """,
+                "View Organization",
+                "{{OrganizationUrl}}"),
+
             "magiclink" => WrapInLayout(
                 "Your Magic Link",
                 """

@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
 using OpenIddict.Abstractions;
 using Wallow.Identity.Application.Helpers;
+using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Infrastructure.Services;
 using Wallow.Shared.Contracts.Realtime;
 
@@ -27,7 +28,13 @@ public sealed class AccessRevokerTests
     public AccessRevokerTests()
     {
         _sut = new AccessRevoker(
-            _tokens, _applications, _authorizations, _realtime, NullLogger<AccessRevoker>.Instance);
+            _tokens,
+            _applications,
+            _authorizations,
+            Substitute.For<IRegisteredClientRepository>(),
+            Substitute.For<IMembershipRepository>(),
+            _realtime,
+            NullLogger<AccessRevoker>.Instance);
         _tokens.FindBySubjectAsync(_userId.ToString(), Arg.Any<CancellationToken>())
             .Returns(ToAsyncEnumerable<object>());
         _authorizations.FindBySubjectAsync(_userId.ToString(), Arg.Any<CancellationToken>())

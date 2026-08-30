@@ -25,6 +25,7 @@ import {
 } from "../api";
 import { MemberList } from "./MemberList";
 import { OrganizationClients } from "./OrganizationClients";
+import { OrganizationPlatformControls } from "./PlatformSuspension";
 
 /**
  * Links to the two `$orgId`-scoped screens: pending requests and member roles.
@@ -153,6 +154,12 @@ export function OrganizationDetail(props: { orgId: string }) {
         {org.name}
       </Text>
 
+      {typeof org.platformSuspendedAt === "string" ? (
+        <ErrorBanner data-testid="organization-detail-platform-suspension">
+          Suspended by the platform: {org.platformSuspensionReason}
+        </ErrorBanner>
+      ) : null}
+
       <div className="flex gap-3">
         <Button
           type="button"
@@ -176,6 +183,10 @@ export function OrganizationDetail(props: { orgId: string }) {
         >
           Reactivate
         </Button>
+        <OrganizationPlatformControls
+          orgId={orgId}
+          suspended={typeof org.platformSuspendedAt === "string"}
+        />
       </div>
 
       <ManageLinks orgId={orgId} />

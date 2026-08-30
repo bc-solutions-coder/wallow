@@ -179,4 +179,17 @@ public abstract class OrganizationClientsTestBase(WallowApiFactory factory) : Id
         SetTestTenant(orgId);
         return (userId, email);
     }
+
+    /// <summary>
+    /// Acts as a fresh user carrying the global-admin claim: a platform operator, not a member
+    /// of any organization under test.
+    /// </summary>
+    protected async Task<Guid> ActAsGlobalAdminAsync()
+    {
+        Guid operatorId = await AuthorizationCodeFlowHarness.CreateUserAsync(
+            ScopedServices, $"operator-{Guid.NewGuid():N}@wallow.dev", "Operator1234!");
+        SetTestUser(operatorId.ToString(), "admin");
+        SetTestGlobalAdmin();
+        return operatorId;
+    }
 }

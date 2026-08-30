@@ -23,6 +23,17 @@ public sealed class RegisteredClient : Entity<RegisteredClientId>
     public Guid? LastRotatedByUserId { get; private set; }
     public DateTimeOffset? LastRotatedAt { get; private set; }
 
+    public DateTimeOffset? PlatformSuspendedAt { get; private set; }
+    public Guid? PlatformSuspendedBy { get; private set; }
+    public string? PlatformSuspensionReason { get; private set; }
+
+    /// <summary>
+    /// Whether the platform operator has taken this client out of service. A separate axis from
+    /// <see cref="Status"/>: the owning organization's suspend and reinstate govern only its own
+    /// status, and neither can lift what the platform placed.
+    /// </summary>
+    public bool IsPlatformSuspended => PlatformSuspendedAt is not null;
+
     // ReSharper disable once UnusedMember.Local
     private RegisteredClient() { } // EF Core
 
@@ -92,5 +103,46 @@ public sealed class RegisteredClient : Entity<RegisteredClientId>
         }
 
         Status = RegisteredClientStatus.Active;
+    }
+
+    /// <summary>
+    /// Places the platform operator's suspension, with the reason the owning organization's
+    /// admins will read but cannot lift.
+    /// </summary>
+    public void SuspendByPlatform(string reason, Guid actorId, TimeProvider timeProvider)
+    {
+        ArgumentNullException.ThrowIfNull(timeProvider);
+
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            throw new BusinessRuleException(
+                "Identity.PlatformSuspensionReasonRequired",
+                "A platform suspension requires a reason");
+        }
+
+        if (IsPlatformSuspended)
+        {
+            throw new BusinessRuleException(
+                "Identity.ClientAlreadySuspendedByPlatform",
+                "The client is already suspended by the platform");
+        }
+
+        PlatformSuspendedAt = timeProvider.GetUtcNow();
+        PlatformSuspendedBy = actorId;
+        PlatformSuspensionReason = reason;
+    }
+
+    public void ReinstateByPlatform()
+    {
+        if (!IsPlatformSuspended)
+        {
+            throw new BusinessRuleException(
+                "Identity.ClientNotSuspendedByPlatform",
+                "The client is not suspended by the platform");
+        }
+
+        PlatformSuspendedAt = null;
+        PlatformSuspendedBy = null;
+        PlatformSuspensionReason = null;
     }
 }

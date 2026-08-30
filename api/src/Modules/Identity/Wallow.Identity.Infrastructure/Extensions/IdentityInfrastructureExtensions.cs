@@ -169,7 +169,7 @@ public static class IdentityInfrastructureExtensions
                         return default;
                     }));
 
-                options.AddEventHandler(RefuseSuspendedClientTokenRequests.Descriptor);
+                options.AddEventHandler(RefuseUnserviceableClientTokenRequests.Descriptor);
             })
             .AddValidation(options =>
             {
@@ -397,6 +397,7 @@ public static class IdentityInfrastructureExtensions
     public static IServiceCollection AddAccessRevocation(this IServiceCollection services)
     {
         services.AddScoped<IAccessRevoker, AccessRevoker>();
+        services.AddScoped<IClientAccessPolicy, ClientAccessPolicy>();
 
         // The host that actually serves realtime traffic registers the implementation that can
         // close a connection; TryAdd leaves it in place and covers the hosts that serve none.
@@ -433,6 +434,7 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<IInvitationService, InvitationService>();
         services.AddScoped<IDefaultMemberRoleResolver, DefaultMemberRoleResolver>();
         services.AddScoped<IAccessRequestRecipientResolver, AccessRequestRecipientResolver>();
+        services.AddScoped<IOrganizationAdminEmailResolver, OrganizationAdminEmailResolver>();
         services.AddScoped<IUserEnrollmentService, UserEnrollmentService>();
         services.AddScoped<IMembershipReviewService, MembershipReviewService>();
         services.AddScoped<ILastOwnerGuard, LastOwnerGuard>();

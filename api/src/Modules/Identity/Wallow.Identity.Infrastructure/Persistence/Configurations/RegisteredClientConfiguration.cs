@@ -56,6 +56,16 @@ public sealed class RegisteredClientConfiguration : IEntityTypeConfiguration<Reg
         builder.Property(e => e.LastRotatedAt)
             .HasColumnName("last_rotated_at");
 
+        builder.Property(e => e.PlatformSuspendedAt)
+            .HasColumnName("platform_suspended_at");
+
+        builder.Property(e => e.PlatformSuspendedBy)
+            .HasColumnName("platform_suspended_by");
+
+        builder.Property(e => e.PlatformSuspensionReason)
+            .HasColumnName("platform_suspension_reason")
+            .HasMaxLength(1000);
+
         builder.HasIndex(e => e.ClientId).IsUnique();
         builder.HasIndex(e => e.OrganizationId);
     }

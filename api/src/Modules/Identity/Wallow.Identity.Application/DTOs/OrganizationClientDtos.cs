@@ -16,7 +16,9 @@ public sealed record OrganizationClientDto(
     DateTimeOffset CreatedAt,
     DateTimeOffset? LastUsedAt,
     Guid? LastRotatedByUserId,
-    DateTimeOffset? LastRotatedAt);
+    DateTimeOffset? LastRotatedAt,
+    DateTimeOffset? PlatformSuspendedAt = null,
+    string? PlatformSuspensionReason = null);
 
 /// <summary>
 /// What a client is given once, at registration and again at rotation: the client secret is

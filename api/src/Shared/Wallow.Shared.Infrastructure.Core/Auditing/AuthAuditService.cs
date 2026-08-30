@@ -24,6 +24,7 @@ public sealed partial class AuthAuditService(
                 IpAddress = record.IpAddress,
                 UserAgent = record.UserAgent,
                 ClientId = record.ClientId,
+                Reason = record.Reason,
                 OccurredAt = record.OccurredAt
             };
 

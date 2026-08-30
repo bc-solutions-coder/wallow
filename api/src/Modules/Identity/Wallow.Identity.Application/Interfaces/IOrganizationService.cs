@@ -45,6 +45,19 @@ public interface IOrganizationService
     Task ArchiveAsync(Guid organizationId, Guid actorId, CancellationToken ct = default);
     Task ReactivateAsync(Guid organizationId, Guid actorId, CancellationToken ct = default);
     Task DeleteAsync(Guid organizationId, string confirmedName, CancellationToken ct = default);
+
+    /// <summary>
+    /// Places the platform operator's suspension on the organization, with the reason its admins
+    /// will read but cannot lift. Revokes every bound client's and every member's tokens, exactly
+    /// as archiving does.
+    /// </summary>
+    Task SuspendByPlatformAsync(Guid organizationId, string reason, Guid actorId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Lifts the platform suspension. Nothing is revoked back into place: people sign in again,
+    /// and clients the organization suspended itself stay suspended.
+    /// </summary>
+    Task ReinstateByPlatformAsync(Guid organizationId, Guid actorId, CancellationToken ct = default);
     Task<OrganizationSettingsDto?> GetSettingsAsync(Guid organizationId, CancellationToken ct = default);
     Task UpdateSettingsAsync(Guid organizationId, bool requireMfa, bool allowPasswordlessLogin, int mfaGracePeriodDays, Guid actorId, CancellationToken ct = default);
 

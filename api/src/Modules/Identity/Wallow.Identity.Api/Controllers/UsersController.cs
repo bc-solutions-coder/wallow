@@ -81,7 +81,8 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
             FirstName = User.GetFirstName() ?? string.Empty,
             LastName = User.GetLastName() ?? string.Empty,
             Roles = User.GetRoles().ToList(),
-            Permissions = User.GetPermissions().ToList()
+            Permissions = User.GetPermissions().ToList(),
+            IsGlobalAdmin = User.IsGlobalAdmin()
         });
     }
 

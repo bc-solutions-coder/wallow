@@ -23,6 +23,17 @@ public sealed class Organization : AggregateRoot<OrganizationId>, ITenantScoped
     public DateTimeOffset? ArchivedAt { get; private set; }
     public Guid? ArchivedBy { get; private set; }
 
+    public DateTimeOffset? PlatformSuspendedAt { get; private set; }
+    public Guid? PlatformSuspendedBy { get; private set; }
+    public string? PlatformSuspensionReason { get; private set; }
+
+    /// <summary>
+    /// Whether the platform operator has taken this organization out of service. A separate axis
+    /// from <see cref="IsActive"/>: it overrides the organization's own state without rewriting
+    /// it, and only the platform can lift it.
+    /// </summary>
+    public bool IsPlatformSuspended => PlatformSuspendedAt is not null;
+
     // ReSharper disable once UnusedMember.Local
     private Organization() { } // EF Core
 
@@ -95,6 +106,61 @@ public sealed class Organization : AggregateRoot<OrganizationId>, ITenantScoped
         ArchivedAt = null;
         ArchivedBy = null;
         SetUpdated(timeProvider.GetUtcNow(), actorId);
+    }
+
+    /// <summary>
+    /// Places the platform operator's suspension, with the reason the organization's admins will
+    /// read but cannot lift.
+    /// </summary>
+    public void SuspendByPlatform(string reason, Guid actorId, TimeProvider timeProvider)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            throw new BusinessRuleException(
+                "Identity.PlatformSuspensionReasonRequired",
+                "A platform suspension requires a reason");
+        }
+
+        if (IsPlatformSuspended)
+        {
+            throw new BusinessRuleException(
+                "Identity.OrganizationAlreadySuspendedByPlatform",
+                "Organization is already suspended by the platform");
+        }
+
+        PlatformSuspendedAt = timeProvider.GetUtcNow();
+        PlatformSuspendedBy = actorId;
+        PlatformSuspensionReason = reason;
+        SetUpdated(timeProvider.GetUtcNow(), actorId);
+    }
+
+    public void ReinstateByPlatform(Guid actorId, TimeProvider timeProvider)
+    {
+        if (!IsPlatformSuspended)
+        {
+            throw new BusinessRuleException(
+                "Identity.OrganizationNotSuspendedByPlatform",
+                "Organization is not suspended by the platform");
+        }
+
+        PlatformSuspendedAt = null;
+        PlatformSuspendedBy = null;
+        PlatformSuspensionReason = null;
+        SetUpdated(timeProvider.GetUtcNow(), actorId);
+    }
+
+    /// <summary>
+    /// An organization under a platform suspension cannot be deleted — not even by the operator
+    /// who placed the suspension; lifting it first is the honest order of operations.
+    /// </summary>
+    public void EnsureDeletable()
+    {
+        if (IsPlatformSuspended)
+        {
+            throw new BusinessRuleException(
+                "Identity.OrganizationSuspendedByPlatform",
+                "A platform-suspended organization cannot be deleted");
+        }
     }
 
     public static void ConfirmNameForDeletion(Organization org, string confirmedName)

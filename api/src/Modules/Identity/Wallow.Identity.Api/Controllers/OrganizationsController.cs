@@ -2,6 +2,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Wallow.Identity.Api.Authorization;
 using Wallow.Identity.Api.Contracts.Requests;
 using Wallow.Identity.Api.Contracts.Responses;
 using Wallow.Identity.Application.DTOs;
@@ -16,6 +17,7 @@ namespace Wallow.Identity.Api.Controllers;
 [ApiVersion(1)]
 [Route("v{version:apiVersion}/identity/organizations")]
 [Authorize]
+[TypeFilter(typeof(RefusePlatformSuspendedOrganizationFilter))]
 [Tags("Organizations")]
 [Produces("application/json")]
 [Consumes("application/json")]
@@ -352,6 +354,47 @@ public class OrganizationsController(
 
         Guid actorId = Guid.Parse(User.GetUserId()!);
         await orgService.ReactivateAsync(id, actorId, ct);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Place the platform's own suspension on the organization, with a reason (global admins
+    /// only). Every bound client's and every member's tokens are revoked, and every change to
+    /// the organization is refused while the suspension stands.
+    /// </summary>
+    [HttpPost("{id:guid}/platform-suspension")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult> PlacePlatformSuspension(
+        Guid id, PlatformSuspensionRequest request, CancellationToken ct)
+    {
+        if (!User.IsGlobalAdmin())
+        {
+            return Forbid();
+        }
+
+        await orgService.SuspendByPlatformAsync(id, request.Reason, ActorId(), ct);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Lift the organization's platform suspension (global admins only). Nothing is revoked
+    /// back into place: people sign in again, and clients the organization suspended itself
+    /// stay suspended.
+    /// </summary>
+    [HttpDelete("{id:guid}/platform-suspension")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult> LiftPlatformSuspension(Guid id, CancellationToken ct)
+    {
+        if (!User.IsGlobalAdmin())
+        {
+            return Forbid();
+        }
+
+        await orgService.ReinstateByPlatformAsync(id, ActorId(), ct);
         return NoContent();
     }
 

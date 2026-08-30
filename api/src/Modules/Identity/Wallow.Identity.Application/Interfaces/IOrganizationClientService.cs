@@ -52,6 +52,30 @@ public interface IOrganizationClientService
     Task<OrganizationClientDto?> ReinstateAsync(Guid organizationId, string clientId, CancellationToken ct = default);
 
     /// <summary>
+    /// Places the platform's own suspension on the client, with the operator's reason: every
+    /// token it was issued is revoked and its realtime connections are hung up, while the
+    /// client's own status is untouched, so the organization can read the reason but none of
+    /// its controls lift it. Returns <see langword="null"/> when the client is not one of the
+    /// organization's.
+    /// </summary>
+    Task<OrganizationClientDto?> SuspendByPlatformAsync(
+        Guid organizationId,
+        string clientId,
+        string reason,
+        Guid actorId,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Lifts the platform suspension; the client serves again unless the organization's own
+    /// suspension still stands. Returns <see langword="null"/> when the client is not one of
+    /// the organization's.
+    /// </summary>
+    Task<OrganizationClientDto?> ReinstateByPlatformAsync(
+        Guid organizationId,
+        string clientId,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Revokes every credential the client holds, then removes it for good: the OpenIddict
     /// application with its tokens and consents, and Wallow's own record. Returns false when the
     /// client is not one of the organization's.

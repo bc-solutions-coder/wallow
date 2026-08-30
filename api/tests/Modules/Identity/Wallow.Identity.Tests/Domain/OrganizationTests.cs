@@ -249,6 +249,94 @@ public class OrganizationTests
         org.UpdatedBy.Should().Be(_testUserId);
     }
 
+    [Fact]
+    public void SuspendByPlatform_RecordsReasonActorAndTime_AndLeavesTheOrgOwnStateAlone()
+    {
+        Organization org = Organization.Create(
+            _tenantId, "Acme Corp", "acme-corp", _testUserId, _timeProvider);
+        _timeProvider.Advance(TimeSpan.FromDays(2));
+
+        org.SuspendByPlatform("Terms of service violation", _testUserId, _timeProvider);
+
+        org.IsPlatformSuspended.Should().BeTrue();
+        org.PlatformSuspensionReason.Should().Be("Terms of service violation");
+        org.PlatformSuspendedBy.Should().Be(_testUserId);
+        org.PlatformSuspendedAt.Should().Be(_timeProvider.GetUtcNow());
+        // Platform suspension overrides the organization's own state; it does not rewrite it.
+        org.IsActive.Should().BeTrue();
+    }
+
+    [Fact]
+    public void SuspendByPlatform_WhenAlreadySuspendedByPlatform_Throws()
+    {
+        Organization org = CreateOrganization();
+        org.SuspendByPlatform("First reason", _testUserId, TimeProvider.System);
+
+        Action act = () => org.SuspendByPlatform("Second reason", _testUserId, TimeProvider.System);
+
+        act.Should().Throw<BusinessRuleException>()
+            .Which.Code.Should().Be("Identity.OrganizationAlreadySuspendedByPlatform");
+    }
+
+    [Fact]
+    public void SuspendByPlatform_WithoutAReason_Throws()
+    {
+        Organization org = CreateOrganization();
+
+        Action act = () => org.SuspendByPlatform("   ", _testUserId, TimeProvider.System);
+
+        act.Should().Throw<BusinessRuleException>()
+            .Which.Code.Should().Be("Identity.PlatformSuspensionReasonRequired");
+    }
+
+    [Fact]
+    public void ReinstateByPlatform_ClearsTheSuspension()
+    {
+        Organization org = CreateOrganization();
+        org.SuspendByPlatform("Terms of service violation", _testUserId, TimeProvider.System);
+
+        org.ReinstateByPlatform(_testUserId, TimeProvider.System);
+
+        org.IsPlatformSuspended.Should().BeFalse();
+        org.PlatformSuspensionReason.Should().BeNull();
+        org.PlatformSuspendedBy.Should().BeNull();
+        org.PlatformSuspendedAt.Should().BeNull();
+    }
+
+    [Fact]
+    public void ReinstateByPlatform_WhenNotSuspendedByPlatform_Throws()
+    {
+        Organization org = CreateOrganization();
+
+        Action act = () => org.ReinstateByPlatform(_testUserId, TimeProvider.System);
+
+        act.Should().Throw<BusinessRuleException>()
+            .Which.Code.Should().Be("Identity.OrganizationNotSuspendedByPlatform");
+    }
+
+    [Fact]
+    public void EnsureDeletable_WhilePlatformSuspended_Throws()
+    {
+        Organization org = CreateOrganization();
+        org.SuspendByPlatform("Under investigation", _testUserId, TimeProvider.System);
+
+        Action act = org.EnsureDeletable;
+
+        act.Should().Throw<BusinessRuleException>()
+            .Which.Code.Should().Be("Identity.OrganizationSuspendedByPlatform");
+    }
+
+    [Fact]
+    public void EnsureDeletable_WhenNotPlatformSuspended_DoesNotThrow()
+    {
+        Organization org = CreateOrganization();
+        org.Archive(_testUserId, TimeProvider.System);
+
+        Action act = org.EnsureDeletable;
+
+        act.Should().NotThrow("archive is the organization's own state, not the platform's");
+    }
+
     private static Organization CreateOrganization() =>
         Organization.Create(_tenantId, "Acme Corp", "acme-corp", _testUserId, TimeProvider.System);
 }

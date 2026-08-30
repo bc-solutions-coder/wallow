@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
@@ -29,13 +30,15 @@ public sealed class OrganizationServiceGapTests : IDisposable
     {
         TenantContext tc = new(); tc.SetTenant(new TenantId(_tenantId));
         DbContextOptions<IdentityDbContext> opts = new DbContextOptionsBuilder<IdentityDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
+            .Options;
         IDataProtectionProvider dp = DataProtectionProvider.Create("test");
         _dbContext = new IdentityDbContext(opts, dp);
         _dbContext.SetTenant(new TenantId(_tenantId));
         _orgRepo = Substitute.For<IOrganizationRepository>();
         _messageBus = Substitute.For<IMessageBus>();
-        _sut = new OrganizationService(_orgRepo, new MembershipRepository(_dbContext), _dbContext, Substitute.For<IAccessRevoker>(), new UnguardedLastOwnerGuard(), _messageBus, TimeProvider.System, NullLogger<OrganizationService>.Instance);
+        _sut = new OrganizationService(_orgRepo, new MembershipRepository(_dbContext), _dbContext, Substitute.For<IAccessRevoker>(), Substitute.For<IOrganizationAdminEmailResolver>(), new UnguardedLastOwnerGuard(), _messageBus, TimeProvider.System, NullLogger<OrganizationService>.Instance);
     }
 
     public void Dispose() { _dbContext.Dispose(); }

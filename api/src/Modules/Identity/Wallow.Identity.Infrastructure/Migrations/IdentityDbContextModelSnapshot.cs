@@ -606,6 +606,19 @@ namespace Wallow.Identity.Infrastructure.Migrations
                         .HasColumnType("character varying(256)")
                         .HasColumnName("name");
 
+                    b.Property<DateTimeOffset?>("PlatformSuspendedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("platform_suspended_at");
+
+                    b.Property<Guid?>("PlatformSuspendedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("platform_suspended_by");
+
+                    b.Property<string>("PlatformSuspensionReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("platform_suspension_reason");
+
                     b.Property<string>("Slug")
                         .IsRequired()
                         .HasMaxLength(256)
@@ -803,6 +816,19 @@ namespace Wallow.Identity.Infrastructure.Migrations
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uuid")
                         .HasColumnName("organization_id");
+
+                    b.Property<DateTimeOffset?>("PlatformSuspendedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("platform_suspended_at");
+
+                    b.Property<Guid?>("PlatformSuspendedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("platform_suspended_by");
+
+                    b.Property<string>("PlatformSuspensionReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("platform_suspension_reason");
 
                     b.Property<string>("Status")
                         .IsRequired()

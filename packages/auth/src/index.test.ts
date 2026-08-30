@@ -31,6 +31,7 @@ const OWN_EXPORTS: readonly string[] = [
   "hasPermission",
   "hasRole",
   "isAdmin",
+  "isGlobalAdmin",
   "useCurrentUser",
 ];
 

@@ -6,7 +6,7 @@
  *
  *   1. this package's own current-user layer — the canonical query, the hook, the
  *      `beforeLoad` primer, and the role/permission helpers (`hasRole`,
- *      `hasPermission`, `isAdmin`) over the typed `CurrentUser`;
+ *      `hasPermission`, `isAdmin`, `isGlobalAdmin`) over the typed `CurrentUser`;
  *   2. re-exports of the SDK's route guards, so an app's auth imports come from
  *      ONE package instead of being split across two. They are re-exported by
  *      reference, not wrapped: `requireAuth` from here IS the SDK's
@@ -16,7 +16,7 @@
  */
 export { type CurrentUser, currentUserQuery } from "./current-user";
 export { useCurrentUser } from "./use-current-user";
-export { hasPermission, hasRole, isAdmin } from "./authorization";
+export { hasPermission, hasRole, isAdmin, isGlobalAdmin } from "./authorization";
 export { type EnsureCurrentUserOptions, ensureCurrentUser } from "./ensure-current-user";
 
 export {

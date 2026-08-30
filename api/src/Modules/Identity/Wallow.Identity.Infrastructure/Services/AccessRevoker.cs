@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using OpenIddict.Abstractions;
 using Wallow.Identity.Application.Interfaces;
+using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Infrastructure.Extensions;
 using Wallow.Shared.Contracts.Realtime;
 
@@ -22,6 +23,8 @@ public sealed partial class AccessRevoker(
     IOpenIddictTokenManager tokenManager,
     IOpenIddictApplicationManager applicationManager,
     IOpenIddictAuthorizationManager authorizationManager,
+    IRegisteredClientRepository registeredClients,
+    IMembershipRepository membershipRepository,
     IRealtimeAccessRevoker realtimeAccessRevoker,
     ILogger<AccessRevoker> logger) : IAccessRevoker
 {
@@ -59,6 +62,25 @@ public sealed partial class AccessRevoker(
 
         LogClientAccessRevoked(clientId, revoked);
         return revoked;
+    }
+
+    public async Task RevokeOrganizationAsync(Guid organizationId, CancellationToken ct = default)
+    {
+        IReadOnlyList<RegisteredClient> boundClients =
+            await registeredClients.ListByOrganizationAsync(organizationId, ct);
+        foreach (RegisteredClient client in boundClients)
+        {
+            await RevokeClientAsync(client.ClientId, ct);
+        }
+
+        IReadOnlyList<Membership> memberships =
+            await membershipRepository.GetForOrganizationAsync(organizationId, null, ct);
+        foreach (Membership membership in memberships)
+        {
+            await RevokeMembershipAsync(membership.UserId, organizationId, ct);
+        }
+
+        LogOrganizationAccessRevoked(organizationId, boundClients.Count, memberships.Count);
     }
 
     private async Task RevokeByAuthorizationAsync(
@@ -155,4 +177,7 @@ public sealed partial class AccessRevoker(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Revoked access of client {ClientId}: {RevokedTokenCount} tokens")]
     private partial void LogClientAccessRevoked(string clientId, int revokedTokenCount);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Revoked access across organization {OrganizationId}: {ClientCount} bound clients, {MemberCount} members")]
+    private partial void LogOrganizationAccessRevoked(Guid organizationId, int clientCount, int memberCount);
 }

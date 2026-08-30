@@ -62,6 +62,18 @@ const REASON_MESSAGES: ReadonlyMap<string, string> = new Map([
     "client_suspended",
     "This application has been suspended by its organization. Contact the organization's administrators.",
   ],
+  [
+    "client_suspended_by_platform",
+    "This application has been suspended by the platform. Contact support.",
+  ],
+  [
+    "organization_archived",
+    "This application's organization has been archived. Contact the organization's administrators.",
+  ],
+  [
+    "organization_suspended_by_platform",
+    "This application's organization has been suspended by the platform. Contact support.",
+  ],
   ["invalid_redirect_uri", "The redirect destination is not permitted."],
   ["access_denied", "Access was denied. Please try again or contact support."],
   ["invalid_request", "The request was invalid. Please try again."],

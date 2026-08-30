@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
@@ -18,6 +19,7 @@ public sealed partial class OrganizationService(
     IMembershipRepository membershipRepository,
     IdentityDbContext dbContext,
     IAccessRevoker accessRevoker,
+    IOrganizationAdminEmailResolver adminEmails,
     ILastOwnerGuard lastOwnerGuard,
     IMessageBus messageBus,
     TimeProvider timeProvider,
@@ -365,7 +367,22 @@ public sealed partial class OrganizationService(
         }
 
         organization.Archive(actorId, timeProvider);
-        await organizationRepository.SaveChangesAsync(ct);
+
+        // Archive takes back what the organization's standing granted: every bound client's
+        // tokens and every member's tokens die with it — atomically with the mark, so no window
+        // exists where the archive is visible but tokens still serve. Reactivation revokes
+        // nothing back into place — people simply sign in again, and clients the organization
+        // suspended itself stay suspended.
+        IExecutionStrategy strategy = dbContext.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(
+            ct,
+            async token =>
+            {
+                await using IDbContextTransaction transaction = await dbContext.Database.BeginTransactionAsync(token);
+                await organizationRepository.SaveChangesAsync(token);
+                await accessRevoker.RevokeOrganizationAsync(organizationId, token);
+                await transaction.CommitAsync(token);
+            });
 
         await messageBus.PublishAsync(new OrganizationArchivedEvent
         {
@@ -402,6 +419,70 @@ public sealed partial class OrganizationService(
         LogOrganizationReactivated(organizationId);
     }
 
+    public async Task SuspendByPlatformAsync(Guid organizationId, string reason, Guid actorId, CancellationToken ct = default)
+    {
+        OrganizationId id = OrganizationId.Create(organizationId);
+        Organization? organization = await organizationRepository.GetByIdAsync(id, ct);
+
+        if (organization is null)
+        {
+            throw new InvalidOperationException($"Organization {organizationId} not found");
+        }
+
+        organization.SuspendByPlatform(reason, actorId, timeProvider);
+
+        // The platform's freeze takes back exactly what an archive does: every bound client's
+        // tokens and every member's tokens die while it stands — atomically with the mark, so
+        // no window exists where one is visible without the other.
+        IExecutionStrategy strategy = dbContext.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(
+            ct,
+            async token =>
+            {
+                await using IDbContextTransaction transaction = await dbContext.Database.BeginTransactionAsync(token);
+                await organizationRepository.SaveChangesAsync(token);
+                await accessRevoker.RevokeOrganizationAsync(organizationId, token);
+                await transaction.CommitAsync(token);
+            });
+
+        IReadOnlyList<string> recipients = await adminEmails.ResolveAsync(organizationId, ct);
+
+        await messageBus.PublishAsync(new OrganizationSuspendedByPlatformEvent
+        {
+            OrganizationId = organizationId,
+            TenantId = organizationId,
+            OrganizationName = organization.Name,
+            ActorId = actorId,
+            Reason = organization.PlatformSuspensionReason ?? reason,
+            RecipientEmails = recipients
+        });
+
+        LogOrganizationSuspendedByPlatform(organizationId, actorId);
+    }
+
+    public async Task ReinstateByPlatformAsync(Guid organizationId, Guid actorId, CancellationToken ct = default)
+    {
+        OrganizationId id = OrganizationId.Create(organizationId);
+        Organization? organization = await organizationRepository.GetByIdAsync(id, ct);
+
+        if (organization is null)
+        {
+            throw new InvalidOperationException($"Organization {organizationId} not found");
+        }
+
+        organization.ReinstateByPlatform(actorId, timeProvider);
+        await organizationRepository.SaveChangesAsync(ct);
+
+        await messageBus.PublishAsync(new OrganizationReinstatedByPlatformEvent
+        {
+            OrganizationId = organizationId,
+            TenantId = organizationId,
+            ActorId = actorId
+        });
+
+        LogOrganizationReinstatedByPlatform(organizationId, actorId);
+    }
+
     public async Task DeleteAsync(Guid organizationId, string confirmedName, CancellationToken ct = default)
     {
         LogDeletingOrganization(organizationId);
@@ -414,6 +495,7 @@ public sealed partial class OrganizationService(
             throw new InvalidOperationException($"Organization {organizationId} not found");
         }
 
+        organization.EnsureDeletable();
         Organization.ConfirmNameForDeletion(organization, confirmedName);
 
         string orgName = organization.Name;
@@ -720,7 +802,9 @@ public sealed partial class OrganizationService(
                 o.Id.Value,
                 o.Name,
                 null,
-                memberCounts.TryGetValue(o.Id.Value, out int count) ? count : 0))
+                memberCounts.TryGetValue(o.Id.Value, out int count) ? count : 0,
+                o.PlatformSuspendedAt,
+                o.PlatformSuspensionReason))
         ];
     }
 
@@ -782,4 +866,10 @@ public sealed partial class OrganizationService
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Organization {OrgId} deleted")]
     private partial void LogOrganizationDeleted(Guid orgId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Organization {OrgId} suspended by platform actor {ActorId}")]
+    private partial void LogOrganizationSuspendedByPlatform(Guid orgId, Guid actorId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Organization {OrgId} reinstated by platform actor {ActorId}")]
+    private partial void LogOrganizationReinstatedByPlatform(Guid orgId, Guid actorId);
 }
