@@ -11,8 +11,8 @@ import { ConsentScreen } from "@features/consent";
  * placeholder component here and left the router untouched.
  *
  * This route owns the query string — the oracle's two
- * `[SupplyParameterFromQuery]` properties, plus the `scope` the authorize
- * endpoint now sends (Wallow-dzt4) — and hands them down as props, keeping the
+ * `[SupplyParameterFromQuery]` properties, plus the `scope` and the single-use
+ * `consent_token` the authorize endpoint sends — and hands them down as props, keeping the
  * screen a pure function of its inputs and testable without a router. This is
  * the seam `/reset-password` established.
  *
@@ -38,6 +38,11 @@ interface ConsentSearch {
    * it.
    */
   readonly scope?: string;
+  /**
+   * The `consent_token` query parameter — the single-use token the answer must
+   * be posted back with. Opaque here; `undefined` when the link omits it.
+   */
+  readonly consent_token?: string;
 }
 
 /**
@@ -54,15 +59,21 @@ function validateSearch(search: Record<string, unknown>): ConsentSearch {
     returnUrl: typeof search.returnUrl === "string" ? search.returnUrl : undefined,
     client_id: typeof search.client_id === "string" ? search.client_id : undefined,
     scope: typeof search.scope === "string" ? search.scope : undefined,
+    consent_token: typeof search.consent_token === "string" ? search.consent_token : undefined,
   };
 }
 
 function ConsentRoute() {
-  const { returnUrl, client_id: clientId, scope } = Route.useSearch();
+  const { returnUrl, client_id: clientId, scope, consent_token: consentToken } = Route.useSearch();
 
   return (
     <AuthLayout>
-      <ConsentScreen clientId={clientId} returnUrl={returnUrl} scope={scope} />
+      <ConsentScreen
+        clientId={clientId}
+        returnUrl={returnUrl}
+        scope={scope}
+        consentToken={consentToken}
+      />
     </AuthLayout>
   );
 }

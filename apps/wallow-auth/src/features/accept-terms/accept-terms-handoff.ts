@@ -26,7 +26,7 @@
  * disjoint: wiring the guard in would send every social sign-up to
  * `/error?reason=invalid_redirect_uri`.
  *
- * This is the `buildConnectLogoutUrl` precedent, not the `buildConsentSubmitUrl`
+ * This is the `buildConnectLogoutUrl` precedent, not the `buildConsentSubmission`
  * one. The rule: guard where the CLIENT picks the destination; defer where the
  * SERVER does. Here the destination is a same-origin CONSTANT path,
  * `returnUrl` is inert cargo, and `complete-external-registration` re-validates

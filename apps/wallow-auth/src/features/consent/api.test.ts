@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 /**
  * Consent feature `api.ts` — a thin re-export seam over the SDK query entry.
- * `consentInfoArgs` and `buildConsentSubmitUrl` issue no request, so they stay
+ * `consentInfoArgs` and `buildConsentSubmission` issue no request, so they stay
  * outside the seam and are imported straight from the barrel.
  *
  * Identity (`toBe`), not presence: a hand-written look-alike carries the same

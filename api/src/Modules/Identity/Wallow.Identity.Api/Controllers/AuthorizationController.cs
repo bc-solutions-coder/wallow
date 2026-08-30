@@ -5,6 +5,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -36,6 +37,7 @@ public sealed partial class AuthorizationController(
     IUserEnrollmentService enrollment,
     IMembershipRoleResolver membershipRoleResolver,
     ISsoClientSessionService ssoClientSessionService,
+    IConsentTokenService consentTokenService,
     ILogger<AuthorizationController> logger) : Controller
 {
     private const string FirstPartyClientPrefix = "wallow-";
@@ -194,57 +196,64 @@ public sealed partial class AuthorizationController(
                 }
             }
 
-            // Handle consent denial — must be checked before consent grant
-            if (string.Equals(request["consent_denied"]?.ToString(), "true", StringComparison.OrdinalIgnoreCase))
-            {
-                return Forbid(
-                    authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme,
-                    properties: new Microsoft.AspNetCore.Authentication.AuthenticationProperties(
-                        new Dictionary<string, string?>
-                        {
-                            [OpenIddictServerAspNetCoreConstants.Properties.Error] = Errors.ConsentRequired,
-                            [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] =
-                                "The user denied the consent request."
-                        }));
-            }
+            // A consent decision counts only when it is POSTed with the token this endpoint minted
+            // for this user and this request, and only once. Anything else — a flag on the GET,
+            // no token, a replayed token, a token minted for someone else or for another request —
+            // leaves the user on the consent screen with a fresh token: the relying party is told
+            // neither yes nor no, and nothing is recorded.
+            string fingerprint = ConsentRequestFingerprint(request);
+            string? decision = HttpMethods.IsPost(Request.Method)
+                ? request[ConsentDecisionParameter]?.ToString()
+                : null;
 
-            // Handle consent grant — create a permanent authorization if none exists
-            if (string.Equals(request["consent_granted"]?.ToString(), "true", StringComparison.OrdinalIgnoreCase)
-                && !hasValidAuthorization)
+            if (decision is not null)
             {
-                OpenIddictAuthorizationDescriptor descriptor = new()
+                ConsentTokenOutcome tokenOutcome = await consentTokenService.RedeemAsync(
+                    request[ConsentTokenParameter]?.ToString(), userId, fingerprint, HttpContext.RequestAborted);
+                if (tokenOutcome != ConsentTokenOutcome.Redeemed)
                 {
-                    ApplicationId = applicationId,
-                    CreationDate = DateTimeOffset.UtcNow,
-                    Status = Statuses.Valid,
-                    Subject = userId,
-                    Type = AuthorizationTypes.Permanent
-                };
-
-                foreach (string scope in grantedScopes)
-                {
-                    descriptor.Scopes.Add(scope);
+                    LogConsentDecisionRefused(clientId, tokenOutcome);
+                    return RedirectToConsent(request, userId, clientId, grantedScopes, fingerprint);
                 }
 
-                await authorizationManager.CreateAsync(descriptor);
-                hasValidAuthorization = true;
+                if (string.Equals(decision, ConsentDenied, StringComparison.Ordinal))
+                {
+                    return Forbid(
+                        authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme,
+                        properties: new Microsoft.AspNetCore.Authentication.AuthenticationProperties(
+                            new Dictionary<string, string?>
+                            {
+                                [OpenIddictServerAspNetCoreConstants.Properties.Error] = Errors.ConsentRequired,
+                                [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] =
+                                    "The user denied the consent request."
+                            }));
+                }
+
+                if (string.Equals(decision, ConsentGranted, StringComparison.Ordinal) && !hasValidAuthorization)
+                {
+                    // Store a permanent authorization so consent is not re-prompted.
+                    OpenIddictAuthorizationDescriptor descriptor = new()
+                    {
+                        ApplicationId = applicationId,
+                        CreationDate = DateTimeOffset.UtcNow,
+                        Status = Statuses.Valid,
+                        Subject = userId,
+                        Type = AuthorizationTypes.Permanent
+                    };
+
+                    foreach (string scope in grantedScopes)
+                    {
+                        descriptor.Scopes.Add(scope);
+                    }
+
+                    await authorizationManager.CreateAsync(descriptor);
+                    hasValidAuthorization = true;
+                }
             }
 
             if (!hasValidAuthorization)
             {
-                // No existing consent — redirect to consent screen.
-                // The consent UI will POST back to accept/deny.
-                // The granted scopes ride along space-delimited (OAuth's own
-                // delimiter, and what the consent-info endpoint splits on): they are
-                // the substance of the decision the screen asks the user to make, and
-                // asking to consent to a scope that will never be issued is a lie.
-                string authUrl = GetRequiredAuthUrl();
-                string returnUrl = Request.PathBase + Request.Path + Request.QueryString;
-                string consentScopes = string.Join(" ", grantedScopes);
-                LogRedirectingToConsent(clientId, returnUrl);
-                return Redirect($"{authUrl}/consent?returnUrl={Uri.EscapeDataString(returnUrl)}" +
-                    $"&client_id={Uri.EscapeDataString(clientId ?? string.Empty)}" +
-                    $"&scope={Uri.EscapeDataString(consentScopes)}");
+                return RedirectToConsent(request, userId, clientId, grantedScopes, fingerprint);
             }
         }
 
@@ -262,28 +271,6 @@ public sealed partial class AuthorizationController(
 
         string allScopes = string.Join(" ", grantedScopes);
         LogIssuingAuthorizationCode(userId, clientId, allScopes);
-
-        if (!isFirstParty && !hasValidAuthorization)
-        {
-            // Store a permanent authorization so consent is not re-prompted
-            string applicationId = (await applicationManager.GetIdAsync(application))!;
-            OpenIddictAuthorizationDescriptor authorizationDescriptor = new()
-            {
-                ApplicationId = applicationId,
-                CreationDate = DateTimeOffset.UtcNow,
-                Principal = new ClaimsPrincipal(identity),
-                Status = Statuses.Valid,
-                Subject = userId,
-                Type = AuthorizationTypes.Permanent
-            };
-
-            foreach (string scope in grantedScopes)
-            {
-                authorizationDescriptor.Scopes.Add(scope);
-            }
-
-            await authorizationManager.CreateAsync(authorizationDescriptor);
-        }
 
         return SignIn(new ClaimsPrincipal(identity), OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
     }
@@ -477,6 +464,9 @@ public sealed partial class AuthorizationController(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "OIDC redirecting to consent: clientId={ClientId}, returnUrl={ReturnUrl}")]
     private partial void LogRedirectingToConsent(string? clientId, string returnUrl);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Consent decision for client {ClientId} refused ({Outcome}); asking again")]
+    private partial void LogConsentDecisionRefused(string? clientId, ConsentTokenOutcome outcome);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "OIDC enrollment outcome: userId={UserId}, organizationId={OrganizationId}, outcome={Outcome}")]
     private partial void LogEnrollmentOutcome(string userId, Guid organizationId, string outcome);

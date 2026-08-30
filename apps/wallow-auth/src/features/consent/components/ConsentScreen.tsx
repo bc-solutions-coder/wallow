@@ -1,4 +1,11 @@
-import { buildConsentSubmitUrl, consentInfoArgs } from "@bc-solutions-coder/sdk";
+import {
+  buildConsentSubmission,
+  CONSENT_DECISION_FIELD,
+  CONSENT_DENIED,
+  CONSENT_GRANTED,
+  consentInfoArgs,
+  type ConsentSubmission,
+} from "@bc-solutions-coder/sdk";
 import { Button, Card, ErrorBanner, MutedText, Text } from "@bc-solutions-coder/ui";
 import { useQuery } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
@@ -10,13 +17,22 @@ import { useReturnUrlGuard } from "@shared/hooks/use-return-url-guard";
 /**
  * The Consent screen (Wallow-vec7.3.4).
  *
- * `clientId`, `returnUrl` and `scope` arrive as props rather than being read
- * from the router inside the component: the route owns the query string (the
- * oracle's two `[SupplyParameterFromQuery]` properties, `ReturnUrl` and
- * `client_id`, plus the `scope` the authorize endpoint sends) and hands them
- * down, which keeps this component a pure function of its inputs and testable
- * without a router. This is the seam `ResetPasswordForm` established and
- * `VerifyEmailConfirm` followed.
+ * `clientId`, `returnUrl`, `scope` and `consentToken` arrive as props rather
+ * than being read from the router inside the component: the route owns the
+ * query string (the oracle's two `[SupplyParameterFromQuery]` properties,
+ * `ReturnUrl` and `client_id`, plus the `scope` and the single-use token the
+ * authorize endpoint sends) and hands them down, which keeps this component a
+ * pure function of its inputs and testable without a router. This is the seam
+ * `ResetPasswordForm` established and `VerifyEmailConfirm` followed.
+ *
+ * ── THE DECISION IS A POST ───────────────────────────────────────────────────
+ *
+ * The two answers are submit buttons on a real `<form method="post">` aimed at
+ * the authorize endpoint, not links: the endpoint honours a decision only when
+ * it arrives in a request body together with the token it issued, so a
+ * `consent_granted` flag smuggled onto a GET link grants nothing. The
+ * authorize request's own parameters ride along as hidden fields, because a
+ * POST body is where OpenIddict reads them from.
  *
  * Testids come verbatim from the oracle (scout inventory on Wallow-vec7.3):
  * `consent-error`, `consent-heading`, `consent-scopes`, `consent-approve`,
@@ -39,8 +55,8 @@ import { useReturnUrlGuard } from "@shared/hooks/use-return-url-guard";
  * reverse proxy mounting `/connect/**` and `/v1/**` at the ROOT — the same fact
  * behind the facade's `baseUrl: '/'` (bd memory
  * `wallow-auth-same-origin-baseurl-apps-wallow-auth`). This origin DOES host
- * `/connect/authorize`, so the submit URL is same-origin and the origin argument
- * is `""`.
+ * `/connect/authorize`, so the form's action is same-origin and the origin
+ * argument is `""`.
  *
  * This is a security decision, not a style one. Prepending an API origin would
  * (a) send the browser cross-origin for a request the proxy exists to keep
@@ -49,15 +65,15 @@ import { useReturnUrlGuard } from "@shared/hooks/use-return-url-guard";
  * API URL, `WALLOW_API_INTERNAL_URL`, is a SERVER-side internal address
  * (`http://wallow-api` under Aspire) that the browser cannot resolve at all.
  *
- * `buildConsentSubmitUrl` (Wallow-vec7.2.2) owns the rest of `AppendToReturnUrl`
- * — the `ReturnUrl ?? "/"` fallback, the `Contains('?')` separator, and the
- * `consent_granted` / `consent_denied` parameter — under 67 tests of its own.
+ * `buildConsentSubmission` owns the rest — the `ReturnUrl ?? "/"` fallback and
+ * the split of the returnUrl into an action and its fields — under tests of its
+ * own.
  *
  * ── THE OPEN-REDIRECT GUARD (this bead's criterion; NOT in the oracle) ────────
  *
  * The oracle applies NO guard here: it appends and navigates. The guard is the
- * gap this bead closes, and `buildConsentSubmitUrl` enforces it by THROWING on a
- * present-but-unsafe returnUrl rather than sanitizing (bd memory
+ * gap this bead closes, and `buildConsentSubmission` enforces it by THROWING on
+ * a present-but-unsafe returnUrl rather than sanitizing (bd memory
  * `returnurl-guard-refuse-dont-sanitize`).
  *
  * The screen refuses EARLY — on mount, before rendering a prompt and before
@@ -106,7 +122,7 @@ import { useReturnUrlGuard } from "@shared/hooks/use-return-url-guard";
 const LOAD_FAILURE_MESSAGE = "Unable to load consent information. Please try again.";
 
 /**
- * The same-origin base the consent submit URL is built against: this app. See the
+ * The same-origin base the consent form's action is built against: this app. See the
  * origin divergence note above — named rather than inlined so the empty default
  * reads as a decision rather than a forgotten argument. It carries the base path
  * because under a based build the passthrough answers under that prefix, not at
@@ -180,48 +196,63 @@ function ScopeList({ scopes }: { readonly scopes: readonly RequestedScope[] }) {
 }
 
 /**
- * The oracle's two `BbButton`s. Deny is not optional: a consent screen with only
- * an approve path is not a consent screen, and the denial has to be DELIVERED to
- * the authorize endpoint rather than leaving the relying party's request hanging.
+ * The oracle's two `BbButton`s, as the submit buttons of the form that delivers
+ * the answer. Deny is not optional: a consent screen with only an approve path
+ * is not a consent screen, and the denial has to be DELIVERED to the authorize
+ * endpoint rather than leaving the relying party's request hanging.
+ *
+ * Which answer was given is the submitter's own name and value — the browser
+ * appends exactly one of the two to the body — so the form carries no decision
+ * field of its own.
  */
-function ConsentActions(props: { readonly onApprove: () => void; readonly onDeny: () => void }) {
-  const { onApprove, onDeny } = props;
+function ConsentForm(props: { readonly submission: ConsentSubmission }) {
+  const { submission } = props;
 
   return (
-    <div className="space-y-2">
-      <Button type="button" data-testid="consent-approve" onClick={onApprove}>
+    <form method="post" action={submission.action} className="space-y-2">
+      {submission.fields.map(([name, value]: readonly [string, string], index: number) => (
+        // Indexed on purpose: a parameter may repeat with the same value, and
+        // the list is never reordered.
+        // oxlint-disable-next-line react/no-array-index-key
+        <input key={`${index}:${name}`} type="hidden" name={name} value={value} />
+      ))}
+      <Button
+        type="submit"
+        name={CONSENT_DECISION_FIELD}
+        value={CONSENT_GRANTED}
+        data-testid="consent-approve"
+      >
         Approve
       </Button>
       {/*
         `outline`, the variant F3.T1 added for exactly this: a deny that paints
         the same solid surface as approve gives the two answers equal weight.
       */}
-      <Button type="button" variant="outline" data-testid="consent-deny" onClick={onDeny}>
+      <Button
+        type="submit"
+        variant="outline"
+        name={CONSENT_DECISION_FIELD}
+        value={CONSENT_DENIED}
+        data-testid="consent-deny"
+      >
         Deny
       </Button>
-    </div>
+    </form>
   );
 }
 
 /** The oracle's `else` branch: who is asking, for what, and the two answers. */
 function ConsentPromptState(props: {
   readonly info: ConsentPrompt;
-  readonly onSubmit: (granted: boolean) => void;
+  readonly submission: ConsentSubmission;
 }) {
-  const { info, onSubmit } = props;
+  const { info, submission } = props;
 
   return (
     <div className="space-y-4">
       <ConsentHeading info={info} />
       <ScopeList scopes={info.requestedScopes} />
-      <ConsentActions
-        onApprove={() => {
-          onSubmit(true);
-        }}
-        onDeny={() => {
-          onSubmit(false);
-        }}
-      />
+      <ConsentForm submission={submission} />
     </div>
   );
 }
@@ -245,11 +276,12 @@ function ConsentState(props: {
   readonly info: ConsentPrompt | null;
   readonly isPending: boolean;
   readonly isError: boolean;
-  readonly onSubmit: (granted: boolean) => void;
+  /** `null` exactly when the returnUrl is unsafe: there is no form to build for it. */
+  readonly submission: ConsentSubmission | null;
 }) {
-  const { clientIsKnown, returnUrlIsUnsafe, info, isPending, isError, onSubmit } = props;
+  const { clientIsKnown, returnUrlIsUnsafe, info, isPending, isError, submission } = props;
 
-  if (returnUrlIsUnsafe) {
+  if (returnUrlIsUnsafe || submission === null) {
     return null;
   }
 
@@ -268,7 +300,7 @@ function ConsentState(props: {
     return <ErrorState />;
   }
 
-  return <ConsentPromptState info={info} onSubmit={onSubmit} />;
+  return <ConsentPromptState info={info} submission={submission} />;
 }
 
 export interface ConsentScreenProps {
@@ -282,9 +314,21 @@ export interface ConsentScreenProps {
    * when the link omits it.
    */
   readonly scope?: string;
+  /**
+   * The `consent_token` query parameter — the single-use token the authorize
+   * endpoint minted for this request, posted back with the answer. `undefined`
+   * when the link omits it; the endpoint then refuses the answer and asks again
+   * with a fresh one.
+   */
+  readonly consentToken?: string;
 }
 
-export function ConsentScreen({ clientId, returnUrl, scope }: ConsentScreenProps): ReactNode {
+export function ConsentScreen({
+  clientId,
+  returnUrl,
+  scope,
+  consentToken,
+}: ConsentScreenProps): ReactNode {
   const { sdk } = useRouteContext({ from: "__root__" });
 
   // Split on whitespace, dropping empty segments: repeated or trailing spaces in
@@ -317,11 +361,15 @@ export function ConsentScreen({ clientId, returnUrl, scope }: ConsentScreenProps
     enabled: clientIsKnown && !returnUrlIsUnsafe,
   });
 
-  const submitConsent = (granted: boolean): void => {
-    // A FULL navigation, not `navigate()`: `/connect/authorize` is served by the
-    // passthrough reverse proxy, not by the client-side route tree, which would 404 in-app.
-    globalThis.location.href = buildConsentSubmitUrl(SAME_ORIGIN_BASE, returnUrl, granted);
-  };
+  // A FULL-PAGE form post, not `navigate()`: `/connect/authorize` is served by
+  // the passthrough reverse proxy, not by the client-side route tree, which
+  // would 404 in-app. Built only for a returnUrl the guard let through — the
+  // builder throws on the ones it refuses, and the screen is already leaving.
+  const submission: ConsentSubmission | null = useMemo(
+    () =>
+      returnUrlIsUnsafe ? null : buildConsentSubmission(SAME_ORIGIN_BASE, returnUrl, consentToken),
+    [returnUrlIsUnsafe, returnUrl, consentToken],
+  );
 
   return (
     <Card>
@@ -331,7 +379,7 @@ export function ConsentScreen({ clientId, returnUrl, scope }: ConsentScreenProps
         info={query.data ?? null}
         isPending={query.isPending}
         isError={query.isError}
-        onSubmit={submitConsent}
+        submission={submission}
       />
     </Card>
   );

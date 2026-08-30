@@ -7,7 +7,7 @@
  *
  * ORACLE MAP (api/src/Wallow.Auth/...):
  *   isSafeReturnUrl        <- Helpers/ReturnUrlValidator.cs IsSafe
- *   buildConsentSubmitUrl  <- Components/Pages/Consent.razor AppendToReturnUrl (L70-80)
+ *   buildConsentSubmission <- the consent form: the authorize request as POST fields
  *   buildExchangeTicketUrl <- Components/Pages/Login.razor (L544-550)
  *   buildConnectLogoutUrl  <- Components/Pages/Logout.razor LogoutUrl (L66-77)
  *   buildConnectAuthorizeUrl -- no single call site; the API redirects TO the
@@ -30,7 +30,8 @@ import {
   allowListedReturnUrl,
   buildConnectAuthorizeUrl,
   buildConnectLogoutUrl,
-  buildConsentSubmitUrl,
+  buildConsentSubmission,
+  CONSENT_TOKEN_FIELD,
   buildExchangeTicketUrl,
   isSafeReturnUrl,
 } from "./auth-oidc";
@@ -194,29 +195,57 @@ describe("buildConnectAuthorizeUrl", () => {
   });
 });
 
-describe("buildConsentSubmitUrl", () => {
-  it("appends consent_granted=true and prepends the origin when granted", () => {
-    expect(buildConsentSubmitUrl(ORIGIN, "/connect/authorize", true)).toBe(
-      `${ORIGIN}/connect/authorize?consent_granted=true`,
-    );
-  });
+describe("buildConsentSubmission", () => {
+  const TOKEN = "tok.en";
 
-  it("appends consent_denied=true when denied", () => {
-    expect(buildConsentSubmitUrl(ORIGIN, "/connect/authorize", false)).toBe(
-      `${ORIGIN}/connect/authorize?consent_denied=true`,
-    );
-  });
-
-  it("joins with '&' when the returnUrl already carries a query string", () => {
+  it("posts to the returnUrl's path on the origin, carrying its query as fields", () => {
     expect(
-      buildConsentSubmitUrl(ORIGIN, "/connect/authorize?client_id=web&scope=openid", true),
-    ).toBe(`${ORIGIN}/connect/authorize?client_id=web&scope=openid&consent_granted=true`);
+      buildConsentSubmission(
+        ORIGIN,
+        "/connect/authorize?client_id=web&scope=openid+profile",
+        TOKEN,
+      ),
+    ).toEqual({
+      action: `${ORIGIN}/connect/authorize`,
+      fields: [
+        ["client_id", "web"],
+        ["scope", "openid profile"],
+        [CONSENT_TOKEN_FIELD, TOKEN],
+      ],
+    });
   });
 
-  it("joins with '&' when the returnUrl ends in a bare '?'", () => {
-    // Contains('?') is true, so the C# oracle picks '&' here too.
-    expect(buildConsentSubmitUrl(ORIGIN, "/connect/authorize?", true)).toBe(
-      `${ORIGIN}/connect/authorize?&consent_granted=true`,
+  it("keeps a repeated parameter as repeated fields", () => {
+    // OAuth lets `resource` repeat; collapsing it into a record would drop one.
+    const { fields } = buildConsentSubmission(
+      ORIGIN,
+      "/connect/authorize?resource=a&resource=b",
+      TOKEN,
+    );
+
+    expect(fields).toEqual([
+      ["resource", "a"],
+      ["resource", "b"],
+      [CONSENT_TOKEN_FIELD, TOKEN],
+    ]);
+  });
+
+  it("carries only the token when the returnUrl has no query string", () => {
+    expect(buildConsentSubmission(ORIGIN, "/connect/authorize", TOKEN)).toEqual({
+      action: `${ORIGIN}/connect/authorize`,
+      fields: [[CONSENT_TOKEN_FIELD, TOKEN]],
+    });
+  });
+
+  it("omits the token field when the link carried no token", () => {
+    // The endpoint refuses the decision and re-issues one; the form must not
+    // invent a value that reads as a forged token.
+    expect(buildConsentSubmission(ORIGIN, "/connect/authorize", undefined).fields).toEqual([]);
+  });
+
+  it("does not double the slash when the origin carries a trailing one", () => {
+    expect(buildConsentSubmission(`${ORIGIN}/`, "/connect/authorize", TOKEN).action).toBe(
+      `${ORIGIN}/connect/authorize`,
     );
   });
 
@@ -226,22 +255,19 @@ describe("buildConsentSubmitUrl", () => {
   ])(
     "falls back to the root path when returnUrl is %s",
     (_l: string, returnUrl?: string | null) => {
-      // Mirrors the oracle's `string baseUrl = ReturnUrl ?? "/"`.
-      expect(buildConsentSubmitUrl(ORIGIN, returnUrl, true)).toBe(
-        `${ORIGIN}/?consent_granted=true`,
-      );
+      expect(buildConsentSubmission(ORIGIN, returnUrl, TOKEN).action).toBe(`${ORIGIN}/`);
     },
   );
 
   it.each(UNSAFE_RETURN_URLS)(
-    "throws rather than build a URL from %s",
+    "throws rather than build a form from %s",
     (_l: string, url: string) => {
-      expect(() => buildConsentSubmitUrl(ORIGIN, url, true)).toThrow(/unsafe return url/i);
+      expect(() => buildConsentSubmission(ORIGIN, url, TOKEN)).toThrow(/unsafe return url/i);
     },
   );
 
-  it("names the rejected value in the thrown message", () => {
-    expect(() => buildConsentSubmitUrl(ORIGIN, "//evil.com", true)).toThrow(/\/\/evil\.com/u);
+  it("names the rejected returnUrl in the error", () => {
+    expect(() => buildConsentSubmission(ORIGIN, "//evil.com", TOKEN)).toThrow(/\/\/evil\.com/u);
   });
 });
 

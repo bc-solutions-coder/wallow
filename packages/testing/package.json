@@ -63,6 +63,10 @@
       "types": "./src/navigation-escape.ts",
       "import": "./src/navigation-escape.ts"
     },
+    "./form-submission": {
+      "types": "./src/form-submission.ts",
+      "import": "./src/form-submission.ts"
+    },
     "./router-stub": {
       "types": "./src/router-stub.ts",
       "import": "./src/router-stub.ts"
@@ -133,6 +137,10 @@
       "./navigation-escape": {
         "types": "./dist/navigation-escape.d.ts",
         "import": "./dist/navigation-escape.js"
+      },
+      "./form-submission": {
+        "types": "./dist/form-submission.d.ts",
+        "import": "./dist/form-submission.js"
       },
       "./router-stub": {
         "types": "./dist/router-stub.d.ts",

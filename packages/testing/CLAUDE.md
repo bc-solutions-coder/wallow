@@ -15,7 +15,8 @@ config in the workspace. Where an entry may be imported is the contract:
 - **Browser-mode specs only**: `./render` and `./render-with-wallow` (`vitest-browser-react`
   evaluates `vitest/browser` at import and throws outside browser mode — keep it off the
   barrel), `./contrast`, `./locators` (the one way a spec reaches an element),
-  `./catalog-select`, `./theme-wiring`, `./browser-mode-smoke`.
+  `./catalog-select`, `./theme-wiring`, `./browser-mode-smoke`, `./form-submission` (captures and
+  cancels a native form POST so a spec can read the body a full-page submit would carry).
 - **A browser project's SETUP file** — the guard trio: `./navigation-escape`,
   `./console-guard` (wraps, never replaces, `console.error`/`warn` so React noise fails the
   test that produced it), `./network-escape` (unowned `fetch` answered with a 503 naming the

@@ -17,6 +17,7 @@
     "src/browser-styles-wiring.ts",
     "src/theme-wiring.tsx",
     "src/navigation-escape.ts",
+    "src/form-submission.ts",
     "src/router-stub.ts",
     "src/console-guard.ts",
     "src/network-escape.ts",

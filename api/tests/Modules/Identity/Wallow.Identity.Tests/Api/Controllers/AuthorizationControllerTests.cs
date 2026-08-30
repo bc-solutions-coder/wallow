@@ -11,6 +11,7 @@ using Microsoft.Extensions.Primitives;
 using OpenIddict.Abstractions;
 using OpenIddict.Server;
 using OpenIddict.Server.AspNetCore;
+using static OpenIddict.Abstractions.OpenIddictConstants;
 using Wallow.Identity.Api.Controllers;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
@@ -40,7 +41,11 @@ public sealed class AuthorizationControllerTests : IDisposable
     private readonly IMembershipRoleResolver _membershipRoleResolver;
     private readonly ISsoClientSessionService _ssoClientSessionService;
     private readonly IAuthenticationService _authenticationService;
+    private readonly IConsentTokenService _consentTokens;
     private readonly AuthorizationController _controller;
+
+    /// <summary>The token the consent tests post back; what it redeems as is per test.</summary>
+    private const string ConsentToken = "consent-token";
 
     public AuthorizationControllerTests()
     {
@@ -59,6 +64,14 @@ public sealed class AuthorizationControllerTests : IDisposable
         _ssoClientSessionService = Substitute.For<ISsoClientSessionService>();
         _authenticationService = Substitute.For<IAuthenticationService>();
 
+        // Minting is opaque here; redemption defaults to the happy path and a test that is about
+        // a refused token overrides it.
+        _consentTokens = Substitute.For<IConsentTokenService>();
+        _consentTokens.Issue(Arg.Any<string>(), Arg.Any<string>()).Returns(ConsentToken);
+        _consentTokens
+            .RedeemAsync(Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(ConsentTokenOutcome.Redeemed);
+
         // These tests are about consent, not scope gating: let every requested scope through.
         _scopeSubsetValidator = Substitute.For<IScopeSubsetValidator>();
         _scopeSubsetValidator
@@ -75,6 +88,7 @@ public sealed class AuthorizationControllerTests : IDisposable
             _enrollment,
             _membershipRoleResolver,
             _ssoClientSessionService,
+            _consentTokens,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<AuthorizationController>.Instance);
     }
 
@@ -85,7 +99,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     }
 
     private void SetupAuthenticatedHttpContext(
-        OpenIddictRequest request, string? queryString = null, string? existingSid = null)
+        OpenIddictRequest request, string? queryString = null, string? existingSid = null, string method = "GET")
     {
         List<Claim> claims = [new Claim(ClaimTypes.NameIdentifier, _testUserId)];
         if (existingSid is not null)
@@ -101,6 +115,7 @@ public sealed class AuthorizationControllerTests : IDisposable
         OpenIddictServerTransaction transaction = new() { Request = request };
         httpContext.Features.Set(new OpenIddictServerAspNetCoreFeature { Transaction = transaction });
 
+        httpContext.Request.Method = method;
         httpContext.Request.Path = "/connect/authorize";
         httpContext.Request.QueryString = new QueryString(queryString ?? "?client_id=" + (request.ClientId ?? ThirdPartyClientId));
 
@@ -186,19 +201,33 @@ public sealed class AuthorizationControllerTests : IDisposable
             .Returns<IReadOnlyList<string>>(["user"]);
     }
 
-    #region Consent Denied
+    #region Consent Decisions
+
+    /// <summary>A third-party authorize request answering the consent screen.</summary>
+    private static OpenIddictRequest ConsentDecision(string decision, string? token = ConsentToken)
+    {
+        OpenIddictRequest request = new()
+        {
+            ClientId = ThirdPartyClientId,
+            Scope = "openid profile",
+            [AuthorizationController.ConsentDecisionParameter] = decision
+        };
+
+        if (token is not null)
+        {
+            request[AuthorizationController.ConsentTokenParameter] = token;
+        }
+
+        return request;
+    }
 
     [Fact]
     public async Task Authorize_WithConsentDenied_ThirdPartyClient_ReturnsForbidWithConsentRequired()
     {
         // Arrange
-        OpenIddictRequest request = new()
-        {
-            ClientId = ThirdPartyClientId,
-            ["consent_denied"] = "true"
-        };
+        OpenIddictRequest request = ConsentDecision(AuthorizationController.ConsentDenied);
 
-        SetupAuthenticatedHttpContext(request);
+        SetupAuthenticatedHttpContext(request, method: "POST");
         SetupUser();
         SetupApplication(ThirdPartyClientId);
         SetupNoExistingAuthorizations();
@@ -207,28 +236,20 @@ public sealed class AuthorizationControllerTests : IDisposable
         // Act
         IActionResult result = await _controller.Authorize();
 
-        // Assert - the controller should return a Forbid result with consent_required error
-        // Currently the controller does NOT handle consent_denied, so this test will fail
+        // Assert - a denial is delivered to the relying party as consent_required
         ForbidResult forbidResult = result.Should().BeOfType<ForbidResult>().Subject;
         forbidResult.AuthenticationSchemes.Should().Contain(OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+        forbidResult.Properties!.Items[OpenIddictServerAspNetCoreConstants.Properties.Error]
+            .Should().Be(Errors.ConsentRequired);
     }
-
-    #endregion
-
-    #region Consent Granted - No Existing Authorization
 
     [Fact]
     public async Task Authorize_WithConsentGranted_NoExistingAuthorization_CreatesAuthorizationAndReturnsSignIn()
     {
         // Arrange
-        OpenIddictRequest request = new()
-        {
-            ClientId = ThirdPartyClientId,
-            Scope = "openid profile",
-            ["consent_granted"] = "true"
-        };
+        OpenIddictRequest request = ConsentDecision(AuthorizationController.ConsentGranted);
 
-        SetupAuthenticatedHttpContext(request);
+        SetupAuthenticatedHttpContext(request, method: "POST");
         SetupUser();
         SetupApplication(ThirdPartyClientId);
         SetupNoExistingAuthorizations();
@@ -237,31 +258,19 @@ public sealed class AuthorizationControllerTests : IDisposable
         // Act
         IActionResult result = await _controller.Authorize();
 
-        // Assert - with consent_granted and no valid authorization, the handler should
-        // create a new authorization and return a SignInResult.
-        // Currently the controller redirects to consent screen when no valid authorization exists,
-        // regardless of consent_granted parameter. This test will fail.
+        // Assert - the grant is recorded once and the code issued
         result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>();
         await _authorizationManager.Received(1).CreateAsync(
             Arg.Any<OpenIddictAuthorizationDescriptor>(), Arg.Any<CancellationToken>());
     }
 
-    #endregion
-
-    #region Consent Granted - Existing Valid Authorization
-
     [Fact]
     public async Task Authorize_WithConsentGranted_ExistingValidAuthorization_DoesNotCreateDuplicateAuthorization()
     {
         // Arrange
-        OpenIddictRequest request = new()
-        {
-            ClientId = ThirdPartyClientId,
-            Scope = "openid profile",
-            ["consent_granted"] = "true"
-        };
+        OpenIddictRequest request = ConsentDecision(AuthorizationController.ConsentGranted);
 
-        SetupAuthenticatedHttpContext(request);
+        SetupAuthenticatedHttpContext(request, method: "POST");
         SetupUser();
         SetupApplication(ThirdPartyClientId);
         SetupExistingValidAuthorization(ApplicationId, ["openid", "profile"]);
@@ -270,15 +279,93 @@ public sealed class AuthorizationControllerTests : IDisposable
         // Act
         IActionResult result = await _controller.Authorize();
 
-        // Assert - when there is already a valid authorization covering the requested scopes,
-        // consent_granted should not create a duplicate. The controller currently always creates
-        // a new authorization for third-party clients after the consent check. This test verifies
-        // the duplicate-prevention path when consent_granted=true and hasValidAuthorization=true.
+        // Assert - a valid authorization already covers the scopes, so none is added
         result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>();
-
-        // Should NOT call CreateAsync because a valid authorization already exists
         await _authorizationManager.DidNotReceive().CreateAsync(
             Arg.Any<OpenIddictAuthorizationDescriptor>(), Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData("granted")]
+    [InlineData("denied")]
+    public async Task Authorize_WithAConsentDecisionOnTheGet_IgnoresItAndShowsTheConsentScreen(string decision)
+    {
+        // Arrange - a decision smuggled onto a link. The token is even "valid" here, so the GET
+        // being refused is down to the method alone.
+        OpenIddictRequest request = ConsentDecision(decision);
+
+        SetupAuthenticatedHttpContext(request);
+        SetupUser();
+        SetupApplication(ThirdPartyClientId);
+        SetupNoExistingAuthorizations();
+        SetupClientTenantResolver(ThirdPartyClientId);
+
+        // Act
+        IActionResult result = await _controller.Authorize();
+
+        // Assert - neither recorded nor delivered: the screen is shown
+        result.Should().BeOfType<RedirectResult>()
+            .Which.Url.Should().StartWith("https://auth.example.com/consent?");
+        await _authorizationManager.DidNotReceive().CreateAsync(
+            Arg.Any<OpenIddictAuthorizationDescriptor>(), Arg.Any<CancellationToken>());
+        await _consentTokens.DidNotReceive().RedeemAsync(
+            Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData(ConsentTokenOutcome.Missing)]
+    [InlineData(ConsentTokenOutcome.Invalid)]
+    [InlineData(ConsentTokenOutcome.Mismatched)]
+    [InlineData(ConsentTokenOutcome.Replayed)]
+    public async Task Authorize_WithAConsentDecisionWhoseTokenIsRefused_ShowsTheConsentScreenAgain(
+        ConsentTokenOutcome outcome)
+    {
+        // Arrange
+        OpenIddictRequest request = ConsentDecision(AuthorizationController.ConsentGranted);
+        _consentTokens
+            .RedeemAsync(Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(outcome);
+
+        SetupAuthenticatedHttpContext(request, method: "POST");
+        SetupUser();
+        SetupApplication(ThirdPartyClientId);
+        SetupNoExistingAuthorizations();
+        SetupClientTenantResolver(ThirdPartyClientId);
+
+        // Act
+        IActionResult result = await _controller.Authorize();
+
+        // Assert - a fresh token, nothing granted
+        RedirectResult redirect = result.Should().BeOfType<RedirectResult>().Subject;
+        Dictionary<string, StringValues> query = QueryHelpers.ParseQuery(new Uri(redirect.Url).Query);
+        query[AuthorizationController.ConsentTokenParameter].ToString().Should().Be(ConsentToken);
+        await _authorizationManager.DidNotReceive().CreateAsync(
+            Arg.Any<OpenIddictAuthorizationDescriptor>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Authorize_WithAConsentDecision_RedeemsTheTokenForTheSignedInUserAndTheRequest()
+    {
+        // Arrange - the binding the token exists for: the redemption names the user who is
+        // answering and digests the request being answered, and the digest excludes the decision
+        // itself so it matches the one the token was minted against.
+        OpenIddictRequest shown = new() { ClientId = ThirdPartyClientId, Scope = "openid profile" };
+        SetupAuthenticatedHttpContext(shown);
+        SetupUser();
+        SetupApplication(ThirdPartyClientId);
+        SetupNoExistingAuthorizations();
+        SetupClientTenantResolver(ThirdPartyClientId);
+        await _controller.Authorize();
+        string mintedFor = (string)_consentTokens.ReceivedCalls().Single().GetArguments()[1]!;
+
+        OpenIddictRequest answered = ConsentDecision(AuthorizationController.ConsentGranted);
+        SetupAuthenticatedHttpContext(answered, method: "POST");
+
+        // Act
+        await _controller.Authorize();
+
+        // Assert
+        await _consentTokens.Received(1).RedeemAsync(ConsentToken, _testUserId, mintedFor, Arg.Any<CancellationToken>());
     }
 
     #endregion
@@ -293,7 +380,8 @@ public sealed class AuthorizationControllerTests : IDisposable
         {
             ClientId = FirstPartyClientId,
             Scope = "openid profile",
-            ["consent_granted"] = "true"
+            [AuthorizationController.ConsentDecisionParameter] = AuthorizationController.ConsentGranted,
+            [AuthorizationController.ConsentTokenParameter] = ConsentToken
         };
 
         SetupAuthenticatedHttpContext(request);
@@ -355,22 +443,27 @@ public sealed class AuthorizationControllerTests : IDisposable
         query.Should().ContainKey("scope");
         query["scope"].ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries)
             .Should().BeEquivalentTo("openid", "profile");
+
+        // The token the decision has to come back with, minted for this user.
+        query[AuthorizationController.ConsentTokenParameter].ToString().Should().Be(ConsentToken);
+        _consentTokens.Received(1).Issue(_testUserId, Arg.Any<string>());
     }
 
     [Fact]
     public async Task Authorize_ThirdPartyClient_NoExistingAuthorization_KeepsReturnUrlAndClientIdOnTheConsentRedirect()
     {
-        // Arrange - a regression guard, green before and after: the two parameters
-        // the consent screen already relies on must survive the addition of the
-        // scope parameter. The returnUrl is the authorize request verbatim, so its
-        // own escaping is carried through untouched.
+        // Arrange - the two parameters the consent screen relies on. The returnUrl is rebuilt
+        // from the authorize request's own parameters, not read off the URL: a decision that
+        // arrives by POST carries them in its body, and a link may carry a decision that must
+        // not come back.
         OpenIddictRequest request = new()
         {
             ClientId = ThirdPartyClientId,
-            Scope = "openid profile"
+            Scope = "openid profile",
+            ["consent_granted"] = "true"
         };
 
-        SetupAuthenticatedHttpContext(request, "?client_id=" + ThirdPartyClientId + "&scope=openid%20profile");
+        SetupAuthenticatedHttpContext(request, "?client_id=" + ThirdPartyClientId + "&scope=openid%20profile&consent_granted=true");
         SetupUser();
         SetupApplication(ThirdPartyClientId);
         SetupNoExistingAuthorizations();

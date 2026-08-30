@@ -91,40 +91,70 @@ export function buildConnectAuthorizeUrl(origin: string, params: Record<string, 
   return query === "" ? url : `${url}?${query}`;
 }
 
+/** The form field carrying the single-use token the consent screen was issued. */
+export const CONSENT_TOKEN_FIELD = "consent_token";
+
+/** The form field carrying the user's answer: {@link CONSENT_GRANTED} or {@link CONSENT_DENIED}. */
+export const CONSENT_DECISION_FIELD = "consent_decision";
+
+/** The {@link CONSENT_DECISION_FIELD} value that approves the request. */
+export const CONSENT_GRANTED = "granted";
+
+/** The {@link CONSENT_DECISION_FIELD} value that refuses it. */
+export const CONSENT_DENIED = "denied";
+
+/** A consent decision as the form that delivers it: where it posts and what it carries. */
+export interface ConsentSubmission {
+  /** The absolute URL the form posts to — the authorize endpoint on `origin`. */
+  readonly action: string;
+  /**
+   * The hidden fields, in order: the authorize request's own parameters (a
+   * repeated one stays repeated) followed by the consent token. The decision is
+   * not among them — it is the submit button's own name and value.
+   */
+  readonly fields: readonly (readonly [name: string, value: string])[];
+}
+
 /**
- * Builds the navigation target for a consent decision, appending
- * `consent_granted=true` or `consent_denied=true` to `returnUrl`.
+ * Builds the form a consent decision is delivered with.
  *
- * Ports `Consent.razor`'s `AppendToReturnUrl` (L70-80): pick the separator from
- * whether `returnUrl` already contains a '?', then prepend `origin` because the
- * returnUrl is a relative path issued by the API's `/connect/authorize` and the
- * Auth app's own origin does not host it.
+ * The decision is a POST, not a link: the authorize endpoint honours a decision
+ * only when it arrives in a request body together with the single-use token it
+ * issued, so the authorize request's query string is carried as form fields
+ * rather than left in the URL.
  *
  * @param origin Origin hosting `/connect/authorize`; a trailing '/' is ignored.
  * @param returnUrl Relative return URL from the authorize request. Nullish
- *   falls back to '/' (the oracle's `ReturnUrl ?? "/"`).
- * @param granted Whether the user approved the consent request.
+ *   falls back to '/'.
+ * @param consentToken The token the consent redirect carried; `undefined` when
+ *   the link omitted it, in which case no token field is emitted.
  * @throws TypeError If `returnUrl` is present but fails {@link isSafeReturnUrl}.
- *   Per `Login.razor` L533-540 an unsafe returnUrl is refused, not sanitized.
+ *   An unsafe returnUrl is refused, not sanitized.
  */
-export function buildConsentSubmitUrl(
+export function buildConsentSubmission(
   origin: string,
   returnUrl: string | null | undefined,
-  granted: boolean,
-): string {
-  // `ReturnUrl ?? "/"`: only nullish falls back. A PRESENT value -- including
-  // the empty string -- is a caller-supplied return URL and must clear the guard.
-  let baseUrl: string = "/";
+  consentToken: string | undefined,
+): ConsentSubmission {
+  // Only nullish falls back. A PRESENT value -- including the empty string --
+  // is a caller-supplied return URL and must clear the guard.
+  let target: string = "/";
   if (returnUrl !== null && returnUrl !== undefined) {
     assertSafeReturnUrl(returnUrl);
-    baseUrl = returnUrl;
+    target = returnUrl;
   }
 
-  // Contains('?')-based, so a bare-'?' returnUrl joins with '&' too.
-  const separator: string = baseUrl.includes("?") ? "&" : "?";
-  const parameter: string = granted ? "consent_granted=true" : "consent_denied=true";
+  // Split at the first '?': everything before is the path the form posts to,
+  // everything after is the request the fields carry.
+  const [path, ...rest]: string[] = target.split("?");
+  const query: string = rest.join("?");
 
-  return `${normalizeOrigin(origin)}${baseUrl}${separator}${parameter}`;
+  const fields: (readonly [string, string])[] = [...new URLSearchParams(query)];
+  if (consentToken !== undefined) {
+    fields.push([CONSENT_TOKEN_FIELD, consentToken]);
+  }
+
+  return { action: `${normalizeOrigin(origin)}${path}`, fields };
 }
 
 /**
