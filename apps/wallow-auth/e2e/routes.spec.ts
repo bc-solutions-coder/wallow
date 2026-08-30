@@ -49,6 +49,22 @@ for (const route of routes) {
 }
 
 /**
+ * The screens a user answers on refuse to be framed: a consent form under a
+ * decoy button would approve a client the user never saw. Both the standard
+ * directive and the legacy header, on every route this host serves.
+ */
+for (const route of ["/consent", "/login", UNMATCHED_ROUTE]) {
+  test(`refuses framing on ${route}`, async ({ page }) => {
+    const response = await page.goto(route);
+    expect(response, `no response for ${route}`).not.toBeNull();
+
+    const headers = await response!.allHeaders();
+    expect(headers["x-frame-options"]).toBe("DENY");
+    expect(headers["content-security-policy"]).toContain("frame-ancestors 'none'");
+  });
+}
+
+/**
  * The other half of the reachability gate (Wallow-ffpq.2.7): the paths the app
  * does NOT serve must say so properly — a real 404 status carrying the app's own
  * not-found screen, not a 200, and not the framework's bare "Not Found" text.

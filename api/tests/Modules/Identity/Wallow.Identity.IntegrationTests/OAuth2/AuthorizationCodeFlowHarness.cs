@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Primitives;
 using OpenIddict.Abstractions;
+using Wallow.Identity.Api.Controllers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Infrastructure.Extensions;
@@ -19,7 +20,8 @@ namespace Wallow.Identity.IntegrationTests.OAuth2;
 
 /// <summary>
 /// Drives the browser half of the OIDC server: password sign-in, the authorize endpoint with
-/// PKCE, the code exchange and the refresh grant. The authorize endpoint reads the ASP.NET
+/// PKCE, the consent POST an explicit-consent client is walked through, the code exchange and the
+/// refresh grant. The authorize endpoint reads the ASP.NET
 /// Identity cookie and never a bearer token, so this holds its own cookie-bearing client on an
 /// https base address — the auth cookie is marked Secure outside development and a CookieContainer
 /// silently drops it over http. Access tokens are unencrypted JWTs here, so <see cref="ReadClaimValues"/>
@@ -32,9 +34,16 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
 
     /// <summary>
     /// Clients whose id starts with this skip the consent screen. A harness client that does not
-    /// is answered with a redirect to the auth app's consent route, which nothing here can drive.
+    /// is answered with a redirect to the auth app's consent route carrying a single-use consent
+    /// token, which <see cref="ConsentAsync"/> posts back the way the consent screen does.
     /// </summary>
     public const string FirstPartyClientPrefix = "wallow-";
+
+    /// <summary>The form field the consent screen posts its server-issued token under.</summary>
+    public const string ConsentTokenField = AuthorizationController.ConsentTokenParameter;
+
+    /// <summary>The form field carrying the user's answer: <c>granted</c> or <c>denied</c>.</summary>
+    public const string ConsentDecisionField = AuthorizationController.ConsentDecisionParameter;
 
     private readonly HttpClient _client;
 
@@ -98,7 +107,8 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
     public async Task<AuthorizeOutcome> AuthorizeAsync(
         string clientId,
         string scope,
-        string redirectUri = RedirectUri)
+        string redirectUri = RedirectUri,
+        string? extraQuery = null)
     {
         string verifier = Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
         string challenge = Base64UrlEncode(SHA256.HashData(Encoding.ASCII.GetBytes(verifier)));
@@ -113,12 +123,71 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
             "code_challenge_method=S256",
             "state=harness");
 
+        if (!string.IsNullOrEmpty(extraQuery))
+        {
+            query += "&" + extraQuery;
+        }
+
         using HttpResponseMessage response = await _client.GetAsync(
             new Uri($"/connect/authorize?{query}", UriKind.Relative));
 
+        return await ReadAuthorizeOutcomeAsync(response, verifier);
+    }
+
+    /// <summary>
+    /// Answers the consent screen the authorize endpoint redirected to, the way the auth app's
+    /// consent form does: a form POST to the authorize endpoint carrying the original request's
+    /// parameters (read back off the redirect's <c>returnUrl</c>), the consent token and the
+    /// decision. <paramref name="consentToken"/> is the token to post: null posts the one the
+    /// redirect issued, and the empty string posts none at all.
+    /// </summary>
+    public async Task<AuthorizeOutcome> ConsentAsync(
+        AuthorizeOutcome consentRedirect,
+        bool grant,
+        string? consentToken = null)
+    {
+        ArgumentNullException.ThrowIfNull(consentRedirect);
+
+        if (consentRedirect.ReturnUrl is null)
+        {
+            throw new InvalidOperationException(
+                $"The authorize endpoint did not redirect to the consent screen: {consentRedirect.Location}");
+        }
+
+        Dictionary<string, string> form = new(StringComparer.Ordinal);
+        int separator = consentRedirect.ReturnUrl.IndexOf('?', StringComparison.Ordinal);
+        string path = separator >= 0 ? consentRedirect.ReturnUrl[..separator] : consentRedirect.ReturnUrl;
+        if (separator >= 0)
+        {
+            foreach ((string key, StringValues values) in QueryHelpers.ParseQuery(consentRedirect.ReturnUrl[separator..]))
+            {
+                form[key] = values.ToString();
+            }
+        }
+
+        string token = consentToken ?? consentRedirect.ConsentToken ?? string.Empty;
+        if (token.Length > 0)
+        {
+            form[ConsentTokenField] = token;
+        }
+
+        form[ConsentDecisionField] = grant ? AuthorizationController.ConsentGranted : AuthorizationController.ConsentDenied;
+
+        using FormUrlEncodedContent content = new(form);
+        using HttpResponseMessage response = await _client.PostAsync(new Uri(path, UriKind.Relative), content);
+
+        return await ReadAuthorizeOutcomeAsync(response, consentRedirect.CodeVerifier);
+    }
+
+    private static async Task<AuthorizeOutcome> ReadAuthorizeOutcomeAsync(
+        HttpResponseMessage response,
+        string verifier)
+    {
         Uri? location = response.Headers.Location;
         string? code = null;
         string? error = null;
+        string? returnUrl = null;
+        string? consentToken = null;
 
         if (location is not null)
         {
@@ -133,6 +202,11 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
                 // A refusal from OpenIddict names 'error'; one the controller writes itself
                 // redirects to the auth app's error screen and names 'reason'.
                 error = Single(parsed, "error") ?? Single(parsed, "reason");
+
+                // A redirect to the consent screen carries the request to come back to and the
+                // token that lets the answer through.
+                returnUrl = Single(parsed, "returnUrl");
+                consentToken = Single(parsed, ConsentTokenField);
             }
         }
 
@@ -142,7 +216,9 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
             code,
             error,
             verifier,
-            await response.Content.ReadAsStringAsync());
+            await response.Content.ReadAsStringAsync(),
+            returnUrl,
+            consentToken);
     }
 
     /// <summary>Exchanges an authorization code for tokens.</summary>
@@ -210,7 +286,8 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
     /// Registers (or re-registers) a confidential client that can drive the authorization-code and
     /// refresh grants. The tenant property is what binds the client to an organization: a client
     /// carrying none resolves to the empty tenant, and the authorize endpoint then refuses every
-    /// user as a non-member.
+    /// user as a non-member. An id outside <see cref="FirstPartyClientPrefix"/> registers an
+    /// explicit-consent client the authorize endpoint sends through the consent screen.
     /// </summary>
     public static async Task RegisterClientAsync(
         IServiceProvider services,
@@ -224,12 +301,7 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(scopes);
 
-        if (!clientId.StartsWith(FirstPartyClientPrefix, StringComparison.Ordinal))
-        {
-            throw new ArgumentException(
-                $"A harness client id must start with '{FirstPartyClientPrefix}' to skip consent.",
-                nameof(clientId));
-        }
+        bool firstParty = clientId.StartsWith(FirstPartyClientPrefix, StringComparison.Ordinal);
 
         IOpenIddictApplicationManager applications =
             services.GetRequiredService<IOpenIddictApplicationManager>();
@@ -240,7 +312,9 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
             ClientSecret = clientSecret,
             DisplayName = clientId,
             ClientType = OpenIddictConstants.ClientTypes.Confidential,
-            ConsentType = OpenIddictConstants.ConsentTypes.Implicit,
+            ConsentType = firstParty
+                ? OpenIddictConstants.ConsentTypes.Implicit
+                : OpenIddictConstants.ConsentTypes.Explicit,
         };
 
         descriptor.RedirectUris.Add(new Uri(redirectUri));
@@ -392,14 +466,20 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
     }
 }
 
-/// <summary>What the authorize endpoint answered: a code, or the refusal it redirected to.</summary>
+/// <summary>
+/// What the authorize endpoint answered: a code, the refusal it redirected to, or the consent
+/// screen it sent the user to (<paramref name="ReturnUrl"/> and <paramref name="ConsentToken"/>
+/// are set only then).
+/// </summary>
 public sealed record AuthorizeOutcome(
     HttpStatusCode StatusCode,
     Uri? Location,
     string? Code,
     string? Error,
     string CodeVerifier,
-    string Body);
+    string Body,
+    string? ReturnUrl = null,
+    string? ConsentToken = null);
 
 /// <summary>What the token endpoint answered.</summary>
 public sealed record TokenOutcome(

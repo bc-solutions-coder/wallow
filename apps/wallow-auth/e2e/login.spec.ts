@@ -18,3 +18,16 @@ test("password login reaches an authenticated state", async ({ page }) => {
   await page.getByTestId("login-submit").click();
   await expect(page.getByTestId("login-signed-in")).toBeVisible({ timeout: 15_000 });
 });
+
+/**
+ * The proxied OpenIddict pages are auth-host pages too: a response that comes
+ * back through the `/connect/**` passthrough must refuse to be framed exactly
+ * like the app's own screens (routes.spec.ts covers those). Any status will do
+ * — the headers are stamped by the start middleware, not by the upstream.
+ */
+test("proxied /connect responses refuse to be framed", async ({ request }) => {
+  const response = await request.get("/connect/userinfo", { maxRedirects: 0 });
+  const headers = response.headers();
+  expect(headers["x-frame-options"]).toBe("DENY");
+  expect(headers["content-security-policy"]).toContain("frame-ancestors 'none'");
+});

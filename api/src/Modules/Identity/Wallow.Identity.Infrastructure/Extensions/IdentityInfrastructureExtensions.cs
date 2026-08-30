@@ -452,6 +452,7 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<ISessionService, SessionService>();
         services.AddScoped<ISsoClientSessionService, SsoClientSessionService>();
         services.AddScoped<IPasswordlessService, PasswordlessService>();
+        services.AddScoped<IConsentTokenService, ConsentTokenService>();
 
         services.AddSingleton<ServiceAccountUsageBuffer>();
         services.AddHostedService<ServiceAccountTrackingBackgroundService>();

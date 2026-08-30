@@ -64,6 +64,14 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
         _membershipRoleResolver = Substitute.For<IMembershipRoleResolver>();
         _ssoClientSessionService = Substitute.For<ISsoClientSessionService>();
 
+        // Consent tokens always redeem here: these tests are about what a granted consent
+        // records, not about whether the decision is allowed through.
+        IConsentTokenService consentTokens = Substitute.For<IConsentTokenService>();
+        consentTokens.Issue(Arg.Any<string>(), Arg.Any<string>()).Returns("consent-token");
+        consentTokens
+            .RedeemAsync(Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(ConsentTokenOutcome.Redeemed);
+
         // Default: the client is registered for whatever it asks for, so each test
         // exercises only the gate it is about.
         _scopeSubsetValidator = Substitute.For<IScopeSubsetValidator>();
@@ -81,6 +89,7 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
             _enrollment,
             _membershipRoleResolver,
             _ssoClientSessionService,
+            consentTokens,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<AuthorizationController>.Instance);
     }
 
@@ -246,7 +255,8 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
 
         if (consentGranted)
         {
-            request.SetParameter("consent_granted", "true");
+            request.SetParameter(AuthorizationController.ConsentDecisionParameter, AuthorizationController.ConsentGranted);
+            request.SetParameter(AuthorizationController.ConsentTokenParameter, "consent-token");
         }
 
         ClaimsPrincipal user = new(new ClaimsIdentity(
@@ -257,6 +267,8 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
         DefaultHttpContext httpContext = new() { User = user };
         OpenIddictServerTransaction transaction = new() { Request = request };
         httpContext.Features.Set(new OpenIddictServerAspNetCoreFeature { Transaction = transaction });
+        // A consent decision only counts when it is POSTed.
+        httpContext.Request.Method = consentGranted ? "POST" : "GET";
         httpContext.Request.Path = "/connect/authorize";
         httpContext.Request.QueryString = new QueryString("?client_id=" + clientId);
 

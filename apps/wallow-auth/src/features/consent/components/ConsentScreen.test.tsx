@@ -1,7 +1,8 @@
 import {
-  expectNavigationEscape,
-  navigationEscapes,
-} from "@bc-solutions-coder/testing/navigation-escape";
+  captureFormSubmission,
+  type CapturedFormSubmission,
+} from "@bc-solutions-coder/testing/form-submission";
+import { navigationEscapes } from "@bc-solutions-coder/testing/navigation-escape";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import {
   createPassthroughHarness,
@@ -20,9 +21,11 @@ import { ConsentScreen } from "./ConsentScreen";
  * the error state, and the `/consent` route's search parsing.
  *
  * Runs the real SDK over a faked fetch (sdk-harness), so assertions read the
- * recorded request, not a spy. The submit URL is same-origin: this app proxies
- * `/connect/**` at its own root, so an API-origin prepend would send the browser
- * cross-origin and drop the cookie the authorize endpoint needs.
+ * recorded request, not a spy. The decision is a native form POST, captured
+ * and cancelled by `captureFormSubmission` so the body can be read. Its action
+ * is same-origin: this app proxies `/connect/**` at its own root, so an
+ * API-origin prepend would send the browser cross-origin and drop the cookie
+ * the authorize endpoint needs.
  */
 
 // Only the ROUTER is stubbed — `useNavigate` is how the screen reports an
@@ -38,6 +41,7 @@ vi.mock("@tanstack/react-router", async (importOriginal) => ({
 
 const CLIENT_ID = "wallow-web";
 const RETURN_URL = "/connect/authorize?client_id=wallow-web&scope=openid";
+const CONSENT_TOKEN = "single-use-token";
 const ERROR_HREF = "/error?reason=invalid_redirect_uri";
 
 /**
@@ -59,12 +63,14 @@ const CONSENT_INFO_PATH = `${CONSENT_INFO_ROOT}/${CLIENT_ID}`;
 const NOT_FOUND = 404;
 const SERVER_ERROR = 500;
 
-/**
- * The URLs the two submit paths hand off to, as the real `buildConsentSubmitUrl`
- * composes them: `RETURN_URL` already carries a `?`, so the separator is `&`.
- */
-const GRANTED_TARGET = `${RETURN_URL}&consent_granted=true`;
-const DENIED_TARGET = `${RETURN_URL}&consent_denied=true`;
+/** Where the consent form posts: `RETURN_URL`'s path on this origin. */
+const AUTHORIZE_ACTION = `${globalThis.location.origin}/connect/authorize`;
+
+/** `RETURN_URL`'s query, as the hidden fields the form carries it in. */
+const RETURN_URL_FIELDS: readonly (readonly [string, string])[] = [
+  ["client_id", "wallow-web"],
+  ["scope", "openid"],
+];
 
 /**
  * Every recorded request to the consent-info endpoint, whatever the client id —
@@ -92,19 +98,21 @@ function requestedScopesParameter(): string | null {
   return new URL(call.url).searchParams.get("scopes");
 }
 
-/**
- * Wait for the hand-off the screen makes with `globalThis.location.href = …` —
- * vetoed and recorded by the project's navigation guard — and return it parsed.
- */
-async function awaitHandoff(): Promise<URL> {
-  const escape = await expectNavigationEscape();
+/** Click one of the two answers and return the submission the browser assembled. */
+async function answer(testId: "consent-approve" | "consent-deny"): Promise<CapturedFormSubmission> {
+  const user = userEvent.setup();
+  const submission: Promise<CapturedFormSubmission> = captureFormSubmission();
 
-  return new URL(escape.url);
+  await user.click(page.getByTestId(testId));
+
+  return submission;
 }
 
-/** That hand-off's path + query — the part `buildConsentSubmitUrl` composes. */
-function submitTarget(url: URL): string {
-  return `${url.pathname}${url.search}`;
+/** The value posted under `name`, or every value when it repeats. */
+function posted(submission: CapturedFormSubmission, name: string): string[] {
+  return submission.fields
+    .filter(([field]: readonly [string, string]) => field === name)
+    .map(([, value]: readonly [string, string]) => value);
 }
 
 /** A `ConsentInfoResponse`, as the generated type shapes it. */
@@ -328,119 +336,143 @@ describe("ConsentScreen — the consent prompt", () => {
 });
 
 describe("ConsentScreen — approve", () => {
-  it("navigates to the consent-granted URL the builder returns", async () => {
-    const user = userEvent.setup();
+  it("posts the decision to the authorize endpoint rather than following a link", async () => {
+    await renderWithClient(
+      <ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} consentToken={CONSENT_TOKEN} />,
+    );
 
-    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
-    await user.click(page.getByTestId("consent-approve"));
+    const submission: CapturedFormSubmission = await answer("consent-approve");
 
-    // A FULL navigation, not `router.navigate`: `/connect/authorize` is served
-    // by the passthrough reverse proxy, not by the client-side route tree — the
-    // router has no route for it and would 404 in-app.
-    const target: URL = await awaitHandoff();
-    expect(submitTarget(target)).toBe(GRANTED_TARGET);
+    // A full-page POST: `/connect/authorize` is served by the passthrough
+    // reverse proxy, not by the client-side route tree — and the endpoint
+    // honours a decision only from a request body.
+    expect(submission.method).toBe("post");
+    expect(submission.action).toBe(AUTHORIZE_ACTION);
+    expect(posted(submission, "consent_decision")).toEqual(["granted"]);
   });
 
-  it("builds the URL same-origin, granting consent", async () => {
-    const user = userEvent.setup();
+  it("posts same-origin", async () => {
+    await renderWithClient(
+      <ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} consentToken={CONSENT_TOKEN} />,
+    );
 
-    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
-    await user.click(page.getByTestId("consent-approve"));
+    const submission: CapturedFormSubmission = await answer("consent-approve");
 
-    // The same-origin hand-off, pinned explicitly: this app has no
-    // browser-reachable API origin to prepend even if it wanted one — the only
-    // API URL it knows is a server-side internal address.
-    const target: URL = await awaitHandoff();
-    expect(target.origin).toBe(globalThis.location.origin);
-    expect(submitTarget(target)).toBe(GRANTED_TARGET);
+    // Pinned explicitly: this app has no browser-reachable API origin to
+    // prepend even if it wanted one — the only API URL it knows is a
+    // server-side internal address.
+    expect(new URL(submission.action).origin).toBe(globalThis.location.origin);
   });
 
-  it("appends to a returnUrl that has no query string of its own", async () => {
-    // Pinned through the screen so an implementation that hand-rolls string
-    // concatenation instead of calling the builder cannot pass by only ever
-    // being tested with a `?`-bearing returnUrl.
-    const user = userEvent.setup();
+  it("carries the authorize request and the token as fields", async () => {
+    await renderWithClient(
+      <ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} consentToken={CONSENT_TOKEN} />,
+    );
 
-    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl="/connect/authorize" />);
-    await user.click(page.getByTestId("consent-approve"));
+    const submission: CapturedFormSubmission = await answer("consent-approve");
 
-    const target: URL = await awaitHandoff();
-    expect(submitTarget(target)).toBe("/connect/authorize?consent_granted=true");
+    // The returnUrl's query string becomes the body, so OpenIddict reads the
+    // same request it redirected away from; the token is what lets the answer
+    // through.
+    for (const field of RETURN_URL_FIELDS) {
+      expect(submission.fields).toContainEqual(field);
+    }
+    expect(posted(submission, "consent_token")).toEqual([CONSENT_TOKEN]);
+  });
+
+  it("posts to a returnUrl that has no query string of its own", async () => {
+    await renderWithClient(
+      <ConsentScreen
+        clientId={CLIENT_ID}
+        returnUrl="/connect/authorize"
+        consentToken={CONSENT_TOKEN}
+      />,
+    );
+
+    const submission: CapturedFormSubmission = await answer("consent-approve");
+
+    expect(submission.action).toBe(AUTHORIZE_ACTION);
+    expect(submission.fields).toEqual([
+      ["consent_token", CONSENT_TOKEN],
+      ["consent_decision", "granted"],
+    ]);
   });
 
   it("falls back to the root when the link carries no returnUrl", async () => {
     // Nullish ONLY: an absent returnUrl must NOT be treated as the unsafe case.
     // There is nothing hostile about a link that omits it, so the guard must not
     // fire and the builder maps `undefined` to the `/` fallback.
-    const user = userEvent.setup();
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} consentToken={CONSENT_TOKEN} />);
 
-    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} />);
-    await user.click(page.getByTestId("consent-approve"));
+    const submission: CapturedFormSubmission = await answer("consent-approve");
 
-    const target: URL = await awaitHandoff();
-    expect(submitTarget(target)).toBe("/?consent_granted=true");
+    expect(submission.action).toBe(`${globalThis.location.origin}/`);
     expect(mocks.navigate).not.toHaveBeenCalled();
   });
 
-  it("does not deny while approving", async () => {
-    const user = userEvent.setup();
-
+  it("posts no token when the link carried none", async () => {
+    // The endpoint refuses and re-asks with a fresh token; a fabricated value
+    // would read as a forgery.
     await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
-    await user.click(page.getByTestId("consent-approve"));
 
-    // The two handlers differ by one boolean, so a mis-wired button is invisible
-    // to a test that only checks that SOME navigation happened.
-    const target: URL = await awaitHandoff();
-    expect(submitTarget(target)).toBe(GRANTED_TARGET);
-    expect(submitTarget(target)).not.toContain("consent_denied");
+    const submission: CapturedFormSubmission = await answer("consent-approve");
+
+    expect(posted(submission, "consent_token")).toEqual([]);
+  });
+
+  it("does not deny while approving", async () => {
+    await renderWithClient(
+      <ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} consentToken={CONSENT_TOKEN} />,
+    );
+
+    const submission: CapturedFormSubmission = await answer("consent-approve");
+
+    // The two buttons differ by one value, so a mis-wired button is invisible
+    // to a test that only checks that SOME submission happened.
+    expect(posted(submission, "consent_decision")).toEqual(["granted"]);
   });
 });
 
 describe("ConsentScreen — deny", () => {
-  it("navigates to the consent-denied URL the builder returns", async () => {
-    const user = userEvent.setup();
-
-    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
-    await user.click(page.getByTestId("consent-deny"));
-
-    const target: URL = await awaitHandoff();
-    expect(submitTarget(target)).toBe(DENIED_TARGET);
-  });
-
-  it("builds the URL same-origin, refusing consent", async () => {
-    const user = userEvent.setup();
-
-    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
-    await user.click(page.getByTestId("consent-deny"));
-
-    const target: URL = await awaitHandoff();
-    expect(target.origin).toBe(globalThis.location.origin);
-    expect(submitTarget(target)).toBe(DENIED_TARGET);
-  });
-
-  it("reports the denial to the authorize endpoint rather than staying put", async () => {
+  it("posts the denial to the authorize endpoint rather than staying put", async () => {
     // A deny that silently did nothing strands the user on a dead consent screen
     // and leaves the relying party's authorize request hanging.
-    const user = userEvent.setup();
+    await renderWithClient(
+      <ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} consentToken={CONSENT_TOKEN} />,
+    );
 
-    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
-    await user.click(page.getByTestId("consent-deny"));
+    const submission: CapturedFormSubmission = await answer("consent-deny");
 
-    const target: URL = await awaitHandoff();
-    expect(submitTarget(target)).toBe(DENIED_TARGET);
+    expect(submission.method).toBe("post");
+    expect(submission.action).toBe(AUTHORIZE_ACTION);
+    expect(posted(submission, "consent_decision")).toEqual(["denied"]);
+  });
+
+  it("carries the same request and token as an approval", async () => {
+    await renderWithClient(
+      <ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} consentToken={CONSENT_TOKEN} />,
+    );
+
+    const submission: CapturedFormSubmission = await answer("consent-deny");
+
+    // The endpoint has to know WHICH request was refused, and prove the refusal
+    // came from the screen it issued.
+    for (const field of RETURN_URL_FIELDS) {
+      expect(submission.fields).toContainEqual(field);
+    }
+    expect(posted(submission, "consent_token")).toEqual([CONSENT_TOKEN]);
   });
 
   it("does not grant while denying", async () => {
-    const user = userEvent.setup();
+    await renderWithClient(
+      <ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} consentToken={CONSENT_TOKEN} />,
+    );
 
-    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
-    await user.click(page.getByTestId("consent-deny"));
+    const submission: CapturedFormSubmission = await answer("consent-deny");
 
-    // The side that matters: a Deny wired to `granted: true` authorizes the
-    // client the user just refused.
-    const target: URL = await awaitHandoff();
-    expect(submitTarget(target)).toBe(DENIED_TARGET);
-    expect(submitTarget(target)).not.toContain("consent_granted");
+    // The side that matters: a Deny wired to `granted` authorizes the client
+    // the user just refused.
+    expect(posted(submission, "consent_decision")).toEqual(["denied"]);
   });
 });
 
@@ -652,11 +684,10 @@ function renderRouteAt(url: string) {
 }
 
 describe("/consent route", () => {
-  it("renders the real screen in place of the pre-registration placeholder", async () => {
-    const user = userEvent.setup();
-
+  it("renders the consent screen for the client on the query string", async () => {
     await renderRouteAt(
-      `/consent?client_id=${CLIENT_ID}&returnUrl=${encodeURIComponent(RETURN_URL)}`,
+      `/consent?client_id=${CLIENT_ID}&returnUrl=${encodeURIComponent(RETURN_URL)}` +
+        `&consent_token=${CONSENT_TOKEN}`,
     );
 
     await expect.element(page.getByTestId("consent-heading")).toBeInTheDocument();
@@ -665,12 +696,28 @@ describe("/consent route", () => {
     // `client_id` threads as far as the request path...
     expect(consentInfoCalls()[0]?.path).toBe(CONSENT_INFO_PATH);
 
-    // ...and `returnUrl` as far as the URL approve builds. A route that dropped
-    // it would send the user to the "/" fallback instead.
-    await user.click(page.getByTestId("consent-approve"));
+    // ...and `returnUrl` and `consent_token` as far as the form approve posts.
+    // A route that dropped the first would post to the "/" fallback; one that
+    // dropped the second would post an answer the endpoint refuses.
+    const submission: CapturedFormSubmission = await answer("consent-approve");
+    expect(submission.action).toBe(AUTHORIZE_ACTION);
+    for (const field of RETURN_URL_FIELDS) {
+      expect(submission.fields).toContainEqual(field);
+    }
+    expect(posted(submission, "consent_token")).toEqual([CONSENT_TOKEN]);
+  });
 
-    const target: URL = await awaitHandoff();
-    expect(submitTarget(target)).toBe(GRANTED_TARGET);
+  it("reads the consent token off the query string", () => {
+    const validateSearch = consentRoute.options.validateSearch as
+      | ((search: Record<string, unknown>) => unknown)
+      | undefined;
+
+    expect(validateSearch?.({ consent_token: CONSENT_TOKEN })).toEqual({
+      returnUrl: undefined,
+      client_id: undefined,
+      scope: undefined,
+      consent_token: CONSENT_TOKEN,
+    });
   });
 
   it("reads returnUrl and client_id off the query string", () => {

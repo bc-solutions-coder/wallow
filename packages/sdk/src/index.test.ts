@@ -43,8 +43,12 @@ const packageRoot: string = resolve(dirname(fileURLToPath(import.meta.url)), "..
 const BROWSER_VALUE_EXPORTS: readonly string[] = [
   "buildConnectAuthorizeUrl",
   "buildConnectLogoutUrl",
-  "buildConsentSubmitUrl",
+  "buildConsentSubmission",
   "buildExchangeTicketUrl",
+  "CONSENT_DECISION_FIELD",
+  "CONSENT_DENIED",
+  "CONSENT_GRANTED",
+  "CONSENT_TOKEN_FIELD",
   "consentInfoArgs",
   "createWallowSdk",
   "getCurrentUser",

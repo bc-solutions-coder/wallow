@@ -9,6 +9,7 @@ import { type ForkLinks, resolveForkLinks } from "@bc-solutions-coder/styles";
 import { createMiddleware, createStart } from "@tanstack/react-start";
 
 import { BASE_PATH } from "@shared/lib/base-path";
+import { withFrameDenial } from "@shared/lib/frame-denial";
 import { resolveWebAppUrl } from "@shared/lib/web-app-url";
 
 /**
@@ -39,7 +40,7 @@ import { resolveWebAppUrl } from "@shared/lib/web-app-url";
  */
 let requestOriginFor: ((request: PeerRequest) => string) | undefined;
 
-const sdkMiddleware = createMiddleware().server(({ next, request }) => {
+const sdkMiddleware = createMiddleware().server(async ({ next, request }) => {
   requestOriginFor ??= createRequestOriginResolver(process.env);
   // The browser-facing base URL: this app proxies `/v1/**` under its own base
   // path, so the origin serving the page plus that prefix is where the API is
@@ -78,7 +79,12 @@ const sdkMiddleware = createMiddleware().server(({ next, request }) => {
   // same crossing: resolved here, stated in the document by `__root.tsx`.
   const webAppUrl: string | undefined = resolveWebAppUrl(process.env);
 
-  return next({ context: { sdk, forkLinks, webAppUrl } });
+  const result = await next({ context: { sdk, forkLinks, webAppUrl } });
+
+  // Every response this host sends — a rendered screen, a proxied `/connect/**`
+  // page, a not-found — refuses to be framed. Stamped here, on the one path all
+  // of them leave through, rather than per route.
+  return { ...result, response: withFrameDenial(result.response) };
 });
 
 export const startInstance = createStart(() => ({
