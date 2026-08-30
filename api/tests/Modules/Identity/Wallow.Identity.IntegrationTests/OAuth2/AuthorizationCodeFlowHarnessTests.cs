@@ -85,7 +85,8 @@ public sealed class AuthorizationCodeFlowHarnessTests(WallowApiFactory factory)
             clientId,
             ClientSecret,
             organizationId,
-            _clientScopes);
+            _clientScopes,
+            firstParty: true);
 
         return (email, organizationId, clientId);
     }

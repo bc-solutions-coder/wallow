@@ -1,5 +1,5 @@
 {
-  "_comment": "Production seed for the reference wallow.dev deployment. Deliberately SECRET-LESS: client secrets arrive as ClientSecrets__<clientId> env vars (docker-compose.production.yml). There is no admin block on purpose — production seeds no admin; the bootstrap administrator is created through the first-run setup page (POST /v1/identity/setup/admin). The seeder fails closed if a ClientSecrets__* var names a client this file does not define, so every client a set env var targets must exist here.",
+  "_comment": "Production seed for the reference wallow.dev deployment. Deliberately SECRET-LESS: client secrets arrive as ClientSecrets__<clientId> env vars (docker-compose.production.yml). There is no admin block and no organization on purpose — production seeds neither; the bootstrap administrator and the first organization are created through the first-run setup page (POST /v1/identity/setup/admin). Only first-party clients (\"firstParty\": true, bound to no organization) belong here; third-party clients are bound to exactly one organization and are registered once one exists. The seeder fails closed if a ClientSecrets__* var names a client this file does not define, so every client a set env var targets must exist here.",
   "roles": ["admin", "manager", "user"],
   "apiScopes": [
     {
@@ -173,17 +173,11 @@
       "description": "Access to manage webhook subscriptions"
     }
   ],
-  "organizations": [
-    {
-      "name": "Wallow",
-      "enrollmentPolicy": "RequestApproval"
-    }
-  ],
   "clients": [
     {
       "clientId": "wallow-web-client",
       "displayName": "Wallow Web",
-      "tenantName": "Wallow",
+      "firstParty": true,
       "public": false,
       "redirectUris": ["https://wallow.dev/bff/callback"],
       "postLogoutRedirectUris": ["https://wallow.dev/"],

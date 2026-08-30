@@ -26,9 +26,10 @@ const BFF_EXAMPLE_ORIGIN = process.env.E2E_BFF_EXAMPLE_URL ?? "http://localhost:
  * independently of each other -- Wallow-joo0). Plus the seeded admin from `api/seed.json`.
  *
  * WHY THIS IS A DIFFERENT FLOW FROM login-journey.spec.ts, NOT A DUPLICATE: `wallow-web-client`
- * is first-party (id starts with "wallow-", `AuthorizationController.cs`'s `isFirstParty`
- * check), so its authorize round trip never renders consent. `bff-example-client` matches neither
- * first-party test, so the API routes it through wallow-auth's interactive consent screen --
+ * is seeded first-party (`"firstParty": true` in `api/seed.json`, which registers it with
+ * implicit consent), so its authorize round trip never renders consent. `bff-example-client`
+ * is a third-party client bound to the Wallow organization, so the API routes it through
+ * wallow-auth's interactive consent screen --
  * the leg this bead exists to prove renders real, seeded scope descriptions rather than the
  * null placeholders design doc Sec 14.3 documented before plan Sec 5.5.1 seeded
  * `OpenIddictScopes` rows.

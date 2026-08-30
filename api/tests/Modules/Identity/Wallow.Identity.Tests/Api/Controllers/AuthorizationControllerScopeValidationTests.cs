@@ -34,7 +34,7 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
 {
     private static readonly string _testUserId = Guid.NewGuid().ToString();
     private static readonly Guid _testOrganizationId = Guid.NewGuid();
-    private const string FirstPartyClientId = "wallow-web";
+    private const string FirstPartyClientId = "first-party-web";
     private const string ThirdPartyClientId = "partner-portal";
     private const string ApplicationId = "app-id-123";
 
@@ -79,6 +79,9 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
             .ValidateAsync(Arg.Any<string>(), Arg.Any<IEnumerable<string>>(), Arg.Any<CancellationToken>())
             .Returns(ScopeValidationResult.Success());
 
+        IOrganizationService organizations = Substitute.For<IOrganizationService>();
+        organizations.GetMyOrganizationsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns([]);
+
         _controller = new AuthorizationController(
             _userManager,
             configuration,
@@ -88,6 +91,7 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
             _clientTenantResolver,
             _enrollment,
             _membershipRoleResolver,
+            organizations,
             _ssoClientSessionService,
             consentTokens,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<AuthorizationController>.Instance);
@@ -303,6 +307,9 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
             .Returns(ValueTask.FromResult<object?>(application));
         _applicationManager.GetClientIdAsync(application, Arg.Any<CancellationToken>())
             .Returns(ValueTask.FromResult<string?>(clientId));
+        _applicationManager.GetConsentTypeAsync(application, Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult<string?>(
+                clientId == FirstPartyClientId ? ConsentTypes.Implicit : ConsentTypes.Explicit));
         _applicationManager.GetIdAsync(application, Arg.Any<CancellationToken>())
             .Returns(ValueTask.FromResult<string?>(ApplicationId));
 

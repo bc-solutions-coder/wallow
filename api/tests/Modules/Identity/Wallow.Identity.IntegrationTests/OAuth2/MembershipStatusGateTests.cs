@@ -211,7 +211,7 @@ public sealed class MembershipStatusGateTests(WallowApiFactory factory)
 
         string clientId = $"wallow-membership-gate-{suffix}";
         await AuthorizationCodeFlowHarness.RegisterClientAsync(
-            ScopedServices, clientId, ClientSecret, organizationId, _clientScopes);
+            ScopedServices, clientId, ClientSecret, organizationId, _clientScopes, firstParty: true);
 
         return new Seed(email, clientId, userId, ownerId, organizationId);
     }

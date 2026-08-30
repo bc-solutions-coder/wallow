@@ -28,7 +28,9 @@ public sealed class AuthorizationControllerTests : IDisposable
     private static readonly string _testUserId = Guid.NewGuid().ToString();
     private static readonly Guid _testOrganizationId = Guid.NewGuid();
     private const string ThirdPartyClientId = "my-external-app";
-    private const string FirstPartyClientId = "wallow-web";
+    // Deliberately NOT prefixed "wallow-": first-party status is the application's consent type,
+    // written by the seed, and the authorize endpoint must never infer it from the id.
+    private const string FirstPartyClientId = "first-party-web";
     private const string ApplicationId = "app-id-123";
 
     private readonly UserManager<WallowUser> _userManager;
@@ -39,6 +41,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     private readonly IClientTenantResolver _clientTenantResolver;
     private readonly IUserEnrollmentService _enrollment;
     private readonly IMembershipRoleResolver _membershipRoleResolver;
+    private readonly IOrganizationService _organizations;
     private readonly ISsoClientSessionService _ssoClientSessionService;
     private readonly IAuthenticationService _authenticationService;
     private readonly IConsentTokenService _consentTokens;
@@ -64,6 +67,12 @@ public sealed class AuthorizationControllerTests : IDisposable
         _ssoClientSessionService = Substitute.For<ISsoClientSessionService>();
         _authenticationService = Substitute.For<IAuthenticationService>();
 
+        // A user with no memberships is the default; a test about the single-membership default
+        // for an org-less first-party login supplies one.
+        _organizations = Substitute.For<IOrganizationService>();
+        _organizations.GetMyOrganizationsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns([]);
+
         // Minting is opaque here; redemption defaults to the happy path and a test that is about
         // a refused token overrides it.
         _consentTokens = Substitute.For<IConsentTokenService>();
@@ -87,6 +96,7 @@ public sealed class AuthorizationControllerTests : IDisposable
             _clientTenantResolver,
             _enrollment,
             _membershipRoleResolver,
+            _organizations,
             _ssoClientSessionService,
             _consentTokens,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<AuthorizationController>.Instance);
@@ -162,13 +172,18 @@ public sealed class AuthorizationControllerTests : IDisposable
         _userManager.GetClaimsAsync(wallowUser).Returns(new List<Claim>());
     }
 
-    private void SetupApplication(string clientId, string applicationId = ApplicationId)
+    private void SetupApplication(
+        string clientId,
+        string applicationId = ApplicationId,
+        string consentType = ConsentTypes.Explicit)
     {
         object application = new();
         _applicationManager.FindByClientIdAsync(clientId, Arg.Any<CancellationToken>())
             .Returns(ValueTask.FromResult<object?>(application));
         _applicationManager.GetClientIdAsync(application, Arg.Any<CancellationToken>())
             .Returns(ValueTask.FromResult<string?>(clientId));
+        _applicationManager.GetConsentTypeAsync(application, Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult<string?>(consentType));
         _applicationManager.GetIdAsync(application, Arg.Any<CancellationToken>())
             .Returns(ValueTask.FromResult<string?>(applicationId));
     }
@@ -398,14 +413,14 @@ public sealed class AuthorizationControllerTests : IDisposable
 
         SetupAuthenticatedHttpContext(request);
         SetupUser();
-        SetupApplication(FirstPartyClientId);
+        SetupApplication(FirstPartyClientId, consentType: ConsentTypes.Implicit);
         SetupClientTenantResolver(FirstPartyClientId);
 
         // Act
         IActionResult result = await _controller.Authorize();
 
-        // Assert - first-party clients (wallow-* prefix) skip consent entirely
-        // and go directly to token issuance. No authorization should be created.
+        // Assert - a client registered with implicit consent skips consent entirely
+        // and goes directly to token issuance. No authorization should be created.
         result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>();
 
         // First-party clients should never trigger authorization creation
@@ -415,6 +430,108 @@ public sealed class AuthorizationControllerTests : IDisposable
         // Consent-related authorization lookups should not happen for first-party clients
         _authorizationManager.DidNotReceive().FindBySubjectAsync(
             Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Authorize_FirstPartyClient_BoundToNoOrganization_SignsInWithAnOrgLessToken()
+    {
+        // A first-party client is bound to no organization, so "no organization" is not an
+        // error for it: for a user who belongs to no organization the login completes with no
+        // org claims and no roles, and nothing is enrolled anywhere.
+        OpenIddictRequest request = new() { ClientId = FirstPartyClientId, Scope = "openid profile" };
+
+        SetupAuthenticatedHttpContext(request);
+        SetupUser();
+        SetupApplication(FirstPartyClientId, consentType: ConsentTypes.Implicit);
+        _clientTenantResolver.ResolveAsync(FirstPartyClientId, Arg.Any<CancellationToken>())
+            .Returns(new ClientTenantInfo(Guid.Empty, null));
+
+        IActionResult result = await _controller.Authorize();
+
+        Microsoft.AspNetCore.Mvc.SignInResult signIn =
+            result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>().Subject;
+        signIn.Principal.FindFirst("org_id").Should().BeNull("an org-less first-party login carries no organization");
+        signIn.Principal.FindFirst("org_name").Should().BeNull();
+        signIn.Principal.FindAll(Claims.Role).Should().BeEmpty("roles are granted by an organization");
+        await _enrollment.DidNotReceive().EnrollAsync(
+            Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Authorize_FirstPartyClient_UserWithASingleMembership_SignsInWithThatOrganization()
+    {
+        // A first-party client names no organization, so the user's own memberships decide the
+        // organization context: exactly one active membership is unambiguous and becomes the
+        // token's org_id, with the roles that organization grants.
+        Guid organizationId = Guid.NewGuid();
+        OpenIddictRequest request = new() { ClientId = FirstPartyClientId, Scope = "openid profile" };
+
+        SetupAuthenticatedHttpContext(request);
+        SetupUser();
+        SetupApplication(FirstPartyClientId, consentType: ConsentTypes.Implicit);
+        _clientTenantResolver.ResolveAsync(FirstPartyClientId, Arg.Any<CancellationToken>())
+            .Returns(new ClientTenantInfo(Guid.Empty, null));
+        _organizations.GetMyOrganizationsAsync(Guid.Parse(_testUserId), Arg.Any<CancellationToken>())
+            .Returns([new MyOrganizationDto(organizationId, "Only Org", "only-org", IsOwner: true)]);
+        _enrollment.EnrollAsync(Guid.Parse(_testUserId), organizationId, Arg.Any<CancellationToken>())
+            .Returns(new Enrolled());
+        _membershipRoleResolver.GetRoleNamesAsync(Guid.Parse(_testUserId), organizationId, Arg.Any<CancellationToken>())
+            .Returns(["admin"]);
+
+        IActionResult result = await _controller.Authorize();
+
+        Microsoft.AspNetCore.Mvc.SignInResult signIn =
+            result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>().Subject;
+        signIn.Principal.FindFirst("org_id")!.Value.Should().Be(organizationId.ToString());
+        signIn.Principal.FindFirst("org_name")!.Value.Should().Be("Only Org");
+        signIn.Principal.FindAll(Claims.Role).Select(c => c.Value).Should().Equal("admin");
+    }
+
+    [Fact]
+    public async Task Authorize_FirstPartyClient_UserWithSeveralMemberships_SignsInWithAnOrgLessToken()
+    {
+        // Several memberships and no hint is ambiguous; the token names no organization rather
+        // than guessing one.
+        OpenIddictRequest request = new() { ClientId = FirstPartyClientId, Scope = "openid profile" };
+
+        SetupAuthenticatedHttpContext(request);
+        SetupUser();
+        SetupApplication(FirstPartyClientId, consentType: ConsentTypes.Implicit);
+        _clientTenantResolver.ResolveAsync(FirstPartyClientId, Arg.Any<CancellationToken>())
+            .Returns(new ClientTenantInfo(Guid.Empty, null));
+        _organizations.GetMyOrganizationsAsync(Guid.Parse(_testUserId), Arg.Any<CancellationToken>())
+            .Returns(
+            [
+                new MyOrganizationDto(Guid.NewGuid(), "One", "one", IsOwner: true),
+                new MyOrganizationDto(Guid.NewGuid(), "Two", "two", IsOwner: false),
+            ]);
+
+        IActionResult result = await _controller.Authorize();
+
+        Microsoft.AspNetCore.Mvc.SignInResult signIn =
+            result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>().Subject;
+        signIn.Principal.FindFirst("org_id").Should().BeNull();
+        signIn.Principal.FindAll(Claims.Role).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Authorize_ThirdPartyClient_BoundToNoOrganization_RedirectsToClientNotBoundError()
+    {
+        // The id looks first-party; the consent type says otherwise, and only the consent type
+        // counts. A third-party client with no organization is a registration defect.
+        const string lookalikeClientId = "wallow-lookalike";
+        OpenIddictRequest request = new() { ClientId = lookalikeClientId, Scope = "openid" };
+
+        SetupAuthenticatedHttpContext(request);
+        SetupUser();
+        SetupApplication(lookalikeClientId, consentType: ConsentTypes.Explicit);
+        _clientTenantResolver.ResolveAsync(lookalikeClientId, Arg.Any<CancellationToken>())
+            .Returns(new ClientTenantInfo(Guid.Empty, null));
+
+        IActionResult result = await _controller.Authorize();
+
+        result.Should().BeOfType<RedirectResult>().Which.Url
+            .Should().Be("https://auth.example.com/error?reason=client_not_bound_to_organization");
     }
 
     #endregion
@@ -534,7 +651,7 @@ public sealed class AuthorizationControllerTests : IDisposable
 
         SetupAuthenticatedHttpContext(request);
         SetupUser();
-        SetupApplication(FirstPartyClientId);
+        SetupApplication(FirstPartyClientId, consentType: ConsentTypes.Implicit);
         SetupClientTenantResolver(FirstPartyClientId);
 
         // Act
@@ -562,7 +679,7 @@ public sealed class AuthorizationControllerTests : IDisposable
 
         SetupAuthenticatedHttpContext(request, existingSid: "sid-already-minted");
         SetupUser();
-        SetupApplication(FirstPartyClientId);
+        SetupApplication(FirstPartyClientId, consentType: ConsentTypes.Implicit);
         SetupClientTenantResolver(FirstPartyClientId);
 
         // Act
@@ -589,7 +706,7 @@ public sealed class AuthorizationControllerTests : IDisposable
 
         SetupAuthenticatedHttpContext(request, existingSid: "sid-already-minted");
         SetupUser();
-        SetupApplication(FirstPartyClientId);
+        SetupApplication(FirstPartyClientId, consentType: ConsentTypes.Implicit);
         SetupClientTenantResolver(FirstPartyClientId);
 
         // Act
@@ -612,7 +729,7 @@ public sealed class AuthorizationControllerTests : IDisposable
 
         SetupAuthenticatedHttpContext(request, existingSid: "sid-already-minted");
         SetupUser();
-        SetupApplication(FirstPartyClientId);
+        SetupApplication(FirstPartyClientId, consentType: ConsentTypes.Implicit);
         SetupClientTenantResolver(FirstPartyClientId);
 
         // Act

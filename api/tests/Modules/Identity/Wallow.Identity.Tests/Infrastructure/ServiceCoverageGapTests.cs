@@ -54,6 +54,7 @@ public sealed class PreRegisteredClientSyncServiceGapTests
         _options.Clients.Add(new PreRegisteredClientDefinition
         {
             ClientId = "spa",
+            FirstParty = true,
             DisplayName = "SPA",
             Public = true,
             RedirectUris = ["https://spa/cb"],
@@ -89,6 +90,7 @@ public sealed class PreRegisteredClientSyncServiceGapTests
         _options.Clients.Add(new PreRegisteredClientDefinition
         {
             ClientId = "app",
+            FirstParty = true,
             DisplayName = "App",
             Secret = "s",
             RedirectUris = ["https://app/cb"],
@@ -122,6 +124,7 @@ public sealed class PreRegisteredClientSyncServiceGapTests
         _options.Clients.Add(new PreRegisteredClientDefinition
         {
             ClientId = "scoped",
+            FirstParty = true,
             DisplayName = "Scoped",
             Secret = "s",
             RedirectUris = ["https://s/cb"],
@@ -154,6 +157,7 @@ public sealed class PreRegisteredClientSyncServiceGapTests
         _options.Clients.Add(new PreRegisteredClientDefinition
         {
             ClientId = "nosrc",
+            FirstParty = true,
             DisplayName = "NoSrc",
             Secret = "s",
             RedirectUris = ["https://ns/cb"],
@@ -225,6 +229,7 @@ public sealed class PreRegisteredClientSyncServiceGapTests
         _options.Clients.Add(new PreRegisteredClientDefinition
         {
             ClientId = "redir",
+            FirstParty = true,
             DisplayName = "Redir",
             Secret = "s",
             RedirectUris = ["https://new/cb"],
@@ -257,6 +262,7 @@ public sealed class PreRegisteredClientSyncServiceGapTests
         _options.Clients.Add(new PreRegisteredClientDefinition
         {
             ClientId = "keep",
+            FirstParty = true,
             DisplayName = "Keep",
             Secret = "s",
             RedirectUris = ["https://k/cb"],

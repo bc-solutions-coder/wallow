@@ -92,7 +92,8 @@ public sealed class PreRegisteredClientPublicFlagTests
         {
             ClientId = "spa",
             DisplayName = "SPA",
-            Public = true
+            Public = true,
+            TenantName = "Wallow"
         });
 
         Action validate = options.Validate;
@@ -108,7 +109,8 @@ public sealed class PreRegisteredClientPublicFlagTests
         {
             ClientId = "bff",
             DisplayName = "BFF",
-            Secret = "s"
+            Secret = "s",
+            TenantName = "Wallow"
         });
 
         Action validate = options.Validate;

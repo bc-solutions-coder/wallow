@@ -38,6 +38,7 @@ public sealed class PreRegisteredClientSyncServiceTests
         _options.Clients.Add(new PreRegisteredClientDefinition
         {
             ClientId = "web",
+            FirstParty = true,
             DisplayName = "Web",
             Secret = "s",
             RedirectUris = ["https://l/cb"],
@@ -58,6 +59,7 @@ public sealed class PreRegisteredClientSyncServiceTests
         _options.Clients.Add(new PreRegisteredClientDefinition
         {
             ClientId = "spa",
+            FirstParty = true,
             DisplayName = "SPA",
             Public = true,
             RedirectUris = ["https://l/cb"],
@@ -122,6 +124,7 @@ public sealed class PreRegisteredClientSyncServiceTests
         _options.Clients.Add(new PreRegisteredClientDefinition
         {
             ClientId = "bff",
+            FirstParty = true,
             DisplayName = "BFF",
             Secret = "s3cret",
             RedirectUris = ["https://l/cb"],
@@ -145,6 +148,7 @@ public sealed class PreRegisteredClientSyncServiceTests
         _options.Clients.Add(new PreRegisteredClientDefinition
         {
             ClientId = "ex",
+            FirstParty = true,
             DisplayName = "New",
             Secret = "s",
             RedirectUris = ["https://new/cb"],
@@ -176,6 +180,7 @@ public sealed class PreRegisteredClientSyncServiceTests
         _options.Clients.Add(new PreRegisteredClientDefinition
         {
             ClientId = "fc",
+            FirstParty = true,
             DisplayName = "FC",
             Secret = "s",
             RedirectUris = ["https://l/cb"],
@@ -200,6 +205,7 @@ public sealed class PreRegisteredClientSyncServiceTests
         _options.Clients.Add(new PreRegisteredClientDefinition
         {
             ClientId = "fc-up",
+            FirstParty = true,
             DisplayName = "FC",
             Secret = "s",
             RedirectUris = ["https://l/cb"],
@@ -217,6 +223,7 @@ public sealed class PreRegisteredClientSyncServiceTests
                 OpenIddictApplicationDescriptor d = callInfo.ArgAt<OpenIddictApplicationDescriptor>(0);
                 d.DisplayName = "FC";
                 d.ClientType = ClientTypes.Confidential;
+                d.ConsentType = ConsentTypes.Implicit;
                 d.RedirectUris.Add(new Uri("https://l/cb"));
                 d.Permissions.Add(Permissions.Prefixes.Scope + "openid");
                 d.Properties["source"] = JsonSerializer.SerializeToElement("config");
@@ -239,6 +246,7 @@ public sealed class PreRegisteredClientSyncServiceTests
         _options.Clients.Add(new PreRegisteredClientDefinition
         {
             ClientId = "fc-gone",
+            FirstParty = true,
             DisplayName = "FC",
             Secret = "s",
             RedirectUris = ["https://l/cb"],
@@ -255,6 +263,7 @@ public sealed class PreRegisteredClientSyncServiceTests
                 OpenIddictApplicationDescriptor d = callInfo.ArgAt<OpenIddictApplicationDescriptor>(0);
                 d.DisplayName = "FC";
                 d.ClientType = ClientTypes.Confidential;
+                d.ConsentType = ConsentTypes.Implicit;
                 d.RedirectUris.Add(new Uri("https://l/cb"));
                 d.Permissions.Add(Permissions.Prefixes.Scope + "openid");
                 d.Properties["source"] = JsonSerializer.SerializeToElement("config");
@@ -276,6 +285,7 @@ public sealed class PreRegisteredClientSyncServiceTests
         _options.Clients.Add(new PreRegisteredClientDefinition
         {
             ClientId = "fc-same",
+            FirstParty = true,
             DisplayName = "FC",
             Secret = "s",
             RedirectUris = ["https://l/cb"],
@@ -293,6 +303,7 @@ public sealed class PreRegisteredClientSyncServiceTests
                 OpenIddictApplicationDescriptor d = callInfo.ArgAt<OpenIddictApplicationDescriptor>(0);
                 d.DisplayName = "FC";
                 d.ClientType = ClientTypes.Confidential;
+                d.ConsentType = ConsentTypes.Implicit;
                 d.RedirectUris.Add(new Uri("https://l/cb"));
                 d.Permissions.Add(Permissions.Prefixes.Scope + "openid");
                 d.Properties["source"] = JsonSerializer.SerializeToElement("config");
@@ -320,6 +331,7 @@ public sealed class PreRegisteredClientSyncServiceTests
         _options.Clients.Add(new PreRegisteredClientDefinition
         {
             ClientId = "same",
+            FirstParty = true,
             DisplayName = "Same",
             Secret = "s",
             RedirectUris = ["https://s/cb"],
@@ -336,6 +348,7 @@ public sealed class PreRegisteredClientSyncServiceTests
                 OpenIddictApplicationDescriptor d = callInfo.ArgAt<OpenIddictApplicationDescriptor>(0);
                 d.DisplayName = "Same";
                 d.ClientType = ClientTypes.Confidential;
+                d.ConsentType = ConsentTypes.Implicit;
                 d.RedirectUris.Add(new Uri("https://s/cb"));
                 d.PostLogoutRedirectUris.Add(new Uri("https://s/so"));
                 d.Permissions.Add(Permissions.Prefixes.Scope + "openid");
@@ -497,5 +510,89 @@ public sealed class PreRegisteredClientSyncServiceTests
         }
 
         await Task.CompletedTask;
+    }
+
+    [Fact]
+    public async Task SyncAsync_FirstPartyClient_IsCreatedWithImplicitConsent()
+    {
+        // Consent exemption is OpenIddict's per-application consent type, written by the seed
+        // from the explicit flag; the authorize endpoint reads it back and never looks at the id.
+        _options.Clients.Add(new PreRegisteredClientDefinition
+        {
+            ClientId = "dashboard",
+            DisplayName = "Dashboard",
+            Secret = "s",
+            FirstParty = true,
+            RedirectUris = ["https://l/cb"],
+            Scopes = ["openid"]
+        });
+        _appManager.FindByClientIdAsync("dashboard", Arg.Any<CancellationToken>())
+            .Returns(_ => new ValueTask<object?>((object?)null));
+
+        await _sut.SyncAsync(CancellationToken.None);
+
+        await _appManager.Received(1).CreateAsync(
+            Arg.Is<OpenIddictApplicationDescriptor>(d => d.ConsentType == ConsentTypes.Implicit),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SyncAsync_OrganizationBoundClient_IsCreatedWithExplicitConsent()
+    {
+        Guid orgId = Guid.NewGuid();
+        _options.Clients.Add(new PreRegisteredClientDefinition
+        {
+            ClientId = "wallow-looking-partner",
+            DisplayName = "Partner",
+            Secret = "s",
+            TenantId = orgId,
+            RedirectUris = ["https://l/cb"],
+            Scopes = ["openid"]
+        });
+        _appManager.FindByClientIdAsync("wallow-looking-partner", Arg.Any<CancellationToken>())
+            .Returns(_ => new ValueTask<object?>((object?)null));
+
+        await _sut.SyncAsync(CancellationToken.None);
+
+        await _appManager.Received(1).CreateAsync(
+            Arg.Is<OpenIddictApplicationDescriptor>(d => d.ConsentType == ConsentTypes.Explicit),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SyncAsync_ExistingClientWhoseConsentTypeDrifted_IsUpdated()
+    {
+        _options.Clients.Add(new PreRegisteredClientDefinition
+        {
+            ClientId = "dashboard",
+            DisplayName = "Dashboard",
+            Secret = "s",
+            FirstParty = true,
+            RedirectUris = ["https://l/cb"],
+            Scopes = ["openid"]
+        });
+        object existing = new();
+        _appManager.FindByClientIdAsync("dashboard", Arg.Any<CancellationToken>())
+            .Returns(_ => new ValueTask<object?>(existing));
+        _appManager.PopulateAsync(Arg.Any<OpenIddictApplicationDescriptor>(), existing, Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                OpenIddictApplicationDescriptor d = call.Arg<OpenIddictApplicationDescriptor>();
+                d.ClientId = "dashboard";
+                d.DisplayName = "Dashboard";
+                d.ClientType = ClientTypes.Confidential;
+                d.ConsentType = ConsentTypes.Explicit;
+                d.RedirectUris.Add(new Uri("https://l/cb"));
+                d.Permissions.Add(Permissions.Prefixes.Scope + "openid");
+                d.Properties["source"] = JsonSerializer.SerializeToElement("config");
+                return ValueTask.CompletedTask;
+            });
+
+        await _sut.SyncAsync(CancellationToken.None);
+
+        await _appManager.Received(1).UpdateAsync(
+            existing,
+            Arg.Is<OpenIddictApplicationDescriptor>(d => d.ConsentType == ConsentTypes.Implicit),
+            Arg.Any<CancellationToken>());
     }
 }
