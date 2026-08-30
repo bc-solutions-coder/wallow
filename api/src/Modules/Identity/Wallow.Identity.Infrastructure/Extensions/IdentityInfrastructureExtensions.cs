@@ -168,6 +168,8 @@ public static class IdentityInfrastructureExtensions
                         context.Metadata["frontchannel_logout_session_supported"] = true;
                         return default;
                     }));
+
+                options.AddEventHandler(RefuseSuspendedClientTokenRequests.Descriptor);
             })
             .AddValidation(options =>
             {
@@ -387,14 +389,14 @@ public static class IdentityInfrastructureExtensions
     }
 
     /// <summary>
-    /// Registers what it takes to end a member's access to one organization. Public because
+    /// Registers the one revoker that ends access, whether a member's to an organization or a
+    /// client's to everything it was issued. Public because
     /// <see cref="OrganizationService"/> depends on it, and the seeder builds that service by hand
     /// rather than through <c>AddIdentityModule</c>.
     /// </summary>
-    public static IServiceCollection AddMembershipAccessRevocation(this IServiceCollection services)
+    public static IServiceCollection AddAccessRevocation(this IServiceCollection services)
     {
-        services.AddScoped<IMembershipAccessRevoker, MembershipAccessRevoker>();
-        services.AddScoped<IClientAccessRevoker, ClientAccessRevoker>();
+        services.AddScoped<IAccessRevoker, AccessRevoker>();
 
         // The host that actually serves realtime traffic registers the implementation that can
         // close a connection; TryAdd leaves it in place and covers the hosts that serve none.
@@ -434,7 +436,7 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<IUserEnrollmentService, UserEnrollmentService>();
         services.AddScoped<IMembershipReviewService, MembershipReviewService>();
         services.AddScoped<ILastOwnerGuard, LastOwnerGuard>();
-        services.AddMembershipAccessRevocation();
+        services.AddAccessRevocation();
 
         // Fork extension points — TryAddScoped allows forks to register their own implementations
         // before calling AddIdentityModule, which will skip these defaults.

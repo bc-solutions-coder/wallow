@@ -11,9 +11,9 @@ namespace Wallow.Branding.Infrastructure.Modules;
 
 /// <summary>
 /// Branding deliberately uses service-from-controller rather than CQRS, so it has no Wolverine
-/// handlers at all. It declares its Application assembly anyway: the anchor type below is an
-/// interface rather than a handler for exactly that reason, and declaring the assembly is what makes
-/// the first handler someone adds here get discovered instead of silently doing nothing.
+/// command handlers. Its only handlers consume cross-module integration events (a deleted client
+/// takes its branding with it), which is why the Infrastructure assembly is declared below; the
+/// Application anchor is an interface rather than a handler for exactly that reason.
 /// </summary>
 public sealed class BrandingModule : IWallowModule
 {

@@ -15,4 +15,9 @@ public sealed class NoOpRealtimeAccessRevoker : IRealtimeAccessRevoker
     {
         return Task.CompletedTask;
     }
+
+    public Task RevokeClientAsync(string clientId, CancellationToken ct = default)
+    {
+        return Task.CompletedTask;
+    }
 }

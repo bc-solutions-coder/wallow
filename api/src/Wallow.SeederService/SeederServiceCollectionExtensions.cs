@@ -73,7 +73,7 @@ internal static class SeederServiceCollectionExtensions
         services.AddScoped<IMembershipRoleResolver, MembershipRoleResolver>();
         services.AddScoped<IOrganizationService, OrganizationService>();
         services.AddScoped<ILastOwnerGuard, LastOwnerGuard>();
-        services.AddMembershipAccessRevocation();
+        services.AddAccessRevocation();
         services.AddScoped<PreRegisteredClientSyncService>();
         services.AddScoped<OrganizationSeedSyncService>();
         services.AddScoped<OpenIddictScopeSyncService>();

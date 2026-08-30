@@ -15,9 +15,10 @@ public class RealtimeConnectionRegistry
 {
     private readonly ConcurrentDictionary<string, RegisteredConnection> _connections = new();
 
-    public virtual void Register(string connectionId, string userId, Guid tenantId, HubCallerContext context)
+    public virtual void Register(
+        string connectionId, string userId, Guid tenantId, HubCallerContext context, string? clientId = null)
     {
-        _connections[connectionId] = new RegisteredConnection(userId, tenantId, context);
+        _connections[connectionId] = new RegisteredConnection(userId, tenantId, clientId, context);
     }
 
     public virtual void Unregister(string connectionId)
@@ -32,9 +33,20 @@ public class RealtimeConnectionRegistry
     /// </summary>
     public virtual void AbortConnectionsForUser(string userId, Guid tenantId)
     {
+        AbortConnectionsWhere(connection => connection.UserId == userId && connection.TenantId == tenantId);
+    }
+
+    /// <summary>Hangs up every connection opened with a token the named client was issued, whoever holds it.</summary>
+    public virtual void AbortConnectionsForClient(string clientId)
+    {
+        AbortConnectionsWhere(connection => connection.ClientId == clientId);
+    }
+
+    private void AbortConnectionsWhere(Func<RegisteredConnection, bool> matches)
+    {
         foreach (KeyValuePair<string, RegisteredConnection> entry in _connections)
         {
-            if (entry.Value.UserId != userId || entry.Value.TenantId != tenantId)
+            if (!matches(entry.Value))
             {
                 continue;
             }
@@ -44,5 +56,5 @@ public class RealtimeConnectionRegistry
         }
     }
 
-    private sealed record RegisteredConnection(string UserId, Guid TenantId, HubCallerContext Context);
+    private sealed record RegisteredConnection(string UserId, Guid TenantId, string? ClientId, HubCallerContext Context);
 }

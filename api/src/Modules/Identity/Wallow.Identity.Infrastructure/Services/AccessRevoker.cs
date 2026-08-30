@@ -7,32 +7,58 @@ using Wallow.Shared.Contracts.Realtime;
 namespace Wallow.Identity.Infrastructure.Services;
 
 /// <summary>
-/// A token names its organization in one of two places. A bound client's tokens carry it through
-/// the client: the binding is what put an org_id on them. A first-party client is bound to none,
-/// so its sign-in writes the organization on the authorization its tokens chain to instead.
-/// Revoking access to one organization means revoking the subject's tokens found either way, and
-/// no others.
+/// Revocation walks OpenIddict's token index and ends what it finds, then hangs up the realtime
+/// connections that already-issued tokens keep open — revoking a token says nothing to a socket
+/// that is already open, and an open stream carries the roles it was opened with.
+///
+/// By membership, a token names its organization in one of two places. A bound client's tokens
+/// carry it through the client: the binding is what put an org_id on them. A first-party client
+/// is bound to none, so its sign-in writes the organization on the authorization its tokens chain
+/// to instead. Revoking access to one organization means revoking the subject's tokens found
+/// either way, and no others. By client, every token names the application it was issued to, so
+/// the whole revocation is one walk over that index.
 /// </summary>
-public sealed partial class MembershipAccessRevoker(
+public sealed partial class AccessRevoker(
     IOpenIddictTokenManager tokenManager,
     IOpenIddictApplicationManager applicationManager,
     IOpenIddictAuthorizationManager authorizationManager,
     IRealtimeAccessRevoker realtimeAccessRevoker,
-    ILogger<MembershipAccessRevoker> logger) : IMembershipAccessRevoker
+    ILogger<AccessRevoker> logger) : IAccessRevoker
 {
-    public async Task RevokeAsync(Guid userId, Guid organizationId, CancellationToken ct = default)
+    public async Task RevokeMembershipAsync(Guid userId, Guid organizationId, CancellationToken ct = default)
     {
         string subject = userId.ToString();
         HashSet<string> revokedTokenIds = [];
 
         await RevokeByAuthorizationAsync(subject, organizationId, revokedTokenIds, ct);
         await RevokeByClientBindingAsync(subject, organizationId, revokedTokenIds, ct);
-
-        // Revoking a token says nothing to a socket that is already open, and an open stream
-        // carries the roles it was opened with.
         await realtimeAccessRevoker.RevokeAsync(subject, organizationId, ct);
 
-        LogAccessRevoked(userId, organizationId, revokedTokenIds.Count);
+        LogMembershipAccessRevoked(userId, organizationId, revokedTokenIds.Count);
+    }
+
+    public async Task<int> RevokeClientAsync(string clientId, CancellationToken ct = default)
+    {
+        object? application = await applicationManager.FindByClientIdAsync(clientId, ct);
+        string? applicationId = application is null ? null : await applicationManager.GetIdAsync(application, ct);
+        if (applicationId is null)
+        {
+            return 0;
+        }
+
+        int revoked = 0;
+        await foreach (object token in tokenManager.FindByApplicationIdAsync(applicationId, ct))
+        {
+            if (await tokenManager.TryRevokeAsync(token, ct))
+            {
+                revoked++;
+            }
+        }
+
+        await realtimeAccessRevoker.RevokeClientAsync(clientId, ct);
+
+        LogClientAccessRevoked(clientId, revoked);
+        return revoked;
     }
 
     private async Task RevokeByAuthorizationAsync(
@@ -125,5 +151,8 @@ public sealed partial class MembershipAccessRevoker(
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Revoked access for user {UserId} in organization {OrganizationId}: {RevokedTokenCount} tokens")]
-    private partial void LogAccessRevoked(Guid userId, Guid organizationId, int revokedTokenCount);
+    private partial void LogMembershipAccessRevoked(Guid userId, Guid organizationId, int revokedTokenCount);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Revoked access of client {ClientId}: {RevokedTokenCount} tokens")]
+    private partial void LogClientAccessRevoked(string clientId, int revokedTokenCount);
 }

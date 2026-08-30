@@ -182,6 +182,24 @@ public class SseConnectionManagerTests
         state.Should().BeNull();
     }
 
+    [Fact]
+    public void CloseConnectionsForClient_CancelsOnlyConnectionsOpenedThroughThatClient()
+    {
+        _sut.AddConnection("conn-app", "user-1", _tenantId, [], [], [], clientId: "app-one");
+        _sut.AddConnection("conn-other-app", "user-1", _tenantId, [], [], [], clientId: "app-two");
+        _sut.AddConnection("conn-no-client", "user-1", _tenantId, [], [], []);
+        CancellationToken closed = _sut.GetCancellationToken("conn-app");
+        CancellationToken otherApp = _sut.GetCancellationToken("conn-other-app");
+        CancellationToken noClient = _sut.GetCancellationToken("conn-no-client");
+
+        _sut.CloseConnectionsForClient("app-one");
+
+        // The owning request removes its own state once it observes the cancellation.
+        closed.IsCancellationRequested.Should().BeTrue();
+        otherApp.IsCancellationRequested.Should().BeFalse();
+        noClient.IsCancellationRequested.Should().BeFalse();
+    }
+
     private static SseConnectionState CreateState(
         string userId,
         Guid tenantId,

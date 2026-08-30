@@ -69,7 +69,7 @@ public sealed class DenialCooldownTests : IDisposable
             new MembershipRepository(_dbContext),
             _dbContext,
             _roleResolver,
-            Substitute.For<IMembershipAccessRevoker>(),
+            Substitute.For<IAccessRevoker>(),
             new UnguardedLastOwnerGuard(),
             _messageBus,
             _time,

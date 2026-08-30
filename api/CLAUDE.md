@@ -48,7 +48,8 @@ module but the record does not.
   **`public sealed class`** taking dependencies through a **primary constructor**, with
   `Handle`/`HandleAsync`; Wolverine also discovers **static** handlers (mostly event handlers).
   Either shape is auto-discovered with **no DI registration**. Exceptions: **Branding and
-  ApiKeys** deliberately use direct service/repository-from-controller (no CQRS/Wolverine).
+  ApiKeys** deliberately use direct service/repository-from-controller (no command handlers;
+  Branding still consumes cross-module integration events through Wolverine).
 - **Anything a handler can inject is `public`.** Wolverine's generated handlers construct their
   dependencies inline, and `ServiceLocationPolicy.NotAllowed` turns a non-public concrete type into
   a codegen failure on the *first message*, not at startup. So every Infrastructure implementation

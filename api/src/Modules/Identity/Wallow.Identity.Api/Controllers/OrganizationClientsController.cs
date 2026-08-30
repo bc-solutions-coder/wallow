@@ -9,6 +9,7 @@ using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Helpers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Enums;
+using Wallow.Shared.Contracts;
 using Wallow.Shared.Contracts.Identity.Events;
 using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
@@ -213,7 +214,57 @@ public class OrganizationClientsController(
         return client is null ? NotFound() : Ok(OrganizationClientResponse.From(client));
     }
 
-    /// <summary>Delete one of the organization's clients.</summary>
+    /// <summary>
+    /// Suspend a client: every token it was issued stops working now and its realtime connections
+    /// are closed, while its configuration, branding and consents are kept for reinstatement.
+    /// </summary>
+    [HttpPost("{clientId}/suspend")]
+    [HasPermission(PermissionType.OrganizationClientsManage)]
+    [ProducesResponseType(typeof(OrganizationClientResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public Task<ActionResult<OrganizationClientResponse>> Suspend(Guid orgId, string clientId, CancellationToken ct)
+    {
+        return TransitionAsync(
+            orgId,
+            clientId,
+            clients.SuspendAsync,
+            client => new ClientSuspendedEvent
+            {
+                ClientId = client.ClientId,
+                OrganizationId = orgId,
+                ActorId = ActorId(),
+                IpAddress = CallerIpAddress(),
+            },
+            ct);
+    }
+
+    /// <summary>Reinstate a suspended client exactly as it was.</summary>
+    [HttpPost("{clientId}/reinstate")]
+    [HasPermission(PermissionType.OrganizationClientsManage)]
+    [ProducesResponseType(typeof(OrganizationClientResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public Task<ActionResult<OrganizationClientResponse>> Reinstate(Guid orgId, string clientId, CancellationToken ct)
+    {
+        return TransitionAsync(
+            orgId,
+            clientId,
+            clients.ReinstateAsync,
+            client => new ClientReinstatedEvent
+            {
+                ClientId = client.ClientId,
+                OrganizationId = orgId,
+                ActorId = ActorId(),
+                IpAddress = CallerIpAddress(),
+            },
+            ct);
+    }
+
+    /// <summary>
+    /// Delete one of the organization's clients for good: every credential it holds is revoked
+    /// first, then the client, its consents and its branding are removed.
+    /// </summary>
     [HttpDelete("{clientId}")]
     [HasPermission(PermissionType.OrganizationClientsManage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -225,7 +276,20 @@ public class OrganizationClientsController(
             return NotFound();
         }
 
-        return await clients.DeleteAsync(orgId, clientId, ct) ? NoContent() : NotFound();
+        if (!await clients.DeleteAsync(orgId, clientId, ct))
+        {
+            return NotFound();
+        }
+
+        await messageBus.PublishAsync(new ClientDeletedEvent
+        {
+            ClientId = clientId,
+            OrganizationId = orgId,
+            ActorId = ActorId(),
+            IpAddress = CallerIpAddress(),
+        });
+
+        return NoContent();
     }
 
     // Mirrors OrganizationsController: the caller's own tenant and the global admin reach every
@@ -240,6 +304,30 @@ public class OrganizationClientsController(
         return Guid.TryParse(User.GetUserId(), out Guid callerId)
             && await accessPolicy.HasPermissionInOrganizationAsync(
                 orgId, callerId, PermissionType.OrganizationClientsManage, ct);
+    }
+
+    // Suspend and reinstate are the same request shape around a different transition: address the
+    // organization, apply the transition, announce it, hand back the client as it now is.
+    private async Task<ActionResult<OrganizationClientResponse>> TransitionAsync(
+        Guid orgId,
+        string clientId,
+        Func<Guid, string, CancellationToken, Task<OrganizationClientDto?>> transition,
+        Func<OrganizationClientDto, IntegrationEvent> announce,
+        CancellationToken ct)
+    {
+        if (!await CanAddressOrganizationAsync(orgId, ct))
+        {
+            return NotFound();
+        }
+
+        OrganizationClientDto? client = await transition(orgId, clientId, ct);
+        if (client is null)
+        {
+            return NotFound();
+        }
+
+        await messageBus.PublishAsync(announce(client));
+        return Ok(OrganizationClientResponse.From(client));
     }
 
     private Guid ActorId() => Guid.Parse(User.GetUserId()!);

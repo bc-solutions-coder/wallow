@@ -38,6 +38,23 @@ public interface IOrganizationClientService
         Guid actorUserId,
         CancellationToken ct = default);
 
-    /// <summary>Returns false when the client is not one of the organization's.</summary>
+    /// <summary>
+    /// Takes the client out of service: every token it was issued is revoked and its realtime
+    /// connections are hung up, while its configuration, branding and consents stay. Returns
+    /// <see langword="null"/> when the client is not one of the organization's.
+    /// </summary>
+    Task<OrganizationClientDto?> SuspendAsync(Guid organizationId, string clientId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Puts a suspended client back in service exactly as it was. Returns <see langword="null"/>
+    /// when the client is not one of the organization's.
+    /// </summary>
+    Task<OrganizationClientDto?> ReinstateAsync(Guid organizationId, string clientId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Revokes every credential the client holds, then removes it for good: the OpenIddict
+    /// application with its tokens and consents, and Wallow's own record. Returns false when the
+    /// client is not one of the organization's.
+    /// </summary>
     Task<bool> DeleteAsync(Guid organizationId, string clientId, CancellationToken ct = default);
 }

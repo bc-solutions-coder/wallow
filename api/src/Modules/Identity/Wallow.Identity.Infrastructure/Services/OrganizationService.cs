@@ -17,7 +17,7 @@ public sealed partial class OrganizationService(
     IOrganizationRepository organizationRepository,
     IMembershipRepository membershipRepository,
     IdentityDbContext dbContext,
-    IMembershipAccessRevoker accessRevoker,
+    IAccessRevoker accessRevoker,
     ILastOwnerGuard lastOwnerGuard,
     IMessageBus messageBus,
     TimeProvider timeProvider,
@@ -244,7 +244,7 @@ public sealed partial class OrganizationService(
             await membershipRepository.SaveChangesAsync(token);
         }, ct);
 
-        await accessRevoker.RevokeAsync(userId, orgId, ct);
+        await accessRevoker.RevokeMembershipAsync(userId, orgId, ct);
 
         await messageBus.PublishAsync(new OrganizationMemberRemovedEvent
         {

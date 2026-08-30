@@ -2430,6 +2430,70 @@ export type OrganizationClientsUpdateResponses = {
 
 export type OrganizationClientsUpdateResponse = OrganizationClientsUpdateResponses[keyof OrganizationClientsUpdateResponses];
 
+export type OrganizationClientsSuspendData = {
+    body?: never;
+    path: {
+        orgId: string;
+        clientId: string;
+    };
+    query?: never;
+    url: '/v1/identity/organizations/{orgId}/clients/{clientId}/suspend';
+};
+
+export type OrganizationClientsSuspendErrors = {
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Unprocessable Entity
+     */
+    422: ProblemDetails;
+};
+
+export type OrganizationClientsSuspendError = OrganizationClientsSuspendErrors[keyof OrganizationClientsSuspendErrors];
+
+export type OrganizationClientsSuspendResponses = {
+    /**
+     * OK
+     */
+    200: OrganizationClientResponse;
+};
+
+export type OrganizationClientsSuspendResponse = OrganizationClientsSuspendResponses[keyof OrganizationClientsSuspendResponses];
+
+export type OrganizationClientsReinstateData = {
+    body?: never;
+    path: {
+        orgId: string;
+        clientId: string;
+    };
+    query?: never;
+    url: '/v1/identity/organizations/{orgId}/clients/{clientId}/reinstate';
+};
+
+export type OrganizationClientsReinstateErrors = {
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Unprocessable Entity
+     */
+    422: ProblemDetails;
+};
+
+export type OrganizationClientsReinstateError = OrganizationClientsReinstateErrors[keyof OrganizationClientsReinstateErrors];
+
+export type OrganizationClientsReinstateResponses = {
+    /**
+     * OK
+     */
+    200: OrganizationClientResponse;
+};
+
+export type OrganizationClientsReinstateResponse = OrganizationClientsReinstateResponses[keyof OrganizationClientsReinstateResponses];
+
 export type OrganizationsGetAllData = {
     body?: never;
     path?: never;

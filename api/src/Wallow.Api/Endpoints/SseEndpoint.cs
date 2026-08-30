@@ -49,7 +49,9 @@ public static partial class SseEndpoint
         string connectionId = Guid.NewGuid().ToString();
         string moduleList = string.Join(",", modules);
         LogSseConnectionRegistered(logger, userId, tenantId, connectionId, moduleList);
-        connectionManager.AddConnection(connectionId, userId, tenantId, modules, permissions, roles);
+        // Which client issued the token decides whether suspending that client hangs this stream up.
+        connectionManager.AddConnection(
+            connectionId, userId, tenantId, modules, permissions, roles, httpContext.User.GetClientId());
 
         // The connection's own token ends this stream when the person's access to the tenant is
         // revoked. Without it the loop below runs to the client's own disconnect, still holding

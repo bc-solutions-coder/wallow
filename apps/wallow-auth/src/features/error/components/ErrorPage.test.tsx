@@ -31,6 +31,7 @@ const REASONS: readonly { readonly reason: string; readonly matches: RegExp }[] 
   { reason: "membership_suspended", matches: /has been suspended/iu },
   { reason: "membership_denied", matches: /was not approved/iu },
   { reason: "email_unverified", matches: /verify your email address/iu },
+  { reason: "client_suspended", matches: /application has been suspended/iu },
   { reason: "invalid_redirect_uri", matches: /redirect destination is not permitted/iu },
   { reason: "access_denied", matches: /access was denied/iu },
   { reason: "invalid_request", matches: /request was invalid/iu },

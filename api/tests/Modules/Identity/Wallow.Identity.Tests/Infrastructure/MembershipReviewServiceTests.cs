@@ -34,7 +34,7 @@ public sealed class MembershipReviewServiceTests : IDisposable
     private readonly IdentityDbContext _dbContext;
     private readonly IMessageBus _messageBus = Substitute.For<IMessageBus>();
     private readonly IDefaultMemberRoleResolver _roleResolver = Substitute.For<IDefaultMemberRoleResolver>();
-    private readonly IMembershipAccessRevoker _accessRevoker = Substitute.For<IMembershipAccessRevoker>();
+    private readonly IAccessRevoker _accessRevoker = Substitute.For<IAccessRevoker>();
     private readonly UnguardedLastOwnerGuard _lastOwnerGuard = new();
     private readonly FakeTimeProvider _time = new(DateTimeOffset.Parse("2026-03-01T09:00:00Z", null));
     private readonly MembershipReviewService _sut;
@@ -289,7 +289,7 @@ public sealed class MembershipReviewServiceTests : IDisposable
         Membership membership = await LoadMembershipAsync(requester.Id);
         membership.Status.Should().Be(MembershipStatus.Denied);
         membership.ReviewedBy.Should().Be(_actorId);
-        await _accessRevoker.DidNotReceive().RevokeAsync(
+        await _accessRevoker.DidNotReceive().RevokeMembershipAsync(
             Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
@@ -302,7 +302,7 @@ public sealed class MembershipReviewServiceTests : IDisposable
         await _sut.SuspendAsync(_orgId, member.Id, _actorId);
 
         (await LoadMembershipAsync(member.Id)).Status.Should().Be(MembershipStatus.Suspended);
-        await _accessRevoker.Received(1).RevokeAsync(member.Id, _orgId, Arg.Any<CancellationToken>());
+        await _accessRevoker.Received(1).RevokeMembershipAsync(member.Id, _orgId, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -336,7 +336,7 @@ public sealed class MembershipReviewServiceTests : IDisposable
 
         await _sut.LeaveAsync(_orgId, member.Id);
 
-        await _accessRevoker.Received(1).RevokeAsync(member.Id, _orgId, Arg.Any<CancellationToken>());
+        await _accessRevoker.Received(1).RevokeMembershipAsync(member.Id, _orgId, Arg.Any<CancellationToken>());
         await _messageBus.Received(1).PublishAsync(Arg.Is<OrganizationMemberRemovedEvent>(e =>
             e.OrganizationId == _orgId && e.UserId == member.Id && e.Email == "ada@acme.test"));
     }

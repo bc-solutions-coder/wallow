@@ -38,6 +38,9 @@ The `"EventType"` column uses plain string values. The following events are reco
 | `Membership<Transition>` | Somebody's membership of an organization changed state (see below) | No |
 | `ClientRegistered` | Somebody registered an application or service account for an organization (see below) | Yes |
 | `ClientSecretRotated` | Somebody rotated a registered client's secret (see below) | Yes |
+| `ClientSuspended` | Somebody suspended a registered client, ending every token it held (see below) | Yes |
+| `ClientReinstated` | Somebody reinstated a suspended client (see below) | Yes |
+| `ClientDeleted` | Somebody deleted a registered client along with its tokens, consents and branding (see below) | Yes |
 
 Each event is written by `AuthAuditEventHandlers` in the Identity module, which subscribes to the corresponding Wolverine in-memory integration events published by the Identity domain.
 
@@ -50,6 +53,9 @@ Each event is written by `AuthAuditEventHandlers` in the Identity module, which 
 | `Membership<Transition>` | `MembershipTransitionedEvent` |
 | `ClientRegistered` | `ClientRegisteredEvent` |
 | `ClientSecretRotated` | `ClientSecretRotatedEvent` |
+| `ClientSuspended` | `ClientSuspendedEvent` |
+| `ClientReinstated` | `ClientReinstatedEvent` |
+| `ClientDeleted` | `ClientDeletedEvent` |
 
 ### Membership events
 
@@ -79,10 +85,18 @@ ORDER BY "OccurredAt" DESC;
 
 ### Client lifecycle events
 
-`ClientRegistered` and `ClientSecretRotated` are about a registered client rather than a person, so
-they are the only events that fill `"ClientId"`. The person who did it stands in both `"UserId"` and
-`"ActorId"` — there is no separate subject — and `"TenantId"` is the organization that owns the
-client. Both carry the caller's IP address when the request exposed one.
+`ClientRegistered`, `ClientSecretRotated`, `ClientSuspended`, `ClientReinstated` and `ClientDeleted`
+are about a registered client rather than a person, so they are the only events that fill
+`"ClientId"`. The person who did it stands in both `"UserId"` and `"ActorId"` — there is no separate
+subject — and `"TenantId"` is the organization that owns the client. All of them carry the caller's
+IP address when the request exposed one.
+
+`ClientSuspended` means every token the client held was revoked and its realtime connections were
+hung up; the client's configuration, branding and consents survive, and `ClientReinstated` puts it
+back in service without asking anyone to consent again. `ClientDeleted` is the end of the record:
+the client's tokens, consents and branding are gone with it, and registering the same name again
+starts a fresh client with no consents. A deleted client's audit rows are all that remains of it,
+which is why `"ClientId"` is a string rather than a foreign key.
 
 `ClientSecretRotatedEvent` also says whether the rotation revoked the client's outstanding tokens;
 that flag is logged by the Identity module but not stored in the audit row.

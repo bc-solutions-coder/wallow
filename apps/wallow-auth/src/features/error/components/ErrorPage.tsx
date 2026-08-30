@@ -6,11 +6,13 @@ import { toAppHref } from "@shared/lib/base-path";
  * The Error screen (Wallow-vec7.3.3).
  *
  * This screen is the destination of every other screen's open-redirect refusal
- * (`/error?reason=invalid_redirect_uri`, per bd memory
- * `returnurl-guard-refuse-dont-sanitize`), of the four membership refusals the
- * authorize endpoint routes here, and of the OIDC flows' `access_denied` /
- * `invalid_request` bail-outs. Its `reason` mapping is therefore a contract
- * other beads depend on, not a private detail.
+ * (`/error?reason=invalid_redirect_uri`: a bad return URL is refused, never
+ * sanitised), of the four membership refusals the
+ * authorize endpoint routes here, of a suspended client's `client_suspended`
+ * (the authorize endpoint sends nobody back to a suspended client), and of the
+ * OIDC flows' `access_denied` / `invalid_request` bail-outs. Its `reason`
+ * mapping is therefore a contract other work depends on, not a private
+ * detail.
  *
  * `reason` arrives as a prop rather than being read from the router here: the
  * route owns the query string (the oracle's `[SupplyParameterFromQuery]`) and
@@ -55,6 +57,10 @@ const REASON_MESSAGES: ReadonlyMap<string, string> = new Map([
   [
     "email_unverified",
     "Verify your email address before joining another organization. Check your inbox for the verification link.",
+  ],
+  [
+    "client_suspended",
+    "This application has been suspended by its organization. Contact the organization's administrators.",
   ],
   ["invalid_redirect_uri", "The redirect destination is not permitted."],
   ["access_denied", "Access was denied. Please try again or contact support."],

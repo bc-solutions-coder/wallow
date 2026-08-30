@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Npgsql;
 using OpenIddict.Abstractions;
+using OpenIddict.EntityFrameworkCore.Models;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Helpers;
 using Wallow.Identity.Application.Interfaces;
@@ -32,7 +33,7 @@ namespace Wallow.Identity.Infrastructure.Services;
 public sealed partial class OrganizationClientService(
     IOpenIddictApplicationManager applicationManager,
     IRegisteredClientRepository registeredClients,
-    IClientAccessRevoker clientAccessRevoker,
+    IAccessRevoker accessRevoker,
     IdentityDbContext dbContext,
     IOrganizationRepository organizations,
     IApiScopeRepository apiScopes,
@@ -204,7 +205,7 @@ public sealed partial class OrganizationClientService(
                 await registeredClients.SaveChangesAsync(token);
                 if (revokeActiveTokens)
                 {
-                    await clientAccessRevoker.RevokeAsync(record.ClientId, token);
+                    await accessRevoker.RevokeClientAsync(record.ClientId, token);
                 }
 
                 await transaction.CommitAsync(token);
@@ -219,6 +220,50 @@ public sealed partial class OrganizationClientService(
             TrimmedOrNull(serviceUrls.Value.ApiUrl));
     }
 
+    public async Task<OrganizationClientDto?> SuspendAsync(Guid organizationId, string clientId, CancellationToken ct = default)
+    {
+        RegisteredClient? record = await OwnedRecordAsync(organizationId, clientId, ct);
+        OpenIddictApplicationDescriptor? descriptor = record is null ? null : await DescriptorOfAsync(record, ct);
+        if (record is null || descriptor is null)
+        {
+            return null;
+        }
+
+        record.Suspend();
+
+        // The status and the revocation land together: a suspended client with a live token, or
+        // a revoked client still marked active, is exactly the half-state the transaction forbids.
+        IExecutionStrategy strategy = dbContext.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(
+            ct,
+            async token =>
+            {
+                await using IDbContextTransaction transaction = await dbContext.Database.BeginTransactionAsync(token);
+                await registeredClients.SaveChangesAsync(token);
+                await accessRevoker.RevokeClientAsync(record.ClientId, token);
+                await transaction.CommitAsync(token);
+            });
+
+        LogClientSuspended(record.ClientId, organizationId);
+        return ToDto(record, descriptor);
+    }
+
+    public async Task<OrganizationClientDto?> ReinstateAsync(Guid organizationId, string clientId, CancellationToken ct = default)
+    {
+        RegisteredClient? record = await OwnedRecordAsync(organizationId, clientId, ct);
+        OpenIddictApplicationDescriptor? descriptor = record is null ? null : await DescriptorOfAsync(record, ct);
+        if (record is null || descriptor is null)
+        {
+            return null;
+        }
+
+        record.Reinstate();
+        await registeredClients.SaveChangesAsync(ct);
+
+        LogClientReinstated(record.ClientId, organizationId);
+        return ToDto(record, descriptor);
+    }
+
     public async Task<bool> DeleteAsync(Guid organizationId, string clientId, CancellationToken ct = default)
     {
         RegisteredClient? record = await OwnedRecordAsync(organizationId, clientId, ct);
@@ -228,15 +273,47 @@ public sealed partial class OrganizationClientService(
         }
 
         object? application = await applicationManager.FindByClientIdAsync(record.ClientId, ct);
-        if (application is not null)
-        {
-            await applicationManager.DeleteAsync(application, ct);
-        }
 
-        registeredClients.Remove(record);
-        await registeredClients.SaveChangesAsync(ct);
+        // Revocation first, so the realtime connections are hung up while the client still
+        // exists to name them; the application's own tokens and consents then go with it.
+        IExecutionStrategy strategy = dbContext.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(
+            ct,
+            async token =>
+            {
+                await using IDbContextTransaction transaction = await dbContext.Database.BeginTransactionAsync(token);
+                await accessRevoker.RevokeClientAsync(record.ClientId, token);
+
+                if (application is not null)
+                {
+                    DetachRevokedTokens(application);
+                    await applicationManager.DeleteAsync(application, token);
+                }
+
+                registeredClients.Remove(record);
+                await registeredClients.SaveChangesAsync(token);
+                await transaction.CommitAsync(token);
+            });
+
         LogClientDeleted(record.ClientId, organizationId);
         return true;
+    }
+
+    /// <summary>
+    /// Revocation loads the client's tokens into this context, and EF fixes them up onto the
+    /// application's navigations. OpenIddict's delete removes tokens and authorizations in SQL
+    /// first and then attaches the application graph, so any token still hanging off it is
+    /// updated as an orphan of a row that no longer exists and reported as a concurrency
+    /// conflict. Hand the delete a bare application: nothing tracked, nothing reachable.
+    /// </summary>
+    private void DetachRevokedTokens(object application)
+    {
+        dbContext.ChangeTracker.Clear();
+        if (application is OpenIddictEntityFrameworkCoreApplication<Guid> entity)
+        {
+            entity.Authorizations.Clear();
+            entity.Tokens.Clear();
+        }
     }
 
     private async Task<RegisteredClient?> OwnedRecordAsync(Guid organizationId, string clientId, CancellationToken ct)
@@ -403,6 +480,12 @@ public sealed partial class OrganizationClientService(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Rotated the secret of client {ClientId} of organization {OrganizationId} by {UserId} (active tokens revoked: {ActiveTokensRevoked})")]
     private partial void LogClientSecretRotated(string clientId, Guid organizationId, Guid userId, bool activeTokensRevoked);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Suspended client {ClientId} of organization {OrganizationId}")]
+    private partial void LogClientSuspended(string clientId, Guid organizationId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Reinstated client {ClientId} of organization {OrganizationId}")]
+    private partial void LogClientReinstated(string clientId, Guid organizationId);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Deleted client {ClientId} of organization {OrganizationId}")]
     private partial void LogClientDeleted(string clientId, Guid organizationId);

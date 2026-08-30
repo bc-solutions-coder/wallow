@@ -69,4 +69,28 @@ public sealed class RegisteredClient : Entity<RegisteredClientId>
         LastRotatedByUserId = actorUserId;
         LastRotatedAt = timeProvider.GetUtcNow();
     }
+
+    /// <summary>
+    /// Takes the client out of service without forgetting anything about it: configuration,
+    /// branding and consents stay, so reinstating restores exactly what was there.
+    /// </summary>
+    public void Suspend()
+    {
+        if (Status == RegisteredClientStatus.Suspended)
+        {
+            throw new BusinessRuleException("Identity.ClientAlreadySuspended", "The client is already suspended");
+        }
+
+        Status = RegisteredClientStatus.Suspended;
+    }
+
+    public void Reinstate()
+    {
+        if (Status == RegisteredClientStatus.Active)
+        {
+            throw new BusinessRuleException("Identity.ClientNotSuspended", "The client is not suspended");
+        }
+
+        Status = RegisteredClientStatus.Active;
+    }
 }

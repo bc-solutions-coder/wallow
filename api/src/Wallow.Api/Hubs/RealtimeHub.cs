@@ -26,7 +26,8 @@ internal sealed partial class RealtimeHub(
         }
 
         await presenceService.TrackConnectionAsync(tenantContext.TenantId.Value, userId, Context.ConnectionId);
-        connectionRegistry.Register(Context.ConnectionId, userId, tenantContext.TenantId.Value, Context);
+        connectionRegistry.Register(
+            Context.ConnectionId, userId, tenantContext.TenantId.Value, Context, Context.User?.GetClientId());
         LogUserConnected(userId, Context.ConnectionId);
 
         string tenantGroup = $"tenant:{tenantContext.TenantId.Value}";

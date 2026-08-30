@@ -211,11 +211,17 @@ answers 404 to a caller who cannot address the organization.
 | POST | `/` | Register an application or service account (returns secret, issuer, API base URL once) | OrganizationClientsManage |
 | GET | `/{clientId}` | Get a registered client | OrganizationClientsManage |
 | PATCH | `/{clientId}` | Update scopes, and for an application its redirect and logout URIs | OrganizationClientsManage |
-| DELETE | `/{clientId}` | Delete a registered client | OrganizationClientsManage |
+| DELETE | `/{clientId}` | Delete a registered client: revokes its tokens, then removes the application, its consents and its branding | OrganizationClientsManage |
 | POST | `/{clientId}/rotate-secret` | Rotate the secret (returned once); `revokeActiveTokens` also ends every token the client holds | OrganizationClientsManage |
+| POST | `/{clientId}/suspend` | Suspend the client: every token is revoked and its realtime connections closed; authorize shows the auth host's error page and the token endpoint answers `invalid_client` until it is reinstated | OrganizationClientsManage |
+| POST | `/{clientId}/reinstate` | Put a suspended client back in service; prior consents still stand | OrganizationClientsManage |
 
-Registration and rotation publish `ClientRegisteredEvent` / `ClientSecretRotatedEvent`, which the
-auth-audit handler records with the actor, organization, client and caller IP.
+Registration, rotation, suspension, reinstatement and deletion publish `ClientRegisteredEvent` /
+`ClientSecretRotatedEvent` / `ClientSuspendedEvent` / `ClientReinstatedEvent` / `ClientDeletedEvent`,
+which the auth-audit handler records with the actor, organization, client and caller IP; the Branding
+module also listens for `ClientDeletedEvent` to drop the deleted client's branding and logo.
+Rotate-with-revoke, suspension, deletion and organization-membership revocation all go through the one
+`IAccessRevoker`.
 
 ### Apps (`/v1/identity/apps`)
 

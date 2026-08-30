@@ -15,7 +15,7 @@ public sealed partial class MembershipReviewService(
     IMembershipRepository memberships,
     IdentityDbContext dbContext,
     IDefaultMemberRoleResolver defaultRoleResolver,
-    IMembershipAccessRevoker accessRevoker,
+    IAccessRevoker accessRevoker,
     ILastOwnerGuard lastOwnerGuard,
     IMessageBus messageBus,
     TimeProvider timeProvider,
@@ -139,7 +139,7 @@ public sealed partial class MembershipReviewService(
 
         // The status alone only decides the NEXT sign-in. Everything already issued off the
         // membership — tokens, open streams — outlives it unless it is taken away here.
-        await accessRevoker.RevokeAsync(userId, organizationId, ct);
+        await accessRevoker.RevokeMembershipAsync(userId, organizationId, ct);
 
         await PublishTransitionAsync(MembershipTransition.Suspended, organizationId, userId, actorId);
 
@@ -172,7 +172,7 @@ public sealed partial class MembershipReviewService(
             await memberships.SaveChangesAsync(token);
         }, ct);
 
-        await accessRevoker.RevokeAsync(userId, organizationId, ct);
+        await accessRevoker.RevokeMembershipAsync(userId, organizationId, ct);
 
         // The same event removal by an administrator raises: from every other module's side of the
         // boundary, why the person stopped being a member is not a distinction that changes anything.

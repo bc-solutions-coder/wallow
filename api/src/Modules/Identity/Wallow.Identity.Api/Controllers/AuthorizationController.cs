@@ -17,6 +17,7 @@ using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Helpers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Enums;
 using Wallow.Shared.Contracts.Identity;
 using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
@@ -40,6 +41,7 @@ public sealed partial class AuthorizationController(
     IOrganizationService organizations,
     ISsoClientSessionService ssoClientSessionService,
     IConsentTokenService consentTokenService,
+    IRegisteredClientRepository registeredClients,
     ILogger<AuthorizationController> logger) : Controller
 {
     /// <summary>
@@ -55,6 +57,14 @@ public sealed partial class AuthorizationController(
             ?? throw new InvalidOperationException("The OpenID Connect request cannot be retrieved.");
 
         LogAuthorizeRequest(request.ClientId, request.RedirectUri, request.ResponseType, request.Scope);
+
+        // A suspended client is told so before anyone is asked to sign in, and told on the auth
+        // host rather than at its own redirect URI: a client out of service gets no traffic back.
+        if (await IsSuspendedAsync(request.ClientId))
+        {
+            LogClientSuspended(request.ClientId);
+            return Redirect($"{GetRequiredAuthUrl()}/error?reason=client_suspended");
+        }
 
         if (User.Identity is not { IsAuthenticated: true })
         {
@@ -563,6 +573,17 @@ public sealed partial class AuthorizationController(
                     [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] = description
                 }));
 
+    private async Task<bool> IsSuspendedAsync(string? clientId)
+    {
+        if (string.IsNullOrEmpty(clientId))
+        {
+            return false;
+        }
+
+        RegisteredClient? registered = await registeredClients.GetByClientIdAsync(clientId, HttpContext.RequestAborted);
+        return registered?.Status == RegisteredClientStatus.Suspended;
+    }
+
     private string GetRequiredAuthUrl() =>
         configuration["AuthUrl"] ?? throw new InvalidOperationException(
             "AuthUrl must be configured in appsettings.json. " +
@@ -608,6 +629,9 @@ public sealed partial class AuthorizationController(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "OIDC refused authorize for client {ClientId}: the client is bound to no organization")]
     private partial void LogClientHasNoOrganization(string? clientId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Authorize refused: client {ClientId} is suspended")]
+    private partial void LogClientSuspended(string? clientId);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "OIDC refused authorize for client {ClientId}: organization hint {HintedOrganizationId} contradicts the bound organization {BoundOrganizationId}")]
     private partial void LogOrganizationHintContradictsBinding(string? clientId, Guid hintedOrganizationId, Guid boundOrganizationId);

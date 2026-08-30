@@ -27,7 +27,7 @@ public sealed class LastOwnerGuardedDeparturesTests : IDisposable
 {
     private readonly IdentityDbContext _dbContext;
     private readonly IMessageBus _messageBus = Substitute.For<IMessageBus>();
-    private readonly IMembershipAccessRevoker _accessRevoker = Substitute.For<IMembershipAccessRevoker>();
+    private readonly IAccessRevoker _accessRevoker = Substitute.For<IAccessRevoker>();
     private readonly ILastOwnerGuard _refusingGuard = Substitute.For<ILastOwnerGuard>();
     private readonly Organization _organization;
     private readonly Guid _orgId;
@@ -127,7 +127,7 @@ public sealed class LastOwnerGuardedDeparturesTests : IDisposable
 
         membership.Should().NotBeNull();
         membership!.Status.Should().Be(MembershipStatus.Active);
-        await _accessRevoker.DidNotReceive().RevokeAsync(
+        await _accessRevoker.DidNotReceive().RevokeMembershipAsync(
             Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
         await _messageBus.DidNotReceive().PublishAsync(Arg.Any<OrganizationMemberRemovedEvent>());
     }

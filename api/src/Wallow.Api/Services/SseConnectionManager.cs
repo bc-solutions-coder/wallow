@@ -18,13 +18,14 @@ public class SseConnectionManager
         Guid tenantId,
         HashSet<string> modules,
         HashSet<string> permissions,
-        HashSet<string> roles)
+        HashSet<string> roles,
+        string? clientId = null)
     {
         Channel<RealtimeEnvelope> channel = Channel.CreateBounded<RealtimeEnvelope>(new BoundedChannelOptions(100)
         {
             FullMode = BoundedChannelFullMode.DropOldest
         });
-        SseConnectionState state = new(userId, tenantId, modules, permissions, roles, channel);
+        SseConnectionState state = new(userId, tenantId, modules, permissions, roles, channel, clientId);
         _connections[connectionId] = state;
 
         // The manager owns the source for as long as the connection lives; RemoveConnection disposes it.
@@ -62,9 +63,20 @@ public class SseConnectionManager
     /// </summary>
     public virtual void CloseConnectionsForUser(string userId, Guid tenantId)
     {
+        CloseConnectionsWhere(state => state.UserId == userId && state.TenantId == tenantId);
+    }
+
+    /// <summary>Ends every stream opened with a token the named client was issued, whoever holds it.</summary>
+    public virtual void CloseConnectionsForClient(string clientId)
+    {
+        CloseConnectionsWhere(state => state.ClientId == clientId);
+    }
+
+    private void CloseConnectionsWhere(Func<SseConnectionState, bool> matches)
+    {
         foreach (KeyValuePair<string, SseConnectionState> entry in _connections)
         {
-            if (entry.Value.UserId != userId || entry.Value.TenantId != tenantId)
+            if (!matches(entry.Value))
             {
                 continue;
             }

@@ -22,7 +22,7 @@ public sealed class OrganizationServiceTests : IDisposable
     private readonly IdentityDbContext _dbContext;
     private readonly IMessageBus _messageBus;
     private readonly OrganizationService _sut;
-    private readonly IMembershipAccessRevoker _accessRevoker;
+    private readonly IAccessRevoker _accessRevoker;
     private readonly Guid _tenantId = Guid.NewGuid();
     private readonly TenantContext _tenantContextInstance;
 
@@ -42,7 +42,7 @@ public sealed class OrganizationServiceTests : IDisposable
         _organizationRepository = Substitute.For<IOrganizationRepository>();
         _membershipRepository = new MembershipRepository(_dbContext);
         _messageBus = Substitute.For<IMessageBus>();
-        _accessRevoker = Substitute.For<IMembershipAccessRevoker>();
+        _accessRevoker = Substitute.For<IAccessRevoker>();
 
         SeedRoleCatalog();
 

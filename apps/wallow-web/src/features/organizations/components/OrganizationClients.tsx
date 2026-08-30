@@ -6,7 +6,9 @@
  * `organization-detail-register-*` stepper and reveal for applications and the
  * `organization-detail-register-service-account-*` pair for service accounts.
  * Each row shows who created the client and who last rotated its secret, and
- * carries a `{row}-rotate` dialog whose reveal reuses the registration one.
+ * carries a `{row}-rotate` dialog whose reveal reuses the registration one, a
+ * `{row}-suspend` / `{row}-reinstate` toggle, and a `{row}-delete` dialog that
+ * only confirms once the client id has been typed back.
  */
 import { errorText } from "@bc-solutions-coder/forms";
 import { useMutation, useQuery, useQueryClient } from "@bc-solutions-coder/query";
@@ -23,6 +25,7 @@ import {
   Dialog,
   EmptyState,
   ErrorBanner,
+  Input,
   ListCard,
   ListRow,
   MutedText,
@@ -33,9 +36,12 @@ import { type ReactNode, useState } from "react";
 import { useRouteContext } from "@tanstack/react-router";
 
 import {
+  organizationClientsDeleteMutation,
   organizationClientsListOptions,
   organizationClientsListQueryKey,
+  organizationClientsReinstateMutation,
   organizationClientsRotateSecretMutation,
+  organizationClientsSuspendMutation,
   organizationsGetMembersOptions,
   queriesForOperation,
 } from "../api";
@@ -168,7 +174,7 @@ function RotateSecretDialog(props: {
 }) {
   const { name, orgId, client, onRotated } = props;
   const { sdk } = useRouteContext({ from: "__root__" });
-  const queryClient = useQueryClient();
+  const invalidate = useInvalidateClients(orgId);
   const [open, setOpen] = useState(false);
   const [revoke, setRevoke] = useState(false);
   const rotate = useMutation({
@@ -176,11 +182,7 @@ function RotateSecretDialog(props: {
     onSuccess: (result): void => {
       // The row's "last rotated" line comes off the ledger read; the secret
       // itself is shown once and never refetched, so the result is handed up.
-      void queryClient.invalidateQueries(
-        queriesForOperation(
-          organizationClientsListQueryKey({ client: sdk.client, path: { orgId } }),
-        ),
-      );
+      invalidate();
       setOpen(false);
       onRotated(result);
     },
@@ -216,6 +218,181 @@ function RotateSecretDialog(props: {
   );
 }
 
+/** Re-reads the ledger after anything that changes a row: status, "rotated by", or the row itself. */
+function useInvalidateClients(orgId: string): () => void {
+  const { sdk } = useRouteContext({ from: "__root__" });
+  const queryClient = useQueryClient();
+  return (): void => {
+    void queryClient.invalidateQueries(
+      queriesForOperation(organizationClientsListQueryKey({ client: sdk.client, path: { orgId } })),
+    );
+  };
+}
+
+/**
+ * Suspend or reinstate, whichever the row's status calls for. Suspension ends
+ * every token the client holds on the spot; reinstatement puts it back without
+ * asking anyone to consent again, so neither needs a confirmation step.
+ */
+function LifecycleToggle(props: {
+  name: string;
+  orgId: string;
+  client: OrganizationClientResponse;
+}) {
+  const { name, orgId, client } = props;
+  const { sdk } = useRouteContext({ from: "__root__" });
+  const invalidate = useInvalidateClients(orgId);
+  const suspended = client.status === "suspended";
+  const toggle = useMutation({
+    ...(suspended
+      ? organizationClientsReinstateMutation({ client: sdk.client })
+      : organizationClientsSuspendMutation({ client: sdk.client })),
+    onSuccess: invalidate,
+  });
+  return (
+    <div className="flex flex-col gap-1">
+      <Button
+        type="button"
+        className="w-auto"
+        variant="secondary"
+        disabled={toggle.isPending}
+        onClick={() => {
+          toggle.mutate({ path: { orgId, clientId: client.clientId } });
+        }}
+        data-testid={`${name}-${suspended ? "reinstate" : "suspend"}`}
+      >
+        {suspended ? "Reinstate" : "Suspend"}
+      </Button>
+      {toggle.isError ? (
+        <MutedText data-testid={`${name}-lifecycle-error`} className="text-destructive">
+          {errorText(toggle.error, suspended ? "Could not reinstate." : "Could not suspend.")}
+        </MutedText>
+      ) : null}
+    </div>
+  );
+}
+
+/** The delete dialog's footer: cancel, and a confirm that stays dead until the id matches. */
+function DeleteClientActions(props: {
+  name: string;
+  armed: boolean;
+  pending: boolean;
+  onConfirm: () => void;
+}) {
+  const { name, armed, pending, onConfirm } = props;
+  return (
+    <div className="mt-6 flex justify-end gap-2">
+      <Dialog.Close data-testid={`${name}-delete-cancel`} disabled={pending}>
+        Cancel
+      </Dialog.Close>
+      <Button
+        type="button"
+        className="w-auto"
+        variant="destructive"
+        disabled={!armed || pending}
+        onClick={onConfirm}
+        data-testid={`${name}-delete-confirm`}
+      >
+        {pending ? "Deleting…" : "Delete client"}
+      </Button>
+    </div>
+  );
+}
+
+/** The popup body: what deletion takes with it, the type-the-id guard, any error, and the footer. */
+function DeleteClientPopup(props: {
+  name: string;
+  client: OrganizationClientResponse;
+  typed: string;
+  onTypedChange: (typed: string) => void;
+  pending: boolean;
+  error: string | null;
+  onConfirm: () => void;
+}) {
+  const { name, client, typed, onTypedChange, pending, error, onConfirm } = props;
+  return (
+    <Dialog.Popup data-testid={`${name}-delete-popup`}>
+      <Dialog.Title>Delete {client.name}?</Dialog.Title>
+      <Dialog.Description>
+        Every token, consent and piece of branding this client has goes with it, and nothing brings
+        it back. Type{" "}
+        <Text as="span" variant="bodySm" color="onCard" className="font-mono">
+          {client.clientId}
+        </Text>{" "}
+        to confirm.
+      </Dialog.Description>
+      <Input
+        className="mt-4"
+        value={typed}
+        autoComplete="off"
+        placeholder={client.clientId}
+        aria-label="Client id"
+        onChange={(event) => {
+          onTypedChange(event.target.value);
+        }}
+        data-testid={`${name}-delete-input`}
+      />
+      {error === null ? null : (
+        <MutedText data-testid={`${name}-delete-error`} className="mt-4 text-destructive">
+          {error}
+        </MutedText>
+      )}
+      <DeleteClientActions
+        name={name}
+        armed={typed === client.clientId}
+        pending={pending}
+        onConfirm={onConfirm}
+      />
+    </Dialog.Popup>
+  );
+}
+
+/** The per-row delete control: a trigger plus the dialog that makes the user type the id back. */
+function DeleteClientDialog(props: {
+  name: string;
+  orgId: string;
+  client: OrganizationClientResponse;
+}) {
+  const { name, orgId, client } = props;
+  const { sdk } = useRouteContext({ from: "__root__" });
+  const invalidate = useInvalidateClients(orgId);
+  const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState("");
+  const remove = useMutation({
+    ...organizationClientsDeleteMutation({ client: sdk.client }),
+    onSuccess: (): void => {
+      invalidate();
+      setOpen(false);
+    },
+  });
+  const onOpenChange = (next: boolean): void => {
+    setOpen(next);
+    if (!next) {
+      setTyped("");
+      remove.reset();
+    }
+  };
+  return (
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+      <Dialog.Trigger data-testid={`${name}-delete`}>Delete</Dialog.Trigger>
+      <Dialog.Portal>
+        <Dialog.Backdrop />
+        <DeleteClientPopup
+          name={name}
+          client={client}
+          typed={typed}
+          onTypedChange={setTyped}
+          pending={remove.isPending}
+          error={remove.isError ? errorText(remove.error, "Could not delete the client.") : null}
+          onConfirm={() => {
+            remove.mutate({ path: { orgId, clientId: client.clientId } });
+          }}
+        />
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
 /** One client row; `ListRow` derives the test id `{name}-item`. */
 function ClientRow(props: {
   name: string;
@@ -236,6 +413,8 @@ function ClientRow(props: {
       <Badge variant={STATUS_VARIANT[client.status] ?? "neutral"}>{client.status}</Badge>
       <ClientProvenance name={name} client={client} nameOf={nameOf} />
       <RotateSecretDialog name={name} orgId={orgId} client={client} onRotated={onRotated} />
+      <LifecycleToggle name={name} orgId={orgId} client={client} />
+      <DeleteClientDialog name={name} orgId={orgId} client={client} />
     </ListRow>
   );
 }

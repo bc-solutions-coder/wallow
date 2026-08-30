@@ -89,6 +89,21 @@ public static class AuthAuditEventHandlers
             "ClientSecretRotated", message.ClientId, message.OrganizationId, message.ActorId,
             message.IpAddress, message.OccurredAt, authAuditService);
 
+    public static Task Handle(ClientSuspendedEvent message, IAuthAuditService authAuditService) =>
+        RecordClientEventAsync(
+            "ClientSuspended", message.ClientId, message.OrganizationId, message.ActorId,
+            message.IpAddress, message.OccurredAt, authAuditService);
+
+    public static Task Handle(ClientReinstatedEvent message, IAuthAuditService authAuditService) =>
+        RecordClientEventAsync(
+            "ClientReinstated", message.ClientId, message.OrganizationId, message.ActorId,
+            message.IpAddress, message.OccurredAt, authAuditService);
+
+    public static Task Handle(ClientDeletedEvent message, IAuthAuditService authAuditService) =>
+        RecordClientEventAsync(
+            "ClientDeleted", message.ClientId, message.OrganizationId, message.ActorId,
+            message.IpAddress, message.OccurredAt, authAuditService);
+
     private static Task RecordClientEventAsync(
         string eventType,
         string clientId,
