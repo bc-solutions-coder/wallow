@@ -684,7 +684,7 @@ function renderRouteAt(url: string) {
 }
 
 describe("/consent route", () => {
-  it("renders the real screen in place of the pre-registration placeholder", async () => {
+  it("renders the consent screen for the client on the query string", async () => {
     await renderRouteAt(
       `/consent?client_id=${CLIENT_ID}&returnUrl=${encodeURIComponent(RETURN_URL)}` +
         `&consent_token=${CONSENT_TOKEN}`,

@@ -26,15 +26,12 @@ public sealed partial class AuthorizationController
     /// The parameters that carry a consent decision rather than describe the authorize request.
     /// They are stripped from the request the consent screen is told to come back to, and from the
     /// fingerprint the token is bound to, so the same request digests the same way on the GET that
-    /// mints the token and the POST that redeems it. The two retired GET flags are listed so a link
-    /// still carrying them is not treated as a different request.
+    /// mints the token and the POST that redeems it.
     /// </summary>
     private static readonly ImmutableHashSet<string> _consentParameters = ImmutableHashSet.Create(
         StringComparer.Ordinal,
         ConsentTokenParameter,
-        ConsentDecisionParameter,
-        "consent_granted",
-        "consent_denied");
+        ConsentDecisionParameter);
 
     /// <summary>
     /// Sends the user to the consent screen with the request to come back to, the client and

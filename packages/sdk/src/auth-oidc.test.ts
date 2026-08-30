@@ -8,12 +8,12 @@
  * ORACLE MAP (api/src/Wallow.Auth/...):
  *   isSafeReturnUrl        <- Helpers/ReturnUrlValidator.cs IsSafe
  *   buildConsentSubmission <- the consent form: the authorize request as POST fields
- *   buildExchangeTicketUrl <- Components/Pages/Login.razor (L544-550)
- *   buildConnectLogoutUrl  <- Components/Pages/Logout.razor LogoutUrl (L66-77)
+ *   buildExchangeTicketUrl <- Components/Pages/Login.razor
+ *   buildConnectLogoutUrl  <- Components/Pages/Logout.razor LogoutUrl
  *   buildConnectAuthorizeUrl -- no single call site; the API redirects TO the
  *     login page, so this is the reverse direction and is specified here only.
  *
- * GUARD CONTRACT: Login.razor L533-540 is the authoritative treatment of an
+ * GUARD CONTRACT: Login.razor is the authoritative treatment of an
  * unsafe returnUrl -- it checks IsSafe and REFUSES to build the URL, bailing to
  * /error?reason=invalid_redirect_uri. The builders port that refusal as a thrown
  * TypeError rather than ReturnUrlValidator.Sanitize's silent "/" fallback: a
@@ -532,7 +532,7 @@ describe("buildConnectLogoutUrl", () => {
     // Unlike returnUrl, this value is an absolute URI by definition and is
     // validated server-side against the client's registered post-logout URIs.
     // isSafeReturnUrl must NOT be applied to it -- doing so rejects every real
-    // caller. The oracle (Logout.razor L66-77) applies no guard here.
+    // caller. The oracle (Logout.razor LogoutUrl) applies no guard here.
     expect(() => buildConnectLogoutUrl(ORIGIN, "https://app.example.com/bye")).not.toThrow();
   });
 

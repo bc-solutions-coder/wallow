@@ -60,7 +60,11 @@ public sealed partial class AuthorizationController(
         if (User.Identity is not { IsAuthenticated: true })
         {
             string authUrl = GetRequiredAuthUrl();
-            string returnUrl = Request.PathBase + Request.Path + Request.QueryString;
+
+            // Rebuilt from the OpenIddict request, not the URL: a consent decision that arrives
+            // after the identity cookie lapsed is a POST carrying the request in its body, and
+            // the decision itself must not ride along to the login that replays it.
+            string returnUrl = Request.PathBase + Request.Path + QueryString.Create(AuthorizeParameters(request));
 
             int cookieCount = Request.Cookies.Count;
             string pathBase = Request.PathBase;

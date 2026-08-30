@@ -30,7 +30,7 @@ import { useReturnUrlGuard } from "@shared/hooks/use-return-url-guard";
  * The two answers are submit buttons on a real `<form method="post">` aimed at
  * the authorize endpoint, not links: the endpoint honours a decision only when
  * it arrives in a request body together with the token it issued, so a
- * `consent_granted` flag smuggled onto a GET link grants nothing. The
+ * decision smuggled onto a GET link grants nothing. The
  * authorize request's own parameters ride along as hidden fields, because a
  * POST body is where OpenIddict reads them from.
  *

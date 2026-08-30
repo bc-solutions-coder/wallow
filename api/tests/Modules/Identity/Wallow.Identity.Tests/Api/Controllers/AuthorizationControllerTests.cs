@@ -140,6 +140,16 @@ public sealed class AuthorizationControllerTests : IDisposable
         _controller.Url = urlHelper;
     }
 
+    /// <summary>
+    /// The same request plumbing with nobody signed in: the identity cookie has lapsed (or was
+    /// never there), so authorize has to bounce to login without losing the request.
+    /// </summary>
+    private void SetupAnonymousHttpContext(OpenIddictRequest request, string method)
+    {
+        SetupAuthenticatedHttpContext(request, method: method);
+        _controller.HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity());
+    }
+
     private void SetupUser()
     {
         WallowUser wallowUser = WallowUser.Create(
@@ -355,8 +365,10 @@ public sealed class AuthorizationControllerTests : IDisposable
         SetupApplication(ThirdPartyClientId);
         SetupNoExistingAuthorizations();
         SetupClientTenantResolver(ThirdPartyClientId);
+        string? mintedFor = null;
+        _consentTokens.Issue(_testUserId, Arg.Do<string>(fingerprint => mintedFor = fingerprint));
         await _controller.Authorize();
-        string mintedFor = (string)_consentTokens.ReceivedCalls().Single().GetArguments()[1]!;
+        mintedFor.Should().NotBeNull("showing the consent screen mints a token for the request");
 
         OpenIddictRequest answered = ConsentDecision(AuthorizationController.ConsentGranted);
         SetupAuthenticatedHttpContext(answered, method: "POST");
@@ -460,10 +472,12 @@ public sealed class AuthorizationControllerTests : IDisposable
         {
             ClientId = ThirdPartyClientId,
             Scope = "openid profile",
-            ["consent_granted"] = "true"
+            [AuthorizationController.ConsentDecisionParameter] = AuthorizationController.ConsentGranted
         };
 
-        SetupAuthenticatedHttpContext(request, "?client_id=" + ThirdPartyClientId + "&scope=openid%20profile&consent_granted=true");
+        SetupAuthenticatedHttpContext(
+            request,
+            "?client_id=" + ThirdPartyClientId + "&scope=openid%20profile&consent_decision=granted");
         SetupUser();
         SetupApplication(ThirdPartyClientId);
         SetupNoExistingAuthorizations();
@@ -478,6 +492,30 @@ public sealed class AuthorizationControllerTests : IDisposable
         Dictionary<string, StringValues> query =
             QueryHelpers.ParseQuery(new Uri(redirectResult.Url).Query);
 
+        query["client_id"].ToString().Should().Be(ThirdPartyClientId);
+        query["returnUrl"].ToString().Should().Be(
+            "/connect/authorize?client_id=" + ThirdPartyClientId + "&scope=openid%20profile");
+    }
+
+    [Fact]
+    public async Task Authorize_AnonymousConsentPost_SendsTheWholeRequestBackThroughLogin()
+    {
+        // Arrange - the identity cookie lapsed while the consent screen sat open, so the decision
+        // arrives from nobody. A POST carries the authorize request in its body, not the URL,
+        // so the login returnUrl has to be rebuilt from the request rather than the query string
+        // - and the stale decision must not come back with it.
+        OpenIddictRequest request = ConsentDecision(AuthorizationController.ConsentGranted);
+        SetupAnonymousHttpContext(request, "POST");
+
+        // Act
+        IActionResult result = await _controller.Authorize();
+
+        // Assert
+        RedirectResult redirectResult = result.Should().BeOfType<RedirectResult>().Subject;
+        redirectResult.Url.Should().StartWith("https://auth.example.com/login?");
+
+        Dictionary<string, StringValues> query =
+            QueryHelpers.ParseQuery(new Uri(redirectResult.Url).Query);
         query["client_id"].ToString().Should().Be(ThirdPartyClientId);
         query["returnUrl"].ToString().Should().Be(
             "/connect/authorize?client_id=" + ThirdPartyClientId + "&scope=openid%20profile");

@@ -109,19 +109,10 @@ public sealed partial class ConsentTokenService : IConsentTokenService
         {
             return JsonSerializer.Deserialize<Payload>(_protector.Unprotect(token));
         }
-        catch (CryptographicException)
+        catch (Exception e) when (e is CryptographicException or FormatException or JsonException)
         {
-            // Forged, tampered, expired, or protected under a key this host does not hold.
-            LogInvalid();
-            return null;
-        }
-        catch (FormatException)
-        {
-            LogInvalid();
-            return null;
-        }
-        catch (JsonException)
-        {
+            // Forged, tampered, expired, protected under a key this host does not hold, or not
+            // a token at all - every one of them is "not ours", never an error to surface.
             LogInvalid();
             return null;
         }

@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Primitives;
 using OpenIddict.Abstractions;
+using Wallow.Identity.Api.Controllers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Infrastructure.Extensions;
@@ -39,10 +40,10 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
     public const string FirstPartyClientPrefix = "wallow-";
 
     /// <summary>The form field the consent screen posts its server-issued token under.</summary>
-    public const string ConsentTokenField = "consent_token";
+    public const string ConsentTokenField = AuthorizationController.ConsentTokenParameter;
 
     /// <summary>The form field carrying the user's answer: <c>granted</c> or <c>denied</c>.</summary>
-    public const string ConsentDecisionField = "consent_decision";
+    public const string ConsentDecisionField = AuthorizationController.ConsentDecisionParameter;
 
     private readonly HttpClient _client;
 
@@ -170,7 +171,7 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
             form[ConsentTokenField] = token;
         }
 
-        form[ConsentDecisionField] = grant ? "granted" : "denied";
+        form[ConsentDecisionField] = grant ? AuthorizationController.ConsentGranted : AuthorizationController.ConsentDenied;
 
         using FormUrlEncodedContent content = new(form);
         using HttpResponseMessage response = await _client.PostAsync(new Uri(path, UriKind.Relative), content);
