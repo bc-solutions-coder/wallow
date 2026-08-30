@@ -616,7 +616,8 @@ export type PasswordlessVerificationResponse = {
 
 /**
  * Places a platform suspension. The reason is the operator's and travels with the suspension:
- * the affected organization's admins read it, only a global admin removes it.
+ * the affected organization's admins read it, only a global admin removes it. The length cap
+ * matches the column both suspension marks persist the reason into.
  */
 export type PlatformSuspensionRequest = {
     reason: string;

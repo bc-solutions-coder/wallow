@@ -8968,10 +8968,11 @@
         "type": "object",
         "properties": {
           "reason": {
+            "maxLength": 1000,
             "type": "string"
           }
         },
-        "description": "Places a platform suspension. The reason is the operator's and travels with the suspension:\nthe affected organization's admins read it, only a global admin removes it."
+        "description": "Places a platform suspension. The reason is the operator's and travels with the suspension:\nthe affected organization's admins read it, only a global admin removes it. The length cap\nmatches the column both suspension marks persist the reason into."
       },
       "PresignedUploadRequest": {
         "required": [
