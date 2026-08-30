@@ -33,18 +33,18 @@ The module provides:
 - **JWT-Based Resolution**: Tenant extracted from `org_id` claim in JWT
 - **Admin Override**: Superadmins and operator service accounts (client ID prefixed `sa-`) can override via `X-Tenant-Id` header
 
-### Service Accounts
-- **OpenIddict Client Credentials**: Machine-to-machine authentication via OpenIddict applications
-- **Client ID Prefix**: Service account client IDs prefixed with `sa-`
-- **Scope-Based Permissions**: Fine-grained API access via OAuth2 scopes
-- **Secret Rotation**: Rotate client secrets without downtime
-- **Last-Used Tracking**: Monitor service account activity via `ServiceAccountTrackingMiddleware`
-
 ### Organization Clients
 - **Self-service registration**: an organization admin or manager registers a confidential
-  authorization-code application on the org-scoped client surface (`OrganizationClientsController`
+  authorization-code application (`kind: application`) or a client-credentials service account
+  (`kind: service-account`) on the org-scoped client surface (`OrganizationClientsController`
   / `OrganizationClientService`), gated by `OrganizationClientsManage`
-- **Client ID derivation**: `app-<org-slug>-<name-slug>`; name and id are immutable
+- **Client ID derivation**: `app-<org-slug>-<name-slug>` / `sa-<org-slug>-<name-slug>`; name and
+  id are immutable
+- **Organization binding**: registration binds both kinds to the organization, so a service
+  account's client-credentials token carries `org_id`
+- **Service accounts ignore every URI field** and can only use the `client_credentials` grant
+- **Last-Used Tracking**: `ServiceAccountTrackingMiddleware` records `sa-`/`app-` client activity
+  on the registered-client ledger
 - **Registered-client ledger**: one `RegisteredClient` row per OpenIddict application (organization,
   kind, status, created by/at, last used)
 - **Redirect URI rule**: absolute, fragment-free, HTTPS or loopback HTTP, enforced on the org
@@ -86,26 +86,18 @@ The following middleware executes in strict order:
 - **MembershipRole** - A role assigned within a membership
 - **Invitation** - A pending invitation to join an organization
 - **ActiveSession** - A tracked sign-in session
-- **ApiScope** - System-defined OAuth2 scopes assignable to service accounts
-- **ServiceAccountMetadata** - Local reference to an OpenIddict service account application with usage tracking
+- **ApiScope** - System-defined OAuth2 scopes grantable to registered clients
+- **RegisteredClient** - An organization's registered application or service account, bound to the OpenIddict application by client id
 
 ## Commands and Queries
 
-### Service Account Commands
+Organization clients (applications and service accounts) go through `OrganizationClientService`
+directly rather than Wolverine messages.
 
-| Command | Description |
-|---------|-------------|
-| `CreateServiceAccountCommand` | Create a new OAuth2 service account |
-| `RotateServiceAccountSecretCommand` | Generate a new client secret |
-| `RevokeServiceAccountCommand` | Revoke and delete a service account |
-| `UpdateServiceAccountScopesCommand` | Update assigned OAuth2 scopes |
-
-### Service Account Queries
+### Scope Queries
 
 | Query | Description |
 |-------|-------------|
-| `GetServiceAccountsQuery` | List all service accounts for the tenant |
-| `GetServiceAccountQuery` | Get a specific service account by ID |
 | `GetApiScopesQuery` | List available API scopes |
 
 ## Integration Events Published
@@ -216,9 +208,9 @@ answers 404 to a caller who cannot address the organization.
 | Method | Endpoint | Description | Permission |
 |--------|----------|-------------|------------|
 | GET | `/` | List the organization's registered clients | OrganizationClientsManage |
-| POST | `/` | Register an application (returns secret, issuer, API base URL once) | OrganizationClientsManage |
+| POST | `/` | Register an application or service account (returns secret, issuer, API base URL once) | OrganizationClientsManage |
 | GET | `/{clientId}` | Get a registered client | OrganizationClientsManage |
-| PATCH | `/{clientId}` | Update redirect URIs, logout URIs, scopes | OrganizationClientsManage |
+| PATCH | `/{clientId}` | Update scopes, and for an application its redirect and logout URIs | OrganizationClientsManage |
 | DELETE | `/{clientId}` | Delete a registered client | OrganizationClientsManage |
 
 ### Apps (`/v1/identity/apps`)
@@ -227,19 +219,11 @@ answers 404 to a caller who cannot address the organization.
 |--------|----------|-------------|------------|
 | GET | `/consent-info/{clientId}` | Client name, logo and scope descriptions for the consent screen | Anonymous |
 
-### Service Accounts (`/v1/identity/clients/service-accounts`)
+### Service Accounts
 
-Served by `ClientsController`, not a separate controller. `PermissionType` does declare
-`ServiceAccountsRead/Write/Manage`, but those are **not** what guards these routes.
-
-| Method | Endpoint | Description | Permission |
-|--------|----------|-------------|------------|
-| GET | `/` | List service accounts | AdminAccess |
-| POST | `/` | Create service account (returns secret once) | AdminAccess |
-| GET | `/{id}` | Get service account by ID | AdminAccess |
-| PUT | `/{id}/scopes` | Update scopes | AdminAccess |
-| POST | `/{id}/rotate-secret` | Rotate client secret | AdminAccess |
-| DELETE | `/{id}` | Revoke service account | AdminAccess |
+Service accounts have no surface of their own: they are registered, listed, updated and deleted
+on the Organization Clients routes above with `kind: service-account`. See
+`docs/api/service-accounts.md`.
 
 ### API Keys (`/v1/identity/auth/keys`)
 

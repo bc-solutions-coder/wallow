@@ -253,8 +253,6 @@ try
         //   - IBootstrapAdminService and IOrganizationService (behind BootstrapAdminHandler) reach
         //     ASP.NET Identity's UserManager and OpenIddict's managers, both registered as opaque
         //     lambda factories the codegen cannot see through either.
-        //   - IServiceAccountService (behind the six ServiceAccount commands and queries) reaches
-        //     OpenIddict's IOpenIddictApplicationManager for the same reason.
         // HandlerCodegenTests compiles every discovered handler and fails if this list is short one
         // entry; WolverineCodegenPolicyTests asserts the list itself has not grown unnoticed.
         // See https://wolverinefx.net/guide/codegen.html.
@@ -264,7 +262,6 @@ try
         opts.CodeGeneration.AlwaysUseServiceLocationFor<ISetupStatusChecker>();
         opts.CodeGeneration.AlwaysUseServiceLocationFor<IBootstrapAdminService>();
         opts.CodeGeneration.AlwaysUseServiceLocationFor<IOrganizationService>();
-        opts.CodeGeneration.AlwaysUseServiceLocationFor<IServiceAccountService>();
 
         // ASP.NET's authorization handlers are not Wolverine handlers, but they match its naming
         // convention exactly: the class ends in "Handler" and AuthorizationHandler<T> exposes a

@@ -2004,247 +2004,6 @@
         }
       }
     },
-    "/v1/identity/clients/service-accounts": {
-      "get": {
-        "tags": [
-          "Clients"
-        ],
-        "summary": "List all service accounts (client-credentials clients) for the current tenant.",
-        "operationId": "ClientsListServiceAccounts",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ServiceAccountDto"
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "Clients"
-        ],
-        "summary": "Create a new service account. Returns the client secret which will NOT be shown again.",
-        "operationId": "ClientsCreateServiceAccount",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateServiceAccountRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateServiceAccountRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ServiceAccountCreatedResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/identity/clients/service-accounts/{id}": {
-      "get": {
-        "tags": [
-          "Clients"
-        ],
-        "summary": "Get a specific service account by ID.",
-        "operationId": "ClientsGetServiceAccount",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ServiceAccountDto"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "Clients"
-        ],
-        "summary": "Revoke and delete a service account.",
-        "operationId": "ClientsRevokeServiceAccount",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "No Content",
-            "content": {
-              "application/json": { }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/identity/clients/service-accounts/{id}/scopes": {
-      "put": {
-        "tags": [
-          "Clients"
-        ],
-        "summary": "Update the scopes assigned to a service account. Write-level rather than manage: creation\nalready accepts arbitrary scopes, so gating updates higher would guard nothing.",
-        "operationId": "ClientsUpdateServiceAccountScopes",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateScopesRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateScopesRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "204": {
-            "description": "No Content",
-            "content": {
-              "application/json": { }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/identity/clients/service-accounts/{id}/rotate-secret": {
-      "post": {
-        "tags": [
-          "Clients"
-        ],
-        "summary": "Rotate the client secret for a service account. Returns the new secret which will NOT be shown again.",
-        "operationId": "ClientsRotateServiceAccountSecret",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SecretRotatedResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/identity/config": {
       "get": {
         "tags": [
@@ -3064,7 +2823,7 @@
         "tags": [
           "Organization Clients"
         ],
-        "summary": "Register a developer application for the organization. The response carries the client\nsecret exactly once.",
+        "summary": "Register a developer application or a service account for the organization. The response\ncarries the client secret exactly once. A service account ignores every URI field.",
         "operationId": "OrganizationClientsRegister",
         "parameters": [
           {
@@ -3232,7 +2991,7 @@
         "tags": [
           "Organization Clients"
         ],
-        "summary": "Replace a client's redirect URIs, logout URI and scopes. Name and client id are immutable.",
+        "summary": "Replace a client's redirect URIs, logout URI and scopes. Name and client id are immutable;\na service account's URI fields are ignored.",
         "operationId": "OrganizationClientsUpdate",
         "parameters": [
           {
@@ -7715,31 +7474,6 @@
           }
         }
       },
-      "CreateServiceAccountRequest": {
-        "required": [
-          "name",
-          "description",
-          "scopes"
-        ],
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "description": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "scopes": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        }
-      },
       "CreateUserRequest": {
         "required": [
           "email",
@@ -8922,7 +8656,7 @@
             ]
           }
         },
-        "description": "Registers a client on behalf of an organization. `Kind` is `application` for a\ndeveloper application a person signs in to (the only kind this surface registers today) or\n`service-account`. Name and the derived client id are immutable once registered. Redirect\nURIs must be absolute, fragment-free, and https or http://localhost; at least one redirect URI\nand one scope are required."
+        "description": "Registers a client on behalf of an organization. `Kind` is `application` for a\ndeveloper application a person signs in to or `service-account` for a client-credentials\nclient. Name and the derived client id are immutable once registered. An application needs at\nleast one redirect URI, absolute, fragment-free, and https or http://localhost; a service\naccount ignores every URI field. Both need at least one scope."
       },
       "ResolvedSetting": {
         "required": [
@@ -9031,28 +8765,6 @@
           }
         }
       },
-      "SecretRotatedResponse": {
-        "required": [
-          "newClientSecret",
-          "rotatedAt"
-        ],
-        "type": "object",
-        "properties": {
-          "newClientSecret": {
-            "type": "string"
-          },
-          "rotatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "warning": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        }
-      },
       "SendMagicLinkRequest": {
         "required": [
           "email"
@@ -9110,104 +8822,6 @@
             "type": "string"
           }
         }
-      },
-      "ServiceAccountCreatedResponse": {
-        "required": [
-          "id",
-          "clientId",
-          "clientSecret",
-          "tokenEndpoint",
-          "scopes"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "clientId": {
-            "type": "string"
-          },
-          "clientSecret": {
-            "type": "string"
-          },
-          "tokenEndpoint": {
-            "type": "string"
-          },
-          "scopes": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "warning": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        }
-      },
-      "ServiceAccountDto": {
-        "required": [
-          "id",
-          "clientId",
-          "name",
-          "description",
-          "status",
-          "scopes",
-          "createdAt",
-          "lastUsedAt"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "$ref": "#/components/schemas/ServiceAccountMetadataId"
-          },
-          "clientId": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "description": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "status": {
-            "$ref": "#/components/schemas/ServiceAccountStatus"
-          },
-          "scopes": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "lastUsedAt": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          }
-        }
-      },
-      "ServiceAccountMetadataId": {
-        "type": "object",
-        "properties": {
-          "value": {
-            "type": "string",
-            "format": "uuid"
-          }
-        }
-      },
-      "ServiceAccountStatus": {
-        "type": "integer"
       },
       "SessionDto": {
         "required": [
@@ -9652,20 +9266,6 @@
               "null",
               "string"
             ]
-          }
-        }
-      },
-      "UpdateScopesRequest": {
-        "required": [
-          "scopes"
-        ],
-        "type": "object",
-        "properties": {
-          "scopes": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
           }
         }
       },

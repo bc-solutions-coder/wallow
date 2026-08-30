@@ -42,7 +42,6 @@ public class WolverineCodegenPolicyTests
     [
         "IBootstrapAdminService",
         "IOrganizationService",
-        "IServiceAccountService",
         "ISetupStatusChecker",
         "ITenantContext",
         "ITenantContextSetter",

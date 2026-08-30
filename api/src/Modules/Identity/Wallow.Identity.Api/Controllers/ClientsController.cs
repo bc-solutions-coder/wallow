@@ -7,10 +7,7 @@ using OpenIddict.Abstractions;
 using Wallow.Identity.Api.Contracts.Requests;
 using Wallow.Identity.Api.Contracts.Responses;
 using Wallow.Identity.Api.Extensions;
-using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Helpers;
-using Wallow.Identity.Application.Interfaces;
-using Wallow.Identity.Domain.Identity;
 using Wallow.Shared.Contracts.Identity;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using static OpenIddict.Abstractions.OpenIddictConstants;
@@ -24,12 +21,7 @@ namespace Wallow.Identity.Api.Controllers;
 [Tags("Clients")]
 [Produces("application/json")]
 [Consumes("application/json")]
-// Guards are per-action, and the class level must stay bare: stacked [HasPermission] attributes
-// are separate policies that ALL have to pass, so a class-level AdminAccess would put the
-// service-account actions back behind admin regardless of what each action declares.
-public class ClientsController(
-    IOpenIddictApplicationManager applicationManager,
-    IServiceAccountService serviceAccountService) : ControllerBase
+public class ClientsController(IOpenIddictApplicationManager applicationManager) : ControllerBase
 {
     /// <summary>
     /// Enough to sign a user in and keep them signed in, which is what a relying party registered
@@ -310,116 +302,6 @@ public class ClientsController(
             Scopes = ScopesOf(descriptor),
             FrontchannelLogoutUri = descriptor.GetFrontchannelLogoutUri()?.AbsoluteUri
         });
-    }
-
-    /// <summary>
-    /// List all service accounts (client-credentials clients) for the current tenant.
-    /// </summary>
-    [HttpGet("service-accounts")]
-    [HasPermission(PermissionType.ServiceAccountsRead)]
-    [ProducesResponseType(typeof(IReadOnlyList<ServiceAccountDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyList<ServiceAccountDto>>> ListServiceAccounts(CancellationToken ct)
-    {
-        IReadOnlyList<ServiceAccountDto> accounts = await serviceAccountService.ListAsync(ct);
-        return Ok(accounts);
-    }
-
-    /// <summary>
-    /// Create a new service account. Returns the client secret which will NOT be shown again.
-    /// </summary>
-    [HttpPost("service-accounts")]
-    [HasPermission(PermissionType.ServiceAccountsWrite)]
-    [ProducesResponseType(typeof(ServiceAccountCreatedResponse), StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<ServiceAccountCreatedResponse>> CreateServiceAccount(
-        [FromBody] Contracts.Requests.CreateServiceAccountRequest request,
-        CancellationToken ct)
-    {
-        Application.DTOs.CreateServiceAccountRequest appRequest = new(
-            request.Name,
-            request.Description,
-            request.Scopes);
-
-        ServiceAccountCreatedResult result = await serviceAccountService.CreateAsync(appRequest, ct);
-
-        ServiceAccountCreatedResponse response = new()
-        {
-            Id = result.Id.Value.ToString(),
-            ClientId = result.ClientId,
-            ClientSecret = result.ClientSecret,
-            TokenEndpoint = result.TokenEndpoint,
-            Scopes = result.Scopes.ToList()
-        };
-
-        return CreatedAtAction(nameof(GetServiceAccount), new { id = result.Id.Value }, response);
-    }
-
-    /// <summary>
-    /// Get a specific service account by ID.
-    /// </summary>
-    [HttpGet("service-accounts/{id:guid}")]
-    [HasPermission(PermissionType.ServiceAccountsRead)]
-    [ProducesResponseType(typeof(ServiceAccountDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<ServiceAccountDto>> GetServiceAccount(Guid id, CancellationToken ct)
-    {
-        ServiceAccountDto? account = await serviceAccountService.GetAsync(ServiceAccountMetadataId.Create(id), ct);
-        return account is null ? NotFound() : Ok(account);
-    }
-
-    /// <summary>
-    /// Update the scopes assigned to a service account. Write-level rather than manage: creation
-    /// already accepts arbitrary scopes, so gating updates higher would guard nothing.
-    /// </summary>
-    [HttpPut("service-accounts/{id:guid}/scopes")]
-    [HasPermission(PermissionType.ServiceAccountsWrite)]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult> UpdateServiceAccountScopes(
-        Guid id,
-        [FromBody] UpdateScopesRequest request,
-        CancellationToken ct)
-    {
-        await serviceAccountService.UpdateScopesAsync(
-            ServiceAccountMetadataId.Create(id),
-            request.Scopes,
-            ct);
-        return NoContent();
-    }
-
-    /// <summary>
-    /// Rotate the client secret for a service account. Returns the new secret which will NOT be shown again.
-    /// </summary>
-    [HttpPost("service-accounts/{id:guid}/rotate-secret")]
-    [HasPermission(PermissionType.ServiceAccountsManage)]
-    [ProducesResponseType(typeof(SecretRotatedResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<SecretRotatedResponse>> RotateServiceAccountSecret(Guid id, CancellationToken ct)
-    {
-        SecretRotatedResult result = await serviceAccountService.RotateSecretAsync(
-            ServiceAccountMetadataId.Create(id),
-            ct);
-
-        return Ok(new SecretRotatedResponse
-        {
-            NewClientSecret = result.NewClientSecret,
-            RotatedAt = result.RotatedAt
-        });
-    }
-
-    /// <summary>
-    /// Revoke and delete a service account.
-    /// </summary>
-    [HttpDelete("service-accounts/{id:guid}")]
-    [HasPermission(PermissionType.ServiceAccountsManage)]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult> RevokeServiceAccount(Guid id, CancellationToken ct)
-    {
-        await serviceAccountService.RevokeAsync(
-            ServiceAccountMetadataId.Create(id),
-            ct);
-        return NoContent();
     }
 
     /// <summary>

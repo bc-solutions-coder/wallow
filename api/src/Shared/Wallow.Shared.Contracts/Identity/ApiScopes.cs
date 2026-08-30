@@ -43,11 +43,6 @@ public static class ApiScopes
         "inquiries.read",
         "inquiries.write",
 
-        // Identity - Service Accounts
-        "serviceaccounts.read",
-        "serviceaccounts.write",
-        "serviceaccounts.manage",
-
         // Platform
         "webhooks.manage"
     };

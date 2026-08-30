@@ -204,32 +204,6 @@ public class ScopePermissionMapperTests
         result.Should().Be(PermissionType.InquiriesWrite);
     }
 
-    // Identity - Service Accounts
-
-    [Fact]
-    public void MapScopeToPermission_ServiceaccountsRead_ReturnsServiceAccountsRead()
-    {
-        string? result = ScopePermissionMapper.MapScopeToPermission("serviceaccounts.read");
-
-        result.Should().Be(PermissionType.ServiceAccountsRead);
-    }
-
-    [Fact]
-    public void MapScopeToPermission_ServiceaccountsWrite_ReturnsServiceAccountsWrite()
-    {
-        string? result = ScopePermissionMapper.MapScopeToPermission("serviceaccounts.write");
-
-        result.Should().Be(PermissionType.ServiceAccountsWrite);
-    }
-
-    [Fact]
-    public void MapScopeToPermission_ServiceaccountsManage_ReturnsServiceAccountsManage()
-    {
-        string? result = ScopePermissionMapper.MapScopeToPermission("serviceaccounts.manage");
-
-        result.Should().Be(PermissionType.ServiceAccountsManage);
-    }
-
     // Platform
 
     [Fact]

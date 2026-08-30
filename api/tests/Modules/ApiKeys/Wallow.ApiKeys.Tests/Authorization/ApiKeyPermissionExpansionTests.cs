@@ -96,7 +96,7 @@ public class ApiKeyPermissionExpansionTests
     [Fact]
     public void ValidScopes_ContainsExpectedCount()
     {
-        ApiScopes.ValidScopes.Should().HaveCount(27);
+        ApiScopes.ValidScopes.Should().HaveCount(24);
     }
 
     [Theory]
@@ -123,9 +123,6 @@ public class ApiKeyPermissionExpansionTests
     [InlineData("configuration.manage")]
     [InlineData("inquiries.read")]
     [InlineData("inquiries.write")]
-    [InlineData("serviceaccounts.read")]
-    [InlineData("serviceaccounts.write")]
-    [InlineData("serviceaccounts.manage")]
     [InlineData("webhooks.manage")]
     public void ValidScopes_ContainsExpectedScope(string scope)
     {
@@ -156,9 +153,6 @@ public class ApiKeyPermissionExpansionTests
     [InlineData("configuration.manage", PermissionType.ConfigurationManage)]
     [InlineData("inquiries.read", PermissionType.InquiriesRead)]
     [InlineData("inquiries.write", PermissionType.InquiriesWrite)]
-    [InlineData("serviceaccounts.read", PermissionType.ServiceAccountsRead)]
-    [InlineData("serviceaccounts.write", PermissionType.ServiceAccountsWrite)]
-    [InlineData("serviceaccounts.manage", PermissionType.ServiceAccountsManage)]
     [InlineData("webhooks.manage", PermissionType.WebhooksManage)]
     public void MapScopeToPermission_KnownScope_ReturnsExpectedPermission(string scope, string expectedPermission)
     {

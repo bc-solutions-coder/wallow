@@ -7,7 +7,6 @@ public class ResponseContractTests
 {
     private static readonly string[] _adminUserRoles = ["admin", "user"];
     private static readonly string[] _usersReadWritePermissions = ["users.read", "users.write"];
-    private static readonly string[] _billingReadScope = ["billing:read"];
 
     #region CurrentUserResponse
 
@@ -57,49 +56,6 @@ public class ResponseContractTests
         CreateOrganizationResponse response = new(orgId);
 
         response.OrganizationId.Should().Be(orgId);
-    }
-
-    #endregion
-
-    #region ServiceAccountCreatedResponse
-
-    [Fact]
-    public void ServiceAccountCreatedResponse_WithAllFields_CreatesInstance()
-    {
-        ServiceAccountCreatedResponse response = new ServiceAccountCreatedResponse()
-        {
-            Id = "sa-id",
-            ClientId = "client-backend",
-            ClientSecret = "secret-xyz",
-            TokenEndpoint = "https://auth.example.com/connect/token",
-            Scopes = _billingReadScope
-        };
-
-        response.Id.Should().Be("sa-id");
-        response.ClientId.Should().Be("client-backend");
-        response.ClientSecret.Should().Be("secret-xyz");
-        response.TokenEndpoint.Should().Be("https://auth.example.com/connect/token");
-        response.Scopes.Should().HaveCount(1);
-        response.Warning.Should().Contain("Save this secret");
-    }
-
-    #endregion
-
-    #region SecretRotatedResponse
-
-    [Fact]
-    public void SecretRotatedResponse_WithAllFields_CreatesInstance()
-    {
-        DateTime rotatedAt = DateTime.UtcNow;
-        SecretRotatedResponse response = new SecretRotatedResponse()
-        {
-            NewClientSecret = "new-secret",
-            RotatedAt = rotatedAt
-        };
-
-        response.NewClientSecret.Should().Be("new-secret");
-        response.RotatedAt.Should().Be(rotatedAt);
-        response.Warning.Should().Contain("Save this secret");
     }
 
     #endregion

@@ -74,11 +74,6 @@ public static class PermissionType
     public const string InquiriesRead = "InquiriesRead";
     public const string InquiriesWrite = "InquiriesWrite";
 
-    // Service Accounts
-    public const string ServiceAccountsRead = "ServiceAccountsRead";
-    public const string ServiceAccountsWrite = "ServiceAccountsWrite";
-    public const string ServiceAccountsManage = "ServiceAccountsManage";
-
     // Scope management
     public const string ScopeRead = "ScopeRead";
 

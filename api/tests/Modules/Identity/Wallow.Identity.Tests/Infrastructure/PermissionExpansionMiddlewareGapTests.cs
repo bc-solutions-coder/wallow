@@ -197,9 +197,6 @@ public class PermissionExpansionMiddlewareGapTests
     [InlineData("notifications.write", PermissionType.NotificationsWrite)]
     [InlineData("configuration.read", PermissionType.ConfigurationRead)]
     [InlineData("configuration.manage", PermissionType.ConfigurationManage)]
-    [InlineData("serviceaccounts.read", PermissionType.ServiceAccountsRead)]
-    [InlineData("serviceaccounts.write", PermissionType.ServiceAccountsWrite)]
-    [InlineData("serviceaccounts.manage", PermissionType.ServiceAccountsManage)]
     [InlineData("webhooks.manage", PermissionType.WebhooksManage)]
     public async Task InvokeAsync_ServiceAccountScope_MapsToExpectedPermission(string scope, string expectedPermission)
     {

@@ -5,9 +5,7 @@ namespace Wallow.Identity.Tests.Api.Contracts;
 
 public class RequestContractTests
 {
-    private static readonly string[] _billingReadScope = ["billing:read"];
     private static readonly string[] _billingReadWriteScopes = ["billing:read", "billing:write"];
-    private static readonly string[] _singleScope = ["scope1"];
     #region CreateUserRequest
 
     [Fact]
@@ -74,28 +72,6 @@ public class RequestContractTests
         AssignRoleRequest request = new("admin");
 
         request.RoleName.Should().Be("admin");
-    }
-
-    #endregion
-
-    #region CreateServiceAccountRequest
-
-    [Fact]
-    public void CreateServiceAccountRequest_WithAllFields_CreatesInstance()
-    {
-        CreateServiceAccountRequest request = new("Backend", "Backend service", _billingReadScope);
-
-        request.Name.Should().Be("Backend");
-        request.Description.Should().Be("Backend service");
-        request.Scopes.Should().HaveCount(1);
-    }
-
-    [Fact]
-    public void CreateServiceAccountRequest_WithNullDescription_CreatesInstance()
-    {
-        CreateServiceAccountRequest request = new("Svc", null, _singleScope);
-
-        request.Description.Should().BeNull();
     }
 
     #endregion

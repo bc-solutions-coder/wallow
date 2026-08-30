@@ -1,12 +1,16 @@
 using System.Net.Http.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Wallow.Identity.Application.DTOs;
+using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Tests.Common.Factories;
 
-namespace Wallow.Identity.IntegrationTests.ServiceAccounts;
+namespace Wallow.Identity.IntegrationTests.Scopes;
 
 [Trait("Category", "Integration")]
-public class ApiScopesTests(ServiceAccountTestFactory factory) : ServiceAccountIntegrationTestBase(factory)
+public class ApiScopesTests(WallowApiFactory factory) : IdentityIntegrationTestBase(factory)
 {
+    private IApiScopeRepository ApiScopeRepository => ScopedServices.GetRequiredService<IApiScopeRepository>();
 
     [Fact]
     public async Task Should_List_All_Available_Scopes()

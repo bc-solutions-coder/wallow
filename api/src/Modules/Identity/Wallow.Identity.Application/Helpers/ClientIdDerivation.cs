@@ -1,33 +1,40 @@
 using System.Globalization;
 using System.Text;
+using Wallow.Identity.Domain.Enums;
 using Wallow.Shared.Kernel.Domain;
 
 namespace Wallow.Identity.Application.Helpers;
 
 /// <summary>
-/// Derives the immutable client id of an organization-registered client from the organization's
-/// slug and the client's name: <c>app-&lt;org-slug&gt;-&lt;name-slug&gt;</c>.
+/// Derives the immutable client id of an organization-registered client from its kind, the
+/// organization's slug and the client's name: <c>app-&lt;org-slug&gt;-&lt;name-slug&gt;</c> for a
+/// developer application, <c>sa-&lt;org-slug&gt;-&lt;name-slug&gt;</c> for a service account. The
+/// prefix is what the authorization pipeline keys on to expand a client's scopes into permissions.
 /// </summary>
 public static class ClientIdDerivation
 {
     public const string ApplicationPrefix = "app-";
+    public const string ServiceAccountPrefix = "sa-";
 
     /// <summary>
     /// Refuses a name with no letter or digit in it: the id would end in a bare hyphen and every
     /// such name would collide with every other.
     /// </summary>
-    public static string DeriveApplicationClientId(string organizationSlug, string name)
+    public static string DeriveClientId(RegisteredClientKind kind, string organizationSlug, string name)
     {
         string nameSlug = Slugify(name);
         if (nameSlug.Length == 0)
         {
             throw new BusinessRuleException(
                 "Identity.ClientNameUnusable",
-                "An application name must contain at least one letter or digit.");
+                "A client name must contain at least one letter or digit.");
         }
 
-        return ApplicationPrefix + Slugify(organizationSlug) + "-" + nameSlug;
+        return PrefixOf(kind) + Slugify(organizationSlug) + "-" + nameSlug;
     }
+
+    public static string PrefixOf(RegisteredClientKind kind) =>
+        kind == RegisteredClientKind.ServiceAccount ? ServiceAccountPrefix : ApplicationPrefix;
 
     /// <summary>
     /// Lowercase ASCII letters and digits with runs of anything else collapsed to one hyphen; the

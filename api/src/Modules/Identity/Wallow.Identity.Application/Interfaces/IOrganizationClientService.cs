@@ -9,9 +9,9 @@ namespace Wallow.Identity.Application.Interfaces;
 /// </summary>
 public interface IOrganizationClientService
 {
-    Task<OrganizationClientRegistrationResult> RegisterApplicationAsync(
+    Task<OrganizationClientRegistrationResult> RegisterAsync(
         Guid organizationId,
-        RegisterApplicationInput input,
+        RegisterClientInput input,
         Guid actorUserId,
         CancellationToken ct = default);
 

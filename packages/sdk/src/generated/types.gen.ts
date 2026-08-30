@@ -297,12 +297,6 @@ export type CreateOrganizationResponse = {
     organizationId: string;
 };
 
-export type CreateServiceAccountRequest = {
-    name: string;
-    description: null | string;
-    scopes: Array<string>;
-};
-
 export type CreateUserRequest = {
     email: string;
     firstName: string;
@@ -641,10 +635,10 @@ export type RegisterDeviceRequest = {
 
 /**
  * Registers a client on behalf of an organization. `Kind` is `application` for a
- * developer application a person signs in to (the only kind this surface registers today) or
- * `service-account`. Name and the derived client id are immutable once registered. Redirect
- * URIs must be absolute, fragment-free, and https or http://localhost; at least one redirect URI
- * and one scope are required.
+ * developer application a person signs in to or `service-account` for a client-credentials
+ * client. Name and the derived client id are immutable once registered. An application needs at
+ * least one redirect URI, absolute, fragment-free, and https or http://localhost; a service
+ * account ignores every URI field. Both need at least one scope.
  */
 export type RegisterOrganizationClientRequest = {
     kind: string;
@@ -687,12 +681,6 @@ export type ScopeInfo = {
     description: null | string;
 };
 
-export type SecretRotatedResponse = {
-    newClientSecret: string;
-    rotatedAt: string;
-    warning?: null | string;
-};
-
 export type SendMagicLinkRequest = {
     email: string;
     returnUrl?: null | string;
@@ -709,32 +697,6 @@ export type SendPushRequest = {
     body: string;
     notificationType: string;
 };
-
-export type ServiceAccountCreatedResponse = {
-    id: string;
-    clientId: string;
-    clientSecret: string;
-    tokenEndpoint: string;
-    scopes: Array<string>;
-    warning?: null | string;
-};
-
-export type ServiceAccountDto = {
-    id: ServiceAccountMetadataId;
-    clientId: string;
-    name: string;
-    description: null | string;
-    status: ServiceAccountStatus;
-    scopes: Array<string>;
-    createdAt: string;
-    lastUsedAt: null | string;
-};
-
-export type ServiceAccountMetadataId = {
-    value?: string;
-};
-
-export type ServiceAccountStatus = number;
 
 export type SessionDto = {
     id: string;
@@ -863,10 +825,6 @@ export type UpdateOrganizationSettingsRequest = {
     mfaGracePeriodDays: null | number | string;
     allowedLoginMethods: null | LoginMethod;
     defaultMemberRole: null | string;
-};
-
-export type UpdateScopesRequest = {
-    scopes: Array<string>;
 };
 
 export type UploadResponse = {
@@ -1854,151 +1812,6 @@ export type ClientsRotateSecretResponses = {
 };
 
 export type ClientsRotateSecretResponse = ClientsRotateSecretResponses[keyof ClientsRotateSecretResponses];
-
-export type ClientsListServiceAccountsData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/v1/identity/clients/service-accounts';
-};
-
-export type ClientsListServiceAccountsResponses = {
-    /**
-     * OK
-     */
-    200: Array<ServiceAccountDto>;
-};
-
-export type ClientsListServiceAccountsResponse = ClientsListServiceAccountsResponses[keyof ClientsListServiceAccountsResponses];
-
-export type ClientsCreateServiceAccountData = {
-    body: CreateServiceAccountRequest;
-    path?: never;
-    query?: never;
-    url: '/v1/identity/clients/service-accounts';
-};
-
-export type ClientsCreateServiceAccountErrors = {
-    /**
-     * Bad Request
-     */
-    400: ProblemDetails;
-};
-
-export type ClientsCreateServiceAccountError = ClientsCreateServiceAccountErrors[keyof ClientsCreateServiceAccountErrors];
-
-export type ClientsCreateServiceAccountResponses = {
-    /**
-     * Created
-     */
-    201: ServiceAccountCreatedResponse;
-};
-
-export type ClientsCreateServiceAccountResponse = ClientsCreateServiceAccountResponses[keyof ClientsCreateServiceAccountResponses];
-
-export type ClientsRevokeServiceAccountData = {
-    body?: never;
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/v1/identity/clients/service-accounts/{id}';
-};
-
-export type ClientsRevokeServiceAccountErrors = {
-    /**
-     * Not Found
-     */
-    404: ProblemDetails;
-};
-
-export type ClientsRevokeServiceAccountError = ClientsRevokeServiceAccountErrors[keyof ClientsRevokeServiceAccountErrors];
-
-export type ClientsRevokeServiceAccountResponses = {
-    /**
-     * No Content
-     */
-    204: unknown;
-};
-
-export type ClientsGetServiceAccountData = {
-    body?: never;
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/v1/identity/clients/service-accounts/{id}';
-};
-
-export type ClientsGetServiceAccountErrors = {
-    /**
-     * Not Found
-     */
-    404: ProblemDetails;
-};
-
-export type ClientsGetServiceAccountError = ClientsGetServiceAccountErrors[keyof ClientsGetServiceAccountErrors];
-
-export type ClientsGetServiceAccountResponses = {
-    /**
-     * OK
-     */
-    200: ServiceAccountDto;
-};
-
-export type ClientsGetServiceAccountResponse = ClientsGetServiceAccountResponses[keyof ClientsGetServiceAccountResponses];
-
-export type ClientsUpdateServiceAccountScopesData = {
-    body: UpdateScopesRequest;
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/v1/identity/clients/service-accounts/{id}/scopes';
-};
-
-export type ClientsUpdateServiceAccountScopesErrors = {
-    /**
-     * Not Found
-     */
-    404: ProblemDetails;
-};
-
-export type ClientsUpdateServiceAccountScopesError = ClientsUpdateServiceAccountScopesErrors[keyof ClientsUpdateServiceAccountScopesErrors];
-
-export type ClientsUpdateServiceAccountScopesResponses = {
-    /**
-     * No Content
-     */
-    204: unknown;
-};
-
-export type ClientsRotateServiceAccountSecretData = {
-    body?: never;
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/v1/identity/clients/service-accounts/{id}/rotate-secret';
-};
-
-export type ClientsRotateServiceAccountSecretErrors = {
-    /**
-     * Not Found
-     */
-    404: ProblemDetails;
-};
-
-export type ClientsRotateServiceAccountSecretError = ClientsRotateServiceAccountSecretErrors[keyof ClientsRotateServiceAccountSecretErrors];
-
-export type ClientsRotateServiceAccountSecretResponses = {
-    /**
-     * OK
-     */
-    200: SecretRotatedResponse;
-};
-
-export type ClientsRotateServiceAccountSecretResponse = ClientsRotateServiceAccountSecretResponses[keyof ClientsRotateServiceAccountSecretResponses];
 
 export type IdentitySettingsGetConfigData = {
     body?: never;

@@ -24,6 +24,15 @@ public record OrganizationClientResponse
     public required DateTimeOffset CreatedAt { get; init; }
     public DateTimeOffset? LastUsedAt { get; init; }
 
+    /// <summary>The kind a request names, or <see langword="null"/> when it names neither.</summary>
+    public static RegisteredClientKind? ParseKind(string? kind) =>
+        kind switch
+        {
+            ApplicationKind => RegisteredClientKind.Application,
+            ServiceAccountKind => RegisteredClientKind.ServiceAccount,
+            _ => null,
+        };
+
     public static OrganizationClientResponse From(OrganizationClientDto dto)
     {
         ArgumentNullException.ThrowIfNull(dto);

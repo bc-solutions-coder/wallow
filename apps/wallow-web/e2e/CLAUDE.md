@@ -43,6 +43,13 @@ so its authorize round trip never renders consent, while `bff-example-client` ro
 wallow-auth's interactive consent screen — the leg `login-journey.spec.ts` structurally cannot
 reach. A failure in either can be a real cross-app regression rather than a fault in the spec.
 
+**`service-account.spec.ts`** — no browser at all: the seeded `sa-wallow-nightly-sync`
+service account (`api/seed.json`) mints a client-credentials token at the API's
+`/connect/token` and lists its organization with it. It reads the API origin from
+`E2E_API_URL` (`scripts/e2e.sh` passes this run's port; classic default `:5050`). The Identity
+integration harness stubs bearer authentication, so this is where a registered service
+account's `org_id` binding is proven against real JWT validation.
+
 Seeder-bootstrap semantics (when a re-seed does or does not create the admin):
 `apps/wallow-auth/e2e/CLAUDE.md`.
 

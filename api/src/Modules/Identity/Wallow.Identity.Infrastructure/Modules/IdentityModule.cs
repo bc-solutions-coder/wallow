@@ -2,7 +2,7 @@ using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Wallow.Identity.Application.Commands.CreateServiceAccount;
+using Wallow.Identity.Application.Commands.BootstrapAdmin;
 using Wallow.Identity.Infrastructure.Extensions;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Shared.Infrastructure.Modules;
@@ -35,7 +35,7 @@ public sealed class IdentityModule : IWallowModule
 
     public IReadOnlyList<Assembly> HandlerAssemblies =>
     [
-        typeof(CreateServiceAccountHandler).Assembly,
+        typeof(BootstrapAdminHandler).Assembly,
         typeof(IdentityModule).Assembly,
     ];
 

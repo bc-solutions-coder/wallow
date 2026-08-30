@@ -155,7 +155,6 @@ public static class IdentityInfrastructureExtensions
                     "notifications.read", "notifications.write",
                     "configuration.read", "configuration.manage",
                     "inquiries.read", "inquiries.write",
-                    "serviceaccounts.read", "serviceaccounts.write", "serviceaccounts.manage",
                     "webhooks.manage");
 
                 // OpenIddict 7 implements RP-initiated logout only, so front-channel logout
@@ -282,9 +281,6 @@ public static class IdentityInfrastructureExtensions
             return ctx;
         });
 
-        services.AddScoped<IServiceAccountRepository, ServiceAccountRepository>();
-        services.AddScoped<IServiceAccountUnfilteredRepository>(sp =>
-            (IServiceAccountUnfilteredRepository)sp.GetRequiredService<IServiceAccountRepository>());
         services.AddScoped<IApiScopeRepository, ApiScopeRepository>();
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
         services.AddScoped<IRegisteredClientRepository, RegisteredClientRepository>();
@@ -421,7 +417,6 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<OpenIddictScopeSyncService>();
         services.AddScoped<DefaultRoleSeeder>();
 
-        services.AddScoped<IServiceAccountService, OpenIddictServiceAccountService>();
         services.AddScoped<IOrganizationService, OrganizationService>();
         services.AddScoped<IOrganizationAccessPolicy, OrganizationAccessPolicy>();
         services.AddScoped<IOrganizationClientService, OrganizationClientService>();

@@ -79,25 +79,6 @@
       "description": "Access to create, update, and revoke API keys"
     },
     {
-      "code": "serviceaccounts.read",
-      "displayName": "Read Service Accounts",
-      "category": "Identity",
-      "description": "Access to read service account data",
-      "isDefault": true
-    },
-    {
-      "code": "serviceaccounts.write",
-      "displayName": "Create/Update Service Accounts",
-      "category": "Identity",
-      "description": "Access to create service accounts and update their scopes"
-    },
-    {
-      "code": "serviceaccounts.manage",
-      "displayName": "Rotate/Revoke Service Accounts",
-      "category": "Identity",
-      "description": "Access to rotate service account secrets and revoke accounts"
-    },
-    {
       "code": "storage.read",
       "displayName": "Read Storage",
       "category": "Storage",

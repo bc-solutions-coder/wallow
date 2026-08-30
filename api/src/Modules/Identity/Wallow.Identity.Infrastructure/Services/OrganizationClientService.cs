@@ -22,10 +22,12 @@ using static OpenIddict.Abstractions.OpenIddictConstants;
 namespace Wallow.Identity.Infrastructure.Services;
 
 /// <summary>
-/// Registers and manages the clients an organization owns. A registration writes two records in
-/// one transaction — the OpenIddict application carrying the OAuth configuration and the
-/// <see cref="RegisteredClient"/> row carrying what OpenIddict has no place for — and hands back the
-/// only copy of the client secret the caller will ever see.
+/// Registers and manages the clients an organization owns, developer applications and service
+/// accounts alike. A registration writes two records in one transaction — the OpenIddict
+/// application carrying the OAuth configuration and the <see cref="RegisteredClient"/> row carrying
+/// what OpenIddict has no place for — and hands back the only copy of the client secret the caller
+/// will ever see. Both kinds are bound to the organization on the OpenIddict application, which is
+/// where the token endpoint reads the <c>org_id</c> claim from.
 /// </summary>
 public sealed partial class OrganizationClientService(
     IOpenIddictApplicationManager applicationManager,
@@ -40,9 +42,9 @@ public sealed partial class OrganizationClientService(
 {
     private const int ClientSecretBytes = 32;
 
-    public async Task<OrganizationClientRegistrationResult> RegisterApplicationAsync(
+    public async Task<OrganizationClientRegistrationResult> RegisterAsync(
         Guid organizationId,
-        RegisterApplicationInput input,
+        RegisterClientInput input,
         Guid actorUserId,
         CancellationToken ct = default)
     {
@@ -53,37 +55,18 @@ public sealed partial class OrganizationClientService(
 
         await EnsureGrantableAsync(input.Configuration.Scopes, ct);
 
-        string clientId = ClientIdDerivation.DeriveApplicationClientId(organization.Slug, input.Name);
+        string clientId = ClientIdDerivation.DeriveClientId(input.Kind, organization.Slug, input.Name);
         if (await applicationManager.FindByClientIdAsync(clientId, ct) is not null)
         {
             throw ClientIdTaken(input.Name, clientId);
         }
 
         string clientSecret = GenerateClientSecret();
-        OpenIddictApplicationDescriptor descriptor = new()
-        {
-            ClientId = clientId,
-            ClientSecret = clientSecret,
-            DisplayName = input.Name,
-            ClientType = ClientTypes.Confidential,
-            ConsentType = ConsentTypes.Explicit,
-            Permissions =
-            {
-                Permissions.Endpoints.Authorization,
-                Permissions.Endpoints.EndSession,
-                Permissions.Endpoints.Token,
-                Permissions.Endpoints.Revocation,
-                Permissions.GrantTypes.AuthorizationCode,
-                Permissions.GrantTypes.RefreshToken,
-                Permissions.ResponseTypes.Code,
-            },
-            Requirements = { Requirements.Features.ProofKeyForCodeExchange },
-        };
+        OpenIddictApplicationDescriptor descriptor = NewDescriptor(input.Kind, clientId, clientSecret, input.Name);
         descriptor.SetTenantId(organizationId.ToString());
-        ApplyConfiguration(descriptor, input.Configuration);
+        ApplyConfiguration(descriptor, input.Kind, input.Configuration);
 
-        RegisteredClient record = RegisteredClient.Create(
-            clientId, organizationId, RegisteredClientKind.Application, actorUserId, timeProvider);
+        RegisteredClient record = RegisteredClient.Create(clientId, organizationId, input.Kind, actorUserId, timeProvider);
 
         // Both writes land on IdentityDbContext (OpenIddict's store shares it), so one transaction
         // covers them: no application without its record, no record without its application. The
@@ -109,7 +92,7 @@ public sealed partial class OrganizationClientService(
             throw ClientIdTaken(input.Name, clientId);
         }
 
-        LogApplicationRegistered(clientId, organizationId, actorUserId);
+        LogClientRegistered(clientId, organizationId, actorUserId);
 
         return new OrganizationClientRegistrationResult(
             ToDto(record, descriptor),
@@ -174,7 +157,7 @@ public sealed partial class OrganizationClientService(
         descriptor.RedirectUris.Clear();
         descriptor.PostLogoutRedirectUris.Clear();
         descriptor.Permissions.RemoveWhere(p => p.StartsWith(Permissions.Prefixes.Scope, StringComparison.Ordinal));
-        ApplyConfiguration(descriptor, configuration);
+        ApplyConfiguration(descriptor, record.Kind, configuration);
 
         await applicationManager.UpdateAsync(application, descriptor, ct);
         return ToDto(record, descriptor);
@@ -196,7 +179,7 @@ public sealed partial class OrganizationClientService(
 
         registeredClients.Remove(record);
         await registeredClients.SaveChangesAsync(ct);
-        LogApplicationDeleted(record.ClientId, organizationId);
+        LogClientDeleted(record.ClientId, organizationId);
         return true;
     }
 
@@ -221,8 +204,8 @@ public sealed partial class OrganizationClientService(
     }
 
     /// <summary>
-    /// A developer application may hold the OIDC login scopes and any catalog scope that is not
-    /// reserved for the platform's own clients. Nothing outside the catalog is grantable.
+    /// One rule for both kinds: a client may hold the OIDC login scopes and any catalog scope that
+    /// is not reserved for the platform's own clients. Nothing outside the catalog is grantable.
     /// </summary>
     private async Task EnsureGrantableAsync(IReadOnlyList<string> requested, CancellationToken ct)
     {
@@ -248,23 +231,61 @@ public sealed partial class OrganizationClientService(
         {
             throw new BusinessRuleException(
                 "Identity.PlatformOnlyScope",
-                $"Scopes reserved for the platform's own clients cannot be granted to an application: {string.Join(", ", platformOnly)}.");
+                $"Scopes reserved for the platform's own clients cannot be granted here: {string.Join(", ", platformOnly)}.");
         }
     }
 
-    private static void ApplyConfiguration(OpenIddictApplicationDescriptor descriptor, ClientConfigurationInput configuration)
+    /// <summary>
+    /// A developer application is a confidential authorization-code client with PKCE; a service
+    /// account is a confidential client-credentials client and nothing else, so it can never be
+    /// handed a browser's authorize request.
+    /// </summary>
+    private static OpenIddictApplicationDescriptor NewDescriptor(
+        RegisteredClientKind kind, string clientId, string clientSecret, string displayName)
     {
-        foreach (Uri uri in configuration.RedirectUris)
+        OpenIddictApplicationDescriptor descriptor = new()
         {
-            descriptor.RedirectUris.Add(uri);
+            ClientId = clientId,
+            ClientSecret = clientSecret,
+            DisplayName = displayName,
+            ClientType = ClientTypes.Confidential,
+            ConsentType = ConsentTypes.Explicit,
+            Permissions = { Permissions.Endpoints.Token, Permissions.Endpoints.Revocation },
+        };
+
+        if (kind == RegisteredClientKind.ServiceAccount)
+        {
+            descriptor.Permissions.Add(Permissions.GrantTypes.ClientCredentials);
+            return descriptor;
         }
 
-        foreach (Uri uri in configuration.PostLogoutRedirectUris)
-        {
-            descriptor.PostLogoutRedirectUris.Add(uri);
-        }
+        descriptor.Permissions.Add(Permissions.Endpoints.Authorization);
+        descriptor.Permissions.Add(Permissions.Endpoints.EndSession);
+        descriptor.Permissions.Add(Permissions.GrantTypes.AuthorizationCode);
+        descriptor.Permissions.Add(Permissions.GrantTypes.RefreshToken);
+        descriptor.Permissions.Add(Permissions.ResponseTypes.Code);
+        descriptor.Requirements.Add(Requirements.Features.ProofKeyForCodeExchange);
+        return descriptor;
+    }
 
-        descriptor.SetBackchannelLogoutUri(configuration.BackchannelLogoutUri);
+    /// <summary>A service account ignores every URI field: it has no browser to send anywhere.</summary>
+    private static void ApplyConfiguration(
+        OpenIddictApplicationDescriptor descriptor, RegisteredClientKind kind, ClientConfigurationInput configuration)
+    {
+        if (kind == RegisteredClientKind.Application)
+        {
+            foreach (Uri uri in configuration.RedirectUris)
+            {
+                descriptor.RedirectUris.Add(uri);
+            }
+
+            foreach (Uri uri in configuration.PostLogoutRedirectUris)
+            {
+                descriptor.PostLogoutRedirectUris.Add(uri);
+            }
+
+            descriptor.SetBackchannelLogoutUri(configuration.BackchannelLogoutUri);
+        }
 
         // Without these the client is refused every scope it asks for on its first authorize:
         // OpenIddict grants only what the application's own permissions list allows.
@@ -277,7 +298,7 @@ public sealed partial class OrganizationClientService(
     private static BusinessRuleException ClientIdTaken(string name, string clientId) =>
         new(
             "Identity.ClientIdTaken",
-            $"An application named '{name}' already exists in this organization (client id '{clientId}').");
+            $"A client named '{name}' already exists in this organization (client id '{clientId}').");
 
     private static bool IsUniqueViolation(DbUpdateException exception) =>
         exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation };
@@ -319,11 +340,11 @@ public sealed partial class OrganizationClientService(
         return Convert.ToBase64String(bytes);
     }
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Registered application {ClientId} for organization {OrganizationId} by {UserId}")]
-    private partial void LogApplicationRegistered(string clientId, Guid organizationId, Guid userId);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Registered client {ClientId} for organization {OrganizationId} by {UserId}")]
+    private partial void LogClientRegistered(string clientId, Guid organizationId, Guid userId);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Deleted application {ClientId} of organization {OrganizationId}")]
-    private partial void LogApplicationDeleted(string clientId, Guid organizationId);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Deleted client {ClientId} of organization {OrganizationId}")]
+    private partial void LogClientDeleted(string clientId, Guid organizationId);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Registered client {ClientId} has no OpenIddict application")]
     private partial void LogApplicationMissing(string clientId);

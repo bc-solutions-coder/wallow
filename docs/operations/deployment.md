@@ -471,7 +471,6 @@ defined in `ApiScopes.ValidScopes`:
 | Identity — Roles | `roles.read`, `roles.write`, `roles.manage` |
 | Identity — Organizations | `organizations.read`, `organizations.write`, `organizations.manage` |
 | Identity — API Keys | `apikeys.read`, `apikeys.write`, `apikeys.manage` |
-| Identity — Service Accounts | `serviceaccounts.read`, `serviceaccounts.write`, `serviceaccounts.manage` |
 | Storage | `storage.read`, `storage.write` |
 | Announcements | `announcements.read`, `announcements.manage`, `changelog.manage` |
 | Notifications | `notifications.read`, `notifications.write` |

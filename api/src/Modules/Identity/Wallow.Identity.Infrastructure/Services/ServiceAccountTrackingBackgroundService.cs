@@ -47,10 +47,10 @@ public sealed partial class ServiceAccountTrackingBackgroundService : Background
                 // Batch update using raw SQL with unnest for efficiency
                 int updated = await dbContext.Database.ExecuteSqlRawAsync(
                     """
-                    UPDATE identity.service_account_metadata AS sam
+                    UPDATE identity.registered_clients AS rc
                     SET last_used_at = v.last_used_at
                     FROM unnest(@clientIds, @timestamps) AS v(client_id, last_used_at)
-                    WHERE sam.client_id = v.client_id
+                    WHERE rc.client_id = v.client_id
                     """,
                     [
                         new Npgsql.NpgsqlParameter<string[]>("clientIds", clientIds.ToArray()),

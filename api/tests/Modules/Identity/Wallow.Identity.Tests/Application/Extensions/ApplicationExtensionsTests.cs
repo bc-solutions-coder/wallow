@@ -1,7 +1,6 @@
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
-using Wallow.Identity.Application.Commands.CreateServiceAccount;
-using Wallow.Identity.Application.Commands.UpdateServiceAccountScopes;
+using Wallow.Identity.Application.Commands.BootstrapAdmin;
 using Wallow.Identity.Application.Extensions;
 
 namespace Wallow.Identity.Tests.Application.Extensions;
@@ -16,13 +15,10 @@ public class ApplicationExtensionsTests
         services.AddIdentityApplication();
 
         ServiceProvider provider = services.BuildServiceProvider();
-        IValidator<CreateServiceAccountCommand> createValidator =
-            provider.GetRequiredService<IValidator<CreateServiceAccountCommand>>();
-        IValidator<UpdateServiceAccountScopesCommand> updateValidator =
-            provider.GetRequiredService<IValidator<UpdateServiceAccountScopesCommand>>();
+        IValidator<BootstrapAdminCommand> validator =
+            provider.GetRequiredService<IValidator<BootstrapAdminCommand>>();
 
-        createValidator.Should().BeOfType<CreateServiceAccountValidator>();
-        updateValidator.Should().BeOfType<UpdateServiceAccountScopesValidator>();
+        validator.Should().BeOfType<BootstrapAdminValidator>();
     }
 
     [Fact]

@@ -8,6 +8,7 @@ using Wallow.Identity.Api.Contracts.Responses;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Helpers;
 using Wallow.Identity.Application.Interfaces;
+using Wallow.Identity.Domain.Enums;
 using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
@@ -16,7 +17,8 @@ namespace Wallow.Identity.Api.Controllers;
 
 /// <summary>
 /// The org-scoped client surface: an organization's admins and managers register and manage the
-/// clients it owns. A client of another organization is answered as not found, never forbidden.
+/// clients it owns, developer applications and service accounts alike. A client of another
+/// organization is answered as not found, never forbidden.
 /// </summary>
 [ApiController]
 [ApiVersion(1)]
@@ -36,8 +38,8 @@ public class OrganizationClientsController(
     private const string ScopesField = "scopes";
 
     /// <summary>
-    /// Register a developer application for the organization. The response carries the client
-    /// secret exactly once.
+    /// Register a developer application or a service account for the organization. The response
+    /// carries the client secret exactly once. A service account ignores every URI field.
     /// </summary>
     [HttpPost]
     [HasPermission(PermissionType.OrganizationClientsManage)]
@@ -56,13 +58,12 @@ public class OrganizationClientsController(
             return NotFound();
         }
 
-        if (!string.Equals(request.Kind, OrganizationClientResponse.ApplicationKind, StringComparison.Ordinal))
+        RegisteredClientKind? kind = OrganizationClientResponse.ParseKind(request.Kind);
+        if (kind is null)
         {
             ModelState.AddModelError(
                 nameof(request.Kind),
-                request.Kind == OrganizationClientResponse.ServiceAccountKind
-                    ? "Service accounts cannot be registered on this surface yet."
-                    : $"Kind must be '{OrganizationClientResponse.ApplicationKind}'.");
+                $"Kind must be '{OrganizationClientResponse.ApplicationKind}' or '{OrganizationClientResponse.ServiceAccountKind}'.");
         }
 
         if (string.IsNullOrWhiteSpace(request.Name))
@@ -71,15 +72,19 @@ public class OrganizationClientsController(
         }
 
         ClientConfigurationInput? configuration = ParseConfiguration(
-            request.RedirectUris, request.PostLogoutRedirectUris, request.BackchannelLogoutUri, request.Scopes);
-        if (configuration is null || !ModelState.IsValid)
+            kind ?? RegisteredClientKind.Application,
+            request.RedirectUris,
+            request.PostLogoutRedirectUris,
+            request.BackchannelLogoutUri,
+            request.Scopes);
+        if (kind is null || configuration is null || !ModelState.IsValid)
         {
             return ValidationProblem(ModelState);
         }
 
-        OrganizationClientRegistrationResult result = await clients.RegisterApplicationAsync(
+        OrganizationClientRegistrationResult result = await clients.RegisterAsync(
             orgId,
-            new RegisterApplicationInput(request.Name.Trim(), configuration),
+            new RegisterClientInput(kind.Value, request.Name.Trim(), configuration),
             ActorId(),
             ct);
 
@@ -127,7 +132,8 @@ public class OrganizationClientsController(
     }
 
     /// <summary>
-    /// Replace a client's redirect URIs, logout URI and scopes. Name and client id are immutable.
+    /// Replace a client's redirect URIs, logout URI and scopes. Name and client id are immutable;
+    /// a service account's URI fields are ignored.
     /// </summary>
     [HttpPatch("{clientId}")]
     [HasPermission(PermissionType.OrganizationClientsManage)]
@@ -146,8 +152,15 @@ public class OrganizationClientsController(
             return NotFound();
         }
 
+        // The kind decides which fields the request must carry, so it is read before validation.
+        OrganizationClientDto? existing = await clients.GetAsync(orgId, clientId, ct);
+        if (existing is null)
+        {
+            return NotFound();
+        }
+
         ClientConfigurationInput? configuration = ParseConfiguration(
-            request.RedirectUris, request.PostLogoutRedirectUris, request.BackchannelLogoutUri, request.Scopes);
+            existing.Kind, request.RedirectUris, request.PostLogoutRedirectUris, request.BackchannelLogoutUri, request.Scopes);
         if (configuration is null || !ModelState.IsValid)
         {
             return ValidationProblem(ModelState);
@@ -195,25 +208,32 @@ public class OrganizationClientsController(
     /// <summary>
     /// Validates the configuration half of a register or update request under the shared client
     /// URI rules, recording every refusal against its field so one response names them all.
-    /// Returns <see langword="null"/> when anything was refused.
+    /// Returns <see langword="null"/> when anything was refused. A service account has no URI
+    /// fields to validate: whatever the request carries there is dropped, not refused.
     /// </summary>
     private ClientConfigurationInput? ParseConfiguration(
+        RegisteredClientKind kind,
         IReadOnlyList<string> redirectValues,
         IReadOnlyList<string> postLogoutValues,
         string? backchannelValue,
         IReadOnlyList<string> scopes)
     {
         bool valid = true;
-        if (redirectValues.Count == 0)
-        {
-            valid = false;
-            ModelState.AddModelError(RedirectUrisField, "At least one redirect URI is required.");
-        }
-
         if (scopes.Count == 0)
         {
             valid = false;
             ModelState.AddModelError(ScopesField, "At least one scope is required.");
+        }
+
+        if (kind == RegisteredClientKind.ServiceAccount)
+        {
+            return valid ? new ClientConfigurationInput([], [], null, scopes) : null;
+        }
+
+        if (redirectValues.Count == 0)
+        {
+            valid = false;
+            ModelState.AddModelError(RedirectUrisField, "At least one redirect URI is required.");
         }
 
         valid &= TryParseRedirectUris(redirectValues, RedirectUrisField, out List<Uri> redirectUris);

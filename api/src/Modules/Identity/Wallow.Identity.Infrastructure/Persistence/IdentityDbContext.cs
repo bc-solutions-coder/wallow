@@ -29,7 +29,6 @@ public sealed class IdentityDbContext : AspNetIdentityDbContext, ITenantAwareCon
     private TenantId _tenantId;
 #pragma warning restore SA1401, CA1051, IDE1006, IDE0052
 
-    public DbSet<ServiceAccountMetadata> ServiceAccountMetadata => Set<ServiceAccountMetadata>();
     public DbSet<ApiScope> ApiScopes => Set<ApiScope>();
     public DbSet<TenantSettingEntity> TenantSettings => Set<TenantSettingEntity>();
     public DbSet<UserSettingEntity> UserSettings => Set<UserSettingEntity>();

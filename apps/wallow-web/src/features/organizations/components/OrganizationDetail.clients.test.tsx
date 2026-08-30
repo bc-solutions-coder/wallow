@@ -37,7 +37,7 @@ const application = {
 
 const serviceAccount = {
   ...application,
-  clientId: "svc-acme-nightly",
+  clientId: "sa-acme-nightly",
   name: "Nightly sync",
   kind: "service-account",
   redirectUris: [],
@@ -138,7 +138,7 @@ describe("OrganizationDetail client ledgers", () => {
     expect(applications.elements()).toHaveLength(1);
 
     const serviceAccounts = page.getByTestId("organization-detail-service-account-item");
-    await expect.element(serviceAccounts).toHaveTextContent("svc-acme-nightly");
+    await expect.element(serviceAccounts).toHaveTextContent("sa-acme-nightly");
     expect(serviceAccounts.elements()).toHaveLength(1);
   });
 

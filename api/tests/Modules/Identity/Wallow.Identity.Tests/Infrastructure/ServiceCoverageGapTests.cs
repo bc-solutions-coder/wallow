@@ -12,14 +12,11 @@ using StackExchange.Redis;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
-using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Options;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Identity.Infrastructure.Services;
-using Wallow.Shared.Kernel.Domain;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Wallow.Shared.Kernel.Services;
 using Wolverine;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
@@ -380,121 +377,6 @@ public sealed class MfaExemptionCheckerTests : IDisposable
         bool result = await _sut.IsExemptAsync(user, CancellationToken.None);
 
         result.Should().BeFalse();
-    }
-}
-
-#endregion
-
-#region OpenIddictServiceAccountService Gap Tests
-
-public sealed class OpenIddictServiceAccountServiceGapTests
-{
-    private readonly IOpenIddictApplicationManager _appManager;
-    private readonly IServiceAccountRepository _repository;
-    private readonly ICurrentUserService _currentUserService;
-    private readonly OpenIddictServiceAccountService _sut;
-    private readonly Guid _tenantId = Guid.NewGuid();
-
-    public OpenIddictServiceAccountServiceGapTests()
-    {
-        _appManager = Substitute.For<IOpenIddictApplicationManager>();
-        _repository = Substitute.For<IServiceAccountRepository>();
-        TenantContext tc = new();
-        tc.SetTenant(new TenantId(_tenantId));
-        _currentUserService = Substitute.For<ICurrentUserService>();
-        _currentUserService.GetCurrentUserId().Returns(Guid.NewGuid());
-        _sut = new OpenIddictServiceAccountService(
-            _appManager, _repository, tc, _currentUserService,
-            TimeProvider.System, NullLogger<OpenIddictServiceAccountService>.Instance);
-    }
-
-    [Fact]
-    public async Task RevokeAsync_WhenNotFound_ThrowsEntityNotFound()
-    {
-        ServiceAccountMetadataId id = ServiceAccountMetadataId.New();
-        _repository.GetByIdAsync(id, Arg.Any<CancellationToken>()).Returns((ServiceAccountMetadata?)null);
-
-        Func<Task> act = () => _sut.RevokeAsync(id);
-
-        await act.Should().ThrowAsync<EntityNotFoundException>();
-    }
-
-    [Fact]
-    public async Task UpdateScopesAsync_WhenMetadataNotFound_ThrowsEntityNotFound()
-    {
-        ServiceAccountMetadataId id = ServiceAccountMetadataId.New();
-        _repository.GetByIdAsync(id, Arg.Any<CancellationToken>()).Returns((ServiceAccountMetadata?)null);
-
-        Func<Task> act = () => _sut.UpdateScopesAsync(id, ["billing"]);
-
-        await act.Should().ThrowAsync<EntityNotFoundException>();
-    }
-
-    [Fact]
-    public async Task UpdateScopesAsync_WhenAppNotFound_ThrowsInvalidOperation()
-    {
-        ServiceAccountMetadataId id = ServiceAccountMetadataId.New();
-        ServiceAccountMetadata metadata = ServiceAccountMetadata.Create(
-            new TenantId(_tenantId), "sa-test", "Test SA", "Desc",
-            ["openid"], Guid.NewGuid(), TimeProvider.System);
-        _repository.GetByIdAsync(Arg.Any<ServiceAccountMetadataId>(), Arg.Any<CancellationToken>()).Returns(metadata);
-        _appManager.FindByClientIdAsync(metadata.ClientId, Arg.Any<CancellationToken>()).Returns((object?)null);
-
-        Func<Task> act = () => _sut.UpdateScopesAsync(id, ["billing"]);
-
-        await act.Should().ThrowAsync<InvalidOperationException>();
-    }
-
-    [Fact]
-    public async Task RotateSecretAsync_WhenMetadataNotFound_ThrowsEntityNotFound()
-    {
-        ServiceAccountMetadataId id = ServiceAccountMetadataId.New();
-        _repository.GetByIdAsync(id, Arg.Any<CancellationToken>()).Returns((ServiceAccountMetadata?)null);
-
-        Func<Task> act = () => _sut.RotateSecretAsync(id);
-
-        await act.Should().ThrowAsync<EntityNotFoundException>();
-    }
-
-    [Fact]
-    public async Task RotateSecretAsync_WhenAppNotFound_ThrowsInvalidOperation()
-    {
-        ServiceAccountMetadataId id = ServiceAccountMetadataId.New();
-        ServiceAccountMetadata metadata = ServiceAccountMetadata.Create(
-            new TenantId(_tenantId), "sa-test", "Test SA", "Desc",
-            ["openid"], Guid.NewGuid(), TimeProvider.System);
-        _repository.GetByIdAsync(Arg.Any<ServiceAccountMetadataId>(), Arg.Any<CancellationToken>()).Returns(metadata);
-        _appManager.FindByClientIdAsync(metadata.ClientId, Arg.Any<CancellationToken>()).Returns((object?)null);
-
-        Func<Task> act = () => _sut.RotateSecretAsync(id);
-
-        await act.Should().ThrowAsync<InvalidOperationException>();
-    }
-
-    [Fact]
-    public async Task GetAsync_WhenNotFound_ReturnsNull()
-    {
-        ServiceAccountMetadataId id = ServiceAccountMetadataId.New();
-        _repository.GetByIdAsync(id, Arg.Any<CancellationToken>()).Returns((ServiceAccountMetadata?)null);
-
-        ServiceAccountDto? result = await _sut.GetAsync(id);
-
-        result.Should().BeNull();
-    }
-
-    [Fact]
-    public async Task GetAsync_WhenExists_ReturnsDto()
-    {
-        ServiceAccountMetadata metadata = ServiceAccountMetadata.Create(
-            new TenantId(_tenantId), "sa-test", "Test SA", "Test Description",
-            ["openid", "billing"], Guid.NewGuid(), TimeProvider.System);
-        _repository.GetByIdAsync(Arg.Any<ServiceAccountMetadataId>(), Arg.Any<CancellationToken>()).Returns(metadata);
-
-        ServiceAccountDto? result = await _sut.GetAsync(metadata.Id);
-
-        result.Should().NotBeNull();
-        result!.Name.Should().Be("Test SA");
-        result.ClientId.Should().Be("sa-test");
     }
 }
 

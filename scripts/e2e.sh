@@ -394,6 +394,8 @@ E2E_SEED_ADMIN_EMAIL="admin@wallow.dev" "${COMPOSE[@]}" run --rm --no-deps wallo
 log "Running the wallow-web Playwright suite"
 env "E2E_BASE_URL=$WEB_URL" pnpm --filter ./apps/wallow-web test:e2e
 
+# E2E_API_URL is for service-account.spec.ts, which talks to the API's token
+# endpoint directly (no browser origin involved) on this run's API port.
 log "Running the wallow-web cross-app login journey suite"
-env "E2E_BASE_URL=$WEB_URL" "E2E_BFF_EXAMPLE_URL=$BFF_EXAMPLE_URL" \
+env "E2E_BASE_URL=$WEB_URL" "E2E_BFF_EXAMPLE_URL=$BFF_EXAMPLE_URL" "E2E_API_URL=$API_URL" \
   pnpm --filter ./apps/wallow-web test:e2e:cross-app

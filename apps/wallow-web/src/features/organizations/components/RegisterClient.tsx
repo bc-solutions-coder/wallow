@@ -1,10 +1,11 @@
 /**
- * The register-application stepper (Basics → Redirects → Scopes) and the
- * one-time reveal that follows it. One `useAppForm` owns every step: the
- * inactive steps stay mounted but hidden, so values survive navigation and a
- * server field error can pull the stepper back to the step that owns it.
- * Only the REQUIRED fields (name, a redirect URI, a scope) gate Register —
- * moving between steps is never blocked.
+ * The register-client stepper and the one-time reveal that follows it, for
+ * both kinds: an application walks Basics → Redirects → Scopes, a service
+ * account Basics → Scopes. One `useAppForm` owns every step: the inactive
+ * steps stay mounted but hidden, so values survive navigation and a server
+ * field error can pull the stepper back to the step that owns it. Only the
+ * REQUIRED fields (name, a scope, and for an application a redirect URI) gate
+ * Register — moving between steps is never blocked.
  */
 import { AppForm, FormError, SubmitButton, useAppForm } from "@bc-solutions-coder/forms";
 import { useQuery, useQueryClient } from "@bc-solutions-coder/query";
@@ -32,14 +33,53 @@ import {
   scopesListOptions,
 } from "../api";
 
-const TEST_ID_PREFIX = "organization-detail-register";
+export type ClientKind = "application" | "service-account";
 
-const STEPS = ["basics", "redirects", "scopes"] as const;
-type Step = (typeof STEPS)[number];
+type Step = "basics" | "redirects" | "scopes";
 const STEP_LABELS: Record<Step, string> = {
   basics: "Basics",
   redirects: "Redirects",
   scopes: "Scopes",
+};
+
+/** How each kind presents: its steps, copy, test-id prefix and quickstart. */
+interface KindPresentation {
+  readonly testIdPrefix: string;
+  readonly steps: readonly Step[];
+  readonly registerTitle: string;
+  readonly revealTitle: string;
+  readonly namePlaceholder: string;
+  readonly fallbackError: string;
+  /** Where the reveal's quickstart link lands, relative to the docs site. */
+  readonly quickstartPage: string;
+  readonly defaultScopes: readonly string[];
+  /** Whether the picker offers OIDC's login scopes (meaningless to a service account). */
+  readonly offersLoginScopes: boolean;
+}
+
+const KINDS: Record<ClientKind, KindPresentation> = {
+  application: {
+    testIdPrefix: "organization-detail-register",
+    steps: ["basics", "redirects", "scopes"],
+    registerTitle: "Register application",
+    revealTitle: "Application registered",
+    namePlaceholder: "Dashboard",
+    fallbackError: "Failed to register the application.",
+    quickstartPage: "integrations/bff-pattern.html",
+    defaultScopes: ["openid"],
+    offersLoginScopes: true,
+  },
+  "service-account": {
+    testIdPrefix: "organization-detail-register-service-account",
+    steps: ["basics", "scopes"],
+    registerTitle: "Register service account",
+    revealTitle: "Service account registered",
+    namePlaceholder: "Nightly sync",
+    fallbackError: "Failed to register the service account.",
+    quickstartPage: "api/service-accounts.html",
+    defaultScopes: [],
+    offersLoginScopes: false,
+  },
 };
 
 /** Newline-separated textarea input to the wire's `string[]`. */
@@ -50,21 +90,39 @@ function toUriList(value: string): string[] {
     .filter(Boolean);
 }
 
+/** The test-id prefix a kind's stepper, reveal and ledger button hang off. */
+export function registerTestIdPrefix(kind: ClientKind): string {
+  return KINDS[kind].testIdPrefix;
+}
+
 /**
  * What the stepper collects. The URI lists are one newline-separated string
  * each; `scopes` is the granted codes. `.trim()` makes `"   "` fail the
  * `min(1)` without trimming the submitted value.
  */
-const registerApplicationSchema = z.object({
-  name: z.string().trim().min(1, "Name is required"),
-  redirectUris: z
-    .string()
-    .refine((value) => toUriList(value).length > 0, "At least one redirect URI is required"),
-  postLogoutRedirectUris: z.string(),
-  backchannelLogoutUri: z.string(),
-  scopes: z.array(z.string()).min(1, "Choose at least one scope"),
-});
-type RegisterValues = z.input<typeof registerApplicationSchema>;
+interface RegisterValues {
+  name: string;
+  redirectUris: string;
+  postLogoutRedirectUris: string;
+  backchannelLogoutUri: string;
+  scopes: string[];
+}
+
+/** A service account ignores every URI field, so only an application requires a redirect. */
+function registerSchemaFor(kind: ClientKind): z.ZodType<RegisterValues, RegisterValues> {
+  return z.object({
+    name: z.string().trim().min(1, "Name is required"),
+    redirectUris:
+      kind === "application"
+        ? z
+            .string()
+            .refine((value) => toUriList(value).length > 0, "At least one redirect URI is required")
+        : z.string(),
+    postLogoutRedirectUris: z.string(),
+    backchannelLogoutUri: z.string(),
+    scopes: z.array(z.string()).min(1, "Choose at least one scope"),
+  });
+}
 
 /** Which step renders each field — where a server field error sends the user. */
 const STEP_OF_FIELD: Record<keyof RegisterValues, Step> = {
@@ -80,10 +138,10 @@ function isFieldName(name: string): name is keyof RegisterValues {
 }
 
 /** The required-field gate on Register. */
-function canRegister(values: RegisterValues): boolean {
+function canRegister(kind: ClientKind, values: RegisterValues): boolean {
   return (
     values.name.trim() !== "" &&
-    toUriList(values.redirectUris).length > 0 &&
+    (kind !== "application" || toUriList(values.redirectUris).length > 0) &&
     values.scopes.length > 0
   );
 }
@@ -112,7 +170,32 @@ const LOGIN_SCOPES: readonly { code: string; displayName: string }[] = [
   { code: "offline_access", displayName: "Refresh tokens (offline_access)" },
 ];
 
-function useRegisterApplicationForm(
+/**
+ * The wire body. A service account sends empty URI lists whatever the hidden
+ * Redirects fields hold — the API ignores them, and the stepper never shows them.
+ */
+function toRegisterBody(kind: ClientKind, values: RegisterValues) {
+  const backchannel = values.backchannelLogoutUri.trim();
+  return kind === "application"
+    ? {
+        kind,
+        name: values.name,
+        redirectUris: toUriList(values.redirectUris),
+        postLogoutRedirectUris: toUriList(values.postLogoutRedirectUris),
+        backchannelLogoutUri: backchannel === "" ? undefined : backchannel,
+        scopes: values.scopes,
+      }
+    : {
+        kind,
+        name: values.name,
+        redirectUris: [],
+        postLogoutRedirectUris: [],
+        scopes: values.scopes,
+      };
+}
+
+function useRegisterClientForm(
+  kind: ClientKind,
   orgId: string,
   onRegistered: (result: OrganizationClientRegistrationResponse) => void,
 ) {
@@ -120,30 +203,20 @@ function useRegisterApplicationForm(
   const queryClient = useQueryClient();
 
   return useAppForm({
-    schema: registerApplicationSchema,
+    schema: registerSchemaFor(kind),
     defaultValues: {
       name: "",
       redirectUris: "",
       postLogoutRedirectUris: "",
       backchannelLogoutUri: "",
-      scopes: ["openid"],
+      scopes: [...KINDS[kind].defaultScopes],
     },
     mutation: organizationClientsRegisterMutation({ client: sdk.client }),
-    // Field by field, never a spread: the URI lists arrive as strings, `kind`
-    // is fixed to `application` here, and an empty back-channel URI is omitted.
+    // Field by field, never a spread: the URI lists arrive as strings and an
+    // empty back-channel URI is omitted.
     toVariables: (values) => ({
       path: { orgId },
-      body: {
-        kind: "application",
-        name: values.name,
-        redirectUris: toUriList(values.redirectUris),
-        postLogoutRedirectUris: toUriList(values.postLogoutRedirectUris),
-        backchannelLogoutUri:
-          values.backchannelLogoutUri.trim() === ""
-            ? undefined
-            : values.backchannelLogoutUri.trim(),
-        scopes: values.scopes,
-      },
+      body: toRegisterBody(kind, values),
     }),
     onSuccess: (result) => {
       // Registering adds a row to the ledger the section renders above.
@@ -156,24 +229,31 @@ function useRegisterApplicationForm(
       // read it back off the cache — the result is handed up.
       onRegistered(result);
     },
-    fallbackError: "Failed to register the application.",
+    fallbackError: KINDS[kind].fallbackError,
   });
 }
 
-type RegisterForm = ReturnType<typeof useRegisterApplicationForm>;
+type RegisterForm = ReturnType<typeof useRegisterClientForm>;
+
+/** The stepper's fixed inputs, threaded to every part that renders a test id. */
+interface Stepper {
+  readonly kind: ClientKind;
+  readonly form: RegisterForm;
+}
 
 /** The step rail: every step named, the current one marked. */
-function StepRail(props: { current: Step }) {
+function StepRail(props: { kind: ClientKind; current: Step }) {
+  const { steps, testIdPrefix } = KINDS[props.kind];
   return (
     <ol className="flex gap-4" aria-label="Registration steps">
-      {STEPS.map((step, index) => (
+      {steps.map((step, index) => (
         <li key={step} aria-current={step === props.current ? "step" : undefined}>
           <Text
             as="span"
             variant="bodySm"
             weight={step === props.current ? "medium" : undefined}
             color={step === props.current ? "onCard" : "muted"}
-            data-testid={step === props.current ? `${TEST_ID_PREFIX}-step` : undefined}
+            data-testid={step === props.current ? `${testIdPrefix}-step` : undefined}
           >
             {index + 1}. {STEP_LABELS[step]}
           </Text>
@@ -183,12 +263,12 @@ function StepRail(props: { current: Step }) {
   );
 }
 
-function BasicsStep(props: { form: RegisterForm }) {
-  const { form } = props;
+function BasicsStep(props: Stepper) {
+  const { kind, form } = props;
   return (
     <div className="space-y-4">
       <form.AppField name="name">
-        {(field) => <field.TextField label="Name" placeholder="Dashboard" />}
+        {(field) => <field.TextField label="Name" placeholder={KINDS[kind].namePlaceholder} />}
       </form.AppField>
       <MutedText>
         The client id is derived from the organization and this name. Neither can be changed after
@@ -225,9 +305,14 @@ function RedirectsStep(props: { form: RegisterForm }) {
 }
 
 /** One scope checkbox; platform-only scopes render disabled with a badge. */
-function ScopeOption(props: { code: string; displayName: string; platformOnly: boolean }) {
-  const { code, displayName, platformOnly } = props;
-  const testId = `${TEST_ID_PREFIX}-scope-${code.replaceAll(".", "-")}`;
+function ScopeOption(props: {
+  prefix: string;
+  code: string;
+  displayName: string;
+  platformOnly: boolean;
+}) {
+  const { prefix, code, displayName, platformOnly } = props;
+  const testId = `${prefix}-scope-${code.replaceAll(".", "-")}`;
   return (
     <label className="flex items-center gap-3">
       <Checkbox.Root name={code} disabled={platformOnly} data-testid={testId}>
@@ -245,6 +330,7 @@ function ScopeOption(props: { code: string; displayName: string; platformOnly: b
 }
 
 function ScopePicker(props: {
+  kind: ClientKind;
   value: readonly string[];
   onChange: (next: string[]) => void;
   disabled: boolean;
@@ -252,7 +338,9 @@ function ScopePicker(props: {
   catalogFailed: boolean;
   error: string | undefined;
 }) {
-  const { value, onChange, disabled, catalog, catalogFailed, error } = props;
+  const { kind, value, onChange, disabled, catalog, catalogFailed, error } = props;
+  const { testIdPrefix, offersLoginScopes } = KINDS[kind];
+  const loginScopes = offersLoginScopes ? LOGIN_SCOPES : [];
   return (
     <fieldset className="space-y-3">
       <Text as="legend" variant="body" weight="medium" color="onCard">
@@ -265,9 +353,10 @@ function ScopePicker(props: {
         }}
         disabled={disabled}
       >
-        {LOGIN_SCOPES.map((scope) => (
+        {loginScopes.map((scope) => (
           <ScopeOption
             key={scope.code}
+            prefix={testIdPrefix}
             code={scope.code}
             displayName={scope.displayName}
             platformOnly={false}
@@ -276,6 +365,7 @@ function ScopePicker(props: {
         {catalog.map((scope) => (
           <ScopeOption
             key={scope.code}
+            prefix={testIdPrefix}
             code={scope.code}
             displayName={scope.displayName}
             platformOnly={scope.platformOnly}
@@ -283,8 +373,10 @@ function ScopePicker(props: {
         ))}
       </CheckboxGroup>
       {catalogFailed ? (
-        <MutedText data-testid={`${TEST_ID_PREFIX}-scopes-catalog-error`}>
-          The scope catalog could not be loaded; only the login scopes are offered.
+        <MutedText data-testid={`${testIdPrefix}-scopes-catalog-error`}>
+          {offersLoginScopes
+            ? "The scope catalog could not be loaded; only the login scopes are offered."
+            : "The scope catalog could not be loaded."}
         </MutedText>
       ) : null}
       {error === undefined ? null : (
@@ -292,7 +384,7 @@ function ScopePicker(props: {
           as="span"
           variant="bodySm"
           color="destructive"
-          data-testid={`${TEST_ID_PREFIX}-scopes-error`}
+          data-testid={`${testIdPrefix}-scopes-error`}
         >
           {error}
         </Text>
@@ -301,14 +393,15 @@ function ScopePicker(props: {
   );
 }
 
-function ScopesStep(props: { form: RegisterForm }) {
-  const { form } = props;
+function ScopesStep(props: Stepper) {
+  const { kind, form } = props;
   const { sdk } = useRouteContext({ from: "__root__" });
   const { data, isError } = useQuery(scopesListOptions({ client: sdk.client }));
   return (
     <form.AppField name="scopes">
       {(field) => (
         <ScopePicker
+          kind={kind}
           value={field.state.value}
           onChange={field.handleChange}
           disabled={form.wallow.pending}
@@ -334,17 +427,19 @@ function firstMessage(errors: readonly unknown[]): string | undefined {
 }
 
 function StepFooter(props: {
+  kind: ClientKind;
   form: RegisterForm;
   step: Step;
   onBack: () => void;
   onNext: () => void;
   onCancel: () => void;
 }) {
-  const { form, step, onBack, onNext, onCancel } = props;
-  const ready: boolean = useStore(form.store, (state) => canRegister(state.values));
-  const index = STEPS.indexOf(step);
+  const { kind, form, step, onBack, onNext, onCancel } = props;
+  const { steps, testIdPrefix } = KINDS[kind];
+  const ready: boolean = useStore(form.store, (state) => canRegister(kind, state.values));
+  const index = steps.indexOf(step);
   const isFirst = index === 0;
-  const isLast = index === STEPS.length - 1;
+  const isLast = index === steps.length - 1;
   return (
     <div className="flex flex-wrap items-center gap-3">
       <Button
@@ -353,7 +448,7 @@ function StepFooter(props: {
         className="w-auto"
         disabled={isFirst}
         onClick={onBack}
-        data-testid={`${TEST_ID_PREFIX}-back`}
+        data-testid={`${testIdPrefix}-back`}
       >
         Back
       </Button>
@@ -363,7 +458,7 @@ function StepFooter(props: {
           variant="secondary"
           className="w-auto"
           onClick={onNext}
-          data-testid={`${TEST_ID_PREFIX}-next`}
+          data-testid={`${testIdPrefix}-next`}
         >
           Next
         </Button>
@@ -376,7 +471,7 @@ function StepFooter(props: {
         variant="secondary"
         className="w-auto"
         onClick={onCancel}
-        data-testid={`${TEST_ID_PREFIX}-cancel`}
+        data-testid={`${testIdPrefix}-cancel`}
       >
         Cancel
       </Button>
@@ -391,18 +486,20 @@ const STEP_FORWARD = 1;
  * Every step stays mounted so its values survive navigation; only the current
  * one is shown.
  */
-function StepPanels(props: { form: RegisterForm; step: Step }) {
-  const { form, step } = props;
+function StepPanels(props: Stepper & { step: Step }) {
+  const { kind, form, step } = props;
   return (
     <>
       <div hidden={step !== "basics"}>
-        <BasicsStep form={form} />
+        <BasicsStep kind={kind} form={form} />
       </div>
-      <div hidden={step !== "redirects"}>
-        <RedirectsStep form={form} />
-      </div>
+      {KINDS[kind].steps.includes("redirects") ? (
+        <div hidden={step !== "redirects"}>
+          <RedirectsStep form={form} />
+        </div>
+      ) : null}
       <div hidden={step !== "scopes"}>
-        <ScopesStep form={form} />
+        <ScopesStep kind={kind} form={form} />
       </div>
     </>
   );
@@ -412,13 +509,15 @@ function StepPanels(props: { form: RegisterForm; step: Step }) {
  * The stepper card. Every step stays mounted; the inactive ones are hidden so
  * a value typed on Basics survives a trip to Scopes and back.
  */
-export function RegisterApplication(props: {
+export function RegisterClient(props: {
+  kind: ClientKind;
   orgId: string;
   onRegistered: (result: OrganizationClientRegistrationResponse) => void;
   onCancel: () => void;
 }) {
-  const { orgId, onRegistered, onCancel } = props;
-  const form = useRegisterApplicationForm(orgId, onRegistered);
+  const { kind, orgId, onRegistered, onCancel } = props;
+  const { steps, testIdPrefix, registerTitle } = KINDS[kind];
+  const form = useRegisterClientForm(kind, orgId, onRegistered);
   const [step, setStep] = useState<Step>("basics");
   const serverErrorField: keyof RegisterValues | undefined = useStore(form.store, (state) =>
     firstServerErrorField(state.fieldMeta),
@@ -433,21 +532,22 @@ export function RegisterApplication(props: {
   }, [serverErrorField]);
 
   const move = (delta: number): void => {
-    const index = STEPS.indexOf(step) + delta;
-    const next: Step | undefined = STEPS[index];
+    const index = steps.indexOf(step) + delta;
+    const next: Step | undefined = steps[index];
     if (next !== undefined) {
       setStep(next);
     }
   };
 
   return (
-    <Card data-testid={`${TEST_ID_PREFIX}-card`}>
-      <CardHeader title="Register application" />
-      <StepRail current={step} />
-      <AppForm form={form} testIdPrefix={TEST_ID_PREFIX} className="space-y-6">
-        <StepPanels form={form} step={step} />
+    <Card data-testid={`${testIdPrefix}-card`}>
+      <CardHeader title={registerTitle} />
+      <StepRail kind={kind} current={step} />
+      <AppForm form={form} testIdPrefix={testIdPrefix} className="space-y-6">
+        <StepPanels kind={kind} form={form} step={step} />
         <FormError />
         <StepFooter
+          kind={kind}
           form={form}
           step={step}
           onBack={() => {
@@ -475,25 +575,40 @@ function randomHex(bytes: number): string {
   ).join("");
 }
 
-/** The env block a BFF needs, built once per reveal so the cookie password is stable. */
-function buildEnvBlock(result: OrganizationClientRegistrationResponse): string {
+/**
+ * The env block the SDK reads, built once per reveal so a BFF's cookie password
+ * is stable. An application feeds `createBffHandler`; a service account feeds
+ * `createServiceClient`, so its block names the `OIDC_SERVICE_*` variables and
+ * carries no redirect or cookie settings.
+ */
+function buildEnvBlock(kind: ClientKind, result: OrganizationClientRegistrationResponse): string {
   const { client } = result;
-  return [
-    `OIDC_ISSUER=${result.issuer}`,
-    `OIDC_CLIENT_ID=${client.clientId}`,
-    `OIDC_CLIENT_SECRET=${result.clientSecret}`,
-    `OIDC_REDIRECT_URI=${client.redirectUris[0] ?? ""}`,
-    `OIDC_POST_LOGOUT_REDIRECT_URI=${client.postLogoutRedirectUris[0] ?? ""}`,
-    `OIDC_SCOPES=${client.scopes.join(" ")}`,
-    `BFF_API_BASE_URL=${result.apiBaseUrl}`,
-    `COOKIE_PASSWORD=${randomHex(COOKIE_PASSWORD_BYTES)}`,
-  ].join("\n");
+  const lines =
+    kind === "application"
+      ? [
+          `OIDC_ISSUER=${result.issuer}`,
+          `OIDC_CLIENT_ID=${client.clientId}`,
+          `OIDC_CLIENT_SECRET=${result.clientSecret}`,
+          `OIDC_REDIRECT_URI=${client.redirectUris[0] ?? ""}`,
+          `OIDC_POST_LOGOUT_REDIRECT_URI=${client.postLogoutRedirectUris[0] ?? ""}`,
+          `OIDC_SCOPES=${client.scopes.join(" ")}`,
+          `BFF_API_BASE_URL=${result.apiBaseUrl}`,
+          `COOKIE_PASSWORD=${randomHex(COOKIE_PASSWORD_BYTES)}`,
+        ]
+      : [
+          `OIDC_ISSUER=${result.issuer}`,
+          `OIDC_SERVICE_CLIENT_ID=${client.clientId}`,
+          `OIDC_SERVICE_CLIENT_SECRET=${result.clientSecret}`,
+          `OIDC_SERVICE_SCOPES=${client.scopes.join(" ")}`,
+          `BFF_API_BASE_URL=${result.apiBaseUrl}`,
+        ];
+  return lines.join("\n");
 }
 
-function quickstartHref(): string {
+function quickstartHref(kind: ClientKind): string {
   const { docsUrl } = forkLinks();
   const base = docsUrl.endsWith("/") ? docsUrl : `${docsUrl}/`;
-  return new URL("integrations/bff-pattern.html", base).href;
+  return new URL(KINDS[kind].quickstartPage, base).href;
 }
 
 function RevealRow(props: { label: string; value: string; testId: string }) {
@@ -515,7 +630,9 @@ function RevealRow(props: { label: string; value: string; testId: string }) {
   );
 }
 
-function RevealActions(props: { env: string; onDone: () => void }) {
+function RevealActions(props: { kind: ClientKind; env: string; onDone: () => void }) {
+  const { kind, env, onDone } = props;
+  const { testIdPrefix } = KINDS[kind];
   const [copied, setCopied] = useState(false);
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -523,20 +640,20 @@ function RevealActions(props: { env: string; onDone: () => void }) {
         type="button"
         className="w-auto"
         onClick={() => {
-          void navigator.clipboard.writeText(props.env).then(() => {
+          void navigator.clipboard.writeText(env).then(() => {
             setCopied(true);
           });
         }}
-        data-testid={`${TEST_ID_PREFIX}-copy-env`}
+        data-testid={`${testIdPrefix}-copy-env`}
       >
         {copied ? "Copied" : "Copy env block"}
       </Button>
       <Button
-        render={<a href={quickstartHref()} target="_blank" rel="noreferrer" />}
+        render={<a href={quickstartHref(kind)} target="_blank" rel="noreferrer" />}
         nativeButton={false}
         variant="secondary"
         className="w-auto no-underline"
-        data-testid={`${TEST_ID_PREFIX}-quickstart`}
+        data-testid={`${testIdPrefix}-quickstart`}
       >
         Open quickstart
       </Button>
@@ -544,8 +661,8 @@ function RevealActions(props: { env: string; onDone: () => void }) {
         type="button"
         variant="secondary"
         className="w-auto"
-        onClick={props.onDone}
-        data-testid={`${TEST_ID_PREFIX}-done`}
+        onClick={onDone}
+        data-testid={`${testIdPrefix}-done`}
       >
         Done
       </Button>
@@ -555,34 +672,36 @@ function RevealActions(props: { env: string; onDone: () => void }) {
 
 /** The one-time reveal: client id, secret, and the env block, shown once. */
 export function RegistrationReveal(props: {
+  kind: ClientKind;
   result: OrganizationClientRegistrationResponse;
   onDone: () => void;
 }) {
-  const { result, onDone } = props;
-  const env: string = useMemo(() => buildEnvBlock(result), [result]);
+  const { kind, result, onDone } = props;
+  const { testIdPrefix, revealTitle } = KINDS[kind];
+  const env: string = useMemo(() => buildEnvBlock(kind, result), [kind, result]);
   return (
-    <Card data-testid={`${TEST_ID_PREFIX}-success`}>
+    <Card data-testid={`${testIdPrefix}-success`}>
       <CardHeader
-        title="Application registered"
+        title={revealTitle}
         description="Copy the client secret now — it is shown once and cannot be retrieved later."
       />
       <RevealRow
         label="Client id"
         value={result.client.clientId}
-        testId={`${TEST_ID_PREFIX}-client-id`}
+        testId={`${testIdPrefix}-client-id`}
       />
       <RevealRow
         label="Client secret"
         value={result.clientSecret}
-        testId={`${TEST_ID_PREFIX}-client-secret`}
+        testId={`${testIdPrefix}-client-secret`}
       />
       <pre
-        data-testid={`${TEST_ID_PREFIX}-env`}
+        data-testid={`${testIdPrefix}-env`}
         className="overflow-x-auto rounded-md border border-border bg-background p-4 font-mono text-sm text-foreground"
       >
         {env}
       </pre>
-      <RevealActions env={env} onDone={onDone} />
+      <RevealActions kind={kind} env={env} onDone={onDone} />
     </Card>
   );
 }

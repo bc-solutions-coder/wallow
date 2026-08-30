@@ -16,19 +16,25 @@ Use service accounts for automated systems, background jobs, external integratio
 
 ## Getting Started
 
-### 1. Create a Service Account
+### 1. Register a service account
 
-Send a POST request to create a service account for your tenant:
+A service account is one of an organization's **clients**, registered on the same route as a
+developer application with `kind: "service-account"`. The caller needs `OrganizationClientsManage`
+in that organization — an organization admin has it through their role. The wallow-web
+organization page offers the same registration as a two-step form (Basics → Scopes) and shows the
+env block below when it completes.
 
 ```http
-POST /v1/identity/clients/service-accounts
+POST /v1/identity/organizations/{orgId}/clients
 Authorization: Bearer <user-token>
 Content-Type: application/json
 
 {
-  "name": "Production Backend",
-  "description": "Main production server integration",
-  "scopes": ["announcements.read", "announcements.manage", "notifications.read"]
+  "kind": "service-account",
+  "name": "Nightly sync",
+  "redirectUris": [],
+  "postLogoutRedirectUris": [],
+  "scopes": ["organizations.read", "inquiries.read"]
 }
 ```
 
@@ -36,33 +42,66 @@ Response (201 Created):
 
 ```json
 {
-  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "clientId": "sa-tenant12-production-backend",
+  "client": {
+    "clientId": "sa-acme-nightly-sync",
+    "name": "Nightly sync",
+    "kind": "service-account",
+    "status": "active",
+    "redirectUris": [],
+    "postLogoutRedirectUris": [],
+    "scopes": ["organizations.read", "inquiries.read"],
+    "createdByUserId": "6f1c…",
+    "createdAt": "2026-08-30T00:00:00Z"
+  },
   "clientSecret": "xK9mN2pL8qR5sT7vW3yZ1aB4cD6eF8gH0iJ2kL5mN7oP9qR1sT3uV5wX7yZ9",
-  "tokenEndpoint": "http://localhost:5001/connect/token",
-  "scopes": ["announcements.read", "announcements.manage", "notifications.read"],
-  "warning": "Save this secret now. It will not be shown again."
+  "issuer": "https://auth.example.com/auth",
+  "apiBaseUrl": "https://api.example.com"
 }
 ```
 
-The client secret is shown only at creation time. Store it in environment variables or a secret manager.
+The secret is shown once. The client id is derived as `sa-<organization>-<name>`, and the URI
+fields are ignored for a service account: it can only use the `client_credentials` grant, so it
+has no redirect. Scopes follow one rule for both client kinds: any scope in the catalog may be
+granted except a platform-only one, which is never grantable on the org-scoped surface.
 
-### 2. Request an Access Token
+Registration binds the client to the organization, so every token it obtains carries that
+organization's `org_id` and is tenant-scoped exactly like an interactive user's.
+
+### 2. Configure the SDK
+
+The response maps onto the env block `createServiceClient()` reads
+(see [TypeScript SDK](../integrations/typescript-sdk.md#service-accounts-createserviceclient)):
 
 ```bash
-curl -X POST http://localhost:5001/connect/token \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "client_id=your-client-id" \
-  -d "client_secret=your-client-secret" \
-  -d "grant_type=client_credentials"
+OIDC_ISSUER=https://auth.example.com/auth
+OIDC_SERVICE_CLIENT_ID=sa-acme-nightly-sync
+OIDC_SERVICE_CLIENT_SECRET=xK9mN2pL8qR5sT7vW3yZ1aB4cD6eF8gH0iJ2kL5mN7oP9qR1sT3uV5wX7yZ9
+OIDC_SERVICE_SCOPES=organizations.read inquiries.read
+BFF_API_BASE_URL=https://api.example.com
 ```
 
-### 3. Call the API
+### 3. Request an Access Token
+
+Without the SDK, exchange the credentials at the token endpoint directly:
+
+```bash
+curl -X POST https://api.example.com/connect/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "client_id=sa-acme-nightly-sync" \
+  -d "client_secret=<client-secret>" \
+  -d "grant_type=client_credentials" \
+  -d "scope=organizations.read inquiries.read"
+```
+
+The access token's `sub` and `azp` are the client id, `org_id` is the organization the client was
+registered for, and `scope` is the granted subset of what was requested.
+
+### 4. Call the API
 
 Use the access token in the `Authorization` header:
 
 ```bash
-curl -X GET http://localhost:5001/v1/announcements \
+curl -X GET https://api.example.com/v1/identity/organizations \
   -H "Authorization: Bearer <access-token>"
 ```
 
@@ -72,126 +111,29 @@ Cache tokens and refresh before expiry. Each token request counts toward rate li
 
 ## API Reference
 
-Service accounts are managed through the **clients** controller, so every route is nested under
-`/v1/identity/clients/service-accounts`. Each endpoint requires the matching `ServiceAccounts*`
-permission — held by admin users through their role, or carried by any token granted the
-corresponding `serviceaccounts.*` scope. The permissions are checked independently: `manage` does
-not imply `write` or `read`, so a credential meant to do everything needs all three scopes.
+Service accounts and developer applications share the organization-scoped clients surface, one
+permission (`OrganizationClientsManage`) and one record. `{clientId}` is the `clientId` returned at
+registration, e.g. `sa-acme-nightly-sync`.
 
-| Method | Route | Permission |
-|--------|-------|------------|
-| `GET` | `/v1/identity/clients/service-accounts` | `ServiceAccountsRead` |
-| `POST` | `/v1/identity/clients/service-accounts` | `ServiceAccountsWrite` |
-| `GET` | `/v1/identity/clients/service-accounts/{id}` | `ServiceAccountsRead` |
-| `PUT` | `/v1/identity/clients/service-accounts/{id}/scopes` | `ServiceAccountsWrite` |
-| `POST` | `/v1/identity/clients/service-accounts/{id}/rotate-secret` | `ServiceAccountsManage` |
-| `DELETE` | `/v1/identity/clients/service-accounts/{id}` | `ServiceAccountsManage` |
-| `GET` | `/v1/identity/scopes` | `ScopeRead` |
+| Method | Route | Purpose |
+|--------|-------|---------|
+| `GET` | `/v1/identity/organizations/{orgId}/clients` | List the organization's clients; `kind` tells them apart |
+| `POST` | `/v1/identity/organizations/{orgId}/clients` | Register an application or a service account |
+| `GET` | `/v1/identity/organizations/{orgId}/clients/{clientId}` | Get one client |
+| `PATCH` | `/v1/identity/organizations/{orgId}/clients/{clientId}` | Update scopes (and, for an application, URIs) |
+| `DELETE` | `/v1/identity/organizations/{orgId}/clients/{clientId}` | Delete the client; its tokens stop validating |
+| `GET` | `/v1/identity/scopes` | List the scope catalog (`ScopeRead`); `platformOnly` scopes cannot be granted here |
 
-`{id}` is the service account metadata GUID (the `id` returned at creation), not the `clientId`.
+`PATCH` takes the same `redirectUris`, `postLogoutRedirectUris`, `backchannelLogoutUri` and
+`scopes` fields as registration, minus `kind` and `name`, which are immutable. For a service
+account only `scopes` matters.
 
-### List Service Accounts
+### Pre-registered service accounts
 
-```http
-GET /v1/identity/clients/service-accounts
-Authorization: Bearer <user-token>
-```
-
-Response (200 OK) — an array of `ServiceAccountDto`:
-
-```json
-[
-  {
-    "id": { "value": "a1b2c3d4-e5f6-7890-abcd-ef1234567890" },
-    "clientId": "sa-tenant12-production-backend",
-    "name": "Production Backend",
-    "description": "Main production server integration",
-    "status": 0,
-    "scopes": ["announcements.read", "announcements.manage", "notifications.read"],
-    "createdAt": "2026-02-06T15:30:00+00:00",
-    "lastUsedAt": null
-  }
-]
-```
-
-`id` is a strongly-typed identifier and serializes as an object with a `value` property. `status` is
-numeric: `0` = Active, `1` = Revoked. `description` and `lastUsedAt` may be `null`.
-
-### Get Service Account
-
-```http
-GET /v1/identity/clients/service-accounts/{id}
-Authorization: Bearer <user-token>
-```
-
-Returns a single `ServiceAccountDto` in the shape above, or 404 Not Found.
-
-### Update Scopes
-
-```http
-PUT /v1/identity/clients/service-accounts/{id}/scopes
-Authorization: Bearer <user-token>
-Content-Type: application/json
-
-{
-  "scopes": ["announcements.read", "announcements.manage", "notifications.read", "inquiries.read"]
-}
-```
-
-The list replaces the existing scopes wholesale. Returns 204 No Content on success, 404 Not Found if
-the service account does not exist.
-
-### Rotate Secret
-
-```http
-POST /v1/identity/clients/service-accounts/{id}/rotate-secret
-Authorization: Bearer <user-token>
-```
-
-Response (200 OK):
-
-```json
-{
-  "newClientSecret": "aB1cD2eF3gH4iJ5kL6mN7oP8qR9sT0uV1wX2yZ3aB4cD5eF6gH7iJ8kL9",
-  "rotatedAt": "2026-02-06T16:00:00Z",
-  "warning": "Save this secret now. It will not be shown again."
-}
-```
-
-The old secret is invalidated immediately.
-
-### Delete Service Account
-
-```http
-DELETE /v1/identity/clients/service-accounts/{id}
-Authorization: Bearer <user-token>
-```
-
-Revokes and deletes the account. Returns 204 No Content, or 404 Not Found.
-
-### List Available Scopes
-
-```http
-GET /v1/identity/scopes?category=Identity
-Authorization: Bearer <user-token>
-```
-
-Lives on the scopes controller rather than the clients controller, and requires the `ScopeRead`
-permission. The `category` query parameter is optional; omit it to list every scope. Response
-(200 OK):
-
-```json
-[
-  {
-    "id": { "value": "3f1a9c22-5d4e-4a1b-9f0c-71b8e2d6a904" },
-    "code": "users.read",
-    "displayName": "Read Users",
-    "category": "Identity",
-    "description": "Access to read user profiles and data",
-    "isDefault": true
-  }
-]
-```
+The seeder (`api/seed.json`) can define a service account for a deployment: a client whose id
+starts with `sa-` gets the `client_credentials` grant, and its `tenantName` names the organization
+the tokens are bound to. The dev/e2e seed defines `sa-wallow-nightly-sync` in the `Wallow`
+organization for exactly this.
 
 ---
 
@@ -213,9 +155,6 @@ permission. The `category` query parameter is optional; omit it to list every sc
 | `apikeys.read` | Read API key metadata | Yes |
 | `apikeys.write` | Create and update API keys | No |
 | `apikeys.manage` | Full API key management | No |
-| `serviceaccounts.read` | Read service account data | Yes |
-| `serviceaccounts.write` | Create service accounts and update their scopes | No |
-| `serviceaccounts.manage` | Rotate service account secrets and revoke accounts | No |
 
 ### Storage
 
@@ -266,7 +205,7 @@ permission. The `category` query parameter is optional; omit it to list every sc
 - **Store credentials securely.** Use environment variables or a secret manager (AWS Secrets Manager, Azure Key Vault, HashiCorp Vault). Never commit secrets to source control.
 - **Cache access tokens.** Tokens are valid for 5-15 minutes. Refresh 30-60 seconds before expiry to avoid mid-request failures.
 - **Use minimum necessary scopes.** Request only the scopes your integration needs. This limits exposure if credentials are compromised.
-- **Rotate secrets regularly.** Rotate every 90 days, or immediately after a security incident or personnel change.
+- **Rotate credentials regularly.** Every 90 days, or immediately after a security incident or personnel change.
 - **Handle errors gracefully.** Implement retry logic for 401 (token expired) and 429 (rate limited) responses with exponential backoff.
 - **Never use service accounts from client-side code.** Client secrets cannot be kept secure in browsers or mobile apps. Use OIDC for interactive applications.
 - **Never log secrets or tokens.** Log only non-sensitive metadata like token expiry times.
@@ -278,8 +217,8 @@ permission. The `category` query parameter is optional; omit it to list every sc
 | Status | Error | Meaning |
 |--------|-------|---------|
 | 401 | `invalid_token` | Token expired. Refresh and retry. |
-| 401 | `invalid_client` | Wrong `client_id` or `client_secret`, or account was revoked. |
-| 403 | `insufficient_scope` | Service account lacks required scopes. Update via the API. |
+| 401 | `invalid_client` | Wrong `client_id` or `client_secret`, or the client was deleted or suspended. |
+| 403 | `insufficient_scope` | Service account lacks required scopes. Grant them with `PATCH`. |
 | 429 | `rate_limit_exceeded` | Too many requests. Respect the `Retry-After` header. |
 
 ---
@@ -289,4 +228,5 @@ permission. The `category` query parameter is optional; omit it to list every sc
 - [Authorization](../architecture/authorization.md) — the scope and permission model these scopes plug into
 - [Authentication](../architecture/authentication.md) — the interactive OIDC path this credential replaces
 - [BFF Pattern](../integrations/bff-pattern.md) — what an interactive frontend uses instead of a service account
+- [TypeScript SDK](../integrations/typescript-sdk.md#service-accounts-createserviceclient) — `createServiceClient()` and the `OIDC_SERVICE_*` env block
 - `api/src/Modules/ApiKeys/README.md` — the other machine credential (`X-Api-Key`, not OAuth2)

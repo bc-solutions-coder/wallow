@@ -45,11 +45,6 @@ public static class ScopePermissionMapper
             "inquiries.read" => PermissionType.InquiriesRead,
             "inquiries.write" => PermissionType.InquiriesWrite,
 
-            // Identity - Service Accounts
-            "serviceaccounts.read" => PermissionType.ServiceAccountsRead,
-            "serviceaccounts.write" => PermissionType.ServiceAccountsWrite,
-            "serviceaccounts.manage" => PermissionType.ServiceAccountsManage,
-
             // Platform
             "webhooks.manage" => PermissionType.WebhooksManage,
 

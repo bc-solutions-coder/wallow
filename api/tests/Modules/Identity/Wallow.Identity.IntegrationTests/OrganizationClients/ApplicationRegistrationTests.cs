@@ -165,18 +165,6 @@ public class ApplicationRegistrationTests(WallowApiFactory factory) : IdentityIn
         problem.GetProperty("detail").GetString().Should().Contain("users.manage");
     }
 
-    [Fact]
-    public async Task Register_RefusesAServiceAccount_UntilThatSurfaceExists()
-    {
-        Guid orgId = await OrganizationOwnedBySomeoneElseAsync("Kind Org");
-        await ActAsEnrolledAsync(orgId, "manager");
-
-        HttpResponseMessage response = await Client.PostAsJsonAsync(
-            $"/identity/organizations/{orgId}/clients",
-            RegisterBody("Robot", [RedirectUri], ["openid"], kind: "service-account"));
-
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-    }
 
     [Fact]
     public async Task Register_RefusesANameThatLeavesNothingToDeriveAnIdFrom()
