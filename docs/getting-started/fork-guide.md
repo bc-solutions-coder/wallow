@@ -49,7 +49,7 @@ The simplest fork strategy is to **keep all `Wallow.*` namespaces unchanged** an
 1. **Fork and clone** the repository
 2. **Edit `packages/styles/branding.json`** to set your product name, icon, tagline, landing-page toggle, and theme colors
 3. **Edit `api/src/Wallow.Api/appsettings.json`** to configure connection strings, the SMTP sender name, and the OpenTelemetry service name
-4. **Edit `api/seed.json`** to set your bootstrap tenant, roles, and admin account
+4. **Edit `api/seed.json`** to set your bootstrap organization, roles, and admin account
 5. **Set up the merge driver** so upstream merges don't overwrite your config (see "Merge Driver Setup" below)
 
 > **Production seeds differently.** `api/seed.json` is the development seed; production uses the
@@ -1002,7 +1002,7 @@ git push origin main
 - [ ] Fork created and cloned
 - [ ] `packages/styles/branding.json` customized with your product identity
 - [ ] `api/src/Wallow.Api/appsettings.json` configured (SMTP, OpenTelemetry service name, connection strings)
-- [ ] `api/seed.json` configured with your bootstrap tenant and admin
+- [ ] `api/seed.json` configured with your bootstrap organization and admin
 - [ ] Merge driver activated (`git config merge.ours.driver true`)
 - [ ] `dotnet build api/Wallow.slnx` succeeds
 - [ ] `./scripts/run-tests.sh` passes

@@ -170,22 +170,6 @@ services:
       ServiceUrls__ApiUrl: "http://localhost:${E2E_API_PORT:-5050}"
       # Fix OIDC issuer so browser-facing tokens match the authority clients expect (localhost)
       OpenIddict__Issuer: "http://localhost:${E2E_API_PORT:-5050}"
-      # wallow-web is a BFF; treat its client as first-party so the OIDC flow
-      # skips the interactive consent screen during the dashboard login. This
-      # override is POSITIONAL: appsettings declares an empty FirstPartyClients
-      # array, so it starts at index 0 and must be renumbered whenever that
-      # array (or this override list) gains or loses an entry.
-      #
-      # bff-example-client (the external-origin reference client, api/seed.json) is
-      # DELIBERATELY ABSENT here. It used to be listed too, to skip consent for
-      # it as well -- a workaround dating from when the consent screen was
-      # broken (design doc Sec 14.3). Plan Sec 5.5.1/5.5.2 fixed the screen
-      # (seeded scope descriptions, scp:* client permissions), and bff-example-client
-      # exists specifically to exercise the THIRD-PARTY consent path
-      # (Wallow-yp3e.4, plan 5.5.6) -- treating it as first-party here made this
-      # stack the one place that path could never be verified, while the
-      # Aspire stack's FirstPartyClients: [] never had this override at all.
-      Identity__FirstPartyClients__0: "wallow-web-client"
     tmpfs:
       - /tmp
       - /app/App_Data

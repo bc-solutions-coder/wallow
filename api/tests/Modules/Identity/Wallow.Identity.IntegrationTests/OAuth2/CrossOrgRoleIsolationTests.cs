@@ -170,7 +170,7 @@ public sealed class CrossOrgRoleIsolationTests(WallowApiFactory factory)
 
         string clientId = $"wallow-cross-org-{suffix}";
         await AuthorizationCodeFlowHarness.RegisterClientAsync(
-            ScopedServices, clientId, ClientSecret, memberOrganizationId, _clientScopes);
+            ScopedServices, clientId, ClientSecret, memberOrganizationId, _clientScopes, firstParty: true);
 
         return new Seed(email, clientId, userId, adminOrganizationId, memberOrganizationId);
     }

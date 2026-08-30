@@ -41,6 +41,19 @@ public sealed record PreRegisteredClientDefinition
     public bool? Public { get; init; }
 
     public bool IsPublic => Public == true;
+
+    /// <summary>
+    /// Declares one of the platform's own clients, bound from the "firstParty" key. First-party
+    /// status is a seed-only property: it is never inferred from the client id, and it is what
+    /// makes the seeder register the client with OpenIddict's implicit consent type. A
+    /// first-party client is bound to no organization, so <see cref="TenantId"/>,
+    /// <see cref="TenantName"/>, <see cref="SeedMembers"/> and <see cref="SeedMemberRoles"/>
+    /// are rejected on one.
+    /// </summary>
+    public bool FirstParty { get; init; }
+
+    public bool IsBoundToOrganization =>
+        (TenantId.HasValue && TenantId.Value != Guid.Empty) || !string.IsNullOrWhiteSpace(TenantName);
 }
 
 public sealed class PreRegisteredClientOptions
@@ -49,22 +62,57 @@ public sealed class PreRegisteredClientOptions
 
     public Collection<PreRegisteredClientDefinition> Clients { get; set; } = [];
 
-    // Fails fast when a client is registered with no secret and no explicit public declaration.
+    // The client <-> organization invariant as (predicate, message) rules: each names the
+    // offending clients between its two message halves so one report lists every violation.
+    private static readonly (Func<PreRegisteredClientDefinition, bool> Violates, string Before, string After)[] _organizationRules =
+    [
+        (c => c.FirstParty && c.IsBoundToOrganization,
+            "first-party client(s) ",
+            " declare an organization (\"tenantId\"/\"tenantName\"); a first-party client is bound to no organization"),
+        (c => c.FirstParty && (c.SeedMembers.Count > 0 || c.SeedMemberRoles.Count > 0),
+            "first-party client(s) ",
+            " declare \"seedMembers\"/\"seedMemberRoles\"; seed members belong to an organization-bound client"),
+        (c => !c.FirstParty && !c.IsBoundToOrganization,
+            "client(s) ",
+            " declare no organization; a client that is not \"firstParty\": true must name exactly one (\"tenantId\" or \"tenantName\")"),
+    ];
+
+    // Fails fast, before any client is written, on the two seed shapes that would otherwise
+    // register something the platform does not mean: a secret-less client with no explicit
+    // public declaration, and a client on the wrong side of the client <-> organization
+    // invariant (first-party => no organization; every other client => exactly one).
     public void Validate()
     {
-        List<string> offenders = Clients
+        List<string> silentlyPublic = Clients
             .Where(c => string.IsNullOrWhiteSpace(c.Secret) && c.Public != true)
             .Select(c => c.ClientId)
             .ToList();
 
-        if (offenders.Count == 0)
+        if (silentlyPublic.Count > 0)
+        {
+            throw new InvalidOperationException(
+                "Pre-registered client(s) " + string.Join(", ", silentlyPublic) + " have no secret and do not declare "
+                + "\"public\": true. A missing secret never implies a public client: declare \"public\": true for "
+                + "browser/native clients, or supply the secret for confidential ones.");
+        }
+
+        List<string> problems = [];
+        foreach ((Func<PreRegisteredClientDefinition, bool> violates, string before, string after) in _organizationRules)
+        {
+            List<string> offenders = Clients.Where(violates).Select(c => c.ClientId).ToList();
+            if (offenders.Count > 0)
+            {
+                problems.Add(before + string.Join(", ", offenders) + after);
+            }
+        }
+
+        if (problems.Count == 0)
         {
             return;
         }
 
         throw new InvalidOperationException(
-            "Pre-registered client(s) " + string.Join(", ", offenders) + " have no secret and do not declare "
-            + "\"public\": true. A missing secret never implies a public client: declare \"public\": true for "
-            + "browser/native clients, or supply the secret for confidential ones.");
+            "Pre-registered clients violate the client/organization invariant: "
+            + string.Join("; ", problems) + ".");
     }
 }

@@ -233,9 +233,16 @@ ClientSecrets__wallow-web-client: ${OIDC_CLIENT_SECRET}
 ```
 
 `wallow-web-client` — the dashboard client every deployment has — is the **only** seeded
-production client. The seeder fails closed in both misconfiguration directions: a seed client
-with no secret that does not declare `"public": true` aborts, and so does a non-empty secret
-whose clientId matches no client in the seed file.
+production client. It is marked `"firstParty": true`, which is what exempts it from the consent
+screen and binds it to no organization; the production seed therefore declares **no
+organization, no membership, and no third-party client** — the first organization and its
+administrator come from [setup mode](#setup-mode--when-no-admin-exists), and third-party
+clients are registered against that organization afterwards. The seeder fails closed in both
+misconfiguration directions: a seed client with no secret that does not declare
+`"public": true` aborts, and so does a non-empty secret whose clientId matches no client in
+the seed file. It also enforces the client/organization invariant at boot: a first-party
+client that names an organization, or a third-party client that names none, aborts the seed
+with the offending client id.
 
 ### Additional OIDC clients — create them through the UI
 

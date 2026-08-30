@@ -32,13 +32,6 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
     /// <summary>The redirect URI <see cref="RegisterClientAsync"/> registers by default.</summary>
     public const string RedirectUri = "https://localhost/oidc/callback";
 
-    /// <summary>
-    /// Clients whose id starts with this skip the consent screen. A harness client that does not
-    /// is answered with a redirect to the auth app's consent route carrying a single-use consent
-    /// token, which <see cref="ConsentAsync"/> posts back the way the consent screen does.
-    /// </summary>
-    public const string FirstPartyClientPrefix = "wallow-";
-
     /// <summary>The form field the consent screen posts its server-issued token under.</summary>
     public const string ConsentTokenField = AuthorizationController.ConsentTokenParameter;
 
@@ -284,24 +277,27 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
 
     /// <summary>
     /// Registers (or re-registers) a confidential client that can drive the authorization-code and
-    /// refresh grants. The tenant property is what binds the client to an organization: a client
-    /// carrying none resolves to the empty tenant, and the authorize endpoint then refuses every
-    /// user as a non-member. An id outside <see cref="FirstPartyClientPrefix"/> registers an
-    /// explicit-consent client the authorize endpoint sends through the consent screen.
+    /// refresh grants. <paramref name="firstParty"/> registers the client the way the seeder
+    /// registers the platform's own clients — implicit consent, so the authorize endpoint never
+    /// shows the consent screen; nothing about the client id decides it. Any other client is
+    /// explicit-consent and is answered with a redirect to the auth app's consent route carrying
+    /// a single-use consent token, which <see cref="ConsentAsync"/> posts back the way the consent
+    /// screen does. The tenant property is what binds the client to an organization: a first-party
+    /// client is legal without one, while an explicit-consent client carrying none is refused by
+    /// the authorize endpoint as bound to no organization.
     /// </summary>
     public static async Task RegisterClientAsync(
         IServiceProvider services,
         string clientId,
         string clientSecret,
-        Guid tenantId,
+        Guid? tenantId,
         IEnumerable<string> scopes,
         string redirectUri = RedirectUri,
+        bool firstParty = false,
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(scopes);
-
-        bool firstParty = clientId.StartsWith(FirstPartyClientPrefix, StringComparison.Ordinal);
 
         IOpenIddictApplicationManager applications =
             services.GetRequiredService<IOpenIddictApplicationManager>();
@@ -329,7 +325,10 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
             descriptor.Permissions.Add(OpenIddictConstants.Permissions.Prefixes.Scope + scope);
         }
 
-        descriptor.SetTenantId(tenantId.ToString());
+        if (tenantId is { } boundTenantId)
+        {
+            descriptor.SetTenantId(boundTenantId.ToString());
+        }
 
         object? existing = await applications.FindByClientIdAsync(clientId, ct);
         if (existing is not null)

@@ -130,6 +130,15 @@ public sealed partial class PreRegisteredClientSyncService(
             changed = true;
         }
 
+        // Sync consent type: the authorize endpoint reads it to decide whether the user sees the
+        // consent screen, so a flag flipped in the seed has to reach the stored application.
+        string expectedConsentType = ConsentTypeFor(client);
+        if (!string.Equals(descriptor.ConsentType, expectedConsentType, StringComparison.Ordinal))
+        {
+            descriptor.ConsentType = expectedConsentType;
+            changed = true;
+        }
+
         // Sync frontchannel_logout_uri
         Uri? expectedFrontchannelUri = client.FrontchannelLogoutUri is null
             ? null
@@ -270,6 +279,14 @@ public sealed partial class PreRegisteredClientSyncService(
     private static bool IsServiceAccount(string clientId)
         => clientId.StartsWith("sa-", StringComparison.Ordinal);
 
+    /// <summary>
+    /// First-party clients are the platform's own, so the user is never asked to consent to
+    /// them; every organization-registered client goes through the consent screen. The seed's
+    /// explicit flag is the only thing that decides this — never the client id.
+    /// </summary>
+    private static string ConsentTypeFor(PreRegisteredClientDefinition client)
+        => client.FirstParty ? ConsentTypes.Implicit : ConsentTypes.Explicit;
+
     private async Task<OpenIddictApplicationDescriptor> BuildDescriptorAsync(PreRegisteredClientDefinition client, CancellationToken ct)
     {
         string clientType = client.IsPublic ? ClientTypes.Public : ClientTypes.Confidential;
@@ -281,6 +298,7 @@ public sealed partial class PreRegisteredClientSyncService(
             ClientSecret = client.IsPublic ? null : client.Secret,
             DisplayName = client.DisplayName,
             ClientType = clientType,
+            ConsentType = ConsentTypeFor(client),
             Properties =
             {
                 [SourcePropertyKey] = JsonSerializer.SerializeToElement(SourcePropertyValue)

@@ -775,11 +775,25 @@ Every client `api/seed.json` registers is confidential — it holds a secret. A 
 without one is registered as an OpenIddict _public_ client, which authenticates on client id
 alone and is therefore spoofable by anything that learns the id, so do not add one.
 
-**wallow-web-client** (confidential, for `apps/wallow-web`):
+Whether a seeded client is first-party is the seed's `"firstParty": true` flag, never its id:
+a first-party client skips the consent screen and is bound to no organization, while every
+other client is bound to exactly one organization (`tenantName`) and always sees consent.
+`seedMembers`/`seedMemberRoles` are allowed only on those third-party clients. The seeder
+refuses to start on a client that violates either rule.
+
+**wallow-web-client** (confidential, first-party, for `apps/wallow-web`):
 
 - Redirect URI: `http://localhost:3000/bff/callback`
 - Secret: `wallow-web-secret`
 - Scopes: `openid`, `email`, `profile`, `roles`, `offline_access`
+- Bound to no organization; the dev admin's membership in the seeded **Wallow** organization
+  comes from the seed's `admin` block, not from the client.
+
+**bff-example-client** (confidential, third-party, for `apps/bff-example`):
+
+- Redirect URI: `http://localhost:3003/bff/callback`
+- Secret: `bff-example-secret`
+- Bound to the seeded **Wallow** organization; every login goes through the consent screen.
 
 ## React Readiness
 

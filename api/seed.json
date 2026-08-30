@@ -191,9 +191,7 @@
     {
       "clientId": "wallow-web-client",
       "displayName": "Wallow Web",
-      "tenantName": "Wallow",
-      "seedMembers": ["admin@wallow.dev"],
-      "seedMemberRoles": { "admin@wallow.dev": "admin" },
+      "firstParty": true,
       "public": false,
       "secret": "wallow-web-secret",
       "redirectUris": ["http://localhost:3000/bff/callback"],

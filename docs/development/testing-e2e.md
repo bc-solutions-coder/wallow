@@ -76,8 +76,8 @@ unlike the per-app configs — **boots no server of its own**.
   API's `AuthUrl` redirects to).
 - **`external-origin-login.spec.ts`** runs the same round trip from the `bff-example` origin,
   whose host port defaults to `:3003`, which authenticates as the seeded third-party `bff-example-client`
-  client instead of `wallow-web-client`. Because that client is not first-party, the API routes it
-  through wallow-auth's interactive **consent** screen — the leg `login-journey.spec.ts` never
+  client instead of `wallow-web-client`. Because that client is not seeded first-party, the API
+  routes it through wallow-auth's interactive **consent** screen — the leg `login-journey.spec.ts` never
   reaches. `bff-example` exists only in `docker/docker-compose.test.yml`, so this spec needs the
   containerised stack specifically; Aspire has no equivalent service.
 

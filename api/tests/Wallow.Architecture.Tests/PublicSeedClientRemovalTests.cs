@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Text.RegularExpressions;
 
 namespace Wallow.Architecture.Tests;
 
@@ -12,19 +11,16 @@ namespace Wallow.Architecture.Tests;
 /// BFF, <c>apps/wallow-auth</c>) already authenticates through a client that holds a secret.
 ///
 /// <para>Two classes of assertion live here. The first pins the deletion itself — the id is
-/// gone from <c>api/seed.json</c>, from the dev first-party list, and from every tracked source,
-/// config, and doc file — and is what fails until the client is actually removed. The second
-/// pins the invariant the deletion is most likely to break silently: the environment overrides
-/// in <c>docker/docker-compose.test.yml</c> address both the seeded client array and the
-/// first-party client array <b>positionally</b>, so deleting an entry shifts every later index
-/// down by one. An unshifted override does not error — it lands on the wrong client, or opens a
-/// hole in the array — and the only symptom is an OIDC round trip that fails in the e2e stack.
-/// Those two tests therefore pass today and must keep passing after the renumber.</para>
+/// gone from <c>api/seed.json</c> and from every tracked source, config, and doc file — and is
+/// what fails until the client is actually removed. The second pins the invariant the deletion
+/// is most likely to break silently: the environment overrides in
+/// <c>docker/docker-compose.test.yml</c> address the seeded client array <b>positionally</b>, so
+/// deleting an entry shifts every later index down by one. An unshifted override does not error
+/// — it lands on the wrong client — and the only symptom is an OIDC round trip that fails in the
+/// e2e stack. That test therefore passes today and must keep passing after the renumber.</para>
 ///
-/// <para>Static source assertions, in the same style as <see cref="WallowWebDeletionTests"/> and
-/// <see cref="SeedClientIdConsistencyTests"/>, because the real failure only surfaces in a
-/// deployed OIDC round trip. Client-id naming drift between the fork's committed deployment docs
-/// is a separate concern and stays in <see cref="SeedClientIdConsistencyTests"/>.</para>
+/// <para>Static source assertions, in the same style as <see cref="WallowWebDeletionTests"/>,
+/// because the real failure only surfaces in a deployed OIDC round trip.</para>
 /// </summary>
 public class PublicSeedClientRemovalTests
 {
@@ -101,13 +97,6 @@ public class PublicSeedClientRemovalTests
 
     private static readonly string _seedJsonPath = Path.Combine(_repoRoot, "api", "seed.json");
 
-    private static readonly string _apiAppSettingsPath = Path.Combine(
-        _repoRoot,
-        "api",
-        "src",
-        "Wallow.Api",
-        "appsettings.json");
-
     private static readonly string _testComposePath = Path.Combine(
         _repoRoot,
         "docker",
@@ -143,19 +132,6 @@ public class PublicSeedClientRemovalTests
             "from exactly that missing secret. Every client api/seed.json ships must be " +
             "confidential. Secret-less today: {0}",
             string.Join(", ", secretlessClientIds));
-    }
-
-    [Fact]
-    public void DevFirstPartyClients_ShouldNotName_TheRemovedPublicClient()
-    {
-        IReadOnlyList<string> firstPartyClients = ReadDevFirstPartyClients();
-
-        firstPartyClients.Should().NotContain(
-            RemovedPublicClientId,
-            "Identity:FirstPartyClients in api/src/Wallow.Api/appsettings.json makes a client skip " +
-            "the interactive consent screen. appsettings.Development.json declares no override, so " +
-            "this array is the whole dev list; naming a deleted client leaves a registration that " +
-            "matches nothing and silently grants consent-skip to an id a fork may later re-add");
     }
 
     [Fact]
@@ -202,40 +178,6 @@ public class PublicSeedClientRemovalTests
             webBffIndex);
     }
 
-    [Fact]
-    public void TestCompose_FirstPartyClientOverrides_ShouldContinueWhereAppSettingsEnds()
-    {
-        int appSettingsCount = ReadDevFirstPartyClients().Count;
-
-        string source = File.ReadAllText(_testComposePath);
-
-        Regex overrideIndex = new(
-            @"Identity__FirstPartyClients__(\d+)\s*:",
-            RegexOptions.None,
-            TimeSpan.FromSeconds(1));
-
-        List<int> indexes = overrideIndex.Matches(source)
-            .Select(match => int.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture))
-            .Order()
-            .ToList();
-
-        indexes.Should().NotBeEmpty(
-            "docker-compose.test.yml must keep appending its BFF clients to the first-party list, " +
-            "or the containerised OIDC flow stops at the consent screen and the e2e suite hangs");
-
-        List<int> expected = Enumerable.Range(appSettingsCount, indexes.Count).ToList();
-
-        indexes.Should().Equal(
-            expected,
-            "ASP.NET Core array configuration is positional: an override index below {0} silently " +
-            "REPLACES an entry appsettings.json already declares, and a gap above it leaves an " +
-            "index nothing fills. appsettings.json now lists {0} first-party client(s), so the " +
-            "overrides must run {1}. Deleting a client without renumbering these is the exact " +
-            "failure this pins",
-            appSettingsCount,
-            expected.Count == 0 ? "(none)" : string.Join(", ", expected));
-    }
-
     // ---- helpers -------------------------------------------------------------------------
 
     private static List<string> SweepSourceFiles()
@@ -278,26 +220,6 @@ public class PublicSeedClientRemovalTests
                 CollectSourceFiles(child, files);
             }
         }
-    }
-
-    private static List<string> ReadDevFirstPartyClients()
-    {
-        using JsonDocument document = JsonDocument.Parse(File.ReadAllText(_apiAppSettingsPath));
-
-        JsonElement identity = document.RootElement.GetProperty("Identity");
-        JsonElement firstPartyClients = identity.GetProperty("FirstPartyClients");
-
-        List<string> clientIds = [];
-        foreach (JsonElement entry in firstPartyClients.EnumerateArray())
-        {
-            string? clientId = entry.GetString();
-            if (!string.IsNullOrWhiteSpace(clientId))
-            {
-                clientIds.Add(clientId);
-            }
-        }
-
-        return clientIds;
     }
 
     private static List<string> ReadSeededClientIds()

@@ -36,19 +36,11 @@ public sealed partial class AuthorizationController(
     IClientTenantResolver clientTenantResolver,
     IUserEnrollmentService enrollment,
     IMembershipRoleResolver membershipRoleResolver,
+    IOrganizationService organizations,
     ISsoClientSessionService ssoClientSessionService,
     IConsentTokenService consentTokenService,
     ILogger<AuthorizationController> logger) : Controller
 {
-    private const string FirstPartyClientPrefix = "wallow-";
-
-    // Clients explicitly listed here skip the consent screen, just like wallow-* clients.
-    // Read once at construction time; overridable via Identity__FirstPartyClients__0=... env vars.
-    private readonly HashSet<string> _firstPartyClientIds =
-        new(
-            configuration.GetSection("Identity:FirstPartyClients").Get<string[]>() ?? [],
-            StringComparer.OrdinalIgnoreCase);
-
     [HttpGet]
     public async Task<IActionResult> Authorize()
     {
@@ -97,10 +89,14 @@ public sealed partial class AuthorizationController(
             ?? throw new InvalidOperationException("The application details cannot be retrieved.");
 
         string? clientId = await applicationManager.GetClientIdAsync(application);
-        bool isFirstParty =
-            clientId is not null &&
-            (clientId.StartsWith(FirstPartyClientPrefix, StringComparison.OrdinalIgnoreCase)
-             || _firstPartyClientIds.Contains(clientId));
+
+        // First-party is whatever the seed registered as such, carried on the application as
+        // OpenIddict's consent type. Nothing about the client id decides it: a lookalike id
+        // registered through the organization surface is explicit-consent like any other.
+        bool isFirstParty = string.Equals(
+            await applicationManager.GetConsentTypeAsync(application),
+            ConsentTypes.Implicit,
+            StringComparison.Ordinal);
         bool hasValidAuthorization = false;
 
         LogApplicationResolved(clientId, isFirstParty);
@@ -113,14 +109,33 @@ public sealed partial class AuthorizationController(
             ? null
             : await clientTenantResolver.ResolveAsync(request.ClientId);
 
-        // A client bound to no organization would otherwise yield an org-free token, and a
-        // principal naming no organization is exactly what PermissionExpansionMiddleware treats
-        // as cross-tenant — so the token would carry scopes with nowhere to spend them, until
-        // some downstream tenant resolution supplied a home for them.
-        if (tenantInfo is null || tenantInfo.TenantId == Guid.Empty)
+        if (tenantInfo is not null && tenantInfo.TenantId == Guid.Empty)
+        {
+            tenantInfo = null;
+        }
+
+        // A third-party client is bound to exactly one organization by registration, so one
+        // bound to none is a registration defect: its token would carry scopes with nowhere to
+        // spend them, and a principal naming no organization is exactly what
+        // PermissionExpansionMiddleware treats as cross-tenant. A first-party client is bound
+        // to no organization by design; its login is legal with no organization context at all.
+        if (tenantInfo is null && !isFirstParty)
         {
             LogClientHasNoOrganization(clientId);
             return Redirect($"{GetRequiredAuthUrl()}/error?reason=client_not_bound_to_organization");
+        }
+
+        // A first-party client names no organization, so the user's own memberships decide the
+        // organization context: exactly one active membership is unambiguous and becomes the
+        // session's organization; none or several leave the token org-less rather than guessing.
+        if (tenantInfo is null)
+        {
+            IReadOnlyList<MyOrganizationDto> memberships =
+                await organizations.GetMyOrganizationsAsync(Guid.Parse(userId));
+            if (memberships.Count == 1)
+            {
+                tenantInfo = new ClientTenantInfo(memberships[0].OrganizationId, memberships[0].Name);
+            }
         }
 
         // A membership row is not permission to sign in here; only an Active one is. Whether one
@@ -131,7 +146,7 @@ public sealed partial class AuthorizationController(
         // it is the one authority an organization does not grant.
         bool isGlobalAdmin = GlobalAdminClaims.IsGranted(await userManager.GetClaimsAsync(user));
 
-        if (!isGlobalAdmin)
+        if (tenantInfo is not null && !isGlobalAdmin)
         {
             EnrollmentOutcome outcome = await enrollment.EnrollAsync(Guid.Parse(userId), tenantInfo.TenantId);
             LogEnrollmentOutcome(userId, tenantInfo.TenantId, outcome.GetType().Name);
@@ -157,9 +172,10 @@ public sealed partial class AuthorizationController(
 
         // Roles are granted by an organization and carry no authority outside it, so this is the
         // only role set that may decide anything here: the scopes granted below and the role
-        // claims stamped into the token both read it.
-        IReadOnlyList<string> roles =
-            await membershipRoleResolver.GetRoleNamesAsync(Guid.Parse(userId), tenantInfo.TenantId);
+        // claims stamped into the token both read it. No organization, no roles.
+        IReadOnlyList<string> roles = tenantInfo is null
+            ? []
+            : await membershipRoleResolver.GetRoleNamesAsync(Guid.Parse(userId), tenantInfo.TenantId);
 
         // Two independent scope gates, both before any ticket is issued or authorization
         // persisted. Without them a signed-in user can append privileged scopes to their own
@@ -311,7 +327,7 @@ public sealed partial class AuthorizationController(
         string userId,
         IReadOnlyList<string> roles,
         ImmutableArray<string> grantedScopes,
-        ClientTenantInfo tenantInfo,
+        ClientTenantInfo? tenantInfo,
         string sid)
     {
         ClaimsIdentity identity = new(OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
@@ -349,10 +365,13 @@ public sealed partial class AuthorizationController(
             identity.AddClaim(familyName);
         }
 
-        identity.AddClaim("org_id", tenantInfo.TenantId.ToString());
-        if (tenantInfo.TenantName is not null)
+        if (tenantInfo is not null)
         {
-            identity.AddClaim("org_name", tenantInfo.TenantName);
+            identity.AddClaim("org_id", tenantInfo.TenantId.ToString());
+            if (tenantInfo.TenantName is not null)
+            {
+                identity.AddClaim("org_name", tenantInfo.TenantName);
+            }
         }
 
         identity.AddClaim(ClaimsPrincipalExtensions.SessionIdClaimType, sid);

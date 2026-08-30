@@ -386,7 +386,7 @@ like this (adapted here to `example.com`):
 {
   "clientId": "wallow-web-client",
   "displayName": "Wallow Web",
-  "tenantName": "Wallow",
+  "firstParty": true,
   "public": false,
   "redirectUris": ["https://example.com/bff/callback"],
   "postLogoutRedirectUris": ["https://example.com/"],
@@ -420,6 +420,13 @@ Rules that make this a valid production client:
   Wire the **same** value into the BFF's `OIDC_CLIENT_SECRET`. The seeder fails closed in both
   misconfiguration directions: a seed client with no secret that does not declare `"public": true`
   aborts, and so does a non-empty secret whose clientId matches no client in the seed file.
+- **`firstParty`** — `true` marks one of the platform's own clients: it skips the consent screen
+  and is bound to **no** organization (no `tenantName`/`tenantId`, no `seedMembers`). The flag is
+  the only thing that makes a client first-party — the client id, `wallow-` prefix or not, decides
+  nothing. Every other client is third-party: it must name exactly one organization and always
+  sees the consent screen. The seeder refuses to start on a client that breaks either rule, so a
+  production seed holds first-party clients only — the organization does not exist until first-run
+  setup creates it.
 - **`public`** — declared explicitly on every client, `false` for a confidential client like this
   one. The explicit declaration is what arms the fail-closed check above.
 - **`redirectUris` / `postLogoutRedirectUris`** — absolute HTTPS URLs on your public web origin.

@@ -107,9 +107,10 @@ application, or a service account. "Client" alone is the umbrella; name the kind
 matters.
 
 **First-party client**:
-One of the platform's own user-facing clients (client ids prefixed `wallow-`). Bound to no
-organization and exempt from the consent screen; its organization context comes from the
-login, never from registration. Only the platform can register one.
+One of the platform's own user-facing clients, declared by the seed's `firstParty` flag —
+never inferred from the client id. Bound to no organization and exempt from the consent
+screen; its organization context comes from the login, never from registration. Only the
+seed can register one; every client registered at runtime is third-party.
 _Avoid_: internal app, trusted client
 
 **Service account**:

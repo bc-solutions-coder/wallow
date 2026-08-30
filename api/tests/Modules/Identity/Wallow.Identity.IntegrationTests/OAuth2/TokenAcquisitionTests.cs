@@ -42,7 +42,8 @@ public class TokenAcquisitionTests(WallowApiFactory factory) : IdentityIntegrati
             clientId,
             RefreshClientSecret,
             organizationB,
-            ["openid", "profile", "email", "roles", "offline_access"]);
+            ["openid", "profile", "email", "roles", "offline_access"],
+            firstParty: true);
 
         using AuthorizationCodeFlowHarness harness = new(Factory);
         await harness.SignInAsync(email, Password);

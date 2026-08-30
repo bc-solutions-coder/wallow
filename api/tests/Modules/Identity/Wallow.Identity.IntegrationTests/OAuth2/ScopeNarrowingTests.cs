@@ -148,7 +148,8 @@ public sealed class ScopeNarrowingTests(WallowApiFactory factory)
             clientId,
             ClientSecret,
             organizationId,
-            _clientScopes);
+            _clientScopes,
+            firstParty: true);
 
         return (email, clientId);
     }
