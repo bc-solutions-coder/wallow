@@ -25,6 +25,7 @@ export {
   organizationClientsListOptions,
   organizationClientsListQueryKey,
   organizationClientsRegisterMutation,
+  organizationClientsRotateSecretMutation,
   organizationsAddMemberMutation,
   organizationsApproveMemberMutation,
   organizationsArchiveMutation,

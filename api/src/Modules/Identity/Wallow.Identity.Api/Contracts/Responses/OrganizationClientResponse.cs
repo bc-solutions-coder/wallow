@@ -23,6 +23,8 @@ public record OrganizationClientResponse
     public required Guid CreatedByUserId { get; init; }
     public required DateTimeOffset CreatedAt { get; init; }
     public DateTimeOffset? LastUsedAt { get; init; }
+    public Guid? LastRotatedByUserId { get; init; }
+    public DateTimeOffset? LastRotatedAt { get; init; }
 
     /// <summary>The kind a request names, or <see langword="null"/> when it names neither.</summary>
     public static RegisteredClientKind? ParseKind(string? kind) =>
@@ -49,13 +51,16 @@ public record OrganizationClientResponse
             CreatedByUserId = dto.CreatedByUserId,
             CreatedAt = dto.CreatedAt,
             LastUsedAt = dto.LastUsedAt,
+            LastRotatedByUserId = dto.LastRotatedByUserId,
+            LastRotatedAt = dto.LastRotatedAt,
         };
     }
 }
 
 /// <summary>
-/// The one-time registration reveal: the client secret is returned here and never again, and the
-/// issuer and API base URL are what the application's environment must point at.
+/// The one-time reveal a registration or a secret rotation answers with: the client secret is
+/// returned here and never again, and the issuer and API base URL are what the client's
+/// environment must point at.
 /// </summary>
 public record OrganizationClientRegistrationResponse
 {

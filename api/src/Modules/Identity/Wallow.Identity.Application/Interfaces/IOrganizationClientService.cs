@@ -25,6 +25,19 @@ public interface IOrganizationClientService
         ClientConfigurationInput configuration,
         CancellationToken ct = default);
 
+    /// <summary>
+    /// Replaces the client secret immediately, with no overlap: the old secret stops working the
+    /// moment the new one is revealed. <paramref name="revokeActiveTokens"/> also ends every token
+    /// the client was already issued. Returns <see langword="null"/> when the client is not one of
+    /// the organization's.
+    /// </summary>
+    Task<OrganizationClientRegistrationResult?> RotateSecretAsync(
+        Guid organizationId,
+        string clientId,
+        bool revokeActiveTokens,
+        Guid actorUserId,
+        CancellationToken ct = default);
+
     /// <summary>Returns false when the client is not one of the organization's.</summary>
     Task<bool> DeleteAsync(Guid organizationId, string clientId, CancellationToken ct = default);
 }

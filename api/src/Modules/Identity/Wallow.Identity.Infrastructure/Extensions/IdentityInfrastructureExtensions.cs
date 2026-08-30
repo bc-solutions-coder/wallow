@@ -394,6 +394,7 @@ public static class IdentityInfrastructureExtensions
     public static IServiceCollection AddMembershipAccessRevocation(this IServiceCollection services)
     {
         services.AddScoped<IMembershipAccessRevoker, MembershipAccessRevoker>();
+        services.AddScoped<IClientAccessRevoker, ClientAccessRevoker>();
 
         // The host that actually serves realtime traffic registers the implementation that can
         // close a connection; TryAdd leaves it in place and covers the hosts that serve none.

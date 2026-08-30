@@ -24,3 +24,9 @@ public record UpdateOrganizationClientRequest(
     IReadOnlyList<string> PostLogoutRedirectUris,
     IReadOnlyList<string> Scopes,
     string? BackchannelLogoutUri = null);
+
+/// <summary>
+/// Rotates a client's secret. <c>RevokeActiveTokens</c> additionally ends every token the client
+/// was already issued, so a compromise response cuts every live session in the same step.
+/// </summary>
+public record RotateOrganizationClientSecretRequest(bool RevokeActiveTokens = false);

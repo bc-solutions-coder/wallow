@@ -19,6 +19,7 @@ double-quoted in hand-written SQL.
 | `"TenantId"` | `uuid` | Yes | The tenant the event happened inside, or null when it happened outside every organization |
 | `"IpAddress"` | `text` | Yes | Client IP address, when available |
 | `"UserAgent"` | `text` | Yes | HTTP User-Agent header, when available |
+| `"ClientId"` | `text` | Yes | The OAuth client the event is about, for the client lifecycle events below; null for every other event |
 | `"OccurredAt"` | `timestamp with time zone` | No | UTC timestamp; defaults to `now()` at insert |
 
 The table is created by the `InitialCreate` EF Core migration in `Wallow.Shared.Infrastructure.Core`
@@ -35,6 +36,8 @@ The `"EventType"` column uses plain string values. The following events are reco
 | `AccountLockedOut` | A user account is locked after repeated failed login attempts | Yes |
 | `MfaLockedOut` | A user is locked out after repeated MFA failures | No |
 | `Membership<Transition>` | Somebody's membership of an organization changed state (see below) | No |
+| `ClientRegistered` | Somebody registered an application or service account for an organization (see below) | Yes |
+| `ClientSecretRotated` | Somebody rotated a registered client's secret (see below) | Yes |
 
 Each event is written by `AuthAuditEventHandlers` in the Identity module, which subscribes to the corresponding Wolverine in-memory integration events published by the Identity domain.
 
@@ -45,6 +48,8 @@ Each event is written by `AuthAuditEventHandlers` in the Identity module, which 
 | `AccountLockedOut` | `UserAccountLockedOutEvent` |
 | `MfaLockedOut` | `UserMfaLockedOutEvent` |
 | `Membership<Transition>` | `MembershipTransitionedEvent` |
+| `ClientRegistered` | `ClientRegisteredEvent` |
+| `ClientSecretRotated` | `ClientSecretRotatedEvent` |
 
 ### Membership events
 
@@ -57,10 +62,11 @@ The fourteen `MembershipTransition` values are `AccessRequested`, `Enrolled`, `A
 `Denied`, `DenialCleared`, `Suspended`, `Reinstated`, `RoleAssigned`, `RoleRemoved`, `Left`,
 `Removed`, `OwnerMarked` and `OwnerUnmarked`.
 
-This is the only handler that writes `"ActorId"`: it records who made the change, while `"UserId"`
+This handler writes `"ActorId"`: it records who made the change, while `"UserId"`
 records who it was made about. The two are equal for the transitions somebody performs on their own
 membership — requesting access, enrolling, leaving — and that equality is the record, not an
-omission. Every other audited event leaves `"ActorId"` null.
+omission. Apart from the client lifecycle events below, every other audited event leaves
+`"ActorId"` null.
 
 To read the whole family:
 
@@ -68,6 +74,25 @@ To read the whole family:
 SELECT "EventType", "UserId", "ActorId", "OccurredAt"
 FROM auth_audit.auth_audit_entries
 WHERE "EventType" LIKE 'Membership%'
+ORDER BY "OccurredAt" DESC;
+```
+
+### Client lifecycle events
+
+`ClientRegistered` and `ClientSecretRotated` are about a registered client rather than a person, so
+they are the only events that fill `"ClientId"`. The person who did it stands in both `"UserId"` and
+`"ActorId"` — there is no separate subject — and `"TenantId"` is the organization that owns the
+client. Both carry the caller's IP address when the request exposed one.
+
+`ClientSecretRotatedEvent` also says whether the rotation revoked the client's outstanding tokens;
+that flag is logged by the Identity module but not stored in the audit row.
+
+To see a client's history:
+
+```sql
+SELECT "EventType", "ActorId", "IpAddress", "OccurredAt"
+FROM auth_audit.auth_audit_entries
+WHERE "ClientId" = '$client_id'
 ORDER BY "OccurredAt" DESC;
 ```
 

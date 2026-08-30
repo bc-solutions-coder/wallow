@@ -9,9 +9,11 @@ using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Helpers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Enums;
+using Wallow.Shared.Contracts.Identity.Events;
 using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
+using Wolverine;
 
 namespace Wallow.Identity.Api.Controllers;
 
@@ -30,7 +32,8 @@ namespace Wallow.Identity.Api.Controllers;
 public class OrganizationClientsController(
     IOrganizationClientService clients,
     ITenantContext tenantContext,
-    IOrganizationAccessPolicy accessPolicy) : ControllerBase
+    IOrganizationAccessPolicy accessPolicy,
+    IMessageBus messageBus) : ControllerBase
 {
     private const string RedirectUrisField = "redirectUris";
     private const string PostLogoutRedirectUrisField = "postLogoutRedirectUris";
@@ -88,15 +91,54 @@ public class OrganizationClientsController(
             ActorId(),
             ct);
 
-        OrganizationClientRegistrationResponse response = new()
+        await messageBus.PublishAsync(new ClientRegisteredEvent
         {
-            Client = OrganizationClientResponse.From(result.Client),
-            ClientSecret = result.ClientSecret,
-            Issuer = result.Issuer ?? RequestOrigin(),
-            ApiBaseUrl = result.ApiBaseUrl ?? RequestOrigin(),
-        };
+            ClientId = result.Client.ClientId,
+            OrganizationId = orgId,
+            ActorId = ActorId(),
+            IpAddress = CallerIpAddress(),
+        });
 
-        return CreatedAtAction(nameof(GetById), new { orgId, clientId = result.Client.ClientId }, response);
+        return CreatedAtAction(nameof(GetById), new { orgId, clientId = result.Client.ClientId }, Reveal(result));
+    }
+
+    /// <summary>
+    /// Replace the client secret. The response carries the new secret exactly once; the old one
+    /// stops working immediately. <c>revokeActiveTokens</c> also ends every token the client was
+    /// already issued.
+    /// </summary>
+    [HttpPost("{clientId}/rotate-secret")]
+    [HasPermission(PermissionType.OrganizationClientsManage)]
+    [ProducesResponseType(typeof(OrganizationClientRegistrationResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<OrganizationClientRegistrationResponse>> RotateSecret(
+        Guid orgId,
+        string clientId,
+        [FromBody] RotateOrganizationClientSecretRequest request,
+        CancellationToken ct)
+    {
+        if (!await CanAddressOrganizationAsync(orgId, ct))
+        {
+            return NotFound();
+        }
+
+        OrganizationClientRegistrationResult? result = await clients.RotateSecretAsync(
+            orgId, clientId, request.RevokeActiveTokens, ActorId(), ct);
+        if (result is null)
+        {
+            return NotFound();
+        }
+
+        await messageBus.PublishAsync(new ClientSecretRotatedEvent
+        {
+            ClientId = result.Client.ClientId,
+            OrganizationId = orgId,
+            ActorId = ActorId(),
+            ActiveTokensRevoked = request.RevokeActiveTokens,
+            IpAddress = CallerIpAddress(),
+        });
+
+        return Ok(Reveal(result));
     }
 
     /// <summary>List the clients the organization owns.</summary>
@@ -201,6 +243,17 @@ public class OrganizationClientsController(
     }
 
     private Guid ActorId() => Guid.Parse(User.GetUserId()!);
+
+    private string? CallerIpAddress() => HttpContext.Connection.RemoteIpAddress?.ToString();
+
+    private OrganizationClientRegistrationResponse Reveal(OrganizationClientRegistrationResult result) =>
+        new()
+        {
+            Client = OrganizationClientResponse.From(result.Client),
+            ClientSecret = result.ClientSecret,
+            Issuer = result.Issuer ?? RequestOrigin(),
+            ApiBaseUrl = result.ApiBaseUrl ?? RequestOrigin(),
+        };
 
     // What OpenIddict advertises as the issuer when none is configured: the origin it was reached on.
     private string RequestOrigin() => $"{Request.Scheme}://{Request.Host}";

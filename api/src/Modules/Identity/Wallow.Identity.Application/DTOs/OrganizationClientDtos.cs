@@ -14,11 +14,13 @@ public sealed record OrganizationClientDto(
     IReadOnlyList<string> Scopes,
     Guid CreatedByUserId,
     DateTimeOffset CreatedAt,
-    DateTimeOffset? LastUsedAt);
+    DateTimeOffset? LastUsedAt,
+    Guid? LastRotatedByUserId,
+    DateTimeOffset? LastRotatedAt);
 
 /// <summary>
-/// What a developer application is given once, at registration: the client secret is never
-/// readable again, and the issuer and API base URL are what its environment has to point at.
+/// What a client is given once, at registration and again at rotation: the client secret is
+/// never readable again, and the issuer and API base URL are what its environment has to point at.
 /// Either URL is <see langword="null"/> when the deployment configures none, in which case the
 /// caller substitutes the request origin, as OpenIddict itself does for the issuer.
 /// </summary>

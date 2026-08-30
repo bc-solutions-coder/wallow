@@ -20,6 +20,8 @@ public sealed class RegisteredClient : Entity<RegisteredClientId>
     public Guid CreatedByUserId { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset? LastUsedAt { get; private set; }
+    public Guid? LastRotatedByUserId { get; private set; }
+    public DateTimeOffset? LastRotatedAt { get; private set; }
 
     // ReSharper disable once UnusedMember.Local
     private RegisteredClient() { } // EF Core
@@ -55,5 +57,16 @@ public sealed class RegisteredClient : Entity<RegisteredClientId>
             CreatedByUserId = createdByUserId,
             CreatedAt = timeProvider.GetUtcNow(),
         };
+    }
+
+    /// <summary>
+    /// Records who replaced the client secret and when. The secret itself lives on the OpenIddict
+    /// application; this row only remembers the provenance a "who did this" question needs.
+    /// </summary>
+    public void RecordSecretRotation(Guid actorUserId, TimeProvider timeProvider)
+    {
+        ArgumentNullException.ThrowIfNull(timeProvider);
+        LastRotatedByUserId = actorUserId;
+        LastRotatedAt = timeProvider.GetUtcNow();
     }
 }

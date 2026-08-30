@@ -212,6 +212,10 @@ answers 404 to a caller who cannot address the organization.
 | GET | `/{clientId}` | Get a registered client | OrganizationClientsManage |
 | PATCH | `/{clientId}` | Update scopes, and for an application its redirect and logout URIs | OrganizationClientsManage |
 | DELETE | `/{clientId}` | Delete a registered client | OrganizationClientsManage |
+| POST | `/{clientId}/rotate-secret` | Rotate the secret (returned once); `revokeActiveTokens` also ends every token the client holds | OrganizationClientsManage |
+
+Registration and rotation publish `ClientRegisteredEvent` / `ClientSecretRotatedEvent`, which the
+auth-audit handler records with the actor, organization, client and caller IP.
 
 ### Apps (`/v1/identity/apps`)
 

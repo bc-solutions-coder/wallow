@@ -23,6 +23,7 @@ public sealed partial class AuthAuditService(
                 TenantId = record.TenantId,
                 IpAddress = record.IpAddress,
                 UserAgent = record.UserAgent,
+                ClientId = record.ClientId,
                 OccurredAt = record.OccurredAt
             };
 

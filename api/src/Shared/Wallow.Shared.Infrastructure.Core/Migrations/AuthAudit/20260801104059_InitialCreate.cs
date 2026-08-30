@@ -26,6 +26,7 @@ namespace Wallow.Shared.Infrastructure.Core.Migrations.AuthAudit
                     TenantId = table.Column<Guid>(type: "uuid", nullable: true),
                     IpAddress = table.Column<string>(type: "text", nullable: true),
                     UserAgent = table.Column<string>(type: "text", nullable: true),
+                    ClientId = table.Column<string>(type: "text", nullable: true),
                     OccurredAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false, defaultValueSql: "now()")
                 },
                 constraints: table =>

@@ -670,19 +670,23 @@ function RevealActions(props: { kind: ClientKind; env: string; onDone: () => voi
   );
 }
 
-/** The one-time reveal: client id, secret, and the env block, shown once. */
+/**
+ * The one-time reveal: client id, secret, and the env block, shown once. A
+ * rotation reuses it under its own `title`; the reveal is otherwise the same.
+ */
 export function RegistrationReveal(props: {
   kind: ClientKind;
   result: OrganizationClientRegistrationResponse;
   onDone: () => void;
+  title?: string;
 }) {
-  const { kind, result, onDone } = props;
+  const { kind, result, onDone, title } = props;
   const { testIdPrefix, revealTitle } = KINDS[kind];
   const env: string = useMemo(() => buildEnvBlock(kind, result), [kind, result]);
   return (
     <Card data-testid={`${testIdPrefix}-success`}>
       <CardHeader
-        title={revealTitle}
+        title={title ?? revealTitle}
         description="Copy the client secret now — it is shown once and cannot be retrieved later."
       />
       <RevealRow

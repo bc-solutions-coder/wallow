@@ -9,5 +9,6 @@ public class AuthAuditEntry
     public Guid? TenantId { get; set; }
     public string? IpAddress { get; set; }
     public string? UserAgent { get; set; }
+    public string? ClientId { get; set; }
     public DateTimeOffset OccurredAt { get; set; }
 }

@@ -2938,6 +2938,71 @@
         }
       }
     },
+    "/v1/identity/organizations/{orgId}/clients/{clientId}/rotate-secret": {
+      "post": {
+        "tags": [
+          "Organization Clients"
+        ],
+        "summary": "Replace the client secret. The response carries the new secret exactly once; the old one\nstops working immediately. `revokeActiveTokens` also ends every token the client was\nalready issued.",
+        "operationId": "OrganizationClientsRotateSecret",
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RotateOrganizationClientSecretRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/RotateOrganizationClientSecretRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationClientRegistrationResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/identity/organizations/{orgId}/clients/{clientId}": {
       "get": {
         "tags": [
@@ -8110,7 +8175,7 @@
             "type": "string"
           }
         },
-        "description": "The one-time registration reveal: the client secret is returned here and never again, and the\nissuer and API base URL are what the application's environment must point at."
+        "description": "The one-time reveal a registration or a secret rotation answers with: the client secret is\nreturned here and never again, and the issuer and API base URL are what the client's\nenvironment must point at."
       },
       "OrganizationClientResponse": {
         "required": [
@@ -8173,6 +8238,20 @@
             "format": "date-time"
           },
           "lastUsedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lastRotatedByUserId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "lastRotatedAt": {
             "type": [
               "null",
               "string"
@@ -8746,6 +8825,16 @@
           }
         },
         "description": "A role available for assignment within the tenant."
+      },
+      "RotateOrganizationClientSecretRequest": {
+        "type": "object",
+        "properties": {
+          "revokeActiveTokens": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "description": "Rotates a client's secret. `RevokeActiveTokens` additionally ends every token the client\nwas already issued, so a compromise response cuts every live session in the same step."
       },
       "ScopeInfo": {
         "required": [

@@ -122,6 +122,7 @@ registration, e.g. `sa-acme-nightly-sync`.
 | `GET` | `/v1/identity/organizations/{orgId}/clients/{clientId}` | Get one client |
 | `PATCH` | `/v1/identity/organizations/{orgId}/clients/{clientId}` | Update scopes (and, for an application, URIs) |
 | `DELETE` | `/v1/identity/organizations/{orgId}/clients/{clientId}` | Delete the client; its tokens stop validating |
+| `POST` | `/v1/identity/organizations/{orgId}/clients/{clientId}/rotate-secret` | Issue a new secret (shown once); body `{ "revokeActiveTokens": true }` also ends every token the client holds |
 | `GET` | `/v1/identity/scopes` | List the scope catalog (`ScopeRead`); `platformOnly` scopes cannot be granted here |
 
 `PATCH` takes the same `redirectUris`, `postLogoutRedirectUris`, `backchannelLogoutUri` and
@@ -205,7 +206,7 @@ organization for exactly this.
 - **Store credentials securely.** Use environment variables or a secret manager (AWS Secrets Manager, Azure Key Vault, HashiCorp Vault). Never commit secrets to source control.
 - **Cache access tokens.** Tokens are valid for 5-15 minutes. Refresh 30-60 seconds before expiry to avoid mid-request failures.
 - **Use minimum necessary scopes.** Request only the scopes your integration needs. This limits exposure if credentials are compromised.
-- **Rotate credentials regularly.** Every 90 days, or immediately after a security incident or personnel change.
+- **Rotate credentials regularly.** Every 90 days, or immediately after a security incident or personnel change. An organization manager rotates a service account's secret from the organization page (or `POST /v1/identity/organizations/{orgId}/clients/{clientId}/rotate-secret`); the old secret stops working the moment the new one is issued, so update the consumer before rotating or expect a short outage. Tick **also revoke active tokens** after a suspected leak — it ends every access token the account already holds, not just the secret.
 - **Handle errors gracefully.** Implement retry logic for 401 (token expired) and 429 (rate limited) responses with exponential backoff.
 - **Never use service accounts from client-side code.** Client secrets cannot be kept secure in browsers or mobile apps. Use OIDC for interactive applications.
 - **Never log secrets or tokens.** Log only non-sensitive metadata like token expiry times.

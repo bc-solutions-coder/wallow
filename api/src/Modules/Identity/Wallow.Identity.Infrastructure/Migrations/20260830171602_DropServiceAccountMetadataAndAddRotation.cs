@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Wallow.Identity.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class DropServiceAccountMetadata : Migration
+    public partial class DropServiceAccountMetadataAndAddRotation : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -14,11 +14,35 @@ namespace Wallow.Identity.Infrastructure.Migrations
             migrationBuilder.DropTable(
                 name: "service_account_metadata",
                 schema: "identity");
+
+            migrationBuilder.AddColumn<DateTimeOffset>(
+                name: "last_rotated_at",
+                schema: "identity",
+                table: "registered_clients",
+                type: "timestamp with time zone",
+                nullable: true);
+
+            migrationBuilder.AddColumn<Guid>(
+                name: "last_rotated_by_user_id",
+                schema: "identity",
+                table: "registered_clients",
+                type: "uuid",
+                nullable: true);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropColumn(
+                name: "last_rotated_at",
+                schema: "identity",
+                table: "registered_clients");
+
+            migrationBuilder.DropColumn(
+                name: "last_rotated_by_user_id",
+                schema: "identity",
+                table: "registered_clients");
+
             migrationBuilder.CreateTable(
                 name: "service_account_metadata",
                 schema: "identity",

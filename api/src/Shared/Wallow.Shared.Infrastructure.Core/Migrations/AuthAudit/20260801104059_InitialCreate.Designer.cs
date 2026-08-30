@@ -35,6 +35,9 @@ namespace Wallow.Shared.Infrastructure.Core.Migrations.AuthAudit
                     b.Property<Guid?>("ActorId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("ClientId")
+                        .HasColumnType("text");
+
                     b.Property<string>("EventType")
                         .IsRequired()
                         .HasColumnType("text");

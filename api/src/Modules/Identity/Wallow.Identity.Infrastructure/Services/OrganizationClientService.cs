@@ -32,6 +32,7 @@ namespace Wallow.Identity.Infrastructure.Services;
 public sealed partial class OrganizationClientService(
     IOpenIddictApplicationManager applicationManager,
     IRegisteredClientRepository registeredClients,
+    IClientAccessRevoker clientAccessRevoker,
     IdentityDbContext dbContext,
     IOrganizationRepository organizations,
     IApiScopeRepository apiScopes,
@@ -161,6 +162,61 @@ public sealed partial class OrganizationClientService(
 
         await applicationManager.UpdateAsync(application, descriptor, ct);
         return ToDto(record, descriptor);
+    }
+
+    public async Task<OrganizationClientRegistrationResult?> RotateSecretAsync(
+        Guid organizationId,
+        string clientId,
+        bool revokeActiveTokens,
+        Guid actorUserId,
+        CancellationToken ct = default)
+    {
+        RegisteredClient? record = await OwnedRecordAsync(organizationId, clientId, ct);
+        if (record is null)
+        {
+            return null;
+        }
+
+        object? application = await applicationManager.FindByClientIdAsync(record.ClientId, ct);
+        if (application is null)
+        {
+            LogApplicationMissing(record.ClientId);
+            return null;
+        }
+
+        string clientSecret = GenerateClientSecret();
+        OpenIddictApplicationDescriptor descriptor = new();
+        await applicationManager.PopulateAsync(descriptor, application, ct);
+        // The manager re-hashes a secret that differs from the stored one, so the descriptor is
+        // the only place the plaintext ever sits.
+        descriptor.ClientSecret = clientSecret;
+        record.RecordSecretRotation(actorUserId, timeProvider);
+
+        // Immediate, with no overlap: the old secret, the provenance and (when asked) every
+        // outstanding token change in one transaction, so a compromise response is one step.
+        IExecutionStrategy strategy = dbContext.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(
+            ct,
+            async token =>
+            {
+                await using IDbContextTransaction transaction = await dbContext.Database.BeginTransactionAsync(token);
+                await applicationManager.UpdateAsync(application, descriptor, token);
+                await registeredClients.SaveChangesAsync(token);
+                if (revokeActiveTokens)
+                {
+                    await clientAccessRevoker.RevokeAsync(record.ClientId, token);
+                }
+
+                await transaction.CommitAsync(token);
+            });
+
+        LogClientSecretRotated(record.ClientId, organizationId, actorUserId, revokeActiveTokens);
+
+        return new OrganizationClientRegistrationResult(
+            ToDto(record, descriptor),
+            clientSecret,
+            ResolveIssuer(),
+            TrimmedOrNull(serviceUrls.Value.ApiUrl));
     }
 
     public async Task<bool> DeleteAsync(Guid organizationId, string clientId, CancellationToken ct = default)
@@ -318,7 +374,9 @@ public sealed partial class OrganizationClientService(
                 .ToList(),
             record.CreatedByUserId,
             record.CreatedAt,
-            record.LastUsedAt);
+            record.LastUsedAt,
+            record.LastRotatedByUserId,
+            record.LastRotatedAt);
 
     /// <summary>
     /// The issuer the application must validate tokens against: the public auth URL including any
@@ -342,6 +400,9 @@ public sealed partial class OrganizationClientService(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Registered client {ClientId} for organization {OrganizationId} by {UserId}")]
     private partial void LogClientRegistered(string clientId, Guid organizationId, Guid userId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Rotated the secret of client {ClientId} of organization {OrganizationId} by {UserId} (active tokens revoked: {ActiveTokensRevoked})")]
+    private partial void LogClientSecretRotated(string clientId, Guid organizationId, Guid userId, bool activeTokensRevoked);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Deleted client {ClientId} of organization {OrganizationId}")]
     private partial void LogClientDeleted(string clientId, Guid organizationId);

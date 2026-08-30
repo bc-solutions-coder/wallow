@@ -497,8 +497,9 @@ export type OrganizationBrandingResponse = {
 };
 
 /**
- * The one-time registration reveal: the client secret is returned here and never again, and the
- * issuer and API base URL are what the application's environment must point at.
+ * The one-time reveal a registration or a secret rotation answers with: the client secret is
+ * returned here and never again, and the issuer and API base URL are what the client's
+ * environment must point at.
  */
 export type OrganizationClientRegistrationResponse = {
     client: OrganizationClientResponse;
@@ -525,6 +526,8 @@ export type OrganizationClientResponse = {
     createdByUserId: string;
     createdAt: string;
     lastUsedAt?: null | string;
+    lastRotatedByUserId?: null | string;
+    lastRotatedAt?: null | string;
 };
 
 export type OrganizationDto = {
@@ -674,6 +677,14 @@ export type RetentionPolicyResponse = {
  */
 export type RoleResponse = {
     name: null | string;
+};
+
+/**
+ * Rotates a client's secret. `RevokeActiveTokens` additionally ends every token the client
+ * was already issued, so a compromise response cuts every live session in the same step.
+ */
+export type RotateOrganizationClientSecretRequest = {
+    revokeActiveTokens?: boolean;
 };
 
 export type ScopeInfo = {
@@ -2300,6 +2311,34 @@ export type OrganizationClientsRegisterResponses = {
 };
 
 export type OrganizationClientsRegisterResponse = OrganizationClientsRegisterResponses[keyof OrganizationClientsRegisterResponses];
+
+export type OrganizationClientsRotateSecretData = {
+    body: RotateOrganizationClientSecretRequest;
+    path: {
+        orgId: string;
+        clientId: string;
+    };
+    query?: never;
+    url: '/v1/identity/organizations/{orgId}/clients/{clientId}/rotate-secret';
+};
+
+export type OrganizationClientsRotateSecretErrors = {
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+};
+
+export type OrganizationClientsRotateSecretError = OrganizationClientsRotateSecretErrors[keyof OrganizationClientsRotateSecretErrors];
+
+export type OrganizationClientsRotateSecretResponses = {
+    /**
+     * OK
+     */
+    200: OrganizationClientRegistrationResponse;
+};
+
+export type OrganizationClientsRotateSecretResponse = OrganizationClientsRotateSecretResponses[keyof OrganizationClientsRotateSecretResponses];
 
 export type OrganizationClientsDeleteData = {
     body?: never;

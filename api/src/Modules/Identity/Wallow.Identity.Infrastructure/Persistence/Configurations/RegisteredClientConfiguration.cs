@@ -50,6 +50,12 @@ public sealed class RegisteredClientConfiguration : IEntityTypeConfiguration<Reg
         builder.Property(e => e.LastUsedAt)
             .HasColumnName("last_used_at");
 
+        builder.Property(e => e.LastRotatedByUserId)
+            .HasColumnName("last_rotated_by_user_id");
+
+        builder.Property(e => e.LastRotatedAt)
+            .HasColumnName("last_rotated_at");
+
         builder.HasIndex(e => e.ClientId).IsUnique();
         builder.HasIndex(e => e.OrganizationId);
     }

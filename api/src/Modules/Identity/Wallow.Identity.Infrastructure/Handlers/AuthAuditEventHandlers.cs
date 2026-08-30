@@ -74,4 +74,39 @@ public static class AuthAuditEventHandlers
             OccurredAt = message.OccurredAt
         }, CancellationToken.None);
     }
+
+    /// <summary>
+    /// A client has no user to be the subject, so the actor stands in both columns: the row is
+    /// about what an admin did, and the client it was done to is named in its own column.
+    /// </summary>
+    public static Task Handle(ClientRegisteredEvent message, IAuthAuditService authAuditService) =>
+        RecordClientEventAsync(
+            "ClientRegistered", message.ClientId, message.OrganizationId, message.ActorId,
+            message.IpAddress, message.OccurredAt, authAuditService);
+
+    public static Task Handle(ClientSecretRotatedEvent message, IAuthAuditService authAuditService) =>
+        RecordClientEventAsync(
+            "ClientSecretRotated", message.ClientId, message.OrganizationId, message.ActorId,
+            message.IpAddress, message.OccurredAt, authAuditService);
+
+    private static Task RecordClientEventAsync(
+        string eventType,
+        string clientId,
+        Guid organizationId,
+        Guid actorId,
+        string? ipAddress,
+        DateTimeOffset occurredAt,
+        IAuthAuditService authAuditService)
+    {
+        return authAuditService.RecordAsync(new AuthAuditRecord
+        {
+            EventType = eventType,
+            UserId = actorId,
+            ActorId = actorId,
+            TenantId = organizationId,
+            ClientId = clientId,
+            IpAddress = ipAddress,
+            OccurredAt = occurredAt
+        }, CancellationToken.None);
+    }
 }

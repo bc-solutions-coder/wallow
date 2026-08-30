@@ -19,6 +19,11 @@ public record AuthAuditRecord
     public Guid? TenantId { get; init; }
     public string? IpAddress { get; init; }
     public string? UserAgent { get; init; }
+    /// <summary>
+    /// The registered client the event is about, for the client lifecycle events an organization's
+    /// admins perform; null for everything else.
+    /// </summary>
+    public string? ClientId { get; init; }
     public DateTimeOffset OccurredAt { get; init; }
 }
 

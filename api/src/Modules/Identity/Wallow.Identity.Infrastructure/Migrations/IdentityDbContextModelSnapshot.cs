@@ -788,6 +788,14 @@ namespace Wallow.Identity.Infrastructure.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("kind");
 
+                    b.Property<DateTimeOffset?>("LastRotatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_rotated_at");
+
+                    b.Property<Guid?>("LastRotatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("last_rotated_by_user_id");
+
                     b.Property<DateTimeOffset?>("LastUsedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_used_at");

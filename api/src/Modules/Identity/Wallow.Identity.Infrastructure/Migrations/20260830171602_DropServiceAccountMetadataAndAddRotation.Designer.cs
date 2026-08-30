@@ -12,8 +12,8 @@ using Wallow.Identity.Infrastructure.Persistence;
 namespace Wallow.Identity.Infrastructure.Migrations
 {
     [DbContext(typeof(IdentityDbContext))]
-    [Migration("20260830062718_DropServiceAccountMetadata")]
-    partial class DropServiceAccountMetadata
+    [Migration("20260830171602_DropServiceAccountMetadataAndAddRotation")]
+    partial class DropServiceAccountMetadataAndAddRotation
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -790,6 +790,14 @@ namespace Wallow.Identity.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("kind");
+
+                    b.Property<DateTimeOffset?>("LastRotatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_rotated_at");
+
+                    b.Property<Guid?>("LastRotatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("last_rotated_by_user_id");
 
                     b.Property<DateTimeOffset?>("LastUsedAt")
                         .HasColumnType("timestamp with time zone")
