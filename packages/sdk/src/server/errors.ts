@@ -61,6 +61,33 @@ export const UNKNOWN_ERROR_CODE: string = "UNKNOWN";
 /** Placeholder substituted for credential-shaped values by {@link redact}. */
 export const REDACTED: string = "[redacted]";
 
+/** Code carried by the {@link RefreshFailedError} a dead session refresh raises. */
+export const SESSION_REFRESH_FAILED_CODE: string = "SESSION_REFRESH_FAILED";
+
+/** HTTP status a refresh-failure teardown answers with. */
+const UNAUTHORIZED_STATUS = 401;
+
+/**
+ * A session refresh that failed terminally: the grant behind the session was
+ * rejected (revoked at the auth host by a logout elsewhere or a deactivation),
+ * there was no refresh token left to spend, or the store record vanished
+ * mid-refresh. Replaying the refresh on the next request could only fail the
+ * same way, so the proxy answers it by tearing the session down — store record
+ * destroyed, cookies cleared — rather than by a bare 401 the browser would
+ * retry forever.
+ */
+export class RefreshFailedError extends WallowError {
+  constructor(detail?: string) {
+    super({
+      status: UNAUTHORIZED_STATUS,
+      code: SESSION_REFRESH_FAILED_CODE,
+      title: "The session could not be refreshed",
+      detail,
+    });
+    this.name = "RefreshFailedError";
+  }
+}
+
 /**
  * Parses an upstream response body into a {@link WallowError}.
  *

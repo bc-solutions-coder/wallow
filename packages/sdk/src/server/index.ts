@@ -11,6 +11,8 @@ export {
   parseProblemDetails,
   redact,
   REDACTED,
+  RefreshFailedError,
+  SESSION_REFRESH_FAILED_CODE,
   UNKNOWN_ERROR_CODE,
   WallowError,
   type ProblemDetails,

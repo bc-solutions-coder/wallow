@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { isValidRequestId, MAX_REQUEST_ID_LENGTH, REQUEST_ID_HEADER } from "../request-id";
 import type { BffConfig } from "./config";
 import { csrfTokenMatches, CSRF_HEADER, CSRF_INVALID_CODE, isStateChangingMethod } from "./csrf";
-import { WallowError } from "./errors";
+import { SESSION_REFRESH_FAILED_CODE, WallowError } from "./errors";
 import { type PeerRequest } from "./forwarded";
 import { discover, refreshTokens, type DiscoveryDoc, type TokenResponse } from "./oidc";
 import {
@@ -1330,6 +1330,88 @@ describe("createApiProxy resilience", () => {
     const body = (await res.json()) as Record<string, unknown>;
     expect(body["title"]).toBe("Conflict");
     expect(body["detail"]).toBe("Tenant slug already taken.");
+  });
+});
+
+/**
+ * A failed refresh is the moment the BFF learns the session is dead (the auth
+ * host revoked the grant: logout elsewhere, user deactivated). Answering 401
+ * while leaving the store record and cookies in place would replay the same
+ * doomed refresh on every subsequent request; the teardown makes the failure
+ * terminal — record destroyed, cookies cleared, browser told to sign in again.
+ */
+describe("createApiProxy refresh-failure teardown", () => {
+  /** Names of the cookies a response tells the browser to expire. */
+  function clearedCookieNames(res: Response): string[] {
+    return res.headers
+      .getSetCookie()
+      .filter((line: string): boolean => line.includes("Max-Age=0"))
+      .map((line: string): string => line.slice(0, line.indexOf("=")));
+  }
+
+  it("destroys the store record and clears the session cookies when the proactive refresh fails", async () => {
+    const config: BffConfig = makeConfig("https://proxy-proactive-refresh-dead.example.com");
+    const session: BffSession = makeSession({
+      accessToken: "stale-access",
+      refreshToken: "revoked-refresh",
+      expiresAt: Date.now() - 1_000,
+    });
+    const { store, calls }: FakeStore = makeFakeStore(session);
+    vi.mocked(discover).mockResolvedValue(makeDoc(config.issuer));
+    vi.mocked(refreshTokens).mockRejectedValue(new Error("invalid_grant"));
+    // Fail loudly if the dead session still reaches the API.
+    const fetchMock: ReturnType<typeof vi.fn> = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const handle = makeHandle(config, store);
+
+    const res: Response = await handle(
+      new Request("http://localhost/api/users", {
+        headers: { cookie: `${config.cookieName}=fake-ref` },
+      }),
+    );
+
+    expect(res.status).toBe(401);
+    // The dead session is gone from the store, not just from the browser.
+    expect(calls.destroy).toEqual(["fake-ref"]);
+    // The browser drops both the session cookie and its CSRF companion.
+    const cleared: string[] = clearedCookieNames(res);
+    expect(cleared).toContain(config.cookieName);
+    expect(cleared).toContain(`${config.cookieName}-csrf`);
+    // The failure is nameable, not a bare status.
+    expect(res.headers.get("content-type") ?? "").toContain("problem+json");
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body["code"]).toBe(SESSION_REFRESH_FAILED_CODE);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("destroys the store record and clears the session cookies when the reactive refresh fails", async () => {
+    const config: BffConfig = makeConfig("https://proxy-reactive-refresh-dead.example.com");
+    // The BFF still believes this session is fresh; only the API knows the
+    // tokens were revoked out of band.
+    const session: BffSession = makeSession({
+      accessToken: "revoked-access",
+      refreshToken: "revoked-refresh",
+      expiresAt: Date.now() + 3_600_000,
+    });
+    const { store, calls }: FakeStore = makeFakeStore(session);
+    vi.mocked(discover).mockResolvedValue(makeDoc(config.issuer));
+    vi.mocked(refreshTokens).mockRejectedValue(new Error("invalid_grant"));
+    stubFetchScript([respond((): Response => problem(401, { title: "Unauthorized" }))]);
+    const handle = makeHandle(config, store);
+
+    const res: Response = await handle(
+      new Request("http://localhost/api/users", {
+        headers: { cookie: `${config.cookieName}=fake-ref` },
+      }),
+    );
+
+    expect(res.status).toBe(401);
+    expect(calls.destroy).toEqual(["fake-ref"]);
+    const cleared: string[] = clearedCookieNames(res);
+    expect(cleared).toContain(config.cookieName);
+    expect(cleared).toContain(`${config.cookieName}-csrf`);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body["code"]).toBe(SESSION_REFRESH_FAILED_CODE);
   });
 });
 

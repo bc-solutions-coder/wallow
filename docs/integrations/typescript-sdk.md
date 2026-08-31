@@ -314,6 +314,15 @@ strips the `/api` prefix and forwards the request to `apiBaseUrl` with the
 Requests that arrive without a valid session receive a `401`, which the
 `getCurrentUser()` helper interprets as "unauthenticated".
 
+A refresh the identity server **refuses** is terminal: the grant behind the
+session was revoked — a logout on another application, a deactivated account —
+or the refresh token was already spent. The proxy answers it by ending the
+session exactly as a logout would: it destroys the store record, clears the
+session cookie and its CSRF companion, and returns `401` problem details with
+code `SESSION_REFRESH_FAILED`. Leaving the session in place would replay the
+same doomed refresh on every request; tearing it down turns the refusal into a
+clean re-login at the next navigation.
+
 ### Client addresses behind a proxy
 
 The API rate-limits per client address and reads that address from the **rightmost**
@@ -543,6 +552,11 @@ the following, each retried at most once:
 | `429`                                                 | Waits for `Retry-After`, bounded by `MAX_RETRY_AFTER_MS` (5s), then replays   |
 | No response within `FORWARD_TIMEOUT_MS` (30s)         | Returns `503` with code `NETWORK_TIMEOUT`                                     |
 | Transport failure                                     | Returns `503` with code `NETWORK_ERROR`                                       |
+
+A refresh that fails — the proactive one before the forward, or the forced one
+after a reactive `401` — destroys the store record, clears the session cookies,
+and answers `401` with code `SESSION_REFRESH_FAILED` (see
+[the `/api` proxy and silent refresh](#the-api-proxy-and-silent-refresh)).
 
 ---
 

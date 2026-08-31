@@ -472,17 +472,22 @@ is skipped, or for a client with no registered URI. So keep the fallback path wo
   that just ended.
 
 Handle the refusal, and it degrades to a re-login rather than a broken screen. The SDK already
-does: a refresh the identity server refuses makes `/api/*` answer `401`, and `getCurrentUser`
+does: a refresh the identity server refuses tears the session down the way a logout would —
+the store record is destroyed, the session cookie and its CSRF companion are cleared, and
+`/api/*` answers `401` problem details with code `SESSION_REFRESH_FAILED`. `getCurrentUser`
 reads a `401` as "anonymous" rather than as an error, so the next navigation hits your login
 gate. A hand-rolled BFF must do the same thing explicitly — **on a failed refresh, delete the
 session record and the session cookie, then send the user to login.**
 
 Two consequences worth designing for:
 
-- **For a client the notification does not reach, the gap is as long as your access-token
-  lifetime.** During it, that application can still call the API with a token that is valid but
-  belongs to a session the user has ended. Shorter access tokens shrink the window; the
-  front-channel notification is what closes it for registered, reachable clients.
+- **The API refuses the ended session's tokens even where the notification never lands.**
+  Ending the session at `/connect/logout` revokes every token minted under that session's
+  `sid` at the identity server, and the API validates each bearer token against its revocation
+  entry — so an application the iframe never reached is refused on its very next API call, not
+  after the access token's natural expiry. The front-channel notification is what cleans up
+  that application's **local** state promptly (its session cookie, its rendered "signed-in"
+  UI); the token revocation is the security boundary.
 - **A user who signs out of one of your applications signs out of all of them.** If that is not
   what you want, the applications need separate identity providers, not separate Wallow clients.
 
@@ -645,12 +650,21 @@ With `CookieSessionStore` the cookie **is** the state — there is no server-sid
 record to delete. Its `destroy()` is therefore a deliberate no-op, and clearing
 the cookie only ends the session for a browser that cooperates. Anyone holding a
 copy of the sealed cookie value (an exfiltrated cookie, a logged proxy request)
-can keep using it, and the server has no way to **revoke** it. Logging out, an
-admin disabling an account, or a password reset cannot invalidate outstanding
-sessions.
+can keep presenting it, and the BFF itself has no way to **revoke** it.
 
-The only bound on such a blob is its baked-in expiry: `sealSession` stamps a TTL
-into the sealed value at write time, defaulting to `SESSION_TTL_SECONDS`
+The identity server still bounds the damage. A logout at `/connect/logout`, an
+admin deactivating the account, or a revoked client kills the OIDC tokens
+*inside* the blob at the source: the access token fails the API's token-entry
+validation on its next bearer request, and the refresh is refused — at which
+point the SDK's refresh-failure teardown ends that copy's session too. What the
+cookie store cannot shorten is the window for a session **nobody revoked at the
+identity server**: the BFF's own logout and front-channel handler have nothing
+to destroy, so a copied blob keeps working until its access token expires and
+the next refresh is refused. **The cookie store's revocation ceiling is the
+access-token lifetime.**
+
+The only bound on the blob itself is its baked-in expiry: `sealSession` stamps a
+TTL into the sealed value at write time, defaulting to `SESSION_TTL_SECONDS`
 (24 hours), after which unsealing fails. That expiry is fixed when the blob is
 sealed and cannot be extended by unsealing it with a longer TTL — but it is a
 timeout, not revocation.

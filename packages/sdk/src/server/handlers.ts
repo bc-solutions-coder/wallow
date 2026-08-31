@@ -377,11 +377,15 @@ export async function writeSession(
  * Clear the session cookie, its CSRF companion, and every chunk cookie present
  * on the request.
  *
+ * Exported for the proxy's refresh-failure teardown: a dead session is ended
+ * with exactly the cookie-clearing a logout performs, so the browser cannot
+ * keep presenting a reference whose refresh can only fail again.
+ *
  * @param headers The response headers under construction.
  * @param request The request whose cookies name the chunks to clear.
  * @param config BFF configuration providing the base cookie name.
  */
-function clearSession(headers: Headers, request: Request, config: BffConfig): void {
+export function clearSession(headers: Headers, request: Request, config: BffConfig): void {
   appendCookie(headers, config.cookieName, "", clearCookieOpts(config));
   appendCookie(headers, csrfCookieName(config.cookieName), "", clearCookieOpts(config, false));
 

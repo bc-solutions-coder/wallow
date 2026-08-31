@@ -16,7 +16,7 @@
 import { REQUEST_ID_HEADER, resolveRequestId } from "../request-id";
 import type { BffConfig } from "./config";
 import { csrfTokenMatches, CSRF_HEADER, CSRF_INVALID_CODE, isStateChangingMethod } from "./csrf";
-import { parseProblemDetails, redact, WallowError } from "./errors";
+import { parseProblemDetails, redact, RefreshFailedError, WallowError } from "./errors";
 import {
   applyForwardedHeaders,
   resolveClientAddress,
@@ -24,7 +24,13 @@ import {
   type PeerRequest,
   type TrustedProxies,
 } from "./forwarded";
-import { readSession, readSessionRef, writeSession, writeSessionRef } from "./handlers";
+import {
+  clearSession,
+  readSession,
+  readSessionRef,
+  writeSession,
+  writeSessionRef,
+} from "./handlers";
 import { discover, refreshTokens, type DiscoveryDoc, type TokenResponse } from "./oidc";
 import type { BffSession } from "./session";
 import { CookieSessionStore } from "./store/cookie";
@@ -166,7 +172,7 @@ export async function ensureFreshSession(
   }
 
   if (session.refreshToken === undefined || session.refreshToken === "") {
-    throw new Error("Session expired and no refresh token is available");
+    throw new RefreshFailedError("Session expired and no refresh token is available");
   }
 
   const stored: StoredSession = await refreshUnderLock(session, config, store, ref);
@@ -196,8 +202,18 @@ async function refreshUnderLock(
   const refreshed: StoredSession | undefined = await store.withRefreshLock(
     ref,
     async (): Promise<StoredSession> => {
-      const doc: DiscoveryDoc = await discover(config);
-      const tokens: TokenResponse = await refreshTokens(config, doc, refreshToken);
+      // Any refresh failure — a rejected grant (logout elsewhere, user
+      // deactivated, token already spent) or even a transient fault reaching
+      // the auth host — ends the session. Fail closed: a session the auth
+      // host cannot vouch for is not kept alive on the chance the fault was
+      // transient; the user signs in again.
+      let tokens: TokenResponse;
+      try {
+        const doc: DiscoveryDoc = await discover(config);
+        tokens = await refreshTokens(config, doc, refreshToken);
+      } catch (error: unknown) {
+        throw new RefreshFailedError(causeDetail(error));
+      }
 
       const next: BffSession = {
         ...session,
@@ -221,7 +237,7 @@ async function refreshUnderLock(
   // cookie that points at it.
   const peer: BffSession | null = await store.read(ref);
   if (peer === null) {
-    throw new Error("Session refresh lock was held but the session is gone");
+    throw new RefreshFailedError("Session refresh lock was held but the session is gone");
   }
   return { session: peer, ref };
 }
@@ -261,7 +277,9 @@ async function forceRefreshStored(
   ref: string,
 ): Promise<StoredSession> {
   if (!hasRefreshToken(session)) {
-    throw new Error("The upstream rejected the access token and no refresh token is available");
+    throw new RefreshFailedError(
+      "The upstream rejected the access token and no refresh token is available",
+    );
   }
   return await refreshUnderLock(session, config, store, ref);
 }
@@ -633,6 +651,30 @@ function bare(status: number, cookies: Headers): Response {
 }
 
 /**
+ * End a session whose refresh failed terminally.
+ *
+ * The failure means the grant behind the session is gone (revoked at the auth
+ * host, or spent with nothing left to spend), so the session is ended exactly
+ * the way a logout ends it: the store record is destroyed and the session
+ * cookies — the base cookie, its CSRF companion, and any chunks the request
+ * presented — are cleared, before the 401 problem details go back. Leaving
+ * either in place would replay the same doomed refresh on every request.
+ */
+async function tearDownDeadSession(
+  error: RefreshFailedError,
+  request: Request,
+  config: BffConfig,
+  store: SessionStore,
+  ref: string,
+  cookies: Headers,
+  requestId: string,
+): Promise<Response> {
+  await store.destroy(ref);
+  clearSession(cookies, request, config);
+  return respondToFailure(error, cookies, requestId);
+}
+
+/**
  * Answer a failed forward.
  *
  * An upstream failure is relayed verbatim — status, headers, and body — so the
@@ -776,8 +818,11 @@ async function proxyRequest(
   let currentRef: string = ref;
   try {
     fresh = await ensureFreshSession(session, config, store, ref);
-  } catch {
-    return new Response(null, { status: UNAUTHORIZED_STATUS });
+  } catch (error: unknown) {
+    if (error instanceof RefreshFailedError) {
+      return await tearDownDeadSession(error, request, config, store, ref, cookies, requestId);
+    }
+    return bare(UNAUTHORIZED_STATUS, cookies);
   }
 
   // Re-seal the cookie only when the session actually changed.
@@ -834,6 +879,21 @@ async function proxyRequest(
       currentRef,
     );
   } catch (error: unknown) {
+    // A reactive refresh that failed is the same dead session the proactive
+    // path tears down — the API rejected the token AND the grant behind it is
+    // gone — so it gets the same teardown, under the reference the session
+    // currently lives at.
+    if (error instanceof RefreshFailedError) {
+      return await tearDownDeadSession(
+        error,
+        request,
+        config,
+        store,
+        currentRef,
+        cookies,
+        requestId,
+      );
+    }
     return respondToFailure(error, cookies, requestId);
   }
 

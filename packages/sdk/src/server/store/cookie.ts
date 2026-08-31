@@ -43,6 +43,24 @@ export interface CookieSessionStoreOptions {
  * {@link destroy} is a no-op (cookie clearing is the module's job), while
  * {@link withRefreshLock} coalesces concurrent refreshes for one reference onto
  * a single in-memory promise.
+ *
+ * SINGLE-REPLICA / DEV-ONLY. Two limits follow from having no server-side
+ * record, and both matter in production:
+ *
+ * - **Revocation ceiling = the access-token lifetime.** With nothing to destroy
+ *   server-side, "ending" a session only clears the cookie in the browser that
+ *   made the request. Any other copy of the sealed cookie keeps working until
+ *   its access token expires; only then does the forced refresh hit the auth
+ *   host, get refused for the revoked grant, and tear the session down. A
+ *   server-side store (`ValkeySessionStore`) shrinks that window to one
+ *   request: destroying the record invalidates every copy of the reference at
+ *   once.
+ * - **The refresh lock is per-process.** See {@link withRefreshLock}; multiple
+ *   replicas can double-spend a one-time refresh token.
+ *
+ * Deployments beyond a single replica — or that need logout/deactivation to
+ * take effect faster than the access-token lifetime — use the Valkey-backed
+ * store instead.
  */
 export class CookieSessionStore implements SessionStore {
   private readonly password: CookieSecret;
