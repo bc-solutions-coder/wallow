@@ -964,7 +964,7 @@ every `/connect/*` endpoint.
 | `invalid_client` on token exchange    | `client_id` mismatch or missing `app-` prefix                       | Confirm the client ID matches exactly what was registered                |
 | `invalid_grant` on token exchange     | `code_verifier` mismatch or code already used                       | Generate a fresh `code_verifier` per login attempt; codes are single-use |
 | `invalid_grant` on token refresh      | Refresh token revoked or expired                                    | Clear the session and redirect the user to login                         |
-| Consent screen appears on every login | Application not granted `offline_access` or user previously denied  | Ensure `offline_access` is in the requested scopes and the user approves |
+| Consent screen appears on every login | Requesting scopes outside the stored consent, sending `prompt=consent`, or the user withdrew consent in settings | Consent is remembered per (user, client, scopes): keep the requested scope set stable, drop `prompt=consent` unless re-confirmation is intended, and expect the screen once after a withdrawal |
 | Session cookie not sent to BFF        | `SameSite=Strict` blocking cross-site redirect                      | The BFF and the callback URL must be on the same origin as your frontend |
 | Redirect URI mismatch                 | Registered URI does not exactly match `redirect_uri` in the request | Update the registered redirect URI in the Wallow dashboard to match      |
 | Authorize URL 404s before the login form appears | Issuer origin (or its path prefix) does not match what the API advertises | See [The Issuer and Origin Contract](#the-issuer-and-origin-contract)   |
