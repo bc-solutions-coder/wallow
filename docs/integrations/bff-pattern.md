@@ -493,7 +493,13 @@ advertises `backchannel_logout_supported` and `backchannel_logout_session_suppor
 The receiving endpoint must validate the token before tearing anything down: verify the
 signature against Wallow's JWKS, check `iss`, `aud` (the client id), and `iat`, require the
 back-channel `events` claim, reject any token carrying a `nonce`, and end only the session
-whose `sid` matches. Delivery is bounded and best-effort — each client gets a per-attempt
+whose `sid` matches. A BFF built on `@bc-solutions-coder/sdk` implements all of that out of
+the box: `createWallowBffServer` routes `POST /bff/backchannel-logout`, and the handler
+verifies the logout token and revokes the matching server-side session(s) — provided they
+live in the `ValkeySessionStore`, since a cookie-sealed session cannot be revoked from the
+server. The URL to register and the ingress requirement are in the
+[TypeScript SDK guide](typescript-sdk.md#receiving-back-channel-logout). Delivery is bounded
+and best-effort — each client gets a per-attempt
 timeout and exactly one retry, and a slow or failing relying party never delays the user's
 sign-out — so the failed-refresh fallback above still matters. Deployment tuning, including the
 private-network delivery gate, lives in the

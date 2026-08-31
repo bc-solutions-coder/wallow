@@ -30,6 +30,14 @@ export interface DiscoveryDoc {
   end_session_endpoint?: string;
   userinfo_endpoint?: string;
   /**
+   * The issuer's JWKS endpoint, used to verify back-channel logout tokens.
+   * A server-reachable backchannel URL: used exactly as the metadata
+   * advertises it, never rebased to the public issuer.
+   */
+  jwks_uri?: string;
+  /** Whether the issuer advertises OIDC back-channel logout support. */
+  backchannel_logout_supported?: boolean;
+  /**
    * Handle to the resolved openid-client {@link Configuration}. Optional so that
    * plain endpoint-only doc literals (used by the still native-fetch grant
    * helpers and their tests) continue to typecheck. Populated by
@@ -224,6 +232,10 @@ export async function discover(config: BffConfig): Promise<DiscoveryDoc> {
     token_endpoint: tokenEndpoint,
     end_session_endpoint: endSessionEndpoint,
     userinfo_endpoint: userinfoEndpoint,
+    // Backchannel endpoints and capabilities, taken as advertised: the JWKS is
+    // fetched server-side, so it must keep naming the server-reachable host.
+    jwks_uri: metadata.jwks_uri,
+    backchannel_logout_supported: metadata.backchannel_logout_supported === true ? true : undefined,
     configuration,
   };
 

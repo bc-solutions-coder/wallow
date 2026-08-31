@@ -55,6 +55,12 @@ export interface ValkeySessionStoreOptions {
  * iron-webcrypto — it leaks no user data and cannot be forged without the
  * cookie password. Server records are namespaced under
  * `<prefix>:session:<id>`; refresh locks under `<prefix>:refreshlock:<id>`.
+ *
+ * For back-channel logout the store also indexes each session at write time:
+ * `<prefix>:sid:<sid>` maps the OP session id to the local session id, and the
+ * `<prefix>:sub:<sub>` set collects the subject's session ids — both live as
+ * long as the record and are cleared with it, so {@link revokeBySid} and
+ * {@link revokeBySubject} resolve without scanning.
  */
 export class ValkeySessionStore implements SessionStore {
   private readonly client: RedisLike;
@@ -77,6 +83,14 @@ export class ValkeySessionStore implements SessionStore {
 
   private lockKey(id: string): string {
     return `${this.keyPrefix}:refreshlock:${id}`;
+  }
+
+  private sidKey(sid: string): string {
+    return `${this.keyPrefix}:sid:${sid}`;
+  }
+
+  private subjectKey(sub: string): string {
+    return `${this.keyPrefix}:sub:${sub}`;
   }
 
   /** Unseal a cookie reference back into its session id, or `null` on failure. */
@@ -111,6 +125,13 @@ export class ValkeySessionStore implements SessionStore {
     await this.client.set(this.sessionKey(id), JSON.stringify(record), {
       ex: this.ttlSeconds,
     });
+    if (record.sid !== undefined) {
+      await this.client.set(this.sidKey(record.sid), id, { ex: this.ttlSeconds });
+    }
+    // The subject set is shared across the subject's sessions, so each write
+    // pushes its expiry out to the newest record's lifetime.
+    await this.client.sadd(this.subjectKey(record.user.sub), id);
+    await this.client.expire(this.subjectKey(record.user.sub), this.ttlSeconds);
     return seal(webCrypto, id, sealPassword(this.password), defaults);
   }
 
@@ -119,7 +140,54 @@ export class ValkeySessionStore implements SessionStore {
     if (id === null) {
       return;
     }
+    await this.destroyRecord(id);
+  }
+
+  /** Delete the record at `id` and its index entries, returning the session. */
+  private async destroyRecord(id: string): Promise<BffSession | null> {
+    const raw: string | null = await this.client.get(this.sessionKey(id));
+    let record: BffSession | null = null;
+    if (raw !== null) {
+      try {
+        record = JSON.parse(raw) as BffSession;
+      } catch {
+        record = null;
+      }
+    }
     await this.client.del(this.sessionKey(id));
+    if (record !== null) {
+      if (record.sid !== undefined) {
+        await this.client.del(this.sidKey(record.sid));
+      }
+      await this.client.srem(this.subjectKey(record.user.sub), id);
+    }
+    return record;
+  }
+
+  async revokeBySid(sid: string): Promise<BffSession[]> {
+    const id: string | null = await this.client.get(this.sidKey(sid));
+    if (id === null) {
+      return [];
+    }
+    const record: BffSession | null = await this.destroyRecord(id);
+    // The index itself may outlive an evicted record; clear it either way.
+    await this.client.del(this.sidKey(sid));
+    return record === null ? [] : [record];
+  }
+
+  async revokeBySubject(sub: string): Promise<BffSession[]> {
+    const ids: string[] = await this.client.smembers(this.subjectKey(sub));
+    const records: (BffSession | null)[] = await Promise.all(
+      ids.map(async (id: string): Promise<BffSession | null> => {
+        const record: BffSession | null = await this.destroyRecord(id);
+        if (record === null) {
+          // Stale member whose record was evicted out of band: prune it.
+          await this.client.srem(this.subjectKey(sub), id);
+        }
+        return record;
+      }),
+    );
+    return records.filter((record: BffSession | null): record is BffSession => record !== null);
   }
 
   async withRefreshLock<T>(ref: string, fn: () => Promise<T>): Promise<T | undefined> {

@@ -19,13 +19,27 @@ interface MemoryEntry {
   expiresAt: number | null;
 }
 
+interface SetEntry {
+  members: Set<string>;
+  /** Epoch milliseconds the entry expires at, or `null` for no expiry. */
+  expiresAt: number | null;
+}
+
 /** `DEL` reply when the key existed, and when it did not. */
 const DELETED_COUNT = 1;
 const NOT_FOUND_COUNT = 0;
 
+/** Reply when a set operation changed membership, and when it did not. */
+const CHANGED_COUNT = 1;
+const UNCHANGED_COUNT = 0;
+
+/** A set with no members left is deleted, as Redis does. */
+const EMPTY_SET_SIZE = 0;
+
 /** Build an in-process {@link RedisLike}. */
 export function createMemoryRedis(): RedisLike {
   const entries = new Map<string, MemoryEntry>();
+  const sets = new Map<string, SetEntry>();
 
   const alive = (key: string): MemoryEntry | undefined => {
     const entry: MemoryEntry | undefined = entries.get(key);
@@ -34,6 +48,18 @@ export function createMemoryRedis(): RedisLike {
     }
     if (entry.expiresAt !== null && entry.expiresAt <= Date.now()) {
       entries.delete(key);
+      return undefined;
+    }
+    return entry;
+  };
+
+  const aliveSet = (key: string): SetEntry | undefined => {
+    const entry: SetEntry | undefined = sets.get(key);
+    if (entry === undefined) {
+      return undefined;
+    }
+    if (entry.expiresAt !== null && entry.expiresAt <= Date.now()) {
+      sets.delete(key);
       return undefined;
     }
     return entry;
@@ -54,9 +80,43 @@ export function createMemoryRedis(): RedisLike {
       return Promise.resolve("OK");
     },
     del(key: string): Promise<number> {
-      const existed: boolean = alive(key) !== undefined;
+      const existed: boolean = alive(key) !== undefined || aliveSet(key) !== undefined;
       entries.delete(key);
+      sets.delete(key);
       return Promise.resolve(existed ? DELETED_COUNT : NOT_FOUND_COUNT);
+    },
+    sadd(key: string, member: string): Promise<number> {
+      const entry: SetEntry = aliveSet(key) ?? { members: new Set<string>(), expiresAt: null };
+      const added: boolean = !entry.members.has(member);
+      entry.members.add(member);
+      sets.set(key, entry);
+      return Promise.resolve(added ? CHANGED_COUNT : UNCHANGED_COUNT);
+    },
+    srem(key: string, member: string): Promise<number> {
+      const entry: SetEntry | undefined = aliveSet(key);
+      if (entry === undefined) {
+        return Promise.resolve(UNCHANGED_COUNT);
+      }
+      const removed: boolean = entry.members.delete(member);
+      if (entry.members.size === EMPTY_SET_SIZE) {
+        sets.delete(key);
+      }
+      return Promise.resolve(removed ? CHANGED_COUNT : UNCHANGED_COUNT);
+    },
+    smembers(key: string): Promise<string[]> {
+      return Promise.resolve([...(aliveSet(key)?.members ?? [])]);
+    },
+    expire(key: string, seconds: number): Promise<void> {
+      const expiresAt: number = Date.now() + seconds * MS_PER_SECOND;
+      const entry: MemoryEntry | undefined = alive(key);
+      if (entry !== undefined) {
+        entry.expiresAt = expiresAt;
+      }
+      const setEntry: SetEntry | undefined = aliveSet(key);
+      if (setEntry !== undefined) {
+        setEntry.expiresAt = expiresAt;
+      }
+      return Promise.resolve();
     },
   };
 }

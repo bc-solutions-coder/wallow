@@ -184,6 +184,10 @@ describe("server entry (./server subpath export)", () => {
       get: () => Promise.resolve(null),
       set: () => Promise.resolve("OK" as const),
       del: () => Promise.resolve(0),
+      sadd: () => Promise.resolve(1),
+      srem: () => Promise.resolve(0),
+      smembers: () => Promise.resolve([]),
+      expire: () => Promise.resolve(),
     };
 
     const cookieStore: SessionStore = new serverEntry.CookieSessionStore({

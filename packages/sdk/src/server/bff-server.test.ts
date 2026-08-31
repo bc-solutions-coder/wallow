@@ -27,15 +27,26 @@ import { ValkeySessionStore } from "./store/valkey";
  * redirect is exercised with no live network I/O. Every test uses a unique
  * issuer because the discovery cache in `oidc.ts` is keyed by metadata URL.
  */
+const { discoveryMetadataByOrigin, discoveryFailures } = vi.hoisted(() => ({
+  /** Extra serverMetadata a test wants its issuer's discovery stub to advertise. */
+  discoveryMetadataByOrigin: new Map<string, Record<string, unknown>>(),
+  /** Issuer origins whose discovery should fail, for the boot-probe specs. */
+  discoveryFailures: new Set<string>(),
+}));
+
 vi.mock("openid-client", () => ({
   discovery: vi.fn((server: URL) => {
     const origin: string = new URL(server).origin;
+    if (discoveryFailures.has(origin)) {
+      return Promise.reject(new Error(`discovery unreachable for ${origin}`));
+    }
     return Promise.resolve({
       serverMetadata: (): Record<string, unknown> => ({
         issuer: origin,
         authorization_endpoint: `${origin}/connect/authorize`,
         token_endpoint: `${origin}/connect/token`,
         end_session_endpoint: `${origin}/connect/logout`,
+        ...discoveryMetadataByOrigin.get(origin),
       }),
     });
   }),
@@ -74,6 +85,7 @@ vi.mock("openid-client", () => ({
 const { redisCreateClientMock, redisConnectMock } = vi.hoisted(() => {
   const redisConnectMock: ReturnType<typeof vi.fn> = vi.fn(() => Promise.resolve());
   const data: Map<string, string> = new Map<string, string>();
+  const sets: Map<string, Set<string>> = new Map<string, Set<string>>();
   const redisCreateClientMock: ReturnType<typeof vi.fn> = vi.fn(() => ({
     on: vi.fn(),
     connect: redisConnectMock,
@@ -83,6 +95,17 @@ const { redisCreateClientMock, redisConnectMock } = vi.hoisted(() => {
       return Promise.resolve("OK");
     },
     del: (key: string): Promise<number> => Promise.resolve(data.delete(key) ? 1 : 0),
+    sAdd: (key: string, member: string): Promise<number> => {
+      const members: Set<string> = sets.get(key) ?? new Set<string>();
+      const added: boolean = !members.has(member);
+      members.add(member);
+      sets.set(key, members);
+      return Promise.resolve(added ? 1 : 0);
+    },
+    sRem: (key: string, member: string): Promise<number> =>
+      Promise.resolve(sets.get(key)?.delete(member) === true ? 1 : 0),
+    sMembers: (key: string): Promise<string[]> => Promise.resolve([...(sets.get(key) ?? [])]),
+    expire: (): Promise<boolean> => Promise.resolve(true),
   }));
   return { redisCreateClientMock, redisConnectMock };
 });
@@ -146,6 +169,7 @@ function recordingStore(): { store: SessionStore; reads: string[] } {
 /** An in-memory stand-in for a connected node-redis client. */
 function fakeRedisClient(): NodeRedisClient {
   const data: Map<string, string> = new Map<string, string>();
+  const sets: Map<string, Set<string>> = new Map<string, Set<string>>();
   return {
     get: (key: string): Promise<string | null> => Promise.resolve(data.get(key) ?? null),
     set: (key: string, value: string): Promise<string | null> => {
@@ -153,6 +177,17 @@ function fakeRedisClient(): NodeRedisClient {
       return Promise.resolve("OK");
     },
     del: (key: string): Promise<number> => Promise.resolve(data.delete(key) ? 1 : 0),
+    sAdd: (key: string, member: string): Promise<number> => {
+      const members: Set<string> = sets.get(key) ?? new Set<string>();
+      const added: boolean = !members.has(member);
+      members.add(member);
+      sets.set(key, members);
+      return Promise.resolve(added ? 1 : 0);
+    },
+    sRem: (key: string, member: string): Promise<number> =>
+      Promise.resolve(sets.get(key)?.delete(member) === true ? 1 : 0),
+    sMembers: (key: string): Promise<string[]> => Promise.resolve([...(sets.get(key) ?? [])]),
+    expire: (): Promise<boolean> => Promise.resolve(true),
   };
 }
 
@@ -169,8 +204,13 @@ function nodeRedisShapedClient(): {
     options?: { EX?: number; NX?: true },
   ) => Promise<string | Buffer | null>;
   del: (key: string) => Promise<number>;
+  sAdd: (key: string, member: string) => Promise<number>;
+  sRem: (key: string, member: string) => Promise<number>;
+  sMembers: (key: string) => Promise<string[]>;
+  expire: (key: string, seconds: number) => Promise<boolean>;
 } {
   const data: Map<string, string> = new Map<string, string>();
+  const sets: Map<string, Set<string>> = new Map<string, Set<string>>();
   return {
     get: (key: string): Promise<string | Buffer | null> => Promise.resolve(data.get(key) ?? null),
     set: (key: string, value: string, options?: { NX?: true }): Promise<string | Buffer | null> => {
@@ -181,6 +221,17 @@ function nodeRedisShapedClient(): {
       return Promise.resolve("OK");
     },
     del: (key: string): Promise<number> => Promise.resolve(data.delete(key) ? 1 : 0),
+    sAdd: (key: string, member: string): Promise<number> => {
+      const members: Set<string> = sets.get(key) ?? new Set<string>();
+      const added: boolean = !members.has(member);
+      members.add(member);
+      sets.set(key, members);
+      return Promise.resolve(added ? 1 : 0);
+    },
+    sRem: (key: string, member: string): Promise<number> =>
+      Promise.resolve(sets.get(key)?.delete(member) === true ? 1 : 0),
+    sMembers: (key: string): Promise<string[]> => Promise.resolve([...(sets.get(key) ?? [])]),
+    expire: (): Promise<boolean> => Promise.resolve(true),
   };
 }
 
@@ -675,6 +726,74 @@ describe("createWallowBffServer — client address", () => {
  * surface — a fork imports them from `@bc-solutions-coder/sdk/server`, so the
  * barrel has to re-export them.
  */
+describe("createWallowBffServer — back-channel boot warning", () => {
+  afterEach(() => {
+    discoveryMetadataByOrigin.clear();
+    discoveryFailures.clear();
+  });
+
+  /** Let the fire-and-forget discovery probe settle. */
+  function probeSettled(): Promise<void> {
+    return new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
+  }
+
+  it("warns when the issuer advertises back-channel logout but the store cannot revoke", async () => {
+    const issuer: string = "https://op-warn-1.example.com";
+    discoveryMetadataByOrigin.set(issuer, { backchannel_logout_supported: true });
+    const onWarning: ReturnType<typeof vi.fn<(message: string) => void>> = vi.fn();
+
+    createWallowBffServer({ env: requiredEnv({ OIDC_ISSUER: issuer }), onWarning });
+
+    await vi.waitFor(() => {
+      expect(onWarning).toHaveBeenCalledTimes(1);
+    });
+    expect(onWarning).toHaveBeenCalledWith(expect.stringContaining("back-channel logout"));
+  });
+
+  it("stays silent when the store can revoke — a Valkey-backed session store", async () => {
+    const issuer: string = "https://op-warn-2.example.com";
+    discoveryMetadataByOrigin.set(issuer, { backchannel_logout_supported: true });
+    const onWarning: ReturnType<typeof vi.fn<(message: string) => void>> = vi.fn();
+
+    createWallowBffServer({
+      env: requiredEnv({ OIDC_ISSUER: issuer }),
+      redisClient: fakeRedisClient(),
+      onWarning,
+    });
+
+    await probeSettled();
+    expect(onWarning).not.toHaveBeenCalled();
+  });
+
+  it("stays silent when the issuer does not advertise back-channel logout", async () => {
+    const issuer: string = "https://op-warn-3.example.com";
+    const onWarning: ReturnType<typeof vi.fn<(message: string) => void>> = vi.fn();
+
+    createWallowBffServer({ env: requiredEnv({ OIDC_ISSUER: issuer }), onWarning });
+
+    await probeSettled();
+    expect(onWarning).not.toHaveBeenCalled();
+  });
+
+  it("swallows a failed boot probe — the OP may simply not be up yet", async () => {
+    const issuer: string = "https://op-warn-4.example.com";
+    discoveryFailures.add(issuer);
+    const onWarning: ReturnType<typeof vi.fn<(message: string) => void>> = vi.fn();
+
+    const server: WallowBffServer = createWallowBffServer({
+      env: requiredEnv({ OIDC_ISSUER: issuer }),
+      onWarning,
+    });
+
+    await probeSettled();
+    expect(onWarning).not.toHaveBeenCalled();
+    // Construction itself survives the dead OP.
+    expect(server.config.issuer).toBe(issuer);
+  });
+});
+
 describe("server entry exports", () => {
   it("re-exports the preset and both mount constants from the server barrel", async () => {
     const barrel = await import("./index");

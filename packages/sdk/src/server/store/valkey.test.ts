@@ -8,7 +8,7 @@ const PASSWORD: string = "a-very-long-cookie-password-of-at-least-32-chars";
 const SESSION_ID: string = "sess-fixture-000";
 const SESSION_KEY: string = `wallow:session:${SESSION_ID}`;
 
-function makeSession(): BffSession {
+function makeSession(overrides: Partial<BffSession> = {}): BffSession {
   return {
     sessionId: SESSION_ID,
     accessToken: "access-token-abc-123",
@@ -21,6 +21,7 @@ function makeSession(): BffSession {
       name: "Test User",
     },
     version: 1,
+    ...overrides,
   };
 }
 
@@ -60,7 +61,67 @@ class FakeRedis implements RedisLike {
   }
 
   del(key: string): Promise<number> {
-    return Promise.resolve(this.store.delete(key) ? 1 : 0);
+    const hadString: boolean = this.store.delete(key);
+    const hadSet: boolean = this.sets.delete(key);
+    return Promise.resolve(hadString || hadSet ? 1 : 0);
+  }
+
+  /** Set entries, keyed like the string entries but holding members. */
+  public readonly sets: Map<string, { members: Set<string>; expiresAt: number | null }> = new Map();
+
+  private aliveSet(key: string): { members: Set<string>; expiresAt: number | null } | undefined {
+    const entry: { members: Set<string>; expiresAt: number | null } | undefined =
+      this.sets.get(key);
+    if (entry === undefined) {
+      return undefined;
+    }
+    if (entry.expiresAt !== null && entry.expiresAt <= this.now) {
+      this.sets.delete(key);
+      return undefined;
+    }
+    return entry;
+  }
+
+  sadd(key: string, member: string): Promise<number> {
+    const entry: { members: Set<string>; expiresAt: number | null } = this.aliveSet(key) ?? {
+      members: new Set<string>(),
+      expiresAt: null,
+    };
+    const added: boolean = !entry.members.has(member);
+    entry.members.add(member);
+    this.sets.set(key, entry);
+    return Promise.resolve(added ? 1 : 0);
+  }
+
+  srem(key: string, member: string): Promise<number> {
+    const entry: { members: Set<string>; expiresAt: number | null } | undefined =
+      this.aliveSet(key);
+    if (entry === undefined) {
+      return Promise.resolve(0);
+    }
+    const removed: boolean = entry.members.delete(member);
+    if (entry.members.size === 0) {
+      this.sets.delete(key);
+    }
+    return Promise.resolve(removed ? 1 : 0);
+  }
+
+  smembers(key: string): Promise<string[]> {
+    return Promise.resolve([...(this.aliveSet(key)?.members ?? [])]);
+  }
+
+  expire(key: string, seconds: number): Promise<void> {
+    const stringEntry: { value: string; expiresAt: number | null } | undefined =
+      this.store.get(key);
+    if (stringEntry !== undefined) {
+      stringEntry.expiresAt = this.now + seconds * 1000;
+    }
+    const setEntry: { members: Set<string>; expiresAt: number | null } | undefined =
+      this.sets.get(key);
+    if (setEntry !== undefined) {
+      setEntry.expiresAt = this.now + seconds * 1000;
+    }
+    return Promise.resolve();
   }
 
   /** Test helper: raw stored value at `key`, ignoring expiry. */
@@ -184,5 +245,118 @@ describe("ValkeySessionStore", () => {
     redis.now = 60 * 1000 + 1;
 
     expect(await store.read(ref)).toBeNull();
+  });
+});
+
+describe("ValkeySessionStore revocation", () => {
+  const SID: string = "op-session-abc";
+  const SID_KEY: string = `wallow:sid:${SID}`;
+  const SUB_KEY: string = "wallow:sub:user-123";
+
+  it("write indexes sid and subject; revokeBySid destroys the session and both indexes and returns it", async () => {
+    const redis: FakeRedis = new FakeRedis();
+    const store: ValkeySessionStore = new ValkeySessionStore({
+      client: redis,
+      password: PASSWORD,
+    });
+    const session: BffSession = makeSession({ sid: SID });
+    await store.write(session);
+
+    // Both indexes exist after write.
+    expect(redis.raw(SID_KEY)).toBe(SESSION_ID);
+    expect(await redis.smembers(SUB_KEY)).toEqual([SESSION_ID]);
+
+    const revoked: BffSession[] = await store.revokeBySid(SID);
+
+    expect(revoked).toEqual([session]);
+    expect(redis.raw(SESSION_KEY)).toBeUndefined();
+    expect(redis.raw(SID_KEY)).toBeUndefined();
+    expect(await redis.smembers(SUB_KEY)).toEqual([]);
+  });
+
+  it("write without a sid indexes only the subject", async () => {
+    const redis: FakeRedis = new FakeRedis();
+    const store: ValkeySessionStore = new ValkeySessionStore({
+      client: redis,
+      password: PASSWORD,
+    });
+    await store.write(makeSession());
+
+    expect(redis.raw(SID_KEY)).toBeUndefined();
+    expect(await redis.smembers(SUB_KEY)).toEqual([SESSION_ID]);
+  });
+
+  it("revokeBySid of an unknown sid returns an empty list", async () => {
+    const redis: FakeRedis = new FakeRedis();
+    const store: ValkeySessionStore = new ValkeySessionStore({
+      client: redis,
+      password: PASSWORD,
+    });
+
+    expect(await store.revokeBySid("never-seen")).toEqual([]);
+  });
+
+  it("revokeBySubject destroys every session of the subject and returns them", async () => {
+    const redis: FakeRedis = new FakeRedis();
+    const store: ValkeySessionStore = new ValkeySessionStore({
+      client: redis,
+      password: PASSWORD,
+    });
+    const first: BffSession = makeSession({ sid: SID });
+    const second: BffSession = makeSession({
+      sessionId: "sess-fixture-001",
+      sid: "op-session-def",
+    });
+    await store.write(first);
+    await store.write(second);
+
+    const revoked: BffSession[] = await store.revokeBySubject("user-123");
+
+    expect(revoked).toHaveLength(2);
+    expect(revoked).toEqual(expect.arrayContaining([first, second]));
+    expect(redis.raw(SESSION_KEY)).toBeUndefined();
+    expect(redis.raw("wallow:session:sess-fixture-001")).toBeUndefined();
+    expect(redis.raw(SID_KEY)).toBeUndefined();
+    expect(redis.raw("wallow:sid:op-session-def")).toBeUndefined();
+    expect(await redis.smembers(SUB_KEY)).toEqual([]);
+  });
+
+  it("revokeBySubject skips index members whose records are already gone", async () => {
+    const redis: FakeRedis = new FakeRedis();
+    const store: ValkeySessionStore = new ValkeySessionStore({
+      client: redis,
+      password: PASSWORD,
+    });
+    await store.write(makeSession());
+
+    // Simulate the record being evicted out of band, leaving a stale index member.
+    await redis.del(SESSION_KEY);
+
+    expect(await store.revokeBySubject("user-123")).toEqual([]);
+  });
+
+  it("revokeBySubject of an unknown subject returns an empty list", async () => {
+    const redis: FakeRedis = new FakeRedis();
+    const store: ValkeySessionStore = new ValkeySessionStore({
+      client: redis,
+      password: PASSWORD,
+    });
+
+    expect(await store.revokeBySubject("never-seen")).toEqual([]);
+  });
+
+  it("destroy clears the sid and subject index entries alongside the record", async () => {
+    const redis: FakeRedis = new FakeRedis();
+    const store: ValkeySessionStore = new ValkeySessionStore({
+      client: redis,
+      password: PASSWORD,
+    });
+    const ref: string = await store.write(makeSession({ sid: SID }));
+
+    await store.destroy(ref);
+
+    expect(redis.raw(SESSION_KEY)).toBeUndefined();
+    expect(redis.raw(SID_KEY)).toBeUndefined();
+    expect(await redis.smembers(SUB_KEY)).toEqual([]);
   });
 });

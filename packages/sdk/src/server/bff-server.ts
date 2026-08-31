@@ -17,6 +17,7 @@
 import { loadBffConfigFromEnv, type BffConfig } from "./config";
 import { createBffHandlers, type BffHandler, type BffHandlers } from "./handlers";
 import { resolveTrustedProxies, type PeerRequest, type TrustedProxies } from "./forwarded";
+import { discover, type DiscoveryDoc } from "./oidc";
 import { createApiProxy, type ApiProxyHandler } from "./proxy";
 import { CookieSessionStore } from "./store/cookie";
 import { createRedisAdapter, type NodeRedisClient } from "./store/redis-adapter";
@@ -66,6 +67,13 @@ export interface WallowBffServerOptions {
    * variable is set.
    */
   trustedProxies?: string;
+  /**
+   * Receives boot-time misconfiguration warnings — today exactly one: the
+   * issuer advertises OIDC back-channel logout but the selected store defines
+   * neither `revokeBySid` nor `revokeBySubject`, so logout tokens would be
+   * accepted and revoke nothing. Defaults to `console.warn`.
+   */
+  onWarning?: (message: string) => void;
 }
 
 /** The BFF surface a host mounts. */
@@ -138,6 +146,37 @@ function selectStore(
 }
 
 /**
+ * Fire-and-forget boot probe: warn once when the issuer advertises
+ * back-channel logout the selected store cannot honour. A failed probe is
+ * swallowed — the OP may simply not be up yet, and the first real request
+ * retries through the same discovery cache.
+ */
+function warnWhenBackchannelUnsupported(
+  config: BffConfig,
+  store: SessionStore,
+  onWarning: (message: string) => void,
+): void {
+  if (store.revokeBySid !== undefined || store.revokeBySubject !== undefined) {
+    return;
+  }
+  void discover(config)
+    .then((doc: DiscoveryDoc): void => {
+      if (doc.backchannel_logout_supported === true) {
+        onWarning(
+          "The OIDC issuer advertises back-channel logout, but the selected session store " +
+            "defines neither revokeBySid nor revokeBySubject — logout tokens will be accepted " +
+            "and revoke nothing. Cookie sessions cannot be revoked server-side; use a " +
+            "server-side store (set REDIS_URL or supply a ValkeySessionStore) to honour " +
+            "back-channel logout.",
+        );
+      }
+    })
+    .catch((): void => {
+      // Not reachable at boot is not a misconfiguration.
+    });
+}
+
+/**
  * The path below {@link WALLOW_BFF_MOUNT} a request addresses, or `null` when it
  * lies outside the mount. The test is a segment-boundary one, so a lookalike
  * prefix such as `/bffoo/user` is not routed here.
@@ -166,6 +205,7 @@ export function createWallowBffServer(options: WallowBffServerOptions = {}): Wal
   // Handlers and proxy share ONE store instance: the proxy has to resolve the
   // very sessions the callback handler wrote.
   const handlers: BffHandlers = createBffHandlers(config, store);
+  warnWhenBackchannelUnsupported(config, store, options.onWarning ?? console.warn);
   const trusted: TrustedProxies = resolveTrustedProxies(options.trustedProxies, env);
   const proxy: ApiProxyHandler = createApiProxy(config, store, trusted);
 
@@ -178,6 +218,7 @@ export function createWallowBffServer(options: WallowBffServerOptions = {}): Wal
     "/user": handlers.user,
     "/logout": handlers.logout,
     "/frontchannel-logout": handlers.frontchannelLogout,
+    "/backchannel-logout": handlers.backchannelLogout,
   };
 
   return {

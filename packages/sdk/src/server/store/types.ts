@@ -34,6 +34,24 @@ export interface RedisLike {
    * Delete `key`, returning the number of keys removed.
    */
   del: (key: string) => Promise<number>;
+  /**
+   * Add `member` to the set at `key`, returning `1` when it was added and `0`
+   * when it was already present.
+   */
+  sadd: (key: string, member: string) => Promise<number>;
+  /**
+   * Remove `member` from the set at `key`, returning the number of members
+   * removed.
+   */
+  srem: (key: string, member: string) => Promise<number>;
+  /**
+   * All members of the set at `key`; empty when the key does not exist.
+   */
+  smembers: (key: string) => Promise<string[]>;
+  /**
+   * Set (or reset) the expiry of `key` to `seconds` from now.
+   */
+  expire: (key: string, seconds: number) => Promise<void>;
 }
 
 /**
@@ -73,4 +91,22 @@ export interface SessionStore {
    *          (another refresh is already in progress).
    */
   withRefreshLock: <T>(ref: string, fn: () => Promise<T>) => Promise<T | undefined>;
+  /**
+   * Destroy the session bound to the OP session id `sid` (back-channel
+   * logout), returning the sessions that were destroyed so the caller can
+   * revoke their tokens upstream. An OP session maps to one BFF session per
+   * store — a later login under the same `sid` re-points the index, and only
+   * the session it points at is revoked.
+   *
+   * Optional: only stores holding server-side state can revoke by index; a
+   * cookie-only store leaves it undefined.
+   */
+  revokeBySid?: (sid: string) => Promise<BffSession[]>;
+  /**
+   * Destroy every session belonging to `sub` (back-channel logout for a
+   * sid-less logout token), returning the sessions that were destroyed.
+   *
+   * Optional, for the same reason as {@link SessionStore.revokeBySid}.
+   */
+  revokeBySubject?: (sub: string) => Promise<BffSession[]>;
 }

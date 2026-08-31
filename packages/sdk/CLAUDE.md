@@ -9,6 +9,8 @@ the OIDC session and proxies API calls with a bearer attached.
   singleton. `logout` is the ONE imperative navigation helper: `/bff/logout` is CSRF-gated,
   so it cannot be a link the way login is.
 - `./server` (Node) — the BFF tunnel: handlers, proxy, OIDC via openid-client, session sealing.
+  `jose` is a direct dependency, used only by the back-channel logout handler to verify logout
+  tokens against the issuer's JWKS (openid-client exposes no standalone JWT verifier).
 - `./server/passthrough` (Node) — `createApiPassthrough`, a pure reverse proxy owning no
   session. **Its own subpath so a passthrough-only app never pulls `openid-client` into its
   server bundle — nothing here may import the BFF handler/proxy graph.**
@@ -60,6 +62,12 @@ change here must keep all three true:
   (wallow-auth), which has no token of its own to stamp.
 - RFC 7807: the machine code is in `extensions.code` — parse from there with an `UNKNOWN`
   fallback, never a top-level `code`.
+- `POST /bff/backchannel-logout` (the sixth route) is the OP-to-BFF endpoint: no cookie, no
+  CSRF — the signed logout token is the whole security of the request. `RedisLike` requires
+  `sadd`/`srem`/`smembers`/`expire` alongside `get`/`set`/`del`; they back the Valkey store's
+  sid and subject indexes behind the optional `SessionStore.revokeBySid`/`revokeBySubject`
+  (cookie store defines neither, and the server preset warns at boot when the issuer
+  advertises back-channel logout over a store that cannot revoke).
 
 ## Generated OpenAPI client
 

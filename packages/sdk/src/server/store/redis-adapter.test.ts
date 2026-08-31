@@ -28,6 +28,30 @@ class RecordingClient implements NodeRedisClient {
     this.calls.push({ method: "del", args: [key] });
     return Promise.resolve(this.delReturn);
   }
+
+  public sAddReturn: number = 1;
+  public sRemReturn: number = 0;
+  public sMembersReturn: string[] = [];
+
+  sAdd(key: string, member: string): Promise<number> {
+    this.calls.push({ method: "sAdd", args: [key, member] });
+    return Promise.resolve(this.sAddReturn);
+  }
+
+  sRem(key: string, member: string): Promise<number> {
+    this.calls.push({ method: "sRem", args: [key, member] });
+    return Promise.resolve(this.sRemReturn);
+  }
+
+  sMembers(key: string): Promise<string[]> {
+    this.calls.push({ method: "sMembers", args: [key] });
+    return Promise.resolve(this.sMembersReturn);
+  }
+
+  expire(key: string, seconds: number): Promise<unknown> {
+    this.calls.push({ method: "expire", args: [key, seconds] });
+    return Promise.resolve(true);
+  }
 }
 
 describe("createRedisAdapter", () => {
@@ -86,5 +110,46 @@ describe("createRedisAdapter", () => {
 
     expect(removed).toBe(1);
     expect(client.calls).toEqual([{ method: "del", args: ["k"] }]);
+  });
+
+  it("sadd delegates to node-redis sAdd and returns the added count", async () => {
+    const client: RecordingClient = new RecordingClient();
+    const adapter: RedisLike = createRedisAdapter(client);
+
+    const added: number = await adapter.sadd("set-key", "member-1");
+
+    expect(added).toBe(1);
+    expect(client.calls).toEqual([{ method: "sAdd", args: ["set-key", "member-1"] }]);
+  });
+
+  it("srem delegates to node-redis sRem and returns the removed count", async () => {
+    const client: RecordingClient = new RecordingClient();
+    client.sRemReturn = 1;
+    const adapter: RedisLike = createRedisAdapter(client);
+
+    const removed: number = await adapter.srem("set-key", "member-1");
+
+    expect(removed).toBe(1);
+    expect(client.calls).toEqual([{ method: "sRem", args: ["set-key", "member-1"] }]);
+  });
+
+  it("smembers delegates to node-redis sMembers and passes the members through", async () => {
+    const client: RecordingClient = new RecordingClient();
+    client.sMembersReturn = ["a", "b"];
+    const adapter: RedisLike = createRedisAdapter(client);
+
+    const members: string[] = await adapter.smembers("set-key");
+
+    expect(members).toEqual(["a", "b"]);
+    expect(client.calls).toEqual([{ method: "sMembers", args: ["set-key"] }]);
+  });
+
+  it("expire delegates to node-redis expire with the ttl in seconds", async () => {
+    const client: RecordingClient = new RecordingClient();
+    const adapter: RedisLike = createRedisAdapter(client);
+
+    await adapter.expire("set-key", 3600);
+
+    expect(client.calls).toEqual([{ method: "expire", args: ["set-key", 3600] }]);
   });
 });

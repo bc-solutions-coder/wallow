@@ -62,6 +62,13 @@ describe("CookieSessionStore", () => {
     await expect(store.destroy(ref)).resolves.toBeUndefined();
   });
 
+  it("exposes neither revokeBySid nor revokeBySubject — nothing server-side exists to revoke", () => {
+    const store: SessionStore = new CookieSessionStore({ password: PASSWORD });
+
+    expect(store.revokeBySid).toBeUndefined();
+    expect(store.revokeBySubject).toBeUndefined();
+  });
+
   it("withRefreshLock runs fn directly and returns its value", async () => {
     const store: SessionStore = new CookieSessionStore({ password: PASSWORD });
 

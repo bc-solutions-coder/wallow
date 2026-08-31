@@ -1,4 +1,4 @@
-**status: active**
+**status: completed**
 
 # Back-channel logout: SDK side (#147)
 

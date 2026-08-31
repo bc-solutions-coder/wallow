@@ -323,6 +323,47 @@ code `SESSION_REFRESH_FAILED`. Leaving the session in place would replay the
 same doomed refresh on every request; tearing it down turns the refusal into a
 clean re-login at the next navigation.
 
+### Receiving back-channel logout
+
+`createWallowBffServer()` also routes `POST /bff/backchannel-logout` — the endpoint
+[OIDC Back-Channel Logout](bff-pattern.md#back-channel-logout-the-server-to-server-notification)
+delivers logout tokens to when the user's Wallow session ends in another
+application. There is nothing to write: register the URL on the client as its
+`backchannelLogoutUri` and the handler does the rest:
+
+```
+https://<app-host>/bff/backchannel-logout
+```
+
+Two deployment facts make the registration actually work:
+
+- **The URL must be server-reachable from the identity server.** The OP POSTs to
+  it directly — no browser is involved — so the ingress must route the path from
+  wherever Wallow runs, exactly like a public page of the app. Wallow's delivery
+  gate refuses URIs that resolve to private or loopback hosts by default; a
+  deployment where the OP legitimately reaches relying parties over a private
+  network turns on `Identity:BackchannelLogout:AllowPrivateNetworkHosts` (see the
+  [Configuration guide](../getting-started/configuration.md#identity-back-channel-logout)).
+- **Server-side revocation needs the Valkey store.** The handler verifies the
+  logout token against the issuer's JWKS — signature, `iss`, `aud`, `iat`/`exp`,
+  the back-channel `events` claim, no `nonce`, a `sid` or `sub` — and then asks
+  the session store to revoke the sessions it names: by `sid` when the token
+  carries one, else every session of the `sub`. `ValkeySessionStore` indexes both
+  at write time and destroys the records on the spot, then best-effort revokes
+  each destroyed session's refresh token upstream (RFC 7009), so the token family
+  dies with the session. `CookieSessionStore` exposes neither revocation method —
+  the session lives sealed in the browser's cookie, out of the server's reach — so
+  under cookie sessions logout tokens are accepted but revoke nothing.
+  `createWallowBffServer()` warns at boot (via `console.warn`, or the `onWarning`
+  option) when the issuer advertises `backchannel_logout_supported` but the
+  selected store cannot revoke.
+
+The endpoint reads no cookie and requires no CSRF token: the caller is the
+identity server, not a browser, and the signed logout token is the entire
+security of the request. An invalid token answers an undifferentiated
+`400 {"error":"invalid_request"}`; a valid one answers `200`, including when the
+named session is already gone; every response carries `cache-control: no-store`.
+
 ### Client addresses behind a proxy
 
 The API rate-limits per client address and reads that address from the **rightmost**
@@ -448,8 +489,10 @@ const store: SessionStore = new CookieSessionStore({
 ```
 
 `ValkeySessionStore` takes any client satisfying the `RedisLike` interface
-(`get`, `set` with optional `ex`/`nx` flags, `del`), so the SDK carries no hard
-Redis dependency — you adapt the client you already run. Three ways to get one:
+(`get`, `set` with optional `ex`/`nx` flags, `del`, plus `sadd`/`srem`/`smembers`
+and `expire` behind the [back-channel logout](#receiving-back-channel-logout)
+indexes), so the SDK carries no hard Redis dependency — you adapt the client you
+already run. Three ways to get one:
 
 - **`REDIS_URL` alone.** `createWallowBffServer()` builds the store over
   `createRedisFromUrl(url)`, which connects on first use through the optional

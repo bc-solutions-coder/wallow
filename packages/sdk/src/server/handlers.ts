@@ -15,6 +15,7 @@
 import { parse as parseCookies, serialize as serializeCookie } from "cookie-es";
 
 import { isSafeReturnUrl } from "../auth-oidc";
+import { createBackchannelLogoutHandler } from "./backchannel-logout";
 import { decodeIdTokenClaims, mapClaims } from "./claims";
 import type { BffConfig, BffCookieSameSite } from "./config";
 import { createPkcePair, randomUrlSafe } from "./pkce";
@@ -42,13 +43,14 @@ export type BffUserResponse = BffSession["user"] & { csrfToken?: string };
 /** A BFF route handler: a web-standard request in, a web-standard response out. */
 export type BffHandler = (request: Request) => Promise<Response>;
 
-/** The five BFF route handlers returned by {@link createBffHandlers}. */
+/** The six BFF route handlers returned by {@link createBffHandlers}. */
 export interface BffHandlers {
   login: BffHandler;
   callback: BffHandler;
   user: BffHandler;
   logout: BffHandler;
   frontchannelLogout: BffHandler;
+  backchannelLogout: BffHandler;
 }
 
 /** The `Set-Cookie` attributes the BFF writes, in `cookie-es` terms. */
@@ -678,5 +680,10 @@ export function createBffHandlers(
 
       return new Response(FRONTCHANNEL_PAGE, { status: OK_STATUS, headers });
     },
+
+    // OP-to-BFF POST, no browser involved: lives in its own module because its
+    // security model (logout-token verification) shares nothing with the
+    // cookie-and-CSRF machinery above.
+    backchannelLogout: createBackchannelLogoutHandler(config, store),
   };
 }

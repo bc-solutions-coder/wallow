@@ -99,5 +99,21 @@ export function createRedisFromUrl(url: string, options: RedisFromUrlOptions = {
       const client: RedisLike = await ready();
       return client.del(key);
     },
+    sadd: async (key: string, member: string): Promise<number> => {
+      const client: RedisLike = await ready();
+      return client.sadd(key, member);
+    },
+    srem: async (key: string, member: string): Promise<number> => {
+      const client: RedisLike = await ready();
+      return client.srem(key, member);
+    },
+    smembers: async (key: string): Promise<string[]> => {
+      const client: RedisLike = await ready();
+      return client.smembers(key);
+    },
+    expire: async (key: string, seconds: number): Promise<void> => {
+      const client: RedisLike = await ready();
+      return client.expire(key, seconds);
+    },
   };
 }
