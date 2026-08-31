@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenIddict.Abstractions;
 using Wallow.Identity.Application.DTOs;
+using Wallow.Identity.Application.Helpers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Infrastructure.Extensions;
@@ -136,6 +137,16 @@ public sealed partial class PreRegisteredClientSyncService(
         if (!string.Equals(descriptor.ConsentType, expectedConsentType, StringComparison.Ordinal))
         {
             descriptor.ConsentType = expectedConsentType;
+            changed = true;
+        }
+
+        // Sync the refresh-token lifetime: seed rows converge on an explicit per-client setting
+        // (the declared value, or the first-party/third-party default), so an edited seed value
+        // reaches the stored application on the next sync. Applies to new tokens only.
+        if (RefreshTokenLifetimeFor(client) is { } expectedLifetime
+            && descriptor.GetRefreshTokenLifetimeSeconds() != expectedLifetime)
+        {
+            descriptor.SetRefreshTokenLifetime(expectedLifetime);
             changed = true;
         }
 
@@ -287,6 +298,18 @@ public sealed partial class PreRegisteredClientSyncService(
     private static string ConsentTypeFor(PreRegisteredClientDefinition client)
         => client.FirstParty ? ConsentTypes.Implicit : ConsentTypes.Explicit;
 
+    /// <summary>
+    /// The per-client refresh-token lifetime a seed row must carry: the declared value, or the
+    /// first-party/third-party default when the seed states none. A service account holds no
+    /// refresh grant, so it carries no lifetime at all.
+    /// </summary>
+    private static int? RefreshTokenLifetimeFor(PreRegisteredClientDefinition client)
+        => IsServiceAccount(client.ClientId)
+            ? null
+            : client.RefreshTokenLifetime ?? (client.FirstParty
+                ? ClientRefreshTokenLifetimes.FirstPartyDefaultSeconds
+                : ClientRefreshTokenLifetimes.ThirdPartyDefaultSeconds);
+
     private async Task<OpenIddictApplicationDescriptor> BuildDescriptorAsync(PreRegisteredClientDefinition client, CancellationToken ct)
     {
         string clientType = client.IsPublic ? ClientTypes.Public : ClientTypes.Confidential;
@@ -341,6 +364,11 @@ public sealed partial class PreRegisteredClientSyncService(
         if (client.FrontchannelLogoutUri is not null)
         {
             descriptor.SetFrontchannelLogoutUri(new Uri(client.FrontchannelLogoutUri));
+        }
+
+        if (RefreshTokenLifetimeFor(client) is { } refreshTokenLifetime)
+        {
+            descriptor.SetRefreshTokenLifetime(refreshTokenLifetime);
         }
 
         Guid? tenantId = await ResolveTenantIdAsync(client, ct);

@@ -1,6 +1,6 @@
 # Per-client refresh-token lifetime and pinned refresh defaults (#144)
 
-**status: active**
+**status: completed**
 
 Issue: #144 (parent #131). Fixed point for review: `e2c0597a`.
 

@@ -104,6 +104,7 @@ export function registerTestIdPrefix(kind: ClientKind): string {
  */
 interface RegisterValues {
   name: string;
+  refreshTokenLifetime: string;
   redirectUris: string;
   postLogoutRedirectUris: string;
   backchannelLogoutUri: string;
@@ -123,10 +124,37 @@ export function isReservedDisplayName(value: string): boolean {
 /** The message both the stepper and the branding editor show for a reserved display name. */
 export const RESERVED_DISPLAY_NAME_MESSAGE = `'${forkBranding.appName}' is reserved for the platform itself.`;
 
+/** The API's bounds on a per-client refresh-token lifetime, in seconds. */
+const REFRESH_LIFETIME_MIN_SECONDS = 60;
+const REFRESH_LIFETIME_MAX_SECONDS = 31_536_000;
+
+/** What the stepper and the settings editor say when the lifetime is out of bounds. */
+export const REFRESH_LIFETIME_RANGE_MESSAGE = `Enter a whole number of seconds between ${REFRESH_LIFETIME_MIN_SECONDS} and ${REFRESH_LIFETIME_MAX_SECONDS}, or leave it blank.`;
+
+const WHOLE_SECONDS = /^\d+$/u;
+
+/**
+ * Blank is always fine — the server's default applies; otherwise the value must
+ * be a whole number of seconds within the API's bounds, the same rule the
+ * server enforces, checked here so the person hears it before submitting.
+ */
+export function isValidRefreshLifetime(value: string): boolean {
+  const trimmed = value.trim();
+  if (trimmed === "") {
+    return true;
+  }
+  if (!WHOLE_SECONDS.test(trimmed)) {
+    return false;
+  }
+  const seconds = Number(trimmed);
+  return seconds >= REFRESH_LIFETIME_MIN_SECONDS && seconds <= REFRESH_LIFETIME_MAX_SECONDS;
+}
+
 /** A service account ignores every URI field, so only an application requires a redirect. */
 function registerSchemaFor(kind: ClientKind): z.ZodType<RegisterValues, RegisterValues> {
   return z.object({
     name: z.string().trim().min(1, "Name is required"),
+    refreshTokenLifetime: z.string().refine(isValidRefreshLifetime, REFRESH_LIFETIME_RANGE_MESSAGE),
     redirectUris:
       kind === "application"
         ? z
@@ -146,6 +174,7 @@ function registerSchemaFor(kind: ClientKind): z.ZodType<RegisterValues, Register
 /** Which step renders each field — where a server field error sends the user. */
 const STEP_OF_FIELD: Record<keyof RegisterValues, Step> = {
   name: "basics",
+  refreshTokenLifetime: "basics",
   redirectUris: "redirects",
   postLogoutRedirectUris: "redirects",
   backchannelLogoutUri: "redirects",
@@ -197,12 +226,15 @@ const LOGIN_SCOPES: readonly { code: string; displayName: string }[] = [
  */
 function toRegisterBody(kind: ClientKind, values: RegisterValues) {
   const backchannel = values.backchannelLogoutUri.trim();
+  const lifetime = values.refreshTokenLifetime.trim();
   const brandingDisplayName = values.brandingDisplayName.trim();
   const brandingTagline = values.brandingTagline.trim();
   return kind === "application"
     ? {
         kind,
         name: values.name,
+        // Left blank, the server applies its per-client default.
+        refreshTokenLifetime: lifetime === "" ? undefined : Number(lifetime),
         redirectUris: toUriList(values.redirectUris),
         postLogoutRedirectUris: toUriList(values.postLogoutRedirectUris),
         backchannelLogoutUri: backchannel === "" ? undefined : backchannel,
@@ -237,6 +269,7 @@ function useRegisterClientForm(
     schema: registerSchemaFor(kind),
     defaultValues: {
       name: "",
+      refreshTokenLifetime: "",
       redirectUris: "",
       postLogoutRedirectUris: "",
       backchannelLogoutUri: "",
@@ -307,7 +340,31 @@ function BasicsStep(props: Stepper) {
         The client id is derived from the organization and this name. Neither can be changed after
         registration.
       </MutedText>
+      {kind === "application" ? <LifetimeBasics form={form} /> : null}
     </div>
+  );
+}
+
+/** The application-only lifetime field on Basics; a service account has no refresh tokens. */
+function LifetimeBasics(props: { form: RegisterForm }) {
+  const { form } = props;
+  return (
+    <>
+      <form.AppField name="refreshTokenLifetime">
+        {(field) => (
+          <field.TextField
+            label="Refresh token lifetime (seconds)"
+            optional
+            inputMode="numeric"
+            placeholder="86400"
+          />
+        )}
+      </form.AppField>
+      <MutedText>
+        How long after sign-in a session lasts before the user must sign in again. Leave blank for
+        the platform default; changeable later from the ledger, for new logins only.
+      </MutedText>
+    </>
   );
 }
 

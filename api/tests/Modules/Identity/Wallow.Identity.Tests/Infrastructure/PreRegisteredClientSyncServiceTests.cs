@@ -6,8 +6,10 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using OpenIddict.Abstractions;
 using Wallow.Identity.Application.DTOs;
+using Wallow.Identity.Application.Helpers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Infrastructure.Extensions;
 using Wallow.Identity.Infrastructure.Options;
 using Wallow.Identity.Infrastructure.Services;
 using static OpenIddict.Abstractions.OpenIddictConstants;
@@ -309,6 +311,7 @@ public sealed class PreRegisteredClientSyncServiceTests
                 d.Properties["source"] = JsonSerializer.SerializeToElement("config");
                 d.Properties["frontchannel_logout_uri"] =
                     JsonSerializer.SerializeToElement("https://l/bff/frontchannel-logout");
+                d.SetRefreshTokenLifetime(ClientRefreshTokenLifetimes.FirstPartyDefaultSeconds);
                 return ValueTask.CompletedTask;
             });
 
@@ -353,6 +356,7 @@ public sealed class PreRegisteredClientSyncServiceTests
                 d.PostLogoutRedirectUris.Add(new Uri("https://s/so"));
                 d.Permissions.Add(Permissions.Prefixes.Scope + "openid");
                 d.Properties["source"] = JsonSerializer.SerializeToElement("config");
+                d.SetRefreshTokenLifetime(ClientRefreshTokenLifetimes.FirstPartyDefaultSeconds);
                 return ValueTask.CompletedTask;
             });
         await _sut.SyncAsync(CancellationToken.None);
@@ -594,5 +598,136 @@ public sealed class PreRegisteredClientSyncServiceTests
             existing,
             Arg.Is<OpenIddictApplicationDescriptor>(d => d.ConsentType == ConsentTypes.Implicit),
             Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SyncAsync_FirstPartyClientWithoutADeclaredLifetime_PinsTheSevenDayDefault()
+    {
+        _options.Clients.Add(new PreRegisteredClientDefinition
+        {
+            ClientId = "web",
+            FirstParty = true,
+            DisplayName = "Web",
+            Secret = "s",
+            RedirectUris = ["https://l/cb"],
+            Scopes = ["openid"]
+        });
+        _appManager.FindByClientIdAsync("web", Arg.Any<CancellationToken>())
+            .Returns(_ => new ValueTask<object?>((object?)null));
+
+        await _sut.SyncAsync(CancellationToken.None);
+
+        await _appManager.Received(1).CreateAsync(
+            Arg.Is<OpenIddictApplicationDescriptor>(d =>
+                d.GetRefreshTokenLifetimeSeconds() == ClientRefreshTokenLifetimes.FirstPartyDefaultSeconds),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SyncAsync_OrganizationBoundClientWithoutADeclaredLifetime_PinsTheOneDayDefault()
+    {
+        _options.Clients.Add(new PreRegisteredClientDefinition
+        {
+            ClientId = "partner",
+            DisplayName = "Partner",
+            Secret = "s",
+            TenantId = Guid.NewGuid(),
+            RedirectUris = ["https://l/cb"],
+            Scopes = ["openid"]
+        });
+        _appManager.FindByClientIdAsync("partner", Arg.Any<CancellationToken>())
+            .Returns(_ => new ValueTask<object?>((object?)null));
+
+        await _sut.SyncAsync(CancellationToken.None);
+
+        await _appManager.Received(1).CreateAsync(
+            Arg.Is<OpenIddictApplicationDescriptor>(d =>
+                d.GetRefreshTokenLifetimeSeconds() == ClientRefreshTokenLifetimes.ThirdPartyDefaultSeconds),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SyncAsync_ServiceAccount_CarriesNoRefreshTokenLifetime()
+    {
+        _options.Clients.Add(new PreRegisteredClientDefinition
+        {
+            ClientId = "sa-worker",
+            DisplayName = "Worker",
+            Secret = "s",
+            TenantId = Guid.NewGuid(),
+            Scopes = ["openid"],
+            // Meaningless on a client that never holds the refresh grant, so the seeder
+            // must drop it rather than write a setting nothing will ever read.
+            RefreshTokenLifetime = 3600
+        });
+        _appManager.FindByClientIdAsync("sa-worker", Arg.Any<CancellationToken>())
+            .Returns(_ => new ValueTask<object?>((object?)null));
+
+        await _sut.SyncAsync(CancellationToken.None);
+
+        await _appManager.Received(1).CreateAsync(
+            Arg.Is<OpenIddictApplicationDescriptor>(d => d.GetRefreshTokenLifetimeSeconds() == null),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SyncAsync_ExistingClientWhoseLifetimeDrifted_IsUpdatedToTheSeedValue()
+    {
+        _options.Clients.Add(new PreRegisteredClientDefinition
+        {
+            ClientId = "dashboard",
+            DisplayName = "Dashboard",
+            Secret = "s",
+            FirstParty = true,
+            RedirectUris = ["https://l/cb"],
+            Scopes = ["openid"],
+            RefreshTokenLifetime = 7200
+        });
+        object existing = new();
+        _appManager.FindByClientIdAsync("dashboard", Arg.Any<CancellationToken>())
+            .Returns(_ => new ValueTask<object?>(existing));
+        _appManager.PopulateAsync(Arg.Any<OpenIddictApplicationDescriptor>(), existing, Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                OpenIddictApplicationDescriptor d = call.Arg<OpenIddictApplicationDescriptor>();
+                d.ClientId = "dashboard";
+                d.DisplayName = "Dashboard";
+                d.ClientType = ClientTypes.Confidential;
+                d.ConsentType = ConsentTypes.Implicit;
+                d.RedirectUris.Add(new Uri("https://l/cb"));
+                d.Permissions.Add(Permissions.Prefixes.Scope + "openid");
+                d.Properties["source"] = JsonSerializer.SerializeToElement("config");
+                d.SetRefreshTokenLifetime(ClientRefreshTokenLifetimes.FirstPartyDefaultSeconds);
+                return ValueTask.CompletedTask;
+            });
+
+        await _sut.SyncAsync(CancellationToken.None);
+
+        await _appManager.Received(1).UpdateAsync(
+            existing,
+            Arg.Is<OpenIddictApplicationDescriptor>(d => d.GetRefreshTokenLifetimeSeconds() == 7200),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SyncAsync_LifetimeOutsideTheAcceptedRange_ThrowsWithoutRegisteringAnything()
+    {
+        _options.Clients.Add(new PreRegisteredClientDefinition
+        {
+            ClientId = "too-short",
+            FirstParty = true,
+            DisplayName = "Too short",
+            Secret = "s",
+            RedirectUris = ["https://l/cb"],
+            Scopes = ["openid"],
+            RefreshTokenLifetime = ClientRefreshTokenLifetimes.MinimumSeconds - 1
+        });
+
+        Func<Task> sync = () => _sut.SyncAsync(CancellationToken.None);
+
+        await sync.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*too-short*refreshTokenLifetime*");
+        await _appManager.DidNotReceive().CreateAsync(
+            Arg.Any<OpenIddictApplicationDescriptor>(), Arg.Any<CancellationToken>());
     }
 }

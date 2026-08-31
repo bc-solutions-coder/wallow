@@ -10,7 +10,8 @@
  * `{row}-suspend` / `{row}-reinstate` toggle, and a `{row}-delete` dialog that
  * only confirms once the client id has been typed back. Application rows also
  * carry a `{row}-branding` trigger opening the `organization-detail-branding-*`
- * editor in place of the ledger's register flow.
+ * editor in place of the ledger's register flow, and a `{row}-settings` trigger
+ * opening the `organization-detail-client-settings-*` editor the same way.
  */
 import { errorText } from "@bc-solutions-coder/forms";
 import { useMutation, useQuery, useQueryClient } from "@bc-solutions-coder/query";
@@ -48,6 +49,7 @@ import {
   queriesForOperation,
 } from "../api";
 import { ClientBrandingEditor } from "./ClientBrandingEditor";
+import { ClientSettingsEditor } from "./ClientSettingsEditor";
 import { ClientPlatformControls } from "./PlatformSuspension";
 import {
   type ClientKind,
@@ -406,8 +408,10 @@ function ClientRow(props: {
   onRotated: (result: OrganizationClientRegistrationResponse) => void;
   /** Opens the branding editor; only application ledgers pass one. */
   onBranding?: (client: OrganizationClientResponse) => void;
+  /** Opens the settings editor; only application ledgers pass one. */
+  onSettings?: (client: OrganizationClientResponse) => void;
 }) {
-  const { name, orgId, client, nameOf, onRotated, onBranding } = props;
+  const { name, orgId, client, nameOf, onRotated, onBranding, onSettings } = props;
   return (
     <ListRow name={name} className="flex-wrap gap-x-6 gap-y-2">
       <Text as="span" variant="bodySm" color="onCard" weight="medium">
@@ -441,6 +445,19 @@ function ClientRow(props: {
           Branding
         </Button>
       )}
+      {onSettings === undefined ? null : (
+        <Button
+          type="button"
+          variant="secondary"
+          className="w-auto"
+          onClick={() => {
+            onSettings(client);
+          }}
+          data-testid={`${name}-settings`}
+        >
+          Settings
+        </Button>
+      )}
       <RotateSecretDialog name={name} orgId={orgId} client={client} onRotated={onRotated} />
       <LifecycleToggle name={name} orgId={orgId} client={client} />
       <ClientPlatformControls name={name} orgId={orgId} client={client} />
@@ -458,8 +475,9 @@ function Ledger(props: {
   nameOf: NameOf;
   onRotated: (result: OrganizationClientRegistrationResponse) => void;
   onBranding?: (client: OrganizationClientResponse) => void;
+  onSettings?: (client: OrganizationClientResponse) => void;
 }) {
-  const { name, orgId, clients, emptyMessage, nameOf, onRotated, onBranding } = props;
+  const { name, orgId, clients, emptyMessage, nameOf, onRotated, onBranding, onSettings } = props;
   if (clients.length === 0) {
     return <EmptyState data-testid={`${name}s-empty`} message={emptyMessage} />;
   }
@@ -474,6 +492,7 @@ function Ledger(props: {
           nameOf={nameOf}
           onRotated={onRotated}
           onBranding={onBranding}
+          onSettings={onSettings}
         />
       ))}
     </ListCard>
@@ -485,6 +504,7 @@ type Flow =
   | { readonly kind: "idle" }
   | { readonly kind: "registering" }
   | { readonly kind: "branding"; readonly client: OrganizationClientResponse }
+  | { readonly kind: "settings"; readonly client: OrganizationClientResponse }
   | {
       readonly kind: "revealed";
       readonly result: OrganizationClientRegistrationResponse;
@@ -519,6 +539,9 @@ function RegistrationFlow(props: {
     }
     case "branding": {
       return <ClientBrandingEditor orgId={orgId} client={flow.client} onDone={toIdle} />;
+    }
+    case "settings": {
+      return <ClientSettingsEditor orgId={orgId} client={flow.client} onDone={toIdle} />;
     }
     case "revealed": {
       return (
@@ -614,6 +637,13 @@ function KindLedger(props: {
           kind === "application"
             ? (client) => {
                 setFlow({ kind: "branding", client });
+              }
+            : undefined
+        }
+        onSettings={
+          kind === "application"
+            ? (client) => {
+                setFlow({ kind: "settings", client });
               }
             : undefined
         }

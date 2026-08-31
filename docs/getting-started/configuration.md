@@ -165,6 +165,32 @@ If Redis is unreachable, `SessionRevocationMiddleware` will fail to check revoca
 
 Sessions expire 24 hours after creation. The `SessionPruningJob` removes expired and revoked rows from the database on a periodic schedule.
 
+### Identity: Refresh-Token Lifetimes
+
+How long a refresh token lives is decided **per client**, stored on the OpenIddict application
+itself. Three layers, most specific wins:
+
+1. **The client's own `refreshTokenLifetime`** (seconds, 60–31,536,000): settable at
+   registration and via `PATCH /v1/identity/organizations/{orgId}/clients/{clientId}` (or the
+   wallow-web ledger's Settings editor), and declarable on a seed client (the same
+   `refreshTokenLifetime` key in the `clients` array of `api/seed.json` /
+   `docker/seed.production.json`).
+2. **A kind default applied when the field is absent**: a seeded `"firstParty": true` client
+   gets 7 days (604,800 s); any other application — seeded third-party or registered through
+   the organization API — gets 1 day (86,400 s). A service account uses only the
+   `client_credentials` grant and holds no refresh tokens, so it carries no lifetime.
+3. **The global fallback** `OpenIddict:RefreshTokenLifetimeDays` (default 7) for a client with
+   no per-client setting at all, e.g. one registered before per-client lifetimes existed.
+
+A lifetime change applies to **new logins only** — refresh tokens already issued keep the
+lifetime they were minted with.
+
+Refresh-token behavior itself is pinned in code, not configuration: tokens are **rolling** (each
+redemption issues a new token and revokes the old one) with **sliding expiration disabled** (use
+does not extend the window). The only related key is `OpenIddict:RefreshTokenReuseLeewaySeconds`
+(default 30), the grace window in which a just-redeemed token may be replayed — covering a
+client's own retry after a network failure — before a replay revokes the whole token family.
+
 ### Identity: First-Run Setup and the Bootstrap Admin
 
 The seeder (`Wallow.SeederService`) can bootstrap the first administrator from the seed file's

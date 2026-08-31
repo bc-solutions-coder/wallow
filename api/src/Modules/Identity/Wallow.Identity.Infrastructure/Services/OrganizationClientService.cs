@@ -71,6 +71,14 @@ public sealed partial class OrganizationClientService(
         descriptor.SetTenantId(organizationId.ToString());
         ApplyConfiguration(descriptor, input.Kind, input.Configuration);
 
+        // Every organization-registered client is third-party, so an unstated lifetime is pinned
+        // to the third-party default here rather than left to the global fallback. A service
+        // account holds no refresh grant, so it gets no lifetime it could never use.
+        if (input.Configuration.RefreshTokenLifetime is null && input.Kind == RegisteredClientKind.Application)
+        {
+            descriptor.SetRefreshTokenLifetime(ClientRefreshTokenLifetimes.ThirdPartyDefaultSeconds);
+        }
+
         RegisteredClient record = RegisteredClient.Create(
             clientId, organizationId, input.Name, input.Kind, actorUserId, timeProvider);
 
@@ -465,6 +473,13 @@ public sealed partial class OrganizationClientService(
         {
             descriptor.Permissions.Add(Permissions.Prefixes.Scope + scope);
         }
+
+        // Null means "keep the current policy": an update omitting the field must not silently
+        // reset a client's lifetime, and registration handles its own default.
+        if (configuration.RefreshTokenLifetime is { } refreshTokenLifetime)
+        {
+            descriptor.SetRefreshTokenLifetime(refreshTokenLifetime);
+        }
     }
 
     private static BusinessRuleException ClientIdTaken(string name, string clientId) =>
@@ -494,7 +509,8 @@ public sealed partial class OrganizationClientService(
             record.LastRotatedByUserId,
             record.LastRotatedAt,
             record.PlatformSuspendedAt,
-            record.PlatformSuspensionReason);
+            record.PlatformSuspensionReason,
+            descriptor.GetRefreshTokenLifetimeSeconds());
 
     /// <summary>
     /// The issuer the application must validate tokens against: the public auth URL including any

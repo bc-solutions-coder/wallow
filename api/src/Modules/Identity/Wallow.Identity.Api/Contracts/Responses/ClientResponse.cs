@@ -10,4 +10,11 @@ public record ClientResponse
     public required IReadOnlyList<string> PostLogoutRedirectUris { get; init; }
     public required IReadOnlyList<string> Scopes { get; init; }
     public string? FrontchannelLogoutUri { get; init; }
+
+    /// <summary>
+    /// Refresh-token lifetime in seconds, bounding newly issued refresh tokens. Absent on a
+    /// client registered before per-client lifetimes existed, where the global configuration
+    /// decides.
+    /// </summary>
+    public int? RefreshTokenLifetime { get; init; }
 }

@@ -91,6 +91,16 @@ public class WallowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         Environment.SetEnvironmentVariable("OpenIddict__SigningCertPassword", certPassword);
         Environment.SetEnvironmentVariable("OpenIddict__EncryptionCertPath", _encryptionCertPath);
         Environment.SetEnvironmentVariable("OpenIddict__EncryptionCertPassword", certPassword);
+
+        // OpenIddict server options are also read at service registration time, so these must
+        // be environment variables for the same reason as the connection strings above.
+        // Leeway: the production default is 30 s; a reuse-detection spec waiting that long per
+        // case is unaffordable, and no other test replays a redeemed token. Lifetime: the
+        // global fallback defaults to 7 days, the same as the pinned first-party per-client
+        // default — shifting it lets a spec tell "the seeder wrote an explicit 7-day setting"
+        // apart from "the fallback happened to be 7".
+        Environment.SetEnvironmentVariable("OpenIddict__RefreshTokenReuseLeewaySeconds", "2");
+        Environment.SetEnvironmentVariable("OpenIddict__RefreshTokenLifetimeDays", "5");
     }
 
     public new async Task DisposeAsync()
@@ -130,6 +140,8 @@ public class WallowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         Environment.SetEnvironmentVariable("OpenIddict__SigningCertPassword", null);
         Environment.SetEnvironmentVariable("OpenIddict__EncryptionCertPath", null);
         Environment.SetEnvironmentVariable("OpenIddict__EncryptionCertPassword", null);
+        Environment.SetEnvironmentVariable("OpenIddict__RefreshTokenReuseLeewaySeconds", null);
+        Environment.SetEnvironmentVariable("OpenIddict__RefreshTokenLifetimeDays", null);
 
         // Clean up ephemeral certificate files
         DeleteFileSafely(_signingCertPath);

@@ -24,6 +24,13 @@ public sealed record PreRegisteredClientDefinition
 
     public Collection<string> Scopes { get; init; } = [];
 
+    /// <summary>
+    /// Refresh-token lifetime in seconds, bound from the "refreshTokenLifetime" key. Optional:
+    /// an unset value pins the first-party or third-party default at sync time. Meaningless on
+    /// a service account, which never holds the refresh grant.
+    /// </summary>
+    public int? RefreshTokenLifetime { get; init; }
+
     public Guid? TenantId { get; init; }
 
     public string? TenantName { get; init; }
@@ -108,6 +115,19 @@ public sealed class PreRegisteredClientOptions
             throw new InvalidOperationException(
                 "Pre-registered client(s) " + string.Join(", ", badRedirects) + " register a redirect URI the "
                 + "platform refuses. " + ClientUriRules.RedirectUriError);
+        }
+
+        List<string> badLifetimes = Clients
+            .Where(c => c.RefreshTokenLifetime is { } lifetime && !ClientRefreshTokenLifetimes.IsInRange(lifetime))
+            .Select(c => c.ClientId)
+            .ToList();
+
+        if (badLifetimes.Count > 0)
+        {
+            throw new InvalidOperationException(
+                "Pre-registered client(s) " + string.Join(", ", badLifetimes)
+                + " declare a \"refreshTokenLifetime\" outside the accepted range of "
+                + $"{ClientRefreshTokenLifetimes.MinimumSeconds} to {ClientRefreshTokenLifetimes.MaximumSeconds} seconds.");
         }
 
         List<string> problems = [];

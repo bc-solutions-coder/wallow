@@ -271,9 +271,14 @@ curl -s -X POST http://localhost:5001/connect/token \
 ```
 
 Refresh tokens are rolling: issuing a new one revokes the old one, so a retry with an already-used
-refresh token fails. Sliding expiration is disabled, meaning the refresh window does not extend on
-use. Default lifetimes are 15 minutes for access tokens and 7 days for refresh tokens, configurable
-via `OpenIddict:AccessTokenLifetimeMinutes` and `OpenIddict:RefreshTokenLifetimeDays`.
+refresh token fails once the reuse leeway (`OpenIddict:RefreshTokenReuseLeewaySeconds`, default 30)
+has passed — a later replay revokes the whole token family. Sliding expiration is disabled, meaning
+the refresh window does not extend on use. Access tokens default to 15 minutes
+(`OpenIddict:AccessTokenLifetimeMinutes`). Refresh-token lifetime is per client: the client's own
+`refreshTokenLifetime` if set, else 7 days for a seeded first-party client, 1 day for any other
+application, with `OpenIddict:RefreshTokenLifetimeDays` (default 7) as the fallback for clients
+that carry no per-client value — see the
+[Configuration guide](../getting-started/configuration.md#identity-refresh-token-lifetimes).
 
 ### Missing Claims/Permissions
 

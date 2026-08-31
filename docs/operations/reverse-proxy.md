@@ -438,6 +438,10 @@ Rules that make this a valid production client:
   when the SSO session ends elsewhere; omit it to opt out.
 - **`scopes`** — `openid`, `email`, `profile`, and `offline_access` for login, plus whichever API
   scopes the app calls.
+- **`refreshTokenLifetime`** — optional, seconds (60–31,536,000). How long a refresh token issued
+  to this client lives; omit it for the kind default — 7 days for a `"firstParty": true` client,
+  1 day otherwise. See the
+  [Configuration guide](../getting-started/configuration.md#identity-refresh-token-lifetimes).
 
 Both `api/seed.json` and `docker/seed.production.json` are marked `merge=ours` in
 `.gitattributes`, so your fork's seed edits survive upstream merges. See the

@@ -18,7 +18,8 @@ public sealed record OrganizationClientDto(
     Guid? LastRotatedByUserId,
     DateTimeOffset? LastRotatedAt,
     DateTimeOffset? PlatformSuspendedAt = null,
-    string? PlatformSuspensionReason = null);
+    string? PlatformSuspensionReason = null,
+    int? RefreshTokenLifetime = null);
 
 /// <summary>
 /// What a client is given once, at registration and again at rotation: the client secret is
@@ -34,15 +35,18 @@ public sealed record OrganizationClientRegistrationResult(
 
 /// <summary>
 /// Everything about a client its organization may set: the redirect URIs, the optional
-/// back-channel logout URI and the scopes it may request. Name and client id live outside it
-/// because they are fixed at registration. A service account carries only the scopes; its URI
-/// lists are always empty because it never takes part in a browser flow.
+/// back-channel logout URI, the scopes it may request and the optional refresh-token lifetime
+/// in seconds (<see langword="null"/> keeps the client's current policy — at registration that
+/// means the third-party default). Name and client id live outside it because they are fixed at
+/// registration. A service account carries only the scopes; its URI lists are always empty
+/// because it never takes part in a browser flow.
 /// </summary>
 public sealed record ClientConfigurationInput(
     IReadOnlyList<Uri> RedirectUris,
     IReadOnlyList<Uri> PostLogoutRedirectUris,
     Uri? BackchannelLogoutUri,
-    IReadOnlyList<string> Scopes);
+    IReadOnlyList<string> Scopes,
+    int? RefreshTokenLifetime = null);
 
 /// <summary>
 /// A registration request as the surface has already validated it: which kind of client, its

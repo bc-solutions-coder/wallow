@@ -203,6 +203,12 @@ export type ClientResponse = {
     postLogoutRedirectUris: Array<string>;
     scopes: Array<string>;
     frontchannelLogoutUri?: null | string;
+    /**
+     * Refresh-token lifetime in seconds, bounding newly issued refresh tokens. Absent on a
+     * client registered before per-client lifetimes existed, where the global configuration
+     * decides.
+     */
+    refreshTokenLifetime?: null | number | string;
 };
 
 /**
@@ -289,7 +295,9 @@ export type CreateChangelogEntryRequest = {
  * Scopes is what the client may ever request at the authorize endpoint. Omitting it grants the
  * OIDC sign-in baseline; API scopes are opt-in. FrontchannelLogoutUri is the absolute http(s)
  * address the logout page notifies (in a hidden iframe, with iss + sid) when the SSO session
- * ends; omitting it opts the client out of logout notifications.
+ * ends; omitting it opts the client out of logout notifications. RefreshTokenLifetime is
+ * seconds; unset, the client gets the third-party default of one day. It bounds new refresh
+ * tokens only.
  */
 export type CreateClientRequest = {
     name: string;
@@ -297,6 +305,7 @@ export type CreateClientRequest = {
     postLogoutRedirectUris: Array<string>;
     scopes?: null | Array<string>;
     frontchannelLogoutUri?: null | string;
+    refreshTokenLifetime?: null | number | string;
 };
 
 export type CreateInvitationRequest = {
@@ -558,6 +567,12 @@ export type OrganizationClientResponse = {
      * The operator's reason, readable by the organization's admins but not liftable by them.
      */
     platformSuspensionReason?: null | string;
+    /**
+     * Refresh-token lifetime in seconds, bounding newly issued refresh tokens. Absent on a
+     * client registered before per-client lifetimes existed (the global configuration decides)
+     * and on service accounts, which hold no refresh grant.
+     */
+    refreshTokenLifetime?: null | number | string;
 };
 
 /**
@@ -696,6 +711,8 @@ export type RegisterOrganizationClientBranding = {
  * client. Name and the derived client id are immutable once registered. An application needs at
  * least one redirect URI, absolute, fragment-free, and https or http://localhost; a service
  * account ignores every URI field. Both need at least one scope.
+ * `RefreshTokenLifetime` is seconds; unset, an application gets the third-party default of
+ * one day. It bounds new refresh tokens only — tokens already issued keep their expiry.
  */
 export type RegisterOrganizationClientRequest = {
     kind: string;
@@ -705,6 +722,7 @@ export type RegisterOrganizationClientRequest = {
     scopes: Array<string>;
     backchannelLogoutUri?: null | string;
     branding?: null | RegisterOrganizationClientBranding;
+    refreshTokenLifetime?: null | number | string;
 };
 
 export type ResolvedSetting = {
@@ -845,13 +863,17 @@ export type UpdateAnnouncementRequest = {
 /**
  * A full replacement of the client's mutable registration — omitting FrontchannelLogoutUri
  * un-registers the client from front-channel logout notifications, matching how the URI lists
- * replace rather than merge.
+ * replace rather than merge. RefreshTokenLifetime is the one deliberate exception: a
+ * `null` keeps the client's current lifetime, because silently resetting a
+ * security policy on an unrelated edit is a trap. A value (seconds) applies to newly issued
+ * refresh tokens only.
  */
 export type UpdateClientRequest = {
     name: string;
     redirectUris: Array<string>;
     postLogoutRedirectUris: Array<string>;
     frontchannelLogoutUri?: null | string;
+    refreshTokenLifetime?: null | number | string;
 };
 
 export type UpdateInquiryStatusRequest = {
@@ -866,13 +888,16 @@ export type UpdateOrganizationBrandingRequest = {
 
 /**
  * Everything about a client its organization may change after registration. Name and client id
- * are immutable and deliberately absent.
+ * are immutable and deliberately absent. A `null``RefreshTokenLifetime`
+ * keeps the client's current lifetime; a value (seconds) applies to newly issued refresh tokens
+ * only.
  */
 export type UpdateOrganizationClientRequest = {
     redirectUris: Array<string>;
     postLogoutRedirectUris: Array<string>;
     scopes: Array<string>;
     backchannelLogoutUri?: null | string;
+    refreshTokenLifetime?: null | number | string;
 };
 
 /**

@@ -78,4 +78,28 @@ public static class OpenIddictApplicationExtensions
 
         return null;
     }
+
+    /// <summary>
+    /// Writes the client's refresh-token lifetime as the OpenIddict per-application setting the
+    /// server itself resolves at token creation — no Wallow handler reads it back on the token
+    /// path. The setting value is an invariant-culture <see cref="TimeSpan"/> string; seconds are
+    /// the unit the API speaks.
+    /// </summary>
+    public static void SetRefreshTokenLifetime(this OpenIddictApplicationDescriptor descriptor, int seconds)
+    {
+        descriptor.Settings[OpenIddictConstants.Settings.TokenLifetimes.RefreshToken] =
+            ClientRefreshTokenLifetimes.ToSettingValue(seconds);
+    }
+
+    /// <summary>
+    /// The client's refresh-token lifetime in whole seconds, or <see langword="null"/> when the
+    /// client carries none and the global configuration decides.
+    /// </summary>
+    public static int? GetRefreshTokenLifetimeSeconds(this OpenIddictApplicationDescriptor descriptor)
+    {
+        return descriptor.Settings.TryGetValue(
+            OpenIddictConstants.Settings.TokenLifetimes.RefreshToken, out string? setting)
+            ? ClientRefreshTokenLifetimes.FromSettingValue(setting)
+            : null;
+    }
 }

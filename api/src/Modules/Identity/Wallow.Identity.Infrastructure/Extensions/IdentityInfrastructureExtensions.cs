@@ -96,9 +96,21 @@ public static class IdentityInfrastructureExtensions
                 options.SetRefreshTokenLifetime(TimeSpan.FromDays(configuration.GetValue("OpenIddict:RefreshTokenLifetimeDays", 7)));
                 options.SetIdentityTokenLifetime(TimeSpan.FromMinutes(configuration.GetValue("OpenIddict:IdentityTokenLifetimeMinutes", 10)));
 
-                // OpenIddict uses rolling refresh tokens by default (old token is revoked
-                // when a new one is issued), providing theft detection out of the box.
+                // Refresh-token behaviour, pinned deliberately rather than inherited silently.
+                // Rolling stays ON (the OpenIddict default): each refresh redeems the old
+                // token and issues a new one, which is what gives reuse detection its signal.
+                options.Configure(o => o.DisableRollingRefreshTokens = false);
+
+                // Sliding expiration stays OFF: a refreshed token inherits the family's
+                // original expiry, so changing a client's lifetime never stretches refresh
+                // tokens already in the wild.
                 options.DisableSlidingRefreshTokenExpiration();
+
+                // Replaying an already-redeemed refresh token within this window is treated as
+                // a benign concurrent retry; beyond it, OpenIddict revokes every token in the
+                // authorization family. Config-driven so tests can shrink the window.
+                options.SetRefreshTokenReuseLeeway(TimeSpan.FromSeconds(
+                    configuration.GetValue("OpenIddict:RefreshTokenReuseLeewaySeconds", 30)));
 
                 if (environment.IsDevelopment() || environment.EnvironmentName == "Testing")
                 {

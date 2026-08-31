@@ -35,6 +35,7 @@ export {
   organizationClientsReinstateMutation,
   organizationClientsRotateSecretMutation,
   organizationClientsSuspendMutation,
+  organizationClientsUpdateMutation,
   organizationsAddMemberMutation,
   organizationsApproveMemberMutation,
   organizationsArchiveMutation,

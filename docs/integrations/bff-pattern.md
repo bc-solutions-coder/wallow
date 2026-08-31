@@ -402,6 +402,13 @@ On success, Wallow returns a new `access_token` and a rotated `refresh_token`. U
 
 If the refresh fails (e.g., the refresh token has been revoked), clear the session and redirect the user to login.
 
+Refresh tokens are rolling — each refresh issues a new one — but they expire, and the lifetime is
+per client: an application registered through the organization API defaults to **1 day**, so a
+session that goes unused longer than its client's refresh-token lifetime ends at the next refresh.
+The organization's admins can change it (Settings on the client's ledger row, or
+`refreshTokenLifetime` on the PATCH route); changes apply to new logins only. See the
+[Configuration guide](../getting-started/configuration.md#identity-refresh-token-lifetimes).
+
 ---
 
 ## Logout

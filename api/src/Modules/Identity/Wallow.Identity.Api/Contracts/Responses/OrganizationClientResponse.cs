@@ -32,6 +32,13 @@ public record OrganizationClientResponse
     /// <summary>The operator's reason, readable by the organization's admins but not liftable by them.</summary>
     public string? PlatformSuspensionReason { get; init; }
 
+    /// <summary>
+    /// Refresh-token lifetime in seconds, bounding newly issued refresh tokens. Absent on a
+    /// client registered before per-client lifetimes existed (the global configuration decides)
+    /// and on service accounts, which hold no refresh grant.
+    /// </summary>
+    public int? RefreshTokenLifetime { get; init; }
+
     /// <summary>The kind a request names, or <see langword="null"/> when it names neither.</summary>
     public static RegisteredClientKind? ParseKind(string? kind) =>
         kind switch
@@ -61,6 +68,7 @@ public record OrganizationClientResponse
             LastRotatedAt = dto.LastRotatedAt,
             PlatformSuspendedAt = dto.PlatformSuspendedAt,
             PlatformSuspensionReason = dto.PlatformSuspensionReason,
+            RefreshTokenLifetime = dto.RefreshTokenLifetime,
         };
     }
 }

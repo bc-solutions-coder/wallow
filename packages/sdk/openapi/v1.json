@@ -7693,6 +7693,16 @@
               "null",
               "string"
             ]
+          },
+          "refreshTokenLifetime": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Refresh-token lifetime in seconds, bounding newly issued refresh tokens. Absent on a\nclient registered before per-client lifetimes existed, where the global configuration\ndecides.",
+            "format": "int32"
           }
         }
       },
@@ -8013,9 +8023,18 @@
               "null",
               "string"
             ]
+          },
+          "refreshTokenLifetime": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         },
-        "description": "Scopes is what the client may ever request at the authorize endpoint. Omitting it grants the\nOIDC sign-in baseline; API scopes are opt-in. FrontchannelLogoutUri is the absolute http(s)\naddress the logout page notifies (in a hidden iframe, with iss + sid) when the SSO session\nends; omitting it opts the client out of logout notifications."
+        "description": "Scopes is what the client may ever request at the authorize endpoint. Omitting it grants the\nOIDC sign-in baseline; API scopes are opt-in. FrontchannelLogoutUri is the absolute http(s)\naddress the logout page notifies (in a hidden iframe, with iss + sid) when the SSO session\nends; omitting it opts the client out of logout notifications. RefreshTokenLifetime is\nseconds; unset, the client gets the third-party default of one day. It bounds new refresh\ntokens only."
       },
       "CreateInvitationRequest": {
         "required": [
@@ -8802,6 +8821,16 @@
               "string"
             ],
             "description": "The operator's reason, readable by the organization's admins but not liftable by them."
+          },
+          "refreshTokenLifetime": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Refresh-token lifetime in seconds, bounding newly issued refresh tokens. Absent on a\nclient registered before per-client lifetimes existed (the global configuration decides)\nand on service accounts, which hold no refresh grant.",
+            "format": "int32"
           }
         }
       },
@@ -9333,9 +9362,18 @@
                 "$ref": "#/components/schemas/RegisterOrganizationClientBranding"
               }
             ]
+          },
+          "refreshTokenLifetime": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         },
-        "description": "Registers a client on behalf of an organization. `Kind` is `application` for a\ndeveloper application a person signs in to or `service-account` for a client-credentials\nclient. Name and the derived client id are immutable once registered. An application needs at\nleast one redirect URI, absolute, fragment-free, and https or http://localhost; a service\naccount ignores every URI field. Both need at least one scope."
+        "description": "Registers a client on behalf of an organization. `Kind` is `application` for a\ndeveloper application a person signs in to or `service-account` for a client-credentials\nclient. Name and the derived client id are immutable once registered. An application needs at\nleast one redirect URI, absolute, fragment-free, and https or http://localhost; a service\naccount ignores every URI field. Both need at least one scope.\n`RefreshTokenLifetime` is seconds; unset, an application gets the third-party default of\none day. It bounds new refresh tokens only — tokens already issued keep their expiry."
       },
       "ResolvedSetting": {
         "required": [
@@ -9811,9 +9849,18 @@
               "null",
               "string"
             ]
+          },
+          "refreshTokenLifetime": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         },
-        "description": "A full replacement of the client's mutable registration — omitting FrontchannelLogoutUri\nun-registers the client from front-channel logout notifications, matching how the URI lists\nreplace rather than merge."
+        "description": "A full replacement of the client's mutable registration — omitting FrontchannelLogoutUri\nun-registers the client from front-channel logout notifications, matching how the URI lists\nreplace rather than merge. RefreshTokenLifetime is the one deliberate exception: a\n`null` keeps the client's current lifetime, because silently resetting a\nsecurity policy on an unrelated edit is a trap. A value (seconds) applies to newly issued\nrefresh tokens only."
       },
       "UpdateInquiryStatusRequest": {
         "required": [
@@ -9885,9 +9932,18 @@
               "null",
               "string"
             ]
+          },
+          "refreshTokenLifetime": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         },
-        "description": "Everything about a client its organization may change after registration. Name and client id\nare immutable and deliberately absent."
+        "description": "Everything about a client its organization may change after registration. Name and client id\nare immutable and deliberately absent. A `null``RefreshTokenLifetime`\nkeeps the client's current lifetime; a value (seconds) applies to newly issued refresh tokens\nonly."
       },
       "UpdateOrganizationEnrollmentRequest": {
         "required": [

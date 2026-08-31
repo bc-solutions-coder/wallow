@@ -120,14 +120,16 @@ registration, e.g. `sa-acme-nightly-sync`.
 | `GET` | `/v1/identity/organizations/{orgId}/clients` | List the organization's clients; `kind` tells them apart |
 | `POST` | `/v1/identity/organizations/{orgId}/clients` | Register an application or a service account |
 | `GET` | `/v1/identity/organizations/{orgId}/clients/{clientId}` | Get one client |
-| `PATCH` | `/v1/identity/organizations/{orgId}/clients/{clientId}` | Update scopes (and, for an application, URIs) |
+| `PATCH` | `/v1/identity/organizations/{orgId}/clients/{clientId}` | Update scopes (and, for an application, URIs and refresh-token lifetime) |
 | `DELETE` | `/v1/identity/organizations/{orgId}/clients/{clientId}` | Delete the client; its tokens stop validating |
 | `POST` | `/v1/identity/organizations/{orgId}/clients/{clientId}/rotate-secret` | Issue a new secret (shown once); body `{ "revokeActiveTokens": true }` also ends every token the client holds |
 | `GET` | `/v1/identity/scopes` | List the scope catalog (`ScopeRead`); `platformOnly` scopes cannot be granted here |
 
 `PATCH` takes the same `redirectUris`, `postLogoutRedirectUris`, `backchannelLogoutUri` and
-`scopes` fields as registration, minus `kind` and `name`, which are immutable. For a service
-account only `scopes` matters.
+`scopes` fields as registration, minus `kind` and `name`, which are immutable, plus an optional
+`refreshTokenLifetime` (seconds, 60–31,536,000; `null` or absent keeps the current value, and a
+change applies to new logins only). For a service account only `scopes` matters — it uses the
+`client_credentials` grant and holds no refresh tokens, so it has no lifetime either.
 
 ### Pre-registered service accounts
 

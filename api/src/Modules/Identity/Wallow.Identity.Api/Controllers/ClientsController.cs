@@ -64,7 +64,8 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
                 RedirectUris = descriptor.RedirectUris.Select(u => u.ToString()).ToList(),
                 PostLogoutRedirectUris = descriptor.PostLogoutRedirectUris.Select(u => u.ToString()).ToList(),
                 Scopes = ScopesOf(descriptor),
-                FrontchannelLogoutUri = descriptor.GetFrontchannelLogoutUri()?.AbsoluteUri
+                FrontchannelLogoutUri = descriptor.GetFrontchannelLogoutUri()?.AbsoluteUri,
+                RefreshTokenLifetime = descriptor.GetRefreshTokenLifetimeSeconds()
             });
         }
 
@@ -96,7 +97,8 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
             RedirectUris = descriptor.RedirectUris.Select(u => u.ToString()).ToList(),
             PostLogoutRedirectUris = descriptor.PostLogoutRedirectUris.Select(u => u.ToString()).ToList(),
             Scopes = ScopesOf(descriptor),
-            FrontchannelLogoutUri = descriptor.GetFrontchannelLogoutUri()?.AbsoluteUri
+            FrontchannelLogoutUri = descriptor.GetFrontchannelLogoutUri()?.AbsoluteUri,
+            RefreshTokenLifetime = descriptor.GetRefreshTokenLifetimeSeconds()
         });
     }
 
@@ -132,6 +134,11 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
             return ValidationProblem(ModelState);
         }
 
+        if (!RefreshTokenLifetimeIsAcceptable(request.RefreshTokenLifetime))
+        {
+            return ValidationProblem(ModelState);
+        }
+
         string clientSecret = GenerateClientSecret();
 
         OpenIddictApplicationDescriptor descriptor = new()
@@ -161,6 +168,13 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
 
         descriptor.SetFrontchannelLogoutUri(frontchannelLogoutUri);
 
+        // Clients registered here carry no consent type, which makes them third-party, so an
+        // unstated lifetime is pinned to the third-party default rather than left to the global
+        // fallback.
+        int refreshTokenLifetime =
+            request.RefreshTokenLifetime ?? ClientRefreshTokenLifetimes.ThirdPartyDefaultSeconds;
+        descriptor.SetRefreshTokenLifetime(refreshTokenLifetime);
+
         foreach (string uri in request.RedirectUris)
         {
             descriptor.RedirectUris.Add(new Uri(uri));
@@ -183,7 +197,8 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
             RedirectUris = request.RedirectUris,
             PostLogoutRedirectUris = request.PostLogoutRedirectUris,
             Scopes = scopes,
-            FrontchannelLogoutUri = frontchannelLogoutUri?.AbsoluteUri
+            FrontchannelLogoutUri = frontchannelLogoutUri?.AbsoluteUri,
+            RefreshTokenLifetime = refreshTokenLifetime
         };
 
         return CreatedAtAction(nameof(GetById), new { id }, response);
@@ -211,6 +226,11 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
             return ValidationProblem(ModelState);
         }
 
+        if (!RefreshTokenLifetimeIsAcceptable(request.RefreshTokenLifetime))
+        {
+            return ValidationProblem(ModelState);
+        }
+
         object? application = await applicationManager.FindByIdAsync(id, ct);
         if (application is null)
         {
@@ -221,6 +241,14 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
         await applicationManager.PopulateAsync(descriptor, application, ct);
 
         descriptor.DisplayName = request.Name;
+
+        // Unlike the URI fields, null keeps the current lifetime rather than clearing it:
+        // reverting a client to the global fallback on an unrelated edit would silently loosen
+        // a security policy. A value applies to newly issued refresh tokens only.
+        if (request.RefreshTokenLifetime is { } updatedLifetime)
+        {
+            descriptor.SetRefreshTokenLifetime(updatedLifetime);
+        }
 
         // Null clears the registration: Update replaces the whole mutable surface, so an omitted
         // URI opts the client back out of logout notifications rather than keeping the old one.
@@ -250,7 +278,8 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
             RedirectUris = request.RedirectUris,
             PostLogoutRedirectUris = request.PostLogoutRedirectUris,
             Scopes = ScopesOf(descriptor),
-            FrontchannelLogoutUri = frontchannelLogoutUri?.AbsoluteUri
+            FrontchannelLogoutUri = frontchannelLogoutUri?.AbsoluteUri,
+            RefreshTokenLifetime = descriptor.GetRefreshTokenLifetimeSeconds()
         });
     }
 
@@ -300,8 +329,22 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
             RedirectUris = descriptor.RedirectUris.Select(u => u.ToString()).ToList(),
             PostLogoutRedirectUris = descriptor.PostLogoutRedirectUris.Select(u => u.ToString()).ToList(),
             Scopes = ScopesOf(descriptor),
-            FrontchannelLogoutUri = descriptor.GetFrontchannelLogoutUri()?.AbsoluteUri
+            FrontchannelLogoutUri = descriptor.GetFrontchannelLogoutUri()?.AbsoluteUri,
+            RefreshTokenLifetime = descriptor.GetRefreshTokenLifetimeSeconds()
         });
+    }
+
+    private bool RefreshTokenLifetimeIsAcceptable(int? refreshTokenLifetime)
+    {
+        if (refreshTokenLifetime is { } lifetime && !ClientRefreshTokenLifetimes.IsInRange(lifetime))
+        {
+            ModelState.AddModelError(
+                nameof(CreateClientRequest.RefreshTokenLifetime),
+                ClientRefreshTokenLifetimes.RangeMessage);
+            return false;
+        }
+
+        return true;
     }
 
     /// <summary>

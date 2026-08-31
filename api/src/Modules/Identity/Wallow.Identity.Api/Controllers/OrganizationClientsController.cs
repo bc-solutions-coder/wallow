@@ -48,6 +48,7 @@ public class OrganizationClientsController(
     private const string PostLogoutRedirectUrisField = "postLogoutRedirectUris";
     private const string BackchannelLogoutUriField = "backchannelLogoutUri";
     private const string ScopesField = "scopes";
+    private const string RefreshTokenLifetimeField = "refreshTokenLifetime";
 
     /// <summary>
     /// Register a developer application or a service account for the organization. The response
@@ -94,7 +95,8 @@ public class OrganizationClientsController(
             request.RedirectUris,
             request.PostLogoutRedirectUris,
             request.BackchannelLogoutUri,
-            request.Scopes);
+            request.Scopes,
+            request.RefreshTokenLifetime);
         if (kind is null || configuration is null || !ModelState.IsValid)
         {
             return ValidationProblem(ModelState);
@@ -223,7 +225,12 @@ public class OrganizationClientsController(
         }
 
         ClientConfigurationInput? configuration = ParseConfiguration(
-            existing.Kind, request.RedirectUris, request.PostLogoutRedirectUris, request.BackchannelLogoutUri, request.Scopes);
+            existing.Kind,
+            request.RedirectUris,
+            request.PostLogoutRedirectUris,
+            request.BackchannelLogoutUri,
+            request.Scopes,
+            request.RefreshTokenLifetime);
         if (configuration is null || !ModelState.IsValid)
         {
             return ValidationProblem(ModelState);
@@ -495,7 +502,8 @@ public class OrganizationClientsController(
         IReadOnlyList<string> redirectValues,
         IReadOnlyList<string> postLogoutValues,
         string? backchannelValue,
-        IReadOnlyList<string> scopes)
+        IReadOnlyList<string> scopes,
+        int? refreshTokenLifetime)
     {
         bool valid = true;
         if (scopes.Count == 0)
@@ -504,8 +512,16 @@ public class OrganizationClientsController(
             ModelState.AddModelError(ScopesField, "At least one scope is required.");
         }
 
+        if (refreshTokenLifetime is { } lifetime && !ClientRefreshTokenLifetimes.IsInRange(lifetime))
+        {
+            valid = false;
+            ModelState.AddModelError(RefreshTokenLifetimeField, ClientRefreshTokenLifetimes.RangeMessage);
+        }
+
         if (kind == RegisteredClientKind.ServiceAccount)
         {
+            // A service account never holds the refresh grant, so a lifetime is dropped with the
+            // URI fields rather than refused.
             return valid ? new ClientConfigurationInput([], [], null, scopes) : null;
         }
 
@@ -527,7 +543,8 @@ public class OrganizationClientsController(
         }
 
         return valid
-            ? new ClientConfigurationInput(redirectUris, postLogoutRedirectUris, backchannelLogoutUri, scopes)
+            ? new ClientConfigurationInput(
+                redirectUris, postLogoutRedirectUris, backchannelLogoutUri, scopes, refreshTokenLifetime)
             : null;
     }
 

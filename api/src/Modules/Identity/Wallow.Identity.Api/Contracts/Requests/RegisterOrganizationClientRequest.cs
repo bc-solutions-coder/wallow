@@ -6,6 +6,8 @@ namespace Wallow.Identity.Api.Contracts.Requests;
 /// client. Name and the derived client id are immutable once registered. An application needs at
 /// least one redirect URI, absolute, fragment-free, and https or http://localhost; a service
 /// account ignores every URI field. Both need at least one scope.
+/// <c>RefreshTokenLifetime</c> is seconds; unset, an application gets the third-party default of
+/// one day. It bounds new refresh tokens only — tokens already issued keep their expiry.
 /// </summary>
 public record RegisterOrganizationClientRequest(
     string Kind,
@@ -14,7 +16,8 @@ public record RegisterOrganizationClientRequest(
     IReadOnlyList<string> PostLogoutRedirectUris,
     IReadOnlyList<string> Scopes,
     string? BackchannelLogoutUri = null,
-    RegisterOrganizationClientBranding? Branding = null);
+    RegisterOrganizationClientBranding? Branding = null,
+    int? RefreshTokenLifetime = null);
 
 /// <summary>
 /// Optional initial branding for an application: the end-user-facing display name (defaults to
@@ -26,13 +29,16 @@ public record RegisterOrganizationClientBranding(
 
 /// <summary>
 /// Everything about a client its organization may change after registration. Name and client id
-/// are immutable and deliberately absent.
+/// are immutable and deliberately absent. A <see langword="null"/> <c>RefreshTokenLifetime</c>
+/// keeps the client's current lifetime; a value (seconds) applies to newly issued refresh tokens
+/// only.
 /// </summary>
 public record UpdateOrganizationClientRequest(
     IReadOnlyList<string> RedirectUris,
     IReadOnlyList<string> PostLogoutRedirectUris,
     IReadOnlyList<string> Scopes,
-    string? BackchannelLogoutUri = null);
+    string? BackchannelLogoutUri = null,
+    int? RefreshTokenLifetime = null);
 
 /// <summary>
 /// Rotates a client's secret. <c>RevokeActiveTokens</c> additionally ends every token the client
