@@ -1,4 +1,4 @@
-**status: active**
+**status: completed**
 
 # minimal-app as the external RP example, three-origin acceptance, and quickstart (#151)
 
