@@ -63,7 +63,11 @@ public abstract class OrganizationClientsTestBase(WallowApiFactory factory) : Id
 
     /// <summary>
     /// Presents the bearer token to userinfo, the one endpoint the test host still validates
-    /// through OpenIddict itself (the stub scheme would accept any bearer string).
+    /// through OpenIddict itself (the stub scheme would accept any bearer string). Only for
+    /// tokens minted through the default http client (client-credentials grants) — a token from
+    /// <see cref="Harness"/> carries the https issuer and dies here with an issuer-mismatch 401
+    /// whether or not it was revoked; present those through
+    /// <see cref="HarnessBearerCallAsync"/> instead.
     /// </summary>
     protected async Task<HttpResponseMessage> BearerCallAsync(string accessToken)
     {
@@ -87,6 +91,26 @@ public abstract class OrganizationClientsTestBase(WallowApiFactory factory) : Id
         });
         bearerClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         return await bearerClient.GetAsync("/connect/userinfo");
+    }
+
+    /// <summary>
+    /// The pre-revocation sanity check that makes a later 401 falsifiable: a live harness token
+    /// answers userinfo 200.
+    /// </summary>
+    protected async Task HarnessTokenShouldBeAliveAsync(string accessToken, string because)
+    {
+        (await HarnessBearerCallAsync(accessToken)).StatusCode.Should().Be(HttpStatusCode.OK, because);
+    }
+
+    /// <summary>
+    /// Revocation may land off the request, so wait for the 401 before asserting it.
+    /// </summary>
+    protected async Task HarnessTokenShouldDieAsync(string accessToken, string because)
+    {
+        await WaitForAsync(async () =>
+            (await HarnessBearerCallAsync(accessToken)).StatusCode == HttpStatusCode.Unauthorized);
+        (await HarnessBearerCallAsync(accessToken)).StatusCode
+            .Should().Be(HttpStatusCode.Unauthorized, because);
     }
 
     /// <summary>Waits for the audit handler, which runs off the request, to land the row.</summary>

@@ -27,6 +27,8 @@ public class ClientPlatformSuspensionTests(WallowApiFactory factory) : Organizat
         (Guid userId, string email) = await EnrollAndActAsync(orgId, "admin");
         (string clientId, string secret) = await RegisterApplicationAsync(orgId, "Platform Suspend App");
         TokenOutcome tokens = await SignInThroughAsync(email, clientId, secret);
+        await HarnessTokenShouldBeAliveAsync(
+            tokens.AccessToken!, "the token is alive until the platform suspends the client");
         CancellationToken stream = OpenRealtimeStreamAsync(userId, orgId, clientId);
 
         Guid operatorId = await ActAsGlobalAdminAsync();
@@ -42,7 +44,7 @@ public class ClientPlatformSuspensionTests(WallowApiFactory factory) : Organizat
         AuthorizeOutcome refused = await Harness.AuthorizeAsync(clientId, LoginScope);
         refused.Error.Should().Be("client_suspended_by_platform");
         refused.Location!.OriginalString.Should().Contain("/error?");
-        (await BearerCallAsync(tokens.AccessToken!)).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        await HarnessTokenShouldDieAsync(tokens.AccessToken!, "a platform-suspended client's tokens are dead");
         TokenOutcome refresh = await Harness.RefreshAsync(clientId, secret, tokens.RefreshToken!);
         refresh.StatusCode.Should().Be(HttpStatusCode.Unauthorized, refresh.Body);
         refresh.Error.Should().Be("invalid_client");

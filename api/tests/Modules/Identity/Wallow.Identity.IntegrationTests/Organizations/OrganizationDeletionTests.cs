@@ -40,8 +40,7 @@ public class OrganizationDeletionTests(WallowApiFactory factory) : OrganizationC
         (string clientId, string secret) = await RegisterApplicationAsync(orgId, "Cascade App");
         (string workerId, string workerSecret) = await RegisterServiceAccountAsync(orgId, "Cascade Worker");
         TokenOutcome tokens = await SignInThroughAsync(email, clientId, secret);
-        (await HarnessBearerCallAsync(tokens.AccessToken!)).StatusCode
-            .Should().Be(HttpStatusCode.OK, "the token is alive until the organization dies");
+        await HarnessTokenShouldBeAliveAsync(tokens.AccessToken!, "the token is alive until the organization dies");
         await WaitForAsync(async () => await BrandingOfAsync(clientId) is not null);
         CancellationToken clientStream = OpenRealtimeStreamAsync(adminId, orgId, clientId);
         CancellationToken memberStream = OpenRealtimeStreamAsync(adminId, orgId, clientId: null);
@@ -54,10 +53,8 @@ public class OrganizationDeletionTests(WallowApiFactory factory) : OrganizationC
         HttpResponseMessage deleted = await DeleteOrganizationAsync(Client, orgId, "Deletion Cascade Org");
         deleted.StatusCode.Should().Be(HttpStatusCode.NoContent, await deleted.Content.ReadAsStringAsync());
 
-        await WaitForAsync(async () =>
-            (await HarnessBearerCallAsync(tokens.AccessToken!)).StatusCode == HttpStatusCode.Unauthorized);
-        (await HarnessBearerCallAsync(tokens.AccessToken!)).StatusCode
-            .Should().Be(HttpStatusCode.Unauthorized, "a deleted organization's member tokens are dead");
+        await HarnessTokenShouldDieAsync(
+            tokens.AccessToken!, "a deleted organization's member tokens are dead");
         TokenOutcome refresh = await Harness.RefreshAsync(clientId, secret, tokens.RefreshToken!);
         refresh.StatusCode.Should().Be(HttpStatusCode.Unauthorized, refresh.Body);
         refresh.Error.Should().Be("invalid_client");
@@ -126,8 +123,7 @@ public class OrganizationDeletionTests(WallowApiFactory factory) : OrganizationC
         (Guid adminId, string email) = await EnrollAndActAsync(orgId, "admin");
         (string clientId, string secret) = await RegisterApplicationAsync(orgId, "Rollback App");
         TokenOutcome tokens = await SignInThroughAsync(email, clientId, secret);
-        (await HarnessBearerCallAsync(tokens.AccessToken!)).StatusCode
-            .Should().Be(HttpStatusCode.OK, "the token is alive before the cascade is attempted");
+        await HarnessTokenShouldBeAliveAsync(tokens.AccessToken!, "the token is alive before the cascade is attempted");
 
         // The realtime hang-up sits inside the revocation cascade; making it throw fails the
         // transaction after token revocations have already been asked for.
@@ -146,8 +142,7 @@ public class OrganizationDeletionTests(WallowApiFactory factory) : OrganizationC
         // transaction are alive again.
         (await Client.GetAsync($"/identity/organizations/{orgId}")).StatusCode
             .Should().Be(HttpStatusCode.OK, "a failed cascade leaves the organization intact");
-        (await HarnessBearerCallAsync(tokens.AccessToken!)).StatusCode
-            .Should().Be(HttpStatusCode.OK, "the rollback undid the token revocations");
+        await HarnessTokenShouldBeAliveAsync(tokens.AccessToken!, "the rollback undid the token revocations");
         TokenOutcome refresh = await Harness.RefreshAsync(clientId, secret, tokens.RefreshToken!);
         refresh.StatusCode.Should().Be(HttpStatusCode.OK, refresh.Body);
     }

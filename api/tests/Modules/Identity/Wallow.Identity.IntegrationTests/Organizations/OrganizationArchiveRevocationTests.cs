@@ -27,16 +27,16 @@ public class OrganizationArchiveRevocationTests(WallowApiFactory factory) : Orga
         (Guid userId, string email) = await EnrollAndActAsync(orgId, "admin");
         (string clientId, string secret) = await RegisterApplicationAsync(orgId, "Archive App");
         TokenOutcome tokens = await SignInThroughAsync(email, clientId, secret);
+        await HarnessTokenShouldBeAliveAsync(
+            tokens.AccessToken!, "the token is alive until the organization is archived");
         CancellationToken clientStream = OpenRealtimeStreamAsync(userId, orgId, clientId);
         CancellationToken memberStream = OpenRealtimeStreamAsync(userId, orgId, clientId: null);
 
         HttpResponseMessage archived = await Client.PostAsync($"/identity/organizations/{orgId}/archive", null);
         archived.StatusCode.Should().Be(HttpStatusCode.NoContent, await archived.Content.ReadAsStringAsync());
 
-        await WaitForAsync(async () =>
-            (await BearerCallAsync(tokens.AccessToken!)).StatusCode == HttpStatusCode.Unauthorized);
-        (await BearerCallAsync(tokens.AccessToken!)).StatusCode
-            .Should().Be(HttpStatusCode.Unauthorized, "an archived organization's member tokens are dead");
+        await HarnessTokenShouldDieAsync(
+            tokens.AccessToken!, "an archived organization's member tokens are dead");
 
         TokenOutcome refresh = await Harness.RefreshAsync(clientId, secret, tokens.RefreshToken!);
         refresh.StatusCode.Should().Be(HttpStatusCode.Unauthorized, refresh.Body);

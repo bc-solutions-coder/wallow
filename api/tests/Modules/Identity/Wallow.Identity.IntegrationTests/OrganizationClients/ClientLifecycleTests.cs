@@ -29,6 +29,7 @@ public class ClientLifecycleTests(WallowApiFactory factory) : OrganizationClient
         (Guid userId, string email) = await EnrollAndActAsync(orgId, "admin");
         (string clientId, string secret) = await RegisterApplicationAsync(orgId, "Suspend App");
         TokenOutcome tokens = await SignInThroughAsync(email, clientId, secret);
+        await HarnessTokenShouldBeAliveAsync(tokens.AccessToken!, "the token is alive until the client is suspended");
         CancellationToken stream = OpenRealtimeStreamAsync(userId, orgId, clientId);
 
         JsonElement suspended = await LifecycleAsync(orgId, clientId, "suspend");
@@ -43,7 +44,7 @@ public class ClientLifecycleTests(WallowApiFactory factory) : OrganizationClient
         refresh.StatusCode.Should().Be(HttpStatusCode.Unauthorized, refresh.Body);
         refresh.Error.Should().Be("invalid_client");
 
-        (await BearerCallAsync(tokens.AccessToken!)).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        await HarnessTokenShouldDieAsync(tokens.AccessToken!, "a suspended client's tokens are dead");
         stream.IsCancellationRequested.Should().BeTrue("a suspended client's realtime stream is hung up");
 
         JsonElement reinstated = await LifecycleAsync(orgId, clientId, "reinstate");
@@ -104,6 +105,7 @@ public class ClientLifecycleTests(WallowApiFactory factory) : OrganizationClient
         (Guid userId, string email) = await EnrollAndActAsync(orgId, "admin");
         (string clientId, string secret) = await RegisterApplicationAsync(orgId, "Delete App");
         TokenOutcome tokens = await SignInThroughAsync(email, clientId, secret);
+        await HarnessTokenShouldBeAliveAsync(tokens.AccessToken!, "the token is alive until the client is deleted");
         // Registration itself creates the branding row through the integration event; wait for it.
         await WaitForAsync(async () => await BrandingOfAsync(clientId) is not null);
         (await BrandingOfAsync(clientId)).Should().NotBeNull("registration creates the branding row");
@@ -118,7 +120,7 @@ public class ClientLifecycleTests(WallowApiFactory factory) : OrganizationClient
         unknown.Body.Should().Contain("error:invalid_request", "a deleted client is an unknown client");
         unknown.Body.Should().Contain("The specified 'client_id' is invalid.");
         (unknown.Location?.OriginalString ?? string.Empty).Should().NotStartWith(AuthorizationCodeFlowHarness.RedirectUri);
-        (await BearerCallAsync(tokens.AccessToken!)).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        await HarnessTokenShouldDieAsync(tokens.AccessToken!, "a deleted client's tokens are dead");
         TokenOutcome refresh = await Harness.RefreshAsync(clientId, secret, tokens.RefreshToken!);
         refresh.StatusCode.Should().Be(HttpStatusCode.Unauthorized, refresh.Body);
         refresh.Error.Should().Be("invalid_client");

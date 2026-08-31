@@ -29,6 +29,8 @@ public class OrganizationPlatformSuspensionTests(WallowApiFactory factory) : Org
         (string clientId, string secret) = await RegisterApplicationAsync(orgId, "Org Suspend App");
         (string workerId, string workerSecret) = await RegisterServiceAccountAsync(orgId, "Org Suspend Worker");
         TokenOutcome tokens = await SignInThroughAsync(email, clientId, secret);
+        await HarnessTokenShouldBeAliveAsync(
+            tokens.AccessToken!, "the token is alive until the platform suspends the organization");
         CancellationToken memberStream = OpenRealtimeStreamAsync(userId, orgId);
 
         Guid operatorId = await ActAsGlobalAdminAsync();
@@ -37,10 +39,8 @@ public class OrganizationPlatformSuspensionTests(WallowApiFactory factory) : Org
             new { reason = "Fraud investigation" });
         placed.StatusCode.Should().Be(HttpStatusCode.NoContent, await placed.Content.ReadAsStringAsync());
 
-        await WaitForAsync(async () =>
-            (await BearerCallAsync(tokens.AccessToken!)).StatusCode == HttpStatusCode.Unauthorized);
-        (await BearerCallAsync(tokens.AccessToken!)).StatusCode
-            .Should().Be(HttpStatusCode.Unauthorized, "a platform-suspended organization's member tokens are dead");
+        await HarnessTokenShouldDieAsync(
+            tokens.AccessToken!, "a platform-suspended organization's member tokens are dead");
         TokenOutcome refresh = await Harness.RefreshAsync(clientId, secret, tokens.RefreshToken!);
         refresh.StatusCode.Should().Be(HttpStatusCode.Unauthorized, refresh.Body);
         refresh.Error.Should().Be("invalid_client");
