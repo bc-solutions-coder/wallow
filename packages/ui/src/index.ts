@@ -58,6 +58,7 @@ export {
   type AvatarRootProps,
 } from "./components/avatar";
 export { Badge, type BadgeProps } from "./components/badge";
+export { BrandedHeader, type BrandedHeaderProps } from "./components/branded-header";
 export { Button, type ButtonProps, type ButtonVariant } from "./components/button";
 export {
   Card,
