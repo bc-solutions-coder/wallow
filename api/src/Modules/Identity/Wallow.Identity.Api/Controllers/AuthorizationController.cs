@@ -117,7 +117,6 @@ public sealed partial class AuthorizationController(
             await applicationManager.GetConsentTypeAsync(application),
             ConsentTypes.Implicit,
             StringComparison.Ordinal);
-        bool hasValidAuthorization = false;
 
         LogApplicationResolved(clientId, isFirstParty);
 
@@ -236,29 +235,18 @@ public sealed partial class AuthorizationController(
 
         if (!isFirstParty)
         {
-            // Check for an existing valid authorization for this user+client+scopes combination
-            await foreach (object authorization in authorizationManager.FindBySubjectAsync(userId))
-            {
-                string? authAppId = await authorizationManager.GetApplicationIdAsync(authorization);
-                if (authAppId != applicationId)
-                {
-                    continue;
-                }
+            // Stored consent is the user's Valid PERMANENT authorizations for this client — the
+            // ad-hoc records first-party sign-ins mint are per-login bookkeeping and never count.
+            // The union of their scopes is what the user has already agreed to; the newest record
+            // is the one widened on scope growth, so consent accumulates on one row.
+            (object? permanentAuthorization, HashSet<string> consentedScopes) =
+                await FindPermanentConsentAsync(userId, applicationId);
 
-                string? status = await authorizationManager.GetStatusAsync(authorization);
-                if (status != Statuses.Valid)
-                {
-                    continue;
-                }
-
-                ImmutableArray<string> authorizedScopes = await authorizationManager.GetScopesAsync(authorization);
-                if (grantedScopes.All(s => authorizedScopes.Contains(s)))
-                {
-                    hasValidAuthorization = true;
-                    authorizationId = await authorizationManager.GetIdAsync(authorization);
-                    break;
-                }
-            }
+            // The delta the user has not yet agreed to — the only thing a consent screen may ask.
+            ImmutableArray<string> missingScopes =
+                [.. grantedScopes.Where(s => !consentedScopes.Contains(s))];
+            ImmutableArray<string> consentScreenScopes =
+                missingScopes.IsEmpty ? grantedScopes : missingScopes;
 
             // A consent decision counts only when it is POSTed with the token this endpoint minted
             // for this user and this request, and only once. Anything else — a flag on the GET,
@@ -277,34 +265,44 @@ public sealed partial class AuthorizationController(
                 if (tokenOutcome != ConsentTokenOutcome.Redeemed)
                 {
                     LogConsentDecisionRefused(clientId, tokenOutcome);
-                    return RedirectToConsent(request, userId, clientId, grantedScopes, fingerprint);
+                    return RedirectToConsent(request, userId, clientId, consentScreenScopes, fingerprint);
                 }
 
                 if (string.Equals(decision, ConsentDenied, StringComparison.Ordinal))
                 {
-                    return Forbid(
-                        authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme,
-                        properties: new Microsoft.AspNetCore.Authentication.AuthenticationProperties(
-                            new Dictionary<string, string?>
-                            {
-                                [OpenIddictServerAspNetCoreConstants.Properties.Error] = Errors.ConsentRequired,
-                                [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] =
-                                    "The user denied the consent request."
-                            }));
+                    return ConsentRequiredForbid("The user denied the consent request.");
                 }
 
-                if (string.Equals(decision, ConsentGranted, StringComparison.Ordinal) && !hasValidAuthorization)
+                if (!string.Equals(decision, ConsentGranted, StringComparison.Ordinal))
                 {
-                    // Store a permanent authorization so consent is not re-prompted.
-                    authorizationId = await CreateAuthorizationAsync(
-                        AuthorizationTypes.Permanent, applicationId, userId, grantedScopes, tenantInfo);
-                    hasValidAuthorization = true;
+                    return RedirectToConsent(request, userId, clientId, consentScreenScopes, fingerprint);
                 }
-            }
 
-            if (!hasValidAuthorization)
+                // Granted. A redeemed decision settles the transaction even when the replayed
+                // request still carries prompt=consent — honouring the prompt here would bounce
+                // the answer straight back to the screen forever.
+                authorizationId = await StoreConsentAsync(
+                    permanentAuthorization, applicationId, userId, grantedScopes, tenantInfo);
+            }
+            else if (request.HasPromptValue(PromptValues.None))
             {
-                return RedirectToConsent(request, userId, clientId, grantedScopes, fingerprint);
+                // The relying party forbade UI. Missing consent is a protocol error it handles,
+                // never a screen.
+                if (!missingScopes.IsEmpty)
+                {
+                    return ConsentRequiredForbid(
+                        "The request needs consent the user has not given, and 'prompt=none' forbids asking for it.");
+                }
+
+                authorizationId = await authorizationManager.GetIdAsync(permanentAuthorization!);
+            }
+            else if (!missingScopes.IsEmpty || request.HasPromptValue(PromptValues.Consent))
+            {
+                return RedirectToConsent(request, userId, clientId, consentScreenScopes, fingerprint);
+            }
+            else
+            {
+                authorizationId = await authorizationManager.GetIdAsync(permanentAuthorization!);
             }
         }
 
@@ -335,6 +333,82 @@ public sealed partial class AuthorizationController(
 
         return SignIn(new ClaimsPrincipal(identity), OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
     }
+
+    /// <summary>
+    /// The user's stored consent for one application: the newest Valid permanent authorization
+    /// (the record scope growth widens) and the union of scopes across all of them (what the
+    /// user has already agreed to, even if legacy rows split it).
+    /// </summary>
+    private async Task<(object? Newest, HashSet<string> ConsentedScopes)> FindPermanentConsentAsync(
+        string userId,
+        string applicationId)
+    {
+        object? newest = null;
+        DateTimeOffset? newestCreated = null;
+        HashSet<string> consentedScopes = new(StringComparer.Ordinal);
+
+        await foreach (object authorization in authorizationManager.FindBySubjectAsync(userId))
+        {
+            if (await authorizationManager.GetApplicationIdAsync(authorization) != applicationId
+                || await authorizationManager.GetStatusAsync(authorization) != Statuses.Valid
+                || await authorizationManager.GetTypeAsync(authorization) != AuthorizationTypes.Permanent)
+            {
+                continue;
+            }
+
+            consentedScopes.UnionWith(await authorizationManager.GetScopesAsync(authorization));
+
+            DateTimeOffset? created = await authorizationManager.GetCreationDateAsync(authorization);
+            if (newest is null || (created is not null && (newestCreated is null || created > newestCreated)))
+            {
+                newest = authorization;
+                newestCreated = created;
+            }
+        }
+
+        return (newest, consentedScopes);
+    }
+
+    /// <summary>
+    /// Records a granted consent: widens the one permanent authorization's scope set to cover
+    /// the granted scopes (creating the record on first consent) and returns its id — the id
+    /// every token of this and later sign-ins chains to.
+    /// </summary>
+    private async Task<string?> StoreConsentAsync(
+        object? permanentAuthorization,
+        string applicationId,
+        string userId,
+        ImmutableArray<string> grantedScopes,
+        ClientTenantInfo? tenantInfo)
+    {
+        if (permanentAuthorization is null)
+        {
+            return await CreateAuthorizationAsync(
+                AuthorizationTypes.Permanent, applicationId, userId, grantedScopes, tenantInfo);
+        }
+
+        OpenIddictAuthorizationDescriptor descriptor = new();
+        await authorizationManager.PopulateAsync(descriptor, permanentAuthorization);
+        int scopeCountBefore = descriptor.Scopes.Count;
+        descriptor.Scopes.UnionWith(grantedScopes);
+        if (descriptor.Scopes.Count != scopeCountBefore)
+        {
+            await authorizationManager.UpdateAsync(permanentAuthorization, descriptor);
+        }
+
+        return await authorizationManager.GetIdAsync(permanentAuthorization);
+    }
+
+    /// <summary>Refuses the relying party with <c>consent_required</c>.</summary>
+    private ForbidResult ConsentRequiredForbid(string description) =>
+        Forbid(
+            authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme,
+            properties: new Microsoft.AspNetCore.Authentication.AuthenticationProperties(
+                new Dictionary<string, string?>
+                {
+                    [OpenIddictServerAspNetCoreConstants.Properties.Error] = Errors.ConsentRequired,
+                    [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] = description,
+                }));
 
     private async Task<string?> CreateAuthorizationAsync(
         string type,

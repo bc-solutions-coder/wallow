@@ -205,6 +205,9 @@ public sealed class AuthorizationControllerTests : IDisposable
             .Returns(ValueTask.FromResult<string?>(applicationId));
         _authorizationManager.GetStatusAsync(authorization, Arg.Any<CancellationToken>())
             .Returns(ValueTask.FromResult<string?>(OpenIddictConstants.Statuses.Valid));
+        // Consent lookup filters by type: only a permanent authorization counts as stored consent.
+        _authorizationManager.GetTypeAsync(authorization, Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult<string?>(OpenIddictConstants.AuthorizationTypes.Permanent));
         _authorizationManager.GetScopesAsync(authorization, Arg.Any<CancellationToken>())
             .Returns(ValueTask.FromResult(scopes));
     }
