@@ -69,7 +69,7 @@ public class IdentityResilienceTestFactory : WallowApiFactory
                 .WithBody("[]"));
     }
 
-    public new async Task DisposeAsync()
+    public override async Task DisposeAsync()
     {
         await base.DisposeAsync();
         _wireMock?.Stop();

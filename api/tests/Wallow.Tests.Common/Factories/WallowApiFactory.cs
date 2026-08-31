@@ -103,7 +103,10 @@ public class WallowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         Environment.SetEnvironmentVariable("OpenIddict__RefreshTokenLifetimeDays", "5");
     }
 
-    public new async Task DisposeAsync()
+    // Virtual so a subclass's cleanup actually runs: xUnit disposes fixtures through
+    // IAsyncLifetime, whose interface map is fixed here — a `new` method on a subclass is
+    // never called through it.
+    public new virtual async Task DisposeAsync()
     {
         Console.WriteLine("[WallowApiFactory] DisposeAsync called");
 

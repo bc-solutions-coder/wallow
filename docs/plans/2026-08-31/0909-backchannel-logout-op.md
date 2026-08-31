@@ -1,4 +1,4 @@
-**status: active**
+**status: completed**
 
 # Back-channel logout: OP side (#146)
 

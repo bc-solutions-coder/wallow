@@ -19,7 +19,8 @@ namespace Wallow.Identity.Infrastructure.Services;
 /// </summary>
 /// <remarks>
 /// Delivery is best-effort and bounded: attempts run in parallel, each attempt gets
-/// <see cref="BackchannelLogoutOptions.PerClientTimeout"/>, a failed delivery gets exactly one
+/// <see cref="BackchannelLogoutOptions.PerClientTimeout"/>, a retryable failure (timeout,
+/// transport error, 5xx — never a 4xx rejection) gets exactly one
 /// retry after <see cref="BackchannelLogoutOptions.RetryDelay"/>, and the whole fan-out is cut
 /// off at <see cref="BackchannelLogoutOptions.OverallTimeout"/>. Nothing here ever throws to the
 /// caller: a dead relying party must not block the user's own sign-out.
@@ -82,15 +83,22 @@ public sealed partial class BackchannelLogoutNotifier(
 
             string token = MintLogoutToken(recipient.ClientId, sid, userId, issuer, credentials);
 
-            if (await TryDeliverAsync(recipient.LogoutUri, token, ct))
+            DeliveryOutcome first = await TryDeliverAsync(recipient.LogoutUri, token, ct);
+            if (first == DeliveryOutcome.Delivered)
             {
                 LogDelivered(recipient.ClientId, sid);
                 return;
             }
 
+            if (first == DeliveryOutcome.Rejected)
+            {
+                LogDeliveryRejected(recipient.ClientId, recipient.LogoutUri, sid);
+                return;
+            }
+
             await Task.Delay(options.Value.RetryDelay, timeProvider, ct);
 
-            if (await TryDeliverAsync(recipient.LogoutUri, token, ct))
+            if (await TryDeliverAsync(recipient.LogoutUri, token, ct) == DeliveryOutcome.Delivered)
             {
                 LogDeliveredOnRetry(recipient.ClientId, sid);
                 return;
@@ -108,7 +116,18 @@ public sealed partial class BackchannelLogoutNotifier(
         }
     }
 
-    private async Task<bool> TryDeliverAsync(Uri uri, string token, CancellationToken ct)
+    private enum DeliveryOutcome
+    {
+        Delivered,
+
+        /// <summary>Timeout, transport failure, or 5xx — the retry may land.</summary>
+        Retryable,
+
+        /// <summary>A 4xx: the relying party rejected this token; re-sending it cannot succeed.</summary>
+        Rejected,
+    }
+
+    private async Task<DeliveryOutcome> TryDeliverAsync(Uri uri, string token, CancellationToken ct)
     {
         using CancellationTokenSource attempt = CancellationTokenSource.CreateLinkedTokenSource(ct);
         attempt.CancelAfter(options.Value.PerClientTimeout);
@@ -118,17 +137,22 @@ public sealed partial class BackchannelLogoutNotifier(
             // Fresh content per attempt: HttpClient disposes request content after sending.
             using FormUrlEncodedContent content = new([new KeyValuePair<string, string>("logout_token", token)]);
             using HttpResponseMessage response = await httpClient.PostAsync(uri, content, attempt.Token);
-            return response.IsSuccessStatusCode;
+            if (response.IsSuccessStatusCode)
+            {
+                return DeliveryOutcome.Delivered;
+            }
+
+            return (int)response.StatusCode >= 500 ? DeliveryOutcome.Retryable : DeliveryOutcome.Rejected;
         }
         catch (HttpRequestException)
         {
-            return false;
+            return DeliveryOutcome.Retryable;
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
             // The per-attempt timeout fired but the fan-out is still live: report a failed
             // attempt so the one retry can run, rather than aborting the recipient.
-            return false;
+            return DeliveryOutcome.Retryable;
         }
     }
 
@@ -232,6 +256,9 @@ public sealed partial class BackchannelLogoutNotifier(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Back-channel logout delivery to {LogoutUri} of client {ClientId} failed twice for session {Sid}")]
     private partial void LogDeliveryFailed(string clientId, Uri logoutUri, string sid);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Back-channel logout token rejected by {LogoutUri} of client {ClientId} for session {Sid}; not retrying")]
+    private partial void LogDeliveryRejected(string clientId, Uri logoutUri, string sid);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Back-channel logout delivery to {LogoutUri} of client {ClientId} ran out of time for session {Sid}")]
     private partial void LogDeliveryTimedOut(string clientId, Uri logoutUri, string sid);

@@ -8,6 +8,11 @@
     },
     "version": "v1"
   },
+  "servers": [
+    {
+      "url": "http://localhost:5001/"
+    }
+  ],
   "paths": {
     "/v1/admin/announcements": {
       "get": {

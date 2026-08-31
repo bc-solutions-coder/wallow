@@ -37,7 +37,7 @@ public class BackchannelLogoutTestFactory : WallowApiFactory
         });
     }
 
-    public new async Task DisposeAsync()
+    public override async Task DisposeAsync()
     {
         await base.DisposeAsync();
         _wireMock?.Stop();

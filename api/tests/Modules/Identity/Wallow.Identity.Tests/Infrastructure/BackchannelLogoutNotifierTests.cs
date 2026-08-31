@@ -138,6 +138,19 @@ public sealed class BackchannelLogoutNotifierTests
     }
 
     [Fact]
+    public async Task NotifyAsync_DoesNotRetryARejectedDelivery()
+    {
+        SetRecipients(new BackchannelLogoutRecipient(TestClientId, _logoutUri));
+        using ScriptedHandler handler = new(HttpStatusCode.BadRequest);
+        BackchannelLogoutNotifier sut = CreateSut(handler);
+
+        await sut.NotifyAsync(TestSid, _userId, _issuer, CancellationToken.None);
+
+        // A 4xx is the relying party rejecting this token — re-sending it cannot succeed.
+        handler.Requests.Should().ContainSingle();
+    }
+
+    [Fact]
     public async Task NotifyAsync_GivesUpAfterTheSingleRetry()
     {
         SetRecipients(new BackchannelLogoutRecipient(TestClientId, _logoutUri));
