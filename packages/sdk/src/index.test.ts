@@ -49,7 +49,6 @@ const BROWSER_VALUE_EXPORTS: readonly string[] = [
   "CONSENT_DENIED",
   "CONSENT_GRANTED",
   "CONSENT_TOKEN_FIELD",
-  "consentInfoArgs",
   "createWallowSdk",
   "getCurrentUser",
   "isSafeMethod",

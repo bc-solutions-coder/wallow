@@ -46,18 +46,17 @@ const ERROR_HREF = "/error?reason=invalid_redirect_uri";
 
 /**
  * The `scope` query parameter as the authorize endpoint sends it: ONE
- * space-delimited string, which this screen splits into the list it asks the
- * consent-info endpoint about.
+ * space-delimited string, forwarded to the context lookup RAW — OAuth's own
+ * delimiter is the wire format both ends already speak.
  */
 const SCOPE = "openid profile email";
-const SCOPE_LIST = ["openid", "profile", "email"];
 
 /**
- * The consent-info endpoint. This app's SDK is rooted at the origin, so the
- * recorded `path` is the bare endpoint path with no `/api` prefix.
+ * The transaction-scoped context endpoint — keyed by the pending request's
+ * `returnUrl`, never a bare client id. This app's SDK is rooted at the origin,
+ * so the recorded `path` is the bare endpoint path with no `/api` prefix.
  */
-const CONSENT_INFO_ROOT = "/v1/identity/apps/consent-info";
-const CONSENT_INFO_PATH = `${CONSENT_INFO_ROOT}/${CLIENT_ID}`;
+const AUTHORIZE_CONTEXT_PATH = "/v1/identity/auth/authorize-context";
 
 /** The two failure statuses the error-state tests answer with. */
 const NOT_FOUND = 404;
@@ -73,29 +72,28 @@ const RETURN_URL_FIELDS: readonly (readonly [string, string])[] = [
 ];
 
 /**
- * Every recorded request to the consent-info endpoint, whatever the client id —
- * so a screen that looked up the WRONG client is still counted here and fails
- * the path assertion rather than silently reading as "no request".
+ * Every recorded request to the context endpoint, whatever the query — so a
+ * screen that looked up the WRONG transaction is still counted here and fails
+ * the parameter assertion rather than silently reading as "no request".
  */
-function consentInfoCalls(): readonly SdkCall[] {
-  return harness.calls.filter((call: SdkCall) => call.path.startsWith(CONSENT_INFO_ROOT));
+function contextCalls(): readonly SdkCall[] {
+  return harness.calls.filter((call: SdkCall) => call.path === AUTHORIZE_CONTEXT_PATH);
 }
 
 /**
- * The `scopes` query parameter of the first consent-info request, decoded.
- *
- * `null` means the key was omitted. Read through `URL.searchParams` so the
- * encoding of the space delimiter (`%20` vs `+`) — a serializer detail, not this
- * screen's contract — cannot break the test. THROWS when no request was made,
- * because an absent request would make every scope assertion pass vacuously.
+ * One query parameter of the first context request, decoded. `null` means the
+ * key was omitted. Read through `URL.searchParams` so value encoding — a
+ * serializer detail, not this screen's contract — cannot break the test.
+ * THROWS when no request was made, because an absent request would make every
+ * parameter assertion pass vacuously.
  */
-function requestedScopesParameter(): string | null {
-  const [call] = consentInfoCalls();
+function requestParameter(name: "returnUrl" | "scope"): string | null {
+  const [call] = contextCalls();
   if (call === undefined) {
-    throw new Error("expected a consent-info request, but the screen made none");
+    throw new Error("expected an authorize-context request, but the screen made none");
   }
 
-  return new URL(call.url).searchParams.get("scopes");
+  return new URL(call.url).searchParams.get(name);
 }
 
 /** Click one of the two answers and return the submission the browser assembled. */
@@ -115,13 +113,17 @@ function posted(submission: CapturedFormSubmission, name: string): string[] {
     .map(([, value]: readonly [string, string]) => value);
 }
 
-/** A `ConsentInfoResponse`, as the generated type shapes it. */
-function consentInfo(overrides: Record<string, unknown> = {}) {
+/** An `AuthorizeContextResponse`, as the generated type shapes it. */
+function authorizeContext(overrides: Record<string, unknown> = {}) {
   return {
     clientId: CLIENT_ID,
     displayName: "Wallow Web",
+    tagline: null,
     logoUrl: null,
-    requestedScopes: [
+    themeJson: null,
+    organizationName: null,
+    firstParty: true,
+    scopes: [
       { name: "openid", description: "Sign you in" },
       { name: "profile", description: "See your profile" },
     ],
@@ -151,88 +153,69 @@ beforeEach(() => {
   // The real SDK over a recording transport; the default answer is a loaded
   // consent prompt, which most tests below take as their starting point.
   harness = createPassthroughHarness();
-  harness.resolveJson(consentInfo());
+  harness.resolveJson(authorizeContext());
 });
 
 describe("ConsentScreen — loading", () => {
-  it("requests the consent info for the client in the query string", async () => {
+  it("requests the context for the transaction in the query string", async () => {
     harness.pending();
 
-    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} />);
 
     await vi.waitFor(() => {
-      expect(consentInfoCalls()).toHaveLength(1);
+      expect(contextCalls()).toHaveLength(1);
     });
 
-    expect(consentInfoCalls()[0]?.path).toBe(CONSENT_INFO_PATH);
-    expect(consentInfoCalls()[0]?.method).toBe("GET");
+    expect(contextCalls()[0]?.method).toBe("GET");
+    // The transaction, not a client id, is the lookup key: the endpoint
+    // validates it against a real pending authorize request.
+    expect(requestParameter("returnUrl")).toBe(RETURN_URL);
   });
 
-  /**
-   * The scope list is an INPUT: the consent-info endpoint answers "describe
-   * THESE scopes for this client", so an empty list means an empty answer and
-   * the user approves a request whose scope list renders blank.
-   */
-  it("forwards the requested scopes to the consent-info lookup", async () => {
+  it("forwards the space-delimited scope to the context lookup raw", async () => {
     harness.pending();
 
-    await renderWithClient(
-      <ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} scope={SCOPE} />,
-    );
+    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} scope={SCOPE} />);
 
     await vi.waitFor(() => {
-      expect(consentInfoCalls()).toHaveLength(1);
+      expect(contextCalls()).toHaveLength(1);
     });
 
-    // The API takes ONE space-joined `scopes` value, not repeated parameters —
-    // a comma-joined value arrives there as a single unknown scope name.
-    expect(requestedScopesParameter()).toBe(SCOPE_LIST.join(" "));
+    // ONE space-joined `scope` value, unsplit — a re-joined or comma-joined
+    // value arrives at the endpoint as a different request.
+    expect(requestParameter("scope")).toBe(SCOPE);
   });
 
-  it("splits the scope parameter on whitespace rather than passing it whole", async () => {
-    harness.pending();
-
-    await renderWithClient(
-      <ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} scope="openid  profile " />,
-    );
-
-    await vi.waitFor(() => {
-      expect(consentInfoCalls()).toHaveLength(1);
-    });
-
-    expect(requestedScopesParameter()).toBe("openid profile");
-  });
-
-  it("asks with no scopes when the link carries none", async () => {
+  it("asks with no scope when the link carries none", async () => {
     // A link without `scope` is malformed, not an invitation to invent a list.
     harness.pending();
 
-    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} />);
 
     await vi.waitFor(() => {
-      expect(consentInfoCalls()).toHaveLength(1);
+      expect(contextCalls()).toHaveLength(1);
     });
 
-    // The facade omits the key entirely for an empty list; an empty value is
+    // The facade omits the key entirely for an absent value; an empty value is
     // equally acceptable to the controller, so both count as "asked with none".
-    const scopes: string | null = requestedScopesParameter();
+    const scope: string | null = requestParameter("scope");
 
-    expect(scopes === null || scopes === "").toBe(true);
+    expect(scope === null || scope === "").toBe(true);
   });
 
   it("shows no error while the request is still in flight", async () => {
-    // A missing-consent-info check that does not exclude the in-flight state
+    // A missing-context check that does not exclude the in-flight state
     // flashes "Unable to load consent information" at every user.
     harness.pending();
 
-    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} />);
 
     // Pin that a request is genuinely IN FLIGHT before asserting the absence,
     // or a screen that never fetched satisfies this by never fetching. The
     // harness records a request BEFORE running the responder, so a
     // never-settling one is still observable.
     await vi.waitFor(() => {
-      expect(consentInfoCalls()).toHaveLength(1);
+      expect(contextCalls()).toHaveLength(1);
     });
     expect(page.getByTestId("consent-error").query()).toBeNull();
   });
@@ -241,10 +224,10 @@ describe("ConsentScreen — loading", () => {
     // The user cannot approve access for an application not yet identified.
     harness.pending();
 
-    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} />);
 
     await vi.waitFor(() => {
-      expect(consentInfoCalls()).toHaveLength(1);
+      expect(contextCalls()).toHaveLength(1);
     });
     expect(page.getByTestId("consent-heading").query()).toBeNull();
     expect(page.getByTestId("consent-approve").query()).toBeNull();
@@ -252,39 +235,25 @@ describe("ConsentScreen — loading", () => {
   });
 
   it("fires the request exactly once", async () => {
-    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} />);
 
     await expect.element(page.getByTestId("consent-heading")).toBeInTheDocument();
 
-    expect(consentInfoCalls()).toHaveLength(1);
+    expect(contextCalls()).toHaveLength(1);
   });
 });
 
 describe("ConsentScreen — the consent prompt", () => {
   it("names the requesting application in the heading", async () => {
-    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} />);
 
     await expect
       .element(page.getByTestId("consent-heading"))
       .toHaveTextContent(/Wallow Web is requesting access/u);
   });
 
-  it("falls back to the client id when the client has no display name", async () => {
-    // `displayName` is nullable on the generated `ConsentInfoResponse`, and
-    // consent to an unnamed party is not consent — so an unguarded interpolation
-    // rendering " is requesting access" is not an acceptable answer.
-    harness.resolveJson(consentInfo({ displayName: null }));
-
-    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
-
-    await expect.element(page.getByTestId("consent-heading")).toHaveTextContent(CLIENT_ID);
-    await expect
-      .element(page.getByTestId("consent-heading"))
-      .toHaveTextContent(/is requesting access/u);
-  });
-
   it("lists every requested scope", async () => {
-    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} />);
 
     await expect.element(page.getByTestId("consent-scopes")).toHaveTextContent("openid");
     await expect.element(page.getByTestId("consent-scopes")).toHaveTextContent("profile");
@@ -292,19 +261,19 @@ describe("ConsentScreen — the consent prompt", () => {
 
   it("lists no scope the client did not request", async () => {
     harness.resolveJson(
-      consentInfo({ requestedScopes: [{ name: "openid", description: "Sign you in" }] }),
+      authorizeContext({ scopes: [{ name: "openid", description: "Sign you in" }] }),
     );
 
-    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} />);
 
     await expect.element(page.getByTestId("consent-scopes")).toHaveTextContent("openid");
     await expect.element(page.getByTestId("consent-scopes")).not.toHaveTextContent("profile");
   });
 
   it("renders the prompt for a client requesting no scopes", async () => {
-    harness.resolveJson(consentInfo({ requestedScopes: [] }));
+    harness.resolveJson(authorizeContext({ scopes: [] }));
 
-    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} />);
 
     await expect.element(page.getByTestId("consent-scopes")).toBeInTheDocument();
     await expect.element(page.getByTestId("consent-approve")).toBeInTheDocument();
@@ -312,14 +281,14 @@ describe("ConsentScreen — the consent prompt", () => {
 
   it("offers both an approve and a deny action", async () => {
     // A consent screen with only an approve path is not a consent screen.
-    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} />);
 
     await expect.element(page.getByTestId("consent-approve")).toBeInTheDocument();
     await expect.element(page.getByTestId("consent-deny")).toBeInTheDocument();
   });
 
   it("shows no error alongside a loaded prompt", async () => {
-    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} />);
 
     await expect.element(page.getByTestId("consent-heading")).toBeInTheDocument();
 
@@ -327,7 +296,7 @@ describe("ConsentScreen — the consent prompt", () => {
   });
 
   it("drops the pre-registration placeholder marker", async () => {
-    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} />);
 
     await expect.element(page.getByTestId("consent-heading")).toBeInTheDocument();
 
@@ -337,9 +306,7 @@ describe("ConsentScreen — the consent prompt", () => {
 
 describe("ConsentScreen — approve", () => {
   it("posts the decision to the authorize endpoint rather than following a link", async () => {
-    await renderWithClient(
-      <ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} consentToken={CONSENT_TOKEN} />,
-    );
+    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} consentToken={CONSENT_TOKEN} />);
 
     const submission: CapturedFormSubmission = await answer("consent-approve");
 
@@ -352,9 +319,7 @@ describe("ConsentScreen — approve", () => {
   });
 
   it("posts same-origin", async () => {
-    await renderWithClient(
-      <ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} consentToken={CONSENT_TOKEN} />,
-    );
+    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} consentToken={CONSENT_TOKEN} />);
 
     const submission: CapturedFormSubmission = await answer("consent-approve");
 
@@ -365,9 +330,7 @@ describe("ConsentScreen — approve", () => {
   });
 
   it("carries the authorize request and the token as fields", async () => {
-    await renderWithClient(
-      <ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} consentToken={CONSENT_TOKEN} />,
-    );
+    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} consentToken={CONSENT_TOKEN} />);
 
     const submission: CapturedFormSubmission = await answer("consent-approve");
 
@@ -382,11 +345,7 @@ describe("ConsentScreen — approve", () => {
 
   it("posts to a returnUrl that has no query string of its own", async () => {
     await renderWithClient(
-      <ConsentScreen
-        clientId={CLIENT_ID}
-        returnUrl="/connect/authorize"
-        consentToken={CONSENT_TOKEN}
-      />,
+      <ConsentScreen returnUrl="/connect/authorize" consentToken={CONSENT_TOKEN} />,
     );
 
     const submission: CapturedFormSubmission = await answer("consent-approve");
@@ -398,22 +357,10 @@ describe("ConsentScreen — approve", () => {
     ]);
   });
 
-  it("falls back to the root when the link carries no returnUrl", async () => {
-    // Nullish ONLY: an absent returnUrl must NOT be treated as the unsafe case.
-    // There is nothing hostile about a link that omits it, so the guard must not
-    // fire and the builder maps `undefined` to the `/` fallback.
-    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} consentToken={CONSENT_TOKEN} />);
-
-    const submission: CapturedFormSubmission = await answer("consent-approve");
-
-    expect(submission.action).toBe(`${globalThis.location.origin}/`);
-    expect(mocks.navigate).not.toHaveBeenCalled();
-  });
-
   it("posts no token when the link carried none", async () => {
     // The endpoint refuses and re-asks with a fresh token; a fabricated value
     // would read as a forgery.
-    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} />);
 
     const submission: CapturedFormSubmission = await answer("consent-approve");
 
@@ -421,9 +368,7 @@ describe("ConsentScreen — approve", () => {
   });
 
   it("does not deny while approving", async () => {
-    await renderWithClient(
-      <ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} consentToken={CONSENT_TOKEN} />,
-    );
+    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} consentToken={CONSENT_TOKEN} />);
 
     const submission: CapturedFormSubmission = await answer("consent-approve");
 
@@ -437,9 +382,7 @@ describe("ConsentScreen — deny", () => {
   it("posts the denial to the authorize endpoint rather than staying put", async () => {
     // A deny that silently did nothing strands the user on a dead consent screen
     // and leaves the relying party's authorize request hanging.
-    await renderWithClient(
-      <ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} consentToken={CONSENT_TOKEN} />,
-    );
+    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} consentToken={CONSENT_TOKEN} />);
 
     const submission: CapturedFormSubmission = await answer("consent-deny");
 
@@ -449,9 +392,7 @@ describe("ConsentScreen — deny", () => {
   });
 
   it("carries the same request and token as an approval", async () => {
-    await renderWithClient(
-      <ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} consentToken={CONSENT_TOKEN} />,
-    );
+    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} consentToken={CONSENT_TOKEN} />);
 
     const submission: CapturedFormSubmission = await answer("consent-deny");
 
@@ -464,9 +405,7 @@ describe("ConsentScreen — deny", () => {
   });
 
   it("does not grant while denying", async () => {
-    await renderWithClient(
-      <ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} consentToken={CONSENT_TOKEN} />,
-    );
+    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} consentToken={CONSENT_TOKEN} />);
 
     const submission: CapturedFormSubmission = await answer("consent-deny");
 
@@ -495,7 +434,7 @@ describe("ConsentScreen — the open-redirect guard", () => {
 
   for (const returnUrl of UNSAFE_RETURN_URLS) {
     it(`refuses to render a consent prompt for returnUrl ${JSON.stringify(returnUrl)}`, async () => {
-      await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={returnUrl} />);
+      await renderWithClient(<ConsentScreen returnUrl={returnUrl} />);
 
       await vi.waitFor(() => {
         expect(mocks.navigate).toHaveBeenCalled();
@@ -508,7 +447,7 @@ describe("ConsentScreen — the open-redirect guard", () => {
     });
 
     it(`routes to the error page for returnUrl ${JSON.stringify(returnUrl)}`, async () => {
-      await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={returnUrl} />);
+      await renderWithClient(<ConsentScreen returnUrl={returnUrl} />);
 
       // REFUSE, do not silently fall back to "/". `href` rather than
       // `to`+`search`, so this screen does not couple to `/error`'s search shape.
@@ -518,7 +457,7 @@ describe("ConsentScreen — the open-redirect guard", () => {
     });
 
     it(`never navigates to the unsafe returnUrl ${JSON.stringify(returnUrl)}`, async () => {
-      await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={returnUrl} />);
+      await renderWithClient(<ConsentScreen returnUrl={returnUrl} />);
 
       await vi.waitFor(() => {
         expect(mocks.navigate).toHaveBeenCalled();
@@ -528,8 +467,8 @@ describe("ConsentScreen — the open-redirect guard", () => {
       expect(navigationEscapes()).toEqual([]);
     });
 
-    it(`does not fetch consent info for returnUrl ${JSON.stringify(returnUrl)}`, async () => {
-      await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={returnUrl} />);
+    it(`does not fetch the context for returnUrl ${JSON.stringify(returnUrl)}`, async () => {
+      await renderWithClient(<ConsentScreen returnUrl={returnUrl} />);
 
       await vi.waitFor(() => {
         expect(mocks.navigate).toHaveBeenCalled();
@@ -544,7 +483,7 @@ describe("ConsentScreen — the open-redirect guard", () => {
   it("shows no consent error for an unsafe returnUrl", async () => {
     // Flashing "Unable to load consent information" on the way to `/error`
     // misreports an open-redirect attempt as a transient server problem.
-    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl="//evil.example" />);
+    await renderWithClient(<ConsentScreen returnUrl="//evil.example" />);
 
     await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalled();
@@ -553,20 +492,10 @@ describe("ConsentScreen — the open-redirect guard", () => {
     expect(page.getByTestId("consent-error").query()).toBeNull();
   });
 
-  it("guards the returnUrl even when no client id is supplied", async () => {
-    // The two refusal paths must not mask each other: a hostile returnUrl must
-    // reach `/error` rather than be absorbed by the missing-client branch.
-    await renderWithClient(<ConsentScreen returnUrl="//evil.example" />);
-
-    await vi.waitFor(() => {
-      expect(mocks.navigate).toHaveBeenCalledWith(expect.objectContaining({ href: ERROR_HREF }));
-    });
-  });
-
   it("lets a safe returnUrl through untouched", async () => {
     // The negative control: a screen routing EVERY returnUrl to `/error` would
     // pass every other test in this block.
-    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} />);
 
     await expect.element(page.getByTestId("consent-approve")).toBeInTheDocument();
 
@@ -575,38 +504,36 @@ describe("ConsentScreen — the open-redirect guard", () => {
 });
 
 describe("ConsentScreen — error state", () => {
-  it("shows the error when no client id is supplied", async () => {
-    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} />);
+  it("shows the error when no returnUrl is supplied", async () => {
+    // With no returnUrl there is no pending transaction to describe; an absent
+    // value is a malformed link, not a hostile one, so the screen errors in
+    // place rather than routing to `/error`.
+    await renderWithClient(<ConsentScreen />);
 
     await expect
       .element(page.getByTestId("consent-error"))
       .toHaveTextContent(/unable to load consent information/iu);
+
+    expect(mocks.navigate).not.toHaveBeenCalled();
   });
 
-  it("does not call the endpoint when no client id is supplied", async () => {
-    // A screen that "helpfully" sent `clientId: undefined` would 404 and blame
+  it("does not call the endpoint when no returnUrl is supplied", async () => {
+    // A screen that "helpfully" sent `returnUrl: undefined` would 404 and blame
     // the server for the link's own defect.
-    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen />);
 
     await expect.element(page.getByTestId("consent-error")).toBeInTheDocument();
 
     expect(harness.calls).toEqual([]);
   });
 
-  it("treats an empty-string client id as missing", async () => {
-    await renderWithClient(<ConsentScreen clientId="" returnUrl={RETURN_URL} />);
-
-    await expect.element(page.getByTestId("consent-error")).toBeInTheDocument();
-
-    expect(harness.calls).toEqual([]);
-  });
-
-  it("shows the error when the consent-info request fails", async () => {
+  it("shows the error when the context request fails", async () => {
     // A non-2xx arrives as a REJECTION here, because the facade's `unwrap()`
-    // throws rather than returning null.
+    // throws rather than returning null. The endpoint answers 404 for an
+    // expired transaction, an unknown client and a malformed returnUrl alike.
     harness.rejectJson({}, NOT_FOUND);
 
-    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} />);
 
     await expect
       .element(page.getByTestId("consent-error"))
@@ -617,7 +544,7 @@ describe("ConsentScreen — error state", () => {
     // One message for every failure — this screen narrows on no status.
     harness.rejectJson({}, SERVER_ERROR);
 
-    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} />);
 
     await expect
       .element(page.getByTestId("consent-error"))
@@ -633,17 +560,17 @@ describe("ConsentScreen — error state", () => {
       throw new Error("network down");
     });
 
-    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} />);
 
     await expect.element(page.getByTestId("consent-error")).toBeInTheDocument();
   });
 
   it("offers no approve or deny action in the error state", async () => {
-    // With no consent info there is no scope list, so an Approve button here
-    // would authorize an unknown client for unknown scopes.
+    // With no context there is no scope list, so an Approve button here would
+    // authorize an unknown client for unknown scopes.
     harness.rejectJson({}, NOT_FOUND);
 
-    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} />);
 
     await expect.element(page.getByTestId("consent-error")).toBeInTheDocument();
 
@@ -659,7 +586,7 @@ describe("ConsentScreen — error state", () => {
     // back to exactly those two values, so this is the strongest leak test.
     harness.rejectJson({}, NOT_FOUND);
 
-    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} />);
 
     await expect.element(page.getByTestId("consent-error")).toBeInTheDocument();
 
@@ -684,7 +611,7 @@ function renderRouteAt(url: string) {
 }
 
 describe("/consent route", () => {
-  it("renders the consent screen for the client on the query string", async () => {
+  it("renders the consent screen for the transaction on the query string", async () => {
     await renderRouteAt(
       `/consent?client_id=${CLIENT_ID}&returnUrl=${encodeURIComponent(RETURN_URL)}` +
         `&consent_token=${CONSENT_TOKEN}`,
@@ -692,11 +619,11 @@ describe("/consent route", () => {
 
     await expect.element(page.getByTestId("consent-heading")).toBeInTheDocument();
     expect(page.getByTestId("route-placeholder").query()).toBeNull();
-    // Both query parameters must actually reach the screen, not merely parse:
-    // `client_id` threads as far as the request path...
-    expect(consentInfoCalls()[0]?.path).toBe(CONSENT_INFO_PATH);
+    // The query parameters must actually reach the screen, not merely parse:
+    // `returnUrl` threads as far as the context lookup...
+    expect(requestParameter("returnUrl")).toBe(RETURN_URL);
 
-    // ...and `returnUrl` and `consent_token` as far as the form approve posts.
+    // ...and as far as the form approve posts, together with `consent_token`.
     // A route that dropped the first would post to the "/" fallback; one that
     // dropped the second would post an answer the endpoint refuses.
     const submission: CapturedFormSubmission = await answer("consent-approve");
@@ -721,8 +648,9 @@ describe("/consent route", () => {
   });
 
   it("reads returnUrl and client_id off the query string", () => {
-    // The wire name is `client_id` (snake_case) — OpenIddict's parameter name,
-    // not this screen's to rename, even though the prop it feeds is `clientId`.
+    // The wire name is `client_id` (snake_case) — OpenIddict's parameter name.
+    // It is parsed as relay cargo the authorize redirect sends along, though no
+    // longer consumed: the context lookup keys on `returnUrl` alone.
     const validateSearch = consentRoute.options.validateSearch as
       | ((search: Record<string, unknown>) => unknown)
       | undefined;
@@ -747,7 +675,7 @@ describe("/consent route", () => {
 
   it("reads the space-delimited scope off the query string", () => {
     // The wire name is `scope` (singular), matching OAuth; the value is kept as
-    // the raw string here and split by the screen.
+    // the raw string here and forwarded to the lookup unsplit.
     const validateSearch = consentRoute.options.validateSearch as
       | ((search: Record<string, unknown>) => unknown)
       | undefined;
@@ -774,7 +702,7 @@ describe("/consent route", () => {
 
   it("threads the scope from the query string all the way to the lookup", async () => {
     // The whole chain: authorize redirect -> route search -> screen ->
-    // consent-info request. Parsing `scope` without handing it down leaves the
+    // context request. Parsing `scope` without handing it down leaves the
     // consent list blank.
     await renderRouteAt(
       `/consent?client_id=${CLIENT_ID}&returnUrl=${encodeURIComponent(RETURN_URL)}` +
@@ -782,9 +710,9 @@ describe("/consent route", () => {
     );
 
     await vi.waitFor(() => {
-      expect(consentInfoCalls()).toHaveLength(1);
+      expect(contextCalls()).toHaveLength(1);
     });
 
-    expect(requestedScopesParameter()).toBe(SCOPE_LIST.join(" "));
+    expect(requestParameter("scope")).toBe(SCOPE);
   });
 });

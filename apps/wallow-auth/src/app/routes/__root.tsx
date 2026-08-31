@@ -22,6 +22,12 @@ import { AuthLayout } from "@shared/components/auth-layout";
 import { ReadyIndicator } from "@shared/components/ready-indicator";
 import { ErrorPage } from "@features/error";
 import { NotFoundPage } from "@features/not-found";
+import {
+  type AuthorizeTransactionSearch,
+  fetchAuthorizeContext,
+  resolveTransactionBranding,
+  type TransactionBranding,
+} from "@shared/lib/authorize-context";
 import { appIconUrl, forkResolvedBranding } from "@shared/lib/branding";
 import { forkLinks } from "@shared/lib/fork-links";
 import { requestWebAppUrl } from "@shared/lib/web-app-url.request";
@@ -37,9 +43,9 @@ import "../styles.css";
 
 /**
  * The fork's own palette/name — build-time data from `packages/styles/branding.json`, never
- * request input. The per-client (`client_id`) branding overlay is resolved by the
- * route that renders {@link AuthLayout}; this shell shows the fork's, which is
- * also the fallback whenever no client is identified.
+ * request input. The per-client branding overlay is resolved once by this
+ * route's loader (see below); this shell shows the fork's, which is also the
+ * fallback whenever no transaction identifies a client.
  */
 const branding: ResolvedBranding = forkResolvedBranding;
 
@@ -97,6 +103,7 @@ function RootDocument({ children }: { readonly children: ReactNode }): ReactElem
       <head>
         <HeadContent />
         <DocumentStyles themeCss={renderThemeStyle(branding)} stylesheetHref={null} />
+        <ClientThemeStyle />
         <ThemeScript defaultMode={branding.defaultMode} />
         <script>{forkLinksScript(requestForkLinks() ?? forkLinks())}</script>
         <script>{webAppUrlScript(requestWebAppUrl())}</script>
@@ -109,6 +116,30 @@ function RootDocument({ children }: { readonly children: ReactNode }): ReactElem
       </body>
     </html>
   );
+}
+
+/**
+ * The requesting client's curated theme, as a second `<style>` AFTER
+ * {@link DocumentStyles} so its custom properties override the fork's at equal
+ * specificity. It cannot ride `head()`'s `styles` array: `<HeadContent/>`
+ * renders BEFORE `<DocumentStyles/>` (the charset meta must stay inside the
+ * document's first kilobyte), so a head-emitted style would lose the cascade to
+ * the fork theme.
+ *
+ * Rendered from the root loader's answer, so it exists exactly when a
+ * transaction resolved a third-party client — the fork screens and every
+ * fallback path (no transaction, first-party client, failed fetch) emit
+ * nothing and keep the fork palette. `loaderData` is read defensively: the
+ * shell also wraps {@link RootErrorBoundary}, which can render before or
+ * without the loader's data.
+ */
+function ClientThemeStyle(): ReactElement | null {
+  const loaderData = Route.useLoaderData() as RootLoaderData | undefined;
+  const client: TransactionBranding | null = resolveTransactionBranding(
+    loaderData?.authorizeContext,
+  );
+
+  return client === null ? null : <style>{renderThemeStyle(client.branding)}</style>;
 }
 
 /**
@@ -164,16 +195,67 @@ function RootPending(): ReactElement {
   );
 }
 
+/** What the root loader resolves for the whole matched branch. */
+interface RootLoaderData {
+  /** The pending transaction's client context, or `null` for fork chrome. */
+  readonly authorizeContext: Awaited<ReturnType<typeof fetchAuthorizeContext>>;
+}
+
+/**
+ * Narrow the raw search string down to the two parameters the context lookup
+ * is keyed by. The root route declares no `validateSearch` — each screen owns
+ * its own query-string contract — so the values arrive untyped and anything
+ * non-string (TanStack's parser JSON-parses scalars) is treated as absent, the
+ * same narrowing every route applies.
+ */
+function toTransactionSearch(search: unknown): AuthorizeTransactionSearch {
+  const raw = search as Record<string, unknown>;
+
+  return {
+    returnUrl: typeof raw.returnUrl === "string" ? raw.returnUrl : undefined,
+    scope: typeof raw.scope === "string" ? raw.scope : undefined,
+  };
+}
+
 export const Route = createRootRouteWithContext<RouterContext>()({
-  head: () => ({
-    meta: [
-      // oxlint-disable-next-line unicorn/text-encoding-identifier-case -- `utf-8` is the canonical HTML charset declaration, and what the other Wallow apps emit
-      { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: branding.name },
-    ],
-    links: [{ rel: "icon", href: appIconUrl }],
-  }),
+  loaderDeps: ({ search }) => toTransactionSearch(search),
+  /*
+   * The ONE place the authorize transaction's client context is resolved
+   * (issue #142): every in-transaction screen — and the document head and
+   * theme — reads this answer rather than fetching per screen. The helper
+   * returns `null` for anything that is not a transaction (wrong path, no
+   * safe `/connect/authorize` returnUrl) and for every failure: branding is
+   * chrome, and no fetch problem may block an auth screen.
+   */
+  loader: async ({ context, location, deps }): Promise<RootLoaderData> => {
+    const authorizeContext = await fetchAuthorizeContext({
+      queryClient: context.queryClient,
+      client: context.sdk.client,
+      pathname: location.pathname,
+      search: deps,
+    });
+
+    return { authorizeContext };
+  },
+  head: ({ loaderData }) => {
+    const client: TransactionBranding | null = resolveTransactionBranding(
+      loaderData?.authorizeContext,
+    );
+
+    return {
+      meta: [
+        // oxlint-disable-next-line unicorn/text-encoding-identifier-case -- `utf-8` is the canonical HTML charset declaration, and what the other Wallow apps emit
+        { charSet: "utf-8" },
+        { name: "viewport", content: "width=device-width, initial-scale=1" },
+        // A third-party transaction titles the tab for the client being signed
+        // in to; everything else keeps the fork's name. The favicon below stays
+        // the fork's either way — the ADDRESS BAR identity is the fork's, and a
+        // client-supplied icon in it would be impersonation surface.
+        { title: client === null ? branding.name : `Sign in · ${client.branding.name}` },
+      ],
+      links: [{ rel: "icon", href: appIconUrl }],
+    };
+  },
   shellComponent: RootDocument,
   component: Outlet,
   errorComponent: RootErrorBoundary,

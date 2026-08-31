@@ -55,6 +55,14 @@ async function signInAtExternalOrigin(page: Page): Promise<void> {
   await expect(page.locator("[data-app-ready='true']")).toBeAttached({ timeout: 20_000 });
   await expect(page.getByTestId("consent-heading")).toBeVisible();
 
+  // The transaction-scoped client context (issue #142): the screen is branded as the
+  // requesting third-party client — its seeded displayName headlines, attributed to the
+  // organization that owns it — resolved from the pending authorize request's returnUrl,
+  // never from an anonymous per-client branding read.
+  await expect(page.getByTestId("auth-header-name")).toHaveText("BFF Example");
+  await expect(page.getByTestId("auth-header-organization")).toHaveText("by Wallow");
+  await expect(page).toHaveTitle("Sign in · BFF Example");
+
   // Real, seeded scope descriptions (api/seed.json apiScopes, synced by
   // OpenIddictScopeSyncService), not the null placeholders plan Sec 5.5.1/14.3 fixed.
   const scopes = page.getByTestId("consent-scopes");

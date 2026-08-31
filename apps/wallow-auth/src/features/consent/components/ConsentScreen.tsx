@@ -3,27 +3,24 @@ import {
   CONSENT_DECISION_FIELD,
   CONSENT_DENIED,
   CONSENT_GRANTED,
-  consentInfoArgs,
   type ConsentSubmission,
 } from "@bc-solutions-coder/sdk";
 import { Button, Card, ErrorBanner, MutedText, Text } from "@bc-solutions-coder/ui";
 import { useQuery } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
 import { useMemo, type ReactNode } from "react";
-import { appsGetConsentInfoOptions } from "../api";
+import { authorizeContextGetOptions } from "../api";
 import { BASE_PATH } from "@shared/lib/base-path";
 import { useReturnUrlGuard } from "@shared/hooks/use-return-url-guard";
 
 /**
  * The Consent screen (Wallow-vec7.3.4).
  *
- * `clientId`, `returnUrl`, `scope` and `consentToken` arrive as props rather
- * than being read from the router inside the component: the route owns the
- * query string (the oracle's two `[SupplyParameterFromQuery]` properties,
- * `ReturnUrl` and `client_id`, plus the `scope` and the single-use token the
- * authorize endpoint sends) and hands them down, which keeps this component a
- * pure function of its inputs and testable without a router. This is the seam
- * `ResetPasswordForm` established and `VerifyEmailConfirm` followed.
+ * `returnUrl`, `scope` and `consentToken` arrive as props rather than being
+ * read from the router inside the component: the route owns the query string
+ * and hands them down, which keeps this component a pure function of its
+ * inputs and testable without a router. This is the seam `ResetPasswordForm`
+ * established and `VerifyEmailConfirm` followed.
  *
  * ── THE DECISION IS A POST ───────────────────────────────────────────────────
  *
@@ -38,10 +35,15 @@ import { useReturnUrlGuard } from "@shared/hooks/use-return-url-guard";
  * `consent-error`, `consent-heading`, `consent-scopes`, `consent-approve`,
  * `consent-deny`.
  *
- * Mutations call the GENERATED operations and reads use the generated
- * `{op}Options()` factories, both bound to the request-scoped SDK off the router
- * context (`useRouteContext({ from: "__root__" })`). The OIDC URL builders are
- * pure and imported directly. There is no app-level facade (Wallow-pu6a.5.5).
+ * ── THE READ IS THE TRANSACTION CONTEXT (issue #142) ─────────────────────────
+ *
+ * Who is asking, and for which scopes, comes from the transaction-scoped
+ * authorize-context endpoint — keyed by the pending request's `returnUrl`,
+ * never by a bare `client_id`. The old anonymous consent-info lookup let any
+ * crafted link enumerate a client's display name and scope descriptions; this
+ * endpoint validates the returnUrl against a real pending authorize request
+ * and 404s anything else. It is the SAME query the root loader resolves for
+ * the branded chrome, sharing one cache entry, so this read is normally a hit.
  *
  * ── THE ORIGIN DIVERGENCE (the load-bearing port decision on this screen) ─────
  *
@@ -69,10 +71,10 @@ import { useReturnUrlGuard } from "@shared/hooks/use-return-url-guard";
  * the split of the returnUrl into an action and its fields — under tests of its
  * own.
  *
- * ── THE OPEN-REDIRECT GUARD (this bead's criterion; NOT in the oracle) ────────
+ * ── THE OPEN-REDIRECT GUARD (NOT in the oracle) ──────────────────────────────
  *
  * The oracle applies NO guard here: it appends and navigates. The guard is the
- * gap this bead closes, and `buildConsentSubmission` enforces it by THROWING on
+ * gap this port closes, and `buildConsentSubmission` enforces it by THROWING on
  * a present-but-unsafe returnUrl rather than sanitizing (bd memory
  * `returnurl-guard-refuse-dont-sanitize`).
  *
@@ -96,26 +98,12 @@ import { useReturnUrlGuard } from "@shared/hooks/use-return-url-guard";
  * `consent-error` meaning "this failed" rather than "this failed or has not
  * happened yet".
  *
- * ── THE SCOPE LIST IS AN INPUT, NOT ONLY AN OUTPUT (Wallow-dzt4) ─────────────
+ * ── ERROR STATE: EVERY FAILED LOOKUP IS ONE MESSAGE ──────────────────────────
  *
- * The oracle passes `Array.Empty<string>()` to its consent-info call, and this
- * port copied it on the reasoning that the scopes being consented to come back
- * FROM the call. They do not: the endpoint answers "describe THESE scopes for
- * this client", so asking with none returns none, and the oracle's own consent
- * screen rendered a blank list too. That defect is what this bead repairs — the
- * authorize endpoint now carries the requested scopes to `/consent` as a
- * space-delimited `scope` parameter, and the raw string is split here.
- *
- * ── ERROR STATE: `null` BECOMES A REJECTION AT THIS SEAM ─────────────────────
- *
- * The oracle's `_consentInfo` is null in two cases, both rendering the error:
- * (a) no `client_id`, so `OnInitializedAsync` skips the call; (b) the request
- * failed — `AuthApiClient.GetConsentInfoAsync` (AuthApiClient.cs:397-416) returns
- * null on ANY non-2xx. Case (b) arrives here as a REJECTION, because the facade's
- * `unwrap()` throws instead of returning null. No status narrowing is needed: this
- * oracle has exactly ONE message for every failure, so the `WallowError` code-loss
- * gotcha (bd memory `wallow-auth-auth-client-ts-wallowerror-code-loss`) costs this
- * screen nothing.
+ * The oracle has exactly ONE message for every failure, and the endpoint keeps
+ * that true here: an expired transaction, an unknown client and a malformed
+ * returnUrl all come back as a 404 the SDK surfaces as a REJECTION, and the
+ * screen renders the one message for all of them.
  */
 
 /** The oracle's single error message, covering every failure it can have. */
@@ -142,8 +130,7 @@ interface RequestedScope {
 
 /** The consent info the prompt renders, narrowed to what it uses. */
 interface ConsentPrompt {
-  readonly clientId: string;
-  readonly displayName: string | null;
+  readonly displayName: string;
   readonly requestedScopes: readonly RequestedScope[];
 }
 
@@ -153,19 +140,15 @@ function ErrorState() {
 }
 
 /**
- * The oracle's `<h2>@_consentInfo.DisplayName is requesting access</h2>`, with
- * one deviation: `displayName` is `null | string` on the generated
- * `ConsentInfoResponse`, and the oracle interpolates it unguarded — so a null
- * renders " is requesting access", a consent prompt that does not say WHO is
- * asking. The client id is the fallback: consent to an unnamed party is not
- * consent.
+ * The oracle's `<h2>@_consentInfo.DisplayName is requesting access</h2>`. The
+ * context endpoint's `displayName` is non-nullable — the server falls back to
+ * the client id itself before answering — so consent is never asked for an
+ * unnamed party.
  */
 function ConsentHeading({ info }: { readonly info: ConsentPrompt }) {
-  const name: string = info.displayName ?? info.clientId;
-
   return (
     <Text as="h2" variant="subheading" color="onCard" data-testid="consent-heading">
-      {name} is requesting access
+      {info.displayName} is requesting access
     </Text>
   );
 }
@@ -264,14 +247,14 @@ function ConsentPromptState(props: {
  * `ConsentScreen` is already routing the user to `/error`, and flashing "Unable
  * to load consent information" on the way out would misreport an open-redirect
  * attempt as a transient server problem. It also must not be absorbed by the
- * missing-client branch — a hostile returnUrl on a link that ALSO omits
- * `client_id` is still a hostile returnUrl.
+ * missing-transaction branch — a hostile returnUrl is still a hostile
+ * returnUrl.
  *
  * `isPending` is checked after the two refusals because it is also true for a
  * disabled query: neither refusal has a request to wait on.
  */
 function ConsentState(props: {
-  readonly clientIsKnown: boolean;
+  readonly transactionIsKnown: boolean;
   readonly returnUrlIsUnsafe: boolean;
   readonly info: ConsentPrompt | null;
   readonly isPending: boolean;
@@ -279,13 +262,13 @@ function ConsentState(props: {
   /** `null` exactly when the returnUrl is unsafe: there is no form to build for it. */
   readonly submission: ConsentSubmission | null;
 }) {
-  const { clientIsKnown, returnUrlIsUnsafe, info, isPending, isError, submission } = props;
+  const { transactionIsKnown, returnUrlIsUnsafe, info, isPending, isError, submission } = props;
 
   if (returnUrlIsUnsafe || submission === null) {
     return null;
   }
 
-  if (!clientIsKnown) {
+  if (!transactionIsKnown) {
     return <ErrorState />;
   }
 
@@ -304,14 +287,13 @@ function ConsentState(props: {
 }
 
 export interface ConsentScreenProps {
-  /** The `client_id` query parameter — `undefined` when the link omits it. */
-  readonly clientId?: string;
   /** The `returnUrl` query parameter — `undefined` when the link omits it. */
   readonly returnUrl?: string;
   /**
    * The `scope` query parameter — ONE space-delimited string of the scopes the
-   * relying party asked for, as the authorize endpoint sends them. `undefined`
-   * when the link omits it.
+   * relying party asked for, as the authorize endpoint sends them. Passed to
+   * the context lookup raw — OAuth's own delimiter is the wire format both
+   * ends already speak. `undefined` when the link omits it.
    */
   readonly scope?: string;
   /**
@@ -323,43 +305,40 @@ export interface ConsentScreenProps {
   readonly consentToken?: string;
 }
 
-export function ConsentScreen({
-  clientId,
-  returnUrl,
-  scope,
-  consentToken,
-}: ConsentScreenProps): ReactNode {
+export function ConsentScreen({ returnUrl, scope, consentToken }: ConsentScreenProps): ReactNode {
   const { sdk } = useRouteContext({ from: "__root__" });
-
-  // Split on whitespace, dropping empty segments: repeated or trailing spaces in
-  // the parameter are not empty scope names. A link with no `scope` asks with
-  // none — the screen never fabricates a list the relying party did not request.
-  const requestedScopes: readonly string[] = useMemo(
-    () => (scope === undefined ? [] : scope.split(/\s+/u).filter((s: string) => s !== "")),
-    [scope],
-  );
 
   // Evaluated before anything else happens; the hook owns the bail navigation.
   // The nullish case is the builder's `ReturnUrl ?? "/"` and is not hostile.
   const returnUrlIsUnsafe: boolean = useReturnUrlGuard(returnUrl) === "refuse";
 
-  // The oracle's `if (ClientId is not null)`. An empty string is a malformed
-  // link, not a client to look up: a screen that "helpfully" sent `client_id=`
-  // would 404 and blame the server for the link's own defect.
-  const clientIsKnown: boolean = clientId !== undefined && clientId !== "";
+  // The old missing-`client_id` branch, transposed: with no returnUrl there is
+  // no pending transaction to describe, so there is nothing to ask the server
+  // and the screen renders its error. An empty string is a malformed link, not
+  // a transaction to look up.
+  const transactionIsKnown: boolean = returnUrl !== undefined && returnUrl !== "";
 
-  // The requested scopes are an INPUT to this lookup — see the note above. The
-  // `?? ""` is unreachable — `enabled` gates the read on `clientIsKnown` — and is
-  // present only to narrow the prop to the `string` the factory takes, without a
-  // cast.
+  // The `?? ""` is unreachable — `enabled` gates the read on
+  // `transactionIsKnown` — and is present only to narrow the prop to a
+  // `string` without a cast.
   const query = useQuery({
-    ...appsGetConsentInfoOptions({
+    ...authorizeContextGetOptions({
       client: sdk.client,
-      ...consentInfoArgs(clientId ?? "", requestedScopes),
+      query: { returnUrl: returnUrl ?? "", scope },
     }),
     // Both refusals carried to React Query, so neither path reaches the network.
-    enabled: clientIsKnown && !returnUrlIsUnsafe,
+    enabled: transactionIsKnown && !returnUrlIsUnsafe,
   });
+
+  // The generated response carries branding fields and the org attribution too;
+  // this screen renders only the consent substance, so it narrows to that.
+  const info: ConsentPrompt | null = useMemo(
+    () =>
+      query.data === undefined
+        ? null
+        : { displayName: query.data.displayName, requestedScopes: query.data.scopes },
+    [query.data],
+  );
 
   // A FULL-PAGE form post, not `navigate()`: `/connect/authorize` is served by
   // the passthrough reverse proxy, not by the client-side route tree, which
@@ -374,9 +353,9 @@ export function ConsentScreen({
   return (
     <Card>
       <ConsentState
-        clientIsKnown={clientIsKnown}
+        transactionIsKnown={transactionIsKnown}
         returnUrlIsUnsafe={returnUrlIsUnsafe}
-        info={query.data ?? null}
+        info={info}
         isPending={query.isPending}
         isError={query.isError}
         submission={submission}

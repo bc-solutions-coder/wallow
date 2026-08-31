@@ -2,10 +2,9 @@ import type { ReactNode } from "react";
 
 import { forkBranding, type ResolvedBranding } from "@bc-solutions-coder/styles";
 import {
+  BrandedHeader,
   CenteredCardLayout,
   ForkAttribution,
-  MutedText,
-  Text,
   ThemeToggle,
 } from "@bc-solutions-coder/ui";
 
@@ -44,44 +43,21 @@ function ThemeControl() {
   );
 }
 
-/** The resolved logo, rendered only when there is one to show. */
-function BrandingLogo({ src, alt }: { readonly src: string; readonly alt: string }) {
-  return (
-    <img
-      src={src}
-      alt={alt}
-      className="size-30 mx-auto block"
-      style={{ shapeRendering: "geometricPrecision" }}
-    />
-  );
-}
-
-/** Logo, name, and tagline for whoever the page is branded as. */
-function BrandingHeader({ branding }: { readonly branding: ResolvedBranding }) {
-  return (
-    <div className="text-center mb-8">
-      {branding.logoUrl !== null && <BrandingLogo src={branding.logoUrl} alt={branding.name} />}
-      {/*
-        `variant="heading"` + `weight="bold"`, not the `display` scale `as="h1"`
-        derives: this is a card-sized branded title, and the weight override
-        lands after the variant's `font-semibold` so tailwind-merge keeps it.
-      */}
-      <Text as="h1" variant="heading" weight="bold" data-focus-target tabIndex={-1}>
-        {branding.name}
-      </Text>
-      {branding.tagline !== null && <MutedText className="mt-1">{branding.tagline}</MutedText>}
-    </div>
-  );
-}
-
 export interface AuthLayoutProps {
   /**
-   * Branding to render — normally {@link mergeClientBranding}'s output for the
-   * request's `client_id`. Defaults to the fork's own branding, which is also
-   * the fallback whenever no client is identified or its branding cannot be
-   * fetched.
+   * Branding to render — normally the resolved transaction branding from
+   * `useTransactionBranding()`. Defaults to the fork's own branding, which is
+   * also the fallback whenever no client is identified or its context cannot
+   * be fetched.
    */
   readonly branding?: ResolvedBranding;
+  /**
+   * The organization the branded client belongs to, rendered as a "by <name>"
+   * line beneath the header. Only ever set alongside a third-party client's
+   * `branding` — the fork's own header and first-party clients carry no
+   * attribution line.
+   */
+  readonly organizationName?: string | null;
   readonly children?: ReactNode;
 }
 
@@ -101,13 +77,19 @@ export interface AuthLayoutProps {
  * `text-muted-foreground`, ...) are emitted into the document head by the root
  * route from the same {@link ResolvedBranding}; see `routes/__root.tsx`.
  */
-export function AuthLayout({ branding, children }: AuthLayoutProps): ReactNode {
+export function AuthLayout({ branding, organizationName, children }: AuthLayoutProps): ReactNode {
   const resolved: ResolvedBranding = branding ?? forkResolvedBranding;
 
   return (
     <CenteredCardLayout>
       <ThemeControl />
-      <BrandingHeader branding={resolved} />
+      <BrandedHeader
+        name={resolved.name}
+        tagline={resolved.tagline}
+        logoUrl={resolved.logoUrl}
+        organizationName={organizationName}
+        data-testid="auth-header"
+      />
       {children}
       <ForkFooter />
     </CenteredCardLayout>

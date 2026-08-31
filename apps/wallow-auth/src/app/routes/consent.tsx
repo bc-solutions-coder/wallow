@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { AuthLayout } from "@shared/components/auth-layout";
+import { useTransactionBranding } from "@shared/hooks/use-transaction-branding";
 import { ConsentScreen } from "@features/consent";
 
 /**
@@ -16,19 +17,20 @@ import { ConsentScreen } from "@features/consent";
  * screen a pure function of its inputs and testable without a router. This is
  * the seam `/reset-password` established.
  *
- * `AuthLayout` supplies the branded chrome every auth page renders inside. It is
- * given no `branding` prop, so it falls back to the fork's own — the per-client
- * (`client_id`) branding overlay is not wired on this screen, and no acceptance
- * criterion asks for it, even though this route does carry a `client_id`.
+ * `AuthLayout` supplies the branded chrome every auth page renders inside,
+ * wearing the requesting client's branding from the root loader's transaction
+ * context (issue #142) — consent is the flagship branded screen: the user is
+ * deciding whether to grant THIS client access, so the header names it and
+ * attributes its organization.
  */
 interface ConsentSearch {
   /** The `returnUrl` query parameter — `undefined` when the link omits it. */
   readonly returnUrl?: string;
   /**
-   * The `client_id` query parameter. The wire name is snake_case, per the
-   * oracle's `[SupplyParameterFromQuery(Name = "client_id")]` — it is
-   * OpenIddict's parameter name and is not this screen's to rename, even though
-   * the prop it feeds is `clientId`.
+   * The `client_id` query parameter — cargo the authorize redirect includes.
+   * The screen no longer consumes it (who is asking comes from the
+   * transaction-scoped context lookup, keyed by `returnUrl`), but the schema
+   * keeps the wire spelling so the router serializes the URL faithfully.
    */
   readonly client_id?: string;
   /**
@@ -64,16 +66,12 @@ function validateSearch(search: Record<string, unknown>): ConsentSearch {
 }
 
 function ConsentRoute() {
-  const { returnUrl, client_id: clientId, scope, consent_token: consentToken } = Route.useSearch();
+  const { returnUrl, scope, consent_token: consentToken } = Route.useSearch();
+  const transaction = useTransactionBranding();
 
   return (
-    <AuthLayout>
-      <ConsentScreen
-        clientId={clientId}
-        returnUrl={returnUrl}
-        scope={scope}
-        consentToken={consentToken}
-      />
+    <AuthLayout branding={transaction?.branding} organizationName={transaction?.organizationName}>
+      <ConsentScreen returnUrl={returnUrl} scope={scope} consentToken={consentToken} />
     </AuthLayout>
   );
 }

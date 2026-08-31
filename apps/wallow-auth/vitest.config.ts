@@ -32,6 +32,15 @@ import { defineConfig } from "vitest/config";
  * @bc-solutions-coder/forms: a migrated screen imports it for its schema, and it
  * is the schema module — not the form package — that the scanner misses.
  */
+// `routes/__root.tsx` imports `@tanstack/react-start`, which loads Start's
+// per-request `AsyncLocalStorage` from `node:async_hooks` at module scope. A real
+// client build never sees that module (the Start plugin compiles the isomorphic
+// helper down to its client branch), but the browser project runs without that
+// plugin and vitest externalises `node:async_hooks` to a throwing proxy, so every
+// spec importing the root route died at import. Point it at a real in-browser
+// implementation instead; see the shim for why answering "no scope" is correct.
+const nodeAsyncHooksShim = "@bc-solutions-coder/testing/node-async-hooks-browser-shim";
+
 const { node, browser } = createVitestProjects({
   extraBrowserOptimizeDeps: ["@bc-solutions-coder/query", "@bc-solutions-coder/auth", "zod"],
   browserPlugins: wallowStyles(),
@@ -49,7 +58,15 @@ export default defineConfig({
   test: {
     projects: [
       { ...node, extends: true },
-      { ...browser, extends: true },
+      {
+        ...browser,
+        extends: true,
+        // `node:async_hooks` stays in `alias` — `tsconfig.json` `paths` cannot
+        // express it. `tsconfigPaths` is NOT restated: a project-level `resolve`
+        // MERGES into the inherited one rather than replacing it, so the root's
+        // setting survives this (see wallow-web's config for the verification).
+        resolve: { alias: { "node:async_hooks": nodeAsyncHooksShim } },
+      },
     ],
   },
 });

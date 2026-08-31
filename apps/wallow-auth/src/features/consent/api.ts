@@ -10,10 +10,12 @@
  * nothing to configure or bootstrap first.
  *
  * ONE endpoint, because the consent screen only READS: the grant itself is a
- * full-page form POST to the OIDC endpoint, not an SDK call. `consentInfoArgs`
- * and `buildConsentSubmission` stay direct imports from the raw barrel at the
- * call site — they build arguments and a form, and neither issues a request.
- * Pulling them behind the seam would turn this one-line endpoint list into a
- * second barrel.
+ * full-page form POST to the OIDC endpoint, not an SDK call. The read is the
+ * TRANSACTION-scoped context lookup — keyed by the pending authorize request's
+ * `returnUrl`, never by a bare `client_id`, so nothing about a client is
+ * disclosed to a crafted link. It is the same query the root loader resolves
+ * for the branded chrome, so by the time the screen asks, the answer is
+ * normally already in the cache. `buildConsentSubmission` stays a direct import
+ * from the raw barrel at the call site — it builds a form and issues no request.
  */
-export { appsGetConsentInfoOptions } from "@bc-solutions-coder/sdk/query";
+export { authorizeContextGetOptions } from "@bc-solutions-coder/sdk/query";

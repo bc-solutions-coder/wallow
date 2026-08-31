@@ -5,13 +5,12 @@
  * `auth-client.ts` was 368 lines of which almost all were renames of generated
  * operations, envelope unwrapping, and error mapping — work the generated client
  * now does itself (`responseStyle: 'data'` + `throwOnError: true` from task 5.2,
- * the `WallowError` interceptor from task 5.3). Three behaviors have no codegen
- * expression, and this file is the contract for exactly those three plus the
+ * the `WallowError` interceptor from task 5.3). Two behaviors have no codegen
+ * expression, and this file is the contract for exactly those two plus the
  * deletions that make them the ONLY survivors:
  *
  *   1. `getCurrentUser` softens 401 (and ONLY 401) into `null`;
- *   2. `consentInfoArgs` joins `scopes` with a SPACE and omits the key when empty;
- *   3. `validateRedirectUriArgs` omits the `clientId` KEY rather than sending it
+ *   2. `validateRedirectUriArgs` omits the `clientId` KEY rather than sending it
  *      as `undefined`.
  *
  * `./generated` is mocked because these helpers are wrappers: the assertions are
@@ -22,18 +21,12 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  type ConsentInfoArgs,
   type ValidateRedirectUriArgs,
-  consentInfoArgs,
   getCurrentUser,
   validateRedirectUriArgs,
 } from "./auth-extras";
 import { WallowError } from "./errors";
-import type {
-  AccountValidateRedirectUriData,
-  AppsGetConsentInfoData,
-  CurrentUserResponse,
-} from "./generated";
+import type { AccountValidateRedirectUriData, CurrentUserResponse } from "./generated";
 import { type Client, createClient, createConfig } from "./generated/client";
 import type { MfaStatusResponse } from "./index";
 
@@ -121,41 +114,6 @@ describe("getCurrentUser", () => {
   });
 });
 
-describe("consentInfoArgs", () => {
-  it("sends the requested scopes as ONE space-joined string", () => {
-    const args: ConsentInfoArgs = consentInfoArgs("wallow-web", ["openid", "profile", "email"]);
-
-    expect(args).toEqual({
-      path: { clientId: "wallow-web" },
-      query: { scopes: "openid profile email" },
-    });
-  });
-
-  it("never comma-joins — a comma arrives at the API as one unknown scope name", () => {
-    const args: ConsentInfoArgs = consentInfoArgs("wallow-web", ["openid", "profile"]);
-
-    expect(args.query?.scopes).not.toContain(",");
-  });
-
-  it("preserves the requested scope order", () => {
-    const args: ConsentInfoArgs = consentInfoArgs("wallow-web", ["email", "openid", "profile"]);
-
-    expect(args.query?.scopes).toBe("email openid profile");
-  });
-
-  it.each([
-    ["undefined", undefined],
-    ["empty", [] as readonly string[]],
-  ])("omits the query KEY entirely when scopes are %s", (_label: string, scopes) => {
-    const args: ConsentInfoArgs = consentInfoArgs("wallow-web", scopes);
-
-    expect(args).toEqual({ path: { clientId: "wallow-web" } });
-    // `toEqual` treats a present-but-undefined member as absent, so the key
-    // itself is checked: a bare `scopes=` on the wire is a different question.
-    expect(Object.hasOwn(args, "query")).toBe(false);
-  });
-});
-
 describe("validateRedirectUriArgs", () => {
   it("carries the uri and the client when both are known", () => {
     const args: ValidateRedirectUriArgs = validateRedirectUriArgs(
@@ -186,14 +144,10 @@ describe("validateRedirectUriArgs", () => {
 
 describe("the shaped arguments plug into the generated operations", () => {
   it("matches the generated operations' argument types", () => {
-    const consent: Pick<AppsGetConsentInfoData, "path" | "query"> = consentInfoArgs("wallow-web", [
-      "openid",
-    ]);
     const redirect: Pick<AccountValidateRedirectUriData, "query"> = validateRedirectUriArgs(
       "https://app.test/callback",
     );
 
-    expect(consent.path.clientId).toBe("wallow-web");
     expect(redirect.query?.uri).toBe("https://app.test/callback");
   });
 });
@@ -208,11 +162,11 @@ describe("the collapsed hand-written surface", () => {
     expect(status.backupCodeCount).toBe("3");
   });
 
-  it("exports exactly the three surviving behaviors", async () => {
+  it("exports exactly the two surviving behaviors", async () => {
     const authExtras: Record<string, unknown> = await import("./auth-extras");
 
     expect(new Set(Object.keys(authExtras))).toEqual(
-      new Set(["consentInfoArgs", "getCurrentUser", "validateRedirectUriArgs"]),
+      new Set(["getCurrentUser", "validateRedirectUriArgs"]),
     );
   });
 });

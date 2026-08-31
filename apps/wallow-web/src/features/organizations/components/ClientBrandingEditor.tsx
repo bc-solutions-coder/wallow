@@ -10,7 +10,15 @@
 import { errorText } from "@bc-solutions-coder/forms";
 import { useMutation, useQuery, useQueryClient } from "@bc-solutions-coder/query";
 import type { ClientBrandingDto, OrganizationClientResponse } from "@bc-solutions-coder/sdk";
-import { Button, Card, CardHeader, Input, MutedText, Text } from "@bc-solutions-coder/ui";
+import {
+  BrandedHeader,
+  Button,
+  Card,
+  CardHeader,
+  Input,
+  MutedText,
+  Text,
+} from "@bc-solutions-coder/ui";
 import {
   type ClientBranding,
   forkBranding,
@@ -230,28 +238,13 @@ function BrandingPreview(props: { resolved: ResolvedBranding }): ReactElement {
       className="rounded-lg border border-border bg-background p-6 text-center"
       data-testid={`${TEST_ID}-preview`}
     >
-      {resolved.logoUrl === null ? null : (
-        <img
-          src={resolved.logoUrl}
-          alt=""
-          className="mx-auto mb-3 block size-16 object-contain"
-          data-testid={`${TEST_ID}-preview-logo`}
-        />
-      )}
-      <Text
-        as="span"
-        variant="heading"
-        weight="bold"
-        className="block"
-        data-testid={`${TEST_ID}-preview-name`}
-      >
-        {resolved.name}
-      </Text>
-      {resolved.tagline === null ? null : (
-        <MutedText className="mt-1" data-testid={`${TEST_ID}-preview-tagline`}>
-          {resolved.tagline}
-        </MutedText>
-      )}
+      <BrandedHeader
+        variant="card"
+        name={resolved.name}
+        tagline={resolved.tagline}
+        logoUrl={resolved.logoUrl}
+        data-testid={`${TEST_ID}-preview`}
+      />
       <Button type="button" className="mt-4 w-auto">
         Sign in
       </Button>

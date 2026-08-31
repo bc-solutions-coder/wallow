@@ -20,13 +20,17 @@ const CLIENT_ID = "wallow-web";
 const RETURN_URL = "/connect/authorize?client_id=wallow-web&scope=openid";
 const SCOPE = "openid profile";
 
-/** A `ConsentInfoResponse`, as the generated type shapes it. */
-function consentInfo() {
+/** An `AuthorizeContextResponse`, as the generated type shapes it. */
+function authorizeContext() {
   return {
     clientId: CLIENT_ID,
     displayName: "Wallow Web",
+    tagline: null,
     logoUrl: null,
-    requestedScopes: [
+    themeJson: null,
+    organizationName: null,
+    firstParty: true,
+    scopes: [
       { name: "openid", description: "Sign you in" },
       { name: "profile", description: "See your profile" },
     ],
@@ -64,14 +68,14 @@ let harness: SdkHarness;
 
 beforeEach(() => {
   harness = createPassthroughHarness();
-  harness.resolveJson(consentInfo());
+  harness.resolveJson(authorizeContext());
 });
 
 /** Render the consent prompt and wait for it to resolve, probes alongside. */
 async function renderPrompt(): Promise<void> {
   await renderWithWallow(
     <>
-      <ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} scope={SCOPE} />
+      <ConsentScreen returnUrl={RETURN_URL} scope={SCOPE} />
       <StyleProbes />
     </>,
     { harness },

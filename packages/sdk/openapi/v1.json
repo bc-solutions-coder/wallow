@@ -659,46 +659,6 @@
         }
       }
     },
-    "/v1/identity/apps/{clientId}/branding": {
-      "get": {
-        "tags": [
-          "Client Branding"
-        ],
-        "operationId": "ClientBrandingGetBranding",
-        "parameters": [
-          {
-            "name": "clientId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ClientBrandingDto"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/identity/organizations/{orgId}/clients/{clientId}/branding": {
       "get": {
         "tags": [
@@ -1786,23 +1746,22 @@
         }
       }
     },
-    "/v1/identity/apps/consent-info/{clientId}": {
+    "/v1/identity/auth/authorize-context": {
       "get": {
         "tags": [
-          "Apps"
+          "Authorize Context"
         ],
-        "operationId": "AppsGetConsentInfo",
+        "operationId": "AuthorizeContextGet",
         "parameters": [
           {
-            "name": "clientId",
-            "in": "path",
-            "required": true,
+            "name": "returnUrl",
+            "in": "query",
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "scopes",
+            "name": "scope",
             "in": "query",
             "schema": {
               "type": "string"
@@ -1815,7 +1774,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ConsentInfoResponse"
+                  "$ref": "#/components/schemas/AuthorizeContextResponse"
                 }
               }
             }
@@ -7337,6 +7296,60 @@
           }
         }
       },
+      "AuthorizeContextResponse": {
+        "required": [
+          "clientId",
+          "displayName",
+          "tagline",
+          "logoUrl",
+          "themeJson",
+          "organizationName",
+          "firstParty",
+          "scopes"
+        ],
+        "type": "object",
+        "properties": {
+          "clientId": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "tagline": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "logoUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "themeJson": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "organizationName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "firstParty": {
+            "type": "boolean"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScopeInfo"
+            }
+          }
+        }
+      },
       "BucketResponse": {
         "required": [
           "id",
@@ -7653,38 +7666,6 @@
           },
           "status": {
             "type": "string"
-          }
-        }
-      },
-      "ConsentInfoResponse": {
-        "required": [
-          "clientId",
-          "displayName",
-          "logoUrl",
-          "requestedScopes"
-        ],
-        "type": "object",
-        "properties": {
-          "clientId": {
-            "type": "string"
-          },
-          "displayName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "logoUrl": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "requestedScopes": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ScopeInfo"
-            }
           }
         }
       },
@@ -10077,16 +10058,13 @@
       "name": "ApiKeys"
     },
     {
-      "name": "Client Branding"
-    },
-    {
       "name": "Organization Client Branding"
     },
     {
       "name": "Account"
     },
     {
-      "name": "Apps"
+      "name": "Authorize Context"
     },
     {
       "name": "Clients"

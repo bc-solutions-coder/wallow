@@ -13,11 +13,10 @@
  *  - `MagicLinkLoginForm` → `accountSendMagicLinkMutation`,
  *    `accountVerifyMagicLinkOptions`
  *  - `ExternalProviders` → `accountGetExternalProvidersOptions`
- *  - `routes/login.tsx` → `clientBrandingGetBrandingOptions`
  *
- * The route's branding read is here, and not in a seam of its own, because the
- * login route reads fork branding for the screen it HOSTS: the data belongs to the
- * login feature even though the file sits outside `features/`.
+ * (The route's old per-client branding read, `clientBrandingGetBrandingOptions`,
+ * is GONE with its anonymous endpoint: branding now arrives through the root
+ * loader's transaction-scoped context — `shared/lib/authorize-context.ts`.)
  *
  * THE MAGIC-LINK ASYMMETRY, so nobody tidies it away: `send` is a POST and gets an
  * `{op}Mutation()`; `verify` is a GET, so the generator emits an `{op}Options()`
@@ -47,5 +46,4 @@ export {
   accountVerifyMagicLinkOptions,
   accountVerifyMagicLinkQueryKey,
   accountVerifyOtpMutation,
-  clientBrandingGetBrandingOptions,
 } from "@bc-solutions-coder/sdk/query";

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { AuthLayout } from "@shared/components/auth-layout";
+import { useTransactionBranding } from "@shared/hooks/use-transaction-branding";
 import { AcceptTermsScreen } from "@features/accept-terms";
 
 /**
@@ -19,9 +20,13 @@ import { AcceptTermsScreen } from "@features/accept-terms";
  * function of its inputs and testable without a router. This is the seam
  * `/reset-password` established and `/consent` followed.
  *
- * `AuthLayout` supplies the branded chrome every auth page renders inside. It is
- * given no `branding` prop, so it falls back to the fork's own: the `client_id`
- * here is relay cargo for the endpoint, never a branding lookup.
+ * `AuthLayout` supplies the branded chrome every auth page renders inside,
+ * wearing the requesting client's branding when this gate sits inside an
+ * authorize transaction (issue #142). The `client_id` here stays relay cargo
+ * for the endpoint — the branding comes from the root loader's
+ * transaction-scoped context, keyed by `returnUrl`. (This flow's returnUrl is
+ * usually ABSOLUTE and server-allow-listed, which the transaction gate
+ * refuses locally — such a visit simply keeps the fork's chrome.)
  */
 interface AcceptTermsSearch {
   /** The `returnUrl` query parameter — `undefined` when the link omits it. */
@@ -71,9 +76,10 @@ function validateSearch(search: Record<string, unknown>): AcceptTermsSearch {
 
 function AcceptTermsRoute() {
   const { returnUrl, client_id: clientId, email, name, error } = Route.useSearch();
+  const transaction = useTransactionBranding();
 
   return (
-    <AuthLayout>
+    <AuthLayout branding={transaction?.branding} organizationName={transaction?.organizationName}>
       <AcceptTermsScreen
         returnUrl={returnUrl}
         clientId={clientId}

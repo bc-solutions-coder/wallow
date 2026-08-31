@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { AuthLayout } from "@shared/components/auth-layout";
+import { useTransactionBranding } from "@shared/hooks/use-transaction-branding";
 import { RegisterForm } from "@features/register";
 
 /**
@@ -15,10 +16,9 @@ import { RegisterForm } from "@features/register";
  * its inputs and testable without a router (the seam `ResetPasswordForm`
  * established and `MfaChallengeForm` followed).
  *
- * `AuthLayout` supplies the branded chrome every auth page renders inside. It is
- * given no `branding` prop, so it falls back to the fork's own — the per-client
- * (`client_id`) branding overlay is not wired on this screen, and no acceptance
- * criterion asks for it, though this route is where it would land.
+ * `AuthLayout` supplies the branded chrome every auth page renders inside,
+ * wearing the requesting client's branding when this register sits inside an
+ * authorize transaction (issue #142) — a bare `/register` keeps the fork's own.
  */
 interface RegisterSearch {
   /**
@@ -48,9 +48,10 @@ function validateSearch(search: Record<string, unknown>): RegisterSearch {
 
 function RegisterRoute() {
   const { client_id: clientId, returnUrl } = Route.useSearch();
+  const transaction = useTransactionBranding();
 
   return (
-    <AuthLayout>
+    <AuthLayout branding={transaction?.branding} organizationName={transaction?.organizationName}>
       <RegisterForm clientId={clientId} returnUrl={returnUrl} />
     </AuthLayout>
   );

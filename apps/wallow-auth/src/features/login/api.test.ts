@@ -24,7 +24,6 @@ const SURFACE: readonly string[] = [
   "accountVerifyMagicLinkOptions",
   "accountVerifyMagicLinkQueryKey",
   "accountVerifyOtpMutation",
-  "clientBrandingGetBrandingOptions",
 ];
 
 describe("api.ts re-exports the SDK login query surface", () => {
@@ -37,7 +36,6 @@ describe("api.ts re-exports the SDK login query surface", () => {
     expect(api.accountVerifyMagicLinkQueryKey).toBe(query.accountVerifyMagicLinkQueryKey);
     expect(api.accountGetExternalProvidersOptions).toBe(query.accountGetExternalProvidersOptions);
     expect(api.accountGetExternalProvidersQueryKey).toBe(query.accountGetExternalProvidersQueryKey);
-    expect(api.clientBrandingGetBrandingOptions).toBe(query.clientBrandingGetBrandingOptions);
   });
 
   it("exposes nothing beyond the artifacts the login feature uses", () => {

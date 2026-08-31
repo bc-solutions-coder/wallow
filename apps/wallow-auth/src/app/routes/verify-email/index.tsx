@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { AuthLayout } from "@shared/components/auth-layout";
+import { useTransactionBranding } from "@shared/hooks/use-transaction-branding";
 import { VerifyEmailNotice } from "@features/verify-email";
 
 /**
@@ -17,9 +18,10 @@ import { VerifyEmailNotice } from "@features/verify-email";
  * `ReturnUrl`) and hands it down as a prop, keeping the screen a pure function
  * of its inputs and testable without a router.
  *
- * `AuthLayout` supplies the branded chrome every auth page renders inside. It is
- * given no `branding` prop, so it falls back to the fork's own — mirroring the
- * sibling `/reset-password` route.
+ * `AuthLayout` supplies the branded chrome every auth page renders inside,
+ * wearing the requesting client's branding when this notice sits inside an
+ * authorize transaction (issue #142) — an email-link visit with no transaction
+ * `returnUrl` keeps the fork's own, as does the sibling `/verify-email/confirm`.
  */
 interface VerifyEmailSearch {
   /** The `returnUrl` query parameter — `undefined` when the link omits it. */
@@ -42,9 +44,10 @@ function validateSearch(search: Record<string, unknown>): VerifyEmailSearch {
 
 function VerifyEmailRoute() {
   const { returnUrl } = Route.useSearch();
+  const transaction = useTransactionBranding();
 
   return (
-    <AuthLayout>
+    <AuthLayout branding={transaction?.branding} organizationName={transaction?.organizationName}>
       <VerifyEmailNotice returnUrl={returnUrl} />
     </AuthLayout>
   );

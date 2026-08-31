@@ -17,9 +17,12 @@ import { ErrorPage } from "@features/error";
  * `not_a_member` / `access_denied` / `invalid_request`.
  *
  * `AuthLayout` supplies the branded chrome every auth page renders inside. It is
- * given no `branding` prop, so it falls back to the fork's own — the per-client
- * (`client_id`) branding overlay is not wired on this screen, and no acceptance
- * criterion asks for it. This mirrors the sibling `/reset-password` route.
+ * given no `branding` prop, so it falls back to the fork's own — deliberately
+ * (issue #142): the error screen is NEVER client-branded. Several of its reason
+ * codes are refusals of the very request that would have identified a client,
+ * and dressing the refusal in that client's chrome would lend it legitimacy.
+ * The root loader's transaction gate excludes this path too, so no context is
+ * even fetched here.
  */
 interface ErrorSearch {
   /** The `reason` query parameter — `undefined` when the link omits it. */

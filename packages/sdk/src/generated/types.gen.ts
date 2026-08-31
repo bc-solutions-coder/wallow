@@ -127,6 +127,17 @@ export type AssignRoleRequest = {
     roleName: string;
 };
 
+export type AuthorizeContextResponse = {
+    clientId: string;
+    displayName: string;
+    tagline: null | string;
+    logoUrl: null | string;
+    themeJson: null | string;
+    organizationName: null | string;
+    firstParty: boolean;
+    scopes: Array<ScopeInfo>;
+};
+
 export type BucketResponse = {
     id: string;
     name: string;
@@ -206,13 +217,6 @@ export type ClientTenantResponse = {
 export type CompleteUploadResponse = {
     fileId: string;
     status: string;
-};
-
-export type ConsentInfoResponse = {
-    clientId: string;
-    displayName: null | string;
-    logoUrl: null | string;
-    requestedScopes: Array<ScopeInfo>;
 };
 
 /**
@@ -1285,33 +1289,6 @@ export type ApiKeysRevokeApiKeyResponses = {
 
 export type ApiKeysRevokeApiKeyResponse = ApiKeysRevokeApiKeyResponses[keyof ApiKeysRevokeApiKeyResponses];
 
-export type ClientBrandingGetBrandingData = {
-    body?: never;
-    path: {
-        clientId: string;
-    };
-    query?: never;
-    url: '/v1/identity/apps/{clientId}/branding';
-};
-
-export type ClientBrandingGetBrandingErrors = {
-    /**
-     * Not Found
-     */
-    404: ProblemDetails;
-};
-
-export type ClientBrandingGetBrandingError = ClientBrandingGetBrandingErrors[keyof ClientBrandingGetBrandingErrors];
-
-export type ClientBrandingGetBrandingResponses = {
-    /**
-     * OK
-     */
-    200: ClientBrandingDto;
-};
-
-export type ClientBrandingGetBrandingResponse = ClientBrandingGetBrandingResponses[keyof ClientBrandingGetBrandingResponses];
-
 export type OrganizationClientBrandingGetBrandingData = {
     body?: never;
     path: {
@@ -1713,34 +1690,33 @@ export type AccountConfirmEmailChangeResponses = {
 
 export type AccountConfirmEmailChangeResponse = AccountConfirmEmailChangeResponses[keyof AccountConfirmEmailChangeResponses];
 
-export type AppsGetConsentInfoData = {
+export type AuthorizeContextGetData = {
     body?: never;
-    path: {
-        clientId: string;
-    };
+    path?: never;
     query?: {
-        scopes?: string;
+        returnUrl?: string;
+        scope?: string;
     };
-    url: '/v1/identity/apps/consent-info/{clientId}';
+    url: '/v1/identity/auth/authorize-context';
 };
 
-export type AppsGetConsentInfoErrors = {
+export type AuthorizeContextGetErrors = {
     /**
      * Not Found
      */
     404: ProblemDetails;
 };
 
-export type AppsGetConsentInfoError = AppsGetConsentInfoErrors[keyof AppsGetConsentInfoErrors];
+export type AuthorizeContextGetError = AuthorizeContextGetErrors[keyof AuthorizeContextGetErrors];
 
-export type AppsGetConsentInfoResponses = {
+export type AuthorizeContextGetResponses = {
     /**
      * OK
      */
-    200: ConsentInfoResponse;
+    200: AuthorizeContextResponse;
 };
 
-export type AppsGetConsentInfoResponse = AppsGetConsentInfoResponses[keyof AppsGetConsentInfoResponses];
+export type AuthorizeContextGetResponse = AuthorizeContextGetResponses[keyof AuthorizeContextGetResponses];
 
 export type ClientsGetAllData = {
     body?: never;

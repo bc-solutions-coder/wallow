@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { AuthLayout } from "@shared/components/auth-layout";
+import { useTransactionBranding } from "@shared/hooks/use-transaction-branding";
 import { MfaChallengeForm } from "@features/mfa-challenge";
 
 /**
@@ -15,10 +16,9 @@ import { MfaChallengeForm } from "@features/mfa-challenge";
  * `[SupplyParameterFromQuery]` property — and hands `returnUrl` down as a prop,
  * keeping the form a pure function of its inputs and testable without a router.
  *
- * `AuthLayout` supplies the branded chrome every auth page renders inside. It is
- * given no `branding` prop, so it falls back to the fork's own — the per-client
- * branding overlay is not wired on this screen, consistent with the sibling
- * ports, and no acceptance criterion asks for it.
+ * `AuthLayout` supplies the branded chrome every auth page renders inside,
+ * wearing the requesting client's branding when this challenge sits inside an
+ * authorize transaction (issue #142) — a direct sign-in keeps the fork's own.
  */
 interface MfaChallengeSearch {
   /** The `returnUrl` query parameter — `undefined` on a direct (non-OIDC) sign-in. */
@@ -56,9 +56,10 @@ function validateSearch(search: Record<string, unknown>): MfaChallengeSearch {
 
 function MfaChallengeRoute() {
   const { returnUrl, client_id: clientId } = Route.useSearch();
+  const transaction = useTransactionBranding();
 
   return (
-    <AuthLayout>
+    <AuthLayout branding={transaction?.branding} organizationName={transaction?.organizationName}>
       <MfaChallengeForm returnUrl={returnUrl} clientId={clientId} />
     </AuthLayout>
   );

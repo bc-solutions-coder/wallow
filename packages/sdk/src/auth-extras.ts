@@ -1,23 +1,20 @@
 /**
- * `auth-extras` — the three identity behaviors the generated client cannot
+ * `auth-extras` — the identity behaviors the generated client cannot
  * express (Wallow-pu6a.5.4).
  *
  * This module is what is LEFT of `auth-client.ts` after the generated operation
  * layer (`{op}()`, `{op}Options()`, `{op}Mutation()`) absorbed the rest. Every
  * method that only renamed a generated op, unwrapped an envelope, or mapped an
  * error is gone: `responseStyle: 'data'` + `throwOnError: true` plus the
- * `WallowError` interceptor cover all three. What survives here is the residue
- * that no codegen flag can produce:
+ * `WallowError` interceptor cover all of them. What survives here is the
+ * residue that no codegen flag can produce:
  *
  *   1. {@link getCurrentUser} — 401 is the ANSWER "anonymous", not a failure;
- *   2. {@link consentInfoArgs} — `scopes` goes on the wire SPACE-joined;
- *   3. {@link validateRedirectUriArgs} — an absent `clientId` omits the KEY.
+ *   2. {@link validateRedirectUriArgs} — an absent `clientId` omits the KEY.
  *
- * Two of the three shape ARGUMENTS rather than wrapping the call, so the same
- * helper composes with the bare operation (`appsGetConsentInfo({ client,
- * ...consentInfoArgs(id, scopes) })`) and with its generated query options
- * (`appsGetConsentInfoOptions({ client, ...consentInfoArgs(id, scopes) })`),
- * which a call wrapper could not do without re-hiding the query key.
+ * The second shapes ARGUMENTS rather than wrapping the call, so the same
+ * helper composes with the bare operation and with its generated query
+ * options, which a call wrapper could not do without re-hiding the query key.
  *
  * Nothing else belongs in this file. A new endpoint is reached by calling its
  * generated operation (or its generated query/mutation options) directly with
@@ -27,7 +24,6 @@
 import { isWallowError } from "./errors";
 import {
   type AccountValidateRedirectUriData,
-  type AppsGetConsentInfoData,
   type CurrentUserResponse,
   usersGetCurrentUser,
 } from "./generated";
@@ -42,9 +38,6 @@ export interface AuthExtrasOptions {
    */
   readonly client?: Client;
 }
-
-/** Arguments for the consent-info operation: what {@link consentInfoArgs} shapes. */
-export type ConsentInfoArgs = Pick<AppsGetConsentInfoData, "path" | "query">;
 
 /** Arguments for the redirect-uri check: what {@link validateRedirectUriArgs} shapes. */
 export type ValidateRedirectUriArgs = Pick<AccountValidateRedirectUriData, "query">;
@@ -76,20 +69,6 @@ export async function getCurrentUser(
 
     throw error;
   }
-}
-
-/**
- * Shape the consent-info arguments: the API takes ONE space-joined `scopes`
- * string, and no `scopes` key at all when none were requested.
- *
- * `AppsController.GetConsentInfo` splits on ' ', which is also OAuth's scope
- * delimiter and what the authorize endpoint emits; a comma-joined value arrives
- * there as one unknown scope name.
- */
-export function consentInfoArgs(clientId: string, scopes?: readonly string[]): ConsentInfoArgs {
-  return scopes?.length
-    ? { path: { clientId }, query: { scopes: scopes.join(" ") } }
-    : { path: { clientId } };
 }
 
 /**

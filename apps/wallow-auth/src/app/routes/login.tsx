@@ -1,21 +1,10 @@
-import {
-  forkBranding,
-  mergeClientBranding,
-  type ResolvedBranding,
-} from "@bc-solutions-coder/styles";
-import { useQuery } from "@bc-solutions-coder/query";
 import { scalarToString } from "@bc-solutions-coder/utils/guards";
 import { createFileRoute, redirect, useRouteContext } from "@tanstack/react-router";
 
 import { AuthLayout } from "@shared/components/auth-layout";
-import {
-  clientBrandingGetBrandingOptions,
-  isPasswordResetMessage,
-  LoginScreen,
-  PASSWORD_RESET_MESSAGE,
-} from "@features/login";
+import { useTransactionBranding } from "@shared/hooks/use-transaction-branding";
+import { isPasswordResetMessage, LoginScreen, PASSWORD_RESET_MESSAGE } from "@features/login";
 import { ensureSetupRequired } from "@features/setup";
-import { BASE_PATH } from "@shared/lib/base-path";
 
 /**
  * The `/login` route (Wallow-vec7.3.11 / 2.8a).
@@ -32,10 +21,10 @@ import { BASE_PATH } from "@shared/lib/base-path";
  * `.3.12` (magic-link) adds `magicLinkToken` HERE, alongside these three, and
  * passes it down the same way; it is not read yet.
  *
- * `AuthLayout` supplies the branded chrome every auth page renders inside, and this
- * route is where the per-client (`client_id`) branding overlay is wired
- * (Wallow-ffpq.2.5) — see {@link LoginRoute}. The other screens still render the
- * fork's own branding; only `/login` has an acceptance criterion for the overlay.
+ * `AuthLayout` supplies the branded chrome every auth page renders inside, and
+ * wears the requesting client's branding when the login sits inside an authorize
+ * transaction — see {@link LoginRoute}. Every transaction screen wires the same
+ * overlay (issue #142).
  */
 interface LoginSearch {
   /** The `returnUrl` query parameter — `undefined` when the link omits it. */
@@ -98,52 +87,25 @@ function validateSearch(search: Record<string, unknown>): LoginSearch {
   };
 }
 
-/**
- * The per-client branding overlay: `/login?client_id=acme` headlines Acme's name,
- * tagline and logo instead of the fork's, while the layout's footer keeps
- * attributing the fork.
- *
- * Branding is CHROME, so every path that is not a resolved client falls back to
- * the fork by returning `undefined` — `AuthLayout`'s own default, which is
- * `mergeClientBranding(fork, null)`. That covers all three: no `client_id` (the
- * query never runs), the fetch still in flight, and a client with no branding row,
- * which the API answers with a bare 404 and the SDK surfaces as a rejection. None
- * of them may gate the sign-in form or show the person an error they cannot act on
- * — hence no read of `isError` here, and no retry (`createQueryClient()` sets
- * `retry: false` for every query in the app, so this needs no local override).
- *
- * Per-client THEME COLOURS are deliberately out of scope: the CSS variables are
- * emitted by `__root.tsx` from the module constant `forkResolvedBranding`, and the
- * root route has no loader to learn `client_id` in. Only the identity fields
- * (name/tagline/logo) are overlaid.
+/*
+ * The per-client branding overlay: a login inside an authorize transaction
+ * headlines the requesting client's name, tagline and logo instead of the
+ * fork's, while the layout's footer keeps attributing the fork. The context is
+ * resolved ONCE by the root route's loader (issue #142) — keyed by the
+ * transaction's `returnUrl`, never by the bare `client_id`, whose anonymous
+ * branding endpoint is gone — and `useTransactionBranding()` only reads that
+ * answer back. Branding is CHROME, so every path that is not a resolved
+ * third-party client (no transaction, first-party client, failed fetch)
+ * collapses to `undefined` — `AuthLayout`'s fork default — and never gates the
+ * sign-in form.
  */
-function useClientBranding(
-  // An absent `client_id` defaults to the empty string so the `enabled` gate and
-  // the factory agree WITHOUT a cast — the seam `RegisterForm`'s `clientTenant`
-  // read established, where "" is the one value the gate refuses.
-  clientId: string = "",
-): ResolvedBranding | undefined {
-  const { sdk } = useRouteContext({ from: "__root__" });
-
-  const { data } = useQuery({
-    ...clientBrandingGetBrandingOptions({ client: sdk.client, path: { clientId } }),
-    enabled: clientId !== "",
-  });
-
-  // The base path resolves the FORK's icon, which the client branch never
-  // renders (a client shows its own hosted logo or none), so it changes nothing
-  // here today. Passed anyway so there is one based call shape in the app and no
-  // second, unprefixed one to drift back to.
-  return data === undefined ? undefined : mergeClientBranding(forkBranding, data, BASE_PATH);
-}
-
 function LoginRoute() {
   const { returnUrl, client_id: clientId, error, magicLinkToken, message } = Route.useSearch();
-  const branding: ResolvedBranding | undefined = useClientBranding(clientId);
+  const transaction = useTransactionBranding();
   const { webAppUrl } = useRouteContext({ from: "__root__" });
 
   return (
-    <AuthLayout branding={branding}>
+    <AuthLayout branding={transaction?.branding} organizationName={transaction?.organizationName}>
       <LoginScreen
         returnUrl={returnUrl}
         clientId={clientId}

@@ -68,6 +68,20 @@ describe("AuthLayout", () => {
     );
   });
 
+  it("attributes the requesting organization beneath the header", async () => {
+    await render(<AuthLayout branding={clientBranding} organizationName="Acme Corp" />);
+
+    expect(page.getByTestId("auth-header-organization").element().textContent).toBe("by Acme Corp");
+  });
+
+  it("renders no organization line when none is named", async () => {
+    // The fork's own screens and first-party clients carry no attribution —
+    // the "by <organization>" line exists to flag a third party.
+    await render(<AuthLayout branding={clientBranding} />);
+
+    expect(page.getByTestId("auth-header-organization").query()).toBeNull();
+  });
+
   it("still attributes the fork on a client-branded page", async () => {
     // The footer is what tells a user on an "Acme" login page that Wallow
     // serves it. It must never take the client's branding.
