@@ -10,7 +10,7 @@ import {
 } from "@features/settings";
 
 /**
- * Settings route (Wallow-8w1h.6.5) — composes the profile section, the MFA
+ * Settings route — composes the profile section, the MFA
  * status card and the connected-applications card into a single page under
  * `data-testid="dashboard-settings"`.
  *

@@ -126,6 +126,37 @@ public sealed class ConsentPersistenceTests(WallowApiFactory factory)
     }
 
     [Fact]
+    public async Task PromptNone_WithoutASignedInUser_FailsWithLoginRequired()
+    {
+        Seed seed = await SeedAsync();
+        using AuthorizationCodeFlowHarness harness = new(Factory);
+
+        AuthorizeOutcome outcome = await harness.AuthorizeAsync(
+            seed.ClientId, WideScope, extraQuery: "prompt=none");
+
+        outcome.Code.Should().BeNull(outcome.Location?.ToString());
+        outcome.Error.Should().Be(
+            "login_required", "prompt=none forbids UI, so a missing session is the relying party's error to handle");
+    }
+
+    [Fact]
+    public async Task FirstAuthorize_WithAnEmptyGrantedScopeSet_StillAsksForConsent()
+    {
+        Seed seed = await SeedAsync();
+        using AuthorizationCodeFlowHarness harness = await SignedInAsync(seed);
+
+        // No scopes requested, so nothing is "missing" — but with no permanent record at all,
+        // the user has never consented to the application itself and must be asked once.
+        AuthorizeOutcome outcome = await harness.AuthorizeAsync(seed.ClientId, scope: string.Empty);
+
+        outcome.Code.Should().BeNull(outcome.Location?.ToString());
+        PathOf(outcome.Location).Should().Be(ConsentPath);
+
+        AuthorizeOutcome granted = await harness.ConsentAsync(outcome, grant: true);
+        granted.Code.Should().NotBeNull(granted.Location?.ToString() ?? granted.Body);
+    }
+
+    [Fact]
     public async Task PromptNone_WithStoredConsent_IssuesACodeWithoutAScreen()
     {
         Seed seed = await SeedAsync();

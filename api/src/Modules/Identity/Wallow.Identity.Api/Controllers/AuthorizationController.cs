@@ -71,6 +71,15 @@ public sealed partial class AuthorizationController(
 
         if (User.Identity is not { IsAuthenticated: true })
         {
+            // The relying party forbade UI, and there is no signed-in user to answer for: a
+            // protocol error the relying party handles, never a login screen.
+            if (request.HasPromptValue(PromptValues.None))
+            {
+                return OidcErrorForbid(
+                    Errors.LoginRequired,
+                    "The user is not signed in, and 'prompt=none' forbids showing a login page.");
+            }
+
             string authUrl = GetRequiredAuthUrl();
 
             // Rebuilt from the OpenIddict request, not the URL: a consent decision that arrives
@@ -286,23 +295,30 @@ public sealed partial class AuthorizationController(
             }
             else if (request.HasPromptValue(PromptValues.None))
             {
-                // The relying party forbade UI. Missing consent is a protocol error it handles,
-                // never a screen.
-                if (!missingScopes.IsEmpty)
+                // The relying party forbade UI. Missing consent — no permanent record at all, or
+                // one that does not cover the request — is a protocol error it handles, never a
+                // screen.
+                if (permanentAuthorization is null || !missingScopes.IsEmpty)
                 {
                     return ConsentRequiredForbid(
                         "The request needs consent the user has not given, and 'prompt=none' forbids asking for it.");
                 }
 
-                authorizationId = await authorizationManager.GetIdAsync(permanentAuthorization!);
+                authorizationId = await StoreConsentAsync(
+                    permanentAuthorization, applicationId, userId, grantedScopes, tenantInfo);
             }
-            else if (!missingScopes.IsEmpty || request.HasPromptValue(PromptValues.Consent))
+            else if (permanentAuthorization is null || !missingScopes.IsEmpty
+                || request.HasPromptValue(PromptValues.Consent))
             {
                 return RedirectToConsent(request, userId, clientId, consentScreenScopes, fingerprint);
             }
             else
             {
-                authorizationId = await authorizationManager.GetIdAsync(permanentAuthorization!);
+                // Consent already covers the request; StoreConsentAsync still runs so that when
+                // legacy rows split the consented scopes, the record the tokens chain to is
+                // widened to cover the granted set (a no-op write otherwise).
+                authorizationId = await StoreConsentAsync(
+                    permanentAuthorization, applicationId, userId, grantedScopes, tenantInfo);
             }
         }
 
@@ -339,7 +355,7 @@ public sealed partial class AuthorizationController(
     /// (the record scope growth widens) and the union of scopes across all of them (what the
     /// user has already agreed to, even if legacy rows split it).
     /// </summary>
-    private async Task<(object? Newest, HashSet<string> ConsentedScopes)> FindPermanentConsentAsync(
+    private async Task<(object? NewestPermanent, HashSet<string> ConsentedScopes)> FindPermanentConsentAsync(
         string userId,
         string applicationId)
     {
@@ -401,12 +417,16 @@ public sealed partial class AuthorizationController(
 
     /// <summary>Refuses the relying party with <c>consent_required</c>.</summary>
     private ForbidResult ConsentRequiredForbid(string description) =>
+        OidcErrorForbid(Errors.ConsentRequired, description);
+
+    /// <summary>Refuses the relying party with the named OIDC error, at its redirect URI.</summary>
+    private ForbidResult OidcErrorForbid(string error, string description) =>
         Forbid(
             authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme,
             properties: new Microsoft.AspNetCore.Authentication.AuthenticationProperties(
                 new Dictionary<string, string?>
                 {
-                    [OpenIddictServerAspNetCoreConstants.Properties.Error] = Errors.ConsentRequired,
+                    [OpenIddictServerAspNetCoreConstants.Properties.Error] = error,
                     [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] = description,
                 }));
 
