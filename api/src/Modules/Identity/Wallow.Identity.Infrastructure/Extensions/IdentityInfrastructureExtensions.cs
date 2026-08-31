@@ -398,6 +398,7 @@ public static class IdentityInfrastructureExtensions
     {
         services.AddScoped<IAccessRevoker, AccessRevoker>();
         services.AddScoped<IClientAccessPolicy, ClientAccessPolicy>();
+        services.AddScoped<IConnectedApplicationService, ConnectedApplicationService>();
 
         // The host that actually serves realtime traffic registers the implementation that can
         // close a connection; TryAdd leaves it in place and covers the hosts that serve none.

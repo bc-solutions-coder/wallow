@@ -2453,6 +2453,69 @@
         }
       }
     },
+    "/v1/identity/me/authorizations": {
+      "get": {
+        "tags": [
+          "Me"
+        ],
+        "summary": "The applications the caller has consented to.",
+        "description": "One entry per durable consent record, naming the client and the scopes the caller agreed\nto. First-party sign-ins never appear here — their authorizations are session bookkeeping,\nnot consent.",
+        "operationId": "MeAuthorizationsListConnectedApplications",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConnectedApplicationDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/identity/me/authorizations/{authorizationId}": {
+      "delete": {
+        "tags": [
+          "Me"
+        ],
+        "summary": "Withdraws one consent, revoking the authorization and every token issued under it.",
+        "description": "Refresh tokens chained to the authorization fail with `invalid_grant`, and issued\naccess tokens are refused on their next request. Answers 404 for an authorization that\ndoes not exist or is not the caller's own.",
+        "operationId": "MeAuthorizationsWithdrawConsent",
+        "parameters": [
+          {
+            "name": "authorizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "content": {
+              "application/json": { }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/identity/me/organizations": {
       "get": {
         "tags": [
@@ -7668,6 +7731,44 @@
             "type": "string"
           }
         }
+      },
+      "ConnectedApplicationDto": {
+        "required": [
+          "id",
+          "clientId",
+          "displayName",
+          "scopes",
+          "createdAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "clientId": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        },
+        "description": "An application the user has granted durable consent to: one Valid permanent authorization,\nnamed by the client it authorizes and the scopes the user agreed to."
       },
       "CreateAdminRequest": {
         "required": [

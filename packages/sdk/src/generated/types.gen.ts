@@ -220,6 +220,18 @@ export type CompleteUploadResponse = {
 };
 
 /**
+ * An application the user has granted durable consent to: one Valid permanent authorization,
+ * named by the client it authorizes and the scopes the user agreed to.
+ */
+export type ConnectedApplicationDto = {
+    id: string;
+    clientId: string;
+    displayName: null | string;
+    scopes: Array<string>;
+    createdAt: null | string;
+};
+
+/**
  * First-run wizard input. The organization is part of it because roles are granted per
  * organization: without one the new administrator would hold no permission anywhere.
  */
@@ -2119,6 +2131,47 @@ export type InvitationsAcceptErrors = {
 export type InvitationsAcceptError = InvitationsAcceptErrors[keyof InvitationsAcceptErrors];
 
 export type InvitationsAcceptResponses = {
+    /**
+     * No Content
+     */
+    204: unknown;
+};
+
+export type MeAuthorizationsListConnectedApplicationsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/identity/me/authorizations';
+};
+
+export type MeAuthorizationsListConnectedApplicationsResponses = {
+    /**
+     * OK
+     */
+    200: Array<ConnectedApplicationDto>;
+};
+
+export type MeAuthorizationsListConnectedApplicationsResponse = MeAuthorizationsListConnectedApplicationsResponses[keyof MeAuthorizationsListConnectedApplicationsResponses];
+
+export type MeAuthorizationsWithdrawConsentData = {
+    body?: never;
+    path: {
+        authorizationId: string;
+    };
+    query?: never;
+    url: '/v1/identity/me/authorizations/{authorizationId}';
+};
+
+export type MeAuthorizationsWithdrawConsentErrors = {
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+};
+
+export type MeAuthorizationsWithdrawConsentError = MeAuthorizationsWithdrawConsentErrors[keyof MeAuthorizationsWithdrawConsentErrors];
+
+export type MeAuthorizationsWithdrawConsentResponses = {
     /**
      * No Content
      */
