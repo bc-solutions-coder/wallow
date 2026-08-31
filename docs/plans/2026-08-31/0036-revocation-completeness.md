@@ -1,6 +1,6 @@
 # Revocation completeness: end-session, user deactivation, SDK refresh failure
 
-**status: active**
+**status: completed**
 
 Issue: #145 (parent #131). Fixed review point: `5d0a71b1`.
 
