@@ -34,12 +34,6 @@ public class ClientBrandingTests(WallowApiFactory factory) : OrganizationClients
 
         branding.GetProperty("displayName").GetString().Should().Be("Fresh Portal");
         branding.GetProperty("logoUrl").ValueKind.Should().Be(JsonValueKind.Null);
-
-        // The public copy the sign-in screen reads serves the same row, anonymously.
-        HttpResponseMessage publicResponse = await Client.GetAsync($"/identity/apps/{clientId}/branding");
-        publicResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-        JsonElement publicBranding = await publicResponse.Content.ReadFromJsonAsync<JsonElement>();
-        publicBranding.GetProperty("displayName").GetString().Should().Be("Fresh Portal");
     }
 
     [Fact]

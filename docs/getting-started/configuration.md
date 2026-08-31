@@ -98,7 +98,7 @@ Every other branding value is imported at build time rather than read at runtime
 
 **`WALLOW_WEB_URL` tells the auth app where the main app lives.** A sign-in that arrives with a `returnUrl` -- every OIDC hand-off does -- finishes by returning there. One that arrives without -- the first-run administrator coming straight from `/setup`, or anyone who opened the login page directly -- has nowhere to go, and `wallow-auth` never invents a destination: it cannot know which sibling serves the site root. Set `WALLOW_WEB_URL` to the main app's absolute public URL and the login page navigates there instead of stopping at its signed-in banner. It is read the same way as the link overrides above (on the server, published into the document, never baked into a bundle); a blank or non-`http(s)` value counts as unset. `docker/docker-compose.production.yml` passes `WEB_PUBLIC_URL` through as `WALLOW_WEB_URL`.
 
-Per-OAuth-client branding is a separate, runtime concern: the Branding module serves `GET /v1/identity/apps/{clientId}/branding`, and a client's display name, tagline, logo, and theme are overlaid on top of the fork's when a `client_id` is present.
+Per-OAuth-client branding is a separate, runtime concern: inside an authorize transaction the auth app resolves the requesting client from the transaction's `returnUrl` via `GET /v1/identity/auth/authorize-context`, and the client's display name, tagline, logo, and theme are overlaid on top of the fork's for every screen in that transaction. There is no anonymous branding read by client id.
 
 ### Session Limits
 

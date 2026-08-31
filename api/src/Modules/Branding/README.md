@@ -47,11 +47,10 @@ The sole entity in this module. Stores branding configuration for an OAuth clien
 
 ## API Endpoints
 
-Public read (what the sign-in screen renders): `/v1/identity/apps/{clientId}/branding`
-
-| Method | Auth | Description |
-|--------|------|-------------|
-| `GET` | Anonymous | Get branding for a client (served from the bounded memory cache; no HTTP response cache, so an edit shows on the next sign-in) |
+There is no anonymous read by client id. The sign-in screens get branding through Identity's
+transaction-scoped `GET /v1/identity/auth/authorize-context`, which reads this module's row via
+the `IClientBrandingProvider` contract in `Shared.Contracts` (same bounded memory cache; no HTTP
+response cache, so an edit shows on the next sign-in).
 
 Management (org sub-resource): `/v1/identity/organizations/{orgId}/clients/{clientId}/branding`
 

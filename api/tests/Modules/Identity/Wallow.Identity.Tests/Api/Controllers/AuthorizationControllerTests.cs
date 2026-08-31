@@ -870,7 +870,7 @@ public sealed class AuthorizationControllerTests : IDisposable
             QueryHelpers.ParseQuery(new Uri(redirectResult.Url).Query);
 
         // Space-delimited, matching OAuth's own scope convention and the
-        // space-split the consent-info endpoint already parses with.
+        // space-split the authorize-context endpoint already parses with.
         query.Should().ContainKey("scope");
         query["scope"].ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries)
             .Should().BeEquivalentTo("openid", "profile");

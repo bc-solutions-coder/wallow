@@ -47,7 +47,7 @@ internal static partial class WallowModules
     private static readonly (string ModuleName, Assembly ApiAssembly)[] _moduleApiAssemblies =
     [
         ("Identity", typeof(UsersController).Assembly),
-        ("Branding", typeof(ClientBrandingController).Assembly),
+        ("Branding", typeof(OrganizationClientBrandingController).Assembly),
         ("Notifications", typeof(NotificationsController).Assembly),
         ("Announcements", typeof(AnnouncementsController).Assembly),
         ("Storage", typeof(StorageController).Assembly),

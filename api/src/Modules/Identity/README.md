@@ -233,11 +233,11 @@ Rotate-with-revoke, suspension, deletion and organization-membership revocation 
 `OrganizationReinstatedByPlatformEvent`), which the auth-audit handler records with the operator and
 — on the suspensions — the stated reason.
 
-### Apps (`/v1/identity/apps`)
+### Authorize Context (`/v1/identity/auth/authorize-context`)
 
 | Method | Endpoint | Description | Permission |
 |--------|----------|-------------|------------|
-| GET | `/consent-info/{clientId}` | Client name, logo and scope descriptions for the consent screen | Anonymous |
+| GET | `/` | The client behind a pending authorize transaction: branding, owning organization, first-party flag and scope descriptions. Takes the transaction's `returnUrl` (plus an optional `scope` override); the embedded `redirect_uri` must exactly match one the client registered, so nothing can be read by client id alone. Every failure is the same 404. | Anonymous (auth rate limit) |
 
 ### Service Accounts
 

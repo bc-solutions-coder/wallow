@@ -51,7 +51,7 @@ public sealed partial class AuthorizationController
         string returnUrl = Request.PathBase + Request.Path + QueryString.Create(AuthorizeParameters(request));
 
         // The granted scopes ride along space-delimited (OAuth's own delimiter, and what the
-        // consent-info endpoint splits on): they are the substance of the decision the screen asks
+        // authorize-context endpoint splits on): they are the substance of the decision the screen asks
         // the user to make, and asking to consent to a scope that will never be issued is a lie.
         string consentScopes = string.Join(" ", grantedScopes);
         string token = consentTokenService.Issue(userId, fingerprint);

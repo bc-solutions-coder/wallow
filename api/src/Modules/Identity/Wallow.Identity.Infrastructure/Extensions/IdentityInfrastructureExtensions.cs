@@ -425,7 +425,7 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<IOrganizationAccessPolicy, OrganizationAccessPolicy>();
         services.AddScoped<IOrganizationClientService, OrganizationClientService>();
         services.AddScoped<ITestSupportService, TestSupportService>();
-        services.AddScoped<IDeveloperAppService, OpenIddictDeveloperAppService>();
+        services.AddScoped<IAuthorizeContextService, AuthorizeContextService>();
         services.AddScoped<IClientTenantResolver, ClientTenantResolver>();
         services.AddScoped<IRedirectUriValidator, OpenIddictRedirectUriValidator>();
         services.TryAddScoped<Wallow.Shared.Contracts.Identity.IScopeSubsetValidator, ScopeSubsetValidator>();

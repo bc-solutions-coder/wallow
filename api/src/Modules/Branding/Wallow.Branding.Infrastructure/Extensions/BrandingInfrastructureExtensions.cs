@@ -3,12 +3,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Npgsql;
 using Wallow.Branding.Application.Interfaces;
 using Wallow.Branding.Infrastructure.Modules;
 using Wallow.Branding.Infrastructure.Persistence;
 using Wallow.Branding.Infrastructure.Repositories;
 using Wallow.Branding.Infrastructure.Services;
+using Wallow.Shared.Contracts.Branding;
 using Wallow.Shared.Infrastructure.Core.Extensions;
 using Wallow.Shared.Kernel.MultiTenancy;
 
@@ -65,5 +67,6 @@ public static class BrandingInfrastructureExtensions
 
         // Branding services
         services.AddScoped<IClientBrandingService, ClientBrandingService>();
+        services.TryAddScoped<IClientBrandingProvider, ClientBrandingProvider>();
     }
 }
