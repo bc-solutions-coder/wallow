@@ -3,7 +3,11 @@ namespace Wallow.Shared.Kernel.Auditing;
 public record AuthAuditRecord
 {
     public required string EventType { get; init; }
-    public required Guid UserId { get; init; }
+    /// <summary>
+    /// The person the event is about, or null for the events that have no person at all —
+    /// a machine client failing to authenticate is about the client, not about anyone.
+    /// </summary>
+    public required Guid? UserId { get; init; }
     /// <summary>
     /// Who caused the event, when that is somebody other than the subject. Null for the events a
     /// person triggers about themselves, which is every authentication event: nobody logs in on

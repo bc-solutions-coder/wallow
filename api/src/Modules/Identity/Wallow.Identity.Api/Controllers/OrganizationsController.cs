@@ -2,6 +2,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Wallow.Identity.Api.Authorization;
 using Wallow.Identity.Api.Contracts.Requests;
 using Wallow.Identity.Api.Contracts.Responses;
@@ -61,6 +62,7 @@ public class OrganizationsController(
     [HttpPost]
     [Authorize]
     [AllowWithoutOrganization]
+    [EnableRateLimiting("registration")]
     public async Task<ActionResult<CreateOrganizationResponse>> Create(
         CreateOrganizationRequest request, CancellationToken ct)
     {

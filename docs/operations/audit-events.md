@@ -14,7 +14,7 @@ double-quoted in hand-written SQL.
 |--------|------|----------|-------------|
 | `"Id"` | `uuid` | No | Primary key, generated per event |
 | `"EventType"` | `text` | No | String identifier for the event (see below) |
-| `"UserId"` | `uuid` | No | The user the event is about |
+| `"UserId"` | `uuid` | Yes | The user the event is about; null for the events that have no person at all, such as `ClientAuthenticationFailed` |
 | `"ActorId"` | `uuid` | Yes | Who caused the event, when that is somebody other than the subject. Null for every authentication event — nobody logs in on another person's behalf |
 | `"TenantId"` | `uuid` | Yes | The tenant the event happened inside, or null when it happened outside every organization |
 | `"IpAddress"` | `text` | Yes | Client IP address, when available |
@@ -45,10 +45,12 @@ The `"EventType"` column uses plain string values. The following events are reco
 | `ClientBrandingUpdated` | Somebody replaced a client's branding or removed its logo (see below) | Yes |
 | `ClientSuspendedByPlatform` | A global admin placed the platform's suspension on a registered client (see below) | Yes |
 | `ClientReinstatedByPlatform` | A global admin lifted a client's platform suspension (see below) | Yes |
+| `ClientAuthenticationFailed` | A token request failed client authentication — a wrong or missing client secret, an unknown client, or any other `invalid_client` answer (see below) | Yes |
 | `OrganizationSuspendedByPlatform` | A global admin placed the platform's suspension on an organization (see below) | No |
 | `OrganizationReinstatedByPlatform` | A global admin lifted an organization's platform suspension (see below) | No |
+| `OrganizationDeleted` | Somebody deleted an organization, ending every membership and bound client with it | No |
 
-Each event is written by `AuthAuditEventHandlers` in the Identity module, which subscribes to the corresponding Wolverine in-memory integration events published by the Identity domain — except `ClientBrandingUpdatedEvent`, which the Branding module publishes.
+Each event is written by `AuthAuditEventHandlers` in the Identity module, which subscribes to the corresponding Wolverine in-memory integration events published by the Identity domain — except `ClientBrandingUpdatedEvent`, which the Branding module publishes, and `ClientAuthenticationFailed`, which is not an integration event at all: the `AuditInvalidClientTokenResponses` OpenIddict handler observes every `invalid_client` token response on its way out.
 
 | `"EventType"` | Source integration event |
 |--------------|--------------------------|
@@ -65,8 +67,10 @@ Each event is written by `AuthAuditEventHandlers` in the Identity module, which 
 | `ClientBrandingUpdated` | `ClientBrandingUpdatedEvent` |
 | `ClientSuspendedByPlatform` | `ClientSuspendedByPlatformEvent` |
 | `ClientReinstatedByPlatform` | `ClientReinstatedByPlatformEvent` |
+| `ClientAuthenticationFailed` | — (`AuditInvalidClientTokenResponses`, an OpenIddict server handler) |
 | `OrganizationSuspendedByPlatform` | `OrganizationSuspendedByPlatformEvent` |
 | `OrganizationReinstatedByPlatform` | `OrganizationReinstatedByPlatformEvent` |
+| `OrganizationDeleted` | `OrganizationDeletedEvent` |
 
 ### Membership events
 
@@ -82,8 +86,8 @@ The fourteen `MembershipTransition` values are `AccessRequested`, `Enrolled`, `A
 This handler writes `"ActorId"`: it records who made the change, while `"UserId"`
 records who it was made about. The two are equal for the transitions somebody performs on their own
 membership — requesting access, enrolling, leaving — and that equality is the record, not an
-omission. Apart from the client lifecycle events below, every other audited event leaves
-`"ActorId"` null.
+omission. Apart from the client lifecycle, platform suspension and organization deletion events
+below, every other audited event leaves `"ActorId"` null.
 
 To read the whole family:
 
@@ -126,6 +130,31 @@ WHERE "ClientId" = '$client_id'
 ORDER BY "OccurredAt" DESC;
 ```
 
+### Client authentication failures
+
+`ClientAuthenticationFailed` records every `invalid_client` answer the token endpoint gives — a
+wrong or missing secret, an unknown `client_id`, a suspended client's refusal. It is the one event
+with no person at all: `"UserId"` and `"ActorId"` are both null, `"ClientId"` holds whatever
+`client_id` the caller presented (which may name no registered client), and the caller's IP address
+and User-Agent are taken from the HTTP request itself.
+
+Each failure also ticks a per-`client_id` counter (`Identity:InvalidClientLockout` in
+configuration, five failures in five minutes by default). A client that trips it is temporarily
+rejected at the token endpoint — correct secret or not — with the same generic `invalid_client`
+answer, for the configured lockout window. The lockout's own refusals are not recorded or counted;
+only genuine authentication failures are, so the rows measure the caller's guesses, not the brake.
+
+To see who has been guessing:
+
+```sql
+SELECT "ClientId", "IpAddress", COUNT(*) AS failures
+FROM auth_audit.auth_audit_entries
+WHERE "EventType" = 'ClientAuthenticationFailed'
+  AND "OccurredAt" >= now() - INTERVAL '24 hours'
+GROUP BY "ClientId", "IpAddress"
+ORDER BY failures DESC;
+```
+
 ### Platform suspension events
 
 `ClientSuspendedByPlatform`, `ClientReinstatedByPlatform`, `OrganizationSuspendedByPlatform` and
@@ -141,6 +170,11 @@ A platform-suspended client behaves exactly as a suspended one (tokens revoked, 
 endpoints refuse) but none of the organization's own controls lift it. A platform-suspended
 organization loses every member's and every bound client's tokens, and every change to the
 organization is refused until the suspension is lifted; it also cannot be deleted while suspended.
+
+`OrganizationDeleted` follows the same shape without being a platform act: whoever deleted the
+organization — an owner or a global admin — stands in `"UserId"` and `"ActorId"`, and
+`"TenantId"` holds the deleted organization. Like a deleted client, a deleted organization's audit
+rows are all that remains of it.
 
 To see everything the platform has done to an organization:
 

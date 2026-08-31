@@ -56,7 +56,7 @@ namespace Wallow.Shared.Infrastructure.Core.Migrations.AuthAudit
                     b.Property<string>("UserAgent")
                         .HasColumnType("text");
 
-                    b.Property<Guid>("UserId")
+                    b.Property<Guid?>("UserId")
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");

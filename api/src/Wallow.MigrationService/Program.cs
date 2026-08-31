@@ -11,12 +11,8 @@ string connectionString = builder.Configuration.GetConnectionString("DefaultConn
 // IdentityDbContext requires IDataProtectionProvider
 builder.Services.AddDataProtection();
 
-// Host-owned contexts. Auditing belongs to no module, so it is registered explicitly here rather
-// than coming from the registry.
-builder.Services.AddDbContext<AuditDbContext>(options =>
-    options.UseNpgsql(connectionString, npgsql =>
-        npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "audit")));
-
+// Host-owned contexts. Auth auditing belongs to no module, so it is registered explicitly here
+// rather than coming from the registry.
 builder.Services.AddDbContext<AuthAuditDbContext>(options =>
     options.UseNpgsql(connectionString, npgsql =>
         npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "auth_audit")));
@@ -31,7 +27,6 @@ builder.Services.AddSingleton<CoreMigrationRunners>(sp =>
     return new CoreMigrationRunners(
     [
         .. ModuleMigrations.CreateRunners(isCore: true, scopeFactory),
-        new DbContextMigrationRunner<AuditDbContext>(scopeFactory),
         new DbContextMigrationRunner<AuthAuditDbContext>(scopeFactory),
     ]);
 });

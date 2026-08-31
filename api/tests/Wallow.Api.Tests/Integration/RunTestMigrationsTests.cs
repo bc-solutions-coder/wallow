@@ -16,7 +16,7 @@ namespace Wallow.Api.Tests.Integration;
 
 /// <summary>
 /// Guards the two things a registry-driven <c>RunTestMigrationsAsync</c> can silently drop: a module
-/// the method does not name itself, and the two auditing contexts that belong to no module at all.
+/// the method does not name itself, and the auth-audit context that belongs to no module at all.
 /// </summary>
 /// <remarks>
 /// The probe modules below are declared by this test, not by <c>WallowModuleRegistry</c>. That is the
@@ -50,7 +50,6 @@ public sealed class RunTestMigrationsTests : IDisposable
         // list it is handed. Without it the method throws before reaching the probe, and the failure
         // would be about Identity rather than about the module that was ignored.
         AddSchemaScopedDbContext<IdentityDbContext>(services, connectionString, "identity");
-        AddSchemaScopedDbContext<AuditDbContext>(services, connectionString, "audit");
         AddSchemaScopedDbContext<AuthAuditDbContext>(services, connectionString, "auth_audit");
         AddSchemaScopedDbContext<ProbeFeatureDbContext>(services, connectionString, ProbeFeatureDbContext.Schema);
         AddSchemaScopedDbContext<ProbeCoreDbContext>(services, connectionString, ProbeCoreDbContext.Schema);
@@ -85,31 +84,26 @@ public sealed class RunTestMigrationsTests : IDisposable
     }
 
     [Fact]
-    public async Task RunTestMigrationsAsync_MigratesTheHostOwnedAuditContexts_WhichNoModuleDeclares()
+    public async Task RunTestMigrationsAsync_MigratesTheHostOwnedAuthAuditContext_WhichNoModuleDeclares()
     {
-        // A module list that declares neither auditing context. They belong to no module by design
-        // (IWallowModule.DbContextTypes says so), so nothing but an explicit host-owned line migrates them.
+        // A module list that does not declare the auth-audit context. It belongs to no module by design
+        // (IWallowModule.DbContextTypes says so), so nothing but an explicit host-owned line migrates it.
         await WallowModules.RunTestMigrationsAsync(_provider, [new ProbeFeatureModule()]);
 
-        (await GetAppliedMigrationsAsync<AuditDbContext>()).Should().NotBeEmpty(
-            "AuditDbContext belongs to no module and must still be migrated");
         (await GetAppliedMigrationsAsync<AuthAuditDbContext>()).Should().NotBeEmpty(
             "AuthAuditDbContext belongs to no module and must still be migrated");
     }
 
     [Fact]
-    public async Task TestHostBoot_MigratesTheHostOwnedAuditContexts()
+    public async Task TestHostBoot_MigratesTheHostOwnedAuthAuditContext()
     {
         // The end-to-end half of the same criterion: this database's schema comes only from the
-        // Testing host's own boot, so an empty history here means the boot path dropped them.
+        // Testing host's own boot, so an empty history here means the boot path dropped it.
         await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
 
-        IEnumerable<string> audit = await scope.ServiceProvider
-            .GetRequiredService<AuditDbContext>().Database.GetAppliedMigrationsAsync();
         IEnumerable<string> authAudit = await scope.ServiceProvider
             .GetRequiredService<AuthAuditDbContext>().Database.GetAppliedMigrationsAsync();
 
-        audit.Should().NotBeEmpty("the Testing host boot is the only thing that migrates this database");
         authAudit.Should().NotBeEmpty("the Testing host boot is the only thing that migrates this database");
     }
 

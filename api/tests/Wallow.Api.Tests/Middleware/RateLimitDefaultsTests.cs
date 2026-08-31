@@ -41,6 +41,18 @@ public sealed class RateLimitDefaultsTests
     }
 
     [Fact]
+    public void RegistrationPermitLimit_HasExpectedValue()
+    {
+        RateLimitDefaults.RegistrationPermitLimit.Should().Be(5);
+    }
+
+    [Fact]
+    public void RegistrationWindowHours_HasExpectedValue()
+    {
+        RateLimitDefaults.RegistrationWindowHours.Should().Be(1);
+    }
+
+    [Fact]
     public void AuthPermitLimit_IsMoreRestrictiveThanGlobal()
     {
         RateLimitDefaults.AuthPermitLimit.Should().BeLessThan(RateLimitDefaults.GlobalPermitLimit);

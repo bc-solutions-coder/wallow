@@ -598,8 +598,8 @@ module**. Both derive the contexts they migrate from `DbContextTypes` and `Schem
    in-process path. It takes the enabled module set as a parameter and migrates each module's
    `DbContextTypes` from it.
 
-Only the two auditing contexts (`AuditDbContext`, `AuthAuditDbContext`) are still registered by hand
-in `api/src/Wallow.MigrationService/Program.cs`, because they belong to no module.
+Only the auth-audit context (`AuthAuditDbContext`) is still registered by hand
+in `api/src/Wallow.MigrationService/Program.cs`, because it belongs to no module.
 
 ---
 

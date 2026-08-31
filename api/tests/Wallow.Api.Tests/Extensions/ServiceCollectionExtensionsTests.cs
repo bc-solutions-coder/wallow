@@ -91,11 +91,30 @@ public class ServiceCollectionExtensionsTests
     {
         ServiceCollection services = new();
 
-        services.AddWallowRateLimiting();
+        services.AddWallowRateLimiting(BuildConfiguration());
 
         ServiceDescriptor? descriptor = services.FirstOrDefault(d =>
             d.ServiceType == typeof(IConfigureOptions<RateLimiterOptions>));
         descriptor.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void AddWallowRateLimiting_BindsRateLimitingOptionsFromConfiguration()
+    {
+        ServiceCollection services = new();
+        IConfiguration config = BuildConfiguration(new Dictionary<string, string?>
+        {
+            ["RateLimiting:Registration:PermitLimit"] = "2",
+            ["RateLimiting:Global:PermitLimit"] = "77",
+        });
+
+        services.AddWallowRateLimiting(config);
+
+        ServiceProvider provider = services.BuildServiceProvider();
+        RateLimitingOptions options = provider.GetRequiredService<IOptions<RateLimitingOptions>>().Value;
+        options.Registration.PermitLimit.Should().Be(2);
+        options.Global.PermitLimit.Should().Be(77);
+        options.Auth.PermitLimit.Should().Be(RateLimitDefaults.AuthPermitLimit);
     }
 
     [Fact]
@@ -111,7 +130,7 @@ public class ServiceCollectionExtensionsTests
     {
         ServiceCollection services = new();
 
-        IServiceCollection result = services.AddWallowRateLimiting();
+        IServiceCollection result = services.AddWallowRateLimiting(BuildConfiguration());
 
         result.Should().BeSameAs(services);
     }

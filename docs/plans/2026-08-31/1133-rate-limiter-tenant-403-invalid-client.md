@@ -1,4 +1,4 @@
-**status: active**
+**status: completed**
 
 # Rate limiter after tenant resolution; fail-closed tenant 403; invalid_client counting (#150)
 

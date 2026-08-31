@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Threading.RateLimiting;
 using Asp.Versioning.OpenApi;
@@ -6,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using RedisRateLimiting;
 using StackExchange.Redis;
@@ -13,6 +15,7 @@ using Wallow.Api.HealthChecks;
 using Wallow.Api.Middleware;
 using Wallow.Shared.Infrastructure.Core.Resilience;
 using Wallow.Shared.Kernel.Extensions;
+using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Storage.Domain.Enums;
 using Wallow.Storage.Infrastructure.Configuration;
 
@@ -97,66 +100,73 @@ internal static partial class ServiceCollectionExtensions
         return services;
     }
 
-    public static IServiceCollection AddWallowRateLimiting(this IServiceCollection services)
+    public static IServiceCollection AddWallowRateLimiting(
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
+        services.Configure<RateLimitingOptions>(configuration.GetSection(RateLimitingOptions.SectionName));
+
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = 429;
 
             options.AddPolicy("auth", httpContext =>
                 RedisRateLimitPartition.GetFixedWindowRateLimiter(
-                    GetTenantPartitionKey(httpContext),
+                    GetTenantPartitionKey(httpContext, "auth"),
                     _ => new RedisFixedWindowRateLimiterOptions
                     {
                         ConnectionMultiplexerFactory = () => httpContext.RequestServices.GetRequiredService<IConnectionMultiplexer>(),
-                        PermitLimit = RateLimitDefaults.AuthPermitLimit,
-                        Window = TimeSpan.FromMinutes(RateLimitDefaults.AuthWindowMinutes)
+                        PermitLimit = GetRateLimits(httpContext).Auth.PermitLimit,
+                        Window = TimeSpan.FromMinutes(GetRateLimits(httpContext).Auth.WindowMinutes)
                     }));
 
             options.AddPolicy("upload", httpContext =>
                 RedisRateLimitPartition.GetFixedWindowRateLimiter(
-                    GetTenantPartitionKey(httpContext),
+                    GetTenantPartitionKey(httpContext, "upload"),
                     _ => new RedisFixedWindowRateLimiterOptions
                     {
                         ConnectionMultiplexerFactory = () => httpContext.RequestServices.GetRequiredService<IConnectionMultiplexer>(),
-                        PermitLimit = RateLimitDefaults.UploadPermitLimit,
-                        Window = TimeSpan.FromHours(RateLimitDefaults.UploadWindowHours)
+                        PermitLimit = GetRateLimits(httpContext).Upload.PermitLimit,
+                        Window = TimeSpan.FromHours(GetRateLimits(httpContext).Upload.WindowHours)
                     }));
 
-            options.AddPolicy("developer-app-registration", httpContext =>
+            options.AddPolicy("registration", httpContext =>
                 RedisRateLimitPartition.GetFixedWindowRateLimiter(
-                    GetUserPartitionKey(httpContext),
+                    GetUserPartitionKey(httpContext, "registration"),
                     _ => new RedisFixedWindowRateLimiterOptions
                     {
                         ConnectionMultiplexerFactory = () => httpContext.RequestServices.GetRequiredService<IConnectionMultiplexer>(),
-                        PermitLimit = RateLimitDefaults.DeveloperAppRegistrationPermitLimit,
-                        Window = TimeSpan.FromHours(RateLimitDefaults.DeveloperAppRegistrationWindowHours)
+                        PermitLimit = GetRateLimits(httpContext).Registration.PermitLimit,
+                        Window = TimeSpan.FromHours(GetRateLimits(httpContext).Registration.WindowHours)
                     }));
 
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
                 RedisRateLimitPartition.GetFixedWindowRateLimiter(
-                    GetTenantPartitionKey(httpContext),
+                    GetTenantPartitionKey(httpContext, "global"),
                     _ => new RedisFixedWindowRateLimiterOptions
                     {
                         ConnectionMultiplexerFactory = () => httpContext.RequestServices.GetRequiredService<IConnectionMultiplexer>(),
-                        PermitLimit = RateLimitDefaults.GlobalPermitLimit,
-                        Window = TimeSpan.FromHours(RateLimitDefaults.GlobalWindowHours)
+                        PermitLimit = GetRateLimits(httpContext).Global.PermitLimit,
+                        Window = TimeSpan.FromHours(GetRateLimits(httpContext).Global.WindowHours)
                     }));
 
             options.OnRejected = async (context, cancellationToken) =>
             {
                 HttpContext httpContext = context.HttpContext;
                 httpContext.Response.StatusCode = 429;
-                httpContext.Response.ContentType = "application/problem+json";
 
-                if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out TimeSpan retryAfter))
+                // RedisRateLimiting leases publish the library's RateLimitMetadataName entries,
+                // not the framework's MetadataName ones — reading the framework names here
+                // silently yields no headers at all.
+                if (context.Lease.TryGetMetadata(RateLimitMetadataName.RetryAfter, out int retryAfterSeconds))
                 {
-                    httpContext.Response.Headers["Retry-After"] = ((int)retryAfter.TotalSeconds).ToString();
+                    httpContext.Response.Headers["Retry-After"] =
+                        retryAfterSeconds.ToString(CultureInfo.InvariantCulture);
                 }
 
-                if (context.Lease.TryGetMetadata(MetadataName.ReasonPhrase, out string? reason))
+                if (context.Lease.TryGetMetadata(RateLimitMetadataName.Limit, out string? limit))
                 {
-                    httpContext.Response.Headers["X-RateLimit-Limit"] = reason;
+                    httpContext.Response.Headers["X-RateLimit-Limit"] = limit;
                 }
 
                 httpContext.Response.Headers["X-RateLimit-Remaining"] = "0";
@@ -170,27 +180,45 @@ internal static partial class ServiceCollectionExtensions
                     Instance = httpContext.Request.Path
                 };
 
-                await httpContext.Response.WriteAsJsonAsync(problemDetails, cancellationToken);
+                // WriteAsJsonAsync stamps application/json unless the media type is passed
+                // explicitly, silently overwriting a ContentType set beforehand.
+                await httpContext.Response.WriteAsJsonAsync(
+                    problemDetails,
+                    options: null,
+                    contentType: "application/problem+json",
+                    cancellationToken);
             };
         });
 
         return services;
     }
 
-    private static string GetUserPartitionKey(HttpContext httpContext)
+    private static RateLimitingOptions GetRateLimits(HttpContext httpContext)
     {
-        string? userId = httpContext.User.GetUserId();
-        return userId ?? httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return httpContext.RequestServices.GetRequiredService<IOptions<RateLimitingOptions>>().Value;
     }
 
-    private static string GetTenantPartitionKey(HttpContext httpContext)
+    // Partition keys are prefixed with the policy name so two policies keyed on the same
+    // principal never share a Redis counter. UseRateLimiter runs after authentication and
+    // tenant resolution (see Program.cs), so a user or tenant is genuinely available here;
+    // the IP fallback only covers anonymous traffic.
+    private static string GetUserPartitionKey(HttpContext httpContext, string policy)
     {
-        if (httpContext.Items.TryGetValue("TenantId", out object? tenantId) && tenantId is string tenantIdStr)
+        string? userId = httpContext.User.GetUserId();
+        return $"{policy}:{userId ?? httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+    }
+
+    // ITenantContext rather than HttpContext.Items: TenantResolutionMiddleware sets both,
+    // but ApiKeyAuthenticationMiddleware sets only the context, so this covers both paths.
+    private static string GetTenantPartitionKey(HttpContext httpContext, string policy)
+    {
+        ITenantContext tenantContext = httpContext.RequestServices.GetRequiredService<ITenantContext>();
+        if (tenantContext.IsResolved)
         {
-            return tenantIdStr;
+            return $"{policy}:{tenantContext.TenantId.Value}";
         }
 
-        return httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return GetUserPartitionKey(httpContext, policy);
     }
 
     /// <summary>

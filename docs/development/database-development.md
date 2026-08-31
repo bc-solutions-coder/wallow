@@ -277,11 +277,10 @@ Each module uses its own PostgreSQL schema:
 | Inquiries | `inquiries` |
 | ApiKeys | `apikeys` |
 | Branding | `branding` |
-| Audit (Shared) | `audit` |
 | Auth Audit (Shared) | `auth_audit` |
 
-The two shared contexts (`AuditDbContext`, `AuthAuditDbContext`) belong to no module, so they are the
-only ones still registered by hand in `api/src/Wallow.MigrationService/Program.cs`. The seven module
+The shared auth-audit context (`AuthAuditDbContext`) belongs to no module, so it is the
+only one still registered by hand in `api/src/Wallow.MigrationService/Program.cs`. The seven module
 contexts come from `ModuleMigrations.AddModuleDbContexts`, which walks `WallowModuleRegistry.All` and
 registers each module's `DbContextTypes` against its own `SchemaName`.
 

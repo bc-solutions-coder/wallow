@@ -4,6 +4,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using Wallow.Branding.Api.Contracts.Requests;
 using Wallow.Branding.Application.DTOs;
@@ -84,6 +85,7 @@ public partial class OrganizationClientBrandingController(
     /// display name may never read as the platform itself.
     /// </summary>
     [HttpPut]
+    [EnableRateLimiting("registration")]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(ClientBrandingDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -204,6 +206,7 @@ public partial class OrganizationClientBrandingController(
 
     /// <summary>Remove the client's logo. The rest of the branding stays.</summary>
     [HttpDelete("logo")]
+    [EnableRateLimiting("registration")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteLogo(Guid orgId, string clientId, CancellationToken ct)

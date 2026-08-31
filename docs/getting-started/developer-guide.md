@@ -240,9 +240,9 @@ Cross-cutting capabilities that were previously separate modules now live in `Wa
 
 ### Auditing (`Shared.Infrastructure.Core/Auditing/`)
 
-An EF Core `SaveChangesInterceptor` that automatically captures all entity changes (inserts, updates, deletes) across every module's DbContext. Audit entries include the entity type, primary key, old/new values (serialized JSON), the acting user, tenant, and timestamp. Entries are stored in a dedicated `audit` schema via `AuditDbContext`.
+Authentication and account-lifecycle events are recorded as append-only rows in a dedicated `auth_audit` schema via `AuthAuditDbContext`. Wolverine event handlers translate domain events (logins, lockouts, membership transitions, client lifecycle changes) into `AuthAuditRecord`s through `IAuthAuditService`; the catalogue of event types lives in [Audit events](../operations/audit-events.md). There is no automatic entity-change interceptor — a change worth auditing raises an explicit event.
 
-**Registration:** `services.AddWallowAuditing(configuration)` registers the `AuditDbContext` and `AuditInterceptor` singleton. Module DbContexts pick up auditing automatically by adding the interceptor to their options (via `options.AddInterceptors(sp.GetRequiredService<AuditInterceptor>())`).
+**Registration:** `services.AddAuthAuditing(configuration)` registers the `AuthAuditDbContext` factory and `IAuthAuditService`.
 
 ### Background Jobs (`Shared.Infrastructure.BackgroundJobs/`)
 

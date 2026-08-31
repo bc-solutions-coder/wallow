@@ -56,7 +56,7 @@ public class OrganizationClientsController(
     /// </summary>
     [HttpPost]
     [HasPermission(PermissionType.OrganizationClientsManage)]
-    [EnableRateLimiting("developer-app-registration")]
+    [EnableRateLimiting("registration")]
     [ProducesResponseType(typeof(OrganizationClientRegistrationResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -132,6 +132,7 @@ public class OrganizationClientsController(
     /// already issued.
     /// </summary>
     [HttpPost("{clientId}/rotate-secret")]
+    [EnableRateLimiting("registration")]
     [HasPermission(PermissionType.OrganizationClientsManage)]
     [ProducesResponseType(typeof(OrganizationClientRegistrationResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -202,6 +203,7 @@ public class OrganizationClientsController(
     /// a service account's URI fields are ignored.
     /// </summary>
     [HttpPatch("{clientId}")]
+    [EnableRateLimiting("registration")]
     [HasPermission(PermissionType.OrganizationClientsManage)]
     [ProducesResponseType(typeof(OrganizationClientResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -248,6 +250,7 @@ public class OrganizationClientsController(
     /// are closed, while its configuration, branding and consents are kept for reinstatement.
     /// </summary>
     [HttpPost("{clientId}/suspend")]
+    [EnableRateLimiting("registration")]
     [HasPermission(PermissionType.OrganizationClientsManage)]
     [ProducesResponseType(typeof(OrganizationClientResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -270,6 +273,7 @@ public class OrganizationClientsController(
 
     /// <summary>Reinstate a suspended client exactly as it was.</summary>
     [HttpPost("{clientId}/reinstate")]
+    [EnableRateLimiting("registration")]
     [HasPermission(PermissionType.OrganizationClientsManage)]
     [ProducesResponseType(typeof(OrganizationClientResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -296,6 +300,7 @@ public class OrganizationClientsController(
     /// organization can read the reason but not lift it.
     /// </summary>
     [HttpPost("{clientId}/platform-suspension")]
+    [EnableRateLimiting("registration")]
     [ProducesResponseType(typeof(OrganizationClientResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -340,6 +345,7 @@ public class OrganizationClientsController(
     /// organization's own suspension still stands.
     /// </summary>
     [HttpDelete("{clientId}/platform-suspension")]
+    [EnableRateLimiting("registration")]
     [ProducesResponseType(typeof(OrganizationClientResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -373,6 +379,7 @@ public class OrganizationClientsController(
     /// first, then the client, its consents and its branding are removed.
     /// </summary>
     [HttpDelete("{clientId}")]
+    [EnableRateLimiting("registration")]
     [HasPermission(PermissionType.OrganizationClientsManage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

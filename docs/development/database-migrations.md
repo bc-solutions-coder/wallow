@@ -117,7 +117,7 @@ if (app.Environment.IsEnvironment("Testing"))
 
 `enabledModules` is the exact set `AddWallowModules` registered. `RunTestMigrationsAsync` migrates
 the core modules' contexts sequentially (`IdentityDbContext` — Identity's schema must exist before
-seeding), then the two host-owned auditing contexts (`AuditDbContext`, `AuthAuditDbContext`), then
+seeding), then the host-owned auth-audit context (`AuthAuditDbContext`), then
 every feature module's `DbContextTypes` in parallel. A disabled module simply is not in
 `enabledModules`, so nothing has to probe DI to skip it. Outside the `Testing` environment nothing in
 the API touches `Database.MigrateAsync()`.
@@ -127,8 +127,8 @@ the API touches `Database.MigrateAsync()`.
 `api/src/Wallow.MigrationService/` is a worker project (`Microsoft.NET.Sdk.Worker`) that:
 
 1. Reads the `DefaultConnection` connection string and throws if it is missing.
-2. Registers the two host-owned auditing contexts (`AuditDbContext`, `AuthAuditDbContext`) by hand —
-   they belong to no module — and then calls `ModuleMigrations.AddModuleDbContexts`, which walks
+2. Registers the host-owned auth-audit context (`AuthAuditDbContext`) by hand —
+   it belongs to no module — and then calls `ModuleMigrations.AddModuleDbContexts`, which walks
    `WallowModuleRegistry.All` and registers every module's `DbContextTypes` pinned to that module's
    own `SchemaName`. There is **no hand-maintained list of contexts or schema strings** in this
    project.
@@ -233,7 +233,6 @@ dotnet ef migrations add AddSubmissionStatusField \
 
 | Context | Schema | Has Migrations | Notes |
 |---------|--------|----------------|-------|
-| AuditDbContext | `audit` | Yes | Audit interceptor in `Wallow.Shared.Infrastructure.Core` |
 | AuthAuditDbContext | `auth_audit` | Yes | Authentication audit trail |
 
 ## Troubleshooting

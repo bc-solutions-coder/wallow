@@ -216,6 +216,21 @@ Delivery tuning lives under `Identity:BackchannelLogout`:
 | `RetryDelay` | `00:00:01` | The pause before the single retry a failed delivery gets. |
 | `OverallTimeout` | `00:00:10` | The bound on the whole notification fan-out. Deliveries run in parallel, so this is a backstop for many slow relying parties, not a per-client budget. |
 
+### Identity: Invalid-Client Lockout
+
+Every `invalid_client` answer the token endpoint gives — a wrong or missing secret, an unknown
+`client_id` — is audited (see [Audit events](../operations/audit-events.md)) and counted per
+`client_id`. A client that fails too often is temporarily rejected at the token endpoint, correct
+secret or not, with the same generic `invalid_client` answer, so a secret-guesser learns nothing
+from finally landing the right one. The counter lives in Redis, so all API instances share one
+tally. Tuning lives under `Identity:InvalidClientLockout`:
+
+| Key | Default | Meaning |
+|-----|---------|---------|
+| `FailureThreshold` | `5` | Failed client authentications within the window that trip the lockout. |
+| `WindowMinutes` | `5` | How long the failure counter lives before it resets. |
+| `LockoutMinutes` | `5` | How long a tripped client stays rejected. Fixed window, not sliding — further attempts do not extend it. |
+
 ### Identity: First-Run Setup and the Bootstrap Admin
 
 The seeder (`Wallow.SeederService`) can bootstrap the first administrator from the seed file's
@@ -313,6 +328,27 @@ The auth app (`apps/wallow-auth`) must serve the email-change confirmation route
 `appsettings.json` ships this **empty**, and there is a second copy under `ServiceUrls:AuthUrl` that the `ServiceUrlsOptions` binder reads (its own code default is `http://localhost:3002`). `appsettings.Development.json` fills both in with `http://localhost:3002`, so a local run works out of the box; a deployment that leaves them empty will mail a confirmation link with no origin. Set both for your fork.
 
 ---
+
+### Rate Limiting
+
+The API enforces Redis-backed fixed-window rate limits in every environment except Development.
+The limiter runs **after** authentication and tenant resolution, so its partitions follow the
+authenticated user or resolved organization, not the connection: two users behind one address own
+independent windows, and an unauthenticated caller falls back to its IP address. Requests count
+toward a window regardless of the downstream status code, and a rejected request gets a
+`429 Too Many Requests` problem document with `Retry-After`.
+
+Four policies bind from the `RateLimiting` section; each has a `PermitLimit` and a window:
+
+| Section | Partition | Defaults | Applied to |
+|---------|-----------|----------|------------|
+| `RateLimiting:Auth` | Organization, else user, else IP | 30 per `WindowMinutes: 1` | The token endpoint and other authentication surfaces. |
+| `RateLimiting:Upload` | Organization, else user, else IP | 10 per `WindowHours: 1` | File uploads. |
+| `RateLimiting:Registration` | User, else IP | 5 per `WindowHours: 1` | Organization create and every org-surface client mutation (register, rotate secret, update, suspend, reinstate, delete, branding). |
+| `RateLimiting:Global` | Organization, else user, else IP | 1000 per `WindowHours: 1` | Everything else, as the global limiter. |
+
+The Testing environment keeps the limiter enabled with generous limits
+(`appsettings.Testing.json`), so functional suites exercise it without tripping it.
 
 ### Connection Strings
 

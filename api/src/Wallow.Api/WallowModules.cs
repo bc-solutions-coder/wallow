@@ -369,10 +369,9 @@ internal static partial class WallowModules
             await MigrateContextAsync(sp, contextType);
         }
 
-        // The two auditing contexts belong to no module (see IWallowModule.DbContextTypes) and so
-        // cannot come from the registry. They stay explicit, in the same position after the core
-        // contexts that this method has always run them in.
-        await sp.GetRequiredService<AuditDbContext>().Database.MigrateAsync();
+        // The auth-audit context belongs to no module (see IWallowModule.DbContextTypes) and so
+        // cannot come from the registry. It stays explicit, in the same position after the core
+        // contexts that this method has always run it in.
         await sp.GetRequiredService<AuthAuditDbContext>().Database.MigrateAsync();
 
         // Feature module contexts, migrated in parallel. The GetService probe this replaced only

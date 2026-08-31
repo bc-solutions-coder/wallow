@@ -8,6 +8,6 @@ public static class RateLimitDefaults
     public const int UploadWindowHours = 1;
     public const int GlobalPermitLimit = 1000;
     public const int GlobalWindowHours = 1;
-    public const int DeveloperAppRegistrationPermitLimit = 5;
-    public const int DeveloperAppRegistrationWindowHours = 1;
+    public const int RegistrationPermitLimit = 5;
+    public const int RegistrationWindowHours = 1;
 }

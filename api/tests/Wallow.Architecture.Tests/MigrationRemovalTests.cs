@@ -17,7 +17,6 @@ public sealed class MigrationRemovalTests
 
     private static readonly string[] _auditingExtensionFiles =
     [
-        "src/Shared/Wallow.Shared.Infrastructure.Core/Auditing/AuditingExtensions.cs",
         "src/Shared/Wallow.Shared.Infrastructure.Core/Auditing/AuthAuditingExtensions.cs",
     ];
 

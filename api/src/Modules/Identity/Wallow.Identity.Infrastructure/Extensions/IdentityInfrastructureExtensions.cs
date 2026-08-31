@@ -186,6 +186,8 @@ public static class IdentityInfrastructureExtensions
                     }));
 
                 options.AddEventHandler(RefuseUnserviceableClientTokenRequests.Descriptor);
+                options.AddEventHandler(RejectLockedOutClientTokenRequests.Descriptor);
+                options.AddEventHandler(AuditInvalidClientTokenResponses.Descriptor);
             })
             .AddValidation(options =>
             {
@@ -428,6 +430,8 @@ public static class IdentityInfrastructureExtensions
         services.Configure<PreRegisteredClientOptions>(configuration.GetSection(PreRegisteredClientOptions.SectionName));
         services.Configure<AdminBootstrapOptions>(configuration.GetSection(AdminBootstrapOptions.SectionName));
         services.Configure<PasswordlessOptions>(configuration.GetSection(PasswordlessOptions.SectionName));
+        services.Configure<InvalidClientLockoutOptions>(configuration.GetSection(InvalidClientLockoutOptions.SectionName));
+        services.AddScoped<IInvalidClientLockout, InvalidClientLockout>();
 
         services.AddMemoryCache();
         services.AddScoped<IUserManagementService, UserManagementService>();

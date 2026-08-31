@@ -181,7 +181,6 @@ try
     // ============================================================================
     IReadOnlyList<IWallowModule> enabledModules = Wallow.Api.WallowModules.AddWallowModules(
         builder.Services, builder.Configuration, builder.Environment);
-    builder.Services.AddWallowAuditing(builder.Configuration);
     builder.Services.AddAuthAuditing(builder.Configuration);
 
     // The one handler-discovery list, shared by Wolverine below and by the AsyncAPI document near
@@ -537,9 +536,9 @@ try
     builder.Services.AddHangfireServices(builder.Configuration);
     builder.Services.AddWallowBackgroundJobs();
     builder.Services.AddScoped<SystemHeartbeatJob>();
-    if (!builder.Environment.IsDevelopment() && !builder.Environment.IsEnvironment("Testing"))
+    if (!builder.Environment.IsDevelopment())
     {
-        builder.Services.AddWallowRateLimiting();
+        builder.Services.AddWallowRateLimiting(builder.Configuration);
     }
     builder.Services.AddFeatureManagement();
 
@@ -557,7 +556,6 @@ try
     // Explicit module initialization via WallowModules.cs
     // ============================================================================
     await Wallow.Api.WallowModules.InitializeWallowModulesAsync(app, enabledModules);
-    await app.InitializeAppAuditingAsync();
     await app.InitializeAuthAuditingAsync();
 
     // Middleware pipeline (order matters!)
@@ -701,12 +699,6 @@ try
         })).ExcludeFromDescription().AllowAnonymous();
     }
 
-    // Rate limiting
-    if (!app.Environment.IsDevelopment() && !app.Environment.IsEnvironment("Testing"))
-    {
-        app.UseRateLimiter();
-    }
-
     // API key authentication (checks X-Api-Key header first, falls through to JWT if not present)
     // Only register when ApiKeys module is enabled — the middleware depends on IApiKeyService
     if (enabledModules.IsModuleEnabled<ApiKeysModule>())
@@ -726,6 +718,17 @@ try
 
     // Permission expansion (reads roles → expands to PermissionType claims)
     app.UseMiddleware<PermissionExpansionMiddleware>();
+
+    // Rate limiting — deliberately AFTER authentication and tenant resolution so the
+    // per-user and per-tenant partition keys see a real principal; any earlier and every
+    // policy silently degrades to per-IP. Development opts out entirely; Testing runs the
+    // limiter with the generous limits in appsettings.Testing.json so partitioning is
+    // provable in integration tests. Requests count toward a window regardless of the
+    // downstream status code.
+    if (!app.Environment.IsDevelopment())
+    {
+        app.UseRateLimiter();
+    }
 
     // Unmatched paths become a 404 problem before authorization runs. With no endpoint, the
     // authorization FallbackPolicy challenges the request, and under the nosniff header a
