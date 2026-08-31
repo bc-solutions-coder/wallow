@@ -82,6 +82,16 @@ export interface RenderWithWallowOptions {
    * answer on; a route built with `createRoute({ path })` can be passed as is.
    */
   routes?: readonly MountableRoute[] | undefined;
+  /**
+   * Extra options for the throwaway root route itself — typically a `loader`
+   * (with `loaderDeps`) whose data a mounted route's hooks read back via
+   * `useLoaderData({ from: "__root__" })`, the way an app's real root feeds
+   * layout-level state to its screens. Loosely typed on purpose: the root is
+   * created here, so a spec cannot name its type, and TanStack validates the
+   * options at runtime. `component` and `notFoundComponent` are the seam's own
+   * and cannot be overridden.
+   */
+  rootOptions?: Record<string, unknown> | undefined;
 }
 
 /** What {@link renderWithWallow} returns: the render result plus the seams it built. */
@@ -124,6 +134,7 @@ export function renderWithWallow(
   // route matches every location, a child route (when `routes` is given) fills
   // the outlet, and neither case needs the caller to invent a path.
   const rootRoute = createRootRouteWithContext<WallowTestRouterContext>()({
+    ...options.rootOptions,
     component: () => (
       <>
         {ui}
