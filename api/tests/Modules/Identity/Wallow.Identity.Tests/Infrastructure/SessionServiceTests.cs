@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
-using StackExchange.Redis;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Identity.Infrastructure.Services;
@@ -11,14 +10,9 @@ using Wolverine;
 
 namespace Wallow.Identity.Tests.Infrastructure;
 
-#pragma warning disable CA2213 // Disposable fields should be disposed (NSubstitute mock)
 public sealed class SessionServiceTests : IDisposable
 {
     private readonly IdentityDbContext _dbContext;
-#pragma warning disable CA2213 // IConnectionMultiplexer is a mock — no real resources to dispose
-    private readonly IConnectionMultiplexer _mux;
-#pragma warning restore CA2213
-    private readonly IDatabase _redis;
     private readonly IMessageBus _messageBus;
     private readonly FakeTimeProvider _timeProvider;
     private readonly SessionService _sut;
@@ -31,17 +25,11 @@ public sealed class SessionServiceTests : IDisposable
         IDataProtectionProvider dp = DataProtectionProvider.Create("test");
         _dbContext = new IdentityDbContext(options, dp);
 
-        _mux = Substitute.For<IConnectionMultiplexer>();
-        _redis = Substitute.For<IDatabase>();
-        _mux.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(_redis);
-        _mux.GetDatabase().Returns(_redis);
-
         _messageBus = Substitute.For<IMessageBus>();
         _timeProvider = new FakeTimeProvider(DateTimeOffset.UtcNow);
 
         _sut = new SessionService(
             _dbContext,
-            _mux,
             _messageBus,
             _timeProvider,
             NullLogger<SessionService>.Instance);
@@ -134,37 +122,12 @@ public sealed class SessionServiceTests : IDisposable
                 e.Reason == "max_sessions_exceeded"));
     }
 
-    [Fact]
-    public async Task CreateSession_Eviction_SetsRedisRevokedKey()
-    {
-        Guid userId = Guid.NewGuid();
-        Guid tenantId = Guid.NewGuid();
-
-        // Fill to max
-        List<ActiveSession> sessions = [];
-        for (int i = 0; i < 5; i++)
-        {
-            sessions.Add(await _sut.CreateSessionAsync(userId, tenantId, CancellationToken.None));
-            _timeProvider.Advance(TimeSpan.FromMinutes(1));
-        }
-
-        string oldestToken = sessions[0].SessionToken;
-
-        await _sut.CreateSessionAsync(userId, tenantId, CancellationToken.None);
-
-        await _redis.Received(1).StringSetAsync(
-            $"session:revoked:{oldestToken}",
-            Arg.Any<RedisValue>(),
-            Arg.Is<TimeSpan?>(ts => ts != null && ts.Value.TotalHours == 24),
-            Arg.Any<When>());
-    }
-
     // ──────────────────────────────────────────────
     // RevokeSessionAsync
     // ──────────────────────────────────────────────
 
     [Fact]
-    public async Task RevokeSession_SetsIsRevokedAndRedisKey()
+    public async Task RevokeSession_MarksTheLedgerRowRevoked()
     {
         Guid userId = Guid.NewGuid();
         Guid tenantId = Guid.NewGuid();
@@ -173,19 +136,11 @@ public sealed class SessionServiceTests : IDisposable
 
         await _sut.RevokeSessionAsync(session.Id.Value, userId, CancellationToken.None);
 
-        // Verify session is revoked in DB
         ActiveSession? revoked = await _dbContext.ActiveSessions
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.Id == session.Id);
         revoked.Should().NotBeNull();
         revoked!.IsRevoked.Should().BeTrue();
-
-        // Verify Redis key was set
-        await _redis.Received().StringSetAsync(
-            $"session:revoked:{session.SessionToken}",
-            Arg.Any<RedisValue>(),
-            Arg.Is<TimeSpan?>(ts => ts != null && ts.Value.TotalHours == 24),
-            Arg.Any<When>());
     }
 
     [Fact]

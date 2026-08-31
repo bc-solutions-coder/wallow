@@ -2,16 +2,18 @@ using Microsoft.Extensions.Logging;
 using OpenIddict.Abstractions;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
+using Wallow.Identity.Infrastructure.Extensions;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace Wallow.Identity.Infrastructure.Services;
 
 /// <summary>
 /// The consent ledger a user can read and edit. Connected applications are the user's Valid
-/// permanent authorizations — the durable consent records token issuance chains to — never the
-/// ad-hoc rows first-party sign-ins leave behind. Withdrawing one revokes the authorization and
-/// every token chained to it, so refresh dies with <c>invalid_grant</c> and token-entry
-/// validation refuses the surviving access tokens on their next request.
+/// permanent authorizations — the durable consent records — never the per-login ad-hoc rows
+/// sign-ins leave behind. Tokens chain to those ad-hoc rows, not to the consent record, so
+/// withdrawing consent revokes the permanent record and then walks the user's tokens for that
+/// application (and the ad-hoc rows they chain to): refresh dies with <c>invalid_grant</c> and
+/// token-entry validation refuses the surviving access tokens on their next request.
 /// </summary>
 public sealed partial class ConnectedApplicationService(
     IOpenIddictAuthorizationManager authorizationManager,
@@ -79,7 +81,39 @@ public sealed partial class ConnectedApplicationService(
         }
 
         await authorizationManager.TryRevokeAsync(authorization, ct);
-        long revokedTokens = await tokenManager.RevokeByAuthorizationIdAsync(authorizationId, ct);
+
+        long revokedTokens = 0;
+        string? applicationId = await authorizationManager.GetApplicationIdAsync(authorization, ct);
+        if (applicationId is not null)
+        {
+            string subject = userId.ToString();
+
+            await foreach (object token in tokenManager.FindBySubjectAsync(subject, ct))
+            {
+                if (string.Equals(
+                        await tokenManager.GetApplicationIdAsync(token, ct),
+                        applicationId,
+                        StringComparison.Ordinal)
+                    && await tokenManager.TryRevokeAsync(token, ct))
+                {
+                    revokedTokens++;
+                }
+            }
+
+            // The per-login ad-hoc rows the tokens chained to die with them, so nothing Valid
+            // is left pointing at the application.
+            await foreach (object adHoc in authorizationManager.FindBySubjectAsync(subject, ct))
+            {
+                if (string.Equals(
+                        await authorizationManager.GetApplicationIdAsync(adHoc, ct),
+                        applicationId,
+                        StringComparison.Ordinal)
+                    && (await authorizationManager.GetTypeAsync(adHoc, ct)).IsAdHocAuthorizationType())
+                {
+                    await authorizationManager.TryRevokeAsync(adHoc, ct);
+                }
+            }
+        }
 
         LogConsentWithdrawn(userId, authorizationId, revokedTokens);
         return true;

@@ -26,6 +26,7 @@ public sealed partial class LogoutController(
     IRedirectUriValidator redirectUriValidator,
     IConfiguration configuration,
     ISsoClientSessionService ssoClientSessionService,
+    IAccessRevoker accessRevoker,
     IOptionsMonitor<OpenIddictServerOptions> serverOptions,
     ILogger<LogoutController> logger) : Controller
 {
@@ -65,6 +66,10 @@ public sealed partial class LogoutController(
             notificationUris = await ssoClientSessionService.BuildLogoutNotificationUrisAsync(
                 sid, GetIssuer(), HttpContext.RequestAborted);
         }
+
+        // End the session's tokens while the cookie principal still names the user and the sid —
+        // phase two arrives after the cookie sign-out and carries neither, so this runs once.
+        await RevokeSessionTokensAsync(sid);
 
         // Sign out the Identity cookie and let OpenIddict handle the end-session redirect
         await HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
@@ -142,10 +147,24 @@ public sealed partial class LogoutController(
     public async Task<IActionResult> LogoutPost()
     {
         LogLogoutPostRequest();
+        await RevokeSessionTokensAsync(User.GetSessionId());
         await HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
 
         return SignOut(
             authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+    }
+
+    /// <summary>
+    /// Revokes every token minted under the session, so a refresh after logout answers
+    /// <c>invalid_grant</c> and the old access tokens are refused on their next bearer request.
+    /// A caller with no sid (phase two, or a cookie that predates sids) has nothing to revoke.
+    /// </summary>
+    private async Task RevokeSessionTokensAsync(string? sid)
+    {
+        if (sid is not null && Guid.TryParse(User.GetUserId(), out Guid userId))
+        {
+            await accessRevoker.RevokeSessionAsync(userId, sid, HttpContext.RequestAborted);
+        }
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "OIDC logout request: postLogoutRedirectUri={PostLogoutRedirectUri}, isAuthenticated={IsAuthenticated}")]

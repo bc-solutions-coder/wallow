@@ -236,12 +236,6 @@ public sealed partial class AuthorizationController(
 
         string applicationId = (await applicationManager.GetIdAsync(application))!;
 
-        // The authorization every token of this sign-in chains to. OpenIddict would mint an
-        // anonymous ad-hoc one itself; Wallow records its own so the organization the sign-in
-        // ran in is written on it, which is the only place revocation can find a first-party
-        // token's organization (a bound client's tokens name it through the client as well).
-        string? authorizationId = null;
-
         if (!isFirstParty)
         {
             // Stored consent is the user's Valid PERMANENT authorizations for this client — the
@@ -290,7 +284,7 @@ public sealed partial class AuthorizationController(
                 // Granted. A redeemed decision settles the transaction even when the replayed
                 // request still carries prompt=consent — honouring the prompt here would bounce
                 // the answer straight back to the screen forever.
-                authorizationId = await StoreConsentAsync(
+                await StoreConsentAsync(
                     permanentAuthorization, applicationId, userId, grantedScopes, tenantInfo);
             }
             else if (request.HasPromptValue(PromptValues.None))
@@ -304,7 +298,7 @@ public sealed partial class AuthorizationController(
                         "The request needs consent the user has not given, and 'prompt=none' forbids asking for it.");
                 }
 
-                authorizationId = await StoreConsentAsync(
+                await StoreConsentAsync(
                     permanentAuthorization, applicationId, userId, grantedScopes, tenantInfo);
             }
             else if (permanentAuthorization is null || !missingScopes.IsEmpty
@@ -315,9 +309,9 @@ public sealed partial class AuthorizationController(
             else
             {
                 // Consent already covers the request; StoreConsentAsync still runs so that when
-                // legacy rows split the consented scopes, the record the tokens chain to is
+                // legacy rows split the consented scopes, the one durable consent record is
                 // widened to cover the granted set (a no-op write otherwise).
-                authorizationId = await StoreConsentAsync(
+                await StoreConsentAsync(
                     permanentAuthorization, applicationId, userId, grantedScopes, tenantInfo);
             }
         }
@@ -332,11 +326,14 @@ public sealed partial class AuthorizationController(
                 sid, clientId, Guid.Parse(userId), HttpContext.RequestAborted);
         }
 
-        if (isFirstParty && tenantInfo is not null)
-        {
-            authorizationId = await CreateAuthorizationAsync(
-                AuthorizationTypes.AdHoc, applicationId, userId, grantedScopes, tenantInfo);
-        }
+        // The authorization every token of this sign-in chains to: a per-login ad-hoc record
+        // stamped with the session's sid (and the organization the sign-in ran in, when there is
+        // one) — never the shared permanent consent row, which end-session revocation could not
+        // touch without killing the user's other browser sessions. OpenIddict would mint an
+        // anonymous ad-hoc record itself; Wallow writes its own so end-session can find one
+        // session's tokens by sid, and membership revocation a first-party token's organization.
+        string? authorizationId = await CreateAuthorizationAsync(
+            AuthorizationTypes.AdHoc, applicationId, userId, grantedScopes, tenantInfo, sid);
 
         ClaimsIdentity identity = await BuildClaimsIdentityAsync(user, userId, roles, grantedScopes, tenantInfo, sid);
         if (authorizationId is not null)
@@ -387,10 +384,11 @@ public sealed partial class AuthorizationController(
 
     /// <summary>
     /// Records a granted consent: widens the one permanent authorization's scope set to cover
-    /// the granted scopes (creating the record on first consent) and returns its id — the id
-    /// every token of this and later sign-ins chains to.
+    /// the granted scopes (creating the record on first consent). Pure consent bookkeeping —
+    /// tokens chain to the sign-in's per-login ad-hoc authorization, never to this record, so
+    /// end-session revocation cannot reach across the user's other browser sessions through it.
     /// </summary>
-    private async Task<string?> StoreConsentAsync(
+    private async Task StoreConsentAsync(
         object? permanentAuthorization,
         string applicationId,
         string userId,
@@ -399,8 +397,9 @@ public sealed partial class AuthorizationController(
     {
         if (permanentAuthorization is null)
         {
-            return await CreateAuthorizationAsync(
-                AuthorizationTypes.Permanent, applicationId, userId, grantedScopes, tenantInfo);
+            await CreateAuthorizationAsync(
+                AuthorizationTypes.Permanent, applicationId, userId, grantedScopes, tenantInfo, sessionId: null);
+            return;
         }
 
         OpenIddictAuthorizationDescriptor descriptor = new();
@@ -411,8 +410,6 @@ public sealed partial class AuthorizationController(
         {
             await authorizationManager.UpdateAsync(permanentAuthorization, descriptor);
         }
-
-        return await authorizationManager.GetIdAsync(permanentAuthorization);
     }
 
     /// <summary>Refuses the relying party with <c>consent_required</c>.</summary>
@@ -435,7 +432,8 @@ public sealed partial class AuthorizationController(
         string applicationId,
         string userId,
         ImmutableArray<string> grantedScopes,
-        ClientTenantInfo? tenantInfo)
+        ClientTenantInfo? tenantInfo,
+        string? sessionId)
     {
         OpenIddictAuthorizationDescriptor descriptor = new()
         {
@@ -454,6 +452,11 @@ public sealed partial class AuthorizationController(
         if (tenantInfo is not null)
         {
             descriptor.SetOrganizationId(tenantInfo.TenantId);
+        }
+
+        if (sessionId is not null)
+        {
+            descriptor.SetSessionId(sessionId);
         }
 
         object authorization = await authorizationManager.CreateAsync(descriptor);

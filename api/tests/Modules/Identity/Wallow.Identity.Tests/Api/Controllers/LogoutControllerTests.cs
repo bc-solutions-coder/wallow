@@ -25,9 +25,11 @@ public sealed class LogoutControllerTests : IDisposable
     private readonly IRedirectUriValidator _redirectUriValidator;
     private readonly IConfiguration _configuration;
     private readonly ISsoClientSessionService _ssoClientSessionService;
+    private readonly IAccessRevoker _accessRevoker;
     private readonly IOptionsMonitor<OpenIddictServerOptions> _serverOptions;
     private readonly IAuthenticationService _authenticationService;
     private readonly LogoutController _controller;
+    private readonly Guid _userId = Guid.NewGuid();
 
     public LogoutControllerTests()
     {
@@ -40,6 +42,7 @@ public sealed class LogoutControllerTests : IDisposable
         _configuration["AuthUrl"].Returns("https://auth.example.com");
 
         _ssoClientSessionService = Substitute.For<ISsoClientSessionService>();
+        _accessRevoker = Substitute.For<IAccessRevoker>();
 
         _serverOptions = Substitute.For<IOptionsMonitor<OpenIddictServerOptions>>();
         _serverOptions.CurrentValue.Returns(new OpenIddictServerOptions { Issuer = _issuer });
@@ -50,6 +53,7 @@ public sealed class LogoutControllerTests : IDisposable
             _redirectUriValidator,
             _configuration,
             _ssoClientSessionService,
+            _accessRevoker,
             _serverOptions,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<LogoutController>.Instance);
     }
@@ -58,7 +62,7 @@ public sealed class LogoutControllerTests : IDisposable
 
     private void SetupHttpContext(string? sid, string queryString = "?client_id=wallow-web")
     {
-        List<Claim> claims = [new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString())];
+        List<Claim> claims = [new Claim(ClaimTypes.NameIdentifier, _userId.ToString())];
         if (sid is not null)
         {
             claims.Add(new Claim(ClaimsPrincipalExtensions.SessionIdClaimType, sid));
@@ -98,6 +102,33 @@ public sealed class LogoutControllerTests : IDisposable
             Arg.Any<HttpContext>(), IdentityConstants.ApplicationScheme, Arg.Any<AuthenticationProperties?>());
         await _ssoClientSessionService.DidNotReceive().BuildLogoutNotificationUrisAsync(
             Arg.Any<string>(), Arg.Any<Uri>(), Arg.Any<CancellationToken>());
+        await _accessRevoker.DidNotReceive().RevokeSessionAsync(
+            Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Logout_WithSid_RevokesTheSessionsTokens()
+    {
+        SetupHttpContext(TestSid);
+        _ssoClientSessionService
+            .BuildLogoutNotificationUrisAsync(TestSid, _issuer, Arg.Any<CancellationToken>())
+            .Returns([]);
+
+        await _controller.Logout();
+
+        await _accessRevoker.Received(1).RevokeSessionAsync(
+            _userId, TestSid, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task LogoutPost_RevokesTheSessionsTokens()
+    {
+        SetupHttpContext(TestSid);
+
+        await _controller.LogoutPost();
+
+        await _accessRevoker.Received(1).RevokeSessionAsync(
+            _userId, TestSid, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -173,6 +204,10 @@ public sealed class LogoutControllerTests : IDisposable
             .ContainSingle(s => s == OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
         await _ssoClientSessionService.DidNotReceive().BuildLogoutNotificationUrisAsync(
             Arg.Any<string>(), Arg.Any<Uri>(), Arg.Any<CancellationToken>());
+
+        // Phase one already revoked the session's tokens; the return trip must not walk again.
+        await _accessRevoker.DidNotReceive().RevokeSessionAsync(
+            Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

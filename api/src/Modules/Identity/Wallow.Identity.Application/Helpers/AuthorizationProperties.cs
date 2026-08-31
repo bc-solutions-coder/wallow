@@ -13,4 +13,11 @@ public static class AuthorizationProperties
     /// hint-scoped token's organization is written down where revocation can find it.
     /// </summary>
     public const string OrganizationId = "org_id";
+
+    /// <summary>
+    /// Names the SSO session the sign-in ran under — the same <c>sid</c> the id_token carries.
+    /// Written on the per-login ad-hoc authorization every token chains to, so end-session can
+    /// find and revoke exactly one browser session's tokens without touching the user's others.
+    /// </summary>
+    public const string SessionId = "sid";
 }

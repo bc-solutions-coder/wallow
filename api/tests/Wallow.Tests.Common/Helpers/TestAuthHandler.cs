@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
+using OpenIddict.Validation.AspNetCore;
 using WallowClaims = Wallow.Shared.Kernel.Extensions.ClaimsPrincipalExtensions;
 
 namespace Wallow.Tests.Common.Helpers;
@@ -26,10 +27,13 @@ public sealed class TestAuthHandler : AuthenticationHandler<AuthenticationScheme
 
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        // Allow tests to opt-out of authentication via header
+        // The opt-out header runs the REAL bearer validation instead of a synthetic principal, so
+        // a spec can assert what an actual JWT is worth — signature, audience, and the token
+        // entry, meaning a revoked token is refused and a valid one is honoured.
         if (Request.Headers.TryGetValue("X-Test-Auth-Skip", out StringValues skipHeader) && skipHeader == "true")
         {
-            return AuthenticateResult.Fail("Authentication skipped by test");
+            return await Context.AuthenticateAsync(
+                OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme);
         }
 
         // Check for Authorization header or SignalR access_token query param

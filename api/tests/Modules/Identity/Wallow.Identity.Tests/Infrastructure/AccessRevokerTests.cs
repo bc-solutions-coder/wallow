@@ -4,6 +4,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 using OpenIddict.Abstractions;
 using Wallow.Identity.Application.Helpers;
 using Wallow.Identity.Application.Interfaces;
+using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Services;
 using Wallow.Shared.Contracts.Realtime;
 
@@ -21,6 +23,7 @@ public sealed class AccessRevokerTests
     private readonly IOpenIddictApplicationManager _applications = Substitute.For<IOpenIddictApplicationManager>();
     private readonly IOpenIddictAuthorizationManager _authorizations = Substitute.For<IOpenIddictAuthorizationManager>();
     private readonly IRealtimeAccessRevoker _realtime = Substitute.For<IRealtimeAccessRevoker>();
+    private readonly IMembershipRepository _memberships = Substitute.For<IMembershipRepository>();
     private readonly Guid _userId = Guid.NewGuid();
     private readonly Guid _organizationId = Guid.NewGuid();
     private readonly AccessRevoker _sut;
@@ -32,7 +35,7 @@ public sealed class AccessRevokerTests
             _applications,
             _authorizations,
             Substitute.For<IRegisteredClientRepository>(),
-            Substitute.For<IMembershipRepository>(),
+            _memberships,
             _realtime,
             NullLogger<AccessRevoker>.Instance);
         _tokens.FindBySubjectAsync(_userId.ToString(), Arg.Any<CancellationToken>())
@@ -43,6 +46,8 @@ public sealed class AccessRevokerTests
             .Returns(ValueTask.FromResult(true));
         _authorizations.TryRevokeAsync(Arg.Any<object>(), Arg.Any<CancellationToken>())
             .Returns(ValueTask.FromResult(true));
+        _memberships.GetForUserAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(new List<Membership>().AsReadOnly());
     }
 
     [Fact]
@@ -96,6 +101,38 @@ public sealed class AccessRevokerTests
     }
 
     [Fact]
+    public async Task RevokeSessionAsync_RevokesTheSessionsAuthorizationsAndChainedTokens()
+    {
+        object authorization = SessionAuthorization("auth-sid", "session-under-test");
+        object token = Token("token-sid", applicationId: "any-app");
+        _tokens.FindByAuthorizationIdAsync("auth-sid", Arg.Any<CancellationToken>())
+            .Returns(ToAsyncEnumerable(token));
+        _authorizations.FindBySubjectAsync(_userId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(ToAsyncEnumerable(authorization));
+
+        await _sut.RevokeSessionAsync(_userId, "session-under-test");
+
+        await _tokens.Received(1).TryRevokeAsync(token, Arg.Any<CancellationToken>());
+        await _authorizations.Received(1).TryRevokeAsync(authorization, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RevokeSessionAsync_LeavesOtherSessionsAndConsentRecordsAlone()
+    {
+        // Another browser session's authorization carries its own sid; the permanent consent
+        // record carries none. Ending one session may touch neither.
+        object otherSession = SessionAuthorization("auth-other", "some-other-session");
+        object consentRecord = SessionAuthorization("auth-consent", sid: null);
+        _authorizations.FindBySubjectAsync(_userId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(ToAsyncEnumerable(otherSession, consentRecord));
+
+        await _sut.RevokeSessionAsync(_userId, "session-under-test");
+
+        await _tokens.DidNotReceive().TryRevokeAsync(Arg.Any<object>(), Arg.Any<CancellationToken>());
+        await _authorizations.DidNotReceive().TryRevokeAsync(Arg.Any<object>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task RevokeClientAsync_RevokesEveryTokenTheClientWasIssued_AndHangsUpItsRealtimeConnections()
     {
         object application = new();
@@ -131,6 +168,47 @@ public sealed class AccessRevokerTests
         await _realtime.DidNotReceive().RevokeClientAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
+    [Fact]
+    public async Task RevokeUserAsync_RevokesEveryTokenAndPerLoginAuthorization_ButLeavesConsentRecords()
+    {
+        object adHoc = TypedAuthorization("auth-login", OpenIddictConstants.AuthorizationTypes.AdHoc);
+        object consent = TypedAuthorization("auth-consent", OpenIddictConstants.AuthorizationTypes.Permanent);
+        object chained = Token("token-chained", applicationId: "any-app");
+        object stray = Token("token-stray", applicationId: "any-app");
+        _tokens.FindByAuthorizationIdAsync("auth-login", Arg.Any<CancellationToken>())
+            .Returns(ToAsyncEnumerable(chained));
+        _authorizations.FindBySubjectAsync(_userId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(ToAsyncEnumerable(adHoc, consent));
+        _tokens.FindBySubjectAsync(_userId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(ToAsyncEnumerable(chained, stray));
+
+        await _sut.RevokeUserAsync(_userId);
+
+        // The chained token appears in both walks; Received(1) asserts the dedup holds.
+        await _tokens.Received(1).TryRevokeAsync(chained, Arg.Any<CancellationToken>());
+        await _tokens.Received(1).TryRevokeAsync(stray, Arg.Any<CancellationToken>());
+        await _authorizations.Received(1).TryRevokeAsync(adHoc, Arg.Any<CancellationToken>());
+        await _authorizations.DidNotReceive().TryRevokeAsync(consent, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RevokeUserAsync_HangsUpRealtimeForActiveMembershipsOnly()
+    {
+        Guid suspendedOrgId = Guid.NewGuid();
+        Membership active = Membership.Enroll(
+            _userId, OrganizationId.Create(_organizationId), Guid.NewGuid(), TimeProvider.System);
+        Membership suspended = Membership.Enroll(
+            _userId, OrganizationId.Create(suspendedOrgId), Guid.NewGuid(), TimeProvider.System);
+        suspended.Suspend(Guid.NewGuid(), TimeProvider.System);
+        _memberships.GetForUserAsync(_userId, Arg.Any<CancellationToken>())
+            .Returns(new List<Membership> { active, suspended }.AsReadOnly());
+
+        await _sut.RevokeUserAsync(_userId);
+
+        await _realtime.Received(1).RevokeAsync(_userId.ToString(), _organizationId, Arg.Any<CancellationToken>());
+        await _realtime.DidNotReceive().RevokeAsync(_userId.ToString(), suspendedOrgId, Arg.Any<CancellationToken>());
+    }
+
     private object Authorization(string id, Guid organizationId)
     {
         object authorization = new();
@@ -140,6 +218,32 @@ public sealed class AccessRevokerTests
             .When(a => a.PopulateAsync(Arg.Any<OpenIddictAuthorizationDescriptor>(), authorization, Arg.Any<CancellationToken>()))
             .Do(call => call.Arg<OpenIddictAuthorizationDescriptor>().Properties[AuthorizationProperties.OrganizationId] =
                 JsonSerializer.SerializeToElement(organizationId.ToString()));
+        return authorization;
+    }
+
+    private object SessionAuthorization(string id, string? sid)
+    {
+        object authorization = new();
+        _authorizations.GetIdAsync(authorization, Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult<string?>(id));
+        if (sid is not null)
+        {
+            _authorizations
+                .When(a => a.PopulateAsync(Arg.Any<OpenIddictAuthorizationDescriptor>(), authorization, Arg.Any<CancellationToken>()))
+                .Do(call => call.Arg<OpenIddictAuthorizationDescriptor>().Properties[AuthorizationProperties.SessionId] =
+                    JsonSerializer.SerializeToElement(sid));
+        }
+
+        return authorization;
+    }
+
+    private object TypedAuthorization(string id, string type)
+    {
+        object authorization = new();
+        _authorizations.GetIdAsync(authorization, Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult<string?>(id));
+        _authorizations.GetTypeAsync(authorization, Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult<string?>(type));
         return authorization;
     }
 

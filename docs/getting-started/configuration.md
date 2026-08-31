@@ -108,10 +108,9 @@ Wallow enforces a per-user concurrent session limit. When a user exceeds the lim
 
 1. **Session creation** -- on every successful login, `SessionService` counts the user's active, non-revoked, non-expired sessions.
 2. **Eviction** -- if the count is at or above the limit (default: **5**), the oldest session is revoked. A `UserSessionEvictedEvent` is published over the Wolverine bus so other modules can react.
-3. **Redis revocation** -- the evicted (or manually revoked) session token is written to Redis under the key `session:revoked:{token}` with a 24-hour TTL.
-4. **Request-time enforcement** -- `SessionRevocationMiddleware` checks every authenticated request against Redis. If the session token in the `wallow.session` cookie exists in the revoked set, the middleware clears the cookie and returns `401 Unauthorized` with `{"error":"session_revoked"}` before the request reaches any handler.
-5. **Activity tracking** -- `SessionActivityMiddleware` updates the `last_activity_at` timestamp on each session. Updates are throttled to once per 60 seconds per session (via a Redis NX key) to avoid write amplification.
-6. **Pruning** -- `SessionPruningJob` periodically deletes expired and revoked session rows from the database.
+3. **Access enforcement** -- access is ended at the OIDC layer, not by a cookie denylist. Ending a session at the auth host (`/connect/logout`) revokes every token minted under that session's `sid`: the refresh grant answers `invalid_grant` and the old access token fails token-entry validation on its next bearer request. Deactivating a user revokes all of their tokens the same way. The session ledger itself is bookkeeping for the sessions API below.
+4. **Activity tracking** -- `SessionActivityMiddleware` updates the `last_activity_at` timestamp on each session. Updates are throttled to once per 60 seconds per session (via a Redis NX key) to avoid write amplification.
+5. **Pruning** -- `SessionPruningJob` periodically deletes expired and revoked session rows from the database.
 
 #### Session limit
 
@@ -150,16 +149,13 @@ Returns `204 No Content` on success. A session can only be revoked by its owner 
 
 #### Redis requirements
 
-Session revocation requires a working Redis connection. Configure `ConnectionStrings__Redis` (see [Connection Strings](#connection-strings) below).
-
-Revoked and evicted session tokens are stored with a 24-hour TTL. Redis keys use these patterns:
+Session activity tracking uses Redis for its update throttle. Configure `ConnectionStrings__Redis` (see [Connection Strings](#connection-strings) below).
 
 ```
-session:revoked:{token}   -- value "revoked" (manual) or "evicted" (auto-evicted)
 session:touched:{token}   -- NX key throttling activity updates (60s TTL)
 ```
 
-If Redis is unreachable, `SessionRevocationMiddleware` will fail to check revocation, so revoked sessions may temporarily pass through. Ensure Redis availability matches your security requirements.
+Revocation itself does not depend on Redis: it is enforced by revoking OpenIddict token and authorization entries, which live in Postgres.
 
 #### Session duration
 

@@ -751,8 +751,7 @@ try
     // Authorization (checks [HasPermission] attributes)
     app.UseAuthorization();
 
-    // Session management (revoke tokens for invalidated sessions, track activity)
-    app.UseSessionRevocation();
+    // Session management (track activity on the active-session ledger)
     app.UseSessionActivity();
 
     // Module tagging (tags HTTP requests with wallow.module for observability)

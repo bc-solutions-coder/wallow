@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Wallow.Tests.Common.Factories;
 
 namespace Wallow.Identity.IntegrationTests.OAuth2;
@@ -84,8 +85,10 @@ public sealed class ConnectedApplicationTests(WallowApiFactory factory)
         refreshed.Error.Should().Be("invalid_grant");
 
         // The live access token is refused on its next request: token-entry validation reads
-        // the revoked token row, not just the signature.
-        HttpClient bearer = Factory.CreateClient();
+        // the revoked token row, not just the signature. Over https, because the validation
+        // handler refuses plain-http requests outright.
+        HttpClient bearer = Factory.CreateClient(
+            new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
         bearer.DefaultRequestHeaders.Add("Authorization", $"Bearer {tokens.RequireAccessToken()}");
         bearer.DefaultRequestHeaders.Add("X-Test-Auth-Skip", "true");
         HttpResponseMessage bearerCall = await bearer.GetAsync(

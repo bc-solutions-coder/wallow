@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using StackExchange.Redis;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Domain.Identity;
@@ -12,16 +11,12 @@ namespace Wallow.Identity.Infrastructure.Services;
 
 public sealed partial class SessionService(
     IdentityDbContext dbContext,
-    IConnectionMultiplexer connectionMultiplexer,
     IMessageBus messageBus,
     TimeProvider timeProvider,
     ILogger<SessionService> logger) : ISessionService
 {
     private const int MaxSessions = 5;
     private static readonly TimeSpan _sessionDuration = TimeSpan.FromHours(24);
-    private static readonly TimeSpan _revokedKeyTtl = TimeSpan.FromHours(24);
-    private const string RevokedKeyPrefix = "session:revoked:";
-    private readonly IDatabase _redis = connectionMultiplexer.GetDatabase();
 
     public async Task<ActiveSession> CreateSessionAsync(Guid userId, Guid tenantId, CancellationToken ct)
     {
@@ -41,12 +36,6 @@ public sealed partial class SessionService(
         {
             ActiveSession oldest = activeSessions[0];
             oldest.Revoke();
-
-            await _redis.StringSetAsync(
-                $"{RevokedKeyPrefix}{oldest.SessionToken}",
-                "evicted",
-                (TimeSpan?)_revokedKeyTtl,
-                When.Always);
 
             await messageBus.PublishAsync(new UserSessionEvictedEvent
             {
@@ -76,12 +65,6 @@ public sealed partial class SessionService(
             ?? throw new InvalidOperationException($"Session {sessionId} not found for user {userId}.");
 
         session.Revoke();
-
-        await _redis.StringSetAsync(
-            $"{RevokedKeyPrefix}{session.SessionToken}",
-            "revoked",
-            (TimeSpan?)_revokedKeyTtl,
-            When.Always);
 
         await dbContext.SaveChangesAsync(ct);
 

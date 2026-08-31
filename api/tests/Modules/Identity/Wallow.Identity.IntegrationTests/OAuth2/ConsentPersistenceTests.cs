@@ -9,12 +9,14 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.OAuth2;
 
 /// <summary>
-/// Consent, once granted, is a durable record: ONE permanent authorization per user and client
-/// that every token chains to. A later request covered by that record issues a code without a
-/// screen; a request for more asks only for the missing scopes and widens the record rather than
-/// minting a second one; <c>prompt=consent</c> re-asks and <c>prompt=none</c> refuses with
-/// <c>consent_required</c> instead of rendering UI. Only a permanent record satisfies consent —
-/// the ad-hoc authorizations first-party sign-ins mint are per-login bookkeeping, not consent.
+/// Consent, once granted, is a durable record: ONE permanent authorization per user and client.
+/// A later request covered by that record issues a code without a screen; a request for more asks
+/// only for the missing scopes and widens the record rather than minting a second one;
+/// <c>prompt=consent</c> re-asks and <c>prompt=none</c> refuses with <c>consent_required</c>
+/// instead of rendering UI. Only a permanent record satisfies consent — but tokens never chain to
+/// it: every sign-in mints its own per-login ad-hoc authorization for its tokens, so end-session
+/// can revoke one browser session without touching the consent record or the user's other
+/// sessions.
 /// </summary>
 public sealed class ConsentPersistenceTests(WallowApiFactory factory)
     : IdentityIntegrationTestBase(factory)
@@ -31,7 +33,7 @@ public sealed class ConsentPersistenceTests(WallowApiFactory factory)
     private static readonly string[] _clientScopes = ["openid", "profile", "email", "offline_access"];
 
     [Fact]
-    public async Task SecondAuthorize_WithTheSameScopes_ChainsToTheSamePermanentAuthorization()
+    public async Task SecondAuthorize_WithTheSameScopes_ReusesTheConsentButNotTheAuthorization()
     {
         Seed seed = await SeedAsync();
         using AuthorizationCodeFlowHarness harness = await SignedInAsync(seed);
@@ -40,18 +42,20 @@ public sealed class ConsentPersistenceTests(WallowApiFactory factory)
         TokenOutcome first = await harness.ExchangeCodeAsync(
             seed.ClientId, ClientSecret, granted.Code!, granted.CodeVerifier);
 
+        // The stored consent answers for the second request — no screen — but the sign-in still
+        // mints its own per-login authorization: revoking one login's tokens must not require
+        // touching a record other logins' tokens chain to.
         AuthorizeOutcome again = await harness.AuthorizeAsync(seed.ClientId, WideScope);
 
         again.Code.Should().NotBeNull(again.Location?.ToString());
         TokenOutcome second = await harness.ExchangeCodeAsync(
             seed.ClientId, ClientSecret, again.Code!, again.CodeVerifier);
 
-        string firstAuthorizationId = AuthorizationIdOf(first);
-        AuthorizationIdOf(second).Should().Be(
-            firstAuthorizationId, "every sign-in chains to the one permanent consent record");
+        AuthorizationIdOf(second).Should().NotBe(
+            AuthorizationIdOf(first), "each sign-in chains to its own per-login authorization");
 
         List<StoredAuthorization> permanents = await PermanentAuthorizationsAsync(seed);
-        permanents.Should().ContainSingle().Which.Id.Should().Be(firstAuthorizationId);
+        permanents.Should().ContainSingle("consent stays one durable record per user and client");
     }
 
     [Fact]
@@ -171,7 +175,7 @@ public sealed class ConsentPersistenceTests(WallowApiFactory factory)
     }
 
     [Fact]
-    public async Task AccessAndRefreshTokens_CarryThePermanentAuthorizationId()
+    public async Task AccessAndRefreshTokens_ChainToThePerLoginAuthorization_NotTheConsentRecord()
     {
         Seed seed = await SeedAsync();
         using AuthorizationCodeFlowHarness harness = await SignedInAsync(seed);
@@ -184,14 +188,16 @@ public sealed class ConsentPersistenceTests(WallowApiFactory factory)
         List<StoredAuthorization> permanents = await PermanentAuthorizationsAsync(seed);
         string permanentId = permanents.Should().ContainSingle().Subject.Id;
 
-        AuthorizationIdOf(tokens).Should().Be(permanentId);
+        string chainedId = AuthorizationIdOf(tokens);
+        chainedId.Should().NotBe(
+            permanentId, "tokens chain to the sign-in's per-login authorization, never the consent record");
 
         tokens.RefreshToken.Should().NotBeNull(tokens.Body);
         TokenOutcome refreshed = await harness.RefreshAsync(
             seed.ClientId, ClientSecret, tokens.RefreshToken!);
         refreshed.StatusCode.Should().Be(HttpStatusCode.OK, refreshed.Body);
         AuthorizationIdOf(refreshed).Should().Be(
-            permanentId, "the refresh grant keeps tokens chained to the same consent record");
+            chainedId, "the refresh grant keeps tokens chained to the same per-login authorization");
     }
 
     /// <summary>The authorization id an access token chains to.</summary>

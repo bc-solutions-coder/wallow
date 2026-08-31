@@ -18,6 +18,7 @@ public sealed partial class UserManagementService(
     RoleManager<WallowRole> roleManager,
     IdentityDbContext dbContext,
     IMembershipRepository membershipRepository,
+    IAccessRevoker accessRevoker,
     IMessageBus messageBus,
     ITenantContext tenantContext,
     TimeProvider timeProvider,
@@ -210,6 +211,10 @@ public sealed partial class UserManagementService(
 
         await userManager.SetLockoutEnabledAsync(user, true);
         await userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
+
+        // The lockout only blocks the next sign-in; the sessions the user already holds keep
+        // working until their tokens are taken back.
+        await accessRevoker.RevokeUserAsync(userId, ct);
 
         LogUserDeactivated(userId);
     }

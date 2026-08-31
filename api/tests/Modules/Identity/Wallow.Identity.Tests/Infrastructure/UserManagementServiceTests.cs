@@ -25,6 +25,7 @@ public sealed class UserManagementServiceTests : IDisposable
     private readonly FakeTimeProvider _timeProvider;
     private readonly IdentityDbContext _dbContext;
     private readonly IMembershipRepository _membershipRepository;
+    private readonly IAccessRevoker _accessRevoker;
     private readonly UserManagementService _sut;
     private readonly Guid _organizationId;
 
@@ -44,6 +45,7 @@ public sealed class UserManagementServiceTests : IDisposable
         _tenantContext.TenantId.Returns(new TenantId(_organizationId));
         _timeProvider = new FakeTimeProvider(DateTimeOffset.UtcNow);
         _membershipRepository = Substitute.For<IMembershipRepository>();
+        _accessRevoker = Substitute.For<IAccessRevoker>();
 
         DbContextOptions<IdentityDbContext> dbOptions = new DbContextOptionsBuilder<IdentityDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
@@ -55,6 +57,7 @@ public sealed class UserManagementServiceTests : IDisposable
             _roleManager,
             _dbContext,
             _membershipRepository,
+            _accessRevoker,
             _messageBus,
             _tenantContext,
             _timeProvider,
@@ -278,6 +281,19 @@ public sealed class UserManagementServiceTests : IDisposable
 
         await _userManager.Received(1).SetLockoutEnabledAsync(user, true);
         await _userManager.Received(1).SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
+        // The lockout only blocks the next sign-in; the sessions already open die here.
+        await _accessRevoker.Received(1).RevokeUserAsync(userId, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task DeactivateUserAsync_WhenUserNotFound_RevokesNothing()
+    {
+        _userManager.FindByIdAsync(Arg.Any<string>()).Returns((WallowUser?)null);
+
+        Func<Task> act = () => _sut.DeactivateUserAsync(Guid.NewGuid());
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        await _accessRevoker.DidNotReceive().RevokeUserAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

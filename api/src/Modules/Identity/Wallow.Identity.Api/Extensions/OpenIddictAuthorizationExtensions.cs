@@ -16,4 +16,10 @@ public static class OpenIddictAuthorizationExtensions
         descriptor.Properties[AuthorizationProperties.OrganizationId] =
             JsonSerializer.SerializeToElement(organizationId.ToString());
     }
+
+    public static void SetSessionId(this OpenIddictAuthorizationDescriptor descriptor, string sessionId)
+    {
+        descriptor.Properties[AuthorizationProperties.SessionId] =
+            JsonSerializer.SerializeToElement(sessionId);
+    }
 }

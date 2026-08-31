@@ -295,10 +295,15 @@ public sealed class AuthorizationControllerTests : IDisposable
         // Act
         IActionResult result = await _controller.Authorize();
 
-        // Assert - the grant is recorded once and the code issued
+        // Assert - the grant is recorded once as a permanent consent record, and the sign-in
+        // mints its own per-login ad-hoc authorization for the tokens to chain to.
         result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>();
         await _authorizationManager.Received(1).CreateAsync(
-            Arg.Any<OpenIddictAuthorizationDescriptor>(), Arg.Any<CancellationToken>());
+            Arg.Is<OpenIddictAuthorizationDescriptor>(d => d.Type == AuthorizationTypes.Permanent),
+            Arg.Any<CancellationToken>());
+        await _authorizationManager.Received(1).CreateAsync(
+            Arg.Is<OpenIddictAuthorizationDescriptor>(d => d.Type == AuthorizationTypes.AdHoc),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -316,10 +321,15 @@ public sealed class AuthorizationControllerTests : IDisposable
         // Act
         IActionResult result = await _controller.Authorize();
 
-        // Assert - a valid authorization already covers the scopes, so none is added
+        // Assert - a valid consent record already covers the scopes, so no second one is added;
+        // the only creation is the sign-in's own per-login ad-hoc authorization.
         result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>();
         await _authorizationManager.DidNotReceive().CreateAsync(
-            Arg.Any<OpenIddictAuthorizationDescriptor>(), Arg.Any<CancellationToken>());
+            Arg.Is<OpenIddictAuthorizationDescriptor>(d => d.Type == AuthorizationTypes.Permanent),
+            Arg.Any<CancellationToken>());
+        await _authorizationManager.Received(1).CreateAsync(
+            Arg.Is<OpenIddictAuthorizationDescriptor>(d => d.Type == AuthorizationTypes.AdHoc),
+            Arg.Any<CancellationToken>());
     }
 
     [Theory]
@@ -710,13 +720,15 @@ public sealed class AuthorizationControllerTests : IDisposable
         created.ApplicationId.Should().Be(ApplicationId);
         created.Properties[AuthorizationProperties.OrganizationId].GetString()
             .Should().Be(_testOrganizationId.ToString());
+        created.Properties[AuthorizationProperties.SessionId].GetString()
+            .Should().NotBeNullOrEmpty();
     }
 
     [Fact]
-    public async Task Authorize_FirstPartyClient_WithoutAnOrganization_RecordsNoAuthorization()
+    public async Task Authorize_FirstPartyClient_WithoutAnOrganization_RecordsASessionScopedAuthorization()
     {
-        // An org-less token has nothing to revoke per organization; OpenIddict's own ad-hoc
-        // tracking is all it needs.
+        // An org-less sign-in still mints the per-login ad-hoc authorization — stamped with the
+        // session's sid so end-session can find its tokens — it just names no organization.
         OpenIddictRequest request = new() { ClientId = FirstPartyClientId, Scope = "openid profile" };
 
         SetupAuthenticatedHttpContext(request);
@@ -725,14 +737,24 @@ public sealed class AuthorizationControllerTests : IDisposable
         SetupUnboundClientTenantResolver(FirstPartyClientId);
         _organizations.GetMyOrganizationsAsync(Guid.Parse(_testUserId), Arg.Any<CancellationToken>())
             .Returns([]);
+        object authorization = new();
+        OpenIddictAuthorizationDescriptor? created = null;
+        _authorizationManager.CreateAsync(
+                Arg.Do<OpenIddictAuthorizationDescriptor>(d => created = d), Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult(authorization));
+        _authorizationManager.GetIdAsync(authorization, Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult<string?>("authorization-1"));
 
         IActionResult result = await _controller.Authorize();
 
         Microsoft.AspNetCore.Mvc.SignInResult signIn =
             result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>().Subject;
-        signIn.Principal.GetAuthorizationId().Should().BeNull();
-        await _authorizationManager.DidNotReceive().CreateAsync(
-            Arg.Any<OpenIddictAuthorizationDescriptor>(), Arg.Any<CancellationToken>());
+        signIn.Principal.GetAuthorizationId().Should().Be("authorization-1");
+        created.Should().NotBeNull();
+        created!.Type.Should().Be(AuthorizationTypes.AdHoc);
+        created.Properties[AuthorizationProperties.SessionId].GetString()
+            .Should().NotBeNullOrEmpty();
+        created.Properties.Should().NotContainKey(AuthorizationProperties.OrganizationId);
     }
 
     private static OpenIddictRequest FirstPartyRequestWithHint(string organization) => new()

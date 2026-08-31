@@ -18,6 +18,21 @@ public interface IAccessRevoker
     Task RevokeMembershipAsync(Guid userId, Guid organizationId, CancellationToken ct = default);
 
     /// <summary>
+    /// Ends one browser session at end-session: revokes every authorization stamped with the
+    /// session's <c>sid</c> and all tokens chained to them. Scoped to that one session — the
+    /// user's other sessions keep refreshing, and the consent records sign-in reads stay put.
+    /// </summary>
+    Task RevokeSessionAsync(Guid userId, string sessionId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Ends every session a person holds anywhere, the moment their account is deactivated:
+    /// every token issued to them and every per-login authorization is revoked, and their live
+    /// realtime streams are hung up in each organization they were active in. Consent records
+    /// stay put, so a reactivated account signs back in without being asked again.
+    /// </summary>
+    Task RevokeUserAsync(Guid userId, CancellationToken ct = default);
+
+    /// <summary>
     /// Ends every token a client was issued, whoever holds it, and hangs up every realtime
     /// connection opened with one. Returns how many token entries it ended.
     /// </summary>
