@@ -12,17 +12,22 @@ import { Route as acceptTermsRoute } from "./accept-terms";
 import { Route as consentRoute } from "./consent";
 import { Route as errorRoute } from "./error";
 import { Route as forgotPasswordRoute } from "./forgot-password";
+import { Route as invitationRoute } from "./invitation";
 import { Route as mfaChallengeRoute } from "./mfa/challenge";
 import { Route as mfaEnrollRoute } from "./mfa/enroll";
+import { Route as privacyRoute } from "./privacy";
 import { Route as registerRoute } from "./register";
 import { Route as resetPasswordRoute } from "./reset-password";
+import { Route as setupRoute } from "./setup";
+import { Route as verifyEmailConfirmRoute } from "./verify-email/confirm";
 import { Route as verifyEmailRoute } from "./verify-email/index";
 
 /**
  * The transaction-branding sweep: every in-transaction screen wears the
- * requesting client's chrome under the app root's own loader, the fork-only
- * screens never do — even handed a transaction-shaped URL — and the document
- * head titles the tab per arm while the favicon stays the fork's.
+ * requesting client's chrome — over the fork's own footer — under the app
+ * root's own loader, the fork-only screens never do even handed a
+ * transaction-shaped URL, and the document head titles the tab per arm while
+ * the favicon stays the fork's.
  *
  * `/login` has its own richer spec (`login.test.tsx`); this file proves the
  * WIRING is uniform across the rest, one mounted route at a time.
@@ -49,6 +54,10 @@ const BRANDED_SCREENS: readonly { readonly path: string; readonly route: AnyRout
 const FORK_SCREENS: readonly { readonly path: string; readonly route: AnyRoute }[] = [
   { path: "/error", route: errorRoute },
   { path: "/reset-password", route: resetPasswordRoute },
+  { path: "/verify-email/confirm", route: verifyEmailConfirmRoute },
+  { path: "/invitation", route: invitationRoute },
+  { path: "/setup", route: setupRoute },
+  { path: "/privacy", route: privacyRoute },
 ];
 
 /** An `AuthorizeContextResponse` for a third-party client, overridable. */
@@ -109,6 +118,10 @@ describe("every in-transaction screen wears the client's branding", () => {
       await expect
         .element(page.getByTestId("auth-header-organization"))
         .toHaveTextContent(`by ${ORGANIZATION}`);
+
+      // The footer never takes the client's branding: it is what tells the
+      // user on an "Acme" page that the fork serves it.
+      expect(page.getByText(/App$/u).getByText(forkBranding.appName).element()).toBeDefined();
     });
   }
 });

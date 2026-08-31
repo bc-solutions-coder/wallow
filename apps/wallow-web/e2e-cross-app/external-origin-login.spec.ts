@@ -55,7 +55,7 @@ async function signInAtExternalOrigin(page: Page): Promise<void> {
   await expect(page.locator("[data-app-ready='true']")).toBeAttached({ timeout: 20_000 });
   await expect(page.getByTestId("consent-heading")).toBeVisible();
 
-  // The transaction-scoped client context (issue #142): the screen is branded as the
+  // The transaction-scoped client context: the screen is branded as the
   // requesting third-party client — its seeded displayName headlines, attributed to the
   // organization that owns it — resolved from the pending authorize request's returnUrl,
   // never from an anonymous per-client branding read.

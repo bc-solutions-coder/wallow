@@ -99,6 +99,28 @@ public sealed class AuthorizeContextTests(WallowApiFactory factory) : IdentityIn
     }
 
     [Fact]
+    public async Task RemovedAnonymousReadsByClientId_AnswerNotFound()
+    {
+        // The routes this endpoint replaced must stay gone: a resolvable client
+        // whose context read succeeds is what makes the two refusals meaningful
+        // rather than a typo'd URL 404ing on its own.
+        string clientId = "ctx-legacy-read-client";
+        await AuthorizationCodeFlowHarness.RegisterClientAsync(
+            ScopedServices, clientId, ClientSecret, null, _clientScopes, firstParty: true);
+
+        HttpResponseMessage context = await GetContextAsync(ReturnUrl(clientId));
+        context.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        HttpResponseMessage branding = await Client.GetAsync(
+            new Uri($"/identity/apps/{clientId}/branding", UriKind.Relative));
+        HttpResponseMessage consentInfo = await Client.GetAsync(
+            new Uri($"/identity/apps/consent-info/{clientId}", UriKind.Relative));
+
+        branding.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        consentInfo.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
     public async Task UnknownClient_IsNotFound()
     {
         HttpResponseMessage response = await GetContextAsync(ReturnUrl("ctx-no-such-client"));

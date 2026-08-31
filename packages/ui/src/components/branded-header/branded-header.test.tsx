@@ -3,6 +3,11 @@ import { describe, expect, it } from "vitest";
 
 import { BrandedHeader } from "./branded-header";
 
+/**
+ * Edges the stories cannot express: variant structure (h1 vs wrapperless span),
+ * derived part test ids, and the empty-string/null collapse of the optional
+ * logo, tagline and organization props.
+ */
 describe("BrandedHeader", () => {
   it("renders the page variant as an h1 focus target with logo and tagline", async () => {
     const { container } = await render(

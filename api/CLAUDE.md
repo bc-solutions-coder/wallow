@@ -63,8 +63,10 @@ module but the record does not.
   `EFCorePersistenceFrameProvider.DetermineDbContextType` throws — on the *first message* of that
   type, not at startup. A handler injecting its own module's repository **and** a second module's
   repository is a runtime codegen failure, not a compile error. Cross-module work goes through a
-  `Shared.Contracts` integration event, never a second repository. The shared service interfaces
-  are safe to inject because none of them reaches a `DbContext`.
+  `Shared.Contracts` integration event, never a second repository. Most shared service interfaces
+  are safe to inject because they reach no `DbContext` — but not all: `IClientBrandingProvider`
+  reaches Branding's, so a handler may not inject it beside its own module's persistence; today
+  only controller paths consume it.
 - **A handler that saves and then dispatches must keep that order.** The transaction middleware
   *adds* a `SaveChangesAsync` postprocessor; it does not remove an explicit save. Do not delete an
   explicit save on the theory that the postprocessor covers it — `SendNotificationHandler` saves
