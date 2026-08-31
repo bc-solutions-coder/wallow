@@ -80,6 +80,30 @@ public static class OpenIddictApplicationExtensions
     }
 
     /// <summary>
+    /// Writes the client's declaration that its logout tokens must carry <c>sid</c>;
+    /// <see langword="false"/> removes the property rather than storing a false.
+    /// </summary>
+    public static void SetBackchannelLogoutSessionRequired(
+        this OpenIddictApplicationDescriptor descriptor, bool required)
+    {
+        if (!required)
+        {
+            descriptor.Properties.Remove(ClientApplicationProperties.BackchannelLogoutSessionRequired);
+            return;
+        }
+
+        descriptor.Properties[ClientApplicationProperties.BackchannelLogoutSessionRequired] =
+            JsonSerializer.SerializeToElement(true);
+    }
+
+    public static bool GetBackchannelLogoutSessionRequired(this OpenIddictApplicationDescriptor descriptor)
+    {
+        return descriptor.Properties.TryGetValue(
+                ClientApplicationProperties.BackchannelLogoutSessionRequired, out JsonElement element)
+            && element.ValueKind == JsonValueKind.True;
+    }
+
+    /// <summary>
     /// Writes the client's refresh-token lifetime as the OpenIddict per-application setting the
     /// server itself resolves at token creation — no Wallow handler reads it back on the token
     /// path. The setting value is an invariant-culture <see cref="TimeSpan"/> string; seconds are

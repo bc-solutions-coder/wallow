@@ -8,11 +8,6 @@
     },
     "version": "v1"
   },
-  "servers": [
-    {
-      "url": "http://localhost:5001/"
-    }
-  ],
   "paths": {
     "/v1/admin/announcements": {
       "get": {
@@ -7694,6 +7689,16 @@
               "string"
             ]
           },
+          "backchannelLogoutUri": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "backchannelLogoutSessionRequired": {
+            "type": "boolean",
+            "description": "The client's declaration that its logout tokens must carry `sid`. Wallow always\nincludes `sid`, so this is registration metadata echoed back, not a delivery switch."
+          },
           "refreshTokenLifetime": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
@@ -8024,6 +8029,16 @@
               "string"
             ]
           },
+          "backchannelLogoutUri": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "backchannelLogoutSessionRequired": {
+            "type": "boolean",
+            "default": false
+          },
           "refreshTokenLifetime": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
@@ -8034,7 +8049,7 @@
             "format": "int32"
           }
         },
-        "description": "Scopes is what the client may ever request at the authorize endpoint. Omitting it grants the\nOIDC sign-in baseline; API scopes are opt-in. FrontchannelLogoutUri is the absolute http(s)\naddress the logout page notifies (in a hidden iframe, with iss + sid) when the SSO session\nends; omitting it opts the client out of logout notifications. RefreshTokenLifetime is\nseconds; unset, the client gets the third-party default of one day. It bounds new refresh\ntokens only."
+        "description": "Scopes is what the client may ever request at the authorize endpoint. Omitting it grants the\nOIDC sign-in baseline; API scopes are opt-in. FrontchannelLogoutUri is the absolute http(s)\naddress the logout page notifies (in a hidden iframe, with iss + sid) when the SSO session\nends; omitting it opts the client out of logout notifications. BackchannelLogoutUri is the\nabsolute address the server POSTs a signed logout token to over the back channel — plain http\nis acceptable here because admin-registered clients are confidential.\nBackchannelLogoutSessionRequired echoes the OIDC registration flag; Wallow always includes\n`sid` either way. RefreshTokenLifetime is seconds; unset, the client gets the third-party\ndefault of one day. It bounds new refresh tokens only."
       },
       "CreateInvitationRequest": {
         "required": [
@@ -8772,6 +8787,10 @@
               "string"
             ]
           },
+          "backchannelLogoutSessionRequired": {
+            "type": "boolean",
+            "description": "The client's declaration that its logout tokens must carry `sid`. Wallow always\nincludes `sid`, so this is registration metadata echoed back, not a delivery switch."
+          },
           "scopes": {
             "type": "array",
             "items": {
@@ -9353,6 +9372,10 @@
               "string"
             ]
           },
+          "backchannelLogoutSessionRequired": {
+            "type": "boolean",
+            "default": false
+          },
           "branding": {
             "oneOf": [
               {
@@ -9850,6 +9873,16 @@
               "string"
             ]
           },
+          "backchannelLogoutUri": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "backchannelLogoutSessionRequired": {
+            "type": "boolean",
+            "default": false
+          },
           "refreshTokenLifetime": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
@@ -9860,7 +9893,7 @@
             "format": "int32"
           }
         },
-        "description": "A full replacement of the client's mutable registration — omitting FrontchannelLogoutUri\nun-registers the client from front-channel logout notifications, matching how the URI lists\nreplace rather than merge. RefreshTokenLifetime is the one deliberate exception: a\n`null` keeps the client's current lifetime, because silently resetting a\nsecurity policy on an unrelated edit is a trap. A value (seconds) applies to newly issued\nrefresh tokens only."
+        "description": "A full replacement of the client's mutable registration — omitting FrontchannelLogoutUri or\nBackchannelLogoutUri un-registers the client from that logout channel, matching how the URI\nlists replace rather than merge. RefreshTokenLifetime is the one deliberate exception: a\n`null` keeps the client's current lifetime, because silently resetting a\nsecurity policy on an unrelated edit is a trap. A value (seconds) applies to newly issued\nrefresh tokens only."
       },
       "UpdateInquiryStatusRequest": {
         "required": [
@@ -9932,6 +9965,10 @@
               "null",
               "string"
             ]
+          },
+          "backchannelLogoutSessionRequired": {
+            "type": "boolean",
+            "default": false
           },
           "refreshTokenLifetime": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",

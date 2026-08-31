@@ -22,6 +22,20 @@ public sealed record PreRegisteredClientDefinition
     /// </summary>
     public string? FrontchannelLogoutUri { get; init; }
 
+    /// <summary>
+    /// OIDC back-channel logout endpoint for this client: where the server POSTs a signed logout
+    /// token when the SSO session ends. Optional: a client without one simply is not notified.
+    /// Must be absolute, fragment-free, and https — plain http only for confidential clients.
+    /// </summary>
+    public string? BackchannelLogoutUri { get; init; }
+
+    /// <summary>
+    /// The client's OIDC declaration that its logout tokens must carry <c>sid</c>, bound from the
+    /// "backchannelLogoutSessionRequired" key. Wallow always includes <c>sid</c>, so this is
+    /// stored registration metadata, not a delivery switch.
+    /// </summary>
+    public bool BackchannelLogoutSessionRequired { get; init; }
+
     public Collection<string> Scopes { get; init; } = [];
 
     /// <summary>
@@ -115,6 +129,19 @@ public sealed class PreRegisteredClientOptions
             throw new InvalidOperationException(
                 "Pre-registered client(s) " + string.Join(", ", badRedirects) + " register a redirect URI the "
                 + "platform refuses. " + ClientUriRules.RedirectUriError);
+        }
+
+        List<string> badBackchannelUris = Clients
+            .Where(c => c.BackchannelLogoutUri is not null
+                && !ClientUriRules.TryParseBackchannelLogoutUri(c.BackchannelLogoutUri, !c.IsPublic, out _))
+            .Select(c => c.ClientId + " (" + c.BackchannelLogoutUri + ")")
+            .ToList();
+
+        if (badBackchannelUris.Count > 0)
+        {
+            throw new InvalidOperationException(
+                "Pre-registered client(s) " + string.Join(", ", badBackchannelUris) + " register a back-channel "
+                + "logout URI the platform refuses. " + ClientUriRules.BackchannelLogoutUriError);
         }
 
         List<string> badLifetimes = Clients

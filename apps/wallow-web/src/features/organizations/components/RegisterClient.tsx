@@ -108,6 +108,7 @@ interface RegisterValues {
   redirectUris: string;
   postLogoutRedirectUris: string;
   backchannelLogoutUri: string;
+  backchannelLogoutSessionRequired: boolean;
   scopes: string[];
   brandingDisplayName: string;
   brandingTagline: string;
@@ -163,6 +164,7 @@ function registerSchemaFor(kind: ClientKind): z.ZodType<RegisterValues, Register
         : z.string(),
     postLogoutRedirectUris: z.string(),
     backchannelLogoutUri: z.string(),
+    backchannelLogoutSessionRequired: z.boolean(),
     scopes: z.array(z.string()).min(1, "Choose at least one scope"),
     brandingDisplayName: z
       .string()
@@ -178,6 +180,7 @@ const STEP_OF_FIELD: Record<keyof RegisterValues, Step> = {
   redirectUris: "redirects",
   postLogoutRedirectUris: "redirects",
   backchannelLogoutUri: "redirects",
+  backchannelLogoutSessionRequired: "redirects",
   scopes: "scopes",
   brandingDisplayName: "branding",
   brandingTagline: "branding",
@@ -238,6 +241,7 @@ function toRegisterBody(kind: ClientKind, values: RegisterValues) {
         redirectUris: toUriList(values.redirectUris),
         postLogoutRedirectUris: toUriList(values.postLogoutRedirectUris),
         backchannelLogoutUri: backchannel === "" ? undefined : backchannel,
+        backchannelLogoutSessionRequired: values.backchannelLogoutSessionRequired,
         scopes: values.scopes,
         // Left blank, registration defaults the branding to the client name.
         branding:
@@ -273,6 +277,7 @@ function useRegisterClientForm(
       redirectUris: "",
       postLogoutRedirectUris: "",
       backchannelLogoutUri: "",
+      backchannelLogoutSessionRequired: false,
       scopes: [...KINDS[kind].defaultScopes],
       brandingDisplayName: "",
       brandingTagline: "",
@@ -389,6 +394,14 @@ function RedirectsStep(props: { form: RegisterForm }) {
       </form.AppField>
       <form.AppField name="backchannelLogoutUri">
         {(field) => <field.TextField label="Back-channel logout URI" optional />}
+      </form.AppField>
+      <form.AppField name="backchannelLogoutSessionRequired">
+        {(field) => (
+          <field.CheckboxField
+            label="Require a session id in logout tokens"
+            description="Guarantees the sid claim in back-channel logout tokens, for relying parties that end one session at a time."
+          />
+        )}
       </form.AppField>
     </div>
   );

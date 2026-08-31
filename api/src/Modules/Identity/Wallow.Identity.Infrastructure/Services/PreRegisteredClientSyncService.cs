@@ -160,6 +160,22 @@ public sealed partial class PreRegisteredClientSyncService(
             changed = true;
         }
 
+        // Sync backchannel_logout_uri + backchannel_logout_session_required
+        Uri? expectedBackchannelUri = client.BackchannelLogoutUri is null
+            ? null
+            : new Uri(client.BackchannelLogoutUri);
+        if (descriptor.GetBackchannelLogoutUri() != expectedBackchannelUri)
+        {
+            descriptor.SetBackchannelLogoutUri(expectedBackchannelUri);
+            changed = true;
+        }
+
+        if (descriptor.GetBackchannelLogoutSessionRequired() != client.BackchannelLogoutSessionRequired)
+        {
+            descriptor.SetBackchannelLogoutSessionRequired(client.BackchannelLogoutSessionRequired);
+            changed = true;
+        }
+
         // Sync tenant_id
         Guid? resolvedTenantId = await ResolveTenantIdAsync(client, ct);
         string? currentTenantId = descriptor.GetTenantId();
@@ -365,6 +381,13 @@ public sealed partial class PreRegisteredClientSyncService(
         {
             descriptor.SetFrontchannelLogoutUri(new Uri(client.FrontchannelLogoutUri));
         }
+
+        if (client.BackchannelLogoutUri is not null)
+        {
+            descriptor.SetBackchannelLogoutUri(new Uri(client.BackchannelLogoutUri));
+        }
+
+        descriptor.SetBackchannelLogoutSessionRequired(client.BackchannelLogoutSessionRequired);
 
         if (RefreshTokenLifetimeFor(client) is { } refreshTokenLifetime)
         {

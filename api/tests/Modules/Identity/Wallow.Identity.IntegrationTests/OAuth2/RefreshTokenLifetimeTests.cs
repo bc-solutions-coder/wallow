@@ -132,7 +132,8 @@ public sealed class RefreshTokenLifetimeTests(WallowApiFactory factory)
             seed.OrganizationId,
             seed.ClientId,
             new ClientConfigurationInput(
-                [new Uri(AuthorizationCodeFlowHarness.RedirectUri)], [], null, _clientScopes, 60));
+                [new Uri(AuthorizationCodeFlowHarness.RedirectUri)], [], null, _clientScopes,
+                RefreshTokenLifetime: 60));
         updated.Should().NotBeNull();
         updated!.RefreshTokenLifetime.Should().Be(60);
 
@@ -223,7 +224,7 @@ public sealed class RefreshTokenLifetimeTests(WallowApiFactory factory)
                     [],
                     null,
                     _clientScopes,
-                    refreshTokenLifetime)),
+                    RefreshTokenLifetime: refreshTokenLifetime)),
             ownerId);
 
         return new Seed(email, registered.Client.ClientId, registered.ClientSecret, userId, organizationId);

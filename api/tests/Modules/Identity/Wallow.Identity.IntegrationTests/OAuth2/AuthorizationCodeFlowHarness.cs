@@ -307,6 +307,8 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
         IEnumerable<string> scopes,
         string redirectUri = RedirectUri,
         bool firstParty = false,
+        string? frontchannelLogoutUri = null,
+        string? backchannelLogoutUri = null,
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(services);
@@ -348,6 +350,16 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
         if (tenantId is { } boundTenantId)
         {
             descriptor.SetTenantId(boundTenantId.ToString());
+        }
+
+        if (frontchannelLogoutUri is not null)
+        {
+            descriptor.SetFrontchannelLogoutUri(new Uri(frontchannelLogoutUri));
+        }
+
+        if (backchannelLogoutUri is not null)
+        {
+            descriptor.SetBackchannelLogoutUri(new Uri(backchannelLogoutUri));
         }
 
         object? existing = await applications.FindByClientIdAsync(clientId, ct);

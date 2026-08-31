@@ -465,6 +465,7 @@ public sealed partial class OrganizationClientService(
             }
 
             descriptor.SetBackchannelLogoutUri(configuration.BackchannelLogoutUri);
+            descriptor.SetBackchannelLogoutSessionRequired(configuration.BackchannelLogoutSessionRequired);
         }
 
         // Without these the client is refused every scope it asks for on its first authorize:
@@ -499,6 +500,7 @@ public sealed partial class OrganizationClientService(
             descriptor.RedirectUris.Select(u => u.AbsoluteUri).ToList(),
             descriptor.PostLogoutRedirectUris.Select(u => u.AbsoluteUri).ToList(),
             descriptor.GetBackchannelLogoutUri()?.AbsoluteUri,
+            descriptor.GetBackchannelLogoutSessionRequired(),
             descriptor.Permissions
                 .Where(p => p.StartsWith(Permissions.Prefixes.Scope, StringComparison.Ordinal))
                 .Select(p => p[Permissions.Prefixes.Scope.Length..])

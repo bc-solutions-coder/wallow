@@ -169,15 +169,19 @@ public static class IdentityInfrastructureExtensions
                     "inquiries.read", "inquiries.write",
                     "webhooks.manage");
 
-                // OpenIddict 7 implements RP-initiated logout only, so front-channel logout
-                // support is Wallow's own (LogoutController notifies each participating RP's
-                // frontchannel_logout_uri). These flags advertise it; session_supported
-                // promises every notification carries iss + sid.
+                // OpenIddict 7 implements RP-initiated logout only, so front- and back-channel
+                // logout support is Wallow's own (LogoutController notifies each participating
+                // RP's frontchannel_logout_uri; BackchannelLogoutNotifier POSTs a logout token
+                // to each backchannel_logout_uri). These flags advertise it; each
+                // session_supported promises the notification carries the session id (iss + sid
+                // on the front channel, a sid claim in every logout token on the back channel).
                 options.AddEventHandler<OpenIddictServerEvents.HandleConfigurationRequestContext>(builder =>
                     builder.UseInlineHandler(context =>
                     {
                         context.Metadata["frontchannel_logout_supported"] = true;
                         context.Metadata["frontchannel_logout_session_supported"] = true;
+                        context.Metadata["backchannel_logout_supported"] = true;
+                        context.Metadata["backchannel_logout_session_supported"] = true;
                         return default;
                     }));
 
@@ -466,6 +470,11 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<IMfaLockoutService, MfaLockoutService>();
         services.AddScoped<ISessionService, SessionService>();
         services.AddScoped<ISsoClientSessionService, SsoClientSessionService>();
+
+        // Back-channel logout rides its own HttpClient: the notifier owns its single-retry
+        // policy and per-attempt timeouts, so no shared resilience profile is layered on top.
+        services.Configure<BackchannelLogoutOptions>(configuration.GetSection(BackchannelLogoutOptions.SectionName));
+        services.AddHttpClient<IBackchannelLogoutNotifier, BackchannelLogoutNotifier>();
         services.AddScoped<IPasswordlessService, PasswordlessService>();
         services.AddScoped<IConsentTokenService, ConsentTokenService>();
 

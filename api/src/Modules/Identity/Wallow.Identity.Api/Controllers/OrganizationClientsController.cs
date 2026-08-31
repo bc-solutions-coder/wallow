@@ -95,6 +95,7 @@ public class OrganizationClientsController(
             request.RedirectUris,
             request.PostLogoutRedirectUris,
             request.BackchannelLogoutUri,
+            request.BackchannelLogoutSessionRequired,
             request.Scopes,
             request.RefreshTokenLifetime);
         if (kind is null || configuration is null || !ModelState.IsValid)
@@ -229,6 +230,7 @@ public class OrganizationClientsController(
             request.RedirectUris,
             request.PostLogoutRedirectUris,
             request.BackchannelLogoutUri,
+            request.BackchannelLogoutSessionRequired,
             request.Scopes,
             request.RefreshTokenLifetime);
         if (configuration is null || !ModelState.IsValid)
@@ -502,6 +504,7 @@ public class OrganizationClientsController(
         IReadOnlyList<string> redirectValues,
         IReadOnlyList<string> postLogoutValues,
         string? backchannelValue,
+        bool backchannelSessionRequired,
         IReadOnlyList<string> scopes,
         int? refreshTokenLifetime)
     {
@@ -534,17 +537,24 @@ public class OrganizationClientsController(
         valid &= TryParseRedirectUris(redirectValues, RedirectUrisField, out List<Uri> redirectUris);
         valid &= TryParseRedirectUris(postLogoutValues, PostLogoutRedirectUrisField, out List<Uri> postLogoutRedirectUris);
 
+        // Every org-registered client holds a secret, so plain http is within the rule here.
         Uri? backchannelLogoutUri = null;
         if (!string.IsNullOrWhiteSpace(backchannelValue)
-            && !ClientUriRules.TryParseLogoutUri(backchannelValue, out backchannelLogoutUri))
+            && !ClientUriRules.TryParseBackchannelLogoutUri(
+                backchannelValue, isConfidential: true, out backchannelLogoutUri))
         {
             valid = false;
-            ModelState.AddModelError(BackchannelLogoutUriField, ClientUriRules.LogoutUriError);
+            ModelState.AddModelError(BackchannelLogoutUriField, ClientUriRules.BackchannelLogoutUriError);
         }
 
         return valid
             ? new ClientConfigurationInput(
-                redirectUris, postLogoutRedirectUris, backchannelLogoutUri, scopes, refreshTokenLifetime)
+                redirectUris,
+                postLogoutRedirectUris,
+                backchannelLogoutUri,
+                scopes,
+                backchannelSessionRequired,
+                refreshTokenLifetime)
             : null;
     }
 

@@ -65,6 +65,8 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
                 PostLogoutRedirectUris = descriptor.PostLogoutRedirectUris.Select(u => u.ToString()).ToList(),
                 Scopes = ScopesOf(descriptor),
                 FrontchannelLogoutUri = descriptor.GetFrontchannelLogoutUri()?.AbsoluteUri,
+                BackchannelLogoutUri = descriptor.GetBackchannelLogoutUri()?.AbsoluteUri,
+                BackchannelLogoutSessionRequired = descriptor.GetBackchannelLogoutSessionRequired(),
                 RefreshTokenLifetime = descriptor.GetRefreshTokenLifetimeSeconds()
             });
         }
@@ -98,6 +100,8 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
             PostLogoutRedirectUris = descriptor.PostLogoutRedirectUris.Select(u => u.ToString()).ToList(),
             Scopes = ScopesOf(descriptor),
             FrontchannelLogoutUri = descriptor.GetFrontchannelLogoutUri()?.AbsoluteUri,
+            BackchannelLogoutUri = descriptor.GetBackchannelLogoutUri()?.AbsoluteUri,
+            BackchannelLogoutSessionRequired = descriptor.GetBackchannelLogoutSessionRequired(),
             RefreshTokenLifetime = descriptor.GetRefreshTokenLifetimeSeconds()
         });
     }
@@ -126,6 +130,14 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
             ModelState.AddModelError(
                 nameof(request.FrontchannelLogoutUri),
                 FrontchannelLogoutUriError);
+            return ValidationProblem(ModelState);
+        }
+
+        if (!TryParseBackchannelLogoutUri(request.BackchannelLogoutUri, out Uri? backchannelLogoutUri))
+        {
+            ModelState.AddModelError(
+                nameof(request.BackchannelLogoutUri),
+                ClientUriRules.BackchannelLogoutUriError);
             return ValidationProblem(ModelState);
         }
 
@@ -167,6 +179,8 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
         }
 
         descriptor.SetFrontchannelLogoutUri(frontchannelLogoutUri);
+        descriptor.SetBackchannelLogoutUri(backchannelLogoutUri);
+        descriptor.SetBackchannelLogoutSessionRequired(request.BackchannelLogoutSessionRequired);
 
         // Clients registered here carry no consent type, which makes them third-party, so an
         // unstated lifetime is pinned to the third-party default rather than left to the global
@@ -198,6 +212,8 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
             PostLogoutRedirectUris = request.PostLogoutRedirectUris,
             Scopes = scopes,
             FrontchannelLogoutUri = frontchannelLogoutUri?.AbsoluteUri,
+            BackchannelLogoutUri = backchannelLogoutUri?.AbsoluteUri,
+            BackchannelLogoutSessionRequired = request.BackchannelLogoutSessionRequired,
             RefreshTokenLifetime = refreshTokenLifetime
         };
 
@@ -218,6 +234,14 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
             ModelState.AddModelError(
                 nameof(request.FrontchannelLogoutUri),
                 FrontchannelLogoutUriError);
+            return ValidationProblem(ModelState);
+        }
+
+        if (!TryParseBackchannelLogoutUri(request.BackchannelLogoutUri, out Uri? backchannelLogoutUri))
+        {
+            ModelState.AddModelError(
+                nameof(request.BackchannelLogoutUri),
+                ClientUriRules.BackchannelLogoutUriError);
             return ValidationProblem(ModelState);
         }
 
@@ -253,6 +277,8 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
         // Null clears the registration: Update replaces the whole mutable surface, so an omitted
         // URI opts the client back out of logout notifications rather than keeping the old one.
         descriptor.SetFrontchannelLogoutUri(frontchannelLogoutUri);
+        descriptor.SetBackchannelLogoutUri(backchannelLogoutUri);
+        descriptor.SetBackchannelLogoutSessionRequired(request.BackchannelLogoutSessionRequired);
 
         descriptor.RedirectUris.Clear();
         foreach (string uri in request.RedirectUris)
@@ -279,6 +305,8 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
             PostLogoutRedirectUris = request.PostLogoutRedirectUris,
             Scopes = ScopesOf(descriptor),
             FrontchannelLogoutUri = frontchannelLogoutUri?.AbsoluteUri,
+            BackchannelLogoutUri = backchannelLogoutUri?.AbsoluteUri,
+            BackchannelLogoutSessionRequired = request.BackchannelLogoutSessionRequired,
             RefreshTokenLifetime = descriptor.GetRefreshTokenLifetimeSeconds()
         });
     }
@@ -330,6 +358,8 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
             PostLogoutRedirectUris = descriptor.PostLogoutRedirectUris.Select(u => u.ToString()).ToList(),
             Scopes = ScopesOf(descriptor),
             FrontchannelLogoutUri = descriptor.GetFrontchannelLogoutUri()?.AbsoluteUri,
+            BackchannelLogoutUri = descriptor.GetBackchannelLogoutUri()?.AbsoluteUri,
+            BackchannelLogoutSessionRequired = descriptor.GetBackchannelLogoutSessionRequired(),
             RefreshTokenLifetime = descriptor.GetRefreshTokenLifetimeSeconds()
         });
     }
@@ -397,6 +427,18 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// The shared back-channel rule with confidential-client semantics: every client registered
+    /// here holds a secret, so plain http is within the rule. A null or blank input is valid and
+    /// parses to null (the client opts out of back-channel notifications).
+    /// </summary>
+    private static bool TryParseBackchannelLogoutUri(string? value, out Uri? uri)
+    {
+        uri = null;
+        return string.IsNullOrWhiteSpace(value)
+            || ClientUriRules.TryParseBackchannelLogoutUri(value, isConfidential: true, out uri);
     }
 
     private static List<string> ScopesOf(OpenIddictApplicationDescriptor descriptor) =>

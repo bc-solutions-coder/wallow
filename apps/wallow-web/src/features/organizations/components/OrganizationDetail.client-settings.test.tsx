@@ -32,6 +32,7 @@ const application = {
   redirectUris: ["https://app.example/cb"],
   postLogoutRedirectUris: ["https://app.example/bye"],
   backchannelLogoutUri: "https://app.example/backchannel",
+  backchannelLogoutSessionRequired: false,
   scopes: ["openid"],
   createdByUserId: "u1",
   createdAt: "2026-08-30T00:00:00Z",
@@ -152,10 +153,26 @@ describe("OrganizationDetail client settings editor", () => {
       redirectUris: ["https://app.example/cb"],
       postLogoutRedirectUris: ["https://app.example/bye"],
       backchannelLogoutUri: "https://app.example/backchannel",
+      backchannelLogoutSessionRequired: false,
       scopes: ["openid"],
       refreshTokenLifetime: 3600,
     });
     await expectSwept(invalidateSpy, organizationClientsListQueryKey({ path: { orgId: "o1" } }));
+  });
+
+  it("saves the toggled back-channel session switch", async () => {
+    seedLoadedOrg();
+
+    renderWithWallow(<OrganizationDetail orgId="o1" />, { harness });
+    await openSettings();
+
+    await userEvent.click(page.getByTestId("organization-detail-client-settings-session-required"));
+    await userEvent.click(page.getByTestId("organization-detail-client-settings-save"));
+
+    await expect
+      .poll(() => page.getByTestId("organization-detail-client-settings-card").elements().length)
+      .toBe(0);
+    expect(patchCalls()[0]?.body).toMatchObject({ backchannelLogoutSessionRequired: true });
   });
 
   it("saves blank as null, keeping the current lifetime", async () => {
@@ -220,6 +237,33 @@ describe("register stepper refresh-token lifetime", () => {
       (call) => call.method === "POST" && call.path.endsWith("/organizations/o1/clients"),
     );
     expect(post?.body).toMatchObject({ refreshTokenLifetime: 120 });
+  });
+
+  it("carries the ticked back-channel session switch into the registration request", async () => {
+    seedLoadedOrg();
+
+    renderWithWallow(<OrganizationDetail orgId="o1" />, { harness });
+    await expect.element(page.getByTestId("organization-detail-heading")).toBeInTheDocument();
+    await userEvent.click(page.getByTestId("organization-detail-register-open"));
+
+    await userEvent.fill(page.getByTestId("organization-detail-register-name"), "Dashboard");
+    await userEvent.click(page.getByTestId("organization-detail-register-next"));
+    await userEvent.fill(
+      page.getByTestId("organization-detail-register-redirect-uris"),
+      "https://app.example/cb",
+    );
+    await userEvent.click(
+      page.getByTestId("organization-detail-register-backchannel-logout-session-required"),
+    );
+    await userEvent.click(page.getByTestId("organization-detail-register-submit"));
+
+    await expect
+      .element(page.getByTestId("organization-detail-register-success"))
+      .toBeInTheDocument();
+    const post = harness.calls.find(
+      (call) => call.method === "POST" && call.path.endsWith("/organizations/o1/clients"),
+    );
+    expect(post?.body).toMatchObject({ backchannelLogoutSessionRequired: true });
   });
 
   it("omits the lifetime from the registration request when left blank", async () => {

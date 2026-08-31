@@ -19,6 +19,12 @@ public record OrganizationClientResponse
     public required IReadOnlyList<string> RedirectUris { get; init; }
     public required IReadOnlyList<string> PostLogoutRedirectUris { get; init; }
     public string? BackchannelLogoutUri { get; init; }
+
+    /// <summary>
+    /// The client's declaration that its logout tokens must carry <c>sid</c>. Wallow always
+    /// includes <c>sid</c>, so this is registration metadata echoed back, not a delivery switch.
+    /// </summary>
+    public bool BackchannelLogoutSessionRequired { get; init; }
     public required IReadOnlyList<string> Scopes { get; init; }
     public required Guid CreatedByUserId { get; init; }
     public required DateTimeOffset CreatedAt { get; init; }
@@ -60,6 +66,7 @@ public record OrganizationClientResponse
             RedirectUris = dto.RedirectUris,
             PostLogoutRedirectUris = dto.PostLogoutRedirectUris,
             BackchannelLogoutUri = dto.BackchannelLogoutUri,
+            BackchannelLogoutSessionRequired = dto.BackchannelLogoutSessionRequired,
             Scopes = dto.Scopes,
             CreatedByUserId = dto.CreatedByUserId,
             CreatedAt = dto.CreatedAt,

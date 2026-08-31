@@ -72,6 +72,39 @@ public sealed partial class SsoClientSessionService(
         return uris;
     }
 
+    public async Task<IReadOnlyList<BackchannelLogoutRecipient>> ListBackchannelRecipientsAsync(
+        string sid, CancellationToken ct)
+    {
+        List<string> clientIds = await dbContext.SsoSessionClients
+            .Where(s => s.Sid == sid)
+            .Select(s => s.ClientId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        List<BackchannelLogoutRecipient> recipients = [];
+        foreach (string clientId in clientIds)
+        {
+            object? application = await applicationManager.FindByClientIdAsync(clientId, ct);
+            if (application is null)
+            {
+                continue;
+            }
+
+            OpenIddictApplicationDescriptor descriptor = new();
+            await applicationManager.PopulateAsync(descriptor, application, ct);
+
+            Uri? backchannelUri = descriptor.GetBackchannelLogoutUri();
+            if (backchannelUri is null)
+            {
+                continue;
+            }
+
+            recipients.Add(new BackchannelLogoutRecipient(clientId, backchannelUri));
+        }
+
+        return recipients;
+    }
+
     public async Task ForgetAsync(string sid, CancellationToken ct)
     {
         // Tracked delete rather than ExecuteDeleteAsync: bulk statements bypass the unit of

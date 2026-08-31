@@ -16,6 +16,7 @@ public record RegisterOrganizationClientRequest(
     IReadOnlyList<string> PostLogoutRedirectUris,
     IReadOnlyList<string> Scopes,
     string? BackchannelLogoutUri = null,
+    bool BackchannelLogoutSessionRequired = false,
     RegisterOrganizationClientBranding? Branding = null,
     int? RefreshTokenLifetime = null);
 
@@ -38,6 +39,7 @@ public record UpdateOrganizationClientRequest(
     IReadOnlyList<string> PostLogoutRedirectUris,
     IReadOnlyList<string> Scopes,
     string? BackchannelLogoutUri = null,
+    bool BackchannelLogoutSessionRequired = false,
     int? RefreshTokenLifetime = null);
 
 /// <summary>

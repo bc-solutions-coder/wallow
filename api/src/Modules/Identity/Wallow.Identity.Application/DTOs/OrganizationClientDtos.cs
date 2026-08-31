@@ -11,6 +11,7 @@ public sealed record OrganizationClientDto(
     IReadOnlyList<string> RedirectUris,
     IReadOnlyList<string> PostLogoutRedirectUris,
     string? BackchannelLogoutUri,
+    bool BackchannelLogoutSessionRequired,
     IReadOnlyList<string> Scopes,
     Guid CreatedByUserId,
     DateTimeOffset CreatedAt,
@@ -46,6 +47,7 @@ public sealed record ClientConfigurationInput(
     IReadOnlyList<Uri> PostLogoutRedirectUris,
     Uri? BackchannelLogoutUri,
     IReadOnlyList<string> Scopes,
+    bool BackchannelLogoutSessionRequired = false,
     int? RefreshTokenLifetime = null);
 
 /// <summary>

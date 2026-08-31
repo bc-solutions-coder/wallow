@@ -479,6 +479,26 @@ reads a `401` as "anonymous" rather than as an error, so the next navigation hit
 gate. A hand-rolled BFF must do the same thing explicitly — **on a failed refresh, delete the
 session record and the session cookie, then send the user to login.**
 
+### Back-channel logout: the server-to-server notification
+
+Front-channel notification depends on the user's browser rendering an iframe; **OIDC
+back-channel logout** does not. A client that registers a **`backchannelLogoutUri`** (settable
+in `seed.json` and on the client create/update API, alongside the optional
+`backchannelLogoutSessionRequired` flag) is notified server-to-server: when the session ends,
+Wallow POSTs a **logout token** — a JWT signed with the same key as its id tokens, with
+`typ: logout+jwt`, the standard back-channel logout `events` claim, the user's `sub`, and the
+session's `sid` — to that URI as `logout_token=<jwt>` (form-encoded). The discovery document
+advertises `backchannel_logout_supported` and `backchannel_logout_session_supported`.
+
+The receiving endpoint must validate the token before tearing anything down: verify the
+signature against Wallow's JWKS, check `iss`, `aud` (the client id), and `iat`, require the
+back-channel `events` claim, reject any token carrying a `nonce`, and end only the session
+whose `sid` matches. Delivery is bounded and best-effort — each client gets a per-attempt
+timeout and exactly one retry, and a slow or failing relying party never delays the user's
+sign-out — so the failed-refresh fallback above still matters. Deployment tuning, including the
+private-network delivery gate, lives in the
+[Configuration guide](../getting-started/configuration.md#identity-back-channel-logout).
+
 Two consequences worth designing for:
 
 - **The API refuses the ended session's tokens even where the notification never lands.**

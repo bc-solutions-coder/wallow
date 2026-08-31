@@ -436,6 +436,11 @@ Rules that make this a valid production client:
 - **`frontchannelLogoutUri`** — the SDK BFF's `/bff/frontchannel-logout` endpoint on the same
   origin. Registers the client for [front-channel logout notifications](../integrations/bff-pattern.md#logout-is-global-and-wallow-notifies-the-other-applications-front-channel)
   when the SSO session ends elsewhere; omit it to opt out.
+- **`backchannelLogoutUri`** — optional: an absolute http(s) URL Wallow POSTs a signed logout
+  token to, server-to-server, when the SSO session ends. Its companion
+  **`backchannelLogoutSessionRequired`** (default `false`) declares that the client requires a
+  `sid` claim in those tokens. See the
+  [Configuration guide](../getting-started/configuration.md#identity-back-channel-logout).
 - **`scopes`** — `openid`, `email`, `profile`, and `offline_access` for login, plus whichever API
   scopes the app calls.
 - **`refreshTokenLifetime`** — optional, seconds (60–31,536,000). How long a refresh token issued

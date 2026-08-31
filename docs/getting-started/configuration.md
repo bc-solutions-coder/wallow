@@ -187,6 +187,35 @@ does not extend the window). The only related key is `OpenIddict:RefreshTokenReu
 (default 30), the grace window in which a just-redeemed token may be replayed — covering a
 client's own retry after a network failure — before a replay revokes the whole token family.
 
+### Identity: Back-Channel Logout
+
+Ending an SSO session (`GET /connect/logout`) also notifies participating relying parties
+server-to-server via **OIDC back-channel logout**: a signed logout token (`typ: logout+jwt`,
+carrying the session's `sid`) is POSTed to every participating client that registered a
+back-channel URI. Delivery is best-effort and bounded — one retry per client, and a slow or
+unreachable relying party never delays the user's sign-out. The discovery document advertises
+`backchannel_logout_supported` and `backchannel_logout_session_supported`.
+
+A client opts in through two fields, settable at registration, via
+`PATCH /v1/identity/organizations/{orgId}/clients/{clientId}` (or the wallow-web ledger's
+editors), and declarable on a seed client in the `clients` array of `api/seed.json` /
+`docker/seed.production.json`:
+
+- **`backchannelLogoutUri`** — the absolute http(s) URL logout tokens are POSTed to
+  (`logout_token=<jwt>`, form-encoded). Omit it and the client is simply not notified.
+- **`backchannelLogoutSessionRequired`** — optional, default `false`: whether the client
+  requires a `sid` claim in its logout tokens. Wallow always includes `sid`, so the flag is a
+  declaration recorded for the client, not a behavior switch.
+
+Delivery tuning lives under `Identity:BackchannelLogout`:
+
+| Key | Default | Meaning |
+|-----|---------|---------|
+| `AllowPrivateNetworkHosts` | `false` | Whether logout tokens may be POSTed to loopback, RFC 1918, link-local, or unique-local hosts. Back-channel URIs are registered by org admins, so by default a URI pointing at a private network is refused — otherwise a registration could turn every logout into a server-side request against an internal service. Turn it on only where relying parties genuinely live on a private network (local dev, air-gapped installs). |
+| `PerClientTimeout` | `00:00:03` | How long one delivery attempt to one relying party may take. |
+| `RetryDelay` | `00:00:01` | The pause before the single retry a failed delivery gets. |
+| `OverallTimeout` | `00:00:10` | The bound on the whole notification fan-out. Deliveries run in parallel, so this is a backstop for many slow relying parties, not a per-client budget. |
+
 ### Identity: First-Run Setup and the Bootstrap Admin
 
 The seeder (`Wallow.SeederService`) can bootstrap the first administrator from the seed file's

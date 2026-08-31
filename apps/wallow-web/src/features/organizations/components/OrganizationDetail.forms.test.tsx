@@ -178,6 +178,7 @@ describe("OrganizationDetail register-application stepper on @bc-solutions-coder
       "organization-detail-register-redirect-uris",
       "organization-detail-register-post-logout-redirect-uris",
       "organization-detail-register-backchannel-logout-uri",
+      "organization-detail-register-backchannel-logout-session-required",
       "organization-detail-register-submit",
     ]) {
       const control: HTMLElement = page.getByTestId(testId).element() as HTMLElement;
@@ -344,6 +345,7 @@ describe("OrganizationDetail register-application stepper on @bc-solutions-coder
       name: "Dashboard",
       redirectUris: ["https://a.example/cb", "https://b.example/cb"],
       postLogoutRedirectUris: [],
+      backchannelLogoutSessionRequired: false,
       scopes: ["openid"],
     });
   });

@@ -1,16 +1,17 @@
 /**
- * The per-client settings editor an application row opens: today just the
- * refresh-token lifetime, pre-filled from the row. Renders
- * `organization-detail-client-settings-*`; Save PATCHes the client with its
- * URIs and scopes echoed back unchanged, so only the lifetime moves. Blank
- * keeps the current lifetime (null on the wire — the server treats null as
- * "keep the current policy"), and a change applies to new logins only:
- * refresh tokens already issued keep the lifetime they were minted with.
+ * The per-client settings editor an application row opens: the refresh-token
+ * lifetime and the back-channel logout session switch, pre-filled from the
+ * row. Renders `organization-detail-client-settings-*`; Save PATCHes the
+ * client with its URIs and scopes echoed back unchanged, so only the edited
+ * settings move. A blank lifetime keeps the current one (null on the wire —
+ * the server treats null as "keep the current policy"), and a change applies
+ * to new logins only: refresh tokens already issued keep the lifetime they
+ * were minted with.
  */
 import { errorText } from "@bc-solutions-coder/forms";
 import { useMutation, useQueryClient } from "@bc-solutions-coder/query";
 import type { OrganizationClientResponse } from "@bc-solutions-coder/sdk";
-import { Button, Card, CardHeader, Input, MutedText, Text } from "@bc-solutions-coder/ui";
+import { Button, Card, CardHeader, Checkbox, Input, MutedText, Text } from "@bc-solutions-coder/ui";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useRouteContext } from "@tanstack/react-router";
@@ -95,6 +96,31 @@ function LifetimeField(props: {
   );
 }
 
+/** The back-channel logout session switch: guarantees `sid` in logout tokens. */
+function SessionRequiredField(props: {
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}): ReactElement {
+  const { checked, onCheckedChange } = props;
+  return (
+    <label className="mt-4 flex items-start gap-3">
+      <Checkbox.Root
+        checked={checked}
+        onCheckedChange={(next: boolean) => {
+          onCheckedChange(next);
+        }}
+        data-testid={`${TEST_ID}-session-required`}
+      >
+        <Checkbox.Indicator>✓</Checkbox.Indicator>
+      </Checkbox.Root>
+      <Text as="span" variant="bodySm" color="onCard">
+        Require a session id in back-channel logout tokens — for relying parties that end one
+        session at a time rather than everything the user holds.
+      </Text>
+    </label>
+  );
+}
+
 /** The settings editor for one application. */
 export function ClientSettingsEditor(props: {
   orgId: string;
@@ -105,6 +131,9 @@ export function ClientSettingsEditor(props: {
   const { sdk } = useRouteContext({ from: "__root__" });
   const queryClient = useQueryClient();
   const [lifetime, setLifetime] = useState(() => initialLifetime(client));
+  const [sessionRequired, setSessionRequired] = useState(
+    () => client.backchannelLogoutSessionRequired === true,
+  );
 
   const save = useMutation({
     ...organizationClientsUpdateMutation({ client: sdk.client }),
@@ -128,6 +157,7 @@ export function ClientSettingsEditor(props: {
         redirectUris: [...client.redirectUris],
         postLogoutRedirectUris: [...client.postLogoutRedirectUris],
         backchannelLogoutUri: client.backchannelLogoutUri,
+        backchannelLogoutSessionRequired: sessionRequired,
         scopes: [...client.scopes],
         refreshTokenLifetime: trimmed === "" ? null : Number(trimmed),
       },
@@ -146,6 +176,7 @@ export function ClientSettingsEditor(props: {
         description="Per-client sign-in policy for this application."
       />
       <LifetimeField value={lifetime} onValueChange={setLifetime} />
+      <SessionRequiredField checked={sessionRequired} onCheckedChange={setSessionRequired} />
       {errors.map((message) => (
         <MutedText key={message} className="mt-4 text-destructive" data-testid={`${TEST_ID}-error`}>
           {message}

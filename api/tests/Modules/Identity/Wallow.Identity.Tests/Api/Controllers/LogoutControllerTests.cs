@@ -25,6 +25,7 @@ public sealed class LogoutControllerTests : IDisposable
     private readonly IRedirectUriValidator _redirectUriValidator;
     private readonly IConfiguration _configuration;
     private readonly ISsoClientSessionService _ssoClientSessionService;
+    private readonly IBackchannelLogoutNotifier _backchannelLogoutNotifier;
     private readonly IAccessRevoker _accessRevoker;
     private readonly IOptionsMonitor<OpenIddictServerOptions> _serverOptions;
     private readonly IAuthenticationService _authenticationService;
@@ -42,6 +43,7 @@ public sealed class LogoutControllerTests : IDisposable
         _configuration["AuthUrl"].Returns("https://auth.example.com");
 
         _ssoClientSessionService = Substitute.For<ISsoClientSessionService>();
+        _backchannelLogoutNotifier = Substitute.For<IBackchannelLogoutNotifier>();
         _accessRevoker = Substitute.For<IAccessRevoker>();
 
         _serverOptions = Substitute.For<IOptionsMonitor<OpenIddictServerOptions>>();
@@ -53,6 +55,7 @@ public sealed class LogoutControllerTests : IDisposable
             _redirectUriValidator,
             _configuration,
             _ssoClientSessionService,
+            _backchannelLogoutNotifier,
             _accessRevoker,
             _serverOptions,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<LogoutController>.Instance);
@@ -129,6 +132,50 @@ public sealed class LogoutControllerTests : IDisposable
 
         await _accessRevoker.Received(1).RevokeSessionAsync(
             _userId, TestSid, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Logout_WithSid_NotifiesBackchannelBeforeForgettingTheSession()
+    {
+        SetupHttpContext(TestSid);
+        _ssoClientSessionService
+            .BuildLogoutNotificationUrisAsync(TestSid, _issuer, Arg.Any<CancellationToken>())
+            .Returns([]);
+
+        await _controller.Logout();
+
+        // The notifier walks the participation rows itself, so it must run before ForgetAsync
+        // deletes them — after, every logout would notify nobody.
+        Received.InOrder(() =>
+        {
+            _backchannelLogoutNotifier.NotifyAsync(TestSid, _userId, _issuer, Arg.Any<CancellationToken>());
+            _ssoClientSessionService.ForgetAsync(TestSid, Arg.Any<CancellationToken>());
+        });
+    }
+
+    [Fact]
+    public async Task LogoutPost_NotifiesBackchannelAndForgetsTheSession()
+    {
+        SetupHttpContext(TestSid);
+
+        await _controller.LogoutPost();
+
+        Received.InOrder(() =>
+        {
+            _backchannelLogoutNotifier.NotifyAsync(TestSid, _userId, _issuer, Arg.Any<CancellationToken>());
+            _ssoClientSessionService.ForgetAsync(TestSid, Arg.Any<CancellationToken>());
+        });
+    }
+
+    [Fact]
+    public async Task Logout_WithoutSid_DoesNotNotifyBackchannel()
+    {
+        SetupHttpContext(sid: null);
+
+        await _controller.Logout();
+
+        await _backchannelLogoutNotifier.DidNotReceive().NotifyAsync(
+            Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<Uri>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

@@ -33,6 +33,26 @@ public class DiscoveryDocumentTests(WallowApiFactory factory) : IdentityIntegrat
     }
 
     [Fact]
+    public async Task Discovery_AdvertisesBackchannelLogoutSupport()
+    {
+        HttpResponseMessage response = await Client.GetAsync("/.well-known/openid-configuration");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        using JsonDocument document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        document.RootElement.TryGetProperty("backchannel_logout_supported", out JsonElement supported)
+            .Should().BeTrue("the discovery document must advertise back-channel logout");
+        supported.GetBoolean().Should().BeTrue();
+
+        // Session-supported says every logout token carries a sid claim — what lets an RP end
+        // the one session that logged out rather than every session for the user.
+        document.RootElement.TryGetProperty("backchannel_logout_session_supported", out JsonElement sessionSupported)
+            .Should().BeTrue("the discovery document must advertise sid support in logout tokens");
+        sessionSupported.GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Discovery_AdvertisesRevocationEndpoint()
     {
         HttpResponseMessage response = await Client.GetAsync("/.well-known/openid-configuration");

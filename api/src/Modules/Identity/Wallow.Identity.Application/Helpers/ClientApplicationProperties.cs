@@ -37,4 +37,11 @@ public static class ClientApplicationProperties
     /// back-channel logout work can deliver logout tokens to it. Absent when the client has none.
     /// </summary>
     public const string BackchannelLogoutUri = "backchannel_logout_uri";
+
+    /// <summary>
+    /// The client's declaration that its logout tokens must carry a <c>sid</c> claim. Wallow
+    /// always includes <c>sid</c>, so the flag changes nothing at delivery time; it is stored and
+    /// echoed because the OIDC back-channel registration metadata defines it. Absent means false.
+    /// </summary>
+    public const string BackchannelLogoutSessionRequired = "backchannel_logout_session_required";
 }

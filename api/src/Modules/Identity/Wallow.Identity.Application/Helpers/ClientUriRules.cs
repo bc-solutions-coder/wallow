@@ -14,6 +14,10 @@ public static class ClientUriRules
     public const string LogoutUriError =
         "Logout URIs must be absolute http or https URIs without a fragment.";
 
+    public const string BackchannelLogoutUriError =
+        "Back-channel logout URIs must be absolute, carry no fragment, and use https; "
+        + "plain http is allowed only for confidential clients.";
+
     /// <summary>
     /// A redirect (or post-logout redirect) URI: absolute, fragment-free, and either https or
     /// plain http to a loopback host so a developer can run the app locally.
@@ -41,6 +45,32 @@ public static class ClientUriRules
     /// </summary>
     public static bool TryParseLogoutUri(string? value, [NotNullWhen(true)] out Uri? uri) =>
         TryParseWebUri(value, out uri);
+
+    /// <summary>
+    /// A back-channel logout URI: absolute, fragment-free, http or https — but plain http only
+    /// for a confidential client, whose URI names a server the identity provider reaches over a
+    /// private network. A public client's back-channel endpoint is reached over the open
+    /// internet, so it must be https.
+    /// </summary>
+    public static bool TryParseBackchannelLogoutUri(
+        string? value,
+        bool isConfidential,
+        [NotNullWhen(true)] out Uri? uri)
+    {
+        uri = null;
+        if (!TryParseWebUri(value, out Uri? parsed))
+        {
+            return false;
+        }
+
+        if (parsed.Scheme == Uri.UriSchemeHttp && !isConfidential)
+        {
+            return false;
+        }
+
+        uri = parsed;
+        return true;
+    }
 
     /// <summary>Returns the first raw value <see cref="TryParseRedirectUri"/> refuses, or null.</summary>
     public static string? FirstRefusedRedirect(IEnumerable<string> values)

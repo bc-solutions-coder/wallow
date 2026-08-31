@@ -26,6 +26,7 @@ public sealed partial class LogoutController(
     IRedirectUriValidator redirectUriValidator,
     IConfiguration configuration,
     ISsoClientSessionService ssoClientSessionService,
+    IBackchannelLogoutNotifier backchannelLogoutNotifier,
     IAccessRevoker accessRevoker,
     IOptionsMonitor<OpenIddictServerOptions> serverOptions,
     ILogger<LogoutController> logger) : Controller
@@ -66,6 +67,11 @@ public sealed partial class LogoutController(
             notificationUris = await ssoClientSessionService.BuildLogoutNotificationUrisAsync(
                 sid, GetIssuer(), HttpContext.RequestAborted);
         }
+
+        // Back-channel first, before any local state changes: the POSTs are server-side and
+        // bounded, and they must run while the participation rows (ForgetAsync below) and the
+        // cookie principal still exist.
+        await NotifyBackchannelAsync(sid);
 
         // End the session's tokens while the cookie principal still names the user and the sid —
         // phase two arrives after the cookie sign-out and carries neither, so this runs once.
@@ -147,8 +153,18 @@ public sealed partial class LogoutController(
     public async Task<IActionResult> LogoutPost()
     {
         LogLogoutPostRequest();
-        await RevokeSessionTokensAsync(User.GetSessionId());
+        string? sid = User.GetSessionId();
+
+        // No browser page to host front-channel iframes on a POST, but the back channel needs
+        // none: notify server-side, then drop the participation rows the notification used.
+        await NotifyBackchannelAsync(sid);
+        await RevokeSessionTokensAsync(sid);
         await HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
+
+        if (sid is not null)
+        {
+            await ssoClientSessionService.ForgetAsync(sid, HttpContext.RequestAborted);
+        }
 
         return SignOut(
             authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
@@ -164,6 +180,19 @@ public sealed partial class LogoutController(
         if (sid is not null && Guid.TryParse(User.GetUserId(), out Guid userId))
         {
             await accessRevoker.RevokeSessionAsync(userId, sid, HttpContext.RequestAborted);
+        }
+    }
+
+    /// <summary>
+    /// POSTs a signed logout token to every participating relying party that registered a
+    /// back-channel logout URI. Best-effort and bounded inside the notifier; a caller with no
+    /// sid (phase two, or a cookie that predates sids) has nobody to notify.
+    /// </summary>
+    private async Task NotifyBackchannelAsync(string? sid)
+    {
+        if (sid is not null && Guid.TryParse(User.GetUserId(), out Guid userId))
+        {
+            await backchannelLogoutNotifier.NotifyAsync(sid, userId, GetIssuer(), HttpContext.RequestAborted);
         }
     }
 
