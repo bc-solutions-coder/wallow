@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
+using OpenIddict.Abstractions;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
@@ -11,6 +12,7 @@ using Wallow.Shared.Contracts.Identity.Events;
 using Wallow.Shared.Kernel.Domain;
 using Wallow.Shared.Kernel.Identity;
 using Wolverine;
+using Wolverine.EntityFrameworkCore;
 
 namespace Wallow.Identity.Infrastructure.Services;
 
@@ -21,7 +23,10 @@ public sealed partial class OrganizationService(
     IAccessRevoker accessRevoker,
     IOrganizationAdminEmailResolver adminEmails,
     ILastOwnerGuard lastOwnerGuard,
+    IRegisteredClientRepository registeredClients,
+    IOpenIddictApplicationManager applicationManager,
     IMessageBus messageBus,
+    IDbContextOutbox outbox,
     TimeProvider timeProvider,
     ILogger<OrganizationService> logger) : IOrganizationService
 {
@@ -483,7 +488,12 @@ public sealed partial class OrganizationService(
         LogOrganizationReinstatedByPlatform(organizationId, actorId);
     }
 
-    public async Task DeleteAsync(Guid organizationId, string confirmedName, CancellationToken ct = default)
+    public async Task DeleteAsync(
+        Guid organizationId,
+        string confirmedName,
+        Guid actorId,
+        bool byPlatformOperator,
+        CancellationToken ct = default)
     {
         LogDeletingOrganization(organizationId);
 
@@ -495,30 +505,131 @@ public sealed partial class OrganizationService(
             throw new InvalidOperationException($"Organization {organizationId} not found");
         }
 
-        organization.EnsureDeletable();
+        organization.EnsureDeletable(byPlatformOperator);
         Organization.ConfirmNameForDeletion(organization, confirmedName);
 
         string orgName = organization.Name;
+        TenantId tenantId = TenantId.Create(organizationId);
 
-        // Membership carries no foreign key to Organization (OrganizationId is the scope, not a
-        // navigation), so nothing cascades — the rows have to go explicitly or they outlive the org.
-        IReadOnlyList<Membership> memberships = await membershipRepository.GetForOrganizationAsync(
-            organizationId, null, ct);
+        // The admins' addresses must be read while the memberships still exist — after the
+        // cascade there is nobody left to resolve.
+        IReadOnlyList<string> recipients = await adminEmails.ResolveAsync(organizationId, ct);
 
-        foreach (Membership membership in memberships)
+        // One transaction end to end: either the organization and everything that hangs off it
+        // are gone together, or nothing is. Revocation runs first so realtime connections are
+        // hung up while the rows that name them still exist; the OpenIddict deletes clear the
+        // change tracker (see RevokedTokenDetacher), so every delete
+        // after them is an immediate SQL statement rather than tracked state. The deleted event
+        // is published through the enrolled outbox INSIDE the transaction — its envelope commits
+        // or rolls back with the rows — and only flushed to transports after the commit; a crash
+        // between the two is recovered by Wolverine's durability agent from the persisted
+        // envelope. Redelivery (execution-strategy retry after a failed commit) is possible, so
+        // every consumer of OrganizationDeletedEvent must stay idempotent.
+        outbox.Enroll(dbContext);
+        bool deleted = false;
+        IExecutionStrategy strategy = dbContext.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(
+            ct,
+            async token =>
+            {
+                await using IDbContextTransaction transaction = await dbContext.Database.BeginTransactionAsync(token);
+
+                // Snapshot the bound clients inside the transaction, so a client registered
+                // after the pre-checks still dies with its organization.
+                IReadOnlyList<RegisteredClient> boundClients =
+                    await registeredClients.ListByOrganizationAsync(organizationId, token);
+                List<string> clientIds = [.. boundClients.Select(c => c.ClientId)];
+
+                await accessRevoker.RevokeOrganizationAsync(organizationId, token);
+
+                foreach (string clientId in clientIds)
+                {
+                    object? application = await applicationManager.FindByClientIdAsync(clientId, token);
+                    if (application is not null)
+                    {
+                        RevokedTokenDetacher.DetachRevokedTokens(dbContext, application);
+                        await applicationManager.DeleteAsync(application, token);
+                    }
+                }
+
+                if (clientIds.Count > 0)
+                {
+                    await dbContext.SsoSessionClients
+                        .Where(s => clientIds.Contains(s.ClientId))
+                        .ExecuteDeleteAsync(token);
+                }
+
+                await dbContext.RegisteredClients
+                    .Where(c => c.OrganizationId == organizationId)
+                    .ExecuteDeleteAsync(token);
+
+                // Membership carries no foreign key to Organization (OrganizationId is the
+                // scope, not a navigation), so nothing cascades — every dependent row goes
+                // explicitly or it outlives the organization.
+                await dbContext.Memberships
+                    .Where(m => m.OrganizationId == id)
+                    .ExecuteDeleteAsync(token);
+
+                await dbContext.Invitations
+                    .IgnoreQueryFilters()
+                    .Where(i => i.TenantId == tenantId)
+                    .ExecuteDeleteAsync(token);
+
+                await dbContext.ActiveSessions
+                    .Where(session => session.TenantId == organizationId)
+                    .ExecuteDeleteAsync(token);
+
+                await dbContext.OrganizationSettings
+                    .IgnoreQueryFilters()
+                    .Where(settings => settings.OrganizationId == id)
+                    .ExecuteDeleteAsync(token);
+
+                await dbContext.OrganizationBrandings
+                    .IgnoreQueryFilters()
+                    .Where(branding => branding.OrganizationId == id)
+                    .ExecuteDeleteAsync(token);
+
+                await dbContext.TenantSettings
+                    .IgnoreQueryFilters()
+                    .Where(setting => setting.TenantId == tenantId)
+                    .ExecuteDeleteAsync(token);
+
+                await dbContext.UserSettings
+                    .IgnoreQueryFilters()
+                    .Where(setting => setting.TenantId == tenantId)
+                    .ExecuteDeleteAsync(token);
+
+                int organizationRows = await dbContext.Organizations
+                    .IgnoreQueryFilters()
+                    .Where(o => o.Id == id)
+                    .ExecuteDeleteAsync(token);
+
+                // A concurrent delete that already removed the row also already published the
+                // event — publishing again would run every cross-module cascade twice. The end
+                // state this caller asked for holds either way.
+                if (organizationRows > 0)
+                {
+                    await outbox.PublishAsync(new OrganizationDeletedEvent
+                    {
+                        OrganizationId = organizationId,
+                        TenantId = organizationId,
+                        OrganizationName = orgName,
+                        ActorId = actorId,
+                        RecipientEmails = recipients
+                    });
+                    deleted = true;
+                }
+
+                await transaction.CommitAsync(token);
+            });
+
+        if (!deleted)
         {
-            membershipRepository.Remove(membership);
+            LogOrganizationAlreadyDeleted(organizationId);
+            return;
         }
 
-        dbContext.Organizations.Remove(organization);
-        await dbContext.SaveChangesAsync(ct);
-
-        await messageBus.PublishAsync(new OrganizationDeletedEvent
-        {
-            OrganizationId = organizationId,
-            TenantId = organizationId,
-            Name = orgName
-        });
+        await outbox.FlushOutgoingMessagesAsync();
 
         LogOrganizationDeleted(organizationId);
     }
@@ -866,6 +977,9 @@ public sealed partial class OrganizationService
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Organization {OrgId} deleted")]
     private partial void LogOrganizationDeleted(Guid orgId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Organization {OrgId} was already deleted by a concurrent request; skipping the deleted event")]
+    private partial void LogOrganizationAlreadyDeleted(Guid orgId);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Organization {OrgId} suspended by platform actor {ActorId}")]
     private partial void LogOrganizationSuspendedByPlatform(Guid orgId, Guid actorId);

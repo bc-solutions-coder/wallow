@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Wallow.Api.Services;
 using Wallow.Identity.IntegrationTests.OAuth2;
@@ -14,8 +13,8 @@ namespace Wallow.Identity.IntegrationTests.Organizations;
 /// <summary>
 /// A platform suspension of an organization is the operator's freeze: every bound client's and
 /// every member's tokens die the moment it lands, the organization's endpoints refuse every
-/// change while it stands, its admins read the reason but cannot lift it, and even deletion
-/// waits until the operator lifts the suspension first.
+/// change while it stands, and its admins read the reason but cannot lift it. Deletion under
+/// the freeze is the operator's alone — <see cref="OrganizationDeletionTests"/> covers it.
 /// </summary>
 [Trait("Category", "Integration")]
 public class OrganizationPlatformSuspensionTests(WallowApiFactory factory) : OrganizationClientsTestBase(factory)
@@ -65,23 +64,16 @@ public class OrganizationPlatformSuspensionTests(WallowApiFactory factory) : Org
         (await Client.DeleteAsync($"/identity/organizations/{orgId}/platform-suspension"))
             .StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity, "the freeze answers before the forbidden lift");
 
-        // Not even the operator deletes a platform-suspended organization; lifting comes first.
         Guid liftingOperatorId = await ActAsGlobalAdminAsync();
-        using HttpRequestMessage delete = new(HttpMethod.Delete, $"/identity/organizations/{orgId}")
-        {
-            Content = JsonContent.Create(new { confirmName = "Org Platform Suspend Org" }),
-        };
-        (await Client.SendAsync(delete)).StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
-
         (await Client.DeleteAsync($"/identity/organizations/{orgId}/platform-suspension"))
             .StatusCode.Should().Be(HttpStatusCode.NoContent);
         (await ClientCredentialsAsync(workerId, workerSecret)).StatusCode
             .Should().Be(HttpStatusCode.OK, "the lift restores a client the organization never suspended itself");
 
-        AuthAuditEntry placedRow = await OrgAuditRowAsync("OrganizationSuspendedByPlatform", orgId);
+        AuthAuditEntry placedRow = await OrganizationAuditRowAsync("OrganizationSuspendedByPlatform", orgId);
         placedRow.ActorId.Should().Be(operatorId);
         placedRow.Reason.Should().Be("Fraud investigation");
-        AuthAuditEntry liftedRow = await OrgAuditRowAsync("OrganizationReinstatedByPlatform", orgId);
+        AuthAuditEntry liftedRow = await OrganizationAuditRowAsync("OrganizationReinstatedByPlatform", orgId);
         liftedRow.ActorId.Should().Be(liftingOperatorId);
         liftedRow.Reason.Should().BeNull("lifting needs no justification on the record; the placement carries it");
     }
@@ -115,19 +107,4 @@ public class OrganizationPlatformSuspensionTests(WallowApiFactory factory) : Org
         return connections.GetCancellationToken(connectionId);
     }
 
-    /// <summary>Waits for the audit handler, which runs off the request, to land the organization's row.</summary>
-    private async Task<AuthAuditEntry> OrgAuditRowAsync(string eventType, Guid orgId)
-    {
-        IDbContextFactory<AuthAuditDbContext> contexts =
-            Factory.Services.GetRequiredService<IDbContextFactory<AuthAuditDbContext>>();
-        AuthAuditEntry? row = null;
-        await WaitForAsync(async () =>
-        {
-            await using AuthAuditDbContext context = await contexts.CreateDbContextAsync();
-            row = await context.AuthAuditEntries
-                .FirstOrDefaultAsync(e => e.EventType == eventType && e.TenantId == orgId);
-            return row is not null;
-        });
-        return row ?? throw new InvalidOperationException($"No '{eventType}' audit row for '{orgId}' arrived.");
-    }
 }

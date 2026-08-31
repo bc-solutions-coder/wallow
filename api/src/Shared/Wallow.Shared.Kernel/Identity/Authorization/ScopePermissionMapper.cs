@@ -16,7 +16,9 @@ public static class ScopePermissionMapper
             "roles.write" => PermissionType.RolesUpdate,
             "roles.manage" => PermissionType.RolesDelete,
 
-            // Identity - Organizations
+            // Identity - Organizations. OrganizationsDelete is deliberately absent: deleting
+            // an organization is irreversible and requires typing its name back, so it stays a
+            // human-only action — no OAuth scope grants it to a client or service account.
             "organizations.read" => PermissionType.OrganizationsRead,
             "organizations.write" => PermissionType.OrganizationsUpdate,
             "organizations.manage" => PermissionType.OrganizationsManageMembers,

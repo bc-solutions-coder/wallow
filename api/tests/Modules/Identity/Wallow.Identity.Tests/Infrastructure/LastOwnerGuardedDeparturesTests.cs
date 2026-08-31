@@ -101,7 +101,10 @@ public sealed class LastOwnerGuardedDeparturesTests : IDisposable
             _accessRevoker,
             Substitute.For<IOrganizationAdminEmailResolver>(),
             _refusingGuard,
+            Substitute.For<IRegisteredClientRepository>(),
+            Substitute.For<OpenIddict.Abstractions.IOpenIddictApplicationManager>(),
             _messageBus,
+            Substitute.For<Wolverine.EntityFrameworkCore.IDbContextOutbox>(),
             TimeProvider.System,
             NullLogger<OrganizationService>.Instance);
 

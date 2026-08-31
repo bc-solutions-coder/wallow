@@ -26,6 +26,7 @@ describe("api.ts re-exports the SDK organizations query surface", () => {
     expect(api.organizationsGetMembersOptions).toBe(query.organizationsGetMembersOptions);
     expect(api.organizationsGetMembersQueryKey).toBe(query.organizationsGetMembersQueryKey);
     expect(api.organizationsCreateMutation).toBe(query.organizationsCreateMutation);
+    expect(api.organizationsDeleteMutation).toBe(query.organizationsDeleteMutation);
     expect(api.organizationsAddMemberMutation).toBe(query.organizationsAddMemberMutation);
     expect(api.organizationsRemoveMemberMutation).toBe(query.organizationsRemoveMemberMutation);
     expect(api.organizationsArchiveMutation).toBe(query.organizationsArchiveMutation);

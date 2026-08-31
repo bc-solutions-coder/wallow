@@ -150,16 +150,17 @@ public sealed class Organization : AggregateRoot<OrganizationId>, ITenantScoped
     }
 
     /// <summary>
-    /// An organization under a platform suspension cannot be deleted — not even by the operator
-    /// who placed the suspension; lifting it first is the honest order of operations.
+    /// While a platform suspension stands, the organization's own admins cannot delete it — the
+    /// freeze exists precisely so the organization cannot act on itself. The operator who can
+    /// place and lift the suspension may also end the organization while it stands.
     /// </summary>
-    public void EnsureDeletable()
+    public void EnsureDeletable(bool byPlatformOperator)
     {
-        if (IsPlatformSuspended)
+        if (IsPlatformSuspended && !byPlatformOperator)
         {
             throw new BusinessRuleException(
                 "Identity.OrganizationSuspendedByPlatform",
-                "A platform-suspended organization cannot be deleted");
+                "A platform-suspended organization can only be deleted by the platform");
         }
     }
 

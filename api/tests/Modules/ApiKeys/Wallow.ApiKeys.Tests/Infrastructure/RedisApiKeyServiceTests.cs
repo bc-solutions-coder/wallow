@@ -211,12 +211,12 @@ public class RedisApiKeyServiceTests
     {
         Guid userId = Guid.NewGuid();
 
-        _db.StringGetAsync(Arg.Any<RedisKey>())
-            .Returns(RedisValue.Null);
+        _apiKeyRepository.GetByIdAsync(Arg.Any<Wallow.ApiKeys.Domain.ApiKeys.ApiKeyId>(), Arg.Any<CancellationToken>())
+            .Returns((ApiKey?)null);
 
         RedisApiKeyService service = new(_db, _apiKeyRepository, TimeProvider.System, _logger);
 
-        bool result = await service.RevokeApiKeyAsync("nonexistent", userId);
+        bool result = await service.RevokeApiKeyAsync(Guid.NewGuid().ToString(), userId);
 
         result.Should().BeFalse();
     }
@@ -227,56 +227,42 @@ public class RedisApiKeyServiceTests
         Guid userId = Guid.NewGuid();
         Guid otherUserId = Guid.NewGuid();
 
-        string keyJson = System.Text.Json.JsonSerializer.Serialize(new
-        {
-            KeyId = "key-1",
-            Name = "Test Key",
-            Prefix = "sk_live_abc",
-            KeyHash = "hash-1",
-            UserId = otherUserId,
-            TenantId = Guid.NewGuid(),
-            Scopes = new List<string>(),
-            CreatedAt = DateTimeOffset.UtcNow,
-        });
-
-        _db.StringGetAsync(Arg.Any<RedisKey>())
-            .Returns((RedisValue)keyJson);
+        ApiKey key = ApiKey.Create(
+            new TenantId(Guid.NewGuid()), otherUserId.ToString(), "hash-1", "Test Key",
+            _invoicesReadScope, expiresAt: null, otherUserId, TimeProvider.System);
+        _apiKeyRepository.GetByIdAsync(key.Id, Arg.Any<CancellationToken>()).Returns(key);
 
         RedisApiKeyService service = new(_db, _apiKeyRepository, TimeProvider.System, _logger);
 
-        bool result = await service.RevokeApiKeyAsync("key-1", userId);
+        bool result = await service.RevokeApiKeyAsync(key.Id.Value.ToString(), userId);
 
         result.Should().BeFalse();
+        await _apiKeyRepository.DidNotReceive().RevokeAsync(
+            Arg.Any<Wallow.ApiKeys.Domain.ApiKeys.ApiKeyId>(), Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await _db.DidNotReceive().KeyDeleteAsync(Arg.Any<RedisKey>());
     }
 
     [Fact]
     public async Task RevokeApiKeyAsync_Success_ReturnsTrue()
     {
         Guid userId = Guid.NewGuid();
+        Guid tenantId = Guid.NewGuid();
 
-        string keyJson = System.Text.Json.JsonSerializer.Serialize(new
-        {
-            KeyId = "key-1",
-            Name = "Test Key",
-            Prefix = "sk_live_abc",
-            KeyHash = "hash-1",
-            UserId = userId,
-            TenantId = Guid.NewGuid(),
-            Scopes = new List<string>(),
-            CreatedAt = DateTimeOffset.UtcNow,
-        });
-
-        _db.StringGetAsync(Arg.Any<RedisKey>())
-            .Returns((RedisValue)keyJson);
+        ApiKey key = ApiKey.Create(
+            new TenantId(tenantId), userId.ToString(), "hash-1", "Test Key",
+            _invoicesReadScope, expiresAt: null, userId, TimeProvider.System);
+        _apiKeyRepository.GetByIdAsync(key.Id, Arg.Any<CancellationToken>()).Returns(key);
 
         RedisApiKeyService service = new(_db, _apiKeyRepository, TimeProvider.System, _logger);
 
-        bool result = await service.RevokeApiKeyAsync("key-1", userId);
+        string keyId = key.Id.Value.ToString();
+        bool result = await service.RevokeApiKeyAsync(keyId, userId);
 
         result.Should().BeTrue();
+        await _apiKeyRepository.Received(1).RevokeAsync(key.Id, tenantId, userId, Arg.Any<CancellationToken>());
         await _db.Received().KeyDeleteAsync(Arg.Is<RedisKey>(k => k.ToString().Contains("hash-1")));
-        await _db.Received().KeyDeleteAsync(Arg.Is<RedisKey>(k => k.ToString().Contains("id:key-1")));
-        await _db.Received().SetRemoveAsync(Arg.Any<RedisKey>(), Arg.Is<RedisValue>("key-1"));
+        await _db.Received().KeyDeleteAsync(Arg.Is<RedisKey>(k => k.ToString().Contains($"id:{keyId}")));
+        await _db.Received().SetRemoveAsync(Arg.Any<RedisKey>(), Arg.Is<RedisValue>(keyId));
     }
 
     [Fact]
@@ -284,12 +270,16 @@ public class RedisApiKeyServiceTests
     {
         Guid userId = Guid.NewGuid();
 
-        _db.StringGetAsync(Arg.Any<RedisKey>())
+        ApiKey key = ApiKey.Create(
+            new TenantId(Guid.NewGuid()), userId.ToString(), "hash-1", "Test Key",
+            _invoicesReadScope, expiresAt: null, userId, TimeProvider.System);
+        _apiKeyRepository.GetByIdAsync(key.Id, Arg.Any<CancellationToken>()).Returns(key);
+        _db.KeyDeleteAsync(Arg.Any<RedisKey>())
             .Throws(new RedisException("Connection lost"));
 
         RedisApiKeyService service = new(_db, _apiKeyRepository, TimeProvider.System, _logger);
 
-        bool result = await service.RevokeApiKeyAsync("key-1", userId);
+        bool result = await service.RevokeApiKeyAsync(key.Id.Value.ToString(), userId);
 
         result.Should().BeFalse();
     }

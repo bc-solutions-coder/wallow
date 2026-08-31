@@ -268,6 +268,20 @@ public sealed partial class SimpleEmailTemplateService(
                 "View Organization",
                 "{{OrganizationUrl}}"),
 
+            "organizationdeleted" => WrapInLayout(
+                "Organization Deleted",
+                """
+                <tr>
+                    <td style="padding: 30px 40px; font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.6; color: #333333;">
+                        <p style="margin: 0 0 16px;"><strong>{{OrganizationName}}</strong> has been permanently deleted from {{AppName}}.</p>
+                        <p style="margin: 0 0 16px;">Every token and registered client the organization held has been revoked, its API keys are being revoked, and its memberships, invitations and settings are gone. This cannot be undone.</p>
+                        <p style="margin: 0 0 24px;">Your {{AppName}} account itself is unaffected — you can still sign in to your other organizations.</p>
+                    </td>
+                </tr>
+                """,
+                "Open {{AppName}}",
+                "{{DashboardUrl}}"),
+
             "clientplatformsuspended" => WrapInLayout(
                 "Client Suspended",
                 """

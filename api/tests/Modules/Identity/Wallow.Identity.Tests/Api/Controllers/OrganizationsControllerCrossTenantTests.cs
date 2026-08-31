@@ -104,7 +104,7 @@ public sealed class OrganizationsControllerCrossTenantTests
         ["UpdateEnrollment"] = PermissionType.OrganizationsManageMembers,
         ["Archive"] = PermissionType.OrganizationsUpdate,
         ["Reactivate"] = PermissionType.OrganizationsUpdate,
-        ["Delete"] = PermissionType.OrganizationsUpdate,
+        ["Delete"] = PermissionType.OrganizationsDelete,
         ["UpdateBranding"] = PermissionType.OrganizationsUpdate,
         ["UploadBrandingLogo"] = PermissionType.OrganizationsUpdate,
         ["UpdateSettings"] = PermissionType.OrganizationsUpdate,

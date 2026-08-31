@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using Wallow.ApiKeys.Application.Interfaces;
+using Wallow.ApiKeys.Domain.ApiKeys;
 using Wallow.ApiKeys.Domain.Entities;
 using Wallow.Shared.Contracts.ApiKeys;
 using Wallow.Shared.Kernel.Identity;
@@ -20,10 +21,6 @@ public sealed partial class RedisApiKeyService(
     TimeProvider timeProvider,
     ILogger<RedisApiKeyService> logger) : IApiKeyService
 {
-
-    private const string KeyPrefix = "apikey:";
-    private const string UserKeysPrefix = "apikeys:user:";
-
     public async Task<ApiKeyCreateResult> CreateApiKeyAsync(
         string name,
         Guid userId,
@@ -36,9 +33,6 @@ public sealed partial class RedisApiKeyService(
         {
             // Generate a secure random key: sk_live_<32 random bytes as base64url>
             byte[] randomBytes = RandomNumberGenerator.GetBytes(32);
-            // Generate enough random bytes so that after stripping base64 special chars we still have >= 16 chars
-            string keyId = Convert.ToBase64String(RandomNumberGenerator.GetBytes(24))
-                .Replace("+", "", StringComparison.Ordinal).Replace("/", "", StringComparison.Ordinal).Replace("=", "", StringComparison.Ordinal)[..16];
             string secretPart = Convert.ToBase64String(randomBytes)
                 .Replace("+", "-", StringComparison.Ordinal).Replace("/", "_", StringComparison.Ordinal).Replace("=", "", StringComparison.Ordinal);
             string apiKey = $"sk_live_{secretPart}";
@@ -62,6 +56,10 @@ public sealed partial class RedisApiKeyService(
 
             await apiKeyRepository.AddAsync(domainKey, ct);
 
+            // The cache and every caller address the key by its domain id — the one identifier
+            // that survives a cache flush, so a listed key can always be revoked.
+            string keyId = domainKey.Id.Value.ToString();
+
             // Then write to Valkey cache
             ApiKeyData metadata = new()
             {
@@ -83,7 +81,7 @@ public sealed partial class RedisApiKeyService(
 
             // Store by hash for validation lookups
             await db.StringSetAsync(
-                $"{KeyPrefix}{keyHash}",
+                ApiKeyCacheKeys.ByHash(keyHash),
                 json,
                 ttl,
                 keepTtl: false,
@@ -91,11 +89,11 @@ public sealed partial class RedisApiKeyService(
                 CommandFlags.None);
 
             // Add to user's key list for management
-            await db.SetAddAsync($"{UserKeysPrefix}{userId}", keyId);
+            await db.SetAddAsync(ApiKeyCacheKeys.UserSet(userId.ToString()), keyId);
 
             // Store metadata by keyId (for listing/revocation)
             await db.StringSetAsync(
-                $"{KeyPrefix}id:{keyId}",
+                ApiKeyCacheKeys.ById(keyId),
                 json,
                 ttl,
                 keepTtl: false,
@@ -140,7 +138,7 @@ public sealed partial class RedisApiKeyService(
         {
             string keyHash = HashApiKey(apiKey);
             // Check Valkey first
-            RedisValue json = await db.StringGetAsync($"{KeyPrefix}{keyHash}");
+            RedisValue json = await db.StringGetAsync(ApiKeyCacheKeys.ByHash(keyHash));
             if (!json.IsNullOrEmpty)
             {
                 return ValidateFromCachedData(json.ToString(), keyHash);
@@ -190,7 +188,7 @@ public sealed partial class RedisApiKeyService(
             string cacheJson = JsonSerializer.Serialize(cacheData);
             TimeSpan? ttl = domainKey.ExpiresAt.HasValue ? domainKey.ExpiresAt.Value - timeProvider.GetUtcNow() : null;
 
-            await db.StringSetAsync($"{KeyPrefix}{keyHash}", cacheJson, ttl, keepTtl: false, When.Always, CommandFlags.None);
+            await db.StringSetAsync(ApiKeyCacheKeys.ByHash(keyHash), cacheJson, ttl, keepTtl: false, When.Always, CommandFlags.None);
 
             return new ApiKeyValidationResult(
                 IsValid: true,
@@ -246,7 +244,7 @@ public sealed partial class RedisApiKeyService(
     {
         try
         {
-            long count = await db.SetLengthAsync($"{UserKeysPrefix}{userId}");
+            long count = await db.SetLengthAsync(ApiKeyCacheKeys.UserSet(userId.ToString()));
             return (int)count;
         }
         catch (Exception ex)
@@ -260,30 +258,30 @@ public sealed partial class RedisApiKeyService(
     {
         try
         {
-            // Get the key data from Valkey first
-            RedisValue json = await db.StringGetAsync($"{KeyPrefix}id:{keyId}");
-            if (json.IsNullOrEmpty)
+            if (!Guid.TryParse(keyId, out Guid parsedKeyId))
             {
                 return false;
             }
 
-            ApiKeyData? data = JsonSerializer.Deserialize<ApiKeyData>(json.ToString());
-            if (data == null || data.UserId != userId)
+            // PostgreSQL is the source of truth: the row must die even when the cache entries
+            // have already expired, so the lookup goes to the repository and ownership is
+            // proved against the row, not against cached JSON.
+            ApiKey? domainKey = await apiKeyRepository.GetByIdAsync(new ApiKeyId(parsedKeyId), ct);
+            if (domainKey is null || domainKey.ServiceAccountId != userId.ToString())
             {
-                return false; // Key doesn't exist or doesn't belong to user
+                return false;
             }
 
-            // Mark revoked in PostgreSQL first (look up by hash since Redis keyId != domain ApiKeyId)
-            ApiKey? domainKey = await apiKeyRepository.GetByHashAsync(data.KeyHash, data.TenantId, ct);
-            if (domainKey is not null)
+            if (!domainKey.IsRevoked)
             {
-                await apiKeyRepository.RevokeAsync(domainKey.Id, data.TenantId, userId, ct);
+                await apiKeyRepository.RevokeAsync(domainKey.Id, domainKey.TenantId.Value, userId, ct);
             }
 
-            // Then delete from Valkey
-            await db.KeyDeleteAsync($"{KeyPrefix}{data.KeyHash}");
-            await db.KeyDeleteAsync($"{KeyPrefix}id:{keyId}");
-            await db.SetRemoveAsync($"{UserKeysPrefix}{userId}", keyId);
+            // Then drop the cache entries, every name derived from the row.
+            string normalizedKeyId = parsedKeyId.ToString();
+            await db.KeyDeleteAsync(ApiKeyCacheKeys.ByHash(domainKey.HashedKey));
+            await db.KeyDeleteAsync(ApiKeyCacheKeys.ById(normalizedKeyId));
+            await db.SetRemoveAsync(ApiKeyCacheKeys.UserSet(userId.ToString()), normalizedKeyId);
 
             LogApiKeyRevoked(keyId, userId);
             return true;
@@ -344,8 +342,8 @@ public sealed partial class RedisApiKeyService(
                 ? data.ExpiresAt.Value - timeProvider.GetUtcNow()
                 : null;
 
-            await db.StringSetAsync($"{KeyPrefix}{keyHash}", json, expiry, keepTtl: false, When.Exists, CommandFlags.None);
-            await db.StringSetAsync($"{KeyPrefix}id:{data.KeyId}", json, expiry, keepTtl: false, When.Exists, CommandFlags.None);
+            await db.StringSetAsync(ApiKeyCacheKeys.ByHash(keyHash), json, expiry, keepTtl: false, When.Exists, CommandFlags.None);
+            await db.StringSetAsync(ApiKeyCacheKeys.ById(data.KeyId), json, expiry, keepTtl: false, When.Exists, CommandFlags.None);
         }
         catch (Exception ex)
         {

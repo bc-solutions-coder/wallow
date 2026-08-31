@@ -29,6 +29,13 @@ public sealed class ClientBrandingRepository(BrandingDbContext context) : IClien
         context.SetTenant(tenantId);
     }
 
+    public async Task<IReadOnlyList<ClientBranding>> ListAsync(CancellationToken ct = default)
+    {
+        return await context.ClientBrandings
+            .AsTracking()
+            .ToListAsync(ct);
+    }
+
     public void Add(ClientBranding branding)
     {
         context.ClientBrandings.Add(branding);

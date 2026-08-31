@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Wallow.Identity.IntegrationTests.OAuth2;
@@ -71,6 +72,23 @@ public abstract class OrganizationClientsTestBase(WallowApiFactory factory) : Id
         return await bearerClient.GetAsync("/connect/userinfo");
     }
 
+    /// <summary>
+    /// The same userinfo call for a token minted through the authorization-code harness. The
+    /// harness runs over "https://localhost" and no fixed issuer is configured, so its tokens
+    /// carry the https issuer — presented through the default http client they die with an
+    /// issuer-mismatch 401 whether or not they were revoked. Matching origins keeps the
+    /// assertion honest: 200 while the token lives, 401 only once it is actually revoked.
+    /// </summary>
+    protected async Task<HttpResponseMessage> HarnessBearerCallAsync(string accessToken)
+    {
+        using HttpClient bearerClient = Factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+        });
+        bearerClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        return await bearerClient.GetAsync("/connect/userinfo");
+    }
+
     /// <summary>Waits for the audit handler, which runs off the request, to land the row.</summary>
     protected async Task<AuthAuditEntry> AuditRowAsync(string eventType, string clientId)
     {
@@ -85,6 +103,22 @@ public abstract class OrganizationClientsTestBase(WallowApiFactory factory) : Id
             return row is not null;
         });
         return row ?? throw new InvalidOperationException($"No '{eventType}' audit row for '{clientId}' arrived.");
+    }
+
+    /// <summary>The same wait, keyed by the organization instead of a client.</summary>
+    protected async Task<AuthAuditEntry> OrganizationAuditRowAsync(string eventType, Guid orgId)
+    {
+        IDbContextFactory<AuthAuditDbContext> contexts =
+            Factory.Services.GetRequiredService<IDbContextFactory<AuthAuditDbContext>>();
+        AuthAuditEntry? row = null;
+        await WaitForAsync(async () =>
+        {
+            await using AuthAuditDbContext context = await contexts.CreateDbContextAsync();
+            row = await context.AuthAuditEntries
+                .FirstOrDefaultAsync(e => e.EventType == eventType && e.TenantId == orgId);
+            return row is not null;
+        });
+        return row ?? throw new InvalidOperationException($"No '{eventType}' audit row for '{orgId}' arrived.");
     }
 
     protected static async Task WaitForAsync(Func<Task<bool>> condition)

@@ -55,7 +55,10 @@ public sealed class OrganizationServiceTests : IDisposable
             _accessRevoker,
             Substitute.For<IOrganizationAdminEmailResolver>(),
             new UnguardedLastOwnerGuard(),
+            Substitute.For<IRegisteredClientRepository>(),
+            Substitute.For<OpenIddict.Abstractions.IOpenIddictApplicationManager>(),
             _messageBus,
+            Substitute.For<Wolverine.EntityFrameworkCore.IDbContextOutbox>(),
             TimeProvider.System,
             NullLogger<OrganizationService>.Instance);
     }

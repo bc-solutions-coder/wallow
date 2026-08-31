@@ -39,6 +39,7 @@ export {
   organizationsApproveMemberMutation,
   organizationsArchiveMutation,
   organizationsCreateMutation,
+  organizationsDeleteMutation,
   organizationsDenyMemberMutation,
   organizationsGetAllOptions,
   organizationsGetAllQueryKey,

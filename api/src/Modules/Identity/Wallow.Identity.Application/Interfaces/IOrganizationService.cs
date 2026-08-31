@@ -44,7 +44,21 @@ public interface IOrganizationService
 
     Task ArchiveAsync(Guid organizationId, Guid actorId, CancellationToken ct = default);
     Task ReactivateAsync(Guid organizationId, Guid actorId, CancellationToken ct = default);
-    Task DeleteAsync(Guid organizationId, string confirmedName, CancellationToken ct = default);
+
+    /// <summary>
+    /// Permanently deletes the organization and everything Identity holds for it, in one
+    /// transaction: tokens revoked and realtime closed, the bound clients' OpenIddict
+    /// applications and registered-client rows deleted, then memberships, invitations, active
+    /// sessions, settings and branding, and finally the organization row. The caller must have
+    /// typed the organization's exact name; a platform-suspended organization refuses everyone
+    /// but the platform operator.
+    /// </summary>
+    Task DeleteAsync(
+        Guid organizationId,
+        string confirmedName,
+        Guid actorId,
+        bool byPlatformOperator,
+        CancellationToken ct = default);
 
     /// <summary>
     /// Places the platform operator's suspension on the organization, with the reason its admins

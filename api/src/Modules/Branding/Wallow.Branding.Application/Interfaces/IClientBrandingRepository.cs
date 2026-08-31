@@ -16,6 +16,12 @@ public interface IClientBrandingRepository
     /// </summary>
     void UseTenant(TenantId tenantId);
 
+    /// <summary>
+    /// Every branding row the addressed tenant owns, tracked so they can be removed — call
+    /// <see cref="UseTenant"/> first when acting for another organization.
+    /// </summary>
+    Task<IReadOnlyList<ClientBranding>> ListAsync(CancellationToken ct = default);
+
     void Add(ClientBranding branding);
     void Remove(ClientBranding branding);
     Task SaveChangesAsync(CancellationToken ct = default);

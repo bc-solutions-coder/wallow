@@ -328,48 +328,42 @@ public class RedisApiKeyServiceGapTests
         result.Should().BeEmpty();
     }
 
-    // RevokeApiKeyAsync: data deserializes to null returns false
+    // RevokeApiKeyAsync: a key id that is not a domain ApiKeyId guid cannot name a row
     [Fact]
-    public async Task RevokeApiKeyAsync_DataDeserializesToNull_ReturnsFalse()
+    public async Task RevokeApiKeyAsync_NonGuidKeyId_ReturnsFalseWithoutTouchingAnything()
     {
         Guid userId = Guid.NewGuid();
-
-        _db.StringGetAsync(Arg.Any<RedisKey>())
-            .Returns((RedisValue)"null");
 
         RedisApiKeyService service = CreateService();
 
         bool result = await service.RevokeApiKeyAsync("key-1", userId);
 
         result.Should().BeFalse();
+        await _apiKeyRepository.DidNotReceive().RevokeAsync(
+            Arg.Any<Wallow.ApiKeys.Domain.ApiKeys.ApiKeyId>(), Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await _db.DidNotReceive().KeyDeleteAsync(Arg.Any<RedisKey>());
     }
 
-    // RevokeApiKeyAsync: successful revocation removes from all three locations
+    // RevokeApiKeyAsync: successful revocation revokes the row and removes all three cache names
     [Fact]
     public async Task RevokeApiKeyAsync_Success_DeletesHashAndIdAndRemovesFromUserSet()
     {
         Guid userId = Guid.NewGuid();
+        Guid tenantId = Guid.NewGuid();
 
-        string keyJson = JsonSerializer.Serialize(new
-        {
-            KeyId = "key-revoke",
-            Name = "Revoke Me",
-            Prefix = "sk_live_abc",
-            KeyHash = "hash-revoke",
-            UserId = userId,
-            TenantId = Guid.NewGuid(),
-            Scopes = new List<string>(),
-            CreatedAt = DateTimeOffset.UtcNow
-        });
-
-        _db.StringGetAsync(Arg.Any<RedisKey>())
-            .Returns((RedisValue)keyJson);
+        ApiKey key = ApiKey.Create(
+            new TenantId(tenantId), userId.ToString(), "hash-revoke", "Revoke Me",
+            _readScope, expiresAt: null, userId, TimeProvider.System);
+        _apiKeyRepository.GetByIdAsync(key.Id, Arg.Any<CancellationToken>()).Returns(key);
 
         RedisApiKeyService service = CreateService();
 
-        bool result = await service.RevokeApiKeyAsync("key-revoke", userId);
+        string keyId = key.Id.Value.ToString();
+        bool result = await service.RevokeApiKeyAsync(keyId, userId);
 
         result.Should().BeTrue();
+
+        await _apiKeyRepository.Received(1).RevokeAsync(key.Id, tenantId, userId, Arg.Any<CancellationToken>());
 
         // Verify hash key deleted
         await _db.Received().KeyDeleteAsync(
@@ -377,40 +371,30 @@ public class RedisApiKeyServiceGapTests
 
         // Verify id key deleted
         await _db.Received().KeyDeleteAsync(
-            Arg.Is<RedisKey>(k => k.ToString() == "apikey:id:key-revoke"));
+            Arg.Is<RedisKey>(k => k.ToString() == $"apikey:id:{keyId}"));
 
         // Verify removed from user set
         await _db.Received().SetRemoveAsync(
             Arg.Is<RedisKey>(k => k.ToString() == $"apikeys:user:{userId}"),
-            Arg.Is<RedisValue>("key-revoke"));
+            Arg.Is<RedisValue>(keyId));
     }
 
-    // RevokeApiKeyAsync: KeyDeleteAsync throws after getting key data
+    // RevokeApiKeyAsync: KeyDeleteAsync throws after the row is found
     [Fact]
     public async Task RevokeApiKeyAsync_WhenDeleteThrows_ReturnsFalse()
     {
         Guid userId = Guid.NewGuid();
 
-        string keyJson = JsonSerializer.Serialize(new
-        {
-            KeyId = "key-del-fail",
-            Name = "Key",
-            Prefix = "sk_live_abc",
-            KeyHash = "hash-del-fail",
-            UserId = userId,
-            TenantId = Guid.NewGuid(),
-            Scopes = new List<string>(),
-            CreatedAt = DateTimeOffset.UtcNow
-        });
-
-        _db.StringGetAsync(Arg.Any<RedisKey>())
-            .Returns((RedisValue)keyJson);
+        ApiKey key = ApiKey.Create(
+            new TenantId(Guid.NewGuid()), userId.ToString(), "hash-del-fail", "Key",
+            _readScope, expiresAt: null, userId, TimeProvider.System);
+        _apiKeyRepository.GetByIdAsync(key.Id, Arg.Any<CancellationToken>()).Returns(key);
         _db.KeyDeleteAsync(Arg.Any<RedisKey>())
             .Throws(new RedisException("Delete failed"));
 
         RedisApiKeyService service = CreateService();
 
-        bool result = await service.RevokeApiKeyAsync("key-del-fail", userId);
+        bool result = await service.RevokeApiKeyAsync(key.Id.Value.ToString(), userId);
 
         result.Should().BeFalse();
     }

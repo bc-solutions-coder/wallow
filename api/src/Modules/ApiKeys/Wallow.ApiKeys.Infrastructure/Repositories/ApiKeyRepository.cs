@@ -30,6 +30,13 @@ public sealed class ApiKeyRepository(ApiKeysDbContext context, TimeProvider time
             .FirstOrDefaultAsync(x => x.HashedKey == hash, ct);
     }
 
+    public Task<ApiKey?> GetByIdAsync(ApiKeyId id, CancellationToken ct = default)
+    {
+        return context.ApiKeys
+            .AsTracking()
+            .FirstOrDefaultAsync(x => x.Id == id, ct);
+    }
+
     public Task<List<ApiKey>> ListByServiceAccountAsync(string serviceAccountId, Guid tenantId, CancellationToken ct)
     {
         TenantId tid = new(tenantId);
@@ -37,6 +44,20 @@ public sealed class ApiKeyRepository(ApiKeysDbContext context, TimeProvider time
             .Where(x => x.ServiceAccountId == serviceAccountId && x.TenantId == tid)
             .OrderByDescending(x => x.CreatedAt)
             .ToListAsync(ct);
+    }
+
+    public Task<List<ApiKey>> ListByTenantAsync(Guid tenantId, CancellationToken ct)
+    {
+        TenantId tid = new(tenantId);
+        return context.ApiKeys
+            .Where(x => x.TenantId == tid)
+            .OrderByDescending(x => x.CreatedAt)
+            .ToListAsync(ct);
+    }
+
+    public void UseTenant(Guid tenantId)
+    {
+        context.SetTenant(new TenantId(tenantId));
     }
 
     public async Task RevokeAsync(ApiKeyId id, Guid tenantId, Guid revokedBy, CancellationToken ct)

@@ -38,7 +38,7 @@ public sealed class OrganizationServiceGapTests : IDisposable
         _dbContext.SetTenant(new TenantId(_tenantId));
         _orgRepo = Substitute.For<IOrganizationRepository>();
         _messageBus = Substitute.For<IMessageBus>();
-        _sut = new OrganizationService(_orgRepo, new MembershipRepository(_dbContext), _dbContext, Substitute.For<IAccessRevoker>(), Substitute.For<IOrganizationAdminEmailResolver>(), new UnguardedLastOwnerGuard(), _messageBus, TimeProvider.System, NullLogger<OrganizationService>.Instance);
+        _sut = new OrganizationService(_orgRepo, new MembershipRepository(_dbContext), _dbContext, Substitute.For<IAccessRevoker>(), Substitute.For<IOrganizationAdminEmailResolver>(), new UnguardedLastOwnerGuard(), Substitute.For<IRegisteredClientRepository>(), Substitute.For<OpenIddict.Abstractions.IOpenIddictApplicationManager>(), _messageBus, Substitute.For<Wolverine.EntityFrameworkCore.IDbContextOutbox>(), TimeProvider.System, NullLogger<OrganizationService>.Instance);
     }
 
     public void Dispose() { _dbContext.Dispose(); }
@@ -81,21 +81,36 @@ public sealed class OrganizationServiceGapTests : IDisposable
         await act.Should().ThrowAsync<InvalidOperationException>();
     }
 
+    // The delete cascade itself runs ExecuteDeleteAsync statements the InMemory provider cannot
+    // execute; the happy path lives in Wallow.Identity.IntegrationTests. What is unit-testable
+    // here is every guard that must refuse before anything is touched.
+
     [Fact]
-    public async Task DeleteAsync_Deletes()
+    public async Task DeleteAsync_NameMismatch_ThrowsAndPublishesNothing()
     {
         Organization org = Organization.Create(new TenantId(_tenantId), "DM", "dm", Guid.NewGuid(), TimeProvider.System);
         _orgRepo.GetByIdAsync(Arg.Any<OrganizationId>(), Arg.Any<CancellationToken>()).Returns(org);
-        _dbContext.Organizations.Add(org); await _dbContext.SaveChangesAsync();
-        await _sut.DeleteAsync(org.Id.Value, "DM");
-        await _messageBus.Received(1).PublishAsync(Arg.Is<OrganizationDeletedEvent>(e => e.Name == "DM"));
+        Func<Task> act = () => _sut.DeleteAsync(org.Id.Value, "dm", Guid.NewGuid(), byPlatformOperator: false);
+        (await act.Should().ThrowAsync<BusinessRuleException>()).Which.Code.Should().Be("Identity.OrganizationNameMismatch");
+        await _messageBus.DidNotReceive().PublishAsync(Arg.Any<OrganizationDeletedEvent>());
+    }
+
+    [Fact]
+    public async Task DeleteAsync_PlatformSuspended_RefusesEveryoneButTheOperator()
+    {
+        Organization org = Organization.Create(new TenantId(_tenantId), "DM", "dm", Guid.NewGuid(), TimeProvider.System);
+        org.SuspendByPlatform("Under investigation", Guid.NewGuid(), TimeProvider.System);
+        _orgRepo.GetByIdAsync(Arg.Any<OrganizationId>(), Arg.Any<CancellationToken>()).Returns(org);
+        Func<Task> act = () => _sut.DeleteAsync(org.Id.Value, "DM", Guid.NewGuid(), byPlatformOperator: false);
+        (await act.Should().ThrowAsync<BusinessRuleException>()).Which.Code.Should().Be("Identity.OrganizationSuspendedByPlatform");
+        await _messageBus.DidNotReceive().PublishAsync(Arg.Any<OrganizationDeletedEvent>());
     }
 
     [Fact]
     public async Task DeleteAsync_NotFound_Throws()
     {
         _orgRepo.GetByIdAsync(Arg.Any<OrganizationId>(), Arg.Any<CancellationToken>()).Returns((Organization?)null);
-        Func<Task> act = () => _sut.DeleteAsync(Guid.NewGuid(), "x");
+        Func<Task> act = () => _sut.DeleteAsync(Guid.NewGuid(), "x", Guid.NewGuid(), byPlatformOperator: false);
         await act.Should().ThrowAsync<InvalidOperationException>();
     }
 

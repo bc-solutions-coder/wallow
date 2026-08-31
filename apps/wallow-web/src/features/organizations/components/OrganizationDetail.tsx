@@ -23,6 +23,7 @@ import {
   organizationsReactivateMutation,
   queriesWithTag,
 } from "../api";
+import { DeleteOrganizationDialog } from "./DeleteOrganization";
 import { MemberList } from "./MemberList";
 import { OrganizationClients } from "./OrganizationClients";
 import { OrganizationPlatformControls } from "./PlatformSuspension";
@@ -187,6 +188,7 @@ export function OrganizationDetail(props: { orgId: string }) {
           orgId={orgId}
           suspended={typeof org.platformSuspendedAt === "string"}
         />
+        <DeleteOrganizationDialog orgId={orgId} orgName={org.name} />
       </div>
 
       <ManageLinks orgId={orgId} />

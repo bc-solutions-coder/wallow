@@ -91,8 +91,11 @@ internal static class SeederServiceCollectionExtensions
         // TimeProvider
         services.AddSingleton(TimeProvider.System);
 
-        // NullMessageBus — OrganizationService requires IMessageBus but the seeder never dispatches messages
-        services.AddSingleton<IMessageBus>(new NullMessageBus());
+        // NullMessageBus — OrganizationService requires IMessageBus and IDbContextOutbox, but the
+        // seeder never dispatches messages and never reaches the deletion outbox path.
+        NullMessageBus nullBus = new();
+        services.AddSingleton<IMessageBus>(nullBus);
+        services.AddSingleton<Wolverine.EntityFrameworkCore.IDbContextOutbox>(nullBus);
 
         // Map SeedOptions.Clients into PreRegisteredClientOptions, attaching environment-supplied
         // secrets by clientId (see SeedOptions.ClientSecrets for why the contract is name-keyed).

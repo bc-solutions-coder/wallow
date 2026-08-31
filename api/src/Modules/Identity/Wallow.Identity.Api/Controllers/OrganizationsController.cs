@@ -402,17 +402,17 @@ public class OrganizationsController(
     /// Permanently delete an organization. Requires name confirmation.
     /// </summary>
     [HttpDelete("{id:guid}")]
-    [HasPermission(PermissionType.OrganizationsUpdate)]
+    [HasPermission(PermissionType.OrganizationsDelete)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> Delete(Guid id, DeleteOrganizationRequest request, CancellationToken ct)
     {
-        if (!await CanAddressOrganizationAsync(id, PermissionType.OrganizationsUpdate, ct))
+        if (!await CanAddressOrganizationAsync(id, PermissionType.OrganizationsDelete, ct))
         {
             return NotFound();
         }
 
-        await orgService.DeleteAsync(id, request.ConfirmName, ct);
+        await orgService.DeleteAsync(id, request.ConfirmName, ActorId(), User.IsGlobalAdmin(), ct);
         return NoContent();
     }
 

@@ -26,6 +26,13 @@ public static class PermissionType
     public const string OrganizationsManageMembers = "OrganizationsManageMembers";
 
     /// <summary>
+    /// Permanently delete an organization and everything that hangs off it. Held by the
+    /// built-in admin role only — updating an organization and destroying it are different
+    /// authorities, so this never travels with <see cref="OrganizationsUpdate"/>.
+    /// </summary>
+    public const string OrganizationsDelete = "OrganizationsDelete";
+
+    /// <summary>
     /// Register, edit and delete the developer applications an organization owns. Held by the
     /// organization's admin and manager roles, never by a plain member.
     /// </summary>

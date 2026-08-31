@@ -315,15 +315,26 @@ public class OrganizationTests
     }
 
     [Fact]
-    public void EnsureDeletable_WhilePlatformSuspended_Throws()
+    public void EnsureDeletable_WhilePlatformSuspended_RefusesTheOrganizationItself()
     {
         Organization org = CreateOrganization();
         org.SuspendByPlatform("Under investigation", _testUserId, TimeProvider.System);
 
-        Action act = org.EnsureDeletable;
+        Action act = () => org.EnsureDeletable(byPlatformOperator: false);
 
         act.Should().Throw<BusinessRuleException>()
             .Which.Code.Should().Be("Identity.OrganizationSuspendedByPlatform");
+    }
+
+    [Fact]
+    public void EnsureDeletable_WhilePlatformSuspended_AllowsThePlatformOperator()
+    {
+        Organization org = CreateOrganization();
+        org.SuspendByPlatform("Under investigation", _testUserId, TimeProvider.System);
+
+        Action act = () => org.EnsureDeletable(byPlatformOperator: true);
+
+        act.Should().NotThrow("the operator who placed the freeze may also end the organization");
     }
 
     [Fact]
@@ -332,7 +343,7 @@ public class OrganizationTests
         Organization org = CreateOrganization();
         org.Archive(_testUserId, TimeProvider.System);
 
-        Action act = org.EnsureDeletable;
+        Action act = () => org.EnsureDeletable(byPlatformOperator: false);
 
         act.Should().NotThrow("archive is the organization's own state, not the platform's");
     }

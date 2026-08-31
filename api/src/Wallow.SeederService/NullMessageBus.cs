@@ -1,14 +1,30 @@
+using Microsoft.EntityFrameworkCore;
 using Wolverine;
+using Wolverine.EntityFrameworkCore;
 
 namespace Wallow.SeederService;
 
 /// <summary>
-/// No-op IMessageBus for the seeder service. OrganizationService requires IMessageBus
-/// but the seeder never dispatches Wolverine messages.
+/// No-op IMessageBus and IDbContextOutbox for the seeder service. OrganizationService requires
+/// both, but the seeder never dispatches Wolverine messages and never deletes an organization —
+/// the outbox path is unreachable here, so enrolling and flushing are harmless no-ops.
 /// </summary>
-internal sealed class NullMessageBus : IMessageBus
+internal sealed class NullMessageBus : IMessageBus, IDbContextOutbox
 {
     public string? TenantId { get; set; }
+
+    // IDbContextOutbox
+    public DbContext? ActiveContext { get; private set; }
+
+    public void Enroll(DbContext dbContext) => ActiveContext = dbContext;
+
+    public Task SaveChangesAndFlushMessagesAsync(CancellationToken token = default)
+        => ActiveContext?.SaveChangesAsync(token) ?? Task.CompletedTask;
+
+    public Task SaveChangesAndFlushMessagesAsync(Wolverine.Runtime.MultiFlushMode multiFlushMode, CancellationToken token = default)
+        => ActiveContext?.SaveChangesAsync(token) ?? Task.CompletedTask;
+
+    public Task FlushOutgoingMessagesAsync() => Task.CompletedTask;
 
     // ICommandBus
     public Task InvokeAsync(object message, CancellationToken cancellation = default, TimeSpan? timeout = null)

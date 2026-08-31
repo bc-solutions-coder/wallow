@@ -6,7 +6,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Npgsql;
 using OpenIddict.Abstractions;
-using OpenIddict.EntityFrameworkCore.Models;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Helpers;
 using Wallow.Identity.Application.Interfaces;
@@ -343,7 +342,7 @@ public sealed partial class OrganizationClientService(
 
                 if (application is not null)
                 {
-                    DetachRevokedTokens(application);
+                    RevokedTokenDetacher.DetachRevokedTokens(dbContext, application);
                     await applicationManager.DeleteAsync(application, token);
                 }
 
@@ -354,23 +353,6 @@ public sealed partial class OrganizationClientService(
 
         LogClientDeleted(record.ClientId, organizationId);
         return true;
-    }
-
-    /// <summary>
-    /// Revocation loads the client's tokens into this context, and EF fixes them up onto the
-    /// application's navigations. OpenIddict's delete removes tokens and authorizations in SQL
-    /// first and then attaches the application graph, so any token still hanging off it is
-    /// updated as an orphan of a row that no longer exists and reported as a concurrency
-    /// conflict. Hand the delete a bare application: nothing tracked, nothing reachable.
-    /// </summary>
-    private void DetachRevokedTokens(object application)
-    {
-        dbContext.ChangeTracker.Clear();
-        if (application is OpenIddictEntityFrameworkCoreApplication<Guid> entity)
-        {
-            entity.Authorizations.Clear();
-            entity.Tokens.Clear();
-        }
     }
 
     private async Task<RegisteredClient?> OwnedRecordAsync(Guid organizationId, string clientId, CancellationToken ct)

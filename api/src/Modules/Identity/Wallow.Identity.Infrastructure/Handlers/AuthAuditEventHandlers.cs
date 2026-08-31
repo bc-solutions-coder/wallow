@@ -130,6 +130,11 @@ public static class AuthAuditEventHandlers
             "ClientDeleted", message.ClientId, message.OrganizationId, message.ActorId,
             message.IpAddress, message.OccurredAt, authAuditService);
 
+    public static Task Handle(OrganizationDeletedEvent message, IAuthAuditService authAuditService) =>
+        RecordOrganizationEventAsync(
+            "OrganizationDeleted", message.OrganizationId, message.ActorId,
+            message.OccurredAt, authAuditService);
+
     private static Task RecordClientEventAsync(
         string eventType,
         string clientId,

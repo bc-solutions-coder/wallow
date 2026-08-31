@@ -19,6 +19,7 @@ public static class RolePermissionMapping
             PermissionType.RolesDelete,
             PermissionType.OrganizationsRead,
             PermissionType.OrganizationsUpdate,
+            PermissionType.OrganizationsDelete,
             PermissionType.OrganizationsManageMembers,
             PermissionType.OrganizationClientsManage,
             PermissionType.ApiKeysRead,
