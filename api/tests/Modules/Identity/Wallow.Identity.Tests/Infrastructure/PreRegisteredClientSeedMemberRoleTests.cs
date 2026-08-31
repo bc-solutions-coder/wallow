@@ -45,7 +45,8 @@ public sealed class PreRegisteredClientSeedMemberRoleTests
         _userManager.FindByEmailAsync(SeedEmail).Returns(seedUser);
 
         _sut = new PreRegisteredClientSyncService(
-            appManager, _orgService, _userManager, Options.Create(_options),
+            appManager, _orgService, Substitute.For<IRegisteredClientRepository>(), _userManager,
+            Options.Create(_options), TimeProvider.System,
             NullLogger<PreRegisteredClientSyncService>.Instance);
     }
 

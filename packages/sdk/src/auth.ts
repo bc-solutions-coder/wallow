@@ -75,7 +75,7 @@ export interface LogoutOptions {
  * `/bff/logout` is a state-changing endpoint: it answers `405` to anything but
  * a `POST` carrying a valid `x-csrf-token`, so this cannot be a plain
  * navigation. The session-clearing request is issued with `fetch`, and the
- * browser is navigated afterwards on the redirect the handler answers with.
+ * browser is then navigated to the end-session URL the handler answers with.
  *
  * @param options Optional {@link LogoutOptions}.
  * @throws Error synchronously when called outside a browser context; rejects
@@ -100,9 +100,24 @@ function resolveCsrfToken(options?: LogoutOptions): string | null {
   return options?.csrfToken ?? readCsrfCookie();
 }
 
+/** Status the handler answers when there was no session to log out of. */
+const HTTP_NO_CONTENT: number = 204;
+
 /**
- * Issue the gated `POST /bff/logout` and navigate on whatever the handler
- * answers with.
+ * The success body of `POST /bff/logout`. The handler answers the IdP
+ * end-session URL as JSON rather than a redirect because a redirect's target
+ * is unreadable to a `fetch` caller: with `redirect: "manual"` the response is
+ * opaqueredirect (status 0, headers filtered — even same-origin), and letting
+ * fetch follow it would put the IdP endpoint behind CORS. Only a body survives
+ * to the caller, which then makes the hop as a real navigation.
+ */
+interface LogoutResponseBody {
+  logoutUrl?: string;
+}
+
+/**
+ * Issue the gated `POST /bff/logout` and navigate to the end-session URL the
+ * handler answers with.
  *
  * @throws Error when the BFF refuses the logout, leaving the browser where it is.
  */
@@ -117,10 +132,6 @@ async function endSession(options?: LogoutOptions): Promise<void> {
   const response: Response = await fetch("/bff/logout", {
     method: "POST",
     credentials: "include",
-    // Letting fetch follow the 302 itself would put the IdP's end-session
-    // endpoint behind CORS and fail the logout with an opaque TypeError. The
-    // browser must make that hop as a navigation instead.
-    redirect: "manual",
     headers,
   });
 
@@ -130,9 +141,16 @@ async function endSession(options?: LogoutOptions): Promise<void> {
     );
   }
 
-  // A cross-origin `redirect: "manual"` response is opaque in a real browser —
-  // status 0 and no readable headers — even though its `Set-Cookie` headers
-  // were applied and the session IS cleared. Only the target is invisible, so
-  // fall back to the app root.
-  location.href = response.headers.get("location") ?? "/";
+  // 204 is the anonymous no-op: the cookies were cleared but there was no
+  // session, so there is no OP session to end either — the app root is home.
+  if (response.status === HTTP_NO_CONTENT) {
+    location.href = "/";
+    return;
+  }
+
+  const body: LogoutResponseBody = (await response.json()) as LogoutResponseBody;
+  // The IdP hop ends the SSO session (and fans out front-/back-channel logout
+  // to other relying parties); without a URL the local session is still gone,
+  // so the app root remains the safe landing.
+  location.href = body.logoutUrl ?? "/";
 }

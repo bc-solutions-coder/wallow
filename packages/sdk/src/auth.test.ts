@@ -12,7 +12,7 @@ interface FakeLocation {
   href: string;
 }
 
-/** The end-session URL the BFF logout handler 302s to on success. */
+/** The end-session URL the BFF logout handler answers in its JSON body. */
 const END_SESSION_URL: string =
   "https://idp.example.com/connect/logout?post_logout_redirect_uri=https%3A%2F%2Fapp.example.com%2F";
 
@@ -32,25 +32,14 @@ function stubBrowser(
   return { location, fetchMock };
 }
 
-/** The 302 the logout handler answers on success, with a readable `Location`. */
-function endSessionRedirect(location: string = END_SESSION_URL): Response {
-  return new Response(null, { status: 302, headers: { location } });
-}
-
 /**
- * What `fetch(..., { redirect: "manual" })` really hands back in a browser when
- * the 302 points at another origin: status 0, no readable headers, empty URL.
- * The `Set-Cookie` headers were still applied, so the session IS cleared — only
- * the redirect target is invisible.
+ * The 200 the logout handler answers on success: the IdP end-session URL in
+ * the JSON body. A redirect cannot carry it — a `redirect: "manual"` fetch
+ * response is opaqueredirect (status 0, headers filtered, even same-origin),
+ * so only a readable body reaches the caller that must navigate there.
  */
-function opaqueRedirect(): Response {
-  return {
-    type: "opaqueredirect",
-    status: 0,
-    ok: false,
-    url: "",
-    headers: new Headers(),
-  } as unknown as Response;
+function logoutSuccess(logoutUrl: string = END_SESSION_URL): Response {
+  return Response.json({ logoutUrl }, { headers: { "cache-control": "no-store" } });
 }
 
 /** An RFC 7807 rejection from the BFF, e.g. the CSRF gate's 403. */
@@ -84,7 +73,7 @@ function sentInit(fetchMock: ReturnType<typeof vi.fn>): RequestInit {
  */
 describe("logout (POST + CSRF gate)", () => {
   it("POSTs to /bff/logout instead of navigating the browser there with a GET", async () => {
-    const { location, fetchMock } = stubBrowser(endSessionRedirect(), "wallow_bff-csrf=tok-abc");
+    const { location, fetchMock } = stubBrowser(logoutSuccess(), "wallow_bff-csrf=tok-abc");
 
     await logout();
 
@@ -95,7 +84,7 @@ describe("logout (POST + CSRF gate)", () => {
   });
 
   it("sends the session cookie by asking for credentials on the request", async () => {
-    const { fetchMock } = stubBrowser(endSessionRedirect(), "wallow_bff-csrf=tok-abc");
+    const { fetchMock } = stubBrowser(logoutSuccess(), "wallow_bff-csrf=tok-abc");
 
     await logout();
 
@@ -107,7 +96,7 @@ describe("logout (POST + CSRF gate)", () => {
     // token source in the browser (Wallow-j7qk) — the module token store that
     // used to sit in front of it is deleted.
     const { fetchMock } = stubBrowser(
-      endSessionRedirect(),
+      logoutSuccess(),
       "wallow_bff=sealed-session-blob; wallow_bff-csrf=tok-from-cookie",
     );
 
@@ -117,7 +106,7 @@ describe("logout (POST + CSRF gate)", () => {
   });
 
   it("prefers an explicitly supplied csrfToken over the cookie", async () => {
-    const { fetchMock } = stubBrowser(endSessionRedirect(), "wallow_bff-csrf=tok-from-cookie");
+    const { fetchMock } = stubBrowser(logoutSuccess(), "wallow_bff-csrf=tok-from-cookie");
 
     await logout({ csrfToken: "tok-explicit" });
 
@@ -128,7 +117,7 @@ describe("logout (POST + CSRF gate)", () => {
     // F10 defaults the session cookie to `__Host-wallow_bff` whenever it is
     // Secure, so the companion is `__Host-wallow_bff-csrf`.
     const { fetchMock } = stubBrowser(
-      endSessionRedirect(),
+      logoutSuccess(),
       "__Host-wallow_bff=sealed; __Host-wallow_bff-csrf=tok-host-prefixed",
     );
 
@@ -138,7 +127,7 @@ describe("logout (POST + CSRF gate)", () => {
   });
 
   it("omits the header entirely when no token can be found anywhere", async () => {
-    const { fetchMock } = stubBrowser(endSessionRedirect(), "unrelated=value");
+    const { fetchMock } = stubBrowser(logoutSuccess(), "unrelated=value");
 
     await logout();
 
@@ -147,34 +136,38 @@ describe("logout (POST + CSRF gate)", () => {
 
   it("does not require a document global to build the request", async () => {
     const location: FakeLocation = { href: "" };
-    const fetchMock: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue(endSessionRedirect());
+    const fetchMock: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue(logoutSuccess());
     vi.stubGlobal("location", location);
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(logout()).resolves.toBeUndefined();
   });
 
-  it("asks fetch not to follow the cross-origin redirect itself", async () => {
-    // Following it would put the IdP's end-session endpoint behind CORS and
-    // fail the whole logout with an opaque TypeError; the browser must make
-    // that hop as a navigation instead.
-    const { fetchMock } = stubBrowser(endSessionRedirect(), "wallow_bff-csrf=tok-abc");
-
-    await logout();
-
-    expect(sentInit(fetchMock).redirect).toBe("manual");
-  });
-
-  it("navigates to the IdP end-session URL from the response Location header", async () => {
-    const { location } = stubBrowser(endSessionRedirect(), "wallow_bff-csrf=tok-abc");
+  it("navigates to the IdP end-session URL from the response body", async () => {
+    // The URL must arrive in the body: the handler's old 302 was invisible to
+    // this caller (a `redirect: "manual"` fetch response is opaqueredirect —
+    // status 0, headers filtered, even same-origin), which silently skipped
+    // the OP end-session hop and left the SSO session alive after every
+    // sign-out.
+    const { location } = stubBrowser(logoutSuccess(), "wallow_bff-csrf=tok-abc");
 
     await logout();
 
     expect(location.href).toBe(END_SESSION_URL);
   });
 
-  it("falls back to the app root when the redirect is opaque and its Location is unreadable", async () => {
-    const { location } = stubBrowser(opaqueRedirect(), "wallow_bff-csrf=tok-abc");
+  it("lands on the app root when the BFF answers 204 (no session to log out of)", async () => {
+    // The anonymous no-op: cookies cleared, but no session — so no OP session
+    // to end and no end-session URL in the (empty) body.
+    const { location } = stubBrowser(new Response(null, { status: 204 }), "wallow_bff-csrf=tok");
+
+    await logout();
+
+    expect(location.href).toBe("/");
+  });
+
+  it("falls back to the app root when the success body carries no logoutUrl", async () => {
+    const { location } = stubBrowser(Response.json({}), "wallow_bff-csrf=tok-abc");
 
     await logout();
 
@@ -260,9 +253,10 @@ describe("logout under SSR (no browser globals)", () => {
 
   it("still navigates when a real location global is present", async () => {
     // logout() no longer navigates to /bff/logout — that GET is a 405 under the
-    // hardened gate (Wallow-pu6a.3.9). It POSTs, then navigates on the redirect
-    // the handler answers with. Only the SSR guard is under test here.
-    const { location, fetchMock } = stubBrowser(endSessionRedirect(), "wallow_bff-csrf=tok-abc");
+    // hardened gate (Wallow-pu6a.3.9). It POSTs, then navigates to the
+    // end-session URL the handler answers with. Only the SSR guard is under
+    // test here.
+    const { location, fetchMock } = stubBrowser(logoutSuccess(), "wallow_bff-csrf=tok-abc");
 
     await logout();
     expect(fetchMock.mock.calls[0]?.[0]).toBe("/bff/logout");

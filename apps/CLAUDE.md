@@ -1,9 +1,11 @@
 # apps — Frontend Applications Agent Guide
 
 Every app is a **TanStack Start** frontend consuming the `@bc-solutions-coder` workspace
-packages via `workspace:*`. `forms`, `auth`, `navigation`, `logger` and `utils` are optional —
-`minimal-app` omits all five. `config` is a build-time-only devDependency supplying
-`wallowAppConfig()` to `vite.config.ts`, never imported by app code.
+packages via `workspace:*`. `forms`, `auth`, `navigation`, `logger` and `utils` are optional.
+**`minimal-app` is the external relying-party example**: it depends on the published `sdk`
+alone (plus `redis` for the session store) — deliberately no `ui`, `styles`, `query`, `auth`,
+`env` or `testing`, which an external consumer cannot install. `config` is a build-time-only
+devDependency supplying `wallowAppConfig()` to `vite.config.ts`, never imported by app code.
 
 **No package build is needed before touching an app.** In-repo every `@bc-solutions-coder/*`
 exports map resolves to that package's `src/`; `dist/` is a publish artifact swapped in at pack
@@ -17,9 +19,11 @@ copying a script without the flag is how the config stops loading.
 ## Hosting and structure
 
 - **Hosting is per-app and owned by Start.** One `vite.config.ts` per app (`tanstackStart` +
-  `react` + `nitro` + `wallowStyles`), no host files (no `server.ts`, `dev-server.ts`,
-  `vite.ssr.config.ts`). Backend-facing surface = **server routes** delegating to an SDK preset
-  (`createApiPassthrough` for wallow-auth/minimal-app, `createWallowBffServer` for wallow-web).
+  `react` + `nitro`, plus `wallowStyles` in the zoned apps; minimal-app styles itself), no host
+  files (no `server.ts`, `dev-server.ts`, `vite.ssr.config.ts`). Backend-facing surface =
+  **server routes** delegating to an SDK preset (`createApiPassthrough` for wallow-auth,
+  `createWallowBffServer` for wallow-web and minimal-app — minimal-app also mounts
+  `createServiceClient()` behind its anonymous `POST /contact`).
   The generated route tree regenerates as a side effect of `vite dev`/`vite build` — never
   hand-edit it; no `routes:generate` script or `tsr.config.json`. The zoned apps use
   `src/app/routes/**` + `src/app/routeTree.gen.ts` (`srcDirectory: "src/app"`); minimal-app is
@@ -50,9 +54,11 @@ copying a script without the flag is how the config stops loading.
 
 ## Component catalog and lint
 
-App surfaces are built from `@bc-solutions-coder/ui`, lint-enforced: each app's `.oxlintrc.json`
-forbids raw text elements (`p`, `span`, `h1`–`h6`, …) in favour of `Text`/`PageHeader` and
-enables the relevant `wallow/*` rules. Which config enables which rule, per-app divergences, and
+Zoned-app surfaces are built from `@bc-solutions-coder/ui`, lint-enforced: wallow-web's and
+wallow-auth's `.oxlintrc.json` forbid raw text elements (`p`, `span`, `h1`–`h6`, …) in favour
+of `Text`/`PageHeader` and
+enable the relevant `wallow/*` rules; minimal-app renders raw elements by design (no `ui`) and
+enables only `wallow/no-source-tests`. Which config enables which rule, per-app divergences, and
 override ordering live in `packages/lint/CLAUDE.md` — read it before editing any
 `.oxlintrc.json`. Do not reintroduce a disk-sweeping guard spec for something a lint rule can say.
 
@@ -60,7 +66,7 @@ override ordering live in `packages/lint/CLAUDE.md` — read it before editing a
   strings — `cn()` merges a caller's `className` over the recipe.
 - **wallow-auth's data boundary is lint's too**: under `src/features/**` and `src/app/routes/**`
   a screen reaches the API only through its feature's `api.ts` seam, and
-  `wallow/no-hand-rolled-mutation` bans any inline `mutationFn` in all three apps
+  `wallow/no-hand-rolled-mutation` bans any inline `mutationFn` in the two zoned apps
   (`packages/lint/CLAUDE.md`).
 
 ## Cross-cutting patterns
@@ -82,7 +88,7 @@ override ordering live in `packages/lint/CLAUDE.md` — read it before editing a
   `beforeLoad` redirect) is named **`*.ssr.test.tsx`** — the name routes it onto the node
   vitest project; there is no per-app list.
 - wallow-web's `test:e2e:cross-app` script runs its `e2e-cross-app/` suite.
-- `wallow-web` and `wallow-auth` each ship a `Dockerfile` whose build context is the **repo
+- All three apps ship a `Dockerfile` whose build context is the **repo
   root** — the whole workspace is needed to resolve `workspace:*`.
 
 ## Frontend state boundary

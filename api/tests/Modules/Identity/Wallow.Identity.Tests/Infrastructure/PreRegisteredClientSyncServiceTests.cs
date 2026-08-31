@@ -9,6 +9,7 @@ using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Helpers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Enums;
 using Wallow.Identity.Infrastructure.Extensions;
 using Wallow.Identity.Infrastructure.Options;
 using Wallow.Identity.Infrastructure.Services;
@@ -20,6 +21,7 @@ public sealed class PreRegisteredClientSyncServiceTests
 {
     private readonly IOpenIddictApplicationManager _appManager;
     private readonly IOrganizationService _orgService;
+    private readonly IRegisteredClientRepository _registry;
     private readonly PreRegisteredClientSyncService _sut;
     private readonly PreRegisteredClientOptions _options;
 
@@ -27,11 +29,14 @@ public sealed class PreRegisteredClientSyncServiceTests
     {
         _appManager = Substitute.For<IOpenIddictApplicationManager>();
         _orgService = Substitute.For<IOrganizationService>();
+        _registry = Substitute.For<IRegisteredClientRepository>();
         UserManager<WallowUser> userManager = Substitute.For<UserManager<WallowUser>>(
             Substitute.For<IUserStore<WallowUser>>(), null, null, null, null, null, null, null, null);
         _options = new PreRegisteredClientOptions();
         _sut = new PreRegisteredClientSyncService(
-            _appManager, _orgService, userManager, Options.Create(_options), NullLogger<PreRegisteredClientSyncService>.Instance);
+            _appManager, _orgService, _registry, userManager,
+            Options.Create(_options), TimeProvider.System,
+            NullLogger<PreRegisteredClientSyncService>.Instance);
     }
 
     [Fact]
@@ -729,5 +734,100 @@ public sealed class PreRegisteredClientSyncServiceTests
             .WithMessage("*too-short*refreshTokenLifetime*");
         await _appManager.DidNotReceive().CreateAsync(
             Arg.Any<OpenIddictApplicationDescriptor>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SyncAsync_OrganizationBoundClient_WritesARegistryRow()
+    {
+        // The org-clients management surface addresses clients only through the RegisteredClient
+        // registry — without this row a seeded client is invisible to suspend/reinstate/delete.
+        Guid orgId = Guid.NewGuid();
+        _options.Clients.Add(new PreRegisteredClientDefinition
+        {
+            ClientId = "partner",
+            DisplayName = "Partner",
+            Secret = "s",
+            TenantId = orgId,
+            RedirectUris = ["https://l/cb"],
+            Scopes = ["openid"]
+        });
+        _appManager.FindByClientIdAsync("partner", Arg.Any<CancellationToken>())
+            .Returns(_ => new ValueTask<object?>((object?)null));
+
+        await _sut.SyncAsync(CancellationToken.None);
+
+        _registry.Received(1).Add(Arg.Is<RegisteredClient>(r =>
+            r.ClientId == "partner" &&
+            r.OrganizationId == orgId &&
+            r.Kind == RegisteredClientKind.Application));
+        await _registry.Received().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SyncAsync_OrganizationBoundServiceAccount_RegistersAsServiceAccountKind()
+    {
+        _options.Clients.Add(new PreRegisteredClientDefinition
+        {
+            ClientId = "sa-worker",
+            DisplayName = "Worker",
+            Secret = "s",
+            TenantId = Guid.NewGuid(),
+            Scopes = ["openid"]
+        });
+        _appManager.FindByClientIdAsync("sa-worker", Arg.Any<CancellationToken>())
+            .Returns(_ => new ValueTask<object?>((object?)null));
+
+        await _sut.SyncAsync(CancellationToken.None);
+
+        _registry.Received(1).Add(Arg.Is<RegisteredClient>(r =>
+            r.ClientId == "sa-worker" && r.Kind == RegisteredClientKind.ServiceAccount));
+    }
+
+    [Fact]
+    public async Task SyncAsync_FirstPartyClientWithoutATenant_WritesNoRegistryRow()
+    {
+        _options.Clients.Add(new PreRegisteredClientDefinition
+        {
+            ClientId = "web",
+            FirstParty = true,
+            DisplayName = "Web",
+            Secret = "s",
+            RedirectUris = ["https://l/cb"],
+            Scopes = ["openid"]
+        });
+        _appManager.FindByClientIdAsync("web", Arg.Any<CancellationToken>())
+            .Returns(_ => new ValueTask<object?>((object?)null));
+
+        await _sut.SyncAsync(CancellationToken.None);
+
+        _registry.DidNotReceive().Add(Arg.Any<RegisteredClient>());
+    }
+
+    [Fact]
+    public async Task SyncAsync_RegistryRowAlreadyUnderTheRightOwner_IsLeftUntouched()
+    {
+        // A re-seed must never recreate the row: a suspension the organization placed lives on
+        // it, and replace-on-sync would silently lift that suspension.
+        Guid orgId = Guid.NewGuid();
+        _options.Clients.Add(new PreRegisteredClientDefinition
+        {
+            ClientId = "partner",
+            DisplayName = "Partner",
+            Secret = "s",
+            TenantId = orgId,
+            RedirectUris = ["https://l/cb"],
+            Scopes = ["openid"]
+        });
+        _appManager.FindByClientIdAsync("partner", Arg.Any<CancellationToken>())
+            .Returns(_ => new ValueTask<object?>((object?)null));
+        RegisteredClient existingRow = RegisteredClient.Create(
+            "partner", orgId, "Partner", RegisteredClientKind.Application, Guid.Empty, TimeProvider.System);
+        _registry.GetByClientIdAsync("partner", Arg.Any<CancellationToken>())
+            .Returns(existingRow);
+
+        await _sut.SyncAsync(CancellationToken.None);
+
+        _registry.DidNotReceive().Add(Arg.Any<RegisteredClient>());
+        _registry.DidNotReceive().Remove(Arg.Any<RegisteredClient>());
     }
 }

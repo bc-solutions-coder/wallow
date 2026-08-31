@@ -325,9 +325,9 @@ repository answers it differently in dev, E2E, and production; the table and the
 
 ### Giving another app a path prefix
 
-Only `wallow-auth` currently has a base-path knob (`AUTH_BASE_PATH`). If you put `wallow-web` or
-`minimal-app` behind a path prefix too, the prefix has to reach that app's **branding assets**, not
-just its router. Those two apps import `appIconUrl` and `forkResolvedBranding` from
+Only `wallow-auth` currently has a base-path knob (`AUTH_BASE_PATH`). If you put `wallow-web`
+behind a path prefix too, the prefix has to reach that app's **branding assets**, not
+just its router. It imports `appIconUrl` and `forkResolvedBranding` from
 `@bc-solutions-coder/styles` directly, and the package resolves them at the **site** root: it ships
 a prebuilt bundle, so its own `import.meta.env.BASE_URL` is whatever it was when the package was
 built, never yours. Behind a path-based ingress the site root is a *different app*, so the icons

@@ -92,8 +92,8 @@ apps/wallow-web/
 └── package.json
 ```
 
-`apps/minimal-app` deliberately stays flat: it exists to show the smallest possible
-wiring, and zones only start paying for themselves once an app has features to keep apart.
+`apps/minimal-app` (the external relying-party example) deliberately stays flat: zones
+only start paying for themselves once an app has features to keep apart, and it has one page.
 
 ### The zone rules
 
@@ -143,8 +143,8 @@ and `vite.config.ts`; everything cross-cutting (styling, components, the auth
 client, and the test harness) comes from the shared packages. Hosting is **not**
 one of them — TanStack Start and Nitro own that, per app.
 
-The steps below build the **flat** shape, which is what `apps/minimal-app`
-uses and the right starting point for an app with a handful of routes. Adopt the
+The steps below build the **flat** shape — the right starting point for an app
+with a handful of routes. Adopt the
 [zones](#the-zone-rules) once the app grows features worth keeping apart: move
 `routes/`, `router.tsx`, `start.ts`, `styles.css` and any server-only module under
 `src/app/`, declare the zone aliases in `tsconfig.json` `paths` with
@@ -167,16 +167,19 @@ and silently stops checking `features/` and `shared/`.
 | `@bc-solutions-coder/env`       | no (`private`) | `./base-path`, `./internal-origin`               | Deployment-derived addressing — base path, internal origin. Subpath-only, zero dependencies                                                                                                                                                                                                                                                                                                                        |
 | `@bc-solutions-coder/utils`     | no (`private`) | `./format`, `./guards`, `./string`                 | The bottom of the graph: pure functions, zero dependencies, subpath-only                                                                                                                                                                                                                                                                                                                                                                    |
 
-**Which app takes which.** All three are `workspace:*` runtime `dependencies` — no app
-carries its own `@tailwindcss/vite`, `tailwindcss`, or vitest preset:
+**Which app takes which.** Everything an app takes is a `workspace:*` runtime
+`dependency` — no app carries its own `@tailwindcss/vite`, `tailwindcss`, or vitest preset:
 
 | App | Workspace dependencies |
 | --- | --- |
 | `wallow-web` | all ten above, plus `forms` |
 | `wallow-auth` | the same minus `navigation` — its screens sit in its own `auth-layout.tsx`, so `wallow-web` is `navigation`'s only consumer today |
-| `minimal-app` | `env`, `query`, `sdk`, `styles`, `testing`, `ui` — it renders no form and has no signed-in user, so it takes neither `forms` nor `auth`, and it logs nothing to a collector |
+| `minimal-app` | `sdk` only — it is the [external relying-party example](../integrations/typescript-sdk.md), built the way a consumer outside this repository would build it, so it deliberately takes none of the private packages |
 
-`minimal-app`'s six are the floor for a new app. Bootstrapping one is these steps.
+The floor for a new **in-repo** app is the six core packages the steps below wire in
+(`env`, `query`, `sdk`, `styles`, `testing`, `ui`); do not copy `minimal-app` as a
+bootstrap skeleton — its constraint (published packages only) is not yours.
+Bootstrapping a new app is these steps.
 
 ### 1. Depend on the core packages
 

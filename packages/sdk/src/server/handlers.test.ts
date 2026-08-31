@@ -700,11 +700,11 @@ describe("logout handler", () => {
 
     const res: Response = await handle(logoutRequest(`wallow_bff=${sealed}`));
 
-    expect(res.status).toBe(302);
+    expect(res.status).toBe(200);
     expect(destroyed).toEqual([sealed]);
   });
 
-  it("clears the session cookie and 302s to the end-session endpoint", async () => {
+  it("clears the session cookie and answers the end-session URL in the body", async () => {
     const config: BffConfig = makeConfig("https://logout-test.example.com");
     const doc: DiscoveryDoc = makeDoc(config.issuer);
     const session: BffSession = makeSession();
@@ -721,12 +721,17 @@ describe("logout handler", () => {
 
     const res: Response = await handle(logoutRequest(`wallow_bff=${sealed}`));
 
-    expect(res.status).toBe(302);
-    const location: string = res.headers.get("location") ?? "";
-    expect(location.startsWith(doc.end_session_endpoint ?? "")).toBe(true);
-    const url: URL = new URL(location);
+    // A 200 with the URL in the body, NOT a redirect: a `redirect: "manual"`
+    // fetch response is opaqueredirect (status 0, headers filtered), so the
+    // browser helper could never read a `Location` header to navigate on.
+    expect(res.status).toBe(200);
+    const { logoutUrl } = (await res.json()) as { logoutUrl: string };
+    expect(logoutUrl.startsWith(doc.end_session_endpoint ?? "")).toBe(true);
+    const url: URL = new URL(logoutUrl);
     expect(url.searchParams.get("post_logout_redirect_uri")).toBe(config.postLogoutRedirectUri);
     expect(url.searchParams.get("id_token_hint")).toBe(session.idToken);
+    // The URL carries id_token_hint; no shared cache may keep a copy.
+    expect(res.headers.get("cache-control")).toBe("no-store");
     const cleared: string | undefined = setCookieFor(res, "wallow_bff");
     expect(cleared).toBeDefined();
     expect(cookieValueOf(cleared ?? "")).toBe("");
@@ -756,9 +761,9 @@ describe("logout handler", () => {
 
     const res: Response = await handle(logoutRequest(`wallow_bff=${sealed}`));
 
-    expect(res.status).toBe(302);
-    const location: string = res.headers.get("location") ?? "";
-    const url: URL = new URL(location);
+    expect(res.status).toBe(200);
+    const { logoutUrl } = (await res.json()) as { logoutUrl: string };
+    const url: URL = new URL(logoutUrl);
     expect(url.origin).toBe(new URL(config.issuer).origin);
     expect(url.pathname).toBe("/connect/logout");
     expect(url.searchParams.get("post_logout_redirect_uri")).toBe(config.postLogoutRedirectUri);
@@ -877,7 +882,7 @@ describe("logout CSRF gate", () => {
 
     const res: Response = await handle(logoutRequest(`wallow_bff=${sealed}`));
 
-    expect(res.status).toBe(302);
+    expect(res.status).toBe(200);
     expect(destroyed).toEqual([sealed]);
   });
 
@@ -985,7 +990,7 @@ describe("logout CSRF gate", () => {
     },
   );
 
-  it("leaves the authenticated logout redirect untouched", async () => {
+  it("leaves the authenticated logout answer untouched", async () => {
     // Regression guard for the branch the anonymous path must not disturb: a
     // real session still gets revoked server-side and still hands the browser
     // the IdP's end-session URL rather than a 204.
@@ -995,9 +1000,10 @@ describe("logout CSRF gate", () => {
 
     const res: Response = await handle(logoutRequest(`wallow_bff=${sealed}`));
 
-    expect(res.status).toBe(302);
+    expect(res.status).toBe(200);
     expect(destroyed).toEqual([sealed]);
-    const url: URL = new URL(res.headers.get("location") ?? "");
+    const { logoutUrl } = (await res.json()) as { logoutUrl: string };
+    const url: URL = new URL(logoutUrl);
     expect(url.pathname).toBe("/connect/logout");
     expect(url.searchParams.get("id_token_hint")).toBe(session.idToken);
     expect(cookieValueOf(setCookieFor(res, "wallow_bff") ?? "")).toBe("");
@@ -1477,7 +1483,7 @@ describe("multiple Set-Cookie headers", () => {
     const cookie: string = `${cookieHeaderFromHeaders(written)}; wallow_bff-csrf=${CSRF_FIXTURE_TOKEN}`;
     const res: Response = await handle(logoutRequest(cookie));
 
-    expect(res.status).toBe(302);
+    expect(res.status).toBe(200);
     const cleared: string[] = res.headers.getSetCookie();
     // Every live cookie is cleared with its own Set-Cookie line — the base, each
     // chunk, and the readable CSRF companion.

@@ -171,6 +171,17 @@ public sealed partial class TokenController(
             identity.SetClaim("org_name", orgName);
         }
 
+        // The SSO session id must survive the exchange: the id_token is the only place a
+        // relying party learns its sid, and front-/back-channel logout both name the session
+        // by that same sid — without it the RP can never match a logout notification to a
+        // session. Carried forward (code and refresh alike keep the session's identity)
+        // rather than re-derived; only end-session mints a new browser session.
+        string? sid = principal.GetClaim(WallowClaims.SessionIdClaimType);
+        if (sid is not null)
+        {
+            identity.SetClaim(WallowClaims.SessionIdClaimType, sid);
+        }
+
         ClaimsPrincipal claimsPrincipal = new(identity);
         claimsPrincipal.SetScopes(principal.GetScopes());
         claimsPrincipal.SetResources(ApiAudience);
@@ -285,6 +296,12 @@ public sealed partial class TokenController(
                 => [Destinations.AccessToken, Destinations.IdentityToken],
 
             "org_id" or "org_name" => [Destinations.AccessToken, Destinations.IdentityToken],
+
+            // The id_token is where an RP learns the sid it must match logout notifications
+            // against (OIDC Front-/Back-Channel Logout: the logout token's sid MUST match the
+            // one from the id_token). Never the access token — resource servers have no
+            // business tying a bearer token to a browser session.
+            WallowClaims.SessionIdClaimType => [Destinations.IdentityToken],
 
             _ => [Destinations.AccessToken]
         };

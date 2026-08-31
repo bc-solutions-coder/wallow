@@ -40,8 +40,10 @@ public sealed class PreRegisteredClientSyncServiceGapTests
         _sut = new PreRegisteredClientSyncService(
             _appManager,
             orgService,
+            Substitute.For<IRegisteredClientRepository>(),
             userManager,
             Options.Create(_options),
+            TimeProvider.System,
             NullLogger<PreRegisteredClientSyncService>.Instance);
     }
 

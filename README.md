@@ -48,7 +48,7 @@ New here? Start with the [fork guide](docs/getting-started/fork-guide.md) or the
 | Path | What it is |
 |------|------------|
 | `api/` | .NET 10 solution: the API, Aspire host, migrations, seeder, and the seven modules |
-| `apps/` | TanStack Start frontends: `wallow-web` (dashboard), `wallow-auth` (login/MFA), `minimal-app` (smallest example) |
+| `apps/` | TanStack Start frontends: `wallow-web` (dashboard), `wallow-auth` (login/MFA), `minimal-app` (external relying-party example) |
 | `packages/` | Shared TypeScript packages: SDK, UI catalog, forms, auth, styles, and friends |
 | `docker/` | Compose files for infra, production, and the E2E test stack |
 | `docs/` | The DocFX documentation site |

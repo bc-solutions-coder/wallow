@@ -22,6 +22,7 @@ function ForkFooter() {
     <div className="mt-8 pt-4 border-t border-border">
       <ForkAttribution
         appName={forkBranding.appName}
+        data-testid="fork-attribution"
         iconUrl={appIconUrl}
         repositoryUrl={forkLinks().repositoryUrl}
       />

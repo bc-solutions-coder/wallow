@@ -97,8 +97,10 @@ public sealed class RefreshTokenLifetimeTests(WallowApiFactory factory)
         PreRegisteredClientSyncService sync = new(
             ScopedServices.GetRequiredService<IOpenIddictApplicationManager>(),
             ScopedServices.GetRequiredService<IOrganizationService>(),
+            ScopedServices.GetRequiredService<IRegisteredClientRepository>(),
             ScopedServices.GetRequiredService<UserManager<WallowUser>>(),
             Options.Create(options),
+            TimeProvider.System,
             NullLogger<PreRegisteredClientSyncService>.Instance);
         await sync.SyncAsync(CancellationToken.None);
 

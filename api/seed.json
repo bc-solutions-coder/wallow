@@ -220,7 +220,7 @@
       "tenantName": "Wallow",
       "public": false,
       "secret": "nightly-sync-secret",
-      "scopes": ["organizations.read", "inquiries.read"]
+      "scopes": ["organizations.read", "inquiries.read", "inquiries.write"]
     }
   ]
 }

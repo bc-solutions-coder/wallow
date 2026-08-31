@@ -445,7 +445,7 @@ The example below imports react-query directly, which is what an external
 consumer does. Apps **inside this monorepo** import the same symbols from
 `@bc-solutions-coder/query` instead — the facade owns the pinned version and one
 `QueryClientProvider` context, and a root lint rule fails a direct import. See
-`apps/minimal-app/README.md` for the in-repo form.
+`apps/wallow-web` for the in-repo form.
 
 ```tsx
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";

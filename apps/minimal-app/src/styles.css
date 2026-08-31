@@ -1,3 +1,34 @@
-@import "@bc-solutions-coder/styles/styles.css";
-@import "@bc-solutions-coder/ui/source.css";
-@source "./";
+/* The relying party's own look — deliberately no @bc-solutions-coder/styles:
+   an external consumer styles itself. */
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+}
+body {
+  margin: 0;
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+}
+main {
+  max-width: 32rem;
+  padding: 2rem;
+  border: 1px solid #8884;
+  border-radius: 12px;
+}
+button,
+a.button {
+  font: inherit;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #8888;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-decoration: none;
+}
+pre {
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-size: 0.85em;
+}

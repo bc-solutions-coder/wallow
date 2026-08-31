@@ -24,7 +24,16 @@ const DEFAULT_WEB_URL = "http://localhost:3000";
 
 export default defineConfig({
   testDir: "./e2e-cross-app",
-  fullyParallel: true,
+  // ONE worker, no intra-file parallelism: every journey drives the SAME seeded admin
+  // against the SAME OP, and a logout in one file revokes that user's sessions
+  // server-side (back-channel delivery is not scoped to the browser context that asked).
+  // With interleaved files, login-journey's logout can kill a session
+  // external-origin-login just established mid-test.
+  fullyParallel: false,
+  workers: 1,
+  // The external-origin journey folds sign-in, a typed API call and an up-to-20s
+  // back-channel revocation poll into one test; the 30s default cannot hold it.
+  timeout: 120_000,
   reporter: "list",
   use: {
     baseURL: externalBaseURL ?? DEFAULT_WEB_URL,

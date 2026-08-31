@@ -77,7 +77,7 @@ Wallow is a modular monolith following Clean Architecture and DDD principles. Be
 - EF Core is the only data-access technology: writes through the module's `TenantAwareDbContext`, reads `NoTracking` through `IReadDbContext<T>`
 
 The frontend half is a pnpm workspace: `apps/wallow-web`, `apps/wallow-auth`, and `apps/minimal-app`
-(the smallest wiring of the shared packages), built on the `packages/*` libraries. See
+(the external relying-party example, built on the published SDK alone), built on the `packages/*` libraries. See
 [`apps/CLAUDE.md`](apps/CLAUDE.md) and [Frontend Setup](docs/development/frontend-setup.md).
 
 For adding new modules, see `docs/architecture/module-creation.md`.

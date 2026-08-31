@@ -122,6 +122,12 @@ services:
       Clients__1__RedirectUris__0: "http://localhost:${E2E_BFF_PORT:-3003}/bff/callback"
       Clients__1__PostLogoutRedirectUris__0: "http://localhost:${E2E_BFF_PORT:-3003}/"
       Clients__1__FrontchannelLogoutUri: "http://localhost:${E2E_BFF_PORT:-3003}/bff/frontchannel-logout"
+      # Back-channel logout is delivered SERVER-to-server (API container -> RP
+      # container), so unlike the browser-facing URIs above it uses the compose
+      # service address, not the published host port. The API runs in
+      # Development here, where Identity:BackchannelLogout:AllowPrivateNetworkHosts
+      # already permits the private hostname.
+      Clients__1__BackchannelLogoutUri: "http://bff-example:3010/bff/backchannel-logout"
       # First-run setup coverage: scripts/e2e.sh blanks this for the initial seed
       # (a blank Admin__Email leaves AdminBootstrapOptions unconfigured, so the
       # bootstrap step is skipped and the stack comes up with setupRequired=true
@@ -305,9 +311,10 @@ services:
       - wallow-test
 
   # ============================================
-  # BFF REFERENCE EXAMPLE (@bc-solutions-coder/sdk wallow-web)
+  # EXTERNAL RELYING-PARTY EXAMPLE (apps/minimal-app, published SDK only)
   # ============================================
-  # Node process that hosts the SDK BFF tunnel for the BffFlowTests E2E flow.
+  # The external relying-party example (apps/minimal-app) hosting the SDK BFF
+  # tunnel for the BffFlowTests E2E flow and the three-origin acceptance suite.
   # Build context is the repo root so the Dockerfile can build the @bc-solutions-coder/sdk
   # workspace dependency alongside the example.
   #
@@ -325,13 +332,13 @@ services:
     image: wallow-bff-example:${E2E_IMAGE_TAG:-test}
     build:
       context: ..
-      dockerfile: apps/wallow-web/Dockerfile
+      dockerfile: apps/minimal-app/Dockerfile
     ports:
-      - "${E2E_BFF_PORT:-3003}:3000"
+      - "127.0.0.1:${E2E_BFF_PORT:-3003}:3010"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
-      PORT: "3000"
+      PORT: "3010"
       # Browser-facing issuer (must match API OpenIddict issuer for redirects)
       OIDC_ISSUER: "http://localhost:${E2E_API_PORT:-5050}"
       # Server-reachable discovery URL (container -> host-published API).
@@ -351,6 +358,11 @@ services:
       # Downstream API for the /api proxy (container-to-container)
       BFF_API_BASE_URL: "http://wallow-api:8080"
       COOKIE_PASSWORD: "e2e-bff-cookie-seal-password-min-32-chars"
+      # Every origin in this stack shares the cookie host "localhost" (ports do not
+      # partition cookies), so under the SDK's default name wallow-web's session cookie
+      # would overwrite this one the moment a journey signs in at both origins. A real
+      # external RP lives on its own domain and never needs this override.
+      COOKIE_NAME: "bff_example_session"
       # Safari/WebKit refuses Secure cookies over plain-HTTP localhost (Chrome and Firefox
       # allow them), so the BFF's login-transaction cookie never survives the redirect and
       # every /bff/callback fails with a 400. This stack is plain HTTP, so drop the flag here.
@@ -358,16 +370,30 @@ services:
       # Server-side sessions in Valkey: the cookie becomes an opaque ref and the
       # tokens live in Valkey, so logout truly revokes. Without this the example
       # falls back to the stateless cookie store.
-      REDIS_URL: "redis://:WallowTestValkey123!@valkey:6379"
+      #
+      # Logical database 1, NOT wallow-web's 0: the SDK's Valkey store keys every
+      # app under the same "wallow" prefix, and its sid index is one pointer per
+      # OP session id. Both apps sign the same admin into the same OP session, so
+      # in one shared database wallow-web's silent login re-points that index and
+      # its logout deletes it — the back-channel logout token bff-example then
+      # receives finds no session to revoke. Two BFF apps sharing one Valkey must
+      # isolate their databases (or stores); this is that rule, not a test hack.
+      REDIS_URL: "redis://:WallowTestValkey123!@valkey:6379/1"
+      # Service account for the anonymous POST /contact route: a SEPARATE
+      # registration (api/seed.json clients index 2) with client-credentials
+      # scopes only. inquiries.write maps straight to the InquiriesWrite
+      # permission POST /v1/inquiries requires.
+      OIDC_SERVICE_CLIENT_ID: sa-wallow-nightly-sync
+      OIDC_SERVICE_CLIENT_SECRET: nightly-sync-secret
+      OIDC_SERVICE_SCOPES: inquiries.write
     # node:24-slim ships no curl/wget, so liveness is probed with node's own fetch.
-    # Same image/route surface as wallow-web, so the identical /health probe applies.
     healthcheck:
       test:
         [
           "CMD",
           "node",
           "-e",
-          "fetch('http://localhost:3000/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+          "fetch('http://localhost:3010/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
         ]
       interval: 5s
       timeout: 3s

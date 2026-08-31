@@ -57,20 +57,21 @@ that app's nested config on its own.
 
 ## Who enables what
 
-Nested configs (the three apps, `packages/ui`, `packages/forms`, `packages/navigation`)
-enable the per-tree `wallow/*` rules; `scripts/fork-smoke`'s enables none. No config
-blanket-disables a rule, and none may start. The complete divergences:
+Nested configs (the two zoned apps, `packages/ui`, `packages/forms`, `packages/navigation`)
+enable the per-tree `wallow/*` rules; `scripts/fork-smoke`'s enables none, and
+`apps/minimal-app`'s enables only `wallow/no-source-tests` — it is the external
+relying-party example with no `ui`/`query` packages for the catalog rules to defend and no
+`paths` map for `zone-dag` to read, so its config exists for the override restatement
+(see _The cost of nesting_), not for rules. No config blanket-disables a rule, and none may
+start. The complete divergences:
 
-- **`zone-dag` is absent in `apps/minimal-app`** — the rule derives its zones from the
-  app's `tsconfig.json` `paths` map, and minimal-app is deliberately un-zoned with none. If
-  it gains a `paths` map, enable the rule in the same edit.
-- **Raw `<button>` is forbidden in wallow-auth and minimal-app but not wallow-web** —
+- **Raw `<button>` is forbidden in wallow-auth but not wallow-web** —
   wallow-web's raw buttons are deliberate: `bff-demo.tsx`'s un-catalogued controls and
   `SignOut.tsx` (POSTs the BFF logout; its header comment explains). Deleting the demo
   alone does not clear the way to add the entry.
 - **`text-heading-variant` levels differ per app.** wallow-auth pins `h1: false`
   (`AuthLayout` owns the page's one `h1`; the layout file is its scoped override);
-  wallow-web and minimal-app name only `h2: subheading`; wallow-web's one scoped override is
+  wallow-web names only `h2: subheading`; wallow-web's one scoped override is
   `LandingPage.tsx` (a marketing scale). An override's entry REPLACES the base one, so an
   override block restates every level it wants.
 - **Two scoped package exemptions, each naming ONE file** — the shape any future exemption

@@ -1,4 +1,3 @@
-import { resolveInternalOrigin } from "@bc-solutions-coder/env/internal-origin";
 import { createWallowSdk, type WallowSdk } from "@bc-solutions-coder/sdk";
 import {
   createRequestOriginResolver,
@@ -11,43 +10,44 @@ import { createMiddleware, createStart } from "@tanstack/react-start";
  * and hands it down through the start context, which `getRouter()` lifts into
  * the router context.
  *
- * Per REQUEST, not per module: the SDK's module-global client is shared by every
- * concurrent render in a server process, so configuring it per request would let
- * one user's forwarded cookie leak into another user's render. `createWallowSdk`
- * builds an instance owning its own client, cookie and interceptor list.
+ * Per REQUEST, not per module: a module-global client would be shared by every
+ * concurrent render in a server process, so configuring it per request would
+ * let one user's forwarded cookie leak into another user's render.
  *
  * Everything imported here lands in BOTH module graphs (Start aliases this file
  * as its entry for the client build too), so this file stays free of
- * `@bc-solutions-coder/sdk/server` and every other Node-only import. That is why
- * the origin resolver comes from the SDK's dependency-free
- * `./server/forwarded` subpath and the internal origin from
- * `@bc-solutions-coder/env` — neither reads any environment of its own: the one
- * `process.env` read is HERE, inside the server callback the browser never runs.
+ * `@bc-solutions-coder/sdk/server` and every other Node-only import. The origin
+ * resolver comes from the SDK's dependency-free `./server/forwarded` subpath,
+ * and the one `process.env` read is inside the server callback the browser
+ * never runs.
  */
 
 /**
+ * Where this app's API surface is mounted — the BFF's `/api` proxy, which
+ * strips the prefix and forwards upstream with the session's bearer attached.
+ */
+const API_MOUNT = "/api";
+
+/**
  * The origin resolver, bound lazily INSIDE the server callback rather than at
- * module scope: this file is in the client graph too, so a module-scope
- * `createRequestOriginResolver(process.env)` would run in the browser. Memoized
- * because parsing `WALLOW_TRUSTED_PROXIES` is start-up work, not per-request
- * work.
+ * module scope: this file is in the client graph too. Memoized because parsing
+ * `WALLOW_TRUSTED_PROXIES` is start-up work, not per-request work.
  */
 let requestOriginFor: ((request: PeerRequest) => string) | undefined;
 
 const sdkMiddleware = createMiddleware().server(({ next, request }) => {
   requestOriginFor ??= createRequestOriginResolver(process.env);
-  // The browser-facing origin: this app proxies `/v1/**` at its own root, so the
-  // origin serving the page is also the origin the API is reachable on. Resolved
-  // through the helper so a trusted HTTPS-terminating ingress
-  // (`WALLOW_TRUSTED_PROXIES`) does not leave the SSR pass building `http` query
-  // keys the hydrating browser never matches.
+  // The browser-facing origin, resolved trusted-proxy aware so an HTTPS-
+  // terminating ingress (`WALLOW_TRUSTED_PROXIES`) does not leave the SSR pass
+  // fetching `http` URLs the hydrating browser never used.
   const requestOrigin: string = requestOriginFor(request);
 
   const sdk: WallowSdk = createWallowSdk({
-    baseUrl: requestOrigin,
-    // No `requestOrigin` argument: the browser's origin is exactly the address a
-    // container publishing a different host port cannot reach itself on.
-    internalOrigin: resolveInternalOrigin(process.env),
+    baseUrl: `${requestOrigin}${API_MOUNT}`,
+    // SSR self-fetches loop back through this same process: a container
+    // publishing a different host port cannot reach itself on the browser's
+    // origin, so the server-side hop goes to the local listener instead.
+    internalOrigin: `http://localhost:${process.env.PORT ?? "3010"}`,
     cookieHeader: request.headers.get("cookie") ?? undefined,
   });
 

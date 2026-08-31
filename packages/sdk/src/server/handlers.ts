@@ -631,8 +631,17 @@ export function createBffHandlers(
       const headers: Headers = new Headers();
       clearSession(headers, request, config);
 
+      // Answer the end-session URL in the body, NOT as a redirect: the only
+      // client this endpoint can have is `fetch` (the `x-csrf-token` header
+      // requirement rules out plain form posts and navigations), and a
+      // `redirect: "manual"` fetch response is opaqueredirect — status 0,
+      // headers filtered — even same-origin, so a `Location` header is
+      // unreadable to the caller that must navigate there. The URL carries
+      // `id_token_hint`, so nothing between the browser and here may cache it.
       const doc: DiscoveryDoc = await discover(config);
-      return redirect(buildLogoutUrl(config, doc, session.idToken), headers);
+      const logoutUrl: string = buildLogoutUrl(config, doc, session.idToken);
+      headers.set("cache-control", "no-store");
+      return Response.json({ logoutUrl }, { status: OK_STATUS, headers });
     },
 
     frontchannelLogout: async (request: Request): Promise<Response> => {

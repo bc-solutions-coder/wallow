@@ -396,6 +396,11 @@ jobs:
           # docker-compose.test.yml wallow-web service (wallow-web-react:test) so the
           # e2e job loads this image instead of rebuilding it.
           docker build -f apps/wallow-web/Dockerfile -t wallow-web-react:test .
+          # bff-example is the external relying-party example (apps/minimal-app/
+          # Dockerfile), built here so the e2e job with E2E_SKIP_IMAGE_BUILD=1
+          # loads it instead of compose rebuilding it uncached. Test-only image:
+          # nothing deploys it, so no arm64 variant.
+          docker build -f apps/minimal-app/Dockerfile -t wallow-bff-example:test .
           dotnet publish api/src/Wallow.MigrationService/Wallow.MigrationService.csproj \
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test \
@@ -433,6 +438,7 @@ jobs:
             wallow-api:test wallow-api:test-arm64 \
             wallow-auth-react:test wallow-auth-react:test-arm64 \
             wallow-web-react:test wallow-web-react:test-arm64 \
+            wallow-bff-example:test \
             wallow-migrations:test wallow-migrations:test-arm64 \
             wallow-seeder:test wallow-seeder:test-arm64 \
             | gzip > /tmp/wallow-images-app.tar.gz

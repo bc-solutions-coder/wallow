@@ -1,43 +1,49 @@
-import { createQueryClient, type QueryClient } from "@bc-solutions-coder/query";
 import { createWallowSdk, type WallowSdk } from "@bc-solutions-coder/sdk";
 import { createRouter as createTanStackRouter } from "@tanstack/react-router";
-import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 import { getGlobalStartContext } from "@tanstack/react-start";
 
 import { routeTree } from "./routeTree.gen";
 
 /**
+ * Where this app's API surface is mounted, as the BROWSER addresses it: the BFF
+ * `/api` proxy on this same origin. Relative on purpose — the browser resolves
+ * it against its own origin, and Node (where no `location` exists) never uses
+ * this fallback off a request anyway.
+ */
+const BROWSER_API_BASE_URL = "/api";
+
+/**
+ * The request's SDK off Start's global context, or `undefined` when there is no
+ * request in scope. On the server `getGlobalStartContext()` THROWS rather than
+ * answering `undefined` when no Start context surrounds the call — which is not
+ * an error here: it means "no request SDK to inherit", the browser's answer too.
+ */
+function readRequestSdk(): WallowSdk | undefined {
+  try {
+    return getGlobalStartContext()?.sdk;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Build the router that boots the app. Start calls this ONCE PER REQUEST on the
- * server (and once on the client), so everything it constructs is request-scoped:
- * a fresh `QueryClient` — never a module-global one, which would hand one user's
- * cached data to the next — and the request's own SDK instance.
+ * server (and once on the client), so the SDK instance it lifts into the router
+ * context is request-scoped: on the server it comes from the global request
+ * middleware in `start.ts` — the only place the inbound cookie is in scope —
+ * and in the browser it is a fresh same-origin instance against the BFF proxy.
  *
- * On the server that SDK comes from the global request middleware in `start.ts`,
- * the only place the inbound cookie is in scope; in the browser there is no
- * request, so it mints its own same-origin instance.
- *
- * `setupRouterSsrQueryIntegration` owns the dehydrate/hydrate handoff of the
- * React Query cache across the SSR boundary — the deleted host did that by hand.
- *
- * The return type is inferred deliberately: annotating it `AnyRouter` erases the
- * route-tree types that make `Link`/`useParams` typed. The route tree itself is
- * codegen'd into `src/routeTree.gen.ts` by the Start plugin as a side effect of
- * `vite dev`/`vite build`, so there is no `routes:generate` step to remember.
+ * The route tree is codegen'd into `src/routeTree.gen.ts` by the Start plugin
+ * as a side effect of `vite dev` / `vite build`.
  */
 export function getRouter() {
-  const queryClient: QueryClient = createQueryClient();
-  const sdk: WallowSdk =
-    getGlobalStartContext()?.sdk ?? createWallowSdk({ baseUrl: globalThis.location.origin });
+  const sdk: WallowSdk = readRequestSdk() ?? createWallowSdk({ baseUrl: BROWSER_API_BASE_URL });
 
-  const router = createTanStackRouter({
+  return createTanStackRouter({
     routeTree,
-    context: { queryClient, sdk },
+    context: { sdk },
     scrollRestoration: true,
   });
-
-  setupRouterSsrQueryIntegration({ router, queryClient });
-
-  return router;
 }
 
 declare module "@tanstack/react-router" {

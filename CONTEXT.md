@@ -21,13 +21,14 @@ communicate. A module-internal domain event is not an integration event.
 
 **BFF**:
 The server topology that owns the user's OIDC session and attaches tokens on the way to the
-API; the browser never holds a token. wallow-web is the BFF app.
+API; the browser never holds a token. wallow-web and minimal-app (the external
+relying-party example) are the BFF apps.
 _Avoid_: calling every server layer a BFF — the distinction is session ownership.
 
 **Passthrough**:
 The session-less server topology: a pure reverse proxy that forwards requests to the API
-verbatim and owns no session, cookie jar, or OIDC client. wallow-auth and minimal-app are
-passthrough apps.
+verbatim and owns no session, cookie jar, or OIDC client. wallow-auth is the
+passthrough app.
 _Avoid_: BFF (a passthrough is not one)
 
 **Ticket**:

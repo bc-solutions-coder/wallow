@@ -52,6 +52,115 @@ sequenceDiagram
 
 ---
 
+## Quickstart: from registration to first sign-in
+
+The whole path is: register the client, install the SDK, paste the one-time reveal,
+mount two routes. Each step links to the deeper section it summarises, and
+**`apps/minimal-app` in the repository is the runnable form of exactly this
+walk-through** — a TanStack Start app on its own origin consuming Wallow through the
+published SDK alone.
+
+### 1. Register your application
+
+In wallow-web, under your organization's clients, register an **application**. The
+[BFF pattern guide](bff-pattern.md#1-register-an-oauth-application-in-wallow)
+documents the form field by field; what matters here is which URLs to register, all on your app's own
+origin:
+
+| URI                      | Value                                              | Why                                                                                                                                                            |
+| ------------------------ | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Redirect URI             | `https://app.example.com/bff/callback`             | Where the authorization code lands; must match `OIDC_REDIRECT_URI` exactly                                                                                     |
+| Post-logout redirect URI | `https://app.example.com/`                         | Where the browser lands after signing out                                                                                                                       |
+| Front-channel logout URI | `https://app.example.com/bff/frontchannel-logout`  | Browser-delivered sign-out when the user's Wallow session ends in another app's tab                                                                             |
+| Back-channel logout URI  | `https://app.example.com/bff/backchannel-logout`   | Server-to-server sign-out — the delivery that works with no browser open. Must be reachable **from the identity server** ([details](#receiving-back-channel-logout)) |
+
+Keep `offline_access` among the requested scopes — without it no refresh token is
+issued and the session dies with its first access token.
+
+Registration ends in a **one-time reveal**: the client id, the client secret (shown
+once, never retrievable again), and a ready-to-paste env block. Copy the block before
+leaving the page.
+
+### 2. Install the SDK
+
+Two lines of setup, then a normal install — the committed scope mapping plus a
+user-level `read:packages` token (a classic PAT for humans; CI and Docker are covered
+under [Installation](#installation)):
+
+```bash
+echo "@bc-solutions-coder:registry=https://npm.pkg.github.com" >> .npmrc
+npm config set "//npm.pkg.github.com/:_authToken" "$GITHUB_TOKEN"
+npm install @bc-solutions-coder/sdk redis
+```
+
+`redis` is the SDK's optional peer for [server-side sessions](#session-stores) —
+optional locally, required in production (step 5).
+
+### 3. Paste the reveal
+
+The reveal's env block is exactly the required set `loadBffConfigFromEnv()` reads —
+paste it into your server's environment (a local `.env`, your deploy platform's
+secret store) verbatim:
+
+```ini
+OIDC_ISSUER=https://your-wallow.example.com
+OIDC_CLIENT_ID=app-your-org-your-app
+OIDC_CLIENT_SECRET=<shown once>
+OIDC_REDIRECT_URI=https://app.example.com/bff/callback
+OIDC_POST_LOGOUT_REDIRECT_URI=https://app.example.com/
+OIDC_SCOPES=openid profile email offline_access users.read
+BFF_API_BASE_URL=https://your-wallow.example.com
+COOKIE_PASSWORD=<generated for you>
+```
+
+Four things to know about the block, with the full reference in
+[Environment variables](#environment-variables):
+
+- **`COOKIE_PASSWORD` is generated at reveal time** and is already the required 32+
+  characters. To change it later without logging every user out, don't replace it —
+  **rotate at deploy time** with the keyed `COOKIE_PASSWORDS` form
+  ([rotation guide](bff-pattern.md#rotating-the-cookie-password)).
+- **`OIDC_ISSUER` is the browser-facing issuer origin.** If your server reaches the
+  identity server under a different hostname than browsers do (split-horizon DNS,
+  a container network), add `OIDC_METADATA_URL` for the server side; redirects stay
+  pinned to the public issuer.
+- **`COOKIE_SECURE=false` is for plain-HTTP local development only** — cookies
+  default to `Secure`, which browsers drop over `http://`. Never set it in
+  production.
+- **`SESSION_TTL_SECONDS`** (default 24h) is the session cookie's lifetime. Keep it
+  at or below the refresh-token lifetime your deployment issues — a session cannot
+  refresh past the grant behind it.
+
+### 4. Mount two routes
+
+The entire integration surface is two splat server routes over the
+[`createWallowBffServer()` preset](#server-setup-mounting-the-bff): `/bff/*` (the
+OIDC tunnel — login, callback, user, logout, both logout receivers) and `/api/*`
+(the proxy that attaches the session's bearer token server-side). Browser code then
+talks to its own origin through [`createWallowSdk()`](#browser-api); state-changing
+calls are [CSRF-gated](#csrf-protection) with a double-submit token the SDK wires
+for you.
+
+### 5. Production: give sessions a server to live in
+
+Set `REDIS_URL` and sessions move into Valkey/Redis. This is **mandatory in
+production**, not tuning: replicas must share sessions, and
+[back-channel logout](#receiving-back-channel-logout) and cookie-password rotation
+can only revoke sessions the server holds — sealed-cookie sessions are a
+single-process development convenience nothing can revoke. Run the store with
+authentication and TLS (`rediss://user:password@host`).
+
+### 6. Anonymous server-to-server calls (optional)
+
+A contact form, a webhook, a nightly job — anything that must reach the platform
+with no user signed in — uses a **service account: a separate registration with its
+own one-time reveal**. Register one under the same organization (kind "service
+account"); its reveal is the `OIDC_SERVICE_*` trio that
+[`createServiceClient()`](#service-accounts-createserviceclient) reads. Scope it
+narrowly — a service account's scopes are its blast radius.
+
+---
+
 ## Installation
 
 `@bc-solutions-coder/sdk` is published to **GitHub Packages** under the repository owner's
@@ -83,6 +192,22 @@ npm config set "//npm.pkg.github.com/:_authToken" "$GITHUB_TOKEN"   # or: pnpm c
 > **Scope note:** GitHub Packages resolves scoped packages against the
 > publishing organization, so the token — a personal access token or CI token —
 > needs `read:packages` on that organization.
+
+In a **Docker build**, the token crosses into the build the same way: as a
+**build secret**, never a build `ARG` or an `ENV` — both bake the token into the
+image history, where anyone who can pull the image can read it. Mount the secret
+for the install step only:
+
+```dockerfile
+RUN --mount=type=secret,id=npm_token \
+    npm config set "//npm.pkg.github.com/:_authToken" "$(cat /run/secrets/npm_token)" \
+    && npm install \
+    && npm config delete "//npm.pkg.github.com/:_authToken"
+```
+
+```bash
+docker build --secret id=npm_token,env=GITHUB_TOKEN .
+```
 
 Then install:
 
@@ -273,7 +398,8 @@ A runnable reference host lives in the repository at `apps/wallow-web/` — a
 TanStack Start app that mounts exactly these routes (`src/app/routes/bff/$.ts`,
 `src/app/routes/api/$.ts`, `src/app/routes/health.ts`, over `src/app/lib/bff.server.ts`) and
 consumes the proxy from its dashboard. The `app/` prefix is that app's host zone; a
-flat app mounts the same files directly under `src/`.
+flat app mounts the same files directly under `src/` — `apps/minimal-app` is that
+flat, external-consumer form (`src/routes/{bff,api}/$.ts` over `src/lib/bff.server.ts`).
 
 ### The pure passthrough: `createApiPassthrough()`
 
@@ -652,9 +778,11 @@ await logout();
   organization picker.
 - `logout(options?)` — returns `Promise<void>`. `/bff/logout` is state-changing
   and answers `405 + Allow: POST` to a bare `GET`, so this cannot be a plain
-  navigation: it issues `POST /bff/logout` with `credentials: "include"`,
-  `redirect: "manual"` and an `x-csrf-token` header, then navigates the browser
-  to whatever the handler answers with. The token is resolved most-specific
+  navigation: it issues `POST /bff/logout` with `credentials: "include"` and an
+  `x-csrf-token` header, then navigates the browser to the IdP end-session URL
+  the handler answers in its JSON body (`{ logoutUrl }`) — that hop ends the
+  SSO session and fans out front-/back-channel logout to the other relying
+  parties. The token is resolved most-specific
   first — an explicit `options.csrfToken`, then the token learned from
   `/bff/user`, then the readable double-submit cookie. The promise **rejects**
   when the BFF refuses (`Logout failed: the BFF answered <status>`), leaving the
@@ -894,7 +1022,10 @@ The repository's `seed.json` ships a ready-to-use confidential client for local
 BFF development so you do not have to register one by hand. It is the *external
 site* reference client — a second application signing users in through Wallow —
 so it sits on its own port; `wallow-web-client` is the one `apps/wallow-web` uses
-on port 3000. After running the
+on port 3000. This is the client the containerised E2E stack
+(`docker/docker-compose.test.yml`) hands to `apps/minimal-app` as the
+`bff-example` service, which the three-origin acceptance suite drives end to end.
+After running the
 [seeder](../getting-started/developer-guide.md), the following client exists in
 the `Wallow` organization:
 
@@ -920,9 +1051,12 @@ COOKIE_PASSWORD=dev-only-change-me-to-a-long-random-string
 ```
 
 The redirect and post-logout URIs must match the seeded client exactly, so keep
-your BFF on port `3003` locally (or update `seed.json` and re-seed). This is the
-manual, by-hand convention; the containerised E2E stack seeds the same client
-with a per-run port instead (`./scripts/e2e.sh`, Wallow-joo0).
+your BFF on port `3003` locally (or update `seed.json` and re-seed) —
+`apps/minimal-app` defaults to port `3010`, so run it as `PORT=3003` to pair it
+with these values, or register your own client per the
+[quickstart](#quickstart-from-registration-to-first-sign-in) as its README does.
+This is the manual, by-hand convention; the containerised E2E stack seeds the
+same client with a per-run port instead (`./scripts/e2e.sh`, Wallow-joo0).
 
 > **Development secret:** `bff-example-secret` and the sample `COOKIE_PASSWORD`
 > are for local development only. Provision distinct, high-entropy values for

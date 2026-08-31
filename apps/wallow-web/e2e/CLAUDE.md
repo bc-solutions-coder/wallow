@@ -31,11 +31,14 @@ E2E_BASE_URL=http://localhost:5053 pnpm --filter ./apps/wallow-web test:e2e:cros
 pnpm --filter ./apps/wallow-web test:e2e:cross-app
 ```
 
-**`external-origin-login.spec.ts`** — the "sign in with Wallow from another site" flow; needs
-the **containerised stack specifically**. Its fourth origin is `bff-example`
-(`docker/docker-compose.test.yml`), running wallow-web's image but authenticating as the seeded
-third-party `bff-example-client`. Aspire has no `bff-example` service, so `pnpm backend` cannot
-serve it. The origin's host port defaults to `:3003` (`E2E_BFF_PORT`), independent of
+**`external-origin-login.spec.ts`** — the external relying-party acceptance journey, a
+`test.describe.serial` suite (anonymous service-account contact, branded-consent sign-in +
+typed API call + back-channel logout proof, then org-surface suspension — which poisons the
+earlier stages, so ordering is load-bearing); needs the **containerised stack specifically**. Its fourth origin is `bff-example`
+(`docker/docker-compose.test.yml`), running `apps/minimal-app`'s own image — the external
+relying-party example — authenticating as the seeded third-party `bff-example-client` and
+submitting its anonymous `POST /contact` as the seeded `sa-wallow-nightly-sync` service
+account. Aspire has no `bff-example` service, so `pnpm backend` cannot serve it. The origin's host port defaults to `:3003` (`E2E_BFF_PORT`), independent of
 `E2E_BASE_URL`; `scripts/e2e.sh` passes a per-run port as `E2E_BFF_EXAMPLE_URL`.
 
 The client identity is the point: `wallow-web-client` is first-party (id starts with `wallow-`)

@@ -14,6 +14,7 @@ using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Domain.Identity;
 using static OpenIddict.Abstractions.OpenIddictConstants;
+using WallowClaims = Wallow.Shared.Kernel.Extensions.ClaimsPrincipalExtensions;
 
 namespace Wallow.Identity.Tests.Api.Controllers;
 
@@ -29,6 +30,7 @@ public sealed class TokenControllerTests : IDisposable
 {
     private const string OrgId = "11111111-1111-1111-1111-111111111111";
     private const string OrgName = "Acme";
+    private const string SessionId = "22222222-2222-2222-2222-222222222222";
 
     private readonly UserManager<WallowUser> _userManager;
     private readonly TokenController _controller;
@@ -133,6 +135,28 @@ public sealed class TokenControllerTests : IDisposable
         DestinationsFor(principal, Claims.Role).Should().NotContain(Destinations.IdentityToken);
     }
 
+    [Fact]
+    public async Task Exchange_AuthorizationCode_CarriesSidIntoIdentityTokenOnly()
+    {
+        // The id_token is the ONE place a relying party learns the OP session id it must
+        // match front-/back-channel logout notifications against. Dropping sid at the
+        // exchange silently breaks single logout for every RP: the logout token still
+        // names the session, but no RP ever indexed it.
+        SetupAuthorizationCodeExchange("openid", "profile");
+
+        IActionResult result = await _controller.Exchange();
+
+        ClaimsPrincipal principal = ResultPrincipal(result);
+
+        principal.GetClaim(WallowClaims.SessionIdClaimType).Should().Be(SessionId);
+        DestinationsFor(principal, WallowClaims.SessionIdClaimType)
+            .Should().Contain(Destinations.IdentityToken);
+
+        // A resource server has no business tying a bearer token to a browser session.
+        DestinationsFor(principal, WallowClaims.SessionIdClaimType)
+            .Should().NotContain(Destinations.AccessToken);
+    }
+
     private void SetupAuthorizationCodeExchange(params string[] scopes)
     {
         OpenIddictRequest request = new() { GrantType = GrantTypes.AuthorizationCode };
@@ -146,6 +170,7 @@ public sealed class TokenControllerTests : IDisposable
         incoming.SetClaim(Claims.Subject, _user.Id.ToString());
         incoming.SetClaim("org_id", OrgId);
         incoming.SetClaim("org_name", OrgName);
+        incoming.SetClaim(WallowClaims.SessionIdClaimType, SessionId);
 
         ClaimsPrincipal incomingPrincipal = new(incoming);
         incomingPrincipal.SetScopes([.. scopes]);

@@ -7,6 +7,7 @@ using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Helpers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Enums;
 using Wallow.Identity.Infrastructure.Extensions;
 using Wallow.Identity.Infrastructure.Options;
 using static OpenIddict.Abstractions.OpenIddictConstants;
@@ -16,8 +17,10 @@ namespace Wallow.Identity.Infrastructure.Services;
 public sealed partial class PreRegisteredClientSyncService(
     IOpenIddictApplicationManager applicationManager,
     IOrganizationService organizationService,
+    IRegisteredClientRepository registeredClients,
     UserManager<WallowUser> userManager,
     IOptions<PreRegisteredClientOptions> options,
+    TimeProvider timeProvider,
     ILogger<PreRegisteredClientSyncService> logger)
 {
     private const string SourcePropertyKey = "source";
@@ -44,27 +47,86 @@ public sealed partial class PreRegisteredClientSyncService(
 
     private async Task CreateOrUpdateClientAsync(PreRegisteredClientDefinition client, CancellationToken ct)
     {
+        Guid? tenantId = await ResolveTenantIdAsync(client, ct);
         object? existing = await applicationManager.FindByClientIdAsync(client.ClientId, ct);
 
         if (existing is not null)
         {
-            await UpdateClientAsync(existing, client, ct);
+            await UpdateClientAsync(existing, client, tenantId, ct);
         }
         else
         {
-            await CreateClientAsync(client, ct);
+            await CreateClientAsync(client, tenantId, ct);
         }
+
+        await SyncRegistryRowAsync(client, tenantId, ct);
     }
 
-    private async Task CreateClientAsync(PreRegisteredClientDefinition client, CancellationToken ct)
+    private async Task CreateClientAsync(PreRegisteredClientDefinition client, Guid? tenantId, CancellationToken ct)
     {
-        OpenIddictApplicationDescriptor descriptor = await BuildDescriptorAsync(client, ct);
+        OpenIddictApplicationDescriptor descriptor = BuildDescriptor(client, tenantId);
 
         await applicationManager.CreateAsync(descriptor, ct);
         LogClientCreated(client.ClientId);
     }
 
-    private async Task UpdateClientAsync(object existing, PreRegisteredClientDefinition client, CancellationToken ct)
+    /// <summary>
+    /// Converge Wallow's own client registry with the seed. The OpenIddict application holds
+    /// the OAuth configuration, but the org-clients surface (suspend, reinstate, rotate,
+    /// delete) addresses a client through its <see cref="RegisteredClient"/> row alone — a
+    /// tenant-bound seed client without one is invisible to the organization that owns it.
+    /// Only ownership converges here: the row's lifecycle status belongs to the organization,
+    /// so an existing row under the right owner is never touched.
+    /// </summary>
+    private async Task SyncRegistryRowAsync(PreRegisteredClientDefinition client, Guid? tenantId, CancellationToken ct)
+    {
+        RegisteredClient? record = await registeredClients.GetByClientIdAsync(client.ClientId, ct);
+
+        if (tenantId is null)
+        {
+            // A client bound to no organization is the platform's own — no organization may
+            // manage it, so it has no place in the registry.
+            if (record is not null)
+            {
+                registeredClients.Remove(record);
+                await registeredClients.SaveChangesAsync(ct);
+                LogRegistryRowRemoved(client.ClientId);
+            }
+
+            return;
+        }
+
+        if (record is not null && record.OrganizationId == tenantId.Value)
+        {
+            return;
+        }
+
+        if (record is not null)
+        {
+            // The seed moved the client to another organization. Ownership is the seed's to
+            // state; the lifecycle status is not — a fresh row under the new owner starts
+            // Active rather than inheriting a suspension the old owner placed.
+            registeredClients.Remove(record);
+        }
+
+        RegisteredClientKind kind = IsServiceAccount(client.ClientId)
+            ? RegisteredClientKind.ServiceAccount
+            : RegisteredClientKind.Application;
+
+        // Seeding from client config has no human actor, so provenance falls back to
+        // Guid.Empty the same way AddMemberAsync records system-initiated membership.
+        RegisteredClient row = RegisteredClient.Create(
+            client.ClientId, tenantId.Value, client.DisplayName, kind, Guid.Empty, timeProvider);
+        registeredClients.Add(row);
+        await registeredClients.SaveChangesAsync(ct);
+        LogRegistryRowSynced(client.ClientId, tenantId.Value);
+    }
+
+    private async Task UpdateClientAsync(
+        object existing,
+        PreRegisteredClientDefinition client,
+        Guid? resolvedTenantId,
+        CancellationToken ct)
     {
         OpenIddictApplicationDescriptor descriptor = new();
         await applicationManager.PopulateAsync(descriptor, existing, ct);
@@ -177,7 +239,6 @@ public sealed partial class PreRegisteredClientSyncService(
         }
 
         // Sync tenant_id
-        Guid? resolvedTenantId = await ResolveTenantIdAsync(client, ct);
         string? currentTenantId = descriptor.GetTenantId();
         string? expectedTenantId = resolvedTenantId?.ToString();
         if (!string.Equals(currentTenantId, expectedTenantId, StringComparison.OrdinalIgnoreCase))
@@ -231,6 +292,16 @@ public sealed partial class PreRegisteredClientSyncService(
         foreach ((object application, string clientId) in removed)
         {
             await applicationManager.DeleteAsync(application, ct);
+
+            // The registry row is this module's shadow of the application; an orphaned row
+            // would leave a ghost client on the organization's management surface.
+            RegisteredClient? record = await registeredClients.GetByClientIdAsync(clientId, ct);
+            if (record is not null)
+            {
+                registeredClients.Remove(record);
+                await registeredClients.SaveChangesAsync(ct);
+            }
+
             LogClientDeleted(clientId);
         }
     }
@@ -326,7 +397,7 @@ public sealed partial class PreRegisteredClientSyncService(
                 ? ClientRefreshTokenLifetimes.FirstPartyDefaultSeconds
                 : ClientRefreshTokenLifetimes.ThirdPartyDefaultSeconds);
 
-    private async Task<OpenIddictApplicationDescriptor> BuildDescriptorAsync(PreRegisteredClientDefinition client, CancellationToken ct)
+    private static OpenIddictApplicationDescriptor BuildDescriptor(PreRegisteredClientDefinition client, Guid? tenantId)
     {
         string clientType = client.IsPublic ? ClientTypes.Public : ClientTypes.Confidential;
         bool isServiceAccount = IsServiceAccount(client.ClientId);
@@ -394,7 +465,6 @@ public sealed partial class PreRegisteredClientSyncService(
             descriptor.SetRefreshTokenLifetime(refreshTokenLifetime);
         }
 
-        Guid? tenantId = await ResolveTenantIdAsync(client, ct);
         if (tenantId.HasValue)
         {
             descriptor.SetTenantId(tenantId.Value.ToString());
@@ -420,4 +490,10 @@ public sealed partial class PreRegisteredClientSyncService(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Seed member '{Email}' not found for client: {ClientId}")]
     private partial void LogSeedMemberNotFound(string clientId, string email);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Registered client row synced for {ClientId} under organization {OrganizationId}")]
+    private partial void LogRegistryRowSynced(string clientId, Guid organizationId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Registered client row removed for platform-owned client: {ClientId}")]
+    private partial void LogRegistryRowRemoved(string clientId);
 }
