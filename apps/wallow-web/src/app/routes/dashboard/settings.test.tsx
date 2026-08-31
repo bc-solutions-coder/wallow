@@ -12,17 +12,16 @@ import { Route } from "./settings";
 
 /**
  * The dashboard settings route: page root, title, prefetch loader, the composed
- * profile and MFA sections, and router registration.
+ * profile, MFA and connected-applications sections, and router registration.
  *
- * `ProfileSection` and `MfaSettingsSection` run for real against the harness
- * transport, so they are driven by ANSWERING their two reads rather than by
- * seeding their caches.
+ * The sections run for real against the harness transport, so they are driven
+ * by ANSWERING their reads rather than by seeding their caches.
  */
 
 /** The transport backing each render, rebuilt per test. */
 let harness: SdkHarness;
 
-/** Answer both sections' reads so they render content, not their loading states. */
+/** Answer every section's read so they render content, not their loading states. */
 function renderSettings() {
   routeHarness(harness, {
     "GET /v1/identity/users/me": {
@@ -38,6 +37,7 @@ function renderSettings() {
       method: null,
       backupCodeCount: 0,
     },
+    "GET /v1/identity/me/authorizations": [],
   });
 
   const Page = Route.options.component!;
@@ -81,6 +81,15 @@ describe("routes/dashboard/settings (route page)", () => {
 
     const root = page.getByTestId("dashboard-settings");
     await expect.element(root.getByTestId("settings-mfa-status")).toHaveTextContent("Disabled");
+  });
+
+  it("composes the connected-applications card inside the dashboard-settings root", async () => {
+    renderSettings();
+
+    const root = page.getByTestId("dashboard-settings");
+    await expect
+      .element(root.getByTestId("connected-apps-empty"))
+      .toHaveTextContent("No connected applications.");
   });
 });
 

@@ -2,14 +2,20 @@ import { PageContainer, PageHeader } from "@bc-solutions-coder/ui";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { mfaGetStatusOptions, MfaSettingsSection } from "@features/mfa";
-import { ProfileSection, usersGetCurrentUserOptions } from "@features/settings";
+import {
+  ConnectedAppsSection,
+  meAuthorizationsListConnectedApplicationsOptions,
+  ProfileSection,
+  usersGetCurrentUserOptions,
+} from "@features/settings";
 
 /**
- * Settings route (Wallow-8w1h.6.5) — composes the profile section and the MFA
- * status card into a single page under `data-testid="dashboard-settings"`.
+ * Settings route (Wallow-8w1h.6.5) — composes the profile section, the MFA
+ * status card and the connected-applications card into a single page under
+ * `data-testid="dashboard-settings"`.
  *
- * The route `loader` prefetches both queries via `ensureQueryData` so the
- * composed sections render content (not loading state) on first paint.
+ * The route `loader` prefetches each section's read via `ensureQueryData` so
+ * the composed sections render content (not loading state) on first paint.
  *
  * Authored file-route style (`createFileRoute('/dashboard/settings')`), so its
  * `id`/`path`/parent are left unset — `src/router.tsx` binds it under the root
@@ -27,6 +33,7 @@ function SettingsPage() {
       <PageHeader data-testid="settings-header" title="Settings" />
       <ProfileSection />
       <MfaSettingsSection />
+      <ConnectedAppsSection />
     </PageContainer>
   );
 }
@@ -38,6 +45,9 @@ export const Route = createFileRoute("/dashboard/settings")({
         usersGetCurrentUserOptions({ client: context.sdk.client }),
       ),
       context.queryClient.ensureQueryData(mfaGetStatusOptions({ client: context.sdk.client })),
+      context.queryClient.ensureQueryData(
+        meAuthorizationsListConnectedApplicationsOptions({ client: context.sdk.client }),
+      ),
     ]),
   component: SettingsPage,
 });

@@ -1,12 +1,16 @@
 /**
- * Settings (Profile) feature `api.ts` — a THIN RE-EXPORT SEAM over the SDK query
- * entry (`@bc-solutions-coder/sdk/query`). Profile is READ-ONLY (no mutation
- * endpoint), so the seam exposes only the current-user read. As of
- * Wallow-pu6a.5.5 that read is the GENERATED `usersGetCurrentUserOptions`, which
- * takes an explicit `{ client }` — the same operation the dashboard's auth guard
- * reads, so both resolve to ONE cache entry rather than two.
+ * Settings feature `api.ts` — a THIN RE-EXPORT SEAM over the SDK query entry
+ * (`@bc-solutions-coder/sdk/query`). The profile read is the GENERATED
+ * `usersGetCurrentUserOptions`, which takes an explicit `{ client }` — the same
+ * operation the dashboard's auth guard reads, so both resolve to ONE cache
+ * entry rather than two. The connected-applications trio backs the consent
+ * ledger card: the list read, its key (for the post-withdraw sweep), and the
+ * withdraw mutation.
  */
 export {
+  meAuthorizationsListConnectedApplicationsOptions,
+  meAuthorizationsListConnectedApplicationsQueryKey,
+  meAuthorizationsWithdrawConsentMutation,
   queriesForOperation,
   usersGetCurrentUserOptions,
   usersGetCurrentUserQueryKey,

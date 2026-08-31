@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 /**
- * Settings (Profile) feature `api.ts` — a THIN RE-EXPORT SEAM over
- * `@bc-solutions-coder/sdk/query`. Profile is READ-ONLY (no mutation
- * endpoint), so the seam exposes only the current-user read.
+ * Settings feature `api.ts` — a THIN RE-EXPORT SEAM over
+ * `@bc-solutions-coder/sdk/query`: the current-user read plus the
+ * connected-applications list/withdraw pair.
  *
  * Re-export by IDENTITY is the point: the profile screen and the dashboard's
  * auth guard must read the same generated operation, or a wrapper key gives
@@ -19,6 +19,15 @@ describe("api.ts re-exports the SDK settings query surface", () => {
     expect(api.usersGetCurrentUserOptions).toBe(query.usersGetCurrentUserOptions);
     expect(api.usersGetCurrentUserQueryKey).toBe(query.usersGetCurrentUserQueryKey);
     expect(api.queriesForOperation).toBe(query.queriesForOperation);
+    expect(api.meAuthorizationsListConnectedApplicationsOptions).toBe(
+      query.meAuthorizationsListConnectedApplicationsOptions,
+    );
+    expect(api.meAuthorizationsListConnectedApplicationsQueryKey).toBe(
+      query.meAuthorizationsListConnectedApplicationsQueryKey,
+    );
+    expect(api.meAuthorizationsWithdrawConsentMutation).toBe(
+      query.meAuthorizationsWithdrawConsentMutation,
+    );
   });
 });
 
