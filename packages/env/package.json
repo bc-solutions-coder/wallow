@@ -2,7 +2,7 @@
   "name": "@bc-solutions-coder/env",
   "version": "0.0.0",
   "private": true,
-  "description": "Wallow shared environment-derived addressing for Start apps (internal origin, base path, auth origin)",
+  "description": "Wallow shared environment-derived addressing for Start apps (internal origin, base path, auth origin, published-global document channel)",
   "files": [
     "dist"
   ],
@@ -19,6 +19,10 @@
     "./internal-origin": {
       "types": "./src/internal-origin.ts",
       "import": "./src/internal-origin.ts"
+    },
+    "./published-global": {
+      "types": "./src/published-global.ts",
+      "import": "./src/published-global.ts"
     }
   },
   "publishConfig": {
@@ -34,6 +38,10 @@
       "./internal-origin": {
         "types": "./dist/internal-origin.d.ts",
         "import": "./dist/internal-origin.js"
+      },
+      "./published-global": {
+        "types": "./dist/published-global.d.ts",
+        "import": "./dist/published-global.js"
       }
     }
   },

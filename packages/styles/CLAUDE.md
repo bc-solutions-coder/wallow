@@ -24,5 +24,6 @@ rebrand — this package turns it into theme CSS custom properties at render tim
   replaces the file wholesale and a missing key must still resolve. The env record is a
   PARAMETER for the same prebuilt-bundle reason as the base path. Three pure pieces, no
   wiring: `resolveForkLinks(env)`, `forkLinksScript(links)` (the inline `<script>` source,
-  `<` escaped because React does not escape a `<script>` text child), and
+  `<` escaped because React does not escape a `<script>` text child — the escape/read-back
+  mechanism itself is `@bc-solutions-coder/env/published-global`), and
   `readInjectedForkLinks(scope)` (`undefined` for anything malformed).

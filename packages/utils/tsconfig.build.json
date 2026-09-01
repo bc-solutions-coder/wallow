@@ -4,9 +4,9 @@
   // is what is local to this package.
   //
   // Every entry is listed explicitly. Nothing here imports anything else here —
-  // the three modules are independent — so an unlisted one would emit no .d.ts at
-  // all rather than being pulled in transitively. `charter.test.ts` pins the list
-  // against the `exports` map.
+  // the modules are independent — so an unlisted one would emit no .d.ts at
+  // all rather than being pulled in transitively. `wallow/module-lists-in-sync`
+  // pins the list against the `exports` map at lint time.
   "extends": ["./tsconfig.json", "../../tsconfig.build.base.json"],
   "include": ["src/format.ts", "src/guards.ts", "src/string.ts"]
 }

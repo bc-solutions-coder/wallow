@@ -19,6 +19,8 @@
  * mismatch.
  */
 
+import { publishedGlobalScript, readPublishedGlobal } from "./published-global";
+
 /** The environment variable {@link resolveAuthUrl} reads, by name. */
 export const AUTH_URL_ENV_KEY = "WALLOW_AUTH_URL";
 
@@ -52,18 +54,14 @@ export function resolveAuthUrl(env: Readonly<Record<string, string | undefined>>
  */
 export const AUTH_URL_GLOBAL_KEY = "__WALLOW_AUTH_URL__";
 
-/** `<` as a JavaScript string escape — the one character an inline script must not carry. */
-const LT_ESCAPE = String.raw`\u003c`;
-
 /**
  * The source of the inline `<script>` that publishes one deployment's auth
- * origin, rendered in `<head>` so it runs before hydration. The returned
- * source contains no `<`: React does not escape a text child of `<script>`,
- * so a URL containing `</script` would otherwise end the element early.
+ * origin, rendered in `<head>` so it runs before hydration. The escaping that
+ * keeps a hostile URL from ending the element early lives in the shared
+ * {@link publishedGlobalScript}.
  */
 export function authUrlScript(url: string): string {
-  const payload: string = JSON.stringify(url).replaceAll("<", LT_ESCAPE);
-  return `window[${JSON.stringify(AUTH_URL_GLOBAL_KEY)}]=${payload};`;
+  return publishedGlobalScript(AUTH_URL_GLOBAL_KEY, url);
 }
 
 /**
@@ -74,9 +72,6 @@ export function authUrlScript(url: string): string {
  * deployment's override rather than the href.
  */
 export function readInjectedAuthUrl(scope: unknown): string | undefined {
-  if (typeof scope !== "object" || scope === null) {
-    return undefined;
-  }
-  const injected: unknown = (scope as Record<string, unknown>)[AUTH_URL_GLOBAL_KEY];
+  const injected: unknown = readPublishedGlobal(AUTH_URL_GLOBAL_KEY, scope);
   return typeof injected === "string" && injected.trim() !== "" ? injected : undefined;
 }

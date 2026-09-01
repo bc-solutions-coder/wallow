@@ -14,14 +14,16 @@
  * document, and importing nothing from `@tanstack/react-start`.
  */
 
+import {
+  publishedGlobalScript,
+  readPublishedGlobal,
+} from "@bc-solutions-coder/env/published-global";
+
 /** The environment variable naming the main app's public URL. */
 export const WEB_APP_URL_VAR = "WALLOW_WEB_URL";
 
 /** The global the shell publishes the resolved URL on, for the browser to read back. */
 export const WEB_APP_URL_GLOBAL_KEY = "__WALLOW_WEB_APP_URL__";
-
-/** `<` as a JavaScript string escape — the one character an inline script must not carry. */
-const LT_ESCAPE = String.raw`\u003c`;
 
 /**
  * The configured URL, or `undefined` when unset, blank, or not an absolute
@@ -53,21 +55,17 @@ export function resolveWebAppUrl(
 }
 
 /**
- * The source of the inline `<script>` publishing one deployment's answer, with
- * `<` escaped so a hostile value cannot end the element early.
+ * The source of the inline `<script>` publishing one deployment's answer. The
+ * escaping that keeps a hostile value from ending the element early lives in
+ * the shared {@link publishedGlobalScript}.
  */
 export function webAppUrlScript(url: string | undefined): string {
-  const payload: string = JSON.stringify(url ?? null);
-  return `window[${JSON.stringify(WEB_APP_URL_GLOBAL_KEY)}]=${payload.replaceAll("<", LT_ESCAPE)};`;
+  return publishedGlobalScript(WEB_APP_URL_GLOBAL_KEY, url ?? null);
 }
 
 /** The URL {@link webAppUrlScript} published on `scope`, or `undefined` for anything else. */
 export function readInjectedWebAppUrl(scope: unknown): string | undefined {
-  if (typeof scope !== "object" || scope === null) {
-    return undefined;
-  }
-
-  const injected: unknown = (scope as Record<string, unknown>)[WEB_APP_URL_GLOBAL_KEY];
+  const injected: unknown = readPublishedGlobal(WEB_APP_URL_GLOBAL_KEY, scope);
   return typeof injected === "string" && injected !== "" ? injected : undefined;
 }
 

@@ -24,6 +24,10 @@
 // through `@bc-solutions-coder/styles/vite` — import this file directly, and
 // Node rejects a JSON import without the attribute (ERR_IMPORT_ATTRIBUTE_MISSING).
 import forkBrandingJson from "../branding.json" with { type: "json" };
+import {
+  publishedGlobalScript,
+  readPublishedGlobal,
+} from "@bc-solutions-coder/env/published-global";
 import { toRootRelativeAssetUrl } from "./asset-urls";
 
 /** The two colour schemes a theme defines. */
@@ -374,26 +378,19 @@ function firstNonEmpty(value: string | undefined, fallback: string): string {
  * property — the server renders it as text into the document and never assigns
  * it, because a server global is shared by every concurrent request.
  */
-/** `<` as a JavaScript string escape — the one character an inline script must not carry. */
-const LT_ESCAPE = String.raw`\u003c`;
-
 export const FORK_LINKS_GLOBAL_KEY = "__WALLOW_FORK_LINKS__";
 
 /**
  * The source of the inline `<script>` that publishes one deployment's links,
- * rendered in `<head>` so it runs before hydration.
- *
- * The returned source contains no `<`: React does not escape a text child of
- * `<script>`, so an href containing `</script` would otherwise end the element
- * early. Escaping it to its
- * `\u003c` sequence keeps the JSON string literal valid and the element intact.
+ * rendered in `<head>` so it runs before hydration. The escaping that keeps a
+ * hostile href from ending the element early lives in the shared
+ * {@link publishedGlobalScript}.
  */
 export function forkLinksScript(links: ForkLinks): string {
-  const payload: string = JSON.stringify({
+  return publishedGlobalScript(FORK_LINKS_GLOBAL_KEY, {
     repositoryUrl: links.repositoryUrl,
     docsUrl: links.docsUrl,
   });
-  return `window[${JSON.stringify(FORK_LINKS_GLOBAL_KEY)}]=${payload.replaceAll("<", LT_ESCAPE)};`;
 }
 
 /**
@@ -406,11 +403,7 @@ export function forkLinksScript(links: ForkLinks): string {
  * malformed global costs the deployment's override rather than the href.
  */
 export function readInjectedForkLinks(scope: unknown): ForkLinks | undefined {
-  if (typeof scope !== "object" || scope === null) {
-    return undefined;
-  }
-
-  const injected: unknown = (scope as Record<string, unknown>)[FORK_LINKS_GLOBAL_KEY];
+  const injected: unknown = readPublishedGlobal(FORK_LINKS_GLOBAL_KEY, scope);
   if (typeof injected !== "object" || injected === null) {
     return undefined;
   }

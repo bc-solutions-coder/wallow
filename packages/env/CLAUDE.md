@@ -5,6 +5,14 @@ The addressing a Start app derives from its deployment: the origin it can reach 
 deliberately no `.` barrel. Adding a module is a new subpath; `wallow/module-lists-in-sync`
 fails `pnpm lint` naming any list it is missing from.
 
+**`./published-global` is the document channel's shared machinery** — the escape rules for
+the inline `<script>` a server render publishes a per-deployment value with, and the
+raw read-back off `globalThis`. Every publish/read-back pair (`./auth-origin`, styles' fork
+links, wallow-auth's web-app URL) delegates to it so the two halves cannot drift; each
+caller keeps its own VALIDATION and fallback. It lives here rather than
+`@bc-solutions-coder/utils` because this package already owns the pattern's canonical
+instance and the bottom-of-graph trio (utils, env, logger) may not import each other.
+
 **Request-origin and client-address resolution do NOT live here.** They are the trusted-proxy
 decision, and they ship on the SDK's dependency-free `@bc-solutions-coder/sdk/server/forwarded`
 subpath so an external consumer needs nothing beyond the SDK — see `packages/sdk/CLAUDE.md`.

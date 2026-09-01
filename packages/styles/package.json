@@ -53,6 +53,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@bc-solutions-coder/env": "workspace:*",
     "@tailwindcss/vite": "^4.3.3",
     "tailwindcss": "^4.3.3"
   },

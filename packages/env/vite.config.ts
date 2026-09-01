@@ -10,5 +10,6 @@ export default defineLibraryConfig({
     "auth-origin": "src/auth-origin.ts",
     "base-path": "src/base-path.ts",
     "internal-origin": "src/internal-origin.ts",
+    "published-global": "src/published-global.ts",
   },
 });

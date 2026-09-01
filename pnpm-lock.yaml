@@ -618,6 +618,9 @@ importers:
 
   packages/styles:
     dependencies:
+      '@bc-solutions-coder/env':
+        specifier: workspace:*
+        version: link:../env
       '@tailwindcss/vite':
         specifier: ^4.3.3
         version: 4.3.3(vite@8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))
