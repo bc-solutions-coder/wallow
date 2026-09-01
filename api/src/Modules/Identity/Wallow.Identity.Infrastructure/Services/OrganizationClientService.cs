@@ -14,6 +14,7 @@ using Wallow.Identity.Domain.Enums;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Extensions;
 using Wallow.Identity.Infrastructure.Persistence;
+using Wallow.Shared.Contracts;
 using Wallow.Shared.Contracts.Identity;
 using Wallow.Shared.Contracts.Identity.Events;
 using Wallow.Shared.Kernel.Configuration;
@@ -38,6 +39,7 @@ public sealed partial class OrganizationClientService(
     IdentityDbContext dbContext,
     IDbContextOutbox outbox,
     IOrganizationRepository organizations,
+    IOrganizationAdminEmailResolver adminEmails,
     IApiScopeRepository apiScopes,
     TimeProvider timeProvider,
     IConfiguration configuration,
@@ -49,11 +51,11 @@ public sealed partial class OrganizationClientService(
     public async Task<OrganizationClientRegistrationResult> RegisterAsync(
         Guid organizationId,
         RegisterClientInput input,
-        Guid actorUserId,
-        string? ipAddress,
+        ClientActorContext actor,
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(input);
+        ArgumentNullException.ThrowIfNull(actor);
 
         Organization organization = await organizations.GetByIdAsync(OrganizationId.Create(organizationId), ct)
             ?? throw new EntityNotFoundException("Organization", organizationId);
@@ -84,43 +86,34 @@ public sealed partial class OrganizationClientService(
         }
 
         RegisteredClient record = RegisteredClient.Create(
-            clientId, organizationId, input.Name, input.Kind, actorUserId, timeProvider);
+            clientId, organizationId, input.Name, input.Kind, actor.ActorId, timeProvider);
 
         // Both writes land on IdentityDbContext (OpenIddict's store shares it), so one transaction
         // covers them: no application without its record, no record without its application. The
-        // execution strategy wraps the transaction because the context retries on transient faults.
-        // The registration event rides the same transaction through the enrolled outbox — its
-        // envelope commits or rolls back with the rows and is only flushed to subscribers after
-        // the commit — so a crash after the commit can no longer drop the event that creates the
-        // client's branding row. Redelivery after an ambiguous commit is possible (the execution
-        // strategy reruns the delegate), so consumers stay idempotent.
-        outbox.Enroll(dbContext);
-        IExecutionStrategy strategy = dbContext.Database.CreateExecutionStrategy();
+        // event that creates the client's branding row rides the same transaction.
         try
         {
-            await strategy.ExecuteAsync(
-                ct,
+            await CommitAndPublishAsync(
+                new ClientRegisteredEvent
+                {
+                    ClientId = clientId,
+                    OrganizationId = organizationId,
+                    ClientName = input.Name,
+                    Kind = input.Kind == RegisteredClientKind.Application
+                        ? OrganizationClientKind.Application
+                        : OrganizationClientKind.ServiceAccount,
+                    ActorId = actor.ActorId,
+                    BrandingDisplayName = input.BrandingDisplayName,
+                    BrandingTagline = input.BrandingTagline,
+                    IpAddress = actor.IpAddress,
+                },
                 async token =>
                 {
-                    await using IDbContextTransaction transaction = await dbContext.Database.BeginTransactionAsync(token);
                     await applicationManager.CreateAsync(descriptor, token);
                     registeredClients.Add(record);
                     await registeredClients.SaveChangesAsync(token);
-                    await outbox.PublishAsync(new ClientRegisteredEvent
-                    {
-                        ClientId = clientId,
-                        OrganizationId = organizationId,
-                        ClientName = input.Name,
-                        Kind = input.Kind == RegisteredClientKind.Application
-                            ? OrganizationClientKind.Application
-                            : OrganizationClientKind.ServiceAccount,
-                        ActorId = actorUserId,
-                        BrandingDisplayName = input.BrandingDisplayName,
-                        BrandingTagline = input.BrandingTagline,
-                        IpAddress = ipAddress,
-                    });
-                    await transaction.CommitAsync(token);
-                });
+                },
+                ct);
         }
         catch (DbUpdateException ex) when (IsUniqueViolation(ex))
         {
@@ -129,9 +122,7 @@ public sealed partial class OrganizationClientService(
             throw ClientIdTaken(input.Name, clientId);
         }
 
-        await outbox.FlushOutgoingMessagesAsync();
-
-        LogClientRegistered(clientId, organizationId, actorUserId);
+        LogClientRegistered(clientId, organizationId, actor.ActorId);
 
         return new OrganizationClientRegistrationResult(
             ToDto(record, descriptor),
@@ -206,9 +197,11 @@ public sealed partial class OrganizationClientService(
         Guid organizationId,
         string clientId,
         bool revokeActiveTokens,
-        Guid actorUserId,
+        ClientActorContext actor,
         CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(actor);
+
         RegisteredClient? record = await OwnedRecordAsync(organizationId, clientId, ct);
         if (record is null)
         {
@@ -228,27 +221,31 @@ public sealed partial class OrganizationClientService(
         // The manager re-hashes a secret that differs from the stored one, so the descriptor is
         // the only place the plaintext ever sits.
         descriptor.ClientSecret = clientSecret;
-        record.RecordSecretRotation(actorUserId, timeProvider);
+        record.RecordSecretRotation(actor.ActorId, timeProvider);
 
         // Immediate, with no overlap: the old secret, the provenance and (when asked) every
         // outstanding token change in one transaction, so a compromise response is one step.
-        IExecutionStrategy strategy = dbContext.Database.CreateExecutionStrategy();
-        await strategy.ExecuteAsync(
-            ct,
+        await CommitAndPublishAsync(
+            new ClientSecretRotatedEvent
+            {
+                ClientId = record.ClientId,
+                OrganizationId = organizationId,
+                ActorId = actor.ActorId,
+                ActiveTokensRevoked = revokeActiveTokens,
+                IpAddress = actor.IpAddress,
+            },
             async token =>
             {
-                await using IDbContextTransaction transaction = await dbContext.Database.BeginTransactionAsync(token);
                 await applicationManager.UpdateAsync(application, descriptor, token);
                 await registeredClients.SaveChangesAsync(token);
                 if (revokeActiveTokens)
                 {
                     await accessRevoker.RevokeClientAsync(record.ClientId, token);
                 }
+            },
+            ct);
 
-                await transaction.CommitAsync(token);
-            });
-
-        LogClientSecretRotated(record.ClientId, organizationId, actorUserId, revokeActiveTokens);
+        LogClientSecretRotated(record.ClientId, organizationId, actor.ActorId, revokeActiveTokens);
 
         return new OrganizationClientRegistrationResult(
             ToDto(record, descriptor),
@@ -257,8 +254,14 @@ public sealed partial class OrganizationClientService(
             TrimmedOrNull(serviceUrls.Value.ApiUrl));
     }
 
-    public async Task<OrganizationClientDto?> SuspendAsync(Guid organizationId, string clientId, CancellationToken ct = default)
+    public async Task<OrganizationClientDto?> SuspendAsync(
+        Guid organizationId,
+        string clientId,
+        ClientActorContext actor,
+        CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(actor);
+
         RegisteredClient? record = await OwnedRecordAsync(organizationId, clientId, ct);
         OpenIddictApplicationDescriptor? descriptor = record is null ? null : await DescriptorOfAsync(record, ct);
         if (record is null || descriptor is null)
@@ -270,23 +273,33 @@ public sealed partial class OrganizationClientService(
 
         // The status and the revocation land together: a suspended client with a live token, or
         // a revoked client still marked active, is exactly the half-state the transaction forbids.
-        IExecutionStrategy strategy = dbContext.Database.CreateExecutionStrategy();
-        await strategy.ExecuteAsync(
-            ct,
+        await CommitAndPublishAsync(
+            new ClientSuspendedEvent
+            {
+                ClientId = record.ClientId,
+                OrganizationId = organizationId,
+                ActorId = actor.ActorId,
+                IpAddress = actor.IpAddress,
+            },
             async token =>
             {
-                await using IDbContextTransaction transaction = await dbContext.Database.BeginTransactionAsync(token);
                 await registeredClients.SaveChangesAsync(token);
                 await accessRevoker.RevokeClientAsync(record.ClientId, token);
-                await transaction.CommitAsync(token);
-            });
+            },
+            ct);
 
         LogClientSuspended(record.ClientId, organizationId);
         return ToDto(record, descriptor);
     }
 
-    public async Task<OrganizationClientDto?> ReinstateAsync(Guid organizationId, string clientId, CancellationToken ct = default)
+    public async Task<OrganizationClientDto?> ReinstateAsync(
+        Guid organizationId,
+        string clientId,
+        ClientActorContext actor,
+        CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(actor);
+
         RegisteredClient? record = await OwnedRecordAsync(organizationId, clientId, ct);
         OpenIddictApplicationDescriptor? descriptor = record is null ? null : await DescriptorOfAsync(record, ct);
         if (record is null || descriptor is null)
@@ -295,7 +308,16 @@ public sealed partial class OrganizationClientService(
         }
 
         record.Reinstate();
-        await registeredClients.SaveChangesAsync(ct);
+        await CommitAndPublishAsync(
+            new ClientReinstatedEvent
+            {
+                ClientId = record.ClientId,
+                OrganizationId = organizationId,
+                ActorId = actor.ActorId,
+                IpAddress = actor.IpAddress,
+            },
+            token => registeredClients.SaveChangesAsync(token),
+            ct);
 
         LogClientReinstated(record.ClientId, organizationId);
         return ToDto(record, descriptor);
@@ -305,9 +327,11 @@ public sealed partial class OrganizationClientService(
         Guid organizationId,
         string clientId,
         string reason,
-        Guid actorId,
+        ClientActorContext actor,
         CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(actor);
+
         RegisteredClient? record = await OwnedRecordAsync(organizationId, clientId, ct);
         OpenIddictApplicationDescriptor? descriptor = record is null ? null : await DescriptorOfAsync(record, ct);
         if (record is null || descriptor is null)
@@ -315,30 +339,47 @@ public sealed partial class OrganizationClientService(
             return null;
         }
 
-        record.SuspendByPlatform(reason, actorId, timeProvider);
+        // What the notification email needs — the admin recipients and the organization's name —
+        // is resolved before the transaction opens, so the event is complete when it is published
+        // into the outbox and nothing outlives a rolled-back commit.
+        IReadOnlyList<string> recipients = await adminEmails.ResolveAsync(organizationId, ct);
+        Organization? organization = await organizations.GetByIdAsync(OrganizationId.Create(organizationId), ct);
+
+        record.SuspendByPlatform(reason, actor.ActorId, timeProvider);
 
         // Same shape as the organization's own suspend: the mark and the revocation land
         // together, so no window exists where one is visible without the other.
-        IExecutionStrategy strategy = dbContext.Database.CreateExecutionStrategy();
-        await strategy.ExecuteAsync(
-            ct,
+        await CommitAndPublishAsync(
+            new ClientSuspendedByPlatformEvent
+            {
+                ClientId = record.ClientId,
+                ClientName = record.Name,
+                OrganizationId = organizationId,
+                OrganizationName = organization?.Name ?? string.Empty,
+                ActorId = actor.ActorId,
+                Reason = record.PlatformSuspensionReason ?? reason,
+                RecipientEmails = recipients,
+                IpAddress = actor.IpAddress,
+            },
             async token =>
             {
-                await using IDbContextTransaction transaction = await dbContext.Database.BeginTransactionAsync(token);
                 await registeredClients.SaveChangesAsync(token);
                 await accessRevoker.RevokeClientAsync(record.ClientId, token);
-                await transaction.CommitAsync(token);
-            });
+            },
+            ct);
 
-        LogClientSuspendedByPlatform(record.ClientId, organizationId, actorId);
+        LogClientSuspendedByPlatform(record.ClientId, organizationId, actor.ActorId);
         return ToDto(record, descriptor);
     }
 
     public async Task<OrganizationClientDto?> ReinstateByPlatformAsync(
         Guid organizationId,
         string clientId,
+        ClientActorContext actor,
         CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(actor);
+
         RegisteredClient? record = await OwnedRecordAsync(organizationId, clientId, ct);
         OpenIddictApplicationDescriptor? descriptor = record is null ? null : await DescriptorOfAsync(record, ct);
         if (record is null || descriptor is null)
@@ -347,14 +388,29 @@ public sealed partial class OrganizationClientService(
         }
 
         record.ReinstateByPlatform();
-        await registeredClients.SaveChangesAsync(ct);
+        await CommitAndPublishAsync(
+            new ClientReinstatedByPlatformEvent
+            {
+                ClientId = record.ClientId,
+                OrganizationId = organizationId,
+                ActorId = actor.ActorId,
+                IpAddress = actor.IpAddress,
+            },
+            token => registeredClients.SaveChangesAsync(token),
+            ct);
 
         LogClientReinstatedByPlatform(record.ClientId, organizationId);
         return ToDto(record, descriptor);
     }
 
-    public async Task<bool> DeleteAsync(Guid organizationId, string clientId, CancellationToken ct = default)
+    public async Task<bool> DeleteAsync(
+        Guid organizationId,
+        string clientId,
+        ClientActorContext actor,
+        CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(actor);
+
         RegisteredClient? record = await OwnedRecordAsync(organizationId, clientId, ct);
         if (record is null)
         {
@@ -365,12 +421,16 @@ public sealed partial class OrganizationClientService(
 
         // Revocation first, so the realtime connections are hung up while the client still
         // exists to name them; the application's own tokens and consents then go with it.
-        IExecutionStrategy strategy = dbContext.Database.CreateExecutionStrategy();
-        await strategy.ExecuteAsync(
-            ct,
+        await CommitAndPublishAsync(
+            new ClientDeletedEvent
+            {
+                ClientId = record.ClientId,
+                OrganizationId = organizationId,
+                ActorId = actor.ActorId,
+                IpAddress = actor.IpAddress,
+            },
             async token =>
             {
-                await using IDbContextTransaction transaction = await dbContext.Database.BeginTransactionAsync(token);
                 await accessRevoker.RevokeClientAsync(record.ClientId, token);
 
                 if (application is not null)
@@ -381,11 +441,37 @@ public sealed partial class OrganizationClientService(
 
                 registeredClients.Remove(record);
                 await registeredClients.SaveChangesAsync(token);
-                await transaction.CommitAsync(token);
-            });
+            },
+            ct);
 
         LogClientDeleted(record.ClientId, organizationId);
         return true;
+    }
+
+    /// <summary>
+    /// Runs the operation's writes and publishes its event in one transaction: the event's
+    /// envelope is published into the enrolled outbox before the commit — so it commits or rolls
+    /// back with the rows — and is flushed to subscribers only after it, so a crash between the
+    /// commit and the publish can no longer drop the event. The execution strategy wraps the
+    /// transaction because the context retries on transient faults; redelivery after an ambiguous
+    /// commit is possible (the strategy reruns the delegate), so consumers stay idempotent.
+    /// </summary>
+    private async Task CommitAndPublishAsync<TEvent>(
+        TEvent @event, Func<CancellationToken, Task> writes, CancellationToken ct)
+        where TEvent : IntegrationEvent
+    {
+        outbox.Enroll(dbContext);
+        IExecutionStrategy strategy = dbContext.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(
+            ct,
+            async token =>
+            {
+                await using IDbContextTransaction transaction = await dbContext.Database.BeginTransactionAsync(token);
+                await writes(token);
+                await outbox.PublishAsync(@event);
+                await transaction.CommitAsync(token);
+            });
+        await outbox.FlushOutgoingMessagesAsync();
     }
 
     private async Task<RegisteredClient?> OwnedRecordAsync(Guid organizationId, string clientId, CancellationToken ct)

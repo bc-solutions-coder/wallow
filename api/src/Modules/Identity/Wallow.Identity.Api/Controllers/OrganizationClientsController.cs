@@ -11,13 +11,10 @@ using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Helpers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Enums;
-using Wallow.Shared.Contracts;
-using Wallow.Shared.Contracts.Identity.Events;
 using Wallow.Shared.Kernel.Configuration;
 using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Wolverine;
 
 namespace Wallow.Identity.Api.Controllers;
 
@@ -38,9 +35,6 @@ public class OrganizationClientsController(
     IOrganizationClientService clients,
     ITenantContext tenantContext,
     IOrganizationAccessPolicy accessPolicy,
-    IMessageBus messageBus,
-    IOrganizationAdminEmailResolver adminEmails,
-    IOrganizationService organizations,
     IOptions<ForkBrandingOptions> forkBranding) : ControllerBase
 {
     private const string RedirectUrisField = "redirectUris";
@@ -102,14 +96,13 @@ public class OrganizationClientsController(
             return ValidationProblem(ModelState);
         }
 
-        // The service publishes ClientRegisteredEvent through the outbox, in the same transaction
-        // as the registration writes — a post-commit publish here would reopen the crash window
-        // that drops the event and leaves the client without its branding row.
+        // The service publishes each client event through the outbox, in the same transaction as
+        // its writes — a post-commit publish here would reopen the crash window that drops the
+        // event and, for registration, leaves the client without its branding row.
         OrganizationClientRegistrationResult result = await clients.RegisterAsync(
             orgId,
             new RegisterClientInput(kind.Value, request.Name.Trim(), configuration, brandingDisplayName, brandingTagline),
-            ActorId(),
-            CallerIpAddress(),
+            Actor(),
             ct);
 
         return CreatedAtAction(nameof(GetById), new { orgId, clientId = result.Client.ClientId }, Reveal(result));
@@ -137,20 +130,11 @@ public class OrganizationClientsController(
         }
 
         OrganizationClientRegistrationResult? result = await clients.RotateSecretAsync(
-            orgId, clientId, request.RevokeActiveTokens, ActorId(), ct);
+            orgId, clientId, request.RevokeActiveTokens, Actor(), ct);
         if (result is null)
         {
             return NotFound();
         }
-
-        await messageBus.PublishAsync(new ClientSecretRotatedEvent
-        {
-            ClientId = result.Client.ClientId,
-            OrganizationId = orgId,
-            ActorId = ActorId(),
-            ActiveTokensRevoked = request.RevokeActiveTokens,
-            IpAddress = CallerIpAddress(),
-        });
 
         return Ok(Reveal(result));
     }
@@ -249,14 +233,7 @@ public class OrganizationClientsController(
         return TransitionAsync(
             orgId,
             clientId,
-            clients.SuspendAsync,
-            client => new ClientSuspendedEvent
-            {
-                ClientId = client.ClientId,
-                OrganizationId = orgId,
-                ActorId = ActorId(),
-                IpAddress = CallerIpAddress(),
-            },
+            (organizationId, id, token) => clients.SuspendAsync(organizationId, id, Actor(), token),
             ct);
     }
 
@@ -272,14 +249,7 @@ public class OrganizationClientsController(
         return TransitionAsync(
             orgId,
             clientId,
-            clients.ReinstateAsync,
-            client => new ClientReinstatedEvent
-            {
-                ClientId = client.ClientId,
-                OrganizationId = orgId,
-                ActorId = ActorId(),
-                IpAddress = CallerIpAddress(),
-            },
+            (organizationId, id, token) => clients.ReinstateAsync(organizationId, id, Actor(), token),
             ct);
     }
 
@@ -305,27 +275,11 @@ public class OrganizationClientsController(
             return Forbid();
         }
 
-        // Resolved before the transition because the announcement factory is synchronous;
-        // nothing is published unless the transition succeeds.
-        IReadOnlyList<string> recipients = await adminEmails.ResolveAsync(orgId, ct);
-        OrganizationDto? organization = await organizations.GetOrganizationByIdAsync(orgId, ct);
-
         return await TransitionAsync(
             orgId,
             clientId,
             (organizationId, id, token) => clients.SuspendByPlatformAsync(
-                organizationId, id, request.Reason, ActorId(), token),
-            client => new ClientSuspendedByPlatformEvent
-            {
-                ClientId = client.ClientId,
-                ClientName = client.Name,
-                OrganizationId = orgId,
-                OrganizationName = organization?.Name ?? string.Empty,
-                ActorId = ActorId(),
-                Reason = client.PlatformSuspensionReason ?? request.Reason,
-                RecipientEmails = recipients,
-                IpAddress = CallerIpAddress(),
-            },
+                organizationId, id, request.Reason, Actor(), token),
             ct);
     }
 
@@ -352,14 +306,7 @@ public class OrganizationClientsController(
         return await TransitionAsync(
             orgId,
             clientId,
-            clients.ReinstateByPlatformAsync,
-            client => new ClientReinstatedByPlatformEvent
-            {
-                ClientId = client.ClientId,
-                OrganizationId = orgId,
-                ActorId = ActorId(),
-                IpAddress = CallerIpAddress(),
-            },
+            (organizationId, id, token) => clients.ReinstateByPlatformAsync(organizationId, id, Actor(), token),
             ct);
     }
 
@@ -379,18 +326,10 @@ public class OrganizationClientsController(
             return NotFound();
         }
 
-        if (!await clients.DeleteAsync(orgId, clientId, ct))
+        if (!await clients.DeleteAsync(orgId, clientId, Actor(), ct))
         {
             return NotFound();
         }
-
-        await messageBus.PublishAsync(new ClientDeletedEvent
-        {
-            ClientId = clientId,
-            OrganizationId = orgId,
-            ActorId = ActorId(),
-            IpAddress = CallerIpAddress(),
-        });
 
         return NoContent();
     }
@@ -410,12 +349,12 @@ public class OrganizationClientsController(
     }
 
     // Suspend and reinstate are the same request shape around a different transition: address the
-    // organization, apply the transition, announce it, hand back the client as it now is.
+    // organization, apply the transition (which publishes its own event, in its own transaction),
+    // hand back the client as it now is.
     private async Task<ActionResult<OrganizationClientResponse>> TransitionAsync(
         Guid orgId,
         string clientId,
         Func<Guid, string, CancellationToken, Task<OrganizationClientDto?>> transition,
-        Func<OrganizationClientDto, IntegrationEvent> announce,
         CancellationToken ct)
     {
         if (!await CanAddressOrganizationAsync(orgId, ct))
@@ -424,13 +363,7 @@ public class OrganizationClientsController(
         }
 
         OrganizationClientDto? client = await transition(orgId, clientId, ct);
-        if (client is null)
-        {
-            return NotFound();
-        }
-
-        await messageBus.PublishAsync(announce(client));
-        return Ok(OrganizationClientResponse.From(client));
+        return client is null ? NotFound() : Ok(OrganizationClientResponse.From(client));
     }
 
     /// <summary>
@@ -473,9 +406,10 @@ public class OrganizationClientsController(
     private static string? TrimmedOrNull(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
-    private Guid ActorId() => Guid.Parse(User.GetUserId()!);
-
-    private string? CallerIpAddress() => HttpContext.Connection.RemoteIpAddress?.ToString();
+    // Who is acting and from where, for the audit trail the service's events carry.
+    private ClientActorContext Actor() => new(
+        Guid.Parse(User.GetUserId()!),
+        HttpContext.Connection.RemoteIpAddress?.ToString());
 
     private OrganizationClientRegistrationResponse Reveal(OrganizationClientRegistrationResult result) =>
         new()

@@ -51,6 +51,13 @@ public sealed record ClientConfigurationInput(
     int? RefreshTokenLifetime = null);
 
 /// <summary>
+/// Who is performing a client operation and from where — carried into the integration event the
+/// operation publishes, which is what writes the audit row. The address is <see langword="null"/>
+/// when the surface knows none.
+/// </summary>
+public sealed record ClientActorContext(Guid ActorId, string? IpAddress);
+
+/// <summary>
 /// A registration request as the surface has already validated it: which kind of client, its
 /// immutable name, the configuration that kind accepts and — for an application — the optional
 /// initial branding. When <c>BrandingDisplayName</c> is null the application's end-user-facing
