@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using OpenIddict.Abstractions;
 using Wallow.Shared.Infrastructure.Core.Auditing;
 using Wallow.Tests.Common.Factories;
 
@@ -105,6 +107,31 @@ public class ClientBrandingTests(WallowApiFactory factory) : OrganizationClients
 
         AuthAuditEntry audit = await AuditRowAsync("ClientBrandingUpdated", clientId);
         audit.ClientId.Should().Be(clientId);
+
+        string? syncedName = await OpenIddictDisplayNameAsync(clientId, expected: "Customer Portal");
+        syncedName.Should().Be(
+            "Customer Portal",
+            "the display-name sync should pull the branded name onto the OpenIddict application");
+    }
+
+    /// <summary>
+    /// The display-name sync runs off the request through Wolverine; polls OpenIddict — a fresh
+    /// scope per probe, so EF identity resolution cannot pin the pre-sync row — until the
+    /// application carries the expected name, and hands back whatever it last observed.
+    /// </summary>
+    private async Task<string?> OpenIddictDisplayNameAsync(string clientId, string expected)
+    {
+        string? observed = null;
+        await WaitForAsync(async () =>
+        {
+            using IServiceScope scope = Factory.Services.CreateScope();
+            IOpenIddictApplicationManager applications =
+                scope.ServiceProvider.GetRequiredService<IOpenIddictApplicationManager>();
+            object? application = await applications.FindByClientIdAsync(clientId);
+            observed = application is null ? null : await applications.GetDisplayNameAsync(application);
+            return string.Equals(observed, expected, StringComparison.Ordinal);
+        });
+        return observed;
     }
 
     [Theory]

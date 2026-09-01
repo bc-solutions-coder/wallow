@@ -5,8 +5,11 @@ using Wallow.Branding.Application.Exceptions;
 using Wallow.Branding.Domain.Entities;
 using Wallow.Branding.Infrastructure.Persistence;
 using Wallow.Branding.Infrastructure.Repositories;
+using Wallow.Shared.Contracts;
+using Wallow.Shared.Contracts.Branding.Events;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
+using Wolverine.EntityFrameworkCore;
 
 namespace Wallow.Branding.Tests.Infrastructure;
 
@@ -14,12 +17,13 @@ public sealed class ClientBrandingRepositoryTests : IDisposable
 {
     private readonly string _databaseName = Guid.NewGuid().ToString();
     private readonly BrandingDbContext _dbContext;
+    private readonly IDbContextOutbox _outbox = Substitute.For<IDbContextOutbox>();
     private readonly ClientBrandingRepository _sut;
 
     public ClientBrandingRepositoryTests()
     {
         _dbContext = CreateDbContextForTenant(TenantId.New());
-        _sut = new ClientBrandingRepository(_dbContext);
+        _sut = new ClientBrandingRepository(_dbContext, _outbox);
     }
 
     public void Dispose()
@@ -44,6 +48,7 @@ public sealed class ClientBrandingRepositoryTests : IDisposable
 
         DbContextOptions<BrandingDbContext> options = new DbContextOptionsBuilder<BrandingDbContext>()
             .UseInMemoryDatabase(_databaseName)
+            .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
             .AddInterceptors(tenantInterceptor)
             .Options;
 
@@ -72,6 +77,36 @@ public sealed class ClientBrandingRepositoryTests : IDisposable
         ClientBranding? result = await _sut.GetByClientIdAsync("nonexistent");
 
         result.Should().BeNull();
+    }
+
+    /// <summary>
+    /// The sync read must see the latest committed write even when this scope already tracks the
+    /// row — a tracking query would hand back the tracked (stale) instance via identity
+    /// resolution, which is exactly the freshness hole the display-name sync exists to close.
+    /// </summary>
+    [Fact]
+    public async Task FindDisplayNameAsync_ReadsTheCommittedValue_NotAnAlreadyTrackedInstance()
+    {
+        ClientBranding branding = ClientBranding.Create("client-1", "Old Name");
+        _dbContext.ClientBrandings.Add(branding);
+        await _dbContext.SaveChangesAsync();
+        (await _sut.GetByClientIdAsync("client-1")).Should().NotBeNull(); // now tracked in this scope
+
+        await using BrandingDbContext otherDbContext = CreateDbContextForTenant(TenantId.New());
+        ClientBrandingRepository concurrentWriter = new(otherDbContext, Substitute.For<IDbContextOutbox>());
+        ClientBranding winner = (await concurrentWriter.GetByClientIdAsync("client-1"))!;
+        winner.Update("New Name", null, null, null);
+        await concurrentWriter.SaveChangesAsync();
+
+        string? displayName = await _sut.FindDisplayNameAsync("client-1");
+
+        displayName.Should().Be("New Name");
+    }
+
+    [Fact]
+    public async Task FindDisplayNameAsync_WhenNoRowExists_ReturnsNull()
+    {
+        (await _sut.FindDisplayNameAsync("nonexistent")).Should().BeNull();
     }
 
     [Fact]
@@ -126,7 +161,7 @@ public sealed class ClientBrandingRepositoryTests : IDisposable
     public async Task GetByClientIdAsync_WhenBrandingBelongsToAnotherTenant_ReturnsBranding()
     {
         await using BrandingDbContext otherDbContext = CreateDbContextForTenant(TenantId.New());
-        ClientBrandingRepository otherRepository = new(otherDbContext);
+        ClientBrandingRepository otherRepository = new(otherDbContext, Substitute.For<IDbContextOutbox>());
 
         otherRepository.Add(ClientBranding.Create("cross-tenant-client", "Cross Tenant"));
         await otherRepository.SaveChangesAsync();
@@ -148,7 +183,7 @@ public sealed class ClientBrandingRepositoryTests : IDisposable
         await _dbContext.SaveChangesAsync();
 
         await using BrandingDbContext anonymousDbContext = CreateDbContextForTenant(default);
-        ClientBrandingRepository anonymousRepository = new(anonymousDbContext);
+        ClientBrandingRepository anonymousRepository = new(anonymousDbContext, Substitute.For<IDbContextOutbox>());
 
         ClientBranding? result = await anonymousRepository.GetByClientIdAsync("client-1");
 
@@ -171,7 +206,7 @@ public sealed class ClientBrandingRepositoryTests : IDisposable
             PostgresErrorCodes.UniqueViolation);
         await using BrandingDbContext context = CreateThrowingDbContext(
             new DbUpdateException("An error occurred while saving the entity changes.", violation));
-        ClientBrandingRepository sut = new(context);
+        ClientBrandingRepository sut = new(context, _outbox);
         ClientBranding losing = ClientBranding.Create("client-1", "My App");
         sut.Add(losing);
 
@@ -193,7 +228,7 @@ public sealed class ClientBrandingRepositoryTests : IDisposable
             PostgresErrorCodes.ForeignKeyViolation);
         await using BrandingDbContext context = CreateThrowingDbContext(
             new DbUpdateException("An error occurred while saving the entity changes.", violation));
-        ClientBrandingRepository sut = new(context);
+        ClientBrandingRepository sut = new(context, _outbox);
         ClientBranding branding = ClientBranding.Create("client-1", "My App");
         sut.Add(branding);
 
@@ -218,7 +253,7 @@ public sealed class ClientBrandingRepositoryTests : IDisposable
             PostgresErrorCodes.UniqueViolation);
         await using BrandingDbContext context = CreateThrowingDbContext(
             new DbUpdateException("An error occurred while saving the entity changes.", violation));
-        ClientBrandingRepository sut = new(context);
+        ClientBrandingRepository sut = new(context, _outbox);
 
         Func<Task> act = () => sut.SaveChangesAsync();
 
@@ -248,10 +283,81 @@ public sealed class ClientBrandingRepositoryTests : IDisposable
         _dbContext.Entry(stale).State.Should().Be(EntityState.Detached);
     }
 
+    /// <summary>
+    /// The event's envelope must ride the save's own transaction — enrolled before the write,
+    /// published into the enrolled outbox, and flushed to subscribers only afterwards — so a
+    /// crash between the save and the publish can no longer leave consumers permanently stale.
+    /// </summary>
+    [Fact]
+    public async Task SaveChangesAndPublishAsync_PersistsTheRow_AndPublishesThroughTheEnrolledOutbox()
+    {
+        IIntegrationEvent @event = UpdatedEvent();
+        _sut.Add(ClientBranding.Create("client-1", "My App"));
+
+        await _sut.SaveChangesAndPublishAsync(@event);
+
+        (await _sut.GetByClientIdAsync("client-1")).Should().NotBeNull();
+        Received.InOrder(() =>
+        {
+            _outbox.Enroll(_dbContext);
+            // AsTask() consumes the ValueTask (CA2012); InOrder only records the call.
+            _outbox.PublishAsync(@event).AsTask();
+            _outbox.FlushOutgoingMessagesAsync();
+        });
+    }
+
+    [Fact]
+    public async Task SaveChangesAndPublishAsync_WhenTheInsertLosesTheRace_ThrowsTyped_AndPublishesNothing()
+    {
+        PostgresException violation = new(
+            "duplicate key value violates unique constraint",
+            "ERROR",
+            "ERROR",
+            PostgresErrorCodes.UniqueViolation);
+        await using BrandingDbContext context = CreateThrowingDbContext(
+            new DbUpdateException("An error occurred while saving the entity changes.", violation));
+        ClientBrandingRepository sut = new(context, _outbox);
+        ClientBranding losing = ClientBranding.Create("client-1", "My App");
+        sut.Add(losing);
+
+        Func<Task> act = () => sut.SaveChangesAndPublishAsync(UpdatedEvent());
+
+        DuplicateClientBrandingException thrown =
+            (await act.Should().ThrowAsync<DuplicateClientBrandingException>()).Which;
+        thrown.ClientId.Should().Be("client-1");
+        context.Entry(losing).State.Should().Be(EntityState.Detached);
+        await _outbox.DidNotReceiveWithAnyArgs().PublishAsync(default(IIntegrationEvent)!);
+        await _outbox.DidNotReceive().FlushOutgoingMessagesAsync();
+    }
+
+    [Fact]
+    public async Task SaveChangesAndPublishAsync_WhenTheRowWasDeletedUnderneath_ThrowsTyped_AndPublishesNothing()
+    {
+        ClientBranding stale = ClientBranding.Create("client-1", "My App");
+        _dbContext.ClientBrandings.Attach(stale);
+        _dbContext.Entry(stale).State = EntityState.Modified;
+
+        Func<Task> act = () => _sut.SaveChangesAndPublishAsync(UpdatedEvent());
+
+        await act.Should().ThrowAsync<ClientBrandingConcurrentlyDeletedException>();
+        _dbContext.Entry(stale).State.Should().Be(EntityState.Detached);
+        await _outbox.DidNotReceiveWithAnyArgs().PublishAsync(default(IIntegrationEvent)!);
+        await _outbox.DidNotReceive().FlushOutgoingMessagesAsync();
+    }
+
+    private static ClientBrandingUpdatedEvent UpdatedEvent() => new()
+    {
+        ClientId = "client-1",
+        OrganizationId = Guid.NewGuid(),
+        ActorId = Guid.NewGuid(),
+        DisplayName = "My App",
+    };
+
     private BrandingDbContext CreateThrowingDbContext(Exception exception)
     {
         DbContextOptions<BrandingDbContext> options = new DbContextOptionsBuilder<BrandingDbContext>()
             .UseInMemoryDatabase(_databaseName)
+            .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
             .AddInterceptors(new ThrowingSaveChangesInterceptor(exception))
             .Options;
 

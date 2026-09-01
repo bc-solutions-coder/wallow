@@ -2,8 +2,14 @@
 
 No CQRS (deliberate — see `api/CLAUDE.md`); consumes and publishes integration events through
 Wolverine: `ClientRegisteredEvent` creates the branding row, `ClientDeletedEvent` removes it,
-and every branding write publishes `ClientBrandingUpdatedEvent` (Identity audits it and copies
-the display name onto the OpenIddict application).
+and the org branding endpoints publish `ClientBrandingUpdatedEvent` on every write (Identity
+audits it and syncs the OpenIddict application's display name — as a trigger: the sync pulls the
+CURRENT name via `IClientBrandingProvider`, never the event's payload, so reordering/redelivery
+are harmless). Controller/service writes that publish must go through
+`IClientBrandingRepository.SaveChangesAndPublishAsync` — it rides Wolverine's durable outbox so
+the event commits or rolls back with the rows; a separate save-then-publish reopens the crash
+window that drops the event. (Wolverine handlers don't use it — the transaction middleware
+already supplies their outbox and save.)
 
 - `[FromKeyedServices("BrandingCache")] IMemoryCache` is a bounded cache: always set `Size = 1`
   on entries and call `brandingService.InvalidateCache(clientId)` after every mutation — a new

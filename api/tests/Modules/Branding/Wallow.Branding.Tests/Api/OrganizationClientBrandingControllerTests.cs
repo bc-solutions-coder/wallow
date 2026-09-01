@@ -8,6 +8,7 @@ using Wallow.Branding.Application.DTOs;
 using Wallow.Branding.Application.Exceptions;
 using Wallow.Branding.Application.Interfaces;
 using Wallow.Branding.Domain.Entities;
+using Wallow.Shared.Contracts;
 using Wallow.Shared.Contracts.Branding.Events;
 using Wallow.Shared.Contracts.Identity;
 using Wallow.Shared.Contracts.Storage;
@@ -15,7 +16,6 @@ using Wallow.Shared.Kernel.Configuration;
 using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Wolverine;
 
 namespace Wallow.Branding.Tests.Api;
 
@@ -30,7 +30,6 @@ public sealed class OrganizationClientBrandingControllerTests
     private readonly IStorageProvider _storageProvider = Substitute.For<IStorageProvider>();
     private readonly IOrganizationClientDirectory _directory = Substitute.For<IOrganizationClientDirectory>();
     private readonly ITenantContext _tenantContext = Substitute.For<ITenantContext>();
-    private readonly IMessageBus _messageBus = Substitute.For<IMessageBus>();
     private readonly OrganizationClientBrandingController _sut;
 
     public OrganizationClientBrandingControllerTests()
@@ -45,7 +44,6 @@ public sealed class OrganizationClientBrandingControllerTests
             _storageProvider,
             _directory,
             _tenantContext,
-            _messageBus,
             Options.Create(new ForkBrandingOptions()),
             TimeProvider.System)
         {
@@ -277,15 +275,14 @@ public sealed class OrganizationClientBrandingControllerTests
         existing.DisplayName.Should().Be("New Name");
         existing.Tagline.Should().Be("New tag");
         existing.ThemeJson.Should().Be(theme);
-        await _repository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
         _brandingService.Received(1).InvalidateCache(ClientId);
-        await _messageBus.Received(1).PublishAsync(
+        await _repository.Received(1).SaveChangesAndPublishAsync(
             Arg.Is<ClientBrandingUpdatedEvent>(e =>
                 e.ClientId == ClientId
                 && e.OrganizationId == _orgId
                 && e.ActorId == _userId
                 && e.DisplayName == "New Name"),
-            Arg.Any<DeliveryOptions?>());
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -297,7 +294,8 @@ public sealed class OrganizationClientBrandingControllerTests
 
         _repository.Received(1).UseTenant(TenantId.Create(_orgId));
         _repository.Received(1).Add(Arg.Is<ClientBranding>(b => b.ClientId == ClientId && b.DisplayName == "Acme Portal"));
-        await _repository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+        await _repository.Received(1).SaveChangesAndPublishAsync(
+            Arg.Any<IIntegrationEvent>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -312,7 +310,7 @@ public sealed class OrganizationClientBrandingControllerTests
         ClientBranding winner = ClientBranding.Create(ClientId, "Registered Default");
         _repository.GetByClientIdAsync(ClientId, Arg.Any<CancellationToken>())
             .Returns(null, winner);
-        _repository.SaveChangesAsync(Arg.Any<CancellationToken>())
+        _repository.SaveChangesAndPublishAsync(Arg.Any<IIntegrationEvent>(), Arg.Any<CancellationToken>())
             .Returns(
                 Task.FromException(new DuplicateClientBrandingException(ClientId, new InvalidOperationException())),
                 Task.CompletedTask);
@@ -323,11 +321,12 @@ public sealed class OrganizationClientBrandingControllerTests
         result.Result.Should().BeOfType<OkObjectResult>();
         winner.DisplayName.Should().Be("Chosen Name");
         winner.Tagline.Should().Be("Chosen tag");
-        await _repository.Received(2).SaveChangesAsync(Arg.Any<CancellationToken>());
-        _brandingService.Received(1).InvalidateCache(ClientId);
-        await _messageBus.Received(1).PublishAsync(
+        // The first save rolled back and published nothing (the repository's contract), so the
+        // retry passes the same event again and the winning save is the one that publishes it.
+        await _repository.Received(2).SaveChangesAndPublishAsync(
             Arg.Is<ClientBrandingUpdatedEvent>(e => e.ClientId == ClientId && e.DisplayName == "Chosen Name"),
-            Arg.Any<DeliveryOptions?>());
+            Arg.Any<CancellationToken>());
+        _brandingService.Received(1).InvalidateCache(ClientId);
     }
 
     [Fact]
@@ -335,7 +334,7 @@ public sealed class OrganizationClientBrandingControllerTests
     {
         _repository.GetByClientIdAsync(ClientId, Arg.Any<CancellationToken>())
             .Returns((ClientBranding?)null);
-        _repository.SaveChangesAsync(Arg.Any<CancellationToken>())
+        _repository.SaveChangesAndPublishAsync(Arg.Any<IIntegrationEvent>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new DuplicateClientBrandingException(ClientId, new InvalidOperationException())));
 
         ActionResult<ClientBrandingDto> result = await _sut.UpsertBranding(
@@ -343,8 +342,6 @@ public sealed class OrganizationClientBrandingControllerTests
 
         result.Result.Should().BeOfType<NotFoundResult>();
         _brandingService.DidNotReceive().InvalidateCache(Arg.Any<string>());
-        await _messageBus.DidNotReceive().PublishAsync(
-            Arg.Any<ClientBrandingUpdatedEvent>(), Arg.Any<DeliveryOptions?>());
     }
 
     [Fact]
@@ -352,7 +349,7 @@ public sealed class OrganizationClientBrandingControllerTests
     {
         _repository.GetByClientIdAsync(ClientId, Arg.Any<CancellationToken>())
             .Returns((ClientBranding?)null);
-        _repository.SaveChangesAsync(Arg.Any<CancellationToken>())
+        _repository.SaveChangesAndPublishAsync(Arg.Any<IIntegrationEvent>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new DuplicateClientBrandingException(ClientId, new InvalidOperationException())));
         FormFile logo = FormFile(PngBytes(), "logo.png", "image/png");
 
@@ -372,7 +369,7 @@ public sealed class OrganizationClientBrandingControllerTests
             ClientId, "Registered Default", logoStorageKey: "client-logos/acme-portal/old.png");
         _repository.GetByClientIdAsync(ClientId, Arg.Any<CancellationToken>())
             .Returns(null, winner);
-        _repository.SaveChangesAsync(Arg.Any<CancellationToken>())
+        _repository.SaveChangesAndPublishAsync(Arg.Any<IIntegrationEvent>(), Arg.Any<CancellationToken>())
             .Returns(
                 Task.FromException(new DuplicateClientBrandingException(ClientId, new InvalidOperationException())),
                 Task.CompletedTask);
@@ -397,7 +394,7 @@ public sealed class OrganizationClientBrandingControllerTests
         ClientBranding winner = ClientBranding.Create(ClientId, "Registered Default");
         _repository.GetByClientIdAsync(ClientId, Arg.Any<CancellationToken>())
             .Returns(null, winner);
-        _repository.SaveChangesAsync(Arg.Any<CancellationToken>())
+        _repository.SaveChangesAndPublishAsync(Arg.Any<IIntegrationEvent>(), Arg.Any<CancellationToken>())
             .Returns(
                 Task.FromException(new DuplicateClientBrandingException(ClientId, new InvalidOperationException())),
                 Task.FromException(new ClientBrandingConcurrentlyDeletedException(ClientId, new InvalidOperationException())));
@@ -411,8 +408,7 @@ public sealed class OrganizationClientBrandingControllerTests
             Arg.Is<string>(k => k != "client-logos/acme-portal/old.png"
                 && k.StartsWith("client-logos/acme-portal/", StringComparison.Ordinal)),
             Arg.Any<CancellationToken>());
-        await _messageBus.DidNotReceive().PublishAsync(
-            Arg.Any<ClientBrandingUpdatedEvent>(), Arg.Any<DeliveryOptions?>());
+        _brandingService.DidNotReceive().InvalidateCache(Arg.Any<string>());
     }
 
     [Fact]
@@ -447,9 +443,9 @@ public sealed class OrganizationClientBrandingControllerTests
         existing.LogoStorageKey.Should().BeNull();
         await _storageProvider.Received(1).DeleteAsync("client-logos/acme-portal/logo.png", Arg.Any<CancellationToken>());
         _brandingService.Received(1).InvalidateCache(ClientId);
-        await _messageBus.Received(1).PublishAsync(
+        await _repository.Received(1).SaveChangesAndPublishAsync(
             Arg.Is<ClientBrandingUpdatedEvent>(e => e.ClientId == ClientId && e.DisplayName == "Acme Portal"),
-            Arg.Any<DeliveryOptions?>());
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -462,8 +458,8 @@ public sealed class OrganizationClientBrandingControllerTests
 
         result.Should().BeOfType<NoContentResult>();
         await _storageProvider.DidNotReceive().DeleteAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
-        await _messageBus.DidNotReceive().PublishAsync(
-            Arg.Any<ClientBrandingUpdatedEvent>(), Arg.Any<DeliveryOptions?>());
+        await _repository.DidNotReceive().SaveChangesAndPublishAsync(
+            Arg.Any<IIntegrationEvent>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

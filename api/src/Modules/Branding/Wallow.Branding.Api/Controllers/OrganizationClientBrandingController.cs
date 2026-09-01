@@ -19,7 +19,6 @@ using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Wolverine;
 
 namespace Wallow.Branding.Api.Controllers;
 
@@ -43,7 +42,6 @@ public partial class OrganizationClientBrandingController(
     IStorageProvider storageProvider,
     IOrganizationClientDirectory clientDirectory,
     ITenantContext tenantContext,
-    IMessageBus messageBus,
     IOptions<ForkBrandingOptions> forkBranding,
     TimeProvider timeProvider) : ControllerBase
 {
@@ -186,9 +184,12 @@ public partial class OrganizationClientBrandingController(
             await storageProvider.UploadAsync(stream, logoStorageKey, logo.ContentType, ct);
         }
 
+        // The event commits atomically with the save (Wolverine durable outbox behind the
+        // repository port) — a failed save publishes nothing, so the retry passes it again.
+        ClientBrandingUpdatedEvent updated = UpdatedEvent(clientId, orgId, actorId, displayName);
         try
         {
-            await repository.SaveChangesAsync(ct);
+            await repository.SaveChangesAndPublishAsync(updated, ct);
         }
         catch (DuplicateClientBrandingException)
         {
@@ -204,7 +205,7 @@ public partial class OrganizationClientBrandingController(
             await ApplyRequestAsync(winner);
             try
             {
-                await repository.SaveChangesAsync(ct);
+                await repository.SaveChangesAndPublishAsync(updated, ct);
             }
             catch (ClientBrandingConcurrentlyDeletedException)
             {
@@ -212,8 +213,6 @@ public partial class OrganizationClientBrandingController(
             }
         }
         brandingService.InvalidateCache(clientId);
-
-        await PublishUpdatedAsync(clientId, orgId, actorId, displayName);
 
         ClientBrandingDto? result = await brandingService.GetBrandingAsync(clientId, ct);
         return Ok(result);
@@ -275,10 +274,9 @@ public partial class OrganizationClientBrandingController(
 
         await storageProvider.DeleteAsync(existing.LogoStorageKey, ct);
         existing.ClearLogo(timeProvider);
-        await repository.SaveChangesAsync(ct);
+        await repository.SaveChangesAndPublishAsync(
+            UpdatedEvent(clientId, orgId, actorId, existing.DisplayName), ct);
         brandingService.InvalidateCache(clientId);
-
-        await PublishUpdatedAsync(clientId, orgId, actorId, existing.DisplayName);
 
         return NoContent();
     }
@@ -314,15 +312,15 @@ public partial class OrganizationClientBrandingController(
 
     private Guid ActorId() => Guid.Parse(User.GetUserId()!);
 
-    private async Task PublishUpdatedAsync(string clientId, Guid orgId, Guid actorId, string displayName) =>
-        await messageBus.PublishAsync(new ClientBrandingUpdatedEvent
+    private ClientBrandingUpdatedEvent UpdatedEvent(string clientId, Guid orgId, Guid actorId, string displayName) =>
+        new()
         {
             ClientId = clientId,
             OrganizationId = orgId,
             ActorId = actorId,
             DisplayName = displayName,
             IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
-        });
+        };
 
     private static async Task<string?> ValidateLogoAsync(IFormFile logo)
     {

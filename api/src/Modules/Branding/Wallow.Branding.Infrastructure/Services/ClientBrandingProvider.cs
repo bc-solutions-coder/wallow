@@ -5,10 +5,14 @@ using Wallow.Shared.Contracts.Branding;
 namespace Wallow.Branding.Infrastructure.Services;
 
 /// <summary>
-/// The cross-module face of <see cref="IClientBrandingService"/>: same cached read, narrowed to
-/// the shape <see cref="PublicClientBranding"/> promises consumers outside the module.
+/// The cross-module face of Branding's reads. <see cref="FindAsync"/> is the same cached read as
+/// <see cref="IClientBrandingService"/>, narrowed to the shape <see cref="PublicClientBranding"/>
+/// promises consumers outside the module; <see cref="FindCurrentDisplayNameAsync"/> deliberately
+/// bypasses that cache so synchronization consumers always see the latest committed write.
 /// </summary>
-public sealed class ClientBrandingProvider(IClientBrandingService brandingService) : IClientBrandingProvider
+public sealed class ClientBrandingProvider(
+    IClientBrandingService brandingService,
+    IClientBrandingRepository repository) : IClientBrandingProvider
 {
     public async Task<PublicClientBranding?> FindAsync(string clientId, CancellationToken ct = default)
     {
@@ -22,4 +26,7 @@ public sealed class ClientBrandingProvider(IClientBrandingService brandingServic
                 branding.LogoUrl,
                 branding.ThemeJson);
     }
+
+    public Task<string?> FindCurrentDisplayNameAsync(string clientId, CancellationToken ct = default) =>
+        repository.FindDisplayNameAsync(clientId, ct);
 }

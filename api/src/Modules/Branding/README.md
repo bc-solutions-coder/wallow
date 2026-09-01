@@ -49,8 +49,9 @@ The sole entity in this module. Stores branding configuration for an OAuth clien
 
 There is no anonymous read by client id. The sign-in screens get branding through Identity's
 transaction-scoped `GET /v1/identity/auth/authorize-context`, which reads this module's row via
-the `IClientBrandingProvider` contract in `Shared.Contracts` (same bounded memory cache; no HTTP
-response cache, so an edit shows on the next sign-in).
+the `IClientBrandingProvider` contract in `Shared.Contracts` (its `FindAsync` shares the bounded
+memory cache; the contract's display-name sync read deliberately bypasses it; no HTTP response
+cache, so an edit shows on the next sign-in).
 
 Management (org sub-resource): `/v1/identity/organizations/{orgId}/clients/{clientId}/branding`
 
@@ -76,7 +77,7 @@ Published:
 
 | Event | Consumers |
 |-------|-----------|
-| `ClientBrandingUpdatedEvent` | Identity — writes the `ClientBrandingUpdated` audit row and copies the display name onto the OpenIddict application |
+| `ClientBrandingUpdatedEvent` | Identity — writes the `ClientBrandingUpdated` audit row and syncs the OpenIddict application's display name by re-reading the current branding (the event is a trigger, not a payload) |
 
 ## Dependencies
 

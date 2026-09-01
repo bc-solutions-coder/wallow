@@ -1,15 +1,20 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
 using Wallow.Branding.Application.Exceptions;
 using Wallow.Branding.Application.Interfaces;
 using Wallow.Branding.Domain.Entities;
 using Wallow.Branding.Infrastructure.Persistence;
+using Wallow.Shared.Contracts;
 using Wallow.Shared.Kernel.Identity;
+using Wolverine.EntityFrameworkCore;
 
 namespace Wallow.Branding.Infrastructure.Repositories;
 
-public sealed class ClientBrandingRepository(BrandingDbContext context) : IClientBrandingRepository
+public sealed class ClientBrandingRepository(
+    BrandingDbContext context,
+    IDbContextOutbox outbox) : IClientBrandingRepository
 {
     /// <summary>
     /// Resolves branding by client ID, bypassing tenant query filters (IgnoreQueryFilters).
@@ -25,6 +30,16 @@ public sealed class ClientBrandingRepository(BrandingDbContext context) : IClien
             .AsTracking()
             .IgnoreQueryFilters()
             .FirstOrDefaultAsync(b => b.ClientId == clientId, ct);
+    }
+
+    public Task<string?> FindDisplayNameAsync(string clientId, CancellationToken ct = default)
+    {
+        return context.ClientBrandings
+            .AsNoTracking()
+            .IgnoreQueryFilters()
+            .Where(b => b.ClientId == clientId)
+            .Select(b => (string?)b.DisplayName)
+            .FirstOrDefaultAsync(ct);
     }
 
     public void UseTenant(TenantId tenantId)
@@ -49,11 +64,41 @@ public sealed class ClientBrandingRepository(BrandingDbContext context) : IClien
         context.ClientBrandings.Remove(branding);
     }
 
-    public async Task SaveChangesAsync(CancellationToken ct = default)
+    public Task SaveChangesAsync(CancellationToken ct = default) =>
+        SaveWithTypedExceptionsAsync(() => context.SaveChangesAsync(ct));
+
+    public async Task SaveChangesAndPublishAsync(IIntegrationEvent @event, CancellationToken ct = default)
+    {
+        // Same pattern as Identity's OrganizationService.DeleteOrganizationAsync: the event is
+        // published through the enrolled outbox INSIDE the transaction — its envelope commits or
+        // rolls back with the rows — and only flushed to subscribers after the commit, so a crash
+        // between the save and the publish no longer drops the event. The save comes first: a
+        // rejected write (unique violation, vanished row) must publish nothing, so the caller's
+        // retry can pass the same event again. Redelivery after an ambiguous commit is possible
+        // (the retrying execution strategy reruns the delegate), so consumers stay idempotent.
+        outbox.Enroll(context);
+        await SaveWithTypedExceptionsAsync(async () =>
+        {
+            IExecutionStrategy strategy = context.Database.CreateExecutionStrategy();
+            await strategy.ExecuteAsync(
+                ct,
+                async token =>
+                {
+                    await using IDbContextTransaction transaction =
+                        await context.Database.BeginTransactionAsync(token);
+                    await context.SaveChangesAsync(token);
+                    await outbox.PublishAsync(@event);
+                    await transaction.CommitAsync(token);
+                });
+        });
+        await outbox.FlushOutgoingMessagesAsync();
+    }
+
+    private async Task SaveWithTypedExceptionsAsync(Func<Task> save)
     {
         try
         {
-            await context.SaveChangesAsync(ct);
+            await save();
         }
         catch (DbUpdateConcurrencyException ex) when (ex.Entries.Any(e => e.Entity is ClientBranding))
         {

@@ -3,8 +3,10 @@ namespace Wallow.Shared.Contracts.Branding.Events;
 
 /// <summary>
 /// Published when an organization changes a client's branding — display name, tagline, logo or
-/// theme. Consumers: Identity (auth audit trail, and rewriting the OpenIddict application's
-/// display name so every screen shows the one end-user-facing name).
+/// theme. Consumers: Identity (auth audit trail, and syncing the OpenIddict application's
+/// display name so every screen shows the one end-user-facing name). The event is a trigger,
+/// not a payload: the sync pulls the row's current name through
+/// <see cref="IClientBrandingProvider"/> so redelivery and reordering are harmless.
 /// </summary>
 public sealed record ClientBrandingUpdatedEvent : IntegrationEvent
 {
@@ -14,7 +16,10 @@ public sealed record ClientBrandingUpdatedEvent : IntegrationEvent
     /// <summary>Who changed it.</summary>
     public required Guid ActorId { get; init; }
 
-    /// <summary>The end-user-facing display name after the update.</summary>
+    /// <summary>
+    /// The end-user-facing display name this write set — audit payload only. Synchronization
+    /// consumers must not apply it; an out-of-order delivery would freeze an older value.
+    /// </summary>
     public required string DisplayName { get; init; }
 
     public string? IpAddress { get; init; }

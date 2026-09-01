@@ -65,8 +65,9 @@ module but the record does not.
   repository is a runtime codegen failure, not a compile error. Cross-module work goes through a
   `Shared.Contracts` integration event, never a second repository. Most shared service interfaces
   are safe to inject because they reach no `DbContext` — but not all: `IClientBrandingProvider`
-  reaches Branding's, so a handler may not inject it beside its own module's persistence; today
-  only controller paths consume it.
+  reaches Branding's, so a handler may not inject it beside its own module's persistence.
+  Identity's `ClientBrandingUpdatedHandler` injects it legally only because its other dependency
+  (the OpenIddict manager) is service-located, leaving the chain one visible `DbContext`.
 - **A handler that saves and then dispatches must keep that order.** The transaction middleware
   *adds* a `SaveChangesAsync` postprocessor; it does not remove an explicit save. Do not delete an
   explicit save on the theory that the postprocessor covers it — `SendNotificationHandler` saves
