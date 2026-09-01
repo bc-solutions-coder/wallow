@@ -227,7 +227,8 @@ public sealed class RefreshTokenLifetimeTests(WallowApiFactory factory)
                     null,
                     _clientScopes,
                     RefreshTokenLifetime: refreshTokenLifetime)),
-            ownerId);
+            ownerId,
+            ipAddress: null);
 
         return new Seed(email, registered.Client.ClientId, registered.ClientSecret, userId, organizationId);
     }

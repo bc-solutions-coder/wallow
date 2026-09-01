@@ -9,10 +9,17 @@ namespace Wallow.Identity.Application.Interfaces;
 /// </summary>
 public interface IOrganizationClientService
 {
+    /// <summary>
+    /// Registers the client and publishes <c>ClientRegisteredEvent</c> in the same transaction as
+    /// the writes, so the event — which is what creates the client's branding row — can never be
+    /// lost to a crash after the commit. <paramref name="ipAddress"/> is the caller's address for
+    /// the audit trail, when the surface knows one.
+    /// </summary>
     Task<OrganizationClientRegistrationResult> RegisterAsync(
         Guid organizationId,
         RegisterClientInput input,
         Guid actorUserId,
+        string? ipAddress,
         CancellationToken ct = default);
 
     Task<IReadOnlyList<OrganizationClientDto>> ListAsync(Guid organizationId, CancellationToken ct = default);

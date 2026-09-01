@@ -15,8 +15,10 @@ using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Extensions;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Shared.Contracts.Identity;
+using Wallow.Shared.Contracts.Identity.Events;
 using Wallow.Shared.Kernel.Configuration;
 using Wallow.Shared.Kernel.Domain;
+using Wolverine.EntityFrameworkCore;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace Wallow.Identity.Infrastructure.Services;
@@ -34,6 +36,7 @@ public sealed partial class OrganizationClientService(
     IRegisteredClientRepository registeredClients,
     IAccessRevoker accessRevoker,
     IdentityDbContext dbContext,
+    IDbContextOutbox outbox,
     IOrganizationRepository organizations,
     IApiScopeRepository apiScopes,
     TimeProvider timeProvider,
@@ -47,6 +50,7 @@ public sealed partial class OrganizationClientService(
         Guid organizationId,
         RegisterClientInput input,
         Guid actorUserId,
+        string? ipAddress,
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(input);
@@ -85,6 +89,12 @@ public sealed partial class OrganizationClientService(
         // Both writes land on IdentityDbContext (OpenIddict's store shares it), so one transaction
         // covers them: no application without its record, no record without its application. The
         // execution strategy wraps the transaction because the context retries on transient faults.
+        // The registration event rides the same transaction through the enrolled outbox — its
+        // envelope commits or rolls back with the rows and is only flushed to subscribers after
+        // the commit — so a crash after the commit can no longer drop the event that creates the
+        // client's branding row. Redelivery after an ambiguous commit is possible (the execution
+        // strategy reruns the delegate), so consumers stay idempotent.
+        outbox.Enroll(dbContext);
         IExecutionStrategy strategy = dbContext.Database.CreateExecutionStrategy();
         try
         {
@@ -96,6 +106,19 @@ public sealed partial class OrganizationClientService(
                     await applicationManager.CreateAsync(descriptor, token);
                     registeredClients.Add(record);
                     await registeredClients.SaveChangesAsync(token);
+                    await outbox.PublishAsync(new ClientRegisteredEvent
+                    {
+                        ClientId = clientId,
+                        OrganizationId = organizationId,
+                        ClientName = input.Name,
+                        Kind = input.Kind == RegisteredClientKind.Application
+                            ? OrganizationClientKind.Application
+                            : OrganizationClientKind.ServiceAccount,
+                        ActorId = actorUserId,
+                        BrandingDisplayName = input.BrandingDisplayName,
+                        BrandingTagline = input.BrandingTagline,
+                        IpAddress = ipAddress,
+                    });
                     await transaction.CommitAsync(token);
                 });
         }
@@ -105,6 +128,8 @@ public sealed partial class OrganizationClientService(
             // index on the client id is what actually decides, so answer as the lookup would have.
             throw ClientIdTaken(input.Name, clientId);
         }
+
+        await outbox.FlushOutgoingMessagesAsync();
 
         LogClientRegistered(clientId, organizationId, actorUserId);
 

@@ -12,7 +12,6 @@ using Wallow.Identity.Application.Helpers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Enums;
 using Wallow.Shared.Contracts;
-using Wallow.Shared.Contracts.Identity;
 using Wallow.Shared.Contracts.Identity.Events;
 using Wallow.Shared.Kernel.Configuration;
 using Wallow.Shared.Kernel.Extensions;
@@ -103,25 +102,15 @@ public class OrganizationClientsController(
             return ValidationProblem(ModelState);
         }
 
+        // The service publishes ClientRegisteredEvent through the outbox, in the same transaction
+        // as the registration writes — a post-commit publish here would reopen the crash window
+        // that drops the event and leaves the client without its branding row.
         OrganizationClientRegistrationResult result = await clients.RegisterAsync(
             orgId,
             new RegisterClientInput(kind.Value, request.Name.Trim(), configuration, brandingDisplayName, brandingTagline),
             ActorId(),
+            CallerIpAddress(),
             ct);
-
-        await messageBus.PublishAsync(new ClientRegisteredEvent
-        {
-            ClientId = result.Client.ClientId,
-            OrganizationId = orgId,
-            ClientName = result.Client.Name,
-            Kind = kind.Value == RegisteredClientKind.Application
-                ? OrganizationClientKind.Application
-                : OrganizationClientKind.ServiceAccount,
-            ActorId = ActorId(),
-            BrandingDisplayName = brandingDisplayName,
-            BrandingTagline = brandingTagline,
-            IpAddress = CallerIpAddress(),
-        });
 
         return CreatedAtAction(nameof(GetById), new { orgId, clientId = result.Client.ClientId }, Reveal(result));
     }
