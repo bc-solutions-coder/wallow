@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging.Abstractions;
+using Wallow.Branding.Application.Exceptions;
 using Wallow.Branding.Application.Interfaces;
 using Wallow.Branding.Domain.Entities;
 using Wallow.Branding.Infrastructure.Handlers;
@@ -76,6 +77,25 @@ public sealed class ClientRegisteredHandlerTests
 
         _repository.DidNotReceive().Add(Arg.Any<ClientBranding>());
         await _repository.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>
+    /// The reverse of the controller's race: a concurrent branding PUT inserts the row between
+    /// this handler's existence check and its save. The row exists with values the caller chose
+    /// explicitly — that is the handler's goal state, so it must complete without throwing.
+    /// </summary>
+    [Fact]
+    public async Task HandleAsync_LosingTheRaceToAConcurrentUpsert_TreatsTheRowAsCreated()
+    {
+        _repository.GetByClientIdAsync("acme-portal", Arg.Any<CancellationToken>())
+            .Returns((ClientBranding?)null);
+        _repository.SaveChangesAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new DuplicateClientBrandingException(
+                "acme-portal", new InvalidOperationException())));
+
+        Func<Task> act = () => _sut.HandleAsync(Registered("acme-portal"), CancellationToken.None);
+
+        await act.Should().NotThrowAsync();
     }
 
     private static ClientRegisteredEvent Registered(string clientId) => new()

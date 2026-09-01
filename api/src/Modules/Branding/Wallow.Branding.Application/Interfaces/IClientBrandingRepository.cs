@@ -24,5 +24,14 @@ public interface IClientBrandingRepository
 
     void Add(ClientBranding branding);
     void Remove(ClientBranding branding);
+
+    /// <summary>
+    /// Persists pending changes. When an added row loses a race on the repo-wide client_id unique
+    /// index, throws <see cref="Exceptions.DuplicateClientBrandingException"/> with the losing
+    /// insert detached — re-fetch the winning row and apply the write as an update. When a tracked
+    /// row was deleted underneath the save, throws
+    /// <see cref="Exceptions.ClientBrandingConcurrentlyDeletedException"/> with the stale entries
+    /// detached — answer as if the row never existed.
+    /// </summary>
     Task SaveChangesAsync(CancellationToken ct = default);
 }

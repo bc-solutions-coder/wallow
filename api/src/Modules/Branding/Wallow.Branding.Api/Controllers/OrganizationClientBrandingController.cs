@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using Wallow.Branding.Api.Contracts.Requests;
 using Wallow.Branding.Application.DTOs;
+using Wallow.Branding.Application.Exceptions;
 using Wallow.Branding.Application.Interfaces;
 using Wallow.Branding.Domain.Entities;
 using Wallow.Shared.Contracts.Branding.Events;
@@ -160,17 +161,7 @@ public partial class OrganizationClientBrandingController(
         ClientBranding? existing = await repository.GetByClientIdAsync(clientId, ct);
         if (existing is not null)
         {
-            if (logo is not null && !string.IsNullOrEmpty(existing.LogoStorageKey))
-            {
-                await storageProvider.DeleteAsync(existing.LogoStorageKey, ct);
-            }
-
-            existing.Update(
-                displayName,
-                tagline,
-                logo is not null ? logoStorageKey : existing.LogoStorageKey,
-                themeJson,
-                timeProvider);
+            await ApplyRequestAsync(existing);
         }
         else
         {
@@ -195,13 +186,66 @@ public partial class OrganizationClientBrandingController(
             await storageProvider.UploadAsync(stream, logoStorageKey, logo.ContentType, ct);
         }
 
-        await repository.SaveChangesAsync(ct);
+        try
+        {
+            await repository.SaveChangesAsync(ct);
+        }
+        catch (DuplicateClientBrandingException)
+        {
+            // The registration event's handler inserted the row between the existence check above
+            // and this save. The repository detached the losing insert, so apply this request to
+            // the handler's row — the caller's explicit PUT wins over the registration default.
+            ClientBranding? winner = await repository.GetByClientIdAsync(clientId, ct);
+            if (winner is null)
+            {
+                return await VanishedAsync();
+            }
+
+            await ApplyRequestAsync(winner);
+            try
+            {
+                await repository.SaveChangesAsync(ct);
+            }
+            catch (ClientBrandingConcurrentlyDeletedException)
+            {
+                return await VanishedAsync();
+            }
+        }
         brandingService.InvalidateCache(clientId);
 
         await PublishUpdatedAsync(clientId, orgId, actorId, displayName);
 
         ClientBrandingDto? result = await brandingService.GetBrandingAsync(clientId, ct);
         return Ok(result);
+
+        // Replace the target's stored logo when a new one came with the request, then apply the
+        // request's fields — shared between the fast path and the lost-race retry.
+        async Task ApplyRequestAsync(ClientBranding target)
+        {
+            if (logo is not null && !string.IsNullOrEmpty(target.LogoStorageKey))
+            {
+                await storageProvider.DeleteAsync(target.LogoStorageKey, ct);
+            }
+
+            target.Update(
+                displayName,
+                tagline,
+                logo is not null ? logoStorageKey : target.LogoStorageKey,
+                themeJson,
+                timeProvider);
+        }
+
+        // The client itself was deleted mid-request: answer as the ownership check would have,
+        // without leaving the just-uploaded logo orphaned in storage.
+        async Task<ActionResult<ClientBrandingDto>> VanishedAsync()
+        {
+            if (logoStorageKey is not null)
+            {
+                await storageProvider.DeleteAsync(logoStorageKey, ct);
+            }
+
+            return NotFound();
+        }
     }
 
     /// <summary>Remove the client's logo. The rest of the branding stays.</summary>

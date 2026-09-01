@@ -1,4 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Npgsql;
+using Wallow.Branding.Application.Exceptions;
 using Wallow.Branding.Domain.Entities;
 using Wallow.Branding.Infrastructure.Persistence;
 using Wallow.Branding.Infrastructure.Repositories;
@@ -151,5 +154,118 @@ public sealed class ClientBrandingRepositoryTests : IDisposable
 
         result.Should().NotBeNull();
         result!.DisplayName.Should().Be("My App");
+    }
+
+    /// <summary>
+    /// UpsertBranding's create branch races ClientRegisteredHandler on the client_id unique
+    /// index; when the database rejects the losing insert, the repository must surface the typed
+    /// exception and detach the loser so the caller can re-fetch the winner and update it.
+    /// </summary>
+    [Fact]
+    public async Task SaveChangesAsync_OnAUniqueViolation_ThrowsTyped_AndDetachesTheLosingInsert()
+    {
+        PostgresException violation = new(
+            "duplicate key value violates unique constraint",
+            "ERROR",
+            "ERROR",
+            PostgresErrorCodes.UniqueViolation);
+        await using BrandingDbContext context = CreateThrowingDbContext(
+            new DbUpdateException("An error occurred while saving the entity changes.", violation));
+        ClientBrandingRepository sut = new(context);
+        ClientBranding losing = ClientBranding.Create("client-1", "My App");
+        sut.Add(losing);
+
+        Func<Task> act = () => sut.SaveChangesAsync();
+
+        DuplicateClientBrandingException thrown =
+            (await act.Should().ThrowAsync<DuplicateClientBrandingException>()).Which;
+        thrown.ClientId.Should().Be("client-1");
+        context.Entry(losing).State.Should().Be(EntityState.Detached);
+    }
+
+    [Fact]
+    public async Task SaveChangesAsync_OnAnyOtherSaveFailure_Rethrows_AndKeepsTheEntry()
+    {
+        PostgresException violation = new(
+            "insert or update violates foreign key constraint",
+            "ERROR",
+            "ERROR",
+            PostgresErrorCodes.ForeignKeyViolation);
+        await using BrandingDbContext context = CreateThrowingDbContext(
+            new DbUpdateException("An error occurred while saving the entity changes.", violation));
+        ClientBrandingRepository sut = new(context);
+        ClientBranding branding = ClientBranding.Create("client-1", "My App");
+        sut.Add(branding);
+
+        Func<Task> act = () => sut.SaveChangesAsync();
+
+        await act.Should().ThrowAsync<DbUpdateException>();
+        context.Entry(branding).State.Should().Be(EntityState.Added);
+    }
+
+    /// <summary>
+    /// If a unique violation ever arrives with nothing pending to detach, the typed exception's
+    /// contract ("the losing insert has been detached — retry as an update") would be false, so
+    /// the original failure must propagate instead.
+    /// </summary>
+    [Fact]
+    public async Task SaveChangesAsync_OnAUniqueViolationWithNoPendingInsert_RethrowsTheOriginal()
+    {
+        PostgresException violation = new(
+            "duplicate key value violates unique constraint",
+            "ERROR",
+            "ERROR",
+            PostgresErrorCodes.UniqueViolation);
+        await using BrandingDbContext context = CreateThrowingDbContext(
+            new DbUpdateException("An error occurred while saving the entity changes.", violation));
+        ClientBrandingRepository sut = new(context);
+
+        Func<Task> act = () => sut.SaveChangesAsync();
+
+        await act.Should().ThrowAsync<DbUpdateException>();
+    }
+
+    /// <summary>
+    /// The other half of the double race: a client deletion removes the row while a PUT is
+    /// retrying its write as an update. EF reports the vanished row as a concurrency failure;
+    /// the repository must surface it typed and detach the stale entry so the Api layer never
+    /// has to sniff EF exception types.
+    /// </summary>
+    [Fact]
+    public async Task SaveChangesAsync_WhenTheRowWasDeletedUnderneath_ThrowsTyped_AndDetachesTheStaleEntry()
+    {
+        // Mark a row Modified that was never saved to the store — to the provider this is exactly
+        // an update whose target row a concurrent deletion already removed.
+        ClientBranding stale = ClientBranding.Create("client-1", "My App");
+        _dbContext.ClientBrandings.Attach(stale);
+        _dbContext.Entry(stale).State = EntityState.Modified;
+
+        Func<Task> act = () => _sut.SaveChangesAsync();
+
+        ClientBrandingConcurrentlyDeletedException thrown =
+            (await act.Should().ThrowAsync<ClientBrandingConcurrentlyDeletedException>()).Which;
+        thrown.ClientId.Should().Be("client-1");
+        _dbContext.Entry(stale).State.Should().Be(EntityState.Detached);
+    }
+
+    private BrandingDbContext CreateThrowingDbContext(Exception exception)
+    {
+        DbContextOptions<BrandingDbContext> options = new DbContextOptionsBuilder<BrandingDbContext>()
+            .UseInMemoryDatabase(_databaseName)
+            .AddInterceptors(new ThrowingSaveChangesInterceptor(exception))
+            .Options;
+
+        BrandingDbContext context = new(options);
+        context.SetTenant(TenantId.New());
+        return context;
+    }
+
+    private sealed class ThrowingSaveChangesInterceptor(Exception exception) : SaveChangesInterceptor
+    {
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData,
+            InterceptionResult<int> result,
+            CancellationToken cancellationToken = default)
+            => throw exception;
     }
 }

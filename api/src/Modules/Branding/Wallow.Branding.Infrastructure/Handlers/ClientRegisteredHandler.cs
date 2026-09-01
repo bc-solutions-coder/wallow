@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Wallow.Branding.Application.Exceptions;
 using Wallow.Branding.Application.Interfaces;
 using Wallow.Branding.Domain.Entities;
 using Wallow.Shared.Contracts.Identity;
@@ -44,7 +45,17 @@ public sealed partial class ClientRegisteredHandler(
             message.BrandingTagline,
             timeProvider: timeProvider);
         brandings.Add(branding);
-        await brandings.SaveChangesAsync(ct);
+        try
+        {
+            await brandings.SaveChangesAsync(ct);
+        }
+        catch (DuplicateClientBrandingException)
+        {
+            // A concurrent branding PUT inserted the row between the check above and this save.
+            // The row exists with values the caller chose explicitly — this handler's goal state —
+            // and the repository already detached the losing insert; nothing left to do.
+            return;
+        }
 
         // The anonymous read caches misses too; without this a sign-in hitting the screen before
         // registration finished keeps answering 404 for five minutes.

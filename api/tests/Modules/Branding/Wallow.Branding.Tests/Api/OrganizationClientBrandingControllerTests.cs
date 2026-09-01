@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using Wallow.Branding.Api.Contracts.Requests;
 using Wallow.Branding.Api.Controllers;
 using Wallow.Branding.Application.DTOs;
+using Wallow.Branding.Application.Exceptions;
 using Wallow.Branding.Application.Interfaces;
 using Wallow.Branding.Domain.Entities;
 using Wallow.Shared.Contracts.Branding.Events;
@@ -297,6 +298,121 @@ public sealed class OrganizationClientBrandingControllerTests
         _repository.Received(1).UseTenant(TenantId.Create(_orgId));
         _repository.Received(1).Add(Arg.Is<ClientBranding>(b => b.ClientId == ClientId && b.DisplayName == "Acme Portal"));
         await _repository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>
+    /// A PUT for a brand-new client can pass the existence check while the registration event is
+    /// still in flight, then lose to ClientRegisteredHandler's insert on the client_id unique
+    /// index. The repository surfaces that as DuplicateClientBrandingException with the losing
+    /// insert detached; the controller must apply the request to the handler's row and return 200.
+    /// </summary>
+    [Fact]
+    public async Task UpsertBranding_LosingTheRegistrationRace_RetriesAsAnUpdate()
+    {
+        ClientBranding winner = ClientBranding.Create(ClientId, "Registered Default");
+        _repository.GetByClientIdAsync(ClientId, Arg.Any<CancellationToken>())
+            .Returns(null, winner);
+        _repository.SaveChangesAsync(Arg.Any<CancellationToken>())
+            .Returns(
+                Task.FromException(new DuplicateClientBrandingException(ClientId, new InvalidOperationException())),
+                Task.CompletedTask);
+
+        ActionResult<ClientBrandingDto> result = await _sut.UpsertBranding(
+            _orgId, ClientId, Request(displayName: "Chosen Name", tagline: "Chosen tag"), null, CancellationToken.None);
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        winner.DisplayName.Should().Be("Chosen Name");
+        winner.Tagline.Should().Be("Chosen tag");
+        await _repository.Received(2).SaveChangesAsync(Arg.Any<CancellationToken>());
+        _brandingService.Received(1).InvalidateCache(ClientId);
+        await _messageBus.Received(1).PublishAsync(
+            Arg.Is<ClientBrandingUpdatedEvent>(e => e.ClientId == ClientId && e.DisplayName == "Chosen Name"),
+            Arg.Any<DeliveryOptions?>());
+    }
+
+    [Fact]
+    public async Task UpsertBranding_WhenTheRaceWinnerVanishes_Returns404()
+    {
+        _repository.GetByClientIdAsync(ClientId, Arg.Any<CancellationToken>())
+            .Returns((ClientBranding?)null);
+        _repository.SaveChangesAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new DuplicateClientBrandingException(ClientId, new InvalidOperationException())));
+
+        ActionResult<ClientBrandingDto> result = await _sut.UpsertBranding(
+            _orgId, ClientId, Request(), null, CancellationToken.None);
+
+        result.Result.Should().BeOfType<NotFoundResult>();
+        _brandingService.DidNotReceive().InvalidateCache(Arg.Any<string>());
+        await _messageBus.DidNotReceive().PublishAsync(
+            Arg.Any<ClientBrandingUpdatedEvent>(), Arg.Any<DeliveryOptions?>());
+    }
+
+    [Fact]
+    public async Task UpsertBranding_WhenTheRaceWinnerVanishes_DeletesTheUploadedLogo()
+    {
+        _repository.GetByClientIdAsync(ClientId, Arg.Any<CancellationToken>())
+            .Returns((ClientBranding?)null);
+        _repository.SaveChangesAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new DuplicateClientBrandingException(ClientId, new InvalidOperationException())));
+        FormFile logo = FormFile(PngBytes(), "logo.png", "image/png");
+
+        ActionResult<ClientBrandingDto> result = await _sut.UpsertBranding(
+            _orgId, ClientId, Request(), logo, CancellationToken.None);
+
+        result.Result.Should().BeOfType<NotFoundResult>();
+        await _storageProvider.Received(1).DeleteAsync(
+            Arg.Is<string>(k => k.StartsWith("client-logos/acme-portal/", StringComparison.Ordinal)),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UpsertBranding_LosingTheRegistrationRace_WithANewLogo_ReplacesTheWinnersObject()
+    {
+        ClientBranding winner = ClientBranding.Create(
+            ClientId, "Registered Default", logoStorageKey: "client-logos/acme-portal/old.png");
+        _repository.GetByClientIdAsync(ClientId, Arg.Any<CancellationToken>())
+            .Returns(null, winner);
+        _repository.SaveChangesAsync(Arg.Any<CancellationToken>())
+            .Returns(
+                Task.FromException(new DuplicateClientBrandingException(ClientId, new InvalidOperationException())),
+                Task.CompletedTask);
+        FormFile logo = FormFile(PngBytes(), "logo.png", "image/png");
+
+        ActionResult<ClientBrandingDto> result = await _sut.UpsertBranding(
+            _orgId, ClientId, Request(), logo, CancellationToken.None);
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        await _storageProvider.Received(1).DeleteAsync("client-logos/acme-portal/old.png", Arg.Any<CancellationToken>());
+        winner.LogoStorageKey.Should().StartWith("client-logos/acme-portal/").And.NotBe("client-logos/acme-portal/old.png");
+    }
+
+    /// <summary>
+    /// The double race: the registration event wins the insert, then the client is deleted before
+    /// the retry's save lands. The repository surfaces the vanished row typed; the request must
+    /// end in a 404 with the uploaded logo cleaned up, never a 500.
+    /// </summary>
+    [Fact]
+    public async Task UpsertBranding_WhenTheClientIsDeletedMidRetry_Returns404()
+    {
+        ClientBranding winner = ClientBranding.Create(ClientId, "Registered Default");
+        _repository.GetByClientIdAsync(ClientId, Arg.Any<CancellationToken>())
+            .Returns(null, winner);
+        _repository.SaveChangesAsync(Arg.Any<CancellationToken>())
+            .Returns(
+                Task.FromException(new DuplicateClientBrandingException(ClientId, new InvalidOperationException())),
+                Task.FromException(new ClientBrandingConcurrentlyDeletedException(ClientId, new InvalidOperationException())));
+        FormFile logo = FormFile(PngBytes(), "logo.png", "image/png");
+
+        ActionResult<ClientBrandingDto> result = await _sut.UpsertBranding(
+            _orgId, ClientId, Request(), logo, CancellationToken.None);
+
+        result.Result.Should().BeOfType<NotFoundResult>();
+        await _storageProvider.Received(1).DeleteAsync(
+            Arg.Is<string>(k => k != "client-logos/acme-portal/old.png"
+                && k.StartsWith("client-logos/acme-portal/", StringComparison.Ordinal)),
+            Arg.Any<CancellationToken>());
+        await _messageBus.DidNotReceive().PublishAsync(
+            Arg.Any<ClientBrandingUpdatedEvent>(), Arg.Any<DeliveryOptions?>());
     }
 
     [Fact]
