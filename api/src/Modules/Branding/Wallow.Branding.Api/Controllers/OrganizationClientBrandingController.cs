@@ -80,7 +80,10 @@ public partial class OrganizationClientBrandingController(
 
     /// <summary>
     /// Replace the client's branding: display name, tagline, optional logo upload and the curated
-    /// theme (<c>primary</c> and <c>primaryForeground</c> per <c>light</c>/<c>dark</c> mode). The
+    /// theme (<c>primary</c> and <c>primaryForeground</c> per <c>light</c>/<c>dark</c> mode). A
+    /// half-replace on purpose: an omitted tagline or theme CLEARS the stored value, while an
+    /// omitted logo KEEPS the stored one — a logo is a file upload, and demanding it be resent on
+    /// every save would be hostile (<c>DELETE branding/logo</c> is the way to remove it). The
     /// display name may never read as the platform itself.
     /// </summary>
     [HttpPut]

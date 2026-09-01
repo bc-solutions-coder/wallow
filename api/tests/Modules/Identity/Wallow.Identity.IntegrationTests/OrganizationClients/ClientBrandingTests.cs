@@ -134,6 +134,38 @@ public class ClientBrandingTests(WallowApiFactory factory) : OrganizationClients
         return observed;
     }
 
+    /// <summary>
+    /// The PUT is a half-replace on purpose: the text fields are a full replace (an omitted
+    /// tagline or theme clears the stored value) while an omitted logo keeps the stored one — a
+    /// logo is a file upload, and demanding it be resent on every save would be hostile. Nothing
+    /// but this test pins the asymmetry; a refactor flipping either side must fail here.
+    /// </summary>
+    [Fact]
+    public async Task Put_WithoutTaglineThemeOrLogo_ClearsTheTextFields_ButKeepsTheLogo()
+    {
+        Guid orgId = await OrganizationOwnedBySomeoneElseAsync("Half Replace Org");
+        await ActAsEnrolledAsync(orgId, "manager");
+        (string clientId, _) = await RegisterApplicationAsync(orgId, "Half Replace App");
+
+        HttpResponseMessage first = await PutBrandingAsync(
+            orgId, clientId, "Full Branding", "A tagline to lose", ValidTheme,
+            logo: (PngBytes(), "image/png", "logo.png"));
+        first.StatusCode.Should().Be(HttpStatusCode.OK, await first.Content.ReadAsStringAsync());
+        JsonElement saved = await first.Content.ReadFromJsonAsync<JsonElement>();
+        saved.GetProperty("tagline").GetString().Should().Be("A tagline to lose");
+        saved.GetProperty("themeJson").GetString().Should().Be(ValidTheme);
+
+        HttpResponseMessage second = await PutBrandingAsync(orgId, clientId, "Name Only");
+        second.StatusCode.Should().Be(HttpStatusCode.OK, await second.Content.ReadAsStringAsync());
+
+        JsonElement branding = await second.Content.ReadFromJsonAsync<JsonElement>();
+        branding.GetProperty("displayName").GetString().Should().Be("Name Only");
+        branding.GetProperty("tagline").ValueKind.Should().Be(JsonValueKind.Null);
+        branding.GetProperty("themeJson").ValueKind.Should().Be(JsonValueKind.Null);
+        branding.GetProperty("logoUrl").GetString().Should().NotBeNullOrWhiteSpace(
+            "an omitted logo keeps the stored one");
+    }
+
     [Theory]
     [InlineData("Wallow")]
     [InlineData("  WALLOW  ")]

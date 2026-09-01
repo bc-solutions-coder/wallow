@@ -256,7 +256,10 @@ export const organizationClientBrandingGetBrandingOptions = (options: Options<Or
 
 /**
  * Replace the client's branding: display name, tagline, optional logo upload and the curated
- * theme (`primary` and `primaryForeground` per `light`/`dark` mode). The
+ * theme (`primary` and `primaryForeground` per `light`/`dark` mode). A
+ * half-replace on purpose: an omitted tagline or theme CLEARS the stored value, while an
+ * omitted logo KEEPS the stored one — a logo is a file upload, and demanding it be resent on
+ * every save would be hostile (`DELETE branding/logo` is the way to remove it). The
  * display name may never read as the platform itself.
  */
 export const organizationClientBrandingUpsertBrandingMutation = (options?: Partial<Options<OrganizationClientBrandingUpsertBrandingData>>): UseMutationOptions<OrganizationClientBrandingUpsertBrandingResponse, OrganizationClientBrandingUpsertBrandingError, Options<OrganizationClientBrandingUpsertBrandingData>> => {

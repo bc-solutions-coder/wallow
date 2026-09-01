@@ -712,7 +712,7 @@
         "tags": [
           "Organization Client Branding"
         ],
-        "summary": "Replace the client's branding: display name, tagline, optional logo upload and the curated\ntheme (`primary` and `primaryForeground` per `light`/`dark` mode). The\ndisplay name may never read as the platform itself.",
+        "summary": "Replace the client's branding: display name, tagline, optional logo upload and the curated\ntheme (`primary` and `primaryForeground` per `light`/`dark` mode). A\nhalf-replace on purpose: an omitted tagline or theme CLEARS the stored value, while an\nomitted logo KEEPS the stored one — a logo is a file upload, and demanding it be resent on\nevery save would be hostile (`DELETE branding/logo` is the way to remove it). The\ndisplay name may never read as the platform itself.",
         "operationId": "OrganizationClientBrandingUpsertBranding",
         "parameters": [
           {
