@@ -57,9 +57,10 @@ public sealed partial class LogoutController(
 
         // Phase two skips notification: the iframes already fired on the first pass, and the
         // cookie sign-out below has already stripped the sid from the principal anyway.
-        string? sid = HttpContext.Request.Query.ContainsKey(FrontchannelCompletionMarker)
+        (Guid UserId, string Sid)? session = HttpContext.Request.Query.ContainsKey(FrontchannelCompletionMarker)
             ? null
-            : User.GetSessionId();
+            : await ResolveSessionAsync();
+        string? sid = session?.Sid;
 
         IReadOnlyList<Uri> notificationUris = [];
         if (sid is not null)
@@ -69,13 +70,12 @@ public sealed partial class LogoutController(
         }
 
         // Back-channel first, before any local state changes: the POSTs are server-side and
-        // bounded, and they must run while the participation rows (ForgetAsync below) and the
-        // cookie principal still exist.
-        await NotifyBackchannelAsync(sid);
+        // bounded, and they must run while the participation rows (ForgetAsync below) still exist.
+        await NotifyBackchannelAsync(session);
 
-        // End the session's tokens while the cookie principal still names the user and the sid —
-        // phase two arrives after the cookie sign-out and carries neither, so this runs once.
-        await RevokeSessionTokensAsync(sid);
+        // End the session's tokens before local sign-out — phase two arrives after the cookie
+        // sign-out with the completion marker set, so this runs once per session.
+        await RevokeSessionTokensAsync(session);
 
         // Sign out the Identity cookie and let OpenIddict handle the end-session redirect
         await HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
@@ -153,17 +153,17 @@ public sealed partial class LogoutController(
     public async Task<IActionResult> LogoutPost()
     {
         LogLogoutPostRequest();
-        string? sid = User.GetSessionId();
+        (Guid UserId, string Sid)? session = await ResolveSessionAsync();
 
         // No browser page to host front-channel iframes on a POST, but the back channel needs
         // none: notify server-side, then drop the participation rows the notification used.
-        await NotifyBackchannelAsync(sid);
-        await RevokeSessionTokensAsync(sid);
+        await NotifyBackchannelAsync(session);
+        await RevokeSessionTokensAsync(session);
         await HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
 
-        if (sid is not null)
+        if (session is not null)
         {
-            await ssoClientSessionService.ForgetAsync(sid, HttpContext.RequestAborted);
+            await ssoClientSessionService.ForgetAsync(session.Value.Sid, HttpContext.RequestAborted);
         }
 
         return SignOut(
@@ -171,28 +171,58 @@ public sealed partial class LogoutController(
     }
 
     /// <summary>
+    /// Names the session this logout ends: the authenticated cookie's user and sid when the
+    /// browser still carries one, otherwise the <c>id_token_hint</c>'s. The hint principal is
+    /// only present when OpenIddict's end-session pipeline validated the hint — signature,
+    /// issuer and audience; a hint that fails validation is dropped and this returns null —
+    /// so its <c>sub</c> and <c>sid</c> are as trustworthy as the cookie's. This is what lets
+    /// a logout arriving after the cookie expired still revoke the session's tokens.
+    /// </summary>
+    private async Task<(Guid UserId, string Sid)?> ResolveSessionAsync()
+    {
+        string? cookieSid = User.GetSessionId();
+        if (cookieSid is not null && Guid.TryParse(User.GetUserId(), out Guid cookieUserId))
+        {
+            return (cookieUserId, cookieSid);
+        }
+
+        AuthenticateResult? hint = await HttpContext.AuthenticateAsync(
+            OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+        string? hintSid = hint?.Principal?.GetSessionId();
+        if (hintSid is not null && Guid.TryParse(hint!.Principal!.GetUserId(), out Guid hintUserId))
+        {
+            return (hintUserId, hintSid);
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Revokes every token minted under the session, so a refresh after logout answers
     /// <c>invalid_grant</c> and the old access tokens are refused on their next bearer request.
-    /// A caller with no sid (phase two, or a cookie that predates sids) has nothing to revoke.
+    /// A caller that resolved no session (phase two, or a cookie that predates sids and no
+    /// usable hint) has nothing to revoke.
     /// </summary>
-    private async Task RevokeSessionTokensAsync(string? sid)
+    private async Task RevokeSessionTokensAsync((Guid UserId, string Sid)? session)
     {
-        if (sid is not null && Guid.TryParse(User.GetUserId(), out Guid userId))
+        if (session is not null)
         {
-            await accessRevoker.RevokeSessionAsync(userId, sid, HttpContext.RequestAborted);
+            await accessRevoker.RevokeSessionAsync(
+                session.Value.UserId, session.Value.Sid, HttpContext.RequestAborted);
         }
     }
 
     /// <summary>
     /// POSTs a signed logout token to every participating relying party that registered a
-    /// back-channel logout URI. Best-effort and bounded inside the notifier; a caller with no
-    /// sid (phase two, or a cookie that predates sids) has nobody to notify.
+    /// back-channel logout URI. Best-effort and bounded inside the notifier; a caller that
+    /// resolved no session has nobody to notify.
     /// </summary>
-    private async Task NotifyBackchannelAsync(string? sid)
+    private async Task NotifyBackchannelAsync((Guid UserId, string Sid)? session)
     {
-        if (sid is not null && Guid.TryParse(User.GetUserId(), out Guid userId))
+        if (session is not null)
         {
-            await backchannelLogoutNotifier.NotifyAsync(sid, userId, GetIssuer(), HttpContext.RequestAborted);
+            await backchannelLogoutNotifier.NotifyAsync(
+                session.Value.Sid, session.Value.UserId, GetIssuer(), HttpContext.RequestAborted);
         }
     }
 

@@ -1,8 +1,14 @@
+using System.Globalization;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Shared.Kernel.Domain;
 
 namespace Wallow.Identity.Domain.Entities;
 
+/// <summary>
+/// Ledger row for one interactive SSO sign-in. The row's <see cref="Entity{TId}.Id"/> doubles
+/// as the OIDC <c>sid</c> (its Guid rendered in "N" format) stamped on the identity cookie and
+/// id_tokens — the sessions API and token revocation both key off that equivalence.
+/// </summary>
 public sealed class ActiveSession : Entity<ActiveSessionId>
 {
     public Guid UserId { get; private set; }
@@ -12,6 +18,9 @@ public sealed class ActiveSession : Entity<ActiveSessionId>
     public DateTimeOffset LastActivityAt { get; private set; }
     public DateTimeOffset ExpiresAt { get; private set; }
     public bool IsRevoked { get; private set; }
+
+    /// <summary>The OIDC <c>sid</c> this row answers for — the one rendering of the equivalence.</summary>
+    public string Sid => Id.Value.ToString("N", CultureInfo.InvariantCulture);
 
     // ReSharper disable once UnusedMember.Local
     private ActiveSession() { } // EF Core

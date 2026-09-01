@@ -476,9 +476,14 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<ISsoClientSessionService, SsoClientSessionService>();
 
         // Back-channel logout rides its own HttpClient: the notifier owns its single-retry
-        // policy and per-attempt timeouts, so no shared resilience profile is layered on top.
+        // policy and per-attempt timeouts. The host's ConfigureHttpClientDefaults layers the
+        // standard resilience handler onto every client, and its own 5xx retries would multiply
+        // the notifier's — so strip it here.
         services.Configure<BackchannelLogoutOptions>(configuration.GetSection(BackchannelLogoutOptions.SectionName));
-        services.AddHttpClient<IBackchannelLogoutNotifier, BackchannelLogoutNotifier>();
+#pragma warning disable EXTEXP0001 // RemoveAllResilienceHandlers is experimental; no stable equivalent exists.
+        services.AddHttpClient<IBackchannelLogoutNotifier, BackchannelLogoutNotifier>()
+            .RemoveAllResilienceHandlers();
+#pragma warning restore EXTEXP0001
         services.AddScoped<IPasswordlessService, PasswordlessService>();
         services.AddScoped<IConsentTokenService, ConsentTokenService>();
 

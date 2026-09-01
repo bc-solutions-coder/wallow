@@ -12,6 +12,7 @@ namespace Wallow.Identity.Infrastructure.Services;
 public sealed partial class SessionService(
     IdentityDbContext dbContext,
     IMessageBus messageBus,
+    IAccessRevoker accessRevoker,
     TimeProvider timeProvider,
     ILogger<SessionService> logger) : ISessionService
 {
@@ -36,6 +37,10 @@ public sealed partial class SessionService(
         {
             ActiveSession oldest = activeSessions[0];
             oldest.Revoke();
+
+            // The ledger row id doubles as the OIDC sid (see ActiveSession), so evicting the
+            // row must also kill the tokens minted under that sid.
+            await accessRevoker.RevokeSessionAsync(userId, oldest.Sid, ct);
 
             await messageBus.PublishAsync(new UserSessionEvictedEvent
             {
@@ -65,6 +70,10 @@ public sealed partial class SessionService(
             ?? throw new InvalidOperationException($"Session {sessionId} not found for user {userId}.");
 
         session.Revoke();
+
+        // Tokens first, ledger second — same fail-closed order as eviction: if the save fails
+        // the row still looks active, but the tokens under its sid are already dead.
+        await accessRevoker.RevokeSessionAsync(userId, session.Sid, ct);
 
         await dbContext.SaveChangesAsync(ct);
 

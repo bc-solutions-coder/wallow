@@ -1,6 +1,5 @@
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.Security.Claims;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
@@ -41,6 +40,7 @@ public sealed partial class AuthorizationController(
     ISsoClientSessionService ssoClientSessionService,
     IConsentTokenService consentTokenService,
     IClientAccessPolicy clientAccessPolicy,
+    ISessionService sessionService,
     ILogger<AuthorizationController> logger) : Controller
 {
     /// <summary>
@@ -319,7 +319,7 @@ public sealed partial class AuthorizationController(
         // The sid ties every RP that completes authorize to one SSO session, so logout can
         // tell each of them which session ended. It has to exist before the id_token that
         // carries it is built.
-        string sid = await EnsureSessionIdAsync();
+        string sid = await EnsureSessionIdAsync(userId, tenantInfo);
         if (clientId is not null)
         {
             await ssoClientSessionService.RecordAsync(
@@ -465,29 +465,52 @@ public sealed partial class AuthorizationController(
 
     /// <summary>
     /// Returns the SSO session identifier from the caller's identity cookie, minting one and
-    /// re-issuing the cookie when a session predates front-channel logout and carries none.
-    /// The sid deliberately lives on the cookie rather than per-request state: it must stay
-    /// identical across every authorize the session performs, or logout notifications would
-    /// name a session no RP ever recorded.
+    /// re-issuing the cookie when the session has none — a fresh sign-in, a session predating
+    /// front-channel logout, or a sid whose <see cref="ActiveSession"/> ledger row was revoked
+    /// (session DELETE, eviction). The ledger check is what makes revocation stick: without it
+    /// a still-valid cookie would keep minting tokens under the revoked sid, invisible to the
+    /// sessions API. Minting writes a ledger row whose id doubles as the sid, so the sessions
+    /// API lists real sign-ins and revoking a row revokes that sign-in's tokens. The sid
+    /// deliberately lives on the cookie rather than per-request state: it must stay identical
+    /// across every authorize the session performs, or logout notifications would name a
+    /// session no RP ever recorded.
     /// </summary>
-    private async Task<string> EnsureSessionIdAsync()
+    private async Task<string> EnsureSessionIdAsync(string userId, ClientTenantInfo? tenantInfo)
     {
-        string? sid = User.GetSessionId();
-        if (sid is not null)
+        Guid userGuid = Guid.Parse(userId);
+        string? cookieSid = User.GetSessionId();
+        if (cookieSid is not null && await SessionIsLiveAsync(userGuid, cookieSid))
         {
-            return sid;
+            return cookieSid;
         }
 
-        sid = Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
+        ActiveSession session = await sessionService.CreateSessionAsync(
+            userGuid, tenantInfo?.TenantId ?? Guid.Empty, HttpContext.RequestAborted);
+        string sid = session.Sid;
 
         AuthenticateResult cookie = await HttpContext.AuthenticateAsync(IdentityConstants.ApplicationScheme);
         if (cookie.Succeeded && cookie.Principal.Identity is ClaimsIdentity cookieIdentity)
         {
+            // Replace rather than stack: a cookie whose session was revoked still carries the
+            // dead sid, and a second sid claim would make GetSessionId() ambiguous.
+            foreach (Claim stale in cookieIdentity.Claims
+                .Where(c => c.Type == ClaimsPrincipalExtensions.SessionIdClaimType).ToList())
+            {
+                cookieIdentity.RemoveClaim(stale);
+            }
+
             cookieIdentity.AddClaim(new Claim(ClaimsPrincipalExtensions.SessionIdClaimType, sid));
             await HttpContext.SignInAsync(IdentityConstants.ApplicationScheme, cookie.Principal, cookie.Properties);
         }
 
         return sid;
+    }
+
+    private async Task<bool> SessionIsLiveAsync(Guid userId, string sid)
+    {
+        List<ActiveSession> live = await sessionService.GetActiveSessionsAsync(
+            userId, HttpContext.RequestAborted);
+        return live.Exists(s => string.Equals(s.Sid, sid, StringComparison.Ordinal));
     }
 
     private async Task<ClaimsIdentity> BuildClaimsIdentityAsync(

@@ -1,7 +1,9 @@
+using System.Globalization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
+using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Identity.Infrastructure.Services;
@@ -14,6 +16,7 @@ public sealed class SessionServiceTests : IDisposable
 {
     private readonly IdentityDbContext _dbContext;
     private readonly IMessageBus _messageBus;
+    private readonly IAccessRevoker _accessRevoker;
     private readonly FakeTimeProvider _timeProvider;
     private readonly SessionService _sut;
 
@@ -26,11 +29,13 @@ public sealed class SessionServiceTests : IDisposable
         _dbContext = new IdentityDbContext(options, dp);
 
         _messageBus = Substitute.For<IMessageBus>();
+        _accessRevoker = Substitute.For<IAccessRevoker>();
         _timeProvider = new FakeTimeProvider(DateTimeOffset.UtcNow);
 
         _sut = new SessionService(
             _dbContext,
             _messageBus,
+            _accessRevoker,
             _timeProvider,
             NullLogger<SessionService>.Instance);
     }
@@ -77,6 +82,43 @@ public sealed class SessionServiceTests : IDisposable
 
         session.Should().NotBeNull();
         await _messageBus.DidNotReceive().PublishAsync(Arg.Any<UserSessionEvictedEvent>());
+    }
+
+    [Fact]
+    public async Task CreateSession_BelowMaxSessions_RevokesNoTokens()
+    {
+        Guid userId = Guid.NewGuid();
+        Guid tenantId = Guid.NewGuid();
+
+        for (int i = 0; i < 5; i++)
+        {
+            await _sut.CreateSessionAsync(userId, tenantId, CancellationToken.None);
+        }
+
+        await _accessRevoker.DidNotReceive().RevokeSessionAsync(
+            Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CreateSession_Eviction_RevokesTheEvictedSessionsTokens()
+    {
+        Guid userId = Guid.NewGuid();
+        Guid tenantId = Guid.NewGuid();
+
+        ActiveSession oldest = await _sut.CreateSessionAsync(userId, tenantId, CancellationToken.None);
+        for (int i = 0; i < 4; i++)
+        {
+            _timeProvider.Advance(TimeSpan.FromMinutes(1));
+            await _sut.CreateSessionAsync(userId, tenantId, CancellationToken.None);
+        }
+        _timeProvider.Advance(TimeSpan.FromMinutes(1));
+
+        await _sut.CreateSessionAsync(userId, tenantId, CancellationToken.None);
+
+        await _accessRevoker.Received(1).RevokeSessionAsync(
+            userId,
+            oldest.Id.Value.ToString("N", CultureInfo.InvariantCulture),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -141,6 +183,22 @@ public sealed class SessionServiceTests : IDisposable
             .FirstOrDefaultAsync(s => s.Id == session.Id);
         revoked.Should().NotBeNull();
         revoked!.IsRevoked.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task RevokeSession_RevokesTheSessionsTokens()
+    {
+        Guid userId = Guid.NewGuid();
+        Guid tenantId = Guid.NewGuid();
+
+        ActiveSession session = await _sut.CreateSessionAsync(userId, tenantId, CancellationToken.None);
+
+        await _sut.RevokeSessionAsync(session.Id.Value, userId, CancellationToken.None);
+
+        await _accessRevoker.Received(1).RevokeSessionAsync(
+            userId,
+            session.Id.Value.ToString("N", CultureInfo.InvariantCulture),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]

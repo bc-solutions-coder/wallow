@@ -338,6 +338,7 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
         descriptor.RedirectUris.Add(new Uri(redirectUri));
         descriptor.Permissions.Add(OpenIddictConstants.Permissions.Endpoints.Authorization);
         descriptor.Permissions.Add(OpenIddictConstants.Permissions.Endpoints.Token);
+        descriptor.Permissions.Add(OpenIddictConstants.Permissions.Endpoints.EndSession);
         descriptor.Permissions.Add(OpenIddictConstants.Permissions.GrantTypes.AuthorizationCode);
         descriptor.Permissions.Add(OpenIddictConstants.Permissions.GrantTypes.RefreshToken);
         descriptor.Permissions.Add(OpenIddictConstants.Permissions.ResponseTypes.Code);
@@ -469,6 +470,7 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
             response.StatusCode,
             ReadString(document.RootElement, "access_token"),
             ReadString(document.RootElement, "refresh_token"),
+            ReadString(document.RootElement, "id_token"),
             ReadString(document.RootElement, "scope"),
             ReadString(document.RootElement, "error"),
             body);
@@ -520,6 +522,7 @@ public sealed record TokenOutcome(
     HttpStatusCode StatusCode,
     string? AccessToken,
     string? RefreshToken,
+    string? IdToken,
     string? Scope,
     string? Error,
     string Body)
@@ -529,4 +532,10 @@ public sealed record TokenOutcome(
         ?? throw new InvalidOperationException(string.Create(
             CultureInfo.InvariantCulture,
             $"The token endpoint issued no access token ({(int)StatusCode}): {Body}"));
+
+    /// <summary>The id_token, or a failure naming what the endpoint said instead.</summary>
+    public string RequireIdToken() => IdToken
+        ?? throw new InvalidOperationException(string.Create(
+            CultureInfo.InvariantCulture,
+            $"The token endpoint issued no id_token ({(int)StatusCode}): {Body}"));
 }

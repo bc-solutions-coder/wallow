@@ -46,6 +46,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     private readonly ISsoClientSessionService _ssoClientSessionService;
     private readonly IAuthenticationService _authenticationService;
     private readonly IConsentTokenService _consentTokens;
+    private readonly ISessionService _sessionService = SessionServiceStub.Create();
     private readonly AuthorizationController _controller;
 
     /// <summary>The token the consent tests post back; what it redeems as is per test.</summary>
@@ -101,6 +102,7 @@ public sealed class AuthorizationControllerTests : IDisposable
             _ssoClientSessionService,
             _consentTokens,
             Substitute.For<IClientAccessPolicy>(),
+            _sessionService,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<AuthorizationController>.Instance);
     }
 
@@ -998,13 +1000,15 @@ public sealed class AuthorizationControllerTests : IDisposable
     }
 
     [Fact]
-    public async Task Authorize_CookieWithSid_ReusesItWithoutReissuingCookie()
+    public async Task Authorize_CookieWithLiveSid_ReusesItWithoutReissuingCookie()
     {
         // Arrange - the sid identifies the SSO session for its whole lifetime; a second
-        // authorize (another RP joining the session) must reuse it, not rotate it.
+        // authorize (another RP joining the session) must reuse it, not rotate it — as long
+        // as its ledger row is still live.
         OpenIddictRequest request = new() { ClientId = FirstPartyClientId, Scope = "openid" };
 
-        SetupAuthenticatedHttpContext(request, existingSid: "sid-already-minted");
+        ActiveSession session = ArrangeLiveSession();
+        SetupAuthenticatedHttpContext(request, existingSid: session.Sid);
         SetupUser();
         SetupApplication(FirstPartyClientId, consentType: ConsentTypes.Implicit);
         SetupClientTenantResolver(FirstPartyClientId);
@@ -1015,12 +1019,43 @@ public sealed class AuthorizationControllerTests : IDisposable
         // Assert
         Microsoft.AspNetCore.Mvc.SignInResult signIn =
             result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>().Subject;
-        signIn.Principal.GetSessionId().Should().Be("sid-already-minted");
+        signIn.Principal.GetSessionId().Should().Be(session.Sid);
 
         await _authenticationService.DidNotReceive().SignInAsync(
             Arg.Any<HttpContext>(),
             Arg.Any<string?>(),
             Arg.Any<ClaimsPrincipal>(),
+            Arg.Any<AuthenticationProperties>());
+    }
+
+    [Fact]
+    public async Task Authorize_CookieWithRevokedSid_MintsAFreshSessionAndReissuesCookie()
+    {
+        // Arrange - the cookie outlived its session: the ledger row behind its sid was revoked
+        // (session DELETE, eviction), so authorize must not keep minting tokens under the dead
+        // sid. The stub's ledger is empty — exactly what the liveness check sees then.
+        OpenIddictRequest request = new() { ClientId = FirstPartyClientId, Scope = "openid" };
+        string deadSid = Guid.NewGuid().ToString("N");
+
+        SetupAuthenticatedHttpContext(request, existingSid: deadSid);
+        SetupUser();
+        SetupApplication(FirstPartyClientId, consentType: ConsentTypes.Implicit);
+        SetupClientTenantResolver(FirstPartyClientId);
+
+        // Act
+        IActionResult result = await _controller.Authorize();
+
+        // Assert - a fresh sid, and the re-issued cookie carries only the fresh one.
+        Microsoft.AspNetCore.Mvc.SignInResult signIn =
+            result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>().Subject;
+        string? sid = signIn.Principal.GetSessionId();
+        sid.Should().NotBeNullOrEmpty();
+        sid.Should().NotBe(deadSid);
+
+        await _authenticationService.Received(1).SignInAsync(
+            Arg.Any<HttpContext>(),
+            IdentityConstants.ApplicationScheme,
+            Arg.Is<ClaimsPrincipal>(p => p.GetSessionId() == sid),
             Arg.Any<AuthenticationProperties>());
     }
 
@@ -1031,7 +1066,8 @@ public sealed class AuthorizationControllerTests : IDisposable
         // successful authorize records (sid, client) participation.
         OpenIddictRequest request = new() { ClientId = FirstPartyClientId, Scope = "openid" };
 
-        SetupAuthenticatedHttpContext(request, existingSid: "sid-already-minted");
+        ActiveSession session = ArrangeLiveSession();
+        SetupAuthenticatedHttpContext(request, existingSid: session.Sid);
         SetupUser();
         SetupApplication(FirstPartyClientId, consentType: ConsentTypes.Implicit);
         SetupClientTenantResolver(FirstPartyClientId);
@@ -1041,10 +1077,21 @@ public sealed class AuthorizationControllerTests : IDisposable
 
         // Assert
         await _ssoClientSessionService.Received(1).RecordAsync(
-            "sid-already-minted",
+            session.Sid,
             FirstPartyClientId,
             Guid.Parse(_testUserId),
             Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>A live ledger row for the test user, so its sid survives the liveness check.</summary>
+    private ActiveSession ArrangeLiveSession()
+    {
+        ActiveSession session = ActiveSession.Create(
+            Guid.Parse(_testUserId), Guid.Empty, TimeSpan.FromHours(24), TimeProvider.System);
+        _sessionService
+            .GetActiveSessionsAsync(Guid.Parse(_testUserId), Arg.Any<CancellationToken>())
+            .Returns([session]);
+        return session;
     }
 
     [Fact]

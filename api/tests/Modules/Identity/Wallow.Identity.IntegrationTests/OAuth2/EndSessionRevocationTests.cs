@@ -98,6 +98,86 @@ public sealed class EndSessionRevocationTests(WallowApiFactory factory)
         bearerCall.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
+    [Fact]
+    public async Task Logout_WithOnlyAnIdTokenHint_KillsTheSessionsTokens()
+    {
+        Seed seed = await SeedAsync();
+        using AuthorizationCodeFlowHarness harness = await SignedInAsync(seed);
+        TokenOutcome tokens = await ConsentedTokensAsync(harness, seed);
+
+        // A cookie-less browser: the auth-host session cookie expired or was cleared before the
+        // relying party sent the user to end-session with the id_token it still holds. The hint
+        // is the only thing naming the session, and it must be enough to revoke its tokens.
+        // Https, because hint validation derives the expected issuer from the request when no
+        // explicit issuer is configured — over http the hint's https iss would never match.
+        using HttpClient anonymous = Factory.CreateClient(
+            new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        using HttpResponseMessage logout = await anonymous.GetAsync(new Uri(
+            $"/connect/logout?id_token_hint={Uri.EscapeDataString(tokens.RequireIdToken())}&client_id={seed.ClientId}",
+            UriKind.Relative));
+        logout.StatusCode.Should().Be(HttpStatusCode.OK, await logout.Content.ReadAsStringAsync());
+
+        TokenOutcome refreshed = await harness.RefreshAsync(
+            seed.ClientId, ClientSecret, tokens.RefreshToken!);
+        refreshed.StatusCode.Should().Be(HttpStatusCode.BadRequest, refreshed.Body);
+        refreshed.Error.Should().Be("invalid_grant");
+
+        HttpResponseMessage bearerCall = await BearerCallAsync(tokens.RequireAccessToken());
+        bearerCall.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Logout_WithAHintIssuedToAnotherClient_RevokesNothing()
+    {
+        Seed seed = await SeedAsync();
+        string otherClientId = $"end-session-other-{Guid.NewGuid().ToString("N")}";
+        await AuthorizationCodeFlowHarness.RegisterClientAsync(
+            ScopedServices, otherClientId, ClientSecret, seed.OrganizationId, _clientScopes);
+
+        using AuthorizationCodeFlowHarness harness = await SignedInAsync(seed);
+        TokenOutcome tokens = await ConsentedTokensAsync(harness, seed);
+
+        // A hint is only as good as the client presenting it: a different registered client
+        // replaying someone else's id_token fails the audience check, so the session lives on.
+        using HttpClient anonymous = Factory.CreateClient(
+            new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        using HttpResponseMessage logout = await anonymous.GetAsync(new Uri(
+            $"/connect/logout?id_token_hint={Uri.EscapeDataString(tokens.RequireIdToken())}&client_id={otherClientId}",
+            UriKind.Relative));
+
+        TokenOutcome refreshed = await harness.RefreshAsync(
+            seed.ClientId, ClientSecret, tokens.RefreshToken!);
+        refreshed.StatusCode.Should().Be(HttpStatusCode.OK, refreshed.Body);
+
+        HttpResponseMessage bearerCall = await BearerCallAsync(refreshed.RequireAccessToken());
+        bearerCall.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Logout_WithATamperedIdTokenHint_RevokesNothing()
+    {
+        Seed seed = await SeedAsync();
+        using AuthorizationCodeFlowHarness harness = await SignedInAsync(seed);
+        TokenOutcome tokens = await ConsentedTokensAsync(harness, seed);
+
+        // A forged hint must never reach the revocation path: OpenIddict drops a hint whose
+        // signature does not verify, so the session stays alive. Https like the honest-hint
+        // test, so the only difference from the passing case is the broken signature.
+        string tampered = string.Concat(tokens.RequireIdToken()[..^4], "AAAA");
+        using HttpClient anonymous = Factory.CreateClient(
+            new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        using HttpResponseMessage logout = await anonymous.GetAsync(new Uri(
+            $"/connect/logout?id_token_hint={Uri.EscapeDataString(tampered)}&client_id={seed.ClientId}",
+            UriKind.Relative));
+
+        TokenOutcome refreshed = await harness.RefreshAsync(
+            seed.ClientId, ClientSecret, tokens.RefreshToken!);
+        refreshed.StatusCode.Should().Be(HttpStatusCode.OK, refreshed.Body);
+
+        HttpResponseMessage bearerCall = await BearerCallAsync(refreshed.RequireAccessToken());
+        bearerCall.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
     /// <summary>Ends the session the way a browser does: a GET to the end-session endpoint.</summary>
     private static async Task LogoutAsync(AuthorizationCodeFlowHarness harness)
     {
