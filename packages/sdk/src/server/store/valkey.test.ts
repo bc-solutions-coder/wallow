@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { type BffSession } from "../session";
 import { type RedisLike, type SessionStore } from "./types";
@@ -358,5 +358,115 @@ describe("ValkeySessionStore revocation", () => {
     expect(redis.raw(SESSION_KEY)).toBeUndefined();
     expect(redis.raw(SID_KEY)).toBeUndefined();
     expect(await redis.smembers(SUB_KEY)).toEqual([]);
+  });
+});
+
+/**
+ * The namespace claim behind the multi-BFF misconfiguration warning (#159):
+ * two BFFs sharing one Valkey and one key prefix silently read each other's
+ * sessions, so the first booter stamps the prefix with its identity and later
+ * claimers with a DIFFERENT identity get that identity back to warn about.
+ */
+describe("ValkeySessionStore.claimNamespace", () => {
+  const OWNER: string = "https://auth.example.com wallow-web";
+  const OTHER_OWNER: string = "https://auth.example.com bff-example";
+
+  it("first claim stamps the prefix and reports no conflict", async () => {
+    const redis: FakeRedis = new FakeRedis();
+    const store: ValkeySessionStore = new ValkeySessionStore({
+      client: redis,
+      password: PASSWORD,
+    });
+
+    expect(await store.claimNamespace(OWNER)).toBeNull();
+    expect(redis.raw("wallow:owner")).toBe(OWNER);
+  });
+
+  it("re-claiming with the same identity stays quiet and refreshes the marker's TTL", async () => {
+    const redis: FakeRedis = new FakeRedis();
+    const store: ValkeySessionStore = new ValkeySessionStore({
+      client: redis,
+      password: PASSWORD,
+      ttlSeconds: 60,
+    });
+    await store.claimNamespace(OWNER);
+    redis.now = 50_000;
+
+    expect(await store.claimNamespace(OWNER)).toBeNull();
+
+    // A marker refreshed at t=50s under a 60s TTL is still alive at t=100s.
+    redis.now = 100_000;
+    expect(await redis.get("wallow:owner")).toBe(OWNER);
+  });
+
+  it("a different identity gets the standing owner back and does not overwrite it", async () => {
+    const redis: FakeRedis = new FakeRedis();
+    const store: ValkeySessionStore = new ValkeySessionStore({
+      client: redis,
+      password: PASSWORD,
+    });
+    await store.claimNamespace(OWNER);
+
+    expect(await store.claimNamespace(OTHER_OWNER)).toBe(OWNER);
+    expect(redis.raw("wallow:owner")).toBe(OWNER);
+  });
+
+  it("claims under the configured key prefix, so distinct prefixes never conflict", async () => {
+    const redis: FakeRedis = new FakeRedis();
+    const web: ValkeySessionStore = new ValkeySessionStore({
+      client: redis,
+      password: PASSWORD,
+      keyPrefix: "wallow:web",
+    });
+    const example: ValkeySessionStore = new ValkeySessionStore({
+      client: redis,
+      password: PASSWORD,
+      keyPrefix: "wallow:example",
+    });
+
+    expect(await web.claimNamespace(OWNER)).toBeNull();
+    expect(await example.claimNamespace(OTHER_OWNER)).toBeNull();
+    expect(redis.raw("wallow:web:owner")).toBe(OWNER);
+    expect(redis.raw("wallow:example:owner")).toBe(OTHER_OWNER);
+  });
+
+  it("an expired marker can be claimed by a new identity", async () => {
+    const redis: FakeRedis = new FakeRedis();
+    const store: ValkeySessionStore = new ValkeySessionStore({
+      client: redis,
+      password: PASSWORD,
+      ttlSeconds: 60,
+    });
+    await store.claimNamespace(OWNER);
+    redis.now = 61_000;
+
+    expect(await store.claimNamespace(OTHER_OWNER)).toBeNull();
+    expect(redis.raw("wallow:owner")).toBe(OTHER_OWNER);
+  });
+
+  it("losing the expiry race to a rival claimant reports the rival, not ownership", async () => {
+    // Script the exact interleaving: our SET NX loses, the marker has expired
+    // by the time we GET (null), and the rival wins the re-contended SET NX.
+    // An unconditional write here would let BOTH claimants conclude the
+    // namespace is theirs and neither would warn.
+    const replies: Array<"OK" | null> = [null, null];
+    const client: RedisLike = {
+      get: vi
+        .fn<(key: string) => Promise<string | null>>()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue(OTHER_OWNER),
+      set: (): Promise<"OK" | null> => Promise.resolve(replies.shift() ?? null),
+      del: () => Promise.resolve(0),
+      sadd: () => Promise.resolve(0),
+      srem: () => Promise.resolve(0),
+      smembers: () => Promise.resolve([]),
+      expire: () => Promise.resolve(),
+    };
+    const store: ValkeySessionStore = new ValkeySessionStore({
+      client,
+      password: PASSWORD,
+    });
+
+    expect(await store.claimNamespace(OWNER)).toBe(OTHER_OWNER);
   });
 });

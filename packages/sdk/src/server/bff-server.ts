@@ -23,7 +23,7 @@ import { CookieSessionStore } from "./store/cookie";
 import { createRedisAdapter, type NodeRedisClient } from "./store/redis-adapter";
 import { createRedisFromUrl } from "./store/redis-url";
 import { type SessionStore } from "./store/types";
-import { ValkeySessionStore } from "./store/valkey";
+import { DEFAULT_KEY_PREFIX, ValkeySessionStore } from "./store/valkey";
 
 /** Mount point of the reverse `/api` proxy: everything below it is forwarded. */
 export const WALLOW_API_MOUNT: string = "/api";
@@ -68,10 +68,13 @@ export interface WallowBffServerOptions {
    */
   trustedProxies?: string;
   /**
-   * Receives boot-time misconfiguration warnings — today exactly one: the
+   * Receives boot-time misconfiguration warnings — today exactly two: the
    * issuer advertises OIDC back-channel logout but the selected store defines
    * neither `revokeBySid` nor `revokeBySubject`, so logout tokens would be
-   * accepted and revoke nothing. Defaults to `console.warn`.
+   * accepted and revoke nothing; and the store's key namespace is already
+   * claimed by a DIFFERENT BFF identity, so two BFFs would read each other's
+   * sessions (set `BFF_APP_ID` per BFF to separate them). Defaults to
+   * `console.warn`.
    */
   onWarning?: (message: string) => void;
 }
@@ -122,11 +125,19 @@ function selectStore(
     return options.store;
   }
 
+  // `appId` namespaces the shared Valkey: session records AND the sid/sub
+  // indexes move under `wallow:<appId>`, so co-tenant BFFs stop resolving each
+  // other's sessions and a back-channel logout for one RP cannot tear down
+  // another's. Unset means the store's own default prefix.
+  const keyPrefix: string | undefined =
+    config.appId === undefined ? undefined : `${DEFAULT_KEY_PREFIX}:${config.appId}`;
+
   if (options.redisClient !== undefined) {
     return new ValkeySessionStore({
       client: createRedisAdapter(options.redisClient),
       password: config.cookiePasswords ?? config.cookiePassword,
       ttlSeconds: config.sessionTtlSeconds,
+      keyPrefix,
     });
   }
 
@@ -136,6 +147,7 @@ function selectStore(
       client: createRedisFromUrl(redisUrl, { onError: options.onRedisError }),
       password: config.cookiePasswords ?? config.cookiePassword,
       ttlSeconds: config.sessionTtlSeconds,
+      keyPrefix,
     });
   }
 
@@ -177,6 +189,39 @@ function warnWhenBackchannelUnsupported(
 }
 
 /**
+ * Fire-and-forget boot probe: stamp the store's key namespace with this BFF's
+ * identity and warn when a DIFFERENT identity already holds it — two BFFs
+ * writing one namespace read each other's sessions and tear down each other's
+ * logins on back-channel logout. A failed claim is swallowed: the store may
+ * simply not be up yet, and an unreachable store surfaces on the first real
+ * request anyway.
+ */
+function warnWhenNamespaceShared(
+  config: BffConfig,
+  store: SessionStore,
+  onWarning: (message: string) => void,
+): void {
+  if (store.claimNamespace === undefined) {
+    return;
+  }
+  void store
+    .claimNamespace(`${config.issuer} ${config.clientId}`)
+    .then((holder: string | null): void => {
+      if (holder !== null) {
+        onWarning(
+          `The session-store namespace is already claimed by a different BFF (${holder}). ` +
+            "Two BFFs sharing one namespace read each other's sessions, and a back-channel " +
+            "logout for one tears down the other's. Give each BFF its own BFF_APP_ID (or a " +
+            "distinct ValkeySessionStore keyPrefix) so they write disjoint keys.",
+        );
+      }
+    })
+    .catch((): void => {
+      // Not reachable at boot is not a misconfiguration.
+    });
+}
+
+/**
  * The path below {@link WALLOW_BFF_MOUNT} a request addresses, or `null` when it
  * lies outside the mount. The test is a segment-boundary one, so a lookalike
  * prefix such as `/bffoo/user` is not routed here.
@@ -205,7 +250,9 @@ export function createWallowBffServer(options: WallowBffServerOptions = {}): Wal
   // Handlers and proxy share ONE store instance: the proxy has to resolve the
   // very sessions the callback handler wrote.
   const handlers: BffHandlers = createBffHandlers(config, store);
-  warnWhenBackchannelUnsupported(config, store, options.onWarning ?? console.warn);
+  const onWarning: (message: string) => void = options.onWarning ?? console.warn;
+  warnWhenBackchannelUnsupported(config, store, onWarning);
+  warnWhenNamespaceShared(config, store, onWarning);
   const trusted: TrustedProxies = resolveTrustedProxies(options.trustedProxies, env);
   const proxy: ApiProxyHandler = createApiProxy(config, store, trusted);
 

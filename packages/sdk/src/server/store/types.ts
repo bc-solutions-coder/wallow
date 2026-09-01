@@ -109,4 +109,16 @@ export interface SessionStore {
    * Optional, for the same reason as {@link SessionStore.revokeBySid}.
    */
   revokeBySubject?: (sub: string) => Promise<BffSession[]>;
+  /**
+   * Stamp the store's shared namespace with this BFF's identity (issuer +
+   * client id) and report a conflict: `null` when the namespace is unclaimed
+   * or already ours, otherwise the DIFFERENT identity that holds it. Two BFFs
+   * writing one namespace read each other's sessions and tear down each
+   * other's logins on back-channel logout, so the server preset claims at boot
+   * and warns on a conflicting answer.
+   *
+   * Optional: only stores with shared server-side state can collide; a
+   * cookie-only store leaves it undefined.
+   */
+  claimNamespace?: (owner: string) => Promise<string | null>;
 }

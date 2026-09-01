@@ -70,9 +70,23 @@ export interface BffConfig {
    * Name of the sealed session cookie. Defaults to `__Host-wallow_bff` when
    * {@link cookieSecure} is set, and to plain `wallow_bff` otherwise — the
    * `__Host-` prefix is only honoured over HTTPS, and a browser silently
-   * DROPS such a cookie on a plain-http origin.
+   * DROPS such a cookie on a plain-http origin. When {@link appId} is set the
+   * default becomes `wallow_bff_<appId>` under the same prefix rules.
    */
   cookieName: string;
+  /**
+   * Identifier separating this BFF from its siblings on shared infrastructure.
+   * Read from `BFF_APP_ID`. It suffixes the DEFAULT session-cookie name (two
+   * BFFs in one cookie jar — sibling subdomains, or two ports on one dev host,
+   * since cookies ignore ports — otherwise shadow each other's sessions), and
+   * the server preset derives the Valkey key namespace from it (sid and
+   * subject indexes included), so co-tenant BFFs stop reading each other's
+   * sessions and a back-channel logout for one RP cannot tear down another's.
+   *
+   * Optional for the same reason as {@link cookiePasswords}: `BffConfig` is
+   * public API a fork may build by hand. A single-BFF deployment needs none.
+   */
+  appId?: string;
   /**
    * The ACTIVE password used to seal the session and transaction cookies —
    * unchanged in shape and meaning, and still the whole story when no rotation
@@ -247,6 +261,13 @@ function parseCookiePasswords(raw: string, problems: string[]): CookiePasswordSe
 const DEFAULT_COOKIE_NAME: string = "wallow_bff";
 
 /**
+ * What `BFF_APP_ID` may contain: characters that are safe verbatim in both a
+ * cookie name (RFC 6265 token) and a Valkey key segment. Anything looser —
+ * spaces, colons, slashes — would silently corrupt one derivation or the other.
+ */
+const APP_ID_PATTERN = /^[A-Za-z0-9_-]+$/u;
+
+/**
  * RFC 6265bis cookie-name prefix that binds a cookie to the exact host that set
  * it: a browser only accepts it when the cookie is `Secure`, `Path=/`, and
  * carries no `Domain`, so a sibling subdomain cannot overwrite the BFF session
@@ -264,9 +285,15 @@ const HOST_COOKIE_PREFIX: string = "__Host-";
  * requirements; it relaxes the NAME only, never `Secure`. Like `COOKIE_SECURE`,
  * it fails secure — only the literal `false` opts out.
  */
-function defaultCookieName(hostPrefixRaw: string, cookieSecure: boolean): string {
+function defaultCookieName(
+  hostPrefixRaw: string,
+  cookieSecure: boolean,
+  appId: string | undefined,
+): string {
   const hostPrefix: boolean = hostPrefixRaw !== "false" && cookieSecure;
-  return hostPrefix ? `${HOST_COOKIE_PREFIX}${DEFAULT_COOKIE_NAME}` : DEFAULT_COOKIE_NAME;
+  const name: string =
+    appId === undefined ? DEFAULT_COOKIE_NAME : `${DEFAULT_COOKIE_NAME}_${appId}`;
+  return hostPrefix ? `${HOST_COOKIE_PREFIX}${name}` : name;
 }
 
 /**
@@ -276,7 +303,8 @@ function defaultCookieName(hostPrefixRaw: string, cookieSecure: boolean): string
  * `OIDC_CLIENT_SECRET`, `OIDC_REDIRECT_URI`, `OIDC_POST_LOGOUT_REDIRECT_URI`,
  * `BFF_API_BASE_URL`, `COOKIE_PASSWORD`. `OIDC_SCOPES` (space-separated),
  * `COOKIE_NAME`, `OIDC_METADATA_URL`, `SESSION_TTL_SECONDS`, `COOKIE_SECURE`,
- * `COOKIE_SAMESITE`, and `COOKIE_HOST_PREFIX` are optional with defaults.
+ * `COOKIE_SAMESITE`, `COOKIE_HOST_PREFIX`, and `BFF_APP_ID` are optional with
+ * defaults.
  *
  * `COOKIE_PASSWORD` must also be at least 32 characters — the minimum
  * iron-webcrypto seals a session with — so a too-short secret fails here at
@@ -367,6 +395,18 @@ export function loadBffConfigFromEnv(env: NodeJS.ProcessEnv = process.env): BffC
     }
   }
 
+  const appIdRaw: string = (env.BFF_APP_ID ?? "").trim();
+  let appId: string | undefined;
+  if (appIdRaw !== "") {
+    if (APP_ID_PATTERN.test(appIdRaw)) {
+      appId = appIdRaw;
+    } else {
+      problems.push(
+        `Invalid environment variable BFF_APP_ID: expected letters, digits, underscores or hyphens (it names a cookie and a Valkey key segment), got "${appIdRaw}"`,
+      );
+    }
+  }
+
   const sameSiteRaw: string = (env.COOKIE_SAMESITE ?? "").trim().toLowerCase();
   if (sameSiteRaw !== "" && sameSiteRaw !== "lax" && sameSiteRaw !== "strict") {
     // "none" is rejected on purpose, not forgotten — see BffCookieSameSite.
@@ -400,7 +440,8 @@ export function loadBffConfigFromEnv(env: NodeJS.ProcessEnv = process.env): BffC
     scopes,
     apiBaseUrl,
     cookieName:
-      cookieNameRaw !== "" ? cookieNameRaw : defaultCookieName(hostPrefixRaw, cookieSecure),
+      cookieNameRaw !== "" ? cookieNameRaw : defaultCookieName(hostPrefixRaw, cookieSecure, appId),
+    appId,
     cookiePassword,
     // Always populated: the parsed key map, or the single password wrapped under
     // the one ID iron gives an unkeyed seal, so every unseal site can take the

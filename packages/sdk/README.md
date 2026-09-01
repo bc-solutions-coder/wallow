@@ -71,6 +71,7 @@ repo links here rather than restating it.
 | `COOKIE_PASSWORDS`              | No       | —                                                 | Rotation form of the above: a JSON object of key ID to secret. The **first** key seals new cookies, every key can unseal. Supersedes `COOKIE_PASSWORD` when both are set. See the rotation rules below                                                                                                                                                                                                                                   |
 | `OIDC_SCOPES`                   | No       | `openid profile email offline_access`             | Space-separated scopes                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `COOKIE_NAME`                   | No       | `__Host-wallow_bff`                               | Session cookie name. A non-empty value is taken verbatim and never prefixed; the readable CSRF companion cookie is `${COOKIE_NAME}-csrf`. The default carries the `__Host-` prefix, and falls back to plain `wallow_bff` only when the prefix is not viable — `COOKIE_SECURE=false` or `COOKIE_HOST_PREFIX=false`                                                                                                                        |
+| `BFF_APP_ID`                    | No       | —                                                 | Identifier (letters, digits, `_`, `-`) separating this BFF from its siblings on shared infrastructure. It suffixes the DEFAULT session-cookie name (`__Host-wallow_bff_<id>`, under the same prefix rules as above) and makes `createWallowBffServer()` namespace the Valkey keys under `wallow:<id>` — sid and subject indexes included. Set it on every BFF that shares a cookie host or a Valkey with another; see [multiple BFFs](#running-multiple-bffs-on-shared-infrastructure). An explicit `COOKIE_NAME` still wins verbatim                 |
 | `OIDC_METADATA_URL`             | No       | `${OIDC_ISSUER}/.well-known/openid-configuration` | Server-side discovery URL for split-horizon DNS — the backchannel uses its `token_endpoint`, while browser-facing redirects stay pinned to the public issuer origin                                                                                                                                                                                                                                                                      |
 | `SESSION_TTL_SECONDS`           | No       | `86400`                                           | Session cookie `Max-Age`. Must be a positive whole number; a malformed value throws rather than falling back                                                                                                                                                                                                                                                                                                                             |
 | `COOKIE_SECURE`                 | No       | `true`                                            | `Secure` flag on the session, transaction, and CSRF cookies. Fails secure: only the literal `false` clears it — set it for any plain-HTTP deployment, `localhost` included: Chrome and Firefox accept `Secure` cookies over `http://localhost` but Safari/WebKit drops them, which breaks the login callback with a 400                                                                                                                  |
@@ -253,6 +254,42 @@ the four tunnel handlers and `createApiProxy(config, store)` the reverse proxy.
 Pass the **same store instance** to both — the proxy has to resolve the sessions
 the callback wrote. Both default the store to a `CookieSessionStore` built from
 `config.cookiePassword` when you omit it.
+
+### Running multiple BFFs on shared infrastructure
+
+Two BFFs deployed side by side collide silently in two places unless you
+separate them:
+
+- **One cookie jar.** Cookies ignore ports, so two BFFs on one host — two dev
+  servers on `localhost`, or sibling subdomains when the `__Host-` prefix is not
+  in effect — both default to the same session-cookie name and shadow each
+  other's sessions: signing in at one signs you out of the other.
+- **One Valkey.** Both write under the same `wallow:` key prefix, so they read
+  each other's sessions, and the shared `sid` index means a back-channel logout
+  for one relying party tears down the OTHER app's session.
+
+`BFF_APP_ID` is the one switch for that co-tenancy. Give each BFF its own value
+and both derivations separate at once: the default session-cookie name becomes
+`wallow_bff_<id>` (CSRF, transaction, and chunk cookies follow it), and
+`createWallowBffServer()` keys its Valkey store under `wallow:<id>` — session
+records and the sid/subject indexes that back-channel logout resolves through.
+
+The preset also stamps each Valkey namespace with the BFF's identity (issuer +
+client id) at boot. When a DIFFERENT identity already holds the namespace it
+warns through `onWarning` (default `console.warn`) instead of silently sharing
+state — that warning is the signal to set `BFF_APP_ID`. The marker expires with
+the session TTL, so a legitimately re-pointed deployment stops warning on its
+own. The check is deliberately a boot-time warning rather than a hard failure:
+the store may simply not be reachable yet when the BFF boots (a failed probe is
+swallowed), and refusing to start would turn a misconfiguration signal into an
+availability incident — route `onWarning` into your alerting if you want it
+loud.
+
+An explicit `COOKIE_NAME` still wins verbatim over the derived cookie name, and
+a hand-built `ValkeySessionStore` keeps whatever `keyPrefix` you give it —
+`BFF_APP_ID` only drives the defaults. The repo's own E2E stack
+(`docker/docker-compose.test.yml`) runs wallow-web and the external RP example
+against one Valkey and one cookie host this way.
 
 ### 3b. Or: the pure passthrough
 

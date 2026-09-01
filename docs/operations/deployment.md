@@ -420,8 +420,9 @@ correct in their own layer.
 
 The two flags **fail secure** — a typo such as `False` or `no` leaves the cookie protected rather
 than exposing it, and only the exact string `false` turns either off. Clear them only for a
-plain-HTTP deployment. Override `BFF_COOKIE_NAME` when two Wallow deployments share one origin:
-`__Host-` forces `path=/`, so their session cookies would otherwise collide on the name. Dropping
+plain-HTTP deployment. When two Wallow BFFs share a cookie host or a Valkey, give each its own
+`BFF_APP_ID` — it suffixes the default cookie name AND namespaces the session-store keys, which a
+bare `BFF_COOKIE_NAME` override does not (see the SDK README's multi-BFF section). Dropping
 `offline_access` from the scopes costs you refresh tokens, and with them the silent renewal that
 keeps a session alive to the TTL.
 

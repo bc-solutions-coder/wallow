@@ -659,7 +659,7 @@ services:
       #   BFF_COOKIE_PASSWORDS='{"v2":"<new 64-hex>","default":"<previous>"}'
       # Redeploy, let the old cookies age out past SESSION_TTL_SECONDS, then drop "default".
       COOKIE_PASSWORDS: ${BFF_COOKIE_PASSWORDS:-}
-      # The rest of the SDK's cookie/session contract. All five are optional and
+      # The rest of the SDK's cookie/session contract. All six are optional and
       # passed unconditionally BECAUSE they are optional: the SDK reads an empty
       # value as unset for every one of them, so a blank here means "take the
       # default" rather than "set it to nothing". Naming them is what puts them in
@@ -675,9 +675,13 @@ services:
       COOKIE_SECURE: ${BFF_COOKIE_SECURE:-}
       COOKIE_HOST_PREFIX: ${BFF_COOKIE_HOST_PREFIX:-}
       # Default `__Host-wallow_bff`, or `wallow_bff` when either flag above is off.
-      # Override it when two Wallow deployments share one origin: `__Host-` forces
-      # path=/, so their session cookies would otherwise collide on the name.
+      # A non-empty value is taken verbatim; prefer BFF_APP_ID below when the real
+      # problem is two BFFs sharing infrastructure.
       COOKIE_NAME: ${BFF_COOKIE_NAME:-}
+      # Default unset. Give each BFF its own id when two share a cookie host or a
+      # Valkey: it suffixes the default cookie name AND namespaces the session-store
+      # keys (sid index included), which a bare COOKIE_NAME override does not.
+      BFF_APP_ID: ${BFF_APP_ID:-}
       # Default 86400 (24h). A malformed value throws at boot rather than falling
       # back, so a typo cannot quietly halve your session lifetime.
       SESSION_TTL_SECONDS: ${BFF_SESSION_TTL_SECONDS:-}

@@ -82,7 +82,7 @@ vi.mock("openid-client", () => ({
   ),
 }));
 
-const { redisCreateClientMock, redisConnectMock } = vi.hoisted(() => {
+const { redisCreateClientMock, redisConnectMock, redisData, redisSets } = vi.hoisted(() => {
   const redisConnectMock: ReturnType<typeof vi.fn> = vi.fn(() => Promise.resolve());
   const data: Map<string, string> = new Map<string, string>();
   const sets: Map<string, Set<string>> = new Map<string, Set<string>>();
@@ -107,7 +107,7 @@ const { redisCreateClientMock, redisConnectMock } = vi.hoisted(() => {
     sMembers: (key: string): Promise<string[]> => Promise.resolve([...(sets.get(key) ?? [])]),
     expire: (): Promise<boolean> => Promise.resolve(true),
   }));
-  return { redisCreateClientMock, redisConnectMock };
+  return { redisCreateClientMock, redisConnectMock, redisData: data, redisSets: sets };
 });
 
 /** `redis` is an OPTIONAL peer the preset imports lazily; stand it in here. */
@@ -117,6 +117,10 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   vi.clearAllMocks();
+  // The stand-in's maps are module-scoped; keep boot-time namespace claims and
+  // session writes from leaking between tests.
+  redisData.clear();
+  redisSets.clear();
 });
 
 /** The seven variables `loadBffConfigFromEnv` requires, plus the dev-http opt-outs. */
@@ -386,6 +390,155 @@ describe("createWallowBffServer — session-store selection", () => {
     );
 
     expect(reads).toEqual(["ref-shared-123", "ref-shared-123"]);
+  });
+});
+
+describe("createWallowBffServer — Valkey namespacing (BFF_APP_ID)", () => {
+  /** Let the fire-and-forget namespace claim settle. */
+  function claimSettled(): Promise<void> {
+    return new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
+  }
+
+  function sampleSession(sub: string, sid: string): BffSession {
+    return {
+      sessionId: "",
+      accessToken: "a",
+      refreshToken: "r",
+      idToken: "i",
+      expiresAt: Date.now() + 60_000,
+      user: { sub },
+      sid,
+      version: 1,
+    };
+  }
+
+  it("separates sessions by appId when two BFFs share one Valkey", async () => {
+    const issuer: string = "https://issuer-ns-split.test";
+    const client: ReturnType<typeof nodeRedisShapedClient> = nodeRedisShapedClient();
+    const onWarning: ReturnType<typeof vi.fn<(message: string) => void>> = vi.fn();
+
+    const web: WallowBffServer = createWallowBffServer({
+      config: makeConfig(issuer, { appId: "web" }),
+      redisClient: client,
+      onWarning,
+    });
+    const sibling: WallowBffServer = createWallowBffServer({
+      config: makeConfig(issuer, { appId: "example" }),
+      redisClient: client,
+      onWarning,
+    });
+
+    const ref: string = await web.store.write(sampleSession("u-ns", "op-sid-ns"));
+
+    // The sibling shares the Valkey AND the cookie password, yet cannot
+    // resolve the reference: its keys live under its own prefix.
+    expect(await sibling.store.read(ref)).toBeNull();
+
+    // A restart of the SAME BFF still finds the session.
+    const webAgain: WallowBffServer = createWallowBffServer({
+      config: makeConfig(issuer, { appId: "web" }),
+      redisClient: client,
+      onWarning,
+    });
+    const session: BffSession | null = await webAgain.store.read(ref);
+    expect(session?.user.sub).toBe("u-ns");
+
+    // Disjoint prefixes and matching identities: nothing to warn about.
+    await claimSettled();
+    expect(onWarning).not.toHaveBeenCalled();
+  });
+
+  it("derives the key prefix from BFF_APP_ID for the self-connected REDIS_URL store", async () => {
+    const server: WallowBffServer = createWallowBffServer({
+      env: requiredEnv({
+        OIDC_ISSUER: "https://issuer-ns-env.test",
+        REDIS_URL: "redis://valkey:6379",
+        BFF_APP_ID: "example",
+      }),
+    });
+
+    await server.store.write(sampleSession("u-env", "op-sid-env"));
+
+    const keys: string[] = [...redisData.keys()];
+    expect(keys.some((key: string) => key.startsWith("wallow:example:session:"))).toBe(true);
+    // The sid index moves with the namespace — it is what back-channel logout
+    // resolves through, so a shared index is the cross-RP teardown footgun.
+    expect(keys).toContain("wallow:example:sid:op-sid-env");
+    expect(keys.some((key: string) => key.startsWith("wallow:session:"))).toBe(false);
+  });
+
+  it("keeps the bare wallow prefix when BFF_APP_ID is unset", async () => {
+    const server: WallowBffServer = createWallowBffServer({
+      env: requiredEnv({
+        OIDC_ISSUER: "https://issuer-ns-bare.test",
+        REDIS_URL: "redis://valkey:6379",
+      }),
+    });
+
+    await server.store.write(sampleSession("u-bare", "op-sid-bare"));
+
+    const keys: string[] = [...redisData.keys()];
+    expect(keys.some((key: string) => key.startsWith("wallow:session:"))).toBe(true);
+  });
+
+  it("warns at boot when a different BFF identity already claimed the namespace", async () => {
+    const client: ReturnType<typeof nodeRedisShapedClient> = nodeRedisShapedClient();
+    await client.set("wallow:owner", "https://other-op.test other-bff");
+    const onWarning: ReturnType<typeof vi.fn<(message: string) => void>> = vi.fn();
+
+    createWallowBffServer({
+      config: makeConfig("https://issuer-ns-conflict.test"),
+      redisClient: client,
+      onWarning,
+    });
+
+    await vi.waitFor(() => {
+      expect(onWarning).toHaveBeenCalledTimes(1);
+    });
+    // The warning names the standing owner and the fix.
+    expect(onWarning).toHaveBeenCalledWith(
+      expect.stringContaining("https://other-op.test other-bff"),
+    );
+    expect(onWarning).toHaveBeenCalledWith(expect.stringContaining("BFF_APP_ID"));
+  });
+
+  it("stays silent when the same BFF identity reclaims its namespace", async () => {
+    const issuer: string = "https://issuer-ns-reclaim.test";
+    const client: ReturnType<typeof nodeRedisShapedClient> = nodeRedisShapedClient();
+    const onWarning: ReturnType<typeof vi.fn<(message: string) => void>> = vi.fn();
+
+    createWallowBffServer({ config: makeConfig(issuer), redisClient: client, onWarning });
+    createWallowBffServer({ config: makeConfig(issuer), redisClient: client, onWarning });
+
+    await claimSettled();
+    expect(onWarning).not.toHaveBeenCalled();
+  });
+
+  it("swallows a namespace claim the store cannot answer at boot", async () => {
+    const down = (): Promise<never> => Promise.reject(new Error("valkey down"));
+    const unreachable: NodeRedisClient = {
+      get: down,
+      set: down,
+      del: down,
+      sAdd: down,
+      sRem: down,
+      sMembers: down,
+      expire: down,
+    };
+    const onWarning: ReturnType<typeof vi.fn<(message: string) => void>> = vi.fn();
+
+    const server: WallowBffServer = createWallowBffServer({
+      config: makeConfig("https://issuer-ns-down.test"),
+      redisClient: unreachable,
+      onWarning,
+    });
+
+    await claimSettled();
+    expect(onWarning).not.toHaveBeenCalled();
+    // Construction itself survives the dead store.
+    expect(server.store).toBeInstanceOf(ValkeySessionStore);
   });
 });
 

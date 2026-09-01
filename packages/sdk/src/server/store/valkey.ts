@@ -28,6 +28,15 @@ const DEFAULT_LOCK_TTL_SECONDS = 10;
 const SESSION_ID_BYTES = 24;
 
 /**
+ * Root of every key namespace: the store's default `keyPrefix`, and the base
+ * the server preset builds `wallow:<appId>` prefixes from.
+ */
+export const DEFAULT_KEY_PREFIX: string = "wallow";
+
+/** A claim round found the owner marker expired mid-read; fight the round again. */
+const CONTEND: unique symbol = Symbol("contend");
+
+/**
  * Options for {@link ValkeySessionStore}.
  */
 export interface ValkeySessionStoreOptions {
@@ -74,7 +83,7 @@ export class ValkeySessionStore implements SessionStore {
     this.password = options.password;
     this.ttlSeconds = options.ttlSeconds ?? DEFAULT_TTL_SECONDS;
     this.lockTtlSeconds = options.lockTtlSeconds ?? DEFAULT_LOCK_TTL_SECONDS;
-    this.keyPrefix = options.keyPrefix ?? "wallow";
+    this.keyPrefix = options.keyPrefix ?? DEFAULT_KEY_PREFIX;
   }
 
   private sessionKey(id: string): string {
@@ -91,6 +100,53 @@ export class ValkeySessionStore implements SessionStore {
 
   private subjectKey(sub: string): string {
     return `${this.keyPrefix}:sub:${sub}`;
+  }
+
+  private ownerKey(): string {
+    return `${this.keyPrefix}:owner`;
+  }
+
+  /**
+   * Stamp this store's key namespace with the BFF's identity, first claimer
+   * wins. `null` means the namespace is (now) ours; a string is the different
+   * identity already writing here — the multi-BFF misconfiguration the caller
+   * should warn about. The marker carries the session TTL and is refreshed on
+   * every matching claim, so a retired identity ages out with its sessions
+   * rather than warning forever.
+   */
+  async claimNamespace(owner: string): Promise<string | null> {
+    const key: string = this.ownerKey();
+    const first: string | null | typeof CONTEND = await this.attemptClaim(key, owner);
+    if (first !== CONTEND) {
+      return first;
+    }
+    // The marker expired between the conditional set and the read. An
+    // unconditional write here could let two concurrent claimants each
+    // conclude the namespace is theirs, so contend through SET NX once more;
+    // a second vanished marker is reported as ours — the next boot settles it.
+    const second: string | null | typeof CONTEND = await this.attemptClaim(key, owner);
+    return second === CONTEND ? null : second;
+  }
+
+  /**
+   * One claim round: `null` means the namespace is ours, a string is the rival
+   * identity holding it, {@link CONTEND} means the marker expired between the
+   * conditional set and the read and the round must be re-fought.
+   */
+  private async attemptClaim(key: string, owner: string): Promise<string | null | typeof CONTEND> {
+    const claimed: "OK" | null = await this.client.set(key, owner, {
+      nx: true,
+      ex: this.ttlSeconds,
+    });
+    if (claimed === "OK") {
+      return null;
+    }
+    const standing: string | null = await this.client.get(key);
+    if (standing === owner) {
+      await this.client.set(key, owner, { ex: this.ttlSeconds });
+      return null;
+    }
+    return standing ?? CONTEND;
   }
 
   /** Unseal a cookie reference back into its session id, or `null` on failure. */

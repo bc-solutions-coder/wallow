@@ -170,13 +170,13 @@ test.describe.serial("external relying-party acceptance journey", () => {
 
     // TEST-STACK QUIRK: every origin here shares the cookie host "localhost", so
     // wallow-web's pages can see bff-example's non-HttpOnly `-csrf` double-submit cookie
-    // (`${COOKIE_NAME}-csrf` from docker-compose.test.yml). The browser SDK matches the
-    // CSRF cookie by that suffix, and on plain HTTP (no `__Host-` tiebreaker) the foreign
-    // cookie can win, making wallow-web's logout POST carry the wrong token and 403. A
-    // real deployment separates the hosts; model that by dropping the foreign cookie —
-    // the external origin only needs it for state-changing BROWSER calls, and everything
-    // this stage still does against bff-example is a GET.
-    await page.context().clearCookies({ name: "bff_example_session-csrf" });
+    // (`wallow_bff_example` from BFF_APP_ID in docker-compose.test.yml). The browser SDK
+    // matches the CSRF cookie by that suffix, and on plain HTTP (no `__Host-` tiebreaker)
+    // the foreign cookie can win, making wallow-web's logout POST carry the wrong token
+    // and 403. A real deployment separates the hosts; model that by dropping the foreign
+    // cookie — the external origin only needs it for state-changing BROWSER calls, and
+    // everything this stage still does against bff-example is a GET.
+    await page.context().clearCookies({ name: "wallow_bff_example-csrf" });
 
     await page.getByTestId("dashboard-nav").getByTestId("dashboard-logout-link").click();
     await page.waitForURL((url) => !url.pathname.startsWith("/dashboard"), { timeout: 30_000 });

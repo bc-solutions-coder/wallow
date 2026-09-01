@@ -643,3 +643,85 @@ describe("loadBffConfigFromEnv — cookieName __Host- prefix", () => {
     );
   });
 });
+
+/**
+ * `BFF_APP_ID` is the one knob for running several SDK BFFs against shared
+ * infrastructure (issue #159): it suffixes the DEFAULT session-cookie name so
+ * two BFFs in one cookie jar (sibling subdomains, or two ports on one dev
+ * host — cookies ignore ports) stop shadowing each other, and the server
+ * preset derives the Valkey key namespace from it so their stores stop
+ * reading each other's sessions.
+ */
+describe("loadBffConfigFromEnv — BFF_APP_ID", () => {
+  it("is undefined when BFF_APP_ID is unset, leaving the default cookie name alone", () => {
+    const config: BffConfig = loadBffConfigFromEnv(requiredEnv());
+
+    expect(config.appId).toBeUndefined();
+    expect(config.cookieName).toBe("__Host-wallow_bff");
+  });
+
+  it("suffixes the default cookie name, keeping the __Host- prefix rules", () => {
+    const config: BffConfig = loadBffConfigFromEnv(envWith({ BFF_APP_ID: "example" }));
+
+    expect(config.appId).toBe("example");
+    expect(config.cookieName).toBe("__Host-wallow_bff_example");
+  });
+
+  it("suffixes the unprefixed name when the __Host- prefix is not viable", () => {
+    expect(
+      loadBffConfigFromEnv(envWith({ BFF_APP_ID: "example", COOKIE_SECURE: "false" })).cookieName,
+    ).toBe("wallow_bff_example");
+    expect(
+      loadBffConfigFromEnv(envWith({ BFF_APP_ID: "example", COOKIE_HOST_PREFIX: "false" }))
+        .cookieName,
+    ).toBe("wallow_bff_example");
+  });
+
+  it("yields to an explicit COOKIE_NAME, which stays verbatim", () => {
+    const config: BffConfig = loadBffConfigFromEnv(
+      envWith({ BFF_APP_ID: "example", COOKIE_NAME: "my_session" }),
+    );
+
+    expect(config.cookieName).toBe("my_session");
+    // The app id itself survives for the store namespace even when the cookie
+    // name is overridden — the two derivations are independent.
+    expect(config.appId).toBe("example");
+  });
+
+  it("treats a blank BFF_APP_ID as unset, so unconditional compose passthrough is safe", () => {
+    expect(loadBffConfigFromEnv(envWith({ BFF_APP_ID: "" })).appId).toBeUndefined();
+    expect(loadBffConfigFromEnv(envWith({ BFF_APP_ID: "   " })).appId).toBeUndefined();
+    expect(loadBffConfigFromEnv(envWith({ BFF_APP_ID: "   " })).cookieName).toBe(
+      "__Host-wallow_bff",
+    );
+  });
+
+  it("accepts letters, digits, underscores and hyphens", () => {
+    expect(loadBffConfigFromEnv(envWith({ BFF_APP_ID: "bff-example_2" })).appId).toBe(
+      "bff-example_2",
+    );
+  });
+
+  it("rejects characters that are unsafe in a cookie name or a Valkey key", () => {
+    for (const bad of ["my app", "a:b", "a/b", "a;b", "café"]) {
+      expect(() => loadBffConfigFromEnv(envWith({ BFF_APP_ID: bad }))).toThrowError(
+        /Invalid environment variable BFF_APP_ID/u,
+      );
+    }
+  });
+
+  it("reports a bad BFF_APP_ID in the SAME aggregated error as other problems", () => {
+    const env: NodeJS.ProcessEnv = envWith({ BFF_APP_ID: "a:b" });
+    delete env.OIDC_ISSUER;
+
+    let thrown: Error | undefined;
+    try {
+      loadBffConfigFromEnv(env);
+    } catch (error) {
+      thrown = error as Error;
+    }
+
+    expect(thrown?.message).toContain("BFF_APP_ID");
+    expect(thrown?.message).toContain("OIDC_ISSUER");
+  });
+});

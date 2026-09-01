@@ -359,26 +359,22 @@ services:
       BFF_API_BASE_URL: "http://wallow-api:8080"
       COOKIE_PASSWORD: "e2e-bff-cookie-seal-password-min-32-chars"
       # Every origin in this stack shares the cookie host "localhost" (ports do not
-      # partition cookies), so under the SDK's default name wallow-web's session cookie
-      # would overwrite this one the moment a journey signs in at both origins. A real
-      # external RP lives on its own domain and never needs this override.
-      COOKIE_NAME: "bff_example_session"
+      # partition cookies), and both BFFs share the Valkey below. BFF_APP_ID is the
+      # SDK's one switch for that co-tenancy: it suffixes the default session-cookie
+      # name (wallow_bff_example, so wallow-web's wallow_bff cannot shadow it) and
+      # namespaces the Valkey keys (wallow:example, sid index included, so wallow-web's
+      # logins and logouts cannot re-point or revoke this app's sessions).
+      BFF_APP_ID: "example"
       # Safari/WebKit refuses Secure cookies over plain-HTTP localhost (Chrome and Firefox
       # allow them), so the BFF's login-transaction cookie never survives the redirect and
       # every /bff/callback fails with a 400. This stack is plain HTTP, so drop the flag here.
       COOKIE_SECURE: "false"
       # Server-side sessions in Valkey: the cookie becomes an opaque ref and the
       # tokens live in Valkey, so logout truly revokes. Without this the example
-      # falls back to the stateless cookie store.
-      #
-      # Logical database 1, NOT wallow-web's 0: the SDK's Valkey store keys every
-      # app under the same "wallow" prefix, and its sid index is one pointer per
-      # OP session id. Both apps sign the same admin into the same OP session, so
-      # in one shared database wallow-web's silent login re-points that index and
-      # its logout deletes it — the back-channel logout token bff-example then
-      # receives finds no session to revoke. Two BFF apps sharing one Valkey must
-      # isolate their databases (or stores); this is that rule, not a test hack.
-      REDIS_URL: "redis://:WallowTestValkey123!@valkey:6379/1"
+      # falls back to the stateless cookie store. The database is deliberately
+      # wallow-web's — BFF_APP_ID above keeps the two apps' keys disjoint, which
+      # is exactly the shared-Valkey topology it exists for.
+      REDIS_URL: "redis://:WallowTestValkey123!@valkey:6379"
       # Service account for the anonymous POST /contact route: a SEPARATE
       # registration (api/seed.json clients index 2) with client-credentials
       # scopes only. inquiries.write maps straight to the InquiriesWrite
