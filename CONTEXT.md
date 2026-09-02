@@ -197,7 +197,13 @@ _Avoid_: error response, error body, ProblemDetails (that is the ASP.NET type, n
 What a client holds after a request did not succeed: a problem parsed into one value, or a
 network failure that never reached the API, so a screen handles both the same way. Carries
 the code, status, trace id, and field errors; never the raw transport message.
-_Avoid_: exception, fetch error, WallowError (the type name, not the concept)
+_Avoid_: exception, fetch error, error object
+
+**Transport failure**:
+An API failure whose request never produced a response: the network was unreachable, the
+request timed out, or the caller aborted it. It has a code and a status like any other
+failure, but no problem behind it, so its failure message never comes from a detail.
+_Avoid_: network error, fetch failed, connection error
 
 **Failure message**:
 The user-facing sentence a screen shows for an API failure, chosen by the code first and the
