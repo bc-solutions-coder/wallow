@@ -224,6 +224,13 @@ unknown path, or the API being unreachable. It carries a request id but no trace
 detail is fixed wording, never text from a lower layer.
 _Avoid_: BFF error, proxy error, synthesized error
 
+**Failure surface**:
+The place a failure message is shown: an inline banner where the data would have been, a
+form's banner and fields, the app's shared notice for a failed action, or the page-level
+boundary when a screen could not load at all. Each API failure has exactly one surface,
+chosen by what the user was doing, never by the failure's status.
+_Avoid_: error display, error UI, error handling (that is code, not a place)
+
 **Handled failure**:
 An API failure that the screen which caused it has taken responsibility for showing, such as
 a form's field errors and banner, or a list's inline banner. Every failure a screen does not
