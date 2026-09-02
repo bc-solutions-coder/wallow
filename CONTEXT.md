@@ -212,6 +212,14 @@ shipped default. The problem's detail is a fallback for client mistakes only; a 
 failure, an unrecognised response, or a server fault never shows its detail to a user.
 _Avoid_: error message (ambiguous with the problem's detail), error text
 
+**Handled failure**:
+An API failure that the screen which caused it has taken responsibility for showing, such as
+a form's field errors and banner, or a list's inline banner. Every failure a screen does not
+handle is unhandled and surfaces through the app's one shared notice instead; a screen that
+wants a failed read to surface that way asks for it, since reads are shown in place by
+default.
+_Avoid_: swallowed error, suppressed error (a handled failure is still shown, just locally)
+
 **Error code**:
 The machine-readable key on a problem naming why the request failed, one per reason, shared
 by the API's catalog and the frontend's failure-message registry. A screen matches on the
