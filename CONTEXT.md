@@ -207,8 +207,9 @@ _Avoid_: network error, fetch failed, connection error
 
 **Failure message**:
 The user-facing sentence a screen shows for an API failure, chosen by the code first and the
-status second. The problem's detail is a fallback for client mistakes only; a network failure,
-an unknown failure, or a server fault never shows its detail to a user.
+status second, with the screen's own wording winning over the app's and the app's over the
+shipped default. The problem's detail is a fallback for client mistakes only; a transport
+failure, an unrecognised response, or a server fault never shows its detail to a user.
 _Avoid_: error message (ambiguous with the problem's detail), error text
 
 **Error code**:
