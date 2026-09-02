@@ -185,6 +185,31 @@ New → Reviewed → Contacted → Closed, and comments on it are either interna
 submitter-visible.
 _Avoid_: support ticket, lead
 
+## Errors
+
+**Problem**:
+The wire body of any API error: the RFC 7807 problem+json document every non-OAuth endpoint
+returns, carrying a status, a title, a code, a trace id, and optionally field errors. The
+OAuth endpoints answer in the OAuth error shape instead, as the protocol requires.
+_Avoid_: error response, error body, ProblemDetails (that is the ASP.NET type, not the concept)
+
+**API failure**:
+What a client holds after a request did not succeed: a problem parsed into one value, or a
+network failure that never reached the API, so a screen handles both the same way. Carries
+the code, status, trace id, and field errors; never the raw transport message.
+_Avoid_: exception, fetch error, WallowError (the type name, not the concept)
+
+**Failure message**:
+The user-facing sentence a screen shows for an API failure, chosen by the code first and the
+status second. The problem's detail is a fallback for client mistakes only; a network failure,
+an unknown failure, or a server fault never shows its detail to a user.
+_Avoid_: error message (ambiguous with the problem's detail), error text
+
+**Field error**:
+A failure message attached to one form field, keyed by the field's name as the frontend spells
+it. Every other failure message on a form is the form's banner.
+_Avoid_: validation error (a field error may come from a business rule, not validation)
+
 ## Storage
 
 **Stored file**:
