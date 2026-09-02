@@ -1,7 +1,8 @@
 # Docs Site
 
-DocFX site. Everything under `docs/` is user-facing site content EXCEPT `plans/` and
-`agents/`, kept off the build by `docfx.json`'s `build.content[0].exclude` list.
+DocFX site. Everything under `docs/` is user-facing site content EXCEPT `plans/`, `agents/`
+and `research/` (agent research notes), kept off the build by `docfx.json`'s
+`build.content[0].exclude` list.
 
 ## Adding a Guide
 
