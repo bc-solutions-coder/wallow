@@ -212,6 +212,18 @@ shipped default. The problem's detail is a fallback for client mistakes only; a 
 failure, an unrecognised response, or a server fault never shows its detail to a user.
 _Avoid_: error message (ambiguous with the problem's detail), error text
 
+**Relayed problem**:
+A problem the browser-facing server hop passed through from the API untouched, so its
+trace id, detail, and code are the API's own. The server hop never rewrites one.
+_Avoid_: proxied error, forwarded error
+
+**Originated problem**:
+A problem the browser-facing server hop wrote itself because the request never reached the
+API or was refused before it could: no session, a stale session, a bad anti-forgery token, an
+unknown path, or the API being unreachable. It carries a request id but no trace id, and its
+detail is fixed wording, never text from a lower layer.
+_Avoid_: BFF error, proxy error, synthesized error
+
 **Handled failure**:
 An API failure that the screen which caused it has taken responsibility for showing, such as
 a form's field errors and banner, or a list's inline banner. Every failure a screen does not
