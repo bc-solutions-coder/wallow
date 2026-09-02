@@ -90,8 +90,6 @@ export function PendingRequestList(props: { orgId: string }) {
     },
   });
 
-  const mutationError: unknown = approve.error ?? deny.error;
-
   return (
     <div>
       <Text
@@ -103,11 +101,7 @@ export function PendingRequestList(props: { orgId: string }) {
         Pending requests
       </Text>
 
-      {mutationError === undefined || mutationError === null ? null : (
-        <ErrorBanner data-testid="organization-pending-requests-error" className="mb-4">
-          {errorText(mutationError, "Could not update the request.")}
-        </ErrorBanner>
-      )}
+      {/* PROTOTYPE (#168): approve/deny failures now toast via the global hook. */}
 
       <RequestsRegion
         requests={data}

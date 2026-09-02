@@ -1,4 +1,15 @@
-import { QueryClient } from "@tanstack/react-query";
+import { MutationCache, QueryClient } from "@tanstack/react-query";
+
+/** PROTOTYPE (#168): what the client tells the app about a failure no screen claimed. */
+export interface UnhandledFailure {
+  readonly kind: "mutation";
+  readonly error: unknown;
+}
+
+/** PROTOTYPE (#168): the one hook an app supplies; `query` itself renders nothing. */
+export interface CreateQueryClientOptions {
+  readonly onUnhandledFailure?: (failure: UnhandledFailure) => void;
+}
 
 /**
  * The single source of the React Query client wired into the router context and
@@ -11,9 +22,20 @@ import { QueryClient } from "@tanstack/react-query";
  * imported from client-side bundles as well as SSR. It applies an explicit query
  * policy (retry disabled — deterministic tests, no silent backoff) and mints a
  * fresh client per call so an SSR request never shares cache with another.
+ *
+ * PROTOTYPE (#168): a `MutationCache.onError` forwards every mutation failure to
+ * `onUnhandledFailure` unless the mutation's `meta.failureHandled` is `true`.
+ * Queries are deliberately NOT forwarded: a failed read already owns a banner,
+ * and a toast on top would say the same thing twice.
  */
-export function createQueryClient(): QueryClient {
+export function createQueryClient(options: CreateQueryClientOptions = {}): QueryClient {
   return new QueryClient({
+    mutationCache: new MutationCache({
+      onError: (error, _variables, _context, mutation): void => {
+        if (mutation.meta?.["failureHandled"] === true) {return;}
+        options.onUnhandledFailure?.({ kind: "mutation", error });
+      },
+    }),
     defaultOptions: {
       queries: {
         retry: false,

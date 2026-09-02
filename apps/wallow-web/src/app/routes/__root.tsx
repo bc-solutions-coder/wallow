@@ -18,6 +18,7 @@ import {
   ThemeProvider,
   ThemeScript,
 } from "@bc-solutions-coder/ui";
+import { FailureToaster } from "@bc-solutions-coder/ui/failure-toast";
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import { getGlobalStartContext } from "@tanstack/react-start";
 import type { ReactElement, ReactNode } from "react";
@@ -120,7 +121,11 @@ function RootDocument({ children }: { readonly children: ReactNode }): ReactElem
       </head>
       <body>
         <FocusOnNavigate />
-        <ThemeProvider defaultMode={branding.defaultMode}>{children}</ThemeProvider>
+        <ThemeProvider defaultMode={branding.defaultMode}>
+          {children}
+          {/* PROTOTYPE (#168): one toaster per app, inside <body>. */}
+          <FailureToaster />
+        </ThemeProvider>
         <ReadyIndicator />
         <Scripts />
       </body>

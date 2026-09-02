@@ -19,3 +19,11 @@
 export * from "@tanstack/react-query";
 
 export { createQueryClient } from "./query-client";
+
+// PROTOTYPE (#168) — deleted with the branch.
+export {
+  failureReference,
+  handledFailure,
+  resolveFailureMessagePrototype,
+} from "./failure-prototype";
+export { type CreateQueryClientOptions, type UnhandledFailure } from "./query-client";

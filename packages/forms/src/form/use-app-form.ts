@@ -10,7 +10,7 @@
  * not have to thread either through props.
  */
 
-import { useMutation, type UseMutationOptions } from "@bc-solutions-coder/query";
+import { handledFailure, useMutation, type UseMutationOptions } from "@bc-solutions-coder/query";
 import {
   type FormValidateAsyncFn,
   revalidateLogic,
@@ -147,14 +147,18 @@ export function useAppForm<TValues, TVariables = unknown, TData = unknown, TErro
    * values — see `toMutationVariables` — so `pending` and the failure split
    * behave identically whether or not an operation is involved.
    */
+  // PROTOTYPE (#168): a form renders its own banner + field errors, so its
+  // mutation opts out of the global failure toast.
   const mutation = useMutation<TData, TError, TVariables>(
-    options.mutation ?? {
-      mutationFn: async (variables: TVariables): Promise<TData> => {
-        await options.onSubmit?.(variables as unknown as TValues);
+    options.mutation
+      ? { ...options.mutation, meta: handledFailure(options.mutation.meta) }
+      : {
+          mutationFn: async (variables: TVariables): Promise<TData> => {
+            await options.onSubmit?.(variables as unknown as TValues);
 
-        return undefined as TData;
-      },
-    },
+            return undefined as TData;
+          },
+        },
   );
 
   const form = useTanstackAppForm<

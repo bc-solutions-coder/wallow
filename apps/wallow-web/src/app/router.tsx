@@ -1,4 +1,10 @@
-import { createQueryClient, type QueryClient } from "@bc-solutions-coder/query";
+import {
+  createQueryClient,
+  failureReference,
+  type QueryClient,
+  resolveFailureMessagePrototype,
+} from "@bc-solutions-coder/query";
+import { toastFailure } from "@bc-solutions-coder/ui/failure-toast";
 import { createWallowSdk, type WallowSdk } from "@bc-solutions-coder/sdk";
 import { createRouter as createTanStackRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
@@ -58,7 +64,14 @@ function readRequestSdk(): WallowSdk | undefined {
  * route-tree types that make `Link`/`useParams` typed.
  */
 export function getRouter() {
-  const queryClient: QueryClient = createQueryClient();
+  // PROTOTYPE (#168): every mutation failure no screen claimed becomes a toast.
+  // Guarded so the per-request server-side client never raises one.
+  const queryClient: QueryClient = createQueryClient({
+    onUnhandledFailure: ({ error }): void => {
+      if (typeof window === "undefined") {return;}
+      toastFailure(resolveFailureMessagePrototype(error), failureReference(error));
+    },
+  });
   const sdk: WallowSdk = readRequestSdk() ?? createWallowSdk({ baseUrl: BROWSER_API_BASE_URL });
 
   const router = createTanStackRouter({
