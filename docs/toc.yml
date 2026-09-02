@@ -86,6 +86,10 @@
       href: integrations/typescript-sdk.md
     - name: Integration Cookbook
       href: integrations/integration-cookbook.md
+- name: Research
+  items:
+    - name: OpenAPI Error Code Export
+      href: research/openapi-error-codes.md
 - name: API Reference
   items:
     - name: Service Accounts
