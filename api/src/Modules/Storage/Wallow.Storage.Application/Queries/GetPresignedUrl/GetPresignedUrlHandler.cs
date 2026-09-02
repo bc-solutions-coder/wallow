@@ -6,6 +6,7 @@ using Wallow.Storage.Application.DTOs;
 using Wallow.Storage.Application.Interfaces;
 using Wallow.Storage.Domain.Entities;
 using Wallow.Storage.Domain.Enums;
+using Wallow.Storage.Domain.Errors;
 using Wallow.Storage.Domain.Identity;
 
 namespace Wallow.Storage.Application.Queries.GetPresignedUrl;
@@ -26,12 +27,12 @@ public sealed class GetPresignedUrlHandler(
 
         if (file is null)
         {
-            return Result.Failure<PresignedUrlResult>(Error.NotFound("File", query.FileId));
+            return Result.Failure<PresignedUrlResult>(StorageErrors.FileNotFound);
         }
 
         if (file.Status != FileStatus.Available)
         {
-            return Result.Failure<PresignedUrlResult>(Error.Validation("File.NotAvailable", "File is not yet available for download."));
+            return Result.Failure<PresignedUrlResult>(StorageErrors.FileNotAvailable);
         }
 
         TimeSpan maxExpiry = TimeSpan.FromMinutes(presignedUrlOptions.Value.MaxDownloadExpiryMinutes);

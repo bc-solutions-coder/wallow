@@ -6,6 +6,7 @@ using Wallow.Announcements.Application.Changelogs.DTOs;
 using Wallow.Announcements.Application.Changelogs.Queries.GetChangelog;
 using Wallow.Announcements.Application.Changelogs.Queries.GetChangelogEntry;
 using Wallow.Announcements.Domain.Changelogs.Enums;
+using Wallow.Announcements.Domain.Errors;
 using Wallow.Shared.Kernel.Results;
 using Wolverine;
 
@@ -127,7 +128,7 @@ public class ChangelogControllerTests
     public async Task GetChangelogByVersion_WhenNotFound_Returns404()
     {
         _bus.InvokeAsync<Result<ChangelogEntryDto>>(Arg.Any<GetChangelogByVersionQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<ChangelogEntryDto>(Error.NotFound("Changelog", "99.0.0")));
+            .Returns(Result.Failure<ChangelogEntryDto>(AnnouncementsErrors.ChangelogNotFound));
 
         IActionResult result = await _controller.GetChangelogByVersion("99.0.0", CancellationToken.None);
 
@@ -171,7 +172,7 @@ public class ChangelogControllerTests
     public async Task GetLatestChangelog_WhenNotFound_Returns404()
     {
         _bus.InvokeAsync<Result<ChangelogEntryDto>>(Arg.Any<GetLatestChangelogQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<ChangelogEntryDto>(Error.NotFound("Changelog", "latest")));
+            .Returns(Result.Failure<ChangelogEntryDto>(AnnouncementsErrors.ChangelogNotFound));
 
         IActionResult result = await _controller.GetLatestChangelog(CancellationToken.None);
 

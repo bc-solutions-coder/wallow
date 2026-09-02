@@ -1,5 +1,6 @@
 using Wallow.Notifications.Application.Channels.Push.Interfaces;
 using Wallow.Notifications.Domain.Channels.Push;
+using Wallow.Notifications.Domain.Errors;
 using Wallow.Shared.Kernel.Results;
 
 namespace Wallow.Notifications.Application.Channels.Push.Commands.DeregisterDevice;
@@ -16,7 +17,7 @@ public sealed class DeregisterDeviceHandler(
 
         if (registration is null)
         {
-            return Result.Failure(Error.NotFound("DeviceRegistration", command.DeviceRegistrationId));
+            return Result.Failure(NotificationsErrors.DeviceRegistrationNotFound);
         }
 
         registration.Deactivate();

@@ -44,6 +44,7 @@ using Wallow.Shared.Infrastructure.Core.Messaging;
 using Wallow.Shared.Infrastructure.Core.Middleware;
 using Wallow.Shared.Infrastructure.Core.Services;
 using Wallow.Shared.Infrastructure.Modules;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Storage.Infrastructure.Jobs;
@@ -543,6 +544,11 @@ try
     builder.Services.AddFeatureManagement();
 
     WebApplication app = builder.Build();
+
+    // Aggregate the module error catalogs now rather than on the first OpenAPI request, so a code
+    // declared by two catalogs fails startup in every environment, not only where the document
+    // is served.
+    _ = app.Services.GetRequiredService<ErrorCatalog>();
 
     // Opt-in PathBase for reverse-proxy path-based routing (e.g. /api)
     string? pathBase = app.Configuration["PathBase"];

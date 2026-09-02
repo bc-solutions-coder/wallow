@@ -1,4 +1,5 @@
 using Wallow.Identity.Domain.Enums;
+using Wallow.Identity.Domain.Errors;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Shared.Kernel.Domain;
 
@@ -55,19 +56,17 @@ public sealed class RegisteredClient : Entity<RegisteredClientId>
 
         if (string.IsNullOrWhiteSpace(clientId))
         {
-            throw new BusinessRuleException("Identity.ClientIdRequired", "Client id cannot be empty");
+            throw new BusinessRuleException(IdentityErrors.ClientIdRequired);
         }
 
         if (string.IsNullOrWhiteSpace(name))
         {
-            throw new BusinessRuleException("Identity.ClientNameRequired", "Client name cannot be empty");
+            throw new BusinessRuleException(IdentityErrors.ClientNameRequired);
         }
 
         if (organizationId == Guid.Empty)
         {
-            throw new BusinessRuleException(
-                "Identity.ClientOrganizationRequired",
-                "A registered client must belong to an organization");
+            throw new BusinessRuleException(IdentityErrors.ClientOrganizationRequired);
         }
 
         return new RegisteredClient
@@ -102,7 +101,7 @@ public sealed class RegisteredClient : Entity<RegisteredClientId>
     {
         if (Status == RegisteredClientStatus.Suspended)
         {
-            throw new BusinessRuleException("Identity.ClientAlreadySuspended", "The client is already suspended");
+            throw new BusinessRuleException(IdentityErrors.ClientAlreadySuspended);
         }
 
         Status = RegisteredClientStatus.Suspended;
@@ -112,7 +111,7 @@ public sealed class RegisteredClient : Entity<RegisteredClientId>
     {
         if (Status == RegisteredClientStatus.Active)
         {
-            throw new BusinessRuleException("Identity.ClientNotSuspended", "The client is not suspended");
+            throw new BusinessRuleException(IdentityErrors.ClientNotSuspended);
         }
 
         Status = RegisteredClientStatus.Active;
@@ -128,16 +127,12 @@ public sealed class RegisteredClient : Entity<RegisteredClientId>
 
         if (string.IsNullOrWhiteSpace(reason))
         {
-            throw new BusinessRuleException(
-                "Identity.PlatformSuspensionReasonRequired",
-                "A platform suspension requires a reason");
+            throw new BusinessRuleException(IdentityErrors.PlatformSuspensionReasonRequired);
         }
 
         if (IsPlatformSuspended)
         {
-            throw new BusinessRuleException(
-                "Identity.ClientAlreadySuspendedByPlatform",
-                "The client is already suspended by the platform");
+            throw new BusinessRuleException(IdentityErrors.ClientAlreadySuspendedByPlatform);
         }
 
         PlatformSuspendedAt = timeProvider.GetUtcNow();
@@ -149,9 +144,7 @@ public sealed class RegisteredClient : Entity<RegisteredClientId>
     {
         if (!IsPlatformSuspended)
         {
-            throw new BusinessRuleException(
-                "Identity.ClientNotSuspendedByPlatform",
-                "The client is not suspended by the platform");
+            throw new BusinessRuleException(IdentityErrors.ClientNotSuspendedByPlatform);
         }
 
         PlatformSuspendedAt = null;

@@ -8,6 +8,7 @@ using Wallow.Inquiries.Application.DTOs;
 using Wallow.Inquiries.Application.Queries.GetInquiryById;
 using Wallow.Inquiries.Application.Queries.GetInquiryComments;
 using Wallow.Inquiries.Application.Queries.GetSubmittedInquiries;
+using Wallow.Inquiries.Domain.Errors;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Results;
@@ -297,7 +298,7 @@ public class InquiriesControllerAuthTests
         SetUser(sub: "some-user");
 
         _bus.InvokeAsync<Result<InquiryDto>>(Arg.Any<GetInquiryByIdQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<InquiryDto>(Error.NotFound("Inquiry", inquiryId)));
+            .Returns(Result.Failure<InquiryDto>(InquiriesErrors.InquiryNotFound));
 
         IActionResult result = await _controller.GetComments(inquiryId, CancellationToken.None);
 

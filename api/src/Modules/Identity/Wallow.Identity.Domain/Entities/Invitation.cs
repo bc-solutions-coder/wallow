@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using Wallow.Identity.Domain.Enums;
+using Wallow.Identity.Domain.Errors;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Shared.Kernel.Domain;
 using Wallow.Shared.Kernel.Identity;
@@ -44,9 +45,7 @@ public sealed class Invitation : AggregateRoot<InvitationId>, ITenantScoped
     {
         if (string.IsNullOrWhiteSpace(email))
         {
-            throw new BusinessRuleException(
-                "Identity.InvitationEmailRequired",
-                "Invitation email cannot be empty");
+            throw new BusinessRuleException(IdentityErrors.InvitationEmailRequired);
         }
 
         return new Invitation(
@@ -66,18 +65,14 @@ public sealed class Invitation : AggregateRoot<InvitationId>, ITenantScoped
     {
         if (Status != InvitationStatus.Pending)
         {
-            throw new BusinessRuleException(
-                "Identity.InvitationNotPending",
-                $"Cannot accept invitation with status '{Status}'");
+            throw new BusinessRuleException(IdentityErrors.InvitationNotPending, $"Cannot accept invitation with status '{Status}'");
         }
 
         if (timeProvider.GetUtcNow() >= ExpiresAt)
         {
             Status = InvitationStatus.Expired;
 
-            throw new BusinessRuleException(
-                "Identity.InvitationExpired",
-                "This invitation has expired");
+            throw new BusinessRuleException(IdentityErrors.InvitationExpired);
         }
 
         Status = InvitationStatus.Accepted;
@@ -94,9 +89,7 @@ public sealed class Invitation : AggregateRoot<InvitationId>, ITenantScoped
     {
         if (Status != InvitationStatus.Pending)
         {
-            throw new BusinessRuleException(
-                "Identity.InvitationNotPending",
-                $"Cannot renew invitation with status '{Status}'");
+            throw new BusinessRuleException(IdentityErrors.InvitationNotPending, $"Cannot renew invitation with status '{Status}'");
         }
 
         ExpiresAt = expiresAt;
@@ -107,9 +100,7 @@ public sealed class Invitation : AggregateRoot<InvitationId>, ITenantScoped
     {
         if (Status != InvitationStatus.Pending)
         {
-            throw new BusinessRuleException(
-                "Identity.InvitationNotPending",
-                $"Cannot revoke invitation with status '{Status}'");
+            throw new BusinessRuleException(IdentityErrors.InvitationNotPending, $"Cannot revoke invitation with status '{Status}'");
         }
 
         Status = InvitationStatus.Revoked;
@@ -120,9 +111,7 @@ public sealed class Invitation : AggregateRoot<InvitationId>, ITenantScoped
     {
         if (Status != InvitationStatus.Pending)
         {
-            throw new BusinessRuleException(
-                "Identity.InvitationNotPending",
-                $"Cannot expire invitation with status '{Status}'");
+            throw new BusinessRuleException(IdentityErrors.InvitationNotPending, $"Cannot expire invitation with status '{Status}'");
         }
 
         Status = InvitationStatus.Expired;

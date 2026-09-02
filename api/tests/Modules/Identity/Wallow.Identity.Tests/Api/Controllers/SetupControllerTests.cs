@@ -6,6 +6,7 @@ using Wallow.Identity.Application.Commands.BootstrapAdmin;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Application.Queries.IsSetupRequired;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Results;
 using Wolverine;
 
@@ -179,7 +180,7 @@ public class SetupControllerTests
         _messageBus.InvokeAsync<bool>(Arg.Any<IsSetupRequiredQuery>(), Arg.Any<CancellationToken>())
             .Returns(true);
         _messageBus.InvokeAsync<Result>(Arg.Any<BootstrapAdminCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure(new Error("Admin.Exists", "Admin already exists")));
+            .Returns(Result.Failure(new ErrorCatalogEntry("Admin.Exists", ErrorKind.BusinessRule, "Admin already exists")));
 
         CreateAdminRequest request = new("admin@test.com", "P@ssword1", "Admin", "User", "Acme Inc");
 

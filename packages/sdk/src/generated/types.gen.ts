@@ -375,6 +375,11 @@ export type DeviceRegistrationResponse = {
  */
 export type EnrollmentPolicy = number;
 
+/**
+ * Machine-readable code identifying why a request failed. Each code has exactly one owning catalog and a fixed HTTP status.
+ */
+export type ErrorCode = 'Announcement.NotDismissible' | 'Announcement.NotFound' | 'ApiKeys.ApiKeyAlreadyRevoked' | 'ApiKeys.ApiKeyDisplayNameRequired' | 'ApiKeys.HashedKeyRequired' | 'ApiKeys.ServiceAccountIdRequired' | 'Auth.ClientIdInvalid' | 'Auth.EmailClaimMissing' | 'Auth.EmailNotConfirmed' | 'Auth.EmailTaken' | 'Auth.EmailUnchanged' | 'Auth.Forbidden' | 'Auth.InvalidCredentials' | 'Auth.LockedOut' | 'Auth.PasswordsDoNotMatch' | 'Auth.ProviderRequired' | 'Auth.ProviderUnsupported' | 'Auth.TicketAlreadyUsed' | 'Auth.TicketInvalid' | 'Auth.TokenExpired' | 'Auth.TokenInvalid' | 'Auth.Unauthenticated' | 'Branding.ClientBrandingClientIdRequired' | 'Branding.ClientBrandingDisplayNameRequired' | 'Bucket.AlreadyExists' | 'Bucket.NotEmpty' | 'Bucket.NotFound' | 'Changelog.NotFound' | 'DeviceRegistration.NotFound' | 'Email.InvalidEmailAddress' | 'File.ContentTypeNotAllowed' | 'File.ExceedsUploadLimit' | 'File.ExtensionNotAllowed' | 'File.FailedSecurityScan' | 'File.NotAvailable' | 'File.NotFound' | 'File.NotUploaded' | 'File.TooLarge' | 'Http.MethodNotAllowed' | 'Http.NotFound' | 'Identity.AlreadyAMember' | 'Identity.ClientAlreadySuspended' | 'Identity.ClientAlreadySuspendedByPlatform' | 'Identity.ClientIdRequired' | 'Identity.ClientIdTaken' | 'Identity.ClientNameRequired' | 'Identity.ClientNameUnusable' | 'Identity.ClientNotSuspended' | 'Identity.ClientNotSuspendedByPlatform' | 'Identity.ClientOrganizationRequired' | 'Identity.DenialCooldown' | 'Identity.EmailRequired' | 'Identity.ExpiryMustBeFuture' | 'Identity.FirstNameRequired' | 'Identity.InvitationEmailMismatch' | 'Identity.InvitationEmailNotVerified' | 'Identity.InvitationEmailRequired' | 'Identity.InvitationExpired' | 'Identity.InvitationNotFound' | 'Identity.InvitationNotPending' | 'Identity.LastNameRequired' | 'Identity.LastOwner' | 'Identity.MemberNotFound' | 'Identity.MembershipNotActive' | 'Identity.MembershipNotDenied' | 'Identity.MembershipNotPending' | 'Identity.MembershipNotReinstatable' | 'Identity.MembershipNotSuspended' | 'Identity.MfaGraceDeadlineMustBeFuture' | 'Identity.NoPendingEmailChange' | 'Identity.OrganizationAlreadyActive' | 'Identity.OrganizationAlreadyInactive' | 'Identity.OrganizationAlreadySuspendedByPlatform' | 'Identity.OrganizationNameMismatch' | 'Identity.OrganizationNameRequired' | 'Identity.OrganizationNotFound' | 'Identity.OrganizationNotSuspendedByPlatform' | 'Identity.OrganizationSlugRequired' | 'Identity.OrganizationSuspendedByPlatform' | 'Identity.PlatformOnlyScope' | 'Identity.PlatformSuspensionReasonRequired' | 'Identity.ReservedRoleName' | 'Identity.RoleNotFound' | 'Identity.ScopeCategoryRequired' | 'Identity.ScopeCodeRequired' | 'Identity.ScopeDisplayNameRequired' | 'Identity.UnknownScope' | 'Identity.UserIdRequired' | 'Identity.UserNotFound' | 'Inquiries.InvalidStatusTransition' | 'Inquiry.NotFound' | 'Mfa.CodeInvalid' | 'Mfa.EnrollmentTokenInvalid' | 'Mfa.LockedOut' | 'Mfa.NotEnabled' | 'Mfa.SessionMissing' | 'Mfa.UpdateFailed' | 'Notification.AccessDenied' | 'Notification.NotFound' | 'RateLimit.Exceeded' | 'Server.Error' | 'Settings.SystemKeyBlocked' | 'Settings.UnknownKey' | 'Setup.Required' | 'Sms.InvalidPhoneNumber' | 'Storage.QuotaExceeded' | 'TenantPushConfiguration.NotFound' | 'Validation.Failed';
+
 export type FileMetadataResponse = {
     id: string;
     bucketId: string;
@@ -696,6 +701,7 @@ export type ProblemDetails = {
     status?: null | number | string;
     detail?: null | string;
     instance?: null | string;
+    code?: ErrorCode;
 };
 
 export type PushPlatform = number;
@@ -974,6 +980,7 @@ export type ValidationProblemDetails = {
     errors?: {
         [key: string]: Array<string>;
     };
+    code?: ErrorCode;
 };
 
 export type VerifyOtpRequest = {

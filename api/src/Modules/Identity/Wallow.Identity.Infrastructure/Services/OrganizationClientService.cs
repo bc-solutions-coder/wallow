@@ -11,6 +11,7 @@ using Wallow.Identity.Application.Helpers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Domain.Enums;
+using Wallow.Identity.Domain.Errors;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Extensions;
 using Wallow.Identity.Infrastructure.Persistence;
@@ -58,7 +59,7 @@ public sealed partial class OrganizationClientService(
         ArgumentNullException.ThrowIfNull(actor);
 
         Organization organization = await organizations.GetByIdAsync(OrganizationId.Create(organizationId), ct)
-            ?? throw new EntityNotFoundException("Organization", organizationId);
+            ?? throw new EntityNotFoundException(IdentityErrors.OrganizationNotFound, organizationId);
 
         await EnsureGrantableAsync(input.Configuration.Scopes, ct);
 
@@ -513,7 +514,7 @@ public sealed partial class OrganizationClientService(
         if (unknown.Count > 0)
         {
             throw new BusinessRuleException(
-                "Identity.UnknownScope",
+                IdentityErrors.UnknownScope,
                 $"Unknown scopes: {string.Join(", ", unknown)}.");
         }
 
@@ -521,7 +522,7 @@ public sealed partial class OrganizationClientService(
         if (platformOnly.Count > 0)
         {
             throw new BusinessRuleException(
-                "Identity.PlatformOnlyScope",
+                IdentityErrors.PlatformOnlyScope,
                 $"Scopes reserved for the platform's own clients cannot be granted here: {string.Join(", ", platformOnly)}.");
         }
     }
@@ -596,7 +597,7 @@ public sealed partial class OrganizationClientService(
 
     private static BusinessRuleException ClientIdTaken(string name, string clientId) =>
         new(
-            "Identity.ClientIdTaken",
+            IdentityErrors.ClientIdTaken,
             $"A client named '{name}' already exists in this organization (client id '{clientId}').");
 
     private static bool IsUniqueViolation(DbUpdateException exception) =>

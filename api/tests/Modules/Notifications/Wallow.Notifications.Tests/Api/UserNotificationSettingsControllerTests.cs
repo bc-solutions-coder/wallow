@@ -5,6 +5,7 @@ using Wallow.Notifications.Application.Channels.Preferences.DTOs;
 using Wallow.Notifications.Application.Channels.Preferences.Queries.GetUserNotificationSettings;
 using Wallow.Notifications.Application.Preferences.DTOs;
 using Wallow.Notifications.Domain.Preferences;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Shared.Kernel.Services;
 using Wolverine;
@@ -88,7 +89,7 @@ public class UserNotificationSettingsControllerTests
         Guid userId = Guid.NewGuid();
         _currentUserService.GetCurrentUserId().Returns(userId);
 
-        Error error = new("Settings.NotFound", "Settings not found");
+        Error error = new(new ErrorCatalogEntry("Settings.NotFound", ErrorKind.NotFound, "Settings not found"));
         _bus.InvokeAsync<Result<UserNotificationSettingsDto>>(
             Arg.Any<GetUserNotificationSettingsQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure<UserNotificationSettingsDto>(error));
@@ -132,7 +133,7 @@ public class UserNotificationSettingsControllerTests
         Guid userId = Guid.NewGuid();
         _currentUserService.GetCurrentUserId().Returns(userId);
 
-        Error error = new("Validation.InvalidChannel", "Invalid channel type");
+        Error error = new(SharedErrors.ValidationFailed, "Invalid channel type");
         _bus.InvokeAsync<Result>(Arg.Any<object>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure(error));
 
@@ -176,7 +177,7 @@ public class UserNotificationSettingsControllerTests
         Guid userId = Guid.NewGuid();
         _currentUserService.GetCurrentUserId().Returns(userId);
 
-        Error error = new("Validation.InvalidType", "Invalid notification type");
+        Error error = new(SharedErrors.ValidationFailed, "Invalid notification type");
         _bus.InvokeAsync<Result>(Arg.Any<object>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure(error));
 

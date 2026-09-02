@@ -1,3 +1,5 @@
+using Wallow.Shared.Kernel.Errors;
+
 namespace Wallow.Shared.Kernel.Results;
 
 /// <summary>
@@ -29,9 +31,20 @@ public class Result
     public static Result Success() => new(true, Error.None);
     public static Result Failure(Error error) => new(false, error);
 
+    /// <summary>
+    /// Fails with a catalog entry, optionally overriding its default sentence.
+    /// </summary>
+    public static Result Failure(ErrorCatalogEntry entry, string? message = null) =>
+        Failure(new Error(entry, message));
+
     public static Result<TValue> Success<TValue>(TValue value) => new(value, true, Error.None);
     public static Result<TValue> Failure<TValue>(Error error) => new(default!, false, error);
 
+    /// <summary>
+    /// Fails with a catalog entry, optionally overriding its default sentence.
+    /// </summary>
+    public static Result<TValue> Failure<TValue>(ErrorCatalogEntry entry, string? message = null) =>
+        Failure<TValue>(new Error(entry, message));
 }
 
 /// <summary>

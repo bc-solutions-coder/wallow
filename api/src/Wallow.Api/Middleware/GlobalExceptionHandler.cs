@@ -1,7 +1,9 @@
 using FluentValidation;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Wallow.Shared.Api.Extensions;
 using Wallow.Shared.Kernel.Domain;
+using Wallow.Shared.Kernel.Errors;
 
 namespace Wallow.Api.Middleware;
 
@@ -57,43 +59,19 @@ internal partial class GlobalExceptionHandler(
 
     private ProblemDetails CreateProblemDetails(Exception exception, string traceId)
     {
-        (int statusCode, string title, string type) = exception switch
+        int statusCode = exception switch
         {
-            EntityNotFoundException => (
-                StatusCodes.Status404NotFound,
-                "Resource Not Found",
-                "https://tools.ietf.org/html/rfc7231#section-6.5.4"),
-
-            BusinessRuleException => (
-                StatusCodes.Status422UnprocessableEntity,
-                "Business Rule Violation",
-                "https://tools.ietf.org/html/rfc4918#section-11.2"),
-
-            ValidationException => (
-                StatusCodes.Status400BadRequest,
-                "Validation Error",
-                "https://tools.ietf.org/html/rfc7231#section-6.5.1"),
-
-            UnauthorizedAccessException => (
-                StatusCodes.Status401Unauthorized,
-                "Unauthorized",
-                "https://tools.ietf.org/html/rfc7235#section-3.1"),
-
-            ForbiddenAccessException => (
-                StatusCodes.Status403Forbidden,
-                "Forbidden",
-                "https://tools.ietf.org/html/rfc7231#section-6.5.3"),
-
-            ArgumentException or ArgumentNullException => (
-                StatusCodes.Status400BadRequest,
-                "Bad Request",
-                "https://tools.ietf.org/html/rfc7231#section-6.5.1"),
-
-            _ => (
-                StatusCodes.Status500InternalServerError,
-                "Internal Server Error",
-                "https://tools.ietf.org/html/rfc7231#section-6.6.1")
+            DomainException domain => domain.Kind.ToHttpStatusCode(),
+            ValidationException => StatusCodes.Status400BadRequest,
+            UnauthorizedAccessException => StatusCodes.Status401Unauthorized,
+            ArgumentException or ArgumentNullException => StatusCodes.Status400BadRequest,
+            _ => StatusCodes.Status500InternalServerError
         };
+
+        // One title and type table for the whole API: a catalog entry renders the same whether it
+        // surfaced as a failed Result or a thrown DomainException.
+        string title = ResultExtensions.GetProblemTitle(statusCode);
+        string type = ResultExtensions.GetProblemType(statusCode);
 
         ProblemDetails problemDetails = new()
         {

@@ -1,6 +1,7 @@
 using Wallow.Notifications.Application.Channels.InApp.Interfaces;
 using Wallow.Notifications.Domain.Channels.InApp.Entities;
 using Wallow.Notifications.Domain.Channels.InApp.Identity;
+using Wallow.Notifications.Domain.Errors;
 using Wallow.Shared.Kernel.Results;
 
 namespace Wallow.Notifications.Application.Channels.InApp.Commands.MarkNotificationRead;
@@ -19,12 +20,12 @@ public sealed class MarkNotificationReadHandler(
 
         if (notification is null)
         {
-            return Result.Failure(Error.NotFound("Notification", command.NotificationId));
+            return Result.Failure(NotificationsErrors.NotificationNotFound);
         }
 
         if (notification.UserId != command.UserId)
         {
-            return Result.Failure(Error.Unauthorized("Unauthorized access to notification"));
+            return Result.Failure(NotificationsErrors.NotificationAccessDenied);
         }
 
         notification.MarkAsRead(timeProvider);

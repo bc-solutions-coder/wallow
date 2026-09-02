@@ -7,11 +7,21 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Wallow.Api.Middleware;
 using Wallow.Shared.Kernel.Domain;
+using Wallow.Shared.Kernel.Errors;
 
 namespace Wallow.Api.Tests.Middleware;
 
 public class GlobalExceptionHandlerTests
 {
+    private static readonly ErrorCatalogEntry _invoiceNotFound =
+        new("Invoice.NotFound", ErrorKind.NotFound, "Invoice was not found");
+
+    private static readonly ErrorCatalogEntry _invoiceAlreadyPaid =
+        new("Billing.InvoiceAlreadyPaid", ErrorKind.BusinessRule, "Invoice has already been paid");
+
+    private static readonly ErrorCatalogEntry _limitExceeded =
+        new("Billing.LimitExceeded", ErrorKind.BusinessRule, "Monthly limit exceeded");
+
     private readonly IHostEnvironment _environment = Substitute.For<IHostEnvironment>();
     private readonly GlobalExceptionHandler _sut;
 
@@ -27,14 +37,14 @@ public class GlobalExceptionHandlerTests
     public async Task TryHandleAsync_EntityNotFoundException_Returns404WithCode()
     {
         DefaultHttpContext httpContext = CreateHttpContext();
-        EntityNotFoundException exception = new("Invoice", Guid.NewGuid());
+        EntityNotFoundException exception = new(_invoiceNotFound, Guid.NewGuid());
 
         bool handled = await _sut.TryHandleAsync(httpContext, exception, CancellationToken.None);
 
         handled.Should().BeTrue();
         httpContext.Response.StatusCode.Should().Be(StatusCodes.Status404NotFound);
         ProblemDetails problem = await ReadProblemDetails(httpContext);
-        problem.Title.Should().Be("Resource Not Found");
+        problem.Title.Should().Be("Not Found");
         problem.Status.Should().Be(404);
         problem.Extensions.Should().ContainKey("code")
             .WhoseValue.Should().NotBeNull();
@@ -44,14 +54,14 @@ public class GlobalExceptionHandlerTests
     public async Task TryHandleAsync_BusinessRuleException_Returns422WithCode()
     {
         DefaultHttpContext httpContext = CreateHttpContext();
-        BusinessRuleException exception = new("Billing.InvoiceAlreadyPaid", "Invoice has already been paid");
+        BusinessRuleException exception = new(_invoiceAlreadyPaid);
 
         bool handled = await _sut.TryHandleAsync(httpContext, exception, CancellationToken.None);
 
         handled.Should().BeTrue();
         httpContext.Response.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
         ProblemDetails problem = await ReadProblemDetails(httpContext);
-        problem.Title.Should().Be("Business Rule Violation");
+        problem.Title.Should().Be("Unprocessable Entity");
         problem.Status.Should().Be(422);
         problem.Detail.Should().Be("Invoice has already been paid");
     }
@@ -72,7 +82,7 @@ public class GlobalExceptionHandlerTests
         handled.Should().BeTrue();
         httpContext.Response.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
         ProblemDetails problem = await ReadProblemDetails(httpContext);
-        problem.Title.Should().Be("Validation Error");
+        problem.Title.Should().Be("Bad Request");
         problem.Status.Should().Be(400);
         problem.Detail.Should().Contain("Name is required");
         problem.Detail.Should().Contain("Email is invalid");
@@ -147,7 +157,7 @@ public class GlobalExceptionHandlerTests
     public async Task TryHandleAsync_BusinessRuleException_IncludesCodeInExtensions()
     {
         DefaultHttpContext httpContext = CreateHttpContext();
-        BusinessRuleException exception = new("Billing.InvoiceAlreadyPaid", "Invoice has already been paid");
+        BusinessRuleException exception = new(_invoiceAlreadyPaid);
 
         await _sut.TryHandleAsync(httpContext, exception, CancellationToken.None);
 
@@ -161,7 +171,7 @@ public class GlobalExceptionHandlerTests
     {
         DefaultHttpContext httpContext = CreateHttpContext();
         Guid entityId = Guid.NewGuid();
-        EntityNotFoundException exception = new("Invoice", entityId);
+        EntityNotFoundException exception = new(_invoiceNotFound, entityId);
 
         await _sut.TryHandleAsync(httpContext, exception, CancellationToken.None);
 
@@ -174,7 +184,7 @@ public class GlobalExceptionHandlerTests
     public async Task TryHandleAsync_DomainExceptionInProduction_StillExposesDetailMessage()
     {
         DefaultHttpContext httpContext = CreateHttpContext();
-        BusinessRuleException exception = new("Billing.LimitExceeded", "Monthly limit exceeded");
+        BusinessRuleException exception = new(_limitExceeded);
 
         await _sut.TryHandleAsync(httpContext, exception, CancellationToken.None);
 

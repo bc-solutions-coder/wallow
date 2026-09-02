@@ -4,6 +4,7 @@ using Wallow.Announcements.Application.Announcements.Mappings;
 using Wallow.Announcements.Domain.Announcements.Entities;
 using Wallow.Announcements.Domain.Announcements.Enums;
 using Wallow.Announcements.Domain.Announcements.Identity;
+using Wallow.Announcements.Domain.Errors;
 using Wallow.Shared.Kernel.Results;
 
 namespace Wallow.Announcements.Application.Announcements.Commands.UpdateAnnouncement;
@@ -32,7 +33,7 @@ public sealed class UpdateAnnouncementHandler(
         Announcement? announcement = await repository.GetByIdAsync(AnnouncementId.Create(command.Id), ct);
         if (announcement is null)
         {
-            return Result.Failure<AnnouncementDto>(Error.NotFound("Announcement.NotFound", "Announcement not found"));
+            return Result.Failure<AnnouncementDto>(AnnouncementsErrors.AnnouncementNotFound);
         }
 
         announcement.Update(

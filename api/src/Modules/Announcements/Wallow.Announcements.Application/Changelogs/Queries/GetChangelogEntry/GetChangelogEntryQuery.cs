@@ -2,6 +2,7 @@ using Wallow.Announcements.Application.Changelogs.DTOs;
 using Wallow.Announcements.Application.Changelogs.Interfaces;
 using Wallow.Announcements.Application.Changelogs.Mappings;
 using Wallow.Announcements.Domain.Changelogs.Entities;
+using Wallow.Announcements.Domain.Errors;
 using Wallow.Shared.Kernel.Results;
 
 namespace Wallow.Announcements.Application.Changelogs.Queries.GetChangelogEntry;
@@ -18,7 +19,7 @@ public sealed class GetChangelogByVersionHandler(IChangelogRepository repository
 
         if (entry is null || !entry.IsPublished)
         {
-            return Result.Failure<ChangelogEntryDto>(Error.NotFound("Changelog", query.Version));
+            return Result.Failure<ChangelogEntryDto>(AnnouncementsErrors.ChangelogNotFound);
         }
 
         return Result.Success(entry.ToDto());
@@ -34,7 +35,7 @@ public sealed class GetLatestChangelogHandler(IChangelogRepository repository)
 
         if (entry is null)
         {
-            return Result.Failure<ChangelogEntryDto>(Error.NotFound("Changelog", "latest"));
+            return Result.Failure<ChangelogEntryDto>(AnnouncementsErrors.ChangelogNotFound);
         }
 
         return Result.Success(entry.ToDto());

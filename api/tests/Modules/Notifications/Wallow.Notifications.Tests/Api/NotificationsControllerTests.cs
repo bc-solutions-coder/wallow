@@ -6,6 +6,8 @@ using Wallow.Notifications.Application.Channels.InApp.DTOs;
 using Wallow.Notifications.Application.Channels.InApp.Queries.GetUnreadCount;
 using Wallow.Notifications.Application.Channels.InApp.Queries.GetUserNotifications;
 using Wallow.Notifications.Domain.Enums;
+using Wallow.Notifications.Domain.Errors;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Pagination;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Shared.Kernel.Services;
@@ -139,7 +141,7 @@ public class NotificationsControllerTests
         Guid notificationId = Guid.NewGuid();
         _currentUserService.GetCurrentUserId().Returns(userId);
 
-        Error error = Error.NotFound("Notification", notificationId);
+        Error error = new(NotificationsErrors.NotificationNotFound);
         _bus.InvokeAsync<Result>(
             Arg.Any<MarkNotificationReadCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure(error));
@@ -156,7 +158,7 @@ public class NotificationsControllerTests
         Guid userId = Guid.NewGuid();
         _currentUserService.GetCurrentUserId().Returns(userId);
 
-        Error error = Error.Validation("No notifications to mark as read");
+        Error error = new Error(SharedErrors.ValidationFailed, "No notifications to mark as read");
         _bus.InvokeAsync<Result>(
             Arg.Any<MarkAllNotificationsReadCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure(error));
@@ -173,7 +175,7 @@ public class NotificationsControllerTests
         Guid userId = Guid.NewGuid();
         _currentUserService.GetCurrentUserId().Returns(userId);
 
-        Error error = Error.Validation("Invalid page number");
+        Error error = new Error(SharedErrors.ValidationFailed, "Invalid page number");
         Result<PagedResult<NotificationDto>> failureResult = Result.Failure<PagedResult<NotificationDto>>(error);
 
         _bus.InvokeAsync<Result<PagedResult<NotificationDto>>>(
@@ -192,7 +194,7 @@ public class NotificationsControllerTests
         Guid userId = Guid.NewGuid();
         _currentUserService.GetCurrentUserId().Returns(userId);
 
-        Error error = Error.Validation("Unable to retrieve count");
+        Error error = new Error(SharedErrors.ValidationFailed, "Unable to retrieve count");
         Result<int> failureResult = Result.Failure<int>(error);
 
         _bus.InvokeAsync<Result<int>>(

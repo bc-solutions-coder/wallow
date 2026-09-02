@@ -1,4 +1,5 @@
 using Wallow.Shared.Kernel.Domain;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Identity;
 
 namespace Wallow.Shared.Kernel.MultiTenancy;
@@ -17,13 +18,13 @@ public static class TenantScope
     /// <summary>
     /// Returns <paramref name="tenantId"/>, or throws if it is the default value.
     /// </summary>
-    /// <exception cref="BusinessRuleException">The tenant id is unset.</exception>
+    /// <exception cref="ForbiddenAccessException">The tenant id is unset.</exception>
     public static TenantId Require(TenantId tenantId, string entityName)
     {
         if (tenantId == default)
         {
-            throw new BusinessRuleException(
-                "Shared.TenantRequired",
+            throw new ForbiddenAccessException(
+                SharedErrors.Forbidden,
                 $"Cannot create {entityName} without a resolved tenant");
         }
 

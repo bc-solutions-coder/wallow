@@ -13,6 +13,7 @@ using Wallow.Notifications.Application.Channels.Push.Interfaces;
 using Wallow.Notifications.Application.Channels.Sms.Interfaces;
 using Wallow.Notifications.Application.Extensions;
 using Wallow.Notifications.Application.Preferences.Interfaces;
+using Wallow.Notifications.Domain.Errors;
 using Wallow.Notifications.Infrastructure.Jobs;
 using Wallow.Notifications.Infrastructure.Modules;
 using Wallow.Notifications.Infrastructure.Persistence;
@@ -21,6 +22,7 @@ using Wallow.Notifications.Infrastructure.Services;
 using Wallow.Shared.Contracts.Notifications.Email;
 using Wallow.Shared.Infrastructure.Core.Extensions;
 using Wallow.Shared.Infrastructure.Core.Resilience;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Notifications.Infrastructure.Extensions;
@@ -31,6 +33,7 @@ public static partial class NotificationsModuleExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        services.AddErrorCatalog(typeof(NotificationsErrors));
         services.AddNotificationsApplication();
         services
             .AddNotificationsPersistence(configuration)

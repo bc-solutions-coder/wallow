@@ -1,3 +1,4 @@
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Results;
@@ -51,7 +52,7 @@ public class CreateBucketHandlerTests
         Result<BucketDto> result = await _handler.Handle(command, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
-        result.Error.Code.Should().Contain("Conflict");
+        result.Error.Kind.Should().Be(ErrorKind.Conflict);
         result.Error.Message.Should().Contain("existing-bucket");
 
         _repository.DidNotReceive().Add(Arg.Any<StorageBucket>());
@@ -101,7 +102,7 @@ public class CreateBucketHandlerTests
 
         result1.IsSuccess.Should().BeTrue();
         result2.IsFailure.Should().BeTrue();
-        result2.Error.Code.Should().Contain("Conflict");
+        result2.Error.Kind.Should().Be(ErrorKind.Conflict);
         _repository.Received(1).Add(Arg.Any<StorageBucket>());
     }
 

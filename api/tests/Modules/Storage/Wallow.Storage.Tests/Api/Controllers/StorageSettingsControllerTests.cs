@@ -185,7 +185,7 @@ public class StorageSettingsControllerTests
         IActionResult result = await _controller.UpsertTenantSetting(request, CancellationToken.None);
 
         ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
-        objectResult.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
+        objectResult.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
     }
 
     [Fact]

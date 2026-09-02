@@ -7,6 +7,8 @@ using Wallow.Announcements.Application.Announcements.Commands.DismissAnnouncemen
 using Wallow.Announcements.Application.Announcements.DTOs;
 using Wallow.Announcements.Application.Announcements.Queries.GetActiveAnnouncements;
 using Wallow.Announcements.Domain.Announcements.Enums;
+using Wallow.Announcements.Domain.Errors;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Results;
@@ -140,7 +142,7 @@ public class AnnouncementsControllerTests
     {
         Guid announcementId = Guid.NewGuid();
         _bus.InvokeAsync<Result>(Arg.Any<DismissAnnouncementCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure(Error.NotFound("Announcement", announcementId)));
+            .Returns(Result.Failure(AnnouncementsErrors.AnnouncementNotFound));
 
         IActionResult result = await _controller.DismissAnnouncement(announcementId, CancellationToken.None);
 
@@ -169,7 +171,7 @@ public class AnnouncementsControllerTests
     {
         Guid announcementId = Guid.NewGuid();
         _bus.InvokeAsync<Result>(Arg.Any<DismissAnnouncementCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure(Error.Validation("Cannot dismiss this announcement")));
+            .Returns(Result.Failure(new Error(SharedErrors.ValidationFailed, "Cannot dismiss this announcement")));
 
         IActionResult result = await _controller.DismissAnnouncement(announcementId, CancellationToken.None);
 

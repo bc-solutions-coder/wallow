@@ -1,49 +1,33 @@
 using Wallow.Shared.Kernel.Domain;
+using Wallow.Shared.Kernel.Errors;
 
 namespace Wallow.Shared.Kernel.Tests.Domain;
 
 public class ForbiddenAccessExceptionTests
 {
     [Fact]
-    public void Constructor_WithMessage_SetsMessage()
+    public void Constructor_FromSharedForbidden_UsesKernelCode()
     {
-        ForbiddenAccessException ex = new("you shall not pass");
+        ForbiddenAccessException exception = new(SharedErrors.Forbidden);
 
-        ex.Message.Should().Be("you shall not pass");
+        exception.Code.Should().Be("Auth.Forbidden");
+        exception.Kind.Should().Be(ErrorKind.Forbidden);
+        exception.Message.Should().Be(SharedErrors.Forbidden.DefaultMessage);
     }
 
     [Fact]
-    public void Code_IsAlwaysAccessForbidden()
+    public void Constructor_WithOverride_ReplacesMessage()
     {
-        ForbiddenAccessException ex = new("any message");
+        ForbiddenAccessException exception = new(SharedErrors.Forbidden, "Only owners may do this.");
 
-        ex.Code.Should().Be("Access.Forbidden");
+        exception.Message.Should().Be("Only owners may do this.");
     }
 
     [Fact]
-    public void InheritsFromDomainException()
+    public void Constructor_RefusesNonForbiddenEntry()
     {
-        ForbiddenAccessException ex = new("forbidden");
+        Func<ForbiddenAccessException> act = () => new ForbiddenAccessException(SharedErrors.NotFound);
 
-        ex.Should().BeAssignableTo<DomainException>();
-    }
-
-    [Fact]
-    public void InheritsFromException()
-    {
-        ForbiddenAccessException ex = new("forbidden");
-
-        ex.Should().BeAssignableTo<Exception>();
-    }
-
-    [Fact]
-    public void TwoInstances_WithDifferentMessages_CarryRespectiveMessagesButSameCode()
-    {
-        ForbiddenAccessException first = new("not allowed to read");
-        ForbiddenAccessException second = new("not allowed to write");
-
-        first.Message.Should().Be("not allowed to read");
-        second.Message.Should().Be("not allowed to write");
-        first.Code.Should().Be(second.Code).And.Be("Access.Forbidden");
+        act.Should().Throw<ArgumentException>().WithMessage("*Forbidden*");
     }
 }

@@ -3,6 +3,8 @@ using Wallow.Notifications.Application.Channels.InApp.Interfaces;
 using Wallow.Notifications.Domain.Channels.InApp.Entities;
 using Wallow.Notifications.Domain.Channels.InApp.Identity;
 using Wallow.Notifications.Domain.Enums;
+using Wallow.Notifications.Domain.Errors;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.Results;
 
@@ -56,7 +58,7 @@ public class MarkNotificationReadHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenDifferentUser_ReturnsUnauthorizedFailure()
+    public async Task Handle_WhenDifferentUser_ReturnsForbiddenFailure()
     {
         Guid ownerId = Guid.NewGuid();
         Guid differentUserId = Guid.NewGuid();
@@ -73,5 +75,7 @@ public class MarkNotificationReadHandlerTests
         Result result = await _handler.Handle(command, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be(NotificationsErrors.NotificationAccessDenied.Code);
+        result.Error.Kind.Should().Be(ErrorKind.Forbidden);
     }
 }

@@ -1,4 +1,5 @@
 using Wallow.Shared.Contracts.Storage;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Storage.Application.Commands.DeleteBucket;
@@ -69,7 +70,7 @@ public class DeleteBucketHandlerTests
         Result result = await _handler.Handle(command, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
-        result.Error.Code.Should().StartWith("Validation");
+        result.Error.Kind.Should().Be(ErrorKind.Validation);
         result.Error.Message.Should().Contain("1 file(s)");
         _bucketRepository.DidNotReceive().Remove(Arg.Any<StorageBucket>());
     }

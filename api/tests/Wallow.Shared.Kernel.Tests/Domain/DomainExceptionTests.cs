@@ -1,118 +1,102 @@
 using Wallow.Shared.Kernel.Domain;
+using Wallow.Shared.Kernel.Errors;
 
 namespace Wallow.Shared.Kernel.Tests.Domain;
 
 public class DomainExceptionTests
 {
-    private sealed class TestDomainException : DomainException
-    {
-        public TestDomainException(string message) : base(message) { }
-        public TestDomainException(string message, Exception innerException) : base(message, innerException) { }
-        public TestDomainException(string code, string message) : base(code, message) { }
-        public TestDomainException(string code, string message, Exception innerException) : base(code, message, innerException) { }
-    }
-
-    // --- DomainException ---
+    private static readonly ErrorCatalogEntry _notFoundEntry = new("Invoice.NotFound", ErrorKind.NotFound, "Invoice not found.");
+    private static readonly ErrorCatalogEntry _ruleEntry = new("Billing.InvoiceAlreadyPaid", ErrorKind.BusinessRule, "The invoice is already paid.");
 
     [Fact]
-    public void DomainException_WithMessage_SetsMessage()
+    public void Constructor_FromEntry_ExposesEntryCodeKindAndDefaultMessage()
     {
-        TestDomainException ex = new("something failed");
+        TestDomainException exception = new(_ruleEntry);
 
-        ex.Message.Should().Be("something failed");
-        ex.Code.Should().Be(string.Empty);
+        exception.Entry.Should().BeSameAs(_ruleEntry);
+        exception.Code.Should().Be("Billing.InvoiceAlreadyPaid");
+        exception.Kind.Should().Be(ErrorKind.BusinessRule);
+        exception.Message.Should().Be("The invoice is already paid.");
+        exception.InnerException.Should().BeNull();
     }
 
     [Fact]
-    public void DomainException_WithMessageAndInner_SetsBoth()
+    public void Constructor_WithOverride_ReplacesMessageOnly()
     {
-        InvalidOperationException inner = new("root cause");
+        TestDomainException exception = new(_ruleEntry, "Invoice 42 is already paid.");
 
-        TestDomainException ex = new("wrapper", inner);
-
-        ex.Message.Should().Be("wrapper");
-        ex.InnerException.Should().BeSameAs(inner);
+        exception.Code.Should().Be("Billing.InvoiceAlreadyPaid");
+        exception.Message.Should().Be("Invoice 42 is already paid.");
     }
 
     [Fact]
-    public void DomainException_WithCodeAndMessage_SetsBoth()
+    public void Constructor_WithInnerException_PreservesIt()
     {
-        TestDomainException ex = new("ERR_CODE", "detailed message");
+        InvalidOperationException inner = new("boom");
 
-        ex.Code.Should().Be("ERR_CODE");
-        ex.Message.Should().Be("detailed message");
+        TestDomainException exception = new(_ruleEntry, null, inner);
+
+        exception.InnerException.Should().BeSameAs(inner);
+        exception.Message.Should().Be(_ruleEntry.DefaultMessage);
     }
 
-    [Fact]
-    public void DomainException_WithCodeMessageAndInner_SetsAll()
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    public void Constructor_WithBlankOverride_Throws(string message)
     {
-        InvalidOperationException inner = new("root cause");
-
-        TestDomainException ex = new("ERR_CODE", "detailed message", inner);
-
-        ex.Code.Should().Be("ERR_CODE");
-        ex.Message.Should().Be("detailed message");
-        ex.InnerException.Should().BeSameAs(inner);
-    }
-
-    [Fact]
-    public void DomainException_WithEmptyCode_ThrowsArgumentException()
-    {
-        Action act = () => _ = new TestDomainException("", "message");
+        Func<TestDomainException> act = () => new TestDomainException(_ruleEntry, message);
 
         act.Should().Throw<ArgumentException>();
     }
 
     [Fact]
-    public void DomainException_WithEmptyMessage_ThrowsArgumentException()
+    public void Constructor_WithNullEntry_Throws()
     {
-        Action act = () => _ = new TestDomainException("");
+        Func<TestDomainException> act = () => new TestDomainException(null!);
 
-        act.Should().Throw<ArgumentException>();
+        act.Should().Throw<ArgumentNullException>();
     }
 
-    // --- EntityNotFoundException ---
-
     [Fact]
-    public void EntityNotFoundException_WithEntityNameAndId_SetsProperties()
+    public void EntityNotFoundException_KeepsEntityIdAndEntry()
     {
         Guid id = Guid.NewGuid();
 
-        EntityNotFoundException ex = new("Order", id);
+        EntityNotFoundException exception = new(_notFoundEntry, id);
 
-        ex.EntityName.Should().Be("Order");
-        ex.EntityId.Should().Be(id);
-        ex.Code.Should().Be("Order.NotFound");
-        ex.Message.Should().Contain("Order");
-        ex.Message.Should().Contain(id.ToString());
+        exception.EntityId.Should().Be(id);
+        exception.Code.Should().Be("Invoice.NotFound");
+        exception.Kind.Should().Be(ErrorKind.NotFound);
+        exception.Message.Should().Be("Invoice not found.");
     }
 
     [Fact]
-    public void EntityNotFoundException_InheritsFromDomainException()
+    public void EntityNotFoundException_RefusesNonNotFoundEntry()
     {
-        EntityNotFoundException ex = new("Order", Guid.NewGuid());
+        Func<EntityNotFoundException> act = () => new EntityNotFoundException(_ruleEntry, 1);
 
-        ex.Should().BeAssignableTo<DomainException>();
-        ex.Should().BeAssignableTo<Exception>();
-    }
-
-    // --- BusinessRuleException ---
-
-    [Fact]
-    public void BusinessRuleException_WithCodeAndMessage_SetsProperties()
-    {
-        BusinessRuleException ex = new("INSUFFICIENT_FUNDS", "Not enough balance");
-
-        ex.Code.Should().Be("INSUFFICIENT_FUNDS");
-        ex.Message.Should().Be("Not enough balance");
+        act.Should().Throw<ArgumentException>().WithMessage("*NotFound*");
     }
 
     [Fact]
-    public void BusinessRuleException_InheritsFromDomainException()
+    public void BusinessRuleException_CarriesEntryAndOverride()
     {
-        BusinessRuleException ex = new("CODE", "msg");
+        BusinessRuleException exception = new(_ruleEntry, "Paid on Monday.");
 
-        ex.Should().BeAssignableTo<DomainException>();
-        ex.Should().BeAssignableTo<Exception>();
+        exception.Code.Should().Be("Billing.InvoiceAlreadyPaid");
+        exception.Kind.Should().Be(ErrorKind.BusinessRule);
+        exception.Message.Should().Be("Paid on Monday.");
     }
+
+    [Fact]
+    public void BusinessRuleException_RefusesNonBusinessRuleEntry()
+    {
+        Func<BusinessRuleException> act = () => new BusinessRuleException(_notFoundEntry);
+
+        act.Should().Throw<ArgumentException>().WithMessage("*BusinessRule*");
+    }
+
+    private sealed class TestDomainException(ErrorCatalogEntry entry, string? message = null, Exception? inner = null)
+        : DomainException(entry, message, inner);
 }

@@ -6,6 +6,7 @@ using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Domain.Enums;
+using Wallow.Identity.Domain.Errors;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Shared.Contracts.Identity.Events;
@@ -240,9 +241,7 @@ public sealed partial class OrganizationService(
 
         if (membership is null)
         {
-            throw new BusinessRuleException(
-                "Identity.MemberNotFound",
-                "User is not a member of this organization");
+            throw new BusinessRuleException(IdentityErrors.MemberNotFound);
         }
 
         await lastOwnerGuard.ExecuteDepartureAsync(orgId, userId, async token =>
@@ -692,9 +691,7 @@ public sealed partial class OrganizationService(
 
         if (!exists)
         {
-            throw new BusinessRuleException(
-                "Identity.RoleNotFound",
-                "The requested default role does not exist");
+            throw new BusinessRuleException(IdentityErrors.RoleNotFound, "The requested default role does not exist");
         }
     }
 
@@ -864,9 +861,7 @@ public sealed partial class OrganizationService(
 
         if (role is null)
         {
-            throw new BusinessRuleException(
-                "Identity.RoleNotFound",
-                $"Role '{roleName}' does not exist");
+            throw new BusinessRuleException(IdentityErrors.RoleNotFound, $"Role '{roleName}' does not exist");
         }
 
         return role.Id;

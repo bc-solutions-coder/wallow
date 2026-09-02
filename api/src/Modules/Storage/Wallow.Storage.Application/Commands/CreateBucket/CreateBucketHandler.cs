@@ -4,6 +4,7 @@ using Wallow.Storage.Application.DTOs;
 using Wallow.Storage.Application.Interfaces;
 using Wallow.Storage.Application.Mappings;
 using Wallow.Storage.Domain.Entities;
+using Wallow.Storage.Domain.Errors;
 using Wallow.Storage.Domain.ValueObjects;
 
 namespace Wallow.Storage.Application.Commands.CreateBucket;
@@ -20,7 +21,7 @@ public sealed class CreateBucketHandler(
         if (exists)
         {
             return Result.Failure<BucketDto>(
-                Error.Conflict($"Bucket '{command.Name}' already exists"));
+                new Error(StorageErrors.BucketAlreadyExists, $"Bucket '{command.Name}' already exists"));
         }
 
         RetentionPolicy? retention = null;

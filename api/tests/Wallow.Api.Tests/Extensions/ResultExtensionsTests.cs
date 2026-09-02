@@ -1,11 +1,15 @@
 using Microsoft.AspNetCore.Mvc;
 using Wallow.Shared.Api.Extensions;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Results;
 
 namespace Wallow.Api.Tests.Extensions;
 
 public class ResultExtensionsTests
 {
+    private static readonly ErrorCatalogEntry _businessRule =
+        new("Billing.LimitExceeded", ErrorKind.BusinessRule, "Over limit");
+
     [Fact]
     public void ToActionResult_WhenSuccess_ReturnsOkResult()
     {
@@ -19,7 +23,7 @@ public class ResultExtensionsTests
     [Fact]
     public void ToActionResult_WhenFailure_ReturnsProblemDetails()
     {
-        Result result = Result.Failure(Error.NotFound("Invoice", Guid.NewGuid()));
+        Result result = Result.Failure(SharedErrors.NotFound, "Invoice was not found");
 
         IActionResult actionResult = result.ToActionResult();
 
@@ -28,7 +32,20 @@ public class ResultExtensionsTests
         ProblemDetails problem = objectResult.Value.Should().BeOfType<ProblemDetails>().Subject;
         problem.Status.Should().Be(404);
         problem.Title.Should().Be("Not Found");
-        problem.Detail.Should().Contain("Invoice");
+        problem.Detail.Should().Be("Invoice was not found");
+        problem.Extensions["code"].Should().Be("Http.NotFound");
+    }
+
+    [Fact]
+    public void ToActionResult_WhenFailureWithoutOverride_UsesDefaultSentenceAsDetail()
+    {
+        Result result = Result.Failure(SharedErrors.NotFound);
+
+        IActionResult actionResult = result.ToActionResult();
+
+        ObjectResult objectResult = actionResult.Should().BeOfType<ObjectResult>().Subject;
+        ProblemDetails problem = objectResult.Value.Should().BeOfType<ProblemDetails>().Subject;
+        problem.Detail.Should().Be(SharedErrors.NotFound.DefaultMessage);
     }
 
     [Fact]
@@ -46,7 +63,7 @@ public class ResultExtensionsTests
     [Fact]
     public void ToActionResultT_WhenFailure_ReturnsProblemDetails()
     {
-        Result<string> result = Result.Failure<string>(Error.Validation("Field is required"));
+        Result<string> result = Result.Failure<string>(SharedErrors.ValidationFailed, "Field is required");
 
         IActionResult actionResult = result.ToActionResult();
 
@@ -74,7 +91,8 @@ public class ResultExtensionsTests
     [Fact]
     public void ToCreatedResult_WithAction_WhenFailure_ReturnsProblemDetails()
     {
-        Result<Guid> result = Result.Failure<Guid>(Error.Conflict("Already exists"));
+        ErrorCatalogEntry conflict = new("Invoice.AlreadyExists", ErrorKind.Conflict, "Already exists");
+        Result<Guid> result = Result.Failure<Guid>(conflict);
 
         IActionResult actionResult = result.ToCreatedResult("GetById", "Invoices", v => new { id = v });
 
@@ -100,7 +118,7 @@ public class ResultExtensionsTests
     [Fact]
     public void ToCreatedResult_WithLocation_WhenFailure_ReturnsProblemDetails()
     {
-        Result<string> result = Result.Failure<string>(Error.Unauthorized());
+        Result<string> result = Result.Failure<string>(SharedErrors.Unauthenticated);
 
         IActionResult actionResult = result.ToCreatedResult("/api/items/42");
 
@@ -123,7 +141,7 @@ public class ResultExtensionsTests
     [Fact]
     public void ToNoContentResult_WhenFailure_ReturnsProblemDetails()
     {
-        Result result = Result.Failure(Error.Forbidden());
+        Result result = Result.Failure(SharedErrors.Forbidden);
 
         IActionResult actionResult = result.ToNoContentResult();
 
@@ -134,9 +152,9 @@ public class ResultExtensionsTests
     }
 
     [Fact]
-    public void ToErrorResult_WithDefaultErrorCode_Returns422()
+    public void ToErrorResult_WithBusinessRuleKind_Returns422WithCode()
     {
-        Result result = Result.Failure(Error.BusinessRule("LimitExceeded", "Over limit"));
+        Result result = Result.Failure(_businessRule);
 
         IActionResult actionResult = result.ToActionResult();
 
@@ -144,80 +162,52 @@ public class ResultExtensionsTests
         objectResult.StatusCode.Should().Be(422);
         ProblemDetails problem = objectResult.Value.Should().BeOfType<ProblemDetails>().Subject;
         problem.Title.Should().Be("Unprocessable Entity");
-        problem.Extensions["code"].Should().Be("BusinessRule.LimitExceeded");
+        problem.Extensions["code"].Should().Be("Billing.LimitExceeded");
     }
 
     [Theory]
-    [InlineData("Invoice.NotFound", 404)]
-    [InlineData("User.NotFound", 404)]
-    [InlineData("Validation.Error", 400)]
-    [InlineData("ValidationFailed", 400)]
-    [InlineData("Unauthorized.Error", 401)]
-    [InlineData("UnauthorizedAccess", 401)]
-    [InlineData("Forbidden.Error", 403)]
-    [InlineData("ForbiddenOperation", 403)]
-    [InlineData("Conflict.Error", 409)]
-    [InlineData("ConflictDetected", 409)]
-    [InlineData("BusinessRule.Custom", 422)]
-    [InlineData("SomeOther.Code", 422)]
-    public void GetStatusCode_WithErrorCode_ReturnsExpectedHttpStatus(string errorCode, int expectedStatus)
+    [InlineData(ErrorKind.Validation, 400, "Bad Request", "https://tools.ietf.org/html/rfc7231#section-6.5.1")]
+    [InlineData(ErrorKind.Unauthenticated, 401, "Unauthorized", "https://tools.ietf.org/html/rfc7235#section-3.1")]
+    [InlineData(ErrorKind.Forbidden, 403, "Forbidden", "https://tools.ietf.org/html/rfc7231#section-6.5.3")]
+    [InlineData(ErrorKind.NotFound, 404, "Not Found", "https://tools.ietf.org/html/rfc7231#section-6.5.4")]
+    [InlineData(ErrorKind.MethodNotAllowed, 405, "Method Not Allowed", "https://tools.ietf.org/html/rfc7231#section-6.5.5")]
+    [InlineData(ErrorKind.Conflict, 409, "Conflict", "https://tools.ietf.org/html/rfc7231#section-6.5.8")]
+    [InlineData(ErrorKind.BusinessRule, 422, "Unprocessable Entity", "https://tools.ietf.org/html/rfc4918#section-11.2")]
+    [InlineData(ErrorKind.RateLimited, 429, "Too Many Requests", "https://tools.ietf.org/html/rfc6585#section-4")]
+    [InlineData(ErrorKind.Failure, 500, "Internal Server Error", "https://tools.ietf.org/html/rfc7231#section-6.6.1")]
+    [InlineData(ErrorKind.Unavailable, 503, "Service Unavailable", "https://tools.ietf.org/html/rfc7231#section-6.6.4")]
+    public void ToErrorResult_DerivesStatusTitleAndTypeFromKind(
+        ErrorKind kind,
+        int expectedStatus,
+        string expectedTitle,
+        string expectedType)
     {
-        Result result = Result.Failure(new Error(errorCode, "test message"));
+        ErrorCatalogEntry entry = new("Test.Code", kind, "test message");
+        Result result = Result.Failure(entry);
 
         IActionResult actionResult = result.ToActionResult();
 
         ObjectResult objectResult = actionResult.Should().BeOfType<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(expectedStatus);
-    }
-
-    [Theory]
-    [InlineData("Invoice.NotFound", "Not Found")]
-    [InlineData("Validation.Error", "Bad Request")]
-    [InlineData("Unauthorized.Error", "Unauthorized")]
-    [InlineData("Forbidden.Error", "Forbidden")]
-    [InlineData("Conflict.Error", "Conflict")]
-    [InlineData("BusinessRule.Custom", "Unprocessable Entity")]
-    public void GetTitle_WithErrorCode_ReturnsExpectedTitle(string errorCode, string expectedTitle)
-    {
-        Result result = Result.Failure(new Error(errorCode, "test message"));
-
-        IActionResult actionResult = result.ToActionResult();
-
-        ObjectResult objectResult = actionResult.Should().BeOfType<ObjectResult>().Subject;
         ProblemDetails problem = objectResult.Value.Should().BeOfType<ProblemDetails>().Subject;
+        problem.Status.Should().Be(expectedStatus);
         problem.Title.Should().Be(expectedTitle);
-    }
-
-    [Theory]
-    [InlineData("Invoice.NotFound", "https://tools.ietf.org/html/rfc7231#section-6.5.4")]
-    [InlineData("Validation.Error", "https://tools.ietf.org/html/rfc7231#section-6.5.1")]
-    [InlineData("Unauthorized.Error", "https://tools.ietf.org/html/rfc7235#section-3.1")]
-    [InlineData("Forbidden.Error", "https://tools.ietf.org/html/rfc7231#section-6.5.3")]
-    [InlineData("Conflict.Error", "https://tools.ietf.org/html/rfc7231#section-6.5.8")]
-    [InlineData("BusinessRule.Custom", "https://tools.ietf.org/html/rfc4918#section-11.2")]
-    public void GetTypeUri_WithErrorCode_ReturnsExpectedRfcUri(string errorCode, string expectedUri)
-    {
-        Result result = Result.Failure(new Error(errorCode, "test message"));
-
-        IActionResult actionResult = result.ToActionResult();
-
-        ObjectResult objectResult = actionResult.Should().BeOfType<ObjectResult>().Subject;
-        ProblemDetails problem = objectResult.Value.Should().BeOfType<ProblemDetails>().Subject;
-        problem.Type.Should().Be(expectedUri);
+        problem.Type.Should().Be(expectedType);
+        problem.Extensions["code"].Should().Be("Test.Code");
     }
 
     [Fact]
-    public void GetTitle_WithUnmappedStatusCode_ReturnsFallbackError()
+    public void GetProblemTitle_WithUnmappedStatusCode_ReturnsFallbackError()
     {
-        string title = ResultExtensions.GetTitle(418);
+        string title = ResultExtensions.GetProblemTitle(418);
 
         title.Should().Be("Error");
     }
 
     [Fact]
-    public void GetTypeUri_WithUnmappedStatusCode_ReturnsFallbackUri()
+    public void GetProblemType_WithUnmappedStatusCode_ReturnsFallbackUri()
     {
-        string uri = ResultExtensions.GetTypeUri(418);
+        string uri = ResultExtensions.GetProblemType(418);
 
         uri.Should().Be("https://tools.ietf.org/html/rfc7231#section-6.6.1");
     }

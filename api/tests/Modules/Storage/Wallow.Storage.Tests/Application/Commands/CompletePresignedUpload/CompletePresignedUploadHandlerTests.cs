@@ -1,4 +1,5 @@
 using Wallow.Shared.Contracts.Storage;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Storage.Application.Commands.CompletePresignedUpload;
@@ -53,6 +54,7 @@ public class CompletePresignedUploadHandlerTests
 
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Contain("File.NotUploaded");
+        result.Error.Kind.Should().Be(ErrorKind.BusinessRule);
         file.Status.Should().Be(FileStatus.PendingValidation);
         await _storageProvider.DidNotReceive().DownloadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
         await _fileScanner.DidNotReceive().ScanAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<CancellationToken>());

@@ -1,32 +1,56 @@
+using Wallow.Shared.Kernel.Errors;
+
 namespace Wallow.Shared.Kernel.Results;
 
 /// <summary>
-/// Represents an error with a code and message.
-/// Use static factory methods for common error types.
+/// The failure half of a <see cref="Result"/>: a catalog entry's code and kind, with the entry's
+/// default sentence or an override from the raising site.
 /// </summary>
-public sealed record Error(string Code, string Message)
+/// <remarks>
+/// An error is only ever built from an <see cref="ErrorCatalogEntry"/>, so the code is one the
+/// aggregated catalog exports and the kind, not the code's text, decides the HTTP status.
+/// </remarks>
+public sealed record Error
 {
-    public static readonly Error None = new(string.Empty, string.Empty);
-    public static readonly Error NullValue = new("Error.NullValue", "A null value was provided");
+    /// <summary>The absence of an error, carried by every successful result.</summary>
+    public static readonly Error None = new(string.Empty, ErrorKind.Failure, string.Empty);
 
-    public static Error NotFound(string entity, object id) =>
-        new($"{entity}.NotFound", $"{entity} with ID '{id}' was not found");
+    private Error(string code, ErrorKind kind, string message)
+    {
+        Code = code;
+        Kind = kind;
+        Message = message;
+    }
 
-    public static Error Validation(string message) =>
-        new("Validation.Error", message);
+    /// <summary>
+    /// Creates an error from a catalog entry.
+    /// </summary>
+    /// <param name="entry">The catalog entry.</param>
+    /// <param name="message">
+    /// A sentence replacing the entry's default, for a site that can say more than the catalog
+    /// does. Keep it user-safe: it becomes the response's <c>detail</c>.
+    /// </param>
+    /// <exception cref="ArgumentException"><paramref name="message"/> is empty.</exception>
+    public Error(ErrorCatalogEntry entry, string? message = null)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
 
-    public static Error Validation(string code, string message) =>
-        new(code, message);
+        if (message is not null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(message);
+        }
 
-    public static Error Conflict(string message) =>
-        new("Conflict.Error", message);
+        Code = entry.Code;
+        Kind = entry.Kind;
+        Message = message ?? entry.DefaultMessage;
+    }
 
-    public static Error Unauthorized(string message = "Unauthorized access") =>
-        new("Unauthorized.Error", message);
+    /// <summary>Gets the machine-readable code.</summary>
+    public string Code { get; }
 
-    public static Error Forbidden(string message = "Access denied") =>
-        new("Forbidden.Error", message);
+    /// <summary>Gets the kind that decides the HTTP status.</summary>
+    public ErrorKind Kind { get; }
 
-    public static Error BusinessRule(string code, string message) =>
-        new($"BusinessRule.{code}", message);
+    /// <summary>Gets the user-safe sentence.</summary>
+    public string Message { get; }
 }

@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Domain.Enums;
+using Wallow.Identity.Domain.Errors;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Identity.Infrastructure.Repositories;
@@ -58,8 +59,7 @@ public sealed class LastOwnerGuardedDeparturesTests : IDisposable
         _refusingGuard.ExecuteDepartureAsync(
                 Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Func<CancellationToken, Task>>(),
                 Arg.Any<CancellationToken>())
-            .Returns(Task.FromException(new BusinessRuleException(
-                "Identity.LastOwner", "An organization must keep at least one active owner")));
+            .Returns(Task.FromException(new BusinessRuleException(IdentityErrors.LastOwner)));
     }
 
     public void Dispose() => _dbContext.Dispose();

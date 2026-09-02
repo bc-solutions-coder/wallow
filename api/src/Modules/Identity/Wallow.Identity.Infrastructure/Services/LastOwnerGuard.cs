@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Enums;
+using Wallow.Identity.Domain.Errors;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Shared.Kernel.Domain;
@@ -55,9 +56,7 @@ public sealed class LastOwnerGuard(IdentityDbContext dbContext) : ILastOwnerGuar
 
         if (owners.Count == 1 && owners[0] == departingUserId)
         {
-            throw new BusinessRuleException(
-                "Identity.LastOwner",
-                "An organization must keep at least one active owner");
+            throw new BusinessRuleException(IdentityErrors.LastOwner);
         }
 
         await departure(ct);

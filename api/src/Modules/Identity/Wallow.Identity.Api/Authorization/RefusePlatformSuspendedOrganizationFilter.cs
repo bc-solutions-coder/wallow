@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
+using Wallow.Identity.Domain.Errors;
 using Wallow.Shared.Kernel.Domain;
 using Wallow.Shared.Kernel.Extensions;
 
@@ -33,9 +34,7 @@ public sealed class RefusePlatformSuspendedOrganizationFilter(IOrganizationServi
             organizationId, context.HttpContext.RequestAborted);
         if (organization?.PlatformSuspendedAt is not null)
         {
-            throw new BusinessRuleException(
-                "Identity.OrganizationSuspendedByPlatform",
-                "The organization is suspended by the platform");
+            throw new BusinessRuleException(IdentityErrors.OrganizationSuspendedByPlatform);
         }
 
         await next();

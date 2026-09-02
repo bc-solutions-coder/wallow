@@ -1,3 +1,4 @@
+using Wallow.Identity.Domain.Errors;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Shared.Kernel.Domain;
 
@@ -70,23 +71,17 @@ public sealed class ApiScope : Entity<ApiScopeId>
     {
         if (string.IsNullOrWhiteSpace(code))
         {
-            throw new BusinessRuleException(
-                "Identity.ScopeCodeRequired",
-                "API scope code cannot be empty");
+            throw new BusinessRuleException(IdentityErrors.ScopeCodeRequired);
         }
 
         if (string.IsNullOrWhiteSpace(displayName))
         {
-            throw new BusinessRuleException(
-                "Identity.ScopeDisplayNameRequired",
-                "API scope display name cannot be empty");
+            throw new BusinessRuleException(IdentityErrors.ScopeDisplayNameRequired);
         }
 
         if (string.IsNullOrWhiteSpace(category))
         {
-            throw new BusinessRuleException(
-                "Identity.ScopeCategoryRequired",
-                "API scope category cannot be empty");
+            throw new BusinessRuleException(IdentityErrors.ScopeCategoryRequired);
         }
 
         return new ApiScope(code, displayName, category, description, isDefault, platformOnly);

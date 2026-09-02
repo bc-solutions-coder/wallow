@@ -70,7 +70,7 @@ public sealed class GetInquiryByIdHandler(IInquiryRepository inquiryRepository)
 
         if (inquiry is null)
         {
-            return Result.Failure<InquiryDto>(Error.NotFound("Inquiry", query.InquiryId));
+            return Result.Failure<InquiryDto>(InquiriesErrors.InquiryNotFound);
         }
 
         return Result.Success(inquiry.ToDto());
@@ -131,7 +131,7 @@ Never use raw `FindFirst`/`FindFirstValue`. Always use `ClaimsPrincipalExtension
 - `GetRoles()`, `GetPermissions()`, `GetScopes()` for multi-value claims.
 
 ### Error Handling
-- Return `Result.Failure(Error.NotFound(...))` or `Result.Failure(Error.Conflict(...))` for business failures.
+- Return `Result.Failure(<Module>Errors.<Entry>)` for business failures; every code comes from the module's error catalog (`docs/development/api-development.md`).
 - Never throw exceptions for expected business cases.
 - Use `Result<T>` from `Wallow.Shared.Kernel.Results`.
 

@@ -3,6 +3,7 @@ using Wallow.Announcements.Application.Announcements.Interfaces;
 using Wallow.Announcements.Domain.Announcements.Entities;
 using Wallow.Announcements.Domain.Announcements.Enums;
 using Wallow.Announcements.Domain.Announcements.Identity;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.Results;
 
@@ -70,7 +71,7 @@ public class DismissAnnouncementHandlerTests
         Result result = await _handler.Handle(command, CancellationToken.None);
 
         result.IsSuccess.Should().BeFalse();
-        result.Error.Code.Should().Be("Announcement.NotFound.NotFound");
+        result.Error.Code.Should().Be("Announcement.NotFound");
     }
 
     [Fact]
@@ -86,6 +87,7 @@ public class DismissAnnouncementHandlerTests
 
         result.IsSuccess.Should().BeFalse();
         result.Error.Code.Should().Be("Announcement.NotDismissible");
+        result.Error.Kind.Should().Be(ErrorKind.BusinessRule);
     }
 
     [Fact]

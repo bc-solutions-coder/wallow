@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Wallow.Shared.Contracts.Storage;
 using Wallow.Shared.Contracts.Storage.Commands;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Pagination;
@@ -21,6 +22,7 @@ using Wallow.Storage.Application.Queries.GetFilesByBucket;
 using Wallow.Storage.Application.Queries.GetPresignedUrl;
 using Wallow.Storage.Application.Queries.GetUploadPresignedUrl;
 using Wallow.Storage.Domain.Enums;
+using Wallow.Storage.Domain.Errors;
 using Wolverine;
 
 namespace Wallow.Storage.Tests.Api.Controllers;
@@ -204,7 +206,7 @@ public class StorageControllerTests
     {
         CreateBucketRequest request = new("test-bucket");
         _bus.InvokeAsync<Result<BucketDto>>(Arg.Any<CreateBucketCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<BucketDto>(Error.Conflict("Bucket already exists")));
+            .Returns(Result.Failure<BucketDto>(new Error(StorageErrors.BucketAlreadyExists, "Bucket already exists")));
 
         IActionResult result = await _controller.CreateBucket(request, CancellationToken.None);
 
@@ -264,7 +266,7 @@ public class StorageControllerTests
     public async Task GetBucket_WhenNotFound_Returns404()
     {
         _bus.InvokeAsync<Result<BucketDto>>(Arg.Any<GetBucketByNameQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<BucketDto>(Error.NotFound("Bucket", "missing-bucket")));
+            .Returns(Result.Failure<BucketDto>(StorageErrors.BucketNotFound));
 
         IActionResult result = await _controller.GetBucket("missing-bucket", CancellationToken.None);
 
@@ -305,7 +307,7 @@ public class StorageControllerTests
     public async Task DeleteBucket_WhenNotFound_Returns404()
     {
         _bus.InvokeAsync<Result>(Arg.Any<DeleteBucketCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure(Error.NotFound("Bucket", "missing-bucket")));
+            .Returns(Result.Failure(StorageErrors.BucketNotFound));
 
         IActionResult result = await _controller.DeleteBucket("missing-bucket", cancellationToken: CancellationToken.None);
 
@@ -343,7 +345,7 @@ public class StorageControllerTests
     public async Task DeleteBucket_WhenFailure_ReturnsErrorResult()
     {
         _bus.InvokeAsync<Result>(Arg.Any<DeleteBucketCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure(Error.Validation("Bucket is not empty")));
+            .Returns(Result.Failure(new Error(SharedErrors.ValidationFailed, "Bucket is not empty")));
 
         IActionResult result = await _controller.DeleteBucket("test-bucket", cancellationToken: CancellationToken.None);
 
@@ -452,7 +454,7 @@ public class StorageControllerTests
     {
         IFormFile file = CreateMockFormFile("test.txt", "text/plain", 100);
         _bus.InvokeAsync<Result<UploadResult>>(Arg.Any<UploadFileCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<UploadResult>(Error.NotFound("Bucket", "test-bucket")));
+            .Returns(Result.Failure<UploadResult>(StorageErrors.BucketNotFound));
 
         IActionResult result = await _controller.Upload(file, "test-bucket", cancellationToken: CancellationToken.None);
 
@@ -544,7 +546,7 @@ public class StorageControllerTests
     {
         Guid fileId = Guid.NewGuid();
         _bus.InvokeAsync<Result<StoredFileDto>>(Arg.Any<GetFileByIdQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<StoredFileDto>(Error.NotFound("File", fileId)));
+            .Returns(Result.Failure<StoredFileDto>(StorageErrors.FileNotFound));
 
         IActionResult result = await _controller.GetFile(fileId, CancellationToken.None);
 
@@ -591,7 +593,7 @@ public class StorageControllerTests
     {
         Guid fileId = Guid.NewGuid();
         _bus.InvokeAsync<Result<PresignedUrlResult>>(Arg.Any<GetPresignedUrlQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<PresignedUrlResult>(Error.NotFound("File", fileId)));
+            .Returns(Result.Failure<PresignedUrlResult>(StorageErrors.FileNotFound));
 
         IActionResult result = await _controller.Download(fileId, CancellationToken.None);
 
@@ -635,7 +637,7 @@ public class StorageControllerTests
     {
         Guid fileId = Guid.NewGuid();
         _bus.InvokeAsync<Result>(Arg.Any<DeleteFileCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure(Error.NotFound("File", fileId)));
+            .Returns(Result.Failure(StorageErrors.FileNotFound));
 
         IActionResult result = await _controller.Delete(fileId, CancellationToken.None);
 
@@ -730,7 +732,7 @@ public class StorageControllerTests
     public async Task ListFiles_WhenBucketNotFound_Returns404()
     {
         _bus.InvokeAsync<Result<PagedResult<StoredFileDto>>>(Arg.Any<GetFilesByBucketQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<PagedResult<StoredFileDto>>(Error.NotFound("Bucket", "missing")));
+            .Returns(Result.Failure<PagedResult<StoredFileDto>>(StorageErrors.BucketNotFound));
 
         IActionResult result = await _controller.ListFiles("missing", cancellationToken: CancellationToken.None);
 
@@ -824,7 +826,7 @@ public class StorageControllerTests
     {
         PresignedUploadRequest request = new("missing-bucket", "test.txt", "text/plain", 1024);
         _bus.InvokeAsync<Result<PresignedUploadResult>>(Arg.Any<GetUploadPresignedUrlQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<PresignedUploadResult>(Error.NotFound("Bucket", "missing-bucket")));
+            .Returns(Result.Failure<PresignedUploadResult>(StorageErrors.BucketNotFound));
 
         IActionResult result = await _controller.GetPresignedUploadUrl(request, CancellationToken.None);
 
@@ -888,7 +890,7 @@ public class StorageControllerTests
     {
         Guid fileId = Guid.NewGuid();
         _bus.InvokeAsync<Result<PresignedUrlResult>>(Arg.Any<GetPresignedUrlQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<PresignedUrlResult>(Error.NotFound("File", fileId)));
+            .Returns(Result.Failure<PresignedUrlResult>(StorageErrors.FileNotFound));
 
         IActionResult result = await _controller.GetPresignedDownloadUrl(fileId, cancellationToken: CancellationToken.None);
 

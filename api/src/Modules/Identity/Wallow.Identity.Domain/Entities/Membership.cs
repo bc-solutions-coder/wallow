@@ -1,4 +1,5 @@
 using Wallow.Identity.Domain.Enums;
+using Wallow.Identity.Domain.Errors;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Shared.Kernel.Domain;
 
@@ -69,9 +70,7 @@ public sealed class Membership : AggregateRoot<MembershipId>
     {
         if (userId == Guid.Empty)
         {
-            throw new BusinessRuleException(
-                "Identity.UserIdRequired",
-                "User ID cannot be empty");
+            throw new BusinessRuleException(IdentityErrors.UserIdRequired);
         }
 
         Id = MembershipId.New();
@@ -119,9 +118,7 @@ public sealed class Membership : AggregateRoot<MembershipId>
     {
         if (Status != MembershipStatus.Pending)
         {
-            throw new BusinessRuleException(
-                "Identity.MembershipNotPending",
-                "Only a pending membership can be approved");
+            throw new BusinessRuleException(IdentityErrors.MembershipNotPending, "Only a pending membership can be approved");
         }
 
         Status = MembershipStatus.Active;
@@ -136,9 +133,7 @@ public sealed class Membership : AggregateRoot<MembershipId>
     {
         if (Status != MembershipStatus.Pending)
         {
-            throw new BusinessRuleException(
-                "Identity.MembershipNotPending",
-                "Only a pending membership can be denied");
+            throw new BusinessRuleException(IdentityErrors.MembershipNotPending, "Only a pending membership can be denied");
         }
 
         Status = MembershipStatus.Denied;
@@ -190,9 +185,7 @@ public sealed class Membership : AggregateRoot<MembershipId>
     {
         if (Status != MembershipStatus.Active)
         {
-            throw new BusinessRuleException(
-                "Identity.MembershipNotActive",
-                "Only an active membership can be suspended");
+            throw new BusinessRuleException(IdentityErrors.MembershipNotActive);
         }
 
         Status = MembershipStatus.Suspended;
@@ -203,9 +196,7 @@ public sealed class Membership : AggregateRoot<MembershipId>
     {
         if (Status != MembershipStatus.Suspended)
         {
-            throw new BusinessRuleException(
-                "Identity.MembershipNotSuspended",
-                "Only a suspended membership can be reinstated");
+            throw new BusinessRuleException(IdentityErrors.MembershipNotSuspended);
         }
 
         Status = MembershipStatus.Active;
@@ -259,16 +250,12 @@ public sealed class Membership : AggregateRoot<MembershipId>
     {
         if (Status != MembershipStatus.Denied)
         {
-            throw new BusinessRuleException(
-                "Identity.MembershipNotDenied",
-                "Only a denied membership can be asked for again");
+            throw new BusinessRuleException(IdentityErrors.MembershipNotDenied);
         }
 
         if (IsWithinDenialCooldown(timeProvider))
         {
-            throw new BusinessRuleException(
-                "Identity.DenialCooldown",
-                "A recent request to this organization was denied; it may be asked again later");
+            throw new BusinessRuleException(IdentityErrors.DenialCooldown);
         }
     }
 

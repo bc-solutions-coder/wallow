@@ -6,7 +6,9 @@ using Wallow.Announcements.Application.Changelogs.Commands.CreateChangelogEntry;
 using Wallow.Announcements.Application.Changelogs.Commands.PublishChangelogEntry;
 using Wallow.Announcements.Application.Changelogs.DTOs;
 using Wallow.Announcements.Domain.Changelogs.Enums;
+using Wallow.Announcements.Domain.Errors;
 using Wallow.Shared.Infrastructure.Core.Services;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Results;
 using Wolverine;
 
@@ -71,7 +73,7 @@ public class AdminChangelogControllerTests
     {
         CreateChangelogEntryRequest request = new("", "Title", "Content", DateTime.UtcNow);
         _bus.InvokeAsync<Result<ChangelogEntryDto>>(Arg.Any<CreateChangelogEntryCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<ChangelogEntryDto>(Error.Validation("Version is required")));
+            .Returns(Result.Failure<ChangelogEntryDto>(new Error(SharedErrors.ValidationFailed, "Version is required")));
 
         IActionResult result = await _controller.CreateChangelogEntry(request, CancellationToken.None);
 
@@ -140,7 +142,7 @@ public class AdminChangelogControllerTests
     {
         Guid id = Guid.NewGuid();
         _bus.InvokeAsync<Result>(Arg.Any<PublishChangelogEntryCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure(Error.NotFound("ChangelogEntry", id)));
+            .Returns(Result.Failure(AnnouncementsErrors.ChangelogNotFound));
 
         IActionResult result = await _controller.PublishChangelogEntry(id, CancellationToken.None);
 

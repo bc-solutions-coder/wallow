@@ -1,6 +1,7 @@
 using Wallow.Announcements.Application.Announcements.Interfaces;
 using Wallow.Announcements.Domain.Announcements.Entities;
 using Wallow.Announcements.Domain.Announcements.Identity;
+using Wallow.Announcements.Domain.Errors;
 using Wallow.Shared.Kernel.Results;
 
 namespace Wallow.Announcements.Application.Announcements.Commands.ArchiveAnnouncement;
@@ -16,7 +17,7 @@ public sealed class ArchiveAnnouncementHandler(
         Announcement? announcement = await repository.GetByIdAsync(AnnouncementId.Create(command.Id), ct);
         if (announcement is null)
         {
-            return Result.Failure(Error.NotFound("Announcement.NotFound", "Announcement not found"));
+            return Result.Failure(AnnouncementsErrors.AnnouncementNotFound);
         }
 
         announcement.Archive(timeProvider);

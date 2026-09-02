@@ -4,6 +4,7 @@ using Wallow.Storage.Application.DTOs;
 using Wallow.Storage.Application.Interfaces;
 using Wallow.Storage.Domain.Entities;
 using Wallow.Storage.Domain.Enums;
+using Wallow.Storage.Domain.Errors;
 using Wallow.Storage.Domain.Identity;
 
 namespace Wallow.Storage.Application.Commands.CompletePresignedUpload;
@@ -22,7 +23,7 @@ public sealed class CompletePresignedUploadHandler(
         if (storedFile is null)
         {
             return Result.Failure<CompletePresignedUploadResult>(
-                Error.NotFound("File", command.FileId));
+                StorageErrors.FileNotFound);
         }
 
         if (storedFile.Status != FileStatus.PendingValidation)
@@ -33,9 +34,7 @@ public sealed class CompletePresignedUploadHandler(
         bool objectExists = await storageProvider.ExistsAsync(storedFile.StorageKey, cancellationToken);
         if (!objectExists)
         {
-            return Result.Failure<CompletePresignedUploadResult>(Error.Validation(
-                "File.NotUploaded",
-                "No object has been uploaded for this file's presigned URL yet."));
+            return Result.Failure<CompletePresignedUploadResult>(StorageErrors.FileNotUploaded);
         }
 
         Stream fileStream = await storageProvider.DownloadAsync(storedFile.StorageKey, cancellationToken);

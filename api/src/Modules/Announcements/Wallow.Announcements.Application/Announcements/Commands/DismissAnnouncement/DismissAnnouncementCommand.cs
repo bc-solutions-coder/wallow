@@ -1,6 +1,7 @@
 using Wallow.Announcements.Application.Announcements.Interfaces;
 using Wallow.Announcements.Domain.Announcements.Entities;
 using Wallow.Announcements.Domain.Announcements.Identity;
+using Wallow.Announcements.Domain.Errors;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.Results;
 
@@ -22,12 +23,12 @@ public sealed class DismissAnnouncementHandler(
 
         if (announcement is null)
         {
-            return Result.Failure(Error.NotFound("Announcement.NotFound", "Announcement not found"));
+            return Result.Failure(AnnouncementsErrors.AnnouncementNotFound);
         }
 
         if (!announcement.IsDismissible)
         {
-            return Result.Failure(Error.Validation("Announcement.NotDismissible", "This announcement cannot be dismissed"));
+            return Result.Failure(AnnouncementsErrors.AnnouncementNotDismissible);
         }
 
         bool alreadyDismissed = await dismissalRepository.ExistsAsync(announcementId, userId, ct);

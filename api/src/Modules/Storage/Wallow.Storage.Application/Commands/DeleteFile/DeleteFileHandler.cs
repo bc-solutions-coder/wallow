@@ -2,6 +2,7 @@ using Wallow.Shared.Contracts.Storage;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Storage.Application.Interfaces;
 using Wallow.Storage.Domain.Entities;
+using Wallow.Storage.Domain.Errors;
 using Wallow.Storage.Domain.Identity;
 
 namespace Wallow.Storage.Application.Commands.DeleteFile;
@@ -19,7 +20,7 @@ public sealed class DeleteFileHandler(
 
         if (file is null)
         {
-            return Result.Failure(Error.NotFound("File", command.FileId));
+            return Result.Failure(StorageErrors.FileNotFound);
         }
 
         // Commit the row removal BEFORE deleting the object, never after. An object-store delete

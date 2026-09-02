@@ -75,18 +75,18 @@ public class IdentitySettingsResolutionTests(WallowApiFactory factory) : Identit
     }
 
     /// <summary>
-    /// PUT leg. An unregistered key must be rejected by the registry as a 422 validation
-    /// failure — reaching that check proves both keyed services resolved. Today it 500s
-    /// before any validation runs.
+    /// PUT leg. An unregistered key must be rejected by the registry as a 400 validation
+    /// failure (<c>Settings.UnknownKey</c>) — reaching that check proves both keyed
+    /// services resolved rather than failing with a 500 before any validation runs.
     /// </summary>
     [Fact]
-    public async Task PutTenantSetting_WithUnknownKey_ReturnsUnprocessableEntity()
+    public async Task PutTenantSetting_WithUnknownKey_ReturnsBadRequest()
     {
         SetTestUser(TestConstants.AdminUserId.ToString(), "admin");
 
         object request = new { key = "wallow.dvbc.unknown.key", value = "any" };
         HttpResponseMessage response = await Client.PutAsJsonAsync("/identity/settings/tenant", request);
 
-        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 }

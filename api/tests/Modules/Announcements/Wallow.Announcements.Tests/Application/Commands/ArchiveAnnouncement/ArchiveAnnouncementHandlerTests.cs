@@ -54,6 +54,6 @@ public class ArchiveAnnouncementHandlerTests
         Result result = await _handler.Handle(command, CancellationToken.None);
 
         result.IsSuccess.Should().BeFalse();
-        result.Error.Code.Should().Be("Announcement.NotFound.NotFound");
+        result.Error.Code.Should().Be("Announcement.NotFound");
     }
 }

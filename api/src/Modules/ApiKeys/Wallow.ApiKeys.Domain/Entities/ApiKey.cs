@@ -1,4 +1,5 @@
 using Wallow.ApiKeys.Domain.ApiKeys;
+using Wallow.ApiKeys.Domain.Errors;
 using Wallow.Shared.Kernel.Domain;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
@@ -81,23 +82,17 @@ public sealed class ApiKey : AuditableEntity<ApiKeyId>, ITenantScoped
     {
         if (string.IsNullOrWhiteSpace(serviceAccountId))
         {
-            throw new BusinessRuleException(
-                "ApiKeys.ServiceAccountIdRequired",
-                "Service account ID cannot be empty");
+            throw new BusinessRuleException(ApiKeysErrors.ServiceAccountIdRequired);
         }
 
         if (string.IsNullOrWhiteSpace(hashedKey))
         {
-            throw new BusinessRuleException(
-                "ApiKeys.HashedKeyRequired",
-                "Hashed key cannot be empty");
+            throw new BusinessRuleException(ApiKeysErrors.HashedKeyRequired);
         }
 
         if (string.IsNullOrWhiteSpace(displayName))
         {
-            throw new BusinessRuleException(
-                "ApiKeys.ApiKeyDisplayNameRequired",
-                "API key display name cannot be empty");
+            throw new BusinessRuleException(ApiKeysErrors.ApiKeyDisplayNameRequired);
         }
 
         return new ApiKey(
@@ -115,9 +110,7 @@ public sealed class ApiKey : AuditableEntity<ApiKeyId>, ITenantScoped
     {
         if (IsRevoked)
         {
-            throw new BusinessRuleException(
-                "ApiKeys.ApiKeyAlreadyRevoked",
-                "API key is already revoked");
+            throw new BusinessRuleException(ApiKeysErrors.ApiKeyAlreadyRevoked);
         }
 
         IsRevoked = true;

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Threading.RateLimiting;
 using Asp.Versioning.OpenApi;
@@ -13,7 +14,9 @@ using RedisRateLimiting;
 using StackExchange.Redis;
 using Wallow.Api.HealthChecks;
 using Wallow.Api.Middleware;
+using Wallow.Shared.Api.Settings;
 using Wallow.Shared.Infrastructure.Core.Resilience;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Storage.Domain.Enums;
@@ -45,6 +48,13 @@ internal static partial class ServiceCollectionExtensions
 
         // Global Exception Handler
         services.AddExceptionHandler<GlobalExceptionHandler>();
+
+        // The kernel's status-generic catalog and the shared settings catalog. Every module
+        // registers its own from Add<Module>Module; these calls guarantee the aggregated
+        // ErrorCatalog resolves even in a host with no modules, so the OpenAPI ErrorCode enum
+        // is always emitted.
+        services.AddErrorCatalog(typeof(SharedErrors));
+        services.AddErrorCatalog(typeof(SettingsErrors));
 
         // XML documentation comments for the "v1" OpenAPI document. The framework's XML
         // comment support is a compile-time interceptor that attaches to user-code
@@ -237,6 +247,8 @@ internal static partial class ServiceCollectionExtensions
         document.AddDocumentTransformer((doc, _, _) => TransformDocumentSecurity(doc));
         document.AddDocumentTransformer((doc, _, _) => TransformDocumentExcludeTestSupport(doc));
         document.AddDocumentTransformer((doc, _, _) => TransformDocumentScrubEmptyPlaceholders(doc));
+        document.AddDocumentTransformer((doc, context, _) =>
+            TransformDocumentErrorCodes(doc, context.ApplicationServices.GetRequiredService<ErrorCatalog>()));
         document.AddOperationTransformer((operation, context, _) =>
             TransformOperationSecurity(operation, context));
         document.AddOperationTransformer((operation, context, _) =>
@@ -377,6 +389,71 @@ internal static partial class ServiceCollectionExtensions
                     }
                 }
             }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Name of the shared <c>components.schemas</c> entry that enumerates every error code the
+    /// API can write into a problem response's <c>code</c> member.
+    /// </summary>
+    internal const string ErrorCodeSchemaName = "ErrorCode";
+
+    /// <summary>
+    /// Problem-details component schemas whose <c>code</c> property references the
+    /// <see cref="ErrorCodeSchemaName"/> enum. Only the ones the document actually contains are
+    /// touched; the framework emits <c>ProblemDetails</c> for every error response and one of the
+    /// validation variants for 400s, depending on which type the endpoints declare.
+    /// </summary>
+
+    /// <summary>
+    /// Exports the aggregated error catalog as <c>components.schemas.ErrorCode</c>: a string enum
+    /// listing every registered code, with each entry's default sentence in
+    /// <c>x-enum-descriptions</c>. The problem-details schemas gain a <c>code</c> property that
+    /// references it, so the generated SDK client types the member as a union of known codes.
+    /// </summary>
+    internal static Task TransformDocumentErrorCodes(OpenApiDocument document, ErrorCatalog catalog)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        ArgumentNullException.ThrowIfNull(catalog);
+
+        OpenApiComponents components = document.Components ??= new OpenApiComponents();
+        components.Schemas ??= new Dictionary<string, IOpenApiSchema>();
+
+        JsonArray descriptions = [];
+        List<JsonNode> codes = [];
+        foreach (ErrorCatalogEntry entry in catalog.Entries)
+        {
+            codes.Add(JsonValue.Create(entry.Code));
+            descriptions.Add(JsonValue.Create(entry.DefaultMessage));
+        }
+
+        components.Schemas[ErrorCodeSchemaName] = new OpenApiSchema
+        {
+            Type = JsonSchemaType.String,
+            Description = "Machine-readable code identifying why a request failed. Each code has " +
+                "exactly one owning catalog and a fixed HTTP status.",
+            Enum = codes,
+            Extensions = new Dictionary<string, IOpenApiExtension>
+            {
+                ["x-enum-descriptions"] = new JsonNodeExtension(descriptions)
+            }
+        };
+
+        // Every problem-details shape, including a fork's ProblemDetails subclass, carries the code.
+        List<string> problemSchemaNames = components.Schemas.Keys
+            .Where(name => name.EndsWith("ProblemDetails", StringComparison.Ordinal))
+            .ToList();
+        foreach (string schemaName in problemSchemaNames)
+        {
+            if (components.Schemas[schemaName] is not OpenApiSchema problemDetails)
+            {
+                continue;
+            }
+
+            problemDetails.Properties ??= new Dictionary<string, IOpenApiSchema>();
+            problemDetails.Properties["code"] = new OpenApiSchemaReference(ErrorCodeSchemaName, document);
         }
 
         return Task.CompletedTask;

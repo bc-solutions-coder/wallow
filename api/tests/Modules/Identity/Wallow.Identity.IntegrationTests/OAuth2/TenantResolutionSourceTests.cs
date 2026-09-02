@@ -12,6 +12,7 @@ using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Extensions;
 using Wallow.Identity.Infrastructure.MultiTenancy;
 using Wallow.Shared.Kernel.Domain;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Tests.Common.Factories;
 
@@ -93,7 +94,7 @@ public sealed class TenantResolutionSourceTests(WallowApiFactory factory)
             Guid.NewGuid(),
             TimeProvider.System);
 
-        act.Should().Throw<BusinessRuleException>().Which.Code.Should().Be("Shared.TenantRequired");
+        act.Should().Throw<ForbiddenAccessException>().Which.Code.Should().Be(SharedErrors.Forbidden.Code);
     }
 
     private static async Task<TenantContext> ResolveAsync(IEnumerable<Claim> claims)

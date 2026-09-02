@@ -4,6 +4,7 @@ using Wallow.Notifications.Api.Controllers;
 using Wallow.Notifications.Application.Channels.Push.DTOs;
 using Wallow.Notifications.Application.Channels.Push.Queries.GetUserDevices;
 using Wallow.Notifications.Domain.Channels.Push.Enums;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Results;
@@ -131,7 +132,7 @@ public class PushDevicesControllerTests
     public async Task RegisterDevice_WhenFailure_ReturnsError()
     {
         _currentUserService.GetCurrentUserId().Returns(Guid.NewGuid());
-        Error error = new("Device.NotFound", "Device not found");
+        Error error = new(new ErrorCatalogEntry("Device.NotFound", ErrorKind.NotFound, "Device not found"));
         _bus.InvokeAsync<Result>(Arg.Any<object>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure(error));
 
@@ -146,7 +147,7 @@ public class PushDevicesControllerTests
     public async Task DeregisterDevice_WhenFailure_ReturnsError()
     {
         _currentUserService.GetCurrentUserId().Returns(Guid.NewGuid());
-        Error error = new("Device.NotFound", "Device not found");
+        Error error = new(new ErrorCatalogEntry("Device.NotFound", ErrorKind.NotFound, "Device not found"));
         _bus.InvokeAsync<Result>(Arg.Any<object>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure(error));
 
@@ -160,7 +161,7 @@ public class PushDevicesControllerTests
     public async Task GetUserDevices_WhenFailure_ReturnsError()
     {
         _currentUserService.GetCurrentUserId().Returns(Guid.NewGuid());
-        Error error = new("Device.NotFound", "Devices not found");
+        Error error = new(new ErrorCatalogEntry("Device.NotFound", ErrorKind.NotFound, "Devices not found"));
         _bus.InvokeAsync<Result<IReadOnlyList<DeviceRegistrationDto>>>(
             Arg.Any<GetUserDevicesQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure<IReadOnlyList<DeviceRegistrationDto>>(error));
@@ -175,7 +176,7 @@ public class PushDevicesControllerTests
     public async Task SendPush_WhenFailure_ReturnsError()
     {
         _currentUserService.GetCurrentUserId().Returns(Guid.NewGuid());
-        Error error = new("Device.NotFound", "Device not found");
+        Error error = new(new ErrorCatalogEntry("Device.NotFound", ErrorKind.NotFound, "Device not found"));
         _bus.InvokeAsync<Result>(Arg.Any<object>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure(error));
 

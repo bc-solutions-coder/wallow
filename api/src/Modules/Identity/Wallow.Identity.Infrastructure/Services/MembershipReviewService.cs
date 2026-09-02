@@ -4,6 +4,7 @@ using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Domain.Enums;
+using Wallow.Identity.Domain.Errors;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Shared.Contracts.Identity.Events;
 using Wallow.Shared.Kernel.Domain;
@@ -110,9 +111,7 @@ public sealed partial class MembershipReviewService(
 
         if (membership.Status != MembershipStatus.Denied)
         {
-            throw new BusinessRuleException(
-                "Identity.MembershipNotDenied",
-                "Only a denied membership can have its denial cleared");
+            throw new BusinessRuleException(IdentityErrors.MembershipNotDenied, "Only a denied membership can have its denial cleared");
         }
 
         // Nothing to revoke and nothing to announce: a denied membership never authenticated here.
@@ -251,9 +250,7 @@ public sealed partial class MembershipReviewService(
     {
         Membership? membership = await memberships.GetAsync(userId, organizationId, ct);
 
-        return membership ?? throw new BusinessRuleException(
-            "Identity.MemberNotFound",
-            "User is not a member of this organization");
+        return membership ?? throw new BusinessRuleException(IdentityErrors.MemberNotFound);
     }
 
     private async Task<string> GetEmailAsync(Guid userId, CancellationToken ct)

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using Wallow.Shared.Contracts.Storage;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Storage.Application.Configuration;
@@ -40,6 +41,7 @@ public class GetPresignedUrlFileStatusTests
 
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Contain("File.NotAvailable");
+        result.Error.Kind.Should().Be(ErrorKind.BusinessRule);
     }
 
     [Fact]
@@ -59,6 +61,7 @@ public class GetPresignedUrlFileStatusTests
 
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Contain("File.NotAvailable");
+        result.Error.Kind.Should().Be(ErrorKind.BusinessRule);
     }
 
     [Fact]

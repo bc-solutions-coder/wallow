@@ -2,6 +2,7 @@ using Wallow.Shared.Contracts.Storage;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Storage.Application.Interfaces;
 using Wallow.Storage.Domain.Entities;
+using Wallow.Storage.Domain.Errors;
 
 namespace Wallow.Storage.Application.Commands.DeleteBucket;
 
@@ -17,12 +18,12 @@ public sealed class DeleteBucketHandler(
         StorageBucket? bucket = await bucketRepository.GetByNameAsync(command.Name, cancellationToken);
         if (bucket is null)
         {
-            return Result.Failure(Error.NotFound("Bucket", command.Name));
+            return Result.Failure(StorageErrors.BucketNotFound);
         }
 
         if (bucket.TenantId.Value != command.TenantId)
         {
-            return Result.Failure(Error.NotFound("Bucket", command.Name));
+            return Result.Failure(StorageErrors.BucketNotFound);
         }
 
         IReadOnlyList<StoredFile> files = await fileRepository.GetByBucketIdAsync(bucket.Id, cancellationToken: cancellationToken);
@@ -30,7 +31,7 @@ public sealed class DeleteBucketHandler(
         if (files.Count > 0 && !command.Force)
         {
             return Result.Failure(
-                Error.Validation($"Bucket '{command.Name}' contains {files.Count} file(s). Use force=true to delete anyway."));
+                new Error(StorageErrors.BucketNotEmpty, $"Bucket '{command.Name}' contains {files.Count} file(s). Use force=true to delete anyway."));
         }
 
         // Commit every removal BEFORE deleting the objects, never after -- the same rule

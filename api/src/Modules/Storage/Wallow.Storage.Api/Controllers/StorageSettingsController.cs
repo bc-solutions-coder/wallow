@@ -170,15 +170,6 @@ public class StorageSettingsController(
 
     private Result ValidateSettingKey(string key)
     {
-        SettingKeyValidationResult validation = SettingKeyValidator.Validate(key, settingRegistry);
-
-        return validation switch
-        {
-            SettingKeyValidationResult.System => Result.Failure(
-                Error.Validation("Settings.SystemKeyBlocked", "System keys cannot be modified through this endpoint")),
-            SettingKeyValidationResult.Unknown => Result.Failure(
-                Error.Validation("Settings.UnknownKey", $"Unknown setting key '{key}'")),
-            _ => Result.Success()
-        };
+        return SettingKeyValidator.Validate(key, settingRegistry).ToResult(key);
     }
 }

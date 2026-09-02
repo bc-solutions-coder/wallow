@@ -2,6 +2,7 @@ using Wallow.Announcements.Application.Announcements.Interfaces;
 using Wallow.Announcements.Application.Announcements.Services;
 using Wallow.Announcements.Domain.Announcements.Entities;
 using Wallow.Announcements.Domain.Announcements.Identity;
+using Wallow.Announcements.Domain.Errors;
 using Wallow.Shared.Contracts.Announcements.Events;
 using Wallow.Shared.Kernel.Results;
 using Wolverine;
@@ -21,7 +22,7 @@ public sealed class PublishAnnouncementHandler(
         Announcement? announcement = await repository.GetByIdAsync(AnnouncementId.Create(command.Id), ct);
         if (announcement is null)
         {
-            return Result.Failure(Error.NotFound("Announcement.NotFound", "Announcement not found"));
+            return Result.Failure(AnnouncementsErrors.AnnouncementNotFound);
         }
 
         announcement.Publish(timeProvider);

@@ -18,6 +18,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using Wallow.Api.Extensions;
 using Wallow.Api.Middleware;
+using Wallow.Shared.Kernel.Errors;
 
 namespace Wallow.Api.Tests.Extensions;
 
@@ -73,6 +74,17 @@ public class ServiceCollectionExtensionsTests
         ServiceDescriptor? descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IExceptionHandler));
         descriptor.Should().NotBeNull();
         descriptor.ImplementationType.Should().Be<GlobalExceptionHandler>();
+    }
+
+    [Fact]
+    public void AddApiServices_RegistersTheKernelErrorCatalog()
+    {
+        ServiceCollection services = CreateServicesWithApiDefaults();
+
+        ServiceProvider provider = services.BuildServiceProvider();
+        ErrorCatalog catalog = provider.GetRequiredService<ErrorCatalog>();
+
+        catalog.Entries.Select(entry => entry.Code).Should().Contain(SharedErrors.ServerError.Code);
     }
 
     [Fact]
@@ -522,8 +534,8 @@ public class ServiceCollectionExtensionsTests
     {
         VersionedOpenApiOptions options = BuildConfiguredVersionedOptions();
 
-        // Info, security, test-support exclusion, empty-placeholder scrub.
-        GetRegisteredDocumentTransformers(options.Document).Should().HaveCount(4);
+        // Info, security, test-support exclusion, empty-placeholder scrub, error-code enum.
+        GetRegisteredDocumentTransformers(options.Document).Should().HaveCount(5);
     }
 
     [Fact]

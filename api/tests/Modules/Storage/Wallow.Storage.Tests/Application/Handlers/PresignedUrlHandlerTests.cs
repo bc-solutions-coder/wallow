@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using Wallow.Shared.Contracts.Storage;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Storage.Application.Configuration;
@@ -166,7 +167,7 @@ public class GetUploadPresignedUrlHandlerTests
         Result<PresignedUploadResult> result = await _handler.Handle(query, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
-        result.Error.Code.Should().StartWith("Validation");
+        result.Error.Kind.Should().Be(ErrorKind.Validation);
         result.Error.Message.Should().Contain("Content type");
     }
 
@@ -184,7 +185,7 @@ public class GetUploadPresignedUrlHandlerTests
         Result<PresignedUploadResult> result = await _handler.Handle(query, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
-        result.Error.Code.Should().StartWith("Validation");
+        result.Error.Kind.Should().Be(ErrorKind.Validation);
         result.Error.Message.Should().Contain("size");
     }
 
@@ -314,7 +315,7 @@ public class GetUploadPresignedUrlHandlerTests
         Result<PresignedUploadResult> result = await _handler.Handle(query, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
-        result.Error.Code.Should().StartWith("Validation");
+        result.Error.Kind.Should().Be(ErrorKind.Validation);
         result.Error.Message.Should().Contain("upload limit");
         _fileRepository.DidNotReceive().Add(Arg.Any<StoredFile>());
     }
@@ -334,7 +335,7 @@ public class GetUploadPresignedUrlHandlerTests
         Result<PresignedUploadResult> result = await _handler.Handle(query, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
-        result.Error.Code.Should().StartWith("Validation");
+        result.Error.Kind.Should().Be(ErrorKind.Validation);
         result.Error.Message.Should().Contain("not allowed");
         _fileRepository.DidNotReceive().Add(Arg.Any<StoredFile>());
     }
@@ -356,7 +357,7 @@ public class GetUploadPresignedUrlHandlerTests
         Result<PresignedUploadResult> result = await _handler.Handle(query, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
-        result.Error.Code.Should().StartWith("Validation");
+        result.Error.Kind.Should().Be(ErrorKind.Validation);
         result.Error.Message.Should().Contain("quota");
         _fileRepository.DidNotReceive().Add(Arg.Any<StoredFile>());
     }

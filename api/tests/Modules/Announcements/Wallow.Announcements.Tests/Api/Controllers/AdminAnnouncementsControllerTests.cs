@@ -9,7 +9,9 @@ using Wallow.Announcements.Application.Announcements.Commands.UpdateAnnouncement
 using Wallow.Announcements.Application.Announcements.DTOs;
 using Wallow.Announcements.Application.Announcements.Queries.GetAllAnnouncements;
 using Wallow.Announcements.Domain.Announcements.Enums;
+using Wallow.Announcements.Domain.Errors;
 using Wallow.Shared.Infrastructure.Core.Services;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Results;
 using Wolverine;
 
@@ -151,7 +153,7 @@ public class AdminAnnouncementsControllerTests
     {
         CreateAnnouncementRequest request = new("", "Content", AnnouncementType.Feature);
         _bus.InvokeAsync<Result<AnnouncementDto>>(Arg.Any<CreateAnnouncementCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<AnnouncementDto>(Error.Validation("Title is required")));
+            .Returns(Result.Failure<AnnouncementDto>(new Error(SharedErrors.ValidationFailed, "Title is required")));
 
         IActionResult result = await _controller.CreateAnnouncement(request, CancellationToken.None);
 
@@ -212,7 +214,7 @@ public class AdminAnnouncementsControllerTests
         UpdateAnnouncementRequest request = new("Title", "Content", AnnouncementType.Feature,
             AnnouncementTarget.All, null, null, null, false, true, null, null, null);
         _bus.InvokeAsync<Result<AnnouncementDto>>(Arg.Any<UpdateAnnouncementCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<AnnouncementDto>(Error.NotFound("Announcement", id)));
+            .Returns(Result.Failure<AnnouncementDto>(AnnouncementsErrors.AnnouncementNotFound));
 
         IActionResult result = await _controller.UpdateAnnouncement(id, request, CancellationToken.None);
 
@@ -241,7 +243,7 @@ public class AdminAnnouncementsControllerTests
     {
         Guid id = Guid.NewGuid();
         _bus.InvokeAsync<Result>(Arg.Any<PublishAnnouncementCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure(Error.NotFound("Announcement", id)));
+            .Returns(Result.Failure(AnnouncementsErrors.AnnouncementNotFound));
 
         IActionResult result = await _controller.PublishAnnouncement(id, CancellationToken.None);
 
@@ -284,7 +286,7 @@ public class AdminAnnouncementsControllerTests
     {
         Guid id = Guid.NewGuid();
         _bus.InvokeAsync<Result>(Arg.Any<ArchiveAnnouncementCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure(Error.NotFound("Announcement", id)));
+            .Returns(Result.Failure(AnnouncementsErrors.AnnouncementNotFound));
 
         IActionResult result = await _controller.ArchiveAnnouncement(id, CancellationToken.None);
 

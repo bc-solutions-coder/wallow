@@ -1,3 +1,4 @@
+using Wallow.Branding.Domain.Errors;
 using Wallow.Branding.Domain.Identity;
 using Wallow.Shared.Kernel.Domain;
 using Wallow.Shared.Kernel.Identity;
@@ -46,16 +47,12 @@ public sealed class ClientBranding : Entity<ClientBrandingId>, ITenantScoped
     {
         if (string.IsNullOrWhiteSpace(clientId))
         {
-            throw new BusinessRuleException(
-                "Branding.ClientBrandingClientIdRequired",
-                "Client ID cannot be empty");
+            throw new BusinessRuleException(BrandingErrors.ClientBrandingClientIdRequired);
         }
 
         if (string.IsNullOrWhiteSpace(displayName))
         {
-            throw new BusinessRuleException(
-                "Branding.ClientBrandingDisplayNameRequired",
-                "Display name cannot be empty");
+            throw new BusinessRuleException(BrandingErrors.ClientBrandingDisplayNameRequired);
         }
 
         return new ClientBranding(clientId, displayName, tagline, logoStorageKey, themeJson, timeProvider ?? TimeProvider.System);
@@ -70,9 +67,7 @@ public sealed class ClientBranding : Entity<ClientBrandingId>, ITenantScoped
     {
         if (string.IsNullOrWhiteSpace(displayName))
         {
-            throw new BusinessRuleException(
-                "Branding.ClientBrandingDisplayNameRequired",
-                "Display name cannot be empty");
+            throw new BusinessRuleException(BrandingErrors.ClientBrandingDisplayNameRequired);
         }
 
         DisplayName = displayName;

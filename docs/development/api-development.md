@@ -23,6 +23,7 @@ HTTP Response (JSON or ProblemDetails)
 ```
 
 **Key principles:**
+
 - Controllers are thin -- they delegate to Wolverine handlers immediately
 - Commands/queries are immutable records
 - Handlers are normally **`public sealed class`es** taking dependencies through a primary
@@ -64,15 +65,15 @@ See [Logging](#logging) below.
 
 Every controller should include:
 
-| Attribute | Purpose |
-|-----------|---------|
-| `[ApiController]` | Enables automatic model validation and binding |
-| `[ApiVersion(1)]` | API version number |
-| `[Route("v{version:apiVersion}/{resource}")]` | Versioned RESTful route pattern |
-| `[Authorize]` | Requires authentication (JWT or API key) |
-| `[Tags("...")]` | OpenAPI grouping for Scalar documentation |
-| `[Produces("application/json")]` | Response content type |
-| `[Consumes("application/json")]` | Request content type |
+| Attribute                                     | Purpose                                        |
+| --------------------------------------------- | ---------------------------------------------- |
+| `[ApiController]`                             | Enables automatic model validation and binding |
+| `[ApiVersion(1)]`                             | API version number                             |
+| `[Route("v{version:apiVersion}/{resource}")]` | Versioned RESTful route pattern                |
+| `[Authorize]`                                 | Requires authentication (JWT or API key)       |
+| `[Tags("...")]`                               | OpenAPI grouping for Scalar documentation      |
+| `[Produces("application/json")]`              | Response content type                          |
+| `[Consumes("application/json")]`              | Request content type                           |
 
 ### Route Conventions
 
@@ -96,6 +97,7 @@ POST   /v1/{resources}/{id}/action  Custom action
 > are exactly what you request.
 
 Examples from the codebase:
+
 - `GET /v1/inquiries` -- list inquiries (optionally filtered by `?status=`)
 - `GET /v1/inquiries/{id}` -- get one inquiry by ID
 - `PATCH /v1/inquiries/{id}/status` -- move an inquiry to the next status
@@ -106,6 +108,7 @@ Examples from the codebase:
 ### Injecting Dependencies
 
 Controllers use primary constructors and inject:
+
 - `IMessageBus` -- Wolverine mediator for commands/queries
 - `ITenantContext` -- resolved tenant for the current request
 - `ILogger<T>` -- required by the `[LoggerMessage]` source generator
@@ -303,10 +306,10 @@ public record CurrentUserResponse
 
 ### DTOs vs Response Contracts
 
-| Type | Layer | Purpose |
-|------|-------|---------|
-| **DTO** | Application | Internal data transfer, used by handlers |
-| **Response** | Api | API contract, may differ from DTO |
+| Type         | Layer       | Purpose                                  |
+| ------------ | ----------- | ---------------------------------------- |
+| **DTO**      | Application | Internal data transfer, used by handlers |
+| **Response** | Api         | API contract, may differ from DTO        |
 
 `InquiryDto` and `InquiryResponse` deliberately differ: the DTO carries
 `SubmitterIpAddress` (an internal audit field that must not leak) and uses `DateTimeOffset`.
@@ -423,7 +426,7 @@ public static class UpdateInquiryStatusHandler
 
         if (inquiry is null)
         {
-            return Result.Failure<InquiryDto>(Error.NotFound("Inquiry", command.InquiryId));
+            return Result.Failure<InquiryDto>(InquiriesErrors.InquiryNotFound);
         }
 
         inquiry.TransitionTo(command.NewStatus, timeProvider);
@@ -535,27 +538,97 @@ public class Result<TValue> : Result
 }
 ```
 
-### Error Types
+### Errors and the Error-Code Catalog
+
+Every failure the API reports carries a **code**, a **kind**, and a **message**. The code is a
+stable, machine-readable identifier the frontends narrow on; the kind decides the HTTP status;
+the message is the human-readable `detail`. All three come from a **catalog entry**
+(`Wallow.Shared.Kernel.Errors`):
 
 ```csharp
-public sealed record Error(string Code, string Message)
-{
-    public static readonly Error None = new(string.Empty, string.Empty);
-    public static readonly Error NullValue = new("Error.NullValue", "A null value was provided");
+public sealed record ErrorCatalogEntry(string Code, ErrorKind Kind, string DefaultMessage);
 
-    // Factory methods
-    public static Error NotFound(string entity, object id);
-    public static Error Validation(string message);
-    public static Error Validation(string code, string message);
-    public static Error Conflict(string message);
-    public static Error Unauthorized(string message = "Unauthorized access");
-    public static Error Forbidden(string message = "Access denied");
-    public static Error BusinessRule(string code, string message);
+public enum ErrorKind
+{
+    Validation,        // 400
+    Unauthenticated,   // 401
+    Forbidden,         // 403
+    NotFound,          // 404
+    MethodNotAllowed,  // 405
+    Conflict,          // 409
+    BusinessRule,      // 422
+    RateLimited,       // 429
+    Failure,           // 500
+    Unavailable        // 503
 }
 ```
 
-The `Code` is what drives the HTTP status -- `NotFound("Inquiry", id)` produces the code
-`Inquiry.NotFound`, and `ResultExtensions` maps any code ending in `.NotFound` to a 404.
+`Error` and the domain exceptions are constructed **only** from an entry, with an optional
+message override for the cases where the sentence must name a value. There is no bare-string
+constructor and no code-prefix parsing anywhere:
+
+```csharp
+public sealed record Error(ErrorCatalogEntry entry, string? message = null)
+{
+    public string Code { get; }        // entry.Code
+    public ErrorKind Kind { get; }     // entry.Kind
+    public string Message { get; }     // message ?? entry.DefaultMessage
+}
+
+// Result has matching shortcuts
+Result.Failure(entry);
+Result.Failure<InquiryDto>(entry, "Inquiry 'abc' is already closed");
+```
+
+#### Catalog ownership
+
+- **Each module owns exactly one static catalog** at
+  `Wallow.<Module>.Domain/Errors/<Module>Errors.cs`: a `public static class` whose members are
+  `public static readonly ErrorCatalogEntry` fields. Every code has exactly one owner; the
+  aggregate is resolved when the host starts, so two catalogs declaring the same code fail
+  startup in every environment.
+- **`Wallow.Shared.Api` owns `SettingsErrors`** (`Settings.SystemKeyBlocked`,
+  `Settings.UnknownKey`): the setting-key checks are one condition whichever module's settings
+  endpoint reaches them, and `SettingKeyValidationResult.ToResult(key)` answers with them.
+- **The shared kernel holds only the eight status-generic entries** in `SharedErrors`:
+  `Validation.Failed`, `Auth.Unauthenticated`, `Auth.Forbidden`, `Http.NotFound`,
+  `Http.MethodNotAllowed`, `RateLimit.Exceeded`, `Setup.Required`, `Server.Error`. Anything a
+  module means specifically goes in the module's catalog, never here.
+- **`Add<Module>Module` registers the catalog** as its first statement:
+  `services.AddErrorCatalog(typeof(InquiriesErrors));`. The call validates the catalog eagerly
+  and contributes it to the `ErrorCatalog` singleton the API aggregates.
+
+```csharp
+// api/src/Modules/Inquiries/Wallow.Inquiries.Domain/Errors/InquiriesErrors.cs
+public static class InquiriesErrors
+{
+    public static readonly ErrorCatalogEntry InquiryNotFound = new(
+        "Inquiry.NotFound", ErrorKind.NotFound, "Inquiry not found");
+
+    public static readonly ErrorCatalogEntry InvalidStatusTransition = new(
+        "Inquiries.InvalidStatusTransition", ErrorKind.BusinessRule,
+        "The inquiry cannot move to that status");
+}
+```
+
+#### Naming rule
+
+A code is **dotted PascalCase `Area.Reason`** — one dot, both halves PascalCase, no
+underscores, no digits-first segments. `ErrorCatalogEntry` rejects anything else at
+construction, so a malformed code fails the module's tests rather than reaching a client.
+`Area` is the aggregate or concern (`Inquiry`, `Bucket`, `Identity`, `Auth`, `Mfa`),
+`Reason` says what went wrong (`NotFound`, `AlreadyExists`, `LastOwner`). Pick the kind by the
+HTTP status the client should see, not by the layer that detected the problem.
+
+#### OpenAPI export
+
+The API emits the aggregated catalog into the v1 document as
+`components.schemas.ErrorCode`: a string enum of every registered code, with each entry's
+default sentence in `x-enum-descriptions`. `ProblemDetails.code` and the validation
+problem-details schemas reference it, so the generated SDK types `code` as a union of known
+codes. A backend integration test asserts the enum equals the catalog, and the committed
+`packages/sdk/openapi/v1.json` is diffed against the emitted document in CI — adding an entry
+means regenerating the snapshot and the SDK client.
 
 ### Creating Results in Handlers
 
@@ -563,15 +636,15 @@ The `Code` is what drives the HTTP status -- `NotFound("Inquiry", id)` produces 
 // Success with value
 return Result.Success(inquiry.ToDto());
 
-// Failure with error
-return Result.Failure<InquiryDto>(
-    Error.NotFound("Inquiry", command.InquiryId));
+// Failure straight from the catalog entry (default sentence)
+return Result.Failure<InquiryDto>(InquiriesErrors.InquiryNotFound);
 
-return Result.Failure<InquiryDto>(
-    Error.Validation("Name is required"));
+// Failure with an overriding message that names the offending value
+return Result.Failure<FileDto>(
+    StorageErrors.FileTooLarge, $"File size {size} exceeds the {limit} byte limit");
 
-return Result.Failure<InquiryDto>(
-    Error.Conflict("An inquiry for this email is already open"));
+// A status-generic failure with no module-specific meaning
+return Result.Failure(SharedErrors.ValidationFailed, "Name is required");
 ```
 
 ### Result Extensions
@@ -596,14 +669,14 @@ public static class ResultExtensions
 
     private static ObjectResult ToErrorResult(Error error)
     {
-        int statusCode = GetStatusCode(error.Code);
+        int statusCode = error.Kind.ToHttpStatusCode();
 
         ProblemDetails problemDetails = new()
         {
             Status = statusCode,
-            Title = GetTitle(statusCode),
+            Title = GetProblemTitle(statusCode),
             Detail = error.Message,
-            Type = GetTypeUri(statusCode),
+            Type = GetProblemType(statusCode),
             Extensions =
             {
                 ["code"] = error.Code
@@ -615,21 +688,23 @@ public static class ResultExtensions
             StatusCode = statusCode
         };
     }
-
-    private static int GetStatusCode(string errorCode)
-    {
-        return errorCode switch
-        {
-            _ when errorCode.EndsWith(".NotFound", StringComparison.Ordinal) => StatusCodes.Status404NotFound,
-            _ when errorCode.StartsWith("Validation", StringComparison.Ordinal) => StatusCodes.Status400BadRequest,
-            _ when errorCode.StartsWith("Unauthorized", StringComparison.Ordinal) => StatusCodes.Status401Unauthorized,
-            _ when errorCode.StartsWith("Forbidden", StringComparison.Ordinal) => StatusCodes.Status403Forbidden,
-            _ when errorCode.StartsWith("Conflict", StringComparison.Ordinal) => StatusCodes.Status409Conflict,
-            _ => StatusCodes.Status422UnprocessableEntity
-        };
-    }
 }
 ```
+
+The status is derived from the entry's kind alone:
+
+| `ErrorKind`        | Status | Title                 |
+| ------------------ | ------ | --------------------- |
+| `Validation`       | 400    | Bad Request           |
+| `Unauthenticated`  | 401    | Unauthorized          |
+| `Forbidden`        | 403    | Forbidden             |
+| `NotFound`         | 404    | Not Found             |
+| `MethodNotAllowed` | 405    | Method Not Allowed    |
+| `Conflict`         | 409    | Conflict              |
+| `BusinessRule`     | 422    | Unprocessable Entity  |
+| `RateLimited`      | 429    | Too Many Requests     |
+| `Failure`          | 500    | Internal Server Error |
+| `Unavailable`      | 503    | Service Unavailable   |
 
 ### Using Map for Transformations
 
@@ -667,7 +742,7 @@ for them: its scan appends registrations with a plain `IServiceCollection.Add`, 
 `IValidator<T>` entries per command. Two registrations flip `FluentValidationPolicy` from
 `ExecuteOne(IValidator<T>)` to `ExecuteMany(IEnumerable<IValidator<T>>)`, and that enumerable is
 service-located from the root provider — which throws
-*"Cannot resolve scoped service 'IEnumerable<IValidator&lt;T&gt;>' from root provider"* under
+_"Cannot resolve scoped service 'IEnumerable<IValidator&lt;T&gt;>' from root provider"_ under
 Development scope validation. Drop the argument and the app fails to start.
 
 Each module registers its validators by assembly scan:
@@ -741,16 +816,16 @@ each failure is also listed under the `errors` extension:
 
 ```json
 {
-    "type": "https://tools.ietf.org/html/rfc7231#section-6.5.1",
-    "title": "Validation Error",
-    "status": 400,
-    "detail": "Name is required; Message is required",
-    "instance": "/errors/00-abc123",
-    "traceId": "00-abc123",
-    "errors": [
-        { "field": "Name", "message": "Name is required" },
-        { "field": "Message", "message": "Message is required" }
-    ]
+  "type": "https://tools.ietf.org/html/rfc7231#section-6.5.1",
+  "title": "Bad Request",
+  "status": 400,
+  "detail": "Name is required; Message is required",
+  "instance": "/errors/00-abc123",
+  "traceId": "00-abc123",
+  "errors": [
+    { "field": "Name", "message": "Name is required" },
+    { "field": "Message", "message": "Message is required" }
+  ]
 }
 ```
 
@@ -766,16 +841,24 @@ a generic message so internals do not leak.
 
 ### Exception to Status Code Mapping
 
-| Exception Type | HTTP Status | Title |
-|----------------|-------------|-------|
-| `EntityNotFoundException` | 404 | Resource Not Found |
-| `BusinessRuleException` | 422 | Business Rule Violation |
-| `ValidationException` (FluentValidation) | 400 | Validation Error |
-| `UnauthorizedAccessException` | 401 | Unauthorized |
-| `ForbiddenAccessException` | 403 | Forbidden |
-| `ArgumentException` / `ArgumentNullException` | 400 | Bad Request |
-| `OperationCanceledException` | 499 | Client Closed Request |
-| Other exceptions | 500 | Internal Server Error |
+A `DomainException` (`EntityNotFoundException`, `BusinessRuleException`,
+`ForbiddenAccessException`, and module-specific subclasses) carries a catalog entry, so its
+status comes from the entry's kind exactly as a failed `Result` does; the response `code` is
+the entry's code. Title and type come from the same status table a failed `Result` uses
+(`ResultExtensions.GetProblemTitle` / `GetProblemType`), so one entry renders identically
+whichever way it surfaced. Framework and runtime exceptions map by type:
+
+| Exception Type                                | HTTP Status | Title                 |
+| --------------------------------------------- | ----------- | --------------------- |
+| `DomainException` with kind `NotFound`        | 404         | Not Found             |
+| `DomainException` with kind `BusinessRule`    | 422         | Unprocessable Entity  |
+| `DomainException` with kind `Forbidden`       | 403         | Forbidden             |
+| `DomainException` with kind `Validation`      | 400         | Bad Request           |
+| `ValidationException` (FluentValidation)      | 400         | Bad Request           |
+| `UnauthorizedAccessException`                 | 401         | Unauthorized          |
+| `ArgumentException` / `ArgumentNullException` | 400         | Bad Request           |
+| `OperationCanceledException`                  | 499         | Client Closed Request |
+| Other exceptions                              | 500         | Internal Server Error |
 
 Client cancellations are logged at Information and explicitly **not** marked as a failed span,
 so an abandoned request does not show up as an error in tracing.
@@ -786,26 +869,26 @@ All error responses use Problem Details:
 
 ```json
 {
-    "type": "https://tools.ietf.org/html/rfc7231#section-6.5.4",
-    "title": "Resource Not Found",
-    "status": 404,
-    "detail": "Inquiry with ID '3f1c...' was not found",
-    "instance": "/errors/00-abc123",
-    "traceId": "00-abc123",
-    "code": "Inquiry.NotFound"
+  "type": "https://tools.ietf.org/html/rfc7231#section-6.5.4",
+  "title": "Not Found",
+  "status": 404,
+  "detail": "Inquiry not found",
+  "instance": "/errors/00-abc123",
+  "traceId": "00-abc123",
+  "code": "Inquiry.NotFound"
 }
 ```
 
 ### When to Throw vs Return Result
 
-| Scenario | Approach |
-|----------|----------|
-| Entity not found (expected) | Return `Result.Failure(Error.NotFound(...))` |
-| Validation failure (expected) | Return `Result.Failure(Error.Validation(...))` |
-| Invalid domain state transition | Throw from the aggregate (e.g. `InvalidInquiryStatusTransitionException`) |
-| Business rule violation (expected) | Return `Result.Failure(...)` or throw `BusinessRuleException` |
-| Programming error (unexpected) | Throw exception (caught by GlobalExceptionHandler) |
-| External service failure (unexpected) | Let exception propagate or wrap and rethrow |
+| Scenario                              | Approach                                                                            |
+| ------------------------------------- | ----------------------------------------------------------------------------------- |
+| Entity not found (expected)           | Return `Result.Failure(<Module>Errors.<Entity>NotFound)`                            |
+| Validation failure (expected)         | Return `Result.Failure(<Module>Errors.<Reason>, message)` with a `Validation` entry |
+| Invalid domain state transition       | Throw from the aggregate (e.g. `InvalidInquiryStatusTransitionException`)           |
+| Business rule violation (expected)    | Return `Result.Failure(entry)` or throw `BusinessRuleException(entry)`              |
+| Programming error (unexpected)        | Throw exception (caught by GlobalExceptionHandler)                                  |
+| External service failure (unexpected) | Let exception propagate or wrap and rethrow                                         |
 
 ## Authentication and Authorization
 
@@ -842,7 +925,7 @@ public async Task<IActionResult> GetAll(...)
 public async Task<IActionResult> UpdateStatus(...)
 ```
 
-Some endpoints are deliberately left without `[HasPermission]` because they serve *both* staff
+Some endpoints are deliberately left without `[HasPermission]` because they serve _both_ staff
 and the person who filed the inquiry. Those check the permission in code and fall back to
 ownership:
 
@@ -909,21 +992,25 @@ handlers do not filter by tenant themselves.
 ### Checklist
 
 1. **Define the contract** (if the endpoint takes a body)
+
    ```
    api/src/Modules/{Module}/Wallow.{Module}.Api/Contracts/{Name}Request.cs
    ```
 
 2. **Create the command/query**
+
    ```
    api/src/Modules/{Module}/Wallow.{Module}.Application/Commands/{Name}/{Name}Command.cs
    ```
 
 3. **Create the validator** (for commands)
+
    ```
    api/src/Modules/{Module}/Wallow.{Module}.Application/Commands/{Name}/{Name}Validator.cs
    ```
 
 4. **Create the handler**
+
    ```
    api/src/Modules/{Module}/Wallow.{Module}.Application/Commands/{Name}/{Name}Handler.cs
    ```
@@ -942,6 +1029,7 @@ handlers do not filter by tenant themselves.
 This is the real `POST /v1/inquiries/{id}/comments` vertical, top to bottom.
 
 **1. Request contract:**
+
 ```csharp
 // api/src/Modules/Inquiries/Wallow.Inquiries.Api/Contracts/AddInquiryCommentRequest.cs
 namespace Wallow.Inquiries.Api.Contracts;
@@ -952,6 +1040,7 @@ public sealed record AddInquiryCommentRequest(
 ```
 
 **2. Command** -- note it carries the author, which the request does not:
+
 ```csharp
 // .../Application/Commands/AddInquiryComment/AddInquiryCommentCommand.cs
 using Wallow.Inquiries.Domain.Identity;
@@ -967,6 +1056,7 @@ public sealed record AddInquiryCommentCommand(
 ```
 
 **3. Validator:**
+
 ```csharp
 // .../Application/Commands/AddInquiryComment/AddInquiryCommentValidator.cs
 using FluentValidation;
@@ -995,6 +1085,7 @@ public sealed class AddInquiryCommentValidator : AbstractValidator<AddInquiryCom
 ```
 
 **4. Handler** -- returns the new strongly-typed ID, not a full DTO:
+
 ```csharp
 // .../Application/Commands/AddInquiryComment/AddInquiryCommentHandler.cs
 namespace Wallow.Inquiries.Application.Commands.AddInquiryComment;
@@ -1024,6 +1115,7 @@ public static class AddInquiryCommentHandler
 ```
 
 **5. Controller endpoint:**
+
 ```csharp
 [HttpPost("{id:guid}/comments")]
 [HasPermission(PermissionType.InquiriesWrite)]

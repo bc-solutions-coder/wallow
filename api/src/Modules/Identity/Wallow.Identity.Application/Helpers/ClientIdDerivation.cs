@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using Wallow.Identity.Domain.Enums;
+using Wallow.Identity.Domain.Errors;
 using Wallow.Shared.Kernel.Domain;
 
 namespace Wallow.Identity.Application.Helpers;
@@ -25,9 +26,7 @@ public static class ClientIdDerivation
         string nameSlug = Slugify(name);
         if (nameSlug.Length == 0)
         {
-            throw new BusinessRuleException(
-                "Identity.ClientNameUnusable",
-                "A client name must contain at least one letter or digit.");
+            throw new BusinessRuleException(IdentityErrors.ClientNameUnusable);
         }
 
         return PrefixOf(kind) + Slugify(organizationSlug) + "-" + nameSlug;

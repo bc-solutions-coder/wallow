@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Domain.Enums;
+using Wallow.Identity.Domain.Errors;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Shared.Contracts.Identity.Events;
@@ -96,9 +97,7 @@ public sealed class InvitationService(
 
         if (membership?.Status == MembershipStatus.Active)
         {
-            throw new BusinessRuleException(
-                "Identity.AlreadyAMember",
-                "That email address already belongs to this organization");
+            throw new BusinessRuleException(IdentityErrors.AlreadyAMember);
         }
     }
 
@@ -106,7 +105,7 @@ public sealed class InvitationService(
     {
         InvitationId id = InvitationId.Create(invitationId);
         Invitation invitation = await invitationRepository.GetByIdAsync(id, ct)
-            ?? throw new EntityNotFoundException("Invitation", invitationId);
+            ?? throw new EntityNotFoundException(IdentityErrors.InvitationNotFound, invitationId);
 
         invitation.Revoke(actorId, timeProvider);
         await invitationRepository.SaveChangesAsync(ct);
@@ -125,7 +124,7 @@ public sealed class InvitationService(
     public async Task AcceptInvitationAsync(string token, Guid userId, CancellationToken ct = default)
     {
         Invitation invitation = await invitationRepository.GetByTokenAsync(token, ct)
-            ?? throw new EntityNotFoundException("Invitation", token);
+            ?? throw new EntityNotFoundException(IdentityErrors.InvitationNotFound, token);
 
         await GuardInvitedIdentityAsync(invitation, userId, ct);
 
@@ -191,9 +190,7 @@ public sealed class InvitationService(
             // Reinstating someone an admin took access away from is that admin's decision to make
             // explicitly, not something an invitation issued against an email address does quietly.
             default:
-                throw new BusinessRuleException(
-                    "Identity.MembershipNotReinstatable",
-                    $"Membership of this organization is '{membership.Status}' and cannot be resumed by invitation");
+                throw new BusinessRuleException(IdentityErrors.MembershipNotReinstatable, $"Membership of this organization is '{membership.Status}' and cannot be resumed by invitation");
         }
     }
 
@@ -206,22 +203,18 @@ public sealed class InvitationService(
     {
         WallowUser user = await dbContext.Users
             .FirstOrDefaultAsync(u => u.Id == userId, ct)
-            ?? throw new EntityNotFoundException("User", userId);
+            ?? throw new EntityNotFoundException(IdentityErrors.UserNotFound, userId);
 
         if (!user.EmailConfirmed)
         {
-            throw new BusinessRuleException(
-                "Identity.InvitationEmailNotVerified",
-                "Verify your email address before accepting an invitation");
+            throw new BusinessRuleException(IdentityErrors.InvitationEmailNotVerified);
         }
 
         // Compare normalized: Identity stores NormalizedEmail upper-invariant, while the invitation
         // holds the address exactly as the inviter typed it.
         if (!string.Equals(user.NormalizedEmail, invitation.Email.ToUpperInvariant(), StringComparison.Ordinal))
         {
-            throw new BusinessRuleException(
-                "Identity.InvitationEmailMismatch",
-                "This invitation was issued to a different email address");
+            throw new BusinessRuleException(IdentityErrors.InvitationEmailMismatch);
         }
     }
 

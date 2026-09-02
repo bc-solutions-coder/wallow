@@ -46,6 +46,14 @@ interface OpenApiSpec {
   tags?: { name?: string }[];
 }
 
+interface SchemaObject {
+  type?: unknown;
+  enum?: unknown;
+  properties?: Record<string, unknown>;
+  "x-enum-descriptions"?: unknown;
+  "x-enum-varnames"?: unknown;
+}
+
 interface OperationEntry {
   path: string;
   method: string;
@@ -196,6 +204,59 @@ function findTestSupportSurface(spec: OpenApiSpec): string[] {
   return [...taggedOperations, ...documentTags];
 }
 
+const ERROR_CODE_SCHEMA: string = "ErrorCode";
+
+const PROBLEM_DETAILS_SCHEMAS: readonly string[] = [
+  "ProblemDetails",
+  "HttpValidationProblemDetails",
+  "ValidationProblemDetails",
+];
+
+// The backend exports its aggregated error catalog as one string enum, described per code and
+// referenced from every problem-details schema's `code` member. hey-api turns that into the
+// `ErrorCode` union the apps narrow on; a snapshot that loses any part of the shape would still
+// generate, but as `string`, and every `code ===` comparison would silently stop being checked.
+function findErrorCodeContractViolations(spec: OpenApiSpec): string[] {
+  const schemas: Record<string, unknown> = spec.components?.schemas ?? {};
+  const violations: string[] = [];
+
+  const errorCode: SchemaObject | undefined = schemas[ERROR_CODE_SCHEMA] as
+    | SchemaObject
+    | undefined;
+  if (errorCode === undefined) {
+    return [`components.schemas.${ERROR_CODE_SCHEMA} is missing`];
+  }
+
+  if (errorCode.type !== "string") {
+    violations.push(`${ERROR_CODE_SCHEMA} is not a string schema`);
+  }
+
+  const codes: unknown = errorCode.enum;
+  if (!Array.isArray(codes) || codes.length === 0) {
+    violations.push(`${ERROR_CODE_SCHEMA} declares no enum values`);
+  } else {
+    const descriptions: unknown = errorCode["x-enum-descriptions"];
+    if (!Array.isArray(descriptions) || descriptions.length !== codes.length) {
+      violations.push(`${ERROR_CODE_SCHEMA} x-enum-descriptions does not describe every code`);
+    }
+  }
+
+  if (errorCode["x-enum-varnames"] !== undefined) {
+    violations.push(`${ERROR_CODE_SCHEMA} carries x-enum-varnames`);
+  }
+
+  for (const name of PROBLEM_DETAILS_SCHEMAS) {
+    const problemDetails: SchemaObject | undefined = schemas[name] as SchemaObject | undefined;
+    const code: unknown = problemDetails?.properties?.["code"];
+    const ref: unknown = (code as { $ref?: unknown } | undefined)?.$ref;
+    if (problemDetails !== undefined && ref !== `${SCHEMA_REF_PREFIX}${ERROR_CODE_SCHEMA}`) {
+      violations.push(`${name}.code does not reference ${ERROR_CODE_SCHEMA}`);
+    }
+  }
+
+  return violations;
+}
+
 // hey-api derives each exported operation function from the operationId, lower-camelised.
 function expectedExportName(operationId: string): string {
   return operationId.charAt(0).toLowerCase() + operationId.slice(1);
@@ -220,6 +281,10 @@ describe("committed OpenAPI snapshot holds the codegen invariants", () => {
 
   it("leaks no test-support surface into the public document", () => {
     expect(findTestSupportSurface(loadSnapshot())).toEqual([]);
+  });
+
+  it("exports the error catalog as a described string enum that problem details reference", () => {
+    expect(findErrorCodeContractViolations(loadSnapshot())).toEqual([]);
   });
 });
 
@@ -342,6 +407,41 @@ describe("the invariants reject a violating document", () => {
     expect(findTestSupportSurface(spec)).toEqual([
       "GET /v1/things",
       `document tag "${TEST_SUPPORT_TAG}"`,
+    ]);
+  });
+
+  it("catches an error-code enum that lost its shape", () => {
+    const sound: OpenApiSpec = {
+      ...specWith(typedSuccess),
+      components: {
+        schemas: {
+          ErrorCode: {
+            type: "string",
+            enum: ["Http.NotFound"],
+            "x-enum-descriptions": ["The requested resource was not found."],
+          },
+          ProblemDetails: { properties: { code: { $ref: `${SCHEMA_REF_PREFIX}ErrorCode` } } },
+        },
+      },
+    };
+    const broken: OpenApiSpec = {
+      ...sound,
+      components: {
+        schemas: {
+          ErrorCode: { type: "string", enum: ["Http.NotFound"], "x-enum-varnames": ["NotFound"] },
+          ProblemDetails: { properties: { code: { type: "string" } } },
+        },
+      },
+    };
+
+    expect(findErrorCodeContractViolations(sound)).toEqual([]);
+    expect(findErrorCodeContractViolations({ ...sound, components: { schemas: {} } })).toEqual([
+      "components.schemas.ErrorCode is missing",
+    ]);
+    expect(findErrorCodeContractViolations(broken)).toEqual([
+      "ErrorCode x-enum-descriptions does not describe every code",
+      "ErrorCode carries x-enum-varnames",
+      "ProblemDetails.code does not reference ErrorCode",
     ]);
   });
 });

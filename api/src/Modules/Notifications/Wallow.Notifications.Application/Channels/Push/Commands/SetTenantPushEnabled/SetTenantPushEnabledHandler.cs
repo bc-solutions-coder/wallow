@@ -1,5 +1,6 @@
 using Wallow.Notifications.Application.Channels.Push.Interfaces;
 using Wallow.Notifications.Domain.Channels.Push.Entities;
+using Wallow.Notifications.Domain.Errors;
 using Wallow.Shared.Kernel.Results;
 
 namespace Wallow.Notifications.Application.Channels.Push.Commands.SetTenantPushEnabled;
@@ -18,7 +19,7 @@ public sealed class SetTenantPushEnabledHandler(
 
         if (configuration is null)
         {
-            return Result.Failure(Error.NotFound(nameof(TenantPushConfiguration), $"{command.TenantId}:{command.Platform}"));
+            return Result.Failure(NotificationsErrors.TenantPushConfigurationNotFound);
         }
 
         if (command.IsEnabled)

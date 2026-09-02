@@ -4,6 +4,7 @@ using Wallow.Storage.Application.DTOs;
 using Wallow.Storage.Application.Interfaces;
 using Wallow.Storage.Application.Mappings;
 using Wallow.Storage.Domain.Entities;
+using Wallow.Storage.Domain.Errors;
 
 namespace Wallow.Storage.Application.Queries.GetFilesByBucket;
 
@@ -19,7 +20,7 @@ public sealed class GetFilesByBucketHandler(
         if (bucket is null)
         {
             return Result.Failure<PagedResult<StoredFileDto>>(
-                Error.NotFound("Bucket", query.BucketName));
+                StorageErrors.BucketNotFound);
         }
 
         PagedResult<StoredFile> pagedFiles = await fileRepository.GetByBucketIdPagedAsync(

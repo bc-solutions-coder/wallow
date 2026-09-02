@@ -1,3 +1,4 @@
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Results;
 
 namespace Wallow.Shared.Kernel.Tests.Results;
@@ -17,7 +18,7 @@ public class ResultTests
     [Fact]
     public void Failure_ReturnsFailedResult()
     {
-        Error error = new("Test.Error", "Test error message");
+        Error error = new(SharedErrors.NotFound, "Test error message");
 
         Result result = Result.Failure(error);
 
@@ -29,7 +30,7 @@ public class ResultTests
     [Fact]
     public void Constructor_SuccessWithNonNoneError_ThrowsInvalidOperationException()
     {
-        Error error = new("Test.Error", "Should not be on success");
+        Error error = new(SharedErrors.NotFound, "Should not be on success");
 
         Func<TestableResult> act = () => new TestableResult(true, error);
 
@@ -59,12 +60,34 @@ public class ResultTests
     [Fact]
     public void FailureGeneric_ReturnsFailureWithError()
     {
-        Error error = new("Test.Error", "Test");
+        Error error = new(SharedErrors.NotFound, "Test");
 
         Result<string> result = Result.Failure<string>(error);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Be(error);
+    }
+
+    [Fact]
+    public void Failure_FromEntry_UsesEntryCodeKindAndDefaultMessage()
+    {
+        Result result = Result.Failure(SharedErrors.NotFound);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("Http.NotFound");
+        result.Error.Kind.Should().Be(ErrorKind.NotFound);
+        result.Error.Message.Should().Be(SharedErrors.NotFound.DefaultMessage);
+    }
+
+    [Fact]
+    public void FailureGeneric_FromEntryWithOverride_UsesOverrideMessage()
+    {
+        Result<int> result = Result.Failure<int>(SharedErrors.Forbidden, "Not yours.");
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("Auth.Forbidden");
+        result.Error.Kind.Should().Be(ErrorKind.Forbidden);
+        result.Error.Message.Should().Be("Not yours.");
     }
 
     private sealed class TestableResult(bool isSuccess, Error error) : Result(isSuccess, error);
@@ -84,7 +107,7 @@ public class ResultOfTTests
     [Fact]
     public void Failure_AccessingValue_ThrowsInvalidOperationException()
     {
-        Result<int> result = Result.Failure<int>(Error.NullValue);
+        Result<int> result = Result.Failure<int>(SharedErrors.ValidationFailed);
 
         Func<int> act = () => result.Value;
 
@@ -115,7 +138,7 @@ public class ResultOfTTests
     [Fact]
     public void Map_WhenFailure_PropagatesError()
     {
-        Error error = new("Test.Error", "Test");
+        Error error = new(SharedErrors.NotFound, "Test");
         Result<int> result = Result.Failure<int>(error);
 
         Result<int> mapped = result.Map(x => x * 2);
@@ -138,7 +161,7 @@ public class ResultOfTTests
     [Fact]
     public void Bind_WhenFirstFails_PropagatesError()
     {
-        Error error = new("Test.Error", "Test");
+        Error error = new(SharedErrors.NotFound, "Test");
         Result<int> result = Result.Failure<int>(error);
 
         Result<string> bound = result.Bind(x => Result.Success(x.ToString()));
@@ -151,7 +174,7 @@ public class ResultOfTTests
     public void Bind_WhenSecondFails_ReturnsSecondError()
     {
         Result<int> result = Result.Success(5);
-        Error secondError = new("Second.Error", "Second failed");
+        Error secondError = new(SharedErrors.ValidationFailed, "Second failed");
 
         Result<string> bound = result.Bind<string>(_ => Result.Failure<string>(secondError));
 

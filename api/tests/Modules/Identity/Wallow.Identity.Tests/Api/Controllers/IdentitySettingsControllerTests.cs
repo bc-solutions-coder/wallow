@@ -168,7 +168,7 @@ public class IdentitySettingsControllerTests
         IActionResult result = await _controller.UpsertTenantSetting(request, CancellationToken.None);
 
         result.Should().BeOfType<ObjectResult>().Which
-            .StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
+            .StatusCode.Should().Be(StatusCodes.Status400BadRequest);
     }
 
     [Fact]

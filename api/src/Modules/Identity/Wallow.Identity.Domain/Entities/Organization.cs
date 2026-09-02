@@ -1,3 +1,4 @@
+using Wallow.Identity.Domain.Errors;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Shared.Kernel.Domain;
 using Wallow.Shared.Kernel.Identity;
@@ -62,16 +63,12 @@ public sealed class Organization : AggregateRoot<OrganizationId>, ITenantScoped
     {
         if (string.IsNullOrWhiteSpace(name))
         {
-            throw new BusinessRuleException(
-                "Identity.OrganizationNameRequired",
-                "Organization name cannot be empty");
+            throw new BusinessRuleException(IdentityErrors.OrganizationNameRequired);
         }
 
         if (string.IsNullOrWhiteSpace(slug))
         {
-            throw new BusinessRuleException(
-                "Identity.OrganizationSlugRequired",
-                "Organization slug cannot be empty");
+            throw new BusinessRuleException(IdentityErrors.OrganizationSlugRequired);
         }
 
         return new Organization(name, slug, createdByUserId, timeProvider);
@@ -82,9 +79,7 @@ public sealed class Organization : AggregateRoot<OrganizationId>, ITenantScoped
     {
         if (!IsActive)
         {
-            throw new BusinessRuleException(
-                "Identity.OrganizationAlreadyInactive",
-                "Organization is already inactive");
+            throw new BusinessRuleException(IdentityErrors.OrganizationAlreadyInactive);
         }
 
         IsActive = false;
@@ -97,9 +92,7 @@ public sealed class Organization : AggregateRoot<OrganizationId>, ITenantScoped
     {
         if (IsActive)
         {
-            throw new BusinessRuleException(
-                "Identity.OrganizationAlreadyActive",
-                "Organization is already active");
+            throw new BusinessRuleException(IdentityErrors.OrganizationAlreadyActive);
         }
 
         IsActive = true;
@@ -116,16 +109,12 @@ public sealed class Organization : AggregateRoot<OrganizationId>, ITenantScoped
     {
         if (string.IsNullOrWhiteSpace(reason))
         {
-            throw new BusinessRuleException(
-                "Identity.PlatformSuspensionReasonRequired",
-                "A platform suspension requires a reason");
+            throw new BusinessRuleException(IdentityErrors.PlatformSuspensionReasonRequired);
         }
 
         if (IsPlatformSuspended)
         {
-            throw new BusinessRuleException(
-                "Identity.OrganizationAlreadySuspendedByPlatform",
-                "Organization is already suspended by the platform");
+            throw new BusinessRuleException(IdentityErrors.OrganizationAlreadySuspendedByPlatform);
         }
 
         PlatformSuspendedAt = timeProvider.GetUtcNow();
@@ -138,9 +127,7 @@ public sealed class Organization : AggregateRoot<OrganizationId>, ITenantScoped
     {
         if (!IsPlatformSuspended)
         {
-            throw new BusinessRuleException(
-                "Identity.OrganizationNotSuspendedByPlatform",
-                "Organization is not suspended by the platform");
+            throw new BusinessRuleException(IdentityErrors.OrganizationNotSuspendedByPlatform);
         }
 
         PlatformSuspendedAt = null;
@@ -158,9 +145,7 @@ public sealed class Organization : AggregateRoot<OrganizationId>, ITenantScoped
     {
         if (IsPlatformSuspended && !byPlatformOperator)
         {
-            throw new BusinessRuleException(
-                "Identity.OrganizationSuspendedByPlatform",
-                "A platform-suspended organization can only be deleted by the platform");
+            throw new BusinessRuleException(IdentityErrors.OrganizationSuspendedByPlatform, "A platform-suspended organization can only be deleted by the platform");
         }
     }
 
@@ -168,9 +153,7 @@ public sealed class Organization : AggregateRoot<OrganizationId>, ITenantScoped
     {
         if (confirmedName != org.Name)
         {
-            throw new BusinessRuleException(
-                "Identity.OrganizationNameMismatch",
-                "The confirmed name does not match the organization name");
+            throw new BusinessRuleException(IdentityErrors.OrganizationNameMismatch);
         }
     }
 }

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Errors;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Shared.Kernel.Domain;
@@ -42,9 +43,7 @@ public sealed class DefaultMemberRoleResolver(IdentityDbContext dbContext) : IDe
 
         if (baseline is null)
         {
-            throw new BusinessRuleException(
-                "Identity.RoleNotFound",
-                $"Role '{BaselineMemberRoleName}' does not exist");
+            throw new BusinessRuleException(IdentityErrors.RoleNotFound, $"Role '{BaselineMemberRoleName}' does not exist");
         }
 
         return baseline.Id;

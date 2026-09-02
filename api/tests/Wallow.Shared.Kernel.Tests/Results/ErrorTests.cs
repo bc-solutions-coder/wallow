@@ -1,17 +1,11 @@
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Results;
 
 namespace Wallow.Shared.Kernel.Tests.Results;
 
 public class ErrorTests
 {
-    [Fact]
-    public void Constructor_WithCodeAndMessage_SetsProperties()
-    {
-        Error error = new("Test.Code", "Test message");
-
-        error.Code.Should().Be("Test.Code");
-        error.Message.Should().Be("Test message");
-    }
+    private static readonly ErrorCatalogEntry _entry = new("Test.Something", ErrorKind.Conflict, "Something conflicts.");
 
     [Fact]
     public void None_HasEmptyCodeAndMessage()
@@ -21,117 +15,51 @@ public class ErrorTests
     }
 
     [Fact]
-    public void NullValue_HasExpectedCodeAndMessage()
+    public void Constructor_FromEntry_CopiesCodeKindAndDefaultMessage()
     {
-        Error.NullValue.Code.Should().Be("Error.NullValue");
-        Error.NullValue.Message.Should().Be("A null value was provided");
+        Error error = new(_entry);
+
+        error.Code.Should().Be("Test.Something");
+        error.Kind.Should().Be(ErrorKind.Conflict);
+        error.Message.Should().Be("Something conflicts.");
     }
 
     [Fact]
-    public void NotFound_CreatesErrorWithEntityInfo()
+    public void Constructor_WithOverride_KeepsCodeAndKindButReplacesMessage()
     {
-        Error error = Error.NotFound("Invoice", 123);
+        Error error = new(_entry, "This one conflicts.");
 
-        error.Code.Should().Be("Invoice.NotFound");
-        error.Message.Should().Contain("Invoice").And.Contain("123");
+        error.Code.Should().Be("Test.Something");
+        error.Kind.Should().Be(ErrorKind.Conflict);
+        error.Message.Should().Be("This one conflicts.");
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Constructor_WithBlankOverride_Throws(string message)
+    {
+        Func<Error> act = () => new Error(_entry, message);
+
+        act.Should().Throw<ArgumentException>();
     }
 
     [Fact]
-    public void Validation_WithMessage_CreatesValidationError()
+    public void Constructor_WithNullEntry_Throws()
     {
-        Error error = Error.Validation("Field is required");
+        Func<Error> act = () => new Error(null!);
 
-        error.Code.Should().Be("Validation.Error");
-        error.Message.Should().Be("Field is required");
+        act.Should().Throw<ArgumentNullException>();
     }
 
     [Fact]
-    public void Validation_WithCodeAndMessage_CreatesCustomValidationError()
+    public void Equality_IsStructural()
     {
-        Error error = Error.Validation("Custom.Code", "Custom message");
+        Error first = new(_entry, "same");
+        Error second = new(_entry, "same");
 
-        error.Code.Should().Be("Custom.Code");
-        error.Message.Should().Be("Custom message");
-    }
-
-    [Fact]
-    public void Conflict_CreatesConflictError()
-    {
-        Error error = Error.Conflict("Resource already exists");
-
-        error.Code.Should().Be("Conflict.Error");
-        error.Message.Should().Be("Resource already exists");
-    }
-
-    [Fact]
-    public void Unauthorized_WithDefaultMessage_CreatesUnauthorizedError()
-    {
-        Error error = Error.Unauthorized();
-
-        error.Code.Should().Be("Unauthorized.Error");
-        error.Message.Should().Be("Unauthorized access");
-    }
-
-    [Fact]
-    public void Unauthorized_WithCustomMessage_UsesCustomMessage()
-    {
-        Error error = Error.Unauthorized("Token expired");
-
-        error.Code.Should().Be("Unauthorized.Error");
-        error.Message.Should().Be("Token expired");
-    }
-
-    [Fact]
-    public void Forbidden_WithDefaultMessage_CreatesForbiddenError()
-    {
-        Error error = Error.Forbidden();
-
-        error.Code.Should().Be("Forbidden.Error");
-        error.Message.Should().Be("Access denied");
-    }
-
-    [Fact]
-    public void Forbidden_WithCustomMessage_UsesCustomMessage()
-    {
-        Error error = Error.Forbidden("Insufficient permissions");
-
-        error.Code.Should().Be("Forbidden.Error");
-        error.Message.Should().Be("Insufficient permissions");
-    }
-
-    [Fact]
-    public void BusinessRule_CreatesErrorWithPrefixedCode()
-    {
-        Error error = Error.BusinessRule("InvoiceAlreadyPaid", "Cannot pay an already paid invoice");
-
-        error.Code.Should().Be("BusinessRule.InvoiceAlreadyPaid");
-        error.Message.Should().Be("Cannot pay an already paid invoice");
-    }
-
-    [Fact]
-    public void Equality_SameCodeAndMessage_AreEqual()
-    {
-        Error error1 = new("Test.Code", "Test message");
-        Error error2 = new("Test.Code", "Test message");
-
-        error1.Should().Be(error2);
-    }
-
-    [Fact]
-    public void Equality_DifferentCode_AreNotEqual()
-    {
-        Error error1 = new("Code.A", "Same message");
-        Error error2 = new("Code.B", "Same message");
-
-        error1.Should().NotBe(error2);
-    }
-
-    [Fact]
-    public void Equality_DifferentMessage_AreNotEqual()
-    {
-        Error error1 = new("Same.Code", "Message A");
-        Error error2 = new("Same.Code", "Message B");
-
-        error1.Should().NotBe(error2);
+        first.Should().Be(second);
+        first.Should().NotBe(new Error(_entry, "different"));
+        first.Should().NotBe(Error.None);
     }
 }

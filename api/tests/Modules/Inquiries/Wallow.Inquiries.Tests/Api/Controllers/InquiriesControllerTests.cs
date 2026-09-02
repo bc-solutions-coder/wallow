@@ -12,7 +12,9 @@ using Wallow.Inquiries.Application.Queries.GetInquiries;
 using Wallow.Inquiries.Application.Queries.GetInquiryById;
 using Wallow.Inquiries.Application.Queries.GetInquiryComments;
 using Wallow.Inquiries.Domain.Enums;
+using Wallow.Inquiries.Domain.Errors;
 using Wallow.Inquiries.Domain.Identity;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Results;
@@ -104,7 +106,7 @@ public class InquiriesControllerTests
     public async Task Submit_WhenValidationFailure_Returns400()
     {
         _bus.InvokeAsync<Result<InquiryDto>>(Arg.Any<SubmitInquiryCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<InquiryDto>(Error.Validation("Name is required")));
+            .Returns(Result.Failure<InquiryDto>(new Error(SharedErrors.ValidationFailed, "Name is required")));
 
         SubmitInquiryRequest request = new("", "john@example.com", "555-0100", null, "Website", "$10k", "3 months", "Message");
 
@@ -234,7 +236,7 @@ public class InquiriesControllerTests
     {
         Guid id = Guid.NewGuid();
         _bus.InvokeAsync<Result<InquiryDto>>(Arg.Any<GetInquiryByIdQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<InquiryDto>(Error.NotFound("Inquiry", id)));
+            .Returns(Result.Failure<InquiryDto>(InquiriesErrors.InquiryNotFound));
 
         IActionResult result = await _controller.GetById(id, CancellationToken.None);
 
@@ -305,7 +307,7 @@ public class InquiriesControllerTests
     {
         Guid id = Guid.NewGuid();
         _bus.InvokeAsync<Result<InquiryDto>>(Arg.Any<UpdateInquiryStatusCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<InquiryDto>(Error.NotFound("Inquiry", id)));
+            .Returns(Result.Failure<InquiryDto>(InquiriesErrors.InquiryNotFound));
 
         UpdateInquiryStatusRequest request = new("Reviewed");
 
@@ -378,7 +380,7 @@ public class InquiriesControllerTests
         SetUserWithClaims(sub: "user-1", name: "Test User");
 
         _bus.InvokeAsync<Result<InquiryCommentId>>(Arg.Any<AddInquiryCommentCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<InquiryCommentId>(Error.NotFound("Inquiry", inquiryId)));
+            .Returns(Result.Failure<InquiryCommentId>(InquiriesErrors.InquiryNotFound));
 
         AddInquiryCommentRequest request = new("Comment text", false);
 

@@ -6,6 +6,7 @@ using Wallow.Storage.Application.Interfaces;
 using Wallow.Storage.Application.Settings;
 using Wallow.Storage.Application.Utilities;
 using Wallow.Storage.Domain.Entities;
+using Wallow.Storage.Domain.Errors;
 
 namespace Wallow.Storage.Application.Commands.UploadFile;
 
@@ -24,19 +25,19 @@ public sealed class UploadFileHandler(
         if (bucket is null)
         {
             return Result.Failure<UploadResult>(
-                Error.NotFound("Bucket", command.BucketName));
+                StorageErrors.BucketNotFound);
         }
 
         if (!bucket.IsContentTypeAllowed(command.ContentType))
         {
             return Result.Failure<UploadResult>(
-                Error.Validation($"Content type '{command.ContentType}' is not allowed in bucket '{command.BucketName}'"));
+                new Error(StorageErrors.FileContentTypeNotAllowed, $"Content type '{command.ContentType}' is not allowed in bucket '{command.BucketName}'"));
         }
 
         if (!bucket.IsFileSizeAllowed(command.SizeBytes))
         {
             return Result.Failure<UploadResult>(
-                Error.Validation($"File size {command.SizeBytes} bytes exceeds maximum allowed size of {bucket.MaxFileSizeBytes} bytes"));
+                new Error(StorageErrors.FileTooLarge, $"File size {command.SizeBytes} bytes exceeds maximum allowed size of {bucket.MaxFileSizeBytes} bytes"));
         }
 
         TenantId tenantId = TenantId.Create(command.TenantId);
@@ -49,20 +50,20 @@ public sealed class UploadFileHandler(
         if (command.SizeBytes > limits.MaxUploadSizeBytes)
         {
             return Result.Failure<UploadResult>(
-                Error.Validation($"File size {command.SizeBytes} bytes exceeds the tenant upload limit of {limits.MaxUploadSizeBytes} bytes"));
+                new Error(StorageErrors.FileExceedsUploadLimit, $"File size {command.SizeBytes} bytes exceeds the tenant upload limit of {limits.MaxUploadSizeBytes} bytes"));
         }
 
         if (!limits.IsExtensionAllowed(extension))
         {
             return Result.Failure<UploadResult>(
-                Error.Validation($"File extension '{extension}' is not allowed for this tenant"));
+                new Error(StorageErrors.FileExtensionNotAllowed, $"File extension '{extension}' is not allowed for this tenant"));
         }
 
         long usedBytes = await fileRepository.GetTotalSizeBytesAsync(cancellationToken);
         if (usedBytes + command.SizeBytes > limits.QuotaBytes)
         {
             return Result.Failure<UploadResult>(
-                Error.Validation($"Upload of {command.SizeBytes} bytes would exceed the tenant storage quota of {limits.QuotaBytes} bytes"));
+                new Error(StorageErrors.QuotaExceeded, $"Upload of {command.SizeBytes} bytes would exceed the tenant storage quota of {limits.QuotaBytes} bytes"));
         }
 
         string storageKey = BuildStorageKey(
@@ -76,7 +77,7 @@ public sealed class UploadFileHandler(
         if (!scanResult.IsClean)
         {
             return Result.Failure<UploadResult>(
-                Error.Validation($"File '{command.FileName}' failed security scan: {scanResult.ThreatName}"));
+                new Error(StorageErrors.FileFailedSecurityScan, $"File '{command.FileName}' failed security scan: {scanResult.ThreatName}"));
         }
 
         await storageProvider.UploadAsync(

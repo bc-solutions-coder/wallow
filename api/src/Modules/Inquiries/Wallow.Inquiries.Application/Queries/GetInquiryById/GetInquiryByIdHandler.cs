@@ -2,6 +2,7 @@ using Wallow.Inquiries.Application.DTOs;
 using Wallow.Inquiries.Application.Interfaces;
 using Wallow.Inquiries.Application.Mappings;
 using Wallow.Inquiries.Domain.Entities;
+using Wallow.Inquiries.Domain.Errors;
 using Wallow.Inquiries.Domain.Identity;
 using Wallow.Shared.Kernel.Results;
 
@@ -18,7 +19,7 @@ public sealed class GetInquiryByIdHandler(IInquiryRepository inquiryRepository)
 
         if (inquiry is null)
         {
-            return Result.Failure<InquiryDto>(Error.NotFound("Inquiry", query.InquiryId));
+            return Result.Failure<InquiryDto>(InquiriesErrors.InquiryNotFound);
         }
 
         return Result.Success(inquiry.ToDto());

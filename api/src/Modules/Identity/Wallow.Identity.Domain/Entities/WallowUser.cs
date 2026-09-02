@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Wallow.Identity.Domain.Errors;
 using Wallow.Shared.Kernel.Domain;
 
 namespace Wallow.Identity.Domain.Entities;
@@ -51,23 +52,17 @@ public sealed class WallowUser : IdentityUser<Guid>
     {
         if (string.IsNullOrWhiteSpace(firstName))
         {
-            throw new BusinessRuleException(
-                "Identity.FirstNameRequired",
-                "First name cannot be empty");
+            throw new BusinessRuleException(IdentityErrors.FirstNameRequired);
         }
 
         if (string.IsNullOrWhiteSpace(lastName))
         {
-            throw new BusinessRuleException(
-                "Identity.LastNameRequired",
-                "Last name cannot be empty");
+            throw new BusinessRuleException(IdentityErrors.LastNameRequired);
         }
 
         if (string.IsNullOrWhiteSpace(email))
         {
-            throw new BusinessRuleException(
-                "Identity.EmailRequired",
-                "Email cannot be empty");
+            throw new BusinessRuleException(IdentityErrors.EmailRequired);
         }
 
         WallowUser user = new()
@@ -128,9 +123,7 @@ public sealed class WallowUser : IdentityUser<Guid>
     {
         if (deadline <= DateTimeOffset.UtcNow)
         {
-            throw new BusinessRuleException(
-                "Identity.MfaGraceDeadlineMustBeFuture",
-                "MFA grace deadline must be in the future");
+            throw new BusinessRuleException(IdentityErrors.MfaGraceDeadlineMustBeFuture);
         }
 
         MfaGraceDeadline = deadline;
@@ -140,16 +133,12 @@ public sealed class WallowUser : IdentityUser<Guid>
     {
         if (string.IsNullOrWhiteSpace(firstName))
         {
-            throw new BusinessRuleException(
-                "Identity.FirstNameRequired",
-                "First name cannot be empty");
+            throw new BusinessRuleException(IdentityErrors.FirstNameRequired);
         }
 
         if (string.IsNullOrWhiteSpace(lastName))
         {
-            throw new BusinessRuleException(
-                "Identity.LastNameRequired",
-                "Last name cannot be empty");
+            throw new BusinessRuleException(IdentityErrors.LastNameRequired);
         }
 
         FirstName = firstName;
@@ -191,16 +180,12 @@ public sealed class WallowUser : IdentityUser<Guid>
     {
         if (string.IsNullOrWhiteSpace(newEmail))
         {
-            throw new BusinessRuleException(
-                "Identity.EmailRequired",
-                "New email cannot be empty");
+            throw new BusinessRuleException(IdentityErrors.EmailRequired, "New email cannot be empty");
         }
 
         if (expiry <= timeProvider.GetUtcNow())
         {
-            throw new BusinessRuleException(
-                "Identity.ExpiryMustBeFuture",
-                "Email change expiry must be in the future");
+            throw new BusinessRuleException(IdentityErrors.ExpiryMustBeFuture);
         }
 
         PendingEmail = newEmail;
@@ -211,9 +196,7 @@ public sealed class WallowUser : IdentityUser<Guid>
     {
         if (PendingEmail is null)
         {
-            throw new BusinessRuleException(
-                "Identity.NoPendingEmailChange",
-                "No pending email change to confirm");
+            throw new BusinessRuleException(IdentityErrors.NoPendingEmailChange);
         }
 
         Email = PendingEmail;

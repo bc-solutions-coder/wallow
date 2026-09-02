@@ -4,6 +4,7 @@ using Wallow.Notifications.Api.Controllers;
 using Wallow.Notifications.Application.Channels.Push.DTOs;
 using Wallow.Notifications.Application.Channels.Push.Queries.GetTenantPushConfig;
 using Wallow.Notifications.Domain.Channels.Push.Enums;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Results;
@@ -87,7 +88,7 @@ public class PushConfigurationControllerTests
     [Fact]
     public async Task GetTenantPushConfig_WhenFailure_ReturnsError()
     {
-        Error error = new("PushConfig.NotFound", "Push config not found");
+        Error error = new(new ErrorCatalogEntry("PushConfig.NotFound", ErrorKind.NotFound, "Push config not found"));
 
         _bus.InvokeAsync<Result<TenantPushConfigDto?>>(
             Arg.Any<GetTenantPushConfigQuery>(), Arg.Any<CancellationToken>())
@@ -102,7 +103,7 @@ public class PushConfigurationControllerTests
     [Fact]
     public async Task UpsertTenantPushConfig_WhenFailure_ReturnsError()
     {
-        Error error = new("Validation.InvalidCredentials", "Invalid credentials");
+        Error error = new(SharedErrors.ValidationFailed, "Invalid credentials");
 
         _bus.InvokeAsync<Result>(Arg.Any<object>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure(error));
@@ -117,7 +118,7 @@ public class PushConfigurationControllerTests
     [Fact]
     public async Task SetTenantPushEnabled_WhenFailure_ReturnsError()
     {
-        Error error = new("PushConfig.NotFound", "Push config not found");
+        Error error = new(new ErrorCatalogEntry("PushConfig.NotFound", ErrorKind.NotFound, "Push config not found"));
 
         _bus.InvokeAsync<Result>(Arg.Any<object>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure(error));
@@ -132,7 +133,7 @@ public class PushConfigurationControllerTests
     [Fact]
     public async Task RemoveTenantPushConfig_WhenFailure_ReturnsError()
     {
-        Error error = new("PushConfig.NotFound", "Push config not found");
+        Error error = new(new ErrorCatalogEntry("PushConfig.NotFound", ErrorKind.NotFound, "Push config not found"));
 
         _bus.InvokeAsync<Result>(Arg.Any<object>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure(error));

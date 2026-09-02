@@ -3,6 +3,7 @@ using Wallow.Storage.Application.DTOs;
 using Wallow.Storage.Application.Interfaces;
 using Wallow.Storage.Application.Mappings;
 using Wallow.Storage.Domain.Entities;
+using Wallow.Storage.Domain.Errors;
 using Wallow.Storage.Domain.Identity;
 
 namespace Wallow.Storage.Application.Queries.GetFileById;
@@ -18,7 +19,7 @@ public sealed class GetFileByIdHandler(IStoredFileRepository fileRepository)
 
         if (file is null)
         {
-            return Result.Failure<StoredFileDto>(Error.NotFound("File", query.FileId));
+            return Result.Failure<StoredFileDto>(StorageErrors.FileNotFound);
         }
 
         return Result.Success(file.ToDto());

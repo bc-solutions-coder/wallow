@@ -1,5 +1,6 @@
 using Wallow.Shared.Contracts.Storage;
 using Wallow.Shared.Contracts.Storage.Commands;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Storage.Application.Commands.UploadFile;
@@ -66,7 +67,7 @@ public class UploadFileHandlerTests
 
         // Assert
         result.IsFailure.Should().BeTrue();
-        result.Error.Code.Should().StartWith("Validation");
+        result.Error.Kind.Should().Be(ErrorKind.Validation);
         result.Error.Message.Should().Contain("Content type");
     }
 
@@ -85,7 +86,7 @@ public class UploadFileHandlerTests
 
         // Assert
         result.IsFailure.Should().BeTrue();
-        result.Error.Code.Should().StartWith("Validation");
+        result.Error.Kind.Should().Be(ErrorKind.Validation);
         result.Error.Message.Should().Contain("size");
     }
 
@@ -199,7 +200,7 @@ public class UploadFileHandlerTests
 
         // Assert
         result.IsFailure.Should().BeTrue();
-        result.Error.Code.Should().StartWith("Validation");
+        result.Error.Kind.Should().Be(ErrorKind.Validation);
         result.Error.Message.Should().Contain("Trojan.Generic");
 
         await _storageProvider.DidNotReceive().UploadAsync(
@@ -223,7 +224,7 @@ public class UploadFileHandlerTests
 
         // Assert
         result.IsFailure.Should().BeTrue();
-        result.Error.Code.Should().StartWith("Validation");
+        result.Error.Kind.Should().Be(ErrorKind.Validation);
         result.Error.Message.Should().Contain("upload limit");
         await _storageProvider.DidNotReceive().UploadAsync(
             Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
@@ -246,7 +247,7 @@ public class UploadFileHandlerTests
 
         // Assert
         result.IsFailure.Should().BeTrue();
-        result.Error.Code.Should().StartWith("Validation");
+        result.Error.Kind.Should().Be(ErrorKind.Validation);
         result.Error.Message.Should().Contain("not allowed");
         await _storageProvider.DidNotReceive().UploadAsync(
             Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
@@ -271,7 +272,7 @@ public class UploadFileHandlerTests
 
         // Assert
         result.IsFailure.Should().BeTrue();
-        result.Error.Code.Should().StartWith("Validation");
+        result.Error.Kind.Should().Be(ErrorKind.Validation);
         result.Error.Message.Should().Contain("quota");
         await _storageProvider.DidNotReceive().UploadAsync(
             Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());

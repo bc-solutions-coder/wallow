@@ -7,6 +7,7 @@ using Wallow.Storage.Application.DTOs;
 using Wallow.Storage.Application.Interfaces;
 using Wallow.Storage.Application.Settings;
 using Wallow.Storage.Domain.Entities;
+using Wallow.Storage.Domain.Errors;
 
 namespace Wallow.Storage.Application.Queries.GetUploadPresignedUrl;
 
@@ -27,19 +28,19 @@ public sealed class GetUploadPresignedUrlHandler(
         if (bucket is null)
         {
             return Result.Failure<PresignedUploadResult>(
-                Error.NotFound("Bucket", query.BucketName));
+                StorageErrors.BucketNotFound);
         }
 
         if (!bucket.IsContentTypeAllowed(query.ContentType))
         {
             return Result.Failure<PresignedUploadResult>(
-                Error.Validation($"Content type '{query.ContentType}' is not allowed in bucket '{query.BucketName}'"));
+                new Error(StorageErrors.FileContentTypeNotAllowed, $"Content type '{query.ContentType}' is not allowed in bucket '{query.BucketName}'"));
         }
 
         if (!bucket.IsFileSizeAllowed(query.SizeBytes))
         {
             return Result.Failure<PresignedUploadResult>(
-                Error.Validation($"File size {query.SizeBytes} bytes exceeds maximum allowed size of {bucket.MaxFileSizeBytes} bytes"));
+                new Error(StorageErrors.FileTooLarge, $"File size {query.SizeBytes} bytes exceeds maximum allowed size of {bucket.MaxFileSizeBytes} bytes"));
         }
 
         Guid fileId = Guid.NewGuid();
@@ -50,20 +51,20 @@ public sealed class GetUploadPresignedUrlHandler(
         if (query.SizeBytes > limits.MaxUploadSizeBytes)
         {
             return Result.Failure<PresignedUploadResult>(
-                Error.Validation($"File size {query.SizeBytes} bytes exceeds the tenant upload limit of {limits.MaxUploadSizeBytes} bytes"));
+                new Error(StorageErrors.FileExceedsUploadLimit, $"File size {query.SizeBytes} bytes exceeds the tenant upload limit of {limits.MaxUploadSizeBytes} bytes"));
         }
 
         if (!limits.IsExtensionAllowed(extension))
         {
             return Result.Failure<PresignedUploadResult>(
-                Error.Validation($"File extension '{extension}' is not allowed for this tenant"));
+                new Error(StorageErrors.FileExtensionNotAllowed, $"File extension '{extension}' is not allowed for this tenant"));
         }
 
         long usedBytes = await fileRepository.GetTotalSizeBytesAsync(cancellationToken);
         if (usedBytes + query.SizeBytes > limits.QuotaBytes)
         {
             return Result.Failure<PresignedUploadResult>(
-                Error.Validation($"Upload of {query.SizeBytes} bytes would exceed the tenant storage quota of {limits.QuotaBytes} bytes"));
+                new Error(StorageErrors.QuotaExceeded, $"Upload of {query.SizeBytes} bytes would exceed the tenant storage quota of {limits.QuotaBytes} bytes"));
         }
 
         string storageKey = BuildStorageKey(query.TenantId, query.BucketName, query.Path, fileId, extension);

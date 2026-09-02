@@ -1,6 +1,7 @@
 using Wallow.Announcements.Application.Changelogs.Interfaces;
 using Wallow.Announcements.Domain.Changelogs.Entities;
 using Wallow.Announcements.Domain.Changelogs.Identity;
+using Wallow.Announcements.Domain.Errors;
 using Wallow.Shared.Kernel.Results;
 
 namespace Wallow.Announcements.Application.Changelogs.Commands.PublishChangelogEntry;
@@ -16,7 +17,7 @@ public sealed class PublishChangelogEntryHandler(
         ChangelogEntry? entry = await repository.GetByIdAsync(ChangelogEntryId.Create(command.Id), ct);
         if (entry is null)
         {
-            return Result.Failure(Error.NotFound("Changelog", command.Id));
+            return Result.Failure(AnnouncementsErrors.ChangelogNotFound);
         }
 
         entry.Publish(timeProvider);

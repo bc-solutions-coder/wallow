@@ -6,11 +6,14 @@ using Wallow.Identity.Api.Contracts.Requests;
 using Wallow.Identity.Api.Contracts.Responses;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
+using Wallow.Identity.Domain.Errors;
+using Wallow.Shared.Api.Extensions;
 using Wallow.Shared.Contracts.Identity;
 using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Pagination;
+using Wallow.Shared.Kernel.Results;
 
 namespace Wallow.Identity.Api.Controllers;
 
@@ -161,17 +164,7 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
     {
         if (IsReservedRoleName(request.RoleName))
         {
-            return BadRequest(new ProblemDetails
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Bad Request",
-                Detail = "The global administrator name is reserved and cannot be assigned as a role.",
-                Type = "https://tools.ietf.org/html/rfc7231#section-6.5.1",
-                Extensions =
-                {
-                    ["code"] = "Validation.ReservedRoleName"
-                }
-            });
+            return (ActionResult)Result.Failure(IdentityErrors.ReservedRoleName).ToActionResult();
         }
 
         if (!await UserBelongsToTenantAsync(userId, ct))
