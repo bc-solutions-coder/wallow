@@ -205,6 +205,12 @@ status second. The problem's detail is a fallback for client mistakes only; a ne
 an unknown failure, or a server fault never shows its detail to a user.
 _Avoid_: error message (ambiguous with the problem's detail), error text
 
+**Error code**:
+The machine-readable key on a problem naming why the request failed, one per reason, shared
+by the API's catalog and the frontend's failure-message registry. A screen matches on the
+code and never on the problem's title or detail.
+_Avoid_: error type, reason, status (that is the HTTP number)
+
 **Field error**:
 A failure message attached to one form field, keyed by the field's name as the frontend spells
 it. Every other failure message on a form is the form's banner.
