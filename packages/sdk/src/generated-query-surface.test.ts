@@ -163,7 +163,7 @@ describe("openapi-ts.config.ts asks for the full generated query surface", () =>
     const client: Record<string, unknown> = await resolvePlugin("@hey-api/client-fetch");
 
     expect(client.runtimeConfigPath).toBe("./src/runtime-config");
-    // Every operation must reject on a non-2xx so the WallowError interceptor
+    // Every operation must reject on a non-2xx so the ApiFailure interceptor
     // (task 5.3) is the single error path; without this the generated query
     // functions resolve with an error payload and TanStack Query calls it a
     // success.

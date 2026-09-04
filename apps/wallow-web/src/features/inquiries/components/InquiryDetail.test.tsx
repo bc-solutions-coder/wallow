@@ -137,7 +137,7 @@ describe("InquiryDetail — inquiry fields", () => {
     harness.respond((call) =>
       call.path.endsWith("/comments")
         ? jsonBody([])
-        : jsonBody({ status: 404, detail: "Inquiry not found." }, 404),
+        : jsonBody({ status: 404, code: "Inquiries.NotFound", detail: "Inquiry not found." }, 404),
     );
 
     renderWithWallow(<InquiryDetail inquiryId="i1" />, { harness });
@@ -191,7 +191,11 @@ describe("InquiryDetail — status change", () => {
     // "New" inquiry can pick "Closed" and must see the rejection surfaced.
     seedLoaded(twoComments, {
       "PATCH /v1/inquiries/i1/status": failsWith(
-        { status: 422, detail: "Cannot transition from New to Closed." },
+        {
+          status: 422,
+          code: "Inquiries.InvalidTransition",
+          detail: "Cannot transition from New to Closed.",
+        },
         422,
       ),
     });
@@ -317,7 +321,7 @@ describe("InquiryDetail — add comment", () => {
   it("surfaces the RFC 7807 ProblemDetails detail when add-comment fails", async () => {
     seedLoaded(twoComments, {
       "POST /v1/inquiries/i1/comments": failsWith(
-        { status: 400, detail: "Comment must not be empty." },
+        { status: 400, code: "Inquiries.CommentEmpty", detail: "Comment must not be empty." },
         400,
       ),
     });

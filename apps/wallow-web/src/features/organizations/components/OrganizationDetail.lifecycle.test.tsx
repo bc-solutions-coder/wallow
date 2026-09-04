@@ -114,7 +114,11 @@ describe("OrganizationDetail client lifecycle", () => {
   it("shows why a suspension was refused", async () => {
     seed([application], {
       "POST /v1/identity/organizations/o1/clients/app-acme-portal/suspend": failsWith(
-        { title: "The client is already suspended.", status: 422 },
+        {
+          code: "Identity.ClientAlreadySuspended",
+          detail: "The client is already suspended.",
+          status: 422,
+        },
         422,
       ),
     });
@@ -155,7 +159,11 @@ describe("OrganizationDetail client lifecycle", () => {
   it("keeps the delete dialog open and shows the error when deletion fails", async () => {
     seed([application], {
       "DELETE /v1/identity/organizations/o1/clients/app-acme-portal": failsWith(
-        { title: "Deletion is not allowed right now.", status: 409 },
+        {
+          code: "Identity.ClientDeleteRefused",
+          detail: "Deletion is not allowed right now.",
+          status: 409,
+        },
         409,
       ),
     });

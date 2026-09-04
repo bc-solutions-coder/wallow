@@ -165,7 +165,7 @@ describe("MyOrganizations", () => {
         {
           title: "Unprocessable Entity",
           detail: "You are the last owner of this organization and cannot leave it.",
-          extensions: { code: "Identity.LastOwner" },
+          code: "Identity.LastOwner",
         },
         422,
       ),

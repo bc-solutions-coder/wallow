@@ -31,7 +31,7 @@ Mark a finished plan `completed`/`superseded` in place; never archive one an ope
 pnpm workspace (`apps/*`, `packages/*`). Node **24** (`.nvmrc`), pnpm via `packageManager`.
 Formatter/linter is the **oxc** toolchain (`oxfmt` + `oxlint`), not prettier/eslint.
 `@bc-solutions-coder` is scoped to GitHub Packages but `pnpm install` needs no token — every
-scoped dep is `workspace:*`; a registry credential goes in `~/.npmrc`, never the committed `.npmrc`.
+scoped dep is a `workspace:` link; a registry credential goes in `~/.npmrc`, never the committed `.npmrc`.
 
 ```bash
 # build/test/typecheck/dev/format are standard; non-obvious scripts:

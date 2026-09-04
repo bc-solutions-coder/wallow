@@ -26,9 +26,10 @@ const INQUIRY = {
   createdAt: "2026-07-15T00:00:00Z",
 };
 
-/** RFC 7807 body the SDK's error interceptor brands as a `WallowError`. */
+/** RFC 7807 body the SDK's error interceptor parses into an `ApiFailure`. */
 const COMMENTS_PROBLEM = {
   status: 500,
+  code: "Server.Error",
   title: "Internal Server Error",
   detail: "Comments failed.",
 };

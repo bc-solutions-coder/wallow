@@ -58,8 +58,8 @@ function invitation(overrides: Record<string, unknown> = {}) {
 
 /**
  * The only failure either endpoint sends: a bare status, no body. Through the
- * real client that becomes a `WallowError` with `code: "UNKNOWN"`, so an
- * implementer cannot key the copy on a machine code that never arrives.
+ * real client that becomes an `ApiFailure` coded `Client.UnrecognizedResponse`,
+ * so an implementer cannot key the copy on a machine code that never arrives.
  */
 function failure(status: number): Response {
   return new Response(null, { status });

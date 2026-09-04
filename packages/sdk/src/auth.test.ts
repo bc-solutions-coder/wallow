@@ -44,7 +44,7 @@ function logoutSuccess(logoutUrl: string = END_SESSION_URL): Response {
 
 /** An RFC 7807 rejection from the BFF, e.g. the CSRF gate's 403. */
 function problemResponse(status: number, code: string): Response {
-  return new Response(JSON.stringify({ title: "Rejected", extensions: { code } }), {
+  return new Response(JSON.stringify({ title: "Rejected", code }), {
     status,
     headers: { "content-type": "application/problem+json" },
   });

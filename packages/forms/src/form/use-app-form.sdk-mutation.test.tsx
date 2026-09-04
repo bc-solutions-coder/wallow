@@ -276,7 +276,7 @@ describe("useAppForm with a generated SDK mutation", () => {
 
     it("splits the API's RFC 7807 failure across the field and the banner", async () => {
       // A real 400 problem details body: the SDK's own error interceptor turns
-      // it into a `WallowError`, `splitServerError` folds `Name` onto the
+      // it into an `ApiFailure`, `splitServerError` folds `Name` onto the
       // form's `name`, and `Scopes` — which this form has no field for — joins
       // the banner instead of vanishing.
       const transport = createTransport(400, {
@@ -287,7 +287,7 @@ describe("useAppForm with a generated SDK mutation", () => {
           Name: ["'Name' must not be empty."],
           Scopes: ["At least one scope is required."],
         },
-        extensions: { code: "VALIDATION_ERROR" },
+        code: "VALIDATION_ERROR",
       });
       const { container } = await renderWithClient(
         <RegisterAppHarness sdk={createSdk(transport)} onRegistered={vi.fn()} />,

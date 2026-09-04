@@ -1,13 +1,11 @@
 /**
- * Spec for `auth-extras` — the collapsed remains of `auth-client.ts`
- * (Wallow-pu6a.5.4).
+ * Spec for `auth-extras`.
  *
- * `auth-client.ts` was 368 lines of which almost all were renames of generated
- * operations, envelope unwrapping, and error mapping — work the generated client
- * now does itself (`responseStyle: 'data'` + `throwOnError: true` from task 5.2,
- * the `WallowError` interceptor from task 5.3). Two behaviors have no codegen
- * expression, and this file is the contract for exactly those two plus the
- * deletions that make them the ONLY survivors:
+ * Renames of generated operations, envelope unwrapping, and error mapping are
+ * the generated client's job (`responseStyle: 'data'` + `throwOnError: true`
+ * plus the `ApiFailure` interceptor). Two behaviors have no codegen expression,
+ * and this file is the contract for exactly those two plus the deletions that
+ * make them the ONLY survivors:
  *
  *   1. `getCurrentUser` softens 401 (and ONLY 401) into `null`;
  *   2. `validateRedirectUriArgs` omits the `clientId` KEY rather than sending it
@@ -18,6 +16,7 @@
  * result — never about the wire.
  */
 
+import { ApiFailure } from "@bc-solutions-coder/api-errors";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -25,7 +24,6 @@ import {
   getCurrentUser,
   validateRedirectUriArgs,
 } from "./auth-extras";
-import { WallowError } from "./errors";
 import type { AccountValidateRedirectUriData, CurrentUserResponse } from "./generated";
 import { type Client, createClient, createConfig } from "./generated/client";
 import type { MfaStatusResponse } from "./index";
@@ -46,8 +44,8 @@ const SIGNED_IN_USER: CurrentUserResponse = {
   roles: ["Admin"],
 };
 
-function unauthorized(): WallowError {
-  return new WallowError({ status: 401, code: "UNAUTHORIZED", title: "Unauthorized" });
+function unauthorized(): ApiFailure {
+  return new ApiFailure({ status: 401, code: "UNAUTHORIZED", title: "Unauthorized" });
 }
 
 describe("getCurrentUser", () => {
@@ -75,9 +73,9 @@ describe("getCurrentUser", () => {
   // Softening anything beyond 401 would sign every real user out during an
   // outage, so each of these must reach the caller untouched.
   it.each([400, 403, 404, 500, 502, 503])(
-    "rethrows the WallowError unchanged for status %i",
+    "rethrows the ApiFailure unchanged for status %i",
     async (status: number) => {
-      const failure: WallowError = new WallowError({
+      const failure: ApiFailure = new ApiFailure({
         status,
         code: "SOMETHING_ELSE",
         title: "Something else",
@@ -95,10 +93,10 @@ describe("getCurrentUser", () => {
     await expect(getCurrentUser({ client })).rejects.toBe(failure);
   });
 
-  it("softens only the WallowError contract, not any 401-shaped object", async () => {
-    // Task 5.3 makes WallowError the single failure contract. An unbranded
-    // object carrying `status: 401` means something bypassed that contract —
-    // which is a bug to surface, not an anonymous session to report.
+  it("softens only the ApiFailure contract, not any 401-shaped object", async () => {
+    // ApiFailure is the single failure contract. An unbranded object carrying
+    // `status: 401` means something bypassed that contract — which is a bug to
+    // surface, not an anonymous session to report.
     const impostor: { status: number } = { status: 401 };
     mocks.usersGetCurrentUser.mockRejectedValue(impostor);
 

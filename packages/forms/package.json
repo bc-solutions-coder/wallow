@@ -32,8 +32,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@bc-solutions-coder/api-errors": "workspace:*",
     "@bc-solutions-coder/query": "workspace:*",
-    "@bc-solutions-coder/sdk": "workspace:*",
     "@bc-solutions-coder/ui": "workspace:*",
     "@tanstack/react-form": "catalog:react",
     "zod": "^4.4.3"
@@ -41,6 +41,7 @@
   "devDependencies": {
     "@base-ui/react": "^1.6.0",
     "@bc-solutions-coder/config": "workspace:*",
+    "@bc-solutions-coder/sdk": "workspace:*",
     "@bc-solutions-coder/styles": "workspace:*",
     "@bc-solutions-coder/testing": "workspace:*",
     "@types/node": "^24.0.0",

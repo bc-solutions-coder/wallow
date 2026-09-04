@@ -25,9 +25,10 @@
  *     401 { succeeded: false, error: "Invalid code." }                    PasswordlessService.cs:174
  *
  * As on magic-link, EVERY failure is a non-2xx, so `unwrap()` throws and the
- * oracle's `else` arms are reached through a REJECTION. As of Wallow-vec7.7
- * `readCode` probes `extensions.code > code > error`, so the `error` member of the
- * bare `{ succeeded, error }` body arrives as `WallowError.code`.
+ * oracle's `else` arms are reached through a REJECTION. The `error` member of
+ * the bare `{ succeeded, error }` body arrives through `readErrorCode`. The SDK parses that bare body under the OAuth grammar of
+ * `@bc-solutions-coder/api-errors` (code `OAuth.<Token>`, title = the raw
+ * token), and `readErrorCode` hands the raw token back.
  *
  * ── THE TOKENS ARE ENGLISH SENTENCES, AND THAT CHANGES NOTHING ───────────────
  *

@@ -13,7 +13,7 @@ export default defineConfig({
     {
       name: "@hey-api/client-fetch",
       runtimeConfigPath: "./src/runtime-config",
-      // Every operation rejects on a non-2xx so the WallowError interceptor is
+      // Every operation rejects on a non-2xx so the ApiFailure interceptor is
       // the single error path; without this the generated query functions
       // resolve with an error payload and TanStack Query calls it a success.
       throwOnError: true,

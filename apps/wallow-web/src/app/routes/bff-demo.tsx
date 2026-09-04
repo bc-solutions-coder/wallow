@@ -1,5 +1,5 @@
+import { isApiFailure } from "@bc-solutions-coder/api-errors";
 import {
-  isWallowError,
   loginRedirect,
   logout,
   organizationsCreate,
@@ -32,7 +32,7 @@ import { useEffect, useState } from "react";
  * The two result surfaces no longer print the wire status on success. A
  * generated operation resolves the response BODY and rejects on anything else,
  * so "it resolved" IS the success signal; a status is only meaningful on the
- * failure path, where the thrown `WallowError` still carries it.
+ * failure path, where the thrown `ApiFailure` still carries it.
  *
  * Living at `/bff-demo` (rather than overwriting `src/routes/index.tsx`, which
  * owns the `home-heading` SSR contract) keeps both surfaces intact. As the raw
@@ -44,12 +44,12 @@ import { useEffect, useState } from "react";
  */
 
 /**
- * Render a rejected operation as a string. Every failure arrives as the SDK's
- * `WallowError`, which already carries the status and the RFC 7807 title/detail
+ * Render a rejected operation as a string. Every failure arrives as an
+ * `ApiFailure`, which already carries the status and the RFC 7807 title/detail
  * the BFF or the API sent; anything unbranded gets its own message.
  */
 function describeFailure(error: unknown): string {
-  if (!isWallowError(error)) {
+  if (!isApiFailure(error)) {
     return error instanceof Error ? error.message : "Request failed";
   }
 

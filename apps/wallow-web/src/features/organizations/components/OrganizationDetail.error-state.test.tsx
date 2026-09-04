@@ -23,13 +23,19 @@ const CLIENTS_PATH = `/api/v1/identity/organizations/${ORG_ID}/clients`;
 
 const ORG = { id: ORG_ID, name: "Acme", domain: null, memberCount: "0" };
 
-/** RFC 7807 bodies the SDK's error interceptor brands as `WallowError`s. */
+/** RFC 7807 bodies the SDK's error interceptor parses into `ApiFailure`s. */
 const DETAIL_PROBLEM = {
   status: 500,
+  code: "Server.Error",
   title: "Internal Server Error",
   detail: "Org lookup failed.",
 };
-const CLIENTS_PROBLEM = { status: 500, title: "Internal Server Error", detail: "Clients failed." };
+const CLIENTS_PROBLEM = {
+  status: 500,
+  code: "Server.Error",
+  title: "Internal Server Error",
+  detail: "Clients failed.",
+};
 
 function json(body: unknown, status = 200): Response {
   return Response.json(body, { status });

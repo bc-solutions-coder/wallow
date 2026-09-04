@@ -3,7 +3,7 @@ import {
   QueryClientProvider,
   type UseMutationOptions,
 } from "@bc-solutions-coder/query";
-import { WallowError } from "@bc-solutions-coder/sdk";
+import { ApiFailure } from "@bc-solutions-coder/api-errors";
 import { render } from "@bc-solutions-coder/testing/render";
 import { userEvent } from "vitest/browser";
 import { describe, expect, it, vi } from "vitest";
@@ -17,7 +17,7 @@ import { useAppForm } from "./use-app-form";
  * WHEN `useAppForm` validates (Wallow-ov6w.6) — the timing contract, in the
  * browser project (real headless Chromium, a real `QueryClient`, the real
  * `AppForm` + `AppField` + catalog `TextField` + ui `Field`/`Input`, the real
- * `WallowError`; nothing is mocked but the userland `mutationFn`).
+ * `ApiFailure`; nothing is mocked but the userland `mutationFn`).
  *
  * The sibling `use-app-form.test.tsx` pins WHAT validation says and where the
  * message lands. This file pins WHEN it runs, which is a separate contract and
@@ -259,7 +259,7 @@ describe("useAppForm validation timing", () => {
     const mutationFn = vi
       .fn<(variables: MutationVariables) => Promise<MutationData>>()
       .mockRejectedValueOnce(
-        new WallowError({
+        new ApiFailure({
           status: 400,
           code: "VALIDATION_ERROR",
           title: "Validation failed",

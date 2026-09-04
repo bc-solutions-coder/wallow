@@ -566,8 +566,7 @@ describe("MfaEnrollForm — a rejected code", () => {
 
   it("falls back to the generic message when the failure names no status", async () => {
     // The transport throws before a response exists, so there is no status anywhere. Narrowing
-    // has to be STRUCTURAL — a screen may not `instanceof WallowError`, since it need not
-    // import the SDK.
+    // is STRUCTURAL — a screen matches on the wire shape, never `instanceof ApiFailure`.
     program({
       confirm: () => {
         throw new TypeError("Failed to fetch");

@@ -1,19 +1,17 @@
+import { ApiFailure, ClientErrorCode, isApiFailure } from "@bc-solutions-coder/api-errors";
 import { describe, expect, it } from "vitest";
 
 import openApiConfig from "../openapi-ts.config";
 import { createWallowSdk, type WallowSdk } from "./create-sdk";
-import { isWallowError, WallowError } from "./errors";
 import { client as generatedClient } from "./generated/client.gen";
 import { usersGetCurrentUser } from "./generated";
 import { REQUEST_ID_HEADER } from "./request-id";
 import {
+  type ApiFailureInterceptorClient,
   createClientConfig,
-  toWallowError,
-  type WallowErrorInterceptorClient,
-  wireWallowErrorInterceptor,
+  toFailure,
+  wireApiFailureInterceptor,
 } from "./runtime-config";
-import { UNKNOWN_ERROR_CODE } from "./server/errors";
-import { NETWORK_ERROR_CODE } from "./server/proxy";
 
 describe("createClientConfig", () => {
   it("defaults the client to the same-origin BFF path with credentials included", () => {
@@ -68,14 +66,15 @@ describe("generated client", () => {
 });
 
 /**
- * The unified error contract (Wallow-pu6a.5.3).
+ * The unified error contract.
  *
  * With `throwOnError: true` + `responseStyle: "data"` every generated operation
  * rejects with the PARSED response body, whose shape differs per endpoint family
  * (RFC 7807 problem details for most, a bare `{ succeeded, error }` object for
  * the Identity auth and MFA controllers, nothing at all for an empty 401). The
- * error interceptor is the single place that difference is erased, and the ONLY
- * place the transport status is still reachable.
+ * error interceptor is the single place that difference is erased — by handing
+ * the body to `@bc-solutions-coder/api-errors`' parser — and the ONLY place the
+ * transport status is still reachable.
  */
 
 /** The interceptor shape the generated client hands its error middleware. */
@@ -83,7 +82,7 @@ type ErrorInterceptor = (error: unknown, response: Response | undefined) => unkn
 
 /** A client shell that records what was registered on its error interceptors. */
 function recordingClient(): {
-  client: WallowErrorInterceptorClient;
+  client: ApiFailureInterceptorClient;
   registered: ErrorInterceptor[];
 } {
   const registered: ErrorInterceptor[] = [];
@@ -111,10 +110,14 @@ async function rejection(pending: Promise<unknown>): Promise<unknown> {
 }
 
 /** A JSON response carrying `body` at `status`. */
-function jsonResponse(status: number, body: unknown): Response {
+function jsonResponse(
+  status: number,
+  body: unknown,
+  headers: Record<string, string> = {},
+): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...headers },
   });
 }
 
@@ -126,337 +129,254 @@ function sdkAnswering(response: () => Response): WallowSdk {
   });
 }
 
-describe("toWallowError", () => {
-  it("reads the machine code from an RFC 7807 body's extensions.code", () => {
-    const error = toWallowError(
+describe("toFailure", () => {
+  it("reads the machine code from an RFC 7807 body's top-level code", () => {
+    const failure = toFailure(
       {
-        status: 403,
+        type: "https://httpstatuses.io/403",
         title: "Forbidden",
+        status: 403,
         detail: "CSRF token missing",
-        extensions: { code: "CSRF_INVALID" },
+        code: "Bff.CsrfInvalid",
       },
-      403,
+      jsonResponse(403, {}),
     );
 
-    expect(error.status).toBe(403);
-    expect(error.code).toBe("CSRF_INVALID");
-    expect(error.title).toBe("Forbidden");
-    expect(error.detail).toBe("CSRF token missing");
+    expect(failure.code).toBe("Bff.CsrfInvalid");
+    expect(failure.status).toBe(403);
+    expect(failure.title).toBe("Forbidden");
+    expect(failure.detail).toBe("CSRF token missing");
   });
 
-  it("falls back to a flattened top-level code", () => {
-    // Some serializer setups hoist RFC 7807 extension members onto the root.
-    expect(toWallowError({ title: "Too Many Requests", code: "RATE_LIMITED" }, 429).code).toBe(
-      "RATE_LIMITED",
-    );
+  it("reads the auth controllers' raw { succeeded, error } shape under the OAuth grammar", () => {
+    const failure = toFailure({ succeeded: false, error: "invalid_code" }, jsonResponse(400, {}));
+
+    expect(failure.code).toBe("OAuth.InvalidCode");
+    expect(failure.title).toBe("invalid_code");
+    expect(failure.status).toBe(400);
   });
 
-  it("reads the MFA/auth controllers' raw { succeeded, error } shape", () => {
-    // MfaController answers business failures with a bare anonymous object, not
-    // problem details, so the code arrives under `error` and there is no title.
-    const error = toWallowError({ succeeded: false, error: "invalid_code" }, 400);
-
-    expect(error.status).toBe(400);
-    expect(error.code).toBe("invalid_code");
-  });
-
-  it("prefers extensions.code over both a flattened code and a raw error member", () => {
-    const error = toWallowError(
-      { extensions: { code: "FROM_EXTENSIONS" }, code: "FROM_ROOT", error: "FROM_ERROR" },
-      400,
+  it("takes the transport status over the one the body names", () => {
+    const failure = toFailure(
+      { status: 418, code: "Teapot", title: "Teapot" },
+      jsonResponse(500, {}),
     );
 
-    expect(error.code).toBe("FROM_EXTENSIONS");
+    expect(failure.status).toBe(500);
   });
 
-  it("prefers a flattened code over the raw error member", () => {
-    const error = toWallowError({ code: "FROM_ROOT", error: "FROM_ERROR" }, 400);
+  it("calls a body without a code an unrecognized response", () => {
+    const failure = toFailure({ title: "Bad Gateway", status: 502 }, jsonResponse(502, {}));
 
-    expect(error.code).toBe("FROM_ROOT");
-  });
-
-  it("ignores a non-string code member rather than coercing it", () => {
-    // OAuth-style bodies can carry an object under `error`; a stringified object
-    // is not a machine code.
-    expect(toWallowError({ error: { reason: "nested" } }, 400).code).toBe(UNKNOWN_ERROR_CODE);
-  });
-
-  it("takes the status the body names over the transport status", () => {
-    expect(toWallowError({ status: 409, title: "Conflict" }, 400).status).toBe(409);
-  });
-
-  it("falls back to the transport status when the body names none", () => {
-    expect(toWallowError({ title: "Unauthorized" }, 401).status).toBe(401);
-  });
-
-  it("falls back to 500 when neither the body nor the transport names a status", () => {
-    expect(toWallowError({}, undefined).status).toBe(500);
-  });
-
-  it("defaults the title when the body carries no problem details", () => {
-    expect(toWallowError({ error: "invalid_code" }, 400).title).toBe("Unknown error");
-  });
-
-  it("omits detail when the body's detail is not a string", () => {
-    expect(toWallowError({ detail: 42 }, 400).detail).toBeUndefined();
+    expect(failure.code).toBe(ClientErrorCode.CLIENT_UNRECOGNIZED_RESPONSE);
+    expect(failure.status).toBe(502);
   });
 
   it("normalizes an empty error body, recovering the status from the transport", () => {
-    // A bare 401 from `/users/me` has NO body: the generated client throws the
-    // empty response text, so the status lives only on the Response. Losing it
-    // would turn every anonymous visitor into a 500 and break sign-out detection.
-    const error = toWallowError("", 401);
+    // hey-api hands `undefined` when there was nothing to parse (an empty 401).
+    const failure = toFailure(undefined, new Response(null, { status: 401 }));
 
-    expect(error.status).toBe(401);
-    expect(error.code).toBe(UNKNOWN_ERROR_CODE);
+    expect(failure.status).toBe(401);
+    expect(failure.code).toBe(ClientErrorCode.CLIENT_UNRECOGNIZED_RESPONSE);
   });
 
-  it("reports a request that never landed as a 503 NETWORK_ERROR, carrying its message", () => {
-    // A network failure never reaches a response body, but it still has to
-    // arrive as a WallowError rather than a bare TypeError — and it must stay
-    // TELLABLE APART from a server that answered. `status` is a required number,
-    // so "no status" cannot be the signal; the code is. Collapsing this into the
-    // 500/UNKNOWN fallback is what left every screen's "unable to reach the
-    // server" arm unreachable by construction (Wallow-sx3r).
-    const error = toWallowError(new TypeError("Failed to fetch"), undefined);
+  it("passes a plain-text body through as the raw body text", () => {
+    const failure = toFailure("<html>upstream down</html>", new Response(null, { status: 502 }));
 
-    expect(error.status).toBe(503);
-    expect(error.code).toBe("NETWORK_ERROR");
-    expect(error.detail).toBe("Failed to fetch");
+    expect(failure.status).toBe(502);
+    expect(failure.code).toBe(ClientErrorCode.CLIENT_UNRECOGNIZED_RESPONSE);
   });
 
-  it("uses the same network-fault contract the BFF proxy raises on the server side", () => {
-    // The browser's call to the BFF and the BFF's forward to the API are two
-    // legs of one tunnel; a consumer must not have to learn two vocabularies for
-    // the same fact. Pins the browser constant against the server entry's, the
-    // way the unknown-code spec below pins UNKNOWN_ERROR_CODE.
-    const error = toWallowError(new TypeError("Failed to fetch"), undefined);
+  it("reports a request that never landed as a 503 Transport.NetworkError", () => {
+    const failure = toFailure(new TypeError("Failed to fetch"), undefined);
 
-    expect(error.code).toBe(NETWORK_ERROR_CODE);
+    expect(failure.status).toBe(503);
+    expect(failure.code).toBe(ClientErrorCode.TRANSPORT_NETWORK_ERROR);
+    expect(failure.cause).toBeInstanceOf(TypeError);
   });
 
   it("does not call a failure a network fault when a response did arrive", () => {
-    // The other way an Error reaches toWallowError: the response landed and only
-    // its body could not be parsed. That is a server that ANSWERED, so it keeps
-    // its real status and the ordinary unknown code — reporting it as
-    // NETWORK_ERROR would tell a user with a working connection to check it.
-    const error = toWallowError(new SyntaxError("Unexpected token < in JSON"), 502);
+    // hey-api throws the parse error itself when a non-JSON body arrives on a
+    // JSON operation; the response is still there, so the status is real.
+    const failure = toFailure(
+      new SyntaxError("Unexpected token <"),
+      new Response("<html/>", { status: 500 }),
+    );
 
-    expect(error.status).toBe(502);
-    expect(error.code).toBe(UNKNOWN_ERROR_CODE);
-    expect(error.detail).toBe("Unexpected token < in JSON");
+    expect(failure.status).toBe(500);
+    expect(failure.code).toBe(ClientErrorCode.CLIENT_UNRECOGNIZED_RESPONSE);
+    expect(failure.cause).toBeInstanceOf(SyntaxError);
   });
 
-  it("brands the result so isWallowError recognizes it", () => {
-    expect(isWallowError(toWallowError({ code: "NOT_FOUND" }, 404))).toBe(true);
+  it("keeps the parsed body itself as the cause of an unrecognized response", () => {
+    const body = { foo: 1 };
+    const failure = toFailure(body, jsonResponse(502, {}));
+
+    expect(failure.code).toBe(ClientErrorCode.CLIENT_UNRECOGNIZED_RESPONSE);
+    expect(failure.cause).toBe(body);
   });
 
-  it("hands back an already-normalized WallowError by identity", () => {
-    // Interceptors chain, and the BFF tunnel already normalizes on the server
-    // side; re-wrapping would bury the real code under an UNKNOWN.
-    const already = new WallowError({ status: 404, code: "NOT_FOUND", title: "Not Found" });
+  it("brands the result so isApiFailure recognizes it", () => {
+    const failure = toFailure({ code: "X", title: "x" }, jsonResponse(400, {}));
 
-    expect(toWallowError(already, 500)).toBe(already);
+    expect(isApiFailure(failure)).toBe(true);
   });
 
-  it("uses the same unknown-code constant the server entry publishes", () => {
-    expect(toWallowError({}, 500).code).toBe(UNKNOWN_ERROR_CODE);
+  it("hands back an already-normalized ApiFailure by identity", () => {
+    const original = new ApiFailure({ status: 409, code: "Conflict", title: "Conflict" });
+
+    expect(toFailure(original, jsonResponse(409, {}))).toBe(original);
+    expect(toFailure(original, undefined)).toBe(original);
   });
 });
 
-describe("wireWallowErrorInterceptor", () => {
+describe("wireApiFailureInterceptor", () => {
   it("registers exactly one error interceptor", () => {
     const { client, registered } = recordingClient();
 
-    wireWallowErrorInterceptor(client);
+    wireApiFailureInterceptor(client);
 
     expect(registered).toHaveLength(1);
   });
 
   it("converts the thrown body through the registered interceptor", async () => {
     const { client, registered } = recordingClient();
-    wireWallowErrorInterceptor(client);
+    wireApiFailureInterceptor(client);
 
-    const converted = await registered[0]!(
-      { title: "Bad Request", extensions: { code: "INVALID_TOTP" } },
-      new Response(null, { status: 400 }),
+    const [interceptor] = registered;
+    const result = await interceptor?.(
+      { title: "Not Found", status: 404, code: "Users.NotFound" },
+      jsonResponse(404, {}),
     );
 
-    expect(isWallowError(converted)).toBe(true);
-    expect((converted as WallowError).code).toBe("INVALID_TOTP");
+    expect(isApiFailure(result)).toBe(true);
+    expect((result as ApiFailure).code).toBe("Users.NotFound");
   });
 
   it("reads the status off the Response the client hands it", async () => {
     const { client, registered } = recordingClient();
-    wireWallowErrorInterceptor(client);
+    wireApiFailureInterceptor(client);
 
-    const converted = await registered[0]!("", new Response(null, { status: 401 }));
+    const [interceptor] = registered;
+    const result = await interceptor?.({ code: "X", title: "x" }, jsonResponse(429, {}));
 
-    expect((converted as WallowError).status).toBe(401);
+    expect((result as ApiFailure).status).toBe(429);
   });
 
   it("survives a network fault, where the client has no Response to give", async () => {
     const { client, registered } = recordingClient();
-    wireWallowErrorInterceptor(client);
+    wireApiFailureInterceptor(client);
 
-    const converted = await registered[0]!(new TypeError("Failed to fetch"), undefined);
+    const [interceptor] = registered;
+    const result = await interceptor?.(new TypeError("Failed to fetch"), undefined);
 
-    expect(isWallowError(converted)).toBe(true);
-    expect((converted as WallowError).status).toBe(503);
-    expect((converted as WallowError).code).toBe(NETWORK_ERROR_CODE);
+    expect(isApiFailure(result)).toBe(true);
+    expect((result as ApiFailure).code).toBe(ClientErrorCode.TRANSPORT_NETWORK_ERROR);
   });
 });
 
-/**
- * Request-id correlation on the browser side (Wallow-pu6a.6.7).
- *
- * The two halves arrive by different routes and only meet here: `requestId` is a
- * response HEADER the BFF echoed (the parsed body never carries it, so the
- * interceptor is the only place it is still reachable), and `traceId` is a BODY
- * member the API's problem details already carry. Both have to survive onto the
- * `WallowError` a component catches, or a user's bug report names nothing a
- * backend engineer can search Tempo for.
- */
-describe("toWallowError correlation", () => {
-  it("attaches the request id it is handed", () => {
-    const error = toWallowError({ title: "Conflict", status: 409 }, 409, "req-abc-1");
-
-    expect(error.requestId).toBe("req-abc-1");
-  });
-
-  it("attaches the request id to a transport fault, which has no body at all", () => {
-    const error = toWallowError(new TypeError("Failed to fetch"), undefined, "req-abc-2");
-
-    expect(error.requestId).toBe("req-abc-2");
-  });
-
-  it("leaves requestId undefined when none was given", () => {
-    expect(toWallowError({ title: "Conflict" }, 409).requestId).toBeUndefined();
-  });
-
-  it("reads the backend trace id from extensions.traceId", () => {
-    const error = toWallowError(
-      { title: "Not Found", extensions: { code: "NOT_FOUND", traceId: "00-abc-def-01" } },
-      404,
+describe("toFailure correlation", () => {
+  it("reads the request id off the response header", () => {
+    const failure = toFailure(
+      { code: "X", title: "x" },
+      jsonResponse(500, {}, { [REQUEST_ID_HEADER]: "req-1" }),
     );
 
-    expect(error.traceId).toBe("00-abc-def-01");
+    expect(failure.requestId).toBe("req-1");
   });
 
-  it("reads a flattened top-level traceId", () => {
-    expect(toWallowError({ title: "Bad Request", traceId: "00-root-01" }, 400).traceId).toBe(
-      "00-root-01",
+  it("attaches the request id to a thrown Error that arrived with a response", () => {
+    const failure = toFailure(
+      new SyntaxError("Unexpected token <"),
+      new Response("<html/>", { status: 500, headers: { [REQUEST_ID_HEADER]: "req-2" } }),
     );
+
+    expect(failure.requestId).toBe("req-2");
   });
 
-  it("ignores a non-string traceId rather than coercing it", () => {
-    expect(toWallowError({ title: "Bad Request", traceId: 42 }, 400).traceId).toBeUndefined();
+  it("leaves requestId undefined when the response carries no correlation header", () => {
+    expect(toFailure({ code: "X", title: "x" }, jsonResponse(500, {})).requestId).toBeUndefined();
+  });
+
+  it("reads the backend trace id from the body", () => {
+    const failure = toFailure(
+      { code: "X", title: "x", traceId: "00-abc-def-01" },
+      jsonResponse(500, {}),
+    );
+
+    expect(failure.traceId).toBe("00-abc-def-01");
+  });
+
+  it("reads Retry-After off the response", () => {
+    const failure = toFailure(
+      { code: "RateLimited", title: "Too Many Requests" },
+      jsonResponse(429, {}, { "retry-after": "30" }),
+    );
+
+    expect(failure.retryAfter).toBe(30);
+  });
+
+  it("keeps Retry-After when only the body read failed", () => {
+    const failure = toFailure(
+      new SyntaxError("Unexpected token <"),
+      new Response("<html/>", { status: 503, headers: { "retry-after": "5" } }),
+    );
+
+    expect(failure.status).toBe(503);
+    expect(failure.retryAfter).toBe(5);
   });
 });
 
-/**
- * Field-level validation errors on the browser leg (Wallow-ov6w.1.2).
- *
- * `runtime-config.ts` parses the problem details a SECOND time, independently of
- * `server/errors.ts` — a body that reached the browser through the passthrough
- * topology never passed through `parseProblemDetails` at all. Both parsers
- * therefore have to read the `errors` member, and both have to distrust it: this
- * is a wire body, so an entry survives only when its value is an array of
- * strings, and `fieldErrors` stays `undefined` when no entry does.
- */
-describe("toWallowError field errors", () => {
+describe("toFailure field errors", () => {
   it("reads the RFC 7807 errors member onto fieldErrors", () => {
-    const error = toWallowError(
+    const failure = toFailure(
       {
-        status: 400,
         title: "One or more validation errors occurred.",
-        errors: { Name: ["'Name' must not be empty."], Email: ["Invalid email."] },
-        extensions: { code: "VALIDATION_ERROR" },
+        status: 400,
+        code: "Validation.Failed",
+        errors: { Email: ["'Email' is not a valid email address."] },
       },
-      400,
+      jsonResponse(400, {}),
     );
 
-    expect(error.fieldErrors).toEqual({
-      Name: ["'Name' must not be empty."],
-      Email: ["Invalid email."],
-    });
+    expect(failure.fieldErrors).toEqual({ Email: ["'Email' is not a valid email address."] });
   });
 
   it("leaves fieldErrors undefined when the body carries no errors member", () => {
-    expect(toWallowError({ title: "Conflict", status: 409 }, 409).fieldErrors).toBeUndefined();
+    expect(toFailure({ code: "X", title: "x" }, jsonResponse(400, {})).fieldErrors).toBeUndefined();
   });
 
   it("leaves fieldErrors undefined on a transport fault, which has no body", () => {
-    expect(toWallowError(new TypeError("Failed to fetch"), undefined).fieldErrors).toBeUndefined();
-  });
-
-  it.each([
-    ["a string errors member", "not an object"],
-    ["an array errors member", ["Name"]],
-    ["an empty errors member", {}],
-    ["entries that are not arrays", { Name: "'Name' must not be empty." }],
-    ["arrays holding non-strings", { Name: [42] }],
-  ])("ignores %s rather than trusting the body", (_label: string, errors: unknown) => {
-    expect(toWallowError({ title: "Bad Request", errors }, 400).fieldErrors).toBeUndefined();
-  });
-
-  it("keeps the well-formed entries and drops the malformed ones", () => {
-    const error = toWallowError(
-      { title: "Bad Request", errors: { Name: ["'Name' must not be empty."], Age: 42 } },
-      400,
-    );
-
-    expect(error.fieldErrors).toEqual({ Name: ["'Name' must not be empty."] });
-  });
-});
-
-describe("wireWallowErrorInterceptor correlation", () => {
-  it("reads the request id off the Response the client hands it", async () => {
-    const { client, registered } = recordingClient();
-    wireWallowErrorInterceptor(client);
-
-    const converted = await registered[0]!(
-      { title: "Conflict", extensions: { code: "TENANT_SLUG_TAKEN" } },
-      new Response(null, { status: 409, headers: { [REQUEST_ID_HEADER]: "req-from-header" } }),
-    );
-
-    expect((converted as WallowError).requestId).toBe("req-from-header");
-  });
-
-  it("survives a response that carries no correlation header", async () => {
-    const { client, registered } = recordingClient();
-    wireWallowErrorInterceptor(client);
-
-    const converted = await registered[0]!("", new Response(null, { status: 401 }));
-
-    expect((converted as WallowError).requestId).toBeUndefined();
+    expect(toFailure(new TypeError("Failed to fetch"), undefined).fieldErrors).toBeUndefined();
   });
 });
 
 describe("createWallowSdk registers the error interceptor", () => {
-  it("rejects a generated operation with a WallowError on an RFC 7807 failure", async () => {
+  it("rejects a generated operation with an ApiFailure on an RFC 7807 failure", async () => {
     const sdk = sdkAnswering(() =>
       jsonResponse(403, {
         title: "Forbidden",
         detail: "CSRF token missing",
-        extensions: { code: "CSRF_INVALID" },
+        code: "Bff.CsrfInvalid",
       }),
     );
 
     const error = await rejection(usersGetCurrentUser({ client: sdk.client }));
 
-    expect(isWallowError(error)).toBe(true);
-    expect((error as WallowError).code).toBe("CSRF_INVALID");
-    expect((error as WallowError).status).toBe(403);
+    expect(isApiFailure(error)).toBe(true);
+    expect((error as ApiFailure).code).toBe("Bff.CsrfInvalid");
+    expect((error as ApiFailure).status).toBe(403);
+    expect((error as ApiFailure).detail).toBe("CSRF token missing");
   });
 
-  it("rejects with the MFA controllers' raw-shape code", async () => {
+  it("rejects with the auth controllers' raw shape under the OAuth grammar", async () => {
     const sdk = sdkAnswering(() => jsonResponse(400, { succeeded: false, error: "invalid_code" }));
 
     const error = await rejection(usersGetCurrentUser({ client: sdk.client }));
 
-    expect(isWallowError(error)).toBe(true);
-    expect((error as WallowError).code).toBe("invalid_code");
+    expect(isApiFailure(error)).toBe(true);
+    expect((error as ApiFailure).code).toBe("OAuth.InvalidCode");
+    expect((error as ApiFailure).title).toBe("invalid_code");
   });
 
   it("recovers the transport status for an empty-body 401", async () => {
@@ -464,8 +384,9 @@ describe("createWallowSdk registers the error interceptor", () => {
 
     const error = await rejection(usersGetCurrentUser({ client: sdk.client }));
 
-    expect(isWallowError(error)).toBe(true);
-    expect((error as WallowError).status).toBe(401);
+    expect(isApiFailure(error)).toBe(true);
+    expect((error as ApiFailure).status).toBe(401);
+    expect((error as ApiFailure).code).toBe(ClientErrorCode.CLIENT_UNRECOGNIZED_RESPONSE);
   });
 
   it("wraps a transport fault, which never produces a response at all", async () => {
@@ -476,7 +397,9 @@ describe("createWallowSdk registers the error interceptor", () => {
 
     const error = await rejection(usersGetCurrentUser({ client: sdk.client }));
 
-    expect(isWallowError(error)).toBe(true);
+    expect(isApiFailure(error)).toBe(true);
+    expect((error as ApiFailure).code).toBe(ClientErrorCode.TRANSPORT_NETWORK_ERROR);
+    expect((error as ApiFailure).status).toBe(503);
   });
 
   it("carries the BFF's request id and the API's trace id onto the rejected error", async () => {
@@ -489,6 +412,7 @@ describe("createWallowSdk registers the error interceptor", () => {
           JSON.stringify({
             title: "Internal Server Error",
             status: 500,
+            code: "Server.Unhandled",
             traceId: "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
           }),
           {
@@ -503,28 +427,33 @@ describe("createWallowSdk registers the error interceptor", () => {
 
     const error = await rejection(usersGetCurrentUser({ client: sdk.client }));
 
-    expect((error as WallowError).requestId).toBe("e2e-req-1");
-    expect((error as WallowError).traceId).toBe(
+    expect((error as ApiFailure).requestId).toBe("e2e-req-1");
+    expect((error as ApiFailure).traceId).toBe(
       "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
     );
   });
 
-  it("carries the API's field errors onto the rejected error", async () => {
+  it("carries the API's field errors and Retry-After onto the rejected error", async () => {
     // What a form actually catches: a 400 from a failed command, with the
     // per-property messages still attached so each one can land on its field.
     const sdk = sdkAnswering(() =>
-      jsonResponse(400, {
-        title: "One or more validation errors occurred.",
-        status: 400,
-        errors: { Name: ["'Name' must not be empty."] },
-        extensions: { code: "VALIDATION_ERROR" },
-      }),
+      jsonResponse(
+        400,
+        {
+          title: "One or more validation errors occurred.",
+          status: 400,
+          errors: { Name: ["'Name' must not be empty."] },
+          code: "Validation.Failed",
+        },
+        { "retry-after": "5" },
+      ),
     );
 
     const error = await rejection(usersGetCurrentUser({ client: sdk.client }));
 
-    expect(isWallowError(error)).toBe(true);
-    expect((error as WallowError).fieldErrors).toEqual({ Name: ["'Name' must not be empty."] });
+    expect(isApiFailure(error)).toBe(true);
+    expect((error as ApiFailure).fieldErrors).toEqual({ Name: ["'Name' must not be empty."] });
+    expect((error as ApiFailure).retryAfter).toBe(5);
   });
 
   it("leaves the success path untouched", async () => {

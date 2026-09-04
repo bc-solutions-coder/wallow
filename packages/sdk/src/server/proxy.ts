@@ -13,10 +13,12 @@
  * shell gained a path allowlist and a non-relative upstream URL construction,
  * neither of which h3's router made the handler's business.
  */
+import { ApiFailure, failureFromResponse, isApiFailure } from "@bc-solutions-coder/api-errors";
+
 import { REQUEST_ID_HEADER, resolveRequestId } from "../request-id";
 import type { BffConfig } from "./config";
 import { csrfTokenMatches, CSRF_HEADER, CSRF_INVALID_CODE, isStateChangingMethod } from "./csrf";
-import { parseProblemDetails, redact, RefreshFailedError, WallowError } from "./errors";
+import { redact, RefreshFailedError } from "./errors";
 import {
   applyForwardedHeaders,
   resolveClientAddress,
@@ -69,13 +71,13 @@ const REDIRECT_STATUS_MIN = 300;
 /** Exclusive upper bound of the HTTP redirect status range. */
 const REDIRECT_STATUS_MAX = 400;
 
-/** Code carried by the {@link WallowError} raised for a transport failure. */
+/** Code carried by the {@link ApiFailure} raised for a transport failure. */
 export const NETWORK_ERROR_CODE = "NETWORK_ERROR";
 
-/** Code carried by the {@link WallowError} raised when the forward times out. */
+/** Code carried by the {@link ApiFailure} raised when the forward times out. */
 export const NETWORK_TIMEOUT_CODE = "NETWORK_TIMEOUT";
 
-/** Code carried by the {@link WallowError} raised for an unrecoverable 401. */
+/** Code carried by the {@link ApiFailure} raised for an unrecoverable 401. */
 const UNAUTHORIZED_CODE: string = "UNAUTHORIZED";
 
 /**
@@ -124,18 +126,22 @@ interface StoredSession {
  * the RFC 7807 core does not model — ASP.NET's `errors[]` for a validation
  * failure, `traceId` — survive the trip through the BFF.
  */
-class UpstreamError extends WallowError {
+class UpstreamError extends ApiFailure {
   /** The upstream response, its body already consumed into {@link bodyText}. */
   readonly response: Response;
   /** The upstream response body, verbatim. */
   readonly bodyText: string;
 
-  constructor(problem: WallowError, response: Response, bodyText: string) {
+  constructor(problem: ApiFailure, response: Response, bodyText: string) {
     super({
       status: problem.status,
       code: problem.code,
       title: problem.title,
       detail: problem.detail,
+      traceId: problem.traceId,
+      requestId: problem.requestId,
+      fieldErrors: problem.fieldErrors,
+      retryAfter: problem.retryAfter,
     });
     this.name = "UpstreamError";
     this.response = response;
@@ -305,7 +311,7 @@ async function forceRefreshStored(
  * @param session The session whose access token authorises the forward.
  * @param ref The opaque store reference for this session.
  * @returns The upstream response plus the session it was made with.
- * @throws {WallowError} With the upstream status and parsed RFC 7807 details
+ * @throws {ApiFailure} With the upstream status and parsed RFC 7807 details
  *   for a non-OK response, `503 NETWORK_ERROR` for a transport failure, and
  *   `503 NETWORK_TIMEOUT` when the attempt exceeds {@link FORWARD_TIMEOUT_MS}.
  */
@@ -352,7 +358,7 @@ export async function forwardWithResilience(
  * Run one forward attempt: a `redirect: "manual"` fetch carrying the session's
  * bearer, aborted after {@link FORWARD_TIMEOUT_MS}.
  *
- * @throws {WallowError} `503 NETWORK_TIMEOUT` when the abort fired, and
+ * @throws {ApiFailure} `503 NETWORK_TIMEOUT` when the abort fired, and
  *   `503 NETWORK_ERROR` for any other transport failure.
  */
 async function attemptForward(request: ForwardRequest, session: BffSession): Promise<Response> {
@@ -376,7 +382,7 @@ async function attemptForward(request: ForwardRequest, session: BffSession): Pro
     });
   } catch (error: unknown) {
     const timedOut: boolean = controller.signal.aborted;
-    const fault: WallowError = new WallowError({
+    const fault: ApiFailure = new ApiFailure({
       status: NETWORK_FAILURE_STATUS,
       code: timedOut ? NETWORK_TIMEOUT_CODE : NETWORK_ERROR_CODE,
       title: timedOut ? "The upstream request timed out" : "The upstream request failed",
@@ -422,12 +428,12 @@ function hasRefreshToken(session: BffSession): boolean {
  * handed back to the browser, which would only follow it to a login page it has
  * no business seeing through the tunnel.
  */
-async function authFailureError(request: ForwardRequest, response: Response): Promise<WallowError> {
+async function authFailureError(request: ForwardRequest, response: Response): Promise<ApiFailure> {
   if (response.status === UNAUTHORIZED_STATUS) {
     return await upstreamError(request, response);
   }
 
-  const error: WallowError = new WallowError({
+  const error: ApiFailure = new ApiFailure({
     status: UNAUTHORIZED_STATUS,
     code: UNAUTHORIZED_CODE,
     title: "Unauthorized",
@@ -441,7 +447,7 @@ async function authFailureError(request: ForwardRequest, response: Response): Pr
 async function upstreamError(request: ForwardRequest, response: Response): Promise<UpstreamError> {
   const bodyText: string = await response.text();
   const error: UpstreamError = new UpstreamError(
-    parseProblemDetails(response, bodyText),
+    failureFromResponse(response, bodyText),
     response,
     bodyText,
   );
@@ -490,7 +496,7 @@ function causeDetail(cause: unknown): string | undefined {
 }
 
 /** Report a failed forward without spilling the bearer into the log. */
-function logFault(request: ForwardRequest, error: WallowError): void {
+function logFault(request: ForwardRequest, error: ApiFailure): void {
   const headers: Record<string, string> = Object.fromEntries(request.headers.entries());
   console.warn(
     "wallow-bff: forward failed",
@@ -696,7 +702,7 @@ function respondToFailure(error: unknown, cookies: Headers, requestId: string): 
     return new Response(error.bodyText, { status: error.response.status, headers });
   }
 
-  if (error instanceof WallowError) {
+  if (isApiFailure(error)) {
     const headers: Headers = new Headers({ "content-type": "application/problem+json" });
     mergeCookies(headers, cookies);
     return Response.json(
@@ -802,7 +808,7 @@ async function proxyRequest(
     const presented: string | undefined = request.headers.get(CSRF_HEADER) ?? undefined;
     if (!csrfTokenMatches(session.csrfToken, presented)) {
       return respondToFailure(
-        new WallowError({
+        new ApiFailure({
           status: FORBIDDEN_STATUS,
           code: CSRF_INVALID_CODE,
           title: "CSRF token mismatch or missing",

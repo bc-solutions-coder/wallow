@@ -33,20 +33,18 @@ import { toAppHref } from "@shared/lib/base-path";
  * That string does not survive the TS seam. `AccountController.ResetPassword`
  * (api/.../Controllers/AccountController.cs:771-794) returns its failures as
  * `BadRequest(new { succeeded = false, error = "invalid_token" })` — a 400 whose
- * body is a bare anon object, NOT RFC 7807 problem details. `unwrap()` THROWS on
- * any non-2xx, and `toWallowError()`
- * (packages/sdk/src/auth-client.ts:257-280) builds its `code` from
- * `extensions.code` ?? `code` only — it never reads a top-level `error`. So the
- * screen receives `WallowError{ code: "UNKNOWN", title: "Unknown error" }` and
- * the reason is LOST (bd memory `wallow-auth-auth-client-ts-wallowerror-code-loss`).
+ * body is a bare anon object, NOT RFC 7807 problem details. The generated
+ * client THROWS on any non-2xx, and the SDK parses that body into an
+ * `ApiFailure` under the OAuth grammar (`OAuth.InvalidToken`, title
+ * `invalid_token`). This screen was written when the reason did not survive
+ * the seam at all and keys on status instead; that still holds.
  *
- * What survives is the HTTP status, and here that is enough: this endpoint has
+ * What it keys on is the HTTP status, and here that is enough: this endpoint has
  * exactly two failure returns and BOTH are `400 + error: "invalid_token"`
  * (unknown email, and a rejected `ResetPasswordAsync`). A 400 from this endpoint
  * therefore *means* invalid_token, so the oracle's two branches map onto status
  * with no loss of user-visible behaviour. Narrowing is STRUCTURAL rather than
- * `instanceof WallowError`, because that class is exported from the SDK's
- * `./server` entry and screens may not import the SDK at all.
+ * `instanceof ApiFailure`, so the screen matches on the wire shape alone.
  *
  * ── WHY THIS SCREEN RUNS THE FORMS PACKAGE "SIDEWAYS" (Wallow-ov6w.3.2) ───────
  *

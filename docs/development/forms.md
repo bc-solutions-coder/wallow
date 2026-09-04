@@ -208,7 +208,7 @@ Three failure surfaces, two testid shapes, one path each:
 | Failure                | Route                                                                                                      | Rendered as                                                |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
 | Client-side validation | zod schema → TanStack's `onDynamic` validator → `field.state.meta.errors`                                  | `Field.Error` under the control — `{prefix}-{field}-error` |
-| Server field errors    | RFC 7807 `errors` dict → `WallowError.fieldErrors` → `splitServerError` → `form.setErrorMap({ onServer })` | the same `Field.Error`, the same testid                    |
+| Server field errors    | RFC 7807 `errors` dict → `ApiFailure.fieldErrors` → `splitServerError` → `form.setErrorMap({ onServer })`  | the same `Field.Error`, the same testid                    |
 | Form-level failure     | RFC 7807 `detail`, the `fallbackError`, or a thrown `Error`'s own message → `form.wallow.serverError`      | `FormError` → a ui `ErrorBanner` — `{prefix}-error`        |
 
 `splitServerError` decides which is which, and the rules are worth knowing because they are what
@@ -219,7 +219,7 @@ keeps a message from disappearing:
 - A message keyed by a name the form does not hold **joins the banner** rather than vanishing.
 - If every message landed on a field, `serverError` stays `null` and no banner renders — a banner
   there would only repeat what is already under the inputs.
-- A failure that is not a `WallowError` (a network fault, say) contributes its own message if it has
+- A failure that is not an `ApiFailure` (a thrown `Error` of the app's own) contributes its own message if it has
   one, and `fallbackError` otherwise.
 
 `FormError` renders nothing at all when there is no form-level error, so no empty banner reserves

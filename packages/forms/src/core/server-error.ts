@@ -4,17 +4,22 @@
  * that belongs above the form.
  *
  * The API answers a validation failure with RFC 7807 problem details whose
- * `errors` member keys messages by property name — `@bc-solutions-coder/sdk`
- * carries that through as `WallowError.fieldErrors`. Those keys are the API's
+ * `errors` member keys messages by property name — the SDK's interceptor
+ * carries that through as `ApiFailure.fieldErrors`. Those keys are the API's
  * property names (PascalCase, as FluentValidation and ASP.NET Core emit them),
- * while a form's values are camelCase, so the two have to be reconciled before
- * anything can be shown.
+ * while a form's values are camelCase; `@bc-solutions-coder/api-errors`'
+ * `splitFieldErrors` reconciles the two.
  *
  * Layer 0 of the package: `src/core/` imports nothing from `src/fields/` or
  * `src/form/`.
  */
 
-import { isWallowError } from "@bc-solutions-coder/sdk";
+import {
+  isApiFailure,
+  resolveFailureMessage,
+  type SplitFieldErrors,
+  splitFieldErrors,
+} from "@bc-solutions-coder/api-errors";
 
 /** The two surfaces a failed submit is split across. */
 export interface SplitServerError {
@@ -29,42 +34,23 @@ export interface SplitServerError {
 
 /**
  * The human-readable sentence for `error`: the API's ProblemDetails `detail`
- * when it sent one, else the error's own message, else `fallback`.
+ * when it sent one, else the sentence `@bc-solutions-coder/api-errors` resolves
+ * for the code or status, else `fallback`.
  *
  * The split's counterpart for everywhere a failed call has no fields to
  * distribute messages across — a failed read, or a write whose failure is shown
- * outside a form. The `isWallowError` brand check is the gate: anything that did
+ * outside a form. The `isApiFailure` brand check is the gate: anything that did
  * not come through the SDK's error interceptor contributes no copy of its own,
  * so an arbitrary object cannot dictate user-facing text by merely carrying a
- * `detail` member.
+ * `detail` member. Never `title` or `message`: a title can be a raw machine
+ * token or the parser's own placeholder, and the message is the log line
+ * `[<status> <code>] <title>`, not a sentence for a banner.
  */
 export function errorText(error: unknown, fallback: string): string {
-  if (isWallowError(error)) {
-    return error.detail ?? error.message;
+  if (isApiFailure(error)) {
+    return error.detail ?? resolveFailureMessage(error, { fallback });
   }
   return error instanceof Error && error.message !== "" ? error.message : fallback;
-}
-
-/**
- * The API's property name folded onto the form's. Only the first character
- * differs between `ValidationProblemDetails`' `"Name"` and a form's `"name"`;
- * lowercasing the whole key would break `"emailAddress"`.
- */
-function toFieldName(propertyName: string): string {
-  return propertyName.charAt(0).toLowerCase() + propertyName.slice(1);
-}
-
-/**
- * A nested wire path folded onto the flattened field a form holds it as:
- * `"branding.displayName"` becomes `"brandingDisplayName"`. Tried only after
- * `toFieldName` misses, so a form that genuinely holds a dotted path keeps it.
- */
-function toFlattenedFieldName(propertyName: string): string {
-  const [head, ...rest] = propertyName.split(".");
-  return (
-    toFieldName(head ?? "") +
-    rest.map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1)).join("")
-  );
 }
 
 /**
@@ -78,7 +64,7 @@ export function splitServerError(
   knownFields: readonly string[],
   fallback: string,
 ): SplitServerError {
-  if (!isWallowError(error)) {
+  if (!isApiFailure(error)) {
     // A thrown `Error` that carries its own sentence (a network fault, say) says
     // more than the caller's generic fallback; an empty one says nothing.
     const message: string =
@@ -87,21 +73,10 @@ export function splitServerError(
     return { fieldErrors: {}, formError: message };
   }
 
-  const matched: Record<string, readonly string[]> = {};
-  const unmatched: string[] = [];
-
-  for (const [propertyName, messages] of Object.entries(error.fieldErrors ?? {})) {
-    const field: string = toFieldName(propertyName);
-    const flattened: string = toFlattenedFieldName(propertyName);
-
-    if (knownFields.includes(field)) {
-      matched[field] = messages;
-    } else if (knownFields.includes(flattened)) {
-      matched[flattened] = messages;
-    } else {
-      unmatched.push(...messages);
-    }
-  }
+  const { fieldErrors: matched, unmatched }: SplitFieldErrors = splitFieldErrors(
+    error,
+    knownFields,
+  );
 
   if (unmatched.length > 0) {
     // A message the form cannot show next to an input still has to be shown.

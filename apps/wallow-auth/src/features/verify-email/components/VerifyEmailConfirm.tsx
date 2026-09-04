@@ -38,13 +38,13 @@ import { decideReturnUrl } from "@shared/lib/return-url";
  * (api/src/Modules/Identity/Wallow.Identity.Api/Controllers/AccountController.cs
  * :796-822) returns its failures as `BadRequest(new { succeeded = false,
  * error = "invalid_token" })` — a 400 whose body is a bare anon object, NOT
- * RFC 7807 problem details. `unwrap()` THROWS on any non-2xx, and
- * `toWallowError()` (packages/sdk/src/auth-client.ts:257-280) builds its `code`
- * from `extensions.code` ?? `code` only — it never reads a top-level `error`. So
- * the screen receives `WallowError{ status: 400, code: "UNKNOWN" }` and the
- * reason string is LOST.
+ * RFC 7807 problem details. The generated client THROWS on any non-2xx, and
+ * the SDK parses that body into an `ApiFailure` under the OAuth grammar
+ * (`OAuth.InvalidToken`, title `invalid_token`). This screen was written when
+ * the reason did not survive the seam at all and keys on status instead; that
+ * still holds.
  *
- * What survives is the HTTP status, and here that is enough: this endpoint has
+ * What it keys on is the HTTP status, and here that is enough: this endpoint has
  * exactly TWO failure returns (an unknown email, and a rejected
  * `ConfirmEmailAsync`) and BOTH are `400 + error: "invalid_token"`. A 400 from
  * this endpoint therefore *means* invalid_token, and the oracle's `_` arm is
@@ -81,11 +81,11 @@ const INVALID_TOKEN_STATUS = 400;
  * Map a rejection onto one of the oracle's two messages by HTTP status — see the
  * seam note above for why the reason string cannot be read instead.
  *
- * Narrowed structurally rather than with `instanceof WallowError`: that class is
- * exported from the SDK's `./server` entry, and screens may not import the SDK at
- * all. Defensive for the same reason — a network-level rejection carries no
- * `status`, and must fall through to the generic message rather than throw inside
- * the error branch or claim the link expired when it did not.
+ * Narrowed structurally rather than with `instanceof ApiFailure`, so the screen
+ * matches on the wire shape alone. Defensive for the same reason — a
+ * network-level rejection carries a 503 no branch here claims, and must fall
+ * through to the generic message rather than throw inside the error branch or
+ * claim the link expired when it did not.
  */
 function verifyFailureMessage(cause: unknown): string {
   if (typeof cause === "object" && cause !== null && "status" in cause) {

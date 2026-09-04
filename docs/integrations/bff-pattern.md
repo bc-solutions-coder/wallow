@@ -474,7 +474,7 @@ is skipped, or for a client with no registered URI. So keep the fallback path wo
 Handle the refusal, and it degrades to a re-login rather than a broken screen. The SDK already
 does: a refresh the identity server refuses tears the session down the way a logout would —
 the store record is destroyed, the session cookie and its CSRF companion are cleared, and
-`/api/*` answers `401` problem details with code `SESSION_REFRESH_FAILED`. `getCurrentUser`
+`/api/*` answers `401` problem details with code `Bff.SessionRefreshFailed`. `getCurrentUser`
 reads a `401` as "anonymous" rather than as an error, so the next navigation hits your login
 gate. A hand-rolled BFF must do the same thing explicitly — **on a failed refresh, delete the
 session record and the session cookie, then send the user to login.**

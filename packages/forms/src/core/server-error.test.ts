@@ -1,4 +1,4 @@
-import { WallowError } from "@bc-solutions-coder/sdk";
+import { ApiFailure } from "@bc-solutions-coder/api-errors";
 import { describe, expect, it } from "vitest";
 
 import { splitServerError } from "./server-error";
@@ -6,8 +6,8 @@ import { splitServerError } from "./server-error";
 /*
  * The failure-splitting contract, in the node project (pure logic, no DOM).
  *
- * The real `WallowError` is constructed here rather than a look-alike object:
- * `isWallowError` is a brand check on a global symbol the class sets in its
+ * The real `ApiFailure` is constructed here rather than a look-alike object:
+ * `isApiFailure` is a brand check on a global symbol the class sets in its
  * constructor (packages/sdk/src/errors.ts), so a hand-rolled duck type would be
  * rejected by the implementation and the spec would prove nothing.
  *
@@ -23,7 +23,7 @@ import { splitServerError } from "./server-error";
  *   3. Unmatched names are ROUTED, not dropped. A message keyed by a property
  *      the form does not hold (a computed one) would otherwise disappear,
  *      leaving a form that failed with no visible reason.
- *   4. A non-validation `WallowError` contributes its RFC 7807 `detail`.
+ *   4. A non-validation `ApiFailure` contributes its RFC 7807 `detail`.
  *   5./6. Anything else contributes the caller's fallback, except that a plain
  *      `Error` carrying a message contributes that message.
  */
@@ -35,7 +35,7 @@ const FALLBACK = "Something went wrong.";
 
 describe("splitServerError", () => {
   it("maps matching field errors, folding the API's PascalCase onto camelCase names", () => {
-    const error = new WallowError({
+    const error = new ApiFailure({
       status: 400,
       code: "VALIDATION_ERROR",
       title: "Validation failed",
@@ -50,7 +50,7 @@ describe("splitServerError", () => {
   });
 
   it("folds a nested wire path onto the flattened field a stepper holds it as", () => {
-    const error = new WallowError({
+    const error = new ApiFailure({
       status: 400,
       code: "VALIDATION_ERROR",
       title: "Validation failed",
@@ -66,7 +66,7 @@ describe("splitServerError", () => {
   });
 
   it("routes unmatched field names to the form-level error instead of dropping them", () => {
-    const error = new WallowError({
+    const error = new ApiFailure({
       status: 400,
       code: "VALIDATION_ERROR",
       title: "Validation failed",
@@ -79,11 +79,11 @@ describe("splitServerError", () => {
     expect(result.formError).toBe("Nope.");
   });
 
-  it("uses the RFC 7807 detail for a WallowError carrying no field errors", () => {
+  it("uses the RFC 7807 detail for a ApiFailure carrying no field errors", () => {
     // The 409-conflict shape: a real, specific reason that is not about one
     // field, so it belongs in the banner rather than being replaced by the
     // generic fallback.
-    const error = new WallowError({
+    const error = new ApiFailure({
       status: 409,
       code: "CONFLICT",
       title: "Conflict",

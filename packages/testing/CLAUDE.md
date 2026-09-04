@@ -147,8 +147,8 @@ string; `cn()` merges a caller's `className` over the recipe.
   needs a test asserting the navigation did _not_ happen, not merely that no request went out.
 - **TanStack Router JSON-parses search values before `validateSearch`** — `?scope=123`
   arrives as a `number`. Route schemas must accept the parsed type.
-- **A screen may not import `WallowError`** (SDK `./server` entry only), so error narrowing
-  in app code is structural (`error.status === 400`), never `instanceof`.
+- **Error narrowing in app code is structural** (`error.status === 400`, `isApiFailure`), never
+  `instanceof ApiFailure` — a screen matches on the wire shape, not on which bundle built it.
 - **Assert a feature seam by identity, not presence.** `expect(api.foo).toBe(sdkFoo)`, not
   `toBeDefined()` — a hand-written look-alike carries the same name, shape and type, passes
   every behavioural spec, and reaches an undocumented endpoint.

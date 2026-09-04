@@ -15,8 +15,10 @@
  *
  * All four share a 400, so — unlike the sibling ResetPassword port, where one
  * failure reason made the status itself meaningful — status cannot narrow here.
- * What does is `toWallowError()`'s `readCode`, which probes `extensions.code >
- * code > error` and so carries the API's token through intact. Three of the four
+ * What does is `readErrorCode`, which hands the API's token through intact (the
+ * SDK parses the bare body under the OAuth grammar of
+ * `@bc-solutions-coder/api-errors`, keeping the raw token as the failure's
+ * `title`). Three of the four
  * branches are recoverable that way; the fourth stays generic on purpose,
  * because its "code" is a raw English sentence from Identity rather than a
  * stable token.
@@ -32,10 +34,10 @@
  *     tokens and NEVER rendered, so anything unrecognised — including a token
  *     added tomorrow — falls to the generic message rather than guessing.
  *
- * Narrowing is STRUCTURAL rather than `instanceof WallowError`, because that
- * class is exported from the SDK's `./server` entry and screens may not import
- * the SDK at all. A network-level rejection carries no `code` and must fall
- * through to the generic message rather than throw.
+ * Narrowing is STRUCTURAL rather than `instanceof ApiFailure`, so the screen
+ * matches on the wire shape alone. A network-level rejection carries a
+ * transport code no screen knows and must fall through to the generic message
+ * rather than throw.
  */
 
 import { readErrorCode } from "@shared/lib/error-code";

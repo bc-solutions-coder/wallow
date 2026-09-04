@@ -17,6 +17,7 @@ describe("@bc-solutions-coder/api-errors", () => {
       "failureFromResponse",
       "isApiFailure",
       "isSilentFailure",
+      "parseRetryAfter",
       "resolveFailureMessage",
       "splitFieldErrors",
       "toApiFailure",

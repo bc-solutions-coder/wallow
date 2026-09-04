@@ -70,6 +70,8 @@ export interface FailureContext {
   readonly status?: number | undefined;
   /** The request id, when the caller read the header itself. */
   readonly requestId?: string | undefined;
+  /** Seconds to wait, when the caller read `Retry-After` itself (see {@link parseRetryAfter}). */
+  readonly retryAfter?: number | undefined;
 }
 
 /**
@@ -114,14 +116,14 @@ export function toApiFailure(input: unknown, context: FailureContext = {}): ApiF
       : unrecognized(input, {
           status: context.status,
           requestId: context.requestId,
-          retryAfter: undefined,
+          retryAfter: context.retryAfter,
         });
   }
 
   return fromBody(input, input, {
     status: context.status,
     requestId: context.requestId,
-    retryAfter: undefined,
+    retryAfter: context.retryAfter,
   });
 }
 
@@ -267,9 +269,10 @@ function hasTimeoutCode(error: Error): boolean {
 /**
  * `Retry-After` is either delta-seconds or an HTTP-date (RFC 9110 §10.2.3); a
  * date becomes whole seconds from now, clamped at zero. Anything else is
- * ignored rather than guessed at.
+ * ignored rather than guessed at. Exported for a caller that has the header but
+ * hands {@link toApiFailure} a body it already parsed.
  */
-function parseRetryAfter(header: string | null): number | undefined {
+export function parseRetryAfter(header: string | null): number | undefined {
   if (header === null || header.trim() === "") {
     return undefined;
   }

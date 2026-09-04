@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { ApiFailure, isApiFailure } from "./failure";
-import { failureFromResponse, toApiFailure } from "./parse";
+import { failureFromResponse, parseRetryAfter, toApiFailure } from "./parse";
 
 /**
  * Every branch of the two parsers: pass-through, transport classification,
@@ -94,6 +94,25 @@ describe("failureFromResponse", () => {
     );
 
     expect(failure.title).toBe("Request failed");
+  });
+
+  it("lets a string code win over a co-occurring OAuth error member", () => {
+    const failure: ApiFailure = failureFromResponse(
+      response(BAD_REQUEST),
+      problemBody({ error: "invalid_grant" }),
+    );
+
+    expect(failure.code).toBe("Validation.Failed");
+    expect(failure.title).toBe("The request is invalid.");
+  });
+
+  it("ignores a non-string error member rather than reading it as OAuth", () => {
+    const failure: ApiFailure = failureFromResponse(
+      response(BAD_REQUEST),
+      JSON.stringify({ error: { reason: "nested" } }),
+    );
+
+    expect(failure.code).toBe("Client.UnrecognizedResponse");
   });
 
   it("normalises an OAuth error body to OAuth.<PascalCase>", () => {
@@ -273,6 +292,21 @@ describe("toApiFailure", () => {
     it("stamps the request id from the context", () => {
       expect(toApiFailure(new Error("x"), { requestId: "req-3" }).requestId).toBe("req-3");
     });
+  });
+
+  it("carries a Retry-After the caller parsed onto a thrown error and onto a body", () => {
+    const retryAfter: number | undefined = parseRetryAfter("30");
+    const fromError: ApiFailure = toApiFailure(new Error("boom"), {
+      status: SERVICE_UNAVAILABLE,
+      retryAfter,
+    });
+    const fromBody: ApiFailure = toApiFailure(
+      { code: "RateLimit.Exceeded", title: "Slow down" },
+      { status: TOO_MANY_REQUESTS, retryAfter },
+    );
+
+    expect(fromError.retryAfter).toBe(30);
+    expect(fromBody.retryAfter).toBe(30);
   });
 
   it("treats a thrown error with a status as an unrecognised response", () => {

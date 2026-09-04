@@ -15,8 +15,7 @@ import { VerifyEmailConfirm } from "./VerifyEmailConfirm";
  * Failures arrive as a bare 400 body, not problem details, so the reason string
  * is lost at the seam and the screen narrows on `status` alone — a 400 here
  * means an invalid or expired token, anything else is generic. It narrows
- * structurally, not with `instanceof WallowError`: that is exported from the
- * SDK's server entry, which a screen may not import.
+ * structurally, not with `instanceof ApiFailure`, on the wire shape alone.
  */
 
 const EMAIL = "ada@example.com";
@@ -38,12 +37,12 @@ function renderWithClient(ui: ReactElement) {
 }
 
 /**
- * `status` is what the screen narrows on; `code: "UNKNOWN"` / `title: "Unknown
- * error"` are the seam's own artefacts, carried on the wire so the "never leaks
- * the raw rejection" case has something real to catch.
+ * `status` is what the screen narrows on; the code and title are filler carried
+ * on the wire so the "never leaks the raw rejection" case has something real to
+ * catch.
  */
 function wallowErrorBody(status: number) {
-  return { status, code: "UNKNOWN", title: "Unknown error" };
+  return { status, code: "Test.Filler", title: "Unknown error" };
 }
 
 function verifyParamsOf(call: SdkHarness["last"]) {
@@ -201,7 +200,7 @@ describe("VerifyEmailConfirm — error state", () => {
     await expect.element(error).not.toHaveTextContent(/expired/iu);
   });
 
-  it("survives a rejection that is not WallowError-shaped at all", async () => {
+  it("survives a rejection that is not ApiFailure-shaped at all", async () => {
     // A bare Error has no `status` and must land on the generic arm rather than
     // throwing inside the error branch. A transport that THROWS is the honest
     // way to produce one — `fetch` rejecting is exactly a network failure.

@@ -15,8 +15,9 @@
  * NEVER arrives as data — the oracle's `if (result.Succeeded) … else switch` is
  * unreachable through this seam, and a RESOLVED call always means success.
  *
- * `toWallowError()`'s `readCode` probes `extensions.code > code > error`, so the
- * `error` member of that anon body arrives as `WallowError.code`. HTTP status is
+ * The `error` member of that anon body arrives through `readErrorCode` (the SDK
+ * parses the bare body under the OAuth grammar of
+ * `@bc-solutions-coder/api-errors`, keeping the raw token as `title`). HTTP status is
  * kept as a FALLBACK because `code` is not a guaranteed-stable token (bd memory
  * `code-keyed-error-mapping-needs-an-unrecognised-code-test-to-bind`), and here
  * the statuses are unambiguous enough to carry it.
@@ -33,10 +34,10 @@
  *     status fallback's "invalid code": telling a user whose WRITE failed to
  *     retype a correct code is the same infinite loop in miniature.
  *
- * Narrowing is STRUCTURAL rather than `instanceof WallowError`, because that
- * class is exported from the SDK's `./server` entry and screens may not import
- * the SDK at all. A network-level rejection carries neither `code` nor `status`
- * and must fall through to the generic message rather than throw.
+ * Narrowing is STRUCTURAL rather than `instanceof ApiFailure`, so the screen
+ * matches on the wire shape alone. A network-level rejection carries a
+ * transport code no screen knows and must fall through to the generic message
+ * rather than throw.
  */
 
 import { readErrorCode, readMember } from "@shared/lib/error-code";

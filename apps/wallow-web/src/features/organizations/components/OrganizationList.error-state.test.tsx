@@ -14,8 +14,13 @@ import { OrganizationList } from "./OrganizationList";
  * off a real RFC 7807 body over the wire, so `errorText()` runs its real path.
  */
 
-/** An RFC 7807 body the SDK's error interceptor brands as a `WallowError`. */
-const PROBLEM = { status: 500, title: "Internal Server Error", detail: "Organizations are down." };
+/** An RFC 7807 body the SDK's error interceptor parses into an `ApiFailure`. */
+const PROBLEM = {
+  status: 500,
+  code: "Server.Error",
+  title: "Internal Server Error",
+  detail: "Organizations are down.",
+};
 
 /** The transport backing each render, rebuilt per test. */
 let harness: SdkHarness;

@@ -14,8 +14,13 @@ import { ProfileSection } from "./ProfileSection";
  * about the account.
  */
 
-/** An RFC 7807 body the SDK's error interceptor brands as a `WallowError`. */
-const PROBLEM = { status: 500, title: "Internal Server Error", detail: "Profile is unavailable." };
+/** An RFC 7807 body the SDK's error interceptor parses into an `ApiFailure`. */
+const PROBLEM = {
+  status: 500,
+  code: "Server.Error",
+  title: "Internal Server Error",
+  detail: "Profile is unavailable.",
+};
 
 let harness: SdkHarness;
 

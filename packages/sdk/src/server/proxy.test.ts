@@ -1,11 +1,11 @@
 import { timingSafeEqual } from "node:crypto";
 
+import { ApiFailure, ClientErrorCode } from "@bc-solutions-coder/api-errors";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { isValidRequestId, MAX_REQUEST_ID_LENGTH, REQUEST_ID_HEADER } from "../request-id";
 import type { BffConfig } from "./config";
 import { csrfTokenMatches, CSRF_HEADER, CSRF_INVALID_CODE, isStateChangingMethod } from "./csrf";
-import { SESSION_REFRESH_FAILED_CODE, WallowError } from "./errors";
 import { type PeerRequest } from "./forwarded";
 import { discover, refreshTokens, type DiscoveryDoc, type TokenResponse } from "./oidc";
 import {
@@ -638,7 +638,7 @@ function respond(factory: () => Response): FetchAttempt {
   return (): Promise<Response> => Promise.resolve(factory());
 }
 
-/** RFC 7807 body as the .NET API emits it (machine code under `extensions`). */
+/** RFC 7807 body as the .NET API emits it (machine code as a top-level `code`). */
 function problem(
   status: number,
   body: Record<string, unknown>,
@@ -728,9 +728,12 @@ describe("forceRefreshSession", () => {
     const session: BffSession = makeSession({ refreshToken: undefined });
     const { store, calls }: FakeStore = makeFakeStore(session);
 
-    await expect(forceRefreshSession(session, config, store, "ref-force-none")).rejects.toThrow(
-      /refresh token/i,
-    );
+    await expect(
+      forceRefreshSession(session, config, store, "ref-force-none"),
+    ).rejects.toMatchObject({
+      code: ClientErrorCode.BFF_SESSION_REFRESH_FAILED,
+      detail: expect.stringMatching(/refresh token/i),
+    });
     // Fails before ever reaching the lock.
     expect(calls.withRefreshLock).toBe(0);
   });
@@ -808,7 +811,7 @@ describe("forwardWithResilience", () => {
     expect(result.session.version).toBe(3);
   });
 
-  it("surfaces a WallowError when the replayed request is rejected with a second 401", async () => {
+  it("surfaces a ApiFailure when the replayed request is rejected with a second 401", async () => {
     const config: BffConfig = makeConfig("https://forward-401-twice.example.com");
     const session: BffSession = makeSession({
       accessToken: "rejected-access",
@@ -823,12 +826,12 @@ describe("forwardWithResilience", () => {
           problem(401, {
             title: "Unauthorized",
             detail: "The access token is not valid.",
-            extensions: { code: "TOKEN_REJECTED" },
+            code: "TOKEN_REJECTED",
           }),
       ),
     ]);
 
-    const error: WallowError = await forwardWithResilience(
+    const error: ApiFailure = await forwardWithResilience(
       makeForwardRequest(),
       config,
       store,
@@ -838,10 +841,10 @@ describe("forwardWithResilience", () => {
       (): never => {
         throw new Error("expected forwardWithResilience to reject");
       },
-      (thrown: unknown): WallowError => thrown as WallowError,
+      (thrown: unknown): ApiFailure => thrown as ApiFailure,
     );
 
-    expect(error).toBeInstanceOf(WallowError);
+    expect(error).toBeInstanceOf(ApiFailure);
     expect(error.status).toBe(401);
     expect(error.code).toBe("TOKEN_REJECTED");
     expect(error.detail).toBe("The access token is not valid.");
@@ -860,7 +863,7 @@ describe("forwardWithResilience", () => {
 
     await expect(
       forwardWithResilience(makeForwardRequest(), config, store, session, "ref-401-norefresh"),
-    ).rejects.toBeInstanceOf(WallowError);
+    ).rejects.toBeInstanceOf(ApiFailure);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(refreshTokens).not.toHaveBeenCalled();
@@ -897,7 +900,7 @@ describe("forwardWithResilience", () => {
     expect(result.session.version).toBe(6);
   });
 
-  it("surfaces a WallowError when the replayed request is redirected to the login page again", async () => {
+  it("surfaces a ApiFailure when the replayed request is redirected to the login page again", async () => {
     const config: BffConfig = makeConfig("https://forward-redirect-twice.example.com");
     const session: BffSession = makeSession({
       refreshToken: "the-refresh-token",
@@ -909,7 +912,7 @@ describe("forwardWithResilience", () => {
       respond(loginRedirect),
     ]);
 
-    const error: WallowError = await forwardWithResilience(
+    const error: ApiFailure = await forwardWithResilience(
       makeForwardRequest(),
       config,
       store,
@@ -919,10 +922,10 @@ describe("forwardWithResilience", () => {
       (): never => {
         throw new Error("expected forwardWithResilience to reject");
       },
-      (thrown: unknown): WallowError => thrown as WallowError,
+      (thrown: unknown): ApiFailure => thrown as ApiFailure,
     );
 
-    expect(error).toBeInstanceOf(WallowError);
+    expect(error).toBeInstanceOf(ApiFailure);
     // A login redirect is an authentication failure, whatever status it wears.
     expect(error.status).toBe(401);
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -1024,7 +1027,7 @@ describe("forwardWithResilience", () => {
     expect(result.response.status).toBe(200);
   });
 
-  it("surfaces a WallowError when the replayed request is throttled again", async () => {
+  it("surfaces a ApiFailure when the replayed request is throttled again", async () => {
     vi.useFakeTimers();
     const config: BffConfig = makeConfig("https://forward-429-twice.example.com");
     const session: BffSession = makeSession();
@@ -1038,7 +1041,7 @@ describe("forwardWithResilience", () => {
             {
               title: "Too Many Requests",
               detail: "Rate limit exceeded.",
-              extensions: { code: "RATE_LIMITED" },
+              code: "RATE_LIMITED",
             },
             { "retry-after": "1" },
           ),
@@ -1052,24 +1055,24 @@ describe("forwardWithResilience", () => {
       session,
       "ref-429-twice",
     );
-    const settled: Promise<WallowError> = pending.then(
+    const settled: Promise<ApiFailure> = pending.then(
       (): never => {
         throw new Error("expected forwardWithResilience to reject");
       },
-      (thrown: unknown): WallowError => thrown as WallowError,
+      (thrown: unknown): ApiFailure => thrown as ApiFailure,
     );
 
     await vi.advanceTimersByTimeAsync(MAX_RETRY_AFTER_MS);
-    const error: WallowError = await settled;
+    const error: ApiFailure = await settled;
 
-    expect(error).toBeInstanceOf(WallowError);
+    expect(error).toBeInstanceOf(ApiFailure);
     expect(error.status).toBe(429);
     expect(error.code).toBe("RATE_LIMITED");
     // Exactly one retry: the second 429 is not waited out again.
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("raises a 503 NETWORK_ERROR WallowError when the transport fails", async () => {
+  it("raises a 503 NETWORK_ERROR ApiFailure when the transport fails", async () => {
     const config: BffConfig = makeConfig("https://forward-network.example.com");
     const session: BffSession = makeSession();
     const { store }: FakeStore = makeFakeStore(session);
@@ -1077,7 +1080,7 @@ describe("forwardWithResilience", () => {
       (): Promise<Response> => Promise.reject(new TypeError("fetch failed: ECONNREFUSED")),
     ]);
 
-    const error: WallowError = await forwardWithResilience(
+    const error: ApiFailure = await forwardWithResilience(
       makeForwardRequest(),
       config,
       store,
@@ -1087,17 +1090,17 @@ describe("forwardWithResilience", () => {
       (): never => {
         throw new Error("expected forwardWithResilience to reject");
       },
-      (thrown: unknown): WallowError => thrown as WallowError,
+      (thrown: unknown): ApiFailure => thrown as ApiFailure,
     );
 
-    expect(error).toBeInstanceOf(WallowError);
+    expect(error).toBeInstanceOf(ApiFailure);
     expect(error.status).toBe(503);
     expect(error.code).toBe(NETWORK_ERROR_CODE);
     // A dead socket is not retried.
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("raises a 503 NETWORK_TIMEOUT WallowError when the forward exceeds FORWARD_TIMEOUT_MS", async () => {
+  it("raises a 503 NETWORK_TIMEOUT ApiFailure when the forward exceeds FORWARD_TIMEOUT_MS", async () => {
     vi.useFakeTimers();
     const config: BffConfig = makeConfig("https://forward-timeout.example.com");
     const session: BffSession = makeSession();
@@ -1115,7 +1118,7 @@ describe("forwardWithResilience", () => {
         }),
     ]);
 
-    const settled: Promise<WallowError> = forwardWithResilience(
+    const settled: Promise<ApiFailure> = forwardWithResilience(
       makeForwardRequest(),
       config,
       store,
@@ -1125,19 +1128,19 @@ describe("forwardWithResilience", () => {
       (): never => {
         throw new Error("expected forwardWithResilience to reject");
       },
-      (thrown: unknown): WallowError => thrown as WallowError,
+      (thrown: unknown): ApiFailure => thrown as ApiFailure,
     );
 
     await vi.advanceTimersByTimeAsync(FORWARD_TIMEOUT_MS);
-    const error: WallowError = await settled;
+    const error: ApiFailure = await settled;
 
-    expect(error).toBeInstanceOf(WallowError);
+    expect(error).toBeInstanceOf(ApiFailure);
     expect(error.status).toBe(503);
     // A timeout is distinguishable from any other transport failure.
     expect(error.code).toBe(NETWORK_TIMEOUT_CODE);
   });
 
-  it("raises a WallowError carrying the upstream problem details for a non-OK response", async () => {
+  it("raises a ApiFailure carrying the upstream problem details for a non-OK response", async () => {
     const config: BffConfig = makeConfig("https://forward-problem.example.com");
     const session: BffSession = makeSession();
     const { store }: FakeStore = makeFakeStore(session);
@@ -1149,12 +1152,12 @@ describe("forwardWithResilience", () => {
             title: "Conflict",
             status: 409,
             detail: "Tenant slug already taken.",
-            extensions: { code: "TENANT_SLUG_TAKEN" },
+            code: "TENANT_SLUG_TAKEN",
           }),
       ),
     ]);
 
-    const error: WallowError = await forwardWithResilience(
+    const error: ApiFailure = await forwardWithResilience(
       makeForwardRequest({ method: "POST", body: '{"slug":"acme"}' }),
       config,
       store,
@@ -1164,10 +1167,10 @@ describe("forwardWithResilience", () => {
       (): never => {
         throw new Error("expected forwardWithResilience to reject");
       },
-      (thrown: unknown): WallowError => thrown as WallowError,
+      (thrown: unknown): ApiFailure => thrown as ApiFailure,
     );
 
-    expect(error).toBeInstanceOf(WallowError);
+    expect(error).toBeInstanceOf(ApiFailure);
     // The upstream status survives the trip through the BFF.
     expect(error.status).toBe(409);
     expect(error.code).toBe("TENANT_SLUG_TAKEN");
@@ -1177,7 +1180,7 @@ describe("forwardWithResilience", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("raises an UNKNOWN-coded WallowError when a non-OK response is not problem details", async () => {
+  it("raises a Client.UnrecognizedResponse ApiFailure when a non-OK response is not problem details", async () => {
     const config: BffConfig = makeConfig("https://forward-html.example.com");
     const session: BffSession = makeSession();
     const { store }: FakeStore = makeFakeStore(session);
@@ -1191,7 +1194,7 @@ describe("forwardWithResilience", () => {
       ),
     ]);
 
-    const error: WallowError = await forwardWithResilience(
+    const error: ApiFailure = await forwardWithResilience(
       makeForwardRequest(),
       config,
       store,
@@ -1201,12 +1204,12 @@ describe("forwardWithResilience", () => {
       (): never => {
         throw new Error("expected forwardWithResilience to reject");
       },
-      (thrown: unknown): WallowError => thrown as WallowError,
+      (thrown: unknown): ApiFailure => thrown as ApiFailure,
     );
 
-    expect(error).toBeInstanceOf(WallowError);
+    expect(error).toBeInstanceOf(ApiFailure);
     expect(error.status).toBe(500);
-    expect(error.code).toBe("UNKNOWN");
+    expect(error.code).toBe(ClientErrorCode.CLIENT_UNRECOGNIZED_RESPONSE);
   });
 
   it("replays the request body on a retried attempt", async () => {
@@ -1307,7 +1310,7 @@ describe("createApiProxy resilience", () => {
             title: "Conflict",
             status: 409,
             detail: "Tenant slug already taken.",
-            extensions: { code: "TENANT_SLUG_TAKEN" },
+            code: "TENANT_SLUG_TAKEN",
           }),
       ),
     ]);
@@ -1380,7 +1383,7 @@ describe("createApiProxy refresh-failure teardown", () => {
     // The failure is nameable, not a bare status.
     expect(res.headers.get("content-type") ?? "").toContain("problem+json");
     const body = (await res.json()) as Record<string, unknown>;
-    expect(body["code"]).toBe(SESSION_REFRESH_FAILED_CODE);
+    expect(body["code"]).toBe(ClientErrorCode.BFF_SESSION_REFRESH_FAILED);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -1411,7 +1414,7 @@ describe("createApiProxy refresh-failure teardown", () => {
     expect(cleared).toContain(config.cookieName);
     expect(cleared).toContain(`${config.cookieName}-csrf`);
     const body = (await res.json()) as Record<string, unknown>;
-    expect(body["code"]).toBe(SESSION_REFRESH_FAILED_CODE);
+    expect(body["code"]).toBe(ClientErrorCode.BFF_SESSION_REFRESH_FAILED);
   });
 });
 
@@ -2331,7 +2334,7 @@ describe("createApiProxy request-id correlation", () => {
           problem(409, {
             title: "Conflict",
             status: 409,
-            extensions: { code: "TENANT_SLUG_TAKEN" },
+            code: "TENANT_SLUG_TAKEN",
           }),
       ),
     ]);

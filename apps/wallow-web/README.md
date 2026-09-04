@@ -175,19 +175,22 @@ generated client is constructed with `throwOnError: true` and
 `responseStyle: 'data'`, so an operation resolves to the response **body** and
 **rejects** on a non-2xx rather than resolving an `{ data, error }` envelope.
 The BFF and API both report failures as RFC 7807 problem+json, which the SDK
-surfaces as a `WallowError` — catch it, do not branch on a returned `error`:
+surfaces as an `ApiFailure` from `@bc-solutions-coder/api-errors` — catch it,
+do not branch on a returned `error`:
 
 ```ts
+import { isApiFailure } from "@bc-solutions-coder/api-errors";
+
 try {
   const user = await usersGetCurrentUser({ client: sdk.client });
 } catch (cause) {
-  if (isWallowError(cause)) {
-    console.error(cause.status, cause.title, cause.detail);
+  if (isApiFailure(cause)) {
+    console.error(cause.status, cause.code, cause.title, cause.detail);
   }
 }
 ```
 
-`isWallowError()` is the supported check — it tests a brand rather than the
+`isApiFailure()` is the supported check — it tests a brand rather than the
 constructor, so it holds across bundle boundaries.
 
 In practice a route or component reaches this through the query layer

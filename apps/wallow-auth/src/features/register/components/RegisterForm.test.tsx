@@ -62,9 +62,10 @@ function ok(data: unknown): Leg {
 
 /**
  * A failure exactly as these endpoints really send it: a bare
- * `{ succeeded: false, error }` object, NOT problem details. The SDK's
- * `readCode` probes `extensions.code > code > error`, so the API's own token
- * arrives on the screen as `code` — which is what the per-token tests key on.
+ * `{ succeeded: false, error }` object, NOT problem details. `api-errors`
+ * parses that OAuth-shaped body into an `OAuth.<Token>` failure whose `title`
+ * is the raw token, and `readErrorCode` hands the token back to the screen —
+ * which is what the per-token tests key on.
  */
 function failure(status: number, code: string): Leg {
   return () => Response.json({ succeeded: false, error: code }, { status });
@@ -72,7 +73,7 @@ function failure(status: number, code: string): Leg {
 
 /**
  * The client-tenant lookup answers a miss with a bare `NotFound()` — no body, so
- * nothing for `readCode` to find and the screen gets `code: "UNKNOWN"`.
+ * the parser hands the screen `Client.UnrecognizedResponse` at 404.
  */
 function notFound(): Leg {
   return () => Response.json(null, { status: NOT_FOUND });

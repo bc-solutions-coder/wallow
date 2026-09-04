@@ -6,7 +6,7 @@
  * layer (`{op}()`, `{op}Options()`, `{op}Mutation()`) absorbed the rest. Every
  * method that only renamed a generated op, unwrapped an envelope, or mapped an
  * error is gone: `responseStyle: 'data'` + `throwOnError: true` plus the
- * `WallowError` interceptor cover all of them. What survives here is the
+ * `ApiFailure` interceptor cover all of them. What survives here is the
  * residue that no codegen flag can produce:
  *
  *   1. {@link getCurrentUser} — 401 is the ANSWER "anonymous", not a failure;
@@ -21,7 +21,8 @@
  * `{ client: sdk.client }` — never by adding a passthrough here.
  */
 
-import { isWallowError } from "./errors";
+import { isApiFailure } from "@bc-solutions-coder/api-errors";
+
 import {
   type AccountValidateRedirectUriData,
   type CurrentUserResponse,
@@ -51,7 +52,7 @@ const ANONYMOUS_STATUS: number = 401;
  * A 401 resolves `null`; every other failure throws the SAME object it arrived
  * as, so an outage can never masquerade as a signed-out user. An UNBRANDED
  * failure rethrows too, even one claiming `status: 401`: under the unified
- * error contract a non-`WallowError` means something bypassed the interceptor,
+ * error contract a non-`ApiFailure` means something bypassed the interceptor,
  * and that must surface rather than sign the user out.
  */
 export async function getCurrentUser(
@@ -63,7 +64,7 @@ export async function getCurrentUser(
     // inventing a signed-in user out of nothing.
     return (await usersGetCurrentUser(options ?? {})) ?? null;
   } catch (error: unknown) {
-    if (isWallowError(error) && error.status === ANONYMOUS_STATUS) {
+    if (isApiFailure(error) && error.status === ANONYMOUS_STATUS) {
       return null;
     }
 

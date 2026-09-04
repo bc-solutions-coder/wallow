@@ -2,26 +2,27 @@
  * MFA error surfacing under the unified error contract.
  *
  * The SDK's error interceptor normalizes EVERY failure — RFC 7807 and raw-shape
- * alike — into a `WallowError`, so the machine code arrives as `error.code` and
- * the human sentence as `error.detail`. A raw `{ succeeded, error }` body is
- * never consulted, and the `UNKNOWN` placeholder never reaches the user.
+ * alike — into an `ApiFailure`. A raw `{ succeeded, error }` body parses under
+ * the OAuth grammar (code `OAuth.<Token>`, title = the raw token); a problem
+ * body keeps its own code. Neither the raw body nor the parser's
+ * unrecognized-response placeholder ever reaches the user.
  */
 
-import { WallowError } from "@bc-solutions-coder/sdk";
+import { ApiFailure, ClientErrorCode } from "@bc-solutions-coder/api-errors";
 import { describe, expect, it } from "vitest";
 
 import { mapMfaError, problemDetail } from "./errors";
 
 const FALLBACK: string = "Could not complete that step.";
 
-/** A WallowError as the SDK's interceptor would build one. */
-function wallowError(init: {
+/** An ApiFailure as the SDK's interceptor would build one. */
+function apiFailure(init: {
   status?: number;
   code: string;
   title?: string;
   detail?: string;
-}): WallowError {
-  return new WallowError({
+}): ApiFailure {
+  return new ApiFailure({
     status: init.status ?? 400,
     code: init.code,
     title: init.title ?? "Bad Request",
@@ -29,16 +30,21 @@ function wallowError(init: {
   });
 }
 
+/** The failure the parser builds from the MFA controllers' `{ error: token }` body. */
+function rawTokenFailure(token: string, pascal: string): ApiFailure {
+  return apiFailure({ code: `OAuth.${pascal}`, title: token });
+}
+
 describe("mapMfaError", () => {
-  it("maps a known machine code to friendly copy", () => {
+  it("maps a known machine token to friendly copy", () => {
     expect(mapMfaError("invalid_code")).toBe("That verification code is not valid.");
   });
 
-  it("falls back to the raw code for an unmapped one", () => {
+  it("falls back to the raw token for an unmapped one", () => {
     expect(mapMfaError("totp_replay")).toBe("totp_replay");
   });
 
-  it("returns undefined for an absent code so callers can defer", () => {
+  it("returns undefined for an absent token so callers can defer", () => {
     expect(mapMfaError(undefined)).toBeUndefined();
     expect(mapMfaError(null)).toBeUndefined();
     expect(mapMfaError("")).toBeUndefined();
@@ -46,28 +52,50 @@ describe("mapMfaError", () => {
 });
 
 describe("problemDetail", () => {
-  it("prefers the WallowError detail when the endpoint produced problem details", () => {
-    const error = wallowError({ code: "INVALID_PASSWORD", detail: "That password is incorrect." });
+  it("prefers the ApiFailure detail when the endpoint produced problem details", () => {
+    const error = apiFailure({
+      code: "Mfa.InvalidPassword",
+      detail: "That password is incorrect.",
+    });
 
     expect(problemDetail(error, FALLBACK)).toBe("That password is incorrect.");
   });
 
-  it("maps the WallowError code when there is no detail", () => {
-    // The MFA controllers emit no problem details at all, so the interceptor
-    // produces a WallowError whose ONLY useful member is the code.
-    const error = wallowError({ code: "invalid_code" });
+  it("maps the raw token a { succeeded, error } body parsed into when there is no detail", () => {
+    // The MFA controllers emit no problem details at all, so the parser's
+    // OAuth grammar leaves the raw token as the title.
+    const error = rawTokenFailure("invalid_code", "InvalidCode");
 
     expect(problemDetail(error, FALLBACK)).toBe("That verification code is not valid.");
   });
 
-  it("surfaces an unmapped MFA code rather than the fallback", () => {
-    const error = wallowError({ code: "totp_replay" });
+  it("surfaces an unmapped MFA token rather than the fallback", () => {
+    const error = rawTokenFailure("totp_replay", "TotpReplay");
 
     expect(problemDetail(error, FALLBACK)).toBe("totp_replay");
   });
 
-  it("falls back rather than showing the placeholder UNKNOWN code", () => {
-    const error = wallowError({ code: "UNKNOWN", status: 500, title: "Unknown error" });
+  it("resolves a problem without detail through the package, never showing its code", () => {
+    const error = apiFailure({ code: "Mfa.TotpReplay", status: 403 });
+
+    expect(problemDetail(error, FALLBACK)).toBe("You don't have permission to do that.");
+  });
+
+  it("resolves a transport fault to the package's sentence rather than its code", () => {
+    // api-errors sets no `detail` on a request that never landed.
+    const error = apiFailure({ status: 503, code: ClientErrorCode.TRANSPORT_NETWORK_ERROR });
+
+    expect(problemDetail(error, FALLBACK)).toBe(
+      "Unable to reach the server. Check your connection and try again.",
+    );
+  });
+
+  it("falls back rather than showing the unrecognized-response placeholder", () => {
+    const error = apiFailure({
+      code: ClientErrorCode.CLIENT_UNRECOGNIZED_RESPONSE,
+      status: 500,
+      title: "Unrecognized response",
+    });
 
     expect(problemDetail(error, FALLBACK)).toBe(FALLBACK);
   });

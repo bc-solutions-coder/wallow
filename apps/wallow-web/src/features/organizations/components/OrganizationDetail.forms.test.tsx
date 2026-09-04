@@ -138,6 +138,7 @@ function validationFailure(errors: Record<string, string[]>): unknown {
     {
       type: "https://httpstatuses.io/400",
       title: "One or more validation errors occurred.",
+      code: "Validation.Failed",
       status: 400,
       errors,
     },
@@ -289,6 +290,7 @@ describe("OrganizationDetail register-application stepper on @bc-solutions-coder
         {
           type: "https://httpstatuses.io/403",
           title: "Forbidden",
+          code: "Identity.ClientLimitReached",
           status: 403,
           detail: "This organization has reached its client limit.",
         },

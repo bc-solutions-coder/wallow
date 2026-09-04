@@ -176,7 +176,11 @@ describe("OrganizationDetail platform suspension — global admin", () => {
       me: globalAdmin,
       answers: {
         "POST /v1/identity/organizations/o1/platform-suspension": failsWith(
-          { title: "The organization is suspended by the platform", status: 422 },
+          {
+            code: "Identity.OrganizationSuspendedByPlatform",
+            detail: "The organization is suspended by the platform",
+            status: 422,
+          },
           422,
         ),
       },

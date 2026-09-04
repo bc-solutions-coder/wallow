@@ -80,6 +80,9 @@ importers:
 
   apps/minimal-app:
     dependencies:
+      '@bc-solutions-coder/api-errors':
+        specifier: workspace:*
+        version: link:../../packages/api-errors
       '@bc-solutions-coder/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
@@ -126,6 +129,9 @@ importers:
 
   apps/wallow-auth:
     dependencies:
+      '@bc-solutions-coder/api-errors':
+        specifier: workspace:*
+        version: link:../../packages/api-errors
       '@bc-solutions-coder/auth':
         specifier: workspace:*
         version: link:../../packages/auth
@@ -220,6 +226,9 @@ importers:
 
   apps/wallow-web:
     dependencies:
+      '@bc-solutions-coder/api-errors':
+        specifier: workspace:*
+        version: link:../../packages/api-errors
       '@bc-solutions-coder/auth':
         specifier: workspace:*
         version: link:../../packages/auth
@@ -409,12 +418,12 @@ importers:
 
   packages/forms:
     dependencies:
+      '@bc-solutions-coder/api-errors':
+        specifier: workspace:*
+        version: link:../api-errors
       '@bc-solutions-coder/query':
         specifier: workspace:*
         version: link:../query
-      '@bc-solutions-coder/sdk':
-        specifier: workspace:*
-        version: link:../sdk
       '@bc-solutions-coder/ui':
         specifier: workspace:*
         version: link:../ui
@@ -431,6 +440,9 @@ importers:
       '@bc-solutions-coder/config':
         specifier: workspace:*
         version: link:../config
+      '@bc-solutions-coder/sdk':
+        specifier: workspace:*
+        version: link:../sdk
       '@bc-solutions-coder/styles':
         specifier: workspace:*
         version: link:../styles
@@ -596,6 +608,9 @@ importers:
 
   packages/sdk:
     dependencies:
+      '@bc-solutions-coder/api-errors':
+        specifier: workspace:^
+        version: link:../api-errors
       cookie-es:
         specifier: ^3.1.1
         version: 3.1.1

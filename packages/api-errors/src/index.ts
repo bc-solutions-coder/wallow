@@ -21,5 +21,6 @@ export {
   type FailureContext,
   type FailureResponse,
   failureFromResponse,
+  parseRetryAfter,
   toApiFailure,
 } from "./parse";

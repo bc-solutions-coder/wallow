@@ -267,7 +267,7 @@ Three properties of this code are load-bearing, and all three are covered in ful
 
 - **`data` is the response body.** Operations are generated with `responseStyle: "data"` and
   `throwOnError: true`, so there is no `{ data, error }` envelope to unwrap and every failure
-  arrives as a thrown `WallowError`.
+  arrives as a thrown `ApiFailure` from `@bc-solutions-coder/api-errors`.
 - **Keys are flat and generated.** A key is `[{ _id, baseUrl, tags, ...args }]` — a single
   object, with no prefix that sweeps a subtree. Never write a `queryKey` literal.
 - **Invalidation lives at the call site.** Sweep with `queriesForOperation(key)` for one
@@ -295,7 +295,7 @@ fails `pnpm lint` with a message naming its replacement, rather than resurfacing
 | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | `configureBffClient()`, `configureWallowClient()`, importing `client`                  | `createWallowSdk({ baseUrl })` per request; pass `{ client: sdk.client }`          |
 | `configureSsrClient()`, `setSsrRequestContextResolver()`, `wireSsrCookieInterceptor()` | `createWallowSdk({ baseUrl, cookieHeader, internalOrigin })` in request middleware |
-| `createAuthClient()`, `createMfaClient()`, `unwrap()`                                  | The generated operations; failures already arrive as `WallowError`                 |
+| `createAuthClient()`, `createMfaClient()`, `unwrap()`                                  | The generated operations; failures already arrive as `ApiFailure`                  |
 | `queryKeys`, `organizationsQueries`, `mfaQueries`, and the other slices                | The generated `{op}Options()` / `{op}Mutation()` / `{op}QueryKey()`                |
 | `registerQueryBootstrap()`, `ensureQueryBootstrapped()`                                | Nothing — pass `{ client }` explicitly; there is no module state to bootstrap      |
 | A `src/lib/wallow-sdk.ts` facade singleton                                             | `useRouteContext({ from: "__root__" }).sdk`                                        |

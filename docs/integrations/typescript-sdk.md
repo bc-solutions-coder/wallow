@@ -90,10 +90,11 @@ under [Installation](#installation)):
 ```bash
 echo "@bc-solutions-coder:registry=https://npm.pkg.github.com" >> .npmrc
 npm config set "//npm.pkg.github.com/:_authToken" "$GITHUB_TOKEN"
-npm install @bc-solutions-coder/sdk redis
+npm install @bc-solutions-coder/sdk @bc-solutions-coder/api-errors redis
 ```
 
-`redis` is the SDK's optional peer for [server-side sessions](#session-stores) —
+`@bc-solutions-coder/api-errors` is the failure model every SDK rejection is an
+instance of — see [Error handling](#error-handling-and-resilience). `redis` is the SDK's optional peer for [server-side sessions](#session-stores) —
 optional locally, required in production (step 5).
 
 ### 3. Paste the reveal
@@ -212,7 +213,7 @@ docker build --secret id=npm_token,env=GITHUB_TOKEN .
 Then install:
 
 ```bash
-npm install @bc-solutions-coder/sdk
+npm install @bc-solutions-coder/sdk @bc-solutions-coder/api-errors
 ```
 
 That is the whole install. The server entry has no host-framework dependency —
@@ -264,7 +265,7 @@ evaluated and rejected, not overlooked:
 - **If validation is ever wanted, it belongs on the Node side of the BFF proxy**
   (`@bc-solutions-coder/sdk/server`), where the proxy talks to the real API:
   zero bundle cost for end users, and a validation failure can become a proper
-  502 / `WallowError` at the actual trust boundary instead of a thrown
+  502 / `ApiFailure` at the actual trust boundary instead of a thrown
   `ZodError` on an HTTP 200.
 
 Anyone revisiting this must first close two **known fidelity gaps** between the
@@ -449,7 +450,7 @@ session was revoked — a logout on another application, a deactivated account �
 or the refresh token was already spent. The proxy answers it by ending the
 session exactly as a logout would: it destroys the store record, clears the
 session cookie and its CSRF companion, and returns `401` problem details with
-code `SESSION_REFRESH_FAILED`. Leaving the session in place would replay the
+code `Bff.SessionRefreshFailed`. Leaving the session in place would replay the
 same doomed refresh on every request; tearing it down turns the refusal into a
 clean re-login at the next navigation.
 
@@ -707,13 +708,92 @@ strings.
 
 ## Error handling and resilience
 
-Proxy failures come back as RFC 7807 problem details
-(`content-type: application/problem+json`), so every failure carries a
-machine-readable `code` alongside its status. On the server, `WallowError`
-(`status`, `code`, `title`, `detail`) is the SDK's error type and
-`parseProblemDetails(response, bodyText)` converts an upstream body into one,
-falling back to `UNKNOWN_ERROR_CODE` when the body is not problem details.
-`redact(value)` masks secrets as `REDACTED` for safe logging.
+Every failure the SDK raises — a rejected generated operation in the browser, a
+proxy or passthrough fault on the server, a service-client call that was refused —
+is an `ApiFailure` from `@bc-solutions-coder/api-errors`: `status`, a machine
+`code`, `title`, an optional `detail`, `fieldErrors`, `retryAfter`, and the two
+correlation members `requestId` and `traceId`. The SDK has no error type of its
+own; install `api-errors` next to it and match with `isApiFailure`, which tests a
+brand rather than the constructor so it holds across bundle boundaries.
+
+The BFF and the API both answer RFC 7807 problem details
+(`content-type: application/problem+json`) with a top-level `code`, and the
+package parses any body into a failure: a problem keeps its code, a bare OAuth
+`{ error }` body becomes `OAuth.<Error>`, and anything else is
+`Client.UnrecognizedResponse` at the response's status. A request that never
+produced a response is a `503 Transport.NetworkError`. `resolveFailureMessage`
+turns a failure into the sentence to show — a call-site override first, then the
+app's `defineFailureMessages` registry, then the copy shipped with the code
+catalogue, then a default for the status.
+
+The example relying party uses both surfaces. In the browser
+(`apps/minimal-app/src/routes/index.tsx`) a one-entry registry overrides the copy
+for a dead BFF and the page renders the resolved sentence next to the code:
+
+```ts
+import {
+  ClientErrorCode,
+  defineFailureMessages,
+  isApiFailure,
+  resolveFailureMessage,
+} from "@bc-solutions-coder/api-errors";
+
+const FAILURE_MESSAGES = defineFailureMessages({
+  [ClientErrorCode.TRANSPORT_NETWORK_ERROR]: () =>
+    "The BFF did not answer. Is the example server running?",
+});
+
+function describeFailure(error: unknown): string {
+  if (!isApiFailure(error)) {
+    return error instanceof Error ? error.message : "Request failed";
+  }
+  return `${resolveFailureMessage(error, { registry: FAILURE_MESSAGES })} (${error.code})`;
+}
+```
+
+On the server (`apps/minimal-app/src/lib/service-client.server.ts`) the contact
+route relays a platform failure at its own status and rethrows anything that is
+not one, so a bug in the route stays a 500:
+
+```ts
+import { isApiFailure, resolveFailureMessage } from "@bc-solutions-coder/api-errors";
+
+try {
+  const inquiry = await inquiriesSubmit({ client: service.client, body });
+  return json(HTTP_OK, { id: inquiry.id, status: "received" });
+} catch (error: unknown) {
+  if (isApiFailure(error)) {
+    return json(error.status, { error: resolveFailureMessage(error) });
+  }
+  throw error;
+}
+```
+
+The package does not need the SDK. A plain `fetch` against the proxy gets the same
+failure from `failureFromResponse` (a response that arrived) and `toApiFailure`
+(one that did not):
+
+```ts
+import { failureFromResponse, toApiFailure } from "@bc-solutions-coder/api-errors";
+
+async function getInquiry(id: string): Promise<unknown> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/v1/inquiries/${id}`, { credentials: "include" });
+  } catch (error: unknown) {
+    throw toApiFailure(error); // 503 Transport.NetworkError, the cause attached
+  }
+  if (!response.ok) {
+    throw failureFromResponse(response, await response.text());
+  }
+  return response.json();
+}
+```
+
+Two server-entry exports round this out: `RefreshFailedError` is the
+`ApiFailure` (code `Bff.SessionRefreshFailed`) the proxy raises when a session
+refresh fails terminally, and `redact(value)` masks secrets as `REDACTED` for
+safe logging.
 
 Before forwarding, `ensureFreshSession` proactively refreshes an access token
 already inside the expiry-skew window. Beyond that, the forward itself handles
@@ -728,7 +808,7 @@ the following, each retried at most once:
 
 A refresh that fails — the proactive one before the forward, or the forced one
 after a reactive `401` — destroys the store record, clears the session cookies,
-and answers `401` with code `SESSION_REFRESH_FAILED` (see
+and answers `401` with code `Bff.SessionRefreshFailed` (see
 [the `/api` proxy and silent refresh](#the-api-proxy-and-silent-refresh)).
 
 ---
@@ -855,7 +935,7 @@ function InquiriesList(): React.ReactElement {
 
 Operations are generated with `responseStyle: "data"` and `throwOnError: true`, so a hook's
 `data` is the response BODY — there is no `{ data, error }` envelope to unwrap — and every
-failure arrives as a thrown `WallowError` on `error`.
+failure arrives as a thrown `ApiFailure` on `error`.
 
 **Generated keys are FLAT, not hierarchical.** A key is a single-element array holding one
 object — `[{ _id, baseUrl, tags, ...args }]` — so there is no prefix that sweeps a subtree,

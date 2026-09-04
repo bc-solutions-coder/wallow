@@ -14,6 +14,7 @@
     "test:watch": "vitest --configLoader runner"
   },
   "dependencies": {
+    "@bc-solutions-coder/api-errors": "workspace:*",
     "@bc-solutions-coder/auth": "workspace:*",
     "@bc-solutions-coder/env": "workspace:*",
     "@bc-solutions-coder/forms": "workspace:*",

@@ -11,9 +11,10 @@ import { InquiryList } from "./InquiryList";
  * that reads as "nothing has arrived" rather than "we could not ask".
  */
 
-/** An RFC 7807 body the SDK's error interceptor brands as a `WallowError`. */
+/** An RFC 7807 body the SDK's error interceptor parses into an `ApiFailure`. */
 const PROBLEM = {
   status: 500,
+  code: "Server.Error",
   title: "Internal Server Error",
   detail: "Could not load inquiries.",
 };

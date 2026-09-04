@@ -18,7 +18,7 @@ import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
  * recorded request. The panel reports its result up; the shell's
  * `authDispositionOf` owns the ticket exchange and the refusals.
  *
- * Every failure is a non-2xx whose `error` sentence arrives as `WallowError.code`.
+ * Every failure is a non-2xx whose `error` sentence arrives through `readErrorCode`.
  * Verify's 401 carries three tokens with TWO meanings, so copy is keyed on the
  * token, never on the status alone.
  */
@@ -133,8 +133,8 @@ function respondWithVerify(body: unknown): void {
  * The REAL failure body these endpoints ship: a bare
  * `{ succeeded: false, error: "<token>" }` at the real status. They emit no
  * problem details, so no human-readable title ever arrives and the screen must
- * supply its own copy; the sentence under `error` reaches it as
- * `WallowError.code`.
+ * supply its own copy; the sentence under `error` reaches it through
+ * `readErrorCode` (the SDK keeps it as the `ApiFailure`'s `title`).
  */
 function failureResponse(status: number, token: string): Response {
   return Response.json({ succeeded: false, error: token }, { status });

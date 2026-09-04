@@ -197,7 +197,7 @@ describe("PendingRequestList", () => {
         JSON.stringify({
           title: "Unprocessable Entity",
           detail: "The membership request could not be found.",
-          extensions: { code: "Identity.MemberNotFound" },
+          code: "Identity.MemberNotFound",
         }),
         { status: 422, headers: { "content-type": "application/json" } },
       );

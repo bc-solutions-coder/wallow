@@ -1,3 +1,4 @@
+import { ClientErrorCode } from "@bc-solutions-coder/api-errors";
 import { asString } from "@bc-solutions-coder/utils/guards";
 import { readErrorCode, readMember } from "@shared/lib/error-code";
 import { ERROR_HREF, decideReturnUrl } from "@shared/lib/return-url";
@@ -71,17 +72,21 @@ const LOCKED_OUT = "locked_out";
 const EMAIL_NOT_CONFIRMED = "email_not_confirmed";
 
 /**
- * The SDK's token for a request that never produced a response — the TS shape of
- * the oracle's `catch (HttpRequestException)` arm.
+ * The client-side code for a request that never produced a response — the TS
+ * shape of the oracle's `catch (HttpRequestException)` arm.
  *
- * NOT a token the API sends: the SDK's error interceptor synthesizes it
- * (`503 NETWORK_ERROR`, the same pair the BFF proxy raises when its own forward
- * drops), which is what makes a dead network tellable apart from a server that
- * answered. `WallowError.status` is a REQUIRED number, so an absent status is
+ * NOT codes the API sends: `@bc-solutions-coder/api-errors` synthesizes them
+ * (`503 Transport.NetworkError`, `504 Transport.Timeout`) when the fetch itself
+ * rejects, which is what makes a dead network tellable apart from a server that
+ * answered. An abort is deliberately absent: a cancelled request is not a dead
+ * server. `ApiFailure.status` is a REQUIRED number, so an absent status is
  * unreachable by construction and cannot be the signal — see
  * {@link isServerUnreachable}.
  */
-const NETWORK_ERROR = "NETWORK_ERROR";
+const NEVER_ANSWERED_CODES: ReadonlySet<string> = new Set([
+  ClientErrorCode.TRANSPORT_NETWORK_ERROR,
+  ClientErrorCode.TRANSPORT_TIMEOUT,
+]);
 
 /**
  * The statuses those tokens ride on, retained as a FALLBACK beneath them per the
@@ -114,7 +119,8 @@ const MFA_ENROLL_PATH = "/mfa/enroll";
  * cannot drift apart on what a dead network looks like.
  */
 export function isServerUnreachable(cause: unknown): boolean {
-  return readErrorCode(cause) === NETWORK_ERROR;
+  const code: string | undefined = readErrorCode(cause);
+  return code !== undefined && NEVER_ANSWERED_CODES.has(code);
 }
 
 /** A member that is only meaningful as a string; anything else reads as absent. */
@@ -313,14 +319,15 @@ export function authDispositionOf(body: unknown, returnUrl: string | undefined):
  * Map a REJECTION onto user-facing copy — the 401/423/403 arms, plus the
  * network arm.
  *
- * As of Wallow-vec7.7 `readCode` probes `extensions.code > code > error`, so the
- * `error` member of this endpoint's bare `{ succeeded, error }` body reaches the
- * screen as `WallowError.code`. Narrowing is STRUCTURAL rather than
- * `instanceof WallowError`: that class is exported from the SDK's `./server`
- * entry, and screens may not import the SDK at all.
+ * The `error` member of this endpoint's bare `{ succeeded, error }` body reaches
+ * the screen through `readErrorCode`. The SDK parses that bare body under the OAuth grammar of
+ * `@bc-solutions-coder/api-errors` (code `OAuth.<Token>`, title = the raw
+ * token), and `readErrorCode` hands the raw token back. Narrowing is
+ * STRUCTURAL rather than `instanceof ApiFailure`, so the screen matches on the
+ * wire shape alone.
  *
  * A network-level rejection is identified by its `code` (`isServerUnreachable`),
- * NOT by an absent `status`: `WallowError.status` is a required number, so the
+ * NOT by an absent `status`: `ApiFailure.status` is a required number, so the
  * SDK synthesizes one for a fault that never landed and there is no absence left
  * to test for (Wallow-sx3r).
  */

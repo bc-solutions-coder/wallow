@@ -15,8 +15,13 @@ import { MemberList } from "./MemberList";
 
 const ORG_ID = "o1";
 
-/** An RFC 7807 body the SDK's error interceptor brands as a `WallowError`. */
-const PROBLEM = { status: 500, title: "Internal Server Error", detail: "Members are unavailable." };
+/** An RFC 7807 body the SDK's error interceptor parses into an `ApiFailure`. */
+const PROBLEM = {
+  status: 500,
+  code: "Server.Error",
+  title: "Internal Server Error",
+  detail: "Members are unavailable.",
+};
 
 /** The transport backing each render, rebuilt per test. */
 let harness: SdkHarness;

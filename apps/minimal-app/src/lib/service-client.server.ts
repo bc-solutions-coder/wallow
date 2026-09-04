@@ -9,7 +9,8 @@
  * `REDIS_URL` is set, so replicas share one) and retries a rejected token
  * exactly once. Memoised on first use for the same reason as `bff.server.ts`.
  */
-import { inquiriesSubmit, isWallowError, type SubmitInquiryRequest } from "@bc-solutions-coder/sdk";
+import { isApiFailure, resolveFailureMessage } from "@bc-solutions-coder/api-errors";
+import { inquiriesSubmit, type SubmitInquiryRequest } from "@bc-solutions-coder/sdk";
 import {
   createServiceClient,
   type WallowServiceClient,
@@ -64,8 +65,11 @@ export async function submitInquiry(request: Request): Promise<Response> {
     const inquiry = await inquiriesSubmit({ client: service.client, body });
     return json(HTTP_OK, { id: inquiry.id, status: "received" });
   } catch (error: unknown) {
-    if (isWallowError(error)) {
-      return json(error.status, { error: error.title });
+    // A failure the platform (or the SDK's transport) reported: answer with its
+    // status and the sentence the package resolves for its code. Anything
+    // else is this route's own bug and stays a 500.
+    if (isApiFailure(error)) {
+      return json(error.status, { error: resolveFailureMessage(error) });
     }
     throw error;
   }

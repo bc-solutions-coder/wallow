@@ -6,17 +6,7 @@ export {
   type WallowBffServerOptions,
 } from "./bff-server";
 export { DEFAULT_SESSION_TTL_SECONDS, loadBffConfigFromEnv, type BffConfig } from "./config";
-export {
-  isWallowError,
-  parseProblemDetails,
-  redact,
-  REDACTED,
-  RefreshFailedError,
-  SESSION_REFRESH_FAILED_CODE,
-  UNKNOWN_ERROR_CODE,
-  WallowError,
-  type ProblemDetails,
-} from "./errors";
+export { redact, REDACTED, RefreshFailedError } from "./errors";
 export {
   createBffHandlers,
   readSession,

@@ -147,6 +147,7 @@ describe("SetupForm", () => {
       {
         status: BAD_REQUEST,
         title: "Validation failed",
+        code: "Validation.Failed",
         detail: "One or more validation errors occurred.",
         errors: { Email: ["Email is already in use."] },
       },
@@ -167,6 +168,7 @@ describe("SetupForm", () => {
       {
         status: CONFLICT,
         title: "Conflict",
+        code: "Setup.AlreadyCompleted",
         detail: "Setup has already been completed.",
       },
       CONFLICT,

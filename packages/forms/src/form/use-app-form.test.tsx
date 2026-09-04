@@ -3,7 +3,7 @@ import {
   QueryClientProvider,
   type UseMutationOptions,
 } from "@bc-solutions-coder/query";
-import { WallowError } from "@bc-solutions-coder/sdk";
+import { ApiFailure } from "@bc-solutions-coder/api-errors";
 import { render } from "@bc-solutions-coder/testing/render";
 import { userEvent } from "vitest/browser";
 import { describe, expect, it, vi } from "vitest";
@@ -18,7 +18,7 @@ import { useAppForm } from "./use-app-form";
 /*
  * `useAppForm` end to end, in the browser project (real headless Chromium, a
  * real `QueryClient`, the real `AppForm`/`SubmitButton`/`FormError` shell and the
- * real `WallowError` from the SDK — nothing is mocked except the userland
+ * real `ApiFailure` from the SDK — nothing is mocked except the userland
  * `mutationFn`, which stands in for a generated SDK operation).
  *
  * The catalog fields do not exist yet (Wallow-ov6w.2.4), so the harness mounts
@@ -221,13 +221,13 @@ describe("useAppForm", () => {
   });
 
   describe("server failures", () => {
-    it("shows a WallowError's detail in the banner without being handed one", async () => {
+    it("shows a ApiFailure's detail in the banner without being handed one", async () => {
       // The harness passes neither `pending` nor `serverError` to `AppForm`, so
       // this only renders if the shell defaults them off `form.wallow`.
       const mutationFn = vi
         .fn<(variables: MutationVariables) => Promise<MutationData>>()
         .mockRejectedValue(
-          new WallowError({
+          new ApiFailure({
             status: 409,
             code: "CONFLICT",
             title: "Conflict",
@@ -243,13 +243,13 @@ describe("useAppForm", () => {
         .toBe("That name is taken.");
     });
 
-    it("routes a WallowError's field errors onto the matching field and leaves the banner clear", async () => {
+    it("routes a ApiFailure's field errors onto the matching field and leaves the banner clear", async () => {
       // Client validation passed, so this message can only have come from the
       // server's RFC 7807 `errors` member, folded from `Name` onto `name`.
       const mutationFn = vi
         .fn<(variables: MutationVariables) => Promise<MutationData>>()
         .mockRejectedValue(
-          new WallowError({
+          new ApiFailure({
             status: 400,
             code: "VALIDATION_ERROR",
             title: "Validation failed",

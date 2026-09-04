@@ -12,11 +12,12 @@
  *     401 error "invalid_code"     no user / no TOTP secret / code rejected
  *     423 error "mfa_locked_out"   already locked, or locked by this attempt
  *
- * `unwrap()` throws on all three, and `toWallowError()` recovers the token: as of
- * Wallow-vec7.7 `readCode` probes `extensions.code > code > error`, so the `error`
- * member of that anon body reaches the screen as `WallowError.code`. (Before that
- * it did not, and this screen narrowed on HTTP status alone — which could not tell
- * `no_mfa_session` from `invalid_code`, since they share a 401.)
+ * The generated client throws on all three, and `readErrorCode` recovers the
+ * token: the SDK parses that anon body under the OAuth grammar of
+ * `@bc-solutions-coder/api-errors` (code `OAuth.<Token>`, title = the raw
+ * token), and the raw token is what reaches the screen. (Before the token
+ * survived the seam this screen narrowed on HTTP status alone — which could not
+ * tell `no_mfa_session` from `invalid_code`, since they share a 401.)
  *
  * The oracle's own switch is only partly worth porting:
  *
@@ -30,10 +31,10 @@
  *     carrying an unrecognised code — falls to the generic message rather than
  *     guessing.
  *
- * Narrowing is STRUCTURAL rather than `instanceof WallowError`, because that
- * class is exported from the SDK's `./server` entry and screens may not import
- * the SDK at all. A network-level rejection carries neither `code` nor `status`
- * and must fall through to the generic message rather than throw.
+ * Narrowing is STRUCTURAL rather than `instanceof ApiFailure`, so the screen
+ * matches on the wire shape alone. A network-level rejection carries a
+ * transport code no screen knows and must fall through to the generic message
+ * rather than throw.
  */
 
 import { readErrorCode, readMember } from "@shared/lib/error-code";

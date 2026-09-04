@@ -19,12 +19,11 @@
  *     and its aggregate (:82-91) — every one a 4xx, i.e. the oracle's
  *     "expired or already been used". A 5xx is the `catch`.
  *
- * Keyed on STATUS and deliberately NOT on `code`: unlike `/v1/identity/auth/*`
- * (bd memory `mfa-endpoints-mfacontroller-return-business-failures-as-a`), these
- * two endpoints send no machine-readable code at all — `NotFound()` is a bare
- * status with no body — so every rejection here is `code: "UNKNOWN"` (bd memory
- * `wallow-auth-auth-client-ts-wallowerror-code-loss`). A code-keyed mapping would
- * collapse all four messages into the generic one.
+ * Keyed on STATUS and deliberately NOT on `code`: unlike `/v1/identity/auth/*`,
+ * these two endpoints send no machine-readable code at all — `NotFound()` is a
+ * bare status with no body — so every rejection here parses as
+ * `Client.UnrecognizedResponse`. A code-keyed mapping would collapse all four
+ * messages into the generic one.
  */
 
 import type { InvitationResponse } from "@bc-solutions-coder/sdk";

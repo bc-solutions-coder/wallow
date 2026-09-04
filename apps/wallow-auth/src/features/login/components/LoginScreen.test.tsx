@@ -110,7 +110,7 @@ function respondWithLogin(body: unknown): void {
 /**
  * Answer the login POST with RFC 7807 problem details at `status`.
  *
- * The token goes in `extensions.code` — where ASP.NET Core puts it — AND the
+ * The token goes in the top-level `code` — where the API writes it — AND the
  * status is the real transport status, so these fixtures bind the copy
  * assertions whether the screen keys off the machine token or falls back to the
  * status. `title` stays "Unknown error": these endpoints ship no human-readable
@@ -122,7 +122,7 @@ function problemResponse(status: number, code: string): Response {
       type: "about:blank",
       title: "Unknown error",
       status,
-      extensions: { code },
+      code,
     },
     { status },
   );

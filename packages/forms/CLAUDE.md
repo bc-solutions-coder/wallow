@@ -5,8 +5,10 @@ Consumer-facing docs (authoring, testid derivation, error model, escape hatches)
 
 ## Layering — one direction
 
-`styles → ui → forms → apps`. `ui` must never import this package. The only
-`@bc-solutions-coder/sdk` import is `isWallowError` (`core/server-error.ts`).
+`styles → ui → forms → apps`. `ui` must never import this package. Source imports
+`@bc-solutions-coder/api-errors` only from `core/server-error.ts` (the brand check, the message
+resolver, `splitFieldErrors`) and never imports `@bc-solutions-coder/sdk` — the SDK is a
+devDependency that specs use to drive the real client.
 
 **Never name `@tanstack/react-query`.** react-query arrives through the
 `@bc-solutions-coder/query` facade so `useAppForm`'s `useMutation` and the host's

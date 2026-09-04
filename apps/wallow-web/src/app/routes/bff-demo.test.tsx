@@ -140,7 +140,10 @@ describe("routes/bff-demo (BFF smoke surface)", () => {
   });
 
   it("renders the status and title of a refused mutation", async () => {
-    harness.rejectJson({ title: "CSRF token missing", status: FORBIDDEN }, FORBIDDEN);
+    harness.rejectJson(
+      { code: "Bff.CsrfInvalid", title: "CSRF token missing", status: FORBIDDEN },
+      FORBIDDEN,
+    );
     renderDemo();
 
     await userEvent.click(page.getByTestId("bff-mutate"));

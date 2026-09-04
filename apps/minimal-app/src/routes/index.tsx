@@ -1,6 +1,11 @@
 import {
+  ClientErrorCode,
+  defineFailureMessages,
+  isApiFailure,
+  resolveFailureMessage,
+} from "@bc-solutions-coder/api-errors";
+import {
   getCurrentUser,
-  isWallowError,
   loginRedirect,
   logout,
   usersGetCurrentUser,
@@ -11,11 +16,22 @@ import { useEffect, useState, type ReactElement } from "react";
 /** Indentation for the pretty-printed API result. */
 const JSON_INDENT = 2;
 
+/**
+ * The app's own sentences, keyed by failure code. One entry here overrides the
+ * package's shipped copy for that code; every other code falls through to the
+ * package's default for it, then to a sentence for its status.
+ */
+const FAILURE_MESSAGES = defineFailureMessages({
+  [ClientErrorCode.TRANSPORT_NETWORK_ERROR]: () =>
+    "The BFF did not answer. Is the example server running?",
+});
+
+/** `<resolved message> (<code>)` — the sentence to show, and the code to search for. */
 function describeFailure(error: unknown): string {
-  if (!isWallowError(error)) {
+  if (!isApiFailure(error)) {
     return error instanceof Error ? error.message : "Request failed";
   }
-  return `${error.status} ${error.title}${error.detail ? ` — ${error.detail}` : ""}`;
+  return `${resolveFailureMessage(error, { registry: FAILURE_MESSAGES })} (${error.code})`;
 }
 
 function StatusLine({
