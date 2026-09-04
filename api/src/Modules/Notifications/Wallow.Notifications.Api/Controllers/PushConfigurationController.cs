@@ -55,7 +55,6 @@ public class PushConfigurationController(IMessageBus bus, ITenantContext tenantC
     [HttpPut]
     [HasPermission(PermissionType.PushConfigWrite)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> UpsertTenantPushConfig(
         [FromBody] UpsertTenantPushConfigRequest request,
         CancellationToken ct)

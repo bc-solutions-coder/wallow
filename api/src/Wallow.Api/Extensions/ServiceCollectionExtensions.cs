@@ -4,7 +4,6 @@ using System.Text.RegularExpressions;
 using System.Threading.RateLimiting;
 using Asp.Versioning.OpenApi;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -14,6 +13,7 @@ using RedisRateLimiting;
 using StackExchange.Redis;
 using Wallow.Api.HealthChecks;
 using Wallow.Api.Middleware;
+using Wallow.Shared.Api.Problems;
 using Wallow.Shared.Api.Settings;
 using Wallow.Shared.Infrastructure.Core.Resilience;
 using Wallow.Shared.Kernel.Errors;
@@ -37,14 +37,9 @@ internal static partial class ServiceCollectionExtensions
         IConfiguration configuration)
     {
         // Problem Details
-        services.AddProblemDetails(options =>
-        {
-            options.CustomizeProblemDetails = context =>
-            {
-                context.ProblemDetails.Extensions["api"] = "Wallow";
-                context.ProblemDetails.Extensions["version"] = "1.0.0";
-            };
-        });
+        // One problem contract for every error body: customizer, writer, camelCase validation
+        // keys and the problem-response OpenAPI convention (Wallow.Shared.Api.Problems).
+        services.AddWallowProblemDetails();
 
         // Global Exception Handler
         services.AddExceptionHandler<GlobalExceptionHandler>();
@@ -160,7 +155,7 @@ internal static partial class ServiceCollectionExtensions
                         Window = TimeSpan.FromHours(GetRateLimits(httpContext).Global.WindowHours)
                     }));
 
-            options.OnRejected = async (context, cancellationToken) =>
+            options.OnRejected = async (context, _) =>
             {
                 HttpContext httpContext = context.HttpContext;
                 httpContext.Response.StatusCode = 429;
@@ -181,22 +176,12 @@ internal static partial class ServiceCollectionExtensions
 
                 httpContext.Response.Headers["X-RateLimit-Remaining"] = "0";
 
-                ProblemDetails problemDetails = new()
-                {
-                    Status = 429,
-                    Type = "about:blank",
-                    Title = "Too Many Requests",
-                    Detail = "Rate limit exceeded. Please retry after the duration indicated in the Retry-After header.",
-                    Instance = httpContext.Request.Path
-                };
-
-                // WriteAsJsonAsync stamps application/json unless the media type is passed
-                // explicitly, silently overwriting a ContentType set beforehand.
-                await httpContext.Response.WriteAsJsonAsync(
-                    problemDetails,
-                    options: null,
-                    contentType: "application/problem+json",
-                    cancellationToken);
+                IProblemDetailsService problemDetailsService =
+                    httpContext.RequestServices.GetRequiredService<IProblemDetailsService>();
+                await problemDetailsService.TryWriteProblemAsync(
+                    httpContext,
+                    SharedErrors.RateLimitExceeded,
+                    "Rate limit exceeded. Please retry after the duration indicated in the Retry-After header.");
             };
         });
 
@@ -249,6 +234,7 @@ internal static partial class ServiceCollectionExtensions
         document.AddDocumentTransformer((doc, _, _) => TransformDocumentScrubEmptyPlaceholders(doc));
         document.AddDocumentTransformer((doc, context, _) =>
             TransformDocumentErrorCodes(doc, context.ApplicationServices.GetRequiredService<ErrorCatalog>()));
+        document.AddDocumentTransformer((doc, _, _) => TransformDocumentProblemContentTypes(doc));
         document.AddOperationTransformer((operation, context, _) =>
             TransformOperationSecurity(operation, context));
         document.AddOperationTransformer((operation, context, _) =>
@@ -401,13 +387,6 @@ internal static partial class ServiceCollectionExtensions
     internal const string ErrorCodeSchemaName = "ErrorCode";
 
     /// <summary>
-    /// Problem-details component schemas whose <c>code</c> property references the
-    /// <see cref="ErrorCodeSchemaName"/> enum. Only the ones the document actually contains are
-    /// touched; the framework emits <c>ProblemDetails</c> for every error response and one of the
-    /// validation variants for 400s, depending on which type the endpoints declare.
-    /// </summary>
-
-    /// <summary>
     /// Exports the aggregated error catalog as <c>components.schemas.ErrorCode</c>: a string enum
     /// listing every registered code, with each entry's default sentence in
     /// <c>x-enum-descriptions</c>. The problem-details schemas gain a <c>code</c> property that
@@ -441,7 +420,8 @@ internal static partial class ServiceCollectionExtensions
             }
         };
 
-        // Every problem-details shape, including a fork's ProblemDetails subclass, carries the code.
+        // Every problem-details shape, including a fork's ProblemDetails subclass, carries the
+        // members the problem contract always writes, and none it always drops.
         List<string> problemSchemaNames = components.Schemas.Keys
             .Where(name => name.EndsWith("ProblemDetails", StringComparison.Ordinal))
             .ToList();
@@ -453,11 +433,82 @@ internal static partial class ServiceCollectionExtensions
             }
 
             problemDetails.Properties ??= new Dictionary<string, IOpenApiSchema>();
-            problemDetails.Properties["code"] = new OpenApiSchemaReference(ErrorCodeSchemaName, document);
+            problemDetails.Properties[ProblemContract.CodeMember] =
+                new OpenApiSchemaReference(ErrorCodeSchemaName, document);
+            problemDetails.Properties[ProblemContract.TraceIdMember] = new OpenApiSchema
+            {
+                Type = JsonSchemaType.String,
+                Description = "Correlation id of the failed request, for support and log lookup."
+            };
+            problemDetails.Properties.Remove("instance");
+
+            problemDetails.Required ??= new HashSet<string>(StringComparer.Ordinal);
+            foreach (string member in ProblemContract.AlwaysPresentMembers)
+            {
+                problemDetails.Required.Add(member);
+            }
         }
 
         return Task.CompletedTask;
     }
+
+    /// <summary>
+    /// Every error response whose body is a problem-details shape is served as
+    /// <c>application/problem+json</c>, whatever media types the API explorer inferred from the
+    /// output formatters. The document says so, so a generated client parses the body as JSON and
+    /// a reader sees the content type the wire actually carries.
+    /// </summary>
+    internal static Task TransformDocumentProblemContentTypes(OpenApiDocument document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+
+        if (document.Paths is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        foreach (IOpenApiPathItem pathItem in document.Paths.Values)
+        {
+            if (pathItem.Operations is null)
+            {
+                continue;
+            }
+
+            foreach (OpenApiOperation operation in pathItem.Operations.Values)
+            {
+                if (operation.Responses is null)
+                {
+                    continue;
+                }
+
+                foreach (KeyValuePair<string, IOpenApiResponse> response in operation.Responses)
+                {
+                    if (!IsErrorStatus(response.Key) || response.Value is not OpenApiResponse { Content: { Count: > 0 } content })
+                    {
+                        continue;
+                    }
+
+                    OpenApiMediaType? problemBody = content.Values
+                        .OfType<OpenApiMediaType>()
+                        .FirstOrDefault(media => media.Schema is OpenApiSchemaReference reference
+                            && reference.Reference.Id?.EndsWith("ProblemDetails", StringComparison.Ordinal) == true);
+                    if (problemBody is null)
+                    {
+                        continue;
+                    }
+
+                    content.Clear();
+                    content[ProblemContract.ContentType] = problemBody;
+                }
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private static bool IsErrorStatus(string responseKey) =>
+        int.TryParse(responseKey, NumberStyles.None, CultureInfo.InvariantCulture, out int status)
+        && status >= StatusCodes.Status400BadRequest;
 
     private static bool IsTestSupportOperation(OpenApiOperation operation) =>
         operation.Tags?.Any(tag => string.Equals(tag.Name, TestSupportTagName, StringComparison.Ordinal)) == true;

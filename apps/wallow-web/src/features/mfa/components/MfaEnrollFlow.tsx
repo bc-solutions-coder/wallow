@@ -31,6 +31,7 @@
  */
 import { AppForm, SubmitButton, useAppForm } from "@bc-solutions-coder/forms";
 import { useMutation, useQueryClient } from "@bc-solutions-coder/query";
+import type { MfaConfirmEnrollmentError } from "@bc-solutions-coder/sdk";
 import { Button, Card, CardTitle, ErrorBanner, Text } from "@bc-solutions-coder/ui";
 import { useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
@@ -124,7 +125,7 @@ function ConfirmCodeForm(props: {
       // `throwOnError` too, so widening it here would reject the very factory
       // being spread. `problemDetail` still takes it as `unknown` — an RFC 7807
       // body is only trustworthy after the narrowing it does.
-      onError: (cause: Error): void => {
+      onError: (cause: MfaConfirmEnrollmentError): void => {
         onFailed(problemDetail(cause, CONFIRM_FAILED));
       },
     },

@@ -77,7 +77,7 @@ public class AdminChangelogControllerTests
 
         IActionResult result = await _controller.CreateChangelogEntry(request, CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
     }
 
@@ -146,7 +146,7 @@ public class AdminChangelogControllerTests
 
         IActionResult result = await _controller.PublishChangelogEntry(id, CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 

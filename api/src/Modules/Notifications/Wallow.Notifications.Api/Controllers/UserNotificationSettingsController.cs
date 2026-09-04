@@ -8,6 +8,8 @@ using Wallow.Notifications.Application.Channels.Preferences.DTOs;
 using Wallow.Notifications.Application.Channels.Preferences.Queries.GetUserNotificationSettings;
 using Wallow.Notifications.Application.Preferences.DTOs;
 using Wallow.Shared.Api.Extensions;
+using Wallow.Shared.Api.Problems;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Shared.Kernel.Services;
@@ -33,7 +35,7 @@ public class UserNotificationSettingsController(IMessageBus bus, ICurrentUserSer
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
+            return this.Problem(SharedErrors.Unauthenticated);
         }
 
         Result<UserNotificationSettingsDto> result = await bus.InvokeAsync<Result<UserNotificationSettingsDto>>(
@@ -45,7 +47,6 @@ public class UserNotificationSettingsController(IMessageBus bus, ICurrentUserSer
     [HttpPut("channel")]
     [HasPermission(PermissionType.EmailPreferenceManage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> SetChannelEnabled(
         [FromBody] SetChannelEnabledRequest request,
@@ -54,7 +55,7 @@ public class UserNotificationSettingsController(IMessageBus bus, ICurrentUserSer
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
+            return this.Problem(SharedErrors.Unauthenticated);
         }
 
         SetChannelEnabledCommand command = new(userId.Value, request.ChannelType, request.IsEnabled);
@@ -72,7 +73,6 @@ public class UserNotificationSettingsController(IMessageBus bus, ICurrentUserSer
     [HttpPut("type")]
     [HasPermission(PermissionType.EmailPreferenceManage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> SetNotificationTypeEnabled(
         [FromBody] SetNotificationTypeEnabledRequest request,
@@ -81,7 +81,7 @@ public class UserNotificationSettingsController(IMessageBus bus, ICurrentUserSer
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
+            return this.Problem(SharedErrors.Unauthenticated);
         }
 
         SetChannelEnabledCommand command = new(

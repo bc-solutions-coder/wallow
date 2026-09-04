@@ -1,4 +1,5 @@
 import { useMutation } from "@bc-solutions-coder/query";
+import type { MfaEnrollTotpError } from "@bc-solutions-coder/sdk";
 import { useRouteContext } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 
@@ -76,12 +77,13 @@ export function useEnrollmentStart(
     onMutate: () => {
       setErrorMessage(null);
     },
-    // `Error`, not `unknown`: the generated factory declares react-query's
-    // `DefaultError`, and annotating wider than that makes the spread above and
-    // this arm disagree about the mutation's error type. It is also what actually
-    // arrives — the SDK's error interceptor normalises every rejection into a
-    // `WallowError` — and `startFailureMessage` reads it as `unknown` regardless.
-    onError: (cause: Error) => {
+    // The factory's OWN error type, not `unknown`: every operation declares its
+    // problem responses, so the generated factory types its error as the problem
+    // union, and annotating wider than that makes the spread above and this arm
+    // disagree about the mutation's error type. What actually arrives is a
+    // `WallowError` — the SDK's error interceptor normalises every rejection —
+    // and `startFailureMessage` reads it as `unknown` regardless.
+    onError: (cause: MfaEnrollTotpError) => {
       setErrorMessage(startFailureMessage(cause));
     },
   });

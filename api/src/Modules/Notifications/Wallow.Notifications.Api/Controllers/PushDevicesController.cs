@@ -10,6 +10,8 @@ using Wallow.Notifications.Application.Channels.Push.DTOs;
 using Wallow.Notifications.Application.Channels.Push.Queries.GetUserDevices;
 using Wallow.Notifications.Domain.Channels.Push.Identity;
 using Wallow.Shared.Api.Extensions;
+using Wallow.Shared.Api.Problems;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Results;
@@ -40,7 +42,7 @@ public class PushDevicesController(
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "User context is required");
+            return this.Problem(SharedErrors.Unauthenticated);
         }
 
         Result result = await bus.InvokeAsync<Result>(
@@ -68,7 +70,7 @@ public class PushDevicesController(
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "User context is required");
+            return this.Problem(SharedErrors.Unauthenticated);
         }
 
         Result result = await bus.InvokeAsync<Result>(
@@ -91,7 +93,7 @@ public class PushDevicesController(
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "User context is required");
+            return this.Problem(SharedErrors.Unauthenticated);
         }
 
         Result<IReadOnlyList<DeviceRegistrationDto>> result = await bus.InvokeAsync<Result<IReadOnlyList<DeviceRegistrationDto>>>(
@@ -111,7 +113,7 @@ public class PushDevicesController(
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "User context is required");
+            return this.Problem(SharedErrors.Unauthenticated);
         }
 
         Result result = await bus.InvokeAsync<Result>(

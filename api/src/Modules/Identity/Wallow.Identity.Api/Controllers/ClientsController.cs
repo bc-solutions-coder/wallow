@@ -109,7 +109,6 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
     [HttpPost]
     [HasPermission(PermissionType.AdminAccess)]
     [ProducesResponseType(typeof(ClientResponse), StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ClientResponse>> Create(
         [FromBody] CreateClientRequest request,
         CancellationToken ct)

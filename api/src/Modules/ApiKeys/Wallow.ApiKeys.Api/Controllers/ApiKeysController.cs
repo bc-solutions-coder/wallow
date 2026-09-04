@@ -5,8 +5,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Wallow.ApiKeys.Api.Contracts.Requests;
 using Wallow.ApiKeys.Api.Contracts.Responses;
+using Wallow.ApiKeys.Domain.Errors;
+using Wallow.Shared.Api.Problems;
 using Wallow.Shared.Contracts.ApiKeys;
 using Wallow.Shared.Contracts.Identity;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
@@ -45,36 +48,27 @@ public sealed class ApiKeysController(IApiKeyService apiKeyService, IScopeSubset
     [HttpPost]
     [HasPermission(PermissionType.ApiKeyManage)]
     [ProducesResponseType(typeof(ApiKeyCreatedResponse), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> CreateApiKey(
         [FromBody] CreateApiKeyRequest request,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
         {
-            return BadRequest(new ProblemDetails
-            {
-                Title = "Invalid request",
-                Detail = "API key name is required",
-                Status = StatusCodes.Status400BadRequest
-            });
+            ModelState.AddModelError(nameof(request.Name), "API key name is required.");
+            return ValidationProblem(ModelState);
         }
 
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId == null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
+            return this.Problem(SharedErrors.Unauthenticated);
         }
 
         Guid tenantId = tenantContext.TenantId.Value;
         if (tenantId == Guid.Empty)
         {
-            return BadRequest(new ProblemDetails
-            {
-                Title = "Tenant required",
-                Detail = "You must be associated with an organization to create API keys",
-                Status = StatusCodes.Status400BadRequest
-            });
+            return this.Problem(ApiKeysErrors.OrganizationRequired);
         }
 
         if (request.Scopes is { Count: > 0 })
@@ -85,12 +79,10 @@ public sealed class ApiKeysController(IApiKeyService apiKeyService, IScopeSubset
 
             if (invalidScopes.Count > 0)
             {
-                return BadRequest(new ProblemDetails
-                {
-                    Title = "Invalid scopes",
-                    Detail = $"The following scopes are not valid: {string.Join(", ", invalidScopes)}",
-                    Status = StatusCodes.Status400BadRequest
-                });
+                ModelState.AddModelError(
+                    nameof(request.Scopes),
+                    $"The following scopes are not valid: {string.Join(", ", invalidScopes)}.");
+                return ValidationProblem(ModelState);
             }
 
             HashSet<string> userPermissions = HttpContext.User.GetPermissions().ToHashSet();
@@ -100,7 +92,9 @@ public sealed class ApiKeysController(IApiKeyService apiKeyService, IScopeSubset
                 string? requiredPermission = ScopePermissionMapper.MapScopeToPermission(scope);
                 if (requiredPermission is not null && !userPermissions.Contains(requiredPermission))
                 {
-                    return Problem(statusCode: 403, title: "Forbidden", detail: $"Scope '{scope}' exceeds your current permissions");
+                    return this.Problem(
+                        ApiKeysErrors.ScopeExceedsPermissions,
+                        $"Scope '{scope}' exceeds your current permissions.");
                 }
             }
 
@@ -111,7 +105,7 @@ public sealed class ApiKeysController(IApiKeyService apiKeyService, IScopeSubset
                 ScopeValidationResult scopeResult = await scopeSubsetValidator.ValidateAsync(callerClientId, request.Scopes, ct);
                 if (!scopeResult.IsSuccess)
                 {
-                    return Problem(statusCode: 403, title: "Forbidden", detail: scopeResult.ErrorMessage);
+                    return this.Problem(ApiKeysErrors.ScopeExceedsPermissions, scopeResult.ErrorMessage);
                 }
             }
         }
@@ -120,12 +114,9 @@ public sealed class ApiKeysController(IApiKeyService apiKeyService, IScopeSubset
         int currentCount = await apiKeyService.GetApiKeyCountAsync(userId.Value, ct);
         if (currentCount >= maxPerUser)
         {
-            return BadRequest(new ProblemDetails
-            {
-                Title = "API key limit reached",
-                Detail = $"You have reached the maximum of {maxPerUser} API keys per user. Revoke an existing key before creating a new one.",
-                Status = StatusCodes.Status400BadRequest
-            });
+            return this.Problem(
+                ApiKeysErrors.LimitReached,
+                $"You have reached the maximum of {maxPerUser} API keys per user. Revoke an existing key before creating a new one.");
         }
 
         ApiKeyCreateResult result = await apiKeyService.CreateApiKeyAsync(
@@ -138,12 +129,7 @@ public sealed class ApiKeysController(IApiKeyService apiKeyService, IScopeSubset
 
         if (!result.Success)
         {
-            return BadRequest(new ProblemDetails
-            {
-                Title = "Failed to create API key",
-                Detail = result.Error,
-                Status = StatusCodes.Status400BadRequest
-            });
+            return this.Problem(ApiKeysErrors.CreateFailed);
         }
 
         ApiKeyCreatedResponse response = new(
@@ -172,7 +158,7 @@ public sealed class ApiKeysController(IApiKeyService apiKeyService, IScopeSubset
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId == null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
+            return this.Problem(SharedErrors.Unauthenticated);
         }
 
         Guid tenantId = tenantContext.TenantId.Value;
@@ -206,19 +192,14 @@ public sealed class ApiKeysController(IApiKeyService apiKeyService, IScopeSubset
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId == null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
+            return this.Problem(SharedErrors.Unauthenticated);
         }
 
         bool revoked = await apiKeyService.RevokeApiKeyAsync(keyId, userId.Value, ct);
 
         if (!revoked)
         {
-            return NotFound(new ProblemDetails
-            {
-                Title = "API key not found",
-                Detail = "The specified API key does not exist or does not belong to you",
-                Status = StatusCodes.Status404NotFound
-            });
+            return this.Problem(ApiKeysErrors.ApiKeyNotFound);
         }
 
         return NoContent();

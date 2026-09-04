@@ -50,6 +50,14 @@ public static class SharedErrors
         ErrorKind.Unavailable,
         "The platform has not been set up yet.");
 
+    /// <summary>
+    /// Generic client-side failure for a 4xx status the table has no dedicated entry for (409, 410, 415, ...).
+    /// </summary>
+    public static readonly ErrorCatalogEntry ClientError = new(
+        "Http.ClientError",
+        ErrorKind.Validation,
+        "The request could not be processed.");
+
     /// <summary>The server failed (500).</summary>
     public static readonly ErrorCatalogEntry ServerError = new(
         "Server.Error",

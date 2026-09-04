@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Wallow.Shared.Api.Extensions;
+using Wallow.Shared.Api.Problems;
 using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Results;
 
@@ -27,7 +28,7 @@ public class ResultExtensionsTests
 
         IActionResult actionResult = result.ToActionResult();
 
-        ObjectResult objectResult = actionResult.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = actionResult.Should().BeOfType<ProblemResult>().Subject;
         objectResult.StatusCode.Should().Be(404);
         ProblemDetails problem = objectResult.Value.Should().BeOfType<ProblemDetails>().Subject;
         problem.Status.Should().Be(404);
@@ -43,7 +44,7 @@ public class ResultExtensionsTests
 
         IActionResult actionResult = result.ToActionResult();
 
-        ObjectResult objectResult = actionResult.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = actionResult.Should().BeOfType<ProblemResult>().Subject;
         ProblemDetails problem = objectResult.Value.Should().BeOfType<ProblemDetails>().Subject;
         problem.Detail.Should().Be(SharedErrors.NotFound.DefaultMessage);
     }
@@ -67,7 +68,7 @@ public class ResultExtensionsTests
 
         IActionResult actionResult = result.ToActionResult();
 
-        ObjectResult objectResult = actionResult.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = actionResult.Should().BeOfType<ProblemResult>().Subject;
         objectResult.StatusCode.Should().Be(400);
         ProblemDetails problem = objectResult.Value.Should().BeOfType<ProblemDetails>().Subject;
         problem.Status.Should().Be(400);
@@ -96,7 +97,7 @@ public class ResultExtensionsTests
 
         IActionResult actionResult = result.ToCreatedResult("GetById", "Invoices", v => new { id = v });
 
-        ObjectResult objectResult = actionResult.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = actionResult.Should().BeOfType<ProblemResult>().Subject;
         objectResult.StatusCode.Should().Be(409);
         ProblemDetails problem = objectResult.Value.Should().BeOfType<ProblemDetails>().Subject;
         problem.Title.Should().Be("Conflict");
@@ -122,7 +123,7 @@ public class ResultExtensionsTests
 
         IActionResult actionResult = result.ToCreatedResult("/api/items/42");
 
-        ObjectResult objectResult = actionResult.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = actionResult.Should().BeOfType<ProblemResult>().Subject;
         objectResult.StatusCode.Should().Be(401);
         ProblemDetails problem = objectResult.Value.Should().BeOfType<ProblemDetails>().Subject;
         problem.Title.Should().Be("Unauthorized");
@@ -145,7 +146,7 @@ public class ResultExtensionsTests
 
         IActionResult actionResult = result.ToNoContentResult();
 
-        ObjectResult objectResult = actionResult.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = actionResult.Should().BeOfType<ProblemResult>().Subject;
         objectResult.StatusCode.Should().Be(403);
         ProblemDetails problem = objectResult.Value.Should().BeOfType<ProblemDetails>().Subject;
         problem.Title.Should().Be("Forbidden");
@@ -158,7 +159,7 @@ public class ResultExtensionsTests
 
         IActionResult actionResult = result.ToActionResult();
 
-        ObjectResult objectResult = actionResult.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = actionResult.Should().BeOfType<ProblemResult>().Subject;
         objectResult.StatusCode.Should().Be(422);
         ProblemDetails problem = objectResult.Value.Should().BeOfType<ProblemDetails>().Subject;
         problem.Title.Should().Be("Unprocessable Entity");
@@ -166,49 +167,32 @@ public class ResultExtensionsTests
     }
 
     [Theory]
-    [InlineData(ErrorKind.Validation, 400, "Bad Request", "https://tools.ietf.org/html/rfc7231#section-6.5.1")]
-    [InlineData(ErrorKind.Unauthenticated, 401, "Unauthorized", "https://tools.ietf.org/html/rfc7235#section-3.1")]
-    [InlineData(ErrorKind.Forbidden, 403, "Forbidden", "https://tools.ietf.org/html/rfc7231#section-6.5.3")]
-    [InlineData(ErrorKind.NotFound, 404, "Not Found", "https://tools.ietf.org/html/rfc7231#section-6.5.4")]
-    [InlineData(ErrorKind.MethodNotAllowed, 405, "Method Not Allowed", "https://tools.ietf.org/html/rfc7231#section-6.5.5")]
-    [InlineData(ErrorKind.Conflict, 409, "Conflict", "https://tools.ietf.org/html/rfc7231#section-6.5.8")]
-    [InlineData(ErrorKind.BusinessRule, 422, "Unprocessable Entity", "https://tools.ietf.org/html/rfc4918#section-11.2")]
-    [InlineData(ErrorKind.RateLimited, 429, "Too Many Requests", "https://tools.ietf.org/html/rfc6585#section-4")]
-    [InlineData(ErrorKind.Failure, 500, "Internal Server Error", "https://tools.ietf.org/html/rfc7231#section-6.6.1")]
-    [InlineData(ErrorKind.Unavailable, 503, "Service Unavailable", "https://tools.ietf.org/html/rfc7231#section-6.6.4")]
-    public void ToErrorResult_DerivesStatusTitleAndTypeFromKind(
+    [InlineData(ErrorKind.Validation, 400, "Bad Request")]
+    [InlineData(ErrorKind.Unauthenticated, 401, "Unauthorized")]
+    [InlineData(ErrorKind.Forbidden, 403, "Forbidden")]
+    [InlineData(ErrorKind.NotFound, 404, "Not Found")]
+    [InlineData(ErrorKind.MethodNotAllowed, 405, "Method Not Allowed")]
+    [InlineData(ErrorKind.Conflict, 409, "Conflict")]
+    [InlineData(ErrorKind.BusinessRule, 422, "Unprocessable Entity")]
+    [InlineData(ErrorKind.RateLimited, 429, "Too Many Requests")]
+    [InlineData(ErrorKind.Failure, 500, "Internal Server Error")]
+    [InlineData(ErrorKind.Unavailable, 503, "Service Unavailable")]
+    public void ToErrorResult_DerivesStatusAndTitleFromKind(
         ErrorKind kind,
         int expectedStatus,
-        string expectedTitle,
-        string expectedType)
+        string expectedTitle)
     {
         ErrorCatalogEntry entry = new("Test.Code", kind, "test message");
         Result result = Result.Failure(entry);
 
         IActionResult actionResult = result.ToActionResult();
 
-        ObjectResult objectResult = actionResult.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = actionResult.Should().BeOfType<ProblemResult>().Subject;
         objectResult.StatusCode.Should().Be(expectedStatus);
         ProblemDetails problem = objectResult.Value.Should().BeOfType<ProblemDetails>().Subject;
         problem.Status.Should().Be(expectedStatus);
         problem.Title.Should().Be(expectedTitle);
-        problem.Type.Should().Be(expectedType);
+        problem.Type.Should().Be("about:blank");
         problem.Extensions["code"].Should().Be("Test.Code");
-    }
-
-    [Fact]
-    public void GetProblemTitle_WithUnmappedStatusCode_ReturnsFallbackError()
-    {
-        string title = ResultExtensions.GetProblemTitle(418);
-
-        title.Should().Be("Error");
-    }
-
-    [Fact]
-    public void GetProblemType_WithUnmappedStatusCode_ReturnsFallbackUri()
-    {
-        string uri = ResultExtensions.GetProblemType(418);
-
-        uri.Should().Be("https://tools.ietf.org/html/rfc7231#section-6.6.1");
     }
 }

@@ -156,7 +156,7 @@ private string? ExtractSubmitterId()
 Guid? userId = currentUserService.GetCurrentUserId();
 if (userId is null)
 {
-    return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
+    return this.Problem(SharedErrors.Unauthenticated);
 }
 ```
 
@@ -189,28 +189,31 @@ private partial void LogInquiryNotFound(Guid inquiryId, string? userId, Guid ten
 
 ### ProducesResponseType Attributes
 
-Document all possible response types for OpenAPI:
+Declare the success shape and any failure the action produces beyond the shared set:
 
 ```csharp
 [HttpPost]
 [HasPermission(PermissionType.InquiriesWrite)]
 [ProducesResponseType(typeof(InquiryResponse), StatusCodes.Status200OK)]
-[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
 public async Task<IActionResult> Submit(
     [FromBody] SubmitInquiryRequest request,
     CancellationToken cancellationToken)
 {
     // ...
 }
-
-[HttpGet("{id:guid}")]
-[ProducesResponseType(typeof(InquiryResponse), StatusCodes.Status200OK)]
-[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
-{
-    // ...
-}
 ```
+
+`ProblemResponsesConvention` (`Wallow.Shared.Api.Problems`) adds 400, 401, 403, 404, 429 and
+500 to every action, so those need no attribute. An action that binds input gets its 400 as
+`HttpValidationProblemDetails`; one that binds nothing gets plain `ProblemDetails`. Declare a
+400 yourself only when the convention's choice would be wrong, and then always with a type:
+`[ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]`.
+A bare `[ProducesResponseType(StatusCodes.Status400BadRequest)]` documents a plain
+`ProblemDetails` 400 and hides the validation shape the action actually sends. Statuses outside
+the shared six that an action can answer (a 422 business rule, a 409 conflict) still need their
+own typed declaration. Error responses are documented as `application/problem+json`, whatever the
+formatter list says, because that is what the wire carries.
 
 ## Request/Response Contracts
 
@@ -474,7 +477,6 @@ command handlers, as noted above).
 [HttpPost]
 [HasPermission(PermissionType.InquiriesWrite)]
 [ProducesResponseType(typeof(InquiryResponse), StatusCodes.Status200OK)]
-[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
 public async Task<IActionResult> Submit(
     [FromBody] SubmitInquiryRequest request,
     CancellationToken cancellationToken)
@@ -590,10 +592,10 @@ Result.Failure<InquiryDto>(entry, "Inquiry 'abc' is already closed");
 - **`Wallow.Shared.Api` owns `SettingsErrors`** (`Settings.SystemKeyBlocked`,
   `Settings.UnknownKey`): the setting-key checks are one condition whichever module's settings
   endpoint reaches them, and `SettingKeyValidationResult.ToResult(key)` answers with them.
-- **The shared kernel holds only the eight status-generic entries** in `SharedErrors`:
+- **The shared kernel holds only the nine status-generic entries** in `SharedErrors`:
   `Validation.Failed`, `Auth.Unauthenticated`, `Auth.Forbidden`, `Http.NotFound`,
-  `Http.MethodNotAllowed`, `RateLimit.Exceeded`, `Setup.Required`, `Server.Error`. Anything a
-  module means specifically goes in the module's catalog, never here.
+  `Http.MethodNotAllowed`, `Http.ClientError`, `RateLimit.Exceeded`, `Setup.Required`,
+  `Server.Error`. Anything a module means specifically goes in the module's catalog, never here.
 - **`Add<Module>Module` registers the catalog** as its first statement:
   `services.AddErrorCatalog(typeof(InquiriesErrors));`. The call validates the catalog eagerly
   and contributes it to the `ErrorCatalog` singleton the API aggregates.
@@ -624,11 +626,12 @@ HTTP status the client should see, not by the layer that detected the problem.
 
 The API emits the aggregated catalog into the v1 document as
 `components.schemas.ErrorCode`: a string enum of every registered code, with each entry's
-default sentence in `x-enum-descriptions`. `ProblemDetails.code` and the validation
-problem-details schemas reference it, so the generated SDK types `code` as a union of known
-codes. A backend integration test asserts the enum equals the catalog, and the committed
-`packages/sdk/openapi/v1.json` is diffed against the emitted document in CI — adding an entry
-means regenerating the snapshot and the SDK client.
+default sentence in `x-enum-descriptions`. Every `*ProblemDetails` schema references it from
+`code`, gains `traceId`, loses `instance`, and requires `type`, `title`, `status`, `code` and
+`traceId`, so the generated SDK types `code` as a union of known codes and the always-present
+members as non-optional. A backend integration test asserts the enum equals the catalog, and
+the committed `packages/sdk/openapi/v1.json` is diffed against the emitted document in CI —
+adding an entry means regenerating the snapshot and the SDK client.
 
 ### Creating Results in Handlers
 
@@ -667,31 +670,18 @@ public static class ResultExtensions
         Func<T, object> routeValuesFactory);
     public static IActionResult ToNoContentResult(this Result result);
 
-    private static ObjectResult ToErrorResult(Error error)
-    {
-        int statusCode = error.Kind.ToHttpStatusCode();
-
-        ProblemDetails problemDetails = new()
-        {
-            Status = statusCode,
-            Title = GetProblemTitle(statusCode),
-            Detail = error.Message,
-            Type = GetProblemType(statusCode),
-            Extensions =
-            {
-                ["code"] = error.Code
-            }
-        };
-
-        return new ObjectResult(problemDetails)
-        {
-            StatusCode = statusCode
-        };
-    }
+    private static ProblemResult ToErrorResult(Error error) =>
+        new(error.Kind.ToHttpStatusCode(), error.Code, error.Message);
 }
 ```
 
-The status is derived from the entry's kind alone:
+A failed `Result` becomes a `ProblemResult` (`Wallow.Shared.Api.Problems`): the status from
+the entry's kind, the entry's code, and the message as `detail`. When it executes, the
+framework's `ProblemDetailsFactory` builds the body and runs the shared customizer, so the
+wire shape is the one every other failure gets (see [Problem Details Format](#problem-details-format)).
+
+The status is derived from the entry's kind alone; the title is always the status's reason
+phrase:
 
 | `ErrorKind`        | Status | Title                 |
 | ------------------ | ------ | --------------------- |
@@ -705,6 +695,28 @@ The status is derived from the entry's kind alone:
 | `RateLimited`      | 429    | Too Many Requests     |
 | `Failure`          | 500    | Internal Server Error |
 | `Unavailable`      | 503    | Service Unavailable   |
+
+#### Failing from a controller
+
+A controller that decides a failure itself, rather than relaying a `Result`, uses the same
+path. Never construct a `ProblemDetails` or call the bare `Problem(statusCode:, title:, ...)`
+family — an architecture test (`ProblemWriterGuardTests`) fails the build on either:
+
+```csharp
+// A catalogued failure, with the entry's default sentence or a sentence naming the value
+return this.Problem(ApiKeysErrors.ApiKeyNotFound);
+return this.Problem(ApiKeysErrors.LimitReached,
+    $"You have reached the maximum of {maxPerUser} API keys per user.");
+
+// A validation failure the model binder could not see: name the field with nameof, and the
+// customizer camel-cases it on the wire ("name", "branding.displayName")
+ModelState.AddModelError(nameof(request.Name), "API key name is required.");
+return ValidationProblem(ModelState);
+```
+
+Middleware, which has no controller, writes through `IProblemDetailsService` with the
+`TryWriteProblemAsync(entry, detail?)` and `TryWriteValidationProblemAsync(errors)` helpers in
+`ProblemDetailsServiceExtensions`.
 
 ### Using Map for Transformations
 
@@ -811,23 +823,28 @@ RuleFor(x => x.InquiryId)
 ### Validation Failure Response
 
 A failing validator throws `FluentValidation.ValidationException`, which `GlobalExceptionHandler`
-turns into a `400 Bad Request` Problem Details response. Messages are joined into `detail`, and
-each failure is also listed under the `errors` extension:
+turns into the same `400 Bad Request` body the model binder produces for an invalid request.
+`code` is always `Validation.Failed`, `detail` is one fixed sentence, and the field messages
+live under `errors` as a dictionary keyed by the camelCase member path — dots preserved, so
+`Branding.DisplayName` becomes `branding.displayName`:
 
 ```json
 {
-  "type": "https://tools.ietf.org/html/rfc7231#section-6.5.1",
+  "type": "about:blank",
   "title": "Bad Request",
   "status": 400,
-  "detail": "Name is required; Message is required",
-  "instance": "/errors/00-abc123",
+  "detail": "The request is invalid.",
+  "code": "Validation.Failed",
   "traceId": "00-abc123",
-  "errors": [
-    { "field": "Name", "message": "Name is required" },
-    { "field": "Message", "message": "Message is required" }
-  ]
+  "errors": {
+    "name": ["Name is required"],
+    "branding.displayName": ["Display name is required"]
+  }
 }
 ```
+
+`errors` appears only on validation problems; a 400 with a different `code` (`Http.ClientError`
+for a malformed request, or a module's `Validation`-kind entry) carries no `errors` member.
 
 ## Error Handling
 
@@ -835,49 +852,70 @@ each failure is also listed under the `errors` extension:
 
 Unexpected exceptions are caught by `GlobalExceptionHandler`
 (`api/src/Wallow.Api/Middleware/GlobalExceptionHandler.cs`), which implements `IExceptionHandler`.
-It logs the error through a `[LoggerMessage]` method, maps the exception type to an HTTP status
-code, and returns a Problem Details response. Outside Development the `detail` is replaced with
-a generic message so internals do not leak.
+It logs the error through a `[LoggerMessage]` method, maps the exception type to a status and
+code, and writes the body through `IProblemDetailsService` so it is customized like every other
+problem. A 5xx `detail` is always the one generic sentence, in every environment; only in
+Development does the body also carry an `exception` member with the type, message and stack.
 
 ### Exception to Status Code Mapping
 
 A `DomainException` (`EntityNotFoundException`, `BusinessRuleException`,
 `ForbiddenAccessException`, and module-specific subclasses) carries a catalog entry, so its
 status comes from the entry's kind exactly as a failed `Result` does; the response `code` is
-the entry's code. Title and type come from the same status table a failed `Result` uses
-(`ResultExtensions.GetProblemTitle` / `GetProblemType`), so one entry renders identically
-whichever way it surfaced. Framework and runtime exceptions map by type:
+the entry's code, and one entry renders identically whichever way it surfaced. Framework and
+runtime exceptions map by type:
 
-| Exception Type                                | HTTP Status | Title                 |
-| --------------------------------------------- | ----------- | --------------------- |
-| `DomainException` with kind `NotFound`        | 404         | Not Found             |
-| `DomainException` with kind `BusinessRule`    | 422         | Unprocessable Entity  |
-| `DomainException` with kind `Forbidden`       | 403         | Forbidden             |
-| `DomainException` with kind `Validation`      | 400         | Bad Request           |
-| `ValidationException` (FluentValidation)      | 400         | Bad Request           |
-| `UnauthorizedAccessException`                 | 401         | Unauthorized          |
-| `ArgumentException` / `ArgumentNullException` | 400         | Bad Request           |
-| `OperationCanceledException`                  | 499         | Client Closed Request |
-| Other exceptions                              | 500         | Internal Server Error |
+| Exception Type                                | HTTP Status | `code`                       |
+| --------------------------------------------- | ----------- | ---------------------------- |
+| `DomainException` with kind `NotFound`        | 404         | the entry's code             |
+| `DomainException` with kind `BusinessRule`    | 422         | the entry's code             |
+| `DomainException` with kind `Forbidden`       | 403         | the entry's code             |
+| `DomainException` with kind `Validation`      | 400         | the entry's code             |
+| `ValidationException` (FluentValidation)      | 400         | `Validation.Failed` + errors |
+| `UnauthorizedAccessException`                 | 401         | `Auth.Unauthenticated`       |
+| `ArgumentException` / `ArgumentNullException` | 400         | `Http.ClientError`           |
+| `OperationCanceledException`, client gone     | 499         | no body                      |
+| `BadHttpRequestException` (4xx)               | its status  | `Http.ClientError`           |
+| Other exceptions                              | 500         | `Server.Error`               |
 
 Client cancellations are logged at Information and explicitly **not** marked as a failed span,
-so an abandoned request does not show up as an error in tracing.
+so an abandoned request does not show up as an error in tracing. A cancellation whose client is
+still connected is a server-side fault and takes the 500 row.
 
-### Problem Details Format (RFC 7807)
+### Problem Details Format
 
-All error responses use Problem Details:
+Every error response — a failed `Result`, a thrown exception, an invalid model, a 404 for an
+unmatched route, a 401/403 from authentication, a 429 from the rate limiter, a 503 from the
+setup gate — is `application/problem+json` with one shape:
 
 ```json
 {
-  "type": "https://tools.ietf.org/html/rfc7231#section-6.5.4",
+  "type": "about:blank",
   "title": "Not Found",
   "status": 404,
   "detail": "Inquiry not found",
-  "instance": "/errors/00-abc123",
-  "traceId": "00-abc123",
-  "code": "Inquiry.NotFound"
+  "code": "Inquiry.NotFound",
+  "traceId": "00-abc123"
 }
 ```
+
+- `type`, `title`, `status`, `code`, `traceId` are always present. `type` is `about:blank`
+  and `title` is the status's reason phrase; the meaning lives in `code`.
+- `detail` is a user-safe sentence on every 4xx and one fixed generic sentence on every 5xx,
+  in every environment. Nothing from an exception, a store, or a driver reaches it.
+- `errors` appears only on validation problems (see
+  [Validation Failure Response](#validation-failure-response)).
+- `exception` appears only in Development, only on 5xx.
+- `instance`, `api` and `version` are never written.
+
+One place produces that shape: `ProblemContract.Customize` in `Wallow.Shared.Api.Problems`,
+registered as the `ProblemDetailsOptions.CustomizeProblemDetails` hook. It runs for every
+problem the framework's `ProblemDetailsFactory` or `IProblemDetailsService` builds, which is
+why product code must reach the body only through `this.Problem(entry)`,
+`ValidationProblem(ModelState)`, `result.ToActionResult()`, or the `TryWriteProblemAsync`
+helpers — never a hand-built `ProblemDetails` or a direct `WriteAsJsonAsync`. The customizer
+fills a missing `code` from the status-generic `SharedErrors` table (`Http.NotFound`,
+`Auth.Unauthenticated`, …), so even a problem the framework raised on its own carries one.
 
 ### When to Throw vs Return Result
 
@@ -1120,7 +1158,6 @@ public static class AddInquiryCommentHandler
 [HttpPost("{id:guid}/comments")]
 [HasPermission(PermissionType.InquiriesWrite)]
 [ProducesResponseType(StatusCodes.Status201Created)]
-[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
 public async Task<IActionResult> AddComment(
     Guid id,
     [FromBody] AddInquiryCommentRequest request,
@@ -1162,7 +1199,6 @@ For file uploads, use `multipart/form-data`. From
 [RequestSizeLimit(100 * 1024 * 1024)] // 100MB
 [Consumes("multipart/form-data")]
 [ProducesResponseType(typeof(UploadResponse), StatusCodes.Status201Created)]
-[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
 [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
 public async Task<IActionResult> Upload(
     IFormFile file,
@@ -1173,17 +1209,14 @@ public async Task<IActionResult> Upload(
 {
     if (file.Length == 0)
     {
-        return BadRequest(new ProblemDetails
-        {
-            Status = StatusCodes.Status400BadRequest,
-            Detail = "File is empty"
-        });
+        ModelState.AddModelError(nameof(file), "The uploaded file is empty.");
+        return ValidationProblem(ModelState);
     }
 
     Guid? userId = currentUserService.GetCurrentUserId();
     if (userId is null)
     {
-        return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
+        return this.Problem(SharedErrors.Unauthenticated);
     }
 
     await using Stream stream = file.OpenReadStream();
@@ -1308,8 +1341,6 @@ For operations that do not fit REST -- here a guarded state transition:
 [HttpPatch("{id:guid}/status")]
 [HasPermission(PermissionType.InquiriesWrite)]
 [ProducesResponseType(typeof(InquiryResponse), StatusCodes.Status200OK)]
-[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
 public async Task<IActionResult> UpdateStatus(
     Guid id,
     [FromBody] UpdateInquiryStatusRequest request,
@@ -1317,12 +1348,8 @@ public async Task<IActionResult> UpdateStatus(
 {
     if (!Enum.TryParse<InquiryStatus>(request.NewStatus, ignoreCase: true, out InquiryStatus newStatus))
     {
-        return BadRequest(new ProblemDetails
-        {
-            Status = StatusCodes.Status400BadRequest,
-            Title = "Bad Request",
-            Detail = $"Invalid status value: '{request.NewStatus}'"
-        });
+        ModelState.AddModelError(nameof(request.NewStatus), $"Invalid status value: '{request.NewStatus}'.");
+        return ValidationProblem(ModelState);
     }
 
     Result<InquiryDto> result = await bus.InvokeAsync<Result<InquiryDto>>(

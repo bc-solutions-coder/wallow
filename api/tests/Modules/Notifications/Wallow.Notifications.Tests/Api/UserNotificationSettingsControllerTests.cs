@@ -79,7 +79,7 @@ public class UserNotificationSettingsControllerTests
 
         IActionResult response = await _controller.GetUserNotificationSettings(CancellationToken.None);
 
-        ObjectResult problemResult = response.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult problemResult = response.Should().BeAssignableTo<ObjectResult>().Subject;
         problemResult.StatusCode.Should().Be(401);
     }
 
@@ -96,7 +96,7 @@ public class UserNotificationSettingsControllerTests
 
         IActionResult response = await _controller.GetUserNotificationSettings(CancellationToken.None);
 
-        ObjectResult errorResult = response.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult errorResult = response.Should().BeAssignableTo<ObjectResult>().Subject;
         errorResult.StatusCode.Should().Be(404);
     }
 
@@ -123,7 +123,7 @@ public class UserNotificationSettingsControllerTests
         SetChannelEnabledRequest request = new(ChannelType.Email, true);
         IActionResult response = await _controller.SetChannelEnabled(request, CancellationToken.None);
 
-        ObjectResult problemResult = response.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult problemResult = response.Should().BeAssignableTo<ObjectResult>().Subject;
         problemResult.StatusCode.Should().Be(401);
     }
 
@@ -140,7 +140,7 @@ public class UserNotificationSettingsControllerTests
         SetChannelEnabledRequest request = new(ChannelType.Email, true);
         IActionResult response = await _controller.SetChannelEnabled(request, CancellationToken.None);
 
-        ObjectResult errorResult = response.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult errorResult = response.Should().BeAssignableTo<ObjectResult>().Subject;
         errorResult.StatusCode.Should().Be(400);
     }
 
@@ -167,7 +167,7 @@ public class UserNotificationSettingsControllerTests
         SetNotificationTypeEnabledRequest request = new(ChannelType.Push, "Alert", true);
         IActionResult response = await _controller.SetNotificationTypeEnabled(request, CancellationToken.None);
 
-        ObjectResult problemResult = response.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult problemResult = response.Should().BeAssignableTo<ObjectResult>().Subject;
         problemResult.StatusCode.Should().Be(401);
     }
 
@@ -184,7 +184,7 @@ public class UserNotificationSettingsControllerTests
         SetNotificationTypeEnabledRequest request = new(ChannelType.Push, "Alert", true);
         IActionResult response = await _controller.SetNotificationTypeEnabled(request, CancellationToken.None);
 
-        ObjectResult errorResult = response.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult errorResult = response.Should().BeAssignableTo<ObjectResult>().Subject;
         errorResult.StatusCode.Should().Be(400);
     }
 }

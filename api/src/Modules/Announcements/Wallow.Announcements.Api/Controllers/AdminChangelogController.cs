@@ -24,7 +24,6 @@ public class AdminChangelogController(IMessageBus bus, IHtmlSanitizationService 
 
     [HttpPost]
     [ProducesResponseType(typeof(ChangelogEntryResponse), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> CreateChangelogEntry(
         [FromBody] CreateChangelogEntryRequest request,
         CancellationToken ct)

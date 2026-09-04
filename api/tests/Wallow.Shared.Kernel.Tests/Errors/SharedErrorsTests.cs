@@ -5,7 +5,7 @@ namespace Wallow.Shared.Kernel.Tests.Errors;
 public class SharedErrorsTests
 {
     [Fact]
-    public void Catalog_HoldsExactlyTheEightStatusGenericEntries()
+    public void Catalog_HoldsExactlyTheNineStatusGenericEntries()
     {
         IReadOnlyList<ErrorCatalogEntry> entries = ErrorCatalog.EntriesOf(typeof(SharedErrors));
 
@@ -18,6 +18,7 @@ public class SharedErrorsTests
             ("Http.MethodNotAllowed", ErrorKind.MethodNotAllowed),
             ("RateLimit.Exceeded", ErrorKind.RateLimited),
             ("Setup.Required", ErrorKind.Unavailable),
+            ("Http.ClientError", ErrorKind.Validation),
             ("Server.Error", ErrorKind.Failure),
         ]);
     }

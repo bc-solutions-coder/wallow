@@ -141,7 +141,7 @@ public class AccountControllerEmailChangeTests
 
         IActionResult result = await _controller.ChangeEmail(new ChangeEmailRequest(NewEmail));
 
-        ObjectResult statusResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult statusResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         statusResult.StatusCode.Should().Be(429);
     }
 

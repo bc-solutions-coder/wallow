@@ -18,6 +18,7 @@ using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Results;
+using Wallow.Tests.Common.Helpers;
 using Wolverine;
 
 namespace Wallow.Inquiries.Tests.Api.Controllers;
@@ -37,7 +38,7 @@ public class InquiriesControllerTests
         _controller = new InquiriesController(_bus, _tenantContext, logger);
         _controller.ControllerContext = new ControllerContext
         {
-            HttpContext = new DefaultHttpContext()
+            HttpContext = new DefaultHttpContext { RequestServices = ProblemTestServices.Build() }
         };
     }
 
@@ -112,7 +113,7 @@ public class InquiriesControllerTests
 
         IActionResult result = await _controller.Submit(request, CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
     }
 
@@ -240,7 +241,7 @@ public class InquiriesControllerTests
 
         IActionResult result = await _controller.GetById(id, CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 
@@ -295,8 +296,10 @@ public class InquiriesControllerTests
 
         IActionResult result = await _controller.UpdateStatus(id, request, CancellationToken.None);
 
-        result.Should().BeAssignableTo<ObjectResult>()
-            .Which.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        BadRequestObjectResult badRequest = result.Should().BeOfType<BadRequestObjectResult>().Subject;
+        ValidationProblemDetails problem = badRequest.Value.Should().BeOfType<ValidationProblemDetails>().Subject;
+        problem.Errors.Should().ContainKey("newStatus")
+            .WhoseValue.Should().ContainSingle().Which.Should().Contain("NotAValidStatus");
         await _bus.DidNotReceive().InvokeAsync<Result<InquiryDto>>(
             Arg.Any<UpdateInquiryStatusCommand>(),
             Arg.Any<CancellationToken>());
@@ -313,7 +316,7 @@ public class InquiriesControllerTests
 
         IActionResult result = await _controller.UpdateStatus(id, request, CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 
@@ -386,7 +389,7 @@ public class InquiriesControllerTests
 
         IActionResult result = await _controller.AddComment(inquiryId, request, CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 

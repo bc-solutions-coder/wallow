@@ -55,19 +55,21 @@ try {
 ```
 
 `requestId` is read off the response header — the parsed body never carries it — and
-`traceId` out of the API's problem details body, which `GlobalExceptionHandler` stamps on
-every error response:
+`traceId` out of the API's problem details body, which the shared problem customizer
+(`ProblemContract.Customize`) stamps on every error response:
 
 ```json
 {
-  "type": "https://tools.ietf.org/html/rfc7231#section-6.6.1",
+  "type": "about:blank",
   "title": "Internal Server Error",
   "status": 500,
+  "detail": "Something went wrong. Try again later.",
+  "code": "Server.Error",
   "traceId": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
 }
 ```
 
-It appears at the **top level**, not nested under `extensions`. The handler sets
+It appears at the **top level**, not nested under `extensions`. The customizer sets
 `ProblemDetails.Extensions["traceId"]`, and ASP.NET Core carries `Extensions` as
 `[JsonExtensionData]`, so it serializes flattened into the object. The SDK reads
 `extensions.traceId` first and falls back to the flattened member, so it works against either

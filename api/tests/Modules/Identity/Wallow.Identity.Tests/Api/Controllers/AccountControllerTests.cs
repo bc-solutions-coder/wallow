@@ -117,7 +117,7 @@ public class AccountControllerTests
 
         IActionResult result = await _controller.Login(new AccountLoginRequest("locked@test.com", "password", false), CancellationToken.None);
 
-        ObjectResult statusResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult statusResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         statusResult.StatusCode.Should().Be(423);
     }
 
@@ -131,7 +131,7 @@ public class AccountControllerTests
 
         IActionResult result = await _controller.Login(new AccountLoginRequest("unconfirmed@test.com", "password", false), CancellationToken.None);
 
-        ObjectResult statusResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult statusResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         statusResult.StatusCode.Should().Be(403);
     }
 

@@ -107,7 +107,7 @@ public sealed class LocalStorageControllerTests : IDisposable
         IActionResult result = await _controller.Download(
             key, FutureExpiry, "forged-signature", CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
     }
 
@@ -122,7 +122,7 @@ public sealed class LocalStorageControllerTests : IDisposable
         IActionResult result = await _controller.Download(
             key, expires, SignDownload(key, expires), CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
     }
 
@@ -137,7 +137,7 @@ public sealed class LocalStorageControllerTests : IDisposable
         IActionResult result = await _controller.Download(
             key, expires, SignDownload("tenant-2/bucket/other.txt", expires), CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
     }
 
@@ -153,7 +153,7 @@ public sealed class LocalStorageControllerTests : IDisposable
         IActionResult result = await _controller.Download(
             key, expires, SignUpload(key, expires), CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
     }
 
@@ -166,7 +166,7 @@ public sealed class LocalStorageControllerTests : IDisposable
         IActionResult result = await _controller.Download(
             key, expires, SignDownload(key, expires), CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 
@@ -202,7 +202,7 @@ public sealed class LocalStorageControllerTests : IDisposable
         IActionResult result = await _controller.Upload(
             key, FutureExpiry, "forged-signature", CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
         (await _provider.ExistsAsync(key)).Should().BeFalse();
     }
@@ -218,7 +218,7 @@ public sealed class LocalStorageControllerTests : IDisposable
         IActionResult result = await _controller.Upload(
             key, expires, SignDownload(key, expires), CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
         (await _provider.ExistsAsync(key)).Should().BeFalse();
     }

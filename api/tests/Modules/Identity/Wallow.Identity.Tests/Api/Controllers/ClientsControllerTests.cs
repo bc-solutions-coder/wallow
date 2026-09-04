@@ -208,7 +208,7 @@ public class ClientsControllerTests
 
         ActionResult<ClientResponse> result = await _controller.Create(request, CancellationToken.None);
 
-        ObjectResult problem = result.Result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult problem = result.Result.Should().BeAssignableTo<ObjectResult>().Subject;
         ValidationProblemDetails details = problem.Value.Should().BeOfType<ValidationProblemDetails>().Subject;
         details.Errors.Should().ContainKey(nameof(CreateClientRequest.RedirectUris));
         await _applicationManager.DidNotReceive()
@@ -275,7 +275,7 @@ public class ClientsControllerTests
 
         ActionResult<ClientResponse> result = await _controller.Create(request, CancellationToken.None);
 
-        result.Result.Should().BeOfType<ObjectResult>()
+        result.Result.Should().BeAssignableTo<ObjectResult>()
             .Which.Value.Should().BeOfType<ValidationProblemDetails>();
         await _applicationManager.DidNotReceive()
             .CreateAsync(Arg.Any<OpenIddictApplicationDescriptor>(), Arg.Any<CancellationToken>());
@@ -389,7 +389,7 @@ public class ClientsControllerTests
 
         ActionResult<ClientResponse> result = await _controller.Create(request, CancellationToken.None);
 
-        result.Result.Should().BeOfType<ObjectResult>()
+        result.Result.Should().BeAssignableTo<ObjectResult>()
             .Which.Value.Should().BeOfType<ValidationProblemDetails>();
         await _applicationManager.DidNotReceive()
             .CreateAsync(Arg.Any<OpenIddictApplicationDescriptor>(), Arg.Any<CancellationToken>());

@@ -239,14 +239,15 @@ public class NotificationDispatcher
 
 ### Correlating Errors with Traces
 
-The `GlobalExceptionHandler` (at `api/src/Wallow.Api/Middleware/GlobalExceptionHandler.cs`) includes trace IDs in all error responses. It extracts the trace ID from the current `Activity` or falls back to `HttpContext.TraceIdentifier`, then includes it in the Problem Details response:
-
+The shared problem customizer (`ProblemContract.Customize` in `Wallow.Shared.Api.Problems`) includes trace IDs in all error responses, not only the ones `GlobalExceptionHandler` raises. It takes the trace ID from the current `Activity` or falls back to `HttpContext.TraceIdentifier`, then writes it into the Problem Details body:
 
 ```json
 {
-  "type": "https://tools.ietf.org/html/rfc7231#section-6.6.1",
+  "type": "about:blank",
   "title": "Internal Server Error",
   "status": 500,
+  "detail": "Something went wrong. Try again later.",
+  "code": "Server.Error",
   "traceId": "00-abc123def456...-01"
 }
 ```

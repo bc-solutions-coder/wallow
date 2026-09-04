@@ -132,7 +132,7 @@ public class ChangelogControllerTests
 
         IActionResult result = await _controller.GetChangelogByVersion("99.0.0", CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 
@@ -176,7 +176,7 @@ public class ChangelogControllerTests
 
         IActionResult result = await _controller.GetLatestChangelog(CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 

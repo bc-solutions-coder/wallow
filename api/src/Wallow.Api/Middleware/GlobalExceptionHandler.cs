@@ -1,115 +1,66 @@
+using System.Diagnostics;
 using FluentValidation;
+using FluentValidation.Results;
 using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.AspNetCore.Mvc;
-using Wallow.Shared.Api.Extensions;
+using Wallow.Shared.Api.Problems;
 using Wallow.Shared.Kernel.Domain;
 using Wallow.Shared.Kernel.Errors;
 
 namespace Wallow.Api.Middleware;
 
 /// <summary>
-/// Global exception handler that converts exceptions to Problem Details responses.
-/// Implements RFC 7807 for consistent error responses across the API.
+/// Global exception handler that maps an unhandled exception to a status and a catalog code and
+/// writes the problem through <see cref="IProblemDetailsService"/>, so the body follows
+/// <see cref="ProblemContract"/> like every other error. The exception rides along on the
+/// <see cref="ProblemDetailsContext"/>; the contract exposes it only in Development, only on 5xx.
 /// </summary>
-internal partial class GlobalExceptionHandler(
-    ILogger<GlobalExceptionHandler> logger,
-    IHostEnvironment environment) : IExceptionHandler
+internal partial class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IExceptionHandler
 {
-
     public async ValueTask<bool> TryHandleAsync(
         HttpContext httpContext,
         Exception exception,
         CancellationToken cancellationToken)
     {
-        string traceId = System.Diagnostics.Activity.Current?.Id ?? httpContext.TraceIdentifier;
+        string traceId = Activity.Current?.Id ?? httpContext.TraceIdentifier;
+        string path = httpContext.Request.Path;
+        IProblemDetailsService problemDetailsService =
+            httpContext.RequestServices.GetRequiredService<IProblemDetailsService>();
 
-        if (exception is OperationCanceledException)
+        // The exception-handler middleware answers a cancellation whose client has already gone
+        // on its own; this branch only sees the rare late abort. Nobody is left to read a body,
+        // and writing one against the aborted token would throw, so the status is the response.
+        // A cancellation whose client is still connected is a server-side fault and falls
+        // through to the 500 below.
+        if (exception is OperationCanceledException && httpContext.RequestAborted.IsCancellationRequested)
         {
-            string path = httpContext.Request.Path;
             LogRequestCancelled(traceId, path);
 
             // Do not mark the span as error for cancellations
-            System.Diagnostics.Activity.Current?.SetStatus(System.Diagnostics.ActivityStatusCode.Ok);
+            Activity.Current?.SetStatus(ActivityStatusCode.Ok);
 
-            ProblemDetails cancelledProblem = new()
-            {
-                Status = 499,
-                Title = "Client Closed Request",
-                Type = "https://httpstatuses.com/499",
-                Instance = $"/errors/{traceId}",
-                Detail = "The request was cancelled by the client.",
-                Extensions = { ["traceId"] = traceId }
-            };
-
-            httpContext.Response.StatusCode = 499;
-            await httpContext.Response.WriteAsJsonAsync(cancelledProblem, cancellationToken);
+            httpContext.Response.StatusCode = ProblemContract.ClientClosedRequest;
             return true;
         }
 
-        LogUnhandledException(exception, traceId, httpContext.Request.Path);
+        LogUnhandledException(exception, traceId, path);
 
-        ProblemDetails problemDetails = CreateProblemDetails(exception, traceId);
-
-        httpContext.Response.StatusCode = problemDetails.Status ?? StatusCodes.Status500InternalServerError;
-
-        await httpContext.Response.WriteAsJsonAsync(problemDetails, cancellationToken);
-
-        return true;
-    }
-
-    private ProblemDetails CreateProblemDetails(Exception exception, string traceId)
-    {
-        int statusCode = exception switch
+        if (exception is ValidationException validation)
         {
-            DomainException domain => domain.Kind.ToHttpStatusCode(),
-            ValidationException => StatusCodes.Status400BadRequest,
-            UnauthorizedAccessException => StatusCodes.Status401Unauthorized,
-            ArgumentException or ArgumentNullException => StatusCodes.Status400BadRequest,
-            _ => StatusCodes.Status500InternalServerError
+            IDictionary<string, string[]> errors = new ValidationResult(validation.Errors).ToDictionary();
+            return await problemDetailsService.TryWriteValidationProblemAsync(httpContext, errors, exception);
+        }
+
+        (int statusCode, string code, string? detail) = exception switch
+        {
+            DomainException domain => (domain.Kind.ToHttpStatusCode(), domain.Code, domain.Message),
+            BadHttpRequestException bad when bad.StatusCode < StatusCodes.Status500InternalServerError =>
+                (bad.StatusCode, SharedErrors.ClientError.Code, SharedErrors.ClientError.DefaultMessage),
+            UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, SharedErrors.Unauthenticated.Code, null),
+            ArgumentException => (StatusCodes.Status400BadRequest, SharedErrors.ClientError.Code, SharedErrors.ClientError.DefaultMessage),
+            _ => (StatusCodes.Status500InternalServerError, SharedErrors.ServerError.Code, null),
         };
 
-        // One title and type table for the whole API: a catalog entry renders the same whether it
-        // surfaced as a failed Result or a thrown DomainException.
-        string title = ResultExtensions.GetProblemTitle(statusCode);
-        string type = ResultExtensions.GetProblemType(statusCode);
-
-        ProblemDetails problemDetails = new()
-        {
-            Status = statusCode,
-            Title = title,
-            Type = type,
-            Instance = $"/errors/{traceId}",
-            Extensions =
-            {
-                ["traceId"] = traceId
-            }
-        };
-
-        // Add error code for domain exceptions
-        if (exception is DomainException domainException)
-        {
-            problemDetails.Extensions["code"] = domainException.Code;
-            problemDetails.Detail = exception.Message;
-        }
-        else if (exception is ValidationException validationException)
-        {
-            problemDetails.Detail = string.Join("; ", validationException.Errors.Select(e => e.ErrorMessage));
-            problemDetails.Extensions["errors"] = validationException.Errors
-                .Select(e => new { field = e.PropertyName, message = e.ErrorMessage })
-                .ToArray();
-        }
-        else if (environment.IsDevelopment())
-        {
-            // Only expose exception details in development
-            problemDetails.Detail = exception.Message;
-            problemDetails.Extensions["exception"] = exception.ToString();
-        }
-        else
-        {
-            problemDetails.Detail = "An unexpected error occurred. Please try again later.";
-        }
-
-        return problemDetails;
+        return await problemDetailsService.TryWriteProblemAsync(httpContext, statusCode, code, detail, exception);
     }
 }
 

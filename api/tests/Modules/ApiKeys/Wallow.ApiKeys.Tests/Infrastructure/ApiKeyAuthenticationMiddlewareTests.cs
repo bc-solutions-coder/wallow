@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Wallow.ApiKeys.Infrastructure.Authorization;
 using Wallow.Shared.Contracts.ApiKeys;
 using Wallow.Shared.Kernel.MultiTenancy;
+using Wallow.Tests.Common.Helpers;
 
 namespace Wallow.ApiKeys.Tests.Infrastructure;
 
@@ -42,7 +43,7 @@ public class ApiKeyAuthenticationMiddlewareTests
     public async Task InvokeAsync_InvalidApiKey_Returns401()
     {
         ApiKeyAuthenticationMiddleware middleware = CreateMiddleware();
-        DefaultHttpContext context = new DefaultHttpContext();
+        DefaultHttpContext context = new DefaultHttpContext { RequestServices = ProblemTestServices.Build() };
         context.Response.Body = new MemoryStream();
         context.Request.Headers["X-Api-Key"] = "sk_live_invalid";
         TenantContext tenantContext = new TenantContext();

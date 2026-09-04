@@ -18,6 +18,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using Wallow.Api.Extensions;
 using Wallow.Api.Middleware;
+using Wallow.Shared.Api.Problems;
 using Wallow.Shared.Kernel.Errors;
 
 namespace Wallow.Api.Tests.Extensions;
@@ -148,7 +149,7 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Fact]
-    public void AddApiServices_ProblemDetailsCustomization_AddsApiAndVersionExtensions()
+    public void AddApiServices_InstallsTheProblemContractAsTheCustomizer()
     {
         ServiceCollection services = CreateServicesWithApiDefaults();
         ServiceProvider provider = services.BuildServiceProvider();
@@ -156,15 +157,18 @@ public class ServiceCollectionExtensionsTests
         IOptions<ProblemDetailsOptions> options =
             provider.GetRequiredService<IOptions<ProblemDetailsOptions>>();
 
-        ProblemDetailsContext context = new ProblemDetailsContext
-        {
-            HttpContext = new DefaultHttpContext(),
-            ProblemDetails = new ProblemDetails()
-        };
-        options.Value.CustomizeProblemDetails?.Invoke(context);
+        options.Value.CustomizeProblemDetails.Should().NotBeNull();
+        options.Value.CustomizeProblemDetails!.Method.Should().BeSameAs(
+            ((Action<ProblemDetailsContext>)ProblemContract.Customize).Method);
+    }
 
-        context.ProblemDetails.Extensions["api"].Should().Be("Wallow");
-        context.ProblemDetails.Extensions["version"].Should().Be("1.0.0");
+    [Fact]
+    public void AddApiServices_RegistersTheSingleProblemWriter()
+    {
+        ServiceCollection services = CreateServicesWithApiDefaults();
+
+        services.Where(d => d.ServiceType == typeof(IProblemDetailsWriter)).Should().ContainSingle()
+            .Which.ImplementationType!.Name.Should().Be("WallowProblemDetailsWriter");
     }
 
     [Fact]
@@ -535,7 +539,7 @@ public class ServiceCollectionExtensionsTests
         VersionedOpenApiOptions options = BuildConfiguredVersionedOptions();
 
         // Info, security, test-support exclusion, empty-placeholder scrub, error-code enum.
-        GetRegisteredDocumentTransformers(options.Document).Should().HaveCount(5);
+        GetRegisteredDocumentTransformers(options.Document).Should().HaveCount(6);
     }
 
     [Fact]

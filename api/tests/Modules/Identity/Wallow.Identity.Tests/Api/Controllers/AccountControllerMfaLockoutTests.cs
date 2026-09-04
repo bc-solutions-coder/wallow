@@ -110,7 +110,7 @@ public class AccountControllerMfaLockoutTests
         IActionResult result = await _controller.VerifyMfaChallenge(
             new MfaVerifyRequest("123456"), CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(423);
         string json = System.Text.Json.JsonSerializer.Serialize(objectResult.Value);
         json.Should().Contain("\"error\":\"mfa_locked_out\"");
@@ -142,7 +142,7 @@ public class AccountControllerMfaLockoutTests
         IActionResult result = await _controller.VerifyMfaChallenge(
             new MfaVerifyRequest("000000"), CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(423);
         string json = System.Text.Json.JsonSerializer.Serialize(objectResult.Value);
         json.Should().Contain("\"error\":\"mfa_locked_out\"");

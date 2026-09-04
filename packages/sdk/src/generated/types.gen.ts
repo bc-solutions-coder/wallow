@@ -378,7 +378,7 @@ export type EnrollmentPolicy = number;
 /**
  * Machine-readable code identifying why a request failed. Each code has exactly one owning catalog and a fixed HTTP status.
  */
-export type ErrorCode = 'Announcement.NotDismissible' | 'Announcement.NotFound' | 'ApiKeys.ApiKeyAlreadyRevoked' | 'ApiKeys.ApiKeyDisplayNameRequired' | 'ApiKeys.HashedKeyRequired' | 'ApiKeys.ServiceAccountIdRequired' | 'Auth.ClientIdInvalid' | 'Auth.EmailClaimMissing' | 'Auth.EmailNotConfirmed' | 'Auth.EmailTaken' | 'Auth.EmailUnchanged' | 'Auth.Forbidden' | 'Auth.InvalidCredentials' | 'Auth.LockedOut' | 'Auth.PasswordsDoNotMatch' | 'Auth.ProviderRequired' | 'Auth.ProviderUnsupported' | 'Auth.TicketAlreadyUsed' | 'Auth.TicketInvalid' | 'Auth.TokenExpired' | 'Auth.TokenInvalid' | 'Auth.Unauthenticated' | 'Branding.ClientBrandingClientIdRequired' | 'Branding.ClientBrandingDisplayNameRequired' | 'Bucket.AlreadyExists' | 'Bucket.NotEmpty' | 'Bucket.NotFound' | 'Changelog.NotFound' | 'DeviceRegistration.NotFound' | 'Email.InvalidEmailAddress' | 'File.ContentTypeNotAllowed' | 'File.ExceedsUploadLimit' | 'File.ExtensionNotAllowed' | 'File.FailedSecurityScan' | 'File.NotAvailable' | 'File.NotFound' | 'File.NotUploaded' | 'File.TooLarge' | 'Http.MethodNotAllowed' | 'Http.NotFound' | 'Identity.AlreadyAMember' | 'Identity.ClientAlreadySuspended' | 'Identity.ClientAlreadySuspendedByPlatform' | 'Identity.ClientIdRequired' | 'Identity.ClientIdTaken' | 'Identity.ClientNameRequired' | 'Identity.ClientNameUnusable' | 'Identity.ClientNotSuspended' | 'Identity.ClientNotSuspendedByPlatform' | 'Identity.ClientOrganizationRequired' | 'Identity.DenialCooldown' | 'Identity.EmailRequired' | 'Identity.ExpiryMustBeFuture' | 'Identity.FirstNameRequired' | 'Identity.InvitationEmailMismatch' | 'Identity.InvitationEmailNotVerified' | 'Identity.InvitationEmailRequired' | 'Identity.InvitationExpired' | 'Identity.InvitationNotFound' | 'Identity.InvitationNotPending' | 'Identity.LastNameRequired' | 'Identity.LastOwner' | 'Identity.MemberNotFound' | 'Identity.MembershipNotActive' | 'Identity.MembershipNotDenied' | 'Identity.MembershipNotPending' | 'Identity.MembershipNotReinstatable' | 'Identity.MembershipNotSuspended' | 'Identity.MfaGraceDeadlineMustBeFuture' | 'Identity.NoPendingEmailChange' | 'Identity.OrganizationAlreadyActive' | 'Identity.OrganizationAlreadyInactive' | 'Identity.OrganizationAlreadySuspendedByPlatform' | 'Identity.OrganizationNameMismatch' | 'Identity.OrganizationNameRequired' | 'Identity.OrganizationNotFound' | 'Identity.OrganizationNotSuspendedByPlatform' | 'Identity.OrganizationSlugRequired' | 'Identity.OrganizationSuspendedByPlatform' | 'Identity.PlatformOnlyScope' | 'Identity.PlatformSuspensionReasonRequired' | 'Identity.ReservedRoleName' | 'Identity.RoleNotFound' | 'Identity.ScopeCategoryRequired' | 'Identity.ScopeCodeRequired' | 'Identity.ScopeDisplayNameRequired' | 'Identity.UnknownScope' | 'Identity.UserIdRequired' | 'Identity.UserNotFound' | 'Inquiries.InvalidStatusTransition' | 'Inquiry.NotFound' | 'Mfa.CodeInvalid' | 'Mfa.EnrollmentTokenInvalid' | 'Mfa.LockedOut' | 'Mfa.NotEnabled' | 'Mfa.SessionMissing' | 'Mfa.UpdateFailed' | 'Notification.AccessDenied' | 'Notification.NotFound' | 'RateLimit.Exceeded' | 'Server.Error' | 'Settings.SystemKeyBlocked' | 'Settings.UnknownKey' | 'Setup.Required' | 'Sms.InvalidPhoneNumber' | 'Storage.QuotaExceeded' | 'TenantPushConfiguration.NotFound' | 'Validation.Failed';
+export type ErrorCode = 'Announcement.NotDismissible' | 'Announcement.NotFound' | 'ApiKeys.ApiKeyAlreadyRevoked' | 'ApiKeys.ApiKeyDisplayNameRequired' | 'ApiKeys.CreateFailed' | 'ApiKeys.HashedKeyRequired' | 'ApiKeys.Invalid' | 'ApiKeys.LimitReached' | 'ApiKeys.NotFound' | 'ApiKeys.OrganizationRequired' | 'ApiKeys.ScopeExceedsPermissions' | 'ApiKeys.ServiceAccountIdRequired' | 'Auth.ClientIdInvalid' | 'Auth.EmailClaimMissing' | 'Auth.EmailNotConfirmed' | 'Auth.EmailTaken' | 'Auth.EmailUnchanged' | 'Auth.Forbidden' | 'Auth.InvalidCredentials' | 'Auth.LockedOut' | 'Auth.PasswordsDoNotMatch' | 'Auth.ProviderRequired' | 'Auth.ProviderUnsupported' | 'Auth.TicketAlreadyUsed' | 'Auth.TicketInvalid' | 'Auth.TokenExpired' | 'Auth.TokenInvalid' | 'Auth.Unauthenticated' | 'Branding.ClientBrandingClientIdRequired' | 'Branding.ClientBrandingDisplayNameRequired' | 'Bucket.AlreadyExists' | 'Bucket.NotEmpty' | 'Bucket.NotFound' | 'Changelog.NotFound' | 'DeviceRegistration.NotFound' | 'Email.InvalidEmailAddress' | 'File.ContentTypeNotAllowed' | 'File.ExceedsUploadLimit' | 'File.ExtensionNotAllowed' | 'File.FailedSecurityScan' | 'File.NotAvailable' | 'File.NotFound' | 'File.NotUploaded' | 'File.SignatureInvalid' | 'File.TooLarge' | 'Http.ClientError' | 'Http.MethodNotAllowed' | 'Http.NotFound' | 'Identity.AlreadyAMember' | 'Identity.ClientAlreadySuspended' | 'Identity.ClientAlreadySuspendedByPlatform' | 'Identity.ClientIdRequired' | 'Identity.ClientIdTaken' | 'Identity.ClientNameRequired' | 'Identity.ClientNameUnusable' | 'Identity.ClientNotSuspended' | 'Identity.ClientNotSuspendedByPlatform' | 'Identity.ClientOrganizationRequired' | 'Identity.DenialCooldown' | 'Identity.EmailRequired' | 'Identity.ExpiryMustBeFuture' | 'Identity.FirstNameRequired' | 'Identity.InvitationEmailMismatch' | 'Identity.InvitationEmailNotVerified' | 'Identity.InvitationEmailRequired' | 'Identity.InvitationExpired' | 'Identity.InvitationNotFound' | 'Identity.InvitationNotPending' | 'Identity.LastNameRequired' | 'Identity.LastOwner' | 'Identity.MemberNotFound' | 'Identity.MembershipNotActive' | 'Identity.MembershipNotDenied' | 'Identity.MembershipNotPending' | 'Identity.MembershipNotReinstatable' | 'Identity.MembershipNotSuspended' | 'Identity.MfaGraceDeadlineMustBeFuture' | 'Identity.NoPendingEmailChange' | 'Identity.OrganizationAlreadyActive' | 'Identity.OrganizationAlreadyInactive' | 'Identity.OrganizationAlreadySuspendedByPlatform' | 'Identity.OrganizationNameMismatch' | 'Identity.OrganizationNameRequired' | 'Identity.OrganizationNotFound' | 'Identity.OrganizationNotSuspendedByPlatform' | 'Identity.OrganizationSlugRequired' | 'Identity.OrganizationSuspendedByPlatform' | 'Identity.PlatformOnlyScope' | 'Identity.PlatformSuspensionReasonRequired' | 'Identity.ReservedRoleName' | 'Identity.RoleNotFound' | 'Identity.ScopeCategoryRequired' | 'Identity.ScopeCodeRequired' | 'Identity.ScopeDisplayNameRequired' | 'Identity.UnknownScope' | 'Identity.UserIdRequired' | 'Identity.UserNotFound' | 'Inquiries.InvalidStatusTransition' | 'Inquiry.NotFound' | 'Mfa.CodeInvalid' | 'Mfa.EnrollmentTokenInvalid' | 'Mfa.LockedOut' | 'Mfa.NotEnabled' | 'Mfa.SessionMissing' | 'Mfa.UpdateFailed' | 'Notification.AccessDenied' | 'Notification.NotFound' | 'RateLimit.Exceeded' | 'Server.Error' | 'Settings.SystemKeyBlocked' | 'Settings.UnknownKey' | 'Setup.Required' | 'Sms.InvalidPhoneNumber' | 'Storage.QuotaExceeded' | 'TenantPushConfiguration.NotFound' | 'Validation.Failed';
 
 export type FileMetadataResponse = {
     id: string;
@@ -390,6 +390,21 @@ export type FileMetadataResponse = {
     isPublic: boolean;
     uploadedBy: string;
     uploadedAt: string;
+};
+
+export type HttpValidationProblemDetails = {
+    type: null | string;
+    title: null | string;
+    status: null | number | string;
+    detail?: null | string;
+    errors?: {
+        [key: string]: Array<string>;
+    };
+    code: ErrorCode;
+    /**
+     * Correlation id of the failed request, for support and log lookup.
+     */
+    traceId: string;
 };
 
 export type IFormFile = Blob | File;
@@ -696,12 +711,15 @@ export type PresignedUrlResponse = {
 };
 
 export type ProblemDetails = {
-    type?: null | string;
-    title?: null | string;
-    status?: null | number | string;
+    type: null | string;
+    title: null | string;
+    status: null | number | string;
     detail?: null | string;
-    instance?: null | string;
-    code?: ErrorCode;
+    code: ErrorCode;
+    /**
+     * Correlation id of the failed request, for support and log lookup.
+     */
+    traceId: string;
 };
 
 export type PushPlatform = number;
@@ -971,18 +989,6 @@ export type UserNotificationSettingsResponse = {
     channelSettings: Array<ChannelSettingResponse>;
 };
 
-export type ValidationProblemDetails = {
-    type?: null | string;
-    title?: null | string;
-    status?: null | number | string;
-    detail?: null | string;
-    instance?: null | string;
-    errors?: {
-        [key: string]: Array<string>;
-    };
-    code?: ErrorCode;
-};
-
 export type VerifyOtpRequest = {
     email: string;
     code: string;
@@ -995,6 +1001,35 @@ export type AdminAnnouncementsGetAllAnnouncementsData = {
     query?: never;
     url: '/v1/admin/announcements';
 };
+
+export type AdminAnnouncementsGetAllAnnouncementsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type AdminAnnouncementsGetAllAnnouncementsError = AdminAnnouncementsGetAllAnnouncementsErrors[keyof AdminAnnouncementsGetAllAnnouncementsErrors];
 
 export type AdminAnnouncementsGetAllAnnouncementsResponses = {
     /**
@@ -1016,7 +1051,27 @@ export type AdminAnnouncementsCreateAnnouncementErrors = {
     /**
      * Bad Request
      */
-    400: ProblemDetails;
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type AdminAnnouncementsCreateAnnouncementError = AdminAnnouncementsCreateAnnouncementErrors[keyof AdminAnnouncementsCreateAnnouncementErrors];
@@ -1041,9 +1096,29 @@ export type AdminAnnouncementsArchiveAnnouncementData = {
 
 export type AdminAnnouncementsArchiveAnnouncementErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type AdminAnnouncementsArchiveAnnouncementError = AdminAnnouncementsArchiveAnnouncementErrors[keyof AdminAnnouncementsArchiveAnnouncementErrors];
@@ -1066,9 +1141,29 @@ export type AdminAnnouncementsUpdateAnnouncementData = {
 
 export type AdminAnnouncementsUpdateAnnouncementErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type AdminAnnouncementsUpdateAnnouncementError = AdminAnnouncementsUpdateAnnouncementErrors[keyof AdminAnnouncementsUpdateAnnouncementErrors];
@@ -1093,9 +1188,29 @@ export type AdminAnnouncementsPublishAnnouncementData = {
 
 export type AdminAnnouncementsPublishAnnouncementErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type AdminAnnouncementsPublishAnnouncementError = AdminAnnouncementsPublishAnnouncementErrors[keyof AdminAnnouncementsPublishAnnouncementErrors];
@@ -1118,7 +1233,27 @@ export type AdminChangelogCreateChangelogEntryErrors = {
     /**
      * Bad Request
      */
-    400: ProblemDetails;
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type AdminChangelogCreateChangelogEntryError = AdminChangelogCreateChangelogEntryErrors[keyof AdminChangelogCreateChangelogEntryErrors];
@@ -1143,9 +1278,29 @@ export type AdminChangelogPublishChangelogEntryData = {
 
 export type AdminChangelogPublishChangelogEntryErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type AdminChangelogPublishChangelogEntryError = AdminChangelogPublishChangelogEntryErrors[keyof AdminChangelogPublishChangelogEntryErrors];
@@ -1166,9 +1321,29 @@ export type AnnouncementsGetAnnouncementsData = {
 
 export type AnnouncementsGetAnnouncementsErrors = {
     /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
      * Unauthorized
      */
     401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type AnnouncementsGetAnnouncementsError = AnnouncementsGetAnnouncementsErrors[keyof AnnouncementsGetAnnouncementsErrors];
@@ -1195,15 +1370,27 @@ export type AnnouncementsDismissAnnouncementErrors = {
     /**
      * Bad Request
      */
-    400: ProblemDetails;
+    400: HttpValidationProblemDetails;
     /**
      * Unauthorized
      */
     401: ProblemDetails;
     /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type AnnouncementsDismissAnnouncementError = AnnouncementsDismissAnnouncementErrors[keyof AnnouncementsDismissAnnouncementErrors];
@@ -1223,6 +1410,35 @@ export type ChangelogGetChangelogData = {
     };
     url: '/v1/changelog';
 };
+
+export type ChangelogGetChangelogErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type ChangelogGetChangelogError = ChangelogGetChangelogErrors[keyof ChangelogGetChangelogErrors];
 
 export type ChangelogGetChangelogResponses = {
     /**
@@ -1244,9 +1460,29 @@ export type ChangelogGetChangelogByVersionData = {
 
 export type ChangelogGetChangelogByVersionErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type ChangelogGetChangelogByVersionError = ChangelogGetChangelogByVersionErrors[keyof ChangelogGetChangelogByVersionErrors];
@@ -1269,9 +1505,29 @@ export type ChangelogGetLatestChangelogData = {
 
 export type ChangelogGetLatestChangelogErrors = {
     /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type ChangelogGetLatestChangelogError = ChangelogGetLatestChangelogErrors[keyof ChangelogGetLatestChangelogErrors];
@@ -1291,6 +1547,35 @@ export type ApiKeysListApiKeysData = {
     query?: never;
     url: '/v1/identity/auth/keys';
 };
+
+export type ApiKeysListApiKeysErrors = {
+    /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type ApiKeysListApiKeysError = ApiKeysListApiKeysErrors[keyof ApiKeysListApiKeysErrors];
 
 export type ApiKeysListApiKeysResponses = {
     /**
@@ -1312,7 +1597,31 @@ export type ApiKeysCreateApiKeyErrors = {
     /**
      * Bad Request
      */
-    400: ProblemDetails;
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Unprocessable Entity
+     */
+    422: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type ApiKeysCreateApiKeyError = ApiKeysCreateApiKeyErrors[keyof ApiKeysCreateApiKeyErrors];
@@ -1337,9 +1646,29 @@ export type ApiKeysRevokeApiKeyData = {
 
 export type ApiKeysRevokeApiKeyErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type ApiKeysRevokeApiKeyError = ApiKeysRevokeApiKeyErrors[keyof ApiKeysRevokeApiKeyErrors];
@@ -1365,9 +1694,29 @@ export type OrganizationClientBrandingGetBrandingData = {
 
 export type OrganizationClientBrandingGetBrandingErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationClientBrandingGetBrandingError = OrganizationClientBrandingGetBrandingErrors[keyof OrganizationClientBrandingGetBrandingErrors];
@@ -1401,11 +1750,27 @@ export type OrganizationClientBrandingUpsertBrandingErrors = {
     /**
      * Bad Request
      */
-    400: ValidationProblemDetails;
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
     /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationClientBrandingUpsertBrandingError = OrganizationClientBrandingUpsertBrandingErrors[keyof OrganizationClientBrandingUpsertBrandingErrors];
@@ -1431,9 +1796,29 @@ export type OrganizationClientBrandingDeleteLogoData = {
 
 export type OrganizationClientBrandingDeleteLogoErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationClientBrandingDeleteLogoError = OrganizationClientBrandingDeleteLogoErrors[keyof OrganizationClientBrandingDeleteLogoErrors];
@@ -1452,6 +1837,35 @@ export type AccountGetExternalProvidersData = {
     url: '/v1/identity/auth/external-providers';
 };
 
+export type AccountGetExternalProvidersErrors = {
+    /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type AccountGetExternalProvidersError = AccountGetExternalProvidersErrors[keyof AccountGetExternalProvidersErrors];
+
 export type AccountGetExternalProvidersResponses = {
     /**
      * OK
@@ -1468,6 +1882,35 @@ export type AccountLoginData = {
     url: '/v1/identity/auth/login';
 };
 
+export type AccountLoginErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type AccountLoginError = AccountLoginErrors[keyof AccountLoginErrors];
+
 export type AccountLoginResponses = {
     /**
      * OK
@@ -1483,6 +1926,35 @@ export type AccountVerifyMfaChallengeData = {
     query?: never;
     url: '/v1/identity/auth/mfa/verify';
 };
+
+export type AccountVerifyMfaChallengeErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type AccountVerifyMfaChallengeError = AccountVerifyMfaChallengeErrors[keyof AccountVerifyMfaChallengeErrors];
 
 export type AccountVerifyMfaChallengeResponses = {
     /**
@@ -1504,6 +1976,35 @@ export type AccountExternalLoginData = {
     url: '/v1/identity/auth/external-login';
 };
 
+export type AccountExternalLoginErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type AccountExternalLoginError = AccountExternalLoginErrors[keyof AccountExternalLoginErrors];
+
 export type AccountExternalLoginCallbackData = {
     body?: never;
     path?: never;
@@ -1513,6 +2014,35 @@ export type AccountExternalLoginCallbackData = {
     };
     url: '/v1/identity/auth/external-login-callback';
 };
+
+export type AccountExternalLoginCallbackErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type AccountExternalLoginCallbackError = AccountExternalLoginCallbackErrors[keyof AccountExternalLoginCallbackErrors];
 
 export type AccountCompleteExternalRegistrationData = {
     body?: never;
@@ -1525,6 +2055,35 @@ export type AccountCompleteExternalRegistrationData = {
     url: '/v1/identity/auth/complete-external-registration';
 };
 
+export type AccountCompleteExternalRegistrationErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type AccountCompleteExternalRegistrationError = AccountCompleteExternalRegistrationErrors[keyof AccountCompleteExternalRegistrationErrors];
+
 export type AccountExchangeTicketData = {
     body?: never;
     path?: never;
@@ -1536,6 +2095,35 @@ export type AccountExchangeTicketData = {
     url: '/v1/identity/auth/exchange-ticket';
 };
 
+export type AccountExchangeTicketErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type AccountExchangeTicketError = AccountExchangeTicketErrors[keyof AccountExchangeTicketErrors];
+
 export type AccountValidateRedirectUriData = {
     body?: never;
     path?: never;
@@ -1545,6 +2133,35 @@ export type AccountValidateRedirectUriData = {
     };
     url: '/v1/identity/auth/redirect-uri/validate';
 };
+
+export type AccountValidateRedirectUriErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type AccountValidateRedirectUriError = AccountValidateRedirectUriErrors[keyof AccountValidateRedirectUriErrors];
 
 export type AccountValidateRedirectUriResponses = {
     /**
@@ -1566,12 +2183,70 @@ export type AccountSignOutData = {
     url: '/v1/identity/auth/sign-out';
 };
 
+export type AccountSignOutErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type AccountSignOutError = AccountSignOutErrors[keyof AccountSignOutErrors];
+
 export type AccountRegisterData = {
     body: AccountRegisterRequest;
     path?: never;
     query?: never;
     url: '/v1/identity/auth/register';
 };
+
+export type AccountRegisterErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type AccountRegisterError = AccountRegisterErrors[keyof AccountRegisterErrors];
 
 export type AccountRegisterResponses = {
     /**
@@ -1591,6 +2266,35 @@ export type AccountGetClientTenantData = {
     url: '/v1/identity/auth/client-tenant/{clientId}';
 };
 
+export type AccountGetClientTenantErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type AccountGetClientTenantError = AccountGetClientTenantErrors[keyof AccountGetClientTenantErrors];
+
 export type AccountGetClientTenantResponses = {
     /**
      * OK
@@ -1607,6 +2311,35 @@ export type AccountForgotPasswordData = {
     url: '/v1/identity/auth/forgot-password';
 };
 
+export type AccountForgotPasswordErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type AccountForgotPasswordError = AccountForgotPasswordErrors[keyof AccountForgotPasswordErrors];
+
 export type AccountForgotPasswordResponses = {
     /**
      * OK
@@ -1622,6 +2355,35 @@ export type AccountResetPasswordData = {
     query?: never;
     url: '/v1/identity/auth/reset-password';
 };
+
+export type AccountResetPasswordErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type AccountResetPasswordError = AccountResetPasswordErrors[keyof AccountResetPasswordErrors];
 
 export type AccountResetPasswordResponses = {
     /**
@@ -1642,6 +2404,35 @@ export type AccountVerifyEmailData = {
     url: '/v1/identity/auth/verify-email';
 };
 
+export type AccountVerifyEmailErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type AccountVerifyEmailError = AccountVerifyEmailErrors[keyof AccountVerifyEmailErrors];
+
 export type AccountVerifyEmailResponses = {
     /**
      * OK
@@ -1657,6 +2448,35 @@ export type AccountSendMagicLinkData = {
     query?: never;
     url: '/v1/identity/auth/passwordless/magic-link';
 };
+
+export type AccountSendMagicLinkErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type AccountSendMagicLinkError = AccountSendMagicLinkErrors[keyof AccountSendMagicLinkErrors];
 
 export type AccountSendMagicLinkResponses = {
     /**
@@ -1677,6 +2497,35 @@ export type AccountVerifyMagicLinkData = {
     url: '/v1/identity/auth/passwordless/magic-link/verify';
 };
 
+export type AccountVerifyMagicLinkErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type AccountVerifyMagicLinkError = AccountVerifyMagicLinkErrors[keyof AccountVerifyMagicLinkErrors];
+
 export type AccountVerifyMagicLinkResponses = {
     /**
      * OK
@@ -1692,6 +2541,35 @@ export type AccountSendOtpData = {
     query?: never;
     url: '/v1/identity/auth/passwordless/otp';
 };
+
+export type AccountSendOtpErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type AccountSendOtpError = AccountSendOtpErrors[keyof AccountSendOtpErrors];
 
 export type AccountSendOtpResponses = {
     /**
@@ -1709,6 +2587,35 @@ export type AccountVerifyOtpData = {
     url: '/v1/identity/auth/passwordless/otp/verify';
 };
 
+export type AccountVerifyOtpErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type AccountVerifyOtpError = AccountVerifyOtpErrors[keyof AccountVerifyOtpErrors];
+
 export type AccountVerifyOtpResponses = {
     /**
      * OK
@@ -1724,6 +2631,35 @@ export type AccountChangeEmailData = {
     query?: never;
     url: '/v1/identity/auth/change-email';
 };
+
+export type AccountChangeEmailErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type AccountChangeEmailError = AccountChangeEmailErrors[keyof AccountChangeEmailErrors];
 
 export type AccountChangeEmailResponses = {
     /**
@@ -1744,6 +2680,35 @@ export type AccountConfirmEmailChangeData = {
     };
     url: '/v1/identity/auth/confirm-email-change';
 };
+
+export type AccountConfirmEmailChangeErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type AccountConfirmEmailChangeError = AccountConfirmEmailChangeErrors[keyof AccountConfirmEmailChangeErrors];
 
 export type AccountConfirmEmailChangeResponses = {
     /**
@@ -1766,9 +2731,29 @@ export type AuthorizeContextGetData = {
 
 export type AuthorizeContextGetErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type AuthorizeContextGetError = AuthorizeContextGetErrors[keyof AuthorizeContextGetErrors];
@@ -1788,6 +2773,35 @@ export type ClientsGetAllData = {
     query?: never;
     url: '/v1/identity/clients';
 };
+
+export type ClientsGetAllErrors = {
+    /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type ClientsGetAllError = ClientsGetAllErrors[keyof ClientsGetAllErrors];
 
 export type ClientsGetAllResponses = {
     /**
@@ -1809,7 +2823,27 @@ export type ClientsCreateErrors = {
     /**
      * Bad Request
      */
-    400: ProblemDetails;
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type ClientsCreateError = ClientsCreateErrors[keyof ClientsCreateErrors];
@@ -1834,9 +2868,29 @@ export type ClientsDeleteData = {
 
 export type ClientsDeleteErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type ClientsDeleteError = ClientsDeleteErrors[keyof ClientsDeleteErrors];
@@ -1859,9 +2913,29 @@ export type ClientsGetByIdData = {
 
 export type ClientsGetByIdErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type ClientsGetByIdError = ClientsGetByIdErrors[keyof ClientsGetByIdErrors];
@@ -1886,9 +2960,29 @@ export type ClientsUpdateData = {
 
 export type ClientsUpdateErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type ClientsUpdateError = ClientsUpdateErrors[keyof ClientsUpdateErrors];
@@ -1913,9 +3007,29 @@ export type ClientsRotateSecretData = {
 
 export type ClientsRotateSecretErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type ClientsRotateSecretError = ClientsRotateSecretErrors[keyof ClientsRotateSecretErrors];
@@ -1935,6 +3049,35 @@ export type IdentitySettingsGetConfigData = {
     query?: never;
     url: '/v1/identity/config';
 };
+
+export type IdentitySettingsGetConfigErrors = {
+    /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type IdentitySettingsGetConfigError = IdentitySettingsGetConfigErrors[keyof IdentitySettingsGetConfigErrors];
 
 export type IdentitySettingsGetConfigResponses = {
     /**
@@ -1958,7 +3101,27 @@ export type IdentitySettingsDeleteTenantSettingErrors = {
     /**
      * Bad Request
      */
-    400: ProblemDetails;
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type IdentitySettingsDeleteTenantSettingError = IdentitySettingsDeleteTenantSettingErrors[keyof IdentitySettingsDeleteTenantSettingErrors];
@@ -1976,6 +3139,35 @@ export type IdentitySettingsGetTenantSettingsData = {
     query?: never;
     url: '/v1/identity/settings/tenant';
 };
+
+export type IdentitySettingsGetTenantSettingsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type IdentitySettingsGetTenantSettingsError = IdentitySettingsGetTenantSettingsErrors[keyof IdentitySettingsGetTenantSettingsErrors];
 
 export type IdentitySettingsGetTenantSettingsResponses = {
     /**
@@ -1997,7 +3189,27 @@ export type IdentitySettingsUpsertTenantSettingErrors = {
     /**
      * Bad Request
      */
-    400: ProblemDetails;
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type IdentitySettingsUpsertTenantSettingError = IdentitySettingsUpsertTenantSettingErrors[keyof IdentitySettingsUpsertTenantSettingErrors];
@@ -2022,7 +3234,27 @@ export type IdentitySettingsDeleteUserSettingErrors = {
     /**
      * Bad Request
      */
-    400: ProblemDetails;
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type IdentitySettingsDeleteUserSettingError = IdentitySettingsDeleteUserSettingErrors[keyof IdentitySettingsDeleteUserSettingErrors];
@@ -2040,6 +3272,35 @@ export type IdentitySettingsGetUserSettingsData = {
     query?: never;
     url: '/v1/identity/settings/user';
 };
+
+export type IdentitySettingsGetUserSettingsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type IdentitySettingsGetUserSettingsError = IdentitySettingsGetUserSettingsErrors[keyof IdentitySettingsGetUserSettingsErrors];
 
 export type IdentitySettingsGetUserSettingsResponses = {
     /**
@@ -2061,7 +3322,27 @@ export type IdentitySettingsUpsertUserSettingErrors = {
     /**
      * Bad Request
      */
-    400: ProblemDetails;
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type IdentitySettingsUpsertUserSettingError = IdentitySettingsUpsertUserSettingErrors[keyof IdentitySettingsUpsertUserSettingErrors];
@@ -2083,6 +3364,35 @@ export type InvitationsGetByTenantData = {
     url: '/v1/identity/invitations';
 };
 
+export type InvitationsGetByTenantErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type InvitationsGetByTenantError = InvitationsGetByTenantErrors[keyof InvitationsGetByTenantErrors];
+
 export type InvitationsGetByTenantResponses = {
     /**
      * OK
@@ -2098,6 +3408,35 @@ export type InvitationsCreateData = {
     query?: never;
     url: '/v1/identity/invitations';
 };
+
+export type InvitationsCreateErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type InvitationsCreateError = InvitationsCreateErrors[keyof InvitationsCreateErrors];
 
 export type InvitationsCreateResponses = {
     /**
@@ -2119,9 +3458,29 @@ export type InvitationsRevokeData = {
 
 export type InvitationsRevokeErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type InvitationsRevokeError = InvitationsRevokeErrors[keyof InvitationsRevokeErrors];
@@ -2144,9 +3503,29 @@ export type InvitationsVerifyData = {
 
 export type InvitationsVerifyErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type InvitationsVerifyError = InvitationsVerifyErrors[keyof InvitationsVerifyErrors];
@@ -2171,6 +3550,18 @@ export type InvitationsAcceptData = {
 
 export type InvitationsAcceptErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
@@ -2178,6 +3569,14 @@ export type InvitationsAcceptErrors = {
      * Unprocessable Entity
      */
     422: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type InvitationsAcceptError = InvitationsAcceptErrors[keyof InvitationsAcceptErrors];
@@ -2195,6 +3594,35 @@ export type MeAuthorizationsListConnectedApplicationsData = {
     query?: never;
     url: '/v1/identity/me/authorizations';
 };
+
+export type MeAuthorizationsListConnectedApplicationsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type MeAuthorizationsListConnectedApplicationsError = MeAuthorizationsListConnectedApplicationsErrors[keyof MeAuthorizationsListConnectedApplicationsErrors];
 
 export type MeAuthorizationsListConnectedApplicationsResponses = {
     /**
@@ -2216,9 +3644,29 @@ export type MeAuthorizationsWithdrawConsentData = {
 
 export type MeAuthorizationsWithdrawConsentErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type MeAuthorizationsWithdrawConsentError = MeAuthorizationsWithdrawConsentErrors[keyof MeAuthorizationsWithdrawConsentErrors];
@@ -2237,6 +3685,35 @@ export type MeGetOrganizationsData = {
     url: '/v1/identity/me/organizations';
 };
 
+export type MeGetOrganizationsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type MeGetOrganizationsError = MeGetOrganizationsErrors[keyof MeGetOrganizationsErrors];
+
 export type MeGetOrganizationsResponses = {
     /**
      * OK
@@ -2252,6 +3729,35 @@ export type MfaGetStatusData = {
     query?: never;
     url: '/v1/identity/mfa/status';
 };
+
+export type MfaGetStatusErrors = {
+    /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type MfaGetStatusError = MfaGetStatusErrors[keyof MfaGetStatusErrors];
 
 export type MfaGetStatusResponses = {
     /**
@@ -2269,6 +3775,35 @@ export type MfaEnrollTotpData = {
     url: '/v1/identity/mfa/enroll/totp';
 };
 
+export type MfaEnrollTotpErrors = {
+    /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type MfaEnrollTotpError = MfaEnrollTotpErrors[keyof MfaEnrollTotpErrors];
+
 export type MfaEnrollTotpResponses = {
     /**
      * OK
@@ -2284,6 +3819,35 @@ export type MfaConfirmEnrollmentData = {
     query?: never;
     url: '/v1/identity/mfa/enroll/confirm';
 };
+
+export type MfaConfirmEnrollmentErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type MfaConfirmEnrollmentError = MfaConfirmEnrollmentErrors[keyof MfaConfirmEnrollmentErrors];
 
 export type MfaConfirmEnrollmentResponses = {
     /**
@@ -2301,6 +3865,35 @@ export type MfaDisableData = {
     url: '/v1/identity/mfa/disable';
 };
 
+export type MfaDisableErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type MfaDisableError = MfaDisableErrors[keyof MfaDisableErrors];
+
 export type MfaDisableResponses = {
     /**
      * OK
@@ -2316,6 +3909,35 @@ export type MfaRegenerateBackupCodesData = {
     query?: never;
     url: '/v1/identity/mfa/backup-codes/regenerate';
 };
+
+export type MfaRegenerateBackupCodesErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type MfaRegenerateBackupCodesError = MfaRegenerateBackupCodesErrors[keyof MfaRegenerateBackupCodesErrors];
 
 export type MfaRegenerateBackupCodesResponses = {
     /**
@@ -2335,6 +3957,35 @@ export type MfaAdminDisableMfaData = {
     url: '/v1/identity/mfa/admin/{userId}/disable';
 };
 
+export type MfaAdminDisableMfaErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type MfaAdminDisableMfaError = MfaAdminDisableMfaErrors[keyof MfaAdminDisableMfaErrors];
+
 export type MfaAdminDisableMfaResponses = {
     /**
      * OK
@@ -2353,6 +4004,35 @@ export type MfaAdminClearLockoutData = {
     url: '/v1/identity/mfa/admin/{userId}/clear-lockout';
 };
 
+export type MfaAdminClearLockoutErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type MfaAdminClearLockoutError = MfaAdminClearLockoutErrors[keyof MfaAdminClearLockoutErrors];
+
 export type MfaAdminClearLockoutResponses = {
     /**
      * OK
@@ -2368,6 +4048,35 @@ export type MfaIssueEnrollmentTokenData = {
     query?: never;
     url: '/v1/identity/mfa/enroll/issue-token';
 };
+
+export type MfaIssueEnrollmentTokenErrors = {
+    /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type MfaIssueEnrollmentTokenError = MfaIssueEnrollmentTokenErrors[keyof MfaIssueEnrollmentTokenErrors];
 
 export type MfaIssueEnrollmentTokenResponses = {
     /**
@@ -2386,6 +4095,35 @@ export type MfaExchangeEnrollmentTokenData = {
     };
     url: '/v1/identity/mfa/enroll/exchange-token';
 };
+
+export type MfaExchangeEnrollmentTokenErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type MfaExchangeEnrollmentTokenError = MfaExchangeEnrollmentTokenErrors[keyof MfaExchangeEnrollmentTokenErrors];
 
 export type MfaExchangeEnrollmentTokenResponses = {
     /**
@@ -2407,9 +4145,29 @@ export type OrganizationClientsListData = {
 
 export type OrganizationClientsListErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationClientsListError = OrganizationClientsListErrors[keyof OrganizationClientsListErrors];
@@ -2436,7 +4194,15 @@ export type OrganizationClientsRegisterErrors = {
     /**
      * Bad Request
      */
-    400: ValidationProblemDetails;
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
     /**
      * Not Found
      */
@@ -2445,6 +4211,14 @@ export type OrganizationClientsRegisterErrors = {
      * Unprocessable Entity
      */
     422: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationClientsRegisterError = OrganizationClientsRegisterErrors[keyof OrganizationClientsRegisterErrors];
@@ -2470,9 +4244,29 @@ export type OrganizationClientsRotateSecretData = {
 
 export type OrganizationClientsRotateSecretErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationClientsRotateSecretError = OrganizationClientsRotateSecretErrors[keyof OrganizationClientsRotateSecretErrors];
@@ -2498,9 +4292,29 @@ export type OrganizationClientsDeleteData = {
 
 export type OrganizationClientsDeleteErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationClientsDeleteError = OrganizationClientsDeleteErrors[keyof OrganizationClientsDeleteErrors];
@@ -2524,9 +4338,29 @@ export type OrganizationClientsGetByIdData = {
 
 export type OrganizationClientsGetByIdErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationClientsGetByIdError = OrganizationClientsGetByIdErrors[keyof OrganizationClientsGetByIdErrors];
@@ -2554,7 +4388,15 @@ export type OrganizationClientsUpdateErrors = {
     /**
      * Bad Request
      */
-    400: ValidationProblemDetails;
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
     /**
      * Not Found
      */
@@ -2563,6 +4405,14 @@ export type OrganizationClientsUpdateErrors = {
      * Unprocessable Entity
      */
     422: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationClientsUpdateError = OrganizationClientsUpdateErrors[keyof OrganizationClientsUpdateErrors];
@@ -2588,6 +4438,18 @@ export type OrganizationClientsSuspendData = {
 
 export type OrganizationClientsSuspendErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
@@ -2595,6 +4457,14 @@ export type OrganizationClientsSuspendErrors = {
      * Unprocessable Entity
      */
     422: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationClientsSuspendError = OrganizationClientsSuspendErrors[keyof OrganizationClientsSuspendErrors];
@@ -2620,6 +4490,18 @@ export type OrganizationClientsReinstateData = {
 
 export type OrganizationClientsReinstateErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
@@ -2627,6 +4509,14 @@ export type OrganizationClientsReinstateErrors = {
      * Unprocessable Entity
      */
     422: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationClientsReinstateError = OrganizationClientsReinstateErrors[keyof OrganizationClientsReinstateErrors];
@@ -2652,6 +4542,14 @@ export type OrganizationClientsLiftPlatformSuspensionData = {
 
 export type OrganizationClientsLiftPlatformSuspensionErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
      * Forbidden
      */
     403: ProblemDetails;
@@ -2663,6 +4561,14 @@ export type OrganizationClientsLiftPlatformSuspensionErrors = {
      * Unprocessable Entity
      */
     422: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationClientsLiftPlatformSuspensionError = OrganizationClientsLiftPlatformSuspensionErrors[keyof OrganizationClientsLiftPlatformSuspensionErrors];
@@ -2688,6 +4594,14 @@ export type OrganizationClientsPlacePlatformSuspensionData = {
 
 export type OrganizationClientsPlacePlatformSuspensionErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
      * Forbidden
      */
     403: ProblemDetails;
@@ -2699,6 +4613,14 @@ export type OrganizationClientsPlacePlatformSuspensionErrors = {
      * Unprocessable Entity
      */
     422: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationClientsPlacePlatformSuspensionError = OrganizationClientsPlacePlatformSuspensionErrors[keyof OrganizationClientsPlacePlatformSuspensionErrors];
@@ -2723,6 +4645,35 @@ export type OrganizationsGetAllData = {
     url: '/v1/identity/organizations';
 };
 
+export type OrganizationsGetAllErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type OrganizationsGetAllError = OrganizationsGetAllErrors[keyof OrganizationsGetAllErrors];
+
 export type OrganizationsGetAllResponses = {
     /**
      * OK
@@ -2738,6 +4689,35 @@ export type OrganizationsCreateData = {
     query?: never;
     url: '/v1/identity/organizations';
 };
+
+export type OrganizationsCreateErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type OrganizationsCreateError = OrganizationsCreateErrors[keyof OrganizationsCreateErrors];
 
 export type OrganizationsCreateResponses = {
     /**
@@ -2759,9 +4739,29 @@ export type OrganizationsDeleteData = {
 
 export type OrganizationsDeleteErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationsDeleteError = OrganizationsDeleteErrors[keyof OrganizationsDeleteErrors];
@@ -2782,6 +4782,35 @@ export type OrganizationsGetByIdData = {
     url: '/v1/identity/organizations/{id}';
 };
 
+export type OrganizationsGetByIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type OrganizationsGetByIdError = OrganizationsGetByIdErrors[keyof OrganizationsGetByIdErrors];
+
 export type OrganizationsGetByIdResponses = {
     /**
      * OK
@@ -2799,6 +4828,35 @@ export type OrganizationsGetMembersData = {
     query?: never;
     url: '/v1/identity/organizations/{id}/members';
 };
+
+export type OrganizationsGetMembersErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type OrganizationsGetMembersError = OrganizationsGetMembersErrors[keyof OrganizationsGetMembersErrors];
 
 export type OrganizationsGetMembersResponses = {
     /**
@@ -2820,9 +4878,29 @@ export type OrganizationsAddMemberData = {
 
 export type OrganizationsAddMemberErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationsAddMemberError = OrganizationsAddMemberErrors[keyof OrganizationsAddMemberErrors];
@@ -2846,9 +4924,29 @@ export type OrganizationsRemoveMemberData = {
 
 export type OrganizationsRemoveMemberErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationsRemoveMemberError = OrganizationsRemoveMemberErrors[keyof OrganizationsRemoveMemberErrors];
@@ -2871,9 +4969,29 @@ export type OrganizationsGetPendingMembersData = {
 
 export type OrganizationsGetPendingMembersErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationsGetPendingMembersError = OrganizationsGetPendingMembersErrors[keyof OrganizationsGetPendingMembersErrors];
@@ -2889,9 +5007,29 @@ export type OrganizationsGetSuspendedMembersData = {
 
 export type OrganizationsGetSuspendedMembersErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationsGetSuspendedMembersError = OrganizationsGetSuspendedMembersErrors[keyof OrganizationsGetSuspendedMembersErrors];
@@ -2907,9 +5045,29 @@ export type OrganizationsGetDeniedMembersData = {
 
 export type OrganizationsGetDeniedMembersErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationsGetDeniedMembersError = OrganizationsGetDeniedMembersErrors[keyof OrganizationsGetDeniedMembersErrors];
@@ -2926,6 +5084,18 @@ export type OrganizationsApproveMemberData = {
 
 export type OrganizationsApproveMemberErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
@@ -2933,6 +5103,14 @@ export type OrganizationsApproveMemberErrors = {
      * Unprocessable Entity
      */
     422: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationsApproveMemberError = OrganizationsApproveMemberErrors[keyof OrganizationsApproveMemberErrors];
@@ -2956,6 +5134,18 @@ export type OrganizationsDenyMemberData = {
 
 export type OrganizationsDenyMemberErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
@@ -2963,6 +5153,14 @@ export type OrganizationsDenyMemberErrors = {
      * Unprocessable Entity
      */
     422: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationsDenyMemberError = OrganizationsDenyMemberErrors[keyof OrganizationsDenyMemberErrors];
@@ -2986,6 +5184,18 @@ export type OrganizationsClearDenialData = {
 
 export type OrganizationsClearDenialErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
@@ -2993,6 +5203,14 @@ export type OrganizationsClearDenialErrors = {
      * Unprocessable Entity
      */
     422: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationsClearDenialError = OrganizationsClearDenialErrors[keyof OrganizationsClearDenialErrors];
@@ -3016,6 +5234,18 @@ export type OrganizationsSuspendMemberData = {
 
 export type OrganizationsSuspendMemberErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
@@ -3023,6 +5253,14 @@ export type OrganizationsSuspendMemberErrors = {
      * Unprocessable Entity
      */
     422: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationsSuspendMemberError = OrganizationsSuspendMemberErrors[keyof OrganizationsSuspendMemberErrors];
@@ -3046,6 +5284,18 @@ export type OrganizationsReinstateMemberData = {
 
 export type OrganizationsReinstateMemberErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
@@ -3053,6 +5303,14 @@ export type OrganizationsReinstateMemberErrors = {
      * Unprocessable Entity
      */
     422: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationsReinstateMemberError = OrganizationsReinstateMemberErrors[keyof OrganizationsReinstateMemberErrors];
@@ -3075,9 +5333,33 @@ export type OrganizationsLeaveData = {
 
 export type OrganizationsLeaveErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
      * Unprocessable Entity
      */
     422: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationsLeaveError = OrganizationsLeaveErrors[keyof OrganizationsLeaveErrors];
@@ -3100,9 +5382,29 @@ export type OrganizationsArchiveData = {
 
 export type OrganizationsArchiveErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationsArchiveError = OrganizationsArchiveErrors[keyof OrganizationsArchiveErrors];
@@ -3125,9 +5427,29 @@ export type OrganizationsReactivateData = {
 
 export type OrganizationsReactivateErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationsReactivateError = OrganizationsReactivateErrors[keyof OrganizationsReactivateErrors];
@@ -3150,13 +5472,33 @@ export type OrganizationsLiftPlatformSuspensionData = {
 
 export type OrganizationsLiftPlatformSuspensionErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
      * Forbidden
      */
     403: ProblemDetails;
     /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
      * Unprocessable Entity
      */
     422: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationsLiftPlatformSuspensionError = OrganizationsLiftPlatformSuspensionErrors[keyof OrganizationsLiftPlatformSuspensionErrors];
@@ -3179,13 +5521,33 @@ export type OrganizationsPlacePlatformSuspensionData = {
 
 export type OrganizationsPlacePlatformSuspensionErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
      * Forbidden
      */
     403: ProblemDetails;
     /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
      * Unprocessable Entity
      */
     422: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationsPlacePlatformSuspensionError = OrganizationsPlacePlatformSuspensionErrors[keyof OrganizationsPlacePlatformSuspensionErrors];
@@ -3206,6 +5568,35 @@ export type OrganizationsGetBrandingData = {
     url: '/v1/identity/organizations/{id}/branding';
 };
 
+export type OrganizationsGetBrandingErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type OrganizationsGetBrandingError = OrganizationsGetBrandingErrors[keyof OrganizationsGetBrandingErrors];
+
 export type OrganizationsGetBrandingResponses = {
     /**
      * OK
@@ -3223,6 +5614,35 @@ export type OrganizationsUpdateBrandingData = {
     query?: never;
     url: '/v1/identity/organizations/{id}/branding';
 };
+
+export type OrganizationsUpdateBrandingErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type OrganizationsUpdateBrandingError = OrganizationsUpdateBrandingErrors[keyof OrganizationsUpdateBrandingErrors];
 
 export type OrganizationsUpdateBrandingResponses = {
     /**
@@ -3246,9 +5666,29 @@ export type OrganizationsUploadBrandingLogoData = {
 
 export type OrganizationsUploadBrandingLogoErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationsUploadBrandingLogoError = OrganizationsUploadBrandingLogoErrors[keyof OrganizationsUploadBrandingLogoErrors];
@@ -3271,6 +5711,35 @@ export type OrganizationsGetSettingsData = {
     url: '/v1/identity/organizations/{id}/settings';
 };
 
+export type OrganizationsGetSettingsErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type OrganizationsGetSettingsError = OrganizationsGetSettingsErrors[keyof OrganizationsGetSettingsErrors];
+
 export type OrganizationsGetSettingsResponses = {
     /**
      * OK
@@ -3291,9 +5760,29 @@ export type OrganizationsUpdateSettingsData = {
 
 export type OrganizationsUpdateSettingsErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationsUpdateSettingsError = OrganizationsUpdateSettingsErrors[keyof OrganizationsUpdateSettingsErrors];
@@ -3316,6 +5805,18 @@ export type OrganizationsUpdateEnrollmentData = {
 
 export type OrganizationsUpdateEnrollmentErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
@@ -3323,6 +5824,14 @@ export type OrganizationsUpdateEnrollmentErrors = {
      * Unprocessable Entity
      */
     422: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type OrganizationsUpdateEnrollmentError = OrganizationsUpdateEnrollmentErrors[keyof OrganizationsUpdateEnrollmentErrors];
@@ -3340,6 +5849,35 @@ export type RolesGetRolesData = {
     query?: never;
     url: '/v1/identity/roles';
 };
+
+export type RolesGetRolesErrors = {
+    /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type RolesGetRolesError = RolesGetRolesErrors[keyof RolesGetRolesErrors];
 
 export type RolesGetRolesResponses = {
     /**
@@ -3359,6 +5897,35 @@ export type RolesGetRolePermissionsData = {
     url: '/v1/identity/roles/{roleName}/permissions';
 };
 
+export type RolesGetRolePermissionsErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type RolesGetRolePermissionsError = RolesGetRolePermissionsErrors[keyof RolesGetRolePermissionsErrors];
+
 export type RolesGetRolePermissionsResponses = {
     /**
      * OK
@@ -3377,6 +5944,35 @@ export type ScopesListData = {
     url: '/v1/identity/scopes';
 };
 
+export type ScopesListErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type ScopesListError = ScopesListErrors[keyof ScopesListErrors];
+
 export type ScopesListResponses = {
     /**
      * OK
@@ -3392,6 +5988,35 @@ export type SessionListSessionsData = {
     query?: never;
     url: '/v1/identity/sessions';
 };
+
+export type SessionListSessionsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type SessionListSessionsError = SessionListSessionsErrors[keyof SessionListSessionsErrors];
 
 export type SessionListSessionsResponses = {
     /**
@@ -3411,6 +6036,35 @@ export type SessionRevokeSessionData = {
     url: '/v1/identity/sessions/{sessionId}';
 };
 
+export type SessionRevokeSessionErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type SessionRevokeSessionError = SessionRevokeSessionErrors[keyof SessionRevokeSessionErrors];
+
 export type SessionRevokeSessionResponses = {
     /**
      * No Content
@@ -3426,6 +6080,35 @@ export type SetupGetStatusData = {
     query?: never;
     url: '/v1/identity/setup/status';
 };
+
+export type SetupGetStatusErrors = {
+    /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type SetupGetStatusError = SetupGetStatusErrors[keyof SetupGetStatusErrors];
 
 export type SetupGetStatusResponses = {
     /**
@@ -3445,9 +6128,33 @@ export type SetupCreateAdminData = {
 
 export type SetupCreateAdminErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
      * Conflict
      */
     409: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type SetupCreateAdminError = SetupCreateAdminErrors[keyof SetupCreateAdminErrors];
@@ -3470,6 +6177,35 @@ export type UsersGetUsersData = {
     url: '/v1/identity/users';
 };
 
+export type UsersGetUsersErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type UsersGetUsersError = UsersGetUsersErrors[keyof UsersGetUsersErrors];
+
 export type UsersGetUsersResponses = {
     /**
      * OK
@@ -3485,6 +6221,35 @@ export type UsersCreateUserData = {
     query?: never;
     url: '/v1/identity/users';
 };
+
+export type UsersCreateUserErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type UsersCreateUserError = UsersCreateUserErrors[keyof UsersCreateUserErrors];
 
 export type UsersCreateUserResponses = {
     /**
@@ -3504,6 +6269,35 @@ export type UsersGetUserByIdData = {
     url: '/v1/identity/users/{id}';
 };
 
+export type UsersGetUserByIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type UsersGetUserByIdError = UsersGetUserByIdErrors[keyof UsersGetUserByIdErrors];
+
 export type UsersGetUserByIdResponses = {
     /**
      * OK
@@ -3519,6 +6313,35 @@ export type UsersGetCurrentUserData = {
     query?: never;
     url: '/v1/identity/users/me';
 };
+
+export type UsersGetCurrentUserErrors = {
+    /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type UsersGetCurrentUserError = UsersGetCurrentUserErrors[keyof UsersGetCurrentUserErrors];
 
 export type UsersGetCurrentUserResponses = {
     /**
@@ -3540,9 +6363,29 @@ export type UsersDeactivateUserData = {
 
 export type UsersDeactivateUserErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type UsersDeactivateUserError = UsersDeactivateUserErrors[keyof UsersDeactivateUserErrors];
@@ -3565,9 +6408,29 @@ export type UsersActivateUserData = {
 
 export type UsersActivateUserErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type UsersActivateUserError = UsersActivateUserErrors[keyof UsersActivateUserErrors];
@@ -3592,10 +6455,37 @@ export type UsersAssignRoleErrors = {
     /**
      * Bad Request
      */
-    400: ProblemDetails;
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type UsersAssignRoleError = UsersAssignRoleErrors[keyof UsersAssignRoleErrors];
+
+export type UsersAssignRoleResponses = {
+    /**
+     * No Content
+     */
+    204: unknown;
+};
 
 export type UsersRemoveRoleData = {
     body?: never;
@@ -3609,9 +6499,29 @@ export type UsersRemoveRoleData = {
 
 export type UsersRemoveRoleErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type UsersRemoveRoleError = UsersRemoveRoleErrors[keyof UsersRemoveRoleErrors];
@@ -3631,6 +6541,35 @@ export type InquiriesGetAllData = {
     };
     url: '/v1/inquiries';
 };
+
+export type InquiriesGetAllErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type InquiriesGetAllError = InquiriesGetAllErrors[keyof InquiriesGetAllErrors];
 
 export type InquiriesGetAllResponses = {
     /**
@@ -3652,7 +6591,27 @@ export type InquiriesSubmitErrors = {
     /**
      * Bad Request
      */
-    400: ProblemDetails;
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type InquiriesSubmitError = InquiriesSubmitErrors[keyof InquiriesSubmitErrors];
@@ -3672,6 +6631,35 @@ export type InquiriesGetSubmittedData = {
     query?: never;
     url: '/v1/inquiries/submitted';
 };
+
+export type InquiriesGetSubmittedErrors = {
+    /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type InquiriesGetSubmittedError = InquiriesGetSubmittedErrors[keyof InquiriesGetSubmittedErrors];
 
 export type InquiriesGetSubmittedResponses = {
     /**
@@ -3693,9 +6681,29 @@ export type InquiriesGetByIdData = {
 
 export type InquiriesGetByIdErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type InquiriesGetByIdError = InquiriesGetByIdErrors[keyof InquiriesGetByIdErrors];
@@ -3722,11 +6730,27 @@ export type InquiriesUpdateStatusErrors = {
     /**
      * Bad Request
      */
-    400: ProblemDetails;
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
     /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type InquiriesUpdateStatusError = InquiriesUpdateStatusErrors[keyof InquiriesUpdateStatusErrors];
@@ -3751,9 +6775,29 @@ export type InquiriesGetCommentsData = {
 
 export type InquiriesGetCommentsErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type InquiriesGetCommentsError = InquiriesGetCommentsErrors[keyof InquiriesGetCommentsErrors];
@@ -3780,7 +6824,27 @@ export type InquiriesAddCommentErrors = {
     /**
      * Bad Request
      */
-    400: ProblemDetails;
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type InquiriesAddCommentError = InquiriesAddCommentErrors[keyof InquiriesAddCommentErrors];
@@ -3806,9 +6870,29 @@ export type NotificationsGetNotificationsData = {
 
 export type NotificationsGetNotificationsErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
      * Unauthorized
      */
     401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type NotificationsGetNotificationsError = NotificationsGetNotificationsErrors[keyof NotificationsGetNotificationsErrors];
@@ -3831,9 +6915,29 @@ export type NotificationsGetUnreadCountData = {
 
 export type NotificationsGetUnreadCountErrors = {
     /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
      * Unauthorized
      */
     401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type NotificationsGetUnreadCountError = NotificationsGetUnreadCountErrors[keyof NotificationsGetUnreadCountErrors];
@@ -3858,13 +6962,29 @@ export type NotificationsMarkAsReadData = {
 
 export type NotificationsMarkAsReadErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
      * Unauthorized
      */
     401: ProblemDetails;
     /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type NotificationsMarkAsReadError = NotificationsMarkAsReadErrors[keyof NotificationsMarkAsReadErrors];
@@ -3885,9 +7005,29 @@ export type NotificationsMarkAllAsReadData = {
 
 export type NotificationsMarkAllAsReadErrors = {
     /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
      * Unauthorized
      */
     401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type NotificationsMarkAllAsReadError = NotificationsMarkAllAsReadErrors[keyof NotificationsMarkAllAsReadErrors];
@@ -3905,6 +7045,35 @@ export type PushConfigurationGetTenantPushConfigData = {
     query?: never;
     url: '/v1/admin/push/config';
 };
+
+export type PushConfigurationGetTenantPushConfigErrors = {
+    /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type PushConfigurationGetTenantPushConfigError = PushConfigurationGetTenantPushConfigErrors[keyof PushConfigurationGetTenantPushConfigErrors];
 
 export type PushConfigurationGetTenantPushConfigResponses = {
     /**
@@ -3930,7 +7099,27 @@ export type PushConfigurationUpsertTenantPushConfigErrors = {
     /**
      * Bad Request
      */
-    400: ProblemDetails;
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type PushConfigurationUpsertTenantPushConfigError = PushConfigurationUpsertTenantPushConfigErrors[keyof PushConfigurationUpsertTenantPushConfigErrors];
@@ -3951,9 +7140,29 @@ export type PushConfigurationSetTenantPushEnabledData = {
 
 export type PushConfigurationSetTenantPushEnabledErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type PushConfigurationSetTenantPushEnabledError = PushConfigurationSetTenantPushEnabledErrors[keyof PushConfigurationSetTenantPushEnabledErrors];
@@ -3974,6 +7183,35 @@ export type PushConfigurationRemoveTenantPushConfigData = {
     url: '/v1/admin/push/config/{platform}';
 };
 
+export type PushConfigurationRemoveTenantPushConfigErrors = {
+    /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type PushConfigurationRemoveTenantPushConfigError = PushConfigurationRemoveTenantPushConfigErrors[keyof PushConfigurationRemoveTenantPushConfigErrors];
+
 export type PushConfigurationRemoveTenantPushConfigResponses = {
     /**
      * No Content
@@ -3990,9 +7228,29 @@ export type PushDevicesGetUserDevicesData = {
 
 export type PushDevicesGetUserDevicesErrors = {
     /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
      * Unauthorized
      */
     401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type PushDevicesGetUserDevicesError = PushDevicesGetUserDevicesErrors[keyof PushDevicesGetUserDevicesErrors];
@@ -4015,9 +7273,29 @@ export type PushDevicesRegisterDeviceData = {
 
 export type PushDevicesRegisterDeviceErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
      * Unauthorized
      */
     401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type PushDevicesRegisterDeviceError = PushDevicesRegisterDeviceErrors[keyof PushDevicesRegisterDeviceErrors];
@@ -4040,13 +7318,29 @@ export type PushDevicesDeregisterDeviceData = {
 
 export type PushDevicesDeregisterDeviceErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
      * Unauthorized
      */
     401: ProblemDetails;
     /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type PushDevicesDeregisterDeviceError = PushDevicesDeregisterDeviceErrors[keyof PushDevicesDeregisterDeviceErrors];
@@ -4067,9 +7361,29 @@ export type PushDevicesSendPushData = {
 
 export type PushDevicesSendPushErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
      * Unauthorized
      */
     401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type PushDevicesSendPushError = PushDevicesSendPushErrors[keyof PushDevicesSendPushErrors];
@@ -4090,9 +7404,29 @@ export type UserNotificationSettingsGetUserNotificationSettingsData = {
 
 export type UserNotificationSettingsGetUserNotificationSettingsErrors = {
     /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
      * Unauthorized
      */
     401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type UserNotificationSettingsGetUserNotificationSettingsError = UserNotificationSettingsGetUserNotificationSettingsErrors[keyof UserNotificationSettingsGetUserNotificationSettingsErrors];
@@ -4117,11 +7451,27 @@ export type UserNotificationSettingsSetChannelEnabledErrors = {
     /**
      * Bad Request
      */
-    400: ProblemDetails;
+    400: HttpValidationProblemDetails;
     /**
      * Unauthorized
      */
     401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type UserNotificationSettingsSetChannelEnabledError = UserNotificationSettingsSetChannelEnabledErrors[keyof UserNotificationSettingsSetChannelEnabledErrors];
@@ -4144,11 +7494,27 @@ export type UserNotificationSettingsSetNotificationTypeEnabledErrors = {
     /**
      * Bad Request
      */
-    400: ProblemDetails;
+    400: HttpValidationProblemDetails;
     /**
      * Unauthorized
      */
     401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type UserNotificationSettingsSetNotificationTypeEnabledError = UserNotificationSettingsSetNotificationTypeEnabledErrors[keyof UserNotificationSettingsSetNotificationTypeEnabledErrors];
@@ -4171,11 +7537,31 @@ export type StorageCreateBucketErrors = {
     /**
      * Bad Request
      */
-    400: ProblemDetails;
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
     /**
      * Conflict
      */
     409: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type StorageCreateBucketError = StorageCreateBucketErrors[keyof StorageCreateBucketErrors];
@@ -4204,11 +7590,27 @@ export type StorageDeleteBucketErrors = {
     /**
      * Bad Request
      */
-    400: ProblemDetails;
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
     /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type StorageDeleteBucketError = StorageDeleteBucketErrors[keyof StorageDeleteBucketErrors];
@@ -4231,9 +7633,29 @@ export type StorageGetBucketData = {
 
 export type StorageGetBucketErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type StorageGetBucketError = StorageGetBucketErrors[keyof StorageGetBucketErrors];
@@ -4266,11 +7688,27 @@ export type StorageUploadErrors = {
     /**
      * Bad Request
      */
-    400: ProblemDetails;
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
     /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type StorageUploadError = StorageUploadErrors[keyof StorageUploadErrors];
@@ -4295,9 +7733,29 @@ export type StorageDeleteData = {
 
 export type StorageDeleteErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type StorageDeleteError = StorageDeleteErrors[keyof StorageDeleteErrors];
@@ -4320,9 +7778,29 @@ export type StorageGetFileData = {
 
 export type StorageGetFileErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type StorageGetFileError = StorageGetFileErrors[keyof StorageGetFileErrors];
@@ -4347,9 +7825,29 @@ export type StorageDownloadData = {
 
 export type StorageDownloadErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type StorageDownloadError = StorageDownloadErrors[keyof StorageDownloadErrors];
@@ -4368,9 +7866,29 @@ export type StorageListFilesData = {
 
 export type StorageListFilesErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type StorageListFilesError = StorageListFilesErrors[keyof StorageListFilesErrors];
@@ -4395,11 +7913,27 @@ export type StorageGetPresignedUploadUrlErrors = {
     /**
      * Bad Request
      */
-    400: ProblemDetails;
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
     /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type StorageGetPresignedUploadUrlError = StorageGetPresignedUploadUrlErrors[keyof StorageGetPresignedUploadUrlErrors];
@@ -4426,11 +7960,27 @@ export type StorageCompletePresignedUploadErrors = {
     /**
      * Bad Request
      */
-    400: ProblemDetails;
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
     /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type StorageCompletePresignedUploadError = StorageCompletePresignedUploadErrors[keyof StorageCompletePresignedUploadErrors];
@@ -4457,9 +8007,29 @@ export type StorageGetPresignedDownloadUrlData = {
 
 export type StorageGetPresignedDownloadUrlErrors = {
     /**
+     * Bad Request
+     */
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
      * Not Found
      */
     404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type StorageGetPresignedDownloadUrlError = StorageGetPresignedDownloadUrlErrors[keyof StorageGetPresignedDownloadUrlErrors];
@@ -4479,6 +8049,35 @@ export type StorageSettingsGetConfigData = {
     query?: never;
     url: '/v1/storage/config';
 };
+
+export type StorageSettingsGetConfigErrors = {
+    /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type StorageSettingsGetConfigError = StorageSettingsGetConfigErrors[keyof StorageSettingsGetConfigErrors];
 
 export type StorageSettingsGetConfigResponses = {
     /**
@@ -4502,7 +8101,27 @@ export type StorageSettingsDeleteTenantSettingErrors = {
     /**
      * Bad Request
      */
-    400: ProblemDetails;
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type StorageSettingsDeleteTenantSettingError = StorageSettingsDeleteTenantSettingErrors[keyof StorageSettingsDeleteTenantSettingErrors];
@@ -4520,6 +8139,35 @@ export type StorageSettingsGetTenantSettingsData = {
     query?: never;
     url: '/v1/storage/settings/tenant';
 };
+
+export type StorageSettingsGetTenantSettingsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type StorageSettingsGetTenantSettingsError = StorageSettingsGetTenantSettingsErrors[keyof StorageSettingsGetTenantSettingsErrors];
 
 export type StorageSettingsGetTenantSettingsResponses = {
     /**
@@ -4541,7 +8189,27 @@ export type StorageSettingsUpsertTenantSettingErrors = {
     /**
      * Bad Request
      */
-    400: ProblemDetails;
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type StorageSettingsUpsertTenantSettingError = StorageSettingsUpsertTenantSettingErrors[keyof StorageSettingsUpsertTenantSettingErrors];
@@ -4566,7 +8234,27 @@ export type StorageSettingsDeleteUserSettingErrors = {
     /**
      * Bad Request
      */
-    400: ProblemDetails;
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type StorageSettingsDeleteUserSettingError = StorageSettingsDeleteUserSettingErrors[keyof StorageSettingsDeleteUserSettingErrors];
@@ -4584,6 +8272,35 @@ export type StorageSettingsGetUserSettingsData = {
     query?: never;
     url: '/v1/storage/settings/user';
 };
+
+export type StorageSettingsGetUserSettingsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
+};
+
+export type StorageSettingsGetUserSettingsError = StorageSettingsGetUserSettingsErrors[keyof StorageSettingsGetUserSettingsErrors];
 
 export type StorageSettingsGetUserSettingsResponses = {
     /**
@@ -4605,7 +8322,27 @@ export type StorageSettingsUpsertUserSettingErrors = {
     /**
      * Bad Request
      */
-    400: ProblemDetails;
+    400: HttpValidationProblemDetails;
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+    /**
+     * Forbidden
+     */
+    403: ProblemDetails;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+    /**
+     * Too Many Requests
+     */
+    429: ProblemDetails;
+    /**
+     * Internal Server Error
+     */
+    500: ProblemDetails;
 };
 
 export type StorageSettingsUpsertUserSettingError = StorageSettingsUpsertUserSettingErrors[keyof StorageSettingsUpsertUserSettingErrors];

@@ -1,12 +1,15 @@
 using System.Security.Claims;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using Wallow.Identity.Infrastructure.MultiTenancy;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
+using Wallow.Tests.Common.Helpers;
 
 namespace Wallow.Identity.Tests.Infrastructure;
 
@@ -189,6 +192,12 @@ public class TenantResolutionMiddlewareTests
         _nextCalled.Should().BeFalse();
         context.Response.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
         context.Response.ContentType.Should().StartWith("application/problem+json");
+
+        context.Response.Body.Position = 0;
+        JsonElement body = await JsonSerializer.DeserializeAsync<JsonElement>(context.Response.Body);
+        body.GetProperty("code").GetString().Should().Be(SharedErrors.Forbidden.Code);
+        body.GetProperty("detail").GetString().Should().Contain("organization");
+        body.GetProperty("traceId").GetString().Should().NotBeNullOrEmpty();
     }
 
     [Fact]
@@ -291,7 +300,8 @@ public class TenantResolutionMiddlewareTests
 
     private static DefaultHttpContext CreateAuthenticatedContext(params Claim[] claims)
     {
-        DefaultHttpContext context = new DefaultHttpContext();
+        DefaultHttpContext context = new DefaultHttpContext { RequestServices = ProblemTestServices.Build() };
+        context.Response.Body = new MemoryStream();
         ClaimsIdentity identity = new(claims, "test");
         context.User = new ClaimsPrincipal(identity);
         return context;

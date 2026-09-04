@@ -96,7 +96,7 @@ public class PushConfigurationControllerTests
 
         IActionResult response = await _controller.GetTenantPushConfig(CancellationToken.None);
 
-        ObjectResult objectResult = response.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = response.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(404);
     }
 
@@ -111,7 +111,7 @@ public class PushConfigurationControllerTests
         UpsertTenantPushConfigRequest request = new(PushPlatform.Fcm, "bad-creds");
         IActionResult response = await _controller.UpsertTenantPushConfig(request, CancellationToken.None);
 
-        ObjectResult objectResult = response.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = response.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(400);
     }
 
@@ -126,7 +126,7 @@ public class PushConfigurationControllerTests
         SetTenantPushEnabledRequest request = new(PushPlatform.Fcm, true);
         IActionResult response = await _controller.SetTenantPushEnabled(request, CancellationToken.None);
 
-        ObjectResult objectResult = response.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = response.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(404);
     }
 
@@ -140,7 +140,7 @@ public class PushConfigurationControllerTests
 
         IActionResult response = await _controller.RemoveTenantPushConfig(PushPlatform.Fcm, CancellationToken.None);
 
-        ObjectResult objectResult = response.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = response.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(404);
     }
 }

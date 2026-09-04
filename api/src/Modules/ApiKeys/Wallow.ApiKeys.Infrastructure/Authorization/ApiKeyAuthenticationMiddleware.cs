@@ -1,7 +1,10 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Primitives;
+using Wallow.ApiKeys.Domain.Errors;
 using Wallow.Shared.Contracts.ApiKeys;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
@@ -43,16 +46,7 @@ public sealed partial class ApiKeyAuthenticationMiddleware(RequestDelegate next,
         if (!result.IsValid)
         {
             LogInvalidApiKeyAttempt(result.Error);
-            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            context.Response.ContentType = "application/problem+json";
-            string body = System.Text.Json.JsonSerializer.Serialize(new
-            {
-                type = "https://tools.ietf.org/html/rfc7231#section-6.5.1",
-                title = "Unauthorized",
-                status = 401,
-                detail = result.Error ?? "Invalid API key"
-            });
-            await context.Response.WriteAsync(body);
+            await WriteInvalidKeyProblemAsync(context);
             return;
         }
 
@@ -89,6 +83,24 @@ public sealed partial class ApiKeyAuthenticationMiddleware(RequestDelegate next,
 
 public sealed partial class ApiKeyAuthenticationMiddleware
 {
+    // The reason stays in the log; the body carries the catalog code and its user-safe sentence.
+    private static async Task WriteInvalidKeyProblemAsync(HttpContext context)
+    {
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+
+        ProblemDetails problem = new()
+        {
+            Status = StatusCodes.Status401Unauthorized,
+            Detail = ApiKeysErrors.ApiKeyInvalid.DefaultMessage,
+        };
+        problem.Extensions["code"] = ApiKeysErrors.ApiKeyInvalid.Code;
+
+        IProblemDetailsService problemDetailsService =
+            context.RequestServices.GetRequiredService<IProblemDetailsService>();
+        await problemDetailsService.TryWriteAsync(
+            new ProblemDetailsContext { HttpContext = context, ProblemDetails = problem });
+    }
+
     [LoggerMessage(Level = LogLevel.Warning, Message = "Invalid API key attempt: {Error}")]
     private partial void LogInvalidApiKeyAttempt(string? error);
 

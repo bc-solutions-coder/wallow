@@ -82,7 +82,6 @@ public partial class TenantResolutionMiddleware(RequestDelegate next, ILogger<Te
                 await AuthProblemResponse.WriteAsync(
                     context,
                     StatusCodes.Status403Forbidden,
-                    "Organization context required.",
                     "The token carries no organization. Sign in again with an organization selected to reach this resource.");
                 return;
             }

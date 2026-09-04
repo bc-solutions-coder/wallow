@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Tests.Common.Factories;
 using Wallow.Tests.Common.Helpers;
 
@@ -77,7 +78,9 @@ public class OrganizationlessTokenTests(WallowApiFactory factory) : IdentityInte
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
         response.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");
         ProblemDetails? problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
-        problem!.Title.Should().Be("Organization context required.");
+        problem!.Detail.Should().Contain("organization");
+        problem.Extensions.Should().ContainKey("code")
+            .WhoseValue!.ToString().Should().Be(SharedErrors.Forbidden.Code);
     }
 
     [Fact]

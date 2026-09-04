@@ -5,10 +5,13 @@ using Microsoft.Extensions.Configuration;
 using Wallow.ApiKeys.Api.Contracts.Requests;
 using Wallow.ApiKeys.Api.Contracts.Responses;
 using Wallow.ApiKeys.Api.Controllers;
+using Wallow.ApiKeys.Domain.Errors;
+using Wallow.Shared.Api.Problems;
 using Wallow.Shared.Contracts.ApiKeys;
 using Wallow.Shared.Contracts.Identity;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
+using Wallow.Tests.Common.Helpers;
 
 namespace Wallow.ApiKeys.Tests.Api.Controllers;
 
@@ -46,7 +49,7 @@ public class ApiKeysControllerTests
         }, "TestAuth"));
         _controller.ControllerContext = new ControllerContext
         {
-            HttpContext = new DefaultHttpContext { User = user }
+            HttpContext = new DefaultHttpContext { User = user, RequestServices = ProblemTestServices.Build() }
         };
     }
 
@@ -82,8 +85,9 @@ public class ApiKeysControllerTests
         IActionResult result = await _controller.CreateApiKey(request, CancellationToken.None);
 
         BadRequestObjectResult badRequest = result.Should().BeOfType<BadRequestObjectResult>().Subject;
-        ProblemDetails problem = badRequest.Value.Should().BeOfType<ProblemDetails>().Subject;
-        problem.Detail.Should().Be("API key name is required");
+        ValidationProblemDetails problem = badRequest.Value.Should().BeOfType<ValidationProblemDetails>().Subject;
+        problem.Errors.Should().ContainKey("name")
+            .WhoseValue.Should().ContainSingle().Which.Should().Be("API key name is required.");
     }
 
     [Fact]
@@ -111,7 +115,7 @@ public class ApiKeysControllerTests
 
         IActionResult result = await _controller.CreateApiKey(request, CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
     }
 
@@ -123,13 +127,14 @@ public class ApiKeysControllerTests
 
         IActionResult result = await _controller.CreateApiKey(request, CancellationToken.None);
 
-        BadRequestObjectResult badRequest = result.Should().BeOfType<BadRequestObjectResult>().Subject;
-        ProblemDetails problem = badRequest.Value.Should().BeOfType<ProblemDetails>().Subject;
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        problem.Code.Should().Be(ApiKeysErrors.OrganizationRequired.Code);
         problem.Detail.Should().Contain("organization");
     }
 
     [Fact]
-    public async Task CreateApiKey_WhenServiceFails_ReturnsBadRequest()
+    public async Task CreateApiKey_WhenServiceFails_Returns500WithoutTheStoreReason()
     {
         CreateApiKeyRequest request = new("Key");
         ApiKeyCreateResult createResult = new(false, null, null, null, "Duplicate key name");
@@ -140,9 +145,10 @@ public class ApiKeysControllerTests
 
         IActionResult result = await _controller.CreateApiKey(request, CancellationToken.None);
 
-        BadRequestObjectResult badRequest = result.Should().BeOfType<BadRequestObjectResult>().Subject;
-        ProblemDetails problem = badRequest.Value.Should().BeOfType<ProblemDetails>().Subject;
-        problem.Detail.Should().Be("Duplicate key name");
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status500InternalServerError);
+        problem.Code.Should().Be(ApiKeysErrors.CreateFailed.Code);
+        problem.Detail.Should().NotContain("Duplicate key name");
     }
 
     #endregion
@@ -185,7 +191,7 @@ public class ApiKeysControllerTests
         _currentUserService.GetCurrentUserId().Returns((Guid?)null);
         IActionResult result = await _controller.ListApiKeys(CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
     }
 
@@ -235,9 +241,9 @@ public class ApiKeysControllerTests
 
         IActionResult result = await _controller.RevokeApiKey("nonexistent", CancellationToken.None);
 
-        NotFoundObjectResult notFound = result.Should().BeOfType<NotFoundObjectResult>().Subject;
-        ProblemDetails problem = notFound.Value.Should().BeOfType<ProblemDetails>().Subject;
-        problem.Status.Should().Be(StatusCodes.Status404NotFound);
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status404NotFound);
+        problem.Code.Should().Be(ApiKeysErrors.ApiKeyNotFound.Code);
     }
 
     [Fact]
@@ -254,7 +260,7 @@ public class ApiKeysControllerTests
         _currentUserService.GetCurrentUserId().Returns((Guid?)null);
         IActionResult result = await _controller.RevokeApiKey("key-1", CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
     }
 
@@ -328,7 +334,7 @@ public class ApiKeysControllerTests
 
         IActionResult result = await _controller.CreateApiKey(request, CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
     }
 

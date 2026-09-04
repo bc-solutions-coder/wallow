@@ -157,7 +157,7 @@ public class AdminAnnouncementsControllerTests
 
         IActionResult result = await _controller.CreateAnnouncement(request, CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
     }
 
@@ -218,7 +218,7 @@ public class AdminAnnouncementsControllerTests
 
         IActionResult result = await _controller.UpdateAnnouncement(id, request, CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 
@@ -247,7 +247,7 @@ public class AdminAnnouncementsControllerTests
 
         IActionResult result = await _controller.PublishAnnouncement(id, CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 
@@ -290,7 +290,7 @@ public class AdminAnnouncementsControllerTests
 
         IActionResult result = await _controller.ArchiveAnnouncement(id, CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 
