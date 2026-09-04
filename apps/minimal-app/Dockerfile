@@ -23,10 +23,12 @@ RUN corepack enable
 WORKDIR /repo
 
 # Manifests first so the install layer caches on dependency changes rather than
-# on every source edit. Unlike the product apps, this app needs only two
-# workspace packages: sdk (its one runtime workspace dep) and config (the
-# build-time vite preset). pnpm prunes the lockfile to the projects present.
+# on every source edit. Unlike the product apps, this app needs only three
+# workspace packages: sdk and api-errors (its runtime workspace deps; the SDK's
+# every failure is api-errors' `ApiFailure`) and config (the build-time vite
+# preset). pnpm prunes the lockfile to the projects present.
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc tsconfig.base.json tsconfig.build.base.json ./
+COPY packages/api-errors/package.json packages/api-errors/
 COPY packages/config/package.json packages/config/
 COPY packages/sdk/package.json packages/sdk/
 COPY apps/minimal-app/package.json apps/minimal-app/
@@ -36,6 +38,7 @@ RUN pnpm install --frozen-lockfile
 # Source next. In-repo every @bc-solutions-coder/* exports map resolves to the
 # package's src/, so the app's `vite build` compiles workspace package source
 # directly — nothing is pre-built.
+COPY packages/api-errors packages/api-errors
 COPY packages/config packages/config
 COPY packages/sdk packages/sdk
 COPY apps/minimal-app apps/minimal-app

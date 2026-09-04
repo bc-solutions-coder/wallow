@@ -33,6 +33,7 @@ WORKDIR /repo
 # @bc-solutions-coder scoped-registry config; the workspace dep is resolved
 # locally so no NODE_AUTH_TOKEN is needed at build time.
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc tsconfig.base.json tsconfig.build.base.json ./
+COPY packages/api-errors/package.json packages/api-errors/
 COPY packages/auth/package.json packages/auth/
 COPY packages/config/package.json packages/config/
 COPY packages/env/package.json packages/env/
@@ -68,6 +69,7 @@ RUN pnpm install --frozen-lockfile
 # src/docker-workspace-copies.test.ts went with the rest of the source-reading
 # guards (Wallow-xg9t.1) -- so adding a workspace dependency means adding two COPY
 # lines here by hand, and forgetting fails minutes into an image build.
+COPY packages/api-errors packages/api-errors
 COPY packages/auth packages/auth
 COPY packages/config packages/config
 COPY packages/env packages/env
