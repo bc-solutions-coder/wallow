@@ -19,7 +19,8 @@
  * `mfa-enroll-error` surfaces any step's failure. There is no resolved-but-
  * rejected branch left: every MFA failure — RFC 7807 body or the controller's
  * raw `{ succeeded: false, error }` — arrives as a thrown `ApiFailure`, which
- * `problemDetail` renders. `mfa-enroll-cancel` is always visible.
+ * `resolveFailureMessage` renders through the app registry. `mfa-enroll-cancel`
+ * is always visible.
  *
  * ONLY THE VERIFY STEP IS A FORM. "Begin setup" is a button that mints a secret,
  * not a submit — it collects nothing, so there is nothing to validate and nothing
@@ -29,13 +30,16 @@
  *
  * Testids mirror the C# E2E page object `MfaEnrollPage`.
  */
+import { resolveFailureMessage } from "@bc-solutions-coder/api-errors";
 import { AppForm, SubmitButton, useAppForm } from "@bc-solutions-coder/forms";
-import { useMutation, useQueryClient } from "@bc-solutions-coder/query";
+import { handledFailure, useMutation, useQueryClient } from "@bc-solutions-coder/query";
 import type { MfaConfirmEnrollmentError } from "@bc-solutions-coder/sdk";
 import { Button, Card, CardTitle, ErrorBanner, Text } from "@bc-solutions-coder/ui";
 import { useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
 import { z } from "zod";
+
+import { failureMessages } from "@shared/lib/failure-messages";
 
 import {
   mfaConfirmEnrollmentMutation,
@@ -43,7 +47,6 @@ import {
   mfaGetStatusQueryKey,
   queriesForOperation,
 } from "../api";
-import { problemDetail } from "../errors";
 
 /** Props: `onDone` fires after the backup codes are acknowledged; `onCancel` backs out. */
 export interface MfaEnrollFlowProps {
@@ -51,9 +54,14 @@ export interface MfaEnrollFlowProps {
   onCancel?: () => void;
 }
 
-/** Fallback copy when a thrown error carries neither a ProblemDetails `detail` nor a known code. */
+/**
+ * Fallback copy when a thrown error carries neither a ProblemDetails `detail`
+ * nor a code the registry or the package has a sentence for. The confirm
+ * fallback no longer claims the code was wrong: that sentence belongs to the
+ * registry's `OAuth.InvalidCode` entry, and an `update_failed` is not that.
+ */
 const ENROLL_FAILED = "Unable to start MFA enrollment.";
-const CONFIRM_FAILED = "That verification code is not valid.";
+const CONFIRM_FAILED = "Unable to confirm the verification code.";
 
 /**
  * The one value the verify step collects. Its NAME is load-bearing: the
@@ -123,10 +131,12 @@ function ConfirmCodeForm(props: {
       // Typed as the factory's OWN error type, not `unknown`: `TError` is
       // inferred from this object as a whole and sits contravariantly in
       // `throwOnError` too, so widening it here would reject the very factory
-      // being spread. `problemDetail` still takes it as `unknown` — an RFC 7807
-      // body is only trustworthy after the narrowing it does.
+      // being spread. `resolveFailureMessage` still takes it as `unknown` —
+      // anything not already an `ApiFailure` is classified first.
       onError: (cause: MfaConfirmEnrollmentError): void => {
-        onFailed(problemDetail(cause, CONFIRM_FAILED));
+        onFailed(
+          resolveFailureMessage(cause, { registry: failureMessages, fallback: CONFIRM_FAILED }),
+        );
       },
     },
     // The secret is a PROP, so the submit re-guards nothing: this step does not
@@ -219,7 +229,11 @@ function DoneStep(props: { codes: string[]; onDone: () => void }) {
 export function MfaEnrollFlow(props: MfaEnrollFlowProps) {
   const { onDone, onCancel } = props;
   const { sdk } = useRouteContext({ from: "__root__" });
-  const enroll = useMutation(mfaEnrollTotpMutation({ client: sdk.client }));
+  // The banner below owns this failure; the root toaster stays quiet.
+  const enroll = useMutation({
+    ...mfaEnrollTotpMutation({ client: sdk.client }),
+    meta: handledFailure(),
+  });
 
   const [secret, setSecret] = useState<string | null>(null);
   const [qrUri, setQrUri] = useState<string | null>(null);
@@ -236,7 +250,9 @@ export function MfaEnrollFlow(props: MfaEnrollFlowProps) {
           setQrUri(data.qrUri);
         },
         onError: (err) => {
-          setError(problemDetail(err, ENROLL_FAILED));
+          setError(
+            resolveFailureMessage(err, { registry: failureMessages, fallback: ENROLL_FAILED }),
+          );
         },
       },
     );

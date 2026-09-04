@@ -8,6 +8,8 @@ import {
 import { type ForkLinks, resolveForkLinks } from "@bc-solutions-coder/styles";
 import { createMiddleware, createStart } from "@tanstack/react-start";
 
+import { apiFailureSerialization } from "./api-failure-serialization";
+
 /**
  * The Start instance — global request middleware that mints one SDK per request
  * and hands it down through the start context, which `getRouter()` lifts into
@@ -87,4 +89,7 @@ const sdkMiddleware = createMiddleware().server(({ next, request }) => {
 
 export const startInstance = createStart(() => ({
   requestMiddleware: [sdkMiddleware],
+  // A loader's `ApiFailure` crosses SSR hydration as itself, not as a bare
+  // `Error`, so the boundary renders the same branch on both sides.
+  serializationAdapters: [apiFailureSerialization],
 }));

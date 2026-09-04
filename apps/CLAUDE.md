@@ -79,6 +79,15 @@ override ordering live in `packages/lint/CLAUDE.md` — read it before editing a
 - **The theme class belongs on `document.documentElement`.** Each `__root.tsx` stamps
   `className={branding.defaultMode}` on `<html>`; a `<div className="dark">` wrapper renders
   the LIGHT palette. See `docs/development/frontend-setup.md#dark-mode`.
+- **The failure model is wired at the root, once.** wallow-web's `__root.tsx` mounts
+  `FailureMessagesProvider` (registry: `src/shared/lib/failure-messages.ts`) and `FailureToaster`
+  inside `ThemeProvider` (the toaster reads the theme); `src/app/router.tsx` passes
+  `src/shared/lib/unhandled-failure.ts` to `createQueryClient`; the root error boundary renders
+  `FailureBanner` for an API failure. It is also the router's `defaultErrorComponent` (SSR paints
+  an error AT the failing match, not at the root) and `src/app/start.ts` registers the
+  `ApiFailure` serialization adapter so a loader failure hydrates as itself. A feature never
+  mounts its own toaster or keeps a private code-to-sentence map — add the entry to the registry;
+  a mutation whose own banner shows the failure marks `meta: handledFailure()`.
 - **Logging**: both zoned apps use `@bc-solutions-coder/logger`, never `console` — one browser
   singleton at `src/shared/lib/log.ts` posting to a same-origin ingest route (`/bff/logs` in
   wallow-web, CSRF-gated; `/logs` in wallow-auth, guarded by a per-request origin allowlist).

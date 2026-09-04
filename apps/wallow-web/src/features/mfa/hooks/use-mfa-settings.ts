@@ -12,14 +12,17 @@
  * rejections, because deciding what a failure says is this layer's job in both
  * cases: the status READ speaks RFC 7807 through `errorText`, the two WRITES
  * speak the MFA controllers' `{ succeeded: false, error }` through
- * `problemDetail`. A component handed both raw would have to know which is
- * which.
+ * `resolveFailureMessage` and the app registry. A component handed both raw
+ * would have to know which is which.
  */
 
+import { resolveFailureMessage } from "@bc-solutions-coder/api-errors";
 import { errorText } from "@bc-solutions-coder/forms";
-import { useMutation, useQuery, useQueryClient } from "@bc-solutions-coder/query";
+import { handledFailure, useMutation, useQuery, useQueryClient } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
+
+import { failureMessages } from "@shared/lib/failure-messages";
 
 import {
   mfaDisableMutation,
@@ -28,7 +31,6 @@ import {
   mfaRegenerateBackupCodesMutation,
   queriesForOperation,
 } from "../api";
-import { problemDetail } from "../errors";
 
 /** Which enabled-only action opened the shared password-confirm panel. */
 type ConfirmAction = "disable" | "regenerate";
@@ -112,12 +114,15 @@ export function useMfaSettings(): MfaSettings {
       queriesForOperation(mfaGetStatusQueryKey({ client: sdk.client })),
     );
   };
+  // The confirm panel owns these failures; the root toaster stays quiet.
   const disable = useMutation({
     ...mfaDisableMutation({ client: sdk.client }),
+    meta: handledFailure(),
     onSuccess: invalidateStatus,
   });
   const regenerate = useMutation({
     ...mfaRegenerateBackupCodesMutation({ client: sdk.client }),
+    meta: handledFailure(),
     onSuccess: invalidateStatus,
   });
 
@@ -145,7 +150,9 @@ export function useMfaSettings(): MfaSettings {
       // The panel deliberately stays OPEN on failure: the likeliest cause is a
       // mistyped password, and closing it would make the user reopen the flow to
       // retry.
-      setError(problemDetail(failure, CONFIRM_FAILED));
+      setError(
+        resolveFailureMessage(failure, { registry: failureMessages, fallback: CONFIRM_FAILED }),
+      );
     };
     const closePanel = (): void => {
       setConfirmAction(null);
