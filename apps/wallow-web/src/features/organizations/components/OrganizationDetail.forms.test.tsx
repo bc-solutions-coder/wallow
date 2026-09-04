@@ -270,8 +270,10 @@ describe("OrganizationDetail register-application stepper on @bc-solutions-coder
     await expect.element(page.getByTestId("organization-detail-register-name")).toBeVisible();
   });
 
-  it("keeps a message for a property the form has no field for in the banner", async () => {
-    // Without the banner fallback the API's own sentence never reaches the screen.
+  it("shows the form's own sentence for a property the form has no field for", async () => {
+    // A property the stepper does not hold cannot land on an input, and the
+    // banner is one resolved sentence rather than the API's unmatched wording:
+    // with no detail and no registry entry, the form's `fallbackError`.
     seedLoadedOrg(validationFailure({ Kind: ["Only applications can be registered here."] }));
 
     renderWithWallow(<OrganizationDetail orgId="o1" />, { harness });
@@ -281,7 +283,7 @@ describe("OrganizationDetail register-application stepper on @bc-solutions-coder
 
     await expect
       .element(page.getByTestId("organization-detail-register-error"))
-      .toHaveTextContent("Only applications can be registered here.");
+      .toHaveTextContent("Failed to register the application.");
   });
 
   it("surfaces a form-level failure's own sentence rather than a hardcoded one", async () => {

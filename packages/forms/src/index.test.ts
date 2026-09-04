@@ -60,10 +60,9 @@ import type {
  *   - the shell (`AppForm`) and the two children that read its context
  *     (`SubmitButton`, `FormError`);
  *   - the catalog fields, so a form can also render one outside `AppField`;
- *   - the two testid helpers plus the two error readers (`splitServerError`
- *     for a form, `errorText` for a failure with no fields to distribute
- *     across), which a bespoke form needs in order to keep its Playwright ids
- *     and its RFC 7807 handling identical to the catalog's.
+ *   - the two testid helpers plus the two DEPRECATED error readers
+ *     (`splitServerError`, `errorText`), exported only until their remaining
+ *     call sites move.
  */
 const PUBLIC_RUNTIME_EXPORTS = [
   "AppForm",

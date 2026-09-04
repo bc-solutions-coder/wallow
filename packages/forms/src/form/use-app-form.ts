@@ -3,14 +3,20 @@
  *
  * It unifies the four things every hand-written form in the apps repeats today:
  * a TanStack Form instance, a zod schema wired as the submit validator, the
- * TanStack Query mutation the submit drives, and the RFC 7807 error split that
- * decides which failure text goes on a field and which goes in the banner. The
- * result is the plain TanStack form instance augmented with a `wallow` member
- * (`pending`/`serverError`/`reset`), which `AppForm` reads so a call site does
- * not have to thread either through props.
+ * TanStack Query mutation the submit drives, and the failure split that decides
+ * which messages go on a field and which failure the banner resolves its
+ * sentence from. The result is the plain TanStack form instance augmented with
+ * a `wallow` member (`pending`/`serverError`/`reset`), which `AppForm` reads so
+ * a call site does not have to thread either through props.
+ *
+ * A form is a handled failure surface: every mutation the hook creates carries
+ * `handledFailure` in its `meta`, so the query client's `onUnhandledFailure`
+ * callback never toasts what the form already shows.
  */
 
-import { useMutation, type UseMutationOptions } from "@bc-solutions-coder/query";
+import type { ApiFailure, FailureMessageRegistry } from "@bc-solutions-coder/api-errors";
+import { handledFailure, useMutation, type UseMutationOptions } from "@bc-solutions-coder/query";
+import { useFailureMessage } from "@bc-solutions-coder/ui/failure-messages";
 import {
   type FormValidateAsyncFn,
   revalidateLogic,
@@ -19,7 +25,7 @@ import {
 import { useCallback, useState } from "react";
 
 import { useTanstackAppForm } from "../core/form-hook";
-import { splitServerError, type SplitServerError } from "../core/server-error";
+import { splitSubmitFailure, type SubmitFailure } from "../core/server-error";
 
 /** What `useAppForm` adds to the TanStack form instance it returns. */
 export interface WallowFormExtras {
@@ -115,9 +121,9 @@ export interface UseAppFormOptions<TValues, TVariables, TData, TError = unknown>
    * CONTRAVARIANT position of `UseMutationOptions`' optional
    * `onError`/`onSettled`/`retry` members — so a slot pinned to any one concrete
    * type (`unknown` included) rejects every factory that does not name exactly
-   * that type. The hook never reads `TError` itself; `splitServerError` takes the
-   * failure as `unknown` because an RFC 7807 body is only trustworthy after the
-   * runtime narrowing it does.
+   * that type. The hook never reads `TError` itself; `splitSubmitFailure` takes
+   * the failure as `unknown` because an RFC 7807 body is only trustworthy after
+   * the runtime classification it does.
    */
   readonly mutation?: UseMutationOptions<TData, TError, TVariables>;
   /** Values -> mutation variables. Defaults to `(values) => ({ body: values })`. */
@@ -129,33 +135,53 @@ export interface UseAppFormOptions<TValues, TVariables, TData, TError = unknown>
    */
   readonly onSubmit?: (values: TValues) => Promise<void> | void;
   readonly onSuccess?: (data: TData) => void;
-  /** Banner text for a failure that carries no usable message of its own. */
-  readonly fallbackError?: string;
+  /**
+   * Banner sentences for this form alone, keyed by error code. They win over
+   * the app registry and the shipped copy — the place for wording that only
+   * makes sense on this screen.
+   */
+  readonly messages?: FailureMessageRegistry | undefined;
+  /**
+   * The banner's last resort, ahead of the shipped generic sentence, for a
+   * failure no code, status, or detail covers. Most forms need none.
+   */
+  readonly fallbackError?: string | undefined;
 }
-
-/** The banner text for a failure that carries nothing usable and no caller fallback. */
-const DEFAULT_FALLBACK_ERROR = "Something went wrong. Please try again.";
 
 export function useAppForm<TValues, TVariables = unknown, TData = unknown, TError = unknown>(
   options: UseAppFormOptions<TValues, TVariables, TData, TError>,
 ): AppFormApi<TValues> {
-  const [serverError, setServerError] = useState<string | null>(null);
+  const [bannerFailure, setBannerFailure] = useState<ApiFailure | null>(null);
+  /*
+   * The banner is a failure message like any other surface's: resolved through
+   * the app registry the `FailureMessagesProvider` publishes (the shipped copy
+   * without one), with this form's `messages` ahead of it and `fallbackError`
+   * behind. Resolving here rather than in the mutation callback is what lets
+   * the registry reach it — the callback runs outside React.
+   */
+  const serverError: string | null = useFailureMessage(bannerFailure, {
+    messages: options.messages,
+    fallback: options.fallbackError,
+  });
 
   /*
    * Exactly one `useMutation` on every path (rules of hooks). With no SDK
    * mutation the escape hatch supplies a stand-in whose variables ARE the form
    * values — see `toMutationVariables` — so `pending` and the failure split
-   * behave identically whether or not an operation is involved.
+   * behave identically whether or not an operation is involved. Either way the
+   * mutation is marked handled: the form shows its own failure, so the query
+   * client's callback must not toast it too.
    */
-  const mutation = useMutation<TData, TError, TVariables>(
-    options.mutation ?? {
+  const mutation = useMutation<TData, TError, TVariables>({
+    ...(options.mutation ?? {
       mutationFn: async (variables: TVariables): Promise<TData> => {
         await options.onSubmit?.(variables as unknown as TValues);
 
         return undefined as TData;
       },
-    },
-  );
+    }),
+    meta: handledFailure(options.mutation?.meta),
+  });
 
   const form = useTanstackAppForm<
     TValues,
@@ -193,27 +219,26 @@ export function useAppForm<TValues, TVariables = unknown, TData = unknown, TErro
     onSubmit: ({ value }) => {
       // A banner must not outlive the submit that produced it, and a submit
       // reached programmatically skips the shell's own clear.
-      setServerError(null);
+      setBannerFailure(null);
 
       mutation.mutate(toMutationVariables(options, value), {
         onSuccess: (data: TData) => {
           options.onSuccess?.(data);
         },
         onError: (error: unknown) => {
-          const split: SplitServerError = splitServerError(
+          const split: SubmitFailure = splitSubmitFailure(
             error,
             Object.keys(options.defaultValues as Record<string, unknown>),
-            options.fallbackError ?? DEFAULT_FALLBACK_ERROR,
           );
 
-          setServerError(split.formError);
+          setBannerFailure(split.bannerFailure);
           /*
            * `onServer` is the error-map key for messages that came from outside
            * the form, and the framework hands each already-mounted field
            * `fields[name]` verbatim — `fieldMetaDerived` flattens the map one
            * level, so a plain string array lands as separate entries in
            * `field.state.meta.errors`. No issue-object wrapping is involved.
-           * (The form-level half stays out of the map: it is rendered from
+           * (The form-level half stays out of the map: it is resolved into
            * `serverError` above, and an `onServer` form error would also fail
            * the next submit's validity gate.)
            */
@@ -224,7 +249,7 @@ export function useAppForm<TValues, TVariables = unknown, TData = unknown, TErro
   });
 
   const clearServerErrors = useCallback((): void => {
-    setServerError(null);
+    setBannerFailure(null);
     form.setErrorMap({ onServer: { fields: {} } });
   }, [form]);
 

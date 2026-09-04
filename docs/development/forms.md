@@ -34,19 +34,19 @@ suites already select.
 
 Every form in both apps. Eleven screens were migrated onto it, largest first, one commit each:
 
-| Screen                                                     | App         | Notable                                                                          |
-| ---------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------- |
-| `register/RegisterForm`                                    | wallow-auth | Passwordless toggle hides the password block; the schema stays valid either way. |
-| `mfa-enroll/MfaEnrollForm`                                 | wallow-auth | Only the CONFIRM is a form; the start is a hook.                                 |
-| `mfa-challenge/MfaChallengeForm`                           | wallow-auth | Two testids for one field, branching on "use a backup code".                     |
-| `invitation/InvitationScreen`                              | wallow-auth | —                                                                                |
-| `login/LoginScreen`                                        | wallow-auth | The shell; three sibling forms below it.                                         |
-| `accept-terms/AcceptTermsScreen`                           | wallow-auth | —                                                                                |
-| `mfa/MfaSettingsSection`                                   | wallow-web  | Its query wiring came out first, as `useMfaSettings`.                            |
-| `login/OtpLoginForm`                                       | wallow-auth | Two `<form>` elements in one component — request, then verify.                   |
-| `login/MagicLinkLoginForm`                                 | wallow-auth | Keeps its `useEffect`; it was already correct.                                   |
-| `mfa/MfaEnrollFlow`                                        | wallow-web  | —                                                                                |
-| `login/PasswordLoginForm`                                  | wallow-auth | Three local field wrappers collapsed to `TextField` / `CheckboxField`.           |
+| Screen                           | App         | Notable                                                                          |
+| -------------------------------- | ----------- | -------------------------------------------------------------------------------- |
+| `register/RegisterForm`          | wallow-auth | Passwordless toggle hides the password block; the schema stays valid either way. |
+| `mfa-enroll/MfaEnrollForm`       | wallow-auth | Only the CONFIRM is a form; the start is a hook.                                 |
+| `mfa-challenge/MfaChallengeForm` | wallow-auth | Two testids for one field, branching on "use a backup code".                     |
+| `invitation/InvitationScreen`    | wallow-auth | —                                                                                |
+| `login/LoginScreen`              | wallow-auth | The shell; three sibling forms below it.                                         |
+| `accept-terms/AcceptTermsScreen` | wallow-auth | —                                                                                |
+| `mfa/MfaSettingsSection`         | wallow-web  | Its query wiring came out first, as `useMfaSettings`.                            |
+| `login/OtpLoginForm`             | wallow-auth | Two `<form>` elements in one component — request, then verify.                   |
+| `login/MagicLinkLoginForm`       | wallow-auth | Keeps its `useEffect`; it was already correct.                                   |
+| `mfa/MfaEnrollFlow`              | wallow-web  | —                                                                                |
+| `login/PasswordLoginForm`        | wallow-auth | Three local field wrappers collapsed to `TextField` / `CheckboxField`.           |
 
 The four wallow-auth login/MFA screens share a house pattern worth recognising before you copy one:
 a **rule-free** zod schema plus the plain-`onSubmit` escape hatch, because their endpoints answer
@@ -134,7 +134,8 @@ is destructured or cast.
 | `toVariables`   | no       | Values → mutation variables. Defaults to `(values) => ({ body: values })` when `mutation` is given.                    |
 | `onSubmit`      | no       | The no-mutation escape hatch (see below). Still runs through an internal mutation, so `pending` keeps working.         |
 | `onSuccess`     | no       | Runs with the mutation's data: sweep the query cache, reset the form, hand a one-time secret to the parent.            |
-| `fallbackError` | no       | Banner text for a failure carrying nothing usable. Defaults to `"Something went wrong. Please try again."`.            |
+| `messages`      | no       | Banner sentences for this form alone, keyed by error code (`defineFailureMessages`). They win over the app registry.   |
+| `fallbackError` | no       | The banner's last resort for a failure no code, status, or detail covers, ahead of the shipped generic sentence.       |
 
 It returns the TanStack form instance (so `form.AppField`, `form.Field`, `form.reset` and
 `form.handleSubmit` are all where a TanStack user expects them) plus a `form.wallow` member:
@@ -142,7 +143,7 @@ It returns the TanStack form instance (so `form.AppField`, `form.Field`, `form.r
 | `form.wallow`         | What it holds                                                                                      |
 | --------------------- | -------------------------------------------------------------------------------------------------- |
 | `pending`             | Whether the submit mutation is in flight. `AppForm` publishes it to `SubmitButton` and the fields. |
-| `serverError`         | The form-level failure text `FormError` renders, or `null`.                                        |
+| `serverError`         | The banner's failure message, resolved through the registry, or `null`. `FormError` renders it.    |
 | `reset()`             | Drops the mutation's result/error state — e.g. when a dialog reopens.                              |
 | `clearServerErrors()` | Drops the last submit's banner and server field messages. `AppForm` calls it on every submit.      |
 
@@ -152,13 +153,13 @@ Every field is reached as a member of `form.AppField`'s render-prop argument (`f
 `field.SelectField`, …) and shares `label`, `testId`, and disabling itself while the form is
 pending.
 
-| Field           | Value type | Props beyond `label` / `testId`                                                           |
-| --------------- | ---------- | ----------------------------------------------------------------------------------------- |
-| `TextField`     | `string`   | `type` (`"text" \| "email" \| "tel" \| "url"`), `placeholder`, `autoComplete`, `optional`, `inputMode` |
+| Field           | Value type | Props beyond `label` / `testId`                                                                         |
+| --------------- | ---------- | ------------------------------------------------------------------------------------------------------- |
+| `TextField`     | `string`   | `type` (`"text" \| "email" \| "tel" \| "url"`), `placeholder`, `autoComplete`, `optional`, `inputMode`  |
 | `PasswordField` | `string`   | `placeholder`, `autoComplete`, `labelAction` — the type is pinned to `"password"` and cannot be widened |
-| `TextareaField` | `string`   | `placeholder`, `rows`, `optional`                                                         |
-| `SelectField`   | `string`   | `options` (`{ value, label }[]`), `placeholder`, `optional`                               |
-| `CheckboxField` | `boolean`  | `description`                                                                             |
+| `TextareaField` | `string`   | `placeholder`, `rows`, `optional`                                                                       |
+| `SelectField`   | `string`   | `options` (`{ value, label }[]`), `placeholder`, `optional`                                             |
+| `CheckboxField` | `boolean`  | `description`                                                                                           |
 
 `optional` renders a muted `(optional)` marker after the label, which is how a form says a field is
 not required instead of leaving a user to discover it by submitting.
@@ -203,27 +204,44 @@ overrides the element alone with `testId="inquiry-create-form"`.
 
 ## The error model
 
-Three failure surfaces, two testid shapes, one path each:
+A form is one failure surface of the app-wide failure model (`CONTEXT.md` § Errors): it shows
+its own failure, on the fields and in its banner, and never toasts. Three routes, two testid
+shapes:
 
-| Failure                | Route                                                                                                      | Rendered as                                                |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| Client-side validation | zod schema → TanStack's `onDynamic` validator → `field.state.meta.errors`                                  | `Field.Error` under the control — `{prefix}-{field}-error` |
-| Server field errors    | RFC 7807 `errors` dict → `ApiFailure.fieldErrors` → `splitServerError` → `form.setErrorMap({ onServer })`  | the same `Field.Error`, the same testid                    |
-| Form-level failure     | RFC 7807 `detail`, the `fallbackError`, or a thrown `Error`'s own message → `form.wallow.serverError`      | `FormError` → a ui `ErrorBanner` — `{prefix}-error`        |
+| Failure                | Route                                                                                                                 | Rendered as                                                |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Client-side validation | zod schema → TanStack's `onDynamic` validator → `field.state.meta.errors`                                             | `Field.Error` under the control — `{prefix}-{field}-error` |
+| Server field errors    | RFC 7807 `errors` dict → `ApiFailure.fieldErrors` → api-errors' `splitFieldErrors` → `form.setErrorMap({ onServer })` | the same `Field.Error`, the same testid                    |
+| Form-level failure     | the failure → `useFailureMessage` (the form's `messages`, the app registry, the shipped copy, `fallbackError`)        | `FormError` → a ui `ErrorBanner` — `{prefix}-error`        |
 
-`splitServerError` decides which is which, and the rules are worth knowing because they are what
-keeps a message from disappearing:
+The rules, and why each one is there:
 
-- The API emits property names in PascalCase (`"Name"`); the split folds only the **first**
-  character, so `ProjectType` lands on `projectType` and `emailAddress` survives.
-- A message keyed by a name the form does not hold **joins the banner** rather than vanishing.
-- If every message landed on a field, `serverError` stays `null` and no banner renders — a banner
-  there would only repeat what is already under the inputs.
-- A failure that is not an `ApiFailure` (a thrown `Error` of the app's own) contributes its own message if it has
-  one, and `fallbackError` otherwise.
+- **Field names are reconciled by api-errors.** The API keys messages by property path
+  (`Name`, `Branding.DisplayName`); `splitFieldErrors` tries the exact key, the camelCase key,
+  and the folded key (`brandingDisplayName`) against the form's `defaultValues` keys.
+- **The banner is one sentence, resolved through the registry** — the same resolution every
+  other surface uses, so an app's `FailureMessagesProvider` wording reaches forms too. A 4xx
+  problem's `detail` is part of that resolution (after the code lookups); a transport failure,
+  an unrecognised response, or a 5xx never shows its detail, and a thrown `Error` is classified
+  as a transport failure rather than echoed.
+- **If every message landed on a field, `serverError` stays `null`** and no banner renders — a
+  banner there would only repeat what is already under the inputs.
+- **A message keyed by a field the form does not hold is not joined into the banner.** The
+  banner shows the failure's resolved sentence, which for a validation problem is its generic
+  detail, so the API's wording for that field does not reach the screen. Hold every field the
+  API validates (a hidden field is fine); `messages` keys by code, so it cannot recover which
+  field failed.
+- **Every form mutation is a handled failure.** `useAppForm` stamps `handledFailure` on the
+  mutation's `meta`, so the query client's `onUnhandledFailure` callback never toasts what the
+  form already shows.
 
 `FormError` renders nothing at all when there is no form-level error, so no empty banner reserves
 space and no stale testid is left behind.
+
+`errorText` and `splitServerError` remain exported but are **deprecated**: they prefer the raw
+`detail` over the registry and echo a thrown `Error`'s message. A component outside a form
+resolves its message with `useFailureMessage` (or renders `FailureBanner`) from `ui`; a bespoke
+form uses `splitFieldErrors` and the hook directly.
 
 ## Behaviour and styling conventions
 

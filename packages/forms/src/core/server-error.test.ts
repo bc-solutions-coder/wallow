@@ -1,31 +1,17 @@
-import { ApiFailure } from "@bc-solutions-coder/api-errors";
+import { ApiFailure, ClientErrorCode } from "@bc-solutions-coder/api-errors";
 import { describe, expect, it } from "vitest";
 
-import { splitServerError } from "./server-error";
+import { splitServerError, splitSubmitFailure } from "./server-error";
 
 /*
  * The failure-splitting contract, in the node project (pure logic, no DOM).
  *
- * The real `ApiFailure` is constructed here rather than a look-alike object:
- * `isApiFailure` is a brand check on a global symbol the class sets in its
- * constructor (packages/sdk/src/errors.ts), so a hand-rolled duck type would be
- * rejected by the implementation and the spec would prove nothing.
- *
- * What each case pins:
- *
- *   1. The PascalCase -> camelCase fold. The API's property names come from
- *      FluentValidation/`ValidationProblemDetails` ("Name"), the form's values
- *      are camelCase ("name"), and nothing renders next to an input until the
- *      two are reconciled.
- *   2. The nested-path fold. A stepper that flattens a nested request object
- *      holds `branding.displayName` as `brandingDisplayName`; the wire key must
- *      land on that field or the message never reaches its step.
- *   3. Unmatched names are ROUTED, not dropped. A message keyed by a property
- *      the form does not hold (a computed one) would otherwise disappear,
- *      leaving a form that failed with no visible reason.
- *   4. A non-validation `ApiFailure` contributes its RFC 7807 `detail`.
- *   5./6. Anything else contributes the caller's fallback, except that a plain
- *      `Error` carrying a message contributes that message.
+ * The real `ApiFailure` is constructed because `isApiFailure` is a brand check
+ * the class sets in its constructor; a duck type would prove nothing. The
+ * `splitSubmitFailure` cases pin the current split: matched keys land on
+ * fields, an unmatched key or no field errors leaves the failure for the
+ * banner, and a thrown `Error` is classified as a transport failure. The
+ * deprecated `splitServerError` cases pin its unchanged behaviour until it goes.
  */
 
 /** The camelCase names a form built from `{ name, email }` values would report. */
@@ -33,7 +19,77 @@ const KNOWN_FIELDS: readonly string[] = ["name", "email"];
 
 const FALLBACK = "Something went wrong.";
 
-describe("splitServerError", () => {
+describe("splitSubmitFailure", () => {
+  it("keeps the failure for the banner when a matched field carries no message", () => {
+    const error = new ApiFailure({
+      status: 400,
+      code: "Validation.Failed",
+      title: "Bad Request",
+      fieldErrors: { Name: [] },
+    });
+
+    const split = splitSubmitFailure(error, KNOWN_FIELDS);
+
+    expect(split.fieldErrors).toEqual({ name: [] });
+    expect(split.bannerFailure).toBe(error);
+  });
+
+  it("lands matching field errors on the form's names and leaves no banner", () => {
+    const error = new ApiFailure({
+      status: 400,
+      code: "Validation.Failed",
+      title: "Validation failed",
+      detail: "One or more validation errors occurred.",
+      fieldErrors: { Name: ["'Name' must not be empty."], "branding.displayName": ["Reserved."] },
+    });
+
+    const result = splitSubmitFailure(error, ["name", "brandingDisplayName"]);
+
+    expect(result.fieldErrors).toEqual({
+      name: ["'Name' must not be empty."],
+      brandingDisplayName: ["Reserved."],
+    });
+    // Everything landed on a field, so a banner would only repeat the inputs.
+    expect(result.bannerFailure).toBeNull();
+  });
+
+  it("keeps the failure for the banner when a message matched no field", () => {
+    const error = new ApiFailure({
+      status: 400,
+      code: "Validation.Failed",
+      title: "Validation failed",
+      fieldErrors: { Name: ["'Name' must not be empty."], Surprise: ["Nope."] },
+    });
+
+    const result = splitSubmitFailure(error, KNOWN_FIELDS);
+
+    // The matched half still reaches its field; the unmatched half is not
+    // joined into a string — the banner resolves the failure's own sentence.
+    expect(result.fieldErrors).toEqual({ name: ["'Name' must not be empty."] });
+    expect(result.bannerFailure).toBe(error);
+  });
+
+  it("hands a failure without field errors to the banner unchanged", () => {
+    const error = new ApiFailure({ status: 409, code: "Orders.Closed", title: "Conflict" });
+
+    const result = splitSubmitFailure(error, KNOWN_FIELDS);
+
+    expect(result.fieldErrors).toEqual({});
+    expect(result.bannerFailure).toBe(error);
+  });
+
+  it("classifies a thrown Error as a transport failure instead of echoing it", () => {
+    const result = splitSubmitFailure(new TypeError("Failed to fetch"), KNOWN_FIELDS);
+
+    expect(result.fieldErrors).toEqual({});
+    expect(result.bannerFailure?.code).toBe(ClientErrorCode.TRANSPORT_NETWORK_ERROR);
+    // The message never carries the transport text; the resolver shows the
+    // shipped network sentence for the code instead.
+    expect(result.bannerFailure?.detail).toBeUndefined();
+  });
+});
+
+describe("splitServerError (deprecated)", () => {
   it("maps matching field errors, folding the API's PascalCase onto camelCase names", () => {
     const error = new ApiFailure({
       status: 400,
