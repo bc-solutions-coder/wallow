@@ -2,7 +2,8 @@
 
 `@bc-solutions-coder/ui` (`packages/ui`) is the shared, browser-only React component library both
 frontends build their screens from. It is a **wrapper layer, not a framework**: every visual part
-is a headless [Base UI](https://base-ui.com/react/overview/quick-start) primitive
+(the sonner-backed `FailureToaster` being the one documented exception) is a headless
+[Base UI](https://base-ui.com/react/overview/quick-start) primitive
 (`@base-ui/react`) wrapped in a [CVA](https://cva.style/) class recipe written entirely in the
 semantic Tailwind tokens `@bc-solutions-coder/styles` emits from `packages/styles/branding.json`. Behaviour and
 accessibility come from Base UI; appearance comes from the fork's own theme; the package supplies
@@ -16,14 +17,14 @@ Rebranding a fork changes `packages/styles/branding.json` — no component sourc
 60 components, one folder per component under `packages/ui/src/components/`. The folder name is
 also the import subpath.
 
-| Group                | Components                                                                                                                                                                   |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Forms and input      | `Button`, `Input`, `Textarea`, `Field`, `Fieldset`, `Form`, `Label`, `Checkbox`, `CheckboxGroup`, `Radio`, `RadioGroup`, `Select`, `Combobox`, `Autocomplete`, `Switch`, `Slider`, `NumberField`, `OTPField`, `Toggle`, `ToggleGroup`, `SimpleSelect` |
-| Overlays and menus   | `Dialog`, `AlertDialog`, `Drawer`, `Popover`, `Tooltip`, `PreviewCard`, `Menu`, `ContextMenu`, `Menubar`, `Toast`                                                             |
-| Layout and navigation | `Accordion`, `Collapsible`, `Tabs`, `NavigationMenu`, `Toolbar`, `ScrollArea`, `Separator`, `Card` (with `CardHeader`), `CenteredCardLayout`, `PageContainer`, `PageHeader`, `EmptyState`, `ListCard`, `ListRow`, `QuietLink`  |
-| Display and feedback | `Text`, `MutedText`, `Badge`, `Avatar`, `Progress`, `Meter`, `ErrorBanner`, `NoticeBanner`                                                                                    |
-| Theming              | `ThemeProvider` (with `ThemeScript` and `useTheme`), `ThemeToggle`                                                                                                            |
-| App wiring           | `ReadyIndicator`, `FocusOnNavigate`, `DocumentStyles`, `ForkAttribution`                                                                                                      |
+| Group                 | Components                                                                                                                                                                                                                                            |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Forms and input       | `Button`, `Input`, `Textarea`, `Field`, `Fieldset`, `Form`, `Label`, `Checkbox`, `CheckboxGroup`, `Radio`, `RadioGroup`, `Select`, `Combobox`, `Autocomplete`, `Switch`, `Slider`, `NumberField`, `OTPField`, `Toggle`, `ToggleGroup`, `SimpleSelect` |
+| Overlays and menus    | `Dialog`, `AlertDialog`, `Drawer`, `Popover`, `Tooltip`, `PreviewCard`, `Menu`, `ContextMenu`, `Menubar`                                                                                                                                              |
+| Layout and navigation | `Accordion`, `Collapsible`, `Tabs`, `NavigationMenu`, `Toolbar`, `ScrollArea`, `Separator`, `Card` (with `CardHeader`), `CenteredCardLayout`, `PageContainer`, `PageHeader`, `EmptyState`, `ListCard`, `ListRow`, `QuietLink`                         |
+| Display and feedback  | `Text`, `MutedText`, `Badge`, `Avatar`, `Progress`, `Meter`, `ErrorBanner`, `NoticeBanner`, `FailureBanner`, `FailureToaster` (with `toastFailure`)                                                                                                   |
+| Theming               | `ThemeProvider` (with `ThemeScript` and `useTheme`), `ThemeToggle`                                                                                                                                                                                    |
+| App wiring            | `ReadyIndicator`, `FocusOnNavigate`, `DocumentStyles`, `ForkAttribution`, `FailureMessagesProvider` (with `useFailureMessage`)                                                                                                                        |
 
 `Text` is the typography primitive the rest of the catalog composes onto: it owns the type scale
 (`display`, `title`, `heading`, `subheading`, `body`, `bodySm`, `caption`, `overline`, `code`) and
@@ -32,7 +33,9 @@ the semantic colour set (`default`, `muted`, `primary`, `accent`, `destructive`,
 `MutedText` is now literally `<Text as="p" variant="bodySm" color="muted" />` — keep using it for
 secondary copy, but reach for `Text` whenever you need a scale step or colour it does not name.
 
-Four entries wrap no Base UI part; each names a stack the apps had been rebuilding by hand:
+Four entries wrap no Base UI part; each names a stack the apps had been rebuilding by hand
+(the failure surfaces `FailureBanner`, `FailureToaster`, and `FailureMessagesProvider` are a
+fifth kind — the failure model's screen half, described in `packages/ui/CLAUDE.md`):
 
 - **`CardHeader`** (`Card`'s folder, not one of its own) — a card's title-and-description pair.
   It owns the `<h2>`, so a screen composing it gets the card-heading step by construction instead
@@ -87,7 +90,9 @@ components from the barrel ships three components.
 Simple components are a single export taking the native element's props plus the recipe's variants:
 
 ```tsx
-<Button variant="destructive" onClick={onDelete}>Delete project</Button>
+<Button variant="destructive" onClick={onDelete}>
+  Delete project
+</Button>
 ```
 
 Multi-part components export **one namespace object whose keys mirror Base UI's part names exactly**,
@@ -281,10 +286,10 @@ and the Vitest browser-mode pitfalls specific to headless components.
 
 `pnpm --filter @bc-solutions-coder/ui test` runs three Vitest projects:
 
-| Project     | Runs                                    | Environment                                                          |
-| ----------- | --------------------------------------- | -------------------------------------------------------------------- |
-| `node`      | pure-logic `*.test.ts`                  | Node                                                                 |
-| `browser`   | component `*.test.tsx`                  | headless Chromium, no stylesheet loaded                              |
+| Project     | Runs                                                 | Environment                                                   |
+| ----------- | ---------------------------------------------------- | ------------------------------------------------------------- |
+| `node`      | pure-logic `*.test.ts`                               | Node                                                          |
+| `browser`   | component `*.test.tsx`                               | headless Chromium, no stylesheet loaded                       |
 | `storybook` | every `*.stories.tsx`, via `@storybook/addon-vitest` | headless Chromium with the real Tailwind build and fork theme |
 
 Stories carry the render and interaction coverage; `*.test.tsx` covers the edges a story cannot

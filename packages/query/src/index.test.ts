@@ -48,7 +48,7 @@ const TANSTACK_RUNTIME_EXPORTS: string[] = Object.keys(tanstack)
   .toSorted();
 
 /** What this package adds on top of the re-exported react-query surface. */
-const FACADE_ADDITIONS: string[] = ["createQueryClient"];
+const FACADE_ADDITIONS: string[] = ["createQueryClient", "handledFailure", "toastedFailure"];
 
 describe("@bc-solutions-coder/query facade surface", () => {
   it("has a non-empty react-query surface to mirror", () => {

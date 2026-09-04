@@ -4,8 +4,8 @@ The shared **browser-only** React component library: one folder per component un
 `src/components/`, each a **Base UI** (`@base-ui/react`) headless part wrapped in a **CVA**
 recipe built from `@bc-solutions-coder/styles` semantic tokens. Private, consumed by all
 three apps and by `packages/forms` and `packages/navigation`. The app-wiring folders
-(`ReadyIndicator`, `FocusOnNavigate`, `DocumentStyles`, `ForkAttribution`, `theme-provider`)
-render nothing a story could show and are the only ones without stories.
+(`ReadyIndicator`, `FocusOnNavigate`, `DocumentStyles`, `ForkAttribution`, `theme-provider`,
+`failure-messages`) render nothing a story could show and are the only ones without stories.
 
 ## Layering
 
@@ -21,6 +21,43 @@ would fork behaviour). A folder that composes rather than wraps declares no reci
 Composition choice rules: `QuietLink` (a plain `<a>`, real cross-origin hrefs) is for asides;
 `Button variant="link"` is for the action the screen wants next. `NoticeBanner` is a
 **sibling** of `ErrorBanner`, not a `tone` axis on it.
+
+## Failure surfaces
+
+`ErrorBanner` stays the string primitive. The failure model (`CONTEXT.md` § Errors) adds three
+folders on top of `@bc-solutions-coder/api-errors`, the package's one non-catalog dependency:
+
+- **`failure-messages`** — `FailureMessagesProvider({ registry })` publishes the app's
+  `defineFailureMessages` registry; `useFailureMessage(error, { messages?, fallback? })`
+  resolves the sentence through `resolveFailureMessage` and returns `null` for a nullish error.
+  Empty-registry default, so the hook answers without a provider. A nested provider
+  **replaces**, never merges — per-call-site sentences go through `messages`.
+- **`failure-banner`** — `FailureBanner({ error, messages?, fallback?, onRetry?, signInHref?,
+children? })` wraps `ErrorBanner`, renders nothing for a nullish `error`, and adds only what
+  the status rule allows: "Try again" when `onRetry` is given; a "Sign in" link for the 401
+  codes (`Auth.Unauthenticated`, `Bff.SessionMissing`, `Bff.SessionRefreshFailed`) — to
+  `/bff/login?returnTo=<current path>` by default, built here rather than imported because `ui`
+  must not depend on the SDK, or to `signInHref` for an app without a BFF (wallow-auth); and
+  the `Reference <id>` line with "Copy reference" only when api-errors' `failureReference`
+  answers (transport and 5xx; trace id, else request id — the rule lives THERE, not here). The
+  path comes from `useSyncExternalStore` with a `"/"` server snapshot so SSR never mismatches.
+- **`failure-toast`** — **sonner is the documented exception to "every component wraps Base
+  UI"**: the Base UI toast wrapper is deleted and must not come back. `FailureToaster` mounts
+  sonner's `<Toaster>` bottom-right with a close button, `theme` fed from `useTheme().mode`;
+  `toastFailure(message, reference?)` raises `toast.error` with the reference line and a copy
+  action that `preventDefault()`s so the toast stays; a referenced toast has no timeout (only
+  the close button ends it), an unreferenced one keeps sonner's default. sonner renders inline
+  (no portal), its stylesheet is **unlayered**, so every token in `TOAST_CLASSNAMES` carries
+  Tailwind's `!` suffix, and its toast store is a **module singleton** — a story or spec must
+  `toast.dismiss()` and wait for the exit animation before asserting an empty screen. Its
+  accessibility model is sonner's, not Base UI's: one `aria-live="polite"` region for every
+  toast, Escape collapses the stack rather than closing, and `FailureToaster` must sit under
+  `ThemeProvider` (`useTheme` falls back to light without one). sonner is in both browser
+  projects' `optimizeDeps.include` for the same mid-run-reload reason as the recipe runtime.
+
+The query side (`createQueryClient({ onUnhandledFailure })`, `handledFailure`,
+`toastedFailure`) lives in `packages/query`; wiring the callback to `toastFailure` is the app's
+job, with the registry in scope.
 
 ## Parts and recipes
 

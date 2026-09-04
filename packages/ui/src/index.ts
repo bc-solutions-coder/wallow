@@ -168,6 +168,14 @@ export {
 } from "./components/drawer";
 export { EmptyState, type EmptyStateProps } from "./components/empty-state";
 export { ErrorBanner, type ErrorBannerProps } from "./components/error-banner";
+export { FailureBanner, type FailureBannerProps } from "./components/failure-banner";
+export {
+  FailureMessagesProvider,
+  type FailureMessagesProviderProps,
+  useFailureMessage,
+  type UseFailureMessageOptions,
+} from "./components/failure-messages";
+export { FailureToaster, type FailureReference, toastFailure } from "./components/failure-toast";
 export {
   Field,
   type FieldControlProps,
@@ -386,29 +394,6 @@ export {
   ThemeToggle,
   type ThemeToggleProps,
 } from "./components/theme-toggle";
-export {
-  createToastManager,
-  Toast,
-  type ToastActionProps,
-  type ToastArrowProps,
-  type ToastCloseProps,
-  type ToastContentProps,
-  type ToastDescriptionProps,
-  type ToastManager,
-  type ToastManagerAddOptions,
-  type ToastManagerPromiseOptions,
-  type ToastManagerUpdateOptions,
-  type ToastNamespace,
-  type ToastObject,
-  type ToastPortalProps,
-  type ToastPositionerProps,
-  type ToastProviderProps,
-  type ToastRootProps,
-  type ToastTitleProps,
-  type ToastViewportProps,
-  useToastManager,
-  type UseToastManagerReturnValue,
-} from "./components/toast";
 export { Toggle, type ToggleProps } from "./components/toggle";
 export { ToggleGroup, type ToggleGroupProps } from "./components/toggle-group";
 export {

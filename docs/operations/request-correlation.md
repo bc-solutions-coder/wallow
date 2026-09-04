@@ -77,7 +77,9 @@ object parses as `Client.UnrecognizedResponse` and loses both — so a fork that
 problem-details serializer must keep the members at the top level.
 
 Surface both in whatever the user can copy — an error boundary, a toast, a support form.
-An id nobody can read is an id nobody will quote.
+An id nobody can read is an id nobody will quote. In the shared UI, `FailureBanner` and
+`toastFailure` show a `Reference <id>` line with a copy action for transport and 5xx failures
+(the trace id when the API answered, the request id when only the BFF did).
 
 ## Finding the trace in Grafana
 

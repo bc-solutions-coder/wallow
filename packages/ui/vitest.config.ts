@@ -48,8 +48,15 @@ const baseUi = ["@base-ui/react/*"];
  */
 const recipeRuntime = ["class-variance-authority", "tailwind-merge"];
 
+/**
+ * The toast runtime `failure-toast` renders through. Same mid-run-discovery
+ * hazard as the recipe runtime, and sonner ships React-bound code, so left to
+ * discovery it would also be the duplicate-React case Base UI is listed for.
+ */
+const toastRuntime = ["sonner"];
+
 const { node, browser } = createVitestProjects({
-  extraBrowserOptimizeDeps: [...baseUi, ...recipeRuntime],
+  extraBrowserOptimizeDeps: [...baseUi, ...recipeRuntime, ...toastRuntime],
   browserSetupFiles: ["./vitest.setup.ts"],
 });
 
@@ -71,7 +78,7 @@ const storybook = {
   // and recipe-runtime pre-bundle lists have to be repeated here — sharing the
   // constants, not the whole browser-project list (this project renders through
   // Storybook's runtime, not `vitest-browser-react`).
-  optimizeDeps: { include: [...baseUi, ...recipeRuntime] },
+  optimizeDeps: { include: [...baseUi, ...recipeRuntime, ...toastRuntime] },
   test: {
     name: "storybook",
     browser: {

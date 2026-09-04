@@ -4,6 +4,7 @@ import { ClientErrorCode } from "./codes";
 import { ApiFailure } from "./failure";
 import {
   defineFailureMessages,
+  failureReference,
   type FailureMessageRegistry,
   isSilentFailure,
   resolveFailureMessage,
@@ -223,5 +224,49 @@ describe("isSilentFailure", () => {
     expect(isSilentFailure(error)).toBe(true);
     expect(isSilentFailure(new Error("x"))).toBe(false);
     expect(isSilentFailure(undefined)).toBe(false);
+  });
+});
+
+describe("failureReference", () => {
+  function referenced(status: number, code: string): ApiFailure {
+    return new ApiFailure({
+      status,
+      code,
+      title: "Title",
+      detail: "Detail",
+      traceId: "trace",
+      requestId: "request",
+    });
+  }
+
+  it("quotes both ids for a 5xx", () => {
+    expect(failureReference(referenced(INTERNAL_SERVER_ERROR, "Server.Error"))).toEqual({
+      traceId: "trace",
+      requestId: "request",
+    });
+  });
+
+  it("quotes a transport failure whatever its status", () => {
+    expect(failureReference(referenced(SERVICE_UNAVAILABLE, "Transport.NetworkError"))).toEqual({
+      traceId: "trace",
+      requestId: "request",
+    });
+    expect(failureReference(referenced(NO_WAIT, "Transport.Timeout"))).toEqual({
+      traceId: "trace",
+      requestId: "request",
+    });
+  });
+
+  it("keeps a 4xx's ids off the screen", () => {
+    expect(failureReference(referenced(CONFLICT, "Orders.Closed"))).toBeUndefined();
+    expect(failureReference(referenced(UNAUTHORIZED, "Auth.Unauthenticated"))).toBeUndefined();
+  });
+
+  it("answers undefined when a quotable failure carries no id", () => {
+    expect(failureReference(failure(INTERNAL_SERVER_ERROR, "Server.Error"))).toBeUndefined();
+  });
+
+  it("classifies a plain Error as a transport failure with nothing to quote", () => {
+    expect(failureReference(new Error("fetch failed"))).toBeUndefined();
   });
 });

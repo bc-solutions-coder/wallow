@@ -160,6 +160,9 @@ import type {
   DrawerVirtualKeyboardProviderProps,
   EmptyStateProps,
   ErrorBannerProps,
+  FailureBannerProps,
+  FailureMessagesProviderProps,
+  FailureReference,
   FieldControlProps,
   FieldDescriptionProps,
   FieldErrorProps,
@@ -315,23 +318,6 @@ import type {
   ThemeResolutionInput,
   ThemeScriptProps,
   ThemeToggleProps,
-  ToastActionProps,
-  ToastArrowProps,
-  ToastCloseProps,
-  ToastContentProps,
-  ToastDescriptionProps,
-  ToastManager,
-  ToastManagerAddOptions,
-  ToastManagerPromiseOptions,
-  ToastManagerUpdateOptions,
-  ToastNamespace,
-  ToastObject,
-  ToastPortalProps,
-  ToastPositionerProps,
-  ToastProviderProps,
-  ToastRootProps,
-  ToastTitleProps,
-  ToastViewportProps,
   ToggleGroupProps,
   ToggleProps,
   ToolbarButtonProps,
@@ -348,7 +334,7 @@ import type {
   TooltipRootProps,
   TooltipTriggerProps,
   TooltipViewportProps,
-  UseToastManagerReturnValue,
+  UseFailureMessageOptions,
 } from "./index";
 
 /**
@@ -386,6 +372,9 @@ const PUBLIC_RUNTIME_EXPORTS = [
   "Drawer",
   "EmptyState",
   "ErrorBanner",
+  "FailureBanner",
+  "FailureMessagesProvider",
+  "FailureToaster",
   "Field",
   "Fieldset",
   "FocusOnNavigate",
@@ -428,24 +417,23 @@ const PUBLIC_RUNTIME_EXPORTS = [
   "ThemeProvider",
   "ThemeScript",
   "ThemeToggle",
-  "Toast",
   "Toggle",
   "ToggleGroup",
   "Toolbar",
   "Tooltip",
-  "createToastManager",
   "resolveThemeMode",
   "themeInitScript",
+  "toastFailure",
+  "useFailureMessage",
   "useTheme",
-  "useToastManager",
 ];
 
 /**
  * The barrel's exported constants, plus the entry points that are plain
- * functions rather than components: the two Toast ones — `useToastManager` (a
- * hook) and `createToastManager` (a manager factory for use outside React) — and
- * theme-provider's `useTheme` hook alongside the two pure helpers the pre-paint
- * script and the provider share (`resolveThemeMode`, `themeInitScript`).
+ * functions rather than components: `toastFailure` (raises a sonner toast from
+ * anywhere), `useFailureMessage` (the registry hook), and theme-provider's
+ * `useTheme` hook alongside the two pure helpers the pre-paint script and the
+ * provider share (`resolveThemeMode`, `themeInitScript`).
  * `THEME_PREFERENCE_CYCLE` is an array constant, so it needs listing for the
  * same reason `READY_ATTRIBUTE` does. Everything else on the barrel is a
  * component.
@@ -455,11 +443,11 @@ const NON_COMPONENT_EXPORTS = new Set([
   "READY_ATTRIBUTE",
   "THEME_PREFERENCE_CYCLE",
   "THEME_STORAGE_KEY",
-  "createToastManager",
   "resolveThemeMode",
   "themeInitScript",
+  "toastFailure",
+  "useFailureMessage",
   "useTheme",
-  "useToastManager",
 ]);
 
 /**
@@ -644,6 +632,9 @@ export type PublicTypeExports = [
   DrawerVirtualKeyboardProviderProps,
   EmptyStateProps,
   ErrorBannerProps,
+  FailureBannerProps,
+  FailureMessagesProviderProps,
+  FailureReference,
   FieldControlProps,
   FieldDescriptionProps,
   FieldErrorProps,
@@ -799,27 +790,10 @@ export type PublicTypeExports = [
   ThemeResolutionInput,
   ThemeScriptProps,
   ThemeToggleProps,
-  ToastActionProps,
-  ToastArrowProps,
-  ToastCloseProps,
-  ToastContentProps,
-  ToastDescriptionProps,
-  ToastManager,
   // Base UI's four manager generics carry no defaults, so the tuple has to name
   // their payload types; the `Data` slot is constrained to `object`. These stay
   // presence pins — what matters is that the re-export survives, not what the
   // payload holds.
-  ToastManagerAddOptions<object>,
-  ToastManagerPromiseOptions<unknown, object>,
-  ToastManagerUpdateOptions<object>,
-  ToastNamespace,
-  ToastObject<object>,
-  ToastPortalProps,
-  ToastPositionerProps,
-  ToastProviderProps,
-  ToastRootProps,
-  ToastTitleProps,
-  ToastViewportProps,
   ToggleGroupProps,
   ToggleProps,
   ToolbarButtonProps,
@@ -836,5 +810,5 @@ export type PublicTypeExports = [
   TooltipRootProps,
   TooltipTriggerProps,
   TooltipViewportProps,
-  UseToastManagerReturnValue,
+  UseFailureMessageOptions,
 ];

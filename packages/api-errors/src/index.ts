@@ -13,6 +13,8 @@ export {
   defineFailureMessages,
   type FailureMessage,
   type FailureMessageRegistry,
+  failureReference,
+  type FailureReference,
   isSilentFailure,
   resolveFailureMessage,
   type ResolveFailureMessageOptions,

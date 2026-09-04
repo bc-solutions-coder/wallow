@@ -15,6 +15,7 @@ describe("@bc-solutions-coder/api-errors", () => {
       "ErrorCode",
       "defineFailureMessages",
       "failureFromResponse",
+      "failureReference",
       "isApiFailure",
       "isSilentFailure",
       "parseRetryAfter",

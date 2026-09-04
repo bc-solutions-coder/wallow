@@ -161,7 +161,12 @@ export function createVitestProjects(options: VitestProjectsOptions = {}): Vites
       browser: {
         enabled: true,
         // Vitest 4 factory provider, NOT the v3 `"playwright"` string (throws).
-        provider: playwright(),
+        // Clipboard access is granted up front: a copy affordance is asserted
+        // by reading the clipboard back, and headless Chromium denies both
+        // directions unless the context asks.
+        provider: playwright({
+          contextOptions: { permissions: ["clipboard-read", "clipboard-write"] },
+        }),
         headless: true,
         instances: [{ browser: "chromium" }],
       },

@@ -46,6 +46,9 @@ const ONE_SECOND: number = 1;
 const FIRST_CLIENT_ERROR: number = 400;
 const FIRST_SERVER_ERROR: number = 500;
 
+/** Every client-minted transport code starts with this segment. */
+const TRANSPORT_PREFIX: string = "Transport.";
+
 const GENERIC_MESSAGE: string = "Something went wrong. Please try again.";
 const SERVER_SIDE_MESSAGE: string = "Something went wrong on our side. Please try again later.";
 const SESSION_EXPIRED_MESSAGE: string = "Your session has expired. Please sign in again.";
@@ -148,6 +151,34 @@ export function resolveFailureMessage(
  */
 export function isSilentFailure(error: unknown): boolean {
   return toApiFailure(error).code === ClientErrorCode.TRANSPORT_ABORTED;
+}
+
+/** The correlation ids a person can quote to support. */
+export interface FailureReference {
+  /** The API's trace id, when the request reached it. */
+  readonly traceId?: string | undefined;
+  /** The request id the BFF stamped, when only it answered. */
+  readonly requestId?: string | undefined;
+}
+
+/**
+ * The ids worth putting on screen for `error`, or `undefined` when there are
+ * none to show. A reference helps only when the request never reached a
+ * handler that could explain itself (a client-minted transport code) or the
+ * server faulted (5xx); a 4xx already says what was wrong, so its ids stay
+ * off the screen. Every surface — banner, toast, an app's own callback —
+ * takes this one answer rather than restating the rule.
+ */
+export function failureReference(error: unknown): FailureReference | undefined {
+  const failure: ApiFailure = toApiFailure(error);
+  const quotable: boolean =
+    failure.code.startsWith(TRANSPORT_PREFIX) || failure.status >= FIRST_SERVER_ERROR;
+
+  if (!quotable || (failure.traceId === undefined && failure.requestId === undefined)) {
+    return undefined;
+  }
+
+  return { traceId: failure.traceId, requestId: failure.requestId };
 }
 
 /**

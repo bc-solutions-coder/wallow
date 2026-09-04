@@ -13,6 +13,17 @@ deliberate addition to `FACADE_ADDITIONS`. Do not "simplify" the spec.
 
 - **`retry: false`** by default — deterministic tests, no silent backoff.
 - **A fresh client per call** — one SSR request never shares cache with another.
+- **`onUnhandledFailure({ kind, error })`** is the ONE hook for failures nobody rendered, and the
+  callback receives exactly those two members. The `MutationCache` calls it for every mutation
+  whose `meta` lacks `failureHandled: true`; the `QueryCache` calls it only for queries whose
+  `meta` carries `toastFailure: true` — queries are silent by default because a loader or
+  banner usually owns them — and only **once per failure streak** (a `WeakSet` of failed
+  queries, cleared on the next success), so focus and reconnect refetches of a query that stays
+  broken do not stack identical toasts. `handledFailure(meta?)` and `toastedFailure(meta?)` set those flags
+  and spread over existing `meta` without mutating it.
+- **This package knows nothing about `ui`, the registry, or toasts.** The app builds the
+  callback with its registry in scope and calls `toastFailure` itself; `query` imports only
+  `@tanstack/react-query`.
 
 ## Tests
 
