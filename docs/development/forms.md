@@ -66,7 +66,8 @@ is importable. Everything below comes from `@bc-solutions-coder/forms`.
 | `AppForm`                                                                     | The shell: owns the `<form>` element, the submit wiring, the vertical rhythm, and the testid prefix. |
 | `SubmitButton`, `FormError`                                                   | The two children that read the shell's `pending` / `serverError` instead of taking them as props.    |
 | `TextField`, `PasswordField`, `TextareaField`, `SelectField`, `CheckboxField` | The catalog fields, reached through `form.AppField`'s render prop.                                   |
-| `fieldTestId`, `fieldErrorTestId`, `splitServerError`                         | The derivation and error-split helpers, so a bespoke control can match the catalog exactly.          |
+| `fieldTestId`, `fieldErrorTestId`                                             | The testid derivation helpers, so a bespoke control can match the catalog exactly.                   |
+| `splitServerError`, `errorText`                                               | **Deprecated** error readers; see The error model.                                                   |
 | `withForm`                                                                    | TanStack's higher-order form composition, bound to this package's contexts.                          |
 
 ## Authoring a form
@@ -102,7 +103,6 @@ function CreateOrganizationFormFields() {
       void queryClient.invalidateQueries(queriesWithTag("Organizations"));
       form.reset();
     },
-    fallbackError: "Could not create the organization.",
   });
 
   return (

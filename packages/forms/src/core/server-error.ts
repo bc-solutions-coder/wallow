@@ -96,9 +96,9 @@ export function errorText(error: unknown, fallback: string): string {
  * `knownFields` is the set of camelCase names the form holds; a message keyed by
  * anything else joins the banner rather than vanishing.
  *
- * @deprecated `useAppForm` no longer uses this: it splits with
- * {@link splitSubmitFailure} and resolves the banner through the registry. A
- * bespoke form should do the same — `splitFieldErrors` from
+ * @deprecated `useAppForm` does not use this: it splits with api-errors and
+ * resolves the banner through the registry. A bespoke form should do the
+ * same — `splitFieldErrors` from
  * `@bc-solutions-coder/api-errors` for the fields, `useFailureMessage` from
  * `@bc-solutions-coder/ui/failure-messages` for the banner. This helper joins
  * unmatched messages into one string and echoes a thrown `Error`'s message,

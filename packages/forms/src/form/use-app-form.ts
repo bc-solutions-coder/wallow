@@ -253,10 +253,12 @@ export function useAppForm<TValues, TVariables = unknown, TData = unknown, TErro
     form.setErrorMap({ onServer: { fields: {} } });
   }, [form]);
 
+  // `mutation` is a fresh object every render; its bound `reset` is stable.
+  const { reset: resetMutation } = mutation;
   const reset = useCallback((): void => {
-    mutation.reset();
+    resetMutation();
     clearServerErrors();
-  }, [mutation, clearServerErrors]);
+  }, [resetMutation, clearServerErrors]);
 
   return Object.assign(form, {
     wallow: {
