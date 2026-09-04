@@ -67,6 +67,20 @@ change here must keep all three true:
   `WallowError` / `isWallowError` / `UNKNOWN_ERROR_CODE` / `parseProblemDetails` are deleted and
   pinned deleted by `src/index.test.ts`. A body without a code parses as
   `Client.UnrecognizedResponse`, so a spec that fakes a problem body must give it a `code`.
+- **Relayed vs originated.** An upstream failure is relayed byte for byte. Every failure the
+  `/api` proxy, the passthrough, `/bff/user`, and the logout CSRF gate answer THEMSELVES goes
+  through the ONE writer, `src/server/problem.ts`
+  (`problemResponse(status, code, { requestId, detail?, headers? })`): `about:blank`, fixed
+  title/detail per code (the server twin of `api-errors`' shipped messages), `requestId` on
+  body and header, never `traceId`, never a transport message (that goes to the redacted log).
+  Passthrough imports it too, so it must never grow a handler/proxy import. No bodiless
+  responses on those paths and no SDK-private code strings — codes come from
+  `ErrorCode`/`ClientErrorCode` (the remaining bare `/bff/*` 404/405/400s are a separate issue):
+  404 `Http.NotFound` (path outside `/api` / the allowlist / the API base); 401
+  `Bff.SessionMissing` (no or unreadable session); 401 `Bff.SessionRefreshFailed` (terminal
+  refresh → teardown; a faulting freshness check → no teardown); 403 `Bff.CsrfInvalid`; 401
+  `Auth.Unauthenticated` (login redirect survived the replay); 503 `Transport.NetworkError`;
+  504 `Transport.Timeout` (forward timeout, proxy only — passthrough adds no timeout).
 - `POST /bff/backchannel-logout` (the sixth route) is the OP-to-BFF endpoint: no cookie, no
   CSRF — the signed logout token is the whole security of the request. `RedisLike` requires
   `sadd`/`srem`/`smembers`/`expire` alongside `get`/`set`/`del`; they back the Valkey store's

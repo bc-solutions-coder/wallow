@@ -368,7 +368,7 @@ alone so a server instance and a browser instance stay hydration-compatible.
 ## CSRF: read this before your first POST
 
 The proxy **rejects every state-changing request that does not carry a CSRF
-token** with `403` and the code `CSRF_INVALID`. If your `POST`/`PUT`/`PATCH`/
+token** with `403` and the code `Bff.CsrfInvalid`. If your `POST`/`PUT`/`PATCH`/
 `DELETE` calls through `/api/**` come back as 403, this is why.
 
 How the token is delivered:
@@ -418,8 +418,9 @@ const sdk = createWallowSdk({ baseUrl: "/api" });
 non-browser clients; browser code never needs it, because the cookie is the
 same token.
 
-The header name is exported server-side as `CSRF_HEADER`, and the rejection code
-as `CSRF_INVALID_CODE`. `GET`, `HEAD`, `OPTIONS`, and `TRACE` are not gated.
+The header name is exported server-side as `CSRF_HEADER`; the rejection code is
+`ClientErrorCode.BFF_CSRF_INVALID` from `@bc-solutions-coder/api-errors`. `GET`,
+`HEAD`, `OPTIONS`, and `TRACE` are not gated.
 
 ---
 
@@ -543,7 +544,27 @@ longer exists.
 
 The proxy answers failures with RFC 7807 problem details
 (`content-type: application/problem+json`), so a failed call carries a machine
-readable `code` alongside the status.
+readable `code` alongside the status. An API failure is **relayed** — status,
+headers, and body byte for byte, `errors[]` and `traceId` included. A failure
+the server hop hits itself is **originated** through the shared
+`problemResponse(status, code, { requestId, detail?, headers? })` writer, in the
+same envelope: `type: "about:blank"`, `title`, `status`, `code`, a fixed
+`detail` per case, `requestId` (also on `x-request-id`), and never a `traceId`.
+Both presets write through it, and the wording per code mirrors the failure
+messages `api-errors` ships, so the browser reads either kind the same way:
+
+| The hop answers itself when…                                                                     | Status | `code`                     |
+| ------------------------------------------------------------------------------------------------ | ------ | -------------------------- |
+| The path is outside `/api` (proxy) or the allowlist (passthrough), or escapes the API base       | `404`  | `Http.NotFound`            |
+| There is no session cookie, or the store cannot read the one presented                           | `401`  | `Bff.SessionMissing`       |
+| The refresh failed terminally (session torn down), or the freshness check faulted (session kept) | `401`  | `Bff.SessionRefreshFailed` |
+| A state-changing request carries no valid CSRF token                                             | `403`  | `Bff.CsrfInvalid`          |
+| The API's login redirect survived the one replay                                                 | `401`  | `Auth.Unauthenticated`     |
+| The upstream could not be reached                                                                | `503`  | `Transport.NetworkError`   |
+| No response within `FORWARD_TIMEOUT_MS` (30s; proxy only)                                        | `504`  | `Transport.Timeout`        |
+
+The transport's own message (undici's `fetch failed`, an abort) never enters a
+body; it goes to the redacted `console.warn` record.
 
 Every failure the SDK raises, browser or server, is an `ApiFailure` from
 `@bc-solutions-coder/api-errors` — match with `isApiFailure`, read `status`,
@@ -559,8 +580,8 @@ What the proxy does for you on the way through, each retried at most once:
 | --------------------------------------------------- | --------------------------------------------------------------------------- |
 | `401` (or a `3xx` redirect to the API's login page) | Force a token refresh under the store's refresh lock and replay the request |
 | `429`                                               | Wait for `Retry-After`, bounded by `MAX_RETRY_AFTER_MS` (5s), and replay    |
-| No response within `FORWARD_TIMEOUT_MS` (30s)       | `503` with code `NETWORK_TIMEOUT`                                           |
-| Transport failure                                   | `503` with code `NETWORK_ERROR`                                             |
+| No response within `FORWARD_TIMEOUT_MS` (30s)       | `504` with code `Transport.Timeout`                                         |
+| Transport failure                                   | `503` with code `Transport.NetworkError`                                    |
 
 Ahead of the forward, `ensureFreshSession` proactively refreshes an access token
 that is inside the expiry skew window, so most requests never see a 401 at all.

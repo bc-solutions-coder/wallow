@@ -21,7 +21,8 @@ export {
 // the dependency-free `./server/forwarded` subpath, not here: an isomorphic module must
 // be able to import them without pulling the BFF graph in.
 export { type PeerRequest } from "./forwarded";
-export { CSRF_HEADER, CSRF_INVALID_CODE, csrfTokenMatches } from "./csrf";
+export { CSRF_HEADER, csrfTokenMatches } from "./csrf";
+export { problemResponse, type ProblemResponseOptions } from "./problem";
 export {
   createApiProxy,
   ensureFreshSession,
@@ -29,8 +30,6 @@ export {
   forwardWithResilience,
   FORWARD_TIMEOUT_MS,
   MAX_RETRY_AFTER_MS,
-  NETWORK_ERROR_CODE,
-  NETWORK_TIMEOUT_CODE,
   type ApiProxyHandler,
   type ForwardRequest,
   type ForwardResult,

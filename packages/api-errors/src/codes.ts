@@ -15,7 +15,11 @@ export const ClientErrorCode = {
   CLIENT_UNRECOGNIZED_RESPONSE: "Client.UnrecognizedResponse",
   /** The BFF rejected the request's CSRF token. */
   BFF_CSRF_INVALID: "Bff.CsrfInvalid",
-  /** The BFF could not refresh the session and tore it down. */
+  /**
+   * The BFF could not keep the session fresh: a terminal refresh failure
+   * (the session is torn down) or a store fault during the refresh (the
+   * session is kept for the next request to try again).
+   */
   BFF_SESSION_REFRESH_FAILED: "Bff.SessionRefreshFailed",
   /** The BFF found no session to attach to the request. */
   BFF_SESSION_MISSING: "Bff.SessionMissing",

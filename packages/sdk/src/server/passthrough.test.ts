@@ -1,7 +1,10 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { type AddressInfo } from "node:net";
 
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { ClientErrorCode, ErrorCode } from "@bc-solutions-coder/api-errors";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { REQUEST_ID_HEADER } from "../request-id";
 
 import {
   createApiPassthrough,
@@ -175,13 +178,22 @@ describe("createApiPassthrough — prefix allowlist", () => {
     expect(proxy.matches("/v1/")).toBe(true);
   });
 
-  it("returns 404 for a path outside the allowlist, without touching upstream", async () => {
+  it("answers 404 Http.NotFound problem details for a path outside the allowlist, without touching upstream", async () => {
     lastRequest = undefined;
 
     const res: Response = await proxy.handle(new Request("http://localhost/dashboard"));
 
     expect(res.status).toBe(404);
     expect(lastRequest).toBeUndefined();
+    // Originated, not a bare status: the browser reads it like any API problem.
+    expect(res.headers.get("content-type")).toBe("application/problem+json");
+    const body: Record<string, unknown> = (await res.json()) as Record<string, unknown>;
+    expect(body["type"]).toBe("about:blank");
+    expect(body["status"]).toBe(404);
+    expect(body["code"]).toBe(ErrorCode.HTTP_NOT_FOUND);
+    expect(typeof body["detail"]).toBe("string");
+    expect(body["requestId"]).toBe(res.headers.get(REQUEST_ID_HEADER));
+    expect(body).not.toHaveProperty("traceId");
   });
 
   it("honours an explicit prefix list, accepting both wildcard and bare forms", async () => {
@@ -229,6 +241,40 @@ describe("createApiPassthrough — discovery passthrough", () => {
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual(JWKS_DOCUMENT);
     expect(lastRequest?.target).toBe("/.well-known/jwks");
+  });
+});
+
+describe("createApiPassthrough — unreachable upstream", () => {
+  it("answers 503 Transport.NetworkError problem details when the upstream fetch rejects", async () => {
+    // Nothing listens on port 1: the connection is refused rather than hung,
+    // so the rejection is undici's, not a timeout this preset does not add.
+    const unreachable: ApiPassthrough = createApiPassthrough({
+      apiInternalUrl: "http://127.0.0.1:1",
+    });
+    const warn = vi.spyOn(console, "warn").mockImplementation((): void => {});
+
+    const res: Response = await unreachable.handle(
+      new Request("http://localhost/v1/identity/me?token=one-time-secret", {
+        headers: { [REQUEST_ID_HEADER]: "passthrough-dead-1" },
+      }),
+    );
+
+    expect(res.status).toBe(503);
+    expect(res.headers.get("content-type")).toBe("application/problem+json");
+    expect(res.headers.get(REQUEST_ID_HEADER)).toBe("passthrough-dead-1");
+    const body: Record<string, unknown> = (await res.json()) as Record<string, unknown>;
+    expect(body["code"]).toBe(ClientErrorCode.TRANSPORT_NETWORK_ERROR);
+    expect(body["requestId"]).toBe("passthrough-dead-1");
+    // Fixed wording for the user; undici's message stays in the log record.
+    expect(typeof body["detail"]).toBe("string");
+    expect(JSON.stringify(body)).not.toContain("fetch failed");
+    const record: string = JSON.stringify(warn.mock.calls);
+    expect(record).toContain("fetch failed");
+    // The record names the upstream, never the request path: `/v1/**` carries
+    // one-time tokens in paths and query strings.
+    expect(record).not.toContain("/v1/identity/me");
+    expect(record).not.toContain("one-time-secret");
+    warn.mockRestore();
   });
 });
 

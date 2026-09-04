@@ -116,7 +116,10 @@ const DELETED_LEGACY_SYMBOLS: readonly string[] = [
  * code is `Client.UnrecognizedResponse`, not `UNKNOWN`.
  */
 const DELETED_SERVER_SYMBOLS: readonly string[] = [
+  "CSRF_INVALID_CODE",
   "isWallowError",
+  "NETWORK_ERROR_CODE",
+  "NETWORK_TIMEOUT_CODE",
   "parseProblemDetails",
   "SESSION_REFRESH_FAILED_CODE",
   "UNKNOWN_ERROR_CODE",
@@ -159,11 +162,10 @@ const SERVER_VALUE_EXPORTS: readonly string[] = [
   "forwardWithResilience",
   "FORWARD_TIMEOUT_MS",
   "MAX_RETRY_AFTER_MS",
-  "NETWORK_ERROR_CODE",
-  "NETWORK_TIMEOUT_CODE",
+  // problem
+  "problemResponse",
   // csrf
   "CSRF_HEADER",
-  "CSRF_INVALID_CODE",
   // config
   "loadBffConfigFromEnv",
   "DEFAULT_SESSION_TTL_SECONDS",

@@ -142,7 +142,7 @@ external store. Swapping stores is the one production knob.
 
 The BFF **rejects any state-changing request** (`POST`/`PUT`/`PATCH`/`DELETE`)
 through `/api/**` that does not echo the session's CSRF token, with a `403`
-problem+json carrying `code: "CSRF_INVALID"`. Safe methods (`GET`, `HEAD`) pass
+problem+json carrying `code: "Bff.CsrfInvalid"`. Safe methods (`GET`, `HEAD`) pass
 through untouched. This is what stops a cross-site form post from riding on the
 session cookie, which the browser would otherwise attach automatically.
 

@@ -641,7 +641,7 @@ already run. Three ways to get one:
 ## CSRF protection
 
 The `/api` proxy **rejects every state-changing request that does not present a
-valid CSRF token**, answering `403` with the code `CSRF_INVALID`. This is the
+valid CSRF token**, answering `403` with the code `Bff.CsrfInvalid`. This is the
 first thing to reach for when a `POST`, `PUT`, `PATCH`, or `DELETE` through the
 tunnel comes back as `403`. The gate names those four methods explicitly, so
 everything else — `GET`, `HEAD`, `OPTIONS`, and `TRACE` — passes ungated. The
@@ -700,9 +700,9 @@ const sdk = createWallowSdk({ baseUrl: "/api" });
 non-browser clients; browser code never needs it, because the cookie carries
 the same token.
 
-Server-side the header name is exported as `CSRF_HEADER` and the rejection code
-as `CSRF_INVALID_CODE`, so a BFF host can reuse them rather than hardcode
-strings.
+Server-side the header name is exported as `CSRF_HEADER`, and the rejection
+code is `ClientErrorCode.BFF_CSRF_INVALID` from `@bc-solutions-coder/api-errors`,
+so a BFF host can reuse them rather than hardcode strings.
 
 ---
 
@@ -803,8 +803,27 @@ the following, each retried at most once:
 | ----------------------------------------------------- | ----------------------------------------------------------------------------- |
 | `401`, or a `3xx` redirecting to the API's login page | Forces a token refresh under the store's refresh lock and replays the request |
 | `429`                                                 | Waits for `Retry-After`, bounded by `MAX_RETRY_AFTER_MS` (5s), then replays   |
-| No response within `FORWARD_TIMEOUT_MS` (30s)         | Returns `503` with code `NETWORK_TIMEOUT`                                     |
-| Transport failure                                     | Returns `503` with code `NETWORK_ERROR`                                       |
+| No response within `FORWARD_TIMEOUT_MS` (30s)         | Returns `504` with code `Transport.Timeout`                                   |
+| Transport failure                                     | Returns `503` with code `Transport.NetworkError`                              |
+
+An API failure is **relayed** byte for byte, `errors[]` and `traceId` included.
+Every failure the server hop hits itself — in the `/api` proxy or the
+passthrough — is an **originated problem** written through the shared
+`problemResponse(status, code, { requestId, detail?, headers? })`: the same
+envelope (`type: "about:blank"`, `title`, `status`, `code`, a fixed `detail` per
+case, `requestId` on the body and on `x-request-id`, never a `traceId`), so the
+browser's `api-errors` parser reads it like any API problem. The transport's own
+message stays in the redacted log record, never in a body.
+
+| The hop answers itself when…                                                   | Status | `code`                     |
+| ------------------------------------------------------------------------------ | ------ | -------------------------- |
+| The path is outside `/api` (proxy) or the allowlist (passthrough), or escapes the API base | `404`  | `Http.NotFound`            |
+| There is no session cookie, or the store cannot read the one presented         | `401`  | `Bff.SessionMissing`       |
+| The refresh failed terminally (session torn down), or the freshness check faulted (session kept) | `401`  | `Bff.SessionRefreshFailed` |
+| A state-changing request carries no valid CSRF token                           | `403`  | `Bff.CsrfInvalid`          |
+| The API's login redirect survived the one replay                               | `401`  | `Auth.Unauthenticated`     |
+| The upstream could not be reached                                              | `503`  | `Transport.NetworkError`   |
+| No response within `FORWARD_TIMEOUT_MS` (30s; proxy only)                      | `504`  | `Transport.Timeout`        |
 
 A refresh that fails — the proactive one before the forward, or the forced one
 after a reactive `401` — destroys the store record, clears the session cookies,
@@ -1184,7 +1203,7 @@ same client with a per-run port instead (`./scripts/e2e.sh`, Wallow-joo0).
 | `invalid_client` on callback                            | `OIDC_CLIENT_ID`/`OIDC_CLIENT_SECRET` mismatch         | Confirm they match the registered (or seeded) confidential client                                                                       |
 | `redirect_uri` mismatch                                 | `OIDC_REDIRECT_URI` does not match the registered URI  | Register `http://localhost:3000/bff/callback` (or your value) and keep them identical                                                   |
 | `401` from `/api/**` after login                        | Session missing or refresh token unavailable           | Ensure `offline_access` is in the requested scopes so a refresh token is issued                                                         |
-| `403` with code `CSRF_INVALID` on POST/PUT/PATCH/DELETE | The `x-csrf-token` header is missing or stale          | Echo the `wallow_bff-csrf` cookie (or `/bff/user`'s `csrfToken`) in the `x-csrf-token` header — see [CSRF protection](#csrf-protection) |
+| `403` with code `Bff.CsrfInvalid` on POST/PUT/PATCH/DELETE | The `x-csrf-token` header is missing or stale       | Echo the `wallow_bff-csrf` cookie (or `/bff/user`'s `csrfToken`) in the `x-csrf-token` header — see [CSRF protection](#csrf-protection) |
 | Session cookie not set over plain HTTP locally          | Cookies carry `Secure` by default                      | Set `COOKIE_SECURE=false` in local development only                                                                                     |
 | `npm install` `401 Unauthorized`                        | GitHub Packages token missing or lacks `read:packages` | Add the `@bc-solutions-coder:registry` line to the project `.npmrc` and set the token with `npm config set` (see [Installation](#installation)) |
 

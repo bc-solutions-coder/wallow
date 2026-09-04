@@ -11,6 +11,8 @@
 
 import { ApiFailure, ClientErrorCode } from "@bc-solutions-coder/api-errors";
 
+import { problemTitle } from "./problem";
+
 /** Placeholder substituted for credential-shaped values by {@link redact}. */
 export const REDACTED: string = "[redacted]";
 
@@ -31,7 +33,7 @@ export class RefreshFailedError extends ApiFailure {
     super({
       status: UNAUTHORIZED_STATUS,
       code: ClientErrorCode.BFF_SESSION_REFRESH_FAILED,
-      title: "The session could not be refreshed",
+      title: problemTitle(ClientErrorCode.BFF_SESSION_REFRESH_FAILED),
       detail,
     });
     this.name = "RefreshFailedError";

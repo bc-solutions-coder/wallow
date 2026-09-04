@@ -12,9 +12,11 @@
  * Cookie parsing and serialization come from `cookie-es` — the same layer h3
  * used underneath `getCookie`/`setCookie`, so the wire format is unchanged.
  */
+import { ClientErrorCode } from "@bc-solutions-coder/api-errors";
 import { parse as parseCookies, serialize as serializeCookie } from "cookie-es";
 
 import { isSafeReturnUrl } from "../auth-oidc";
+import { resolveRequestId } from "../request-id";
 import { createBackchannelLogoutHandler } from "./backchannel-logout";
 import { decodeIdTokenClaims, mapClaims } from "./claims";
 import type { BffConfig, BffCookieSameSite } from "./config";
@@ -28,7 +30,8 @@ import {
   type DiscoveryDoc,
   type TokenResponse,
 } from "./oidc";
-import { csrfTokenMatches, CSRF_HEADER, CSRF_INVALID_CODE } from "./csrf";
+import { csrfTokenMatches, CSRF_HEADER } from "./csrf";
+import { problemResponse } from "./problem";
 import { type BffSession } from "./session";
 import { CookieSessionStore } from "./store/cookie";
 import type { SessionStore } from "./store/types";
@@ -405,19 +408,6 @@ function redirect(location: string, headers: Headers): Response {
   return new Response(null, { status: FOUND_STATUS, headers });
 }
 
-/** An RFC 7807 problem-details response with the machine code at the top level. */
-function problemResponse(status: number, title: string, code: string): Response {
-  return Response.json(
-    {
-      type: `https://httpstatuses.io/${status}`,
-      title,
-      status,
-      code,
-    },
-    { status, headers: { "content-type": "application/problem+json" } },
-  );
-}
-
 /**
  * The URL openid-client validates the authorization response against.
  *
@@ -570,7 +560,9 @@ export function createBffHandlers(
     user: async (request: Request): Promise<Response> => {
       const session: BffSession | null = await readSession(request, config, store);
       if (session === null) {
-        return new Response(null, { status: UNAUTHORIZED_STATUS });
+        return problemResponse(UNAUTHORIZED_STATUS, ClientErrorCode.BFF_SESSION_MISSING, {
+          requestId: resolveRequestId(request.headers),
+        });
       }
       // The identity claims plus the CSRF token, for SPA clients that read
       // the token from here rather than from the companion cookie. Session
@@ -615,11 +607,9 @@ export function createBffHandlers(
       // the constant-time comparison is handed a value its types deny.
       const presented: string | undefined = request.headers.get(CSRF_HEADER) ?? undefined;
       if (!csrfTokenMatches(session.csrfToken, presented)) {
-        return problemResponse(
-          FORBIDDEN_STATUS,
-          "CSRF token mismatch or missing",
-          CSRF_INVALID_CODE,
-        );
+        return problemResponse(FORBIDDEN_STATUS, ClientErrorCode.BFF_CSRF_INVALID, {
+          requestId: resolveRequestId(request.headers),
+        });
       }
 
       // Revoke the session server-side before clearing the browser cookies so a

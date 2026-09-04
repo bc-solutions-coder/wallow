@@ -1,3 +1,4 @@
+import { ClientErrorCode } from "@bc-solutions-coder/api-errors";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { discovery, type Configuration } from "openid-client";
 
@@ -10,7 +11,7 @@ import {
   type BffHandler,
 } from "./handlers";
 import type { DiscoveryDoc } from "./oidc";
-import { CSRF_HEADER, CSRF_INVALID_CODE } from "./csrf";
+import { CSRF_HEADER } from "./csrf";
 import { sealSession, type BffSession } from "./session";
 import { CookieSessionStore } from "./store/cookie";
 import type { SessionStore } from "./store/types";
@@ -559,6 +560,11 @@ describe("user handler", () => {
     const res: Response = await handle(new Request("http://localhost/bff/user"));
 
     expect(res.status).toBe(401);
+    // Originated problem details, not a bare status.
+    expect(res.headers.get("content-type")).toBe("application/problem+json");
+    const body: Record<string, unknown> = (await res.json()) as Record<string, unknown>;
+    expect(body["code"]).toBe(ClientErrorCode.BFF_SESSION_MISSING);
+    expect(body["requestId"]).toBe(res.headers.get("x-request-id"));
   });
 
   it("returns 200 with the user identity when a session cookie is present", async () => {
@@ -842,7 +848,9 @@ describe("logout CSRF gate", () => {
     expect(res.status).toBe(403);
     expect(res.headers.get("content-type") ?? "").toContain("problem+json");
     const body: Record<string, unknown> = (await res.json()) as Record<string, unknown>;
-    expect(body["code"]).toBe(CSRF_INVALID_CODE);
+    expect(body["code"]).toBe(ClientErrorCode.BFF_CSRF_INVALID);
+    expect(body["type"]).toBe("about:blank");
+    expect(typeof body["requestId"]).toBe("string");
     expect(destroyed).toEqual([]);
     expect(res.headers.getSetCookie()).toEqual([]);
   });
@@ -984,7 +992,7 @@ describe("logout CSRF gate", () => {
       // anonymous escape hatch is for `session === null` only.
       expect(res.status).toBe(403);
       const body: Record<string, unknown> = (await res.json()) as Record<string, unknown>;
-      expect(body["code"]).toBe(CSRF_INVALID_CODE);
+      expect(body["code"]).toBe(ClientErrorCode.BFF_CSRF_INVALID);
       expect(destroyed).toEqual([]);
       expect(res.headers.getSetCookie()).toEqual([]);
     },

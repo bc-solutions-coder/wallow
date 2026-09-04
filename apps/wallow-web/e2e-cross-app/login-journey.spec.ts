@@ -61,7 +61,7 @@ test("cross-app login journey establishes an authenticated wallow-web session", 
  * is why the CSRF regression in Wallow-vufu.1.1 shipped undetected: the SDK's
  * shared interceptor stamped `x-csrf-token` only when `setCsrfToken()` had been
  * called, and the only remaining caller was `/bff-demo`. Every real dashboard
- * mutation therefore sent no header and the BFF answered 403 CSRF_INVALID, with
+ * mutation therefore sent no header and the BFF answered a 403 CSRF rejection, with
  * the login journey above still perfectly green.
  *
  * ASSERTING THE MUTATION SUCCEEDED via the form's own reset:

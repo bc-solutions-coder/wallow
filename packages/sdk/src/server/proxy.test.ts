@@ -1,11 +1,12 @@
 import { timingSafeEqual } from "node:crypto";
 
-import { ApiFailure, ClientErrorCode } from "@bc-solutions-coder/api-errors";
+import { ApiFailure, ClientErrorCode, ErrorCode } from "@bc-solutions-coder/api-errors";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { isValidRequestId, MAX_REQUEST_ID_LENGTH, REQUEST_ID_HEADER } from "../request-id";
+import { toFailure } from "../runtime-config";
 import type { BffConfig } from "./config";
-import { csrfTokenMatches, CSRF_HEADER, CSRF_INVALID_CODE, isStateChangingMethod } from "./csrf";
+import { csrfTokenMatches, CSRF_HEADER, isStateChangingMethod } from "./csrf";
 import { type PeerRequest } from "./forwarded";
 import { discover, refreshTokens, type DiscoveryDoc, type TokenResponse } from "./oidc";
 import {
@@ -15,8 +16,6 @@ import {
   forwardWithResilience,
   FORWARD_TIMEOUT_MS,
   MAX_RETRY_AFTER_MS,
-  NETWORK_ERROR_CODE,
-  NETWORK_TIMEOUT_CODE,
   type ForwardRequest,
   type ForwardResult,
 } from "./proxy";
@@ -343,13 +342,40 @@ function makeHandle(
 }
 
 describe("createApiProxy", () => {
-  it("returns 401 when there is no session cookie", async () => {
+  it("answers 401 Bff.SessionMissing problem details when there is no session cookie", async () => {
     const config: BffConfig = makeConfig("https://proxy-401.example.com");
     const handle = makeHandle(config);
 
     const res: Response = await handle(new Request("http://localhost/api/users"));
 
     expect(res.status).toBe(401);
+    // Originated, not bare: the browser reads this like any API problem.
+    expect(res.headers.get("content-type")).toBe("application/problem+json");
+    const body: Record<string, unknown> = (await res.json()) as Record<string, unknown>;
+    expect(body["type"]).toBe("about:blank");
+    expect(body["status"]).toBe(401);
+    expect(body["code"]).toBe(ClientErrorCode.BFF_SESSION_MISSING);
+    expect(typeof body["detail"]).toBe("string");
+    expect(body).not.toHaveProperty("traceId");
+  });
+
+  it("answers 401 Bff.SessionMissing when the cookie names a session the store no longer has", async () => {
+    const config: BffConfig = makeConfig("https://proxy-401-gone.example.com");
+    const { store }: FakeStore = makeFakeStore(null);
+    const fetchMock: ReturnType<typeof vi.fn> = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const handle = makeHandle(config, store);
+
+    const res: Response = await handle(
+      new Request("http://localhost/api/users", {
+        headers: { cookie: `${config.cookieName}=fake-ref` },
+      }),
+    );
+
+    expect(res.status).toBe(401);
+    const body: Record<string, unknown> = (await res.json()) as Record<string, unknown>;
+    expect(body["code"]).toBe(ClientErrorCode.BFF_SESSION_MISSING);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("strips the /api prefix and forwards to the API with a Bearer token", async () => {
@@ -928,6 +954,7 @@ describe("forwardWithResilience", () => {
     expect(error).toBeInstanceOf(ApiFailure);
     // A login redirect is an authentication failure, whatever status it wears.
     expect(error.status).toBe(401);
+    expect(error.code).toBe(ErrorCode.AUTH_UNAUTHENTICATED);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(refreshTokens).toHaveBeenCalledTimes(1);
   });
@@ -1072,7 +1099,7 @@ describe("forwardWithResilience", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("raises a 503 NETWORK_ERROR ApiFailure when the transport fails", async () => {
+  it("raises a 503 Transport.NetworkError ApiFailure when the transport fails", async () => {
     const config: BffConfig = makeConfig("https://forward-network.example.com");
     const session: BffSession = makeSession();
     const { store }: FakeStore = makeFakeStore(session);
@@ -1095,12 +1122,15 @@ describe("forwardWithResilience", () => {
 
     expect(error).toBeInstanceOf(ApiFailure);
     expect(error.status).toBe(503);
-    expect(error.code).toBe(NETWORK_ERROR_CODE);
+    expect(error.code).toBe(ClientErrorCode.TRANSPORT_NETWORK_ERROR);
+    // The same code the browser leg names for a request that never landed, so
+    // one shipped message covers a dead socket on either side of the BFF.
+    expect(error.code).toBe(toFailure(new TypeError("fetch failed"), undefined).code);
     // A dead socket is not retried.
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("raises a 503 NETWORK_TIMEOUT ApiFailure when the forward exceeds FORWARD_TIMEOUT_MS", async () => {
+  it("raises a 504 Transport.Timeout ApiFailure when the forward exceeds FORWARD_TIMEOUT_MS", async () => {
     vi.useFakeTimers();
     const config: BffConfig = makeConfig("https://forward-timeout.example.com");
     const session: BffSession = makeSession();
@@ -1135,9 +1165,10 @@ describe("forwardWithResilience", () => {
     const error: ApiFailure = await settled;
 
     expect(error).toBeInstanceOf(ApiFailure);
-    expect(error.status).toBe(503);
+    // A gateway that gave up waiting is a 504, not a 503: the API may be fine.
+    expect(error.status).toBe(504);
     // A timeout is distinguishable from any other transport failure.
-    expect(error.code).toBe(NETWORK_TIMEOUT_CODE);
+    expect(error.code).toBe(ClientErrorCode.TRANSPORT_TIMEOUT);
   });
 
   it("raises a ApiFailure carrying the upstream problem details for a non-OK response", async () => {
@@ -1276,7 +1307,7 @@ describe("createApiProxy resilience", () => {
     expect(res.headers.get("set-cookie") ?? "").toContain(`${config.cookieName}=`);
   });
 
-  it("answers 503 when the downstream API is unreachable", async () => {
+  it("answers 503 Transport.NetworkError problem details when the downstream API is unreachable", async () => {
     const config: BffConfig = makeConfig("https://proxy-unreachable.example.com");
     const session: BffSession = makeSession({
       expiresAt: Date.now() + 3_600_000,
@@ -1285,6 +1316,9 @@ describe("createApiProxy resilience", () => {
     stubFetchScript([
       (): Promise<Response> => Promise.reject(new TypeError("fetch failed: ECONNREFUSED")),
     ]);
+    const warn: ReturnType<typeof vi.spyOn> = vi
+      .spyOn(console, "warn")
+      .mockImplementation((): void => {});
     const handle = makeHandle(config, store);
 
     const res: Response = await handle(
@@ -1295,6 +1329,50 @@ describe("createApiProxy resilience", () => {
 
     // A dead API is a 503, not an unhandled 500 from the BFF.
     expect(res.status).toBe(503);
+    expect(res.headers.get("content-type")).toBe("application/problem+json");
+    const body: Record<string, unknown> = (await res.json()) as Record<string, unknown>;
+    expect(body["type"]).toBe("about:blank");
+    expect(body["code"]).toBe(ClientErrorCode.TRANSPORT_NETWORK_ERROR);
+    // Fixed wording for the user; the transport's own message stays out of the
+    // body and in the log record.
+    expect(typeof body["detail"]).toBe("string");
+    expect(JSON.stringify(body)).not.toContain("ECONNREFUSED");
+    expect(JSON.stringify(warn.mock.calls)).toContain("ECONNREFUSED");
+  });
+
+  it("answers 504 Transport.Timeout problem details when the forward times out", async () => {
+    vi.useFakeTimers();
+    const config: BffConfig = makeConfig("https://proxy-timeout.example.com");
+    const session: BffSession = makeSession({
+      expiresAt: Date.now() + 3_600_000,
+    });
+    const { store }: FakeStore = makeFakeStore(session);
+    stubFetchScript([
+      (_input: unknown, init: RequestInit): Promise<Response> =>
+        new Promise<Response>((_resolve, reject): void => {
+          init.signal?.addEventListener("abort", (): void => {
+            const aborted: Error = new Error("This operation was aborted");
+            aborted.name = "AbortError";
+            reject(aborted);
+          });
+        }),
+    ]);
+    vi.spyOn(console, "warn").mockImplementation((): void => {});
+    const handle = makeHandle(config, store);
+
+    const settled: Promise<Response> = handle(
+      new Request("http://localhost/api/users", {
+        headers: { cookie: `${config.cookieName}=fake-ref` },
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(FORWARD_TIMEOUT_MS);
+    const res: Response = await settled;
+
+    expect(res.status).toBe(504);
+    const body: Record<string, unknown> = (await res.json()) as Record<string, unknown>;
+    expect(body["status"]).toBe(504);
+    expect(body["code"]).toBe(ClientErrorCode.TRANSPORT_TIMEOUT);
+    expect(JSON.stringify(body)).not.toContain("aborted");
   });
 
   it("preserves the upstream status and problem details of a non-OK response", async () => {
@@ -1384,7 +1462,73 @@ describe("createApiProxy refresh-failure teardown", () => {
     expect(res.headers.get("content-type") ?? "").toContain("problem+json");
     const body = (await res.json()) as Record<string, unknown>;
     expect(body["code"]).toBe(ClientErrorCode.BFF_SESSION_REFRESH_FAILED);
+    // Fixed wording: the grant's rejection reason is for the log, not the user.
+    expect(typeof body["detail"]).toBe("string");
+    expect(JSON.stringify(body)).not.toContain("invalid_grant");
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("answers 401 Bff.SessionRefreshFailed without teardown when the freshness check faults", async () => {
+    const config: BffConfig = makeConfig("https://proxy-refresh-fault.example.com");
+    const session: BffSession = makeSession({
+      refreshToken: "the-refresh-token",
+      expiresAt: Date.now() - 1_000,
+    });
+    const { store, calls }: FakeStore = makeFakeStore(session);
+    // Not a refresh failure: the store itself is down. The grant may be fine,
+    // so the session is kept for the next request to try again.
+    store.withRefreshLock = (): Promise<never> => Promise.reject(new Error("store unavailable"));
+    const fetchMock: ReturnType<typeof vi.fn> = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "warn").mockImplementation((): void => {});
+    const handle = makeHandle(config, store);
+
+    const res: Response = await handle(
+      new Request("http://localhost/api/users", {
+        headers: { cookie: `${config.cookieName}=fake-ref` },
+      }),
+    );
+
+    expect(res.status).toBe(401);
+    const body: Record<string, unknown> = (await res.json()) as Record<string, unknown>;
+    expect(body["code"]).toBe(ClientErrorCode.BFF_SESSION_REFRESH_FAILED);
+    expect(JSON.stringify(body)).not.toContain("store unavailable");
+    expect(calls.destroy).toEqual([]);
+    expect(clearedCookieNames(res)).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("answers the same 401 without teardown when the store faults during a reactive refresh", async () => {
+    const config: BffConfig = makeConfig("https://proxy-reactive-fault.example.com");
+    // Fresh as far as the BFF knows; the API rejects it, and the store is down
+    // when the forced refresh reaches for its lock.
+    const session: BffSession = makeSession({
+      refreshToken: "the-refresh-token",
+      expiresAt: Date.now() + 3_600_000,
+    });
+    const { store, calls }: FakeStore = makeFakeStore(session);
+    store.withRefreshLock = (): Promise<never> => Promise.reject(new Error("store unavailable"));
+    stubFetchScript([respond((): Response => problem(401, { title: "Unauthorized" }))]);
+    vi.spyOn(console, "warn").mockImplementation((): void => {});
+    const handle = makeHandle(config, store);
+
+    const res: Response = await handle(
+      new Request("http://localhost/api/users", {
+        headers: {
+          cookie: `${config.cookieName}=fake-ref`,
+          [REQUEST_ID_HEADER]: "reactive-fault-1",
+        },
+      }),
+    );
+
+    // Not a host 500: the same originated problem the proactive twin answers.
+    expect(res.status).toBe(401);
+    expect(res.headers.get(REQUEST_ID_HEADER)).toBe("reactive-fault-1");
+    const body: Record<string, unknown> = (await res.json()) as Record<string, unknown>;
+    expect(body["code"]).toBe(ClientErrorCode.BFF_SESSION_REFRESH_FAILED);
+    expect(JSON.stringify(body)).not.toContain("store unavailable");
+    expect(calls.destroy).toEqual([]);
+    expect(clearedCookieNames(res)).toEqual([]);
   });
 
   it("destroys the store record and clears the session cookies when the reactive refresh fails", async () => {
@@ -1476,7 +1620,7 @@ describe("createApiProxy CSRF", () => {
     },
   );
 
-  it("answers a missing CSRF token with CSRF_INVALID problem details", async () => {
+  it("answers a missing CSRF token with Bff.CsrfInvalid problem details", async () => {
     const config: BffConfig = makeConfig("https://csrf-problem.example.com");
     const { store }: FakeStore = makeFakeStore(makeSession());
     stubUpstreamOk();
@@ -1494,7 +1638,8 @@ describe("createApiProxy CSRF", () => {
     expect(res.headers.get("content-type") ?? "").toContain("problem+json");
     const body: Record<string, unknown> = await problemBodyOf(res);
     expect(body["status"]).toBe(403);
-    expect(body["code"]).toBe(CSRF_INVALID_CODE);
+    expect(body["code"]).toBe(ClientErrorCode.BFF_CSRF_INVALID);
+    expect(body["type"]).toBe("about:blank");
   });
 
   it("rejects a POST whose CSRF header does not match the session token", async () => {
@@ -1858,6 +2003,9 @@ describe("createApiProxy path allowlist", () => {
     );
 
     expect(res.status).toBe(404);
+    expect(res.headers.get("content-type")).toBe("application/problem+json");
+    const body: Record<string, unknown> = await problemBodyOf(res);
+    expect(body["code"]).toBe(ErrorCode.HTTP_NOT_FOUND);
     expect(calls.read).toBe(0);
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -2419,6 +2567,8 @@ describe("createApiProxy request-id correlation", () => {
 
     expect(res.status).toBe(401);
     expect(res.headers.get(REQUEST_ID_HEADER)).toBe("anonymous-req-1");
+    const body: Record<string, unknown> = await problemBodyOf(res);
+    expect(body["requestId"]).toBe("anonymous-req-1");
   });
 
   it("echoes a request id on a path this proxy does not serve", async () => {
@@ -2433,5 +2583,7 @@ describe("createApiProxy request-id correlation", () => {
 
     expect(res.status).toBe(404);
     expect(res.headers.get(REQUEST_ID_HEADER)).toBe("rejected-path-req-1");
+    const body: Record<string, unknown> = await problemBodyOf(res);
+    expect(body["requestId"]).toBe("rejected-path-req-1");
   });
 });

@@ -1,3 +1,4 @@
+import { ClientErrorCode } from "@bc-solutions-coder/api-errors";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { logout } from "./auth";
@@ -175,7 +176,7 @@ describe("logout (POST + CSRF gate)", () => {
   });
 
   it("rejects with a descriptive error and stays put when the BFF answers 403", async () => {
-    const { location } = stubBrowser(problemResponse(403, "CSRF_INVALID"));
+    const { location } = stubBrowser(problemResponse(403, ClientErrorCode.BFF_CSRF_INVALID));
 
     await expect(logout()).rejects.toThrowError(/403/u);
     expect(location.href).toBe("");
