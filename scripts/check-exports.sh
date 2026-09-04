@@ -45,7 +45,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
-packages=(packages/auth packages/env packages/logger packages/navigation packages/query packages/sdk packages/styles packages/testing packages/utils)
+packages=(packages/api-errors packages/auth packages/env packages/logger packages/navigation packages/query packages/sdk packages/styles packages/testing packages/utils)
 # --format ascii is pinned rather than left to `auto`: auto renders a bordered
 # table on a TTY, and dropping rows out of that would leave the borders malformed.
 attw_common=(--profile esm-only --ignore-rules internal-resolution-error --no-summary --format ascii)

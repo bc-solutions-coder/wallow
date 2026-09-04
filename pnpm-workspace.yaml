@@ -39,14 +39,15 @@ catalogs:
   # member typechecks clean under it. See `overrides` for the one exception.
   tooling:
     typescript: 7.0.2
-  # packages/sdk ONLY, and only because of its generator. @hey-api/openapi-ts
-  # builds the SDK client by constructing AST nodes with the JS COMPILER API,
+  # packages/sdk and packages/api-errors ONLY, and only because of their
+  # generator. @hey-api/openapi-ts builds the SDK client (and the api-errors
+  # ErrorCode catalogue) by constructing AST nodes with the JS COMPILER API,
   # which the native 7.x compiler does not ship: it reads `ts.SyntaxKind.AnyKeyword`,
   # undefined on 7.x, so merely importing openapi-ts.config.ts throws
   # ("Cannot read properties of undefined (reading 'AnyKeyword')",
   # ts-dsl/type/ternary.ts:22) and takes three suites with it. 6.0.3 is the last
   # JS-implementation release. TS6 and TS7 run the same type-checking algorithms,
-  # so this splits which BINARY packages/sdk uses, not what typechecks.
+  # so this splits which BINARY those two packages use, not what typechecks.
   # Fold this back into `tooling` once openapi-ts emits without the compiler API.
   tooling-tsc6:
     typescript: 6.0.3
@@ -61,5 +62,5 @@ overrides:
   # openapi-ts, and pnpm satisfies a peer from the importing package, so the
   # override only rewrites the declared range — openapi-ts still loads whatever
   # packages/sdk resolves, and you get an unmet-peer warning plus the original
-  # crash. The pin has to live on packages/sdk itself; see the `tooling-tsc6`
-  # catalog.
+  # crash. The pin has to live on each generating package itself; see the
+  # `tooling-tsc6` catalog.

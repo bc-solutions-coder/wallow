@@ -1,0 +1,160 @@
+# Package Publish - publishes one workspace package to GitHub Packages.
+# Decoupled from the platform release-please vX.Y.Z releases: a package is
+# published only by pushing its own <component>-v* tag (release-please creates
+# these on Release PR merge) or by manual dispatch with a package and version.
+#
+# The tag names the package: sdk-v0.3.0 publishes packages/sdk, api-errors-v0.1.0
+# publishes packages/api-errors. Adding a published package means adding its tag
+# glob below, its dispatch choice, and its release-please component.
+#
+# Order matters when one publishes and depends on the other: api-errors carries
+# no workspace dependency and the SDK will depend on it, so an api-errors release
+# publishes before the SDK release that consumes it.
+
+name: Package Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: "Workspace package to publish (its directory under packages/)"
+        required: true
+        type: choice
+        options:
+          - sdk
+          - api-errors
+      version:
+        description: "Version to publish (e.g. 0.1.0, no leading v)"
+        required: true
+        type: string
+  push:
+    tags:
+      - "sdk-v*"
+      - "api-errors-v*"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # Self-hosted turbo remote cache — same contract as js.yml: all three are
+    # repository secrets, fork PRs see empty values and run uncached.
+    env:
+      TURBO_API: ${{ secrets.TURBO_API }}
+      TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      # The `secrets` context is not usable inside a step-level `if`; bridged
+      # through env as a "true"/"false" string.
+      TAILNET_ENABLED: ${{ secrets.TS_OAUTH_CLIENT_ID != '' }}
+      # Bound to env so no expression reaches a run: block as a shell string.
+      EVENT_NAME: ${{ github.event_name }}
+      REF_NAME: ${{ github.ref_name }}
+      DISPATCH_PACKAGE: ${{ inputs.package }}
+      DISPATCH_VERSION: ${{ inputs.version }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      # One step owns the tag/dispatch parsing; everything after reads its outputs.
+      # A tag is <package>-v<version>; the package is whatever precedes the FIRST
+      # "-v" (a package name never contains one, a prerelease version can), which
+      # is what lets a hyphenated package name like api-errors work.
+      - name: Resolve the package and version
+        id: target
+        run: |
+          if [ "$EVENT_NAME" = "push" ]; then
+            package="${REF_NAME%%-v*}"
+            version="${REF_NAME#*-v}"
+          else
+            package="$DISPATCH_PACKAGE"
+            version="$DISPATCH_VERSION"
+          fi
+          if [ -z "$package" ] || [ -z "$version" ]; then
+            echo "::error::Could not resolve a package and version from '$REF_NAME' / dispatch inputs." >&2
+            exit 1
+          fi
+          if [ ! -f "packages/$package/package.json" ]; then
+            echo "::error::packages/$package is not a workspace package." >&2
+            exit 1
+          fi
+          name="$(jq -r .name "packages/$package/package.json")"
+          echo "Publishing $name@$version from packages/$package"
+          {
+            echo "version=$version"
+            echo "name=$name"
+            echo "directory=packages/$package"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@bc-solutions-coder"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Join the tailnet as a tagged ephemeral node so turbo can reach the
+      # remote cache at its tailnet address. Skipped when the OAuth secrets are
+      # absent (fork PRs): turbo then runs local-only.
+      - name: Tailscale
+        if: env.TAILNET_ENABLED == 'true'
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      # Probe the cache endpoint before the first turbo invocation (any HTTP
+      # status proves TCP works; normally 401 without a bearer). Non-fatal: a
+      # dead cache host degrades to an uncached run, never a red one.
+      - name: Wait for the cache host over the tailnet
+        if: env.TAILNET_ENABLED == 'true'
+        run: |
+          host=$(printf '%s' "$TURBO_API" | sed -E 's#^[a-z]+://##; s#[:/].*$##')
+          tailscale ping --until-direct=false --timeout 2s -c 10 "$host" > /dev/null 2>&1 || true
+          for i in $(seq 1 10); do
+            if code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 "$TURBO_API/v8/artifacts/status" 2>&1); then
+              echo "cache endpoint answered HTTP $code"
+              exit 0
+            fi
+            echo "attempt $i: $code"
+            sleep 3
+          done
+          echo "::warning::turbo cache endpoint unreachable over the tailnet; this run is uncached"
+
+      # Through turbo from the repo root (inside the package directory `pnpm
+      # build`/`pnpm test` run the scripts directly and bypass the cache — always
+      # cold). The --filter runs exactly this package's build and test tasks; a
+      # cache hit restores the same dist/ that `pnpm publish` packs below.
+      - name: Build and test
+        env:
+          PACKAGE_NAME: ${{ steps.target.outputs.name }}
+        run: pnpm exec turbo run build test --filter "$PACKAGE_NAME"
+
+      - name: Sync package version from the tag or dispatch input
+        working-directory: ${{ steps.target.outputs.directory }}
+        env:
+          VERSION: ${{ steps.target.outputs.version }}
+        run: |
+          echo "Setting package version to $VERSION"
+          pnpm version "$VERSION" --no-git-tag-version --allow-same-version
+
+      # `pnpm publish` is load-bearing, not interchangeable with `npm publish`.
+      # This manifest uses two workspace protocols that only pnpm resolves at pack
+      # time: `workspace:*` (sibling packages) and `catalog:` (the shared version
+      # pins in pnpm-workspace.yaml). `npm publish` would ship both verbatim and
+      # consumers would get an uninstallable manifest.
+      - name: Publish to GitHub Packages
+        working-directory: ${{ steps.target.outputs.directory }}
+        run: pnpm publish --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

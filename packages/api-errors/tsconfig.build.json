@@ -1,0 +1,12 @@
+{
+  // Declaration-only build config. Emit settings, rootDir/outDir and the shared
+  // exclude list come from ../../tsconfig.build.base.json; the single entry
+  // below is what is local to this package. `wallow/module-lists-in-sync` pins
+  // it against the `exports` map at lint time.
+  //
+  // Like the SDK, this package pins `typescript` to `catalog:tooling-tsc6`: its
+  // `generate` script runs @hey-api/openapi-ts, which builds output through the
+  // JS compiler API the native 7.x compiler does not ship.
+  "extends": ["./tsconfig.json", "../../tsconfig.build.base.json"],
+  "include": ["src/index.ts"]
+}

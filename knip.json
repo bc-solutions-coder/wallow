@@ -1,6 +1,11 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "ignore": ["packages/lint/fixtures/**", "packages/sdk/src/generated/**", "scripts/fork-smoke/**"],
+  "ignore": [
+    "packages/api-errors/src/generated/**",
+    "packages/lint/fixtures/**",
+    "packages/sdk/src/generated/**",
+    "scripts/fork-smoke/**"
+  ],
   "workspaces": {
     ".": {
       "ignoreDependencies": ["@arethetypeswrong/cli", "publint"]

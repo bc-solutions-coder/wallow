@@ -227,7 +227,9 @@ nothing in the package imports it.
 
 `packages/sdk/openapi/v1.json` and `packages/sdk/src/generated/**` are build
 artefacts of the backend contract, and CI keeps them honest without anyone having
-to remember to regenerate them.
+to remember to regenerate them. `packages/api-errors/src/generated/**` (the
+`ErrorCode` catalogue) is generated from the same snapshot, and `pnpm check:generated`
+inside `pnpm check` fails when either generated directory no longer matches it.
 
 Both halves read the contract the same way — from the document
 `Wallow.Api` emits at build time, via the shared
@@ -236,10 +238,11 @@ about what changed:
 
 - **On a pull request**, `openapi-drift.yml` fails if the committed snapshot no
   longer matches the contract, and prints the commands to refresh it.
-- **On `main`**, `openapi-autoregen.yml` regenerates the snapshot and the typed
-  client and opens a pull request titled
-  `feat(sdk): regenerate OpenAPI snapshot and typed client`. Merging that PR
-  feeds release-please, which bumps `@bc-solutions-coder/sdk` and lets you cut an
+- **On `main`**, `openapi-autoregen.yml` regenerates the snapshot, the typed
+  client and the `api-errors` catalogue and opens a pull request titled
+  `feat(sdk): regenerate OpenAPI snapshot and generated output`. Merging that PR
+  feeds release-please, which bumps `@bc-solutions-coder/sdk` (and
+  `@bc-solutions-coder/api-errors` when its catalogue moved) and lets you cut an
   `sdk-v*` tag as below.
 
 The automated PR is byte-identical to what a manual refresh against a running API
@@ -294,26 +297,27 @@ publish the SDK.
 Independently is not manually, though. release-please owns the SDK's version number too, as its
 own manifest component: merging the SDK's Release PR is what bumps `packages/sdk/package.json` and
 creates the `sdk-vX.Y.Z` tag that then triggers the publish below. See
-[the SDK's two release stages](../operations/versioning.md#the-sdk-releases-in-two-stages).
+[a published package's two release stages](../operations/versioning.md#a-published-package-releases-in-two-stages).
 
 Publish a new SDK version in one of two ways:
 
-- **Push an `sdk-v<version>` tag** — the `sdk-publish` workflow strips the
-  `sdk-v` prefix and publishes that version:
+- **Push an `sdk-v<version>` tag** — the `package-publish` workflow reads the
+  package (`sdk`) and the version off the tag and publishes that version:
 
   ```bash
   git tag sdk-v0.1.0
   git push origin sdk-v0.1.0
   ```
 
-- **Run the `sdk-publish` workflow manually** from the Actions tab (or via
-  `gh workflow run sdk-publish.yml -f version=0.1.0`), providing the version
-  (no leading `v`) as the required `version` input.
+- **Run the `package-publish` workflow manually** from the Actions tab (or via
+  `gh workflow run package-publish.yml -f package=sdk -f version=0.1.0`),
+  providing the package and the version (no leading `v`).
 
-Either path installs, tests, and builds the SDK, syncs `package.json` to the
+Either path installs, tests, and builds the package, syncs its `package.json` to the
 requested version, and publishes to GitHub Packages. The SDK version is chosen
 independently and has no relationship to the platform `vX.Y.Z` release-please
-versions.
+versions. `@bc-solutions-coder/api-errors` publishes the same way under
+`api-errors-v<version>` tags.
 
 ---
 

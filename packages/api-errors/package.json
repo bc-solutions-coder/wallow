@@ -1,0 +1,52 @@
+{
+  "name": "@bc-solutions-coder/api-errors",
+  "version": "0.0.0",
+  "description": "Wallow API failure model: the ApiFailure type, the response and error parser, and the failure message resolver",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bc-solutions-coder/wallow.git",
+    "directory": "packages/api-errors"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      }
+    },
+    "access": "restricted",
+    "registry": "https://npm.pkg.github.com"
+  },
+  "scripts": {
+    "build": "vite build && tsc -p tsconfig.build.json",
+    "generate": "openapi-ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json"
+  },
+  "devDependencies": {
+    "@bc-solutions-coder/config": "workspace:*",
+    "@hey-api/openapi-ts": "^0.99.0",
+    "@types/node": "^24.0.0",
+    "typescript": "catalog:tooling-tsc6",
+    "vite": "^8.1.4",
+    "vitest": "^4.1.10"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

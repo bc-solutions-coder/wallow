@@ -60,8 +60,10 @@ change here must keep all three true:
 - Browser-side the double-submit cookie is the ONE token source — read live per request;
   `createWallowSdk({ csrf: false })` skips the interceptor for a passthrough topology
   (wallow-auth), which has no token of its own to stamp.
-- RFC 7807: the machine code is in `extensions.code` — parse from there with an `UNKNOWN`
-  fallback, never a top-level `code`.
+- RFC 7807: the SDK's own parser still reads the machine code from `extensions.code` with an
+  `UNKNOWN` fallback. The API now writes a top-level `code`, which
+  `@bc-solutions-coder/api-errors` parses; the SDK's cut-over to that package replaces this
+  parser and the `WallowError` type it builds.
 - `POST /bff/backchannel-logout` (the sixth route) is the OP-to-BFF endpoint: no cookie, no
   CSRF — the signed logout token is the whole security of the request. `RedisLike` requires
   `sadd`/`srem`/`smembers`/`expire` alongside `get`/`set`/`del`; they back the Valkey store's
@@ -86,4 +88,6 @@ CI compares the snapshot against the document the API emits **at build time**;
   specs that exercise `REDIS_URL` self-connect.
 
 This package is the **template all new workspace packages mirror**. Publishes to GitHub
-Packages on `sdk-v*` tags via `sdk-publish.yml`, independently of the platform release.
+Packages on `sdk-v*` tags via `package-publish.yml` (shared with `packages/api-errors`,
+which generates its `ErrorCode` catalogue from this package's snapshot and must be published
+first once the SDK depends on it), independently of the platform release.

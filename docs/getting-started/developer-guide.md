@@ -124,8 +124,8 @@ from whoever operates the cache server.
 
 Three workflows are on the cache: `js.yml` (the `pnpm check` gate), `route-tree-drift.yml` (it
 builds the three apps through `turbo run build` rather than raw `pnpm --filter` builds) and
-`sdk-publish.yml` (its build and test run through turbo from the repo root, not from
-`packages/sdk`). All three use the same env block and Tailscale steps.
+`package-publish.yml` (its build and test run through turbo from the repo root, not from the
+package directory). All three use the same env block and Tailscale steps.
 
 The cache server is not on the public internet: `TURBO_API` is its **tailnet** address. CI joins
 the tailnet as a tagged ephemeral node via the Tailscale GitHub Action (secrets

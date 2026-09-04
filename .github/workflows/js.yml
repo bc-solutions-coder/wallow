@@ -153,6 +153,12 @@ jobs:
       - name: Lint environment documentation
         run: pnpm lint:env
 
+      # scripts/check-generated.sh: regenerates the SDK client and the api-errors
+      # catalogue from the committed OpenAPI snapshot and fails on a diff. Pure
+      # codegen from a checked-in file — no API build, no Docker.
+      - name: Check generated output
+        run: pnpm check:generated
+
       - name: Check formatting
         run: pnpm format:check
 

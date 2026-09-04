@@ -260,6 +260,7 @@
     },
     {
       "files": [
+        "packages/api-errors/src/**/*.ts",
         "packages/env/src/**/*.ts",
         "packages/logger/src/**/*.ts",
         "packages/utils/src/**/*.ts"
@@ -339,7 +340,7 @@
                   "@bc-solutions-coder/*",
                   "@bc-solutions-coder/*/**"
                 ],
-                "message": "@bc-solutions-coder/utils, @bc-solutions-coder/env and @bc-solutions-coder/logger sit at the bottom of the dependency graph: all three declare no dependencies and no peers, so anything they import would be an undeclared one resolved by hoisting. A helper that needs react, a store, or another workspace package belongs in that package, not here. logger in particular must not reach for the sdk: it would drag an OIDC client into every consumer of a logging package, so the two header constants it shares with the sdk are declared locally and pinned by an app-side spec. Each package's src/charter.test.ts pins this."
+                "message": "@bc-solutions-coder/api-errors, @bc-solutions-coder/utils, @bc-solutions-coder/env and @bc-solutions-coder/logger sit at the bottom of the dependency graph: all four declare no dependencies and no peers, so anything they import would be an undeclared one resolved by hoisting. A helper that needs react, a store, or another workspace package belongs in that package, not here. logger in particular must not reach for the sdk: it would drag an OIDC client into every consumer of a logging package, so the two header constants it shares with the sdk are declared locally and pinned by an app-side spec; api-errors declares its request-id header the same way. The sdk's oxlint-guardrails spec pins which packages this override covers."
               }
             ]
           }

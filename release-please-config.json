@@ -13,6 +13,13 @@
         }
       ]
     },
+    "packages/api-errors": {
+      "release-type": "node",
+      "package-name": "@bc-solutions-coder/api-errors",
+      "component": "api-errors",
+      "include-component-in-tag": true,
+      "changelog-path": "CHANGELOG.md"
+    },
     "packages/sdk": {
       "release-type": "node",
       "package-name": "@bc-solutions-coder/sdk",

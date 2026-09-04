@@ -118,23 +118,29 @@ release-please runs in **manifest mode**, versioning multiple components indepen
 |-----------|------|-------------|-----------|--------------|
 | .NET backend | `.` | `simple` | `vX.Y.Z` | Docker images |
 | SDK | `packages/sdk` | `node` | `sdk-vX.Y.Z` | GitHub Packages |
+| API errors | `packages/api-errors` | `node` | `api-errors-vX.Y.Z` | GitHub Packages |
 
-Each component gets its own changelog and its own Release PR: a `feat(sdk):` commit bumps only `packages/sdk`, while a commit scoped to the .NET backend bumps only the `.` component. The `.` component keeps its original `vX.Y.Z` tag scheme and behavior unchanged (an empty root component prepends nothing to the tag).
+Each component gets its own changelog and its own Release PR. release-please scopes by the paths a commit touches, not by its scope token: a commit under `packages/sdk` bumps the SDK, one that also regenerates `packages/api-errors/src/generated` bumps `api-errors` as well, and a commit scoped to the .NET backend bumps only the `.` component. The `.` component keeps its original `vX.Y.Z` tag scheme and behavior unchanged (an empty root component prepends nothing to the tag).
 
-#### The SDK releases in two stages
+#### A published package releases in two stages
 
-Versioning the SDK and publishing it are separate steps, owned by different workflows. Neither
-happens as a side effect of the other:
+Versioning a published package and publishing it are separate steps, owned by different
+workflows. Neither happens as a side effect of the other. The SDK is the example; `api-errors`
+follows the same path under its own prefix:
 
 1. **release-please versions it.** The `packages/sdk` component is declared with `component: sdk`
    and `include-component-in-tag: true`, so merging its Release PR bumps
    `packages/sdk/package.json`, updates the SDK changelog, and creates an `sdk-vX.Y.Z` tag.
-2. **`sdk-publish.yml` publishes it.** That workflow triggers **only** on a pushed `sdk-v*` tag or
-   a manual dispatch with an explicit version — nothing else pushes the package to GitHub
-   Packages.
+   `packages/api-errors` is declared the same way with `component: api-errors`, so its tags are
+   `api-errors-vX.Y.Z`.
+2. **`package-publish.yml` publishes it.** That workflow triggers **only** on a pushed `sdk-v*`
+   or `api-errors-v*` tag, or a manual dispatch naming a package and version — nothing else
+   pushes a package to GitHub Packages. The tag names the package: everything before the last
+   `-v` is the directory under `packages/`, everything after it is the version.
 
-So the tag created in step 1 is what starts step 2. See
-[TypeScript SDK](../integrations/typescript-sdk.md) for what the published package contains.
+So the tag created in step 1 is what starts step 2. When the SDK depends on `api-errors`, the
+`api-errors` release publishes first. See
+[TypeScript SDK](../integrations/typescript-sdk.md) for what the published SDK contains.
 
 Applications under `apps/*` are **private** and carry no semver — they are deliberately absent from the config and never receive version-bump PRs. They deploy by git SHA / CalVer instead.
 
@@ -156,8 +162,8 @@ To release the dependent after an SDK bump lands, bump its scope manually — fo
 | GitHub Releases | Created by release-please with auto-generated changelog | `v4.0.0` |
 
 These examples track the **root** component, which is what `api/Directory.Build.props` and the
-Docker tags carry. `packages/sdk` versions independently — it is at `0.2.0` and its tags are
-`sdk-v0.2.0`.
+Docker tags carry. `packages/sdk` and `packages/api-errors` version independently — their tags
+are `sdk-vX.Y.Z` and `api-errors-vX.Y.Z`.
 
 ## Local Development
 
