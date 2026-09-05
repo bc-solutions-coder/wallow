@@ -6,10 +6,9 @@
  * security.
  */
 import { isGlobalAdmin, useCurrentUser } from "@bc-solutions-coder/auth";
-import { errorText } from "@bc-solutions-coder/forms";
-import { useMutation, useQueryClient } from "@bc-solutions-coder/query";
+import { handledFailure, useMutation, useQueryClient } from "@bc-solutions-coder/query";
 import type { OrganizationClientResponse } from "@bc-solutions-coder/sdk";
-import { Button, Dialog, Input, MutedText } from "@bc-solutions-coder/ui";
+import { Button, Dialog, Input, MutedText, useFailureMessage } from "@bc-solutions-coder/ui";
 import { useState } from "react";
 import { useRouteContext } from "@tanstack/react-router";
 
@@ -189,14 +188,19 @@ export function OrganizationPlatformControls(props: { orgId: string; suspended: 
   const invalidate = (): void => {
     void queryClient.invalidateQueries(queriesWithTag("Organizations"));
   };
+  // Both controls show their own refusal, so neither reaches the toast.
   const place = useMutation({
     ...organizationsPlacePlatformSuspensionMutation({ client: sdk.client }),
+    meta: handledFailure(),
     onSuccess: invalidate,
   });
   const lift = useMutation({
     ...organizationsLiftPlatformSuspensionMutation({ client: sdk.client }),
+    meta: handledFailure(),
     onSuccess: invalidate,
   });
+  const placeFailure = useFailureMessage(place.error);
+  const liftFailure = useFailureMessage(lift.error);
   if (!globalAdmin) {
     return null;
   }
@@ -205,7 +209,7 @@ export function OrganizationPlatformControls(props: { orgId: string; suspended: 
       <LiftSuspensionButton
         name="organization-detail"
         pending={lift.isPending}
-        error={lift.isError ? errorText(lift.error, "Could not lift the suspension.") : null}
+        error={liftFailure}
         onLift={() => {
           lift.mutate({ path: { id: orgId } });
         }}
@@ -218,7 +222,7 @@ export function OrganizationPlatformControls(props: { orgId: string; suspended: 
       subject="this organization"
       suspension={{
         pending: place.isPending,
-        error: place.isError ? errorText(place.error, "Could not suspend the organization.") : null,
+        error: placeFailure,
         reset: () => {
           place.reset();
         },
@@ -247,12 +251,16 @@ export function ClientPlatformControls(props: {
   };
   const place = useMutation({
     ...organizationClientsPlacePlatformSuspensionMutation({ client: sdk.client }),
+    meta: handledFailure(),
     onSuccess: invalidate,
   });
   const lift = useMutation({
     ...organizationClientsLiftPlatformSuspensionMutation({ client: sdk.client }),
+    meta: handledFailure(),
     onSuccess: invalidate,
   });
+  const placeFailure = useFailureMessage(place.error);
+  const liftFailure = useFailureMessage(lift.error);
   if (!globalAdmin) {
     return null;
   }
@@ -261,7 +269,7 @@ export function ClientPlatformControls(props: {
       <LiftSuspensionButton
         name={name}
         pending={lift.isPending}
-        error={lift.isError ? errorText(lift.error, "Could not lift the suspension.") : null}
+        error={liftFailure}
         onLift={() => {
           lift.mutate({ path: { orgId, clientId: client.clientId } });
         }}
@@ -274,7 +282,7 @@ export function ClientPlatformControls(props: {
       subject={client.name}
       suspension={{
         pending: place.isPending,
-        error: place.isError ? errorText(place.error, "Could not suspend the client.") : null,
+        error: placeFailure,
         reset: () => {
           place.reset();
         },

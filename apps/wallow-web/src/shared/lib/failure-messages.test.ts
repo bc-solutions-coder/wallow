@@ -27,7 +27,7 @@ describe("failureMessages", () => {
   });
 
   it("leaves a token it has no sentence for to the package and the call site", () => {
-    const failure = rawBodyFailure("update_failed", 400);
+    const failure = rawBodyFailure("email_claim_missing", 400);
 
     expect(
       resolveFailureMessage(failure, { registry: failureMessages, fallback: "Try again." }),

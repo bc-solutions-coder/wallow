@@ -7,6 +7,7 @@ import {
   organizationsGetMembersOptions,
   rolesGetRolesOptions,
 } from "@features/organizations";
+import { notFoundOn404 } from "@shared/lib/not-found-on-404";
 
 /**
  * The dashboard member-roles route, nested under the `$orgId` directory
@@ -29,15 +30,18 @@ function MemberRolesPage() {
 }
 
 export const Route = createFileRoute("/dashboard/organizations/$orgId/members")({
-  loader: ({ context, params }) =>
-    Promise.all([
-      context.queryClient.ensureQueryData(
-        organizationsGetMembersOptions({ client: context.sdk.client, path: { id: params.orgId } }),
-      ),
-      context.queryClient.ensureQueryData(
-        organizationsGetAllOptions({ client: context.sdk.client }),
-      ),
-      context.queryClient.ensureQueryData(rolesGetRolesOptions({ client: context.sdk.client })),
-    ]),
+  // The members read answers 404 for a missing organization, so the whole
+  // prefetch is the router's not-found (a 404 response), not a loader error.
+  loader: ({ context, params }) => {
+    const client = context.sdk.client;
+    const members = context.queryClient.ensureQueryData(
+      organizationsGetMembersOptions({ client, path: { id: params.orgId } }),
+    );
+    const organizations = context.queryClient.ensureQueryData(
+      organizationsGetAllOptions({ client }),
+    );
+    const roles = context.queryClient.ensureQueryData(rolesGetRolesOptions({ client }));
+    return notFoundOn404(Promise.all([members, organizations, roles]));
+  },
   component: MemberRolesPage,
 });

@@ -127,6 +127,22 @@ describe("resolveFailureMessage", () => {
     expect(resolveFailureMessage(failure(status, "Some.Code"))).toBe(expected);
   });
 
+  it("keeps the wait copy for RateLimit.Exceeded even when the API wrote a detail", () => {
+    // The API's rate limiter writes a detail that points at the Retry-After
+    // header. That sentence is for a developer; the person waiting gets the
+    // seconds, so the code ships its own copy ahead of the detail step.
+    expect(
+      resolveFailureMessage(
+        failure(
+          TOO_MANY_REQUESTS,
+          "RateLimit.Exceeded",
+          "Rate limit exceeded. Please retry after the duration indicated in the Retry-After header.",
+          30,
+        ),
+      ),
+    ).toBe("Too many requests. Please wait 30 seconds and try again.");
+  });
+
   it("ships both 429 variants", () => {
     expect(
       resolveFailureMessage(failure(TOO_MANY_REQUESTS, "RateLimit.Exceeded", undefined, 30)),

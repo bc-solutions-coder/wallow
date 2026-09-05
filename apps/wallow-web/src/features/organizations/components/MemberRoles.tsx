@@ -22,7 +22,6 @@
  */
 import {
   AppForm,
-  errorText,
   FormError,
   type SelectFieldOption,
   SubmitButton,
@@ -34,7 +33,7 @@ import {
   Badge,
   Button,
   EmptyState,
-  ErrorBanner,
+  FailureBanner,
   ListCard,
   ListRow,
   MutedText,
@@ -257,6 +256,7 @@ function RosterRegion(props: {
   isPending: boolean;
   isError: boolean;
   error: unknown;
+  onRetry: () => void;
   isOwnOrg: boolean;
   roleOptions: readonly SelectFieldOption[];
   client: WallowSdk["client"];
@@ -268,6 +268,7 @@ function RosterRegion(props: {
     isPending,
     isError,
     error,
+    onRetry,
     isOwnOrg,
     roleOptions,
     client,
@@ -286,11 +287,7 @@ function RosterRegion(props: {
   // Only when there is no cached roster to fall back on: otherwise a failed
   // background refetch would replace a real roster with a banner.
   if (isError && members === undefined) {
-    return (
-      <ErrorBanner data-testid="member-roles-error">
-        {errorText(error, "Could not load the members.")}
-      </ErrorBanner>
-    );
+    return <FailureBanner data-testid="member-roles-error" error={error} onRetry={onRetry} />;
   }
 
   return (
@@ -310,6 +307,10 @@ export function MemberRoles(props: { orgId: string }): ReactNode {
   const { sdk } = useRouteContext({ from: "__root__" });
   const queryClient = useQueryClient();
 
+  // The orgs and roles reads stay silent by design: a failed orgs read leaves
+  // the roster read-only (the caller cannot be shown as owning it), and a failed
+  // roles read leaves the assign selects empty. The roster's own read is the
+  // screen's one banner.
   const orgsQuery = useQuery(organizationsGetAllOptions({ client: sdk.client }));
   const membersQuery = useQuery(
     organizationsGetMembersOptions({ client: sdk.client, path: { id: orgId } }),
@@ -319,6 +320,7 @@ export function MemberRoles(props: { orgId: string }): ReactNode {
   const isOwnOrg: boolean = isCallersOwnOrg(orgsQuery.data, orgId);
   const roleOptions: readonly SelectFieldOption[] = toRoleOptions(rolesQuery.data);
 
+  // A refused role removal is the toast's to show; the roster carries no surface for it.
   const removeRole = useMutation({
     ...usersRemoveRoleMutation({ client: sdk.client }),
     onSuccess: (): void => {
@@ -343,6 +345,7 @@ export function MemberRoles(props: { orgId: string }): ReactNode {
         isPending={membersQuery.isPending}
         isError={membersQuery.isError}
         error={membersQuery.error}
+        onRetry={() => membersQuery.refetch()}
         isOwnOrg={isOwnOrg}
         roleOptions={roleOptions}
         client={sdk.client}

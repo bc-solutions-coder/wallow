@@ -139,7 +139,9 @@ describe("routes/bff-demo (BFF smoke surface)", () => {
     expect(harness.last?.headers["x-csrf-token"]).toBe("csrf-abc");
   });
 
-  it("renders the status and title of a refused mutation", async () => {
+  it("renders the failure model's sentence for a refused mutation, not the wire title", async () => {
+    // `Bff.CsrfInvalid` is a client-minted code with no shipped sentence, so the
+    // resolver skips the detail step and falls to the 403 status copy.
     harness.rejectJson(
       { code: "Bff.CsrfInvalid", title: "CSRF token missing", status: FORBIDDEN },
       FORBIDDEN,
@@ -149,7 +151,7 @@ describe("routes/bff-demo (BFF smoke surface)", () => {
     await userEvent.click(page.getByTestId("bff-mutate"));
     await expect
       .element(page.getByTestId("bff-mutate-result"))
-      .toHaveTextContent("403 CSRF token missing");
+      .toHaveTextContent("You don't have permission to do that.");
   });
 });
 

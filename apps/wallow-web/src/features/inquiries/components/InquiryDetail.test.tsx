@@ -6,6 +6,8 @@ import {
   type SdkHarness,
 } from "@bc-solutions-coder/testing/sdk-harness";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+import { isApiFailure } from "@bc-solutions-coder/api-errors";
+import type { UnhandledFailure } from "@bc-solutions-coder/query";
 
 import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -115,22 +117,6 @@ describe("InquiryDetail — inquiry fields", () => {
     await expect.element(page.getByTestId("inquiry-detail-status")).toHaveTextContent("New");
   });
 
-  it("renders the not-found state when the inquiry detail is null", async () => {
-    routeHarness(
-      harness,
-      {
-        "GET /v1/inquiries/i1": null,
-        "GET /v1/inquiries/i1/comments": [],
-      },
-      { fallback: [] },
-    );
-
-    renderWithWallow(<InquiryDetail inquiryId="i1" />, { harness });
-
-    await expect.element(page.getByTestId("inquiry-detail-not-found")).toBeInTheDocument();
-    await expect.element(page.getByTestId("inquiry-detail-heading")).not.toBeInTheDocument();
-  });
-
   it("surfaces the RFC 7807 ProblemDetails detail when the detail query errors", async () => {
     // Only the detail query errors; the comments query still resolves to an
     // empty array so its list render never sees a non-array body.
@@ -184,11 +170,12 @@ describe("InquiryDetail — status change", () => {
     await expectSwept(invalidateSpy, inquiriesGetByIdQueryKey({ path: { id: "i1" } }));
   });
 
-  it("surfaces the RFC 7807 ProblemDetails detail when a rejected status change fails", async () => {
+  it("leaves a rejected status change to the toast rather than an inline banner", async () => {
     // The domain only allows sequential transitions
     // (New -> Reviewed -> Contacted -> Closed) and rejects the rest with a 422.
     // The control offers all four statuses unconditionally, so a user viewing a
-    // "New" inquiry can pick "Closed" and must see the rejection surfaced.
+    // "New" inquiry can pick "Closed". The rejection is the toast's to show: the
+    // page renders no surface of its own for it.
     seedLoaded(twoComments, {
       "PATCH /v1/inquiries/i1/status": failsWith(
         {
@@ -199,16 +186,23 @@ describe("InquiryDetail — status change", () => {
         422,
       ),
     });
+    const unhandled: UnhandledFailure[] = [];
 
-    renderWithWallow(<InquiryDetail inquiryId="i1" />, { harness });
+    renderWithWallow(<InquiryDetail inquiryId="i1" />, {
+      harness,
+      onUnhandledFailure: (failure) => {
+        unhandled.push(failure);
+      },
+    });
     await awaitLoaded();
 
     await chooseOption("inquiry-status-select", "Closed");
     await userEvent.click(page.getByTestId("inquiry-status-submit"));
 
-    await expect
-      .element(page.getByTestId("inquiry-status-error"))
-      .toHaveTextContent("Cannot transition from New to Closed.");
+    await expect.poll(() => unhandled.length).toBe(1);
+    expect(unhandled[0]?.kind).toBe("mutation");
+    expect(isApiFailure(unhandled[0]?.error) && unhandled[0].error.status).toBe(422);
+    expect(page.getByTestId("inquiry-status-error").elements()).toHaveLength(0);
   });
 });
 

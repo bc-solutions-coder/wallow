@@ -21,9 +21,10 @@ describe("createQueryClient", () => {
     expect(createQueryClient()).toBeInstanceOf(QueryClient);
   });
 
-  it("disables query retries by default", () => {
+  it("disables retries on both sides by default", () => {
     const client = createQueryClient();
     expect(client.getDefaultOptions().queries?.retry).toBe(false);
+    expect(client.getDefaultOptions().mutations?.retry).toBe(false);
   });
 
   it("mints a fresh client on every call (SSR request isolation)", () => {

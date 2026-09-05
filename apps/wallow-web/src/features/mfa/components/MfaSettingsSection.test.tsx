@@ -1,10 +1,13 @@
 import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+import { FailureMessagesProvider } from "@bc-solutions-coder/ui";
+import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { expectSwept } from "@bc-solutions-coder/testing/invalidation";
 import { mfaGetStatusQueryKey } from "../api";
+import { failureMessages } from "@shared/lib/failure-messages";
 import { MfaSettingsSection } from "./MfaSettingsSection";
 
 /**
@@ -27,6 +30,11 @@ const REGENERATE_PATH = "/api/v1/identity/mfa/backup-codes/regenerate";
 /** The transport backing each render, rebuilt per test. */
 let harness: SdkHarness;
 
+/** The app registry the root mounts, so a raw MFA code resolves to its sentence. */
+function withRegistry(tree: ReactElement): ReactElement {
+  return <FailureMessagesProvider registry={failureMessages}>{tree}</FailureMessagesProvider>;
+}
+
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body ?? null), {
     status,
@@ -47,7 +55,7 @@ function programStatus(status: unknown, body: unknown = {}, bodyStatus = 200): v
 /** Program the status seam, then render the card. */
 function renderStatus(status: unknown, body: unknown = {}, bodyStatus = 200) {
   programStatus(status, body, bodyStatus);
-  return renderWithWallow(<MfaSettingsSection />, { harness });
+  return renderWithWallow(<MfaSettingsSection />, { harness, wrap: withRegistry });
 }
 
 describe("MfaSettingsSection", () => {
@@ -59,7 +67,7 @@ describe("MfaSettingsSection", () => {
     // Never-settling request keeps the query pending.
     harness.pending();
 
-    renderWithWallow(<MfaSettingsSection />, { harness });
+    renderWithWallow(<MfaSettingsSection />, { harness, wrap: withRegistry });
 
     await expect
       .element(page.getByTestId("settings-mfa-loading"))
@@ -174,7 +182,6 @@ describe("MfaSettingsSection", () => {
 
     const error = page.getByTestId("settings-mfa-error");
     await expect.element(error).toHaveTextContent("That password is incorrect.");
-    await expect.element(error).not.toHaveTextContent("Unable to complete that action.");
   });
 
   it("surfaces the mapped error message in settings-mfa-error when regenerate rejects with the real { succeeded:false, error } body", async () => {
@@ -187,7 +194,6 @@ describe("MfaSettingsSection", () => {
 
     const error = page.getByTestId("settings-mfa-error");
     await expect.element(error).toHaveTextContent("That password is incorrect.");
-    await expect.element(error).not.toHaveTextContent("Unable to complete that action.");
   });
 
   // Regenerating invalidates the OLD codes, so the resolved `{ codes }` payload

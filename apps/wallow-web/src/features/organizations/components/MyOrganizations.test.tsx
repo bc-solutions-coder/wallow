@@ -4,6 +4,7 @@ import {
   routeHarness,
   type SdkHarness,
 } from "@bc-solutions-coder/testing/sdk-harness";
+import type { UnhandledFailure } from "@bc-solutions-coder/query";
 import { expectSwept } from "@bc-solutions-coder/testing/invalidation";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import { page, userEvent } from "vitest/browser";
@@ -171,7 +172,15 @@ describe("MyOrganizations", () => {
       ),
     });
 
-    renderWithWallow(<MyOrganizations />, { harness });
+    // The leave mutation is marked handled: the screen's own banner shows the
+    // refusal, so the toast must NOT also be handed the failure.
+    const unhandled: UnhandledFailure[] = [];
+    renderWithWallow(<MyOrganizations />, {
+      harness,
+      onUnhandledFailure: (failure) => {
+        unhandled.push(failure);
+      },
+    });
 
     await userEvent.click(page.getByTestId("my-organization-leave"));
     await expect.element(page.getByTestId("my-organization-leave-confirm")).toBeInTheDocument();
@@ -182,5 +191,6 @@ describe("MyOrganizations", () => {
       .element(page.getByTestId("my-organizations-leave-error"))
       .toHaveTextContent("You are the last owner of this organization and cannot leave it.");
     await expect.element(page.getByTestId("my-organization-item")).toBeInTheDocument();
+    expect(unhandled).toHaveLength(0);
   });
 });

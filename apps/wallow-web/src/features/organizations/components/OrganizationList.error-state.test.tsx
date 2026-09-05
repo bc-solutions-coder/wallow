@@ -1,6 +1,6 @@
 import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { OrganizationList } from "./OrganizationList";
@@ -11,7 +11,7 @@ import { OrganizationList } from "./OrganizationList";
  * A failed BACKGROUND refetch is the half a bare `isError` check breaks: React
  * Query retains the last resolved data, so the rows stay and no banner appears
  * — the banner is for an error with NO data to fall back on. Error text comes
- * off a real RFC 7807 body over the wire, so `errorText()` runs its real path.
+ * off a real RFC 7807 body over the wire, so the banner resolves its real path.
  */
 
 /** An RFC 7807 body the SDK's error interceptor parses into an `ApiFailure`. */
@@ -30,14 +30,32 @@ describe("OrganizationList — query error state", () => {
     harness = createSdkHarness();
   });
 
-  it("renders the ProblemDetails detail when the list query errors with nothing cached", async () => {
+  it("renders the server-failure copy, not the 500's detail, when the list query errors with nothing cached", async () => {
     harness.rejectJson(PROBLEM, 500);
 
     renderWithWallow(<OrganizationList />, { harness });
 
     await expect
       .element(page.getByTestId("organizations-error"))
-      .toHaveTextContent("Organizations are down.");
+      .toHaveTextContent("Something went wrong on our side. Please try again later.");
+  });
+
+  it("retries the read from the banner and renders the rows once it succeeds", async () => {
+    let attempts = 0;
+    harness.respond(() => {
+      attempts += 1;
+      return attempts === 1
+        ? Response.json(PROBLEM, { status: 500 })
+        : Response.json([{ id: "o1", name: "Acme", domain: null, memberCount: "1" }]);
+    });
+
+    renderWithWallow(<OrganizationList />, { harness });
+
+    await expect.element(page.getByTestId("organizations-error")).toBeInTheDocument();
+    await userEvent.click(page.getByRole("button", { name: "Try again" }));
+
+    await expect.element(page.getByTestId("organizations-table")).toBeInTheDocument();
+    expect(page.getByTestId("organizations-error").elements()).toHaveLength(0);
   });
 
   it("does not show the empty state when the list query errors", async () => {

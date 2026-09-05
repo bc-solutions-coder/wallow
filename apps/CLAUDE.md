@@ -86,8 +86,19 @@ override ordering live in `packages/lint/CLAUDE.md` — read it before editing a
   `FailureBanner` for an API failure. It is also the router's `defaultErrorComponent` (SSR paints
   an error AT the failing match, not at the root) and `src/app/start.ts` registers the
   `ApiFailure` serialization adapter so a loader failure hydrates as itself. A feature never
-  mounts its own toaster or keeps a private code-to-sentence map — add the entry to the registry;
-  a mutation whose own banner shows the failure marks `meta: handledFailure()`.
+  mounts its own toaster or keeps a private code-to-sentence map — add the entry to the registry.
+- **The surfaces, per site.** A component-level **read** renders `FailureBanner` in place of its
+  region under `isError && data === undefined` (cached data beats a failed background refetch),
+  with `onRetry={refetch}` and no per-site fallback string. A **loader** read throws to the root
+  boundary; the by-id loaders wrap **every** read of the record (not just the lookup) in
+  `src/shared/lib/not-found-on-404.ts`, so a 404 is the not-found page and a 404 response, never a
+  banner or a 500. A **form** submission is the forms path (`useAppForm`,
+  field errors + `FormError`), never a toast. A **non-form mutation** is the toast's unless the
+  screen shows it itself (a destructive dialog, an editor, MFA), which marks
+  `meta: handledFailure()` and resolves copy with `useFailureMessage` — a screen never shows
+  both. A **401** offers "Sign in" back through the BFF with `returnTo`; nothing auto-redirects.
+  A read that stays **silent by design** carries a comment naming the degradation. The five
+  surfaces are proven end to end by `e2e-cross-app/failure-surfaces.spec.ts`.
 - **Logging**: both zoned apps use `@bc-solutions-coder/logger`, never `console` — one browser
   singleton at `src/shared/lib/log.ts` posting to a same-origin ingest route (`/bff/logs` in
   wallow-web, CSRF-gated; `/logs` in wallow-auth, guarded by a per-request origin allowlist).

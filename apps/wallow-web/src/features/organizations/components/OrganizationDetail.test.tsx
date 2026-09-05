@@ -11,7 +11,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OrganizationDetail } from "./OrganizationDetail";
 
 /**
- * The org-detail page body: loaded and not-found states, the mounted member
+ * The org-detail page body: the loaded state, the mounted member
  * list, and the archive/reactivate actions.
  *
  * Runs the real SDK over a faked fetch (`createSdkHarness`) mounted on the
@@ -60,21 +60,6 @@ describe("OrganizationDetail", () => {
     await expect
       .element(page.getByTestId("organization-detail-register-open"))
       .toHaveTextContent("Register application");
-  });
-
-  it("renders the not-found state when the org is missing", async () => {
-    harness.resolveJson(null);
-
-    renderWithWallow(<OrganizationDetail orgId="o1" />, { harness });
-
-    const notFound = page.getByTestId("organization-detail-not-found");
-    await expect.element(notFound).toHaveTextContent("Organization not found.");
-    await expect
-      .element(notFound)
-      .toHaveTextContent(
-        "It may have been archived, or the link may point somewhere that no longer exists.",
-      );
-    await expect.element(page.getByTestId("organization-detail-heading")).not.toBeInTheDocument();
   });
 
   it("mounts the member list (members table) for the org", async () => {

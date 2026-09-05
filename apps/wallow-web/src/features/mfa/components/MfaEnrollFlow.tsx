@@ -19,8 +19,8 @@
  * `mfa-enroll-error` surfaces any step's failure. There is no resolved-but-
  * rejected branch left: every MFA failure — RFC 7807 body or the controller's
  * raw `{ succeeded: false, error }` — arrives as a thrown `ApiFailure`, which
- * `resolveFailureMessage` renders through the app registry. `mfa-enroll-cancel`
- * is always visible.
+ * the shared `FailureBanner` words through the app registry (every token the
+ * controller answers has an entry there). `mfa-enroll-cancel` is always visible.
  *
  * ONLY THE VERIFY STEP IS A FORM. "Begin setup" is a button that mints a secret,
  * not a submit — it collects nothing, so there is nothing to validate and nothing
@@ -30,16 +30,13 @@
  *
  * Testids mirror the C# E2E page object `MfaEnrollPage`.
  */
-import { resolveFailureMessage } from "@bc-solutions-coder/api-errors";
 import { AppForm, SubmitButton, useAppForm } from "@bc-solutions-coder/forms";
 import { handledFailure, useMutation, useQueryClient } from "@bc-solutions-coder/query";
 import type { MfaConfirmEnrollmentError } from "@bc-solutions-coder/sdk";
-import { Button, Card, CardTitle, ErrorBanner, Text } from "@bc-solutions-coder/ui";
+import { Button, Card, CardTitle, FailureBanner, Text } from "@bc-solutions-coder/ui";
 import { useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
 import { z } from "zod";
-
-import { failureMessages } from "@shared/lib/failure-messages";
 
 import {
   mfaConfirmEnrollmentMutation,
@@ -53,15 +50,6 @@ export interface MfaEnrollFlowProps {
   onDone?: () => void;
   onCancel?: () => void;
 }
-
-/**
- * Fallback copy when a thrown error carries neither a ProblemDetails `detail`
- * nor a code the registry or the package has a sentence for. The confirm
- * fallback no longer claims the code was wrong: that sentence belongs to the
- * registry's `OAuth.InvalidCode` entry, and an `update_failed` is not that.
- */
-const ENROLL_FAILED = "Unable to start MFA enrollment.";
-const CONFIRM_FAILED = "Unable to confirm the verification code.";
 
 /**
  * The one value the verify step collects. Its NAME is load-bearing: the
@@ -106,7 +94,7 @@ function ConfirmCodeForm(props: {
   secret: string;
   onAttempt: () => void;
   onConfirmed: (backupCodes: string[]) => void;
-  onFailed: (message: string) => void;
+  onFailed: (cause: unknown) => void;
 }) {
   const { secret, onAttempt, onConfirmed, onFailed } = props;
   const { sdk } = useRouteContext({ from: "__root__" });
@@ -131,12 +119,10 @@ function ConfirmCodeForm(props: {
       // Typed as the factory's OWN error type, not `unknown`: `TError` is
       // inferred from this object as a whole and sits contravariantly in
       // `throwOnError` too, so widening it here would reject the very factory
-      // being spread. `resolveFailureMessage` still takes it as `unknown` —
-      // anything not already an `ApiFailure` is classified first.
+      // being spread. The card's banner still takes it as `unknown` — anything
+      // not already an `ApiFailure` is classified as it is worded.
       onError: (cause: MfaConfirmEnrollmentError): void => {
-        onFailed(
-          resolveFailureMessage(cause, { registry: failureMessages, fallback: CONFIRM_FAILED }),
-        );
+        onFailed(cause);
       },
     },
     // The secret is a PROP, so the submit re-guards nothing: this step does not
@@ -184,7 +170,7 @@ function VerifyStep(props: {
   qrUri: string;
   onAttempt: () => void;
   onConfirmed: (backupCodes: string[]) => void;
-  onFailed: (message: string) => void;
+  onFailed: (cause: unknown) => void;
 }) {
   const { secret, qrUri, onAttempt, onConfirmed, onFailed } = props;
 
@@ -238,10 +224,11 @@ export function MfaEnrollFlow(props: MfaEnrollFlowProps) {
   const [secret, setSecret] = useState<string | null>(null);
   const [qrUri, setQrUri] = useState<string | null>(null);
   const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // The failure the last step threw, for the card's one banner; `null` between steps.
+  const [failure, setFailure] = useState<unknown>(null);
 
   const handleBegin = () => {
-    setError(null);
+    setFailure(null);
     enroll.mutate(
       {},
       {
@@ -250,16 +237,18 @@ export function MfaEnrollFlow(props: MfaEnrollFlowProps) {
           setQrUri(data.qrUri);
         },
         onError: (err) => {
-          setError(
-            resolveFailureMessage(err, { registry: failureMessages, fallback: ENROLL_FAILED }),
-          );
+          setFailure(err);
         },
       },
     );
   };
 
   const handleAttempt = () => {
-    setError(null);
+    setFailure(null);
+  };
+
+  const handleFailed = (cause: unknown) => {
+    setFailure(cause);
   };
 
   const handleConfirmed = (codes: string[]) => {
@@ -282,7 +271,7 @@ export function MfaEnrollFlow(props: MfaEnrollFlowProps) {
     <Card>
       <CardTitle>Set up two-factor authentication</CardTitle>
       {renderStep()}
-      {error === null ? null : <ErrorBanner data-testid="mfa-enroll-error">{error}</ErrorBanner>}
+      {failure === null ? null : <FailureBanner data-testid="mfa-enroll-error" error={failure} />}
       <Button
         type="button"
         variant="secondary"
@@ -305,7 +294,7 @@ export function MfaEnrollFlow(props: MfaEnrollFlowProps) {
           qrUri={qrUri ?? ""}
           onAttempt={handleAttempt}
           onConfirmed={handleConfirmed}
-          onFailed={setError}
+          onFailed={handleFailed}
         />
       );
     }

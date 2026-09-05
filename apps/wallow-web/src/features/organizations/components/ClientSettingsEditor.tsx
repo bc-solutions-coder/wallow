@@ -8,10 +8,18 @@
  * to new logins only: refresh tokens already issued keep the lifetime they
  * were minted with.
  */
-import { errorText } from "@bc-solutions-coder/forms";
-import { useMutation, useQueryClient } from "@bc-solutions-coder/query";
+import { handledFailure, useMutation, useQueryClient } from "@bc-solutions-coder/query";
 import type { OrganizationClientResponse } from "@bc-solutions-coder/sdk";
-import { Button, Card, CardHeader, Checkbox, Input, MutedText, Text } from "@bc-solutions-coder/ui";
+import {
+  Button,
+  Card,
+  CardHeader,
+  Checkbox,
+  Input,
+  MutedText,
+  Text,
+  useFailureMessage,
+} from "@bc-solutions-coder/ui";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useRouteContext } from "@tanstack/react-router";
@@ -137,6 +145,8 @@ export function ClientSettingsEditor(props: {
 
   const save = useMutation({
     ...organizationClientsUpdateMutation({ client: sdk.client }),
+    // The editor shows the refusal beside its fields, so the toast stays out of it.
+    meta: handledFailure(),
     onSuccess: (): void => {
       // The row's lifetime comes off the ledger read, so the save re-reads it.
       void queryClient.invalidateQueries(
@@ -148,6 +158,7 @@ export function ClientSettingsEditor(props: {
     },
   });
 
+  const saveFailure = useFailureMessage(save.error);
   const invalid = !isValidRefreshLifetime(lifetime);
   const onSave = (): void => {
     const trimmed = lifetime.trim();
@@ -163,10 +174,9 @@ export function ClientSettingsEditor(props: {
       },
     });
   };
-  const errors = [
-    invalid ? REFRESH_LIFETIME_RANGE_MESSAGE : null,
-    save.isError ? errorText(save.error, "Could not save the client settings.") : null,
-  ].filter((message): message is string => message !== null);
+  const errors = [invalid ? REFRESH_LIFETIME_RANGE_MESSAGE : null, saveFailure].filter(
+    (message): message is string => message !== null,
+  );
 
   return (
     <Card data-testid={`${TEST_ID}-card`}>

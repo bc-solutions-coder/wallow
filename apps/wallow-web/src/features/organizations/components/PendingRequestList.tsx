@@ -15,17 +15,16 @@
  * only. Both are plain `useMutation`s over the whole generated factory — no
  * `useAppForm`, since approve/deny are parameterless POSTs with no fields.
  *
- * A failed mutation renders `organization-pending-requests-error` alongside
- * the still-mounted list, same as the canonical `isError && data ===
- * undefined` query-error branch: a 422 doesn't blank the roster.
+ * A failed approve or deny is the toast's to show: the roster stays mounted
+ * and renders no banner of its own, so a 422 neither blanks the list nor
+ * appears twice. `organization-pending-requests-error` is the READ's surface.
  */
-import { errorText } from "@bc-solutions-coder/forms";
 import { useMutation, useQuery, useQueryClient } from "@bc-solutions-coder/query";
 import type { WallowSdk } from "@bc-solutions-coder/sdk";
 import {
   Button,
   EmptyState,
-  ErrorBanner,
+  FailureBanner,
   ListCard,
   ListRow,
   MutedText,
@@ -71,7 +70,7 @@ export function PendingRequestList(props: { orgId: string }) {
   const { orgId } = props;
   const { sdk } = useRouteContext({ from: "__root__" });
   const queryClient = useQueryClient();
-  const { data, isPending, isError, error } = useQuery({
+  const { data, isPending, isError, error, refetch } = useQuery({
     ...organizationsGetPendingMembersOptions({ client: sdk.client, path: { id: orgId } }),
     select: (raw) => raw as readonly PendingMembershipDto[],
   });
@@ -90,8 +89,6 @@ export function PendingRequestList(props: { orgId: string }) {
     },
   });
 
-  const mutationError: unknown = approve.error ?? deny.error;
-
   return (
     <div>
       <Text
@@ -103,17 +100,12 @@ export function PendingRequestList(props: { orgId: string }) {
         Pending requests
       </Text>
 
-      {mutationError === undefined || mutationError === null ? null : (
-        <ErrorBanner data-testid="organization-pending-requests-error" className="mb-4">
-          {errorText(mutationError, "Could not update the request.")}
-        </ErrorBanner>
-      )}
-
       <RequestsRegion
         requests={data}
         isPending={isPending}
         isError={isError}
         error={error}
+        onRetry={refetch}
         onApprove={(userId) => {
           approve.mutate({ path: { id: orgId, userId } });
         }}
@@ -135,10 +127,11 @@ function RequestsRegion(props: {
   isPending: boolean;
   isError: boolean;
   error: unknown;
+  onRetry: () => void;
   onApprove: (userId: string) => void;
   onDeny: (userId: string) => void;
 }): ReactNode {
-  const { requests, isPending, isError, error, onApprove, onDeny } = props;
+  const { requests, isPending, isError, error, onRetry, onApprove, onDeny } = props;
 
   if (isPending) {
     return (
@@ -152,9 +145,11 @@ function RequestsRegion(props: {
   // background refetch would replace a real roster with a banner.
   if (isError && requests === undefined) {
     return (
-      <ErrorBanner data-testid="organization-pending-requests-error">
-        {errorText(error, "Could not load the pending requests.")}
-      </ErrorBanner>
+      <FailureBanner
+        data-testid="organization-pending-requests-error"
+        error={error}
+        onRetry={onRetry}
+      />
     );
   }
 

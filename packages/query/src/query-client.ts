@@ -70,6 +70,9 @@ export function createQueryClient(options: CreateQueryClientOptions = {}): Query
       queries: {
         retry: false,
       },
+      mutations: {
+        retry: false,
+      },
     },
     mutationCache: new MutationCache({
       onError: (error, _variables, _context, mutation) => {

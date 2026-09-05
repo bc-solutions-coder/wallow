@@ -19,18 +19,18 @@
  * `DeleteAlert` example. `AlertDialog.Close` always closes the popup on click
  * regardless of what its `onClick` does asynchronously, so a failed leave
  * cannot keep the dialog open to show its own error: the sole-owner refusal
- * (422 `Identity.LastOwner`) renders as a page-level `ErrorBanner` once the
+ * (422 `Identity.LastOwner`) renders as a page-level `FailureBanner` once the
  * popup has already closed, and the membership stays in the list — never a
- * silent failure.
+ * silent failure. The screen owns that surface, so the mutation is marked
+ * handled and the toast stays out of it.
  */
-import { errorText } from "@bc-solutions-coder/forms";
-import { useMutation, useQuery, useQueryClient } from "@bc-solutions-coder/query";
+import { handledFailure, useMutation, useQuery, useQueryClient } from "@bc-solutions-coder/query";
 import { loginRedirect, type MyOrganizationDto } from "@bc-solutions-coder/sdk";
 import {
   AlertDialog,
   Badge,
   EmptyState,
-  ErrorBanner,
+  FailureBanner,
   ListCard,
   ListRow,
   MutedText,
@@ -146,12 +146,13 @@ function MyOrganizationsEmptyState() {
 export function MyOrganizations() {
   const { sdk } = useRouteContext({ from: "__root__" });
   const queryClient = useQueryClient();
-  const { data, isPending, isError, error } = useQuery(
+  const { data, isPending, isError, error, refetch } = useQuery(
     meGetOrganizationsOptions({ client: sdk.client }),
   );
 
   const leave = useMutation({
     ...organizationsLeaveMutation({ client: sdk.client }),
+    meta: handledFailure(),
     onSuccess: (): void => {
       void queryClient.invalidateQueries(queriesForOperation(meGetOrganizationsQueryKey()));
     },
@@ -169,22 +170,18 @@ export function MyOrganizations() {
   // refetch, so an error only takes over the screen when there is NO data to
   // fall back on — otherwise `data ?? []` would report a 500 as "none yet".
   if (isError && data === undefined) {
-    return (
-      <ErrorBanner data-testid="my-organizations-error">
-        {errorText(error, "Could not load your organizations.")}
-      </ErrorBanner>
-    );
+    return <FailureBanner data-testid="my-organizations-error" error={error} onRetry={refetch} />;
   }
 
   const orgs: readonly MyOrganizationDto[] = data ?? [];
 
   return (
     <div>
-      {leave.error === undefined || leave.error === null ? null : (
-        <ErrorBanner data-testid="my-organizations-leave-error" className="mb-4">
-          {errorText(leave.error, "Could not leave the organization.")}
-        </ErrorBanner>
-      )}
+      <FailureBanner
+        data-testid="my-organizations-leave-error"
+        className="mb-4"
+        error={leave.error}
+      />
 
       {orgs.length === 0 ? (
         <MyOrganizationsEmptyState />

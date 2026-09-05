@@ -30,14 +30,14 @@ describe("MfaSettingsSection — status query error state", () => {
     harness = createSdkHarness();
   });
 
-  it("renders the ProblemDetails detail when the status query errors", async () => {
+  it("renders the server-failure copy, not the 500's detail, when the status query errors", async () => {
     harness.rejectJson(PROBLEM, 500);
 
     renderWithWallow(<MfaSettingsSection />, { harness });
 
     await expect
       .element(page.getByTestId("settings-mfa-status-error"))
-      .toHaveTextContent("MFA status unavailable.");
+      .toHaveTextContent("Something went wrong on our side. Please try again later.");
   });
 
   it("does not claim MFA is disabled when the status query errors", async () => {

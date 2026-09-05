@@ -1,4 +1,4 @@
-import { isApiFailure } from "@bc-solutions-coder/api-errors";
+import { resolveFailureMessage } from "@bc-solutions-coder/api-errors";
 import {
   loginRedirect,
   logout,
@@ -7,6 +7,7 @@ import {
   type WallowUser,
 } from "@bc-solutions-coder/sdk";
 import { Text } from "@bc-solutions-coder/ui";
+import { failureMessages } from "@shared/lib/failure-messages";
 import { log } from "@shared/lib/log";
 import { createFileRoute, useRouteContext } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -31,8 +32,10 @@ import { useEffect, useState } from "react";
  *
  * The two result surfaces no longer print the wire status on success. A
  * generated operation resolves the response BODY and rejects on anything else,
- * so "it resolved" IS the success signal; a status is only meaningful on the
- * failure path, where the thrown `ApiFailure` still carries it.
+ * so "it resolved" IS the success signal. A failure prints the ONE sentence the
+ * rest of the app would show for it — `resolveFailureMessage` through the app's
+ * registry — not the wire status/title/detail, so the demo exercises the same
+ * failure model as every other surface rather than a private rendering.
  *
  * Living at `/bff-demo` (rather than overwriting `src/routes/index.tsx`, which
  * owns the `home-heading` SSR contract) keeps both surfaces intact. As the raw
@@ -44,17 +47,12 @@ import { useEffect, useState } from "react";
  */
 
 /**
- * Render a rejected operation as a string. Every failure arrives as an
- * `ApiFailure`, which already carries the status and the RFC 7807 title/detail
- * the BFF or the API sent; anything unbranded gets its own message.
+ * Render a rejected operation as the sentence the app would show for it. Every
+ * failure arrives as an `ApiFailure` (anything unbranded is classified first),
+ * and the app registry plus the package's shipped messages decide the wording.
  */
 function describeFailure(error: unknown): string {
-  if (!isApiFailure(error)) {
-    return error instanceof Error ? error.message : "Request failed";
-  }
-
-  const detail: string = error.detail ?? "";
-  return `${error.status} ${error.title}${detail === "" ? "" : ` — ${detail}`}`;
+  return resolveFailureMessage(error, { registry: failureMessages });
 }
 
 /**

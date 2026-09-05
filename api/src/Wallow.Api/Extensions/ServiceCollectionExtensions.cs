@@ -178,10 +178,11 @@ internal static partial class ServiceCollectionExtensions
 
                 IProblemDetailsService problemDetailsService =
                     httpContext.RequestServices.GetRequiredService<IProblemDetailsService>();
+                // The catalog's own user-safe sentence: a 4xx `detail` is shown to
+                // people verbatim, so the Retry-After hint stays in the header.
                 await problemDetailsService.TryWriteProblemAsync(
                     httpContext,
-                    SharedErrors.RateLimitExceeded,
-                    "Rate limit exceeded. Please retry after the duration indicated in the Retry-After header.");
+                    SharedErrors.RateLimitExceeded);
             };
         });
 

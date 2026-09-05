@@ -22,4 +22,7 @@ export const failureMessages: FailureMessageRegistry = defineFailureMessages({
   "OAuth.NoAuthSession": () => "Your session has expired. Please sign in again.",
   "OAuth.InvalidPassword": () => "That password is incorrect.",
   "OAuth.InvalidCode": () => "That verification code is not valid.",
+  "OAuth.UserNotFound": () => "Your account could not be found. Please sign in again.",
+  "OAuth.UpdateFailed": () => "Your two-factor settings could not be saved. Please try again.",
+  "OAuth.MfaNotEnabled": () => "Two-factor authentication is not enabled on your account.",
 });

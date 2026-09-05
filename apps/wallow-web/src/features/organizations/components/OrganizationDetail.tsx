@@ -2,9 +2,13 @@
  * Organization detail (Wallow-8w1h.4.4). Drives
  * `useQuery(organizationsGetByIdOptions(...))` and renders the org heading +
  * info (rendering `organization-detail-heading` /
- * `organization-detail-back-link` / `organization-detail-not-found` /
- * `organization-detail-error`), archive/reactivate actions, the `MemberList`
- * and the `OrganizationClients` ledgers for `orgId`.
+ * `organization-detail-back-link` / `organization-detail-error`),
+ * archive/reactivate actions, the `MemberList` and the `OrganizationClients`
+ * ledgers for `orgId`.
+ *
+ * A missing org never reaches this component: the route loader turns the API's
+ * 404 into the router's not-found path before the page renders. Archive and
+ * reactivate carry no surface of their own — a refusal is the toast's to show.
  *
  * The back link is a plain anchor (not a router `Link`) so it needs no matched
  * route of its own; the SDK still comes off the router context, which every
@@ -12,9 +16,8 @@
  * `organization-detail-archive` / `organization-detail-reactivate`
  * (`{page}-{element}` kebab-case).
  */
-import { errorText } from "@bc-solutions-coder/forms";
 import { useMutation, useQuery, useQueryClient } from "@bc-solutions-coder/query";
-import { Button, EmptyState, ErrorBanner, MutedText, Text } from "@bc-solutions-coder/ui";
+import { Button, ErrorBanner, FailureBanner, MutedText, Text } from "@bc-solutions-coder/ui";
 import { Link, useRouteContext } from "@tanstack/react-router";
 
 import {
@@ -75,30 +78,11 @@ function BackLink() {
   );
 }
 
-/**
- * The missing-org card. It keeps the original sentence, "Organization not
- * found.", as the card heading rather than rewriting it.
- *
- * A not-found branch rather than a list's empty branch, but the same card: it
- * hand-rolled the identical centered surface the empty states did, so it belongs
- * to `EmptyState` for the same reason they do. No icon — this card never carried
- * one, and `EmptyState` omits the slot it is not given.
- */
-function NotFoundCard() {
-  return (
-    <EmptyState
-      data-testid="organization-detail-not-found"
-      message="Organization not found."
-      description="It may have been archived, or the link may point somewhere that no longer exists."
-    />
-  );
-}
-
 export function OrganizationDetail(props: { orgId: string }) {
   const { orgId } = props;
   const { sdk } = useRouteContext({ from: "__root__" });
   const queryClient = useQueryClient();
-  const { data, isPending, isError, error } = useQuery(
+  const { data, isPending, isError, error, refetch } = useQuery(
     organizationsGetByIdOptions({ client: sdk.client, path: { id: orgId } }),
   );
   // Archive and reactivate each flip a field the LIST also renders, so both
@@ -119,32 +103,19 @@ export function OrganizationDetail(props: { orgId: string }) {
     return <MutedText data-testid="organization-detail-loading">Loading organization…</MutedText>;
   }
 
-  // The split `InquiryDetail` already ships: an errored read reaches `org ===
-  // null` just as a resolved-empty one does, so without this branch a genuine
-  // 500 claims the organization does not exist. `data === undefined` is what
-  // separates them — a resolved-null body still means "not found", and a cached
-  // org survives a failed background refetch.
+  // Only when there is nothing cached to show: a cached org survives a failed
+  // background refetch, and the banner takes over only when it would otherwise
+  // be an empty page.
   if (isError && data === undefined) {
     return (
       <div className="space-y-8">
         <BackLink />
-        <ErrorBanner data-testid="organization-detail-error">
-          {errorText(error, "Could not load the organization.")}
-        </ErrorBanner>
+        <FailureBanner data-testid="organization-detail-error" error={error} onRetry={refetch} />
       </div>
     );
   }
 
-  const org = data ?? null;
-
-  if (org === null) {
-    return (
-      <div className="space-y-8">
-        <BackLink />
-        <NotFoundCard />
-      </div>
-    );
-  }
+  const org = data;
 
   // A plain column, not one giant card: each section below owns its own card
   // surface, so wrapping the page in a `Card` would nest card inside card.

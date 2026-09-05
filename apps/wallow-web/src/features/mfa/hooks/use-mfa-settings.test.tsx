@@ -1,8 +1,11 @@
 import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+import { FailureMessagesProvider, useFailureMessage } from "@bc-solutions-coder/ui";
+import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { failureMessages } from "@shared/lib/failure-messages";
 import { useMfaSettings } from "./use-mfa-settings";
 
 /**
@@ -25,6 +28,11 @@ const PASSWORD = "hunter2";
 
 let harness: SdkHarness;
 
+/** The app registry, so a raw MFA code resolves to its sentence the way the settings card shows it. */
+function withRegistry(tree: ReactElement): ReactElement {
+  return <FailureMessagesProvider registry={failureMessages}>{tree}</FailureMessagesProvider>;
+}
+
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body ?? null), {
     status,
@@ -45,10 +53,11 @@ function program(body: unknown = {}, bodyStatus = 200): void {
  */
 function Probe() {
   const { confirmAction, error, regeneratedCodes, openConfirm, submitConfirm } = useMfaSettings();
+  const message = useFailureMessage(error);
   return (
     <div>
       <output data-testid="probe-confirm">{confirmAction ?? "closed"}</output>
-      <output data-testid="probe-error">{error ?? "none"}</output>
+      <output data-testid="probe-error">{message ?? "none"}</output>
       <output data-testid="probe-codes">{regeneratedCodes?.join(",") ?? "none"}</output>
       <button
         type="button"
@@ -88,7 +97,7 @@ describe("useMfaSettings", () => {
 
   it("keeps the confirm panel open when the write fails, so the attempt can be retried", async () => {
     program({ succeeded: false, error: "invalid_password" }, 400);
-    renderWithWallow(<Probe />, { harness });
+    renderWithWallow(<Probe />, { harness, wrap: withRegistry });
 
     await userEvent.click(page.getByTestId("probe-open-disable"));
     await userEvent.click(page.getByTestId("probe-submit"));
@@ -101,7 +110,7 @@ describe("useMfaSettings", () => {
 
   it("clears the revealed codes when the next confirm opens", async () => {
     program({ codes: ["aa-11", "bb-22"] });
-    renderWithWallow(<Probe />, { harness });
+    renderWithWallow(<Probe />, { harness, wrap: withRegistry });
 
     await userEvent.click(page.getByTestId("probe-open-regenerate"));
     await userEvent.click(page.getByTestId("probe-submit"));
@@ -116,7 +125,7 @@ describe("useMfaSettings", () => {
 
   it("clears the previous failure when the next confirm opens", async () => {
     program({ succeeded: false, error: "invalid_password" }, 400);
-    renderWithWallow(<Probe />, { harness });
+    renderWithWallow(<Probe />, { harness, wrap: withRegistry });
 
     await userEvent.click(page.getByTestId("probe-open-disable"));
     await userEvent.click(page.getByTestId("probe-submit"));
@@ -131,7 +140,7 @@ describe("useMfaSettings", () => {
 
   it("sends nothing when a confirm is submitted with no panel open", async () => {
     program({ codes: ["aa-11"] });
-    renderWithWallow(<Probe />, { harness });
+    renderWithWallow(<Probe />, { harness, wrap: withRegistry });
 
     await expect.element(page.getByTestId("probe-confirm")).toHaveTextContent("closed");
     await userEvent.click(page.getByTestId("probe-submit"));

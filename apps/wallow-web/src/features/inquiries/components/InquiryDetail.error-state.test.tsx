@@ -46,7 +46,7 @@ describe("InquiryDetail — comment thread query error state", () => {
     harness = createSdkHarness();
   });
 
-  it("renders the ProblemDetails detail when only the comments query errors", async () => {
+  it("renders the server-failure copy, not the 500's detail, when only the comments query errors", async () => {
     harness.respond((call) =>
       call.path.endsWith("/comments") ? json(COMMENTS_PROBLEM, 500) : json(INQUIRY),
     );
@@ -56,7 +56,7 @@ describe("InquiryDetail — comment thread query error state", () => {
     await expect.element(page.getByTestId("inquiry-detail-heading")).toBeInTheDocument();
     await expect
       .element(page.getByTestId("inquiry-comments-error"))
-      .toHaveTextContent("Comments failed.");
+      .toHaveTextContent("Something went wrong on our side. Please try again later.");
   });
 
   it("does not render the empty thread when the comments query errors", async () => {

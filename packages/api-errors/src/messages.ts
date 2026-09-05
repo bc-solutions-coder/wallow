@@ -11,6 +11,7 @@
 import { ClientErrorCode, type FailureCode, isClientErrorCode } from "./codes";
 import type { ApiFailure } from "./failure";
 import { toApiFailure } from "./parse";
+import { ErrorCode } from "./generated";
 
 /** The sentence for one code, given the failure it is rendering. */
 export type FailureMessage = (failure: ApiFailure) => string;
@@ -53,6 +54,16 @@ const GENERIC_MESSAGE: string = "Something went wrong. Please try again.";
 const SERVER_SIDE_MESSAGE: string = "Something went wrong on our side. Please try again later.";
 const SESSION_EXPIRED_MESSAGE: string = "Your session has expired. Please sign in again.";
 
+/** The 429 sentence: the wait in seconds when `Retry-After` named one, else "a moment". */
+const tooManyRequests: FailureMessage = (failure: ApiFailure) => {
+  if (failure.retryAfter === undefined || failure.retryAfter <= NO_WAIT) {
+    return "Too many requests. Please wait a moment and try again.";
+  }
+
+  const unit: string = failure.retryAfter === ONE_SECOND ? "second" : "seconds";
+  return `Too many requests. Please wait ${failure.retryAfter} ${unit} and try again.`;
+};
+
 /** Copy shipped per code. An app registry entry for the same code wins. */
 const CODE_MESSAGES: FailureMessageRegistry = {
   [ClientErrorCode.TRANSPORT_NETWORK_ERROR]: () =>
@@ -61,6 +72,9 @@ const CODE_MESSAGES: FailureMessageRegistry = {
     "The server took too long to respond. Please try again.",
   [ClientErrorCode.CLIENT_UNRECOGNIZED_RESPONSE]: () => SERVER_SIDE_MESSAGE,
   [ClientErrorCode.BFF_SESSION_REFRESH_FAILED]: () => SESSION_EXPIRED_MESSAGE,
+  // By code, so the wait itself reaches the person even when a rate limiter
+  // (a fork's, a proxy's) writes its own detail ahead of the catalog sentence.
+  [ErrorCode.RATE_LIMIT_EXCEEDED]: tooManyRequests,
 };
 
 /** Copy shipped per status, for a code nobody wrote a sentence for. */
@@ -69,14 +83,7 @@ const STATUS_MESSAGES: Readonly<Record<number, FailureMessage>> = {
   [FORBIDDEN]: () => "You don't have permission to do that.",
   [NOT_FOUND]: () => "That could not be found.",
   [CONFLICT]: () => "That change conflicts with a newer one. Refresh and try again.",
-  [TOO_MANY_REQUESTS]: (failure: ApiFailure) => {
-    if (failure.retryAfter === undefined || failure.retryAfter <= NO_WAIT) {
-      return "Too many requests. Please wait a moment and try again.";
-    }
-
-    const unit: string = failure.retryAfter === ONE_SECOND ? "second" : "seconds";
-    return `Too many requests. Please wait ${failure.retryAfter} ${unit} and try again.`;
-  },
+  [TOO_MANY_REQUESTS]: tooManyRequests,
 };
 
 /**

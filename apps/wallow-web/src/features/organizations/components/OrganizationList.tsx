@@ -4,13 +4,12 @@
  * copies. It drives `useQuery(organizationsGetAllOptions({ client }))` and renders
  * four states: loading, errored, empty, and a list of `organization-item` rows.
  */
-import { errorText } from "@bc-solutions-coder/forms";
 import { useQuery } from "@bc-solutions-coder/query";
 import type { OrganizationDto } from "@bc-solutions-coder/sdk";
 import {
   Badge,
   EmptyState,
-  ErrorBanner,
+  FailureBanner,
   ListCard,
   ListRow,
   MutedText,
@@ -76,7 +75,7 @@ function OrganizationsEmptyState() {
 
 export function OrganizationList() {
   const { sdk } = useRouteContext({ from: "__root__" });
-  const { data, isPending, isError, error } = useQuery(
+  const { data, isPending, isError, error, refetch } = useQuery(
     organizationsGetAllOptions({ client: sdk.client }),
   );
 
@@ -92,11 +91,7 @@ export function OrganizationList() {
   // refetch, so an error only takes over the screen when there is NO data to
   // fall back on — otherwise `data ?? []` would report a 500 as "none yet".
   if (isError && data === undefined) {
-    return (
-      <ErrorBanner data-testid="organizations-error">
-        {errorText(error, "Could not load organizations.")}
-      </ErrorBanner>
-    );
+    return <FailureBanner data-testid="organizations-error" error={error} onRetry={refetch} />;
   }
 
   // No narrowing cast: the generated operation resolves the response BODY under

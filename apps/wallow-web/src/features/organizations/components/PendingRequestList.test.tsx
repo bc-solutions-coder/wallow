@@ -1,5 +1,7 @@
 import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+import { isApiFailure } from "@bc-solutions-coder/api-errors";
+import type { UnhandledFailure } from "@bc-solutions-coder/query";
 import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -185,7 +187,7 @@ describe("PendingRequestList", () => {
     );
   });
 
-  it("renders a 422 approve failure and keeps the list mounted", async () => {
+  it("leaves a 422 approve failure to the toast and keeps the list mounted", async () => {
     harness.respond((call) => {
       if (call.method === "GET") {
         return new Response(JSON.stringify(twoRequests), {
@@ -203,13 +205,23 @@ describe("PendingRequestList", () => {
       );
     });
 
-    renderWithWallow(<PendingRequestList orgId="o1" />, { harness });
+    const unhandled: UnhandledFailure[] = [];
+
+    renderWithWallow(<PendingRequestList orgId="o1" />, {
+      harness,
+      onUnhandledFailure: (failure) => {
+        unhandled.push(failure);
+      },
+    });
 
     await userEvent.click(page.getByTestId("organization-pending-request-approve").first());
 
-    await expect
-      .element(page.getByTestId("organization-pending-requests-error"))
-      .toHaveTextContent("The membership request could not be found.");
+    await expect.poll(() => unhandled.length).toBe(1);
+    expect(isApiFailure(unhandled[0]?.error) && unhandled[0].error.code).toBe(
+      "Identity.MemberNotFound",
+    );
+    // The roster is still the roster: the toast is the failure's one surface.
+    expect(page.getByTestId("organization-pending-requests-error").elements()).toHaveLength(0);
     expect(page.getByTestId("organization-pending-request-item").elements()).toHaveLength(2);
   });
 });

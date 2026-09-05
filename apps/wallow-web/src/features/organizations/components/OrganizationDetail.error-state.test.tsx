@@ -1,6 +1,6 @@
 import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { OrganizationDetail } from "./OrganizationDetail";
@@ -8,10 +8,11 @@ import { OrganizationDetail } from "./OrganizationDetail";
 /**
  * The org-detail page's two query error surfaces.
  *
- * `org === null` is reached by an errored read as much as by a resolved-empty
- * one, so the error branch has to be checked FIRST — otherwise a 500 renders
- * the flatly wrong "Organization not found." card. The inner clients section
- * reads a second query and carries its own surface.
+ * A missing org never reaches this component: the route loader turns the API's
+ * 404 into the router's not-found path before the page renders. What is left
+ * for the page is a read that failed outright, which it renders as the failure
+ * banner rather than as an empty org. The inner clients section reads a second
+ * query and carries its own surface.
  */
 
 const ORG_ID = "o1";
@@ -49,35 +50,41 @@ describe("OrganizationDetail — query error state", () => {
     harness = createSdkHarness();
   });
 
-  it("renders the ProblemDetails detail when the org query errors", async () => {
+  it("renders the server-failure copy, not the 500's detail, when the org query errors", async () => {
     harness.rejectJson(DETAIL_PROBLEM, 500);
 
     renderWithWallow(<OrganizationDetail orgId={ORG_ID} />, { harness });
 
     await expect
       .element(page.getByTestId("organization-detail-error"))
-      .toHaveTextContent("Org lookup failed.");
+      .toHaveTextContent("Something went wrong on our side. Please try again later.");
   });
 
-  it("does not render the not-found card when the org query errors", async () => {
+  it("renders no org heading when the org query errors", async () => {
     harness.rejectJson(DETAIL_PROBLEM, 500);
 
     renderWithWallow(<OrganizationDetail orgId={ORG_ID} />, { harness });
 
     await expect.element(page.getByTestId("organization-detail-error")).toBeInTheDocument();
-    expect(page.getByTestId("organization-detail-not-found").elements()).toHaveLength(0);
     expect(page.getByTestId("organization-detail-heading").elements()).toHaveLength(0);
   });
 
-  it("still renders the not-found card when the org query resolves empty", async () => {
-    // The other half of the split: the error branch must not swallow the
-    // resolved-null case.
-    harness.resolveJson(null);
+  it("retries the org read from the banner", async () => {
+    let attempts = 0;
+    harness.respond((call) => {
+      if (call.path === DETAIL_PATH) {
+        attempts += 1;
+        return attempts === 1 ? json(DETAIL_PROBLEM, 500) : json(ORG);
+      }
+      return json([]);
+    });
 
     renderWithWallow(<OrganizationDetail orgId={ORG_ID} />, { harness });
 
-    await expect.element(page.getByTestId("organization-detail-not-found")).toBeInTheDocument();
-    expect(page.getByTestId("organization-detail-error").elements()).toHaveLength(0);
+    await expect.element(page.getByTestId("organization-detail-error")).toBeInTheDocument();
+    await userEvent.click(page.getByRole("button", { name: "Try again" }));
+
+    await expect.element(page.getByTestId("organization-detail-heading")).toHaveTextContent("Acme");
   });
 });
 
@@ -86,7 +93,7 @@ describe("OrganizationDetail — bound clients query error state", () => {
     harness = createSdkHarness();
   });
 
-  it("renders the ProblemDetails detail when only the clients query errors", async () => {
+  it("renders the server-failure copy, not the 500's detail, when only the clients query errors", async () => {
     // The org and members reads succeed, so the page renders in full and the
     // clients section is the only surface that has to speak up.
     harness.respond((call) => {
@@ -104,7 +111,7 @@ describe("OrganizationDetail — bound clients query error state", () => {
     await expect.element(page.getByTestId("organization-detail-heading")).toBeInTheDocument();
     await expect
       .element(page.getByTestId("organization-detail-clients-error"))
-      .toHaveTextContent("Clients failed.");
+      .toHaveTextContent("Something went wrong on our side. Please try again later.");
     expect(page.getByTestId("organization-detail-applications-table").elements()).toHaveLength(0);
   });
 });

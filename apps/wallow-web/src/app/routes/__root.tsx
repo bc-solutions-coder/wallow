@@ -268,13 +268,7 @@ export function RootErrorBoundary({ error }: ErrorComponentProps): ReactElement 
 
   return (
     <RootErrorCard>
-      <FailureBanner
-        data-testid="root-failure"
-        error={error}
-        onRetry={() => {
-          void router.invalidate();
-        }}
-      />
+      <FailureBanner data-testid="root-failure" error={error} onRetry={() => router.invalidate()} />
     </RootErrorCard>
   );
 }

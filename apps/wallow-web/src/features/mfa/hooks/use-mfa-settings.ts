@@ -8,21 +8,17 @@
  * mutations' shared error surface and the one-time codes reveal were interleaved
  * with the JSX that renders them.
  *
- * Both failure surfaces come back as ready-to-render TEXT rather than as raw
- * rejections, because deciding what a failure says is this layer's job in both
- * cases: the status READ speaks RFC 7807 through `errorText`, the two WRITES
- * speak the MFA controllers' `{ succeeded: false, error }` through
- * `resolveFailureMessage` and the app registry. A component handed both raw
- * would have to know which is which.
+ * Both failure surfaces come back as the RAW failure rather than as text:
+ * deciding what a failure says is the shared `FailureBanner`'s job (the app's
+ * registry resolves the MFA controllers' `{ succeeded: false, error }` codes
+ * the same way it resolves any RFC 7807 problem). What this layer decides is
+ * WHICH surface a failure belongs to — the status READ's branch or the two
+ * WRITES' banner.
  */
 
-import { resolveFailureMessage } from "@bc-solutions-coder/api-errors";
-import { errorText } from "@bc-solutions-coder/forms";
 import { handledFailure, useMutation, useQuery, useQueryClient } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
-
-import { failureMessages } from "@shared/lib/failure-messages";
 
 import {
   mfaDisableMutation,
@@ -34,9 +30,6 @@ import {
 
 /** Which enabled-only action opened the shared password-confirm panel. */
 type ConfirmAction = "disable" | "regenerate";
-
-const CONFIRM_FAILED = "Unable to complete that action.";
-const STATUS_UNREADABLE = "Could not load your MFA status.";
 
 /**
  * Await a `mutate` call, resolving whichever way it lands.
@@ -59,13 +52,16 @@ export interface MfaSettings {
   /** The status read has not answered yet — the card renders its loading state. */
   readonly isPending: boolean;
   /**
-   * The status read failed with nothing cached to fall back on, as text.
+   * The status read's failure when it failed with nothing cached to fall back
+   * on; `null` otherwise.
    *
    * Distinct from {@link error}, which is the two WRITES' surface: a card that
    * could not read its status must not claim MFA is off and invite a second
    * enrolment, so this is a branch rather than a banner.
    */
-  readonly statusErrorText: string | null;
+  readonly statusError: unknown;
+  /** Re-run the status read after {@link statusError}. */
+  readonly refetchStatus: () => unknown;
   readonly enabled: boolean;
   /** The API types this as `number | string`; it is relayed, never cast. */
   readonly backupCodeCount: number | string;
@@ -73,8 +69,11 @@ export interface MfaSettings {
   readonly enrolling: boolean;
   /** Which action the open confirm panel will run, or `null` when it is closed. */
   readonly confirmAction: ConfirmAction | null;
-  /** The disable/regenerate failure surface. */
-  readonly error: string | null;
+  /**
+   * The disable/regenerate failure surface: the failure the last confirm threw,
+   * or `null` when the last one succeeded or none has run.
+   */
+  readonly error: unknown;
   /** Freshly minted codes to reveal once, or `null` when there are none to show. */
   readonly regeneratedCodes: readonly string[] | null;
   readonly beginEnroll: () => void;
@@ -98,11 +97,12 @@ export function useMfaSettings(): MfaSettings {
     isPending,
     isError,
     error: statusError,
+    refetch: refetchStatus,
   } = useQuery(mfaGetStatusOptions({ client: sdk.client }));
 
   const [enrolling, setEnrolling] = useState(false);
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
   const [regeneratedCodes, setRegeneratedCodes] = useState<string[] | null>(null);
 
   // Both writes change what the card reports (enrolment state and the remaining
@@ -150,9 +150,7 @@ export function useMfaSettings(): MfaSettings {
       // The panel deliberately stays OPEN on failure: the likeliest cause is a
       // mistyped password, and closing it would make the user reopen the flow to
       // retry.
-      setError(
-        resolveFailureMessage(failure, { registry: failureMessages, fallback: CONFIRM_FAILED }),
-      );
+      setError(failure);
     };
     const closePanel = (): void => {
       setConfirmAction(null);
@@ -187,8 +185,8 @@ export function useMfaSettings(): MfaSettings {
     isPending,
     // A cached status surviving a failed refetch is still the truth as of the
     // last successful read, so only a failure with NOTHING to render is fatal.
-    statusErrorText:
-      isError && data === undefined ? errorText(statusError, STATUS_UNREADABLE) : null,
+    statusError: isError && data === undefined ? statusError : null,
+    refetchStatus,
     enabled: data?.enabled ?? false,
     backupCodeCount: data?.backupCodeCount ?? 0,
     enrolling,

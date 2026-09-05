@@ -23,7 +23,13 @@ export interface FailureBannerProps extends Omit<ErrorBannerProps, "children"> {
   /** The call site's own last resort, ahead of the generic sentence. */
   readonly fallback?: string | undefined;
   /** When given, the banner offers "Try again" and calls this. */
-  readonly onRetry?: (() => void) | undefined;
+  readonly onRetry?: (() => unknown) | undefined;
+  /**
+   * App-owned test id for the banner. Its actions derive theirs from it
+   * (`-retry`, `-sign-in`), so an E2E spec names the banner once and selects
+   * the action inside it the way the selector rules require.
+   */
+  readonly "data-testid"?: string | undefined;
   /**
    * Where "Sign in" goes on a 401 code. Defaults to the BFF login with the
    * current path to return to; an app without a BFF passes its own route.
@@ -65,21 +71,48 @@ function ignoreClipboardDenial(): void {
   // Deliberately empty — see the doc comment.
 }
 
-function RetryAction({ onRetry }: { readonly onRetry: () => void }): ReactElement {
+/** An action's derived test id (`<banner>-retry`, `<banner>-sign-in`), or nothing when the banner carries none. */
+function derive(testId: string | undefined, part: string): string | undefined {
+  return testId === undefined ? undefined : `${testId}-${part}`;
+}
+
+/** A refetch returns a promise the banner has no use for; the click is fire-and-forget. */
+function RetryAction({
+  onRetry,
+  testId,
+}: {
+  readonly onRetry: () => unknown;
+  readonly testId: string | undefined;
+}): ReactElement {
   return (
-    <Button variant="link" size="sm" className={ACTION_CLASS} onClick={onRetry}>
+    <Button
+      variant="link"
+      size="sm"
+      className={ACTION_CLASS}
+      data-testid={testId}
+      onClick={() => {
+        void onRetry();
+      }}
+    >
       Try again
     </Button>
   );
 }
 
-function SignInLink({ href }: { readonly href: string }): ReactElement {
+function SignInLink({
+  href,
+  testId,
+}: {
+  readonly href: string;
+  readonly testId: string | undefined;
+}): ReactElement {
   return (
     <Button
       variant="link"
       size="sm"
       className={ACTION_CLASS}
       nativeButton={false}
+      data-testid={testId}
       render={<a href={href} />}
     >
       Sign in
@@ -124,6 +157,7 @@ export function FailureBanner({
   onRetry,
   signInHref,
   children,
+  "data-testid": testId,
   ...rest
 }: FailureBannerProps): ReactElement | null {
   const message: string | null = useFailureMessage(error, { messages, fallback });
@@ -139,14 +173,17 @@ export function FailureBanner({
   const signIn: boolean = SIGN_IN_CODES.has(failure.code);
 
   return (
-    <ErrorBanner {...rest}>
+    <ErrorBanner data-testid={testId} {...rest}>
       {message}
       {onRetry === undefined ? null : " "}
-      {onRetry === undefined ? null : <RetryAction onRetry={onRetry} />}
+      {onRetry === undefined ? null : (
+        <RetryAction onRetry={onRetry} testId={derive(testId, "retry")} />
+      )}
       {signIn ? " " : null}
       {signIn ? (
         <SignInLink
           href={signInHref ?? `${BFF_LOGIN_PATH}?returnTo=${encodeURIComponent(currentPath)}`}
+          testId={derive(testId, "sign-in")}
         />
       ) : null}
       {reference === undefined ? null : <ReferenceLine key={reference} reference={reference} />}

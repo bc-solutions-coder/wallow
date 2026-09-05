@@ -14,8 +14,8 @@
  *     and `settings-mfa-regenerate`. Each opens a shared password-confirm panel
  *     (`settings-mfa-confirm-password` + `settings-mfa-confirm-submit`) driving
  *     the `disable` / `regenerateBackupCodes` mutations.
- *   - `settings-mfa-error` — shared RFC 7807 error surface for the two
- *     MUTATIONS (disable / regenerate).
+ *   - `settings-mfa-error` — shared failure surface for the two MUTATIONS
+ *     (disable / regenerate), worded by the app's failure registry.
  *   - `settings-mfa-status-error` — the initial status READ's own failure
  *     surface. It is deliberately NOT `settings-mfa-error`: the two never
  *     co-render, but a spec (or a reader) asserting on one testid has to be able
@@ -30,7 +30,7 @@ import {
   Button,
   Card,
   CardTitle,
-  ErrorBanner,
+  FailureBanner,
   MutedText,
   Text,
 } from "@bc-solutions-coder/ui";
@@ -189,7 +189,8 @@ export function MfaSettingsSection() {
   // endEnroll}` is a warning where `onDone={endEnroll}` is not.
   const {
     isPending,
-    statusErrorText,
+    statusError,
+    refetchStatus,
     enabled,
     backupCodeCount,
     enrolling,
@@ -210,8 +211,14 @@ export function MfaSettingsSection() {
     );
   }
 
-  if (statusErrorText !== null) {
-    return <ErrorBanner data-testid="settings-mfa-status-error">{statusErrorText}</ErrorBanner>;
+  if (statusError !== null) {
+    return (
+      <FailureBanner
+        data-testid="settings-mfa-status-error"
+        error={statusError}
+        onRetry={refetchStatus}
+      />
+    );
   }
 
   if (enrolling) {
@@ -245,7 +252,7 @@ export function MfaSettingsSection() {
 
       {regeneratedCodes === null ? null : <RegeneratedCodes codes={regeneratedCodes} />}
 
-      {error === null ? null : <ErrorBanner data-testid="settings-mfa-error">{error}</ErrorBanner>}
+      {error === null ? null : <FailureBanner data-testid="settings-mfa-error" error={error} />}
     </Card>
   );
 }

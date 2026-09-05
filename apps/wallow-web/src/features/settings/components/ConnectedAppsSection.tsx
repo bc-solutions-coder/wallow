@@ -11,7 +11,6 @@
  * Testids: connected-app-item / -name / -scopes / -withdraw per row, plus
  * connected-apps-loading / -error / -empty states.
  */
-import { errorText } from "@bc-solutions-coder/forms";
 import { useMutation, useQuery, useQueryClient } from "@bc-solutions-coder/query";
 import type { ConnectedApplicationDto, WallowSdk } from "@bc-solutions-coder/sdk";
 import {
@@ -19,7 +18,7 @@ import {
   Card,
   CardTitle,
   EmptyState,
-  ErrorBanner,
+  FailureBanner,
   ListCard,
   ListRow,
   MutedText,
@@ -78,7 +77,7 @@ function ConnectedAppRow(props: {
 export function ConnectedAppsSection(): ReactNode {
   const { sdk } = useRouteContext({ from: "__root__" });
   const queryClient = useQueryClient();
-  const { data, isPending, isError, error } = useQuery(
+  const { data, isPending, isError, error, refetch } = useQuery(
     meAuthorizationsListConnectedApplicationsOptions({ client: sdk.client }),
   );
   const withdraw = useMutation({
@@ -100,6 +99,7 @@ export function ConnectedAppsSection(): ReactNode {
         isPending={isPending}
         isError={isError}
         error={error}
+        onRetry={refetch}
         onWithdraw={(authorizationId) => {
           withdraw.mutate({ path: { authorizationId } });
         }}
@@ -117,9 +117,10 @@ function ConnectedAppsRegion(props: {
   isPending: boolean;
   isError: boolean;
   error: unknown;
+  onRetry: () => void;
   onWithdraw: (authorizationId: string) => void;
 }): ReactNode {
-  const { apps, isPending, isError, error, onWithdraw } = props;
+  const { apps, isPending, isError, error, onRetry, onWithdraw } = props;
 
   if (isPending) {
     return (
@@ -133,11 +134,7 @@ function ConnectedAppsRegion(props: {
   // refetch (e.g. the post-withdraw sweep) must not blank an already-rendered
   // list.
   if (isError && apps === undefined) {
-    return (
-      <ErrorBanner data-testid="connected-apps-error">
-        {errorText(error, "Could not load your connected applications.")}
-      </ErrorBanner>
-    );
+    return <FailureBanner data-testid="connected-apps-error" error={error} onRetry={onRetry} />;
   }
 
   const connected = apps ?? [];

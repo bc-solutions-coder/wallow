@@ -11,7 +11,7 @@ deliberate addition to `FACADE_ADDITIONS`. Do not "simplify" the spec.
 
 ## `createQueryClient` (`src/query-client.ts`) — the policy is the contract
 
-- **`retry: false`** by default — deterministic tests, no silent backoff.
+- **`retry: false`** by default, for queries and mutations alike — deterministic tests, no silent backoff.
 - **A fresh client per call** — one SSR request never shares cache with another.
 - **`onUnhandledFailure({ kind, error })`** is the ONE hook for failures nobody rendered, and the
   callback receives exactly those two members. The `MutationCache` calls it for every mutation

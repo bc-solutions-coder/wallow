@@ -1,4 +1,6 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+
+import { signInAndLandOn } from "./sign-in";
 
 /** What `/bff/user` answers once the BFF session is gone. */
 const UNAUTHENTICATED_STATUS = 401;
@@ -10,41 +12,9 @@ const UNAUTHENTICATED_STATUS = 401;
  * `pnpm --filter ./apps/wallow-web test:e2e:cross-app`. A failure here can be a
  * real cross-app regression, not necessarily a fault in this spec. Two tests
  * share the stack: the round trip itself, and an authenticated mutation plus
- * logout on the session it establishes.
+ * logout on the session it establishes. Both start from `./sign-in`'s
+ * `signInAndLandOn`, which describes the journey step by step.
  */
-/**
- * Drive the whole cross-app login round trip and leave the browser on `returnTo`
- * with an authenticated wallow-web BFF session. Both tests below start here, so
- * the journey itself is described once:
- *
- *   1. Enter at the home page's "Get Started" target. We navigate to that exact
- *      href rather than clicking through `/`, because `/`'s `beforeLoad` runs
- *      server-side; the href IS the home page's Get Started contract.
- *   2. The redirects deposit the browser on wallow-auth's login screen. Wait for
- *      the auth app to hydrate before touching the form (its own readiness
- *      marker, per .claude/rules/E2E.md).
- *   3. Sign in with the seeded admin (api/seed.json), same credentials as
- *      apps/wallow-auth/e2e/login.spec.ts.
- *   4. The OIDC round trip returns to wallow-web on the original `returnTo`,
- *      which we then wait to hydrate.
- *
- * `/dashboard`'s `beforeLoad` auth gate only lets a child route render once the
- * SSR `getUser()` resolved a signed-in user, so a caller that sees its route's
- * own testid has proof of an authenticated session.
- */
-async function signInAndLandOn(page: Page, returnTo: string): Promise<void> {
-  await page.goto(`/bff/login?returnTo=${encodeURIComponent(returnTo)}`);
-
-  await expect(page.locator("[data-app-ready='true']")).toBeAttached({ timeout: 20_000 });
-
-  await page.getByTestId("login-email").fill(process.env.E2E_USER ?? "admin@wallow.dev");
-  await page.getByTestId("login-password").fill(process.env.E2E_PASSWORD ?? "Admin123!");
-  await page.getByTestId("login-submit").click();
-
-  await page.waitForURL((url) => url.pathname === returnTo, { timeout: 30_000 });
-  await expect(page.locator("[data-app-ready='true']")).toBeAttached({ timeout: 20_000 });
-}
-
 test("cross-app login journey establishes an authenticated wallow-web session", async ({
   page,
 }) => {

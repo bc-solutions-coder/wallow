@@ -31,14 +31,14 @@ describe("MemberList — query error state", () => {
     harness = createSdkHarness();
   });
 
-  it("renders the ProblemDetails detail when the members query errors", async () => {
+  it("renders the server-failure copy, not the 500's detail, when the members query errors", async () => {
     harness.rejectJson(PROBLEM, 500);
 
     renderWithWallow(<MemberList orgId={ORG_ID} />, { harness });
 
     await expect
       .element(page.getByTestId("organization-members-error"))
-      .toHaveTextContent("Members are unavailable.");
+      .toHaveTextContent("Something went wrong on our side. Please try again later.");
   });
 
   it("does not show the empty state when the members query errors", async () => {

@@ -7,9 +7,8 @@
  * this screen renders no longer exists.
  */
 import { hasPermission, isGlobalAdmin, useCurrentUser } from "@bc-solutions-coder/auth";
-import { errorText } from "@bc-solutions-coder/forms";
-import { useMutation, useQueryClient } from "@bc-solutions-coder/query";
-import { Button, Dialog, Input, MutedText, Text } from "@bc-solutions-coder/ui";
+import { handledFailure, useMutation, useQueryClient } from "@bc-solutions-coder/query";
+import { Button, Dialog, Input, MutedText, Text, useFailureMessage } from "@bc-solutions-coder/ui";
 import { useState } from "react";
 import { useNavigate, useRouteContext } from "@tanstack/react-router";
 
@@ -110,6 +109,8 @@ export function DeleteOrganizationDialog(props: { orgId: string; orgName: string
   const [typed, setTyped] = useState("");
   const remove = useMutation({
     ...organizationsDeleteMutation({ client: sdk.client }),
+    // The dialog shows the refusal itself, so the toast stays out of it.
+    meta: handledFailure(),
     onSuccess: (): void => {
       // The org is gone from the LIST too, so the whole tag is swept; then the
       // page leaves, because the detail it renders no longer exists to re-read.
@@ -118,6 +119,7 @@ export function DeleteOrganizationDialog(props: { orgId: string; orgName: string
       void navigate({ to: "/dashboard/organizations" });
     },
   });
+  const failure = useFailureMessage(remove.error);
   const onOpenChange = (next: boolean): void => {
     setOpen(next);
     if (!next) {
@@ -140,9 +142,7 @@ export function DeleteOrganizationDialog(props: { orgId: string; orgName: string
           typed={typed}
           onTypedChange={setTyped}
           pending={remove.isPending}
-          error={
-            remove.isError ? errorText(remove.error, "Could not delete the organization.") : null
-          }
+          error={failure}
           onConfirm={() => {
             remove.mutate({ path: { id: orgId }, body: { confirmName: typed } });
           }}
