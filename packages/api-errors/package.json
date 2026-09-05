@@ -1,6 +1,6 @@
 {
   "name": "@bc-solutions-coder/api-errors",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Wallow API failure model: the ApiFailure type, the response and error parser, and the failure message resolver",
   "license": "Apache-2.0",
   "repository": {
