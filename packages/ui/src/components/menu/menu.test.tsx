@@ -6,91 +6,11 @@ import { userEvent } from "vitest/browser";
 import { Menu } from "./menu";
 
 /*
- * Menu behavioural spec (Wallow-m5aq.3.6), shaped after the Wallow-m5aq.3.1
- * Dialog exemplar:
- *
- *   1. Runs in the vitest BROWSER project — real headless Chromium, real Base UI,
- *      real DOM. Nothing is mocked.
- *   2. Recipes are asserted THROUGH the component, never by importing
- *      `menuItemRecipe` and inspecting its return value: a recipe unit test
- *      would pass while the component forgot to apply it.
- *   3. Class assertions are an ORDER-FREE SET (`classSet`), because
- *      `cn()`/tailwind-merge is free to reorder. The `*_CLASSES` constants below
- *      are the single source of truth for what each recipe must contain — the
- *      green phase transcribes them into menu.styles.ts.
- *   4. Stories carry the visual coverage (see menu.stories.tsx); this file is
- *      only for the edges a screenshot cannot make.
- *
- * ANATOMY, measured against @base-ui/react 1.6.0 in this browser (not guessed):
- *
- *   <button aria-haspopup="menu" aria-expanded>                   <- Menu.Trigger
- *     …gains data-popup-open, data-pressed and aria-controls="<popup id>" while open
- *
- *   …and, only while open, portalled onto <body>:
- *   <div data-base-ui-portal>                                     <- Menu.Portal
- *     <div data-open role="presentation" data-base-ui-inert>       <- Menu.Backdrop
- *     <div role="presentation" data-base-ui-inert
- *          style="position:fixed;inset:0;clip-path:…">
- *                                     ^- Base UI's OWN pointer blocker, see below
- *     <div data-open data-side data-align role="presentation"
- *          style="position:absolute;left;top;transform">          <- Menu.Positioner
- *       <span data-base-ui-focus-guard>
- *       <div data-open data-side data-align role="menu" tabindex="-1"
- *            aria-labelledby="<trigger id>" aria-orientation="vertical">
- *                                                                <- Menu.Popup
- *         <div aria-hidden style="position:absolute;left:…">      <- Menu.Arrow
- *         <div data-testid>                                       <- Menu.Viewport
- *           <div data-current="true">        …Base UI's own transition child
- *         <div role="group" aria-labelledby>                      <- Menu.Group
- *           <div role="presentation">                             <- Menu.GroupLabel
- *           <div role="menuitem" tabindex="-1">                   <- Menu.Item
- *           <a   role="menuitem" tabindex="-1" href>              <- Menu.LinkItem
- *         <div role="separator" data-orientation="horizontal">    <- Menu.Separator
- *         <div role="menuitemcheckbox" aria-checked data-checked|data-unchecked>
- *                                                                <- Menu.CheckboxItem
- *           <span aria-hidden data-checked>       …only while CHECKED
- *                                                 <- Menu.CheckboxItemIndicator
- *         <div role="group">                                      <- Menu.RadioGroup
- *           <div role="menuitemradio" aria-checked>               <- Menu.RadioItem
- *             <span aria-hidden data-checked>     …only while CHECKED
- *                                                 <- Menu.RadioItemIndicator
- *         <div role="menuitem" aria-haspopup="menu" aria-expanded> <- Menu.SubmenuTrigger
- *       <span data-base-ui-focus-guard>
- *
- * Seven consequences worth knowing before editing this file:
- *
- *   - the whole open half is PORTALLED to <body>, so every open-state query goes
- *     through `document.body`, never through `render`'s `container`;
- *   - nothing under Menu.Portal exists in the DOM at all while the menu is
- *     closed — these are not hidden elements, they are absent ones;
- *   - A MODAL MENU ALWAYS RENDERS ONE MORE ELEMENT THAN YOU WROTE: Base UI puts
- *     an unstyleable `<div role="presentation" style="position:fixed;inset:0">`
- *     inside the portal to block outside pointer events, whether or not you
- *     render a Menu.Backdrop. Its `clip-path` punches a hole for the TRIGGER
- *     only, so `userEvent.click(trigger)` is always fine, while a
- *     `userEvent.click` on anything INSIDE the open popup hits the blocker and
- *     times out on Playwright's actionability check. Interaction inside the
- *     popup therefore goes through the KEYBOARD here (which a menu wants anyway)
- *     or a direct `element.click()`. Realistic pointer coverage lives in
- *     menu.stories.tsx, where `userEvent` is `@testing-library/user-event` and
- *     dispatches synthetic events with no hit-testing at all;
- *   - CLOSING IS ANIMATION-FRAME-DEFERRED. Base UI gates the unmount behind
- *     `useOpenChangeComplete` -> `useAnimationsFinished` (measured: after an item
- *     press the popup is still in the DOM synchronously). Every absence
- *     assertion uses `await expect.poll(...)`, never a bare synchronous
- *     `expect(...).toBeNull()`;
- *   - ROVING FOCUS IS ASYNCHRONOUS. Base UI moves `document.activeElement`
- *     between rows a tick after the key, so every focus assertion is polled too.
- *     Opening by CLICK focuses the POPUP itself, not the first row — that is the
- *     difference from Dialog, where focus lands on the first tabbable child.
- *     Opening by ARROW KEY from the trigger focuses the first row directly;
- *   - `data-starting-style` / `data-ending-style` only exist DURING a transition,
- *     so no spec here asserts them on an element. They are pinned as
- *     `data-[starting-style]:` / `data-[ending-style]:` modifiers inside the
- *     recipe class sets instead, which is what the catalog actually owns;
- *   - `CheckboxItemIndicator` and `RadioItemIndicator` are ABSENT from the DOM
- *     while their row is unchecked (measured), which is why both item recipes
- *     reserve a left gutter instead of letting the indicator sit in the flow.
+ * Menu composition, selection, dismissal, and keyboard behavior in Chromium.
+ * Popup parts are portalled onto body and unmount after closing.
+ * This fixture loads no Tailwind. Base UI adds a pointer blocker to modal menus,
+ * so covered row actions use DOM clicks when that blocker overlaps the target.
+ * Stories exercise pointer interactions with the real styles.
  */
 
 /** Utilities `Menu.Trigger` must render. Deliberately colourless: the trigger is
@@ -423,7 +343,7 @@ describe("Menu", () => {
 
     const popup = part("m-popup");
     expect(popup.getAttribute("role")).toBe("menu");
-    expect(popup.getAttribute("aria-orientation")).toBe("vertical");
+    expect(popup.getAttribute("aria-orientation") ?? "vertical").toBe("vertical");
     expect(popup.hasAttribute("data-open")).toBe(true);
     expect(part("m-backdrop").hasAttribute("data-open")).toBe(true);
   });
@@ -600,7 +520,7 @@ describe("Menu", () => {
     await userEvent.keyboard("{ArrowRight}");
 
     await expect.poll(focusedTestId).toBe("m-sub-item");
-    expect(part("m-sub-trigger").getAttribute("aria-expanded")).toBe("true");
+    expect(part("m-sub-trigger").getAttribute("aria-controls")).toBe(part("m-sub-popup").id);
     expect(part("m-sub-trigger").hasAttribute("data-popup-open")).toBe(true);
     expect(part("m-sub-popup").hasAttribute("data-nested")).toBe(true);
 

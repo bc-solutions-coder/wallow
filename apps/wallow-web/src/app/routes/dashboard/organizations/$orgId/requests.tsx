@@ -2,6 +2,7 @@ import { PageContainer } from "@bc-solutions-coder/ui";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { organizationsGetPendingMembersOptions, PendingRequestList } from "@features/organizations";
+import { notFoundOn404 } from "@shared/lib/not-found-on-404";
 
 /**
  * The dashboard pending-requests route, nested under the `$orgId` directory
@@ -23,12 +24,16 @@ function PendingRequestsPage() {
 }
 
 export const Route = createFileRoute("/dashboard/organizations/$orgId/requests")({
+  // A missing organization answers 404 here too: the router's not-found, not
+  // a loader error under the right screen.
   loader: ({ context, params }) =>
-    context.queryClient.ensureQueryData(
-      organizationsGetPendingMembersOptions({
-        client: context.sdk.client,
-        path: { id: params.orgId },
-      }),
+    notFoundOn404(
+      context.queryClient.ensureQueryData(
+        organizationsGetPendingMembersOptions({
+          client: context.sdk.client,
+          path: { id: params.orgId },
+        }),
+      ),
     ),
   component: PendingRequestsPage,
 });

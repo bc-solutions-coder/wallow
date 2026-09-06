@@ -16,7 +16,9 @@ name: OpenAPI Auto-Regen
 #
 # The regenerated client is emitted from the new snapshot by the same script a developer
 # runs, and the PR carries both halves, because packages/sdk/src/openapi-regen.test.ts
-# asserts snapshot/client parity in both directions.
+# asserts snapshot/client parity in both directions. packages/api-errors generates its
+# ErrorCode catalogue from the same snapshot, so it is regenerated in the same PR:
+# `pnpm check:generated` would otherwise fail on the branch this opens.
 #
 # Every workflow expression is bound to an env var before it reaches a run: block --
 # this job holds write permissions, so no interpolation happens inside a shell string.
@@ -28,6 +30,7 @@ on:
       - "api/**"
       - "packages/sdk/openapi-ts.config.ts"
       - "packages/sdk/scripts/generate.ts"
+      - "packages/api-errors/openapi-ts.config.ts"
       - ".github/actions/openapi-document/**"
       - ".github/workflows/openapi-autoregen.yml"
   workflow_dispatch:
@@ -47,7 +50,7 @@ env:
   COMMITTED_SNAPSHOT: packages/sdk/openapi/v1.json
   EXPECTED_SERVER_URL: http://localhost:5001/
   REGEN_BRANCH: automation/openapi-regen
-  COMMIT_SUBJECT: "feat(sdk): regenerate OpenAPI snapshot and typed client"
+  COMMIT_SUBJECT: "feat(sdk): regenerate OpenAPI snapshot and generated output"
   TRIGGER_SHA: ${{ github.sha }}
 
 jobs:
@@ -154,6 +157,10 @@ jobs:
         if: steps.openapi.outputs.drift == 'true'
         run: pnpm --filter @bc-solutions-coder/sdk exec tsx scripts/generate.ts
 
+      - name: Regenerate the api-errors catalogue
+        if: steps.openapi.outputs.drift == 'true'
+        run: pnpm --filter @bc-solutions-coder/api-errors generate
+
       - name: Push the regenerated SDK
         if: steps.openapi.outputs.drift == 'true'
         id: push
@@ -162,7 +169,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add packages/sdk/openapi/v1.json packages/sdk/src/generated
+          git add packages/sdk/openapi/v1.json packages/sdk/src/generated packages/api-errors/src/generated
           if git diff --cached --quiet; then
             echo "::error::Drift was detected but regeneration produced no change. The snapshot and the emitted document disagree in a way this workflow cannot express."
             exit 1
@@ -187,13 +194,17 @@ jobs:
           Automated by `.github/workflows/openapi-autoregen.yml`.
 
           A backend change on `main` moved the API contract, so
-          `packages/sdk/openapi/v1.json` and `packages/sdk/src/generated/**` were
-          regenerated the same way `scripts/generate.ts` regenerates them locally.
+          `packages/sdk/openapi/v1.json`, `packages/sdk/src/generated/**` and
+          `packages/api-errors/src/generated/**` were regenerated the same way
+          `scripts/generate.ts` and `pnpm --filter @bc-solutions-coder/api-errors generate`
+          regenerate them locally.
 
           **Before merging, check the commit type.** It is `feat(sdk):` by default,
-          which release-please turns into a minor bump of `@bc-solutions-coder/sdk`.
-          If the contract change removed or renamed an operation, amend the squash
-          title to `feat(sdk)!:` so the SDK gets a major bump instead.
+          which release-please turns into a minor bump of `@bc-solutions-coder/sdk`
+          (and of `@bc-solutions-coder/api-errors` when its catalogue changed, since
+          release-please scopes by path). If the contract change removed or renamed
+          an operation or an error code, amend the squash title to `feat(sdk)!:` so
+          the affected packages get a major bump instead.
           BODY
           printf '\nRegenerated from %s.\n' "$TRIGGER_SHA" >> "$RUNNER_TEMP/pr-body.md"
 

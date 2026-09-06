@@ -43,7 +43,9 @@ config in the workspace. Where an entry may be imported is the contract:
   never mounting a DOM. Passing `nodeTsxSpecs` explicitly REPLACES the convention rather
   than extending it.
 - The browser project uses the Vitest 4 **factory** provider `playwright()`, not the v3
-  `"playwright"` string (which throws).
+  `"playwright"` string (which throws). Its context grants `clipboard-read`/`clipboard-write`
+  up front, so a copy affordance is asserted by reading `navigator.clipboard` back — headless
+  Chromium denies both directions otherwise, and nothing is mocked.
 - **An unresolvable `optimizeDeps.include` entry is a WARNING Vite ignores** — the list
   looks complete while pre-bundling nothing, and the dropped entry never reaches the
   dep-cache hash, turning the duplicate-React failure intermittent. `./browser-deps` is the
@@ -147,8 +149,8 @@ string; `cn()` merges a caller's `className` over the recipe.
   needs a test asserting the navigation did _not_ happen, not merely that no request went out.
 - **TanStack Router JSON-parses search values before `validateSearch`** — `?scope=123`
   arrives as a `number`. Route schemas must accept the parsed type.
-- **A screen may not import `WallowError`** (SDK `./server` entry only), so error narrowing
-  in app code is structural (`error.status === 400`), never `instanceof`.
+- **Error narrowing in app code is structural** (`error.status === 400`, `isApiFailure`), never
+  `instanceof ApiFailure` — a screen matches on the wire shape, not on which bundle built it.
 - **Assert a feature seam by identity, not presence.** `expect(api.foo).toBe(sdkFoo)`, not
   `toBeDefined()` — a hand-written look-alike carries the same name, shape and type, passes
   every behavioural spec, and reaches an undocumented endpoint.

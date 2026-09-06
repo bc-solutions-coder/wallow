@@ -1,5 +1,8 @@
 **status: active**
 
+> Historical plan. Failure-handling passages link to the current spec and their original Git revision.
+
+
 > Coordination note (2026-07-27): the TanStack Start migration design
 > (`0909-tanstack-start-migration-design.md`, section "Coordination with the SDK
 > refactor") analyzes how this plan's phases interleave with the Start migration —
@@ -162,12 +165,7 @@ prefix-invalidation sweeps; generated keys are flat single-object arrays. You ca
 Recommendation: take the generated keys for fetching, keep a small curated module for the
 handful of places needing subtree invalidation.
 
-**`unwrap()` is a config flag, not code.** `facade.ts:37-43` and the private `unwrap` in
-`auth-client.ts:313-321` both hand-roll envelope unwrapping that the generated client already
-supports: `responseStyle: 'data'` + `throwOnError: true` (`generated/client/types.gen.ts:47,53`).
-Prerequisite: unify the two apps' error contracts on `WallowError` — `wallow-web`'s
-`features/mfa/errors.ts:38-45` reads raw `ProblemDetails`, and that divergence is the only
-reason the `MfaUnwrap` injection seam exists.
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-07-27/0908-sdk-review.md).
 
 **The singleton is not clean.** Three competing configuration authorities:
 `runtime-config.ts:9-13` bakes in `baseUrl: "/api"` + `credentials: "include"`, then
@@ -234,8 +232,8 @@ Notifications, Announcements, or ApiKeys writes its own slices from scratch.
 
 12. Add the `@tanstack/query-core` plugin to `openapi-ts.config.ts`; move the React peer dep to
     optional. Deletes ~410 lines of `src/query/` and unblocks non-React consumers.
-13. Set `responseStyle: 'data'` + `throwOnError: true`; unify both apps on `WallowError`; delete
-    both `unwrap` implementations and the `MfaUnwrap` seam.
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-07-27/0908-sdk-review.md).
+
 14. Delete `auth-client.ts` down to a ~70-line `auth-extras.ts` keeping only the three genuine
     quirks: `getCurrentUser`'s 401-softening, the space-joined `scopes` shaping, and the
     `clientId` key-omission guard.

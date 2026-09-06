@@ -9,8 +9,12 @@ on:
       - "packages/styles/branding.json"
       - "docfx.json"
       - "docfx/templates/**"
+      - "packages/testing/package.json"
+      - "packages/testing/scripts/docfx-contrast.mjs"
+      - ".nvmrc"
       - "scripts/generate-docs-theme.mjs"
       - "docker/docs/**"
+      - ".github/workflows/docs.yml"
   pull_request:
     branches: [main]
     paths:
@@ -19,8 +23,12 @@ on:
       - "packages/styles/branding.json"
       - "docfx.json"
       - "docfx/templates/**"
+      - "packages/testing/package.json"
+      - "packages/testing/scripts/docfx-contrast.mjs"
+      - ".nvmrc"
       - "scripts/generate-docs-theme.mjs"
       - "docker/docs/**"
+      - ".github/workflows/docs.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -84,10 +92,20 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
+      - name: Enable corepack
+        run: corepack enable
+
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+
+      - name: Install DocFX test dependencies
+        run: pnpm install --frozen-lockfile --filter @bc-solutions-coder/testing
+
+      - name: Install Playwright browser
+        run: pnpm --filter ./packages/testing exec playwright install --with-deps chromium
 
       - name: Generate theme CSS
         run: |
@@ -99,6 +117,9 @@ jobs:
           dotnet restore api/Wallow.slnx
           dotnet tool restore
           dotnet docfx docfx.json
+
+      - name: Test rendered theme contrast
+        run: pnpm --filter @bc-solutions-coder/testing test:docfx
 
       - name: Upload site artifact
         uses: actions/upload-artifact@v7

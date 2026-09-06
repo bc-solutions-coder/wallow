@@ -159,6 +159,7 @@ describe("CreateInquiryForm", () => {
       {
         type: "https://httpstatuses.io/400",
         title: "Bad Request",
+        code: "Inquiries.SubmitFailed",
         status: "400",
         detail: "Failed to submit inquiry. Please try again.",
       },

@@ -77,7 +77,7 @@ public class IdentitySettingsControllerTests
 
         IActionResult result = await _controller.GetConfig(CancellationToken.None);
 
-        ObjectResult problem = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult problem = result.Should().BeAssignableTo<ObjectResult>().Subject;
         problem.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
     }
 
@@ -123,7 +123,7 @@ public class IdentitySettingsControllerTests
 
         IActionResult result = await _controller.GetUserSettings(CancellationToken.None);
 
-        ObjectResult problem = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult problem = result.Should().BeAssignableTo<ObjectResult>().Subject;
         problem.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
     }
 
@@ -155,7 +155,7 @@ public class IdentitySettingsControllerTests
 
         IActionResult result = await _controller.UpsertTenantSetting(request, CancellationToken.None);
 
-        result.Should().BeOfType<ObjectResult>().Which
+        result.Should().BeAssignableTo<ObjectResult>().Which
             .StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
     }
 
@@ -167,7 +167,7 @@ public class IdentitySettingsControllerTests
 
         IActionResult result = await _controller.UpsertTenantSetting(request, CancellationToken.None);
 
-        result.Should().BeOfType<ObjectResult>().Which
+        result.Should().BeAssignableTo<ObjectResult>().Which
             .StatusCode.Should().Be(StatusCodes.Status400BadRequest);
     }
 
@@ -179,7 +179,7 @@ public class IdentitySettingsControllerTests
 
         IActionResult result = await _controller.UpsertTenantSetting(request, CancellationToken.None);
 
-        ObjectResult problem = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult problem = result.Should().BeAssignableTo<ObjectResult>().Subject;
         problem.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
     }
 
@@ -207,7 +207,7 @@ public class IdentitySettingsControllerTests
     {
         IActionResult result = await _controller.DeleteTenantSetting("system.key", CancellationToken.None);
 
-        result.Should().BeOfType<ObjectResult>().Which
+        result.Should().BeAssignableTo<ObjectResult>().Which
             .StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
     }
 
@@ -219,7 +219,7 @@ public class IdentitySettingsControllerTests
 
         IActionResult result = await _controller.DeleteTenantSetting("custom.key", CancellationToken.None);
 
-        ObjectResult problem = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult problem = result.Should().BeAssignableTo<ObjectResult>().Subject;
         problem.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
     }
 
@@ -250,7 +250,7 @@ public class IdentitySettingsControllerTests
 
         IActionResult result = await _controller.UpsertUserSetting(request, CancellationToken.None);
 
-        result.Should().BeOfType<ObjectResult>().Which
+        result.Should().BeAssignableTo<ObjectResult>().Which
             .StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
     }
 
@@ -262,7 +262,7 @@ public class IdentitySettingsControllerTests
 
         IActionResult result = await _controller.UpsertUserSetting(request, CancellationToken.None);
 
-        ObjectResult problem = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult problem = result.Should().BeAssignableTo<ObjectResult>().Subject;
         problem.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
     }
 
@@ -290,7 +290,7 @@ public class IdentitySettingsControllerTests
     {
         IActionResult result = await _controller.DeleteUserSetting("system.key", CancellationToken.None);
 
-        result.Should().BeOfType<ObjectResult>().Which
+        result.Should().BeAssignableTo<ObjectResult>().Which
             .StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
     }
 
@@ -302,7 +302,7 @@ public class IdentitySettingsControllerTests
 
         IActionResult result = await _controller.DeleteUserSetting("custom.key", CancellationToken.None);
 
-        ObjectResult problem = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult problem = result.Should().BeAssignableTo<ObjectResult>().Subject;
         problem.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
     }
 

@@ -7,9 +7,9 @@
   // service-account consumer reaches the BFF handler graph — and an unlisted
   // entry emits no .d.ts at all.
   //
-  // This package is the ONE workspace member with its own typescript pin:
-  // `catalog:tooling-tsc6` (6.0.3), against the workspace's `tooling` catalog
-  // (7.0.2). The reason is the SDK's OpenAPI codegen — @hey-api/openapi-ts
+  // This package (with packages/api-errors, which runs the same generator) has
+  // its own typescript pin: `catalog:tooling-tsc6` (6.0.3), against the
+  // workspace's `tooling` catalog (7.0.2). The reason is the OpenAPI codegen — @hey-api/openapi-ts
   // builds the client by constructing AST nodes with the JS COMPILER API, which
   // the native 7.x compiler does not ship, so merely importing
   // openapi-ts.config.ts throws on 7.x. `generate` and the specs that import

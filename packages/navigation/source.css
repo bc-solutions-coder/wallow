@@ -1,0 +1,6 @@
+@source "./src/**/*.tsx";
+@source "./src/**/*.ts";
+@source "./dist/**/*.js";
+@source not "./src/**/*.test.tsx";
+@source not "./src/**/*.test.ts";
+@source not "./src/**/*.fixtures.tsx";

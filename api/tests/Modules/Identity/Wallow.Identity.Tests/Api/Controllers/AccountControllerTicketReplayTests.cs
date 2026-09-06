@@ -11,6 +11,8 @@ using Wallow.Identity.Api.Contracts.Requests;
 using Wallow.Identity.Api.Controllers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Errors;
+using Wallow.Shared.Api.Problems;
 using Wolverine;
 
 namespace Wallow.Identity.Tests.Api.Controllers;
@@ -67,7 +69,8 @@ public class AccountControllerTicketReplayTests
             Substitute.For<IMfaLockoutService>(),
             _redis,
             Substitute.For<ILogger<AccountController>>(),
-            TimeProvider.System);
+            TimeProvider.System,
+            Substitute.For<IEmailChangeRateLimiter>());
 
         _controller.ControllerContext = new ControllerContext
         {
@@ -127,9 +130,9 @@ public class AccountControllerTicketReplayTests
 
         IActionResult result = await _controller.ExchangeTicket(ticket, null);
 
-        UnauthorizedObjectResult unauthorized = result.Should().BeOfType<UnauthorizedObjectResult>().Subject;
-        string json = System.Text.Json.JsonSerializer.Serialize(unauthorized.Value);
-        json.Should().Contain("ticket_already_used");
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+        problem.Code.Should().Be(IdentityErrors.AuthTicketAlreadyUsed.Code);
     }
 
     #endregion
@@ -153,9 +156,9 @@ public class AccountControllerTicketReplayTests
 
         // Second exchange with same ticket fails
         IActionResult result2 = await _controller.ExchangeTicket(ticket, null);
-        UnauthorizedObjectResult unauthorized = result2.Should().BeOfType<UnauthorizedObjectResult>().Subject;
-        string json = System.Text.Json.JsonSerializer.Serialize(unauthorized.Value);
-        json.Should().Contain("ticket_already_used");
+        ProblemResult problem = result2.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+        problem.Code.Should().Be(IdentityErrors.AuthTicketAlreadyUsed.Code);
     }
 
     #endregion
@@ -167,9 +170,9 @@ public class AccountControllerTicketReplayTests
     {
         IActionResult result = await _controller.ExchangeTicket("completely-invalid-ticket", null);
 
-        result.Should().BeOfType<BadRequestObjectResult>();
-        string json = System.Text.Json.JsonSerializer.Serialize(((BadRequestObjectResult)result).Value);
-        json.Should().Contain("invalid_or_expired_ticket");
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+        problem.Code.Should().Be(IdentityErrors.AuthTicketInvalid.Code);
 
         // Redis should NOT have been called at all — invalid tickets are rejected before replay check
         await _redisDb.DidNotReceive().StringSetAsync(

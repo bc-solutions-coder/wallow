@@ -37,11 +37,16 @@ public class OrganizationClientsController(
     IOrganizationAccessPolicy accessPolicy,
     IOptions<ForkBrandingOptions> forkBranding) : ControllerBase
 {
-    private const string RedirectUrisField = "redirectUris";
-    private const string PostLogoutRedirectUrisField = "postLogoutRedirectUris";
-    private const string BackchannelLogoutUriField = "backchannelLogoutUri";
-    private const string ScopesField = "scopes";
-    private const string RefreshTokenLifetimeField = "refreshTokenLifetime";
+    // ModelState keys name request members; the problem contract camelCases each dot segment on the wire.
+    private const string RedirectUrisField = nameof(RegisterOrganizationClientRequest.RedirectUris);
+    private const string PostLogoutRedirectUrisField = nameof(RegisterOrganizationClientRequest.PostLogoutRedirectUris);
+    private const string BackchannelLogoutUriField = nameof(RegisterOrganizationClientRequest.BackchannelLogoutUri);
+    private const string ScopesField = nameof(RegisterOrganizationClientRequest.Scopes);
+    private const string RefreshTokenLifetimeField = nameof(RegisterOrganizationClientRequest.RefreshTokenLifetime);
+    private const string BrandingDisplayNameField =
+        nameof(RegisterOrganizationClientRequest.Branding) + "." + nameof(RegisterOrganizationClientBranding.DisplayName);
+    private const string BrandingTaglineField =
+        nameof(RegisterOrganizationClientRequest.Branding) + "." + nameof(RegisterOrganizationClientBranding.Tagline);
 
     /// <summary>
     /// Register a developer application or a service account for the organization. The response
@@ -51,7 +56,7 @@ public class OrganizationClientsController(
     [HasPermission(PermissionType.OrganizationClientsManage)]
     [EnableRateLimiting("registration")]
     [ProducesResponseType(typeof(OrganizationClientRegistrationResponse), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     public async Task<ActionResult<OrganizationClientRegistrationResponse>> Register(
@@ -179,7 +184,7 @@ public class OrganizationClientsController(
     [EnableRateLimiting("registration")]
     [HasPermission(PermissionType.OrganizationClientsManage)]
     [ProducesResponseType(typeof(OrganizationClientResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     public async Task<ActionResult<OrganizationClientResponse>> Update(
@@ -384,19 +389,19 @@ public class OrganizationClientsController(
 
         if (displayName is { Length: > 200 })
         {
-            ModelState.AddModelError("branding.displayName", "Display name must be at most 200 characters.");
+            ModelState.AddModelError(BrandingDisplayNameField, "Display name must be at most 200 characters.");
         }
 
         if (tagline is { Length: > 500 })
         {
-            ModelState.AddModelError("branding.tagline", "Tagline must be at most 500 characters.");
+            ModelState.AddModelError(BrandingTaglineField, "Tagline must be at most 500 characters.");
         }
 
         string effectiveDisplayName = displayName ?? request.Name?.Trim() ?? string.Empty;
         if (effectiveDisplayName.Length > 0 && forkBranding.Value.IsReservedDisplayName(effectiveDisplayName))
         {
             ModelState.AddModelError(
-                "branding.displayName",
+                BrandingDisplayNameField,
                 $"'{forkBranding.Value.AppName}' is reserved for the platform itself.");
         }
 

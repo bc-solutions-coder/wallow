@@ -6,6 +6,8 @@ using Wallow.Identity.Api.Contracts.Responses;
 using Wallow.Identity.Api.Controllers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Errors;
+using Wallow.Shared.Api.Problems;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 
@@ -247,14 +249,16 @@ public class InvitationsControllerTests
     }
 
     [Fact]
-    public async Task Verify_WhenNotFound_ReturnsNotFound()
+    public async Task Verify_WhenNotFound_AnswersNotFoundProblem()
     {
         _invitationService.GetInvitationByTokenAsync("invalid-token", Arg.Any<CancellationToken>())
             .Returns((Invitation?)null);
 
         ActionResult<InvitationResponse> result = await _controller.Verify("invalid-token", CancellationToken.None);
 
-        result.Result.Should().BeOfType<NotFoundResult>();
+        ProblemResult problem = result.Result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status404NotFound);
+        problem.Code.Should().Be(IdentityErrors.InvitationNotFound.Code);
     }
 
     [Fact]

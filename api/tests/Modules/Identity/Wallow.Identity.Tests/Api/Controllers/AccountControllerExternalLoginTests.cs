@@ -12,6 +12,8 @@ using StackExchange.Redis;
 using Wallow.Identity.Api.Controllers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Errors;
+using Wallow.Shared.Api.Problems;
 using Wolverine;
 
 namespace Wallow.Identity.Tests.Api.Controllers;
@@ -75,7 +77,8 @@ public class AccountControllerExternalLoginTests
             Substitute.For<IMfaLockoutService>(),
             Substitute.For<IConnectionMultiplexer>(),
             Substitute.For<ILogger<AccountController>>(),
-            TimeProvider.System);
+            TimeProvider.System,
+            Substitute.For<IEmailChangeRateLimiter>());
 
         // Set up HttpContext with a mock auth service so SignOutAsync works
         DefaultHttpContext httpContext = new();
@@ -120,22 +123,26 @@ public class AccountControllerExternalLoginTests
     }
 
     [Fact]
-    public async Task ExternalLogin_WithEmptyProvider_ReturnsBadRequest()
+    public async Task ExternalLogin_WithEmptyProvider_AnswersProviderRequired()
     {
         IActionResult result = await _controller.ExternalLogin("", "http://localhost:5002");
 
-        result.Should().BeOfType<BadRequestObjectResult>();
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        problem.Code.Should().Be(IdentityErrors.AuthProviderRequired.Code);
     }
 
     [Fact]
-    public async Task ExternalLogin_WithUnregisteredProvider_ReturnsBadRequest()
+    public async Task ExternalLogin_WithUnregisteredProvider_AnswersProviderUnsupported()
     {
         _authSchemeProvider.GetSchemeAsync("FakeProvider")
             .Returns((AuthenticationScheme?)null);
 
         IActionResult result = await _controller.ExternalLogin("FakeProvider", "http://localhost:5002");
 
-        result.Should().BeOfType<BadRequestObjectResult>();
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        problem.Code.Should().Be(IdentityErrors.AuthProviderUnsupported.Code);
     }
 
     [Fact]
@@ -312,7 +319,7 @@ public class AccountControllerExternalLoginTests
 
         IActionResult loginResult = await _controller.ExternalLogin(providers[0], "http://localhost:5002");
 
-        loginResult.Should().NotBeOfType<BadRequestObjectResult>();
+        loginResult.Should().NotBeOfType<ProblemResult>();
     }
 
     #region ExternalLoginCallback - MFA Enforcement

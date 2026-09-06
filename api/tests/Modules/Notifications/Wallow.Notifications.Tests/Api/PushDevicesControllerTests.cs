@@ -47,7 +47,7 @@ public class PushDevicesControllerTests
         RegisterDeviceRequest request = new(PushPlatform.Fcm, "device-token");
         IActionResult response = await _controller.RegisterDevice(request, CancellationToken.None);
 
-        ObjectResult problemResult = response.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult problemResult = response.Should().BeAssignableTo<ObjectResult>().Subject;
         problemResult.StatusCode.Should().Be(401);
     }
 
@@ -70,7 +70,7 @@ public class PushDevicesControllerTests
 
         IActionResult response = await _controller.DeregisterDevice(Guid.NewGuid(), CancellationToken.None);
 
-        ObjectResult problemResult = response.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult problemResult = response.Should().BeAssignableTo<ObjectResult>().Subject;
         problemResult.StatusCode.Should().Be(401);
     }
 
@@ -99,7 +99,7 @@ public class PushDevicesControllerTests
 
         IActionResult response = await _controller.GetUserDevices(CancellationToken.None);
 
-        ObjectResult problemResult = response.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult problemResult = response.Should().BeAssignableTo<ObjectResult>().Subject;
         problemResult.StatusCode.Should().Be(401);
     }
 
@@ -124,7 +124,7 @@ public class PushDevicesControllerTests
         SendPushRequest request = new(Guid.NewGuid(), "Title", "Body", "Alert");
         IActionResult response = await _controller.SendPush(request, CancellationToken.None);
 
-        ObjectResult problemResult = response.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult problemResult = response.Should().BeAssignableTo<ObjectResult>().Subject;
         problemResult.StatusCode.Should().Be(401);
     }
 
@@ -139,7 +139,7 @@ public class PushDevicesControllerTests
         RegisterDeviceRequest request = new(PushPlatform.Fcm, "device-token");
         IActionResult response = await _controller.RegisterDevice(request, CancellationToken.None);
 
-        ObjectResult problemResult = response.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult problemResult = response.Should().BeAssignableTo<ObjectResult>().Subject;
         problemResult.StatusCode.Should().Be(404);
     }
 
@@ -153,7 +153,7 @@ public class PushDevicesControllerTests
 
         IActionResult response = await _controller.DeregisterDevice(Guid.NewGuid(), CancellationToken.None);
 
-        ObjectResult problemResult = response.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult problemResult = response.Should().BeAssignableTo<ObjectResult>().Subject;
         problemResult.StatusCode.Should().Be(404);
     }
 
@@ -168,7 +168,7 @@ public class PushDevicesControllerTests
 
         IActionResult response = await _controller.GetUserDevices(CancellationToken.None);
 
-        ObjectResult problemResult = response.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult problemResult = response.Should().BeAssignableTo<ObjectResult>().Subject;
         problemResult.StatusCode.Should().Be(404);
     }
 
@@ -183,7 +183,7 @@ public class PushDevicesControllerTests
         SendPushRequest request = new(Guid.NewGuid(), "Title", "Body", "Alert");
         IActionResult response = await _controller.SendPush(request, CancellationToken.None);
 
-        ObjectResult problemResult = response.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult problemResult = response.Should().BeAssignableTo<ObjectResult>().Subject;
         problemResult.StatusCode.Should().Be(404);
     }
 }

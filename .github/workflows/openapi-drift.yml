@@ -76,5 +76,6 @@ jobs:
           echo "::error::  cd docker && docker compose up -d"
           echo "::error::  dotnet run --project api/src/Wallow.Api"
           echo "::error::  WALLOW_OPENAPI_URL=http://localhost:5001/openapi/v1.json pnpm --filter @bc-solutions-coder/sdk exec tsx scripts/generate.ts"
-          echo "::error::  git add packages/sdk/openapi packages/sdk/src/generated && git commit"
+          echo "::error::  pnpm --filter @bc-solutions-coder/api-errors generate"
+          echo "::error::  git add packages/sdk/openapi packages/sdk/src/generated packages/api-errors/src/generated && git commit"
           exit 1

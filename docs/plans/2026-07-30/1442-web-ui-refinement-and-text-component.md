@@ -1,3 +1,5 @@
+> Historical plan. Failure-handling passages link to the current spec and their original Git revision.
+
 # App-Level UI Refinement — `Text`, Dark Mode, and Catalog-Only App Surfaces
 
 **status: active**
@@ -443,9 +445,7 @@ focused row navigates.
 on — across `AppList`, `InquiryList`, `OrganizationList`, `MemberList`, `ProfileSection`,
 `OrganizationDetail`, and `MfaSettingsSection`.
 
-Render `ErrorBanner` with `errorText(error, "<fallback>")` from `src/lib/error-text.ts`. New
-testids follow `{page}-{element}`: `apps-error`, `inquiries-error`, `organizations-error`,
-`organization-members-error`, `settings-profile-error`, `organization-detail-error`.
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-07-30/1442-web-ui-refinement-and-text-component.md).
 
 **Acceptance:** per list, a test that a rejected query renders the error banner and **not** the
 empty state; a test that a successful empty response still renders the empty state; a test that

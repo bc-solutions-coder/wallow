@@ -56,8 +56,18 @@ usually goes here too; full rationale in the config's comment.
 
 Beyond the `index.ts` barrel / `api.ts` seam / `components/` template, several features carry a
 **`*-result.ts`** module (`auth-result.ts`, `challenge-result.ts`, …): pure-function narrowing
-from API response to screen outcome (next step, redirect, error code), no React, usable by both
-the component and a node spec. Put that logic there, not inside a component.
+from a SUCCESS body to a screen outcome (next step, redirect), the pre-call blank-input guards,
+and the feature's call-site `messages` registry — no React, usable by both the component and a
+node spec. Put that logic there, not inside a component.
+
+**Failures are the model's, not the feature's.** This app depends on `api-errors` (never the
+SDK's error surface): the fetch layer turns every rejection into an `ApiFailure` via
+`failureFromResponse`, and a screen keeps the raw rejection as state and words it with
+`useFailureMessage` — call-site `messages` only where the sentence depends on the screen (which
+MFA mode, the password-mismatch echo), the ONE app registry (`src/shared/lib/failure-messages.ts`,
+mounted in `__root.tsx`) for app-wide wording, the catalog's `detail` or status copy for the rest.
+A feature's only code-to-sentence table is that call-site `messages` registry; none reads
+`error`/`code` off a body or narrows a rejection by `instanceof`.
 
 `returnUrl` handling is shared: `src/shared/lib/return-url.ts` owns the ONE decision function,
 `decideReturnUrl(returnUrl, mode)` — modes `refuse-empty` (mount guards), `empty-ok` (the

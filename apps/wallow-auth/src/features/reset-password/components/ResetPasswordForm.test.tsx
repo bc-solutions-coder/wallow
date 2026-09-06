@@ -26,8 +26,31 @@ const ENDPOINT = "/v1/identity/auth/reset-password";
 /** The 200 body: `AccountOperationResponse` — `{ succeeded: true }`, nothing more. */
 const SUCCESS_BODY = { succeeded: true };
 
-/** The real 400 body: both of this endpoint's failure returns write exactly this. */
-const INVALID_TOKEN_BODY = { succeeded: false, error: "invalid_token" };
+/** The 400 problem a bad or spent token answers with. */
+const INVALID_TOKEN_BODY = {
+  type: "about:blank",
+  title: "Unknown error",
+  status: 400,
+  code: "Auth.TokenInvalid",
+  detail: "The token is invalid.",
+};
+
+/** The 400 problem a password the policy refuses answers with: the policy's own sentence. */
+const WEAK_PASSWORD_BODY = {
+  type: "about:blank",
+  title: "Unknown error",
+  status: 400,
+  code: "Validation.Failed",
+  detail: "Passwords must have at least one digit ('0'-'9').",
+};
+
+/** A 400 problem for a code nobody wrote a sentence for, with no detail. */
+const UNKNOWN_CODE_BODY = {
+  type: "about:blank",
+  title: "Unknown error",
+  status: 400,
+  code: "Auth.SomeFutureCode",
+};
 
 const BAD_REQUEST = 400;
 const SERVER_ERROR = 500;
@@ -235,8 +258,8 @@ describe("ResetPasswordForm", () => {
 
   it("requires a new password before calling the endpoint", async () => {
     // The check is deliberately local: an empty password that POSTed would come
-    // back 400 invalid_token, telling the user their *link* expired when in fact
-    // they typed nothing.
+    // back a 400 from the password policy, blaming a policy the user never got
+    // as far as, when in fact they typed nothing.
     const user = userEvent.setup();
     renderForm();
 
@@ -266,10 +289,21 @@ describe("ResetPasswordForm", () => {
     expect(mocks.navigate).not.toHaveBeenCalled();
   });
 
-  it("falls back to the generic message for a non-400 failure", async () => {
-    // The empty body is deliberate: a server fault carries no problem details of
-    // its own, so nothing but the status is available to narrow on.
-    harness.rejectJson({}, SERVER_ERROR);
+  it("reads the policy's own sentence for a password it refuses, not the bad-link one", async () => {
+    harness.rejectJson(WEAK_PASSWORD_BODY, BAD_REQUEST);
+    const user = userEvent.setup();
+    renderForm();
+
+    await submitPasswords(user, "password");
+
+    const error = page.getByTestId("reset-password-error");
+    await expect.element(error).toHaveTextContent(/at least one digit/iu);
+    await expect.element(error).not.toHaveTextContent(/expired/iu);
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+
+  it("falls back to this screen's message for a code it has never heard of", async () => {
+    harness.rejectJson(UNKNOWN_CODE_BODY, BAD_REQUEST);
     const user = userEvent.setup();
     renderForm();
 
@@ -280,7 +314,21 @@ describe("ResetPasswordForm", () => {
     await expect.element(error).not.toHaveTextContent(/expired/iu);
   });
 
-  it("shows the generic message when the request fails without a status", async () => {
+  it("reads the model's server-fault copy for a 5xx, not a bad-link sentence", async () => {
+    // A server fault is not an expired link, and must not send the user for a
+    // new one.
+    harness.rejectJson({}, SERVER_ERROR);
+    const user = userEvent.setup();
+    renderForm();
+
+    await submitPasswords(user);
+
+    const error = page.getByTestId("reset-password-error");
+    await expect.element(error).toHaveTextContent(/something went wrong on our side/iu);
+    await expect.element(error).not.toHaveTextContent(/expired/iu);
+  });
+
+  it("tells the user the server is unreachable when the request never lands", async () => {
     // A network-level rejection has no status anywhere: the transport throws
     // before a response exists, so the narrowing must not assume one.
     harness.respond(() => {
@@ -293,12 +341,11 @@ describe("ResetPasswordForm", () => {
 
     await expect
       .element(page.getByTestId("reset-password-error"))
-      .toHaveTextContent(/failed to reset password/iu);
+      .toHaveTextContent(/unable to reach the server/iu);
   });
 
   it("never leaks the raw rejection into the page", async () => {
-    // The seam hands the screen `title: "Unknown error"` for a body with no
-    // problem details; neither that nor the machine token may reach the page.
+    // Neither the reason phrase nor the machine code may reach the page.
     harness.rejectJson(INVALID_TOKEN_BODY, BAD_REQUEST);
     const user = userEvent.setup();
     renderForm();
@@ -307,7 +354,7 @@ describe("ResetPasswordForm", () => {
 
     await expect.element(page.getByTestId("reset-password-error")).toBeInTheDocument();
     expect(page.getByText(/unknown error/iu).query()).toBeNull();
-    expect(page.getByText(/invalid_token/u).query()).toBeNull();
+    expect(page.getByText(/Auth\.TokenInvalid/u).query()).toBeNull();
   });
 
   it("clears a previous error when the next attempt succeeds", async () => {

@@ -50,7 +50,7 @@ export function SignOut(props: { showLabel: boolean }) {
   }
 
   return (
-    <div className="px-4 py-4 border-t border-sidebar-accent">
+    <div>
       <button
         type="button"
         data-testid="dashboard-logout-link"

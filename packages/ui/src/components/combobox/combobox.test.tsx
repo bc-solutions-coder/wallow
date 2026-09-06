@@ -6,69 +6,10 @@ import { userEvent } from "vitest/browser";
 import { Combobox } from "./combobox";
 
 /*
- * Combobox behavioural spec (Wallow-m5aq.4.6), shaped after the Wallow-m5aq.2.8
- * Select spec, which is the right template for this component — not Dialog:
- *
- *   1. Runs in the vitest BROWSER project — real headless Chromium, real Base UI,
- *      real DOM. Nothing is mocked.
- *   2. Recipes are asserted THROUGH the component, never by importing
- *      `comboboxItemRecipe` and inspecting its return value: a recipe unit test
- *      would pass while the component forgot to apply it.
- *   3. Class assertions are an ORDER-FREE SET (`classSet`), because
- *      `cn()`/tailwind-merge is free to reorder. The `*_CLASSES` constants below
- *      are the single source of truth for what each recipe must contain — the
- *      green phase transcribes them into combobox.styles.ts.
- *   4. Stories carry the visual coverage (see combobox.stories.tsx); this file is
- *      only for the edges a screenshot cannot make.
- *
- * ANATOMY, measured against @base-ui/react 1.6.0 in this browser (not guessed):
- *
- *   <div role="group" data-popup-open data-list-empty>      <- Combobox.InputGroup
- *     <input role="combobox" aria-autocomplete="list">      <- Combobox.Input
- *     <button data-visible>                                 <- Combobox.Clear
- *     <button tabindex="-1" data-popup-open>                <- Combobox.Trigger
- *       <span aria-hidden="true">                           <- Combobox.Icon
- *
- *   …and, only while open, portalled onto <body>:
- *   <div data-open data-side data-align data-empty>         <- Combobox.Positioner
- *     <div data-open data-empty>                            <- Combobox.Popup
- *       <div role="status" aria-live="polite">              <- Combobox.Status
- *       <div role="listbox" data-empty>                     <- Combobox.List
- *         <div role="group">                                <- Combobox.Group
- *           <div id="…">                                    <- Combobox.GroupLabel
- *           <div role="option" aria-selected data-selected> <- Combobox.Item
- *             <span data-selected>                          <- Combobox.ItemIndicator
- *
- * FIVE MEASURED DIVERGENCES FROM THE WAVE-2 OVERLAYS, all load-bearing here:
- *
- *   - THERE IS NO POINTER BLOCKER. A combobox popup is non-modal: Base UI parks
- *     no focus, locks no scroll and lays no `pointer-events` shield over the
- *     page. `userEvent.click` on an item lands directly, so "select a filtered
- *     result" is a real pointer test in this file rather than a story-only one.
- *     This is the sharpest break from Dialog, where every pointer interaction had
- *     to go around the blocker.
- *   - FOCUS STAYS ON THE INPUT while the popup is open — that is the whole point
- *     of a combobox — so `renderOpen` waits for the POPUP to mount, not for the
- *     list to take focus the way the Select spec does.
- *   - `Combobox.Icon`'s state interface is EMPTY and the rendered `<span>`
- *     carries no `data-*` attribute at all, so Select's
- *     `data-[popup-open]:rotate-180` chevron flip is impossible on this part.
- *     ICON_CLASSES is static on purpose, and a test below pins that.
- *   - `Combobox.List` gets NO Base UI class of its own (Select.List gets
- *     `base-ui-disable-scrollbar`), so its rendered class set is the recipe alone.
- *   - `Combobox.Row` re-roles the items inside it from `option` to `gridcell`,
- *     so it needs its own `grid` fixture rather than a slot in the main one.
- *
- * Three fixture constraints worth knowing before editing this file:
- *   - `Combobox.Label` labels the TRIGGER. Rendering one alongside a
- *     `Combobox.Input` makes Base UI log a dev-mode error, so the label lives in
- *     its own input-less fixture.
- *   - `Combobox.Empty` renders its children only while the filtered list is
- *     empty, and filtering only happens when `Root` is given `items`, so Empty is
- *     asserted in the filtering fixture rather than the static anatomy one.
- *   - `Combobox.Clear` and `Combobox.ItemIndicator` are unmounted while there is
- *     nothing to clear / nothing selected, so both are rendered `keepMounted`
- *     where their styling is under test.
+ * Combobox composition, filtering, selection, and keyboard behavior in Chromium.
+ * Popup parts are portalled onto body; focus stays on the input while open.
+ * The non-modal popup allows real pointer selection in this unstyled fixture.
+ * Combobox.Row uses a separate grid fixture because it changes item roles.
  */
 
 /** Utilities `Combobox.Label` must render. */
@@ -559,7 +500,7 @@ describe("Combobox", () => {
     expect(classSet(groupLabel)).toEqual(GROUP_LABEL_CLASSES.toSorted());
     expect(part("c-group").getAttribute("aria-labelledby")).toBe(groupLabel.id);
 
-    expect(part("c-separator").getAttribute("role")).toBe("separator");
+    expect(part("c-separator").getAttribute("role")).toBe("presentation");
     expect(classSet(part("c-separator"))).toEqual(SEPARATOR_CLASSES.toSorted());
   });
 

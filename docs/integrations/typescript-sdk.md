@@ -1,5 +1,9 @@
 # TypeScript SDK Integration Guide
 
+For an app in another repository, start with [Connect an external app](external-app.md).
+This reference describes the current checkout; verify package availability before using
+its APIs with an older published SDK.
+
 This guide explains how to consume Wallow from a TypeScript frontend using the
 `@bc-solutions-coder/sdk` package. The SDK ships a **browser
 client** for calling Wallow APIs from the page, and a **server (BFF) tunnel**
@@ -23,10 +27,10 @@ you.
 | `@bc-solutions-coder/sdk/server/passthrough` | Server (Node)                                       | `createApiPassthrough()` — a pure reverse proxy that owns no session and forwards the upstream response verbatim. Its own subpath so a passthrough-only app never pulls `openid-client` into its server bundle                                                                                       |
 | `@bc-solutions-coder/sdk/query`              | Browser                                             | The TanStack Query layer — a generated `{op}Options()` / `{op}QueryKey()` / `{op}Mutation()` trio per OpenAPI operation, plus the curated invalidation predicates `queriesForOperation()` and `queriesWithTag()`                                                                                     |
 
-The browser never holds an access token. It holds only a sealed, `httpOnly`
-session cookie. The BFF exchanges the authorization code, stores the token set
-inside that sealed cookie, and attaches the `Authorization: Bearer` header when
-it proxies calls to the Wallow API.
+With production Valkey sessions, tokens stay on the server and the browser holds
+only a sealed session identifier in an HttpOnly cookie. The development cookie store
+instead seals the token set into the cookie, unreadable by browser JavaScript. The
+BFF exchanges authorization codes and attaches bearer tokens to upstream API calls.
 
 ```mermaid
 sequenceDiagram
@@ -71,8 +75,12 @@ origin:
 | ------------------------ | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Redirect URI             | `https://app.example.com/bff/callback`             | Where the authorization code lands; must match `OIDC_REDIRECT_URI` exactly                                                                                     |
 | Post-logout redirect URI | `https://app.example.com/`                         | Where the browser lands after signing out                                                                                                                       |
-| Front-channel logout URI | `https://app.example.com/bff/frontchannel-logout`  | Browser-delivered sign-out when the user's Wallow session ends in another app's tab                                                                             |
 | Back-channel logout URI  | `https://app.example.com/bff/backchannel-logout`   | Server-to-server sign-out — the delivery that works with no browser open. Must be reachable **from the identity server** ([details](#receiving-back-channel-logout)) |
+
+Supply the post-logout redirect URI even though the form permits leaving it blank;
+the SDK requires it. The org registration form supports back-channel logout, not
+front-channel logout registration. Users also need membership or enrollment in the
+application's organization, which defaults to invite-only.
 
 Keep `offline_access` among the requested scopes — without it no refresh token is
 issued and the session dies with its first access token.
@@ -90,10 +98,11 @@ under [Installation](#installation)):
 ```bash
 echo "@bc-solutions-coder:registry=https://npm.pkg.github.com" >> .npmrc
 npm config set "//npm.pkg.github.com/:_authToken" "$GITHUB_TOKEN"
-npm install @bc-solutions-coder/sdk redis
+npm install @bc-solutions-coder/sdk @bc-solutions-coder/api-errors 'redis@^4.7.0'
 ```
 
-`redis` is the SDK's optional peer for [server-side sessions](#session-stores) —
+`@bc-solutions-coder/api-errors` is the failure model every SDK rejection is an
+instance of — see [Error handling](#error-handling-and-resilience). `redis` is the SDK's optional peer for [server-side sessions](#session-stores) —
 optional locally, required in production (step 5).
 
 ### 3. Paste the reveal
@@ -181,17 +190,9 @@ Keep the credential out of that file and in your **user-level** config instead:
 npm config set "//npm.pkg.github.com/:_authToken" "$GITHUB_TOKEN"   # or: pnpm config set …
 ```
 
-> **Why not a token line in the project `.npmrc`?** A committed `.npmrc` could
-> be edited to redirect the registry, which would hand your token to whoever
-> controls it — so pnpm refuses to expand `${GITHUB_TOKEN}` from a project file
-> and warns instead. The `pnpm config set` above writes to `~/.npmrc`, which
-> both npm and pnpm honour. In CI, use `actions/setup-node` with
-> `registry-url: https://npm.pkg.github.com` and a `NODE_AUTH_TOKEN` env var; it
-> writes a user-level `.npmrc` for you.
-
-> **Scope note:** GitHub Packages resolves scoped packages against the
-> publishing organization, so the token — a personal access token or CI token —
-> needs `read:packages` on that organization.
+> **Access:** Both the SDK and its API-errors dependency need to be readable.
+> Grant the consuming repository access to both packages for GitHub Actions. See
+> [external package access](external-app.md#grant-package-access-to-the-consuming-repository).
 
 In a **Docker build**, the token crosses into the build the same way: as a
 **build secret**, never a build `ARG` or an `ENV` — both bake the token into the
@@ -212,7 +213,7 @@ docker build --secret id=npm_token,env=GITHUB_TOKEN .
 Then install:
 
 ```bash
-npm install @bc-solutions-coder/sdk
+npm install @bc-solutions-coder/sdk @bc-solutions-coder/api-errors
 ```
 
 That is the whole install. The server entry has no host-framework dependency —
@@ -227,7 +228,9 @@ nothing in the package imports it.
 
 `packages/sdk/openapi/v1.json` and `packages/sdk/src/generated/**` are build
 artefacts of the backend contract, and CI keeps them honest without anyone having
-to remember to regenerate them.
+to remember to regenerate them. `packages/api-errors/src/generated/**` (the
+`ErrorCode` catalogue) is generated from the same snapshot, and `pnpm check:generated`
+inside `pnpm check` fails when either generated directory no longer matches it.
 
 Both halves read the contract the same way — from the document
 `Wallow.Api` emits at build time, via the shared
@@ -236,10 +239,11 @@ about what changed:
 
 - **On a pull request**, `openapi-drift.yml` fails if the committed snapshot no
   longer matches the contract, and prints the commands to refresh it.
-- **On `main`**, `openapi-autoregen.yml` regenerates the snapshot and the typed
-  client and opens a pull request titled
-  `feat(sdk): regenerate OpenAPI snapshot and typed client`. Merging that PR
-  feeds release-please, which bumps `@bc-solutions-coder/sdk` and lets you cut an
+- **On `main`**, `openapi-autoregen.yml` regenerates the snapshot, the typed
+  client and the `api-errors` catalogue and opens a pull request titled
+  `feat(sdk): regenerate OpenAPI snapshot and generated output`. Merging that PR
+  feeds release-please, which bumps `@bc-solutions-coder/sdk` (and
+  `@bc-solutions-coder/api-errors` when its catalogue moved) and lets you cut an
   `sdk-v*` tag as below.
 
 The automated PR is byte-identical to what a manual refresh against a running API
@@ -261,7 +265,7 @@ evaluated and rejected, not overlooked:
 - **If validation is ever wanted, it belongs on the Node side of the BFF proxy**
   (`@bc-solutions-coder/sdk/server`), where the proxy talks to the real API:
   zero bundle cost for end users, and a validation failure can become a proper
-  502 / `WallowError` at the actual trust boundary instead of a thrown
+  502 / `ApiFailure` at the actual trust boundary instead of a thrown
   `ZodError` on an HTTP 200.
 
 Anyone revisiting this must first close two **known fidelity gaps** between the
@@ -294,26 +298,28 @@ publish the SDK.
 Independently is not manually, though. release-please owns the SDK's version number too, as its
 own manifest component: merging the SDK's Release PR is what bumps `packages/sdk/package.json` and
 creates the `sdk-vX.Y.Z` tag that then triggers the publish below. See
-[the SDK's two release stages](../operations/versioning.md#the-sdk-releases-in-two-stages).
+[a published package's two release stages](../operations/versioning.md#a-published-package-releases-in-two-stages).
 
-Publish a new SDK version in one of two ways:
+Set `SDK_VERSION` to the version selected by release-please. Publish that SDK version
+in one of two ways:
 
-- **Push an `sdk-v<version>` tag** — the `sdk-publish` workflow strips the
-  `sdk-v` prefix and publishes that version:
+- **Push an `sdk-v<version>` tag** — the `package-publish` workflow reads the
+  package (`sdk`) and the version off the tag and publishes that version:
 
   ```bash
-  git tag sdk-v0.1.0
-  git push origin sdk-v0.1.0
+  git tag "sdk-v${SDK_VERSION}"
+  git push origin "sdk-v${SDK_VERSION}"
   ```
 
-- **Run the `sdk-publish` workflow manually** from the Actions tab (or via
-  `gh workflow run sdk-publish.yml -f version=0.1.0`), providing the version
-  (no leading `v`) as the required `version` input.
+- **Run the `package-publish` workflow manually** from the Actions tab (or via
+  `gh workflow run package-publish.yml -f package=sdk -f version="$SDK_VERSION"`),
+  providing the package and the version (no leading `v`).
 
-Either path installs, tests, and builds the SDK, syncs `package.json` to the
+Either path installs, tests, and builds the package, syncs its `package.json` to the
 requested version, and publishes to GitHub Packages. The SDK version is chosen
 independently and has no relationship to the platform `vX.Y.Z` release-please
-versions.
+versions. `@bc-solutions-coder/api-errors` publishes the same way under
+`api-errors-v<version>` tags.
 
 ---
 
@@ -445,7 +451,7 @@ session was revoked — a logout on another application, a deactivated account �
 or the refresh token was already spent. The proxy answers it by ending the
 session exactly as a logout would: it destroys the store record, clears the
 session cookie and its CSRF companion, and returns `401` problem details with
-code `SESSION_REFRESH_FAILED`. Leaving the session in place would replay the
+code `Bff.SessionRefreshFailed`. Leaving the session in place would replay the
 same doomed refresh on every request; tearing it down turns the refusal into a
 clean re-login at the next navigation.
 
@@ -596,8 +602,9 @@ working.
 | `ValkeySessionStore` | In a Redis-compatible server; the cookie holds only an opaque sealed session id | Production — small cookies, server-side revocation, and a refresh lock that serializes concurrent token refreshes for one session |
 
 The single-argument default is `CookieSessionStore`, and that default exists so a fork runs with
-zero infrastructure. It is a **development default only**: production deployments must construct a
-`ValkeySessionStore` explicitly and pass it as the second argument. See
+zero infrastructure. It is a **development default only**: use `createWallowBffServer()` with `REDIS_URL` for production. When using the
+lower-level handlers directly, construct a shared `ValkeySessionStore` and pass it
+as the second argument to both handlers and proxy. See
 [Choosing a Session Store](bff-pattern.md#choosing-a-session-store) for the full reasoning.
 
 ```ts
@@ -636,7 +643,7 @@ already run. Three ways to get one:
 ## CSRF protection
 
 The `/api` proxy **rejects every state-changing request that does not present a
-valid CSRF token**, answering `403` with the code `CSRF_INVALID`. This is the
+valid CSRF token**, answering `403` with the code `Bff.CsrfInvalid`. This is the
 first thing to reach for when a `POST`, `PUT`, `PATCH`, or `DELETE` through the
 tunnel comes back as `403`. The gate names those four methods explicitly, so
 everything else — `GET`, `HEAD`, `OPTIONS`, and `TRACE` — passes ungated. The
@@ -695,21 +702,100 @@ const sdk = createWallowSdk({ baseUrl: "/api" });
 non-browser clients; browser code never needs it, because the cookie carries
 the same token.
 
-Server-side the header name is exported as `CSRF_HEADER` and the rejection code
-as `CSRF_INVALID_CODE`, so a BFF host can reuse them rather than hardcode
-strings.
+Server-side the header name is exported as `CSRF_HEADER`, and the rejection
+code is `ClientErrorCode.BFF_CSRF_INVALID` from `@bc-solutions-coder/api-errors`,
+so a BFF host can reuse them rather than hardcode strings.
 
 ---
 
 ## Error handling and resilience
 
-Proxy failures come back as RFC 7807 problem details
-(`content-type: application/problem+json`), so every failure carries a
-machine-readable `code` alongside its status. On the server, `WallowError`
-(`status`, `code`, `title`, `detail`) is the SDK's error type and
-`parseProblemDetails(response, bodyText)` converts an upstream body into one,
-falling back to `UNKNOWN_ERROR_CODE` when the body is not problem details.
-`redact(value)` masks secrets as `REDACTED` for safe logging.
+Every failure the SDK raises — a rejected generated operation in the browser, a
+proxy or passthrough fault on the server, a service-client call that was refused —
+is an `ApiFailure` from `@bc-solutions-coder/api-errors`: `status`, a machine
+`code`, `title`, an optional `detail`, `fieldErrors`, `retryAfter`, and the two
+correlation members `requestId` and `traceId`. The SDK has no error type of its
+own; install `api-errors` next to it and match with `isApiFailure`, which tests a
+brand rather than the constructor so it holds across bundle boundaries.
+
+The BFF and the API both answer RFC 7807 problem details
+(`content-type: application/problem+json`) with a top-level `code`, and the
+package parses any body into a failure: a problem keeps its code, a bare OAuth
+`{ error }` body becomes `OAuth.<Error>`, and anything else is
+`Client.UnrecognizedResponse` at the response's status. A request that never
+produced a response is a `503 Transport.NetworkError`. `resolveFailureMessage`
+turns a failure into the sentence to show — a call-site override first, then the
+app's `defineFailureMessages` registry, then the copy shipped with the code
+catalogue, then a default for the status.
+
+The example relying party uses both surfaces. In the browser
+(`apps/minimal-app/src/routes/index.tsx`) a one-entry registry overrides the copy
+for a dead BFF and the page renders the resolved sentence next to the code:
+
+```ts
+import {
+  ClientErrorCode,
+  defineFailureMessages,
+  isApiFailure,
+  resolveFailureMessage,
+} from "@bc-solutions-coder/api-errors";
+
+const FAILURE_MESSAGES = defineFailureMessages({
+  [ClientErrorCode.TRANSPORT_NETWORK_ERROR]: () =>
+    "The BFF did not answer. Is the example server running?",
+});
+
+function describeFailure(error: unknown): string {
+  if (!isApiFailure(error)) {
+    return resolveFailureMessage(error, { registry: FAILURE_MESSAGES });
+  }
+  return `${resolveFailureMessage(error, { registry: FAILURE_MESSAGES })} (${error.code})`;
+}
+```
+
+On the server (`apps/minimal-app/src/lib/service-client.server.ts`) the contact
+route relays a platform failure at its own status and rethrows anything that is
+not one, so a bug in the route stays a 500:
+
+```ts
+import { isApiFailure, resolveFailureMessage } from "@bc-solutions-coder/api-errors";
+
+try {
+  const inquiry = await inquiriesSubmit({ client: service.client, body });
+  return json(HTTP_OK, { id: inquiry.id, status: "received" });
+} catch (error: unknown) {
+  if (isApiFailure(error)) {
+    return json(error.status, { error: resolveFailureMessage(error) });
+  }
+  throw error;
+}
+```
+
+The package does not need the SDK. A plain `fetch` against the proxy gets the same
+failure from `failureFromResponse` (a response that arrived) and `toApiFailure`
+(one that did not):
+
+```ts
+import { failureFromResponse, toApiFailure } from "@bc-solutions-coder/api-errors";
+
+async function getInquiry(id: string): Promise<unknown> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/v1/inquiries/${id}`, { credentials: "include" });
+  } catch (error: unknown) {
+    throw toApiFailure(error); // 503 Transport.NetworkError, the cause attached
+  }
+  if (!response.ok) {
+    throw failureFromResponse(response, await response.text());
+  }
+  return response.json();
+}
+```
+
+Two server-entry exports round this out: `RefreshFailedError` is the
+`ApiFailure` (code `Bff.SessionRefreshFailed`) the proxy raises when a session
+refresh fails terminally, and `redact(value)` masks secrets as `REDACTED` for
+safe logging.
 
 Before forwarding, `ensureFreshSession` proactively refreshes an access token
 already inside the expiry-skew window. Beyond that, the forward itself handles
@@ -719,12 +805,31 @@ the following, each retried at most once:
 | ----------------------------------------------------- | ----------------------------------------------------------------------------- |
 | `401`, or a `3xx` redirecting to the API's login page | Forces a token refresh under the store's refresh lock and replays the request |
 | `429`                                                 | Waits for `Retry-After`, bounded by `MAX_RETRY_AFTER_MS` (5s), then replays   |
-| No response within `FORWARD_TIMEOUT_MS` (30s)         | Returns `503` with code `NETWORK_TIMEOUT`                                     |
-| Transport failure                                     | Returns `503` with code `NETWORK_ERROR`                                       |
+| No response within `FORWARD_TIMEOUT_MS` (30s)         | Returns `504` with code `Transport.Timeout`                                   |
+| Transport failure                                     | Returns `503` with code `Transport.NetworkError`                              |
+
+An API failure is **relayed** byte for byte, the `errors` dictionary and `traceId` included.
+Every failure the server hop hits itself — in the `/api` proxy or the
+passthrough — is an **originated problem** written through the shared
+`problemResponse(status, code, { requestId, detail?, headers? })`: the same
+envelope (`type: "about:blank"`, `title`, `status`, `code`, a fixed `detail` per
+case, `requestId` on the body and on `x-request-id`, never a `traceId`), so the
+browser's `api-errors` parser reads it like any API problem. The transport's own
+message stays in the redacted log record, never in a body.
+
+| The hop answers itself when…                                                   | Status | `code`                     |
+| ------------------------------------------------------------------------------ | ------ | -------------------------- |
+| The path is outside `/api` (proxy) or the allowlist (passthrough), or escapes the API base | `404`  | `Http.NotFound`            |
+| There is no session cookie, or the store cannot read the one presented         | `401`  | `Bff.SessionMissing`       |
+| The refresh failed terminally (session torn down), or the freshness check faulted (session kept) | `401`  | `Bff.SessionRefreshFailed` |
+| A state-changing request carries no valid CSRF token                           | `403`  | `Bff.CsrfInvalid`          |
+| The API's login redirect survived the one replay                               | `401`  | `Auth.Unauthenticated`     |
+| The upstream could not be reached                                              | `503`  | `Transport.NetworkError`   |
+| No response within `FORWARD_TIMEOUT_MS` (30s; proxy only)                      | `504`  | `Transport.Timeout`        |
 
 A refresh that fails — the proactive one before the forward, or the forced one
 after a reactive `401` — destroys the store record, clears the session cookies,
-and answers `401` with code `SESSION_REFRESH_FAILED` (see
+and answers `401` with code `Bff.SessionRefreshFailed` (see
 [the `/api` proxy and silent refresh](#the-api-proxy-and-silent-refresh)).
 
 ---
@@ -851,7 +956,7 @@ function InquiriesList(): React.ReactElement {
 
 Operations are generated with `responseStyle: "data"` and `throwOnError: true`, so a hook's
 `data` is the response BODY — there is no `{ data, error }` envelope to unwrap — and every
-failure arrives as a thrown `WallowError` on `error`.
+failure arrives as a thrown `ApiFailure` on `error`.
 
 **Generated keys are FLAT, not hierarchical.** A key is a single-element array holding one
 object — `[{ _id, baseUrl, tags, ...args }]` — so there is no prefix that sweeps a subtree,
@@ -1066,9 +1171,9 @@ same client with a per-run port instead (`./scripts/e2e.sh`, Wallow-joo0).
 
 ## Security model
 
-- **Tokens never reach the browser.** The access token, refresh token, and
-  `id_token` live only inside the sealed session cookie, which is `httpOnly` and
-  unreadable by JavaScript. The browser holds an opaque, encrypted blob.
+- **Production tokens stay server-side.** With Valkey, the cookie contains a sealed
+  session identifier. The development cookie store instead contains encrypted tokens
+  and does not support server-side session revocation.
 - **Same-origin by design.** Serve the browser app and the BFF (`/bff/*` and
   `/api/**`) from the same origin. The session cookie is scoped to that origin,
   and every instance `createWallowSdk()` builds sends it with
@@ -1100,7 +1205,7 @@ same client with a per-run port instead (`./scripts/e2e.sh`, Wallow-joo0).
 | `invalid_client` on callback                            | `OIDC_CLIENT_ID`/`OIDC_CLIENT_SECRET` mismatch         | Confirm they match the registered (or seeded) confidential client                                                                       |
 | `redirect_uri` mismatch                                 | `OIDC_REDIRECT_URI` does not match the registered URI  | Register `http://localhost:3000/bff/callback` (or your value) and keep them identical                                                   |
 | `401` from `/api/**` after login                        | Session missing or refresh token unavailable           | Ensure `offline_access` is in the requested scopes so a refresh token is issued                                                         |
-| `403` with code `CSRF_INVALID` on POST/PUT/PATCH/DELETE | The `x-csrf-token` header is missing or stale          | Echo the `wallow_bff-csrf` cookie (or `/bff/user`'s `csrfToken`) in the `x-csrf-token` header — see [CSRF protection](#csrf-protection) |
+| `403` with code `Bff.CsrfInvalid` on POST/PUT/PATCH/DELETE | The `x-csrf-token` header is missing or stale       | Echo the `wallow_bff-csrf` cookie (or `/bff/user`'s `csrfToken`) in the `x-csrf-token` header — see [CSRF protection](#csrf-protection) |
 | Session cookie not set over plain HTTP locally          | Cookies carry `Secure` by default                      | Set `COOKIE_SECURE=false` in local development only                                                                                     |
 | `npm install` `401 Unauthorized`                        | GitHub Packages token missing or lacks `read:packages` | Add the `@bc-solutions-coder:registry` line to the project `.npmrc` and set the token with `npm config set` (see [Installation](#installation)) |
 

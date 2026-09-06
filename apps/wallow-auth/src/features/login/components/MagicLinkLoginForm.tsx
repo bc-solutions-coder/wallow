@@ -10,8 +10,6 @@ import {
   BLANK_EMAIL_MESSAGE,
   MAGIC_LINK_SENT_MESSAGE,
   magicLinkWasSent,
-  sendMagicLinkFailureMessage,
-  verifyMagicLinkFailureMessage,
 } from "../magic-link-result";
 import type { LoginPanelProps } from "../panel";
 
@@ -22,8 +20,8 @@ import type { LoginPanelProps } from "../panel";
  * :105-137, :368-400, :402-430).
  *
  * Per the contract Wallow-vec7.3.11 left on the bead, this panel owns ONLY what the
- * oracle keeps per-tab — its own field, its own mutations, its own error copy — and
- * NEVER navigates. On a verify response it calls `onAuthResult` with the RAW body
+ * oracle keeps per-tab — its own field, its own mutations, its own guard copy — and
+ * NEVER navigates or words a rejection (that goes up through `onFailure`). On a verify response it calls `onAuthResult` with the RAW body
  * and stops: the shell's single `authDispositionOf` (`../auth-result`) owns the MFA
  * branches, the open-redirect guard and the ticket exchange. Three panels
  * re-deriving that table would be three chances to disagree about where a
@@ -31,7 +29,7 @@ import type { LoginPanelProps } from "../panel";
  *
  * Testids come verbatim from the oracle: `login-magic-link-email`,
  * `login-magic-link-submit`, `login-magic-link-sent`. Errors go to the shell's ONE
- * shared `login-error` banner via `onError`.
+ * shared `login-error` banner via `onError` (guards) and `onFailure` (rejections).
  *
  * ── THE TWO HALVES OF THIS TAB ───────────────────────────────────────────────
  *
@@ -64,12 +62,10 @@ import type { LoginPanelProps } from "../panel";
 
 /**
  * RULE-FREE on purpose. The send form takes the plain-`onSubmit` escape hatch
- * rather than handing `useAppForm` the generated mutation, for `MfaChallengeForm`'s
- * two reasons: `splitServerError` reads RFC 7807 members and this endpoint answers
- * with a bare `{ succeeded, error }` body, so only `../magic-link-result` can tell
- * its rejections apart; and the blank-email guard reports into the SHELL's banner,
- * which a zod rule could not do — it would abort `handleSubmit` before the callback
- * ran. The schema is here for the value type alone.
+ * rather than handing `useAppForm` the generated mutation: both the blank-email
+ * guard and a rejection report into the SHELL's banner, which the `mutation`
+ * option could not do — it would keep the failure on this form. The schema is
+ * here for the value type alone.
  */
 const sendSchema = z.object({ email: z.string() });
 
@@ -116,6 +112,7 @@ export function MagicLinkLoginForm({
   clientId,
   onAuthResult,
   onError,
+  onFailure,
 }: MagicLinkLoginFormProps): ReactNode {
   const { sdk } = useRouteContext({ from: "__root__" });
   const queryClient = useQueryClient();
@@ -174,11 +171,9 @@ export function MagicLinkLoginForm({
         // A rejection, NOT an `onError` option: `fetchQuery` throws where
         // `mutate()` routed failure to a callback, and an uncaught rejection here
         // would leave the banner empty over a dead form.
-        (error: unknown) => {
-          onError(verifyMagicLinkFailureMessage(error));
-        },
+        onFailure,
       );
-  }, [token, onAuthResult, onError, queryClient, sdk]);
+  }, [token, onAuthResult, onError, onFailure, queryClient, sdk]);
 
   const form = useAppForm<SendValues>({
     schema: sendSchema,
@@ -208,7 +203,7 @@ export function MagicLinkLoginForm({
       } catch (error: unknown) {
         // The form deliberately stays up — the user's address may simply have been
         // mistyped, and they need somewhere to fix it.
-        onError(sendMagicLinkFailureMessage(error));
+        onFailure(error);
         return;
       }
 

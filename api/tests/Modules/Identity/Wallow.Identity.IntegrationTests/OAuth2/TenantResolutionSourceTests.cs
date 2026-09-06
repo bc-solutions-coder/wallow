@@ -94,7 +94,7 @@ public sealed class TenantResolutionSourceTests(WallowApiFactory factory)
             Guid.NewGuid(),
             TimeProvider.System);
 
-        act.Should().Throw<ForbiddenAccessException>().Which.Code.Should().Be(SharedErrors.Forbidden.Code);
+        act.Should().Throw<ForbiddenAccessException>().Which.Code.Should().Be(SharedErrors.TenantRequired.Code);
     }
 
     private static async Task<TenantContext> ResolveAsync(IEnumerable<Claim> claims)

@@ -9,6 +9,8 @@ using Wallow.Notifications.Application.Channels.InApp.DTOs;
 using Wallow.Notifications.Application.Channels.InApp.Queries.GetUnreadCount;
 using Wallow.Notifications.Application.Channels.InApp.Queries.GetUserNotifications;
 using Wallow.Shared.Api.Extensions;
+using Wallow.Shared.Api.Problems;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.Pagination;
 using Wallow.Shared.Kernel.Results;
@@ -42,7 +44,7 @@ public class NotificationsController(IMessageBus bus, ICurrentUserService curren
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
+            return this.Problem(SharedErrors.Unauthenticated);
         }
 
         Result<PagedResult<NotificationDto>> result = await bus.InvokeAsync<Result<PagedResult<NotificationDto>>>(
@@ -71,7 +73,7 @@ public class NotificationsController(IMessageBus bus, ICurrentUserService curren
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
+            return this.Problem(SharedErrors.Unauthenticated);
         }
 
         Result<int> result = await bus.InvokeAsync<Result<int>>(
@@ -93,7 +95,7 @@ public class NotificationsController(IMessageBus bus, ICurrentUserService curren
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
+            return this.Problem(SharedErrors.Unauthenticated);
         }
 
         Result result = await bus.InvokeAsync<Result>(
@@ -119,7 +121,7 @@ public class NotificationsController(IMessageBus bus, ICurrentUserService curren
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
+            return this.Problem(SharedErrors.Unauthenticated);
         }
 
         Result result = await bus.InvokeAsync<Result>(

@@ -115,6 +115,7 @@ const FACADE_EXEMPTION_FILES: readonly string[] = [
 
 /** The globs the zero-dependency packages' shared charter override covers. */
 const ZERO_DEP_CHARTER_FILES: readonly string[] = [
+  "packages/api-errors/src/**/*.ts",
   "packages/env/src/**/*.ts",
   "packages/logger/src/**/*.ts",
   "packages/utils/src/**/*.ts",
@@ -665,7 +666,7 @@ describe("the facade exemption is narrow by construction", () => {
     // and it REPLACES the root options rather than merging — so an unlisted
     // re-declaration silently unbans everything it forgot to restate. The
     // legitimate two are the facade exemption (drops one ban) and the
-    // zero-dependency packages' shared charter (adds three); anything else is a
+    // zero-dependency packages' shared charter (adds four); anything else is a
     // regression.
     expect(
       overridesRedeclaringTheRule().map(

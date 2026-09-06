@@ -1,9 +1,11 @@
 import { useMutation } from "@bc-solutions-coder/query";
+import type { MfaEnrollTotpError } from "@bc-solutions-coder/sdk";
+import { useFailureMessage } from "@bc-solutions-coder/ui";
 import { useRouteContext } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 
 import { mfaEnrollTotpMutation, mfaExchangeEnrollmentToken } from "../api";
-import { exchangeFailureMessage, startFailureMessage } from "../enroll-result";
+import { START_FAILED_MESSAGE } from "../enroll-result";
 
 export interface EnrollmentStart {
   /** The TOTP secret `enroll/totp` minted, or `null` before it has. */
@@ -57,7 +59,13 @@ export function useEnrollmentStart(
   blocked: boolean,
 ): EnrollmentStart {
   const { sdk } = useRouteContext({ from: "__root__" });
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // The raw rejection, resolved to copy through the failure model: the catalog's
+  // `detail` for a session or hand-off problem, the app registry for the expired
+  // link, `START_FAILED_MESSAGE` for anything nobody wrote a sentence for.
+  const [failure, setFailure] = useState<unknown>(null);
+  const errorMessage: string | null = useFailureMessage(failure, {
+    fallback: START_FAILED_MESSAGE,
+  });
 
   // See (3) above.
   const [exchanging, setExchanging] = useState(enrollToken !== undefined && enrollToken !== "");
@@ -74,15 +82,16 @@ export function useEnrollmentStart(
     // than derived from `error`, which would leave the dead message standing
     // above an in-flight retry for the whole request.
     onMutate: () => {
-      setErrorMessage(null);
+      setFailure(null);
     },
-    // `Error`, not `unknown`: the generated factory declares react-query's
-    // `DefaultError`, and annotating wider than that makes the spread above and
-    // this arm disagree about the mutation's error type. It is also what actually
-    // arrives — the SDK's error interceptor normalises every rejection into a
-    // `WallowError` — and `startFailureMessage` reads it as `unknown` regardless.
-    onError: (cause: Error) => {
-      setErrorMessage(startFailureMessage(cause));
+    // The factory's OWN error type, not `unknown`: every operation declares its
+    // problem responses, so the generated factory types its error as the problem
+    // union, and annotating wider than that makes the spread above and this arm
+    // disagree about the mutation's error type. What actually arrives is a
+    // `ApiFailure` — the fetch layer normalises every rejection — and
+    // `setFailure` keeps it as `unknown` for `useFailureMessage` to word.
+    onError: (cause: MfaEnrollTotpError) => {
+      setFailure(cause);
     },
   });
 
@@ -106,7 +115,7 @@ export function useEnrollmentStart(
         } catch (error: unknown) {
           // Enrolling anyway would just 401 and report a session problem when the
           // real fault is the expired link.
-          setErrorMessage(exchangeFailureMessage(error));
+          setFailure(error);
           setExchanging(false);
           return;
         }

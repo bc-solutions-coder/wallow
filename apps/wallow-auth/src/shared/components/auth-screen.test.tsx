@@ -1,3 +1,5 @@
+import { ApiFailure } from "@bc-solutions-coder/api-errors";
+import { FailureMessagesProvider } from "@bc-solutions-coder/ui";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { describe, expect, it } from "vitest";
@@ -16,6 +18,16 @@ import { AuthScreen } from "./auth-screen";
 
 /** A stand-in for whatever a screen puts in the body. */
 const BODY = "screen body";
+
+const LOCKED = 423;
+
+/** A rejected call as the fetch layer throws it: a problem with a catalog code. */
+const LOCKED_OUT = new ApiFailure({
+  status: LOCKED,
+  code: "Auth.LockedOut",
+  title: "Locked out",
+  detail: "This account is locked. Try again later.",
+});
 
 describe("AuthScreen", () => {
   it("renders the title as the card's h2", async () => {
@@ -118,5 +130,73 @@ describe("AuthScreen", () => {
     const card = container.firstElementChild as HTMLElement;
     expect([...card.classList]).toContain("space-y-4");
     expect([...card.classList]).not.toContain("space-y-6");
+  });
+
+  it("resolves a failure's sentence from its problem detail", async () => {
+    await render(
+      <AuthScreen title="Sign in" failure={LOCKED_OUT} errorTestId="login-error">
+        {BODY}
+      </AuthScreen>,
+    );
+
+    await expect
+      .element(page.getByTestId("login-error"))
+      .toHaveTextContent("This account is locked. Try again later.");
+  });
+
+  it("lets the app registry rewrite a failure's sentence", async () => {
+    await render(
+      <FailureMessagesProvider registry={{ "Auth.LockedOut": () => "Locked. Come back later." }}>
+        <AuthScreen title="Sign in" failure={LOCKED_OUT} errorTestId="login-error">
+          {BODY}
+        </AuthScreen>
+      </FailureMessagesProvider>,
+    );
+
+    await expect
+      .element(page.getByTestId("login-error"))
+      .toHaveTextContent("Locked. Come back later.");
+  });
+
+  it("lets the screen's own messages win over the registry", async () => {
+    await render(
+      <FailureMessagesProvider registry={{ "Auth.LockedOut": () => "From the registry" }}>
+        <AuthScreen
+          title="Sign in"
+          failure={LOCKED_OUT}
+          messages={{ "Auth.LockedOut": () => "From the screen" }}
+          errorTestId="login-error"
+        >
+          {BODY}
+        </AuthScreen>
+      </FailureMessagesProvider>,
+    );
+
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent("From the screen");
+  });
+
+  it("shows the string error ahead of a failure when both are given", async () => {
+    await render(
+      <AuthScreen
+        title="Sign in"
+        error="Invalid code"
+        failure={LOCKED_OUT}
+        errorTestId="login-error"
+      >
+        {BODY}
+      </AuthScreen>,
+    );
+
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent("Invalid code");
+  });
+
+  it("renders no banner when the failure is null", async () => {
+    const { container } = await render(
+      <AuthScreen title="Sign in" failure={null} errorTestId="login-error">
+        {BODY}
+      </AuthScreen>,
+    );
+
+    expect(container.querySelector('[data-testid="login-error"]')).toBeNull();
   });
 });

@@ -12,7 +12,7 @@
  * The split instead: the SHELL owns what the oracle SHARES across tabs
  * (`_activeTab`, `_errorMessage`, `_signedIn`, the enrollment banner, and
  * `HandleSuccessfulAuth`); each PANEL owns only what the oracle keeps per-tab
- * (its own fields, its own mutation, its own error switch).
+ * (its own fields, its own mutation, its own guard copy).
  *
  * A panel therefore never navigates. `magic-link/verify` and `otp/verify` hand
  * back the same `AuthResponse` shape as `login`, so a panel reports its result UP
@@ -42,4 +42,10 @@ export interface LoginPanelProps {
    * only one of it.
    */
   readonly onError: (message: string | null) => void;
+  /**
+   * Report a REJECTED call — the thrown `ApiFailure`, as-is. The shell resolves
+   * its sentence through `useFailureMessage` (the app registry plus the tabs'
+   * own `messages`), so no panel keeps a code-to-copy map of its own.
+   */
+  readonly onFailure: (cause: unknown) => void;
 }

@@ -1,10 +1,12 @@
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
 import { createPassthroughHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
+import { FailureMessagesProvider } from "@bc-solutions-coder/ui";
 import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Route as registerRoute } from "@app/routes/register";
+import { failureMessages } from "@shared/lib/failure-messages";
 import { RegisterForm } from "./RegisterForm";
 
 /**
@@ -61,18 +63,27 @@ function ok(data: unknown): Leg {
 }
 
 /**
- * A failure exactly as these endpoints really send it: a bare
- * `{ succeeded: false, error }` object, NOT problem details. The SDK's
- * `readCode` probes `extensions.code > code > error`, so the API's own token
- * arrives on the screen as `code` — which is what the per-token tests key on.
+ * A failure as the endpoint sends it: RFC 7807 problem details with the catalog
+ * code under `code` and its user-safe sentence under `detail`. `title` stays
+ * "Unknown error" so a screen echoing the reason phrase is caught.
  */
-function failure(status: number, code: string): Leg {
-  return () => Response.json({ succeeded: false, error: code }, { status });
+function failure(status: number, code: string, detail?: string): Leg {
+  return () =>
+    Response.json(
+      {
+        type: "about:blank",
+        title: "Unknown error",
+        status,
+        code,
+        ...(detail === undefined ? {} : { detail }),
+      },
+      { status },
+    );
 }
 
 /**
  * The client-tenant lookup answers a miss with a bare `NotFound()` — no body, so
- * nothing for `readCode` to find and the screen gets `code: "UNKNOWN"`.
+ * the parser hands the screen `Client.UnrecognizedResponse` at 404.
  */
 function notFound(): Leg {
   return () => Response.json(null, { status: NOT_FOUND });
@@ -95,9 +106,14 @@ function registerBody(): Record<string, unknown> | undefined {
   return callsTo(REGISTER_ENDPOINT).at(-1)?.body as Record<string, unknown> | undefined;
 }
 
+/** The app's one registry, mounted the way the root does: the email-taken and client-id copy is its. */
+function withRegistry(tree: ReactElement): ReactElement {
+  return <FailureMessagesProvider registry={failureMessages}>{tree}</FailureMessagesProvider>;
+}
+
 /** Render `ui` on the shared harness: real SDK, fake transport, real router context. */
 function renderWithClient(ui: ReactElement) {
-  return renderWithWallow(ui, { harness });
+  return renderWithWallow(ui, { harness, wrap: withRegistry });
 }
 
 function renderForm(props: Partial<{ clientId?: string; returnUrl?: string }> = {}) {
@@ -609,7 +625,7 @@ describe("RegisterForm — submission", () => {
     // The most actionable failure this form has: the user already has an
     // account and should sign in rather than retry.
     const user = userEvent.setup();
-    routes.register = failure(BAD_REQUEST, "email_taken");
+    routes.register = failure(BAD_REQUEST, "Auth.EmailTaken", "The email address is taken.");
 
     await renderReadyForm();
     await fillAndSubmit(user);
@@ -623,7 +639,7 @@ describe("RegisterForm — submission", () => {
     // path where the SERVER is the one that notices — and the message must still
     // name the real reason rather than fall to the generic tail.
     const user = userEvent.setup();
-    routes.register = failure(BAD_REQUEST, "passwords_do_not_match");
+    routes.register = failure(BAD_REQUEST, "Auth.PasswordsDoNotMatch", "Passwords differ.");
 
     await renderReadyForm();
     await fillAndSubmit(user);
@@ -636,7 +652,7 @@ describe("RegisterForm — submission", () => {
     // typed is wrong and retyping cannot help, so the copy must point at the
     // LINK — and must not mislabel this as a duplicate email.
     const user = userEvent.setup();
-    routes.register = failure(BAD_REQUEST, "invalid_client_id");
+    routes.register = failure(BAD_REQUEST, "Auth.ClientIdInvalid", "The client id is invalid.");
 
     await renderReadyForm({ clientId: "not-a-real-client" });
 
@@ -647,49 +663,42 @@ describe("RegisterForm — submission", () => {
     await expect.element(banner).not.toHaveTextContent(/already exists/iu);
   });
 
-  it("falls back to a generic message for a weak password, which has NO stable code", async () => {
-    // The one 400 with no recoverable reason: the API emits a raw sentence here
-    // rather than a token, so there is nothing to key on and the generic branch
-    // stands. That is the honest floor, not a downgrade.
+  it("shows the password policy's own sentence for a weak password", async () => {
+    // The policy is the API's to state: a weak password answers
+    // `Validation.Failed` with the rule that failed as its user-safe `detail`,
+    // and the banner reads it rather than guessing from the shared 400.
     const user = userEvent.setup();
-    routes.register = failure(BAD_REQUEST, RAW_IDENTITY_SENTENCE);
-
-    await renderReadyForm();
-    await fillAndSubmit(user, { password: "weak", confirmPassword: "weak" });
-    const banner = page.getByTestId("register-error");
-    await expect.element(banner).toBeInTheDocument();
-    const weakMessage: string = banner.element().textContent ?? "";
-
-    expect(weakMessage).not.toBe("");
-    expect(weakMessage).toMatch(/try again/iu);
-    // Anchored both ways: an implementation guessing from the shared 400 would
-    // print one of the mapped messages here instead of the tail.
-    expect(weakMessage).not.toMatch(/already exists/iu);
-    expect(weakMessage).not.toMatch(/do not match/iu);
-  });
-
-  it("never leaks the API's raw password-rule sentence into the banner", async () => {
-    // `code` is a machine member: matched against known tokens, never rendered.
-    // Echoing it would show the user Identity's own internal prose.
-    const user = userEvent.setup();
-    routes.register = failure(BAD_REQUEST, RAW_IDENTITY_SENTENCE);
+    routes.register = failure(BAD_REQUEST, "Validation.Failed", RAW_IDENTITY_SENTENCE);
 
     await renderReadyForm();
     await fillAndSubmit(user, { password: "weak", confirmPassword: "weak" });
 
     const banner = page.getByTestId("register-error");
-    await expect.element(banner).toBeInTheDocument();
-    await expect.element(banner).not.toHaveTextContent(RAW_IDENTITY_SENTENCE);
-    await expect.element(banner).not.toHaveTextContent(/'0'-'9'/u);
+    await expect.element(banner).toHaveTextContent(RAW_IDENTITY_SENTENCE);
+    await expect.element(banner).not.toHaveTextContent(/already exists/iu);
+    await expect.element(banner).not.toHaveTextContent(/do not match/iu);
   });
 
-  it("falls back to the generic message for an UNRECOGNISED code on the SAME 400", async () => {
-    // THE TEST THAT BINDS THE MAPPING. Every token this endpoint sends shares a
-    // 400, so the per-token tests above ALL pass under a blanket `400 -> "email
-    // already exists"` rule. This one does not: a token the API adds tomorrow
+  it("never renders the machine code or the reason phrase", async () => {
+    const user = userEvent.setup();
+    routes.register = failure(BAD_REQUEST, "Auth.EmailTaken", "The email address is taken.");
+
+    await renderReadyForm();
+    await fillAndSubmit(user);
+
+    const banner = page.getByTestId("register-error");
+    await expect.element(banner).toBeInTheDocument();
+    await expect.element(banner).not.toHaveTextContent("Auth.EmailTaken");
+    await expect.element(banner).not.toHaveTextContent("Unknown error");
+  });
+
+  it("falls back to this screen's tail for an UNRECOGNISED code with no detail", async () => {
+    // THE TEST THAT BINDS THE MAPPING. Every code this endpoint sends shares a
+    // 400, so the per-code tests above ALL pass under a blanket `400 -> "email
+    // already exists"` rule. This one does not: a code the API adds tomorrow
     // must read as the generic tail rather than as a confident lie.
     const user = userEvent.setup();
-    routes.register = failure(BAD_REQUEST, "some_future_token");
+    routes.register = failure(BAD_REQUEST, "Auth.SomeFutureCode");
 
     await renderReadyForm();
     await fillAndSubmit(user);
@@ -698,7 +707,7 @@ describe("RegisterForm — submission", () => {
     await expect.element(banner).toHaveTextContent(/try again/iu);
     await expect.element(banner).not.toHaveTextContent(/already exists/iu);
     // ...and it is not leaked, either.
-    await expect.element(banner).not.toHaveTextContent(/some_future_token/u);
+    await expect.element(banner).not.toHaveTextContent(/SomeFutureCode/u);
   });
 
   it("surfaces a generic message when the server errors outright", async () => {
@@ -735,7 +744,7 @@ describe("RegisterForm — submission", () => {
     // itself so the second POST lands on the default happy response.
     routes.register = () => {
       routes.register = ok({ succeeded: true });
-      return Response.json({ succeeded: false, error: "email_taken" }, { status: BAD_REQUEST });
+      return failure(BAD_REQUEST, "Auth.EmailTaken", "The email address is taken.")();
     };
 
     await renderReadyForm();

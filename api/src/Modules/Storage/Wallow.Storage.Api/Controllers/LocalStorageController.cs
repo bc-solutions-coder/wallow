@@ -3,8 +3,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
+using Wallow.Shared.Api.Problems;
 using Wallow.Shared.Contracts.Storage;
 using Wallow.Storage.Application.Services;
+using Wallow.Storage.Domain.Errors;
 
 namespace Wallow.Storage.Api.Controllers;
 
@@ -57,10 +59,7 @@ public sealed class LocalStorageController(IStorageProvider storageProvider, Loc
         }
         catch (FileNotFoundException)
         {
-            return Problem(
-                title: "File not found",
-                detail: "No object exists at the requested storage key.",
-                statusCode: StatusCodes.Status404NotFound);
+            return this.Problem(StorageErrors.FileNotFound, "No object exists at the requested storage key.");
         }
 
         if (!_contentTypeProvider.TryGetContentType(key, out string? contentType))
@@ -102,9 +101,5 @@ public sealed class LocalStorageController(IStorageProvider storageProvider, Loc
         return Ok();
     }
 
-    private ObjectResult InvalidSignature() =>
-        Problem(
-            title: "Invalid signature",
-            detail: "The URL's signature is missing, expired, or does not authorize this request.",
-            statusCode: StatusCodes.Status403Forbidden);
+    private ProblemResult InvalidSignature() => this.Problem(StorageErrors.SignatureInvalid);
 }

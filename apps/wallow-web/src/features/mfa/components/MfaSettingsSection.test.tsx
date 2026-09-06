@@ -1,10 +1,13 @@
 import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+import { FailureMessagesProvider } from "@bc-solutions-coder/ui";
+import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { expectSwept } from "@bc-solutions-coder/testing/invalidation";
 import { mfaGetStatusQueryKey } from "../api";
+import { failureMessages } from "@shared/lib/failure-messages";
 import { MfaSettingsSection } from "./MfaSettingsSection";
 
 /**
@@ -12,10 +15,19 @@ import { MfaSettingsSection } from "./MfaSettingsSection";
  * both disable and regenerate, and the regenerated-codes reveal.
  *
  * The post-success sweep targets the status OPERATION, not its `Identity` tag,
- * which spans the whole identity module. MFA controllers return failures as a raw
- * `{ succeeded: false, error }` body rather than RFC 7807, so the error surface
- * maps the `error` code instead of reading a `.detail`.
+ * which spans the whole identity module. The MFA controller answers RFC 7807
+ * problems; the app registry's sentence for the `code` wins over the catalog's
+ * `detail`, which is why the fixture carries one.
  */
+
+/** `Mfa.PasswordInvalid`, as the disable and regenerate endpoints write it. */
+const INVALID_PASSWORD_PROBLEM = {
+  type: "about:blank",
+  title: "Unknown error",
+  status: 400,
+  code: "Mfa.PasswordInvalid",
+  detail: "The catalog's own sentence.",
+};
 
 const DISABLED_STATUS = { enabled: false, method: null, backupCodeCount: 0 };
 const ENABLED_STATUS = { enabled: true, method: "totp", backupCodeCount: 7 };
@@ -26,6 +38,11 @@ const REGENERATE_PATH = "/api/v1/identity/mfa/backup-codes/regenerate";
 
 /** The transport backing each render, rebuilt per test. */
 let harness: SdkHarness;
+
+/** The app registry the root mounts, so a raw MFA code resolves to its sentence. */
+function withRegistry(tree: ReactElement): ReactElement {
+  return <FailureMessagesProvider registry={failureMessages}>{tree}</FailureMessagesProvider>;
+}
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body ?? null), {
@@ -47,7 +64,7 @@ function programStatus(status: unknown, body: unknown = {}, bodyStatus = 200): v
 /** Program the status seam, then render the card. */
 function renderStatus(status: unknown, body: unknown = {}, bodyStatus = 200) {
   programStatus(status, body, bodyStatus);
-  return renderWithWallow(<MfaSettingsSection />, { harness });
+  return renderWithWallow(<MfaSettingsSection />, { harness, wrap: withRegistry });
 }
 
 describe("MfaSettingsSection", () => {
@@ -59,7 +76,7 @@ describe("MfaSettingsSection", () => {
     // Never-settling request keeps the query pending.
     harness.pending();
 
-    renderWithWallow(<MfaSettingsSection />, { harness });
+    renderWithWallow(<MfaSettingsSection />, { harness, wrap: withRegistry });
 
     await expect
       .element(page.getByTestId("settings-mfa-loading"))
@@ -162,10 +179,10 @@ describe("MfaSettingsSection", () => {
     await expectSwept(invalidateSpy, mfaGetStatusQueryKey());
   });
 
-  it("surfaces the mapped error message in settings-mfa-error when disable rejects with the real { succeeded:false, error } body", async () => {
+  it("surfaces the registry's sentence in settings-mfa-error when disable answers Mfa.PasswordInvalid", async () => {
     // Only the disable POST fails; the status request keeps answering Enabled so
     // the card stays on the branch that owns the confirm panel.
-    renderStatus(ENABLED_STATUS, { succeeded: false, error: "invalid_password" }, 400);
+    renderStatus(ENABLED_STATUS, INVALID_PASSWORD_PROBLEM, 400);
 
     await expect.element(page.getByTestId("settings-mfa-disable")).toBeInTheDocument();
     await userEvent.click(page.getByTestId("settings-mfa-disable"));
@@ -174,11 +191,10 @@ describe("MfaSettingsSection", () => {
 
     const error = page.getByTestId("settings-mfa-error");
     await expect.element(error).toHaveTextContent("That password is incorrect.");
-    await expect.element(error).not.toHaveTextContent("Unable to complete that action.");
   });
 
-  it("surfaces the mapped error message in settings-mfa-error when regenerate rejects with the real { succeeded:false, error } body", async () => {
-    renderStatus(ENABLED_STATUS, { succeeded: false, error: "invalid_password" }, 400);
+  it("surfaces the registry's sentence in settings-mfa-error when regenerate answers Mfa.PasswordInvalid", async () => {
+    renderStatus(ENABLED_STATUS, INVALID_PASSWORD_PROBLEM, 400);
 
     await expect.element(page.getByTestId("settings-mfa-regenerate")).toBeInTheDocument();
     await userEvent.click(page.getByTestId("settings-mfa-regenerate"));
@@ -187,7 +203,6 @@ describe("MfaSettingsSection", () => {
 
     const error = page.getByTestId("settings-mfa-error");
     await expect.element(error).toHaveTextContent("That password is incorrect.");
-    await expect.element(error).not.toHaveTextContent("Unable to complete that action.");
   });
 
   // Regenerating invalidates the OLD codes, so the resolved `{ codes }` payload

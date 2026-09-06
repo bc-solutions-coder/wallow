@@ -7,6 +7,8 @@ using Wallow.Announcements.Application.Announcements.Commands.DismissAnnouncemen
 using Wallow.Announcements.Application.Announcements.DTOs;
 using Wallow.Announcements.Application.Announcements.Queries.GetActiveAnnouncements;
 using Wallow.Shared.Api.Extensions;
+using Wallow.Shared.Api.Problems;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
@@ -34,7 +36,7 @@ public class AnnouncementsController(IMessageBus bus, ITenantContext tenantConte
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
+            return this.Problem(SharedErrors.Unauthenticated);
         }
 
         IReadOnlyList<string> roles = GetUserRoles();
@@ -55,14 +57,13 @@ public class AnnouncementsController(IMessageBus bus, ITenantContext tenantConte
     [HasPermission(PermissionType.AnnouncementRead)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> DismissAnnouncement(Guid id, CancellationToken ct)
     {
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
+            return this.Problem(SharedErrors.Unauthenticated);
         }
 
         Result result = await bus.InvokeAsync<Result>(

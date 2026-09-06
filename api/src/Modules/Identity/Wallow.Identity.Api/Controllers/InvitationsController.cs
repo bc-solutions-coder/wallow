@@ -6,6 +6,8 @@ using Wallow.Identity.Api.Contracts.Requests;
 using Wallow.Identity.Api.Contracts.Responses;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Errors;
+using Wallow.Shared.Api.Problems;
 using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
@@ -72,7 +74,7 @@ public class InvitationsController(
         Invitation? invitation = await invitationService.GetInvitationByTokenAsync(token, ct);
         if (invitation is null)
         {
-            return NotFound();
+            return this.Problem(IdentityErrors.InvitationNotFound);
         }
 
         return Ok(MapToResponse(invitation));

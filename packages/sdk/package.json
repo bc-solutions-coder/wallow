@@ -74,12 +74,13 @@
   },
   "scripts": {
     "generate": "openapi-ts",
-    "build": "vite build && tsc -p tsconfig.build.json",
+    "build": "vite build && tsc -p tsconfig.build.json && node scripts/complete-query-declarations.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@bc-solutions-coder/api-errors": "workspace:^",
     "cookie-es": "^3.1.1",
     "iron-webcrypto": "^1.2.1",
     "jose": "^6.2.3",

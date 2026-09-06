@@ -4,7 +4,10 @@ import { createRouter as createTanStackRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 import { getGlobalStartContext } from "@tanstack/react-start";
 
+import { reportUnhandledFailure } from "@shared/lib/unhandled-failure";
+
 import { routeTree } from "./routeTree.gen";
+import { RootErrorBoundary } from "./routes/__root";
 
 /**
  * Where this app's API surface is mounted, as the BROWSER addresses it: the BFF
@@ -50,6 +53,18 @@ function readRequestSdk(): WallowSdk | undefined {
  * context) and components (React Query hooks) therefore still share ONE cache
  * per request.
  *
+ * `onUnhandledFailure` is the failure model's one root hook: every mutation no
+ * call site marked handled, and every query that asked to be toasted, lands in
+ * `reportUnhandledFailure`, which resolves the sentence through the app
+ * registry and toasts it (`shared/lib/unhandled-failure.ts`).
+ *
+ * `defaultErrorComponent` is the same boundary the root route registers. On a
+ * client navigation a match with no error component of its own throws to the
+ * root's, but on a server render TanStack paints the error AT the failing
+ * match, and without a default that is its stock component — which echoes the
+ * error's message. The Start instance (`start.ts`) registers the adapter that
+ * keeps such a failure an `ApiFailure` across hydration.
+ *
  * The route tree is codegen'd into `src/routeTree.gen.ts` by the Start plugin as
  * a side effect of `vite dev` / `vite build`, so there is no `routes:generate`
  * step to remember.
@@ -58,13 +73,16 @@ function readRequestSdk(): WallowSdk | undefined {
  * route-tree types that make `Link`/`useParams` typed.
  */
 export function getRouter() {
-  const queryClient: QueryClient = createQueryClient();
+  const queryClient: QueryClient = createQueryClient({
+    onUnhandledFailure: reportUnhandledFailure,
+  });
   const sdk: WallowSdk = readRequestSdk() ?? createWallowSdk({ baseUrl: BROWSER_API_BASE_URL });
 
   const router = createTanStackRouter({
     routeTree,
     context: { queryClient, sdk },
     scrollRestoration: true,
+    defaultErrorComponent: RootErrorBoundary,
   });
 
   setupRouterSsrQueryIntegration({ router, queryClient });

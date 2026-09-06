@@ -60,8 +60,29 @@ change here must keep all three true:
 - Browser-side the double-submit cookie is the ONE token source — read live per request;
   `createWallowSdk({ csrf: false })` skips the interceptor for a passthrough topology
   (wallow-auth), which has no token of its own to stamp.
-- RFC 7807: the machine code is in `extensions.code` — parse from there with an `UNKNOWN`
-  fallback, never a top-level `code`.
+- RFC 7807: the machine code is a **top-level `code`** on the problem body, and `@bc-solutions-coder/api-errors` is the ONLY parser — the browser
+  interceptor (`runtime-config.ts`) and the proxy both call its `failureFromResponse`, and every
+  failure the SDK raises is its `ApiFailure`. The SDK has no error type of its own;
+  consumers import the failure type and brand check from `api-errors`. A body without a code parses as
+  `Client.UnrecognizedResponse`, so a spec that fakes a problem body must give it a `code`.
+- **Relayed vs originated.** An upstream failure is relayed byte for byte. Every failure the
+  `/api` proxy and passthrough originate, plus BFF routing, callback validation,
+  `/bff/user`, and logout method/CSRF rejections, goes through the ONE writer,
+  `src/server/problem.ts`
+  (`problemResponse(status, code, { requestId, detail?, headers? })`): `about:blank`, fixed
+  title/detail per code (the server twin of `api-errors`' shipped messages), `requestId` on
+  body and header, never `traceId`, never a transport message (that goes to the redacted log).
+  Passthrough imports it too, so it must never grow a handler/proxy import. No bodiless
+  responses on those paths and no SDK-private code strings — codes come from
+  `ErrorCode`/`ClientErrorCode`:
+  400 `Validation.Failed` (missing, unreadable, or mismatched callback transaction or missing
+  code/state); 404 `Http.NotFound` (unknown BFF route or path outside `/api` / the allowlist /
+  the API base); 405 `Http.MethodNotAllowed` (logout, front-channel, or back-channel method
+  rejection, retaining `Allow` and any existing `no-store`); 401
+  `Bff.SessionMissing` (no or unreadable session); 401 `Bff.SessionRefreshFailed` (terminal
+  refresh → teardown; a faulting freshness check → no teardown); 403 `Bff.CsrfInvalid`; 401
+  `Auth.Unauthenticated` (login redirect survived the replay); 503 `Transport.NetworkError`;
+  504 `Transport.Timeout` (forward timeout, proxy only — passthrough adds no timeout).
 - `POST /bff/backchannel-logout` (the sixth route) is the OP-to-BFF endpoint: no cookie, no
   CSRF — the signed logout token is the whole security of the request. `RedisLike` requires
   `sadd`/`srem`/`smembers`/`expire` alongside `get`/`set`/`del`; they back the Valkey store's
@@ -86,4 +107,6 @@ CI compares the snapshot against the document the API emits **at build time**;
   specs that exercise `REDIS_URL` self-connect.
 
 This package is the **template all new workspace packages mirror**. Publishes to GitHub
-Packages on `sdk-v*` tags via `sdk-publish.yml`, independently of the platform release.
+Packages on `sdk-v*` tags via `package-publish.yml` (shared with `packages/api-errors`,
+which generates its `ErrorCode` catalogue from this package's snapshot; the SDK depends on it
+as `workspace:^`, so it must be published first), independently of the platform release.

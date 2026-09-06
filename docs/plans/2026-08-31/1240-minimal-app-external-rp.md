@@ -1,5 +1,8 @@
 **status: completed**
 
+> Historical plan. Failure-handling passages link to the current spec and their original Git revision.
+
+
 # minimal-app as the external RP example, three-origin acceptance, and quickstart (#151)
 
 Parent spec #131; all blockers (#136, #138, #142, #146, #147, #148, #149) shipped. This is
@@ -34,12 +37,8 @@ published `@bc-solutions-coder/sdk` alone among workspace packages (plus the bui
   `OIDC_SERVICE_CLIENT_ID` is unset; real `inquiriesSubmit({ client: service.client, body })`
   (the generated op — POST `/v1/inquiries`, `SubmitInquiryRequest` body), mapping the
   contact form fields onto name/email/phone/company/projectType/budgetRange/timeline/message.
-- **Home page `src/routes/index.tsx`**: test ids `bff-user-status`, `bff-user-email`,
-  `bff-login` (anchor from `loginRedirect("/").href`), `bff-logout` (SDK `logout()`),
-  `bff-call-api` → `bff-api-result` (typed `usersGetCurrentUser`), `contact-send` →
-  `contact-result` (fetch POST `/contact`). `getCurrentUser` drives the status;
-  `isWallowError` renders failures. `__root.tsx` keeps `data-app-ready="true"` and
-  `charSet: "utf-8"` (prototype's `"utf8"` trips `unicorn/text-encoding-identifier-case`).
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-08-31/1240-minimal-app-external-rp.md).
+
 - **`src/router.tsx` / `src/start.ts`**: per-request `createWallowSdk({ baseUrl:
   <origin>/api, cookieHeader })` following wallow-web's current shape (post-#149 —
   whatever origin/client-IP helpers wallow-web uses today, minimal-app copies).

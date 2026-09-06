@@ -4,7 +4,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Wallow.Shared.Api.Extensions;
+using Wallow.Shared.Api.Problems;
 using Wallow.Shared.Api.Settings;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Results;
@@ -33,7 +35,7 @@ public class StorageSettingsController(
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "User context is required");
+            return this.Problem(SharedErrors.Unauthenticated);
         }
 
         ResolvedSettingsConfig config = await settingsService.GetConfigAsync(tenantId, userId.Value, cancellationToken);
@@ -59,7 +61,7 @@ public class StorageSettingsController(
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "User context is required");
+            return this.Problem(SharedErrors.Unauthenticated);
         }
 
         IReadOnlyList<ResolvedSetting> settings = await settingsService.GetUserSettingsAsync(tenantId, userId.Value, cancellationToken);
@@ -69,7 +71,6 @@ public class StorageSettingsController(
     [HttpPut("settings/tenant")]
     [HasPermission(PermissionType.StorageWrite)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> UpsertTenantSetting(
         [FromBody] SettingUpdateRequest request,
         CancellationToken cancellationToken)
@@ -84,7 +85,7 @@ public class StorageSettingsController(
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "User context is required");
+            return this.Problem(SharedErrors.Unauthenticated);
         }
 
         List<SettingUpdate> updates = [new SettingUpdate(request.Key, request.Value)];
@@ -95,7 +96,6 @@ public class StorageSettingsController(
     [HttpDelete("settings/tenant")]
     [HasPermission(PermissionType.StorageWrite)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> DeleteTenantSetting(
         [FromQuery] string key,
         CancellationToken cancellationToken)
@@ -110,7 +110,7 @@ public class StorageSettingsController(
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "User context is required");
+            return this.Problem(SharedErrors.Unauthenticated);
         }
 
         List<string> keys = [key];
@@ -120,7 +120,6 @@ public class StorageSettingsController(
 
     [HttpPut("settings/user")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> UpsertUserSetting(
         [FromBody] SettingUpdateRequest request,
         CancellationToken cancellationToken)
@@ -135,7 +134,7 @@ public class StorageSettingsController(
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "User context is required");
+            return this.Problem(SharedErrors.Unauthenticated);
         }
 
         List<SettingUpdate> updates = [new SettingUpdate(request.Key, request.Value)];
@@ -145,7 +144,6 @@ public class StorageSettingsController(
 
     [HttpDelete("settings/user")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> DeleteUserSetting(
         [FromQuery] string key,
         CancellationToken cancellationToken)
@@ -160,7 +158,7 @@ public class StorageSettingsController(
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "User context is required");
+            return this.Problem(SharedErrors.Unauthenticated);
         }
 
         List<string> keys = [key];

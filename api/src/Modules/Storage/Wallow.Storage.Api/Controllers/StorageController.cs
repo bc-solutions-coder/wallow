@@ -4,8 +4,10 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Wallow.Shared.Api.Extensions;
+using Wallow.Shared.Api.Problems;
 using Wallow.Shared.Contracts.Storage;
 using Wallow.Shared.Contracts.Storage.Commands;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Pagination;
@@ -45,7 +47,6 @@ public sealed class StorageController(IMessageBus bus, ITenantContext tenantCont
     [HttpPost("buckets")]
     [HasPermission(PermissionType.StorageWrite)]
     [ProducesResponseType(typeof(BucketResponse), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> CreateBucket(
         [FromBody] CreateBucketRequest request,
@@ -99,7 +100,6 @@ public sealed class StorageController(IMessageBus bus, ITenantContext tenantCont
     [HttpDelete("buckets/{name}")]
     [HasPermission(PermissionType.StorageWrite)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteBucket(
         string name,
@@ -130,7 +130,6 @@ public sealed class StorageController(IMessageBus bus, ITenantContext tenantCont
     [RequestSizeLimit(100 * 1024 * 1024)] // 100MB
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(UploadResponse), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Upload(
         IFormFile file,
@@ -141,17 +140,14 @@ public sealed class StorageController(IMessageBus bus, ITenantContext tenantCont
     {
         if (file.Length == 0)
         {
-            return BadRequest(new ProblemDetails
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Detail = "File is empty"
-            });
+            ModelState.AddModelError(nameof(file), "The uploaded file is empty.");
+            return ValidationProblem(ModelState);
         }
 
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
+            return this.Problem(SharedErrors.Unauthenticated);
         }
 
         await using Stream stream = file.OpenReadStream();
@@ -268,7 +264,6 @@ public sealed class StorageController(IMessageBus bus, ITenantContext tenantCont
     [HttpPost("presigned-upload")]
     [HasPermission(PermissionType.StorageWrite)]
     [ProducesResponseType(typeof(PresignedUploadResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetPresignedUploadUrl(
         [FromBody] PresignedUploadRequest request,
@@ -303,7 +298,6 @@ public sealed class StorageController(IMessageBus bus, ITenantContext tenantCont
     [HttpPost("files/{id:guid}/complete")]
     [HasPermission(PermissionType.StorageWrite)]
     [ProducesResponseType(typeof(CompleteUploadResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> CompletePresignedUpload(
         Guid id,

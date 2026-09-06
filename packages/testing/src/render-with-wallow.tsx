@@ -17,7 +17,13 @@
  * evaluates `vitest/browser` at import time and throws in the plain Node process
  * that loads every app's `vitest.config.ts`. Same rule as `./render`.
  */
-import { QueryClient, QueryClientProvider } from "@bc-solutions-coder/query";
+import {
+  createQueryClient,
+  type CreateQueryClientOptions,
+  type QueryClient,
+  QueryClientProvider,
+  type UnhandledFailure,
+} from "@bc-solutions-coder/query";
 import {
   type AnyRoute,
   type AnyRouter,
@@ -27,7 +33,7 @@ import {
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { render } from "vitest-browser-react";
 
 import { createSdkHarness, type SdkHarness } from "./sdk-harness";
@@ -71,6 +77,21 @@ export interface RenderWithWallowOptions {
   harness?: SdkHarness | undefined;
   /** Reuse an existing query client. {@link createTestQueryClient} is used otherwise. */
   queryClient?: QueryClient | undefined;
+  /**
+   * Hears every failure the query client leaves to the app — the production
+   * toast path. A spec that leaves a mutation to the toast asserts the call
+   * lands here; one that renders the failure itself asserts it never does.
+   * Cannot be combined with `queryClient` — that client owns its callback, and a
+   * collector that never fires would pass a "stays quiet" assertion vacuously.
+   */
+  onUnhandledFailure?: ((failure: UnhandledFailure) => void) | undefined;
+  /**
+   * Providers the screen reads off context that the seam does not own — an
+   * app's failure-message registry, say. Applied inside the query client and
+   * outside the router, so the wrapped tree sees the cache and the providers
+   * see nothing route-specific.
+   */
+  wrap?: ((tree: ReactElement) => ReactElement) | undefined;
   /** Initial memory-history location. Defaults to {@link DEFAULT_RENDER_PATH}. */
   path?: string | undefined;
   /**
@@ -105,17 +126,13 @@ export type RenderWithWallowResult = ReturnType<typeof render> & {
 };
 
 /**
- * A `QueryClient` tuned for specs: no retries (a failing request must surface as
- * an error state on the first attempt, not after exponential backoff) and no
- * caching between renders.
+ * The production `QueryClient` — the same caches that route an unclaimed
+ * failure to `onUnhandledFailure`, and the same no-retry policy on both sides,
+ * so a failing request surfaces as an error state on the first attempt. A
+ * fresh one per render keeps caches from leaking between specs.
  */
-export function createTestQueryClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false },
-    },
-  });
+export function createTestQueryClient(options: CreateQueryClientOptions = {}): QueryClient {
+  return createQueryClient(options);
 }
 
 /**
@@ -127,7 +144,19 @@ export function renderWithWallow(
   options: RenderWithWallowOptions = {},
 ): RenderWithWallowResult {
   const harness: SdkHarness = options.harness ?? createSdkHarness();
-  const queryClient: QueryClient = options.queryClient ?? createTestQueryClient();
+  if (options.queryClient !== undefined && options.onUnhandledFailure !== undefined) {
+    throw new Error(
+      "renderWithWallow: pass either queryClient or onUnhandledFailure — a supplied client owns its own callback.",
+    );
+  }
+  const queryClient: QueryClient =
+    options.queryClient ??
+    createTestQueryClient(
+      options.onUnhandledFailure === undefined
+        ? {}
+        : { onUnhandledFailure: options.onUnhandledFailure },
+    );
+  const wrap = options.wrap ?? ((tree: ReactElement): ReactElement => tree);
 
   // `ui` renders beside the `Outlet` rather than inside a child route, so a spec
   // can mount a bare component AND start the history anywhere it likes: the root
@@ -158,7 +187,7 @@ export function renderWithWallow(
 
   const result = render(
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      {wrap(<RouterProvider router={router} />)}
     </QueryClientProvider>,
   );
 

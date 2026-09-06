@@ -8,6 +8,7 @@ import {
 import {
   Card,
   DocumentStyles,
+  FailureMessagesProvider,
   FocusOnNavigate,
   MutedText,
   ThemeProvider,
@@ -29,6 +30,7 @@ import {
   type TransactionBranding,
 } from "@shared/lib/authorize-context";
 import { appIconUrl, forkResolvedBranding } from "@shared/lib/branding";
+import { failureMessages } from "@shared/lib/failure-messages";
 import { forkLinks } from "@shared/lib/fork-links";
 import { requestWebAppUrl } from "@shared/lib/web-app-url.request";
 import { webAppUrlScript } from "@shared/lib/web-app-url";
@@ -94,9 +96,21 @@ function requestForkLinks(): ForkLinks | undefined {
  * through. `<ThemeProvider/>` publishes what the script decided to the tree,
  * which is what {@link AuthLayout}'s toggle reads and writes.
  *
+ * `<FailureMessagesProvider/>` publishes the app's one failure-message registry
+ * (`@shared/lib/failure-messages`), so every `useFailureMessage` below resolves
+ * a failure's code through the same table.
+ *
  * `<ReadyIndicator/>` sits at the root so *every* auth page emits the hydration
  * marker the Playwright suites wait on.
  */
+function RootProviders({ children }: { readonly children: ReactNode }): ReactElement {
+  return (
+    <ThemeProvider defaultMode={branding.defaultMode}>
+      <FailureMessagesProvider registry={failureMessages}>{children}</FailureMessagesProvider>
+    </ThemeProvider>
+  );
+}
+
 function RootDocument({ children }: { readonly children: ReactNode }): ReactElement {
   return (
     <html lang="en" className={branding.defaultMode}>
@@ -110,7 +124,7 @@ function RootDocument({ children }: { readonly children: ReactNode }): ReactElem
       </head>
       <body>
         <FocusOnNavigate />
-        <ThemeProvider defaultMode={branding.defaultMode}>{children}</ThemeProvider>
+        <RootProviders>{children}</RootProviders>
         <ReadyIndicator />
         <Scripts />
       </body>

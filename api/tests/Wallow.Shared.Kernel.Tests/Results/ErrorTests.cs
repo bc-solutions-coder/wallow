@@ -45,6 +45,33 @@ public class ErrorTests
     }
 
     [Fact]
+    public void Constructor_WithoutRetryAfter_CarriesNone()
+    {
+        Error error = new(_entry);
+
+        error.RetryAfter.Should().BeNull();
+    }
+
+    [Fact]
+    public void Constructor_WithRetryAfter_CarriesTheWait()
+    {
+        Error error = new(_entry, retryAfter: TimeSpan.FromSeconds(30));
+
+        error.RetryAfter.Should().Be(TimeSpan.FromSeconds(30));
+        error.Message.Should().Be("Something conflicts.");
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Constructor_WithNonPositiveRetryAfter_Throws(int seconds)
+    {
+        Func<Error> act = () => new Error(_entry, retryAfter: TimeSpan.FromSeconds(seconds));
+
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
     public void Constructor_WithNullEntry_Throws()
     {
         Func<Error> act = () => new Error(null!);

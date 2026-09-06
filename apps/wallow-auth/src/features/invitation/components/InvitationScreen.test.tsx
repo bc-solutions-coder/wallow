@@ -42,6 +42,7 @@ const UNAUTHORIZED = 401;
 const NOT_FOUND = 404;
 const SERVER_ERROR = 500;
 const NO_CONTENT = 204;
+const UNPROCESSABLE = 422;
 
 /** An `InvitationResponse`, in the shape the API sends. */
 function invitation(overrides: Record<string, unknown> = {}) {
@@ -57,12 +58,22 @@ function invitation(overrides: Record<string, unknown> = {}) {
 }
 
 /**
- * The only failure either endpoint sends: a bare status, no body. Through the
- * real client that becomes a `WallowError` with `code: "UNKNOWN"`, so an
- * implementer cannot key the copy on a machine code that never arrives.
+ * A bare status with no body — a server fault or an unauthenticated read.
+ * Through the real client that becomes an `ApiFailure` coded
+ * `Client.UnrecognizedResponse`, so the copy cannot key on a code.
  */
 function failure(status: number): Response {
   return new Response(null, { status });
+}
+
+/** A refusal as the invitation endpoints send it: a problem carrying a catalog code. */
+function problem(status: number, code: string, detail: string): Response {
+  return Response.json(
+    { type: "about:blank", title: "Unknown error", status, code, detail },
+    {
+      status,
+    },
+  );
 }
 
 /** A promise this test resolves/rejects by hand, to observe an in-flight state. */
@@ -225,8 +236,9 @@ describe("InvitationScreen — verifying", () => {
     await expect.element(page.getByTestId("invitation-info")).toHaveTextContent(EMAIL);
   });
 
-  it("reports a 404 as an invalid or already-used invitation", async () => {
-    verifyAnswer = () => failure(NOT_FOUND);
+  it("reports Identity.InvitationNotFound as an invalid or already-used invitation", async () => {
+    verifyAnswer = () =>
+      problem(NOT_FOUND, "Identity.InvitationNotFound", "The invitation was not found.");
 
     renderScreen();
 
@@ -246,7 +258,8 @@ describe("InvitationScreen — verifying", () => {
     // replacement they do not need.
     await expect
       .element(page.getByTestId("invitation-error"))
-      .toHaveTextContent(/unable to verify this invitation/iu);
+      .toHaveTextContent(/something went wrong on our side/iu);
+    await expect.element(page.getByTestId("invitation-error")).not.toHaveTextContent(/not valid/iu);
   });
 });
 
@@ -391,7 +404,8 @@ describe("InvitationScreen — authenticated branch", () => {
 
   it("reports a rejected accept as expired or already used, keeping the buttons alive", async () => {
     const user = userEvent.setup();
-    acceptAnswer = () => failure(NOT_FOUND);
+    acceptAnswer = () =>
+      problem(UNPROCESSABLE, "Identity.InvitationExpired", "The invitation has expired.");
 
     renderScreen({ isAuthenticated: true });
     await user.click(page.getByTestId("invitation-accept"));
@@ -414,7 +428,7 @@ describe("InvitationScreen — authenticated branch", () => {
 
     await expect
       .element(page.getByTestId("invitation-accept-error"))
-      .toHaveTextContent(/an error occurred while accepting the invitation/iu);
+      .toHaveTextContent(/something went wrong on our side/iu);
   });
 
   it("clears a previous accept error when the user tries again", async () => {

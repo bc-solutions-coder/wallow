@@ -84,6 +84,7 @@ describe("CreateOrganizationForm", () => {
       {
         type: "https://httpstatuses.io/409",
         title: "Conflict",
+        code: "Identity.OrganizationNameTaken",
         status: "409",
         detail: "An organization with that name already exists.",
       },

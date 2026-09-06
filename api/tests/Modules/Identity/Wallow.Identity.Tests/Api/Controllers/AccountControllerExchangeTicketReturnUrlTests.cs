@@ -80,7 +80,8 @@ public class AccountControllerExchangeTicketReturnUrlTests
             Substitute.For<IMfaLockoutService>(),
             redis,
             Substitute.For<ILogger<AccountController>>(),
-            TimeProvider.System);
+            TimeProvider.System,
+            Substitute.For<IEmailChangeRateLimiter>());
 
         DefaultHttpContext httpContext = new();
 

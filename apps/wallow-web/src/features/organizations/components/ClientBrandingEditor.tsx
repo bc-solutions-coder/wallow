@@ -7,8 +7,7 @@
  * client's `client_id`. The fork's own app name is refused as a display name
  * before the request is ever made, mirroring the server's reservation.
  */
-import { errorText } from "@bc-solutions-coder/forms";
-import { useMutation, useQuery, useQueryClient } from "@bc-solutions-coder/query";
+import { handledFailure, useMutation, useQuery, useQueryClient } from "@bc-solutions-coder/query";
 import type { ClientBrandingDto, OrganizationClientResponse } from "@bc-solutions-coder/sdk";
 import {
   BrandedHeader,
@@ -18,6 +17,7 @@ import {
   Input,
   MutedText,
   Text,
+  useFailureMessage,
 } from "@bc-solutions-coder/ui";
 import {
   type ClientBranding,
@@ -373,8 +373,10 @@ function BrandingForm(props: {
       ),
     );
   };
+  // The editor shows either refusal beside its fields, so the toast stays out.
   const save = useMutation({
     ...organizationClientBrandingUpsertBrandingMutation({ client: sdk.client }),
+    meta: handledFailure(),
     onSuccess: (): void => {
       invalidateBranding();
       onDone();
@@ -382,8 +384,11 @@ function BrandingForm(props: {
   });
   const removeLogo = useMutation({
     ...organizationClientBrandingDeleteLogoMutation({ client: sdk.client }),
+    meta: handledFailure(),
     onSuccess: invalidateBranding,
   });
+  const saveFailure = useFailureMessage(save.error);
+  const removeLogoFailure = useFailureMessage(removeLogo.error);
 
   const trimmedName = displayName.trim();
   const reserved = isReservedDisplayName(displayName);
@@ -410,8 +415,8 @@ function BrandingForm(props: {
   };
   const errors = [
     reserved ? RESERVED_DISPLAY_NAME_MESSAGE : null,
-    save.isError ? errorText(save.error, "Could not save the branding.") : null,
-    removeLogo.isError ? errorText(removeLogo.error, "Could not remove the logo.") : null,
+    saveFailure,
+    removeLogoFailure,
   ].filter((message): message is string => message !== null);
 
   return (
@@ -467,6 +472,9 @@ export function ClientBrandingEditor(props: {
 }): ReactElement {
   const { orgId, client, onDone } = props;
   const { sdk } = useRouteContext({ from: "__root__" });
+  // Silent by design: a failed branding read degrades to the editor opening
+  // on the client's defaults, as it does for a client that has never been
+  // branded. Saving still works, and the save is what the user came to do.
   const branding = useQuery(
     organizationClientBrandingGetBrandingOptions({
       client: sdk.client,

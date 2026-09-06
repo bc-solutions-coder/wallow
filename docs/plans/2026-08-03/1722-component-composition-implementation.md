@@ -1,3 +1,5 @@
+> Historical plan. Failure-handling passages link to the current spec and their original Git revision.
+
 # Component Composition Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
@@ -325,38 +327,8 @@ pnpm --filter ./apps/wallow-auth test -- error-code
 
 **Step 3: Implement**
 
-```ts
-// apps/wallow-auth/src/shared/lib/error-code.ts
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-08-03/1722-component-composition-implementation.md).
 
-/**
- * Read a member off an unknown rejection without asserting its shape.
- *
- * A network-level rejection carries neither `code` nor `status`, so narrowing is
- * STRUCTURAL rather than `instanceof WallowError` — that class ships from the
- * SDK's `./server` entry, which a screen may not import at all.
- */
-export function readMember(cause: unknown, name: string): unknown {
-  if (typeof cause !== "object" || cause === null || !(name in cause)) {
-    return undefined;
-  }
-
-  return (cause as Record<string, unknown>)[name];
-}
-
-/**
- * The API's machine token for a failure, when there is one.
- *
- * These auth endpoints answer with a bare `{ succeeded, error }` rather than RFC
- * 7807, so `splitServerError` cannot read them and each screen maps the token to
- * copy itself. The token is matched against, NEVER rendered — an unrecognised one
- * falls to that screen's generic message rather than leaking Identity's own prose.
- */
-export function readErrorCode(cause: unknown): string | undefined {
-  const code: unknown = readMember(cause, "code");
-
-  return typeof code === "string" ? code : undefined;
-}
-```
 
 **Step 4: Point `auth-result.ts` at it**
 

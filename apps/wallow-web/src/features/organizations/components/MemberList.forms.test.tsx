@@ -180,6 +180,7 @@ describe("MemberList add-member form on @bc-solutions-coder/forms", () => {
         {
           type: "https://httpstatuses.io/403",
           title: "Forbidden",
+          code: "Auth.Forbidden",
           status: 403,
           detail: "You cannot add members to this organization.",
         },
@@ -204,6 +205,7 @@ describe("MemberList add-member form on @bc-solutions-coder/forms", () => {
         {
           type: "https://httpstatuses.io/400",
           title: "One or more validation errors occurred.",
+          code: "Validation.Failed",
           status: 400,
           errors: { UserId: ["No user with that id exists."] },
         },
@@ -230,6 +232,7 @@ describe("MemberList add-member form on @bc-solutions-coder/forms", () => {
         {
           type: "https://httpstatuses.io/400",
           title: "One or more validation errors occurred.",
+          code: "Validation.Failed",
           status: 400,
           errors: { UserId: ["No user with that id exists."] },
         },

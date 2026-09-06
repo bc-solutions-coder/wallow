@@ -31,7 +31,6 @@ import type {
   CookieSessionStoreOptions,
   ForwardRequest,
   ForwardResult,
-  ProblemDetails,
   RedisLike,
   SessionStore,
   ValkeySessionStoreOptions,
@@ -53,13 +52,11 @@ const BROWSER_VALUE_EXPORTS: readonly string[] = [
   "getCurrentUser",
   "isSafeMethod",
   "isSafeReturnUrl",
-  "isWallowError",
   "loginRedirect",
   "logout",
   "readCsrfCookie",
   "requireAuth",
   "validateRedirectUriArgs",
-  "WallowError",
   "wireCsrfInterceptor",
 ];
 
@@ -102,10 +99,31 @@ const DELETED_LEGACY_SYMBOLS: readonly string[] = [
   "getCsrfToken",
   "setCsrfToken",
   "setSsrRequestContextResolver",
-  // The envelope-unwrapping layer the response interceptor superseded: every
-  // operation's failure path raises a WallowError, so nothing unwraps any more.
+  // Every operation's failure path raises an `ApiFailure`, so nothing unwraps.
   "unwrap",
   "wireSsrCookieInterceptor",
+  // The SDK has no error type of its own: `ApiFailure` / `isApiFailure` come
+  // from `@bc-solutions-coder/api-errors`. Deleted, not aliased: a consumer
+  // importing these must get a build error, not a second failure type that the
+  // package's brand check would not recognise.
+  "isWallowError",
+  "WallowError",
+];
+
+/**
+ * Server-entry symbols the SDK must not export: an upstream body is parsed by
+ * `@bc-solutions-coder/api-errors`' `failureFromResponse`, and a body without a
+ * code is `Client.UnrecognizedResponse`, not `UNKNOWN`.
+ */
+const DELETED_SERVER_SYMBOLS: readonly string[] = [
+  "CSRF_INVALID_CODE",
+  "isWallowError",
+  "NETWORK_ERROR_CODE",
+  "NETWORK_TIMEOUT_CODE",
+  "parseProblemDetails",
+  "SESSION_REFRESH_FAILED_CODE",
+  "UNKNOWN_ERROR_CODE",
+  "WallowError",
 ];
 
 /**
@@ -128,12 +146,9 @@ const SERVER_VALUE_EXPORTS: readonly string[] = [
   "CookieSessionStore",
   "ValkeySessionStore",
   // errors
-  "WallowError",
-  "isWallowError",
-  "parseProblemDetails",
   "redact",
   "REDACTED",
-  "UNKNOWN_ERROR_CODE",
+  "RefreshFailedError",
   // handlers
   "createBffHandlers",
   "readSession",
@@ -147,11 +162,10 @@ const SERVER_VALUE_EXPORTS: readonly string[] = [
   "forwardWithResilience",
   "FORWARD_TIMEOUT_MS",
   "MAX_RETRY_AFTER_MS",
-  "NETWORK_ERROR_CODE",
-  "NETWORK_TIMEOUT_CODE",
+  // problem
+  "problemResponse",
   // csrf
   "CSRF_HEADER",
-  "CSRF_INVALID_CODE",
   // config
   "loadBffConfigFromEnv",
   "DEFAULT_SESSION_TTL_SECONDS",
@@ -176,6 +190,10 @@ describe("server entry (./server subpath export)", () => {
   it.each(SERVER_VALUE_EXPORTS)("exports %s", (name: string) => {
     expect(Object.keys(serverEntry)).toContain(name);
     expect((serverEntry as unknown as Record<string, unknown>)[name]).toBeDefined();
+  });
+
+  it.each(DELETED_SERVER_SYMBOLS)("no longer exports the retired %s", (name: string) => {
+    expect(Object.keys(serverEntry)).not.toContain(name);
   });
 
   it("exports session stores as constructible SessionStore implementations", () => {
@@ -206,12 +224,8 @@ describe("server entry (./server subpath export)", () => {
     }
   });
 
-  it("exports WallowError as a real Error subclass", () => {
-    const error: Error = new serverEntry.WallowError({
-      status: 404,
-      code: "NOT_FOUND",
-      title: "Not Found",
-    });
+  it("exports RefreshFailedError as a real Error subclass", () => {
+    const error: Error = new serverEntry.RefreshFailedError();
     expect(error).toBeInstanceOf(Error);
   });
 });
@@ -232,7 +246,6 @@ describe("public type surface", () => {
       CookieSessionStoreOptions,
       ForwardRequest,
       ForwardResult,
-      ProblemDetails,
       RedisLike,
       SessionStore,
       ValkeySessionStoreOptions,

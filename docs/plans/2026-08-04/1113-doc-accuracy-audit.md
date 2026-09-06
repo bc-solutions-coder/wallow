@@ -1,5 +1,8 @@
 **status: completed**
 
+> Historical plan. Failure-handling passages link to the current spec and their original Git revision.
+
+
 # Documentation accuracy audit — 2026-08-04
 
 ## Remediation record
@@ -288,8 +291,7 @@ Where + Evidence + Fix; nothing is dropped, only the prose around it.
   `RequestResult<…, ThrowOnError, 'data'>`, and every operation passes `responseStyle: 'data'`.
 - **Why it matters:** Code written from this sample silently swallows every API error — the `error`
   branch is unreachable and the throw is unhandled.
-- **Fix:** `packages/sdk/README.md:458-460` already states the correct contract ("reject with a
-  `WallowError` rather than resolving an `{ data, error }` envelope") — copy from there.
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-08-04/1113-doc-accuracy-audit.md).
 
 #### W-C8 — `run-tests.sh identity` is documented as running the Identity integration tests
 

@@ -76,6 +76,8 @@
       href: operations/troubleshooting.md
 - name: Integrations
   items:
+    - name: Connect an External App
+      href: integrations/external-app.md
     - name: External Auth Setup
       href: integrations/external-auth.md
     - name: AsyncAPI

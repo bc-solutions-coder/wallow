@@ -551,7 +551,7 @@ describe("ConsentScreen — error state", () => {
       .toHaveTextContent(/unable to load consent information/iu);
   });
 
-  it("survives a rejection that is not WallowError-shaped at all", async () => {
+  it("survives a rejection that is not ApiFailure-shaped at all", async () => {
     // A network failure has no `status` and must land on the same error surface
     // rather than throwing inside the error branch. A transport that THROWS is
     // the faithful version: the generated client does not wrap its `fetch`, so
@@ -581,9 +581,10 @@ describe("ConsentScreen — error state", () => {
   });
 
   it("never leaks the raw rejection into the page", async () => {
-    // `code: "UNKNOWN"` / `title: "Unknown error"` are seam artefacts, not
-    // user-facing copy. An empty error body is what makes `toWallowError` fall
-    // back to exactly those two values, so this is the strongest leak test.
+    // `code: "Client.UnrecognizedResponse"` / `title: "Unrecognized response"`
+    // are seam artefacts, not user-facing copy. An empty error body is what
+    // makes the SDK's parser fall back to exactly those two values, so this is
+    // the strongest leak test.
     harness.rejectJson({}, NOT_FOUND);
 
     await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} />);

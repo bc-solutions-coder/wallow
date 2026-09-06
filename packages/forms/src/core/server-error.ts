@@ -4,114 +4,53 @@
  * that belongs above the form.
  *
  * The API answers a validation failure with RFC 7807 problem details whose
- * `errors` member keys messages by property name — `@bc-solutions-coder/sdk`
- * carries that through as `WallowError.fieldErrors`. Those keys are the API's
- * property names (PascalCase, as FluentValidation and ASP.NET Core emit them),
- * while a form's values are camelCase, so the two have to be reconciled before
- * anything can be shown.
+ * `errors` member keys messages by property name — the SDK's interceptor
+ * carries that through as `ApiFailure.fieldErrors`, and
+ * `@bc-solutions-coder/api-errors`' `splitFieldErrors` reconciles the API's
+ * property names with the form's camelCase field names. The banner is never
+ * assembled here: it is a failure message, resolved through the registry by
+ * `useFailureMessage` in the hook, so an app's own wording and the shipped
+ * defaults both apply to a form exactly as they apply to every other surface.
  *
  * Layer 0 of the package: `src/core/` imports nothing from `src/fields/` or
  * `src/form/`.
  */
 
-import { isWallowError } from "@bc-solutions-coder/sdk";
+import {
+  type ApiFailure,
+  type SplitFieldErrors,
+  splitFieldErrors,
+  toApiFailure,
+} from "@bc-solutions-coder/api-errors";
 
-/** The two surfaces a failed submit is split across. */
-export interface SplitServerError {
+/** What one failed submit leaves for the form to show. */
+export interface SubmitFailure extends SplitFieldErrors {
   /**
-   * camelCase field name -> messages, for the names the form actually has. Only
-   * matched entries appear; an unmatched one joins {@link formError} instead.
+   * The failure the banner resolves its sentence from, or `null` when every
+   * message landed on a field — a banner there would only repeat the inputs.
    */
-  readonly fieldErrors: Readonly<Record<string, readonly string[]>>;
-  /** The banner sentence, or `null` when every message landed on a field. */
-  readonly formError: string | null;
+  readonly bannerFailure: ApiFailure | null;
 }
 
 /**
- * The human-readable sentence for `error`: the API's ProblemDetails `detail`
- * when it sent one, else the error's own message, else `fallback`.
+ * Split a failed submit across the fields and the banner.
  *
- * The split's counterpart for everywhere a failed call has no fields to
- * distribute messages across — a failed read, or a write whose failure is shown
- * outside a form. The `isWallowError` brand check is the gate: anything that did
- * not come through the SDK's error interceptor contributes no copy of its own,
- * so an arbitrary object cannot dictate user-facing text by merely carrying a
- * `detail` member.
+ * `knownFields` is the set of camelCase names the form holds. Anything not
+ * already an `ApiFailure` is classified first (a thrown `Error` is a transport
+ * failure), so the banner never shows transport text. A message keyed by a
+ * field the form does not hold cannot be shown next to an input; the banner
+ * receives the unmatched messages as resolver context, without changing the
+ * original failure or joining messages together.
  */
-export function errorText(error: unknown, fallback: string): string {
-  if (isWallowError(error)) {
-    return error.detail ?? error.message;
-  }
-  return error instanceof Error && error.message !== "" ? error.message : fallback;
-}
-
-/**
- * The API's property name folded onto the form's. Only the first character
- * differs between `ValidationProblemDetails`' `"Name"` and a form's `"name"`;
- * lowercasing the whole key would break `"emailAddress"`.
- */
-function toFieldName(propertyName: string): string {
-  return propertyName.charAt(0).toLowerCase() + propertyName.slice(1);
-}
-
-/**
- * A nested wire path folded onto the flattened field a form holds it as:
- * `"branding.displayName"` becomes `"brandingDisplayName"`. Tried only after
- * `toFieldName` misses, so a form that genuinely holds a dotted path keeps it.
- */
-function toFlattenedFieldName(propertyName: string): string {
-  const [head, ...rest] = propertyName.split(".");
-  return (
-    toFieldName(head ?? "") +
-    rest.map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1)).join("")
+export function splitSubmitFailure(error: unknown, knownFields: readonly string[]): SubmitFailure {
+  const failure: ApiFailure = toApiFailure(error);
+  const { fieldErrors, unmatched }: SplitFieldErrors = splitFieldErrors(failure, knownFields);
+  // Messages, not keys: a matched field with an empty list shows nothing, so
+  // it must not count as "placed" or the submit would fail with no feedback.
+  const placedAnyMessage: boolean = Object.values(fieldErrors).some(
+    (messages: readonly string[]): boolean => messages.length > 0,
   );
-}
+  const everyMessagePlaced: boolean = unmatched.length === 0 && placedAnyMessage;
 
-/**
- * Split a failed submit into field-level and form-level messages.
- *
- * `knownFields` is the set of camelCase names the form holds; a message keyed by
- * anything else joins the banner rather than vanishing.
- */
-export function splitServerError(
-  error: unknown,
-  knownFields: readonly string[],
-  fallback: string,
-): SplitServerError {
-  if (!isWallowError(error)) {
-    // A thrown `Error` that carries its own sentence (a network fault, say) says
-    // more than the caller's generic fallback; an empty one says nothing.
-    const message: string =
-      error instanceof Error && error.message !== "" ? error.message : fallback;
-
-    return { fieldErrors: {}, formError: message };
-  }
-
-  const matched: Record<string, readonly string[]> = {};
-  const unmatched: string[] = [];
-
-  for (const [propertyName, messages] of Object.entries(error.fieldErrors ?? {})) {
-    const field: string = toFieldName(propertyName);
-    const flattened: string = toFlattenedFieldName(propertyName);
-
-    if (knownFields.includes(field)) {
-      matched[field] = messages;
-    } else if (knownFields.includes(flattened)) {
-      matched[flattened] = messages;
-    } else {
-      unmatched.push(...messages);
-    }
-  }
-
-  if (unmatched.length > 0) {
-    // A message the form cannot show next to an input still has to be shown.
-    return { fieldErrors: matched, formError: unmatched.join(" ") };
-  }
-
-  if (Object.keys(matched).length > 0) {
-    // Everything landed on a field, so a banner would only repeat it.
-    return { fieldErrors: matched, formError: null };
-  }
-
-  return { fieldErrors: matched, formError: error.detail ?? fallback };
+  return { fieldErrors, unmatched, bannerFailure: everyMessagePlaced ? null : failure };
 }

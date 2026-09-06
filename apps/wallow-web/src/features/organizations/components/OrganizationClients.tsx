@@ -13,8 +13,7 @@
  * editor in place of the ledger's register flow, and a `{row}-settings` trigger
  * opening the `organization-detail-client-settings-*` editor the same way.
  */
-import { errorText } from "@bc-solutions-coder/forms";
-import { useMutation, useQuery, useQueryClient } from "@bc-solutions-coder/query";
+import { handledFailure, useMutation, useQuery, useQueryClient } from "@bc-solutions-coder/query";
 import type {
   OrganizationClientRegistrationResponse,
   OrganizationClientResponse,
@@ -27,12 +26,13 @@ import {
   Checkbox,
   Dialog,
   EmptyState,
-  ErrorBanner,
+  FailureBanner,
   Input,
   ListCard,
   ListRow,
   MutedText,
   Text,
+  useFailureMessage,
 } from "@bc-solutions-coder/ui";
 import { formatLongDate } from "@bc-solutions-coder/utils/format";
 import { type ReactNode, useState } from "react";
@@ -185,6 +185,8 @@ function RotateSecretDialog(props: {
   const [revoke, setRevoke] = useState(false);
   const rotate = useMutation({
     ...organizationClientsRotateSecretMutation({ client: sdk.client }),
+    // The dialog shows the refusal itself, so the toast stays out of it.
+    meta: handledFailure(),
     onSuccess: (result): void => {
       // The row's "last rotated" line comes off the ledger read; the secret
       // itself is shown once and never refetched, so the result is handed up.
@@ -193,6 +195,7 @@ function RotateSecretDialog(props: {
       onRotated(result);
     },
   });
+  const failure = useFailureMessage(rotate.error);
   const onOpenChange = (next: boolean): void => {
     setOpen(next);
     if (!next) {
@@ -211,7 +214,7 @@ function RotateSecretDialog(props: {
           revoke={revoke}
           onRevokeChange={setRevoke}
           pending={rotate.isPending}
-          error={rotate.isError ? errorText(rotate.error, "Could not rotate the secret.") : null}
+          error={failure}
           onConfirm={() => {
             rotate.mutate({
               path: { orgId, clientId: client.clientId },
@@ -238,7 +241,8 @@ function useInvalidateClients(orgId: string): () => void {
 /**
  * Suspend or reinstate, whichever the row's status calls for. Suspension ends
  * every token the client holds on the spot; reinstatement puts it back without
- * asking anyone to consent again, so neither needs a confirmation step.
+ * asking anyone to consent again, so neither needs a confirmation step. A
+ * refusal is the toast's to show — the row carries no surface for it.
  */
 function LifecycleToggle(props: {
   name: string;
@@ -256,25 +260,18 @@ function LifecycleToggle(props: {
     onSuccess: invalidate,
   });
   return (
-    <div className="flex flex-col gap-1">
-      <Button
-        type="button"
-        className="w-auto"
-        variant="secondary"
-        disabled={toggle.isPending}
-        onClick={() => {
-          toggle.mutate({ path: { orgId, clientId: client.clientId } });
-        }}
-        data-testid={`${name}-${suspended ? "reinstate" : "suspend"}`}
-      >
-        {suspended ? "Reinstate" : "Suspend"}
-      </Button>
-      {toggle.isError ? (
-        <MutedText data-testid={`${name}-lifecycle-error`} className="text-destructive">
-          {errorText(toggle.error, suspended ? "Could not reinstate." : "Could not suspend.")}
-        </MutedText>
-      ) : null}
-    </div>
+    <Button
+      type="button"
+      className="w-auto"
+      variant="secondary"
+      disabled={toggle.isPending}
+      onClick={() => {
+        toggle.mutate({ path: { orgId, clientId: client.clientId } });
+      }}
+      data-testid={`${name}-${suspended ? "reinstate" : "suspend"}`}
+    >
+      {suspended ? "Reinstate" : "Suspend"}
+    </Button>
   );
 }
 
@@ -366,11 +363,14 @@ function DeleteClientDialog(props: {
   const [typed, setTyped] = useState("");
   const remove = useMutation({
     ...organizationClientsDeleteMutation({ client: sdk.client }),
+    // The dialog shows the refusal itself, so the toast stays out of it.
+    meta: handledFailure(),
     onSuccess: (): void => {
       invalidate();
       setOpen(false);
     },
   });
+  const failure = useFailureMessage(remove.error);
   const onOpenChange = (next: boolean): void => {
     setOpen(next);
     if (!next) {
@@ -389,7 +389,7 @@ function DeleteClientDialog(props: {
           typed={typed}
           onTypedChange={setTyped}
           pending={remove.isPending}
-          error={remove.isError ? errorText(remove.error, "Could not delete the client.") : null}
+          error={failure}
           onConfirm={() => {
             remove.mutate({ path: { orgId, clientId: client.clientId } });
           }}
@@ -656,11 +656,13 @@ function KindLedger(props: {
 export function OrganizationClients(props: { orgId: string }) {
   const { orgId } = props;
   const { sdk } = useRouteContext({ from: "__root__" });
-  const { data, isError, error } = useQuery(
+  const { data, isError, error, refetch } = useQuery(
     organizationClientsListOptions({ client: sdk.client, path: { orgId } }),
   );
   // The member list `OrganizationDetail` already reads — shared cache entry,
   // no second request — names the people behind the created/rotated ids.
+  // Silent by design: if that read fails the rows fall back to the raw user
+  // ids, and the members section on the same page is where the failure shows.
   const members = useQuery(
     organizationsGetMembersOptions({ client: sdk.client, path: { id: orgId } }),
   );
@@ -674,9 +676,11 @@ export function OrganizationClients(props: { orgId: string }) {
   // background refetch.
   if (isError && data === undefined) {
     return (
-      <ErrorBanner data-testid="organization-detail-clients-error">
-        {errorText(error, "Could not load the organization's clients.")}
-      </ErrorBanner>
+      <FailureBanner
+        data-testid="organization-detail-clients-error"
+        error={error}
+        onRetry={refetch}
+      />
     );
   }
 

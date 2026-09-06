@@ -90,7 +90,7 @@ public partial class OrganizationClientBrandingController(
     [EnableRateLimiting("registration")]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(ClientBrandingDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ClientBrandingDto>> UpsertBranding(
         Guid orgId,

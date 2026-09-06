@@ -78,7 +78,7 @@ public class AnnouncementsControllerTests
 
         IActionResult result = await _controller.GetAnnouncements(CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
     }
 
@@ -133,7 +133,7 @@ public class AnnouncementsControllerTests
 
         IActionResult result = await _controller.DismissAnnouncement(Guid.NewGuid(), CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
     }
 
@@ -146,7 +146,7 @@ public class AnnouncementsControllerTests
 
         IActionResult result = await _controller.DismissAnnouncement(announcementId, CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 
@@ -175,7 +175,7 @@ public class AnnouncementsControllerTests
 
         IActionResult result = await _controller.DismissAnnouncement(announcementId, CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
     }
 

@@ -10,6 +10,8 @@ using Microsoft.Extensions.Logging;
 using Wallow.Identity.Api.Contracts.Responses;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Errors;
+using Wallow.Shared.Api.Problems;
 using Wallow.Shared.Contracts.Identity.Events;
 using Wallow.Shared.Kernel.Extensions;
 using Wolverine;
@@ -38,7 +40,7 @@ public sealed partial class MfaController(
         WallowUser? user = await userManager.FindByIdAsync(userId);
         if (user is null)
         {
-            return NotFound();
+            return this.Problem(IdentityErrors.UserNotFound);
         }
 
         int backupCodeCount = 0;
@@ -63,7 +65,7 @@ public sealed partial class MfaController(
         string? userId = await ResolveEnrollmentUserIdAsync(ct);
         if (userId is null)
         {
-            return Unauthorized(new { succeeded = false, error = "no_auth_session" });
+            return this.Problem(IdentityErrors.MfaSessionMissing);
         }
 
         (string secret, string qrUri) = await mfaService.GenerateEnrollmentSecretAsync(userId, ct);
@@ -79,19 +81,19 @@ public sealed partial class MfaController(
         string? userId = await ResolveEnrollmentUserIdAsync(ct);
         if (userId is null)
         {
-            return Unauthorized(new { succeeded = false, error = "no_auth_session" });
+            return this.Problem(IdentityErrors.MfaSessionMissing);
         }
 
         bool isValid = await mfaService.ValidateTotpAsync(request.Secret, request.Code, ct);
         if (!isValid)
         {
-            return BadRequest(new { succeeded = false, error = "invalid_code" });
+            return this.Problem(IdentityErrors.MfaCodeInvalid);
         }
 
         WallowUser? user = await userManager.FindByIdAsync(userId);
         if (user is null)
         {
-            return BadRequest(new { succeeded = false, error = "user_not_found" });
+            return this.Problem(IdentityErrors.UserNotFound);
         }
 
         user.EnableMfa("totp", request.Secret);
@@ -103,7 +105,7 @@ public sealed partial class MfaController(
         IdentityResult result = await userManager.UpdateAsync(user);
         if (!result.Succeeded)
         {
-            return BadRequest(new { succeeded = false, error = "update_failed" });
+            return this.Problem(IdentityErrors.MfaUpdateFailed);
         }
 
         await messageBus.PublishAsync(new UserMfaEnabledEvent
@@ -130,18 +132,18 @@ public sealed partial class MfaController(
         WallowUser? user = await userManager.FindByIdAsync(currentUserId);
         if (user is null)
         {
-            return BadRequest(new { succeeded = false, error = "user_not_found" });
+            return this.Problem(IdentityErrors.UserNotFound);
         }
 
         bool passwordValid = await userManager.CheckPasswordAsync(user, request.Password);
         if (!passwordValid)
         {
-            return BadRequest(new { succeeded = false, error = "invalid_password" });
+            return this.Problem(IdentityErrors.MfaPasswordInvalid);
         }
 
         if (!user.MfaEnabled)
         {
-            return BadRequest(new { succeeded = false, error = "mfa_not_enabled" });
+            return this.Problem(IdentityErrors.MfaNotEnabled);
         }
 
         user.DisableMfa();
@@ -164,13 +166,13 @@ public sealed partial class MfaController(
         WallowUser? user = await userManager.FindByIdAsync(currentUserId);
         if (user is null)
         {
-            return BadRequest(new { succeeded = false, error = "user_not_found" });
+            return this.Problem(IdentityErrors.UserNotFound);
         }
 
         bool passwordValid = await userManager.CheckPasswordAsync(user, request.Password);
         if (!passwordValid)
         {
-            return BadRequest(new { succeeded = false, error = "invalid_password" });
+            return this.Problem(IdentityErrors.MfaPasswordInvalid);
         }
 
         List<string> codes = await mfaService.GenerateBackupCodesAsync(ct);
@@ -193,7 +195,7 @@ public sealed partial class MfaController(
         WallowUser? user = await userManager.FindByIdAsync(userId);
         if (user is null)
         {
-            return NotFound(new { succeeded = false, error = "user_not_found" });
+            return this.Problem(IdentityErrors.UserNotFound);
         }
 
         user.DisableMfa();
@@ -209,7 +211,7 @@ public sealed partial class MfaController(
         WallowUser? user = await userManager.FindByIdAsync(userId);
         if (user is null)
         {
-            return NotFound(new { succeeded = false, error = "user_not_found" });
+            return this.Problem(IdentityErrors.UserNotFound);
         }
 
         await userManager.SetLockoutEndDateAsync(user, null);
@@ -241,7 +243,7 @@ public sealed partial class MfaController(
 
         if (string.IsNullOrEmpty(email))
         {
-            return BadRequest(new { succeeded = false, error = "email_claim_missing" });
+            return this.Problem(IdentityErrors.AuthEmailClaimMissing);
         }
 
         string token = CreateEnrollmentToken(userId, email);
@@ -262,7 +264,7 @@ public sealed partial class MfaController(
         EnrollmentTokenPayload? payload = ValidateEnrollmentToken(token);
         if (payload is null)
         {
-            return BadRequest(new { succeeded = false, error = "invalid_or_expired_token" });
+            return this.Problem(IdentityErrors.MfaEnrollmentTokenInvalid);
         }
 
         await mfaPartialAuthService.IssuePartialCookieAsync(

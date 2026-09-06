@@ -6,7 +6,7 @@ import { useRouteContext } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { z } from "zod";
 import { accountLoginMutation } from "../api";
-import { BLANK_CREDENTIALS_MESSAGE, loginFailureMessage } from "../auth-result";
+import { BLANK_CREDENTIALS_MESSAGE } from "../auth-result";
 import type { LoginPanelProps } from "../panel";
 
 /**
@@ -14,9 +14,10 @@ import type { LoginPanelProps } from "../panel";
  * oracle's `_activeTab == LoginTab.Password` branch and its `HandleLogin`
  * (`api/src/Wallow.Auth/Components/Pages/Login.razor`:60-104, :321-360).
  *
- * This panel owns ONLY its own three fields, its own mutation and its own error
- * copy — the three things the oracle keeps per-tab. It never navigates: the
- * result goes UP through `onAuthResult` and the shell decides. See `../panel`.
+ * This panel owns ONLY its own three fields, its own mutation and its own guard
+ * copy — the three things the oracle keeps per-tab. It never navigates and it
+ * never words a rejection: the result goes UP through `onAuthResult`, a thrown
+ * failure through `onFailure`, and the shell decides. See `../panel`.
  *
  * Testids come verbatim from the oracle (scout inventory on Wallow-vec7.3):
  * `login-email`, `login-forgot-password`, `login-password`, `login-remember-me`,
@@ -30,12 +31,12 @@ import type { LoginPanelProps } from "../panel";
  *
  * ── WHY THE ESCAPE HATCH, NOT THE `mutation` OPTION ──────────────────────────
  *
- * `MfaChallengeForm`'s two reasons, both of which hold here. `splitServerError`
- * reads RFC 7807 members, and three of this endpoint's four outcomes arrive as
- * 200 bodies the shell has to narrow — only `../auth-result` can tell them apart.
- * And the blank-credentials guard reports into the SHELL's shared banner, which a
- * zod rule could not do: it would abort `handleSubmit` before the callback ran.
- * The schema below is therefore rule-free, and this panel renders no `FormError`.
+ * Three of this endpoint's four outcomes arrive as 200 bodies the shell has to
+ * narrow — only `../auth-result` can tell them apart — and both the
+ * blank-credentials guard and a rejection report into the SHELL's shared banner,
+ * which the `mutation` option could not do: it would keep the failure on this
+ * form. The schema below is therefore rule-free, and this panel renders no
+ * `FormError`.
  */
 
 /** RULE-FREE on purpose — see the header. Here for the value types alone. */
@@ -66,7 +67,11 @@ const FORGOT_PASSWORD_LINK: ReactNode = (
   </QuietLink>
 );
 
-export function PasswordLoginForm({ onAuthResult, onError }: LoginPanelProps): ReactNode {
+export function PasswordLoginForm({
+  onAuthResult,
+  onError,
+  onFailure,
+}: LoginPanelProps): ReactNode {
   const { sdk } = useRouteContext({ from: "__root__" });
 
   // The generated factory's response type governs, and the narrowing still
@@ -104,8 +109,9 @@ export function PasswordLoginForm({ onAuthResult, onError }: LoginPanelProps): R
         });
       } catch (error: unknown) {
         // The form deliberately stays up — the user has attempts left and no way
-        // to spend them if it is gone.
-        onError(loginFailureMessage(error));
+        // to spend them if it is gone. The failure goes up AS THROWN; the shell
+        // words it.
+        onFailure(error);
         return;
       }
 

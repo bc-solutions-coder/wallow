@@ -40,7 +40,6 @@ public class AdminAnnouncementsController(IMessageBus bus, IHtmlSanitizationServ
 
     [HttpPost]
     [ProducesResponseType(typeof(AnnouncementResponse), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> CreateAnnouncement(
         [FromBody] CreateAnnouncementRequest request,
         CancellationToken ct)

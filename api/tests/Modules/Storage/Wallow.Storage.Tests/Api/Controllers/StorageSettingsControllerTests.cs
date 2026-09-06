@@ -68,7 +68,7 @@ public class StorageSettingsControllerTests
 
         IActionResult result = await _controller.GetConfig(CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
     }
 
@@ -140,7 +140,7 @@ public class StorageSettingsControllerTests
 
         IActionResult result = await _controller.GetUserSettings(CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
     }
 
@@ -172,7 +172,7 @@ public class StorageSettingsControllerTests
 
         IActionResult result = await _controller.UpsertTenantSetting(request, CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
     }
 
@@ -184,7 +184,7 @@ public class StorageSettingsControllerTests
 
         IActionResult result = await _controller.UpsertTenantSetting(request, CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
     }
 
@@ -197,7 +197,7 @@ public class StorageSettingsControllerTests
 
         IActionResult result = await _controller.UpsertTenantSetting(request, CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
     }
 
@@ -227,7 +227,7 @@ public class StorageSettingsControllerTests
 
         IActionResult result = await _controller.DeleteTenantSetting("system.internal_flag", CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
     }
 
@@ -239,7 +239,7 @@ public class StorageSettingsControllerTests
 
         IActionResult result = await _controller.DeleteTenantSetting("storage.max_upload_size_mb", CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
     }
 
@@ -271,7 +271,7 @@ public class StorageSettingsControllerTests
 
         IActionResult result = await _controller.UpsertUserSetting(request, CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
     }
 
@@ -284,7 +284,7 @@ public class StorageSettingsControllerTests
 
         IActionResult result = await _controller.UpsertUserSetting(request, CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
     }
 
@@ -314,7 +314,7 @@ public class StorageSettingsControllerTests
 
         IActionResult result = await _controller.DeleteUserSetting("system.flag", CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
     }
 
@@ -326,7 +326,7 @@ public class StorageSettingsControllerTests
 
         IActionResult result = await _controller.DeleteUserSetting("storage.allowed_file_types", CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
     }
 

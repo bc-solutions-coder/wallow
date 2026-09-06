@@ -150,23 +150,45 @@ function verifiedResponse(ticket?: string): Response {
   );
 }
 
-function rejectionResponse(status: number, error: string): Response {
-  return Response.json({ succeeded: false, error }, { status });
+/**
+ * A refusal as the endpoint writes it: RFC 7807 problem details with the catalog
+ * code under `code` and its user-safe sentence under `detail`. `title` stays
+ * "Unknown error" so a screen echoing the reason phrase is caught.
+ */
+function rejectionResponse(status: number, code: string, detail?: string): Response {
+  return Response.json(
+    {
+      type: "about:blank",
+      title: "Unknown error",
+      status,
+      code,
+      ...(detail === undefined ? {} : { detail }),
+    },
+    { status },
+  );
 }
 
-/** 401 + `invalid_code`: the code was wrong. Two of the endpoint's three 401s. */
+/** 401 `Mfa.CodeInvalid`: the code was wrong. One of the endpoint's two 401s. */
 function invalidCodeResponse(): Response {
-  return rejectionResponse(401, "invalid_code");
+  return rejectionResponse(401, "Mfa.CodeInvalid", "The verification code is incorrect.");
 }
 
-/** 401 + `no_mfa_session`: the partial-auth cookie is missing or expired. */
+/** 401 `Mfa.SessionMissing`: the partial-auth cookie is missing or expired. */
 function noMfaSessionResponse(): Response {
-  return rejectionResponse(401, "no_mfa_session");
+  return rejectionResponse(
+    401,
+    "Mfa.SessionMissing",
+    "Start signing in again to continue with multi-factor authentication.",
+  );
 }
 
-/** 423 + `mfa_locked_out` — the one failure status also identifies on its own. */
+/** 423 `Mfa.LockedOut`: the attempts are spent until the lockout expires. */
 function lockedOutResponse(): Response {
-  return rejectionResponse(423, "mfa_locked_out");
+  return rejectionResponse(
+    423,
+    "Mfa.LockedOut",
+    "Too many failed verification attempts. Try again later.",
+  );
 }
 
 /**
@@ -752,7 +774,7 @@ describe("MfaChallengeForm — the flow's client id", () => {
 });
 
 describe("MfaChallengeForm — a rejected code", () => {
-  it("reports an invalid verification code on invalid_code", async () => {
+  it("reports an invalid verification code on Mfa.CodeInvalid", async () => {
     verifyWith = invalidCodeResponse;
     const user = userEvent.setup();
     await renderForm();
@@ -779,9 +801,9 @@ describe("MfaChallengeForm — a rejected code", () => {
   });
 
   it("tells the user to sign in again when the challenge session is gone", async () => {
-    // `no_mfa_session` shares its 401 with `invalid_code`, so only the TOKEN can tell them
-    // apart. Getting it wrong sends a user whose cookie is simply gone round a loop that
-    // burns their five attempts on codes that cannot work.
+    // `Mfa.SessionMissing` shares its 401 with `Mfa.CodeInvalid`, so only the CODE can tell
+    // them apart. Getting it wrong sends a user whose cookie is simply gone round a loop
+    // that burns their five attempts on codes that cannot work.
     verifyWith = noMfaSessionResponse;
     const user = userEvent.setup();
     await renderForm();
@@ -789,14 +811,14 @@ describe("MfaChallengeForm — a rejected code", () => {
     await submitCode(user);
 
     const error = page.getByTestId("mfa-challenge-error");
-    await expect.element(error).toHaveTextContent(/sign in again/iu);
+    await expect.element(error).toHaveTextContent(/signing in again/iu);
     await expect.element(error).not.toHaveTextContent(/invalid verification code/iu);
   });
 
   it("does not blame the backup code when the challenge session is gone", async () => {
     // The session message is about the session, not the input: mode-sensitive wording belongs
-    // to `invalid_code` alone, and a user recovering with a backup code must not be told a
-    // valid one was rejected.
+    // to `Mfa.CodeInvalid` alone, and a user recovering with a backup code must not be told
+    // a valid one was rejected.
     verifyWith = noMfaSessionResponse;
     const user = userEvent.setup();
     await renderForm();
@@ -805,12 +827,12 @@ describe("MfaChallengeForm — a rejected code", () => {
     await submitCode(user, BACKUP_CODE);
 
     const error = page.getByTestId("mfa-challenge-error");
-    await expect.element(error).toHaveTextContent(/sign in again/iu);
+    await expect.element(error).toHaveTextContent(/signing in again/iu);
     await expect.element(error).not.toHaveTextContent(/invalid backup code/iu);
   });
 
-  it("explains the lockout on mfa_locked_out", async () => {
-    // Worth its own branch: the user's codes cannot work until the lockout expires, so
+  it("explains the lockout on Mfa.LockedOut", async () => {
+    // Worth its own sentence: the user's codes cannot work until the lockout expires, so
     // "invalid code, try again" would send them round a loop that only re-locks them.
     verifyWith = lockedOutResponse;
     const user = userEvent.setup();
@@ -819,52 +841,53 @@ describe("MfaChallengeForm — a rejected code", () => {
     await submitCode(user);
 
     const error = page.getByTestId("mfa-challenge-error");
-    await expect.element(error).toHaveTextContent(/too many/iu);
-    await expect.element(error).toHaveTextContent(/locked/iu);
+    await expect.element(error).toHaveTextContent(/too many failed verification attempts/iu);
     await expect.element(error).not.toHaveTextContent(/invalid verification code/iu);
   });
 
-  it("explains the lockout on a 423 whose code it does not recognise", async () => {
-    // 423 identifies the lockout on its own, so it is retained as a STATUS-level fallback
-    // rather than only as a companion to the token — pinned against a code-only rewrite.
-    verifyWith = () => rejectionResponse(423, "UNKNOWN");
+  it("reads the problem's detail for a code it does not recognise", async () => {
+    // A code the API adds tomorrow must not be guessed at from its status: the `detail`
+    // is user-safe by contract, so the banner shows it.
+    verifyWith = () => rejectionResponse(423, "Mfa.SomeNewCode", "Some new user-safe sentence.");
     const user = userEvent.setup();
     await renderForm();
 
     await submitCode(user);
 
-    await expect.element(page.getByTestId("mfa-challenge-error")).toHaveTextContent(/locked/iu);
+    await expect
+      .element(page.getByTestId("mfa-challenge-error"))
+      .toHaveTextContent("Some new user-safe sentence.");
   });
 
-  it("falls back to the generic message for an unrecognised status", async () => {
+  it("reads the model's server-fault copy for a 5xx, never a wrong-code sentence", async () => {
     // A 500 is not a wrong code and must not be reported as one.
-    verifyWith = () => rejectionResponse(500, "UNKNOWN");
+    verifyWith = () => rejectionResponse(500, "Shared.Unexpected", "Object reference not set.");
     const user = userEvent.setup();
     await renderForm();
 
     await submitCode(user);
 
     const error = page.getByTestId("mfa-challenge-error");
-    await expect.element(error).toHaveTextContent(/verification failed/iu);
+    await expect.element(error).toHaveTextContent(/something went wrong on our side/iu);
     await expect.element(error).not.toHaveTextContent(/invalid verification code/iu);
   });
 
-  it("falls back to the generic message for a 401 whose code it does not recognise", async () => {
-    // "Match known tokens, else generic". A blanket `401 -> invalid code` would pass every
-    // other test in this block while re-guessing at failures it cannot identify.
-    verifyWith = () => rejectionResponse(401, "some_new_token");
+  it("does not blame the code for a 401 whose code it does not recognise", async () => {
+    // A blanket `401 -> invalid code` would pass every other test in this block while
+    // re-guessing at failures it cannot identify.
+    verifyWith = () => rejectionResponse(401, "Mfa.SomeNewCode");
     const user = userEvent.setup();
     await renderForm();
 
     await submitCode(user);
 
     const error = page.getByTestId("mfa-challenge-error");
-    await expect.element(error).toHaveTextContent(/verification failed/iu);
+    await expect.element(error).toBeInTheDocument();
     await expect.element(error).not.toHaveTextContent(/invalid verification code/iu);
   });
 
-  it("shows the generic message when the request fails without a status", async () => {
-    // A network-level fault never reaches a response, so the rejection carries no API token:
+  it("tells the user the server is unreachable when the request never lands", async () => {
+    // A network-level fault never reaches a response, so the rejection carries no code:
     // narrowing must neither throw on it nor claim the code was wrong.
     verifyWith = () => {
       throw new TypeError("network down");
@@ -874,15 +897,14 @@ describe("MfaChallengeForm — a rejected code", () => {
 
     await submitCode(user);
 
-    await expect
-      .element(page.getByTestId("mfa-challenge-error"))
-      .toHaveTextContent(/verification failed/iu);
+    const error = page.getByTestId("mfa-challenge-error");
+    await expect.element(error).toHaveTextContent(/unable to reach the server/iu);
+    await expect.element(error).not.toHaveTextContent(/invalid verification code/iu);
   });
 
-  it("never leaks the raw rejection or a machine reason token into the page", async () => {
-    // Two strings are in reach and neither is a message for a human: the seam's
-    // `title: "Unknown error"`, and the API's own `error` token. The screen holds the real
-    // token now, so rendering it is a live temptation — every one it can send is checked.
+  it("never leaks the reason phrase or a machine code into the page", async () => {
+    // Two strings are in reach and neither is a message for a human: the problem's
+    // `title: "Unknown error"`, and the catalog code itself.
     verifyWith = invalidCodeResponse;
     const user = userEvent.setup();
     await renderForm();
@@ -890,16 +912,15 @@ describe("MfaChallengeForm — a rejected code", () => {
     await submitCode(user);
     await expect.element(page.getByTestId("mfa-challenge-error")).toBeInTheDocument();
     expect(page.getByText(/unknown error/iu).query()).toBeNull();
-    expect(page.getByText(/no_mfa_session|mfa_locked_out|invalid_code/u).query()).toBeNull();
+    expect(page.getByText(/Mfa\.(?:SessionMissing|LockedOut|CodeInvalid)/u).query()).toBeNull();
 
-    // The session-gone token is the one most plausibly printed: its branch is the newest.
     verifyWith = noMfaSessionResponse;
     await user.click(page.getByTestId("mfa-challenge-submit"));
 
     await expect
       .element(page.getByTestId("mfa-challenge-error"))
-      .toHaveTextContent(/sign in again/iu);
-    expect(page.getByText(/no_mfa_session/u).query()).toBeNull();
+      .toHaveTextContent(/signing in again/iu);
+    expect(page.getByText(/Mfa\.SessionMissing/u).query()).toBeNull();
   });
 
   it("keeps the form up so the user can retry", async () => {

@@ -1,5 +1,8 @@
 **status: completed**
 
+> Historical plan. Failure-handling passages link to the current spec and their original Git revision.
+
+
 # Build simplification — execution plan
 
 ## Progress log
@@ -731,15 +734,8 @@ repo, so the shape changed while the outcome did not.
   `no-standalone-expect`, `no-commented-out-tests`, `no-conditional-tests`,
   `valid-expect-in-promise`, `hoisted-apis-on-top` and `require-awaited-expect-poll`. Cost: zero
   fixes, per Rule 6.
-- Three of the opt-outs are **false positives against real idioms**, not style preferences, and
-  are worth knowing before anyone tries to re-enable them: `valid-expect` (all 13 hits are
-  "Expect takes at most 1 argument" against Vitest's legitimate `expect(value, message)`
-  overload, used deliberately across the repo for named failures); `expect-expect` (assertions
-  delegated to a shared helper, e.g. `referencesEveryEmittedVar(mode)` in
-  `packages/styles/src/theme-css.test.ts`); `no-conditional-expect` (the
-  `if (!isWallowError(value)) { expect.unreachable(...) }` type-narrowing guard in
-  `packages/sdk/src/errors.test.ts`). The other 27 are ordinary style disagreements
-  (`prefer-expect-assertions` alone accounted for 1968).
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-07-31/1700-build-simplification-execution.md).
+
 - **File list is enumerated, not globbed.** `scripts/lint-tests.sh` derives its 399 paths from
   `oxlint apps packages tools --debug=files`, so discovery and `ignorePatterns` cannot drift
   from the source pass, prints the count, and exits 1 on zero — the plan's silent-pass failure

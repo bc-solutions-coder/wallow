@@ -11,9 +11,10 @@ import { InquiryList } from "./InquiryList";
  * that reads as "nothing has arrived" rather than "we could not ask".
  */
 
-/** An RFC 7807 body the SDK's error interceptor brands as a `WallowError`. */
+/** An RFC 7807 body the SDK's error interceptor parses into an `ApiFailure`. */
 const PROBLEM = {
   status: 500,
+  code: "Server.Error",
   title: "Internal Server Error",
   detail: "Could not load inquiries.",
 };
@@ -26,14 +27,14 @@ describe("InquiryList — query error state", () => {
     harness = createSdkHarness();
   });
 
-  it("renders the ProblemDetails detail when the inquiries query errors", async () => {
+  it("renders the server-failure copy, not the 500's detail, when the inquiries query errors", async () => {
     harness.rejectJson(PROBLEM, 500);
 
     renderWithWallow(<InquiryList />, { harness });
 
     await expect
       .element(page.getByTestId("inquiries-error"))
-      .toHaveTextContent("Could not load inquiries.");
+      .toHaveTextContent("Something went wrong on our side. Please try again later.");
   });
 
   it("does not show the empty state when the inquiries query errors", async () => {

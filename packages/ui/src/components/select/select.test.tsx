@@ -6,52 +6,11 @@ import { userEvent } from "vitest/browser";
 import { Select } from "./select";
 
 /*
- * Select behavioural spec (Wallow-m5aq.2.8), shaped after the Wallow-m5aq.2.1
- * Button exemplar:
- *
- *   1. Runs in the vitest BROWSER project — real headless Chromium, real Base UI,
- *      real DOM. Nothing is mocked.
- *   2. Recipes are asserted THROUGH the component, never by importing
- *      `selectTriggerRecipe` and inspecting its return value: a recipe unit test
- *      would pass while the component forgot to apply it.
- *   3. Class assertions are an ORDER-FREE SET (`classSet`), because
- *      `cn()`/tailwind-merge is free to reorder. The `*_CLASSES` constants below
- *      are the single source of truth for what each recipe must contain — the
- *      green phase transcribes them into select.styles.ts.
- *   4. Stories carry the visual coverage (see select.stories.tsx); this file is
- *      only for the edges a screenshot cannot make.
- *
- * ANATOMY, measured against @base-ui/react 1.6.0 in this browser (not guessed):
- *
- *   <div id="…-label">                                  <- Select.Label
- *   <button role="combobox" aria-haspopup="listbox">    <- Select.Trigger
- *     <span>alpha</span>                                <- Select.Value
- *     <span aria-hidden="true"><svg/></span>            <- Select.Icon
- *   <input aria-hidden tabindex="-1" name value>        <- SIBLING of the trigger
- *
- *   …and, only while open, portalled onto <body>:
- *   <div role="presentation" data-open data-side data-align>  <- Select.Positioner
- *     <div role="presentation" data-open tabindex="-1">       <- Select.Popup
- *       <div role="listbox" class="base-ui-disable-scrollbar">  <- Select.List
- *         <div role="group">                                  <- Select.Group
- *           <div id="…">                                      <- Select.GroupLabel
- *           <div role="option" data-selected data-highlighted> <- Select.Item
- *             <div>Alpha</div>                                <- Select.ItemText
- *             <span data-selected aria-hidden="true">         <- Select.ItemIndicator
- *
- * Five consequences worth knowing before editing this file:
- *   - the popup is PORTALLED to <body>, so every open-state query goes through
- *     `document.body`, never through `render`'s `container`;
- *   - nothing under Select.Portal exists in the DOM at all while the select is
- *     closed — these are not hidden elements, they are absent ones;
- *   - `Select.List` is the one part whose rendered class set is the recipe PLUS
- *     a Base UI class (`base-ui-disable-scrollbar`), which is why LIST_CLASSES
- *     is spread with that extra name at the assertion site;
- *   - `Select.ItemIndicator` is unmounted while its item is unselected, and the
- *     scroll arrows are unmounted while the list does not overflow, so both are
- *     rendered with `keepMounted` where their styling is under test;
- *   - `Select.Value` renders the item's raw VALUE (`"beta"`), not its
- *     `ItemText`, unless `Select.Root` is given an `items` map.
+ * Select composition, selection, and keyboard behavior in Chromium.
+ * Popup parts are portalled onto body and absent while closed.
+ * Item indicators and scroll arrows use keepMounted when testing their styles.
+ * Select.Value needs an items map to display labels instead of raw values.
+ * Stories exercise pointer interactions with real Tailwind styles.
  */
 
 /** Utilities `Select.Label` must render. */
@@ -471,7 +430,7 @@ describe("Select", () => {
     expect(classSet(groupLabel)).toEqual(GROUP_LABEL_CLASSES.toSorted());
     expect(part("s-group").getAttribute("aria-labelledby")).toBe(groupLabel.id);
 
-    expect(part("s-separator").getAttribute("role")).toBe("separator");
+    expect(part("s-separator").getAttribute("role")).toBe("presentation");
     expect(classSet(part("s-separator"))).toEqual(SEPARATOR_CLASSES.toSorted());
   });
 

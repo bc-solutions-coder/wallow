@@ -588,8 +588,9 @@ jobs:
           node-version-file: ".nvmrc"
           cache: "pnpm"
 
-      # Installs the workspace so the script can BUILD packages/sdk and
-      # packages/styles; the scratch app itself installs nothing from here.
+      # Installs the workspace so the script can BUILD the packages it packs
+      # (sdk, styles and their workspace dependencies); the scratch app itself
+      # installs nothing from here.
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
 

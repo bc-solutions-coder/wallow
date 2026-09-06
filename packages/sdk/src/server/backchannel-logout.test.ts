@@ -1,3 +1,4 @@
+import { ErrorCode } from "@bc-solutions-coder/api-errors";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { exportJWK, generateKeyPair, SignJWT, type JWK } from "jose";
 
@@ -420,10 +421,24 @@ describe("createBackchannelLogoutHandler — transport", () => {
     const handler: BffHandler = createBackchannelLogoutHandler(makeConfig(issuer), revokingStore());
 
     const response: Response = await handler(
-      new Request("https://app.example.com/bff/backchannel-logout", { method: "GET" }),
+      new Request("https://app.example.com/bff/backchannel-logout", {
+        method: "GET",
+        headers: { "x-request-id": "req-backchannel" },
+      }),
     );
 
     expect(response.status).toBe(405);
+    expect(response.headers.get("content-type")).toBe("application/problem+json");
+    expect(response.headers.get("x-request-id")).toBe("req-backchannel");
+    expect(response.headers.getSetCookie()).toEqual([]);
+    expect(await response.json()).toEqual({
+      type: "about:blank",
+      title: "Method not allowed",
+      status: 405,
+      code: ErrorCode.HTTP_METHOD_NOT_ALLOWED,
+      detail: "This HTTP method is not allowed for this endpoint.",
+      requestId: "req-backchannel",
+    });
     expect(response.headers.get("allow")).toBe("POST");
     expect(response.headers.get("cache-control")).toBe("no-store");
   });

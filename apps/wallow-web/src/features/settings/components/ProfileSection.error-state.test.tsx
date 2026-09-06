@@ -14,8 +14,13 @@ import { ProfileSection } from "./ProfileSection";
  * about the account.
  */
 
-/** An RFC 7807 body the SDK's error interceptor brands as a `WallowError`. */
-const PROBLEM = { status: 500, title: "Internal Server Error", detail: "Profile is unavailable." };
+/** An RFC 7807 body the SDK's error interceptor parses into an `ApiFailure`. */
+const PROBLEM = {
+  status: 500,
+  code: "Server.Error",
+  title: "Internal Server Error",
+  detail: "Profile is unavailable.",
+};
 
 let harness: SdkHarness;
 
@@ -24,14 +29,14 @@ describe("ProfileSection — query error state", () => {
     harness = createSdkHarness();
   });
 
-  it("renders the ProblemDetails detail when the current-user query errors", async () => {
+  it("renders the server-failure copy, not the 500's detail, when the current-user query errors", async () => {
     harness.rejectJson(PROBLEM, 500);
 
     renderWithWallow(<ProfileSection />, { harness });
 
     await expect
       .element(page.getByTestId("settings-profile-error"))
-      .toHaveTextContent("Profile is unavailable.");
+      .toHaveTextContent("Something went wrong on our side. Please try again later.");
   });
 
   it("does not render the 'Not set' profile fields when the query errors", async () => {

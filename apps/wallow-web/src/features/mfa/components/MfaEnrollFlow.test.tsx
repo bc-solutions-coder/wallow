@@ -1,24 +1,43 @@
 import { createSdkHarness, type SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+import { FailureMessagesProvider } from "@bc-solutions-coder/ui";
+import type { ReactElement } from "react";
 import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { expectSwept } from "@bc-solutions-coder/testing/invalidation";
 import { mfaGetStatusQueryKey } from "../api";
+import { failureMessages } from "@shared/lib/failure-messages";
 import { MfaEnrollFlow } from "./MfaEnrollFlow";
 
 /** The transport backing each render, rebuilt per test. */
 let harness: SdkHarness;
+
+/** The app registry the root mounts, so a raw MFA code resolves to its sentence. */
+function withRegistry(tree: ReactElement): ReactElement {
+  return <FailureMessagesProvider registry={failureMessages}>{tree}</FailureMessagesProvider>;
+}
 
 /**
  * The MFA enroll step machine: setup -> verify (secret + QR + code) -> done
  * (backup codes revealed ONCE).
  *
  * The confirm sweep targets the status OPERATION, not its `Identity` tag, which
- * spans the whole identity module. MFA controllers return their failures as a
- * raw `{ succeeded: false, error }` body rather than RFC 7807, thrown on any
- * non-2xx, so `onError` sees no `.detail` and the surface maps the code.
+ * spans the whole identity module. The MFA controller answers RFC 7807 problems,
+ * thrown on any non-2xx; the app registry's sentence for the `code` wins over
+ * the catalog's `detail`, which is why every fixture carries one.
  */
+
+/** A refusal as the controller writes it: the catalog code and its own detail. */
+function problem(status: number, code: string) {
+  return {
+    type: "about:blank",
+    title: "Unknown error",
+    status,
+    code,
+    detail: "The catalog's own sentence.",
+  };
+}
 
 const ENROLL_RESPONSE = {
   secret: "JBSWY3DPEHPK3PXP",
@@ -70,14 +89,14 @@ describe("MfaEnrollFlow", () => {
   });
 
   it("renders the begin-setup CTA and the always-visible cancel affordance initially", async () => {
-    renderWithWallow(<MfaEnrollFlow />, { harness });
+    renderWithWallow(<MfaEnrollFlow />, { harness, wrap: withRegistry });
 
     await expect.element(page.getByTestId("mfa-enroll-begin-setup")).toBeInTheDocument();
     await expect.element(page.getByTestId("mfa-enroll-cancel")).toBeInTheDocument();
   });
 
   it("does NOT show the secret, QR, code input, or backup codes before setup begins", async () => {
-    renderWithWallow(<MfaEnrollFlow />, { harness });
+    renderWithWallow(<MfaEnrollFlow />, { harness, wrap: withRegistry });
 
     await expect.element(page.getByTestId("mfa-enroll-secret")).not.toBeInTheDocument();
     await expect.element(page.getByTestId("mfa-enroll-qr")).not.toBeInTheDocument();
@@ -88,7 +107,7 @@ describe("MfaEnrollFlow", () => {
 
   it("clicking begin-setup calls enrollTotp and reveals the secret, QR, code input, and submit", async () => {
     programFlow();
-    renderWithWallow(<MfaEnrollFlow />, { harness });
+    renderWithWallow(<MfaEnrollFlow />, { harness, wrap: withRegistry });
 
     await beginEnrollment();
 
@@ -105,7 +124,7 @@ describe("MfaEnrollFlow", () => {
 
   it("submitting the code calls confirmEnroll with the enrolled secret and the entered code", async () => {
     programFlow();
-    renderWithWallow(<MfaEnrollFlow />, { harness });
+    renderWithWallow(<MfaEnrollFlow />, { harness, wrap: withRegistry });
 
     await beginEnrollment();
     await userEvent.type(page.getByTestId("mfa-enroll-code"), "123456");
@@ -120,7 +139,7 @@ describe("MfaEnrollFlow", () => {
 
   it("reveals the one-time backup codes (one child per code) after a successful confirm", async () => {
     programFlow();
-    renderWithWallow(<MfaEnrollFlow />, { harness });
+    renderWithWallow(<MfaEnrollFlow />, { harness, wrap: withRegistry });
 
     await beginEnrollment();
     await userEvent.type(page.getByTestId("mfa-enroll-code"), "123456");
@@ -136,7 +155,7 @@ describe("MfaEnrollFlow", () => {
 
   it("sweeps the MFA status query after a successful confirm so the card flips to Enabled", async () => {
     programFlow();
-    const { queryClient } = renderWithWallow(<MfaEnrollFlow />, { harness });
+    const { queryClient } = renderWithWallow(<MfaEnrollFlow />, { harness, wrap: withRegistry });
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
 
     await beginEnrollment();
@@ -149,7 +168,7 @@ describe("MfaEnrollFlow", () => {
   it("fires onDone when the Done action is clicked after the backup codes are shown", async () => {
     const onDone = vi.fn();
     programFlow();
-    renderWithWallow(<MfaEnrollFlow onDone={onDone} />, { harness });
+    renderWithWallow(<MfaEnrollFlow onDone={onDone} />, { harness, wrap: withRegistry });
 
     await beginEnrollment();
     await userEvent.type(page.getByTestId("mfa-enroll-code"), "123456");
@@ -163,21 +182,19 @@ describe("MfaEnrollFlow", () => {
 
   it("fires onCancel when the cancel affordance is clicked", async () => {
     const onCancel = vi.fn();
-    renderWithWallow(<MfaEnrollFlow onCancel={onCancel} />, { harness });
+    renderWithWallow(<MfaEnrollFlow onCancel={onCancel} />, { harness, wrap: withRegistry });
 
     await userEvent.click(page.getByTestId("mfa-enroll-cancel"));
 
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
-  it("surfaces the mapped error message in mfa-enroll-error when enrollTotp rejects with the real { succeeded:false, error } body", async () => {
+  it("surfaces the registry's sentence in mfa-enroll-error when enrollTotp answers Mfa.SessionMissing", async () => {
     // The thrown shape from EnrollTotp's Unauthorized branch.
     harness.respond((call) =>
-      call.path === TOTP_PATH
-        ? json({ succeeded: false, error: "no_auth_session" }, 401)
-        : json({}),
+      call.path === TOTP_PATH ? json(problem(401, "Mfa.SessionMissing"), 401) : json({}),
     );
-    renderWithWallow(<MfaEnrollFlow />, { harness });
+    renderWithWallow(<MfaEnrollFlow />, { harness, wrap: withRegistry });
 
     await userEvent.click(page.getByTestId("mfa-enroll-begin-setup"));
 
@@ -185,15 +202,13 @@ describe("MfaEnrollFlow", () => {
     await expect
       .element(error)
       .toHaveTextContent("Your session has expired. Please sign in again.");
-    await expect.element(error).not.toHaveTextContent("Unable to start MFA enrollment.");
     await expect.element(page.getByTestId("mfa-enroll-secret")).not.toBeInTheDocument();
   });
 
-  it("surfaces the mapped error message in mfa-enroll-error when confirm rejects with the real { succeeded:false, error } body", async () => {
-    // ConfirmEnrollment's Unauthorized branch is a 401 that unwrap() THROWS, not
-    // a resolved `{ succeeded: false }` payload.
-    programFlow({ succeeded: false, error: "no_auth_session" }, 401);
-    renderWithWallow(<MfaEnrollFlow />, { harness });
+  it("surfaces the registry's sentence in mfa-enroll-error when confirm answers Mfa.SessionMissing", async () => {
+    // ConfirmEnrollment's Unauthorized branch is a 401 that the client THROWS.
+    programFlow(problem(401, "Mfa.SessionMissing"), 401);
+    renderWithWallow(<MfaEnrollFlow />, { harness, wrap: withRegistry });
 
     await beginEnrollment();
     await userEvent.type(page.getByTestId("mfa-enroll-code"), "000000");
@@ -207,11 +222,10 @@ describe("MfaEnrollFlow", () => {
     await expect.element(page.getByTestId("mfa-enroll-backup-codes")).not.toBeInTheDocument();
   });
 
-  it("maps a rejected confirm invalid_code to the verification-code message", async () => {
-    // invalid_code is a 400 BadRequest in production, so it arrives via onError
-    // (thrown), not as a resolved { succeeded:false } payload.
-    programFlow({ succeeded: false, error: "invalid_code" }, 400);
-    renderWithWallow(<MfaEnrollFlow />, { harness });
+  it("maps a rejected confirm Mfa.CodeInvalid to the verification-code message", async () => {
+    // Mfa.CodeInvalid is a 400 in production, so it arrives via onError (thrown).
+    programFlow(problem(400, "Mfa.CodeInvalid"), 400);
+    renderWithWallow(<MfaEnrollFlow />, { harness, wrap: withRegistry });
 
     await beginEnrollment();
     await userEvent.type(page.getByTestId("mfa-enroll-code"), "000000");
@@ -222,11 +236,11 @@ describe("MfaEnrollFlow", () => {
     await expect.element(page.getByTestId("mfa-enroll-backup-codes")).not.toBeInTheDocument();
   });
 
-  it("shows an error and does NOT reveal backup codes for any other { succeeded: false } rejection", async () => {
-    // An error code the flow has no bespoke message for still has to surface
-    // something, and must never reveal codes. `update_failed` is that case.
-    programFlow({ succeeded: false, error: "update_failed" }, 400);
-    renderWithWallow(<MfaEnrollFlow />, { harness });
+  it("shows an error and does NOT reveal backup codes for any other rejection", async () => {
+    // A server-side write failure is not a wrong code: it still has to surface
+    // something, and must never reveal codes. `Mfa.UpdateFailed` is that case.
+    programFlow(problem(500, "Mfa.UpdateFailed"), 500);
+    renderWithWallow(<MfaEnrollFlow />, { harness, wrap: withRegistry });
 
     await beginEnrollment();
     await userEvent.type(page.getByTestId("mfa-enroll-code"), "999999");

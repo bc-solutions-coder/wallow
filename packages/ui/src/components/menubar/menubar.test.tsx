@@ -8,86 +8,10 @@ import { Menubar } from "./menubar";
 import { menubarTriggerRecipe } from "./menubar.styles";
 
 /*
- * Menubar behavioural spec (Wallow-m5aq.3.8), shaped after the Wallow-m5aq.3.1
- * Dialog exemplar and composing the Wallow-m5aq.3.6 Menu component it reuses:
- *
- *   1. Runs in the vitest BROWSER project — real headless Chromium, real Base UI,
- *      real DOM. Nothing is mocked.
- *   2. Recipes are asserted THROUGH the component, never by importing
- *      `menubarRecipe` and inspecting its return value: a recipe unit test would
- *      pass while the component forgot to apply it.
- *   3. Class assertions are an ORDER-FREE SET (`classSet`), because
- *      `cn()`/tailwind-merge is free to reorder. `MENUBAR_CLASSES` and
- *      `MENUBAR_TRIGGER_CLASSES` below are the single source of truth for the two
- *      class lists this component owns.
- *   4. Stories carry the visual coverage (see menubar.stories.tsx); this file is
- *      only for the edges a screenshot cannot make.
- *
- * ANATOMY, measured against @base-ui/react 1.6.0 in this browser (not guessed):
- *
- *   <div role="menubar" id aria-orientation="horizontal"
- *        data-orientation="horizontal" data-modal>          <- Menubar
- *     …and data-has-submenu-open while ANY of its menus is open.
- *
- *     <button role="menuitem" type="button" tabindex="0|-1"    <- Menu.Trigger,
- *             aria-haspopup="menu" aria-expanded="false">         reshaped by the
- *       …one per menu, and the DIRECT children of the bar:         bar's context
- *       `Menu.Root` renders no DOM at all.
- *       While its menu is open it gains data-popup-open, data-pressed,
- *       aria-expanded="true" and aria-controls.
- *
- *   …and, only while that menu is open, portalled onto <body>:
- *   <div data-base-ui-portal>                              <- Menu.Portal
- *     <div role="presentation" data-base-ui-inert
- *          style="position:fixed;inset:0">                 <- Base UI's OWN blocker
- *     <div data-open data-side data-align role="presentation"
- *          style="position:absolute;transform:…;--anchor-width:<trigger width>">
- *                                                          <- Menu.Positioner
- *       <div role="menu" tabindex="-1" data-open           <- Menu.Popup
- *            aria-labelledby="<trigger id>" data-rootownerid="<bar id>">
- *         …then exactly the Menu anatomy, because it IS the Menu component.
- *
- * Six consequences worth knowing before editing this file:
- *
- *   - THE MENUS ARE THE `Menu` COMPONENT, NOT RE-WRAPS. Base UI's menubar subpath
- *     publishes one export — the strip — so everything below a trigger here is
- *     `Menu`'s own wrapper carrying `menu.styles.ts`'s recipes, and the specs
- *     that read those class lists are regression pins on that reuse;
- *   - THE BAR IS A COMPOSITE. Its triggers share ONE tab stop: exactly one of
- *     them has `tabindex="0"` at a time and the arrow keys move it (looping at
- *     the ends; Home and End jump). While a menu is DOWN, those same keys close
- *     it and open the neighbour instead — the behaviour that makes a bar a bar;
- *   - ARROWRIGHT IS OVERLOADED, and the distinction is measured below: on a plain
- *     row it switches to the next MENU, on a `SubmenuTrigger` row it opens that
- *     row's submenu and the bar stays where it is;
- *   - A MODAL MENU ALWAYS RENDERS ONE MORE ELEMENT THAN YOU WROTE: Base UI puts
- *     an unstyleable `<div role="presentation" style="position:fixed;inset:0">`
- *     inside the portal to block outside pointer events. This project loads no
- *     Tailwind, so the popup's `z-50` is inert and the blocker covers it — a
- *     `userEvent.click` on anything INSIDE an open popup hits the blocker and
- *     times out on Playwright's actionability check. Interaction inside a menu
- *     therefore goes through the KEYBOARD here (which a menubar wants anyway) or
- *     a direct `element.click()`. Realistic pointer coverage lives in the stories;
- *   - CLOSING IS ANIMATION-FRAME-DEFERRED and ROVING FOCUS IS ASYNCHRONOUS, the
- *     two Wave-2 timing gotchas: every absence assertion uses
- *     `await expect.poll(...)`, never a bare synchronous read, and so does every
- *     focus assertion;
- *   - FOCUS IS RESTORED TO THE TRIGGER on every close path (Escape, choosing a
- *     row), unlike Context Menu — a menubar trigger is a real `<button>`.
- *
- * THE ONE REAL-POINTER SPEC IS LAST IN THIS FILE, ON PURPOSE. The Playwright
- * mouse position persists from spec to spec within a file, and a menubar opens a
- * neighbouring menu on HOVER once any menu is down; leaving the pointer parked
- * over a trigger would make the keyboard specs below it ambiguous.
- *
- * The pointer ALSO leaks in from other files, over coordinates this fixture
- * happens to reuse — and Chromium re-dispatches hover events when new content
- * mounts under a stationary cursor. A keyboard-opened popup mounting under a
- * parked pointer either hover-highlights the row at that spot (focus lands on
- * the last row, not the first) or, in the frame before the modal blocker
- * mounts, hover-switches to a neighbouring menu. Every keyboard open therefore
- * names its pointer state first: `userEvent.unhover(bar)` moves the pointer to
- * `<body>`, off the bar and off the footprint of every popup.
+ * Menubar composition and keyboard navigation in Chromium.
+ * The bar composes Menu parts whose popups are portalled onto body.
+ * This fixture loads no Tailwind; stories cover styled pointer interactions.
+ * Focus movement and popup unmounting are asynchronous.
  */
 
 /**
@@ -432,7 +356,7 @@ describe("Menubar", () => {
 
     await expect.poll(focusedTestId).toBe("file-recent-one");
     expect(part("file-recent-popup").hasAttribute("data-nested")).toBe(true);
-    expect(part("file-recent").getAttribute("aria-expanded")).toBe("true");
+    expect(part("file-recent").getAttribute("aria-controls")).toBe(part("file-recent-popup").id);
     // Neither neighbour opened, and the parent menu is still on screen.
     expect(maybePart("edit-popup")).toBeNull();
     expect(part("file-popup").hasAttribute("data-open")).toBe(true);

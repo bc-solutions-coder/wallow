@@ -49,7 +49,7 @@ public sealed class Invitation : AggregateRoot<InvitationId>, ITenantScoped
         }
 
         return new Invitation(
-            TenantScope.Require(tenantId, nameof(Invitation)),
+            TenantScope.Require(tenantId),
             email,
             expiresAt,
             createdByUserId,

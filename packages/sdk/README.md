@@ -2,13 +2,13 @@
 
 TypeScript SDK for Wallow. It ships five entry points:
 
-| Import                                       | Runs in                                             | Contains                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| -------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@bc-solutions-coder/sdk`                    | Browser (also safe to import from a Node SSR entry) | `createWallowSdk()` (the per-request factory), `logout()`, `loginRedirect()`, `getCurrentUser()`, `requireAuth()`, the generated typed API operations, the CSRF module (`isSafeMethod`, `readCsrfCookie`, `wireCsrfInterceptor`), the OIDC URL builders (`buildConnectAuthorizeUrl`, `buildConnectLogoutUrl`, `buildConsentSubmission`, `buildExchangeTicketUrl`, `isSafeReturnUrl`), and `WallowError` / `isWallowError` |
-| `@bc-solutions-coder/sdk/server`             | Node                                                | `createWallowBffServer()` (the host preset), `createBffHandlers()`, `createApiProxy()`, `loadBffConfigFromEnv()`, the session stores, and `WallowError`                                                                                                                                                                                                                                                                   |
-| `@bc-solutions-coder/sdk/server/passthrough` | Node                                                | `createApiPassthrough()` — a pure reverse proxy owning no session, forwarding the upstream response (`Set-Cookie` included) verbatim. Kept on its own subpath so a passthrough-only app never pulls `openid-client` into its server bundle                                                                                                                                                                                |
-| `@bc-solutions-coder/sdk/server/service`     | Node                                                | `createServiceClient()` — the client-credentials (service-account) client: the same typed API client, a cached and lock-serialised access token, one replay on `401`. Its own subpath so a service-only process never pulls the BFF handler graph                                                                                                                                                                         |
-| `@bc-solutions-coder/sdk/query`              | Browser                                             | The TanStack Query layer (peer dep `@tanstack/react-query`): a generated `{op}Options()` / `{op}QueryKey()` / `{op}Mutation()` trio per OpenAPI operation, plus the curated invalidation predicates `queriesForOperation()` and `queriesWithTag()` — the only hand-written module left on this entry                                                                                                                      |
+| Import                                       | Runs in                                             | Contains                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| -------------------------------------------- | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@bc-solutions-coder/sdk`                    | Browser (also safe to import from a Node SSR entry) | `createWallowSdk()` (the per-request factory), `logout()`, `loginRedirect()`, `getCurrentUser()`, `requireAuth()`, the generated typed API operations, the CSRF module (`isSafeMethod`, `readCsrfCookie`, `wireCsrfInterceptor`), the OIDC URL builders (`buildConnectAuthorizeUrl`, `buildConnectLogoutUrl`, `buildConsentSubmission`, `buildExchangeTicketUrl`, `isSafeReturnUrl`). Every rejection is an `ApiFailure` from `@bc-solutions-coder/api-errors` |
+| `@bc-solutions-coder/sdk/server`             | Node                                                | `createWallowBffServer()` (the host preset), `createBffHandlers()`, `createApiProxy()`, `loadBffConfigFromEnv()`, the session stores, `RefreshFailedError`, and `redact()`                                                                                                                                                                                                                                                                                     |
+| `@bc-solutions-coder/sdk/server/passthrough` | Node                                                | `createApiPassthrough()` — a pure reverse proxy owning no session, forwarding the upstream response (`Set-Cookie` included) verbatim. Kept on its own subpath so a passthrough-only app never pulls `openid-client` into its server bundle                                                                                                                                                                                                                     |
+| `@bc-solutions-coder/sdk/server/service`     | Node                                                | `createServiceClient()` — the client-credentials (service-account) client: the same typed API client, a cached and lock-serialised access token, one replay on `401`. Its own subpath so a service-only process never pulls the BFF handler graph                                                                                                                                                                                                              |
+| `@bc-solutions-coder/sdk/query`              | Browser                                             | The TanStack Query layer (peer dep `@tanstack/react-query`): a generated `{op}Options()` / `{op}QueryKey()` / `{op}Mutation()` trio per OpenAPI operation, plus the curated invalidation predicates `queriesForOperation()` and `queriesWithTag()` — the only hand-written module left on this entry                                                                                                                                                           |
 
 Every server handler is a web-standard `(request: Request) => Promise<Response>`.
 The SDK declares no host framework, so the handlers mount on TanStack Start server
@@ -368,7 +368,7 @@ alone so a server instance and a browser instance stay hydration-compatible.
 ## CSRF: read this before your first POST
 
 The proxy **rejects every state-changing request that does not carry a CSRF
-token** with `403` and the code `CSRF_INVALID`. If your `POST`/`PUT`/`PATCH`/
+token** with `403` and the code `Bff.CsrfInvalid`. If your `POST`/`PUT`/`PATCH`/
 `DELETE` calls through `/api/**` come back as 403, this is why.
 
 How the token is delivered:
@@ -418,8 +418,9 @@ const sdk = createWallowSdk({ baseUrl: "/api" });
 non-browser clients; browser code never needs it, because the cookie is the
 same token.
 
-The header name is exported server-side as `CSRF_HEADER`, and the rejection code
-as `CSRF_INVALID_CODE`. `GET`, `HEAD`, `OPTIONS`, and `TRACE` are not gated.
+The header name is exported server-side as `CSRF_HEADER`; the rejection code is
+`ClientErrorCode.BFF_CSRF_INVALID` from `@bc-solutions-coder/api-errors`. `GET`,
+`HEAD`, `OPTIONS`, and `TRACE` are not gated.
 
 ---
 
@@ -517,7 +518,7 @@ function Inquiries() {
 
 Operations are generated with `responseStyle: "data"` and `throwOnError: true`,
 so a hook's `data` is the response BODY (no `{ data, error }` envelope to
-unwrap) and every failure arrives as a thrown `WallowError` on `error`.
+unwrap) and every failure arrives as a thrown `ApiFailure` on `error`.
 
 **Generated keys are FLAT, not hierarchical.** A key is a single-element array
 holding one object — `[{ _id, baseUrl, tags, ...args }]` — so there is no
@@ -543,12 +544,35 @@ longer exists.
 
 The proxy answers failures with RFC 7807 problem details
 (`content-type: application/problem+json`), so a failed call carries a machine
-readable `code` alongside the status.
+readable `code` alongside the status. An API failure is **relayed** — status,
+headers, and body byte for byte, `errors[]` and `traceId` included. A failure
+the server hop hits itself is **originated** through the shared
+`problemResponse(status, code, { requestId, detail?, headers? })` writer, in the
+same envelope: `type: "about:blank"`, `title`, `status`, `code`, a fixed
+`detail` per case, `requestId` (also on `x-request-id`), and never a `traceId`.
+Both presets write through it, and the wording per code mirrors the failure
+messages `api-errors` ships, so the browser reads either kind the same way:
 
-Server-side, `WallowError` is the SDK's error type (`status`, `code`, `title`,
-`detail`) and `parseProblemDetails(response, bodyText)` turns an upstream body
-into one, falling back to `UNKNOWN_ERROR_CODE` when the body is not problem
-details. `redact(value)` replaces secrets with `REDACTED` for safe logging.
+| The hop answers itself when…                                                                     | Status | `code`                     |
+| ------------------------------------------------------------------------------------------------ | ------ | -------------------------- |
+| The path is outside `/api` (proxy) or the allowlist (passthrough), or escapes the API base       | `404`  | `Http.NotFound`            |
+| There is no session cookie, or the store cannot read the one presented                           | `401`  | `Bff.SessionMissing`       |
+| The refresh failed terminally (session torn down), or the freshness check faulted (session kept) | `401`  | `Bff.SessionRefreshFailed` |
+| A state-changing request carries no valid CSRF token                                             | `403`  | `Bff.CsrfInvalid`          |
+| The API's login redirect survived the one replay                                                 | `401`  | `Auth.Unauthenticated`     |
+| The upstream could not be reached                                                                | `503`  | `Transport.NetworkError`   |
+| No response within `FORWARD_TIMEOUT_MS` (30s; proxy only)                                        | `504`  | `Transport.Timeout`        |
+
+The transport's own message (undici's `fetch failed`, an abort) never enters a
+body; it goes to the redacted `console.warn` record.
+
+Every failure the SDK raises, browser or server, is an `ApiFailure` from
+`@bc-solutions-coder/api-errors` — match with `isApiFailure`, read `status`,
+`code`, `title`, `detail`, `fieldErrors`, `retryAfter`, `requestId`, `traceId`,
+and pick copy with `resolveFailureMessage`. The SDK has no error type of its
+own. Server-side, `RefreshFailedError` (code `Bff.SessionRefreshFailed`) is the
+failure the proxy raises when a refresh fails terminally, and `redact(value)`
+replaces secrets with `REDACTED` for safe logging.
 
 What the proxy does for you on the way through, each retried at most once:
 
@@ -556,8 +580,8 @@ What the proxy does for you on the way through, each retried at most once:
 | --------------------------------------------------- | --------------------------------------------------------------------------- |
 | `401` (or a `3xx` redirect to the API's login page) | Force a token refresh under the store's refresh lock and replay the request |
 | `429`                                               | Wait for `Retry-After`, bounded by `MAX_RETRY_AFTER_MS` (5s), and replay    |
-| No response within `FORWARD_TIMEOUT_MS` (30s)       | `503` with code `NETWORK_TIMEOUT`                                           |
-| Transport failure                                   | `503` with code `NETWORK_ERROR`                                             |
+| No response within `FORWARD_TIMEOUT_MS` (30s)       | `504` with code `Transport.Timeout`                                         |
+| Transport failure                                   | `503` with code `Transport.NetworkError`                                    |
 
 Ahead of the forward, `ensureFreshSession` proactively refreshes an access token
 that is inside the expiry skew window, so most requests never see a 401 at all.
@@ -584,5 +608,5 @@ that declaration-only tsconfig.
 The generated client is wired to the BFF at construction time through
 `runtimeConfigPath` in `openapi-ts.config.ts`, which points at
 `src/runtime-config.ts` — that is why generated operations already target `/api`
-with `credentials: "include"`, and why they reject with a `WallowError` rather
+with `credentials: "include"`, and why they reject with an `ApiFailure` rather
 than resolving an `{ data, error }` envelope.

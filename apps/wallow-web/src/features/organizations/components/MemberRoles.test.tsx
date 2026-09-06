@@ -166,7 +166,7 @@ describe("MemberRoles", () => {
         {
           title: "Unprocessable Entity",
           detail: "That role does not exist.",
-          extensions: { code: "Identity.RoleNotFound" },
+          code: "Identity.RoleNotFound",
         },
         422,
       ),

@@ -156,7 +156,7 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
     /// </summary>
     [HttpPost("{userId:guid}/roles")]
     [HasPermission(PermissionType.RolesUpdate)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<ActionResult> AssignRole(
         Guid userId,
         [FromBody] AssignRoleRequest request,

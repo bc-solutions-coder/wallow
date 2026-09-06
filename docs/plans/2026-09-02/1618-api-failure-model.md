@@ -1,4 +1,4 @@
-**status: active**
+**status: completed**
 
 # One API failure model end to end
 
@@ -105,7 +105,7 @@ One failure model from the API to the screen:
 
 ### `api-errors` package
 
-- A new published package, zero runtime dependencies, no React. Owns `ApiFailure` (`status`, `code`, `title`, `detail?`, `traceId?`, `requestId?`, `fieldErrors?`, `retryAfter?`, native `cause`), `isApiFailure` (brand check on a global-registry symbol), `toApiFailure(input, context?)`, `failureFromResponse(response, bodyText)`, `resolveFailureMessage`, `defineFailureMessages`, `splitFieldErrors(failure, knownFields)`, `isSilentFailure`, the `ClientErrorCode` const, the generated `ErrorCode` const, and `FailureCode` as their union. `WallowError`/`isWallowError` are deleted, not aliased.
+- A new published package, zero runtime dependencies, no React. Owns `ApiFailure` (`status`, `code`, `title`, `detail?`, `traceId?`, `requestId?`, `fieldErrors?`, `retryAfter?`, native `cause`), `isApiFailure` (brand check on a global-registry symbol), `toApiFailure(input, context?)`, `failureFromResponse(response, bodyText)`, `resolveFailureMessage`, `defineFailureMessages`, `splitFieldErrors(failure, knownFields)`, `isSilentFailure`, the `ClientErrorCode` const, the generated `ErrorCode` const, and `FailureCode` as their union. The SDK's former failure class and brand check are deleted, with no aliases.
 - `message` is `[<status> <code>] <title>` for logs only. Nothing user-facing reads `message` or `cause`.
 - Parser: passes an existing failure through; classifies a thrown error without a status as a transport failure (`Transport.NetworkError` 503, `Transport.Timeout` 504, `Transport.Aborted` 499); parses problem+json; normalises OAuth bodies to `OAuth.<PascalCase(error)>` with `detail` from the description; anything else with a response becomes `Client.UnrecognizedResponse` at the response's status with the body text on `cause`. `retryAfter` is parsed from the `Retry-After` header.
 - `ClientErrorCode`: `Transport.NetworkError`, `Transport.Timeout`, `Transport.Aborted`, `Client.UnrecognizedResponse`, `Bff.CsrfInvalid`, `Bff.SessionRefreshFailed`, `Bff.SessionMissing`.
@@ -126,7 +126,7 @@ One failure model from the API to the screen:
 
 - `query` stays UI-free. `createQueryClient(options)` gains `onUnhandledFailure({ kind: "mutation" | "query", error })`, invoked by the mutation cache for every mutation not marked handled and by the query cache for queries that opted in. The `meta` helpers `handledFailure(meta)` and `toastedFailure(meta)` set the two flags and compose with TanStack's own `meta`. This shape came out of the prototype (branch `prototype/failure-toast`), which showed no new React package is needed.
 - `ui` owns the React binding of the registry: `FailureMessagesProvider({ registry })` mounted once at the root with an empty-registry default, and `useFailureMessage(error, options?)` returning `null` for a nullish error. It also owns `FailureToaster` (sonner, themed from `useTheme`, bottom right, close button, Tailwind tokens forced over sonner's injected CSS), `toastFailure(message, reference?)` with a "Copy reference" action, and `FailureBanner` (`error`, `messages?`, `fallback?`, `onRetry?`, `children?`) rendering the existing `ErrorBanner` primitive with "Try again", a 401 "Sign in" link carrying the current path, and the copy-reference affordance. The Base UI toast wrapper is deleted.
-- `forms` keeps only the TanStack Form adapter: it consumes the resolver and `splitFieldErrors`, marks every form mutation handled, drops `errorText` and its SDK dependency. `FormError` and field errors are unchanged as surfaces.
+- `forms` keeps only the TanStack Form adapter: it consumes the resolver and `splitFieldErrors`, marks every form mutation handled, drops its standalone error readers and its SDK runtime dependency. `FormError` and field errors are unchanged as surfaces.
 - Layering: `api-errors` (pure) → `query` and `ui` → `forms` → apps. `forms`, `ui`, `query`, and wallow-auth depend on `api-errors`, never on the SDK.
 
 ### Surface catalog
@@ -182,7 +182,7 @@ Implementation order, from [Handoff shape: implementation issues and their order
 1. API: error-code catalog and its OpenAPI export.
 2. API: single problem writer and the unified contract (blocked by 1). The Identity auth and MFA endpoints' body change is **not** here: it moves to issue 10 so that issue is a vertical slice and the auth app's E2E stays green in between.
 3. `api-errors` package (blocked by 1).
-4. SDK cut-over and the minimal-app reference, the expand step: every `isWallowError` import retargeted mechanically so main stays green (blocked by 3).
+4. SDK cut-over and the minimal-app reference, the expand step: every former SDK brand-check import retargeted mechanically so main stays green (blocked by 3).
 5. BFF proxy and passthrough failures as problems (blocked by 3).
 6. `ui` and `query` surfaces, folding the prototype branch (blocked by 3).
 7. `forms` onto `api-errors` (blocked by 4, 6).
@@ -191,4 +191,4 @@ Implementation order, from [Handoff shape: implementation issues and their order
 10. wallow-auth migration, including the auth and MFA endpoints answering problems (blocked by 2, 6).
 11. Contract: delete the old helpers and retire the map's diagnosis (blocked by 9, 10).
 
-The blast radius that forced expand → migrate → contract: `WallowError` in 50 files, `ErrorBanner` at 55 sites, `errorText` at 30.
+The blast radius that forced expand → migrate → contract: the former SDK failure class in 50 files, `ErrorBanner` at 55 sites, and the former standalone error reader at 30.

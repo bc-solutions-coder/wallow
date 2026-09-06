@@ -1,0 +1,16 @@
+{
+  // The typecheck config for the SHIPPED source, and the package's charter guard.
+  //
+  // `lib` drops DOM and `types` drops every ambient @types package, so neither a
+  // `window` nor a `process` nor a `node:*` import compiles here. The parser
+  // therefore takes a structural response (`status` plus a `headers.get`), which
+  // a real `Response` satisfies on every runtime, without this package having to
+  // pick one. Specs are Node jobs and are typechecked by tsconfig.node.json.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ESNext"],
+    "types": []
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts"]
+}

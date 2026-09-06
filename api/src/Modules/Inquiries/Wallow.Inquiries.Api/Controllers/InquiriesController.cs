@@ -36,7 +36,6 @@ public partial class InquiriesController(IMessageBus bus, ITenantContext tenantC
     [HttpPost]
     [HasPermission(PermissionType.InquiriesWrite)]
     [ProducesResponseType(typeof(InquiryResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Submit(
         [FromBody] SubmitInquiryRequest request,
         CancellationToken cancellationToken)
@@ -141,7 +140,6 @@ public partial class InquiriesController(IMessageBus bus, ITenantContext tenantC
     [HasPermission(PermissionType.InquiriesWrite)]
     [ProducesResponseType(typeof(InquiryResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> UpdateStatus(
         Guid id,
         [FromBody] UpdateInquiryStatusRequest request,
@@ -149,12 +147,8 @@ public partial class InquiriesController(IMessageBus bus, ITenantContext tenantC
     {
         if (!Enum.TryParse<InquiryStatus>(request.NewStatus, ignoreCase: true, out InquiryStatus newStatus))
         {
-            return BadRequest(new ProblemDetails
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Bad Request",
-                Detail = $"Invalid status value: '{request.NewStatus}'"
-            });
+            ModelState.AddModelError(nameof(request.NewStatus), $"Invalid status value: '{request.NewStatus}'.");
+            return ValidationProblem(ModelState);
         }
 
         Result<InquiryDto> result = await bus.InvokeAsync<Result<InquiryDto>>(
@@ -166,7 +160,6 @@ public partial class InquiriesController(IMessageBus bus, ITenantContext tenantC
     [HttpPost("{id:guid}/comments")]
     [HasPermission(PermissionType.InquiriesWrite)]
     [ProducesResponseType(typeof(InquiryCommentCreatedResponse), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> AddComment(
         Guid id,
         [FromBody] AddInquiryCommentRequest request,

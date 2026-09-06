@@ -19,13 +19,12 @@ import type { InvitationResponse, WallowSdk } from "@bc-solutions-coder/sdk";
 import {
   Button,
   EmptyState,
-  ErrorBanner,
+  FailureBanner,
   ListCard,
   ListRow,
   MutedText,
   Text,
 } from "@bc-solutions-coder/ui";
-import { errorText } from "@bc-solutions-coder/forms";
 import { formatLongDate } from "@bc-solutions-coder/utils/format";
 import { useRouteContext } from "@tanstack/react-router";
 import type { ReactNode } from "react";
@@ -90,9 +89,10 @@ function InvitationRow(props: { invitation: InvitationResponse; onRevoke: (id: s
 export function InvitationList(): ReactNode {
   const { sdk } = useRouteContext({ from: "__root__" });
   const queryClient = useQueryClient();
-  const { data, isPending, isError, error } = useQuery(
+  const { data, isPending, isError, error, refetch } = useQuery(
     invitationsGetByTenantOptions({ client: sdk.client, query: INVITATIONS_QUERY }),
   );
+  // A refused revoke is the toast's to show; the list carries no surface for it.
   const revoke = useMutation({
     ...invitationsRevokeMutation({ client: sdk.client }),
     onSuccess: (): void => {
@@ -106,6 +106,7 @@ export function InvitationList(): ReactNode {
       isPending={isPending}
       isError={isError}
       error={error}
+      onRetry={refetch}
       onRevoke={(id) => {
         revoke.mutate({ path: { id } });
       }}
@@ -123,9 +124,10 @@ function InvitationsRegion(props: {
   isPending: boolean;
   isError: boolean;
   error: unknown;
+  onRetry: () => void;
   onRevoke: (id: string) => void;
 }): ReactNode {
-  const { invitations, isPending, isError, error, onRevoke } = props;
+  const { invitations, isPending, isError, error, onRetry, onRevoke } = props;
 
   if (isPending) {
     return (
@@ -139,11 +141,7 @@ function InvitationsRegion(props: {
   // background refetch (e.g. the post-revoke sweep) would replace a real list
   // with a banner.
   if (isError && invitations === undefined) {
-    return (
-      <ErrorBanner data-testid="invitations-error">
-        {errorText(error, "Could not load the invitations.")}
-      </ErrorBanner>
-    );
+    return <FailureBanner data-testid="invitations-error" error={error} onRetry={onRetry} />;
   }
 
   const outstanding = (invitations ?? []).filter((invitation) => invitation.status === "Pending");

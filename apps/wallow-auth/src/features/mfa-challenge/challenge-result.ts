@@ -1,42 +1,15 @@
 /**
- * The MfaChallenge screen's RESULT LAYER: the blank-input guard and the
- * rejection→copy mapping, with no React in it.
+ * The MfaChallenge screen's RESULT LAYER: the blank-input guard and this
+ * screen's own words for a rejected code, with no React in it.
  *
- * ── THE ERROR BRANCHES ────────────────────────────────────────────────────────
- *
- * `AccountController.VerifyMfaChallenge` (api/.../Controllers/AccountController.cs:167-236)
- * fails in exactly three ways, each a non-2xx with a bare `{ succeeded, error }`
- * body (NOT problem details):
- *
- *     401 error "no_mfa_session"   partial-auth cookie missing or expired
- *     401 error "invalid_code"     no user / no TOTP secret / code rejected
- *     423 error "mfa_locked_out"   already locked, or locked by this attempt
- *
- * `unwrap()` throws on all three, and `toWallowError()` recovers the token: as of
- * Wallow-vec7.7 `readCode` probes `extensions.code > code > error`, so the `error`
- * member of that anon body reaches the screen as `WallowError.code`. (Before that
- * it did not, and this screen narrowed on HTTP status alone — which could not tell
- * `no_mfa_session` from `invalid_code`, since they share a 401.)
- *
- * The oracle's own switch is only partly worth porting:
- *
- *   - Its `"expired_challenge"` branch is DEAD CODE — this endpoint never emits
- *     that string. The expired-cookie case is `no_mfa_session`, which the oracle
- *     drops into its `_` tail. `SESSION_EXPIRED_MESSAGE` says what that dead
- *     branch was reaching for, keyed on the token the API actually sends.
- *   - The API's error tail can render `result.Error` RAW, exposing the literal
- *     "no_mfa_session". `code` is a machine token and is never rendered here: it
- *     is matched against KNOWN values, and anything else — including a 401
- *     carrying an unrecognised code — falls to the generic message rather than
- *     guessing.
- *
- * Narrowing is STRUCTURAL rather than `instanceof WallowError`, because that
- * class is exported from the SDK's `./server` entry and screens may not import
- * the SDK at all. A network-level rejection carries neither `code` nor `status`
- * and must fall through to the generic message rather than throw.
+ * `mfa/verify` answers problems with catalog codes (`Mfa.CodeInvalid`,
+ * `Mfa.SessionMissing`, `Mfa.LockedOut`), and the screen resolves them through
+ * `useFailureMessage`. Session-missing and lockout read the catalog's own
+ * `detail`; only the invalid-code sentence is this screen's, because it depends
+ * on which MODE the user is in — a wrong backup code is not a wrong TOTP code.
  */
 
-import { readErrorCode, readMember } from "@shared/lib/error-code";
+import { ErrorCode, type FailureMessageRegistry } from "@bc-solutions-coder/api-errors";
 
 /** The oracle's blank-input guards, mode-sensitive as the oracle's are. */
 const BLANK_CODE_MESSAGE = "Please enter the verification code.";
@@ -46,32 +19,8 @@ const BLANK_BACKUP_CODE_MESSAGE = "Please enter a backup code.";
 const INVALID_CODE_MESSAGE = "Invalid verification code. Please try again.";
 const INVALID_BACKUP_CODE_MESSAGE = "Invalid backup code. Please try again.";
 
-/**
- * `no_mfa_session`: the challenge session is gone, so nothing the user types
- * here can work. The message is about the SESSION, not the input — telling a
- * user their valid code was rejected would send them round a loop that burns
- * their five attempts against a cookie that no longer exists.
- */
-const SESSION_EXPIRED_MESSAGE = "Your verification session has expired. Please sign in again.";
-
-/** `mfa_locked_out`: the oracle printed the raw token here. */
-const LOCKED_OUT_MESSAGE =
-  "Too many failed attempts. Your account is temporarily locked. Please try again later.";
-
 /** The oracle's `_ =>` tail, minus its raw-string leak. */
-const GENERIC_FAILURE_MESSAGE = "Verification failed. Please try again.";
-
-/** The API's machine tokens for this endpoint. Matched against, never rendered. */
-const INVALID_CODE = "invalid_code";
-const NO_MFA_SESSION = "no_mfa_session";
-const MFA_LOCKED_OUT = "mfa_locked_out";
-
-/**
- * Retained as a status-level fallback alongside the `mfa_locked_out` token: 423
- * identifies this failure on its own, and the cost of missing it — a locked user
- * retyping codes that cannot work, re-locking themselves — is worth the extra rule.
- */
-const LOCKED_OUT_STATUS = 423;
+export const VERIFY_FAILED_MESSAGE = "Verification failed. Please try again.";
 
 /** What the screen's form holds. The MODE is not one of them — see the guard below. */
 export interface ChallengeValues {
@@ -101,21 +50,10 @@ export function challengeGuardMessage(
   return null;
 }
 
-/** Map a rejection onto user-facing copy — see the error-branch note above. */
-export function verifyFailureMessage(cause: unknown, useBackupCode: boolean): string {
-  const code: string | undefined = readErrorCode(cause);
-
-  if (code === INVALID_CODE) {
-    return useBackupCode ? INVALID_BACKUP_CODE_MESSAGE : INVALID_CODE_MESSAGE;
-  }
-
-  if (code === NO_MFA_SESSION) {
-    return SESSION_EXPIRED_MESSAGE;
-  }
-
-  if (code === MFA_LOCKED_OUT || readMember(cause, "status") === LOCKED_OUT_STATUS) {
-    return LOCKED_OUT_MESSAGE;
-  }
-
-  return GENERIC_FAILURE_MESSAGE;
+/** This screen's sentence for a rejected code, in the mode the user typed it. */
+export function challengeMessages(useBackupCode: boolean): FailureMessageRegistry {
+  return {
+    [ErrorCode.MFA_CODE_INVALID]: () =>
+      useBackupCode ? INVALID_BACKUP_CODE_MESSAGE : INVALID_CODE_MESSAGE,
+  };
 }

@@ -13,10 +13,18 @@
  * shell gained a path allowlist and a non-relative upstream URL construction,
  * neither of which h3's router made the handler's business.
  */
+import {
+  ApiFailure,
+  ClientErrorCode,
+  ErrorCode,
+  failureFromResponse,
+  isApiFailure,
+} from "@bc-solutions-coder/api-errors";
+
 import { REQUEST_ID_HEADER, resolveRequestId } from "../request-id";
 import type { BffConfig } from "./config";
-import { csrfTokenMatches, CSRF_HEADER, CSRF_INVALID_CODE, isStateChangingMethod } from "./csrf";
-import { parseProblemDetails, redact, RefreshFailedError, WallowError } from "./errors";
+import { csrfTokenMatches, CSRF_HEADER, isStateChangingMethod } from "./csrf";
+import { redact, RefreshFailedError } from "./errors";
 import {
   applyForwardedHeaders,
   resolveClientAddress,
@@ -32,6 +40,7 @@ import {
   writeSessionRef,
 } from "./handlers";
 import { discover, refreshTokens, type DiscoveryDoc, type TokenResponse } from "./oidc";
+import { problemResponse, problemTitle } from "./problem";
 import type { BffSession } from "./session";
 import { CookieSessionStore } from "./store/cookie";
 import type { SessionStore } from "./store/types";
@@ -57,8 +66,11 @@ const VERSION_STEP = 1;
 /** HTTP status the BFF answers with when the session cannot authenticate. */
 const UNAUTHORIZED_STATUS = 401;
 
-/** HTTP status raised for a transport failure or timeout forwarding upstream. */
+/** HTTP status raised when the upstream cannot be reached at all. */
 const NETWORK_FAILURE_STATUS = 503;
+
+/** HTTP status raised when the upstream forward exceeds {@link FORWARD_TIMEOUT_MS}. */
+const GATEWAY_TIMEOUT_STATUS = 504;
 
 /** HTTP status carried by an upstream throttle response. */
 const TOO_MANY_REQUESTS_STATUS = 429;
@@ -68,15 +80,6 @@ const REDIRECT_STATUS_MIN = 300;
 
 /** Exclusive upper bound of the HTTP redirect status range. */
 const REDIRECT_STATUS_MAX = 400;
-
-/** Code carried by the {@link WallowError} raised for a transport failure. */
-export const NETWORK_ERROR_CODE = "NETWORK_ERROR";
-
-/** Code carried by the {@link WallowError} raised when the forward times out. */
-export const NETWORK_TIMEOUT_CODE = "NETWORK_TIMEOUT";
-
-/** Code carried by the {@link WallowError} raised for an unrecoverable 401. */
-const UNAUTHORIZED_CODE: string = "UNAUTHORIZED";
 
 /**
  * The login path a .NET cookie-authentication challenge redirects to. A `3xx`
@@ -124,18 +127,22 @@ interface StoredSession {
  * the RFC 7807 core does not model — ASP.NET's `errors[]` for a validation
  * failure, `traceId` — survive the trip through the BFF.
  */
-class UpstreamError extends WallowError {
+class UpstreamError extends ApiFailure {
   /** The upstream response, its body already consumed into {@link bodyText}. */
   readonly response: Response;
   /** The upstream response body, verbatim. */
   readonly bodyText: string;
 
-  constructor(problem: WallowError, response: Response, bodyText: string) {
+  constructor(problem: ApiFailure, response: Response, bodyText: string) {
     super({
       status: problem.status,
       code: problem.code,
       title: problem.title,
       detail: problem.detail,
+      traceId: problem.traceId,
+      requestId: problem.requestId,
+      fieldErrors: problem.fieldErrors,
+      retryAfter: problem.retryAfter,
     });
     this.name = "UpstreamError";
     this.response = response;
@@ -305,9 +312,10 @@ async function forceRefreshStored(
  * @param session The session whose access token authorises the forward.
  * @param ref The opaque store reference for this session.
  * @returns The upstream response plus the session it was made with.
- * @throws {WallowError} With the upstream status and parsed RFC 7807 details
- *   for a non-OK response, `503 NETWORK_ERROR` for a transport failure, and
- *   `503 NETWORK_TIMEOUT` when the attempt exceeds {@link FORWARD_TIMEOUT_MS}.
+ * @throws {ApiFailure} With the upstream status and parsed RFC 7807 details
+ *   for a non-OK response, `503 Transport.NetworkError` for a transport
+ *   failure, and `504 Transport.Timeout` when the attempt exceeds
+ *   {@link FORWARD_TIMEOUT_MS}.
  */
 export async function forwardWithResilience(
   request: ForwardRequest,
@@ -352,8 +360,10 @@ export async function forwardWithResilience(
  * Run one forward attempt: a `redirect: "manual"` fetch carrying the session's
  * bearer, aborted after {@link FORWARD_TIMEOUT_MS}.
  *
- * @throws {WallowError} `503 NETWORK_TIMEOUT` when the abort fired, and
- *   `503 NETWORK_ERROR` for any other transport failure.
+ * @throws {ApiFailure} `504 Transport.Timeout` when the abort fired, and
+ *   `503 Transport.NetworkError` for any other transport failure. The
+ *   failure's `detail` is the transport's own message, scrubbed, for the log
+ *   record only — {@link respondToFailure} never writes it into a body.
  */
 async function attemptForward(request: ForwardRequest, session: BffSession): Promise<Response> {
   const controller: AbortController = new AbortController();
@@ -376,10 +386,13 @@ async function attemptForward(request: ForwardRequest, session: BffSession): Pro
     });
   } catch (error: unknown) {
     const timedOut: boolean = controller.signal.aborted;
-    const fault: WallowError = new WallowError({
-      status: NETWORK_FAILURE_STATUS,
-      code: timedOut ? NETWORK_TIMEOUT_CODE : NETWORK_ERROR_CODE,
-      title: timedOut ? "The upstream request timed out" : "The upstream request failed",
+    const code: string = timedOut
+      ? ClientErrorCode.TRANSPORT_TIMEOUT
+      : ClientErrorCode.TRANSPORT_NETWORK_ERROR;
+    const fault: ApiFailure = new ApiFailure({
+      status: timedOut ? GATEWAY_TIMEOUT_STATUS : NETWORK_FAILURE_STATUS,
+      code,
+      title: problemTitle(code),
       detail: causeDetail(error),
     });
     logFault(request, fault);
@@ -422,15 +435,15 @@ function hasRefreshToken(session: BffSession): boolean {
  * handed back to the browser, which would only follow it to a login page it has
  * no business seeing through the tunnel.
  */
-async function authFailureError(request: ForwardRequest, response: Response): Promise<WallowError> {
+async function authFailureError(request: ForwardRequest, response: Response): Promise<ApiFailure> {
   if (response.status === UNAUTHORIZED_STATUS) {
     return await upstreamError(request, response);
   }
 
-  const error: WallowError = new WallowError({
+  const error: ApiFailure = new ApiFailure({
     status: UNAUTHORIZED_STATUS,
-    code: UNAUTHORIZED_CODE,
-    title: "Unauthorized",
+    code: ErrorCode.AUTH_UNAUTHENTICATED,
+    title: problemTitle(ErrorCode.AUTH_UNAUTHENTICATED),
     detail: "The upstream API redirected the request to its login page.",
   });
   logFault(request, error);
@@ -441,7 +454,7 @@ async function authFailureError(request: ForwardRequest, response: Response): Pr
 async function upstreamError(request: ForwardRequest, response: Response): Promise<UpstreamError> {
   const bodyText: string = await response.text();
   const error: UpstreamError = new UpstreamError(
-    parseProblemDetails(response, bodyText),
+    failureFromResponse(response, bodyText),
     response,
     bodyText,
   );
@@ -490,7 +503,7 @@ function causeDetail(cause: unknown): string | undefined {
 }
 
 /** Report a failed forward without spilling the bearer into the log. */
-function logFault(request: ForwardRequest, error: WallowError): void {
+function logFault(request: ForwardRequest, error: ApiFailure): void {
   const headers: Record<string, string> = Object.fromEntries(request.headers.entries());
   console.warn(
     "wallow-bff: forward failed",
@@ -643,13 +656,6 @@ function forwardableHeaders(headers: Headers): Headers {
   return forwardable;
 }
 
-/** A bodiless response carrying whatever session cookies were written so far. */
-function bare(status: number, cookies: Headers): Response {
-  const headers: Headers = new Headers();
-  mergeCookies(headers, cookies);
-  return new Response(null, { status, headers });
-}
-
 /**
  * End a session whose refresh failed terminally.
  *
@@ -685,9 +691,12 @@ async function tearDownDeadSession(
  * dropping a re-sealed cookie on the error path would leave the browser holding
  * a refresh token that has already been spent.
  *
- * A body the BFF synthesizes also NAMES `requestId` as a member, not just on the
+ * A body the BFF originates also NAMES `requestId` as a member, not just on the
  * header: a relayed upstream body carries the API's own `traceId` to correlate
- * by, and a synthesized one has no upstream to have gotten a trace id from.
+ * by, and an originated one has no upstream to have gotten a trace id from. Its
+ * `detail` is the fixed wording {@link problemResponse} ships for the code —
+ * the failure's own `detail` (a transport message, a rejected grant) has
+ * already gone to the log record and stops there.
  */
 function respondToFailure(error: unknown, cookies: Headers, requestId: string): Response {
   if (error instanceof UpstreamError) {
@@ -696,23 +705,30 @@ function respondToFailure(error: unknown, cookies: Headers, requestId: string): 
     return new Response(error.bodyText, { status: error.response.status, headers });
   }
 
-  if (error instanceof WallowError) {
-    const headers: Headers = new Headers({ "content-type": "application/problem+json" });
-    mergeCookies(headers, cookies);
-    return Response.json(
-      {
-        type: `https://httpstatuses.io/${error.status}`,
-        title: error.title,
-        status: error.status,
-        detail: error.detail,
-        code: error.code,
-        requestId,
-      },
-      { status: error.status, headers },
-    );
+  if (isApiFailure(error)) {
+    return problemResponse(error.status, error.code, { requestId, headers: cookies });
   }
 
   throw error;
+}
+
+/**
+ * The answer for a refresh the proxy could not even attempt — the store
+ * faulting, a lock that could not be taken. That is not a verdict on the
+ * grant, so the session is kept for the next request to try again; only the
+ * answer is the same 401 a terminal refresh failure gets.
+ */
+function refreshFaultResponse(cookies: Headers, requestId: string): Response {
+  return problemResponse(UNAUTHORIZED_STATUS, ClientErrorCode.BFF_SESSION_REFRESH_FAILED, {
+    requestId,
+    headers: cookies,
+  });
+}
+
+/** Report a session the proxy could not keep fresh, without the tokens. */
+function logSessionFault(requestId: string, error: unknown): void {
+  const detail: string | undefined = isApiFailure(error) ? error.detail : causeDetail(error);
+  console.warn("wallow-bff: session refresh failed", redact({ requestId, detail }));
 }
 
 /**
@@ -774,17 +790,21 @@ async function proxyRequest(
   // must not even cost a session read.
   const path: string | null = strippedApiPath(url.pathname);
   if (path === null) {
-    return new Response(null, { status: NOT_FOUND_STATUS });
+    return problemResponse(NOT_FOUND_STATUS, ErrorCode.HTTP_NOT_FOUND, { requestId });
   }
 
   const ref: string | null = readSessionRef(request, config);
   if (ref === null) {
-    return new Response(null, { status: UNAUTHORIZED_STATUS });
+    return problemResponse(UNAUTHORIZED_STATUS, ClientErrorCode.BFF_SESSION_MISSING, {
+      requestId,
+    });
   }
 
   const session: BffSession | null = await readSession(request, config, store);
   if (session === null) {
-    return new Response(null, { status: UNAUTHORIZED_STATUS });
+    return problemResponse(UNAUTHORIZED_STATUS, ClientErrorCode.BFF_SESSION_MISSING, {
+      requestId,
+    });
   }
 
   // Cookies the BFF writes for itself during this request. They are collected
@@ -801,16 +821,10 @@ async function proxyRequest(
   if (isStateChangingMethod(request.method)) {
     const presented: string | undefined = request.headers.get(CSRF_HEADER) ?? undefined;
     if (!csrfTokenMatches(session.csrfToken, presented)) {
-      return respondToFailure(
-        new WallowError({
-          status: FORBIDDEN_STATUS,
-          code: CSRF_INVALID_CODE,
-          title: "CSRF token mismatch or missing",
-          requestId,
-        }),
-        cookies,
+      return problemResponse(FORBIDDEN_STATUS, ClientErrorCode.BFF_CSRF_INVALID, {
         requestId,
-      );
+        headers: cookies,
+      });
     }
   }
 
@@ -819,10 +833,11 @@ async function proxyRequest(
   try {
     fresh = await ensureFreshSession(session, config, store, ref);
   } catch (error: unknown) {
+    logSessionFault(requestId, error);
     if (error instanceof RefreshFailedError) {
       return await tearDownDeadSession(error, request, config, store, ref, cookies, requestId);
     }
-    return bare(UNAUTHORIZED_STATUS, cookies);
+    return refreshFaultResponse(cookies, requestId);
   }
 
   // Re-seal the cookie only when the session actually changed.
@@ -832,7 +847,10 @@ async function proxyRequest(
 
   const target: string | null = upstreamTarget(config, path, url.search);
   if (target === null) {
-    return bare(NOT_FOUND_STATUS, cookies);
+    return problemResponse(NOT_FOUND_STATUS, ErrorCode.HTTP_NOT_FOUND, {
+      requestId,
+      headers: cookies,
+    });
   }
 
   const method: string = request.method.toUpperCase();
@@ -884,6 +902,7 @@ async function proxyRequest(
     // gone — so it gets the same teardown, under the reference the session
     // currently lives at.
     if (error instanceof RefreshFailedError) {
+      logSessionFault(requestId, error);
       return await tearDownDeadSession(
         error,
         request,
@@ -893,6 +912,13 @@ async function proxyRequest(
         cookies,
         requestId,
       );
+    }
+    if (!isApiFailure(error)) {
+      // The forward's own faults are all ApiFailures; anything else escaped
+      // from the store during the reactive refresh — the same fault the
+      // proactive path answers above, and it gets the same answer.
+      logSessionFault(requestId, error);
+      return refreshFaultResponse(cookies, requestId);
     }
     return respondToFailure(error, cookies, requestId);
   }

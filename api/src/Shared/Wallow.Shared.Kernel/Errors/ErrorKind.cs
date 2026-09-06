@@ -27,6 +27,9 @@ public enum ErrorKind
     /// <summary>The request was well-formed but a business rule refuses it (422).</summary>
     BusinessRule,
 
+    /// <summary>The target is temporarily locked, such as an account after too many failed sign-ins (423).</summary>
+    Locked,
+
     /// <summary>The caller exceeded a rate limit (429).</summary>
     RateLimited,
 

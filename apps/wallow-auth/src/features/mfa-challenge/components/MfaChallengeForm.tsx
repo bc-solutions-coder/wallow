@@ -6,7 +6,14 @@ import {
   useAppForm,
 } from "@bc-solutions-coder/forms";
 import { buildExchangeTicketUrl } from "@bc-solutions-coder/sdk";
-import { Button, Card, MutedText, NoticeBanner, Text } from "@bc-solutions-coder/ui";
+import {
+  Button,
+  Card,
+  MutedText,
+  NoticeBanner,
+  Text,
+  useFailureMessage,
+} from "@bc-solutions-coder/ui";
 import { useMutation } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
 import { type ReactElement, type ReactNode, useState } from "react";
@@ -14,8 +21,9 @@ import { z } from "zod";
 import { accountVerifyMfaChallengeMutation } from "../api";
 import {
   challengeGuardMessage,
+  challengeMessages,
   type ChallengeValues,
-  verifyFailureMessage,
+  VERIFY_FAILED_MESSAGE,
 } from "../challenge-result";
 import { BASE_PATH, toAppHref } from "@shared/lib/base-path";
 import { useRedirectVerdict } from "../hooks/use-redirect-verdict";
@@ -45,13 +53,14 @@ import { useRedirectVerdict } from "../hooks/use-redirect-verdict";
  * ── WHY THIS SCREEN RUNS THE FORMS PACKAGE "SIDEWAYS" ────────────────────────
  *
  * It takes the plain-`onSubmit` escape hatch rather than handing `useAppForm`
- * the generated mutation, for two reasons that are this endpoint's own:
- * `splitServerError` reads RFC 7807 members and `mfa/verify` answers with a bare
- * `{ succeeded, error }` body, so only `verifyFailureMessage` can tell its three
- * rejections apart; and the blank-code guard shares that one banner, which a zod
- * rule could not do — it would abort `handleSubmit` before the callback ran. The
- * schema below is therefore rule-free, and the banner text is this screen's own
- * `useState` handed to the shell as an EXPLICIT `serverError` prop.
+ * the generated mutation, for two reasons that are this endpoint's own: the
+ * invalid-code sentence depends on which MODE the user typed in, so the raw
+ * failure is kept as state and resolved through `useFailureMessage` with
+ * `challengeMessages(useBackupCode)` as call-site `messages`; and the blank-code
+ * guard shares that one banner, which a zod rule could not do — it would abort
+ * `handleSubmit` before the callback ran. The schema below is therefore
+ * rule-free, and the banner text is handed to the shell as an EXPLICIT
+ * `serverError` prop. Session-missing and lockout copy is the catalog's own.
  *
  * The MODE (`useBackupCode`) is screen state rather than a form value, because
  * the card heading above the form branches on it too. It reaches the submit
@@ -208,7 +217,12 @@ export function MfaChallengeForm({ returnUrl, clientId }: MfaChallengeFormProps)
   const { sdk } = useRouteContext({ from: "__root__" });
   const [useBackupCode, setUseBackupCode] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<unknown>(null);
   const [verified, setVerified] = useState(false);
+  const failureMessage: string | null = useFailureMessage(failure, {
+    messages: challengeMessages(useBackupCode),
+    fallback: VERIFY_FAILED_MESSAGE,
+  });
 
   // A present-but-blank `client_id` is not a client, and an unknown client fails
   // CLOSED to the AuthUrl-only origin set on both endpoints — relaying "" would
@@ -272,6 +286,7 @@ export function MfaChallengeForm({ returnUrl, clientId }: MfaChallengeFormProps)
       const guardMessage: string | null = challengeGuardMessage(values, useBackupCode);
 
       if (guardMessage !== null) {
+        setFailure(null);
         setFormError(guardMessage);
         return;
       }
@@ -279,6 +294,7 @@ export function MfaChallengeForm({ returnUrl, clientId }: MfaChallengeFormProps)
       // The oracle's `_errorMessage = null;` at the top of `HandleVerify`: a stale
       // "invalid code" banner above a successful verification would be a lie.
       setFormError(null);
+      setFailure(null);
 
       let result: VerifyResult;
 
@@ -290,7 +306,7 @@ export function MfaChallengeForm({ returnUrl, clientId }: MfaChallengeFormProps)
       } catch (error: unknown) {
         // The form deliberately stays up: the user has attempts left and no way to
         // spend them if it is gone.
-        setFormError(verifyFailureMessage(error, useBackupCode));
+        setFailure(error);
         return;
       }
 
@@ -310,6 +326,7 @@ export function MfaChallengeForm({ returnUrl, clientId }: MfaChallengeFormProps)
     // The oracle's `_errorMessage = null;` — "Invalid verification code" hanging
     // over a freshly-opened backup-code box is a lie.
     setFormError(null);
+    setFailure(null);
   };
 
   if (guard.verdict !== "accept") {
@@ -329,7 +346,7 @@ export function MfaChallengeForm({ returnUrl, clientId }: MfaChallengeFormProps)
         <ChallengeFields
           form={form}
           useBackupCode={useBackupCode}
-          error={formError}
+          error={formError ?? failureMessage}
           onToggle={handleToggle}
         />
       )}

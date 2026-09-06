@@ -3,7 +3,7 @@
 Every app is a **TanStack Start** frontend consuming the `@bc-solutions-coder` workspace
 packages via `workspace:*`. `forms`, `auth`, `navigation`, `logger` and `utils` are optional.
 **`minimal-app` is the external relying-party example**: it depends on the published `sdk`
-alone (plus `redis` for the session store) — deliberately no `ui`, `styles`, `query`, `auth`,
+and `api-errors` (plus `redis` for the session store) — deliberately no `ui`, `styles`, `query`, `auth`,
 `env` or `testing`, which an external consumer cannot install. `config` is a build-time-only
 devDependency supplying `wallowAppConfig()` to `vite.config.ts`, never imported by app code.
 
@@ -79,6 +79,26 @@ override ordering live in `packages/lint/CLAUDE.md` — read it before editing a
 - **The theme class belongs on `document.documentElement`.** Each `__root.tsx` stamps
   `className={branding.defaultMode}` on `<html>`; a `<div className="dark">` wrapper renders
   the LIGHT palette. See `docs/development/frontend-setup.md#dark-mode`.
+- **The failure model is wired at the root, once.** wallow-web's `__root.tsx` mounts
+  `FailureMessagesProvider` (registry: `src/shared/lib/failure-messages.ts`) and `FailureToaster`
+  inside `ThemeProvider` (the toaster reads the theme); `src/app/router.tsx` passes
+  `src/shared/lib/unhandled-failure.ts` to `createQueryClient`; the root error boundary renders
+  `FailureBanner` for an API failure. It is also the router's `defaultErrorComponent` (SSR paints
+  an error AT the failing match, not at the root) and `src/app/start.ts` registers the
+  `ApiFailure` serialization adapter so a loader failure hydrates as itself. A feature never
+  mounts its own toaster or keeps a private code-to-sentence map — add the entry to the registry.
+- **The surfaces, per site.** A component-level **read** renders `FailureBanner` in place of its
+  region under `isError && data === undefined` (cached data beats a failed background refetch),
+  with `onRetry={refetch}` and no per-site fallback string. A **loader** read throws to the root
+  boundary; the by-id loaders wrap **every** read of the record (not just the lookup) in
+  `src/shared/lib/not-found-on-404.ts`, so a 404 is the not-found page and a 404 response, never a
+  banner or a 500. A **form** submission is the forms path (`useAppForm`,
+  field errors + `FormError`), never a toast. A **non-form mutation** is the toast's unless the
+  screen shows it itself (a destructive dialog, an editor, MFA), which marks
+  `meta: handledFailure()` and resolves copy with `useFailureMessage` — a screen never shows
+  both. A **401** offers "Sign in" back through the BFF with `returnTo`; nothing auto-redirects.
+  A read that stays **silent by design** carries a comment naming the degradation. The five
+  surfaces are proven end to end by `e2e-cross-app/failure-surfaces.spec.ts`.
 - **Logging**: both zoned apps use `@bc-solutions-coder/logger`, never `console` — one browser
   singleton at `src/shared/lib/log.ts` posting to a same-origin ingest route (`/bff/logs` in
   wallow-web, CSRF-gated; `/logs` in wallow-auth, guarded by a per-request origin allowlist).
