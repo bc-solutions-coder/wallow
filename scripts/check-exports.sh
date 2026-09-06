@@ -29,7 +29,7 @@
 #                        those extensionless specifiers into the .d.ts files
 #                        verbatim, which Node16 resolution rejects and Bundler
 #                        resolution — the one every consumer here uses — accepts.
-#   styles' './styles.css'
+#   styles' './styles.css' and navigation's './source.css'
 #                        a raw stylesheet passthrough, not a JS/TS entrypoint;
 #                        there is nothing for attw to resolve types for.
 #
@@ -66,6 +66,8 @@ for package in "${packages[@]}"; do
   attw_args=("${attw_common[@]}")
   if [ "$package" = "packages/styles" ]; then
     attw_args+=(--exclude-entrypoints ./styles.css)
+  elif [ "$package" = "packages/navigation" ]; then
+    attw_args+=(--exclude-entrypoints ./source.css)
   fi
   # Captured rather than piped: a pipeline's grep would decide the exit status,
   # and a filter that matched nothing would read as a failed check.

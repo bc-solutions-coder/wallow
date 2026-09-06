@@ -145,7 +145,7 @@ function NavDestinationList(props: {
   onNavigate?: () => void;
 }) {
   return (
-    <NavigationMenu.Root className="flex-1 flex-col px-4 py-4">
+    <NavigationMenu.Root className={`flex-1 flex-col py-4 ${props.showLabels ? "px-4" : "px-2"}`}>
       <NavigationMenu.List className="flex-col">
         {props.destinations.map((destination: NavDestination) =>
           destination.requires !== undefined && !props.can(destination.requires) ? null : (
@@ -163,32 +163,11 @@ function NavDestinationList(props: {
   );
 }
 
-/**
- * The theme control, in the band above the footer so it is reachable in all
- * THREE nav modes — a toggle that existed only in the expanded rail would vanish
- * the moment a visitor collapsed the nav or opened the app on a phone.
- *
- * The catalog control always renders its state as text ("Light"/"Dark"/
- * "System"), so the icon rail gets a smaller box rather than the label-stripping
- * treatment the destinations get: there is no icon to fall back to.
- *
- * `surface="sidebar"` reaches `buttonRecipe` through `ThemeToggle`'s passthrough.
- * Without it the toggle wears the button's hard-coded `variant="secondary"`,
- * which in light mode is an L 0.92 chip glued to an L 0.22 rail.
- *
- * It is built in rather than left to a slot because it needs exactly what only
- * the rail knows — which mode is rendering, and that the surface is inverted —
- * and because it reaches no further than `@bc-solutions-coder/ui`, which this
- * package already depends on. The footer slot exists for the opposite case.
- */
+/** The theme preference stays reachable in every navigation mode. */
 function NavThemeToggle(props: { showLabel: boolean }) {
   return (
-    <div className="px-4 pt-4">
-      <ThemeToggle
-        data-testid="theme-toggle"
-        surface="sidebar"
-        className={props.showLabel ? "w-full" : "w-full px-1 text-xs"}
-      />
+    <div className={`flex py-4 ${props.showLabel ? "px-4" : "justify-center px-2"}`}>
+      <ThemeToggle data-testid="theme-toggle" surface="sidebar" presentation="icon" />
     </div>
   );
 }
@@ -204,11 +183,15 @@ function NavThemeToggle(props: { showLabel: boolean }) {
  * that make it sit flush with the rows above — and hands down `showLabel` so the
  * control can match the destination rows in both desktop modes.
  */
-function NavFooter(props: { children?: ReactNode }) {
+function NavFooter(props: { children?: ReactNode; showLabel: boolean }) {
   if (props.children === undefined) {
     return null;
   }
-  return <div className="px-4 py-4 border-t border-sidebar-accent">{props.children}</div>;
+  return (
+    <div className={`py-4 border-t border-sidebar-accent ${props.showLabel ? "px-4" : "px-2"}`}>
+      {props.children}
+    </div>
+  );
 }
 
 /** The caller-supplied band above the destinations — an org switcher, a brand mark. */
@@ -261,7 +244,7 @@ function NavRail(props: NavContentProps & { hideBelowMd?: boolean }) {
         showLabels={showLabels}
       />
       <NavThemeToggle showLabel={showLabels} />
-      <NavFooter>{props.renderFooter?.(showLabels)}</NavFooter>
+      <NavFooter showLabel={showLabels}>{props.renderFooter?.(showLabels)}</NavFooter>
     </aside>
   );
 }
@@ -288,7 +271,7 @@ function NavDrawer(props: NavContentProps) {
         onNavigate={closeMobileNav}
       />
       <NavThemeToggle showLabel />
-      <NavFooter>{props.renderFooter?.(true)}</NavFooter>
+      <NavFooter showLabel>{props.renderFooter?.(true)}</NavFooter>
     </div>
   );
 }
