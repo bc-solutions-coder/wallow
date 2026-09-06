@@ -164,3 +164,45 @@ export const OnTheSidebarSurface: Story = {
     await expect(getComputedStyle(sidebarChip).color).not.toBe(getComputedStyle(pageChip).color);
   },
 };
+
+export const IconLight: Story = {
+  ...Light,
+  args: { ...Light.args, presentation: "icon" },
+};
+
+export const IconDark: Story = {
+  ...Dark,
+  args: { ...Dark.args, presentation: "icon" },
+};
+
+export const IconSystemLight: Story = {
+  ...SystemLight,
+  args: { ...SystemLight.args, presentation: "icon" },
+};
+
+export const IconSystemDark: Story = {
+  ...SystemDark,
+  args: { ...SystemDark.args, presentation: "icon" },
+};
+
+export const IconCycling: Story = {
+  decorators: [lightScheme],
+  render: function ControlledIconToggle() {
+    const [preference, setPreference] = useState<ThemePreference>("light");
+    return (
+      <ThemeToggle presentation="icon" preference={preference} onPreferenceChange={setPreference} />
+    );
+  },
+  play: async ({ canvas }) => {
+    const toggle = canvas.getByRole("button", { name: "Light theme. Switch to dark theme" });
+    await expect(toggle.textContent).toBe("");
+    await expect(toggle.getBoundingClientRect().width).toBe(44);
+    await expect(toggle.getBoundingClientRect().height).toBe(44);
+    await userEvent.click(toggle);
+    await expect(toggle).toHaveAccessibleName("Dark theme. Switch to system theme");
+    await userEvent.keyboard(" ");
+    await expect(toggle).toHaveAccessibleName("System theme. Switch to light theme");
+    await userEvent.keyboard("{Enter}");
+    await expect(toggle).toHaveAccessibleName("Light theme. Switch to dark theme");
+  },
+};

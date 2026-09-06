@@ -85,4 +85,15 @@ describe("AppNav theme toggle", () => {
     const toggle = page.getByTestId("theme-toggle").element();
     expect(toggle.getAttribute("aria-label")).toMatch(/theme/iu);
   });
+
+  it("shows the current preference on keyboard focus", async () => {
+    await render(<ShellFixture />);
+    const toggle = page.getByTestId("theme-toggle").element();
+    if (!(toggle instanceof HTMLButtonElement)) {
+      throw new Error("Expected a theme button");
+    }
+    toggle.focus();
+    await expect.element(page.getByRole("tooltip")).toHaveTextContent("System theme");
+    expect(toggle.textContent).toBe("");
+  });
 });
