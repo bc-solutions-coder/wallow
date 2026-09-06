@@ -7,173 +7,173 @@ import { accountChangeEmail, accountCompleteExternalRegistration, accountConfirm
 import type { AccountChangeEmailData, AccountChangeEmailError, AccountChangeEmailResponse, AccountCompleteExternalRegistrationData, AccountCompleteExternalRegistrationError, AccountConfirmEmailChangeData, AccountConfirmEmailChangeError, AccountConfirmEmailChangeResponse, AccountExchangeTicketData, AccountExchangeTicketError, AccountExternalLoginCallbackData, AccountExternalLoginCallbackError, AccountExternalLoginData, AccountExternalLoginError, AccountForgotPasswordData, AccountForgotPasswordError, AccountForgotPasswordResponse, AccountGetClientTenantData, AccountGetClientTenantError, AccountGetClientTenantResponse, AccountGetExternalProvidersData, AccountGetExternalProvidersError, AccountGetExternalProvidersResponse, AccountLoginData, AccountLoginError, AccountLoginResponse2, AccountRegisterData, AccountRegisterError, AccountRegisterResponse, AccountResetPasswordData, AccountResetPasswordError, AccountResetPasswordResponse, AccountSendMagicLinkData, AccountSendMagicLinkError, AccountSendMagicLinkResponse, AccountSendOtpData, AccountSendOtpError, AccountSendOtpResponse, AccountSignOutData, AccountSignOutError, AccountValidateRedirectUriData, AccountValidateRedirectUriError, AccountValidateRedirectUriResponse, AccountVerifyEmailData, AccountVerifyEmailError, AccountVerifyEmailResponse, AccountVerifyMagicLinkData, AccountVerifyMagicLinkError, AccountVerifyMagicLinkResponse, AccountVerifyMfaChallengeData, AccountVerifyMfaChallengeError, AccountVerifyMfaChallengeResponse, AccountVerifyOtpData, AccountVerifyOtpError, AccountVerifyOtpResponse, AdminAnnouncementsArchiveAnnouncementData, AdminAnnouncementsArchiveAnnouncementError, AdminAnnouncementsCreateAnnouncementData, AdminAnnouncementsCreateAnnouncementError, AdminAnnouncementsCreateAnnouncementResponse, AdminAnnouncementsGetAllAnnouncementsData, AdminAnnouncementsGetAllAnnouncementsError, AdminAnnouncementsGetAllAnnouncementsResponse, AdminAnnouncementsPublishAnnouncementData, AdminAnnouncementsPublishAnnouncementError, AdminAnnouncementsUpdateAnnouncementData, AdminAnnouncementsUpdateAnnouncementError, AdminAnnouncementsUpdateAnnouncementResponse, AdminChangelogCreateChangelogEntryData, AdminChangelogCreateChangelogEntryError, AdminChangelogCreateChangelogEntryResponse, AdminChangelogPublishChangelogEntryData, AdminChangelogPublishChangelogEntryError, AnnouncementsDismissAnnouncementData, AnnouncementsDismissAnnouncementError, AnnouncementsGetAnnouncementsData, AnnouncementsGetAnnouncementsError, AnnouncementsGetAnnouncementsResponse, ApiKeysCreateApiKeyData, ApiKeysCreateApiKeyError, ApiKeysCreateApiKeyResponse, ApiKeysListApiKeysData, ApiKeysListApiKeysError, ApiKeysListApiKeysResponse, ApiKeysRevokeApiKeyData, ApiKeysRevokeApiKeyError, ApiKeysRevokeApiKeyResponse, AuthorizeContextGetData, AuthorizeContextGetError, AuthorizeContextGetResponse, ChangelogGetChangelogByVersionData, ChangelogGetChangelogByVersionError, ChangelogGetChangelogByVersionResponse, ChangelogGetChangelogData, ChangelogGetChangelogError, ChangelogGetChangelogResponse, ChangelogGetLatestChangelogData, ChangelogGetLatestChangelogError, ChangelogGetLatestChangelogResponse, ClientsCreateData, ClientsCreateError, ClientsCreateResponse, ClientsDeleteData, ClientsDeleteError, ClientsGetAllData, ClientsGetAllError, ClientsGetAllResponse, ClientsGetByIdData, ClientsGetByIdError, ClientsGetByIdResponse, ClientsRotateSecretData, ClientsRotateSecretError, ClientsRotateSecretResponse, ClientsUpdateData, ClientsUpdateError, ClientsUpdateResponse, IdentitySettingsDeleteTenantSettingData, IdentitySettingsDeleteTenantSettingError, IdentitySettingsDeleteUserSettingData, IdentitySettingsDeleteUserSettingError, IdentitySettingsGetConfigData, IdentitySettingsGetConfigError, IdentitySettingsGetConfigResponse, IdentitySettingsGetTenantSettingsData, IdentitySettingsGetTenantSettingsError, IdentitySettingsGetTenantSettingsResponse, IdentitySettingsGetUserSettingsData, IdentitySettingsGetUserSettingsError, IdentitySettingsGetUserSettingsResponse, IdentitySettingsUpsertTenantSettingData, IdentitySettingsUpsertTenantSettingError, IdentitySettingsUpsertUserSettingData, IdentitySettingsUpsertUserSettingError, InquiriesAddCommentData, InquiriesAddCommentError, InquiriesAddCommentResponse, InquiriesGetAllData, InquiriesGetAllError, InquiriesGetAllResponse, InquiriesGetByIdData, InquiriesGetByIdError, InquiriesGetByIdResponse, InquiriesGetCommentsData, InquiriesGetCommentsError, InquiriesGetCommentsResponse, InquiriesGetSubmittedData, InquiriesGetSubmittedError, InquiriesGetSubmittedResponse, InquiriesSubmitData, InquiriesSubmitError, InquiriesSubmitResponse, InquiriesUpdateStatusData, InquiriesUpdateStatusError, InquiriesUpdateStatusResponse, InvitationsAcceptData, InvitationsAcceptError, InvitationsCreateData, InvitationsCreateError, InvitationsCreateResponse, InvitationsGetByTenantData, InvitationsGetByTenantError, InvitationsGetByTenantResponse, InvitationsRevokeData, InvitationsRevokeError, InvitationsVerifyData, InvitationsVerifyError, InvitationsVerifyResponse, MeAuthorizationsListConnectedApplicationsData, MeAuthorizationsListConnectedApplicationsError, MeAuthorizationsListConnectedApplicationsResponse, MeAuthorizationsWithdrawConsentData, MeAuthorizationsWithdrawConsentError, MeGetOrganizationsData, MeGetOrganizationsError, MeGetOrganizationsResponse, MfaAdminClearLockoutData, MfaAdminClearLockoutError, MfaAdminClearLockoutResponse, MfaAdminDisableMfaData, MfaAdminDisableMfaError, MfaAdminDisableMfaResponse, MfaConfirmEnrollmentData, MfaConfirmEnrollmentError, MfaConfirmEnrollmentResponse, MfaDisableData, MfaDisableError, MfaDisableResponse, MfaEnrollTotpData, MfaEnrollTotpError, MfaEnrollTotpResponse, MfaExchangeEnrollmentTokenData, MfaExchangeEnrollmentTokenError, MfaExchangeEnrollmentTokenResponse, MfaGetStatusData, MfaGetStatusError, MfaGetStatusResponse, MfaIssueEnrollmentTokenData, MfaIssueEnrollmentTokenError, MfaIssueEnrollmentTokenResponse, MfaRegenerateBackupCodesData, MfaRegenerateBackupCodesError, MfaRegenerateBackupCodesResponse, NotificationsGetNotificationsData, NotificationsGetNotificationsError, NotificationsGetNotificationsResponse, NotificationsGetUnreadCountData, NotificationsGetUnreadCountError, NotificationsGetUnreadCountResponse, NotificationsMarkAllAsReadData, NotificationsMarkAllAsReadError, NotificationsMarkAsReadData, NotificationsMarkAsReadError, OrganizationClientBrandingDeleteLogoData, OrganizationClientBrandingDeleteLogoError, OrganizationClientBrandingGetBrandingData, OrganizationClientBrandingGetBrandingError, OrganizationClientBrandingGetBrandingResponse, OrganizationClientBrandingUpsertBrandingData, OrganizationClientBrandingUpsertBrandingError, OrganizationClientBrandingUpsertBrandingResponse, OrganizationClientsDeleteData, OrganizationClientsDeleteError, OrganizationClientsGetByIdData, OrganizationClientsGetByIdError, OrganizationClientsGetByIdResponse, OrganizationClientsLiftPlatformSuspensionData, OrganizationClientsLiftPlatformSuspensionError, OrganizationClientsLiftPlatformSuspensionResponse, OrganizationClientsListData, OrganizationClientsListError, OrganizationClientsListResponse, OrganizationClientsPlacePlatformSuspensionData, OrganizationClientsPlacePlatformSuspensionError, OrganizationClientsPlacePlatformSuspensionResponse, OrganizationClientsRegisterData, OrganizationClientsRegisterError, OrganizationClientsRegisterResponse, OrganizationClientsReinstateData, OrganizationClientsReinstateError, OrganizationClientsReinstateResponse, OrganizationClientsRotateSecretData, OrganizationClientsRotateSecretError, OrganizationClientsRotateSecretResponse, OrganizationClientsSuspendData, OrganizationClientsSuspendError, OrganizationClientsSuspendResponse, OrganizationClientsUpdateData, OrganizationClientsUpdateError, OrganizationClientsUpdateResponse, OrganizationsAddMemberData, OrganizationsAddMemberError, OrganizationsApproveMemberData, OrganizationsApproveMemberError, OrganizationsArchiveData, OrganizationsArchiveError, OrganizationsClearDenialData, OrganizationsClearDenialError, OrganizationsCreateData, OrganizationsCreateError, OrganizationsCreateResponse, OrganizationsDeleteData, OrganizationsDeleteError, OrganizationsDenyMemberData, OrganizationsDenyMemberError, OrganizationsGetAllData, OrganizationsGetAllError, OrganizationsGetAllResponse, OrganizationsGetBrandingData, OrganizationsGetBrandingError, OrganizationsGetBrandingResponse, OrganizationsGetByIdData, OrganizationsGetByIdError, OrganizationsGetByIdResponse, OrganizationsGetDeniedMembersData, OrganizationsGetDeniedMembersError, OrganizationsGetMembersData, OrganizationsGetMembersError, OrganizationsGetMembersResponse, OrganizationsGetPendingMembersData, OrganizationsGetPendingMembersError, OrganizationsGetSettingsData, OrganizationsGetSettingsError, OrganizationsGetSettingsResponse, OrganizationsGetSuspendedMembersData, OrganizationsGetSuspendedMembersError, OrganizationsLeaveData, OrganizationsLeaveError, OrganizationsLiftPlatformSuspensionData, OrganizationsLiftPlatformSuspensionError, OrganizationsPlacePlatformSuspensionData, OrganizationsPlacePlatformSuspensionError, OrganizationsReactivateData, OrganizationsReactivateError, OrganizationsReinstateMemberData, OrganizationsReinstateMemberError, OrganizationsRemoveMemberData, OrganizationsRemoveMemberError, OrganizationsSuspendMemberData, OrganizationsSuspendMemberError, OrganizationsUpdateBrandingData, OrganizationsUpdateBrandingError, OrganizationsUpdateBrandingResponse, OrganizationsUpdateEnrollmentData, OrganizationsUpdateEnrollmentError, OrganizationsUpdateSettingsData, OrganizationsUpdateSettingsError, OrganizationsUploadBrandingLogoData, OrganizationsUploadBrandingLogoError, OrganizationsUploadBrandingLogoResponse, PushConfigurationGetTenantPushConfigData, PushConfigurationGetTenantPushConfigError, PushConfigurationGetTenantPushConfigResponse, PushConfigurationRemoveTenantPushConfigData, PushConfigurationRemoveTenantPushConfigError, PushConfigurationSetTenantPushEnabledData, PushConfigurationSetTenantPushEnabledError, PushConfigurationUpsertTenantPushConfigData, PushConfigurationUpsertTenantPushConfigError, PushDevicesDeregisterDeviceData, PushDevicesDeregisterDeviceError, PushDevicesGetUserDevicesData, PushDevicesGetUserDevicesError, PushDevicesGetUserDevicesResponse, PushDevicesRegisterDeviceData, PushDevicesRegisterDeviceError, PushDevicesSendPushData, PushDevicesSendPushError, RolesGetRolePermissionsData, RolesGetRolePermissionsError, RolesGetRolePermissionsResponse, RolesGetRolesData, RolesGetRolesError, RolesGetRolesResponse, ScopesListData, ScopesListError, ScopesListResponse, SessionListSessionsData, SessionListSessionsError, SessionListSessionsResponse, SessionRevokeSessionData, SessionRevokeSessionError, SessionRevokeSessionResponse, SetupCreateAdminData, SetupCreateAdminError, SetupGetStatusData, SetupGetStatusError, SetupGetStatusResponse, StorageCompletePresignedUploadData, StorageCompletePresignedUploadError, StorageCompletePresignedUploadResponse, StorageCreateBucketData, StorageCreateBucketError, StorageCreateBucketResponse, StorageDeleteBucketData, StorageDeleteBucketError, StorageDeleteData, StorageDeleteError, StorageDownloadData, StorageDownloadError, StorageGetBucketData, StorageGetBucketError, StorageGetBucketResponse, StorageGetFileData, StorageGetFileError, StorageGetFileResponse, StorageGetPresignedDownloadUrlData, StorageGetPresignedDownloadUrlError, StorageGetPresignedDownloadUrlResponse, StorageGetPresignedUploadUrlData, StorageGetPresignedUploadUrlError, StorageGetPresignedUploadUrlResponse, StorageListFilesData, StorageListFilesError, StorageListFilesResponse, StorageSettingsDeleteTenantSettingData, StorageSettingsDeleteTenantSettingError, StorageSettingsDeleteUserSettingData, StorageSettingsDeleteUserSettingError, StorageSettingsGetConfigData, StorageSettingsGetConfigError, StorageSettingsGetConfigResponse, StorageSettingsGetTenantSettingsData, StorageSettingsGetTenantSettingsError, StorageSettingsGetTenantSettingsResponse, StorageSettingsGetUserSettingsData, StorageSettingsGetUserSettingsError, StorageSettingsGetUserSettingsResponse, StorageSettingsUpsertTenantSettingData, StorageSettingsUpsertTenantSettingError, StorageSettingsUpsertUserSettingData, StorageSettingsUpsertUserSettingError, StorageUploadData, StorageUploadError, StorageUploadResponse, UserNotificationSettingsGetUserNotificationSettingsData, UserNotificationSettingsGetUserNotificationSettingsError, UserNotificationSettingsGetUserNotificationSettingsResponse, UserNotificationSettingsSetChannelEnabledData, UserNotificationSettingsSetChannelEnabledError, UserNotificationSettingsSetNotificationTypeEnabledData, UserNotificationSettingsSetNotificationTypeEnabledError, UsersActivateUserData, UsersActivateUserError, UsersAssignRoleData, UsersAssignRoleError, UsersCreateUserData, UsersCreateUserError, UsersCreateUserResponse, UsersDeactivateUserData, UsersDeactivateUserError, UsersGetCurrentUserData, UsersGetCurrentUserError, UsersGetCurrentUserResponse, UsersGetUserByIdData, UsersGetUserByIdError, UsersGetUserByIdResponse, UsersGetUsersData, UsersGetUsersError, UsersGetUsersResponse, UsersRemoveRoleData, UsersRemoveRoleError } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
-    Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
-        _id: string;
-        _infinite?: boolean;
-        tags?: ReadonlyArray<string>;
-    }
+  Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
+    _id: string;
+    _infinite?: boolean;
+    tags?: ReadonlyArray<string>;
+  }
 ];
 
 const createQueryKey = <TOptions extends Options>(id: string, options?: TOptions, infinite?: boolean, tags?: ReadonlyArray<string>): [
-    QueryKey<TOptions>[0]
+  QueryKey<TOptions>[0]
 ] => {
-    const params: QueryKey<TOptions>[0] = { _id: id, baseUrl: options?.baseUrl || (options?.client ?? client).getConfig().baseUrl } as QueryKey<TOptions>[0];
-    if (infinite) {
-        params._infinite = infinite;
-    }
-    if (tags) {
-        params.tags = tags;
-    }
-    if (options?.body) {
-        params.body = options.body;
-    }
-    if (options?.headers) {
-        params.headers = options.headers;
-    }
-    if (options?.path) {
-        params.path = options.path;
-    }
-    if (options?.query) {
-        params.query = options.query;
-    }
-    return [params];
+  const params: QueryKey<TOptions>[0] = { _id: id, baseUrl: options?.baseUrl || (options?.client ?? client).getConfig().baseUrl } as QueryKey<TOptions>[0];
+  if (infinite) {
+    params._infinite = infinite;
+  }
+  if (tags) {
+    params.tags = tags;
+  }
+  if (options?.body) {
+    params.body = options.body;
+  }
+  if (options?.headers) {
+    params.headers = options.headers;
+  }
+  if (options?.path) {
+    params.path = options.path;
+  }
+  if (options?.query) {
+    params.query = options.query;
+  }
+  return [params];
 };
 
 export const adminAnnouncementsGetAllAnnouncementsQueryKey = (options?: Options<AdminAnnouncementsGetAllAnnouncementsData>) => createQueryKey('adminAnnouncementsGetAllAnnouncements', options, false, ['Admin - Announcements']);
 
 export const adminAnnouncementsGetAllAnnouncementsOptions = (options?: Options<AdminAnnouncementsGetAllAnnouncementsData>) => queryOptions<AdminAnnouncementsGetAllAnnouncementsResponse, AdminAnnouncementsGetAllAnnouncementsError, AdminAnnouncementsGetAllAnnouncementsResponse, ReturnType<typeof adminAnnouncementsGetAllAnnouncementsQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await adminAnnouncementsGetAllAnnouncements({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: adminAnnouncementsGetAllAnnouncementsQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await adminAnnouncementsGetAllAnnouncements({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: adminAnnouncementsGetAllAnnouncementsQueryKey(options)
 });
 
 export const adminAnnouncementsCreateAnnouncementMutation = (options?: Partial<Options<AdminAnnouncementsCreateAnnouncementData>>): UseMutationOptions<AdminAnnouncementsCreateAnnouncementResponse, AdminAnnouncementsCreateAnnouncementError, Options<AdminAnnouncementsCreateAnnouncementData>> => {
-    const mutationOptions: UseMutationOptions<AdminAnnouncementsCreateAnnouncementResponse, AdminAnnouncementsCreateAnnouncementError, Options<AdminAnnouncementsCreateAnnouncementData>> = {
-        mutationFn: async (fnOptions) => await adminAnnouncementsCreateAnnouncement({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<AdminAnnouncementsCreateAnnouncementResponse, AdminAnnouncementsCreateAnnouncementError, Options<AdminAnnouncementsCreateAnnouncementData>> = {
+    mutationFn: async (fnOptions) => await adminAnnouncementsCreateAnnouncement({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const adminAnnouncementsArchiveAnnouncementMutation = (options?: Partial<Options<AdminAnnouncementsArchiveAnnouncementData>>): UseMutationOptions<unknown, AdminAnnouncementsArchiveAnnouncementError, Options<AdminAnnouncementsArchiveAnnouncementData>> => {
-    const mutationOptions: UseMutationOptions<unknown, AdminAnnouncementsArchiveAnnouncementError, Options<AdminAnnouncementsArchiveAnnouncementData>> = {
-        mutationFn: async (fnOptions) => await adminAnnouncementsArchiveAnnouncement({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, AdminAnnouncementsArchiveAnnouncementError, Options<AdminAnnouncementsArchiveAnnouncementData>> = {
+    mutationFn: async (fnOptions) => await adminAnnouncementsArchiveAnnouncement({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const adminAnnouncementsUpdateAnnouncementMutation = (options?: Partial<Options<AdminAnnouncementsUpdateAnnouncementData>>): UseMutationOptions<AdminAnnouncementsUpdateAnnouncementResponse, AdminAnnouncementsUpdateAnnouncementError, Options<AdminAnnouncementsUpdateAnnouncementData>> => {
-    const mutationOptions: UseMutationOptions<AdminAnnouncementsUpdateAnnouncementResponse, AdminAnnouncementsUpdateAnnouncementError, Options<AdminAnnouncementsUpdateAnnouncementData>> = {
-        mutationFn: async (fnOptions) => await adminAnnouncementsUpdateAnnouncement({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<AdminAnnouncementsUpdateAnnouncementResponse, AdminAnnouncementsUpdateAnnouncementError, Options<AdminAnnouncementsUpdateAnnouncementData>> = {
+    mutationFn: async (fnOptions) => await adminAnnouncementsUpdateAnnouncement({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const adminAnnouncementsPublishAnnouncementMutation = (options?: Partial<Options<AdminAnnouncementsPublishAnnouncementData>>): UseMutationOptions<unknown, AdminAnnouncementsPublishAnnouncementError, Options<AdminAnnouncementsPublishAnnouncementData>> => {
-    const mutationOptions: UseMutationOptions<unknown, AdminAnnouncementsPublishAnnouncementError, Options<AdminAnnouncementsPublishAnnouncementData>> = {
-        mutationFn: async (fnOptions) => await adminAnnouncementsPublishAnnouncement({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, AdminAnnouncementsPublishAnnouncementError, Options<AdminAnnouncementsPublishAnnouncementData>> = {
+    mutationFn: async (fnOptions) => await adminAnnouncementsPublishAnnouncement({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const adminChangelogCreateChangelogEntryMutation = (options?: Partial<Options<AdminChangelogCreateChangelogEntryData>>): UseMutationOptions<AdminChangelogCreateChangelogEntryResponse, AdminChangelogCreateChangelogEntryError, Options<AdminChangelogCreateChangelogEntryData>> => {
-    const mutationOptions: UseMutationOptions<AdminChangelogCreateChangelogEntryResponse, AdminChangelogCreateChangelogEntryError, Options<AdminChangelogCreateChangelogEntryData>> = {
-        mutationFn: async (fnOptions) => await adminChangelogCreateChangelogEntry({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<AdminChangelogCreateChangelogEntryResponse, AdminChangelogCreateChangelogEntryError, Options<AdminChangelogCreateChangelogEntryData>> = {
+    mutationFn: async (fnOptions) => await adminChangelogCreateChangelogEntry({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const adminChangelogPublishChangelogEntryMutation = (options?: Partial<Options<AdminChangelogPublishChangelogEntryData>>): UseMutationOptions<unknown, AdminChangelogPublishChangelogEntryError, Options<AdminChangelogPublishChangelogEntryData>> => {
-    const mutationOptions: UseMutationOptions<unknown, AdminChangelogPublishChangelogEntryError, Options<AdminChangelogPublishChangelogEntryData>> = {
-        mutationFn: async (fnOptions) => await adminChangelogPublishChangelogEntry({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, AdminChangelogPublishChangelogEntryError, Options<AdminChangelogPublishChangelogEntryData>> = {
+    mutationFn: async (fnOptions) => await adminChangelogPublishChangelogEntry({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const announcementsGetAnnouncementsQueryKey = (options?: Options<AnnouncementsGetAnnouncementsData>) => createQueryKey('announcementsGetAnnouncements', options, false, ['Announcements']);
 
 export const announcementsGetAnnouncementsOptions = (options?: Options<AnnouncementsGetAnnouncementsData>) => queryOptions<AnnouncementsGetAnnouncementsResponse, AnnouncementsGetAnnouncementsError, AnnouncementsGetAnnouncementsResponse, ReturnType<typeof announcementsGetAnnouncementsQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await announcementsGetAnnouncements({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: announcementsGetAnnouncementsQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await announcementsGetAnnouncements({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: announcementsGetAnnouncementsQueryKey(options)
 });
 
 export const announcementsDismissAnnouncementMutation = (options?: Partial<Options<AnnouncementsDismissAnnouncementData>>): UseMutationOptions<unknown, AnnouncementsDismissAnnouncementError, Options<AnnouncementsDismissAnnouncementData>> => {
-    const mutationOptions: UseMutationOptions<unknown, AnnouncementsDismissAnnouncementError, Options<AnnouncementsDismissAnnouncementData>> = {
-        mutationFn: async (fnOptions) => await announcementsDismissAnnouncement({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, AnnouncementsDismissAnnouncementError, Options<AnnouncementsDismissAnnouncementData>> = {
+    mutationFn: async (fnOptions) => await announcementsDismissAnnouncement({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const changelogGetChangelogQueryKey = (options?: Options<ChangelogGetChangelogData>) => createQueryKey('changelogGetChangelog', options, false, ['Changelog']);
 
 export const changelogGetChangelogOptions = (options?: Options<ChangelogGetChangelogData>) => queryOptions<ChangelogGetChangelogResponse, ChangelogGetChangelogError, ChangelogGetChangelogResponse, ReturnType<typeof changelogGetChangelogQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await changelogGetChangelog({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: changelogGetChangelogQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await changelogGetChangelog({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: changelogGetChangelogQueryKey(options)
 });
 
 export const changelogGetChangelogByVersionQueryKey = (options: Options<ChangelogGetChangelogByVersionData>) => createQueryKey('changelogGetChangelogByVersion', options, false, ['Changelog']);
 
 export const changelogGetChangelogByVersionOptions = (options: Options<ChangelogGetChangelogByVersionData>) => queryOptions<ChangelogGetChangelogByVersionResponse, ChangelogGetChangelogByVersionError, ChangelogGetChangelogByVersionResponse, ReturnType<typeof changelogGetChangelogByVersionQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await changelogGetChangelogByVersion({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: changelogGetChangelogByVersionQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await changelogGetChangelogByVersion({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: changelogGetChangelogByVersionQueryKey(options)
 });
 
 export const changelogGetLatestChangelogQueryKey = (options?: Options<ChangelogGetLatestChangelogData>) => createQueryKey('changelogGetLatestChangelog', options, false, ['Changelog']);
 
 export const changelogGetLatestChangelogOptions = (options?: Options<ChangelogGetLatestChangelogData>) => queryOptions<ChangelogGetLatestChangelogResponse, ChangelogGetLatestChangelogError, ChangelogGetLatestChangelogResponse, ReturnType<typeof changelogGetLatestChangelogQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await changelogGetLatestChangelog({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: changelogGetLatestChangelogQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await changelogGetLatestChangelog({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: changelogGetLatestChangelogQueryKey(options)
 });
 
 export const apiKeysListApiKeysQueryKey = (options?: Options<ApiKeysListApiKeysData>) => createQueryKey('apiKeysListApiKeys', options, false, ['ApiKeys']);
@@ -185,13 +185,13 @@ export const apiKeysListApiKeysQueryKey = (options?: Options<ApiKeysListApiKeysD
  * The actual key values are not returned - only the prefix for identification.
  */
 export const apiKeysListApiKeysOptions = (options?: Options<ApiKeysListApiKeysData>) => queryOptions<ApiKeysListApiKeysResponse, ApiKeysListApiKeysError, ApiKeysListApiKeysResponse, ReturnType<typeof apiKeysListApiKeysQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await apiKeysListApiKeys({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: apiKeysListApiKeysQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await apiKeysListApiKeys({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: apiKeysListApiKeysQueryKey(options)
 });
 
 /**
@@ -205,21 +205,21 @@ export const apiKeysListApiKeysOptions = (options?: Options<ApiKeysListApiKeysDa
  * Example request:
  * ```json
  * {
- * "name": "Production Backend",
- * "scopes": ["storage.read", "storage.write"],
- * "expiresAt": "2027-01-01T00:00:00Z"
+ *   "name": "Production Backend",
+ *   "scopes": ["storage.read", "storage.write"],
+ *   "expiresAt": "2027-01-01T00:00:00Z"
  * }
  * ```
  */
 export const apiKeysCreateApiKeyMutation = (options?: Partial<Options<ApiKeysCreateApiKeyData>>): UseMutationOptions<ApiKeysCreateApiKeyResponse, ApiKeysCreateApiKeyError, Options<ApiKeysCreateApiKeyData>> => {
-    const mutationOptions: UseMutationOptions<ApiKeysCreateApiKeyResponse, ApiKeysCreateApiKeyError, Options<ApiKeysCreateApiKeyData>> = {
-        mutationFn: async (fnOptions) => await apiKeysCreateApiKey({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<ApiKeysCreateApiKeyResponse, ApiKeysCreateApiKeyError, Options<ApiKeysCreateApiKeyData>> = {
+    mutationFn: async (fnOptions) => await apiKeysCreateApiKey({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 /**
@@ -229,14 +229,14 @@ export const apiKeysCreateApiKeyMutation = (options?: Partial<Options<ApiKeysCre
  * Any requests using this key will be rejected immediately.
  */
 export const apiKeysRevokeApiKeyMutation = (options?: Partial<Options<ApiKeysRevokeApiKeyData>>): UseMutationOptions<ApiKeysRevokeApiKeyResponse, ApiKeysRevokeApiKeyError, Options<ApiKeysRevokeApiKeyData>> => {
-    const mutationOptions: UseMutationOptions<ApiKeysRevokeApiKeyResponse, ApiKeysRevokeApiKeyError, Options<ApiKeysRevokeApiKeyData>> = {
-        mutationFn: async (fnOptions) => await apiKeysRevokeApiKey({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<ApiKeysRevokeApiKeyResponse, ApiKeysRevokeApiKeyError, Options<ApiKeysRevokeApiKeyData>> = {
+    mutationFn: async (fnOptions) => await apiKeysRevokeApiKey({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const organizationClientBrandingGetBrandingQueryKey = (options: Options<OrganizationClientBrandingGetBrandingData>) => createQueryKey('organizationClientBrandingGetBranding', options, false, ['Organization Client Branding']);
@@ -245,13 +245,13 @@ export const organizationClientBrandingGetBrandingQueryKey = (options: Options<O
  * The client's branding as its organization sees it.
  */
 export const organizationClientBrandingGetBrandingOptions = (options: Options<OrganizationClientBrandingGetBrandingData>) => queryOptions<OrganizationClientBrandingGetBrandingResponse, OrganizationClientBrandingGetBrandingError, OrganizationClientBrandingGetBrandingResponse, ReturnType<typeof organizationClientBrandingGetBrandingQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await organizationClientBrandingGetBranding({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: organizationClientBrandingGetBrandingQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await organizationClientBrandingGetBranding({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: organizationClientBrandingGetBrandingQueryKey(options)
 });
 
 /**
@@ -263,464 +263,464 @@ export const organizationClientBrandingGetBrandingOptions = (options: Options<Or
  * display name may never read as the platform itself.
  */
 export const organizationClientBrandingUpsertBrandingMutation = (options?: Partial<Options<OrganizationClientBrandingUpsertBrandingData>>): UseMutationOptions<OrganizationClientBrandingUpsertBrandingResponse, OrganizationClientBrandingUpsertBrandingError, Options<OrganizationClientBrandingUpsertBrandingData>> => {
-    const mutationOptions: UseMutationOptions<OrganizationClientBrandingUpsertBrandingResponse, OrganizationClientBrandingUpsertBrandingError, Options<OrganizationClientBrandingUpsertBrandingData>> = {
-        mutationFn: async (fnOptions) => await organizationClientBrandingUpsertBranding({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<OrganizationClientBrandingUpsertBrandingResponse, OrganizationClientBrandingUpsertBrandingError, Options<OrganizationClientBrandingUpsertBrandingData>> = {
+    mutationFn: async (fnOptions) => await organizationClientBrandingUpsertBranding({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 /**
  * Remove the client's logo. The rest of the branding stays.
  */
 export const organizationClientBrandingDeleteLogoMutation = (options?: Partial<Options<OrganizationClientBrandingDeleteLogoData>>): UseMutationOptions<unknown, OrganizationClientBrandingDeleteLogoError, Options<OrganizationClientBrandingDeleteLogoData>> => {
-    const mutationOptions: UseMutationOptions<unknown, OrganizationClientBrandingDeleteLogoError, Options<OrganizationClientBrandingDeleteLogoData>> = {
-        mutationFn: async (fnOptions) => await organizationClientBrandingDeleteLogo({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, OrganizationClientBrandingDeleteLogoError, Options<OrganizationClientBrandingDeleteLogoData>> = {
+    mutationFn: async (fnOptions) => await organizationClientBrandingDeleteLogo({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const accountGetExternalProvidersQueryKey = (options?: Options<AccountGetExternalProvidersData>) => createQueryKey('accountGetExternalProviders', options, false, ['Identity']);
 
 export const accountGetExternalProvidersOptions = (options?: Options<AccountGetExternalProvidersData>) => queryOptions<AccountGetExternalProvidersResponse, AccountGetExternalProvidersError, AccountGetExternalProvidersResponse, ReturnType<typeof accountGetExternalProvidersQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await accountGetExternalProviders({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: accountGetExternalProvidersQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await accountGetExternalProviders({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: accountGetExternalProvidersQueryKey(options)
 });
 
 export const accountLoginMutation = (options?: Partial<Options<AccountLoginData>>): UseMutationOptions<AccountLoginResponse2, AccountLoginError, Options<AccountLoginData>> => {
-    const mutationOptions: UseMutationOptions<AccountLoginResponse2, AccountLoginError, Options<AccountLoginData>> = {
-        mutationFn: async (fnOptions) => await accountLogin({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<AccountLoginResponse2, AccountLoginError, Options<AccountLoginData>> = {
+    mutationFn: async (fnOptions) => await accountLogin({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const accountVerifyMfaChallengeMutation = (options?: Partial<Options<AccountVerifyMfaChallengeData>>): UseMutationOptions<AccountVerifyMfaChallengeResponse, AccountVerifyMfaChallengeError, Options<AccountVerifyMfaChallengeData>> => {
-    const mutationOptions: UseMutationOptions<AccountVerifyMfaChallengeResponse, AccountVerifyMfaChallengeError, Options<AccountVerifyMfaChallengeData>> = {
-        mutationFn: async (fnOptions) => await accountVerifyMfaChallenge({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<AccountVerifyMfaChallengeResponse, AccountVerifyMfaChallengeError, Options<AccountVerifyMfaChallengeData>> = {
+    mutationFn: async (fnOptions) => await accountVerifyMfaChallenge({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const accountExternalLoginQueryKey = (options?: Options<AccountExternalLoginData>) => createQueryKey('accountExternalLogin', options, false, ['Identity']);
 
 export const accountExternalLoginOptions = (options?: Options<AccountExternalLoginData>) => queryOptions<unknown, AccountExternalLoginError, unknown, ReturnType<typeof accountExternalLoginQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await accountExternalLogin({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: accountExternalLoginQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await accountExternalLogin({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: accountExternalLoginQueryKey(options)
 });
 
 export const accountExternalLoginCallbackQueryKey = (options?: Options<AccountExternalLoginCallbackData>) => createQueryKey('accountExternalLoginCallback', options, false, ['Identity']);
 
 export const accountExternalLoginCallbackOptions = (options?: Options<AccountExternalLoginCallbackData>) => queryOptions<unknown, AccountExternalLoginCallbackError, unknown, ReturnType<typeof accountExternalLoginCallbackQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await accountExternalLoginCallback({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: accountExternalLoginCallbackQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await accountExternalLoginCallback({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: accountExternalLoginCallbackQueryKey(options)
 });
 
 export const accountCompleteExternalRegistrationQueryKey = (options?: Options<AccountCompleteExternalRegistrationData>) => createQueryKey('accountCompleteExternalRegistration', options, false, ['Identity']);
 
 export const accountCompleteExternalRegistrationOptions = (options?: Options<AccountCompleteExternalRegistrationData>) => queryOptions<unknown, AccountCompleteExternalRegistrationError, unknown, ReturnType<typeof accountCompleteExternalRegistrationQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await accountCompleteExternalRegistration({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: accountCompleteExternalRegistrationQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await accountCompleteExternalRegistration({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: accountCompleteExternalRegistrationQueryKey(options)
 });
 
 export const accountExchangeTicketQueryKey = (options?: Options<AccountExchangeTicketData>) => createQueryKey('accountExchangeTicket', options, false, ['Identity']);
 
 export const accountExchangeTicketOptions = (options?: Options<AccountExchangeTicketData>) => queryOptions<unknown, AccountExchangeTicketError, unknown, ReturnType<typeof accountExchangeTicketQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await accountExchangeTicket({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: accountExchangeTicketQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await accountExchangeTicket({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: accountExchangeTicketQueryKey(options)
 });
 
 export const accountValidateRedirectUriQueryKey = (options?: Options<AccountValidateRedirectUriData>) => createQueryKey('accountValidateRedirectUri', options, false, ['Identity']);
 
 export const accountValidateRedirectUriOptions = (options?: Options<AccountValidateRedirectUriData>) => queryOptions<AccountValidateRedirectUriResponse, AccountValidateRedirectUriError, AccountValidateRedirectUriResponse, ReturnType<typeof accountValidateRedirectUriQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await accountValidateRedirectUri({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: accountValidateRedirectUriQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await accountValidateRedirectUri({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: accountValidateRedirectUriQueryKey(options)
 });
 
 export const accountSignOutMutation = (options?: Partial<Options<AccountSignOutData>>): UseMutationOptions<unknown, AccountSignOutError, Options<AccountSignOutData>> => {
-    const mutationOptions: UseMutationOptions<unknown, AccountSignOutError, Options<AccountSignOutData>> = {
-        mutationFn: async (fnOptions) => await accountSignOut({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, AccountSignOutError, Options<AccountSignOutData>> = {
+    mutationFn: async (fnOptions) => await accountSignOut({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const accountRegisterMutation = (options?: Partial<Options<AccountRegisterData>>): UseMutationOptions<AccountRegisterResponse, AccountRegisterError, Options<AccountRegisterData>> => {
-    const mutationOptions: UseMutationOptions<AccountRegisterResponse, AccountRegisterError, Options<AccountRegisterData>> = {
-        mutationFn: async (fnOptions) => await accountRegister({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<AccountRegisterResponse, AccountRegisterError, Options<AccountRegisterData>> = {
+    mutationFn: async (fnOptions) => await accountRegister({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const accountGetClientTenantQueryKey = (options: Options<AccountGetClientTenantData>) => createQueryKey('accountGetClientTenant', options, false, ['Identity']);
 
 export const accountGetClientTenantOptions = (options: Options<AccountGetClientTenantData>) => queryOptions<AccountGetClientTenantResponse, AccountGetClientTenantError, AccountGetClientTenantResponse, ReturnType<typeof accountGetClientTenantQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await accountGetClientTenant({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: accountGetClientTenantQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await accountGetClientTenant({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: accountGetClientTenantQueryKey(options)
 });
 
 export const accountForgotPasswordMutation = (options?: Partial<Options<AccountForgotPasswordData>>): UseMutationOptions<AccountForgotPasswordResponse, AccountForgotPasswordError, Options<AccountForgotPasswordData>> => {
-    const mutationOptions: UseMutationOptions<AccountForgotPasswordResponse, AccountForgotPasswordError, Options<AccountForgotPasswordData>> = {
-        mutationFn: async (fnOptions) => await accountForgotPassword({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<AccountForgotPasswordResponse, AccountForgotPasswordError, Options<AccountForgotPasswordData>> = {
+    mutationFn: async (fnOptions) => await accountForgotPassword({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const accountResetPasswordMutation = (options?: Partial<Options<AccountResetPasswordData>>): UseMutationOptions<AccountResetPasswordResponse, AccountResetPasswordError, Options<AccountResetPasswordData>> => {
-    const mutationOptions: UseMutationOptions<AccountResetPasswordResponse, AccountResetPasswordError, Options<AccountResetPasswordData>> = {
-        mutationFn: async (fnOptions) => await accountResetPassword({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<AccountResetPasswordResponse, AccountResetPasswordError, Options<AccountResetPasswordData>> = {
+    mutationFn: async (fnOptions) => await accountResetPassword({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const accountVerifyEmailQueryKey = (options?: Options<AccountVerifyEmailData>) => createQueryKey('accountVerifyEmail', options, false, ['Identity']);
 
 export const accountVerifyEmailOptions = (options?: Options<AccountVerifyEmailData>) => queryOptions<AccountVerifyEmailResponse, AccountVerifyEmailError, AccountVerifyEmailResponse, ReturnType<typeof accountVerifyEmailQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await accountVerifyEmail({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: accountVerifyEmailQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await accountVerifyEmail({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: accountVerifyEmailQueryKey(options)
 });
 
 export const accountSendMagicLinkMutation = (options?: Partial<Options<AccountSendMagicLinkData>>): UseMutationOptions<AccountSendMagicLinkResponse, AccountSendMagicLinkError, Options<AccountSendMagicLinkData>> => {
-    const mutationOptions: UseMutationOptions<AccountSendMagicLinkResponse, AccountSendMagicLinkError, Options<AccountSendMagicLinkData>> = {
-        mutationFn: async (fnOptions) => await accountSendMagicLink({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<AccountSendMagicLinkResponse, AccountSendMagicLinkError, Options<AccountSendMagicLinkData>> = {
+    mutationFn: async (fnOptions) => await accountSendMagicLink({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const accountVerifyMagicLinkQueryKey = (options?: Options<AccountVerifyMagicLinkData>) => createQueryKey('accountVerifyMagicLink', options, false, ['Identity']);
 
 export const accountVerifyMagicLinkOptions = (options?: Options<AccountVerifyMagicLinkData>) => queryOptions<AccountVerifyMagicLinkResponse, AccountVerifyMagicLinkError, AccountVerifyMagicLinkResponse, ReturnType<typeof accountVerifyMagicLinkQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await accountVerifyMagicLink({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: accountVerifyMagicLinkQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await accountVerifyMagicLink({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: accountVerifyMagicLinkQueryKey(options)
 });
 
 export const accountSendOtpMutation = (options?: Partial<Options<AccountSendOtpData>>): UseMutationOptions<AccountSendOtpResponse, AccountSendOtpError, Options<AccountSendOtpData>> => {
-    const mutationOptions: UseMutationOptions<AccountSendOtpResponse, AccountSendOtpError, Options<AccountSendOtpData>> = {
-        mutationFn: async (fnOptions) => await accountSendOtp({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<AccountSendOtpResponse, AccountSendOtpError, Options<AccountSendOtpData>> = {
+    mutationFn: async (fnOptions) => await accountSendOtp({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const accountVerifyOtpMutation = (options?: Partial<Options<AccountVerifyOtpData>>): UseMutationOptions<AccountVerifyOtpResponse, AccountVerifyOtpError, Options<AccountVerifyOtpData>> => {
-    const mutationOptions: UseMutationOptions<AccountVerifyOtpResponse, AccountVerifyOtpError, Options<AccountVerifyOtpData>> = {
-        mutationFn: async (fnOptions) => await accountVerifyOtp({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<AccountVerifyOtpResponse, AccountVerifyOtpError, Options<AccountVerifyOtpData>> = {
+    mutationFn: async (fnOptions) => await accountVerifyOtp({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const accountChangeEmailMutation = (options?: Partial<Options<AccountChangeEmailData>>): UseMutationOptions<AccountChangeEmailResponse, AccountChangeEmailError, Options<AccountChangeEmailData>> => {
-    const mutationOptions: UseMutationOptions<AccountChangeEmailResponse, AccountChangeEmailError, Options<AccountChangeEmailData>> = {
-        mutationFn: async (fnOptions) => await accountChangeEmail({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<AccountChangeEmailResponse, AccountChangeEmailError, Options<AccountChangeEmailData>> = {
+    mutationFn: async (fnOptions) => await accountChangeEmail({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const accountConfirmEmailChangeQueryKey = (options?: Options<AccountConfirmEmailChangeData>) => createQueryKey('accountConfirmEmailChange', options, false, ['Identity']);
 
 export const accountConfirmEmailChangeOptions = (options?: Options<AccountConfirmEmailChangeData>) => queryOptions<AccountConfirmEmailChangeResponse, AccountConfirmEmailChangeError, AccountConfirmEmailChangeResponse, ReturnType<typeof accountConfirmEmailChangeQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await accountConfirmEmailChange({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: accountConfirmEmailChangeQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await accountConfirmEmailChange({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: accountConfirmEmailChangeQueryKey(options)
 });
 
 export const authorizeContextGetQueryKey = (options?: Options<AuthorizeContextGetData>) => createQueryKey('authorizeContextGet', options, false, ['Authorize Context']);
 
 export const authorizeContextGetOptions = (options?: Options<AuthorizeContextGetData>) => queryOptions<AuthorizeContextGetResponse, AuthorizeContextGetError, AuthorizeContextGetResponse, ReturnType<typeof authorizeContextGetQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await authorizeContextGet({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: authorizeContextGetQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await authorizeContextGet({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: authorizeContextGetQueryKey(options)
 });
 
 export const clientsGetAllQueryKey = (options?: Options<ClientsGetAllData>) => createQueryKey('clientsGetAll', options, false, ['Clients']);
 
 export const clientsGetAllOptions = (options?: Options<ClientsGetAllData>) => queryOptions<ClientsGetAllResponse, ClientsGetAllError, ClientsGetAllResponse, ReturnType<typeof clientsGetAllQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await clientsGetAll({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: clientsGetAllQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await clientsGetAll({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: clientsGetAllQueryKey(options)
 });
 
 export const clientsCreateMutation = (options?: Partial<Options<ClientsCreateData>>): UseMutationOptions<ClientsCreateResponse, ClientsCreateError, Options<ClientsCreateData>> => {
-    const mutationOptions: UseMutationOptions<ClientsCreateResponse, ClientsCreateError, Options<ClientsCreateData>> = {
-        mutationFn: async (fnOptions) => await clientsCreate({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<ClientsCreateResponse, ClientsCreateError, Options<ClientsCreateData>> = {
+    mutationFn: async (fnOptions) => await clientsCreate({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const clientsDeleteMutation = (options?: Partial<Options<ClientsDeleteData>>): UseMutationOptions<unknown, ClientsDeleteError, Options<ClientsDeleteData>> => {
-    const mutationOptions: UseMutationOptions<unknown, ClientsDeleteError, Options<ClientsDeleteData>> = {
-        mutationFn: async (fnOptions) => await clientsDelete({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, ClientsDeleteError, Options<ClientsDeleteData>> = {
+    mutationFn: async (fnOptions) => await clientsDelete({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const clientsGetByIdQueryKey = (options: Options<ClientsGetByIdData>) => createQueryKey('clientsGetById', options, false, ['Clients']);
 
 export const clientsGetByIdOptions = (options: Options<ClientsGetByIdData>) => queryOptions<ClientsGetByIdResponse, ClientsGetByIdError, ClientsGetByIdResponse, ReturnType<typeof clientsGetByIdQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await clientsGetById({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: clientsGetByIdQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await clientsGetById({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: clientsGetByIdQueryKey(options)
 });
 
 export const clientsUpdateMutation = (options?: Partial<Options<ClientsUpdateData>>): UseMutationOptions<ClientsUpdateResponse, ClientsUpdateError, Options<ClientsUpdateData>> => {
-    const mutationOptions: UseMutationOptions<ClientsUpdateResponse, ClientsUpdateError, Options<ClientsUpdateData>> = {
-        mutationFn: async (fnOptions) => await clientsUpdate({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<ClientsUpdateResponse, ClientsUpdateError, Options<ClientsUpdateData>> = {
+    mutationFn: async (fnOptions) => await clientsUpdate({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const clientsRotateSecretMutation = (options?: Partial<Options<ClientsRotateSecretData>>): UseMutationOptions<ClientsRotateSecretResponse, ClientsRotateSecretError, Options<ClientsRotateSecretData>> => {
-    const mutationOptions: UseMutationOptions<ClientsRotateSecretResponse, ClientsRotateSecretError, Options<ClientsRotateSecretData>> = {
-        mutationFn: async (fnOptions) => await clientsRotateSecret({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<ClientsRotateSecretResponse, ClientsRotateSecretError, Options<ClientsRotateSecretData>> = {
+    mutationFn: async (fnOptions) => await clientsRotateSecret({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const identitySettingsGetConfigQueryKey = (options?: Options<IdentitySettingsGetConfigData>) => createQueryKey('identitySettingsGetConfig', options, false, ['Identity Settings']);
 
 export const identitySettingsGetConfigOptions = (options?: Options<IdentitySettingsGetConfigData>) => queryOptions<IdentitySettingsGetConfigResponse, IdentitySettingsGetConfigError, IdentitySettingsGetConfigResponse, ReturnType<typeof identitySettingsGetConfigQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await identitySettingsGetConfig({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: identitySettingsGetConfigQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await identitySettingsGetConfig({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: identitySettingsGetConfigQueryKey(options)
 });
 
 export const identitySettingsDeleteTenantSettingMutation = (options?: Partial<Options<IdentitySettingsDeleteTenantSettingData>>): UseMutationOptions<unknown, IdentitySettingsDeleteTenantSettingError, Options<IdentitySettingsDeleteTenantSettingData>> => {
-    const mutationOptions: UseMutationOptions<unknown, IdentitySettingsDeleteTenantSettingError, Options<IdentitySettingsDeleteTenantSettingData>> = {
-        mutationFn: async (fnOptions) => await identitySettingsDeleteTenantSetting({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, IdentitySettingsDeleteTenantSettingError, Options<IdentitySettingsDeleteTenantSettingData>> = {
+    mutationFn: async (fnOptions) => await identitySettingsDeleteTenantSetting({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const identitySettingsGetTenantSettingsQueryKey = (options?: Options<IdentitySettingsGetTenantSettingsData>) => createQueryKey('identitySettingsGetTenantSettings', options, false, ['Identity Settings']);
 
 export const identitySettingsGetTenantSettingsOptions = (options?: Options<IdentitySettingsGetTenantSettingsData>) => queryOptions<IdentitySettingsGetTenantSettingsResponse, IdentitySettingsGetTenantSettingsError, IdentitySettingsGetTenantSettingsResponse, ReturnType<typeof identitySettingsGetTenantSettingsQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await identitySettingsGetTenantSettings({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: identitySettingsGetTenantSettingsQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await identitySettingsGetTenantSettings({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: identitySettingsGetTenantSettingsQueryKey(options)
 });
 
 export const identitySettingsUpsertTenantSettingMutation = (options?: Partial<Options<IdentitySettingsUpsertTenantSettingData>>): UseMutationOptions<unknown, IdentitySettingsUpsertTenantSettingError, Options<IdentitySettingsUpsertTenantSettingData>> => {
-    const mutationOptions: UseMutationOptions<unknown, IdentitySettingsUpsertTenantSettingError, Options<IdentitySettingsUpsertTenantSettingData>> = {
-        mutationFn: async (fnOptions) => await identitySettingsUpsertTenantSetting({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, IdentitySettingsUpsertTenantSettingError, Options<IdentitySettingsUpsertTenantSettingData>> = {
+    mutationFn: async (fnOptions) => await identitySettingsUpsertTenantSetting({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const identitySettingsDeleteUserSettingMutation = (options?: Partial<Options<IdentitySettingsDeleteUserSettingData>>): UseMutationOptions<unknown, IdentitySettingsDeleteUserSettingError, Options<IdentitySettingsDeleteUserSettingData>> => {
-    const mutationOptions: UseMutationOptions<unknown, IdentitySettingsDeleteUserSettingError, Options<IdentitySettingsDeleteUserSettingData>> = {
-        mutationFn: async (fnOptions) => await identitySettingsDeleteUserSetting({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, IdentitySettingsDeleteUserSettingError, Options<IdentitySettingsDeleteUserSettingData>> = {
+    mutationFn: async (fnOptions) => await identitySettingsDeleteUserSetting({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const identitySettingsGetUserSettingsQueryKey = (options?: Options<IdentitySettingsGetUserSettingsData>) => createQueryKey('identitySettingsGetUserSettings', options, false, ['Identity Settings']);
 
 export const identitySettingsGetUserSettingsOptions = (options?: Options<IdentitySettingsGetUserSettingsData>) => queryOptions<IdentitySettingsGetUserSettingsResponse, IdentitySettingsGetUserSettingsError, IdentitySettingsGetUserSettingsResponse, ReturnType<typeof identitySettingsGetUserSettingsQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await identitySettingsGetUserSettings({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: identitySettingsGetUserSettingsQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await identitySettingsGetUserSettings({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: identitySettingsGetUserSettingsQueryKey(options)
 });
 
 export const identitySettingsUpsertUserSettingMutation = (options?: Partial<Options<IdentitySettingsUpsertUserSettingData>>): UseMutationOptions<unknown, IdentitySettingsUpsertUserSettingError, Options<IdentitySettingsUpsertUserSettingData>> => {
-    const mutationOptions: UseMutationOptions<unknown, IdentitySettingsUpsertUserSettingError, Options<IdentitySettingsUpsertUserSettingData>> = {
-        mutationFn: async (fnOptions) => await identitySettingsUpsertUserSetting({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, IdentitySettingsUpsertUserSettingError, Options<IdentitySettingsUpsertUserSettingData>> = {
+    mutationFn: async (fnOptions) => await identitySettingsUpsertUserSetting({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const invitationsGetByTenantQueryKey = (options?: Options<InvitationsGetByTenantData>) => createQueryKey('invitationsGetByTenant', options, false, ['Invitations']);
 
 export const invitationsGetByTenantOptions = (options?: Options<InvitationsGetByTenantData>) => queryOptions<InvitationsGetByTenantResponse, InvitationsGetByTenantError, InvitationsGetByTenantResponse, ReturnType<typeof invitationsGetByTenantQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await invitationsGetByTenant({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: invitationsGetByTenantQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await invitationsGetByTenant({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: invitationsGetByTenantQueryKey(options)
 });
 
 export const invitationsCreateMutation = (options?: Partial<Options<InvitationsCreateData>>): UseMutationOptions<InvitationsCreateResponse, InvitationsCreateError, Options<InvitationsCreateData>> => {
-    const mutationOptions: UseMutationOptions<InvitationsCreateResponse, InvitationsCreateError, Options<InvitationsCreateData>> = {
-        mutationFn: async (fnOptions) => await invitationsCreate({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<InvitationsCreateResponse, InvitationsCreateError, Options<InvitationsCreateData>> = {
+    mutationFn: async (fnOptions) => await invitationsCreate({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const invitationsRevokeMutation = (options?: Partial<Options<InvitationsRevokeData>>): UseMutationOptions<unknown, InvitationsRevokeError, Options<InvitationsRevokeData>> => {
-    const mutationOptions: UseMutationOptions<unknown, InvitationsRevokeError, Options<InvitationsRevokeData>> = {
-        mutationFn: async (fnOptions) => await invitationsRevoke({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, InvitationsRevokeError, Options<InvitationsRevokeData>> = {
+    mutationFn: async (fnOptions) => await invitationsRevoke({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const invitationsVerifyQueryKey = (options: Options<InvitationsVerifyData>) => createQueryKey('invitationsVerify', options, false, ['Invitations']);
 
 export const invitationsVerifyOptions = (options: Options<InvitationsVerifyData>) => queryOptions<InvitationsVerifyResponse, InvitationsVerifyError, InvitationsVerifyResponse, ReturnType<typeof invitationsVerifyQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await invitationsVerify({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: invitationsVerifyQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await invitationsVerify({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: invitationsVerifyQueryKey(options)
 });
 
 /**
@@ -728,14 +728,14 @@ export const invitationsVerifyOptions = (options: Options<InvitationsVerifyData>
  * email is the one the invitation names, so a forwarded token grants nothing.
  */
 export const invitationsAcceptMutation = (options?: Partial<Options<InvitationsAcceptData>>): UseMutationOptions<unknown, InvitationsAcceptError, Options<InvitationsAcceptData>> => {
-    const mutationOptions: UseMutationOptions<unknown, InvitationsAcceptError, Options<InvitationsAcceptData>> = {
-        mutationFn: async (fnOptions) => await invitationsAccept({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, InvitationsAcceptError, Options<InvitationsAcceptData>> = {
+    mutationFn: async (fnOptions) => await invitationsAccept({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const meAuthorizationsListConnectedApplicationsQueryKey = (options?: Options<MeAuthorizationsListConnectedApplicationsData>) => createQueryKey('meAuthorizationsListConnectedApplications', options, false, ['Me']);
@@ -748,13 +748,13 @@ export const meAuthorizationsListConnectedApplicationsQueryKey = (options?: Opti
  * not consent.
  */
 export const meAuthorizationsListConnectedApplicationsOptions = (options?: Options<MeAuthorizationsListConnectedApplicationsData>) => queryOptions<MeAuthorizationsListConnectedApplicationsResponse, MeAuthorizationsListConnectedApplicationsError, MeAuthorizationsListConnectedApplicationsResponse, ReturnType<typeof meAuthorizationsListConnectedApplicationsQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await meAuthorizationsListConnectedApplications({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: meAuthorizationsListConnectedApplicationsQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await meAuthorizationsListConnectedApplications({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: meAuthorizationsListConnectedApplicationsQueryKey(options)
 });
 
 /**
@@ -765,14 +765,14 @@ export const meAuthorizationsListConnectedApplicationsOptions = (options?: Optio
  * does not exist or is not the caller's own.
  */
 export const meAuthorizationsWithdrawConsentMutation = (options?: Partial<Options<MeAuthorizationsWithdrawConsentData>>): UseMutationOptions<unknown, MeAuthorizationsWithdrawConsentError, Options<MeAuthorizationsWithdrawConsentData>> => {
-    const mutationOptions: UseMutationOptions<unknown, MeAuthorizationsWithdrawConsentError, Options<MeAuthorizationsWithdrawConsentData>> = {
-        mutationFn: async (fnOptions) => await meAuthorizationsWithdrawConsent({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, MeAuthorizationsWithdrawConsentError, Options<MeAuthorizationsWithdrawConsentData>> = {
+    mutationFn: async (fnOptions) => await meAuthorizationsWithdrawConsent({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const meGetOrganizationsQueryKey = (options?: Options<MeGetOrganizationsData>) => createQueryKey('meGetOrganizations', options, false, ['Me']);
@@ -790,91 +790,91 @@ export const meGetOrganizationsQueryKey = (options?: Options<MeGetOrganizationsD
  * every organization but the one their token is scoped to, which is the question.
  */
 export const meGetOrganizationsOptions = (options?: Options<MeGetOrganizationsData>) => queryOptions<MeGetOrganizationsResponse, MeGetOrganizationsError, MeGetOrganizationsResponse, ReturnType<typeof meGetOrganizationsQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await meGetOrganizations({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: meGetOrganizationsQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await meGetOrganizations({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: meGetOrganizationsQueryKey(options)
 });
 
 export const mfaGetStatusQueryKey = (options?: Options<MfaGetStatusData>) => createQueryKey('mfaGetStatus', options, false, ['Identity']);
 
 export const mfaGetStatusOptions = (options?: Options<MfaGetStatusData>) => queryOptions<MfaGetStatusResponse, MfaGetStatusError, MfaGetStatusResponse, ReturnType<typeof mfaGetStatusQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await mfaGetStatus({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: mfaGetStatusQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await mfaGetStatus({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: mfaGetStatusQueryKey(options)
 });
 
 export const mfaEnrollTotpMutation = (options?: Partial<Options<MfaEnrollTotpData>>): UseMutationOptions<MfaEnrollTotpResponse, MfaEnrollTotpError, Options<MfaEnrollTotpData>> => {
-    const mutationOptions: UseMutationOptions<MfaEnrollTotpResponse, MfaEnrollTotpError, Options<MfaEnrollTotpData>> = {
-        mutationFn: async (fnOptions) => await mfaEnrollTotp({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<MfaEnrollTotpResponse, MfaEnrollTotpError, Options<MfaEnrollTotpData>> = {
+    mutationFn: async (fnOptions) => await mfaEnrollTotp({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const mfaConfirmEnrollmentMutation = (options?: Partial<Options<MfaConfirmEnrollmentData>>): UseMutationOptions<MfaConfirmEnrollmentResponse, MfaConfirmEnrollmentError, Options<MfaConfirmEnrollmentData>> => {
-    const mutationOptions: UseMutationOptions<MfaConfirmEnrollmentResponse, MfaConfirmEnrollmentError, Options<MfaConfirmEnrollmentData>> = {
-        mutationFn: async (fnOptions) => await mfaConfirmEnrollment({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<MfaConfirmEnrollmentResponse, MfaConfirmEnrollmentError, Options<MfaConfirmEnrollmentData>> = {
+    mutationFn: async (fnOptions) => await mfaConfirmEnrollment({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const mfaDisableMutation = (options?: Partial<Options<MfaDisableData>>): UseMutationOptions<MfaDisableResponse, MfaDisableError, Options<MfaDisableData>> => {
-    const mutationOptions: UseMutationOptions<MfaDisableResponse, MfaDisableError, Options<MfaDisableData>> = {
-        mutationFn: async (fnOptions) => await mfaDisable({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<MfaDisableResponse, MfaDisableError, Options<MfaDisableData>> = {
+    mutationFn: async (fnOptions) => await mfaDisable({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const mfaRegenerateBackupCodesMutation = (options?: Partial<Options<MfaRegenerateBackupCodesData>>): UseMutationOptions<MfaRegenerateBackupCodesResponse, MfaRegenerateBackupCodesError, Options<MfaRegenerateBackupCodesData>> => {
-    const mutationOptions: UseMutationOptions<MfaRegenerateBackupCodesResponse, MfaRegenerateBackupCodesError, Options<MfaRegenerateBackupCodesData>> = {
-        mutationFn: async (fnOptions) => await mfaRegenerateBackupCodes({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<MfaRegenerateBackupCodesResponse, MfaRegenerateBackupCodesError, Options<MfaRegenerateBackupCodesData>> = {
+    mutationFn: async (fnOptions) => await mfaRegenerateBackupCodes({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const mfaAdminDisableMfaMutation = (options?: Partial<Options<MfaAdminDisableMfaData>>): UseMutationOptions<MfaAdminDisableMfaResponse, MfaAdminDisableMfaError, Options<MfaAdminDisableMfaData>> => {
-    const mutationOptions: UseMutationOptions<MfaAdminDisableMfaResponse, MfaAdminDisableMfaError, Options<MfaAdminDisableMfaData>> = {
-        mutationFn: async (fnOptions) => await mfaAdminDisableMfa({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<MfaAdminDisableMfaResponse, MfaAdminDisableMfaError, Options<MfaAdminDisableMfaData>> = {
+    mutationFn: async (fnOptions) => await mfaAdminDisableMfa({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const mfaAdminClearLockoutMutation = (options?: Partial<Options<MfaAdminClearLockoutData>>): UseMutationOptions<MfaAdminClearLockoutResponse, MfaAdminClearLockoutError, Options<MfaAdminClearLockoutData>> => {
-    const mutationOptions: UseMutationOptions<MfaAdminClearLockoutResponse, MfaAdminClearLockoutError, Options<MfaAdminClearLockoutData>> = {
-        mutationFn: async (fnOptions) => await mfaAdminClearLockout({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<MfaAdminClearLockoutResponse, MfaAdminClearLockoutError, Options<MfaAdminClearLockoutData>> = {
+    mutationFn: async (fnOptions) => await mfaAdminClearLockout({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 /**
@@ -884,14 +884,14 @@ export const mfaAdminClearLockoutMutation = (options?: Partial<Options<MfaAdminC
  * so the enrollment API calls can authenticate the user.
  */
 export const mfaIssueEnrollmentTokenMutation = (options?: Partial<Options<MfaIssueEnrollmentTokenData>>): UseMutationOptions<MfaIssueEnrollmentTokenResponse, MfaIssueEnrollmentTokenError, Options<MfaIssueEnrollmentTokenData>> => {
-    const mutationOptions: UseMutationOptions<MfaIssueEnrollmentTokenResponse, MfaIssueEnrollmentTokenError, Options<MfaIssueEnrollmentTokenData>> = {
-        mutationFn: async (fnOptions) => await mfaIssueEnrollmentToken({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<MfaIssueEnrollmentTokenResponse, MfaIssueEnrollmentTokenError, Options<MfaIssueEnrollmentTokenData>> = {
+    mutationFn: async (fnOptions) => await mfaIssueEnrollmentToken({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 /**
@@ -900,14 +900,14 @@ export const mfaIssueEnrollmentTokenMutation = (options?: Partial<Options<MfaIss
  * partial cookie to the browser, enabling subsequent enrollment API calls.
  */
 export const mfaExchangeEnrollmentTokenMutation = (options?: Partial<Options<MfaExchangeEnrollmentTokenData>>): UseMutationOptions<MfaExchangeEnrollmentTokenResponse, MfaExchangeEnrollmentTokenError, Options<MfaExchangeEnrollmentTokenData>> => {
-    const mutationOptions: UseMutationOptions<MfaExchangeEnrollmentTokenResponse, MfaExchangeEnrollmentTokenError, Options<MfaExchangeEnrollmentTokenData>> = {
-        mutationFn: async (fnOptions) => await mfaExchangeEnrollmentToken({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<MfaExchangeEnrollmentTokenResponse, MfaExchangeEnrollmentTokenError, Options<MfaExchangeEnrollmentTokenData>> = {
+    mutationFn: async (fnOptions) => await mfaExchangeEnrollmentToken({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const organizationClientsListQueryKey = (options: Options<OrganizationClientsListData>) => createQueryKey('organizationClientsList', options, false, ['Organization Clients']);
@@ -916,13 +916,13 @@ export const organizationClientsListQueryKey = (options: Options<OrganizationCli
  * List the clients the organization owns.
  */
 export const organizationClientsListOptions = (options: Options<OrganizationClientsListData>) => queryOptions<OrganizationClientsListResponse, OrganizationClientsListError, OrganizationClientsListResponse, ReturnType<typeof organizationClientsListQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await organizationClientsList({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: organizationClientsListQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await organizationClientsList({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: organizationClientsListQueryKey(options)
 });
 
 /**
@@ -930,14 +930,14 @@ export const organizationClientsListOptions = (options: Options<OrganizationClie
  * carries the client secret exactly once. A service account ignores every URI field.
  */
 export const organizationClientsRegisterMutation = (options?: Partial<Options<OrganizationClientsRegisterData>>): UseMutationOptions<OrganizationClientsRegisterResponse, OrganizationClientsRegisterError, Options<OrganizationClientsRegisterData>> => {
-    const mutationOptions: UseMutationOptions<OrganizationClientsRegisterResponse, OrganizationClientsRegisterError, Options<OrganizationClientsRegisterData>> = {
-        mutationFn: async (fnOptions) => await organizationClientsRegister({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<OrganizationClientsRegisterResponse, OrganizationClientsRegisterError, Options<OrganizationClientsRegisterData>> = {
+    mutationFn: async (fnOptions) => await organizationClientsRegister({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 /**
@@ -946,14 +946,14 @@ export const organizationClientsRegisterMutation = (options?: Partial<Options<Or
  * already issued.
  */
 export const organizationClientsRotateSecretMutation = (options?: Partial<Options<OrganizationClientsRotateSecretData>>): UseMutationOptions<OrganizationClientsRotateSecretResponse, OrganizationClientsRotateSecretError, Options<OrganizationClientsRotateSecretData>> => {
-    const mutationOptions: UseMutationOptions<OrganizationClientsRotateSecretResponse, OrganizationClientsRotateSecretError, Options<OrganizationClientsRotateSecretData>> = {
-        mutationFn: async (fnOptions) => await organizationClientsRotateSecret({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<OrganizationClientsRotateSecretResponse, OrganizationClientsRotateSecretError, Options<OrganizationClientsRotateSecretData>> = {
+    mutationFn: async (fnOptions) => await organizationClientsRotateSecret({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 /**
@@ -961,14 +961,14 @@ export const organizationClientsRotateSecretMutation = (options?: Partial<Option
  * first, then the client, its consents and its branding are removed.
  */
 export const organizationClientsDeleteMutation = (options?: Partial<Options<OrganizationClientsDeleteData>>): UseMutationOptions<unknown, OrganizationClientsDeleteError, Options<OrganizationClientsDeleteData>> => {
-    const mutationOptions: UseMutationOptions<unknown, OrganizationClientsDeleteError, Options<OrganizationClientsDeleteData>> = {
-        mutationFn: async (fnOptions) => await organizationClientsDelete({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, OrganizationClientsDeleteError, Options<OrganizationClientsDeleteData>> = {
+    mutationFn: async (fnOptions) => await organizationClientsDelete({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const organizationClientsGetByIdQueryKey = (options: Options<OrganizationClientsGetByIdData>) => createQueryKey('organizationClientsGetById', options, false, ['Organization Clients']);
@@ -977,13 +977,13 @@ export const organizationClientsGetByIdQueryKey = (options: Options<Organization
  * Get one of the organization's clients.
  */
 export const organizationClientsGetByIdOptions = (options: Options<OrganizationClientsGetByIdData>) => queryOptions<OrganizationClientsGetByIdResponse, OrganizationClientsGetByIdError, OrganizationClientsGetByIdResponse, ReturnType<typeof organizationClientsGetByIdQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await organizationClientsGetById({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: organizationClientsGetByIdQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await organizationClientsGetById({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: organizationClientsGetByIdQueryKey(options)
 });
 
 /**
@@ -991,14 +991,14 @@ export const organizationClientsGetByIdOptions = (options: Options<OrganizationC
  * a service account's URI fields are ignored.
  */
 export const organizationClientsUpdateMutation = (options?: Partial<Options<OrganizationClientsUpdateData>>): UseMutationOptions<OrganizationClientsUpdateResponse, OrganizationClientsUpdateError, Options<OrganizationClientsUpdateData>> => {
-    const mutationOptions: UseMutationOptions<OrganizationClientsUpdateResponse, OrganizationClientsUpdateError, Options<OrganizationClientsUpdateData>> = {
-        mutationFn: async (fnOptions) => await organizationClientsUpdate({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<OrganizationClientsUpdateResponse, OrganizationClientsUpdateError, Options<OrganizationClientsUpdateData>> = {
+    mutationFn: async (fnOptions) => await organizationClientsUpdate({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 /**
@@ -1006,28 +1006,28 @@ export const organizationClientsUpdateMutation = (options?: Partial<Options<Orga
  * are closed, while its configuration, branding and consents are kept for reinstatement.
  */
 export const organizationClientsSuspendMutation = (options?: Partial<Options<OrganizationClientsSuspendData>>): UseMutationOptions<OrganizationClientsSuspendResponse, OrganizationClientsSuspendError, Options<OrganizationClientsSuspendData>> => {
-    const mutationOptions: UseMutationOptions<OrganizationClientsSuspendResponse, OrganizationClientsSuspendError, Options<OrganizationClientsSuspendData>> = {
-        mutationFn: async (fnOptions) => await organizationClientsSuspend({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<OrganizationClientsSuspendResponse, OrganizationClientsSuspendError, Options<OrganizationClientsSuspendData>> = {
+    mutationFn: async (fnOptions) => await organizationClientsSuspend({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 /**
  * Reinstate a suspended client exactly as it was.
  */
 export const organizationClientsReinstateMutation = (options?: Partial<Options<OrganizationClientsReinstateData>>): UseMutationOptions<OrganizationClientsReinstateResponse, OrganizationClientsReinstateError, Options<OrganizationClientsReinstateData>> => {
-    const mutationOptions: UseMutationOptions<OrganizationClientsReinstateResponse, OrganizationClientsReinstateError, Options<OrganizationClientsReinstateData>> = {
-        mutationFn: async (fnOptions) => await organizationClientsReinstate({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<OrganizationClientsReinstateResponse, OrganizationClientsReinstateError, Options<OrganizationClientsReinstateData>> = {
+    mutationFn: async (fnOptions) => await organizationClientsReinstate({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 /**
@@ -1035,14 +1035,14 @@ export const organizationClientsReinstateMutation = (options?: Partial<Options<O
  * organization's own suspension still stands.
  */
 export const organizationClientsLiftPlatformSuspensionMutation = (options?: Partial<Options<OrganizationClientsLiftPlatformSuspensionData>>): UseMutationOptions<OrganizationClientsLiftPlatformSuspensionResponse, OrganizationClientsLiftPlatformSuspensionError, Options<OrganizationClientsLiftPlatformSuspensionData>> => {
-    const mutationOptions: UseMutationOptions<OrganizationClientsLiftPlatformSuspensionResponse, OrganizationClientsLiftPlatformSuspensionError, Options<OrganizationClientsLiftPlatformSuspensionData>> = {
-        mutationFn: async (fnOptions) => await organizationClientsLiftPlatformSuspension({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<OrganizationClientsLiftPlatformSuspensionResponse, OrganizationClientsLiftPlatformSuspensionError, Options<OrganizationClientsLiftPlatformSuspensionData>> = {
+    mutationFn: async (fnOptions) => await organizationClientsLiftPlatformSuspension({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 /**
@@ -1051,14 +1051,14 @@ export const organizationClientsLiftPlatformSuspensionMutation = (options?: Part
  * organization can read the reason but not lift it.
  */
 export const organizationClientsPlacePlatformSuspensionMutation = (options?: Partial<Options<OrganizationClientsPlacePlatformSuspensionData>>): UseMutationOptions<OrganizationClientsPlacePlatformSuspensionResponse, OrganizationClientsPlacePlatformSuspensionError, Options<OrganizationClientsPlacePlatformSuspensionData>> => {
-    const mutationOptions: UseMutationOptions<OrganizationClientsPlacePlatformSuspensionResponse, OrganizationClientsPlacePlatformSuspensionError, Options<OrganizationClientsPlacePlatformSuspensionData>> = {
-        mutationFn: async (fnOptions) => await organizationClientsPlacePlatformSuspension({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<OrganizationClientsPlacePlatformSuspensionResponse, OrganizationClientsPlacePlatformSuspensionError, Options<OrganizationClientsPlacePlatformSuspensionData>> = {
+    mutationFn: async (fnOptions) => await organizationClientsPlacePlatformSuspension({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const organizationsGetAllQueryKey = (options?: Options<OrganizationsGetAllData>) => createQueryKey('organizationsGetAll', options, false, ['Organizations']);
@@ -1067,13 +1067,13 @@ export const organizationsGetAllQueryKey = (options?: Options<OrganizationsGetAl
  * Get all organizations with optional search filtering and pagination.
  */
 export const organizationsGetAllOptions = (options?: Options<OrganizationsGetAllData>) => queryOptions<OrganizationsGetAllResponse, OrganizationsGetAllError, OrganizationsGetAllResponse, ReturnType<typeof organizationsGetAllQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await organizationsGetAll({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: organizationsGetAllQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await organizationsGetAll({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: organizationsGetAllQueryKey(options)
 });
 
 /**
@@ -1084,28 +1084,28 @@ export const organizationsGetAllOptions = (options?: Options<OrganizationsGetAll
  * granted by an organization the caller does not yet have.
  */
 export const organizationsCreateMutation = (options?: Partial<Options<OrganizationsCreateData>>): UseMutationOptions<OrganizationsCreateResponse, OrganizationsCreateError, Options<OrganizationsCreateData>> => {
-    const mutationOptions: UseMutationOptions<OrganizationsCreateResponse, OrganizationsCreateError, Options<OrganizationsCreateData>> = {
-        mutationFn: async (fnOptions) => await organizationsCreate({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<OrganizationsCreateResponse, OrganizationsCreateError, Options<OrganizationsCreateData>> = {
+    mutationFn: async (fnOptions) => await organizationsCreate({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 /**
  * Permanently delete an organization. Requires name confirmation.
  */
 export const organizationsDeleteMutation = (options?: Partial<Options<OrganizationsDeleteData>>): UseMutationOptions<unknown, OrganizationsDeleteError, Options<OrganizationsDeleteData>> => {
-    const mutationOptions: UseMutationOptions<unknown, OrganizationsDeleteError, Options<OrganizationsDeleteData>> = {
-        mutationFn: async (fnOptions) => await organizationsDelete({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, OrganizationsDeleteError, Options<OrganizationsDeleteData>> = {
+    mutationFn: async (fnOptions) => await organizationsDelete({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const organizationsGetByIdQueryKey = (options: Options<OrganizationsGetByIdData>) => createQueryKey('organizationsGetById', options, false, ['Organizations']);
@@ -1114,13 +1114,13 @@ export const organizationsGetByIdQueryKey = (options: Options<OrganizationsGetBy
  * Get a specific organization by ID.
  */
 export const organizationsGetByIdOptions = (options: Options<OrganizationsGetByIdData>) => queryOptions<OrganizationsGetByIdResponse, OrganizationsGetByIdError, OrganizationsGetByIdResponse, ReturnType<typeof organizationsGetByIdQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await organizationsGetById({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: organizationsGetByIdQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await organizationsGetById({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: organizationsGetByIdQueryKey(options)
 });
 
 export const organizationsGetMembersQueryKey = (options: Options<OrganizationsGetMembersData>) => createQueryKey('organizationsGetMembers', options, false, ['Organizations']);
@@ -1129,41 +1129,41 @@ export const organizationsGetMembersQueryKey = (options: Options<OrganizationsGe
  * Get all members of a specific organization.
  */
 export const organizationsGetMembersOptions = (options: Options<OrganizationsGetMembersData>) => queryOptions<OrganizationsGetMembersResponse, OrganizationsGetMembersError, OrganizationsGetMembersResponse, ReturnType<typeof organizationsGetMembersQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await organizationsGetMembers({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: organizationsGetMembersQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await organizationsGetMembers({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: organizationsGetMembersQueryKey(options)
 });
 
 /**
  * Add a user to an organization.
  */
 export const organizationsAddMemberMutation = (options?: Partial<Options<OrganizationsAddMemberData>>): UseMutationOptions<unknown, OrganizationsAddMemberError, Options<OrganizationsAddMemberData>> => {
-    const mutationOptions: UseMutationOptions<unknown, OrganizationsAddMemberError, Options<OrganizationsAddMemberData>> = {
-        mutationFn: async (fnOptions) => await organizationsAddMember({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, OrganizationsAddMemberError, Options<OrganizationsAddMemberData>> = {
+    mutationFn: async (fnOptions) => await organizationsAddMember({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 /**
  * Remove a user from an organization.
  */
 export const organizationsRemoveMemberMutation = (options?: Partial<Options<OrganizationsRemoveMemberData>>): UseMutationOptions<unknown, OrganizationsRemoveMemberError, Options<OrganizationsRemoveMemberData>> => {
-    const mutationOptions: UseMutationOptions<unknown, OrganizationsRemoveMemberError, Options<OrganizationsRemoveMemberData>> = {
-        mutationFn: async (fnOptions) => await organizationsRemoveMember({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, OrganizationsRemoveMemberError, Options<OrganizationsRemoveMemberData>> = {
+    mutationFn: async (fnOptions) => await organizationsRemoveMember({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const organizationsGetPendingMembersQueryKey = (options: Options<OrganizationsGetPendingMembersData>) => createQueryKey('organizationsGetPendingMembers', options, false, ['Organizations']);
@@ -1172,13 +1172,13 @@ export const organizationsGetPendingMembersQueryKey = (options: Options<Organiza
  * List the organization's outstanding access requests, oldest first.
  */
 export const organizationsGetPendingMembersOptions = (options: Options<OrganizationsGetPendingMembersData>) => queryOptions<unknown, OrganizationsGetPendingMembersError, unknown, ReturnType<typeof organizationsGetPendingMembersQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await organizationsGetPendingMembers({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: organizationsGetPendingMembersQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await organizationsGetPendingMembers({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: organizationsGetPendingMembersQueryKey(options)
 });
 
 export const organizationsGetSuspendedMembersQueryKey = (options: Options<OrganizationsGetSuspendedMembersData>) => createQueryKey('organizationsGetSuspendedMembers', options, false, ['Organizations']);
@@ -1187,13 +1187,13 @@ export const organizationsGetSuspendedMembersQueryKey = (options: Options<Organi
  * List the members whose access is currently taken away, most recently suspended first.
  */
 export const organizationsGetSuspendedMembersOptions = (options: Options<OrganizationsGetSuspendedMembersData>) => queryOptions<unknown, OrganizationsGetSuspendedMembersError, unknown, ReturnType<typeof organizationsGetSuspendedMembersQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await organizationsGetSuspendedMembers({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: organizationsGetSuspendedMembersQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await organizationsGetSuspendedMembers({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: organizationsGetSuspendedMembersQueryKey(options)
 });
 
 export const organizationsGetDeniedMembersQueryKey = (options: Options<OrganizationsGetDeniedMembersData>) => createQueryKey('organizationsGetDeniedMembers', options, false, ['Organizations']);
@@ -1203,55 +1203,55 @@ export const organizationsGetDeniedMembersQueryKey = (options: Options<Organizat
  * refused first.
  */
 export const organizationsGetDeniedMembersOptions = (options: Options<OrganizationsGetDeniedMembersData>) => queryOptions<unknown, OrganizationsGetDeniedMembersError, unknown, ReturnType<typeof organizationsGetDeniedMembersQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await organizationsGetDeniedMembers({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: organizationsGetDeniedMembersQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await organizationsGetDeniedMembers({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: organizationsGetDeniedMembersQueryKey(options)
 });
 
 /**
  * Admit a pending requester, granting them the organization's default role.
  */
 export const organizationsApproveMemberMutation = (options?: Partial<Options<OrganizationsApproveMemberData>>): UseMutationOptions<unknown, OrganizationsApproveMemberError, Options<OrganizationsApproveMemberData>> => {
-    const mutationOptions: UseMutationOptions<unknown, OrganizationsApproveMemberError, Options<OrganizationsApproveMemberData>> = {
-        mutationFn: async (fnOptions) => await organizationsApproveMember({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, OrganizationsApproveMemberError, Options<OrganizationsApproveMemberData>> = {
+    mutationFn: async (fnOptions) => await organizationsApproveMember({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 /**
  * Turn a pending requester away.
  */
 export const organizationsDenyMemberMutation = (options?: Partial<Options<OrganizationsDenyMemberData>>): UseMutationOptions<unknown, OrganizationsDenyMemberError, Options<OrganizationsDenyMemberData>> => {
-    const mutationOptions: UseMutationOptions<unknown, OrganizationsDenyMemberError, Options<OrganizationsDenyMemberData>> = {
-        mutationFn: async (fnOptions) => await organizationsDenyMember({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, OrganizationsDenyMemberError, Options<OrganizationsDenyMemberData>> = {
+    mutationFn: async (fnOptions) => await organizationsDenyMember({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 /**
  * Let a denied requester ask again now, instead of waiting out the denial.
  */
 export const organizationsClearDenialMutation = (options?: Partial<Options<OrganizationsClearDenialData>>): UseMutationOptions<unknown, OrganizationsClearDenialError, Options<OrganizationsClearDenialData>> => {
-    const mutationOptions: UseMutationOptions<unknown, OrganizationsClearDenialError, Options<OrganizationsClearDenialData>> = {
-        mutationFn: async (fnOptions) => await organizationsClearDenial({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, OrganizationsClearDenialError, Options<OrganizationsClearDenialData>> = {
+    mutationFn: async (fnOptions) => await organizationsClearDenial({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 /**
@@ -1259,28 +1259,28 @@ export const organizationsClearDenialMutation = (options?: Partial<Options<Organ
  * be reinstated.
  */
 export const organizationsSuspendMemberMutation = (options?: Partial<Options<OrganizationsSuspendMemberData>>): UseMutationOptions<unknown, OrganizationsSuspendMemberError, Options<OrganizationsSuspendMemberData>> => {
-    const mutationOptions: UseMutationOptions<unknown, OrganizationsSuspendMemberError, Options<OrganizationsSuspendMemberData>> = {
-        mutationFn: async (fnOptions) => await organizationsSuspendMember({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, OrganizationsSuspendMemberError, Options<OrganizationsSuspendMemberData>> = {
+    mutationFn: async (fnOptions) => await organizationsSuspendMember({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 /**
  * Give a suspended member their access back.
  */
 export const organizationsReinstateMemberMutation = (options?: Partial<Options<OrganizationsReinstateMemberData>>): UseMutationOptions<unknown, OrganizationsReinstateMemberError, Options<OrganizationsReinstateMemberData>> => {
-    const mutationOptions: UseMutationOptions<unknown, OrganizationsReinstateMemberError, Options<OrganizationsReinstateMemberData>> = {
-        mutationFn: async (fnOptions) => await organizationsReinstateMember({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, OrganizationsReinstateMemberError, Options<OrganizationsReinstateMemberData>> = {
+    mutationFn: async (fnOptions) => await organizationsReinstateMember({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 /**
@@ -1292,42 +1292,42 @@ export const organizationsReinstateMemberMutation = (options?: Partial<Options<O
  * here, so a caller who has none gets the same refusal a stranger does.
  */
 export const organizationsLeaveMutation = (options?: Partial<Options<OrganizationsLeaveData>>): UseMutationOptions<unknown, OrganizationsLeaveError, Options<OrganizationsLeaveData>> => {
-    const mutationOptions: UseMutationOptions<unknown, OrganizationsLeaveError, Options<OrganizationsLeaveData>> = {
-        mutationFn: async (fnOptions) => await organizationsLeave({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, OrganizationsLeaveError, Options<OrganizationsLeaveData>> = {
+    mutationFn: async (fnOptions) => await organizationsLeave({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 /**
  * Archive an organization.
  */
 export const organizationsArchiveMutation = (options?: Partial<Options<OrganizationsArchiveData>>): UseMutationOptions<unknown, OrganizationsArchiveError, Options<OrganizationsArchiveData>> => {
-    const mutationOptions: UseMutationOptions<unknown, OrganizationsArchiveError, Options<OrganizationsArchiveData>> = {
-        mutationFn: async (fnOptions) => await organizationsArchive({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, OrganizationsArchiveError, Options<OrganizationsArchiveData>> = {
+    mutationFn: async (fnOptions) => await organizationsArchive({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 /**
  * Reactivate an archived organization.
  */
 export const organizationsReactivateMutation = (options?: Partial<Options<OrganizationsReactivateData>>): UseMutationOptions<unknown, OrganizationsReactivateError, Options<OrganizationsReactivateData>> => {
-    const mutationOptions: UseMutationOptions<unknown, OrganizationsReactivateError, Options<OrganizationsReactivateData>> = {
-        mutationFn: async (fnOptions) => await organizationsReactivate({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, OrganizationsReactivateError, Options<OrganizationsReactivateData>> = {
+    mutationFn: async (fnOptions) => await organizationsReactivate({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 /**
@@ -1336,14 +1336,14 @@ export const organizationsReactivateMutation = (options?: Partial<Options<Organi
  * stay suspended.
  */
 export const organizationsLiftPlatformSuspensionMutation = (options?: Partial<Options<OrganizationsLiftPlatformSuspensionData>>): UseMutationOptions<unknown, OrganizationsLiftPlatformSuspensionError, Options<OrganizationsLiftPlatformSuspensionData>> => {
-    const mutationOptions: UseMutationOptions<unknown, OrganizationsLiftPlatformSuspensionError, Options<OrganizationsLiftPlatformSuspensionData>> = {
-        mutationFn: async (fnOptions) => await organizationsLiftPlatformSuspension({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, OrganizationsLiftPlatformSuspensionError, Options<OrganizationsLiftPlatformSuspensionData>> = {
+    mutationFn: async (fnOptions) => await organizationsLiftPlatformSuspension({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 /**
@@ -1352,14 +1352,14 @@ export const organizationsLiftPlatformSuspensionMutation = (options?: Partial<Op
  * the organization is refused while the suspension stands.
  */
 export const organizationsPlacePlatformSuspensionMutation = (options?: Partial<Options<OrganizationsPlacePlatformSuspensionData>>): UseMutationOptions<unknown, OrganizationsPlacePlatformSuspensionError, Options<OrganizationsPlacePlatformSuspensionData>> => {
-    const mutationOptions: UseMutationOptions<unknown, OrganizationsPlacePlatformSuspensionError, Options<OrganizationsPlacePlatformSuspensionData>> = {
-        mutationFn: async (fnOptions) => await organizationsPlacePlatformSuspension({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, OrganizationsPlacePlatformSuspensionError, Options<OrganizationsPlacePlatformSuspensionData>> = {
+    mutationFn: async (fnOptions) => await organizationsPlacePlatformSuspension({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const organizationsGetBrandingQueryKey = (options: Options<OrganizationsGetBrandingData>) => createQueryKey('organizationsGetBranding', options, false, ['Organizations']);
@@ -1368,41 +1368,41 @@ export const organizationsGetBrandingQueryKey = (options: Options<OrganizationsG
  * Get organization branding.
  */
 export const organizationsGetBrandingOptions = (options: Options<OrganizationsGetBrandingData>) => queryOptions<OrganizationsGetBrandingResponse, OrganizationsGetBrandingError, OrganizationsGetBrandingResponse, ReturnType<typeof organizationsGetBrandingQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await organizationsGetBranding({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: organizationsGetBrandingQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await organizationsGetBranding({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: organizationsGetBrandingQueryKey(options)
 });
 
 /**
  * Update organization branding.
  */
 export const organizationsUpdateBrandingMutation = (options?: Partial<Options<OrganizationsUpdateBrandingData>>): UseMutationOptions<OrganizationsUpdateBrandingResponse, OrganizationsUpdateBrandingError, Options<OrganizationsUpdateBrandingData>> => {
-    const mutationOptions: UseMutationOptions<OrganizationsUpdateBrandingResponse, OrganizationsUpdateBrandingError, Options<OrganizationsUpdateBrandingData>> = {
-        mutationFn: async (fnOptions) => await organizationsUpdateBranding({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<OrganizationsUpdateBrandingResponse, OrganizationsUpdateBrandingError, Options<OrganizationsUpdateBrandingData>> = {
+    mutationFn: async (fnOptions) => await organizationsUpdateBranding({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 /**
  * Upload organization branding logo.
  */
 export const organizationsUploadBrandingLogoMutation = (options?: Partial<Options<OrganizationsUploadBrandingLogoData>>): UseMutationOptions<OrganizationsUploadBrandingLogoResponse, OrganizationsUploadBrandingLogoError, Options<OrganizationsUploadBrandingLogoData>> => {
-    const mutationOptions: UseMutationOptions<OrganizationsUploadBrandingLogoResponse, OrganizationsUploadBrandingLogoError, Options<OrganizationsUploadBrandingLogoData>> = {
-        mutationFn: async (fnOptions) => await organizationsUploadBrandingLogo({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<OrganizationsUploadBrandingLogoResponse, OrganizationsUploadBrandingLogoError, Options<OrganizationsUploadBrandingLogoData>> = {
+    mutationFn: async (fnOptions) => await organizationsUploadBrandingLogo({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const organizationsGetSettingsQueryKey = (options: Options<OrganizationsGetSettingsData>) => createQueryKey('organizationsGetSettings', options, false, ['Organizations']);
@@ -1411,27 +1411,27 @@ export const organizationsGetSettingsQueryKey = (options: Options<OrganizationsG
  * Get organization settings.
  */
 export const organizationsGetSettingsOptions = (options: Options<OrganizationsGetSettingsData>) => queryOptions<OrganizationsGetSettingsResponse, OrganizationsGetSettingsError, OrganizationsGetSettingsResponse, ReturnType<typeof organizationsGetSettingsQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await organizationsGetSettings({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: organizationsGetSettingsQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await organizationsGetSettings({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: organizationsGetSettingsQueryKey(options)
 });
 
 /**
  * Update organization settings.
  */
 export const organizationsUpdateSettingsMutation = (options?: Partial<Options<OrganizationsUpdateSettingsData>>): UseMutationOptions<unknown, OrganizationsUpdateSettingsError, Options<OrganizationsUpdateSettingsData>> => {
-    const mutationOptions: UseMutationOptions<unknown, OrganizationsUpdateSettingsError, Options<OrganizationsUpdateSettingsData>> = {
-        mutationFn: async (fnOptions) => await organizationsUpdateSettings({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, OrganizationsUpdateSettingsError, Options<OrganizationsUpdateSettingsData>> = {
+    mutationFn: async (fnOptions) => await organizationsUpdateSettings({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 /**
@@ -1441,14 +1441,14 @@ export const organizationsUpdateSettingsMutation = (options?: Partial<Options<Or
  * settings: these three fields decide the organization's membership.
  */
 export const organizationsUpdateEnrollmentMutation = (options?: Partial<Options<OrganizationsUpdateEnrollmentData>>): UseMutationOptions<unknown, OrganizationsUpdateEnrollmentError, Options<OrganizationsUpdateEnrollmentData>> => {
-    const mutationOptions: UseMutationOptions<unknown, OrganizationsUpdateEnrollmentError, Options<OrganizationsUpdateEnrollmentData>> = {
-        mutationFn: async (fnOptions) => await organizationsUpdateEnrollment({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, OrganizationsUpdateEnrollmentError, Options<OrganizationsUpdateEnrollmentData>> = {
+    mutationFn: async (fnOptions) => await organizationsUpdateEnrollment({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const rolesGetRolesQueryKey = (options?: Options<RolesGetRolesData>) => createQueryKey('rolesGetRoles', options, false, ['Roles']);
@@ -1457,13 +1457,13 @@ export const rolesGetRolesQueryKey = (options?: Options<RolesGetRolesData>) => c
  * Get all available roles in the system.
  */
 export const rolesGetRolesOptions = (options?: Options<RolesGetRolesData>) => queryOptions<RolesGetRolesResponse, RolesGetRolesError, RolesGetRolesResponse, ReturnType<typeof rolesGetRolesQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await rolesGetRoles({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: rolesGetRolesQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await rolesGetRoles({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: rolesGetRolesQueryKey(options)
 });
 
 export const rolesGetRolePermissionsQueryKey = (options: Options<RolesGetRolePermissionsData>) => createQueryKey('rolesGetRolePermissions', options, false, ['Roles']);
@@ -1472,13 +1472,13 @@ export const rolesGetRolePermissionsQueryKey = (options: Options<RolesGetRolePer
  * Get the permissions associated with a specific role.
  */
 export const rolesGetRolePermissionsOptions = (options: Options<RolesGetRolePermissionsData>) => queryOptions<RolesGetRolePermissionsResponse, RolesGetRolePermissionsError, RolesGetRolePermissionsResponse, ReturnType<typeof rolesGetRolePermissionsQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await rolesGetRolePermissions({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: rolesGetRolePermissionsQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await rolesGetRolePermissions({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: rolesGetRolePermissionsQueryKey(options)
 });
 
 export const scopesListQueryKey = (options?: Options<ScopesListData>) => createQueryKey('scopesList', options, false, ['API Scopes']);
@@ -1487,59 +1487,59 @@ export const scopesListQueryKey = (options?: Options<ScopesListData>) => createQ
  * List available API scopes with optional category filter.
  */
 export const scopesListOptions = (options?: Options<ScopesListData>) => queryOptions<ScopesListResponse, ScopesListError, ScopesListResponse, ReturnType<typeof scopesListQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await scopesList({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: scopesListQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await scopesList({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: scopesListQueryKey(options)
 });
 
 export const sessionListSessionsQueryKey = (options?: Options<SessionListSessionsData>) => createQueryKey('sessionListSessions', options, false, ['Identity']);
 
 export const sessionListSessionsOptions = (options?: Options<SessionListSessionsData>) => queryOptions<SessionListSessionsResponse, SessionListSessionsError, SessionListSessionsResponse, ReturnType<typeof sessionListSessionsQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await sessionListSessions({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: sessionListSessionsQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await sessionListSessions({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: sessionListSessionsQueryKey(options)
 });
 
 export const sessionRevokeSessionMutation = (options?: Partial<Options<SessionRevokeSessionData>>): UseMutationOptions<SessionRevokeSessionResponse, SessionRevokeSessionError, Options<SessionRevokeSessionData>> => {
-    const mutationOptions: UseMutationOptions<SessionRevokeSessionResponse, SessionRevokeSessionError, Options<SessionRevokeSessionData>> = {
-        mutationFn: async (fnOptions) => await sessionRevokeSession({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<SessionRevokeSessionResponse, SessionRevokeSessionError, Options<SessionRevokeSessionData>> = {
+    mutationFn: async (fnOptions) => await sessionRevokeSession({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const setupGetStatusQueryKey = (options?: Options<SetupGetStatusData>) => createQueryKey('setupGetStatus', options, false, ['Setup']);
 
 export const setupGetStatusOptions = (options?: Options<SetupGetStatusData>) => queryOptions<SetupGetStatusResponse, SetupGetStatusError, SetupGetStatusResponse, ReturnType<typeof setupGetStatusQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await setupGetStatus({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: setupGetStatusQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await setupGetStatus({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: setupGetStatusQueryKey(options)
 });
 
 export const setupCreateAdminMutation = (options?: Partial<Options<SetupCreateAdminData>>): UseMutationOptions<unknown, SetupCreateAdminError, Options<SetupCreateAdminData>> => {
-    const mutationOptions: UseMutationOptions<unknown, SetupCreateAdminError, Options<SetupCreateAdminData>> = {
-        mutationFn: async (fnOptions) => await setupCreateAdmin({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, SetupCreateAdminError, Options<SetupCreateAdminData>> = {
+    mutationFn: async (fnOptions) => await setupCreateAdmin({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const usersGetUsersQueryKey = (options?: Options<UsersGetUsersData>) => createQueryKey('usersGetUsers', options, false, ['Users']);
@@ -1548,27 +1548,27 @@ export const usersGetUsersQueryKey = (options?: Options<UsersGetUsersData>) => c
  * Get a paginated list of users with optional search filtering.
  */
 export const usersGetUsersOptions = (options?: Options<UsersGetUsersData>) => queryOptions<UsersGetUsersResponse, UsersGetUsersError, UsersGetUsersResponse, ReturnType<typeof usersGetUsersQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await usersGetUsers({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: usersGetUsersQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await usersGetUsers({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: usersGetUsersQueryKey(options)
 });
 
 /**
  * Create a new user account.
  */
 export const usersCreateUserMutation = (options?: Partial<Options<UsersCreateUserData>>): UseMutationOptions<UsersCreateUserResponse, UsersCreateUserError, Options<UsersCreateUserData>> => {
-    const mutationOptions: UseMutationOptions<UsersCreateUserResponse, UsersCreateUserError, Options<UsersCreateUserData>> = {
-        mutationFn: async (fnOptions) => await usersCreateUser({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<UsersCreateUserResponse, UsersCreateUserError, Options<UsersCreateUserData>> = {
+    mutationFn: async (fnOptions) => await usersCreateUser({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const usersGetUserByIdQueryKey = (options: Options<UsersGetUserByIdData>) => createQueryKey('usersGetUserById', options, false, ['Users']);
@@ -1577,13 +1577,13 @@ export const usersGetUserByIdQueryKey = (options: Options<UsersGetUserByIdData>)
  * Get a specific user by their ID.
  */
 export const usersGetUserByIdOptions = (options: Options<UsersGetUserByIdData>) => queryOptions<UsersGetUserByIdResponse, UsersGetUserByIdError, UsersGetUserByIdResponse, ReturnType<typeof usersGetUserByIdQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await usersGetUserById({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: usersGetUserByIdQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await usersGetUserById({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: usersGetUserByIdQueryKey(options)
 });
 
 export const usersGetCurrentUserQueryKey = (options?: Options<UsersGetCurrentUserData>) => createQueryKey('usersGetCurrentUser', options, false, ['Users']);
@@ -1592,41 +1592,41 @@ export const usersGetCurrentUserQueryKey = (options?: Options<UsersGetCurrentUse
  * Get the currently authenticated user's profile, roles, and permissions.
  */
 export const usersGetCurrentUserOptions = (options?: Options<UsersGetCurrentUserData>) => queryOptions<UsersGetCurrentUserResponse, UsersGetCurrentUserError, UsersGetCurrentUserResponse, ReturnType<typeof usersGetCurrentUserQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await usersGetCurrentUser({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: usersGetCurrentUserQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await usersGetCurrentUser({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: usersGetCurrentUserQueryKey(options)
 });
 
 /**
  * Deactivate a user account.
  */
 export const usersDeactivateUserMutation = (options?: Partial<Options<UsersDeactivateUserData>>): UseMutationOptions<unknown, UsersDeactivateUserError, Options<UsersDeactivateUserData>> => {
-    const mutationOptions: UseMutationOptions<unknown, UsersDeactivateUserError, Options<UsersDeactivateUserData>> = {
-        mutationFn: async (fnOptions) => await usersDeactivateUser({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, UsersDeactivateUserError, Options<UsersDeactivateUserData>> = {
+    mutationFn: async (fnOptions) => await usersDeactivateUser({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 /**
  * Activate a previously deactivated user account.
  */
 export const usersActivateUserMutation = (options?: Partial<Options<UsersActivateUserData>>): UseMutationOptions<unknown, UsersActivateUserError, Options<UsersActivateUserData>> => {
-    const mutationOptions: UseMutationOptions<unknown, UsersActivateUserError, Options<UsersActivateUserData>> = {
-        mutationFn: async (fnOptions) => await usersActivateUser({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, UsersActivateUserError, Options<UsersActivateUserData>> = {
+    mutationFn: async (fnOptions) => await usersActivateUser({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 /**
@@ -1637,14 +1637,14 @@ export const usersActivateUserMutation = (options?: Partial<Options<UsersActivat
  * global admin is a seeded claim, never a role, so it cannot be granted from inside a tenant.
  */
 export const usersAssignRoleMutation = (options?: Partial<Options<UsersAssignRoleData>>): UseMutationOptions<unknown, UsersAssignRoleError, Options<UsersAssignRoleData>> => {
-    const mutationOptions: UseMutationOptions<unknown, UsersAssignRoleError, Options<UsersAssignRoleData>> = {
-        mutationFn: async (fnOptions) => await usersAssignRole({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, UsersAssignRoleError, Options<UsersAssignRoleData>> = {
+    mutationFn: async (fnOptions) => await usersAssignRole({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 /**
@@ -1652,95 +1652,95 @@ export const usersAssignRoleMutation = (options?: Partial<Options<UsersAssignRol
  * way the grant was, so it cannot reach a role the user holds elsewhere.
  */
 export const usersRemoveRoleMutation = (options?: Partial<Options<UsersRemoveRoleData>>): UseMutationOptions<unknown, UsersRemoveRoleError, Options<UsersRemoveRoleData>> => {
-    const mutationOptions: UseMutationOptions<unknown, UsersRemoveRoleError, Options<UsersRemoveRoleData>> = {
-        mutationFn: async (fnOptions) => await usersRemoveRole({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, UsersRemoveRoleError, Options<UsersRemoveRoleData>> = {
+    mutationFn: async (fnOptions) => await usersRemoveRole({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const inquiriesGetAllQueryKey = (options?: Options<InquiriesGetAllData>) => createQueryKey('inquiriesGetAll', options, false, ['Inquiries']);
 
 export const inquiriesGetAllOptions = (options?: Options<InquiriesGetAllData>) => queryOptions<InquiriesGetAllResponse, InquiriesGetAllError, InquiriesGetAllResponse, ReturnType<typeof inquiriesGetAllQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await inquiriesGetAll({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: inquiriesGetAllQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await inquiriesGetAll({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: inquiriesGetAllQueryKey(options)
 });
 
 export const inquiriesSubmitMutation = (options?: Partial<Options<InquiriesSubmitData>>): UseMutationOptions<InquiriesSubmitResponse, InquiriesSubmitError, Options<InquiriesSubmitData>> => {
-    const mutationOptions: UseMutationOptions<InquiriesSubmitResponse, InquiriesSubmitError, Options<InquiriesSubmitData>> = {
-        mutationFn: async (fnOptions) => await inquiriesSubmit({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<InquiriesSubmitResponse, InquiriesSubmitError, Options<InquiriesSubmitData>> = {
+    mutationFn: async (fnOptions) => await inquiriesSubmit({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const inquiriesGetSubmittedQueryKey = (options?: Options<InquiriesGetSubmittedData>) => createQueryKey('inquiriesGetSubmitted', options, false, ['Inquiries']);
 
 export const inquiriesGetSubmittedOptions = (options?: Options<InquiriesGetSubmittedData>) => queryOptions<InquiriesGetSubmittedResponse, InquiriesGetSubmittedError, InquiriesGetSubmittedResponse, ReturnType<typeof inquiriesGetSubmittedQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await inquiriesGetSubmitted({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: inquiriesGetSubmittedQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await inquiriesGetSubmitted({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: inquiriesGetSubmittedQueryKey(options)
 });
 
 export const inquiriesGetByIdQueryKey = (options: Options<InquiriesGetByIdData>) => createQueryKey('inquiriesGetById', options, false, ['Inquiries']);
 
 export const inquiriesGetByIdOptions = (options: Options<InquiriesGetByIdData>) => queryOptions<InquiriesGetByIdResponse, InquiriesGetByIdError, InquiriesGetByIdResponse, ReturnType<typeof inquiriesGetByIdQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await inquiriesGetById({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: inquiriesGetByIdQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await inquiriesGetById({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: inquiriesGetByIdQueryKey(options)
 });
 
 export const inquiriesUpdateStatusMutation = (options?: Partial<Options<InquiriesUpdateStatusData>>): UseMutationOptions<InquiriesUpdateStatusResponse, InquiriesUpdateStatusError, Options<InquiriesUpdateStatusData>> => {
-    const mutationOptions: UseMutationOptions<InquiriesUpdateStatusResponse, InquiriesUpdateStatusError, Options<InquiriesUpdateStatusData>> = {
-        mutationFn: async (fnOptions) => await inquiriesUpdateStatus({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<InquiriesUpdateStatusResponse, InquiriesUpdateStatusError, Options<InquiriesUpdateStatusData>> = {
+    mutationFn: async (fnOptions) => await inquiriesUpdateStatus({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const inquiriesGetCommentsQueryKey = (options: Options<InquiriesGetCommentsData>) => createQueryKey('inquiriesGetComments', options, false, ['Inquiries']);
 
 export const inquiriesGetCommentsOptions = (options: Options<InquiriesGetCommentsData>) => queryOptions<InquiriesGetCommentsResponse, InquiriesGetCommentsError, InquiriesGetCommentsResponse, ReturnType<typeof inquiriesGetCommentsQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await inquiriesGetComments({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: inquiriesGetCommentsQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await inquiriesGetComments({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: inquiriesGetCommentsQueryKey(options)
 });
 
 export const inquiriesAddCommentMutation = (options?: Partial<Options<InquiriesAddCommentData>>): UseMutationOptions<InquiriesAddCommentResponse, InquiriesAddCommentError, Options<InquiriesAddCommentData>> => {
-    const mutationOptions: UseMutationOptions<InquiriesAddCommentResponse, InquiriesAddCommentError, Options<InquiriesAddCommentData>> = {
-        mutationFn: async (fnOptions) => await inquiriesAddComment({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<InquiriesAddCommentResponse, InquiriesAddCommentError, Options<InquiriesAddCommentData>> = {
+    mutationFn: async (fnOptions) => await inquiriesAddComment({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const notificationsGetNotificationsQueryKey = (options?: Options<NotificationsGetNotificationsData>) => createQueryKey('notificationsGetNotifications', options, false, ['Notifications']);
@@ -1749,13 +1749,13 @@ export const notificationsGetNotificationsQueryKey = (options?: Options<Notifica
  * Get the current user's notification history.
  */
 export const notificationsGetNotificationsOptions = (options?: Options<NotificationsGetNotificationsData>) => queryOptions<NotificationsGetNotificationsResponse, NotificationsGetNotificationsError, NotificationsGetNotificationsResponse, ReturnType<typeof notificationsGetNotificationsQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await notificationsGetNotifications({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: notificationsGetNotificationsQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await notificationsGetNotifications({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: notificationsGetNotificationsQueryKey(options)
 });
 
 export const notificationsGetUnreadCountQueryKey = (options?: Options<NotificationsGetUnreadCountData>) => createQueryKey('notificationsGetUnreadCount', options, false, ['Notifications']);
@@ -1764,193 +1764,193 @@ export const notificationsGetUnreadCountQueryKey = (options?: Options<Notificati
  * Get the current user's unread notification count.
  */
 export const notificationsGetUnreadCountOptions = (options?: Options<NotificationsGetUnreadCountData>) => queryOptions<NotificationsGetUnreadCountResponse, NotificationsGetUnreadCountError, NotificationsGetUnreadCountResponse, ReturnType<typeof notificationsGetUnreadCountQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await notificationsGetUnreadCount({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: notificationsGetUnreadCountQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await notificationsGetUnreadCount({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: notificationsGetUnreadCountQueryKey(options)
 });
 
 /**
  * Mark a single notification as read.
  */
 export const notificationsMarkAsReadMutation = (options?: Partial<Options<NotificationsMarkAsReadData>>): UseMutationOptions<unknown, NotificationsMarkAsReadError, Options<NotificationsMarkAsReadData>> => {
-    const mutationOptions: UseMutationOptions<unknown, NotificationsMarkAsReadError, Options<NotificationsMarkAsReadData>> = {
-        mutationFn: async (fnOptions) => await notificationsMarkAsRead({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, NotificationsMarkAsReadError, Options<NotificationsMarkAsReadData>> = {
+    mutationFn: async (fnOptions) => await notificationsMarkAsRead({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 /**
  * Mark all notifications as read for the current user.
  */
 export const notificationsMarkAllAsReadMutation = (options?: Partial<Options<NotificationsMarkAllAsReadData>>): UseMutationOptions<unknown, NotificationsMarkAllAsReadError, Options<NotificationsMarkAllAsReadData>> => {
-    const mutationOptions: UseMutationOptions<unknown, NotificationsMarkAllAsReadError, Options<NotificationsMarkAllAsReadData>> = {
-        mutationFn: async (fnOptions) => await notificationsMarkAllAsRead({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, NotificationsMarkAllAsReadError, Options<NotificationsMarkAllAsReadData>> = {
+    mutationFn: async (fnOptions) => await notificationsMarkAllAsRead({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const pushConfigurationGetTenantPushConfigQueryKey = (options?: Options<PushConfigurationGetTenantPushConfigData>) => createQueryKey('pushConfigurationGetTenantPushConfig', options, false, ['Admin - Push Configuration']);
 
 export const pushConfigurationGetTenantPushConfigOptions = (options?: Options<PushConfigurationGetTenantPushConfigData>) => queryOptions<PushConfigurationGetTenantPushConfigResponse, PushConfigurationGetTenantPushConfigError, PushConfigurationGetTenantPushConfigResponse, ReturnType<typeof pushConfigurationGetTenantPushConfigQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await pushConfigurationGetTenantPushConfig({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: pushConfigurationGetTenantPushConfigQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await pushConfigurationGetTenantPushConfig({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: pushConfigurationGetTenantPushConfigQueryKey(options)
 });
 
 export const pushConfigurationUpsertTenantPushConfigMutation = (options?: Partial<Options<PushConfigurationUpsertTenantPushConfigData>>): UseMutationOptions<unknown, PushConfigurationUpsertTenantPushConfigError, Options<PushConfigurationUpsertTenantPushConfigData>> => {
-    const mutationOptions: UseMutationOptions<unknown, PushConfigurationUpsertTenantPushConfigError, Options<PushConfigurationUpsertTenantPushConfigData>> = {
-        mutationFn: async (fnOptions) => await pushConfigurationUpsertTenantPushConfig({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, PushConfigurationUpsertTenantPushConfigError, Options<PushConfigurationUpsertTenantPushConfigData>> = {
+    mutationFn: async (fnOptions) => await pushConfigurationUpsertTenantPushConfig({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const pushConfigurationSetTenantPushEnabledMutation = (options?: Partial<Options<PushConfigurationSetTenantPushEnabledData>>): UseMutationOptions<unknown, PushConfigurationSetTenantPushEnabledError, Options<PushConfigurationSetTenantPushEnabledData>> => {
-    const mutationOptions: UseMutationOptions<unknown, PushConfigurationSetTenantPushEnabledError, Options<PushConfigurationSetTenantPushEnabledData>> = {
-        mutationFn: async (fnOptions) => await pushConfigurationSetTenantPushEnabled({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, PushConfigurationSetTenantPushEnabledError, Options<PushConfigurationSetTenantPushEnabledData>> = {
+    mutationFn: async (fnOptions) => await pushConfigurationSetTenantPushEnabled({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const pushConfigurationRemoveTenantPushConfigMutation = (options?: Partial<Options<PushConfigurationRemoveTenantPushConfigData>>): UseMutationOptions<unknown, PushConfigurationRemoveTenantPushConfigError, Options<PushConfigurationRemoveTenantPushConfigData>> => {
-    const mutationOptions: UseMutationOptions<unknown, PushConfigurationRemoveTenantPushConfigError, Options<PushConfigurationRemoveTenantPushConfigData>> = {
-        mutationFn: async (fnOptions) => await pushConfigurationRemoveTenantPushConfig({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, PushConfigurationRemoveTenantPushConfigError, Options<PushConfigurationRemoveTenantPushConfigData>> = {
+    mutationFn: async (fnOptions) => await pushConfigurationRemoveTenantPushConfig({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const pushDevicesGetUserDevicesQueryKey = (options?: Options<PushDevicesGetUserDevicesData>) => createQueryKey('pushDevicesGetUserDevices', options, false, ['Push Devices']);
 
 export const pushDevicesGetUserDevicesOptions = (options?: Options<PushDevicesGetUserDevicesData>) => queryOptions<PushDevicesGetUserDevicesResponse, PushDevicesGetUserDevicesError, PushDevicesGetUserDevicesResponse, ReturnType<typeof pushDevicesGetUserDevicesQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await pushDevicesGetUserDevices({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: pushDevicesGetUserDevicesQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await pushDevicesGetUserDevices({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: pushDevicesGetUserDevicesQueryKey(options)
 });
 
 export const pushDevicesRegisterDeviceMutation = (options?: Partial<Options<PushDevicesRegisterDeviceData>>): UseMutationOptions<unknown, PushDevicesRegisterDeviceError, Options<PushDevicesRegisterDeviceData>> => {
-    const mutationOptions: UseMutationOptions<unknown, PushDevicesRegisterDeviceError, Options<PushDevicesRegisterDeviceData>> = {
-        mutationFn: async (fnOptions) => await pushDevicesRegisterDevice({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, PushDevicesRegisterDeviceError, Options<PushDevicesRegisterDeviceData>> = {
+    mutationFn: async (fnOptions) => await pushDevicesRegisterDevice({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const pushDevicesDeregisterDeviceMutation = (options?: Partial<Options<PushDevicesDeregisterDeviceData>>): UseMutationOptions<unknown, PushDevicesDeregisterDeviceError, Options<PushDevicesDeregisterDeviceData>> => {
-    const mutationOptions: UseMutationOptions<unknown, PushDevicesDeregisterDeviceError, Options<PushDevicesDeregisterDeviceData>> = {
-        mutationFn: async (fnOptions) => await pushDevicesDeregisterDevice({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, PushDevicesDeregisterDeviceError, Options<PushDevicesDeregisterDeviceData>> = {
+    mutationFn: async (fnOptions) => await pushDevicesDeregisterDevice({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const pushDevicesSendPushMutation = (options?: Partial<Options<PushDevicesSendPushData>>): UseMutationOptions<unknown, PushDevicesSendPushError, Options<PushDevicesSendPushData>> => {
-    const mutationOptions: UseMutationOptions<unknown, PushDevicesSendPushError, Options<PushDevicesSendPushData>> = {
-        mutationFn: async (fnOptions) => await pushDevicesSendPush({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, PushDevicesSendPushError, Options<PushDevicesSendPushData>> = {
+    mutationFn: async (fnOptions) => await pushDevicesSendPush({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const userNotificationSettingsGetUserNotificationSettingsQueryKey = (options?: Options<UserNotificationSettingsGetUserNotificationSettingsData>) => createQueryKey('userNotificationSettingsGetUserNotificationSettings', options, false, ['Notification Settings']);
 
 export const userNotificationSettingsGetUserNotificationSettingsOptions = (options?: Options<UserNotificationSettingsGetUserNotificationSettingsData>) => queryOptions<UserNotificationSettingsGetUserNotificationSettingsResponse, UserNotificationSettingsGetUserNotificationSettingsError, UserNotificationSettingsGetUserNotificationSettingsResponse, ReturnType<typeof userNotificationSettingsGetUserNotificationSettingsQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await userNotificationSettingsGetUserNotificationSettings({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: userNotificationSettingsGetUserNotificationSettingsQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await userNotificationSettingsGetUserNotificationSettings({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: userNotificationSettingsGetUserNotificationSettingsQueryKey(options)
 });
 
 export const userNotificationSettingsSetChannelEnabledMutation = (options?: Partial<Options<UserNotificationSettingsSetChannelEnabledData>>): UseMutationOptions<unknown, UserNotificationSettingsSetChannelEnabledError, Options<UserNotificationSettingsSetChannelEnabledData>> => {
-    const mutationOptions: UseMutationOptions<unknown, UserNotificationSettingsSetChannelEnabledError, Options<UserNotificationSettingsSetChannelEnabledData>> = {
-        mutationFn: async (fnOptions) => await userNotificationSettingsSetChannelEnabled({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, UserNotificationSettingsSetChannelEnabledError, Options<UserNotificationSettingsSetChannelEnabledData>> = {
+    mutationFn: async (fnOptions) => await userNotificationSettingsSetChannelEnabled({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const userNotificationSettingsSetNotificationTypeEnabledMutation = (options?: Partial<Options<UserNotificationSettingsSetNotificationTypeEnabledData>>): UseMutationOptions<unknown, UserNotificationSettingsSetNotificationTypeEnabledError, Options<UserNotificationSettingsSetNotificationTypeEnabledData>> => {
-    const mutationOptions: UseMutationOptions<unknown, UserNotificationSettingsSetNotificationTypeEnabledError, Options<UserNotificationSettingsSetNotificationTypeEnabledData>> = {
-        mutationFn: async (fnOptions) => await userNotificationSettingsSetNotificationTypeEnabled({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, UserNotificationSettingsSetNotificationTypeEnabledError, Options<UserNotificationSettingsSetNotificationTypeEnabledData>> = {
+    mutationFn: async (fnOptions) => await userNotificationSettingsSetNotificationTypeEnabled({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 /**
  * Create a new storage bucket.
  */
 export const storageCreateBucketMutation = (options?: Partial<Options<StorageCreateBucketData>>): UseMutationOptions<StorageCreateBucketResponse, StorageCreateBucketError, Options<StorageCreateBucketData>> => {
-    const mutationOptions: UseMutationOptions<StorageCreateBucketResponse, StorageCreateBucketError, Options<StorageCreateBucketData>> = {
-        mutationFn: async (fnOptions) => await storageCreateBucket({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<StorageCreateBucketResponse, StorageCreateBucketError, Options<StorageCreateBucketData>> = {
+    mutationFn: async (fnOptions) => await storageCreateBucket({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 /**
  * Delete a bucket.
  */
 export const storageDeleteBucketMutation = (options?: Partial<Options<StorageDeleteBucketData>>): UseMutationOptions<unknown, StorageDeleteBucketError, Options<StorageDeleteBucketData>> => {
-    const mutationOptions: UseMutationOptions<unknown, StorageDeleteBucketError, Options<StorageDeleteBucketData>> = {
-        mutationFn: async (fnOptions) => await storageDeleteBucket({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, StorageDeleteBucketError, Options<StorageDeleteBucketData>> = {
+    mutationFn: async (fnOptions) => await storageDeleteBucket({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const storageGetBucketQueryKey = (options: Options<StorageGetBucketData>) => createQueryKey('storageGetBucket', options, false, ['Storage']);
@@ -1959,41 +1959,41 @@ export const storageGetBucketQueryKey = (options: Options<StorageGetBucketData>)
  * Get bucket by name.
  */
 export const storageGetBucketOptions = (options: Options<StorageGetBucketData>) => queryOptions<StorageGetBucketResponse, StorageGetBucketError, StorageGetBucketResponse, ReturnType<typeof storageGetBucketQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await storageGetBucket({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: storageGetBucketQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await storageGetBucket({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: storageGetBucketQueryKey(options)
 });
 
 /**
  * Upload a file.
  */
 export const storageUploadMutation = (options?: Partial<Options<StorageUploadData>>): UseMutationOptions<StorageUploadResponse, StorageUploadError, Options<StorageUploadData>> => {
-    const mutationOptions: UseMutationOptions<StorageUploadResponse, StorageUploadError, Options<StorageUploadData>> = {
-        mutationFn: async (fnOptions) => await storageUpload({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<StorageUploadResponse, StorageUploadError, Options<StorageUploadData>> = {
+    mutationFn: async (fnOptions) => await storageUpload({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 /**
  * Delete a file.
  */
 export const storageDeleteMutation = (options?: Partial<Options<StorageDeleteData>>): UseMutationOptions<unknown, StorageDeleteError, Options<StorageDeleteData>> => {
-    const mutationOptions: UseMutationOptions<unknown, StorageDeleteError, Options<StorageDeleteData>> = {
-        mutationFn: async (fnOptions) => await storageDelete({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, StorageDeleteError, Options<StorageDeleteData>> = {
+    mutationFn: async (fnOptions) => await storageDelete({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const storageGetFileQueryKey = (options: Options<StorageGetFileData>) => createQueryKey('storageGetFile', options, false, ['Storage']);
@@ -2002,13 +2002,13 @@ export const storageGetFileQueryKey = (options: Options<StorageGetFileData>) => 
  * Get file metadata by ID.
  */
 export const storageGetFileOptions = (options: Options<StorageGetFileData>) => queryOptions<StorageGetFileResponse, StorageGetFileError, StorageGetFileResponse, ReturnType<typeof storageGetFileQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await storageGetFile({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: storageGetFileQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await storageGetFile({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: storageGetFileQueryKey(options)
 });
 
 export const storageDownloadQueryKey = (options: Options<StorageDownloadData>) => createQueryKey('storageDownload', options, false, ['Storage']);
@@ -2017,13 +2017,13 @@ export const storageDownloadQueryKey = (options: Options<StorageDownloadData>) =
  * Download a file (redirects to presigned URL).
  */
 export const storageDownloadOptions = (options: Options<StorageDownloadData>) => queryOptions<unknown, StorageDownloadError, unknown, ReturnType<typeof storageDownloadQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await storageDownload({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: storageDownloadQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await storageDownload({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: storageDownloadQueryKey(options)
 });
 
 export const storageListFilesQueryKey = (options?: Options<StorageListFilesData>) => createQueryKey('storageListFiles', options, false, ['Storage']);
@@ -2032,42 +2032,42 @@ export const storageListFilesQueryKey = (options?: Options<StorageListFilesData>
  * List files in a bucket.
  */
 export const storageListFilesOptions = (options?: Options<StorageListFilesData>) => queryOptions<StorageListFilesResponse, StorageListFilesError, StorageListFilesResponse, ReturnType<typeof storageListFilesQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await storageListFiles({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: storageListFilesQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await storageListFiles({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: storageListFilesQueryKey(options)
 });
 
 const createInfiniteParams = <K extends Pick<QueryKey<Options>[0], 'body' | 'headers' | 'path' | 'query'>>(queryKey: QueryKey<Options>, page: K) => {
-    const params = { ...queryKey[0] };
-    if (page.body) {
-        params.body = {
-            ...queryKey[0].body as any,
-            ...page.body as any
-        };
-    }
-    if (page.headers) {
-        params.headers = {
-            ...queryKey[0].headers,
-            ...page.headers
-        };
-    }
-    if (page.path) {
-        params.path = {
-            ...queryKey[0].path as any,
-            ...page.path as any
-        };
-    }
-    if (page.query) {
-        params.query = {
-            ...queryKey[0].query as any,
-            ...page.query as any
-        };
-    }
-    return params as unknown as typeof page;
+  const params = { ...queryKey[0] };
+  if (page.body) {
+    params.body = {
+      ...queryKey[0].body as any,
+      ...page.body as any
+    };
+  }
+  if (page.headers) {
+    params.headers = {
+      ...queryKey[0].headers,
+      ...page.headers
+    };
+  }
+  if (page.path) {
+    params.path = {
+      ...queryKey[0].path as any,
+      ...page.path as any
+    };
+  }
+  if (page.query) {
+    params.query = {
+      ...queryKey[0].query as any,
+      ...page.query as any
+    };
+  }
+  return params as unknown as typeof page;
 };
 
 export const storageListFilesInfiniteQueryKey = (options?: Options<StorageListFilesData>): QueryKey<Options<StorageListFilesData>> => createQueryKey('storageListFiles', options, true);
@@ -2076,41 +2076,41 @@ export const storageListFilesInfiniteQueryKey = (options?: Options<StorageListFi
  * List files in a bucket.
  */
 export const storageListFilesInfiniteOptions = (options?: Options<StorageListFilesData>) => {
-    const opts = infiniteQueryOptions<StorageListFilesResponse, StorageListFilesError, InfiniteData<StorageListFilesResponse>, QueryKey<Options<StorageListFilesData>>, number | string | Pick<QueryKey<Options<StorageListFilesData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
-    // @ts-ignore
-    {
-        queryFn: async ({ pageParam, queryKey, signal }) => {
-            // @ts-ignore
-            const page: Pick<QueryKey<Options<StorageListFilesData>>[0], 'body' | 'headers' | 'path' | 'query'> = typeof pageParam === 'object' ? pageParam : {
-                query: {
-                    page: pageParam
-                }
-            };
-            const params = createInfiniteParams(queryKey, page);
-            return await storageListFiles({
-                ...options,
-                ...params,
-                signal,
-                throwOnError: true
-            });
-        },
-        queryKey: storageListFilesInfiniteQueryKey(options)
-    });
-    return opts as Omit<typeof opts, 'initialData'>;
+  const opts = infiniteQueryOptions<StorageListFilesResponse, StorageListFilesError, InfiniteData<StorageListFilesResponse>, QueryKey<Options<StorageListFilesData>>, number | string | Pick<QueryKey<Options<StorageListFilesData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
+  // @ts-ignore
+  {
+    queryFn: async ({ pageParam, queryKey, signal }) => {
+      // @ts-ignore
+      const page: Pick<QueryKey<Options<StorageListFilesData>>[0], 'body' | 'headers' | 'path' | 'query'> = typeof pageParam === 'object' ? pageParam : {
+        query: {
+          page: pageParam
+        }
+      };
+      const params = createInfiniteParams(queryKey, page);
+      return await storageListFiles({
+        ...options,
+        ...params,
+        signal,
+        throwOnError: true
+      });
+    },
+    queryKey: storageListFilesInfiniteQueryKey(options)
+  });
+  return opts as Omit<typeof opts, 'initialData'>;
 };
 
 /**
  * Get a presigned URL for direct upload to storage.
  */
 export const storageGetPresignedUploadUrlMutation = (options?: Partial<Options<StorageGetPresignedUploadUrlData>>): UseMutationOptions<StorageGetPresignedUploadUrlResponse, StorageGetPresignedUploadUrlError, Options<StorageGetPresignedUploadUrlData>> => {
-    const mutationOptions: UseMutationOptions<StorageGetPresignedUploadUrlResponse, StorageGetPresignedUploadUrlError, Options<StorageGetPresignedUploadUrlData>> = {
-        mutationFn: async (fnOptions) => await storageGetPresignedUploadUrl({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<StorageGetPresignedUploadUrlResponse, StorageGetPresignedUploadUrlError, Options<StorageGetPresignedUploadUrlData>> = {
+    mutationFn: async (fnOptions) => await storageGetPresignedUploadUrl({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 /**
@@ -2118,14 +2118,14 @@ export const storageGetPresignedUploadUrlMutation = (options?: Partial<Options<S
  * to Available (or Rejected). Idempotent once the file has left PendingValidation.
  */
 export const storageCompletePresignedUploadMutation = (options?: Partial<Options<StorageCompletePresignedUploadData>>): UseMutationOptions<StorageCompletePresignedUploadResponse, StorageCompletePresignedUploadError, Options<StorageCompletePresignedUploadData>> => {
-    const mutationOptions: UseMutationOptions<StorageCompletePresignedUploadResponse, StorageCompletePresignedUploadError, Options<StorageCompletePresignedUploadData>> = {
-        mutationFn: async (fnOptions) => await storageCompletePresignedUpload({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<StorageCompletePresignedUploadResponse, StorageCompletePresignedUploadError, Options<StorageCompletePresignedUploadData>> = {
+    mutationFn: async (fnOptions) => await storageCompletePresignedUpload({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const storageGetPresignedDownloadUrlQueryKey = (options: Options<StorageGetPresignedDownloadUrlData>) => createQueryKey('storageGetPresignedDownloadUrl', options, false, ['Storage']);
@@ -2134,91 +2134,91 @@ export const storageGetPresignedDownloadUrlQueryKey = (options: Options<StorageG
  * Get a presigned URL for downloading a file.
  */
 export const storageGetPresignedDownloadUrlOptions = (options: Options<StorageGetPresignedDownloadUrlData>) => queryOptions<StorageGetPresignedDownloadUrlResponse, StorageGetPresignedDownloadUrlError, StorageGetPresignedDownloadUrlResponse, ReturnType<typeof storageGetPresignedDownloadUrlQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await storageGetPresignedDownloadUrl({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: storageGetPresignedDownloadUrlQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await storageGetPresignedDownloadUrl({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: storageGetPresignedDownloadUrlQueryKey(options)
 });
 
 export const storageSettingsGetConfigQueryKey = (options?: Options<StorageSettingsGetConfigData>) => createQueryKey('storageSettingsGetConfig', options, false, ['Storage Settings']);
 
 export const storageSettingsGetConfigOptions = (options?: Options<StorageSettingsGetConfigData>) => queryOptions<StorageSettingsGetConfigResponse, StorageSettingsGetConfigError, StorageSettingsGetConfigResponse, ReturnType<typeof storageSettingsGetConfigQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await storageSettingsGetConfig({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: storageSettingsGetConfigQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await storageSettingsGetConfig({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: storageSettingsGetConfigQueryKey(options)
 });
 
 export const storageSettingsDeleteTenantSettingMutation = (options?: Partial<Options<StorageSettingsDeleteTenantSettingData>>): UseMutationOptions<unknown, StorageSettingsDeleteTenantSettingError, Options<StorageSettingsDeleteTenantSettingData>> => {
-    const mutationOptions: UseMutationOptions<unknown, StorageSettingsDeleteTenantSettingError, Options<StorageSettingsDeleteTenantSettingData>> = {
-        mutationFn: async (fnOptions) => await storageSettingsDeleteTenantSetting({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, StorageSettingsDeleteTenantSettingError, Options<StorageSettingsDeleteTenantSettingData>> = {
+    mutationFn: async (fnOptions) => await storageSettingsDeleteTenantSetting({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const storageSettingsGetTenantSettingsQueryKey = (options?: Options<StorageSettingsGetTenantSettingsData>) => createQueryKey('storageSettingsGetTenantSettings', options, false, ['Storage Settings']);
 
 export const storageSettingsGetTenantSettingsOptions = (options?: Options<StorageSettingsGetTenantSettingsData>) => queryOptions<StorageSettingsGetTenantSettingsResponse, StorageSettingsGetTenantSettingsError, StorageSettingsGetTenantSettingsResponse, ReturnType<typeof storageSettingsGetTenantSettingsQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await storageSettingsGetTenantSettings({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: storageSettingsGetTenantSettingsQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await storageSettingsGetTenantSettings({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: storageSettingsGetTenantSettingsQueryKey(options)
 });
 
 export const storageSettingsUpsertTenantSettingMutation = (options?: Partial<Options<StorageSettingsUpsertTenantSettingData>>): UseMutationOptions<unknown, StorageSettingsUpsertTenantSettingError, Options<StorageSettingsUpsertTenantSettingData>> => {
-    const mutationOptions: UseMutationOptions<unknown, StorageSettingsUpsertTenantSettingError, Options<StorageSettingsUpsertTenantSettingData>> = {
-        mutationFn: async (fnOptions) => await storageSettingsUpsertTenantSetting({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, StorageSettingsUpsertTenantSettingError, Options<StorageSettingsUpsertTenantSettingData>> = {
+    mutationFn: async (fnOptions) => await storageSettingsUpsertTenantSetting({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const storageSettingsDeleteUserSettingMutation = (options?: Partial<Options<StorageSettingsDeleteUserSettingData>>): UseMutationOptions<unknown, StorageSettingsDeleteUserSettingError, Options<StorageSettingsDeleteUserSettingData>> => {
-    const mutationOptions: UseMutationOptions<unknown, StorageSettingsDeleteUserSettingError, Options<StorageSettingsDeleteUserSettingData>> = {
-        mutationFn: async (fnOptions) => await storageSettingsDeleteUserSetting({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, StorageSettingsDeleteUserSettingError, Options<StorageSettingsDeleteUserSettingData>> = {
+    mutationFn: async (fnOptions) => await storageSettingsDeleteUserSetting({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
 
 export const storageSettingsGetUserSettingsQueryKey = (options?: Options<StorageSettingsGetUserSettingsData>) => createQueryKey('storageSettingsGetUserSettings', options, false, ['Storage Settings']);
 
 export const storageSettingsGetUserSettingsOptions = (options?: Options<StorageSettingsGetUserSettingsData>) => queryOptions<StorageSettingsGetUserSettingsResponse, StorageSettingsGetUserSettingsError, StorageSettingsGetUserSettingsResponse, ReturnType<typeof storageSettingsGetUserSettingsQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => await storageSettingsGetUserSettings({
-        ...options,
-        ...queryKey[0],
-        signal,
-        throwOnError: true
-    }),
-    queryKey: storageSettingsGetUserSettingsQueryKey(options)
+  queryFn: async ({ queryKey, signal }) => await storageSettingsGetUserSettings({
+    ...options,
+    ...queryKey[0],
+    signal,
+    throwOnError: true
+  }),
+  queryKey: storageSettingsGetUserSettingsQueryKey(options)
 });
 
 export const storageSettingsUpsertUserSettingMutation = (options?: Partial<Options<StorageSettingsUpsertUserSettingData>>): UseMutationOptions<unknown, StorageSettingsUpsertUserSettingError, Options<StorageSettingsUpsertUserSettingData>> => {
-    const mutationOptions: UseMutationOptions<unknown, StorageSettingsUpsertUserSettingError, Options<StorageSettingsUpsertUserSettingData>> = {
-        mutationFn: async (fnOptions) => await storageSettingsUpsertUserSetting({
-            ...options,
-            ...fnOptions,
-            throwOnError: true
-        })
-    };
-    return mutationOptions;
+  const mutationOptions: UseMutationOptions<unknown, StorageSettingsUpsertUserSettingError, Options<StorageSettingsUpsertUserSettingData>> = {
+    mutationFn: async (fnOptions) => await storageSettingsUpsertUserSetting({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
 };
